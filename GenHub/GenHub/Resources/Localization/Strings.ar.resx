@@ -14665,7 +14665,7 @@ https://example.com/screenshot2.png</value>
     <value>جمع مجلد صور في أطلس جديد</value>
   </data>
   <data name="TextureEditor.Tooltip.ExportIni" xml:space="preserve">
-    <value>تصدير الشرائح إلى ملف MappedImages INI</value>
+    <value>تصدير نسخة من ملف INI (يبقى ملف العمل دون تغيير)</value>
   </data>
   <data name="TextureEditor.Tooltip.ExportSheet" xml:space="preserve">
     <value>تصدير ورقة القوام (TGA أو PNG)</value>
@@ -14845,7 +14845,7 @@ https://example.com/screenshot2.png</value>
     <value>لا توجد صور مرسومة</value>
   </data>
   <data name="TextureEditor.Picker.Empty.Description" xml:space="preserve">
-    <value>افحص مجلد MappedImages لتصفح العناصر هنا.</value>
+    <value>امسح مجلد MappedImages لتصفح كل الإدخالات هنا، ثم انقر نقرًا مزدوجًا فوق أحدها لتحميله كشريحة.</value>
   </data>
   <data name="TextureEditor.Picker.Tooltip.EditInTextureEditor" xml:space="preserve">
     <value>تحميل هذا العنصر كشريحة في محرر القوام</value>
@@ -14920,7 +14920,7 @@ https://example.com/screenshot2.png</value>
     <value>حفظ الشرائح (Ctrl+S)</value>
   </data>
   <data name="TextureEditor.Tooltip.SaveAs" xml:space="preserve">
-    <value>حفظ الشرائح تحت مسار جديد</value>
+    <value>حفظ الشرائح تحت مسار جديد (يصبح ملف العمل)</value>
   </data>
   <data name="TextureEditor.Tooltip.DuplicateSlice" xml:space="preserve">
     <value>تكرار الشريحة المحددة</value>
@@ -14976,11 +14976,26 @@ https://example.com/screenshot2.png</value>
   <data name="TextureEditor.Notify.ImportFailed.Message" xml:space="preserve">
     <value>لم يتم العثور على صور معينة.</value>
   </data>
+  <data name="TextureEditor.Notify.ImportDetail.AppliedAll" xml:space="preserve">
+    <value>تم تطبيق جميع العناصر ({0}) على {1}.</value>
+  </data>
+  <data name="TextureEditor.Notify.ImportDetail.AppliedPartial" xml:space="preserve">
+    <value>تم تطبيق {0} من {1} من العناصر على {2}؛ والباقي في المكتبة.</value>
+  </data>
+  <data name="TextureEditor.Notify.ImportDetail.KeptSlices" xml:space="preserve">
+    <value>{0} من {1} من العناصر تستهدف {2}؛ تم الاحتفاظ بالشرائح الحالية وجميع العناصر في المكتبة.</value>
+  </data>
+  <data name="TextureEditor.Notify.ImportDetail.NoMatch" xml:space="preserve">
+    <value>لا شيء يستهدف {0}؛ جميع العناصر في المكتبة.</value>
+  </data>
+  <data name="TextureEditor.Notify.ImportDetail.NoAtlas" xml:space="preserve">
+    <value>افتح نسيجًا لتطبيقها كشرائح؛ جميع العناصر في المكتبة.</value>
+  </data>
   <data name="TextureEditor.Notify.RegistryMismatch.Title" xml:space="preserve">
     <value>نسيج مختلف</value>
   </data>
   <data name="TextureEditor.Notify.RegistryMismatch.Message" xml:space="preserve">
-    <value>'{0}' ينتمي إلى {1}، وليس إلى الأطلس المفتوح.</value>
+    <value>'{0}' ينتمي إلى {1}، وليس إلى الأطلس المفتوح. افتح {1} لتحريره.</value>
   </data>
   <data name="TextureEditor.Dialog.ClearSlices.Title" xml:space="preserve">
     <value>استبدال الشرائح بمجموعة فارغة؟</value>

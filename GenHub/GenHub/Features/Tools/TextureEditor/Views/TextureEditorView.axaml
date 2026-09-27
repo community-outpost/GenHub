@@ -16,6 +16,10 @@
     <KeyBinding Gesture="Ctrl+O" Command="{Binding OpenFileCommand}"/>
     <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveCommand}"/>
     <KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding SaveAsCommand}"/>
+    <!-- Undo/redo gestures bind the shared editor verbs ahead of the slice-history work (see canvas QOL roadmap in TextureEditorView.axaml.cs); they enable once TextureEditorViewModel overrides CanUndo/CanRedo. -->
+    <KeyBinding Gesture="Ctrl+Z" Command="{Binding UndoCommand}"/>
+    <KeyBinding Gesture="Ctrl+Y" Command="{Binding RedoCommand}"/>
+    <KeyBinding Gesture="Ctrl+Shift+Z" Command="{Binding RedoCommand}"/>
     <KeyBinding Gesture="Ctrl+C" Command="{Binding CopyCommand}"/>
     <KeyBinding Gesture="Ctrl+X" Command="{Binding CutCommand}"/>
     <KeyBinding Gesture="Ctrl+V" Command="{Binding PasteCommand}"/>
@@ -117,8 +121,8 @@
       </Grid>
     </Border>
 
-    <!-- Main content -->
-    <Grid Grid.Row="1" ColumnDefinitions="280,*,260">
+    <!-- Main content: splitter columns mirror the WND editor so both sidebars resize. -->
+    <Grid Grid.Row="1" ColumnDefinitions="280,4,*,4,260">
       <!-- Left: slices + library -->
       <Border Grid.Column="0" Background="{DynamicResource CardBackground}"
               BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
@@ -201,8 +205,10 @@
         </Grid>
       </Border>
 
+      <GridSplitter Grid.Column="1" Background="Transparent" ResizeDirection="Columns"/>
+
       <!-- Center: canvas -->
-      <Border Grid.Column="1" Background="{DynamicResource CardBackground}" CornerRadius="12" Margin="8,0,8,0"
+      <Border Grid.Column="2" Background="{DynamicResource CardBackground}" CornerRadius="12" Margin="8,0,8,0"
               ClipToBounds="True" BoxShadow="0 4 12 0 #20000000">
         <Panel>
           <editors:EditorCanvasControl x:Name="EditorCanvas"
@@ -283,8 +289,10 @@
         </Panel>
       </Border>
 
+      <GridSplitter Grid.Column="3" Background="Transparent" ResizeDirection="Columns"/>
+
       <!-- Right: inspector -->
-      <Border Grid.Column="2" Background="{DynamicResource CardBackground}"
+      <Border Grid.Column="4" Background="{DynamicResource CardBackground}"
               BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
               CornerRadius="10" Margin="8,0,0,0" Padding="8,6" BoxShadow="0 4 12 0 #20000000">
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">

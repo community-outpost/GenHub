@@ -29,7 +29,7 @@
                  BorderThickness="0">
           <ListBox.ItemTemplate>
             <DataTemplate x:DataType="controls:MappedImagePickerItem">
-              <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,4">
+              <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,4" ToolTip.Tip="{Binding Definition.SourcePath}">
                 <Border Grid.Column="0" Width="40" Height="40" CornerRadius="4" Margin="0,0,10,0"
                         Background="{DynamicResource SurfaceElevatedBrush}" ClipToBounds="True">
                   <Grid>
@@ -75,6 +75,7 @@
 
     <Button Grid.Row="2" Name="EditButton" Margin="0,8,0,0"
             HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+            IsEnabled="{Binding #Root.SelectedImage, Converter={x:Static ObjectConverters.IsNotNull}}"
             ToolTip.Tip="{localization:Localize TextureEditor.Picker.Tooltip.EditInTextureEditor}">
       <StackPanel Orientation="Horizontal" Spacing="6">
         <PathIcon Data="{StaticResource ToolIcon.PencilOutline}" Width="14" Height="14"/>

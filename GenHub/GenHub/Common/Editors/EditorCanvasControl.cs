@@ -14,6 +14,11 @@ namespace GenHub.Common.Editors;
 /// sized canvas content and bind <see cref="Zoom"/> two-way, so pan and zoom
 /// behavior is never reimplemented per editor.
 /// </summary>
+/// <remarks>
+/// Canvas QOL such as axis-lock drag, keyboard nudge, and resize handles
+/// belongs to the content editors, standardized on the WND canvas patterns;
+/// this host stays limited to pan and zoom.
+/// </remarks>
 public class EditorCanvasControl : ContentControl
 {
     /// <summary>

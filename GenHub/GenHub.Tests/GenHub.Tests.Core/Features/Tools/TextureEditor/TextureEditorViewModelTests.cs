@@ -1,5 +1,7 @@
 using Avalonia.Headless.XUnit;
 using Avalonia.Media.Imaging;
+using Avalonia.Threading;
+using GenHub.Common.Editors;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.TextureEditor;
@@ -64,6 +66,23 @@ public sealed class TextureEditorViewModelTests
         var exception = Record.Exception(() => viewModel.Dispose());
 
         Assert.Null(exception);
+    }
+
+    /// <summary>
+    /// Verifies that loading a registry entry without an open atlas informs and is skipped.
+    /// </summary>
+    [Fact]
+    public void LoadRegistryEntry_NoAtlas_ShowsInfoAndSkips()
+    {
+        var notifications = new Mock<INotificationService>();
+        var viewModel = CreateViewModel(notifications: notifications);
+
+        viewModel.LoadRegistryEntry(new MappedImageDefinition("Local", "atlas.tga", 1, 1, 0, 0, 1, 1));
+
+        Assert.Empty(viewModel.Slices);
+        notifications.Verify(
+            notification => notification.ShowInfo(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
     }
 
     /// <summary>
@@ -209,6 +228,167 @@ public sealed class TextureEditorViewModelTests
         {
             Directory.Delete(directory, true);
         }
+    }
+
+    /// <summary>
+    /// Verifies that opening a same-named texture in another folder does not adopt
+    /// stale registry slices authored for the first folder.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task OpenSameNamedTextureInAnotherFolder_DoesNotAdoptStaleSlicesAsync()
+    {
+        string root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string first = Path.Combine(root, "dir1");
+        string second = Path.Combine(root, "dir2");
+        Directory.CreateDirectory(first);
+        Directory.CreateDirectory(second);
+        try
+        {
+            await File.WriteAllBytesAsync(Path.Combine(first, "icons.png"), ValidPngBytes);
+            await File.WriteAllTextAsync(
+                Path.Combine(first, "icons.ini"),
+                "MappedImage Hero\n  Texture = icons.png\n  TextureWidth = 1\n  TextureHeight = 1\n  Coords = Left:0 Top:0 Right:1 Bottom:1\n  Status = NONE\nEnd\n");
+            await File.WriteAllBytesAsync(Path.Combine(second, "icons.png"), ValidPngBytes);
+
+            var viewModel = CreateViewModelWithRegistry();
+            viewModel.FileExplorer.OpenFileCommand.Execute(new EditorFileTreeNodeViewModel("icons.png", Path.Combine(first, "icons.png"), false));
+            await WaitForAtlasAsync(viewModel, Path.Combine(first, "icons.png"));
+
+            var adopted = Assert.Single(viewModel.Slices);
+            Assert.Equal("Hero", adopted.Name);
+
+            viewModel.FileExplorer.OpenFileCommand.Execute(new EditorFileTreeNodeViewModel("icons.png", Path.Combine(second, "icons.png"), false));
+            await WaitForAtlasAsync(viewModel, Path.Combine(second, "icons.png"));
+
+            Assert.Equal("icons.png", viewModel.AtlasFileName);
+            Assert.Empty(viewModel.Slices);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that explicitly importing an INI adopts its entries even when the INI
+    /// lives in another folder, since the user just pointed at that file.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task ImportIniFromAnotherFolder_AdoptsItsEntriesAsync()
+    {
+        string root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string first = Path.Combine(root, "dir1");
+        string second = Path.Combine(root, "dir2");
+        Directory.CreateDirectory(first);
+        Directory.CreateDirectory(second);
+        try
+        {
+            await File.WriteAllBytesAsync(Path.Combine(first, "icons.png"), ValidPngBytes);
+            await File.WriteAllTextAsync(
+                Path.Combine(first, "icons.ini"),
+                "MappedImage Hero\n  Texture = icons.png\n  TextureWidth = 1\n  TextureHeight = 1\n  Coords = Left:0 Top:0 Right:1 Bottom:1\n  Status = NONE\nEnd\n");
+            await File.WriteAllBytesAsync(Path.Combine(second, "icons.png"), ValidPngBytes);
+
+            var viewModel = CreateViewModelWithRegistry();
+            viewModel.FileExplorer.OpenFileCommand.Execute(new EditorFileTreeNodeViewModel("icons.png", Path.Combine(second, "icons.png"), false));
+            await WaitForAtlasAsync(viewModel, Path.Combine(second, "icons.png"));
+            Assert.Empty(viewModel.Slices);
+
+            viewModel.FileExplorer.OpenFileCommand.Execute(new EditorFileTreeNodeViewModel("icons.ini", Path.Combine(first, "icons.ini"), false));
+            for (int attempt = 0; attempt < 200 && viewModel.Slices.Count == 0; attempt++)
+            {
+                Dispatcher.UIThread.RunJobs(null);
+                await Task.Delay(20);
+            }
+
+            var adopted = Assert.Single(viewModel.Slices);
+            Assert.Equal("Hero", adopted.Name);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that importing an INI while slices exist keeps the slices and
+    /// reports that the new entries landed in the library.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task ImportIniWithExistingSlices_KeepsSlicesAndReportsLibraryAsync()
+    {
+        string root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string first = Path.Combine(root, "dir1");
+        string second = Path.Combine(root, "dir2");
+        Directory.CreateDirectory(first);
+        Directory.CreateDirectory(second);
+        try
+        {
+            await File.WriteAllBytesAsync(Path.Combine(first, "icons.png"), ValidPngBytes);
+            await File.WriteAllTextAsync(
+                Path.Combine(first, "icons.ini"),
+                "MappedImage Hero\n  Texture = icons.png\n  TextureWidth = 1\n  TextureHeight = 1\n  Coords = Left:0 Top:0 Right:1 Bottom:1\n  Status = NONE\nEnd\n");
+            string moreIni =
+                "MappedImage Villain\n  Texture = icons.png\n  TextureWidth = 1\n  TextureHeight = 1\n  Coords = Left:0 Top:0 Right:1 Bottom:1\n  Status = NONE\nEnd\n" +
+                "MappedImage Stranger\n  Texture = other.png\n  TextureWidth = 1\n  TextureHeight = 1\n  Coords = Left:0 Top:0 Right:1 Bottom:1\n  Status = NONE\nEnd\n";
+            await File.WriteAllTextAsync(Path.Combine(second, "more.ini"), moreIni);
+
+            var notifications = new Mock<INotificationService>();
+            var viewModel = CreateViewModelWithRegistry(notifications);
+            viewModel.FileExplorer.OpenFileCommand.Execute(new EditorFileTreeNodeViewModel("icons.png", Path.Combine(first, "icons.png"), false));
+            await WaitForAtlasAsync(viewModel, Path.Combine(first, "icons.png"));
+            Assert.Single(viewModel.Slices);
+
+            viewModel.FileExplorer.OpenFileCommand.Execute(new EditorFileTreeNodeViewModel("more.ini", Path.Combine(second, "more.ini"), false));
+            for (int attempt = 0; attempt < 200 && viewModel.RegistryImages.Count < 3; attempt++)
+            {
+                Dispatcher.UIThread.RunJobs(null);
+                await Task.Delay(20);
+            }
+
+            var kept = Assert.Single(viewModel.Slices);
+            Assert.Equal("Hero", kept.Name);
+            Assert.Contains(viewModel.RegistryImages, image => image.Name == "Villain");
+            Assert.Contains(viewModel.RegistryImages, image => image.Name == "Stranger");
+            notifications.Verify(
+                notification => notification.ShowSuccess(It.IsAny<string>(), It.Is<string>(message => message.Contains("kept")), It.IsAny<int?>(), It.IsAny<bool>()),
+                Times.Once);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    private static async Task WaitForAtlasAsync(TextureEditorViewModel viewModel, string expectedPath)
+    {
+        for (int attempt = 0; attempt < 200 && (viewModel.AtlasPath != expectedPath || viewModel.IsBusy); attempt++)
+        {
+            Dispatcher.UIThread.RunJobs(null);
+            await Task.Delay(20);
+        }
+    }
+
+    private static TextureEditorViewModel CreateViewModelWithRegistry(Mock<INotificationService>? notifications = null)
+    {
+        var bitmapService = new TextureBitmapService(
+            new Mock<ISageTextureCodec>().Object,
+            NullLogger<TextureBitmapService>.Instance);
+        return new TextureEditorViewModel(
+            new SageMappedImageParser(NullLogger<SageMappedImageParser>.Instance),
+            new MappedImageRegistry(
+                new SageMappedImageParser(NullLogger<SageMappedImageParser>.Instance),
+                NullLogger<MappedImageRegistry>.Instance),
+            new Mock<IAtlasPackingService>().Object,
+            new Mock<ITextureImageLoader>().Object,
+            bitmapService,
+            (notifications ?? new Mock<INotificationService>()).Object,
+            NullLogger<TextureEditorViewModel>.Instance,
+            new Mock<ILocalizationService>().Object,
+            new Mock<IDialogService>().Object);
     }
 
     private static Bitmap OpenAtlas(TextureEditorViewModel viewModel, string fileName)

@@ -191,7 +191,7 @@ public sealed class SageMappedImageParser(ILogger<SageMappedImageParser> logger)
         // and ';' would be stripped as a comment on reload, so reject them.
         if (value.Contains('\r') || value.Contains('\n') || value.Contains(';'))
         {
-            throw new ArgumentException($"MappedImage '{entryName}' has an invalid {fieldName}: values must not contain line breaks or ';'.", "images");
+            throw new ArgumentException($"MappedImage '{entryName}' has an invalid {fieldName}: values must not contain line breaks or ';'.");
         }
     }
 

@@ -14724,7 +14724,7 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
     <value>Pack a folder of loose images into a new atlas</value>
   </data>
   <data name="TextureEditor.Tooltip.ExportIni" xml:space="preserve">
-    <value>Export slices to a MappedImages INI file</value>
+    <value>Export a copy of the INI (working file unchanged)</value>
   </data>
   <data name="TextureEditor.Tooltip.ExportSheet" xml:space="preserve">
     <value>Export the texture sheet (TGA or PNG)</value>
@@ -14904,7 +14904,7 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
     <value>No mapped images</value>
   </data>
   <data name="TextureEditor.Picker.Empty.Description" xml:space="preserve">
-    <value>Scan a MappedImages folder to browse entries here.</value>
+    <value>Scan a MappedImages folder to browse every entry here, then double-click one to load it as a slice.</value>
   </data>
   <data name="TextureEditor.Picker.Tooltip.EditInTextureEditor" xml:space="preserve">
     <value>Load this entry as a slice in the Texture Editor</value>
@@ -14979,7 +14979,7 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
     <value>Save slices (Ctrl+S)</value>
   </data>
   <data name="TextureEditor.Tooltip.SaveAs" xml:space="preserve">
-    <value>Save slices under a new path</value>
+    <value>Save slices under a new path (becomes the working file)</value>
   </data>
   <data name="TextureEditor.Tooltip.DuplicateSlice" xml:space="preserve">
     <value>Duplicate selected slice</value>
@@ -15035,11 +15035,26 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="TextureEditor.Notify.ImportFailed.Message" xml:space="preserve">
     <value>No mapped images found.</value>
   </data>
+  <data name="TextureEditor.Notify.ImportDetail.AppliedAll" xml:space="preserve">
+    <value>All {0} entries were applied to {1}.</value>
+  </data>
+  <data name="TextureEditor.Notify.ImportDetail.AppliedPartial" xml:space="preserve">
+    <value>{0} of {1} entries were applied to {2}; the rest are in the Library.</value>
+  </data>
+  <data name="TextureEditor.Notify.ImportDetail.KeptSlices" xml:space="preserve">
+    <value>{0} of {1} entries target {2}; current slices were kept and all entries are in the Library.</value>
+  </data>
+  <data name="TextureEditor.Notify.ImportDetail.NoMatch" xml:space="preserve">
+    <value>None target {0}; all entries are in the Library.</value>
+  </data>
+  <data name="TextureEditor.Notify.ImportDetail.NoAtlas" xml:space="preserve">
+    <value>Open a texture to apply them as slices; all entries are in the Library.</value>
+  </data>
   <data name="TextureEditor.Notify.RegistryMismatch.Title" xml:space="preserve">
     <value>Different texture</value>
   </data>
   <data name="TextureEditor.Notify.RegistryMismatch.Message" xml:space="preserve">
-    <value>'{0}' belongs to {1}, not to the open atlas.</value>
+    <value>'{0}' belongs to {1}, not to the open atlas. Open {1} to edit it.</value>
   </data>
   <data name="TextureEditor.Dialog.ClearSlices.Title" xml:space="preserve">
     <value>Replace slices with an empty set?</value>

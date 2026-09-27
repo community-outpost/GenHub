@@ -14665,7 +14665,7 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
     <value>Упаковать папку изображений в новый атлас</value>
   </data>
   <data name="TextureEditor.Tooltip.ExportIni" xml:space="preserve">
-    <value>Экспортировать срезы в INI-файл MappedImages</value>
+    <value>Экспортировать копию INI (рабочий файл не изменится)</value>
   </data>
   <data name="TextureEditor.Tooltip.ExportSheet" xml:space="preserve">
     <value>Экспортировать лист текстур (TGA или PNG)</value>
@@ -14845,7 +14845,7 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
     <value>Нет изображений</value>
   </data>
   <data name="TextureEditor.Picker.Empty.Description" xml:space="preserve">
-    <value>Просканируйте папку MappedImages для просмотра записей.</value>
+    <value>Просканируйте папку MappedImages, чтобы просмотреть все записи, затем дважды щёлкните запись, чтобы загрузить её как срез.</value>
   </data>
   <data name="TextureEditor.Picker.Tooltip.EditInTextureEditor" xml:space="preserve">
     <value>Загрузить запись срезом в редактор текстур</value>
@@ -14920,7 +14920,7 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
     <value>Сохранить срезы (Ctrl+S)</value>
   </data>
   <data name="TextureEditor.Tooltip.SaveAs" xml:space="preserve">
-    <value>Сохранить срезы в новый файл</value>
+    <value>Сохранить срезы в новый файл (станет рабочим файлом)</value>
   </data>
   <data name="TextureEditor.Tooltip.DuplicateSlice" xml:space="preserve">
     <value>Дублировать выбранный срез</value>
@@ -14976,11 +14976,26 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="TextureEditor.Notify.ImportFailed.Message" xml:space="preserve">
     <value>Связанные изображения не найдены.</value>
   </data>
+  <data name="TextureEditor.Notify.ImportDetail.AppliedAll" xml:space="preserve">
+    <value>Все записи ({0}) применены к {1}.</value>
+  </data>
+  <data name="TextureEditor.Notify.ImportDetail.AppliedPartial" xml:space="preserve">
+    <value>Применено {0} из {1} записей к {2}; остальные — в библиотеке.</value>
+  </data>
+  <data name="TextureEditor.Notify.ImportDetail.KeptSlices" xml:space="preserve">
+    <value>{0} из {1} записей относятся к {2}; текущие срезы сохранены, все записи — в библиотеке.</value>
+  </data>
+  <data name="TextureEditor.Notify.ImportDetail.NoMatch" xml:space="preserve">
+    <value>Ни одна не относится к {0}; все записи — в библиотеке.</value>
+  </data>
+  <data name="TextureEditor.Notify.ImportDetail.NoAtlas" xml:space="preserve">
+    <value>Откройте текстуру, чтобы применить их как срезы; все записи — в библиотеке.</value>
+  </data>
   <data name="TextureEditor.Notify.RegistryMismatch.Title" xml:space="preserve">
     <value>Другая текстура</value>
   </data>
   <data name="TextureEditor.Notify.RegistryMismatch.Message" xml:space="preserve">
-    <value>'{0}' относится к {1}, а не к открытому атласу.</value>
+    <value>'{0}' относится к {1}, а не к открытому атласу. Откройте {1}, чтобы редактировать его.</value>
   </data>
   <data name="TextureEditor.Dialog.ClearSlices.Title" xml:space="preserve">
     <value>Заменить срезы пустым набором?</value>

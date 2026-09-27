@@ -31,16 +31,20 @@ To access the Texture Editor:
 - **Open folder** (primary flow): project folders with textures plus INI files.
   Scans, lists, and opens automatically.
 - **Open file** (hamburger menu): a single standalone atlas without a project
-  folder. Slices load from the registry when the texture name matches, and a
-  same-name INI next to the atlas is imported automatically.
+  folder. A same-name INI next to the atlas is imported automatically, and
+  registry entries from the same folder apply when the texture name matches.
+  Entries from other folders never attach on their own; import their INI
+  explicitly to use them.
 - **Scan** (hamburger menu): re-scans the open folder, or asks for a folder
   when none is open.
 - **Auto-pack** (hamburger menu): creates a new packed atlas from a folder of
   loose images. It does not modify the current atlas; export the results after
   reviewing them.
 - **Save / Save as / Export INI / Export sheet**: Save writes slices to the
-  atlas-side INI; the exports write copies elsewhere without changing the
-  current paths.
+  working INI (the atlas-side INI by default). Save As writes to a new path
+  and adopts it as the working file for later saves. Export INI and Export
+  sheet write copies elsewhere without changing the working file or the
+  dirty state.
 
 ## Interface Overview
 
@@ -49,8 +53,8 @@ The Texture Editor interface consists of three columns:
 ### Left: Slices, Files, and Library
 
 - **Slices tab**: All slices of the open atlas with thumbnails, dimensions, and origin coordinates.
-- **Files tab**: The shared project explorer. Pick a folder, open a texture to edit it, or open an INI to import its entries into the library.
-- **Library tab**: The shared `MappedImagePickerControl` browsing registry entries scanned from `MappedImages` folders. Use **Edit in Texture Editor** to load an entry as a slice.
+- **Files tab**: The shared project explorer. Pick a folder, open a texture to edit it, or click an INI to import its entries into the library. Because one INI usually references many textures, clicking it never switches atlases: entries targeting the open atlas are additionally applied as slices when the slice list is empty, and everything else stays browsable in the library.
+- **Library tab**: The shared `MappedImagePickerControl` browsing registry entries scanned from `MappedImages` folders, across every texture. Thumbnails render for entries targeting the open atlas; entries for other textures show a placeholder with their texture name. Double-click an entry, or use **Edit in Texture Editor**, to load it as a slice. Foreign entries cannot load until their own texture is opened.
 - **Add / Duplicate / Delete**: Create a centered slice, duplicate the selected slice, or remove the selected slice.
 
 ### Center: Canvas

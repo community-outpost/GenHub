@@ -9,7 +9,7 @@ namespace GenHub.Core.Services.Tools.TextureEditor;
 /// <summary>
 /// Decodes TGA and DDS textures and encodes uncompressed 32-bit TGA files.
 /// Supports 24-bit and 32-bit uncompressed and RLE TGA images, uncompressed
-/// 24-bit and 32-bit DDS images, and DXT1 compressed DDS images.
+/// 24-bit and 32-bit DDS images, and DXT1 through DXT5 compressed DDS images.
 /// </summary>
 public sealed class SageTextureCodec(ILogger<SageTextureCodec> logger) : ISageTextureCodec
 {
@@ -490,7 +490,7 @@ public sealed class SageTextureCodec(ILogger<SageTextureCodec> logger) : ISageTe
         }
     }
 
-    private static OperationResult<DecodedTexture> DecodeDdsDxt35(byte[] data, int offset, int width, int height, string sourceName, long started, bool isDxt5, string label)
+    private static OperationResult<DecodedTexture> DecodeDdsDxt35(byte[] data, int offset, int width, int height, string sourceName, long started, bool isDxt5, bool premultiplied, string label)
     {
         long blocksX = ((long)width + 3) / 4;
         long blocksY = ((long)height + 3) / 4;
@@ -525,7 +525,34 @@ public sealed class SageTextureCodec(ILogger<SageTextureCodec> logger) : ISageTe
             }
         }
 
+        if (premultiplied)
+        {
+            UnPremultiplyAlpha(rgba);
+        }
+
         return OperationResult<DecodedTexture>.CreateSuccess(new DecodedTexture(width, height, rgba), Stopwatch.GetElapsedTime(started));
+    }
+
+    private static void UnPremultiplyAlpha(byte[] rgba)
+    {
+        // DXT2/DXT4 store premultiplied RGB; restore straight alpha the way
+        // D3D sampling does so decoded colors match the authored values.
+        for (int i = 0; i < rgba.Length; i += 4)
+        {
+            int alpha = rgba[i + 3];
+            if (alpha == 0)
+            {
+                rgba[i] = 0;
+                rgba[i + 1] = 0;
+                rgba[i + 2] = 0;
+            }
+            else if (alpha < 255)
+            {
+                rgba[i] = (byte)Math.Min(255, (rgba[i] * 255) / alpha);
+                rgba[i + 1] = (byte)Math.Min(255, (rgba[i + 1] * 255) / alpha);
+                rgba[i + 2] = (byte)Math.Min(255, (rgba[i + 2] * 255) / alpha);
+            }
+        }
     }
 
     private OperationResult<DecodedTexture> DecodeTga(byte[] data, string sourceName, long started)
@@ -624,12 +651,14 @@ public sealed class SageTextureCodec(ILogger<SageTextureCodec> logger) : ISageTe
 
         if (hasFourCc && (fourCc == DdsFourCcDxt2 || fourCc == DdsFourCcDxt3))
         {
-            return DecodeDdsDxt35(data, dataOffset, width, height, sourceName, started, false, "DXT3");
+            bool premultiplied = fourCc == DdsFourCcDxt2;
+            return DecodeDdsDxt35(data, dataOffset, width, height, sourceName, started, false, premultiplied, premultiplied ? "DXT2" : "DXT3");
         }
 
         if (hasFourCc && (fourCc == DdsFourCcDxt4 || fourCc == DdsFourCcDxt5))
         {
-            return DecodeDdsDxt35(data, dataOffset, width, height, sourceName, started, true, "DXT5");
+            bool premultiplied = fourCc == DdsFourCcDxt4;
+            return DecodeDdsDxt35(data, dataOffset, width, height, sourceName, started, true, premultiplied, premultiplied ? "DXT4" : "DXT5");
         }
 
         if (!hasFourCc && (rgbBitCount == 32 || rgbBitCount == 24))

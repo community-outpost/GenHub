@@ -9,6 +9,16 @@ using System;
 
 namespace GenHub.Features.Tools.TextureEditor.Views;
 
+// Canvas QOL roadmap. Keep every item standardized with the WND editor canvas:
+// shared behavior belongs in GenHub.Common.Editors, and per-editor behavior
+// follows the WndEditorView and WndEditorViewModel patterns. Copy, cut, paste,
+// and duplicate already ship through EditorToolViewModelBase.
+// TODO: Undo and redo through slice snapshots in the view model (WndEditAction parity).
+// TODO: Ctrl axis-lock drag and 8-handle resize parity with the WND canvas.
+// TODO: Arrow and WASD 1px nudge (needs a focusable canvas host like WndEditorView).
+// TODO: Rubber-band multi-select (selection is single-select today).
+// TODO: Move drag handling into the view model (Begin, Update, and End pattern like WND).
+
 /// <summary>
 /// Code-behind for TextureEditorView.
 /// </summary>

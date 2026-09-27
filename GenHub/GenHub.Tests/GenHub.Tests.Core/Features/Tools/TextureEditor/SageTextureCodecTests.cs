@@ -294,6 +294,42 @@ public sealed class SageTextureCodecTests
     }
 
     /// <summary>
+    /// Verifies that DXT2 premultiplied colors are restored to straight alpha.
+    /// </summary>
+    [Fact]
+    public void Decode_Dxt2PartialAlpha_UnPremultipliesColors()
+    {
+        // Interpolated color (170, 0, 85) with explicit alpha 136 restores to (255, 0, 159).
+        byte[] color = [0x00, 0xF8, 0x1F, 0x00, 0xAA, 0xAA, 0xAA, 0xAA];
+        byte[] alpha = [0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88];
+        byte[] data = BuildDds(4, 4, 0, [.. alpha, .. color], fourCc: 0x32545844);
+
+        var result = _codec.Decode(data, ".dds", "test");
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal([255, 0, 159, 136], result.Data.PixelData[..4]);
+    }
+
+    /// <summary>
+    /// Verifies that DXT4 premultiplied colors are restored to straight alpha.
+    /// </summary>
+    [Fact]
+    public void Decode_Dxt4PartialAlpha_UnPremultipliesColors()
+    {
+        // Interpolated color (170, 0, 85) with interpolated alpha 218 restores to (198, 0, 99).
+        byte[] color = [0x00, 0xF8, 0x1F, 0x00, 0xAA, 0xAA, 0xAA, 0xAA];
+        byte[] alpha = [0xFF, 0x00, 0x92, 0x24, 0x49, 0x92, 0x24, 0x49];
+        byte[] data = BuildDds(4, 4, 0, [.. alpha, .. color], fourCc: 0x34545844);
+
+        var result = _codec.Decode(data, ".dds", "test");
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal([198, 0, 99, 218], result.Data.PixelData[..4]);
+    }
+
+    /// <summary>
     /// Verifies that DDS data with an invalid magic returns a failure.
     /// </summary>
     [Fact]

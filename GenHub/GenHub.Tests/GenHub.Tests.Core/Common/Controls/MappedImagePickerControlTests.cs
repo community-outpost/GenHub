@@ -1,9 +1,12 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
 using Avalonia.Media;
 using GenHub.Common.Controls;
 using GenHub.Core.Models.Tools.TextureEditor;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using Xunit;
 
 namespace GenHub.Tests.Core.Common.Controls;
@@ -53,6 +56,35 @@ public sealed class MappedImagePickerControlTests
         picker.ItemsSource = new List<MappedImageDefinition> { images[0] };
 
         Assert.Null(picker.SelectedImage);
+    }
+
+    /// <summary>
+    /// Verifies that double-tapping a row requests editing the selected image.
+    /// </summary>
+    [AvaloniaFact]
+    public void DoubleTapped_Row_RaisesEditRequested()
+    {
+        RegisterPickerResources();
+        var picker = new MappedImagePickerControl();
+        var images = new List<MappedImageDefinition>
+        {
+            new("Alpha", "a.tga", 64, 64, 0, 0, 64, 64),
+        };
+        picker.ItemsSource = images;
+        picker.SelectedImage = images[0];
+        MappedImageDefinition? requested = null;
+        picker.EditRequested += (_, definition) => requested = definition;
+
+        var list = picker.FindControl<ListBox>("ImagesList");
+        Assert.NotNull(list);
+
+        // TappedEventArgs has no public constructor, so raise an uninitialized
+        // instance: the handler only reads the selection, never the gesture args.
+        var args = (TappedEventArgs)RuntimeHelpers.GetUninitializedObject(typeof(TappedEventArgs));
+        args.RoutedEvent = InputElement.DoubleTappedEvent;
+        list.RaiseEvent(args);
+
+        Assert.Same(images[0], requested);
     }
 
     private static void RegisterPickerResources()

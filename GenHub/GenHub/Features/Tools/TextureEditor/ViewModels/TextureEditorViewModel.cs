@@ -20,6 +20,7 @@ using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -178,6 +179,8 @@ public sealed partial class TextureEditorViewModel(
     /// </summary>
     public override bool CanDelete => SelectedSlice is not null;
 
+    // TODO: Override CanUndo and CanRedo with a slice-snapshot history, following the
+    // canvas QOL roadmap in TextureEditorView.axaml.cs and the WndEditAction stacks.
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads source-generated AtlasPath instance state.")]
     private string DefaultIniPath => Path.Combine(
         Path.GetDirectoryName(AtlasPath) ?? string.Empty,
@@ -185,6 +188,8 @@ public sealed partial class TextureEditorViewModel(
 
     /// <summary>
     /// Loads a registry entry into the slice list for editing.
+    /// The library catalogs entries for every scanned texture, so entries that
+    /// target another atlas are rejected with guidance instead of loading.
     /// </summary>
     /// <param name="definition">The mapped image definition.</param>
     public void LoadRegistryEntry(MappedImageDefinition definition)
@@ -192,6 +197,11 @@ public sealed partial class TextureEditorViewModel(
         ArgumentNullException.ThrowIfNull(definition);
         if (AtlasBitmap is null)
         {
+            logger.LogInformation("Registry entry {Name} not loaded: no atlas is open.", definition.Name);
+            Notifications.ShowInfo(
+                Localize("TextureEditor.Notify.NoAtlas.Title", "No atlas open"),
+                Localize("TextureEditor.Notify.NoAtlas.Message", "Open a texture atlas before adding slices."),
+                NotificationDurations.Medium);
             return;
         }
 
@@ -204,7 +214,7 @@ public sealed partial class TextureEditorViewModel(
                 AtlasFileName);
             Notifications.ShowWarning(
                 Localize("TextureEditor.Notify.RegistryMismatch.Title", "Different texture"),
-                Localize("TextureEditor.Notify.RegistryMismatch.Message", "'{0}' belongs to {1}, not to the open atlas.", definition.Name, definition.TextureFileName),
+                Localize("TextureEditor.Notify.RegistryMismatch.Message", "'{0}' belongs to {1}, not to the open atlas. Open {1} to edit it.", definition.Name, definition.TextureFileName),
                 NotificationDurations.Medium);
             return;
         }
@@ -421,6 +431,8 @@ public sealed partial class TextureEditorViewModel(
     /// <inheritdoc />
     protected override async Task OnSaveAsAsync(CancellationToken cancellationToken)
     {
+        // Save As adopts the picked path as the working file for later saves,
+        // while ExportIniAsync writes a copy and leaves the working file alone.
         if (AtlasBitmap is null)
         {
             return;
@@ -530,6 +542,25 @@ public sealed partial class TextureEditorViewModel(
         }
 
         return null;
+    }
+
+    private static bool IsSameDirectory(string left, string right)
+    {
+        try
+        {
+            // Default macOS volumes are case-insensitive, so directory equality must
+            // ignore casing there; case-sensitive platforms keep ordinal semantics.
+            var comparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+            string leftDirectory = Path.GetFullPath(Path.GetDirectoryName(left) ?? left);
+            string rightDirectory = Path.GetFullPath(Path.GetDirectoryName(right) ?? right);
+            return string.Equals(leftDirectory, rightDirectory, comparison);
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException or SecurityException)
+        {
+            return false;
+        }
     }
 
     partial void OnAtlasBitmapChanged(Bitmap? value)
@@ -709,6 +740,8 @@ public sealed partial class TextureEditorViewModel(
     [RelayCommand(CanExecute = nameof(HasAtlas))]
     private async Task ExportIniAsync()
     {
+        // Export writes a copy without adopting the path or clearing dirty state,
+        // while OnSaveAsAsync adopts the picked path as the working file.
         if (AtlasBitmap is null)
         {
             return;
@@ -927,14 +960,13 @@ public sealed partial class TextureEditorViewModel(
     {
         try
         {
-            bool scanned = false;
-            await RunOperationAsync(async operationToken =>
+            bool scanSucceeded = await RunOperationAsync(async operationToken =>
             {
                 var result = await registry.ScanDirectoryAsync(folder, operationToken).ConfigureAwait(true);
                 operationToken.ThrowIfCancellationRequested();
                 RefreshRegistryImages();
-                scanned = result.Success && result.Data is not null;
-                if (scanned && result.Data is not null)
+                bool succeeded = result.Success && result.Data is not null;
+                if (succeeded && result.Data is not null)
                 {
                     Notifications.ShowSuccess(
                         Localize("TextureEditor.Notify.ScanComplete.Title", "Scan complete"),
@@ -948,9 +980,11 @@ public sealed partial class TextureEditorViewModel(
                         result.FirstError ?? Localize("TextureEditor.Notify.ScanFailed.Message", "Failed to scan MappedImages folder."),
                         NotificationDurations.Long);
                 }
+
+                return succeeded;
             }).ConfigureAwait(true);
 
-            if (scanned)
+            if (scanSucceeded)
             {
                 string? texture = FindFirstTextureFile(FileExplorer.Nodes);
                 if (texture is not null)
@@ -1097,16 +1131,30 @@ public sealed partial class TextureEditorViewModel(
 
                 registry.ImportDefinitions(parsed.Data);
                 RefreshRegistryImages();
-                if (AtlasBitmap is not null && Slices.Count == 0)
+
+                // An INI usually references many textures, so only its entries for
+                // the open atlas can become slices, and only when that cannot
+                // clobber unsaved work. Everything else stays browsable in the library.
+                // Explicit imports adopt their own entries regardless of folder:
+                // the user just pointed at this INI, unlike the automatic
+                // same-folder fallback in LoadSlicesForAtlas.
+                List<MappedImageDefinition> matches = AtlasBitmap is null
+                    ? []
+                    : parsed.Data
+                        .Where(image => image.TextureFileName.Equals(AtlasFileName, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+                bool adopted = matches.Count > 0 && Slices.Count == 0;
+                if (adopted)
                 {
-                    LoadSlicesForAtlas();
+                    ReplaceSlices(matches);
                     MarkSaved();
                 }
 
-                FileExplorer.CurrentPath = path;
+                // The explorer badge tracks the open document, so importing an INI
+                // never moves it: the atlas stays current.
                 Notifications.ShowSuccess(
                     Localize("TextureEditor.Notify.ImportComplete.Title", "Import complete"),
-                    Localize("TextureEditor.Notify.ImportComplete.Message", "Imported {0} mapped images from {1}.", parsed.Data.Count, Path.GetFileName(path)),
+                    BuildImportCompleteMessage(path, parsed.Data.Count, matches.Count, adopted),
                     NotificationDurations.Medium);
             }).ConfigureAwait(true);
         }
@@ -1122,6 +1170,37 @@ public sealed partial class TextureEditorViewModel(
                 ex.Message,
                 NotificationDurations.Long);
         }
+    }
+
+    private string BuildImportCompleteMessage(string path, int total, int matchCount, bool adopted)
+    {
+        string imported = Localize(
+            "TextureEditor.Notify.ImportComplete.Message",
+            "Imported {0} mapped images from {1}.",
+            total,
+            Path.GetFileName(path));
+
+        if (AtlasBitmap is null)
+        {
+            return $"{imported} {Localize("TextureEditor.Notify.ImportDetail.NoAtlas", "Open a texture to apply them as slices; all entries are in the Library.")}";
+        }
+
+        if (adopted && matchCount == total)
+        {
+            return $"{imported} {Localize("TextureEditor.Notify.ImportDetail.AppliedAll", "All {0} entries were applied to {1}.", total, AtlasFileName)}";
+        }
+
+        if (adopted)
+        {
+            return $"{imported} {Localize("TextureEditor.Notify.ImportDetail.AppliedPartial", "{0} of {1} entries were applied to {2}; the rest are in the Library.", matchCount, total, AtlasFileName)}";
+        }
+
+        if (matchCount > 0)
+        {
+            return $"{imported} {Localize("TextureEditor.Notify.ImportDetail.KeptSlices", "{0} of {1} entries target {2}; current slices were kept and all entries are in the Library.", matchCount, total, AtlasFileName)}";
+        }
+
+        return $"{imported} {Localize("TextureEditor.Notify.ImportDetail.NoMatch", "None target {0}; all entries are in the Library.", AtlasFileName)}";
     }
 
     private void RefreshRegistryImages()
@@ -1157,12 +1236,18 @@ public sealed partial class TextureEditorViewModel(
 
     private void LoadSlicesForAtlas()
     {
-        if (AtlasBitmap is null)
+        if (AtlasBitmap is null || string.IsNullOrEmpty(AtlasPath))
         {
             return;
         }
 
-        var matches = registry.GetByTexture(AtlasFileName);
+        // Registry entries carry the INI they were parsed from: only adopt entries
+        // authored next to this atlas so a same-named texture from another folder
+        // never inherits stale slices. Entries with unknown origin keep the legacy
+        // basename match.
+        var matches = registry.GetByTexture(AtlasFileName)
+            .Where(image => image.SourcePath is null || IsSameDirectory(image.SourcePath, AtlasPath))
+            .ToList();
         if (matches.Count == 0)
         {
             return;

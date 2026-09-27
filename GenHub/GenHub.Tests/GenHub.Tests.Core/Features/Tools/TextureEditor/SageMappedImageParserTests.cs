@@ -241,7 +241,6 @@ public sealed class SageMappedImageParserTests
 
         var exception = Assert.Throws<ArgumentException>(() => _parser.Serialize([definition]));
         Assert.Contains("Evil", exception.Message);
-        Assert.Equal("images", exception.ParamName);
     }
 
     /// <summary>

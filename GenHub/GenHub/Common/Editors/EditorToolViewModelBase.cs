@@ -535,6 +535,31 @@ public abstract class EditorToolViewModelBase : ObservableObject, IDisposable
     }
 
     /// <summary>
+    /// Runs an action as a cancellable busy operation, swallowing cooperative cancellation.
+    /// </summary>
+    /// <typeparam name="T">The action result type.</typeparam>
+    /// <param name="action">The action receiving the operation token.</param>
+    /// <returns>The action result, or default when the operation was cancelled.</returns>
+    protected async Task<T> RunOperationAsync<T>(Func<CancellationToken, Task<T>> action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        var owner = BeginOperation();
+        try
+        {
+            return await action(owner.Token).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            // Cooperative cancellation from the busy overlay is silent by design.
+            return default!;
+        }
+        finally
+        {
+            EndOperation(owner);
+        }
+    }
+
+    /// <summary>
     /// Asks the user to confirm discarding unsaved changes.
     /// </summary>
     /// <param name="cancellationToken">The cancellation token.</param>
