@@ -88,7 +88,7 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
         catch (Exception ex)
         {
             logger.LogError(ex, "Error applying start menu shortcuts fix");
-            details.Add($"Error: Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return new ActionSetResult(false, ex.Message, details);
         }
     }

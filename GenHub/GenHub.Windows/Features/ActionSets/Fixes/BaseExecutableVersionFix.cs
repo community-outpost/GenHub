@@ -136,7 +136,7 @@ public abstract class BaseExecutableVersionFix(ILogger logger) : BaseActionSet(l
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error checking {Game} executable version", GameDisplayName);
-            details.Add($"Error: Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
     }

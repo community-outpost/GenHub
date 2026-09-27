@@ -102,7 +102,7 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
         catch (Exception ex)
         {
             logger.LogError(ex, "Error applying firewall exception fix");
-            details.Add($"Error: Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return new ActionSetResult(false, ex.Message, details);
         }
     }
@@ -131,7 +131,7 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
         catch (Exception ex)
         {
             logger.LogError(ex, "Error undoing firewall exception fix");
-            details.Add($"Error: Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return new ActionSetResult(false, ex.Message, details);
         }
     }

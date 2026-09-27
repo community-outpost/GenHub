@@ -127,7 +127,7 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to install Generals 1.08 patch. Rolling back modifications.");
-            details.Add($"Error: Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             RollbackFiles(currentBackupDir, Path.GetFullPath(installation.GeneralsPath), copiedFiles, details);
             return new ActionSetResult(false, ex.Message, details);
         }

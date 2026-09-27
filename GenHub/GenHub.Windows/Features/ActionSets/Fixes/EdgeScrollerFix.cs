@@ -218,7 +218,7 @@ public class EdgeScrollerFix(ILogger<EdgeScrollerFix> logger, IGameSettingsServi
         }
         catch (Exception ex)
         {
-            details.Add($"Error: Error applying edge scrolling for {gameType}: {ex.Message}");
+            AddFailureDetail(details, ex, $"applying edge scrolling for {gameType}");
             logger.LogError(ex, "Error applying edge scrolling fix for {GameType}", gameType);
             return (details, false);
         }

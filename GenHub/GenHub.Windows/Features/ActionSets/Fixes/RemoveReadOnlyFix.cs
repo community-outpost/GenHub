@@ -185,7 +185,7 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to remove read-only attributes");
-            details.Add($"Error: Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return new ActionSetResult(false, ex.Message, details);
         }
     }
@@ -235,7 +235,7 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Error removing read-only attributes for {Path}", path);
-            details.Add($"  Warning: Warning: {ex.Message}");
+            AddFailureDetail(details, ex, isWarning: true, indent: "  ");
         }
 
         // 2. Apply Pin attribute (+P -U) using PowerShell for OneDrive compatibility

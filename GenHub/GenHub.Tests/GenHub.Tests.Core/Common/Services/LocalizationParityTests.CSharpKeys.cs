@@ -1,3 +1,4 @@
+using GenHub.Tests.Core.Features.UI;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,7 +9,7 @@ using Xunit;
 namespace GenHub.Tests.Core.Common.Services;
 
 /// <summary>
-/// Verifies that every resource key referenced by <c>GetString("...")</c> calls in
+/// Verifies that every resource key referenced by localization lookup calls in
 /// production code exists in the default <c>Strings.resx</c> resource file.
 /// The localization service returns the key itself when a resource is missing,
 /// so a missing key surfaces to users as raw text instead of failing fast.
@@ -16,8 +17,12 @@ namespace GenHub.Tests.Core.Common.Services;
 public partial class LocalizationParityTests
 {
     /// <summary>
-    /// Scans all production C# files for <c>GetString</c> resource keys and verifies
-    /// that each key exists in the default Strings.resx resource file.
+    /// Scans every production C# file in the solution for localization
+    /// <c>GetString</c> resource keys and verifies that each key exists in the
+    /// default Strings.resx resource file. The scan matches full file contents
+    /// so keys split across line breaks are detected, only counts receivers
+    /// that resolve to the localization service (plus bare helper calls), and
+    /// excludes test projects and build output directories.
     /// </summary>
     [Fact]
     public void CSharp_GetStringCalls_ShouldReferenceExistingKeys()
@@ -25,25 +30,28 @@ public partial class LocalizationParityTests
         var defaultKeys = LoadKeys("default");
         var keyPattern = CSharpGetStringRegex();
         var invalidReferences = new List<string>();
+        var solutionDirectory = UiTestPathHelper.FindSolutionDirectory();
 
-        var csFiles = Directory.GetFiles(GenHubProjectDirectory, "*.cs", SearchOption.AllDirectories)
-            .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase) &&
-                        !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase));
+        var csFiles = Directory.GetFiles(solutionDirectory, "*.cs", SearchOption.AllDirectories)
+            .Where(IsProductionSourceFile);
 
         foreach (var file in csFiles)
         {
-            var lines = File.ReadAllLines(file);
-            for (var i = 0; i < lines.Length; i++)
+            var content = File.ReadAllText(file);
+            foreach (Match match in keyPattern.Matches(content))
             {
-                var matches = keyPattern.Matches(lines[i]);
-                foreach (Match match in matches)
+                var receiver = match.Groups["receiver"].Value;
+                if (receiver.Length != 0 && !IsLocalizationReceiver(receiver))
                 {
-                    var key = match.Groups[1].Value.Trim();
-                    if (!defaultKeys.Contains(key))
-                    {
-                        var relativePath = Path.GetRelativePath(GenHubProjectDirectory, file);
-                        invalidReferences.Add($"{relativePath}:{i + 1} -> Key '{key}' not found in Strings.resx");
-                    }
+                    continue;
+                }
+
+                var key = match.Groups["key"].Value.Trim();
+                if (!defaultKeys.Contains(key))
+                {
+                    var relativePath = Path.GetRelativePath(solutionDirectory, file);
+                    var lineNumber = CountLines(content, match.Index) + 1;
+                    invalidReferences.Add($"{relativePath}:{lineNumber} -> Key '{key}' not found in Strings.resx");
                 }
             }
         }
@@ -53,6 +61,35 @@ public partial class LocalizationParityTests
             $"Found invalid localization keys referenced in C#:\n{string.Join("\n", invalidReferences)}");
     }
 
-    [GeneratedRegex("GetString\\(\\s*\"([A-Za-z0-9_\\.]+)\"")]
+    private static bool IsProductionSourceFile(string file)
+    {
+        var segments = file.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return !segments.Any(s =>
+            s.Equals("bin", StringComparison.OrdinalIgnoreCase) ||
+            s.Equals("obj", StringComparison.OrdinalIgnoreCase) ||
+            s.Contains("Tests", StringComparison.Ordinal));
+    }
+
+    private static bool IsLocalizationReceiver(string receiver)
+    {
+        return receiver.Contains("localiz", StringComparison.OrdinalIgnoreCase) ||
+            receiver.Equals("loc", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static int CountLines(string content, int index)
+    {
+        var count = 0;
+        for (var i = 0; i < index; i++)
+        {
+            if (content[i] == '\n')
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    [GeneratedRegex("(?<![\\w.])(?:(?<receiver>[A-Za-z_][A-Za-z0-9_]*)\\?\\.\\s*)?GetString\\(\\s*\"(?<key>[A-Za-z0-9_\\.]+)\"")]
     private static partial Regex CSharpGetStringRegex();
 }

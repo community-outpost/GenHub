@@ -113,7 +113,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
         catch (Exception ex)
         {
             logger.LogError(ex, "Error applying OneDrive protection");
-            details.Add($"Error: Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return new ActionSetResult(false, ex.Message, details);
         }
     }
@@ -153,7 +153,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
                     catch (IOException ex)
                     {
                         logger.LogWarning(ex, "Failed to restore OneDrive folder {Folder}", folderName);
-                        details.Add($"Warning: Warning restoring '{folderName}': {ex.Message}");
+                        AddFailureDetail(details, ex, $"restoring '{folderName}'", isWarning: true);
                     }
                     catch (UnauthorizedAccessException ex)
                     {
@@ -397,7 +397,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogWarning(ex, "Unexpected error processing folder {LocalPath}", localPath);
-            details.Add($"Error: Error processing '{folderName}': {ex.Message}");
+            AddFailureDetail(details, ex, $"processing '{folderName}'");
             TryRestoreArchive(currentCloudArchive, cloudPath, details);
             return false;
         }

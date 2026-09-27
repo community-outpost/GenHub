@@ -137,7 +137,7 @@ public class PreferIPv4Fix(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error applying IPv4 preference fix");
-            details.Add($"Error: Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
     }
@@ -220,7 +220,7 @@ public class PreferIPv4Fix(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error removing IPv4 preference fix");
-            details.Add($"Error: Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
     }

@@ -3,6 +3,7 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -124,6 +125,27 @@ public abstract class BaseActionSet(ILogger logger) : IActionSet
     /// <param name="message">The error message.</param>
     /// <returns>A failed ActionSetResult.</returns>
     protected static ActionSetResult Failure(string message) => new(false, message);
+
+    /// <summary>
+    /// Appends a failure detail line carrying exactly one severity prefix.
+    /// </summary>
+    /// <param name="details">The detail lines being collected.</param>
+    /// <param name="ex">The exception that caused the failure.</param>
+    /// <param name="action">Optional action description inserted between the prefix and the exception message.</param>
+    /// <param name="isWarning">Whether this is a warning rather than an error.</param>
+    /// <param name="indent">Optional indent preserved for sub-step detail lines.</param>
+    protected static void AddFailureDetail(
+        List<string> details,
+        Exception ex,
+        string? action = null,
+        bool isWarning = false,
+        string indent = "")
+    {
+        var prefix = isWarning ? "Warning" : "Error";
+        details.Add(action is null
+            ? $"{indent}{prefix}: {ex.Message}"
+            : $"{indent}{prefix}: {action}: {ex.Message}");
+    }
 
     /// <summary>
     /// Checks if the marker file exists on disk.

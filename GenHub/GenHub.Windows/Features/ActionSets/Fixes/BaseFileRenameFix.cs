@@ -91,7 +91,7 @@ public abstract class BaseFileRenameFix(
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error applying {Title}", Title);
-            details.Add($"Error: Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
     }
@@ -129,7 +129,7 @@ public abstract class BaseFileRenameFix(
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error restoring {TargetFileName}", targetFileName);
-            details.Add($"Error: Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
     }
@@ -159,7 +159,7 @@ public abstract class BaseFileRenameFix(
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to rename {OriginalPath}", originalPath);
-            details.Add($"  Error: Error renaming {targetFileName}: {ex.Message}");
+            AddFailureDetail(details, ex, $"renaming {targetFileName}", indent: "  ");
             return false;
         }
     }
@@ -189,7 +189,7 @@ public abstract class BaseFileRenameFix(
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to restore {BackupPath}", backupPath);
-            details.Add($"  Error: Error restoring {backupFileName}: {ex.Message}");
+            AddFailureDetail(details, ex, $"restoring {backupFileName}", indent: "  ");
             return false;
         }
     }

@@ -118,7 +118,7 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
         catch (Exception ex)
         {
             logger.LogError(ex, "Error applying EA App registry fix");
-            details.Add($"Error: Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
     }

@@ -14497,49 +14497,49 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
     <value>Успешно удалено профилей: {0}.</value>
   </data>
   <data name="Common.Dismiss" xml:space="preserve">
-    <value>Dismiss</value>
+    <value>Скрыть</value>
   </data>
   <data name="Downloads.Subscription.SubscribedNotificationBody" xml:space="preserve">
-    <value>Catalog subscription added successfully.</value>
+    <value>Подписка на каталог успешно добавлена.</value>
   </data>
   <data name="Tools.ModBuilder.BundlePack.PickerTitle" xml:space="preserve">
-    <value>Add Files to Bundle</value>
+    <value>Добавить файлы в сборку</value>
   </data>
   <data name="Tools.ModBuilder.Filter.AllFiles" xml:space="preserve">
-    <value>All Files</value>
+    <value>Все файлы</value>
   </data>
   <data name="Tools.ModBuilder.Filter.ImageFiles" xml:space="preserve">
-    <value>Image Files</value>
+    <value>Файлы изображений</value>
   </data>
   <data name="Tools.ModBuilder.Filter.TextFiles" xml:space="preserve">
-    <value>Text Files</value>
+    <value>Текстовые файлы</value>
   </data>
   <data name="Tools.ModBuilder.Notification.AddFilesFailed.Title" xml:space="preserve">
-    <value>Add Files Failed</value>
+    <value>Не удалось добавить файлы</value>
   </data>
   <data name="Tools.ModBuilder.Notification.AddFilesFailed.Message" xml:space="preserve">
-    <value>Failed to add files: {0}</value>
+    <value>Не удалось добавить файлы: {0}</value>
   </data>
   <data name="Tools.ModBuilder.Notification.BundlePackSaved.Title" xml:space="preserve">
-    <value>Bundle Pack Saved</value>
+    <value>Пакет сборок сохранен</value>
   </data>
   <data name="Tools.ModBuilder.Notification.BundlePackSaved.Message" xml:space="preserve">
-    <value>Changes to '{0}' have been saved</value>
+    <value>Изменения в '{0}' сохранены</value>
   </data>
   <data name="Tools.ModBuilder.Notification.ConversionQueued.Title" xml:space="preserve">
-    <value>Conversion Queued</value>
+    <value>Преобразование поставлено в очередь</value>
   </data>
   <data name="Tools.ModBuilder.Notification.ConversionQueued.Message" xml:space="preserve">
-    <value>{0} TGA file(s) will be converted to DDS during build</value>
+    <value>{0} файлов TGA будет преобразовано в DDS при сборке</value>
   </data>
   <data name="Tools.ModBuilder.Notification.NoTgaFiles.Title" xml:space="preserve">
-    <value>No TGA Files</value>
+    <value>Нет файлов TGA</value>
   </data>
   <data name="Tools.ModBuilder.Notification.NoTgaFiles.Message" xml:space="preserve">
-    <value>No TGA files found to convert</value>
+    <value>Файлы TGA для преобразования не найдены</value>
   </data>
   <data name="Tools.ReplayManager.Status.ImportCancelled" xml:space="preserve">
-    <value>Import cancelled.</value>
+    <value>Импорт отменен.</value>
   </data>
   <data name="Common.Notification.Copied.Title" xml:space="preserve">
     <value>Скопировано</value>

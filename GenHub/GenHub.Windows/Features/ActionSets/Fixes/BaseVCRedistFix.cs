@@ -186,7 +186,7 @@ public abstract class BaseVCRedistFix(
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error installing {Name}", RedistDisplayName);
-            details.Add($"Error: Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return new ActionSetResult(false, ex.Message, details);
         }
         finally

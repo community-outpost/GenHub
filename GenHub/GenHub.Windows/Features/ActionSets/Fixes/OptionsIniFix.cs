@@ -116,7 +116,7 @@ public class OptionsIniFix(IGameSettingsService gameSettingsService, ILogger<Opt
         catch (Exception ex)
         {
             logger.LogError(ex, "Error applying Options.ini fix");
-            details.Add($"Error: Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return new ActionSetResult(false, ex.Message, details);
         }
     }

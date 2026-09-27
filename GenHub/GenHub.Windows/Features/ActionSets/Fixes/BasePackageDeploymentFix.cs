@@ -309,7 +309,7 @@ public abstract class BasePackageDeploymentFix(
         {
             RollbackDeployment(backupEntries, persistentBackupDir, details);
             Logger.LogError(ex, "Error applying {Name} fix", PackageDisplayName);
-            details.Add($"Error: Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return new ActionSetResult(false, ex.Message, details);
         }
         finally

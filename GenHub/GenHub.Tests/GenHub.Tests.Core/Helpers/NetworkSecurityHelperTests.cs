@@ -110,6 +110,43 @@ public class NetworkSecurityHelperTests
     }
 
     /// <summary>
+    /// Verifies every reserved IPv4 range from the legacy inline blocklist stays blocked.
+    /// </summary>
+    /// <param name="address">The IPv4 address to validate.</param>
+    [Theory]
+    [InlineData("0.0.0.0")]
+    [InlineData("100.64.0.1")]
+    [InlineData("100.127.255.255")]
+    [InlineData("192.0.0.1")]
+    [InlineData("192.0.2.1")]
+    [InlineData("198.18.0.1")]
+    [InlineData("198.51.100.1")]
+    [InlineData("203.0.113.1")]
+    [InlineData("224.0.0.1")]
+    [InlineData("255.255.255.255")]
+    public void IsSafeIpAddress_ReservedIpv4Ranges_ReturnsFalse(string address)
+    {
+        Assert.False(NetworkSecurityHelper.IsSafeIpAddress(IPAddress.Parse(address)));
+    }
+
+    /// <summary>
+    /// Verifies blocked host name scopes are rejected and public hosts pass.
+    /// </summary>
+    /// <param name="host">The host name to validate.</param>
+    /// <param name="expected">The expected validation result.</param>
+    [Theory]
+    [InlineData("localhost", true)]
+    [InlineData("app.localhost", true)]
+    [InlineData("myserver.local", true)]
+    [InlineData("internal.service.internal", true)]
+    [InlineData("example.com", false)]
+    [InlineData("localhost.example.com", false)]
+    public void IsBlockedHostName_Scopes_ReturnsExpected(string host, bool expected)
+    {
+        Assert.Equal(expected, NetworkSecurityHelper.IsBlockedHostName(host));
+    }
+
+    /// <summary>
     /// Verifies IPv6 transition embeddings of unsafe IPv4 addresses are blocked.
     /// </summary>
     /// <param name="address">The IPv6 address to validate.</param>

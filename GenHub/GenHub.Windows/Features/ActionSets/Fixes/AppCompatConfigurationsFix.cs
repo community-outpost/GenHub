@@ -100,7 +100,7 @@ public class AppCompatConfigurationsFix(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to apply AppCompat configurations");
-            details.Add($"Error: Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return new ActionSetResult(false, ex.Message, details);
         }
     }

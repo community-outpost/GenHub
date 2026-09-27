@@ -99,7 +99,7 @@ public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) 
         }
         catch (Exception ex)
         {
-            details.Add($"Error: Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             logger.LogError(ex, "Error applying network private profile fix");
             return new ActionSetResult(false, ex.Message, details);
         }

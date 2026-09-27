@@ -126,7 +126,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
         catch (Exception ex)
         {
             logger.LogError(ex, "Error implementing DirectX Runtime Fix");
-            details.Add($"Error: Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return new ActionSetResult(false, ex.Message, details);
         }
         finally

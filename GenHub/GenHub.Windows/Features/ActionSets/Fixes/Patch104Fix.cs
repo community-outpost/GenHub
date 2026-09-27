@@ -109,7 +109,7 @@ public class Patch104Fix(ILogger<Patch104Fix> logger, IHttpClientFactory httpCli
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to install Zero Hour 1.04 patch");
-            details.Add($"Error: Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return new ActionSetResult(false, ex.Message, details);
         }
         finally

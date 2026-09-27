@@ -98,7 +98,7 @@ public class NahimicFix(ILogger<NahimicFix> logger) : BaseActionSet(logger)
         catch (Exception ex)
         {
             logger.LogError(ex, "Error applying Nahimic compatibility fix");
-            details.Add($"Error: Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
     }

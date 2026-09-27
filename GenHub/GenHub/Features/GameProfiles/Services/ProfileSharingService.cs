@@ -418,12 +418,6 @@ public class ProfileSharingService(
         return NetworkSecurityHelper.IsSafeIpAddress(ip);
     }
 
-    private static bool IsBlockedHostName(string host) =>
-        host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
-        host.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase) ||
-        host.EndsWith(".local", StringComparison.OrdinalIgnoreCase) ||
-        host.EndsWith(".internal", StringComparison.OrdinalIgnoreCase);
-
     private static async ValueTask<Stream> ConnectToValidatedAddressAsync(
         ConcurrentDictionary<string, HashSet<IPAddress>> validatedHosts,
         SocketsHttpConnectionContext context,
@@ -765,7 +759,7 @@ public class ProfileSharingService(
             return false;
         }
 
-        if (IsBlockedHostName(uri.DnsSafeHost))
+        if (NetworkSecurityHelper.IsBlockedHostName(uri.DnsSafeHost))
         {
             return false;
         }

@@ -117,7 +117,7 @@ public class TheFirstDecadeRegistryFix(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error applying TFD registry fix");
-            details.Add($"Error: Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
     }

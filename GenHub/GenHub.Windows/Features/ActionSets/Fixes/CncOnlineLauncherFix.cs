@@ -130,7 +130,7 @@ public class CncOnlineLauncherFix(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error applying C&C Online registry fix");
-            details.Add($"Error: Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
     }

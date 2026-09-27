@@ -186,6 +186,18 @@ public static class NetworkSecurityHelper
         return IsEmbeddedIpv4Safe(b);
     }
 
+    /// <summary>
+    /// Validates whether a host name targets a blocked local scope (localhost,
+    /// <c>.localhost</c>, <c>.local</c>, or <c>.internal</c>).
+    /// </summary>
+    /// <param name="host">The host name to validate.</param>
+    /// <returns><c>true</c> if the host is blocked; otherwise, <c>false</c>.</returns>
+    public static bool IsBlockedHostName(string host) =>
+        host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+        host.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase) ||
+        host.EndsWith(".local", StringComparison.OrdinalIgnoreCase) ||
+        host.EndsWith(".internal", StringComparison.OrdinalIgnoreCase);
+
     private static bool TryGetCandidateUri(string? url, [NotNullWhen(true)] out Uri? uri, out string? failureReason)
     {
         uri = null;
@@ -203,11 +215,7 @@ public static class NetworkSecurityHelper
     }
 
     private static bool IsBlockedHostName(Uri uri) =>
-        uri.IsLoopback ||
-        uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
-        uri.Host.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase) ||
-        uri.Host.EndsWith(".local", StringComparison.OrdinalIgnoreCase) ||
-        uri.Host.EndsWith(".internal", StringComparison.OrdinalIgnoreCase);
+        uri.IsLoopback || IsBlockedHostName(uri.Host);
 
     private static bool TryGetLiteralAddress(Uri uri, [NotNullWhen(true)] out IPAddress? address)
     {
