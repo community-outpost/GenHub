@@ -34,11 +34,11 @@ public class ProfileColorToOpacityConverter : IValueConverter
                 color.R,
                 color.G,
                 color.B);
-            return new SolidColorBrush(adjustedColor);
+            return BrushCache.Get(adjustedColor);
         }
 
         // If parsing fails, return a default brush
-        return new SolidColorBrush(Color.FromArgb((byte)(opacity * 255), 42, 42, 42));
+        return BrushCache.Get(Color.FromArgb((byte)(opacity * 255), 42, 42, 42));
     }
 
     /// <summary>

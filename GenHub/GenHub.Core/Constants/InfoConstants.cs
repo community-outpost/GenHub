@@ -226,6 +226,36 @@ public static class InfoConstants
     public const string CardToolsDemo = "demo-tools";
 
     /// <summary>
+    /// Sidebar anchor card ID for the Replay Manager demo.
+    /// </summary>
+    public const string CardToolsReplayDemo = "demo-replay";
+
+    /// <summary>
+    /// Sidebar anchor card ID for the Map Manager demo.
+    /// </summary>
+    public const string CardToolsMapDemo = "demo-map";
+
+    /// <summary>
+    /// Sidebar anchor card ID for the Hotkey Editor demo.
+    /// </summary>
+    public const string CardToolsHotkeyDemo = "demo-hotkeys";
+
+    /// <summary>
+    /// Sidebar anchor card ID for the Publisher Studio demo.
+    /// </summary>
+    public const string CardToolsPublisherDemo = "demo-publisher";
+
+    /// <summary>
+    /// Sidebar anchor card ID for the ModBuilder demo.
+    /// </summary>
+    public const string CardToolsModBuilderDemo = "demo-modbuilder";
+
+    /// <summary>
+    /// Sidebar anchor card ID for the WND Editor demo.
+    /// </summary>
+    public const string CardToolsWndDemo = "demo-wnd";
+
+    /// <summary>
     /// Card ID for Scan Demo.
     /// </summary>
     public const string CardScanDemo = "demo-scan";
@@ -599,16 +629,6 @@ public static class InfoConstants
     /// Card ID for Updates Offline Downloads.
     /// </summary>
     public const string CardUpdatesOfflineDownloads = "offline-downloads";
-
-    /// <summary>
-    /// Card ID for GenHub Changelogs Interactive Demo.
-    /// </summary>
-    public const string CardChangelogsDemo = "demo-changelogs";
-
-    /// <summary>
-    /// Card ID for Generals Online Changelog Interactive Demo.
-    /// </summary>
-    public const string CardGoChangelogDemo = "demo-go-changelog";
 
     /// <summary>
     /// Card ID for Generals Online Changelog Overview.

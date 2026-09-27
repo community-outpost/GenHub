@@ -416,6 +416,44 @@ public partial class ModBuilderViewModel(
         await LoadRecentProjectsAsync().ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Loads a newly created project into the studio. Also used by the interactive guide demo.
+    /// </summary>
+    /// <param name="projectPath">The project file path.</param>
+    /// <param name="projectName">The project display name.</param>
+    /// <param name="project">The project to load.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public async Task HandleNewProjectCreatedAsync(string projectPath, string projectName, ModBuilderProject project)
+    {
+        CurrentProject = project;
+        ProjectPath = projectPath;
+        ProjectName = projectName;
+        SelectedContentType = project.ContentType;
+        IsProjectLoaded = true;
+
+        // Generate complete project structure
+        await projectStructureGenerator.GenerateProjectStructureAsync(
+            projectPath,
+            CancellationToken.None).ConfigureAwait(false);
+
+        var newProjectDir = Path.GetDirectoryName(projectPath);
+        if (!string.IsNullOrEmpty(newProjectDir))
+        {
+            await EnsureSampleAssetsIfRequiredAsync(projectPath, newProjectDir, projectName, CancellationToken.None).ConfigureAwait(false);
+        }
+
+        await LoadProjectDataAsync().ConfigureAwait(false);
+        await projectConfigService.AddToRecentProjectsAsync(projectPath, CancellationToken.None).ConfigureAwait(false);
+        await LoadRecentProjectsAsync().ConfigureAwait(false);
+
+        notificationService.ShowSuccess(
+            localizationService.GetString("Tools.ModBuilder.Notification.ProjectCreated.Title"),
+            localizationService.GetString("Tools.ModBuilder.Notification.ProjectCreated.Message", projectName));
+        AppendBuildLog($"Created new project: {projectPath}");
+        AppendBuildLog("Generated project structure with folders and config files");
+        logger.LogInformation("Project created successfully at {ProjectPath}", projectPath);
+    }
+
     private void OnLocalizationPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(ILocalizationService.CurrentCulture))
@@ -2243,37 +2281,6 @@ public partial class ModBuilderViewModel(
     }
 
     private bool CanOpenFileManager() => CurrentProject != null && !IsBuildRunning;
-
-    private async Task HandleNewProjectCreatedAsync(string projectPath, string projectName, ModBuilderProject project)
-    {
-        CurrentProject = project;
-        ProjectPath = projectPath;
-        ProjectName = projectName;
-        SelectedContentType = project.ContentType;
-        IsProjectLoaded = true;
-
-        // Generate complete project structure
-        await projectStructureGenerator.GenerateProjectStructureAsync(
-            projectPath,
-            CancellationToken.None).ConfigureAwait(false);
-
-        var newProjectDir = Path.GetDirectoryName(projectPath);
-        if (!string.IsNullOrEmpty(newProjectDir))
-        {
-            await EnsureSampleAssetsIfRequiredAsync(projectPath, newProjectDir, projectName, CancellationToken.None).ConfigureAwait(false);
-        }
-
-        await LoadProjectDataAsync().ConfigureAwait(false);
-        await projectConfigService.AddToRecentProjectsAsync(projectPath, CancellationToken.None).ConfigureAwait(false);
-        await LoadRecentProjectsAsync().ConfigureAwait(false);
-
-        notificationService.ShowSuccess(
-            localizationService.GetString("Tools.ModBuilder.Notification.ProjectCreated.Title"),
-            localizationService.GetString("Tools.ModBuilder.Notification.ProjectCreated.Message", projectName));
-        AppendBuildLog($"Created new project: {projectPath}");
-        AppendBuildLog("Generated project structure with folders and config files");
-        logger.LogInformation("Project created successfully at {ProjectPath}", projectPath);
-    }
 
     private async Task EnsureSampleAssetsIfRequiredAsync(
         string projectPath,

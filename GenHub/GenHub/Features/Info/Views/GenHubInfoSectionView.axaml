@@ -682,7 +682,7 @@
                               ClipToBounds="False"/>
 
                 <!-- 1. REPLAY MANAGER -->
-                <StackPanel Spacing="40">
+                <StackPanel x:Name="ReplayDemoContainer" Spacing="40">
                     <!-- Header -->
                     <StackPanel HorizontalAlignment="Left" Spacing="8">
                         <StackPanel Orientation="Horizontal" Spacing="10">
@@ -711,7 +711,7 @@
                 </StackPanel>
 
                 <!-- 2. MAP MANAGER -->
-                <StackPanel Spacing="40">
+                <StackPanel x:Name="MapDemoContainer" Spacing="40">
                     <!-- Header -->
                     <StackPanel HorizontalAlignment="Left" Spacing="8">
                         <StackPanel Orientation="Horizontal" Spacing="10">
@@ -740,7 +740,7 @@
                 </StackPanel>
 
                 <!-- 3. HOTKEY EDITOR -->
-                <StackPanel Spacing="40">
+                <StackPanel x:Name="HotkeyDemoContainer" Spacing="40">
                     <!-- Header -->
                     <StackPanel HorizontalAlignment="Left" Spacing="8">
                         <StackPanel Orientation="Horizontal" Spacing="10">
@@ -769,7 +769,7 @@
                 </StackPanel>
 
                 <!-- 4. PUBLISHER STUDIO -->
-                <StackPanel Spacing="40">
+                <StackPanel x:Name="PublisherDemoContainer" Spacing="40">
                     <!-- Header -->
                     <StackPanel HorizontalAlignment="Left" Spacing="8">
                         <StackPanel Orientation="Horizontal" Spacing="10">
@@ -798,7 +798,7 @@
                 </StackPanel>
 
                 <!-- 5. MODBUILDER -->
-                <StackPanel Spacing="40">
+                <StackPanel x:Name="ModBuilderDemoContainer" Spacing="40">
                     <!-- Header -->
                     <StackPanel HorizontalAlignment="Left" Spacing="8">
                         <StackPanel Orientation="Horizontal" Spacing="10">
@@ -827,7 +827,7 @@
                 </StackPanel>
 
                 <!-- 6. WND EDITOR -->
-                <StackPanel Spacing="40">
+                <StackPanel x:Name="WndDemoContainer" Spacing="40">
                     <!-- Header -->
                     <StackPanel HorizontalAlignment="Left" Spacing="8">
                         <StackPanel Orientation="Horizontal" Spacing="10">
@@ -838,9 +838,10 @@
                     </StackPanel>
 
                     <!-- Interactive Demo (actual WND Editor view) -->
+                    <!-- Wide container: the editor's fixed sidebars (350 + 400) would squeeze the canvas under 800px -->
                     <Border Classes="demo-container">
-                        <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
-                            <Grid Width="800" Height="600" HorizontalAlignment="Center">
+                        <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="1160">
+                            <Grid Width="1160" Height="700" HorizontalAlignment="Center">
                                 <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
                                     <toolsWnd:WndEditorView DataContext="{Binding DemoWndEditor}"/>
                                 </Border>

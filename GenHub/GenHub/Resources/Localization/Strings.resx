@@ -14678,4 +14678,22 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="Info.Demo.HeightLabel" xml:space="preserve">
     <value>H:</value>
   </data>
+  <data name="Info.Card.tools.demo-replay.Title" xml:space="preserve">
+    <value>Replay Manager Demo</value>
+  </data>
+  <data name="Info.Card.tools.demo-map.Title" xml:space="preserve">
+    <value>Map Manager Demo</value>
+  </data>
+  <data name="Info.Card.tools.demo-hotkeys.Title" xml:space="preserve">
+    <value>Hotkey Editor Demo</value>
+  </data>
+  <data name="Info.Card.tools.demo-publisher.Title" xml:space="preserve">
+    <value>Publisher Studio Demo</value>
+  </data>
+  <data name="Info.Card.tools.demo-modbuilder.Title" xml:space="preserve">
+    <value>ModBuilder Demo</value>
+  </data>
+  <data name="Info.Card.tools.demo-wnd.Title" xml:space="preserve">
+    <value>WND Editor Demo</value>
+  </data>
 </root>

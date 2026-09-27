@@ -8,11 +8,14 @@ using GenHub.Core.Models.Info;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Info.Services;
 using GenHub.Features.Info.ViewModels;
+using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -49,17 +52,60 @@ public class ToolDemoViewModelTests
     }
 
     /// <summary>
-    /// Verifies that the demo factory returns the actual ModBuilder view model which initializes without disk access.
+    /// Verifies that the demo factory seeds the WND editor with the sample main menu and
+    /// presets a zoomed-out canvas so the whole menu fits the embedded demo viewport.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [AvaloniaFact]
-    public async Task CreateDemoModBuilder_ReturnsActualViewModel()
+    public async Task CreateDemoWndEditor_SeedsMainMenuAndPresetsZoom()
+    {
+        var viewModel = DemoViewModelFactory.CreateDemoWndEditor();
+
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (!viewModel.HasDocument && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(50);
+            Dispatcher.UIThread.RunJobs();
+        }
+
+        viewModel.HasDocument.Should().BeTrue();
+        viewModel.DocumentTitle.Should().Contain("MainMenu.wnd");
+        viewModel.Zoom.Should().Be(0.5);
+        viewModel.RootNodes.Should().NotBeEmpty();
+    }
+
+    /// <summary>
+    /// Verifies that the demo factory returns the actual ModBuilder view model with a seeded sample
+    /// project, bundle packs, and enabled action commands, without disk access.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task CreateDemoModBuilder_LoadsSampleProjectWithBundles()
     {
         var viewModel = DemoViewModelFactory.CreateDemoModBuilder();
 
-        await viewModel.InitializeAsync();
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while ((!viewModel.IsProjectLoaded || viewModel.Bundles.Count == 0) && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(50);
+            Dispatcher.UIThread.RunJobs();
+        }
 
+        viewModel.IsProjectLoaded.Should().BeTrue();
+        viewModel.CurrentProject.Should().NotBeNull();
+        viewModel.ProjectName.Should().Be("Demo Mod");
         viewModel.FileManager.Should().NotBeNull();
+        viewModel.Bundles.Should().HaveCount(3);
+        viewModel.Bundles.Select(b => b.Name).Should().Contain(["Core Assets", "Maps Pack", "Movies Archive"]);
+        viewModel.FileCount.Should().BeGreaterThan(0);
+
+        viewModel.BuildCommand.CanExecute(null).Should().BeTrue();
+        viewModel.SaveProjectCommand.CanExecute(null).Should().BeTrue();
+        viewModel.OpenConfigEditorCommand.CanExecute(null).Should().BeTrue();
+        viewModel.OpenManifestsCommand.CanExecute(null).Should().BeTrue();
+
+        viewModel.SelectedBundle = viewModel.Bundles[0];
+        viewModel.EditBundleCommand.CanExecute(null).Should().BeTrue();
     }
 
     /// <summary>
@@ -97,11 +143,66 @@ public class ToolDemoViewModelTests
         viewModel.CurrentProject.Should().NotBeNull();
         viewModel.CurrentProject!.Catalogs.Should().ContainSingle();
 
+        await WaitForPublisherSeedAsync(viewModel);
         await viewModel.ReloadFromCurrentProjectAsync();
 
         viewModel.SelectedCatalog.Should().NotBeNull();
         viewModel.ContentLibraryViewModel.Should().NotBeNull();
         viewModel.PublisherProfileViewModel.Should().NotBeNull();
+        viewModel.PublishShareViewModel.Should().NotBeNull();
+        viewModel.IsSetupComplete.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Verifies that the Publisher Studio demo seeds an authenticated mock hosting provider,
+    /// so catalog, hosting, and publish tabs stay usable without network access.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task CreateDemoPublisherStudio_SeedsAuthenticatedMockHosting()
+    {
+        var viewModel = DemoViewModelFactory.CreateDemoPublisherStudio();
+
+        await WaitForPublisherSeedAsync(viewModel);
+
+        viewModel.PublishShareViewModel.Should().NotBeNull();
+        var publish = viewModel.PublishShareViewModel!;
+        publish.HostingProviders.Should().ContainSingle();
+        publish.SelectedHostingProvider.Should().NotBeNull();
+        publish.SelectedHostingProvider!.ProviderId.Should().Be(MockHostingProvider.DemoProviderId);
+        publish.IsProviderAuthenticated.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Verifies that uploads through the demo hosting provider succeed end to end with progress.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task CreateDemoPublisherStudio_MockUploadSucceedsWithProgress()
+    {
+        var viewModel = DemoViewModelFactory.CreateDemoPublisherStudio();
+
+        await WaitForPublisherSeedAsync(viewModel);
+
+        var provider = viewModel.PublishShareViewModel!.SelectedHostingProvider!;
+        using var payload = new MemoryStream(Encoding.UTF8.GetBytes("{\"demo\":true}"));
+        var progress = new List<int>();
+        var result = await provider.UploadFileAsync(payload, "catalog-demo.json", progress: new Progress<int>(progress.Add));
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.PublicUrl.Should().StartWith("https://demo.genhub.local/");
+        result.Data.FileSize.Should().BeGreaterThan(0);
+        result.Data.Sha256Hash.Should().NotBeNullOrWhiteSpace();
+
+        var progressDeadline = DateTime.UtcNow.AddSeconds(5);
+        while (progress.Count < 2 && DateTime.UtcNow < progressDeadline)
+        {
+            await Task.Delay(50);
+            Dispatcher.UIThread.RunJobs();
+        }
+
+        progress.Should().Contain([0, 100]);
     }
 
     /// <summary>
@@ -169,15 +270,19 @@ public class ToolDemoViewModelTests
         await viewModel.InitializeAsync();
 
         var section = viewModel.Sections.First(s => s.Id == InfoConstants.SectionChangelogs);
-        section.Cards.Should().HaveCount(6);
+        section.Cards.Should().HaveCount(5);
         section.Cards[0].TargetItem.Should().NotBeNull();
         section.Cards[1].TargetItem.Should().NotBeNull();
         section.Cards[0].Title.Should().Contain("v0.0.2");
         section.Cards[1].Title.Should().Contain("v0.0.1");
 
         viewModel.SelectedSection = section;
-        viewModel.MainColumnCards.Should().HaveCount(4);
+        viewModel.MainColumnCards.Should().HaveCount(3);
         viewModel.MainColumnCards.Should().OnlyContain(c => c.TargetItem == null);
+
+        // No redundant interactive demo card: the release browser is the section content,
+        // and the overview card already targets it.
+        section.Cards.Should().OnlyContain(c => !c.Title.Contains("Interactive Demo"));
     }
 
     /// <summary>
@@ -199,6 +304,31 @@ public class ToolDemoViewModelTests
         viewModel.ToolsModBuilderCards.Should().HaveCount(2);
         viewModel.ToolsWndCards.Should().HaveCount(3);
         viewModel.IsStandardCardsVisible.Should().BeFalse();
+
+        // Per-demo sidebar anchors exist in card order but never render inside tool groups.
+        string[] anchorIds =
+        [
+            InfoConstants.CardToolsReplayDemo,
+            InfoConstants.CardToolsMapDemo,
+            InfoConstants.CardToolsHotkeyDemo,
+            InfoConstants.CardToolsPublisherDemo,
+            InfoConstants.CardToolsModBuilderDemo,
+            InfoConstants.CardToolsWndDemo,
+        ];
+        toolsSection.Cards.Select(c => c.Id).Should().Contain(anchorIds);
+        foreach (var group in new[]
+        {
+            viewModel.ToolsIntroCards,
+            viewModel.ToolsReplayCards,
+            viewModel.ToolsMapCards,
+            viewModel.ToolsHotkeyCards,
+            viewModel.ToolsPublisherCards,
+            viewModel.ToolsModBuilderCards,
+            viewModel.ToolsWndCards,
+        })
+        {
+            group.Select(c => c.Id).Should().NotContain(anchorIds);
+        }
     }
 
     private static async Task<GenHubInfoSectionViewModel> CreateInitializedViewModelAsync()
@@ -218,5 +348,15 @@ public class ToolDemoViewModelTests
             new GeneralsOnlineChangelogViewModel(patchNotesMock.Object, Mock.Of<ILogger<GeneralsOnlineChangelogViewModel>>()));
         await viewModel.InitializeAsync();
         return viewModel;
+    }
+
+    private static async Task WaitForPublisherSeedAsync(PublisherStudioViewModel viewModel)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (viewModel.PublishShareViewModel == null && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(50);
+            Dispatcher.UIThread.RunJobs();
+        }
     }
 }

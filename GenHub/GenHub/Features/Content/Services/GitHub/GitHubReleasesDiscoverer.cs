@@ -99,9 +99,15 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
         int pageSize = query.Take > 0 ? query.Take : 24;
         int currentPage = query.Page ?? 1;
         if (currentPage < 1) currentPage = 1;
-        int skip = (currentPage - 1) * pageSize;
 
-        var paginatedResults = results.Skip(skip).Take(pageSize).ToList();
+        // Guarantee the latest release from each repository is visible on the first
+        // page. Without this, a frequent repo (weekly game code) starves an infrequent
+        // repo (patch) whose latest release is older than the first page cutoff.
+        var (orderedResults, firstPageExtraCount) = ApplyFirstPageRepositoryCoverage(results, pageSize);
+        int skip = currentPage == 1 ? 0 : ((currentPage - 1) * pageSize) + firstPageExtraCount;
+        int take = currentPage == 1 ? pageSize + firstPageExtraCount : pageSize;
+
+        var paginatedResults = orderedResults.Skip(skip).Take(take).ToList();
 
         var hasMoreItems = totalItems > 0 && (skip + paginatedResults.Count < totalItems);
 
@@ -120,6 +126,80 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
                 TotalItems = totalItems,
                 HasMoreItems = hasMoreItems,
             });
+    }
+
+    private static (List<ContentSearchResult> Ordered, int FirstPageExtraCount) ApplyFirstPageRepositoryCoverage(
+        List<ContentSearchResult> sortedResults,
+        int pageSize)
+    {
+        if (sortedResults.Count <= pageSize || pageSize <= 0)
+        {
+            return (sortedResults, 0);
+        }
+
+        var groups = sortedResults
+            .GroupBy(GetRepositoryKey)
+            .Where(g => !string.IsNullOrEmpty(g.Key))
+            .ToList();
+        if (groups.Count <= 1)
+        {
+            return (sortedResults, 0);
+        }
+
+        var firstPageIds = new HashSet<string>(
+            sortedResults.Take(pageSize).Select(r => r.Id),
+            StringComparer.Ordinal);
+        var missing = new List<ContentSearchResult>();
+        foreach (var group in groups)
+        {
+            foreach (var card in FindLatestReleaseCards(group))
+            {
+                if (!firstPageIds.Contains(card.Id) && missing.All(m => !m.Id.Equals(card.Id, StringComparison.Ordinal)))
+                {
+                    missing.Add(card);
+                }
+            }
+        }
+
+        if (missing.Count == 0)
+        {
+            return (sortedResults, 0);
+        }
+
+        var firstPage = sortedResults
+            .Take(pageSize)
+            .Concat(missing)
+            .OrderByDescending(r => r.LastUpdated)
+            .ToList();
+        var firstPageIdSet = new HashSet<string>(firstPage.Select(r => r.Id), StringComparer.Ordinal);
+        var remainder = sortedResults.Where(r => !firstPageIdSet.Contains(r.Id)).ToList();
+        return (firstPage.Concat(remainder).ToList(), missing.Count);
+    }
+
+    private static List<ContentSearchResult> FindLatestReleaseCards(IGrouping<string, ContentSearchResult> group)
+    {
+        var newest = group.OrderByDescending(r => r.LastUpdated ?? DateTime.MinValue).First();
+        if (!newest.ResolverMetadata.TryGetValue(GitHubConstants.TagMetadataKey, out var tag) || string.IsNullOrEmpty(tag))
+        {
+            return [newest];
+        }
+
+        var latestCards = group
+            .Where(r => r.ResolverMetadata.TryGetValue(GitHubConstants.TagMetadataKey, out var candidateTag) &&
+                candidateTag.Equals(tag, StringComparison.Ordinal))
+            .ToList();
+        return latestCards.Count > 0 ? latestCards : [newest];
+    }
+
+    private static string GetRepositoryKey(ContentSearchResult result)
+    {
+        result.ResolverMetadata.TryGetValue(GitHubConstants.OwnerMetadataKey, out var owner);
+        if (!result.ResolverMetadata.TryGetValue(GitHubConstants.RepoMetadataKey, out var repo) || string.IsNullOrEmpty(repo))
+        {
+            return string.Empty;
+        }
+
+        return $"{owner ?? string.Empty}/{repo}";
     }
 
     private static string StripVersionPrefix(string? tag) => GameVersionHelper.StripVersionPrefix(tag);

@@ -54,6 +54,23 @@ public class DefaultInfoContentProviderTests
     }
 
     /// <summary>
+    /// Verifies that neither changelog section keeps a redundant interactive demo card.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GetSectionAsync_ChangelogSections_HaveNoDemoCardsAsync()
+    {
+        var changelogs = await _provider.GetSectionAsync(InfoConstants.SectionChangelogs);
+        var goChangelog = await _provider.GetSectionAsync(InfoConstants.SectionGoChangelog);
+
+        changelogs.Should().NotBeNull();
+        goChangelog.Should().NotBeNull();
+        changelogs!.Cards.Should().HaveCount(3);
+        goChangelog!.Cards.Should().HaveCount(2);
+        changelogs.Cards.Concat(goChangelog.Cards).Should().OnlyContain(c => !c.Title.Contains("Interactive Demo"));
+    }
+
+    /// <summary>
     /// Verifies that GetSectionAsync returns the workspace section with comprehensive strategy explanations.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
@@ -118,6 +135,22 @@ public class DefaultInfoContentProviderTests
             InfoConstants.CardToolsWndEditorCanvas,
             InfoConstants.CardToolsWndEditorAssets,
         ]);
+
+        // Each per-demo sidebar anchor sits immediately before its tool group.
+        cardIds.Should().Contain([
+            InfoConstants.CardToolsReplayDemo,
+            InfoConstants.CardToolsMapDemo,
+            InfoConstants.CardToolsHotkeyDemo,
+            InfoConstants.CardToolsPublisherDemo,
+            InfoConstants.CardToolsModBuilderDemo,
+            InfoConstants.CardToolsWndDemo,
+        ]);
+        cardIds.IndexOf(InfoConstants.CardToolsReplayDemo).Should().Be(cardIds.IndexOf(InfoConstants.CardToolsReplayImport) - 1);
+        cardIds.IndexOf(InfoConstants.CardToolsMapDemo).Should().Be(cardIds.IndexOf(InfoConstants.CardToolsMapLibrary) - 1);
+        cardIds.IndexOf(InfoConstants.CardToolsHotkeyDemo).Should().Be(cardIds.IndexOf(InfoConstants.CardToolsHotkeyEditorRebind) - 1);
+        cardIds.IndexOf(InfoConstants.CardToolsPublisherDemo).Should().Be(cardIds.IndexOf(InfoConstants.CardToolsPublisherStudioPipeline) - 1);
+        cardIds.IndexOf(InfoConstants.CardToolsModBuilderDemo).Should().Be(cardIds.IndexOf(InfoConstants.CardToolsModbuilderSuitePipeline) - 1);
+        cardIds.IndexOf(InfoConstants.CardToolsWndDemo).Should().Be(cardIds.IndexOf(InfoConstants.CardToolsWndEditorWorkflow) - 1);
 
         var crcCard = section.Cards.First(c => c.Id == InfoConstants.CardToolsReplayGameClientMapping);
         crcCard.DetailedContent.Should().Contain("CRC");

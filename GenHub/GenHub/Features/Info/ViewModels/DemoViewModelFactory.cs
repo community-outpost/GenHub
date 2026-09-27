@@ -8,6 +8,8 @@ using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
+using GenHub.Core.Models.Tools.ModBuilder;
+using GenHub.Core.Models.Tools.WndEditor;
 using GenHub.Features.AppUpdate.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Info.Services;
@@ -24,6 +26,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -34,28 +38,6 @@ namespace GenHub.Features.Info.ViewModels;
 /// </summary>
 public static class DemoViewModelFactory
 {
-    private const string SampleWndDocumentText =
-        "FILE_VERSION = 2;\n" +
-        "WINDOW\n" +
-        "  WINDOWTYPE = USER;\n" +
-        "  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 800 600, CREATIONRESOLUTION: 800 600;\n" +
-        "  NAME = \"DemoMainMenu.wnd:ParentMenu\";\n" +
-        "  STATUS = ENABLED;\n" +
-        "  CHILD\n" +
-        "  WINDOW\n" +
-        "    WINDOWTYPE = PUSHBUTTON;\n" +
-        "    SCREENRECT = UPPERLEFT: 10 20, BOTTOMRIGHT: 210 60, CREATIONRESOLUTION: 800 600;\n" +
-        "    NAME = \"DemoMainMenu.wnd:StartButton\";\n" +
-        "  END\n" +
-        "  CHILD\n" +
-        "  WINDOW\n" +
-        "    WINDOWTYPE = PUSHBUTTON;\n" +
-        "    SCREENRECT = UPPERLEFT: 10 80, BOTTOMRIGHT: 210 120, CREATIONRESOLUTION: 800 600;\n" +
-        "    NAME = \"DemoMainMenu.wnd:OptionsButton\";\n" +
-        "  END\n" +
-        "  ENDALLCHILDREN\n" +
-        "END\n";
-
     /// <summary>
     /// Creates a demo GameProfileItemViewModel with sample data.
     /// </summary>
@@ -332,7 +314,7 @@ public static class DemoViewModelFactory
     }
 
     /// <summary>
-    /// Creates the actual WND editor view model with a sample window layout loaded from text.
+    /// Creates the actual WND editor view model with a sample main menu layout loaded from text.
     /// Uses the real document parser with mock asset and installation services so nothing touches disk.
     /// </summary>
     /// <param name="notificationService">Optional notification service for demo actions.</param>
@@ -347,15 +329,23 @@ public static class DemoViewModelFactory
             notificationService ?? new MockNotificationService(),
             localizationService ?? new MockLocalizationService(),
             new MockDialogService(),
-            new MockGameInstallationService(),
+            new MockWndGameInstallationService(),
             new MockWndEditorAssetService(),
             new MockWndTextureImportService(),
             new MockChallengeMedalService(),
             new MockLogger<WndEditorViewModel>());
 
-        _ = SeedDemoAsync(() => vm.LoadFromTextAsync(SampleWndDocumentText, "DemoMainMenu.wnd"), "WND document");
+        _ = SeedDemoAsync(SeedWndDemoAsync, "WND document");
 
         return vm;
+
+        async Task SeedWndDemoAsync()
+        {
+            // Start zoomed out so the whole sample menu fits the demo viewport on first paint.
+            vm.Zoom = 0.5;
+            await vm.LoadFromTextAsync(BuildSampleMainMenuDocument(), "MainMenu.wnd");
+            vm.SelectedAssetInstallation ??= vm.AvailableInstallations.FirstOrDefault();
+        }
     }
 
     /// <summary>
@@ -377,10 +367,11 @@ public static class DemoViewModelFactory
             loc,
             new MockLogger<FileManagerViewModel>());
 
+        var configLoader = new MockConfigurationLoaderService();
         var vm = new ModBuilderViewModel(
             new MockBuildEngineService(),
             new MockProjectConfigService(),
-            new MockConfigurationLoaderService(),
+            configLoader,
             new MockProjectStructureGenerator(),
             notify,
             loc,
@@ -390,9 +381,28 @@ public static class DemoViewModelFactory
             new MockDialogService(),
             null);
 
-        _ = SeedDemoAsync(() => vm.InitializeAsync(), "ModBuilder");
+        _ = SeedDemoAsync(SeedModBuilderDemoAsync, "ModBuilder");
 
         return vm;
+
+        async Task SeedModBuilderDemoAsync()
+        {
+            await vm.InitializeAsync();
+            var project = new ModBuilderProject
+            {
+                Name = "Demo Mod",
+                Version = "1.0.0",
+                Description = "Sample project for the interactive guide.",
+                Author = "GenHub Guide",
+                TargetGame = GameType.ZeroHour,
+                ContentType = ContentType.Mod,
+                ProjectDir = "demo-mod-project",
+                ConfigFiles = ["configs/build.json", "configs/bundles.json"],
+                BundleConfigs = ["configs/bundles.json"],
+            };
+            project.Configuration = await configLoader.LoadProjectConfigurationAsync(project.ProjectDir);
+            await vm.HandleNewProjectCreatedAsync("demo-mod-project/DemoMod.mbproj", project.Name, project);
+        }
     }
 
     /// <summary>
@@ -441,20 +451,28 @@ public static class DemoViewModelFactory
             studioLogger,
             new MockPublisherStudioService(),
             dialogService,
-            null,
-            null,
+            new MockHostingProviderFactory(),
+            new MockHostingStateManager(),
             notify,
             new MockConfigurationProviderService(),
-            localizationService);
+            localizationService,
+            new MockHostingCredentialStore(),
+            catalogParser: null,
+            subscriptionStore: new MockPublisherSubscriptionStore());
 
         var project = CreateSamplePublisherProject();
+        project.ProjectPath = "demo-publisher-project.json";
         vm.CurrentProject = project;
-        vm.PublisherProfileViewModel = new PublisherProfileViewModel(project, vm, studioLogger, notify, localizationService);
-        vm.ReferralsViewModel = new ReferralsViewModel(project, vm, studioLogger, dialogService, notify, localizationService);
 
-        _ = SeedDemoAsync(() => vm.ReloadFromCurrentProjectAsync(), "Publisher Studio");
+        _ = SeedDemoAsync(SeedPublisherStudioDemoAsync, "Publisher Studio");
 
         return vm;
+
+        async Task SeedPublisherStudioDemoAsync()
+        {
+            await vm.InitializeChildViewModelsAsync();
+            vm.PublishShareViewModel?.ReloadHostingProviders();
+        }
     }
 
     /// <summary>
@@ -698,5 +716,85 @@ public static class DemoViewModelFactory
         {
             System.Diagnostics.Debug.WriteLine($"Failed to seed demo {demoName}: {ex}");
         }
+    }
+
+    private static string BuildSampleMainMenuDocument()
+    {
+        var buttonArt = ThreePieceDrawData("MenuButtonLeft", "MenuButtonMiddle", "MenuButtonRight");
+        var backdropArt = SingleDrawData("MenuBackdrop");
+        var builder = new StringBuilder();
+        builder.AppendLine("FILE_VERSION = 2;");
+        builder.AppendLine("STARTLAYOUTBLOCK");
+        builder.AppendLine("  LAYOUTINIT = MainMenuInit;");
+        builder.AppendLine("ENDLAYOUTBLOCK");
+        builder.AppendLine("WINDOW");
+        builder.AppendLine("  WINDOWTYPE = USER;");
+        builder.AppendLine("  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 800 600, CREATIONRESOLUTION: 800 600;");
+        builder.AppendLine("  NAME = \"MainMenu.wnd:MainMenu\";");
+        builder.AppendLine("  STATUS = ENABLED;");
+        builder.AppendLine($"  ENABLEDDRAWDATA = {backdropArt};");
+        builder.AppendLine("  CHILD");
+        AppendWindow(builder, "STATICTEXT", "200 40", "600 90", "MainMenu.wnd:TitleText", "GAMETEXT:Menu_Title");
+        AppendWindow(builder, "PUSHBUTTON", "300 150", "500 190", "MainMenu.wnd:ButtonSinglePlayer", "GAMETEXT:GUI_SinglePlayer", buttonArt);
+        AppendWindow(builder, "PUSHBUTTON", "300 200", "500 240", "MainMenu.wnd:ButtonMultiplayer", "GAMETEXT:GUI_Multiplayer", buttonArt);
+        AppendWindow(builder, "PUSHBUTTON", "300 250", "500 290", "MainMenu.wnd:ButtonOptions", "GAMETEXT:GUI_Options", buttonArt);
+        AppendWindow(builder, "PUSHBUTTON", "300 300", "500 340", "MainMenu.wnd:ButtonExit", "GAMETEXT:GUI_Exit", buttonArt);
+        AppendWindow(builder, "STATICTEXT", "600 570", "790 595", "MainMenu.wnd:VersionText", "Version 1.0 (Demo)");
+        builder.AppendLine("  ENDALLCHILDREN");
+        builder.AppendLine("END");
+        builder.AppendLine("WINDOW");
+        builder.AppendLine("  WINDOWTYPE = USER;");
+        builder.AppendLine("  SCREENRECT = UPPERLEFT: 150 120, BOTTOMRIGHT: 650 500, CREATIONRESOLUTION: 800 600;");
+        builder.AppendLine("  NAME = \"MainMenu.wnd:OptionsPanel\";");
+        builder.AppendLine("  STATUS = HIDDEN;");
+        builder.AppendLine("  CHILD");
+        AppendWindow(builder, "CHECKBOX", "180 160", "420 190", "MainMenu.wnd:FullscreenCheck", "GAMETEXT:GUI_Fullscreen");
+        AppendWindow(builder, "RADIOBUTTON", "180 200", "420 230", "MainMenu.wnd:EasyRadio", "Easy");
+        AppendWindow(builder, "RADIOBUTTON", "180 235", "420 265", "MainMenu.wnd:NormalRadio", "Normal");
+        AppendWindow(builder, "PUSHBUTTON", "180 440", "330 475", "MainMenu.wnd:BackButton", "GAMETEXT:GUI_Back", buttonArt);
+        builder.AppendLine("  ENDALLCHILDREN");
+        builder.AppendLine("END");
+        return builder.ToString();
+    }
+
+    private static void AppendWindow(StringBuilder builder, string windowType, string upperLeft, string bottomRight, string name, string text, string? drawData = null)
+    {
+        builder.AppendLine("  WINDOW");
+        builder.AppendLine($"    WINDOWTYPE = {windowType};");
+        builder.AppendLine($"    SCREENRECT = UPPERLEFT: {upperLeft}, BOTTOMRIGHT: {bottomRight}, CREATIONRESOLUTION: 800 600;");
+        builder.AppendLine($"    NAME = \"{name}\";");
+        builder.AppendLine($"    TEXT = \"{text}\";");
+        if (!string.IsNullOrEmpty(drawData))
+        {
+            builder.AppendLine($"    ENABLEDDRAWDATA = {drawData};");
+        }
+
+        builder.AppendLine("  END");
+    }
+
+    private static string ThreePieceDrawData(string left, string middle, string right)
+    {
+        return DrawDataWith((left, 0), (middle, 5), (right, 6));
+    }
+
+    private static string SingleDrawData(string image)
+    {
+        return DrawDataWith((image, 0));
+    }
+
+    private static string DrawDataWith(params (string Name, int Index)[] images)
+    {
+        var entries = new List<WndDrawDataEntry>();
+        for (var i = 0; i < WndConstants.DrawData.EntryCount; i++)
+        {
+            entries.Add(WndDrawDataEntry.Empty);
+        }
+
+        foreach (var (name, index) in images)
+        {
+            entries[index] = new WndDrawDataEntry(name, new WndRgbaColor(10, 20, 30, 255), new WndRgbaColor(40, 50, 60, 255));
+        }
+
+        return new WndDrawDataSet(entries).ToString();
     }
 }

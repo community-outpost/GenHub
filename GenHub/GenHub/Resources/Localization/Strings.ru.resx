@@ -14619,4 +14619,22 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="Info.Demo.HeightLabel" xml:space="preserve">
     <value>В:</value>
   </data>
+  <data name="Info.Card.tools.demo-replay.Title" xml:space="preserve">
+    <value>Демо менеджера повторов</value>
+  </data>
+  <data name="Info.Card.tools.demo-map.Title" xml:space="preserve">
+    <value>Демо менеджера карт</value>
+  </data>
+  <data name="Info.Card.tools.demo-hotkeys.Title" xml:space="preserve">
+    <value>Демо редактора горячих клавиш</value>
+  </data>
+  <data name="Info.Card.tools.demo-publisher.Title" xml:space="preserve">
+    <value>Демо студии издателя</value>
+  </data>
+  <data name="Info.Card.tools.demo-modbuilder.Title" xml:space="preserve">
+    <value>Демо ModBuilder</value>
+  </data>
+  <data name="Info.Card.tools.demo-wnd.Title" xml:space="preserve">
+    <value>Демо редактора WND</value>
+  </data>
 </root>

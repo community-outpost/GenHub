@@ -1,5 +1,6 @@
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Interfaces.Tools.GenHotkeys;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
@@ -16,6 +17,7 @@ using GenHub.Core.Models.Tools.GenHotkeys;
 using GenHub.Core.Models.Tools.ModBuilder;
 using GenHub.Core.Models.Tools.WndEditor;
 using GenHub.Features.Tools.Interfaces;
+using GenHub.Features.Tools.Services.Hosting;
 using GenHub.Features.Tools.ViewModels.Dialogs;
 using System;
 using System.Collections.Generic;
@@ -23,7 +25,10 @@ using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -193,29 +198,182 @@ public sealed class MockHotkeyPackageService : IHotkeyPackageService
 }
 
 /// <summary>
-/// Mock WND image asset service for demos. Resolves no game art.
+/// Mock game installation service for the WND editor demo. Reports one sample Generals install
+/// so the asset preview pipeline can run without touching disk.
 /// </summary>
-public sealed class MockWndImageAssetService : IWndImageAssetService
+public sealed class MockWndGameInstallationService : IGameInstallationService
 {
-    /// <inheritdoc/>
-    public Task<OperationResult<IReadOnlyDictionary<string, byte[]>>> GetImagesAsync(IReadOnlyCollection<string> mappedImageNames, string baseRoot, string? overrideRoot, string? projectDirectory, IReadOnlyCollection<string>? additionalBigFiles = null, bool isZeroHour = false, CancellationToken cancellationToken = default) => Task.FromResult(OperationResult<IReadOnlyDictionary<string, byte[]>>.CreateSuccess(new Dictionary<string, byte[]>()));
+    private readonly GameInstallation _sample = new("demo-game-install", GameInstallationType.Steam)
+    {
+        HasGenerals = true,
+        GeneralsPath = "demo-game-install",
+    };
 
     /// <inheritdoc/>
-    public Task<OperationResult<IReadOnlyList<string>>> GetKnownImageNamesAsync(string baseRoot, string? overrideRoot, string? projectDirectory, IReadOnlyCollection<string>? additionalBigFiles = null, bool isZeroHour = false, CancellationToken cancellationToken = default) => Task.FromResult(OperationResult<IReadOnlyList<string>>.CreateSuccess([]));
+    public IReadOnlyList<GameInstallation>? CachedInstallations => [_sample];
+
+    /// <inheritdoc/>
+    public Task<OperationResult<GameInstallation>> GetInstallationAsync(string installationId, CancellationToken cancellationToken = default) => Task.FromResult(
+        string.Equals(installationId, _sample.Id, StringComparison.OrdinalIgnoreCase)
+            ? OperationResult<GameInstallation>.CreateSuccess(_sample)
+            : OperationResult<GameInstallation>.CreateFailure("Installation not found in demo mode."));
+
+    /// <inheritdoc/>
+    public Task<OperationResult<IReadOnlyList<GameInstallation>>> GetAllInstallationsAsync(CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<GameInstallation> installations = [_sample];
+        return Task.FromResult(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess(installations));
+    }
 
     /// <inheritdoc/>
     public void InvalidateCache()
     {
     }
+
+    /// <inheritdoc/>
+    public Task<OperationResult<bool>> AddInstallationToCacheAsync(GameInstallation installation, CancellationToken cancellationToken = default) => Task.FromResult(OperationResult<bool>.CreateSuccess(true));
+
+    /// <inheritdoc/>
+    public Task CreateAndRegisterInstallationManifestsAsync(GameInstallation installation, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+    /// <inheritdoc/>
+    public Task<OperationResult<GameInstallation>> RegisterCustomInstallationAsync(string directoryPath, CancellationToken cancellationToken = default) => Task.FromResult(OperationResult<GameInstallation>.CreateFailure("Custom installations are disabled in demo mode."));
+
+    /// <inheritdoc/>
+    public Task<OperationResult<bool>> RemoveCustomInstallationAsync(string installationIdOrPath, CancellationToken cancellationToken = default) => Task.FromResult(OperationResult<bool>.CreateSuccess(false));
 }
 
 /// <summary>
-/// Mock WND string table service for demos. Resolves no labels.
+/// Mock WND image asset service for demos. Generates deterministic placeholder art per image name.
+/// </summary>
+public sealed class MockWndImageAssetService : IWndImageAssetService
+{
+    private static readonly IReadOnlyList<string> KnownNames =
+    [
+        "MenuBackdrop",
+        "MenuButtonLeft",
+        "MenuButtonMiddle",
+        "MenuButtonRight",
+        "MenuTitle",
+        "MenuDivider",
+        "CheckboxOn",
+        "CheckboxOff",
+        "RadioOn",
+        "RadioOff",
+    ];
+
+    /// <inheritdoc/>
+    public Task<OperationResult<IReadOnlyDictionary<string, byte[]>>> GetImagesAsync(IReadOnlyCollection<string> mappedImageNames, string baseRoot, string? overrideRoot, string? projectDirectory, IReadOnlyCollection<string>? additionalBigFiles = null, bool isZeroHour = false, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var images = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+        foreach (var name in mappedImageNames)
+        {
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                images[name] = CreatePlaceholderBmp(name);
+            }
+        }
+
+        IReadOnlyDictionary<string, byte[]> result = images;
+        return Task.FromResult(OperationResult<IReadOnlyDictionary<string, byte[]>>.CreateSuccess(result));
+    }
+
+    /// <inheritdoc/>
+    public Task<OperationResult<IReadOnlyList<string>>> GetKnownImageNamesAsync(string baseRoot, string? overrideRoot, string? projectDirectory, IReadOnlyCollection<string>? additionalBigFiles = null, bool isZeroHour = false, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(OperationResult<IReadOnlyList<string>>.CreateSuccess(KnownNames));
+    }
+
+    /// <inheritdoc/>
+    public void InvalidateCache()
+    {
+    }
+
+    private static byte[] CreatePlaceholderBmp(string name)
+    {
+        const int size = 96;
+        const int bytesPerPixel = 3;
+        var rowSize = size * bytesPerPixel;
+        var pixels = new byte[rowSize * size];
+        var hash = StableHash(name);
+        var baseR = (byte)(40 + (hash % 60));
+        var baseG = (byte)(50 + ((hash >> 8) % 60));
+        var baseB = (byte)(90 + ((hash >> 16) % 80));
+        for (var y = 0; y < size; y++)
+        {
+            for (var x = 0; x < size; x++)
+            {
+                var border = x < 4 || y < 4 || x >= size - 4 || y >= size - 4;
+                var offset = (y * rowSize) + (x * bytesPerPixel);
+                pixels[offset] = border ? (byte)Math.Min(255, baseB + 60) : baseB;
+                pixels[offset + 1] = border ? (byte)Math.Min(255, baseG + 60) : baseG;
+                pixels[offset + 2] = border ? (byte)Math.Min(255, baseR + 60) : baseR;
+            }
+        }
+
+        var header = new byte[54];
+        header[0] = (byte)'B';
+        header[1] = (byte)'M';
+        BitConverter.GetBytes(header.Length + pixels.Length).CopyTo(header, 2);
+        BitConverter.GetBytes(header.Length).CopyTo(header, 10);
+        BitConverter.GetBytes(40).CopyTo(header, 14);
+        BitConverter.GetBytes(size).CopyTo(header, 18);
+        BitConverter.GetBytes(size).CopyTo(header, 22);
+        BitConverter.GetBytes((short)1).CopyTo(header, 26);
+        BitConverter.GetBytes((short)24).CopyTo(header, 28);
+        var bytes = new byte[header.Length + pixels.Length];
+        Buffer.BlockCopy(header, 0, bytes, 0, header.Length);
+        Buffer.BlockCopy(pixels, 0, bytes, header.Length, pixels.Length);
+        return bytes;
+    }
+
+    private static uint StableHash(string value)
+    {
+        var hash = 2166136261u;
+        foreach (var c in value)
+        {
+            hash ^= c;
+            hash *= 16777619u;
+        }
+
+        return hash;
+    }
+}
+
+/// <summary>
+/// Mock WND string table service for demos. Resolves the labels used by the sample main menu.
 /// </summary>
 public sealed class MockWndStringTableService : IWndStringTableService
 {
+    private static readonly IReadOnlyDictionary<string, string> SampleStrings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["GAMETEXT:Menu_Title"] = "Command & Conquer: Generals",
+        ["GAMETEXT:GUI_SinglePlayer"] = "Single Player",
+        ["GAMETEXT:GUI_Multiplayer"] = "Multiplayer",
+        ["GAMETEXT:GUI_Options"] = "Options",
+        ["GAMETEXT:GUI_Exit"] = "Exit",
+        ["GAMETEXT:GUI_Back"] = "Back",
+        ["GAMETEXT:GUI_Fullscreen"] = "Fullscreen",
+    };
+
     /// <inheritdoc/>
-    public Task<OperationResult<IReadOnlyDictionary<string, string>>> GetStringsAsync(IReadOnlyCollection<string> labels, string baseRoot, string? overrideRoot, string? projectDirectory, IReadOnlyCollection<string>? additionalBigFiles = null, bool isZeroHour = false, CancellationToken cancellationToken = default) => Task.FromResult(OperationResult<IReadOnlyDictionary<string, string>>.CreateSuccess(new Dictionary<string, string>()));
+    public Task<OperationResult<IReadOnlyDictionary<string, string>>> GetStringsAsync(IReadOnlyCollection<string> labels, string baseRoot, string? overrideRoot, string? projectDirectory, IReadOnlyCollection<string>? additionalBigFiles = null, bool isZeroHour = false, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var resolved = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var label in labels)
+        {
+            if (!string.IsNullOrWhiteSpace(label) && SampleStrings.TryGetValue(label, out var text))
+            {
+                resolved[label] = text;
+            }
+        }
+
+        IReadOnlyDictionary<string, string> result = resolved;
+        return Task.FromResult(OperationResult<IReadOnlyDictionary<string, string>>.CreateSuccess(result));
+    }
 
     /// <inheritdoc/>
     public void InvalidateCache()
@@ -369,15 +527,15 @@ public sealed class MockProjectConfigService : IProjectConfigService
 }
 
 /// <summary>
-/// Mock ModBuilder configuration loader for demos. Returns empty default configurations.
+/// Mock ModBuilder configuration loader for demos. Returns an in-memory sample configuration.
 /// </summary>
 public sealed class MockConfigurationLoaderService : IConfigurationLoaderService
 {
     /// <inheritdoc/>
-    public Task<ProjectOperationResult<BuildConfiguration>> LoadConfigurationResultAsync(string configPath, CancellationToken cancellationToken = default) => Task.FromResult(ProjectOperationResult<BuildConfiguration>.CreateSuccess(new BuildConfiguration()));
+    public Task<ProjectOperationResult<BuildConfiguration>> LoadConfigurationResultAsync(string configPath, CancellationToken cancellationToken = default) => Task.FromResult(ProjectOperationResult<BuildConfiguration>.CreateSuccess(CreateSampleConfiguration()));
 
     /// <inheritdoc/>
-    public Task<ProjectOperationResult<BuildConfiguration>> LoadAndMergeConfigurationsResultAsync(IReadOnlyList<string> configPaths, CancellationToken cancellationToken = default) => Task.FromResult(ProjectOperationResult<BuildConfiguration>.CreateSuccess(new BuildConfiguration()));
+    public Task<ProjectOperationResult<BuildConfiguration>> LoadAndMergeConfigurationsResultAsync(IReadOnlyList<string> configPaths, CancellationToken cancellationToken = default) => Task.FromResult(ProjectOperationResult<BuildConfiguration>.CreateSuccess(CreateSampleConfiguration()));
 
     /// <inheritdoc/>
     public Task<BuildConfiguration> ResolveWildcardsAsync(BuildConfiguration configuration, CancellationToken cancellationToken = default) => Task.FromResult(configuration);
@@ -386,7 +544,7 @@ public sealed class MockConfigurationLoaderService : IConfigurationLoaderService
     public IReadOnlyList<string> ValidateConfiguration(BuildConfiguration configuration) => [];
 
     /// <inheritdoc/>
-    public Task<BuildConfiguration> LoadDefaultConfigurationAsync(CancellationToken cancellationToken = default) => Task.FromResult(new BuildConfiguration());
+    public Task<BuildConfiguration> LoadDefaultConfigurationAsync(CancellationToken cancellationToken = default) => Task.FromResult(CreateSampleConfiguration());
 
     /// <inheritdoc/>
     public BuildConfiguration MergeConfigurations(BuildConfiguration baseConfig, BuildConfiguration overrideConfig) => overrideConfig;
@@ -397,7 +555,29 @@ public sealed class MockConfigurationLoaderService : IConfigurationLoaderService
     }
 
     /// <inheritdoc/>
-    public Task<BuildConfiguration?> LoadProjectConfigurationAsync(string projectPath, CancellationToken cancellationToken = default) => Task.FromResult<BuildConfiguration?>(new BuildConfiguration());
+    public Task<BuildConfiguration?> LoadProjectConfigurationAsync(string projectPath, CancellationToken cancellationToken = default) => Task.FromResult<BuildConfiguration?>(CreateSampleConfiguration());
+
+    private static BuildConfiguration CreateSampleConfiguration() => new()
+    {
+        Packs =
+        [
+            new BundlePack { Name = "Core Assets", ItemNames = ["Textures", "Audio", "INI Files"], AllowBuild = true, Description = "Base game assets shared by every variant." },
+            new BundlePack { Name = "Maps Pack", ItemNames = ["Skirmish Maps", "Challenge Maps"], AllowBuild = true, Description = "Bundled skirmish and challenge maps." },
+            new BundlePack { Name = "Movies Archive", ItemNames = ["Intro Movies"], AllowBuild = false, Big = true, OutputFile = "Movies.big", Description = "Optional high-resolution movie pack." },
+        ],
+        Items =
+        [
+            new GenHub.Core.Models.Tools.ModBuilder.BundleItem { Name = "Textures", TargetDir = "Art/Textures" },
+            new GenHub.Core.Models.Tools.ModBuilder.BundleItem { Name = "Audio", TargetDir = "Audio" },
+            new GenHub.Core.Models.Tools.ModBuilder.BundleItem { Name = "Skirmish Maps", TargetDir = "Maps" },
+        ],
+        Manifests =
+        [
+            new BundleManifest { Name = "Demo Mod", Version = "1.0.0", Description = "Sample manifest for the interactive guide.", PackNames = ["Core Assets", "Maps Pack"] },
+        ],
+        LoadedConfigFiles = ["configs/build.json", "configs/bundles.json"],
+        ZipCompressionLevel = CompressionLevel.Optimal,
+    };
 }
 
 /// <summary>
@@ -536,4 +716,310 @@ public sealed class MockPublisherStudioDialogService : IPublisherStudioDialogSer
 
     /// <inheritdoc/>
     public Task<RenameCatalogResult?> ShowRenameCatalogDialogAsync(string currentName, bool canDelete = false, Func<Task<bool>>? onDelete = null, string? currentIconUrl = null, Func<string, Task<string?>>? onUploadImage = null) => Task.FromResult<RenameCatalogResult?>(null);
+}
+
+/// <summary>
+/// Mock hosting provider for demos. Pre-authenticated; uploads resolve to in-memory demo URLs.
+/// Nothing leaves the machine.
+/// </summary>
+public sealed class MockHostingProvider : IHostingProvider
+{
+    /// <summary>
+    /// Gets the provider ID of the demo hosting provider.
+    /// </summary>
+    public const string DemoProviderId = "demo-hosting";
+
+    private const string DemoHost = "https://demo.genhub.local/hosting";
+
+    /// <inheritdoc/>
+    public string ProviderId => DemoProviderId;
+
+    /// <inheritdoc/>
+    public string DisplayName => "Demo Hosting";
+
+    /// <inheritdoc/>
+    public string Description => "In-memory hosting for the interactive guide.";
+
+    /// <inheritdoc/>
+    public string IconName => "CloudOutline";
+
+    /// <inheritdoc/>
+    public bool RequiresAuthentication => false;
+
+    /// <inheritdoc/>
+    public bool IsAuthenticated { get; private set; } = true;
+
+    /// <inheritdoc/>
+    public bool SupportsCatalogHosting => true;
+
+    /// <inheritdoc/>
+    public bool SupportsArtifactHosting => true;
+
+    /// <inheritdoc/>
+    public bool SupportsUpdate => true;
+
+    /// <inheritdoc/>
+    public Task<OperationResult<bool>> AuthenticateAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        IsAuthenticated = true;
+        return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
+    }
+
+    /// <inheritdoc/>
+    public Task SignOutAsync()
+    {
+        IsAuthenticated = false;
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<HostingUploadResult>> UploadFileAsync(Stream fileStream, string fileName, string? folderPath = null, IProgress<int>? progress = null, CancellationToken cancellationToken = default)
+    {
+        progress?.Report(0);
+        using var buffer = new MemoryStream();
+        await fileStream.CopyToAsync(buffer, cancellationToken);
+        progress?.Report(100);
+        return OperationResult<HostingUploadResult>.CreateSuccess(BuildResult(fileName, buffer.ToArray()));
+    }
+
+    /// <inheritdoc/>
+    public Task<OperationResult<HostingUploadResult>> UploadCatalogAsync(string catalogJson, string publisherId, string? catalogFileName = null, IProgress<int>? progress = null, CancellationToken cancellationToken = default)
+    {
+        progress?.Report(0);
+        cancellationToken.ThrowIfCancellationRequested();
+        var bytes = Encoding.UTF8.GetBytes(catalogJson);
+        progress?.Report(100);
+        return Task.FromResult(OperationResult<HostingUploadResult>.CreateSuccess(BuildResult(catalogFileName ?? $"catalog-{publisherId}.json", bytes)));
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<HostingUploadResult>> UpdateFileAsync(string fileId, Stream fileStream, string fileName, IProgress<int>? progress = null, CancellationToken cancellationToken = default)
+    {
+        progress?.Report(0);
+        using var buffer = new MemoryStream();
+        await fileStream.CopyToAsync(buffer, cancellationToken);
+        progress?.Report(100);
+        var result = BuildResult(fileName, buffer.ToArray());
+        result.FileId = fileId;
+        return OperationResult<HostingUploadResult>.CreateSuccess(result);
+    }
+
+    /// <inheritdoc/>
+    public Task<OperationResult<bool>> DeleteFileAsync(string fileId, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
+    }
+
+    /// <inheritdoc/>
+    public Task<OperationResult<string>> GetOrCreatePublisherFolderAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(OperationResult<string>.CreateSuccess("demo-publisher-folder"));
+    }
+
+    /// <inheritdoc/>
+    public Task<OperationResult<HostingState?>> RecoverHostingStateAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(OperationResult<HostingState?>.CreateSuccess(null));
+    }
+
+    /// <inheritdoc/>
+    public string GetSubscriptionLink(string catalogUrl) => $"genhub://subscribe?url={Uri.EscapeDataString(catalogUrl)}";
+
+    /// <inheritdoc/>
+    public bool IsValidHostingUrl(string? url) => !string.IsNullOrWhiteSpace(url) && url.StartsWith(DemoHost, StringComparison.OrdinalIgnoreCase);
+
+    /// <inheritdoc/>
+    public string GetDirectDownloadUrl(string shareUrl) => shareUrl;
+
+    private static HostingUploadResult BuildResult(string fileName, byte[] bytes)
+    {
+        var url = $"{DemoHost}/{Uri.EscapeDataString(fileName)}";
+        return new HostingUploadResult
+        {
+            PublicUrl = url,
+            DirectDownloadUrl = url,
+            FileId = fileName,
+            FileSize = bytes.Length,
+            Sha256Hash = Convert.ToHexString(SHA256.HashData(bytes)),
+        };
+    }
+}
+
+/// <summary>
+/// Mock hosting provider factory for demos. Exposes the single demo hosting provider.
+/// </summary>
+public sealed class MockHostingProviderFactory : IHostingProviderFactory
+{
+    private readonly MockHostingProvider _provider = new();
+
+    /// <inheritdoc/>
+    public IReadOnlyList<IHostingProvider> GetAllProviders() => [_provider];
+
+    /// <inheritdoc/>
+    public IHostingProvider? GetProvider(string providerId) =>
+        string.Equals(providerId, MockHostingProvider.DemoProviderId, StringComparison.OrdinalIgnoreCase) ? _provider : null;
+
+    /// <inheritdoc/>
+    public IReadOnlyList<IHostingProvider> GetCatalogHostingProviders() => [_provider];
+
+    /// <inheritdoc/>
+    public IReadOnlyList<IHostingProvider> GetArtifactHostingProviders() => [_provider];
+}
+
+/// <summary>
+/// Mock hosting state manager for demos. Persists state in memory only.
+/// </summary>
+public sealed class MockHostingStateManager : IHostingStateManager
+{
+    private readonly Dictionary<string, PublisherHostingStates> _states = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <inheritdoc/>
+    public string GetStateFilePath(string projectFilePath) => projectFilePath + ".hosting_state.json";
+
+    /// <inheritdoc/>
+    public bool StateFileExists(string projectFilePath) => _states.ContainsKey(projectFilePath);
+
+    /// <inheritdoc/>
+    public Task<OperationResult<PublisherHostingStates>> LoadStatesAsync(string projectFilePath, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var states = _states.TryGetValue(projectFilePath, out var stored)
+            ? stored
+            : new PublisherHostingStates();
+        return Task.FromResult(OperationResult<PublisherHostingStates>.CreateSuccess(states));
+    }
+
+    /// <inheritdoc/>
+    public Task<OperationResult<bool>> SaveStatesAsync(string projectFilePath, PublisherHostingStates states, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        _states[projectFilePath] = states;
+        return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
+    }
+
+    /// <inheritdoc/>
+    public Task<OperationResult<HostingState?>> LoadStateAsync(string projectPath, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        _states.TryGetValue(projectPath, out var states);
+        var state = states?.States.Values.FirstOrDefault();
+        return Task.FromResult(OperationResult<HostingState?>.CreateSuccess(state));
+    }
+
+    /// <inheritdoc/>
+    public Task<OperationResult<bool>> SaveStateAsync(string projectFilePath, HostingState state, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!_states.TryGetValue(projectFilePath, out var states))
+        {
+            states = new PublisherHostingStates();
+            _states[projectFilePath] = states;
+        }
+
+        states.States[state.ProviderId] = state;
+        return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
+    }
+}
+
+/// <summary>
+/// Mock hosting credential store for demos. Keeps credentials in memory only.
+/// </summary>
+public sealed class MockHostingCredentialStore : IHostingCredentialStore
+{
+    private readonly Dictionary<string, string> _credentials = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <inheritdoc/>
+    public Task SaveCredentialAsync(string providerId, string credential, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        _credentials[providerId] = credential;
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc/>
+    public Task<string?> GetCredentialAsync(string providerId, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        _credentials.TryGetValue(providerId, out var credential);
+        return Task.FromResult(credential);
+    }
+
+    /// <inheritdoc/>
+    public Task DeleteCredentialAsync(string providerId, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        _credentials.Remove(providerId);
+        return Task.CompletedTask;
+    }
+}
+
+/// <summary>
+/// Mock publisher subscription store for demos. Keeps subscriptions in memory only.
+/// </summary>
+public sealed class MockPublisherSubscriptionStore : IPublisherSubscriptionStore
+{
+    private readonly Dictionary<string, PublisherSubscription> _subscriptions = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <inheritdoc/>
+    public Task<OperationResult<IReadOnlyList<PublisherSubscription>>> GetSubscriptionsAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        IReadOnlyList<PublisherSubscription> subscriptions = [.. _subscriptions.Values];
+        return Task.FromResult(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess(subscriptions));
+    }
+
+    /// <inheritdoc/>
+    public Task<OperationResult<PublisherSubscription?>> GetSubscriptionAsync(string publisherId, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        _subscriptions.TryGetValue(publisherId, out var subscription);
+        return Task.FromResult(OperationResult<PublisherSubscription?>.CreateSuccess(subscription));
+    }
+
+    /// <inheritdoc/>
+    public Task<OperationResult<bool>> AddSubscriptionAsync(PublisherSubscription subscription, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        _subscriptions[subscription.PublisherId] = subscription;
+        return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
+    }
+
+    /// <inheritdoc/>
+    public Task<OperationResult<bool>> UpdateSubscriptionAsync(PublisherSubscription subscription, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        _subscriptions[subscription.PublisherId] = subscription;
+        return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
+    }
+
+    /// <inheritdoc/>
+    public Task<OperationResult<bool>> RemoveSubscriptionAsync(string publisherId, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        _subscriptions.Remove(publisherId);
+        return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
+    }
+
+    /// <inheritdoc/>
+    public Task<OperationResult<bool>> IsSubscribedAsync(string publisherId, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(OperationResult<bool>.CreateSuccess(_subscriptions.ContainsKey(publisherId)));
+    }
+
+    /// <inheritdoc/>
+    public Task<OperationResult<bool>> UpdateTrustLevelAsync(string publisherId, TrustLevel trustLevel, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_subscriptions.TryGetValue(publisherId, out var subscription))
+        {
+            subscription.TrustLevel = trustLevel;
+        }
+
+        return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
+    }
 }

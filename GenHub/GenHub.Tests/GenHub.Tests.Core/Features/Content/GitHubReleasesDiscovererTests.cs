@@ -130,6 +130,122 @@ public class GitHubReleasesDiscovererTests
         Assert.Equal(2000, zhCard.DownloadSize);
     }
 
+    /// <summary>
+    /// Verifies the first page includes the latest release from each configured repository
+    /// even when one repository is older than the other repository's paged-out items.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_FirstPage_IncludesLatestFromBothRepos_WhenPatchOlderAsync()
+    {
+        // Arrange: six recent game-code weeklies (two cards each) plus one older patch release.
+        var discoverer = CreateSuperHackersOverflowDiscoverer(out var gameCodeReleases);
+
+        // Act
+        var result = await discoverer.DiscoverAsync(
+            new ContentSearchQuery { Take = SuperHackersConstants.PageSize, Page = 1 },
+            CancellationToken.None);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var items = result.Data.Items.ToList();
+        Assert.Contains(items, item =>
+            item.ResolverMetadata.TryGetValue(GitHubConstants.RepoMetadataKey, out var repo) &&
+            repo.Equals(SuperHackersConstants.GeneralsGamePatch2Repo, StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(items, item =>
+            item.ResolverMetadata.TryGetValue(GitHubConstants.RepoMetadataKey, out var repo) &&
+            repo.Equals(SuperHackersConstants.GeneralsGameCodeRepo, StringComparison.OrdinalIgnoreCase) &&
+            item.ResolverMetadata.TryGetValue(GitHubConstants.TagMetadataKey, out var tag) &&
+            tag == gameCodeReleases[0].TagName);
+    }
+
+    /// <summary>
+    /// Verifies paged-out items remain reachable without duplicates after the first
+    /// page is expanded to cover each repository's latest release.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_SecondPage_HasNoDuplicates_AfterFirstPageCoverageAsync()
+    {
+        // Arrange: same overflow fixture as the first-page coverage test.
+        var discoverer = CreateSuperHackersOverflowDiscoverer(out _);
+
+        // Act
+        var firstPage = await discoverer.DiscoverAsync(
+            new ContentSearchQuery { Take = SuperHackersConstants.PageSize, Page = 1 },
+            CancellationToken.None);
+        var secondPage = await discoverer.DiscoverAsync(
+            new ContentSearchQuery { Take = SuperHackersConstants.PageSize, Page = 2 },
+            CancellationToken.None);
+
+        // Assert
+        Assert.True(firstPage.Success);
+        Assert.True(secondPage.Success);
+        Assert.NotNull(firstPage.Data);
+        Assert.NotNull(secondPage.Data);
+        var firstIds = firstPage.Data.Items.Select(i => i.Id).ToList();
+        var secondIds = secondPage.Data.Items.Select(i => i.Id).ToList();
+        Assert.Empty(firstIds.Intersect(secondIds, StringComparer.Ordinal));
+        Assert.Equal(13, firstIds.Count + secondIds.Count);
+        Assert.True(firstPage.Data.HasMoreItems);
+        Assert.False(secondPage.Data.HasMoreItems);
+    }
+
+    private GitHubReleasesDiscoverer CreateSuperHackersOverflowDiscoverer(out List<GitHubRelease> gameCodeReleases)
+    {
+        gameCodeReleases = [];
+        for (var i = 0; i < 6; i++)
+        {
+            var date = new DateTimeOffset(2026, 9, 5, 0, 0, 0, TimeSpan.Zero).AddDays(-i * 7);
+            var tag = $"weekly-{date:yyyy-MM-dd}";
+            gameCodeReleases.Add(new GitHubRelease
+            {
+                TagName = tag,
+                Name = tag,
+                Body = "Weekly game code update",
+                Author = "TheSuperHackers",
+                HtmlUrl = $"https://github.com/TheSuperHackers/GeneralsGameCode/releases/tag/{tag}",
+                PublishedAt = date,
+                CreatedAt = date,
+                Assets =
+                [
+                    new GitHubReleaseAsset { Name = $"Generals-{tag}.zip", Size = 1000, BrowserDownloadUrl = $"https://example.test/{tag}-gen.zip" },
+                    new GitHubReleaseAsset { Name = $"GeneralsZH-{tag}.zip", Size = 2000, BrowserDownloadUrl = $"https://example.test/{tag}-zh.zip" },
+                ],
+            });
+        }
+
+        var patchRelease = new GitHubRelease
+        {
+            TagName = "1.0.1",
+            Name = "1.0.1",
+            Body = "Community patch release",
+            Author = "TheSuperHackers",
+            HtmlUrl = "https://github.com/TheSuperHackers/GeneralsGamePatch2/releases/tag/1.0.1",
+            PublishedAt = new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            CreatedAt = new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            Assets =
+            [
+                new GitHubReleaseAsset { Name = "patch.zip", Size = 500, BrowserDownloadUrl = "https://example.test/patch.zip" },
+            ],
+        };
+
+        SetupRepository(
+            SuperHackersConstants.GeneralsGameCodeOwner,
+            SuperHackersConstants.GeneralsGameCodeRepo,
+            ["game-client"],
+            gameCodeReleases);
+        SetupRepository(
+            SuperHackersConstants.GeneralsGamePatch2Owner,
+            SuperHackersConstants.GeneralsGamePatch2Repo,
+            ["patch"],
+            [patchRelease]);
+        return CreateDiscoverer(
+            $"{SuperHackersConstants.GeneralsGameCodeOwner}/{SuperHackersConstants.GeneralsGameCodeRepo}",
+            $"{SuperHackersConstants.GeneralsGamePatch2Owner}/{SuperHackersConstants.GeneralsGamePatch2Repo}");
+    }
+
     private GitHubReleasesDiscoverer CreateDiscoverer(params string[] repositories)
     {
         _configurationMock.Setup(c => c.GetGitHubDiscoveryRepositories()).Returns(repositories.ToList());

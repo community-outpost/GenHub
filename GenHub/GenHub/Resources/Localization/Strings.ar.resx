@@ -14619,4 +14619,22 @@ https://example.com/screenshot2.png</value>
   <data name="Info.Demo.HeightLabel" xml:space="preserve">
     <value>الارتفاع:</value>
   </data>
+  <data name="Info.Card.tools.demo-replay.Title" xml:space="preserve">
+    <value>عرض مدير الإعادة</value>
+  </data>
+  <data name="Info.Card.tools.demo-map.Title" xml:space="preserve">
+    <value>عرض مدير الخرائط</value>
+  </data>
+  <data name="Info.Card.tools.demo-hotkeys.Title" xml:space="preserve">
+    <value>عرض محرر الاختصارات</value>
+  </data>
+  <data name="Info.Card.tools.demo-publisher.Title" xml:space="preserve">
+    <value>عرض استوديو الناشر</value>
+  </data>
+  <data name="Info.Card.tools.demo-modbuilder.Title" xml:space="preserve">
+    <value>عرض ModBuilder</value>
+  </data>
+  <data name="Info.Card.tools.demo-wnd.Title" xml:space="preserve">
+    <value>عرض محرر WND</value>
+  </data>
 </root>

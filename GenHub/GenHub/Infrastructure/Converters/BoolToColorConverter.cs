@@ -40,10 +40,10 @@ public class BoolToColorConverter(Color trueColor = default, Color falseColor = 
     {
         if (value is bool boolValue)
         {
-            return new SolidColorBrush(boolValue ? TrueColor : FalseColor);
+            return BrushCache.Get(boolValue ? TrueColor : FalseColor);
         }
 
-        return new SolidColorBrush(FalseColor);
+        return BrushCache.Get(FalseColor);
     }
 
     /// <summary>

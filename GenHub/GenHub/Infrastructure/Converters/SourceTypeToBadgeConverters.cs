@@ -18,6 +18,11 @@ public static class SourceTypeToBadgeConverters
     /// </summary>
     public class SourceTypeToBadgeBackgroundConverter : IValueConverter
     {
+        private static readonly SolidColorBrush GameClientBrush = new(Color.Parse("#FFF9A825")); // amber for CAS
+        private static readonly SolidColorBrush ModBrush = new(Color.Parse("#FF90CAF9"));
+        private static readonly SolidColorBrush LocalBrush = new(Color.Parse("#FFB2FF59"));
+        private static readonly SolidColorBrush DefaultBrush = new(Color.Parse("#FFBDBDBD"));
+
         /// <summary>
         /// Converts the supplied <see cref="ContentType"/> into a <see cref="SolidColorBrush"/>.
         /// </summary>
@@ -33,13 +38,13 @@ public static class SourceTypeToBadgeConverters
             {
                 return ct switch
                 {
-                    ContentType.GameClient => new SolidColorBrush(Color.Parse("#FFF9A825")), // amber for CAS
-                    ContentType.Mod => new SolidColorBrush(Color.Parse("#FF90CAF9")),
-                    _ => new SolidColorBrush(Color.Parse("#FFB2FF59")),
+                    ContentType.GameClient => GameClientBrush,
+                    ContentType.Mod => ModBrush,
+                    _ => LocalBrush,
                 };
             }
 
-            return new SolidColorBrush(Color.Parse("#FFBDBDBD"));
+            return DefaultBrush;
         }
 
         /// <summary>

@@ -36,7 +36,7 @@ public class BoolToBrushConverter : IValueConverter
 
         if (Color.TryParse(colorHex, out var color))
         {
-            return new SolidColorBrush(color);
+            return BrushCache.Get(color);
         }
 
         return TransparentBrush;

@@ -884,6 +884,12 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              * Learn how Publisher Studio distributes content via 3-tier manifests.
              """,
              null),
+            (InfoConstants.CardToolsReplayDemo,
+             "Replay Manager Demo",
+             "Interactive Replay Manager demo.",
+             InfoCardType.Example,
+             "Try the live Replay Manager demo above: import, inspect, and recover replays.",
+             null),
             (InfoConstants.CardToolsReplayImport,
              "Replay Manager: Import & Header Inspection",
              "Import replays from disk, web links, or match IDs and inspect header metadata.",
@@ -967,6 +973,12 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              Select a .zip archive in the list and click **Uncompress**. GenHub extracts all contained .rep files directly into your replay directory and refreshes the table.
              """,
              null),
+            (InfoConstants.CardToolsMapDemo,
+             "Map Manager Demo",
+             "Interactive Map Manager demo.",
+             InfoCardType.Example,
+             "Try the live Map Manager demo above: browse maps and build map packs.",
+             null),
             (InfoConstants.CardToolsMapLibrary,
              "Map Manager: Library & Minimap Previews",
              "Search, install, preview, and organize custom skirmish maps.",
@@ -994,6 +1006,12 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              Once created, you can enable or disable the entire map pack for any profile in Profile Settings.
              """,
              null),
+            (InfoConstants.CardToolsHotkeyDemo,
+             "Hotkey Editor Demo",
+             "Interactive Hotkey Editor demo.",
+             InfoCardType.Example,
+             "Try the live Hotkey Editor demo above: rebind keys with conflict detection.",
+             null),
             (InfoConstants.CardToolsHotkeyEditorRebind,
              "Hotkey Editor: Command Cards",
              "Visual hotkey assignment and conflict detection ported from GenHotkeys.",
@@ -1020,6 +1038,12 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              **Cameo Overlays.**
              When generating the addon, GenHub stamps the assigned shortcut letter directly onto the corner of each unit and building cameo texture. In-game command buttons display your hotkeys automatically while playing.
              """,
+             null),
+            (InfoConstants.CardToolsPublisherDemo,
+             "Publisher Studio Demo",
+             "Interactive Publisher Studio demo.",
+             InfoCardType.Example,
+             "Try the live Publisher Studio demo above: catalogs, releases, and sharing.",
              null),
             (InfoConstants.CardToolsPublisherStudioPipeline,
              "Publisher Studio: 3-Tier Publishing Pipeline",
@@ -1110,6 +1134,12 @@ public class DefaultInfoContentProvider : IInfoContentProvider
                      IsPrimary = true,
                  },
              ]),
+            (InfoConstants.CardToolsModBuilderDemo,
+             "ModBuilder Demo",
+             "Interactive ModBuilder demo.",
+             InfoCardType.Example,
+             "Try the live ModBuilder demo above: sample project, variants, and manifests.",
+             null),
             (InfoConstants.CardToolsModBuilderSuitePipeline,
              "ModBuilder Suite: Asset Pipelines",
              "Mod workspace management, texture batch conversion, and string table compiling.",
@@ -1148,6 +1178,12 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              **Incremental BIG Builds.**
              The build engine tracks file MD5 checksums. It compiles only modified assets and packages them into release .big archives (such as INIZeroHour.big) directly inside your profile workspace.
              """,
+             null),
+            (InfoConstants.CardToolsWndDemo,
+             "WND Editor Demo",
+             "Interactive WND Editor demo.",
+             InfoCardType.Example,
+             "Try the live WND Editor demo above: edit window layouts with canvas preview.",
              null),
             (InfoConstants.CardToolsWndEditorWorkflow,
              "WND Editor: Documents & Workflow",
@@ -1605,16 +1641,6 @@ public class DefaultInfoContentProvider : IInfoContentProvider
     {
         (string Id, string Title, string Content, InfoCardType Type, string Detailed)[] cardData =
         [
-            (InfoConstants.CardChangelogsDemo,
-             "Interactive Demo: Release Browser",
-             "Live interactive release notes browser with version selection, asset links, and filters.",
-             InfoCardType.Example,
-             """
-             Browse all official GenHub releases in the browser above: view release assets, inspect patch notes, and see what's new in each build.
-             * Click any release in the browser above to inspect its detailed release notes.
-             * Directly download installers or source assets.
-             * Releases are listed first in the right navigation bar; picking one jumps straight to it here.
-             """),
             (InfoConstants.CardChangelogsOverview,
              "Release History & Changelogs",
              "Track all official GenHub desktop releases, patch notes, and engine improvements.",
@@ -1626,6 +1652,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              * **SemVer Numbering:** Versioning strictly follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
              * **Pre-releases:** Beta releases with testing builds are marked with a Pre-release badge.
              * **Live Sync:** Release notes are fetched automatically with local caching for offline viewing.
+             * **Sidebar Navigation:** Releases are listed first in the right navigation bar; picking one jumps straight to it in the browser above.
              """),
             (InfoConstants.CardChangelogsUpdates,
              "Automatic Update Distribution",
@@ -1718,15 +1745,6 @@ public class DefaultInfoContentProvider : IInfoContentProvider
     {
         (string Id, string Title, string Content, InfoCardType Type, string Detailed)[] cardData =
         [
-            (InfoConstants.CardGoChangelogDemo,
-             "Interactive Demo: Generals Online Patch Notes",
-             "Live feed of multiplayer service updates, netcode improvements, and balance patches.",
-             InfoCardType.Example,
-             """
-             The patch notes browser above tracks multiplayer network changes, matchmaker improvements, balance adjustments, and anti-cheat updates deployed to the Generals Online network.
-             * Select any update in the browser above to view its details.
-             * Patch notes are listed first in the right navigation bar; picking one jumps straight to it here.
-             """),
             (InfoConstants.CardGoChangelogOverview,
              "Generals Online Patch Notes",
              "Latest service updates, lobby fixes, and netcode improvements.",
@@ -1734,6 +1752,8 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              """
              **Generals Online Service Updates:**
              Stay informed about multiplayer network changes, matchmaker improvements, balance adjustments, and anti-cheat updates deployed to the Generals Online network.
+
+             * **Sidebar Navigation:** Patch notes are listed first in the right navigation bar; picking one jumps straight to it in the browser above.
              """),
             (InfoConstants.CardGoChangelogNetcode,
              "Relays & Edge Infrastructure",

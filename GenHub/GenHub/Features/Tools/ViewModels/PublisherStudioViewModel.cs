@@ -433,6 +433,103 @@ public partial class PublisherStudioViewModel(
         await Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Initializes child view models for the current project. Also used by the interactive guide demo.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public async Task InitializeChildViewModelsAsync()
+    {
+        if (CurrentProject == null)
+        {
+            return;
+        }
+
+        CurrentProject.Catalogs ??= [];
+        CurrentProject.Catalog ??= new();
+        CurrentProject.Catalog.Publisher ??= new();
+        CurrentProject.Catalog.Content ??= [];
+
+        // Ensure multi-catalog migration
+        MigrateProjectToMultiCatalog();
+
+        // Populate catalogs collection
+        Catalogs.Clear();
+        foreach (var catalog in CurrentProject.Catalogs)
+        {
+            if (catalog?.Catalog != null)
+            {
+                catalog.Catalog.Publisher = CurrentProject.Catalog.Publisher;
+                catalog.Catalog.Content ??= [];
+            }
+
+            if (catalog != null)
+            {
+                Catalogs.Add(catalog);
+            }
+        }
+
+        var selectedCatalog = Catalogs.FirstOrDefault();
+        if (selectedCatalog == null)
+        {
+            selectedCatalog = new NamedCatalog
+            {
+                Id = "main",
+                Name = "Main Catalog",
+                Catalog = CurrentProject.Catalog,
+                FileName = CurrentProject.CatalogFileName ?? HostingConstants.DefaultCatalogFileName,
+            };
+            Catalogs.Add(selectedCatalog);
+        }
+
+        SelectedCatalog = selectedCatalog;
+
+        PublisherProfileViewModel = new GenHub.Features.Tools.ViewModels.PublisherProfileViewModel(CurrentProject, this, logger, notificationService, localizationService, subscriptionStore);
+        ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, selectedCatalog, this, logger, dialogService, notificationService, localizationService);
+        PublishShareViewModel?.Dispose();
+        PublishShareViewModel = new GenHub.Features.Tools.ViewModels.PublishShareViewModel(CurrentProject, publisherStudioService, logger, hostingProviderFactory, hostingStateManager, notificationService, localizationService, credentialStore, subscriptionStore: subscriptionStore);
+        PublishShareViewModel.SaveProjectCallback = SaveProjectAfterPublishAsync;
+        PublishShareViewModel.LibraryRefreshCallback = () => ContentLibraryViewModel?.RefreshContentDisplay();
+        PublishShareViewModel.DefinitionUploadedCallback = () =>
+        {
+            HasDefinitionChanges = false;
+            if (PublishShareViewModel != null)
+            {
+                PublishShareViewModel.HasDefinitionChanges = false;
+            }
+        };
+        PublishShareViewModel.DefinitionStaleCallback = () =>
+        {
+            HasDefinitionChanges = true;
+            if (PublishShareViewModel != null)
+            {
+                PublishShareViewModel.HasDefinitionChanges = true;
+            }
+        };
+        PublishShareViewModel.ProjectReloadCallback = ReloadFromCurrentProjectAsync;
+        PublishShareViewModel.NavigateToTabCallback = tabIndex => SelectedTabIndex = tabIndex;
+        PublishShareViewModel.AuthenticationChangedCallback = RefreshSetupState;
+        dialogService.DuplicateAssetLookup = sha => PublishShareViewModel?.FindHostedAssetBySha256(sha);
+        if (PublishShareViewModel != null)
+        {
+            await PublishShareViewModel.InitializeAsync();
+            HasDefinitionChanges = !PublishShareViewModel.IsDefinitionPublished;
+            PublishShareViewModel.HasDefinitionChanges = HasDefinitionChanges;
+        }
+
+        ReferralsViewModel = new GenHub.Features.Tools.ViewModels.ReferralsViewModel(CurrentProject, this, logger, dialogService, notificationService, localizationService);
+
+        // Check for hosting state recovery
+        CheckHostingStateRecovery();
+
+        OnPropertyChanged(nameof(IsSetupComplete));
+        OnPropertyChanged(nameof(ShouldShowSetupOverlay));
+        EnsureStatusLocalizationHooked();
+        OnPropertyChanged(nameof(ProjectStatusText));
+        OnPropertyChanged(nameof(CatalogSummaryText));
+
+        await Task.CompletedTask;
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {
@@ -1534,98 +1631,5 @@ public partial class PublisherStudioViewModel(
                 logger.LogWarning("Project appears to have been published but hosting state is missing");
             }
         }
-    }
-
-    private async Task InitializeChildViewModelsAsync()
-    {
-        if (CurrentProject == null)
-        {
-            return;
-        }
-
-        CurrentProject.Catalogs ??= [];
-        CurrentProject.Catalog ??= new();
-        CurrentProject.Catalog.Publisher ??= new();
-        CurrentProject.Catalog.Content ??= [];
-
-        // Ensure multi-catalog migration
-        MigrateProjectToMultiCatalog();
-
-        // Populate catalogs collection
-        Catalogs.Clear();
-        foreach (var catalog in CurrentProject.Catalogs)
-        {
-            if (catalog?.Catalog != null)
-            {
-                catalog.Catalog.Publisher = CurrentProject.Catalog.Publisher;
-                catalog.Catalog.Content ??= [];
-            }
-
-            if (catalog != null)
-            {
-                Catalogs.Add(catalog);
-            }
-        }
-
-        var selectedCatalog = Catalogs.FirstOrDefault();
-        if (selectedCatalog == null)
-        {
-            selectedCatalog = new NamedCatalog
-            {
-                Id = "main",
-                Name = "Main Catalog",
-                Catalog = CurrentProject.Catalog,
-                FileName = CurrentProject.CatalogFileName ?? HostingConstants.DefaultCatalogFileName,
-            };
-            Catalogs.Add(selectedCatalog);
-        }
-
-        SelectedCatalog = selectedCatalog;
-
-        PublisherProfileViewModel = new GenHub.Features.Tools.ViewModels.PublisherProfileViewModel(CurrentProject, this, logger, notificationService, localizationService, subscriptionStore);
-        ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, selectedCatalog, this, logger, dialogService, notificationService, localizationService);
-        PublishShareViewModel?.Dispose();
-        PublishShareViewModel = new GenHub.Features.Tools.ViewModels.PublishShareViewModel(CurrentProject, publisherStudioService, logger, hostingProviderFactory, hostingStateManager, notificationService, localizationService, credentialStore, subscriptionStore: subscriptionStore);
-        PublishShareViewModel.SaveProjectCallback = SaveProjectAfterPublishAsync;
-        PublishShareViewModel.LibraryRefreshCallback = () => ContentLibraryViewModel?.RefreshContentDisplay();
-        PublishShareViewModel.DefinitionUploadedCallback = () =>
-        {
-            HasDefinitionChanges = false;
-            if (PublishShareViewModel != null)
-            {
-                PublishShareViewModel.HasDefinitionChanges = false;
-            }
-        };
-        PublishShareViewModel.DefinitionStaleCallback = () =>
-        {
-            HasDefinitionChanges = true;
-            if (PublishShareViewModel != null)
-            {
-                PublishShareViewModel.HasDefinitionChanges = true;
-            }
-        };
-        PublishShareViewModel.ProjectReloadCallback = ReloadFromCurrentProjectAsync;
-        PublishShareViewModel.NavigateToTabCallback = tabIndex => SelectedTabIndex = tabIndex;
-        PublishShareViewModel.AuthenticationChangedCallback = RefreshSetupState;
-        dialogService.DuplicateAssetLookup = sha => PublishShareViewModel?.FindHostedAssetBySha256(sha);
-        if (PublishShareViewModel != null)
-        {
-            await PublishShareViewModel.InitializeAsync();
-            HasDefinitionChanges = !PublishShareViewModel.IsDefinitionPublished;
-            PublishShareViewModel.HasDefinitionChanges = HasDefinitionChanges;
-        }
-
-        ReferralsViewModel = new GenHub.Features.Tools.ViewModels.ReferralsViewModel(CurrentProject, this, logger, dialogService, notificationService, localizationService);
-
-        // Check for hosting state recovery
-        CheckHostingStateRecovery();
-
-        OnPropertyChanged(nameof(IsSetupComplete));
-        OnPropertyChanged(nameof(ShouldShowSetupOverlay));
-        EnsureStatusLocalizationHooked();
-        OnPropertyChanged(nameof(ProjectStatusText));
-        OnPropertyChanged(nameof(CatalogSummaryText));
-
-        await Task.CompletedTask;
     }
 }
