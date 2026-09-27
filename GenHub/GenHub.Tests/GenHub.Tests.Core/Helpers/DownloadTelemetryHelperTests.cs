@@ -198,4 +198,31 @@ public class DownloadTelemetryHelperTests
         Assert.Equal(TelemetryConstants.DownloadAttribution.Unknown, trackedProps[TelemetryConstants.Properties.Author]);
         Assert.Equal("mod.zip", trackedProps[TelemetryConstants.Properties.FileName]);
     }
+
+    /// <summary>
+    /// Verifies that failed-download tracking redacts raw URLs from error messages.
+    /// </summary>
+    /// <param name="errorMessage">The raw failure message.</param>
+    /// <param name="expected">The expected redacted message.</param>
+    [Theory]
+    [InlineData("Download failed: 404", "Download failed: 404")]
+    [InlineData("Failed fetching https://cdn.example.com/files/mod.zip?st=abc123&e=999", "Failed fetching <URL>")]
+    [InlineData("http://insecure.example/mod.zip timed out after https://mirror.example/mod.zip failed", "<URL> timed out after <URL> failed")]
+    public void TrackDownloadFailure_RedactsUrlsFromErrorMessage(string errorMessage, string expected)
+    {
+        var telemetryMock = new Mock<ITelemetryService>();
+        IReadOnlyDictionary<string, object?>? trackedProps = null;
+        telemetryMock.Setup(t => t.TrackEvent(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, object?>?>(), It.IsAny<TelemetryLevel>()))
+            .Callback<string, IReadOnlyDictionary<string, object?>?, TelemetryLevel>((_, props, _) => trackedProps = props);
+        var config = new DownloadConfiguration
+        {
+            Url = new Uri("https://unknown-host.example/files/mod.zip"),
+            DestinationPath = "/tmp/mod.zip",
+        };
+
+        DownloadTelemetryHelper.TrackDownloadFailure(telemetryMock.Object, config, errorMessage, TimeSpan.FromSeconds(1));
+
+        Assert.NotNull(trackedProps);
+        Assert.Equal(expected, trackedProps[TelemetryConstants.Properties.ErrorMessage]);
+    }
 }

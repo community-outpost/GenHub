@@ -42,7 +42,7 @@ Telemetry strictly honors user choice and local regulations:
 | `content_download_completed` | `Events.ContentDownloadCompleted` | Content download finishes | `publisher_id`, `content_name`, `content_id`, `author`, `file_name`, `content_type`, `size_mb`, `speed_mbps`, `duration_seconds` |
 | `content_download_failed` | `Events.ContentDownloadFailed` | Content download fails | `publisher_id`, `content_name`, `content_id`, `author`, `file_name`, `content_type`, `error_message`, `duration_seconds` |
 | `content_update_applied` | `Events.ContentUpdateApplied` | Publisher content update (GeneralsOnline, SuperHackers, CommunityOutpost) successfully applied | `publisher_id`, `content_name`, `content_id`, `author`, `from_version`, `to_version`, `strategy`, `profiles_updated`, `success` |
-| `content_update_failed` | `Events.ContentUpdateFailed` | Publisher content update fails | `publisher_id`, `content_name`, `content_id`, `author`, `error_message` |
+| `content_update_failed` | `Events.ContentUpdateFailed` | Publisher content update fails | `publisher_id`, `content_name`, `content_id`, `author`, `from_version`, `to_version`, `strategy`, `error_message` |
 | `uploadthing_upload_completed` | `Events.UploadThingUploadCompleted` | User upload to UploadThing gateway succeeds | `file_name`, `size_mb`, `file_size_bytes`, `duration_seconds` |
 | `uploadthing_upload_failed` | `Events.UploadThingUploadFailed` | User upload to UploadThing gateway fails | `file_name`, `size_mb`, `duration_seconds`, `error_message` |
 | `genpatcher_fix_applied` | `Events.GenPatcherFixApplied` | A GenPatcher compatibility or registry fix is executed | `fix_id`, `fix_name`, `game_type`, `is_crucial`, `success`, `error_message` |

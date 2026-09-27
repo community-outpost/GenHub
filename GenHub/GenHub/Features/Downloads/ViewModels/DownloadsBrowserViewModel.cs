@@ -2733,14 +2733,9 @@ public sealed partial class DownloadsBrowserViewModel(
             {
                 logger.LogWarning("Reconciler failed for {PublisherId}: {Error}", publisherId, result.FirstError);
                 targetItem.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{result.FirstError ?? ContentConstants.UpdateFailedStatusMessage}";
-                _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
-                {
-                    [TelemetryConstants.Properties.PublisherId] = publisherId ?? targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? DefaultPublisherName,
-                    [TelemetryConstants.Properties.ContentName] = targetItem.Name,
-                    [TelemetryConstants.Properties.ContentId] = targetItem.Id,
-                    [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName ?? TelemetryConstants.DownloadAttribution.Unknown,
-                    [TelemetryConstants.Properties.ErrorMessage] = result.FirstError ?? ContentConstants.UpdateFailedStatusMessage,
-                });
+
+                // No telemetry here: the publisher reconcilers own per-item failure
+                // reporting and already emit content_update_failed before returning.
                 return false;
             }
 
@@ -2863,6 +2858,9 @@ public sealed partial class DownloadsBrowserViewModel(
                         [TelemetryConstants.Properties.ContentName] = targetItem.Name,
                         [TelemetryConstants.Properties.ContentId] = newManifestId ?? targetItem.Id,
                         [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName ?? TelemetryConstants.DownloadAttribution.Unknown,
+                        [TelemetryConstants.Properties.FromVersion] = oldManifest?.Data?.Version ?? string.Empty,
+                        [TelemetryConstants.Properties.ToVersion] = targetItem.SearchResult?.Version ?? string.Empty,
+                        [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
                         [TelemetryConstants.Properties.ErrorMessage] = updateOutcome.Error ?? ContentConstants.UpdateFailedStatusMessage,
                     });
                     return false;

@@ -1274,7 +1274,17 @@
                 "kind": "EventsNode",
                 "event": "publisher_studio_definition_exported",
                 "name": "Definitions Exported",
-                "math": "total"
+                "math": "total",
+                "properties": [
+                  {
+                    "key": "content_type",
+                    "value": [
+                      "definition"
+                    ],
+                    "operator": "exact",
+                    "type": "event"
+                  }
+                ]
               },
               {
                 "kind": "EventsNode",

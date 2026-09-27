@@ -68,6 +68,11 @@ public static class TelemetryConstants
     public const string SecretTokenMask = "<TOKEN_MASKED>";
 
     /// <summary>
+    /// Mask string replacing raw URLs in telemetry error messages.
+    /// </summary>
+    public const string UrlMask = "<URL>";
+
+    /// <summary>
     /// Default Sentry DSN endpoint for crash reporting.
     /// </summary>
     public const string DefaultSentryDsn = "https://06a9269c6418a6917f0fec49e1589e44@o4511370888347648.ingest.de.sentry.io/4511943606927440";

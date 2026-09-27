@@ -2453,7 +2453,9 @@ public partial class PublishShareViewModel(
     /// Exports the active catalog to JSON.
     /// </summary>
     [RelayCommand]
-    private async Task ExportCatalogAsync()
+    private async Task ExportCatalogAsync() => await ExportCatalogCoreAsync(trackTelemetry: true);
+
+    private async Task ExportCatalogCoreAsync(bool trackTelemetry)
     {
         try
         {
@@ -2468,12 +2470,15 @@ public partial class PublishShareViewModel(
             {
                 CatalogJson = result.Data;
                 logger.LogInformation("Exported catalog '{CatalogName}' JSON", ActiveCatalog.Name);
-                telemetryService?.TrackEvent(TelemetryConstants.Events.PublisherStudioDefinitionExported, new Dictionary<string, object?>
+                if (trackTelemetry)
                 {
-                    [TelemetryConstants.Properties.PublisherName] = project.Catalog.Publisher?.Name ?? project.ProjectName,
-                    [TelemetryConstants.Properties.ContentName] = ActiveCatalog.Name,
-                    [TelemetryConstants.Properties.ContentType] = TelemetryConstants.ContentTypes.Catalog,
-                });
+                    telemetryService?.TrackEvent(TelemetryConstants.Events.PublisherStudioDefinitionExported, new Dictionary<string, object?>
+                    {
+                        [TelemetryConstants.Properties.PublisherName] = project.Catalog.Publisher?.Name ?? project.ProjectName,
+                        [TelemetryConstants.Properties.ContentName] = ActiveCatalog.Name,
+                        [TelemetryConstants.Properties.ContentType] = TelemetryConstants.ContentTypes.Catalog,
+                    });
+                }
             }
             else
             {
@@ -4203,8 +4208,8 @@ public partial class PublishShareViewModel(
     {
         if (string.IsNullOrWhiteSpace(CatalogJson))
         {
-            // Generate first if not already done
-            await ExportCatalogAsync();
+            // Generate first if not already done; a clipboard copy is not an export.
+            await ExportCatalogCoreAsync(trackTelemetry: false);
         }
 
         if (string.IsNullOrWhiteSpace(CatalogJson))

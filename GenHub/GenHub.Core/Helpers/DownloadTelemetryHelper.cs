@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace GenHub.Core.Helpers;
 
@@ -13,7 +14,7 @@ namespace GenHub.Core.Helpers;
 /// Provides shared helpers for attributing downloads to publishers and reporting
 /// download telemetry with consistent property keys and fallback values.
 /// </summary>
-public static class DownloadTelemetryHelper
+public static partial class DownloadTelemetryHelper
 {
     private static readonly (string[] Hosts, string PublisherId)[] KnownHostPublishers =
     [
@@ -222,7 +223,7 @@ public static class DownloadTelemetryHelper
             [TelemetryConstants.Properties.Package] = contentName,
             [TelemetryConstants.Properties.Author] = ResolveAuthor(configuration),
             [TelemetryConstants.Properties.FileName] = Path.GetFileName(configuration.DestinationPath),
-            [TelemetryConstants.Properties.ErrorMessage] = errorMessage,
+            [TelemetryConstants.Properties.ErrorMessage] = RedactUrls(errorMessage),
         };
 
         if (elapsed.HasValue)
@@ -245,4 +246,9 @@ public static class DownloadTelemetryHelper
 
     private static string? SkipUnknown(string? value) =>
         string.Equals(value, PublisherTypeConstants.Unknown, StringComparison.OrdinalIgnoreCase) ? null : value;
+
+    private static string RedactUrls(string message) => UrlPattern().Replace(message, TelemetryConstants.UrlMask);
+
+    [GeneratedRegex(@"https?://[^\s""']+", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+    private static partial Regex UrlPattern();
 }
