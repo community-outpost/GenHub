@@ -1,3 +1,4 @@
+using GenHub.Core.Interfaces.Telemetry;
 using Avalonia;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;

@@ -1,3 +1,4 @@
+using GenHub.Core.Interfaces.Telemetry;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;

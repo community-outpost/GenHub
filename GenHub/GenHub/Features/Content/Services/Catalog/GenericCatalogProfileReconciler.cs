@@ -1,3 +1,4 @@
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
