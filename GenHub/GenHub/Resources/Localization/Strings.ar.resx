@@ -14496,6 +14496,141 @@ https://example.com/screenshot2.png</value>
   <data name="Settings.Profiles.DeletedMessage" xml:space="preserve">
     <value>عدد ملفات التعريف المحذوفة بنجاح: {0}.</value>
   </data>
+  <data name="GameProfiles.Card.Tooltip.MoveLeft" xml:space="preserve">
+    <value>تحريك لليسار</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.MoveRight" xml:space="preserve">
+    <value>تحريك لليمين</value>
+  </data>
+  <data name="GameProfiles.Launcher.Tooltip.Sort" xml:space="preserve">
+    <value>فرز ملفات التعريف</value>
+  </data>
+  <data name="GameProfiles.Sort.LastPlayed" xml:space="preserve">
+    <value>تم تشغيلها مؤخراً</value>
+  </data>
+  <data name="GameProfiles.Sort.DateCreated" xml:space="preserve">
+    <value>تاريخ الإنشاء</value>
+  </data>
+  <data name="GameProfiles.Sort.Alphabetical" xml:space="preserve">
+    <value>الاسم (أ إلى ي)</value>
+  </data>
+  <data name="GameProfiles.Sort.AlphabeticalDesc" xml:space="preserve">
+    <value>الاسم (ي إلى أ)</value>
+  </data>
+  <data name="GameProfiles.Sort.Free" xml:space="preserve">
+    <value>ترتيب مخصص</value>
+  </data>
+  <data name="GameProfiles.Settings.CustomImage.InvalidFile.Title" xml:space="preserve">
+    <value>ملف صورة غير صالح</value>
+  </data>
+  <data name="GameProfiles.Settings.CustomImage.InvalidFile.Message" xml:space="preserve">
+    <value>يرجى تحديد ملف صورة صالح (PNG، JPG، JPEG، WEBP، BMP، GIF، ICO).</value>
+  </data>
+  <data name="GameProfiles.Notification.ReorderFailed.Title" xml:space="preserve">
+    <value>فشل حفظ ترتيب ملفات التعريف</value>
+  </data>
+  <data name="GameProfiles.Notification.ReorderFailed.Message" xml:space="preserve">
+    <value>تعذّر حفظ الترتيب الجديد لملفات التعريف وتمت استعادة الترتيب السابق.</value>
+  </data>
+  <data name="GameProfiles.Status.ContentServicesUnavailable" xml:space="preserve">
+    <value>خدمات المحتوى غير متوفرة</value>
+  </data>
+  <data name="GameProfiles.Settings.LocalContent.AddedStatus" xml:space="preserve">
+    <value>تمت إضافة {0}</value>
+  </data>
+  <data name="GameProfiles.Settings.LocalContent.AddedTitle" xml:space="preserve">
+    <value>تمت إضافة المحتوى</value>
+  </data>
+  <data name="GameProfiles.Settings.LocalContent.AddedMessage" xml:space="preserve">
+    <value>تمت إضافة "{0}" بنجاح.</value>
+  </data>
+  <data name="GameProfiles.Settings.Save.DropImportInProgress.Title" xml:space="preserve">
+    <value>الاستيراد قيد التنفيذ</value>
+  </data>
+  <data name="GameProfiles.Settings.Save.DropImportInProgress.Message" xml:space="preserve">
+    <value>يرجى انتظار انتهاء استيراد المحتوى المسقط قبل الحفظ.</value>
+  </data>
+  <data name="GameProfiles.Settings.LocalContent.ImportError" xml:space="preserve">
+    <value>حدث خطأ أثناء استيراد الملفات المسحوبة</value>
+  </data>
+  <data name="GameSettings.Audio.AudioEnabledToolTip" xml:space="preserve">
+    <value>مفتاح رئيسي لتمكين أو تعطيل كافة مخرجات الصوت في اللعبة.</value>
+  </data>
+  <data name="GameSettings.Audio.AudioChannelsToolTip" xml:space="preserve">
+    <value>عدد قنوات خلط الصوت المتزامنة. القيم الأعلى تمنع انقطاع الصوت أثناء المعارك الكبيرة.</value>
+  </data>
+  <data name="GameSettings.Tsh.CursorCaptureToolTip" xml:space="preserve">
+    <value>يقيد حركة مؤشر الفأرة داخل حدود نافذة اللعبة لمنع النقر العرضي خارجها.</value>
+  </data>
+  <data name="GameSettings.Tsh.ScreenEdgeScrollToolTip" xml:space="preserve">
+    <value>يمكّن تحريك الكاميرا عند تحريك مؤشر الفأرة إلى حافة نافذة اللعبة.</value>
+  </data>
+  <data name="GameSettings.Tsh.SystemTimeToolTip" xml:space="preserve">
+    <value>يضبط حجم خط ساعة النظام المعروضة داخل اللعبة.</value>
+  </data>
+  <data name="GameSettings.Tsh.PingDisplayToolTip" xml:space="preserve">
+    <value>يضبط حجم خط عرض زمن استجابة الشبكة (البنج).</value>
+  </data>
+  <data name="GameSettings.Tsh.FpsDisplayToolTip" xml:space="preserve">
+    <value>يضبط حجم خط عداد معدل الإطارات في الثانية.</value>
+  </data>
+  <data name="GameSettings.Tsh.ResolutionFontOffsetToolTip" xml:space="preserve">
+    <value>يضبط حجم خط واجهة المستخدم بما يتناسب مع دقة الشاشة.</value>
+  </data>
+  <data name="GameSettings.Tsh.TransactionVolumeToolTip" xml:space="preserve">
+    <value>يتحكم في مستوى صوت المعاملات المالية والمكافآت.</value>
+  </data>
+  <data name="GameSettings.Tsh.TransitionSpeedToolTip" xml:space="preserve">
+    <value>يضبط سرعة انتقال القوائم وحركات الواجهة.</value>
+  </data>
+  <data name="GameSettings.Go.CameraMoveSpeedToolTip" xml:space="preserve">
+    <value>يضبط سرعة استجابة حركة الكاميرا والتحريك البانورامي.</value>
+  </data>
+  <data name="GameSettings.Go.MinCameraHeightToolTip" xml:space="preserve">
+    <value>يحدد أدنى ارتفاع مسموح به للكاميرا عند التقريب.</value>
+  </data>
+  <data name="GameSettings.Go.MaxCameraHeightToolTip" xml:space="preserve">
+    <value>يفرض حداً أقصى لارتفاع الكاميرا عند استضافة مباراة متعددة اللاعبين.</value>
+  </data>
+  <data name="GameSettings.Go.GlobalNotificationsToolTip" xml:space="preserve">
+    <value>مفتاح رئيسي لتمكين أو تعطيل إشعارات سطح المكتب واللعبة.</value>
+  </data>
+  <data name="GameSettings.Go.SoundNotificationsToolTip" xml:space="preserve">
+    <value>تشغيل تنبيه صوتي عند تلقي طلبات الصداقة أو الرسائل.</value>
+  </data>
+  <data name="GameSettings.Go.ChatFontSizeToolTip" xml:space="preserve">
+    <value>يضبط حجم خط الدردشة في الردهة وأثناء المباراة.</value>
+  </data>
+  <data name="GameSettings.Go.ChatFadeoutToolTip" xml:space="preserve">
+    <value>المدة بالثواني قبل تلاشي رسائل الدردشة داخل اللعبة.</value>
+  </data>
+  <data name="GameSettings.Go.GameSpyIpOverrideToolTip" xml:space="preserve">
+    <value>عنوان IP مخصص يُستخدم لاكتشاف شبكة بروتوكول GameSpy والتوجيه المحلي.</value>
+  </data>
+  <data name="Info.Demo.WidthLabel" xml:space="preserve">
+    <value>العرض:</value>
+  </data>
+  <data name="Info.Demo.HeightLabel" xml:space="preserve">
+    <value>الارتفاع:</value>
+  </data>
+  <data name="Info.Card.tools.demo-replay.Title" xml:space="preserve">
+    <value>عرض مدير الإعادة</value>
+  </data>
+  <data name="Info.Card.tools.demo-map.Title" xml:space="preserve">
+    <value>عرض مدير الخرائط</value>
+  </data>
+  <data name="Info.Card.tools.demo-hotkeys.Title" xml:space="preserve">
+    <value>عرض محرر الاختصارات</value>
+  </data>
+  <data name="Info.Card.tools.demo-publisher.Title" xml:space="preserve">
+    <value>عرض استوديو الناشر</value>
+  </data>
+  <data name="Info.Card.tools.demo-modbuilder.Title" xml:space="preserve">
+    <value>عرض ModBuilder</value>
+  </data>
+  <data name="Info.Card.tools.demo-wnd.Title" xml:space="preserve">
+    <value>عرض محرر WND</value>
+  </data>
   <data name="Common.Dismiss" xml:space="preserve">
     <value>تجاهل</value>
   </data>
@@ -15589,6 +15724,22 @@ Error: فشل: {3}
   <data name="Tools.GenPatcher.Notification.BatchCompletedWithErrors.Title" xml:space="preserve">
     <value>اكتملت الإصلاحات مع أخطاء ({0}/{1} ناجحة)</value>
   </data>
+  <data name="Content.Prompt.CommunityPatchUpdateAvailable.Title" xml:space="preserve">
+    <value>يتوفر تحديث لتصحيح المجتمع</value>
+  </data>
+  <data name="Content.Prompt.CommunityPatchUpdateAvailable.Message" xml:space="preserve">
+    <value>يتوفر إصدار جديد من **تصحيح المجتمع** ({0}).
+
+كيف تريد تطبيق هذا التحديث؟</value>
+  </data>
+  <data name="Content.Prompt.SuperHackersUpdateAvailable.Title" xml:space="preserve">
+    <value>يتوفر تحديث SuperHackers</value>
+  </data>
+  <data name="Content.Prompt.SuperHackersUpdateAvailable.Message" xml:space="preserve">
+    <value>يتوفر إصدار جديد من **The Super Hackers** ({0}).
+
+كيف تريد تطبيق هذا التحديث؟</value>
+  </data>
   <data name="Info.Card.tools.publisher-studio-authoring.Action.NAV_Tools" xml:space="preserve">
     <value>فتح استوديو الناشر</value>
   </data>
@@ -15603,140 +15754,5 @@ Error: فشل: {3}
   </data>
   <data name="Info.Demo.SizeExpanded" xml:space="preserve">
     <value>موسع (980x680)</value>
-  </data>
-  <data name="GameProfiles.Card.Tooltip.MoveLeft" xml:space="preserve">
-    <value>تحريك لليسار</value>
-  </data>
-  <data name="GameProfiles.Card.Tooltip.MoveRight" xml:space="preserve">
-    <value>تحريك لليمين</value>
-  </data>
-  <data name="GameProfiles.Launcher.Tooltip.Sort" xml:space="preserve">
-    <value>فرز ملفات التعريف</value>
-  </data>
-  <data name="GameProfiles.Sort.LastPlayed" xml:space="preserve">
-    <value>تم تشغيلها مؤخراً</value>
-  </data>
-  <data name="GameProfiles.Sort.DateCreated" xml:space="preserve">
-    <value>تاريخ الإنشاء</value>
-  </data>
-  <data name="GameProfiles.Sort.Alphabetical" xml:space="preserve">
-    <value>الاسم (أ إلى ي)</value>
-  </data>
-  <data name="GameProfiles.Sort.AlphabeticalDesc" xml:space="preserve">
-    <value>الاسم (ي إلى أ)</value>
-  </data>
-  <data name="GameProfiles.Sort.Free" xml:space="preserve">
-    <value>ترتيب مخصص</value>
-  </data>
-  <data name="GameProfiles.Settings.CustomImage.InvalidFile.Title" xml:space="preserve">
-    <value>ملف صورة غير صالح</value>
-  </data>
-  <data name="GameProfiles.Settings.CustomImage.InvalidFile.Message" xml:space="preserve">
-    <value>يرجى تحديد ملف صورة صالح (PNG، JPG، JPEG، WEBP، BMP، GIF، ICO).</value>
-  </data>
-  <data name="GameProfiles.Notification.ReorderFailed.Title" xml:space="preserve">
-    <value>فشل حفظ ترتيب ملفات التعريف</value>
-  </data>
-  <data name="GameProfiles.Notification.ReorderFailed.Message" xml:space="preserve">
-    <value>تعذّر حفظ الترتيب الجديد لملفات التعريف وتمت استعادة الترتيب السابق.</value>
-  </data>
-  <data name="GameProfiles.Status.ContentServicesUnavailable" xml:space="preserve">
-    <value>خدمات المحتوى غير متوفرة</value>
-  </data>
-  <data name="GameProfiles.Settings.LocalContent.AddedStatus" xml:space="preserve">
-    <value>تمت إضافة {0}</value>
-  </data>
-  <data name="GameProfiles.Settings.LocalContent.AddedTitle" xml:space="preserve">
-    <value>تمت إضافة المحتوى</value>
-  </data>
-  <data name="GameProfiles.Settings.LocalContent.AddedMessage" xml:space="preserve">
-    <value>تمت إضافة "{0}" بنجاح.</value>
-  </data>
-  <data name="GameProfiles.Settings.Save.DropImportInProgress.Title" xml:space="preserve">
-    <value>الاستيراد قيد التنفيذ</value>
-  </data>
-  <data name="GameProfiles.Settings.Save.DropImportInProgress.Message" xml:space="preserve">
-    <value>يرجى انتظار انتهاء استيراد المحتوى المسقط قبل الحفظ.</value>
-  </data>
-  <data name="GameProfiles.Settings.LocalContent.ImportError" xml:space="preserve">
-    <value>حدث خطأ أثناء استيراد الملفات المسحوبة</value>
-  </data>
-  <data name="GameSettings.Audio.AudioEnabledToolTip" xml:space="preserve">
-    <value>مفتاح رئيسي لتمكين أو تعطيل كافة مخرجات الصوت في اللعبة.</value>
-  </data>
-  <data name="GameSettings.Audio.AudioChannelsToolTip" xml:space="preserve">
-    <value>عدد قنوات خلط الصوت المتزامنة. القيم الأعلى تمنع انقطاع الصوت أثناء المعارك الكبيرة.</value>
-  </data>
-  <data name="GameSettings.Tsh.CursorCaptureToolTip" xml:space="preserve">
-    <value>يقيد حركة مؤشر الفأرة داخل حدود نافذة اللعبة لمنع النقر العرضي خارجها.</value>
-  </data>
-  <data name="GameSettings.Tsh.ScreenEdgeScrollToolTip" xml:space="preserve">
-    <value>يمكّن تحريك الكاميرا عند تحريك مؤشر الفأرة إلى حافة نافذة اللعبة.</value>
-  </data>
-  <data name="GameSettings.Tsh.SystemTimeToolTip" xml:space="preserve">
-    <value>يضبط حجم خط ساعة النظام المعروضة داخل اللعبة.</value>
-  </data>
-  <data name="GameSettings.Tsh.PingDisplayToolTip" xml:space="preserve">
-    <value>يضبط حجم خط عرض زمن استجابة الشبكة (البنج).</value>
-  </data>
-  <data name="GameSettings.Tsh.FpsDisplayToolTip" xml:space="preserve">
-    <value>يضبط حجم خط عداد معدل الإطارات في الثانية.</value>
-  </data>
-  <data name="GameSettings.Tsh.ResolutionFontOffsetToolTip" xml:space="preserve">
-    <value>يضبط حجم خط واجهة المستخدم بما يتناسب مع دقة الشاشة.</value>
-  </data>
-  <data name="GameSettings.Tsh.TransactionVolumeToolTip" xml:space="preserve">
-    <value>يتحكم في مستوى صوت المعاملات المالية والمكافآت.</value>
-  </data>
-  <data name="GameSettings.Tsh.TransitionSpeedToolTip" xml:space="preserve">
-    <value>يضبط سرعة انتقال القوائم وحركات الواجهة.</value>
-  </data>
-  <data name="GameSettings.Go.CameraMoveSpeedToolTip" xml:space="preserve">
-    <value>يضبط سرعة استجابة حركة الكاميرا والتحريك البانورامي.</value>
-  </data>
-  <data name="GameSettings.Go.MinCameraHeightToolTip" xml:space="preserve">
-    <value>يحدد أدنى ارتفاع مسموح به للكاميرا عند التقريب.</value>
-  </data>
-  <data name="GameSettings.Go.MaxCameraHeightToolTip" xml:space="preserve">
-    <value>يفرض حداً أقصى لارتفاع الكاميرا عند استضافة مباراة متعددة اللاعبين.</value>
-  </data>
-  <data name="GameSettings.Go.GlobalNotificationsToolTip" xml:space="preserve">
-    <value>مفتاح رئيسي لتمكين أو تعطيل إشعارات سطح المكتب واللعبة.</value>
-  </data>
-  <data name="GameSettings.Go.SoundNotificationsToolTip" xml:space="preserve">
-    <value>تشغيل تنبيه صوتي عند تلقي طلبات الصداقة أو الرسائل.</value>
-  </data>
-  <data name="GameSettings.Go.ChatFontSizeToolTip" xml:space="preserve">
-    <value>يضبط حجم خط الدردشة في الردهة وأثناء المباراة.</value>
-  </data>
-  <data name="GameSettings.Go.ChatFadeoutToolTip" xml:space="preserve">
-    <value>المدة بالثواني قبل تلاشي رسائل الدردشة داخل اللعبة.</value>
-  </data>
-  <data name="GameSettings.Go.GameSpyIpOverrideToolTip" xml:space="preserve">
-    <value>عنوان IP مخصص يُستخدم لاكتشاف شبكة بروتوكول GameSpy والتوجيه المحلي.</value>
-  </data>
-  <data name="Info.Demo.WidthLabel" xml:space="preserve">
-    <value>العرض:</value>
-  </data>
-  <data name="Info.Demo.HeightLabel" xml:space="preserve">
-    <value>الارتفاع:</value>
-  </data>
-  <data name="Info.Card.tools.demo-replay.Title" xml:space="preserve">
-    <value>عرض مدير الإعادة</value>
-  </data>
-  <data name="Info.Card.tools.demo-map.Title" xml:space="preserve">
-    <value>عرض مدير الخرائط</value>
-  </data>
-  <data name="Info.Card.tools.demo-hotkeys.Title" xml:space="preserve">
-    <value>عرض محرر الاختصارات</value>
-  </data>
-  <data name="Info.Card.tools.demo-publisher.Title" xml:space="preserve">
-    <value>عرض استوديو الناشر</value>
-  </data>
-  <data name="Info.Card.tools.demo-modbuilder.Title" xml:space="preserve">
-    <value>عرض ModBuilder</value>
-  </data>
-  <data name="Info.Card.tools.demo-wnd.Title" xml:space="preserve">
-    <value>عرض محرر WND</value>
   </data>
 </root>

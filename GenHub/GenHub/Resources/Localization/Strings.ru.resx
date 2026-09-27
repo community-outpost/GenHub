@@ -14496,6 +14496,141 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="Settings.Profiles.DeletedMessage" xml:space="preserve">
     <value>Успешно удалено профилей: {0}.</value>
   </data>
+  <data name="GameProfiles.Card.Tooltip.MoveLeft" xml:space="preserve">
+    <value>Переместить влево</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.MoveRight" xml:space="preserve">
+    <value>Переместить вправо</value>
+  </data>
+  <data name="GameProfiles.Launcher.Tooltip.Sort" xml:space="preserve">
+    <value>Сортировка профилей</value>
+  </data>
+  <data name="GameProfiles.Sort.LastPlayed" xml:space="preserve">
+    <value>Недавно запущенные</value>
+  </data>
+  <data name="GameProfiles.Sort.DateCreated" xml:space="preserve">
+    <value>По дате создания</value>
+  </data>
+  <data name="GameProfiles.Sort.Alphabetical" xml:space="preserve">
+    <value>По имени (А-Я)</value>
+  </data>
+  <data name="GameProfiles.Sort.AlphabeticalDesc" xml:space="preserve">
+    <value>По имени (Я-А)</value>
+  </data>
+  <data name="GameProfiles.Sort.Free" xml:space="preserve">
+    <value>Пользовательский порядок</value>
+  </data>
+  <data name="GameProfiles.Settings.CustomImage.InvalidFile.Title" xml:space="preserve">
+    <value>Недопустимый файл изображения</value>
+  </data>
+  <data name="GameProfiles.Settings.CustomImage.InvalidFile.Message" xml:space="preserve">
+    <value>Выберите допустимый файл изображения (PNG, JPG, JPEG, WEBP, BMP, GIF, ICO).</value>
+  </data>
+  <data name="GameProfiles.Notification.ReorderFailed.Title" xml:space="preserve">
+    <value>Не удалось сохранить порядок профилей</value>
+  </data>
+  <data name="GameProfiles.Notification.ReorderFailed.Message" xml:space="preserve">
+    <value>Не удалось сохранить новый порядок профилей, предыдущий порядок был восстановлен.</value>
+  </data>
+  <data name="GameProfiles.Status.ContentServicesUnavailable" xml:space="preserve">
+    <value>Службы контента недоступны</value>
+  </data>
+  <data name="GameProfiles.Settings.LocalContent.AddedStatus" xml:space="preserve">
+    <value>Добавлено: {0}</value>
+  </data>
+  <data name="GameProfiles.Settings.LocalContent.AddedTitle" xml:space="preserve">
+    <value>Контент добавлен</value>
+  </data>
+  <data name="GameProfiles.Settings.LocalContent.AddedMessage" xml:space="preserve">
+    <value>"{0}" успешно добавлен.</value>
+  </data>
+  <data name="GameProfiles.Settings.Save.DropImportInProgress.Title" xml:space="preserve">
+    <value>Импорт выполняется</value>
+  </data>
+  <data name="GameProfiles.Settings.Save.DropImportInProgress.Message" xml:space="preserve">
+    <value>Дождитесь завершения импорта перетаскиваемого содержимого перед сохранением.</value>
+  </data>
+  <data name="GameProfiles.Settings.LocalContent.ImportError" xml:space="preserve">
+    <value>Ошибка при импорте перетащенных файлов</value>
+  </data>
+  <data name="GameSettings.Audio.AudioEnabledToolTip" xml:space="preserve">
+    <value>Главный переключатель для включения или отключения всего игрового звука.</value>
+  </data>
+  <data name="GameSettings.Audio.AudioChannelsToolTip" xml:space="preserve">
+    <value>Количество каналов микширования DirectSound. Предотвращает прерывание звуков во время масштабных сражений.</value>
+  </data>
+  <data name="GameSettings.Tsh.CursorCaptureToolTip" xml:space="preserve">
+    <value>Ограничивает перемещение курсора мыши окном игры во избежание случайных кликов за его пределами.</value>
+  </data>
+  <data name="GameSettings.Tsh.ScreenEdgeScrollToolTip" xml:space="preserve">
+    <value>Включает прокрутку камеры при наведении курсора на край игрового окна.</value>
+  </data>
+  <data name="GameSettings.Tsh.SystemTimeToolTip" xml:space="preserve">
+    <value>Масштабирует размер шрифта системных часов в игре.</value>
+  </data>
+  <data name="GameSettings.Tsh.PingDisplayToolTip" xml:space="preserve">
+    <value>Масштабирует размер шрифта отображения задержки сети (пинг).</value>
+  </data>
+  <data name="GameSettings.Tsh.FpsDisplayToolTip" xml:space="preserve">
+    <value>Масштабирует размер шрифта счетчика кадров в секунду (FPS).</value>
+  </data>
+  <data name="GameSettings.Tsh.ResolutionFontOffsetToolTip" xml:space="preserve">
+    <value>Корректирует размер шрифтов интерфейса в зависимости от разрешения экрана.</value>
+  </data>
+  <data name="GameSettings.Tsh.TransactionVolumeToolTip" xml:space="preserve">
+    <value>Регулирует громкость звуков финансовых операций и наград.</value>
+  </data>
+  <data name="GameSettings.Tsh.TransitionSpeedToolTip" xml:space="preserve">
+    <value>Регулирует скорость анимации переходов между меню.</value>
+  </data>
+  <data name="GameSettings.Go.CameraMoveSpeedToolTip" xml:space="preserve">
+    <value>Регулирует скорость и отзывчивость перемещения камеры.</value>
+  </data>
+  <data name="GameSettings.Go.MinCameraHeightToolTip" xml:space="preserve">
+    <value>Задает минимальную высоту камеры при приближении.</value>
+  </data>
+  <data name="GameSettings.Go.MaxCameraHeightToolTip" xml:space="preserve">
+    <value>Ограничивает максимальную высоту камеры для игроков при создании матча хостом.</value>
+  </data>
+  <data name="GameSettings.Go.GlobalNotificationsToolTip" xml:space="preserve">
+    <value>Главный переключатель уведомлений рабочего стола и сообщества.</value>
+  </data>
+  <data name="GameSettings.Go.SoundNotificationsToolTip" xml:space="preserve">
+    <value>Воспроизводит звуковой сигнал при получении приглашений в друзья или сообщений.</value>
+  </data>
+  <data name="GameSettings.Go.ChatFontSizeToolTip" xml:space="preserve">
+    <value>Регулирует размер шрифта в чате лобби и матча.</value>
+  </data>
+  <data name="GameSettings.Go.ChatFadeoutToolTip" xml:space="preserve">
+    <value>Время в секундах до исчезновения сообщений игрового чата.</value>
+  </data>
+  <data name="GameSettings.Go.GameSpyIpOverrideToolTip" xml:space="preserve">
+    <value>Пользовательский IP-адрес для сетевого обнаружения протокола GameSpy и LAN-маршрутизации.</value>
+  </data>
+  <data name="Info.Demo.WidthLabel" xml:space="preserve">
+    <value>Ш:</value>
+  </data>
+  <data name="Info.Demo.HeightLabel" xml:space="preserve">
+    <value>В:</value>
+  </data>
+  <data name="Info.Card.tools.demo-replay.Title" xml:space="preserve">
+    <value>Демо менеджера повторов</value>
+  </data>
+  <data name="Info.Card.tools.demo-map.Title" xml:space="preserve">
+    <value>Демо менеджера карт</value>
+  </data>
+  <data name="Info.Card.tools.demo-hotkeys.Title" xml:space="preserve">
+    <value>Демо редактора горячих клавиш</value>
+  </data>
+  <data name="Info.Card.tools.demo-publisher.Title" xml:space="preserve">
+    <value>Демо студии издателя</value>
+  </data>
+  <data name="Info.Card.tools.demo-modbuilder.Title" xml:space="preserve">
+    <value>Демо ModBuilder</value>
+  </data>
+  <data name="Info.Card.tools.demo-wnd.Title" xml:space="preserve">
+    <value>Демо редактора WND</value>
+  </data>
   <data name="Common.Dismiss" xml:space="preserve">
     <value>Скрыть</value>
   </data>
@@ -15589,6 +15724,22 @@ Error: не удалось: {3}
   <data name="Tools.GenPatcher.Notification.BatchCompletedWithErrors.Title" xml:space="preserve">
     <value>Исправления завершены с ошибками (успешно: {0}/{1})</value>
   </data>
+  <data name="Content.Prompt.CommunityPatchUpdateAvailable.Title" xml:space="preserve">
+    <value>Доступно обновление Community Patch</value>
+  </data>
+  <data name="Content.Prompt.CommunityPatchUpdateAvailable.Message" xml:space="preserve">
+    <value>Доступна новая версия **Community Patch** ({0}).
+
+Как вы хотите применить это обновление?</value>
+  </data>
+  <data name="Content.Prompt.SuperHackersUpdateAvailable.Title" xml:space="preserve">
+    <value>Доступно обновление SuperHackers</value>
+  </data>
+  <data name="Content.Prompt.SuperHackersUpdateAvailable.Message" xml:space="preserve">
+    <value>Доступна новая версия **The Super Hackers** ({0}).
+
+Как вы хотите применить это обновление?</value>
+  </data>
   <data name="Info.Card.tools.publisher-studio-authoring.Action.NAV_Tools" xml:space="preserve">
     <value>Открыть студию издателя</value>
   </data>
@@ -15603,140 +15754,5 @@ Error: не удалось: {3}
   </data>
   <data name="Info.Demo.SizeExpanded" xml:space="preserve">
     <value>Расширенный (980x680)</value>
-  </data>
-  <data name="GameProfiles.Card.Tooltip.MoveLeft" xml:space="preserve">
-    <value>Переместить влево</value>
-  </data>
-  <data name="GameProfiles.Card.Tooltip.MoveRight" xml:space="preserve">
-    <value>Переместить вправо</value>
-  </data>
-  <data name="GameProfiles.Launcher.Tooltip.Sort" xml:space="preserve">
-    <value>Сортировка профилей</value>
-  </data>
-  <data name="GameProfiles.Sort.LastPlayed" xml:space="preserve">
-    <value>Недавно запущенные</value>
-  </data>
-  <data name="GameProfiles.Sort.DateCreated" xml:space="preserve">
-    <value>По дате создания</value>
-  </data>
-  <data name="GameProfiles.Sort.Alphabetical" xml:space="preserve">
-    <value>По имени (А-Я)</value>
-  </data>
-  <data name="GameProfiles.Sort.AlphabeticalDesc" xml:space="preserve">
-    <value>По имени (Я-А)</value>
-  </data>
-  <data name="GameProfiles.Sort.Free" xml:space="preserve">
-    <value>Пользовательский порядок</value>
-  </data>
-  <data name="GameProfiles.Settings.CustomImage.InvalidFile.Title" xml:space="preserve">
-    <value>Недопустимый файл изображения</value>
-  </data>
-  <data name="GameProfiles.Settings.CustomImage.InvalidFile.Message" xml:space="preserve">
-    <value>Выберите допустимый файл изображения (PNG, JPG, JPEG, WEBP, BMP, GIF, ICO).</value>
-  </data>
-  <data name="GameProfiles.Notification.ReorderFailed.Title" xml:space="preserve">
-    <value>Не удалось сохранить порядок профилей</value>
-  </data>
-  <data name="GameProfiles.Notification.ReorderFailed.Message" xml:space="preserve">
-    <value>Не удалось сохранить новый порядок профилей, предыдущий порядок был восстановлен.</value>
-  </data>
-  <data name="GameProfiles.Status.ContentServicesUnavailable" xml:space="preserve">
-    <value>Службы контента недоступны</value>
-  </data>
-  <data name="GameProfiles.Settings.LocalContent.AddedStatus" xml:space="preserve">
-    <value>Добавлено: {0}</value>
-  </data>
-  <data name="GameProfiles.Settings.LocalContent.AddedTitle" xml:space="preserve">
-    <value>Контент добавлен</value>
-  </data>
-  <data name="GameProfiles.Settings.LocalContent.AddedMessage" xml:space="preserve">
-    <value>"{0}" успешно добавлен.</value>
-  </data>
-  <data name="GameProfiles.Settings.Save.DropImportInProgress.Title" xml:space="preserve">
-    <value>Импорт выполняется</value>
-  </data>
-  <data name="GameProfiles.Settings.Save.DropImportInProgress.Message" xml:space="preserve">
-    <value>Дождитесь завершения импорта перетаскиваемого содержимого перед сохранением.</value>
-  </data>
-  <data name="GameProfiles.Settings.LocalContent.ImportError" xml:space="preserve">
-    <value>Ошибка при импорте перетащенных файлов</value>
-  </data>
-  <data name="GameSettings.Audio.AudioEnabledToolTip" xml:space="preserve">
-    <value>Главный переключатель для включения или отключения всего игрового звука.</value>
-  </data>
-  <data name="GameSettings.Audio.AudioChannelsToolTip" xml:space="preserve">
-    <value>Количество каналов микширования DirectSound. Предотвращает прерывание звуков во время масштабных сражений.</value>
-  </data>
-  <data name="GameSettings.Tsh.CursorCaptureToolTip" xml:space="preserve">
-    <value>Ограничивает перемещение курсора мыши окном игры во избежание случайных кликов за его пределами.</value>
-  </data>
-  <data name="GameSettings.Tsh.ScreenEdgeScrollToolTip" xml:space="preserve">
-    <value>Включает прокрутку камеры при наведении курсора на край игрового окна.</value>
-  </data>
-  <data name="GameSettings.Tsh.SystemTimeToolTip" xml:space="preserve">
-    <value>Масштабирует размер шрифта системных часов в игре.</value>
-  </data>
-  <data name="GameSettings.Tsh.PingDisplayToolTip" xml:space="preserve">
-    <value>Масштабирует размер шрифта отображения задержки сети (пинг).</value>
-  </data>
-  <data name="GameSettings.Tsh.FpsDisplayToolTip" xml:space="preserve">
-    <value>Масштабирует размер шрифта счетчика кадров в секунду (FPS).</value>
-  </data>
-  <data name="GameSettings.Tsh.ResolutionFontOffsetToolTip" xml:space="preserve">
-    <value>Корректирует размер шрифтов интерфейса в зависимости от разрешения экрана.</value>
-  </data>
-  <data name="GameSettings.Tsh.TransactionVolumeToolTip" xml:space="preserve">
-    <value>Регулирует громкость звуков финансовых операций и наград.</value>
-  </data>
-  <data name="GameSettings.Tsh.TransitionSpeedToolTip" xml:space="preserve">
-    <value>Регулирует скорость анимации переходов между меню.</value>
-  </data>
-  <data name="GameSettings.Go.CameraMoveSpeedToolTip" xml:space="preserve">
-    <value>Регулирует скорость и отзывчивость перемещения камеры.</value>
-  </data>
-  <data name="GameSettings.Go.MinCameraHeightToolTip" xml:space="preserve">
-    <value>Задает минимальную высоту камеры при приближении.</value>
-  </data>
-  <data name="GameSettings.Go.MaxCameraHeightToolTip" xml:space="preserve">
-    <value>Ограничивает максимальную высоту камеры для игроков при создании матча хостом.</value>
-  </data>
-  <data name="GameSettings.Go.GlobalNotificationsToolTip" xml:space="preserve">
-    <value>Главный переключатель уведомлений рабочего стола и сообщества.</value>
-  </data>
-  <data name="GameSettings.Go.SoundNotificationsToolTip" xml:space="preserve">
-    <value>Воспроизводит звуковой сигнал при получении приглашений в друзья или сообщений.</value>
-  </data>
-  <data name="GameSettings.Go.ChatFontSizeToolTip" xml:space="preserve">
-    <value>Регулирует размер шрифта в чате лобби и матча.</value>
-  </data>
-  <data name="GameSettings.Go.ChatFadeoutToolTip" xml:space="preserve">
-    <value>Время в секундах до исчезновения сообщений игрового чата.</value>
-  </data>
-  <data name="GameSettings.Go.GameSpyIpOverrideToolTip" xml:space="preserve">
-    <value>Пользовательский IP-адрес для сетевого обнаружения протокола GameSpy и LAN-маршрутизации.</value>
-  </data>
-  <data name="Info.Demo.WidthLabel" xml:space="preserve">
-    <value>Ш:</value>
-  </data>
-  <data name="Info.Demo.HeightLabel" xml:space="preserve">
-    <value>В:</value>
-  </data>
-  <data name="Info.Card.tools.demo-replay.Title" xml:space="preserve">
-    <value>Демо менеджера повторов</value>
-  </data>
-  <data name="Info.Card.tools.demo-map.Title" xml:space="preserve">
-    <value>Демо менеджера карт</value>
-  </data>
-  <data name="Info.Card.tools.demo-hotkeys.Title" xml:space="preserve">
-    <value>Демо редактора горячих клавиш</value>
-  </data>
-  <data name="Info.Card.tools.demo-publisher.Title" xml:space="preserve">
-    <value>Демо студии издателя</value>
-  </data>
-  <data name="Info.Card.tools.demo-modbuilder.Title" xml:space="preserve">
-    <value>Демо ModBuilder</value>
-  </data>
-  <data name="Info.Card.tools.demo-wnd.Title" xml:space="preserve">
-    <value>Демо редактора WND</value>
   </data>
 </root>

@@ -14555,6 +14555,141 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="Settings.Profiles.DeletedMessage" xml:space="preserve">
     <value>Deleted {0} profile(s) successfully.</value>
   </data>
+  <data name="GameProfiles.Card.Tooltip.MoveLeft" xml:space="preserve">
+    <value>Move Left</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.MoveRight" xml:space="preserve">
+    <value>Move Right</value>
+  </data>
+  <data name="GameProfiles.Launcher.Tooltip.Sort" xml:space="preserve">
+    <value>Sort Profiles</value>
+  </data>
+  <data name="GameProfiles.Sort.LastPlayed" xml:space="preserve">
+    <value>Recently Played</value>
+  </data>
+  <data name="GameProfiles.Sort.DateCreated" xml:space="preserve">
+    <value>Date Created</value>
+  </data>
+  <data name="GameProfiles.Sort.Alphabetical" xml:space="preserve">
+    <value>Name (A to Z)</value>
+  </data>
+  <data name="GameProfiles.Sort.AlphabeticalDesc" xml:space="preserve">
+    <value>Name (Z to A)</value>
+  </data>
+  <data name="GameProfiles.Sort.Free" xml:space="preserve">
+    <value>Custom Order</value>
+  </data>
+  <data name="GameProfiles.Settings.CustomImage.InvalidFile.Title" xml:space="preserve">
+    <value>Invalid image file</value>
+  </data>
+  <data name="GameProfiles.Settings.CustomImage.InvalidFile.Message" xml:space="preserve">
+    <value>Please select a valid image file (PNG, JPG, JPEG, WEBP, BMP, GIF, ICO).</value>
+  </data>
+  <data name="GameProfiles.Notification.ReorderFailed.Title" xml:space="preserve">
+    <value>Failed to save profile order</value>
+  </data>
+  <data name="GameProfiles.Notification.ReorderFailed.Message" xml:space="preserve">
+    <value>The new profile order could not be saved and the previous order was restored.</value>
+  </data>
+  <data name="GameProfiles.Status.ContentServicesUnavailable" xml:space="preserve">
+    <value>Content services unavailable</value>
+  </data>
+  <data name="GameProfiles.Settings.LocalContent.AddedStatus" xml:space="preserve">
+    <value>Added {0}</value>
+  </data>
+  <data name="GameProfiles.Settings.LocalContent.AddedTitle" xml:space="preserve">
+    <value>Content Added</value>
+  </data>
+  <data name="GameProfiles.Settings.LocalContent.AddedMessage" xml:space="preserve">
+    <value>"{0}" has been added successfully.</value>
+  </data>
+  <data name="GameProfiles.Settings.Save.DropImportInProgress.Title" xml:space="preserve">
+    <value>Import in progress</value>
+  </data>
+  <data name="GameProfiles.Settings.Save.DropImportInProgress.Message" xml:space="preserve">
+    <value>Please wait for the dropped content import to finish before saving.</value>
+  </data>
+  <data name="GameProfiles.Settings.LocalContent.ImportError" xml:space="preserve">
+    <value>Error importing dropped files</value>
+  </data>
+  <data name="GameSettings.Audio.AudioEnabledToolTip" xml:space="preserve">
+    <value>Master toggle to enable or disable all game audio output.</value>
+  </data>
+  <data name="GameSettings.Audio.AudioChannelsToolTip" xml:space="preserve">
+    <value>Number of simultaneous sound mixing channels (DirectSound buffers). Higher values prevent sound cutouts during intense battles.</value>
+  </data>
+  <data name="GameSettings.Tsh.CursorCaptureToolTip" xml:space="preserve">
+    <value>Restricts mouse cursor movement within game window or screen boundaries to prevent accidentally clicking outside.</value>
+  </data>
+  <data name="GameSettings.Tsh.ScreenEdgeScrollToolTip" xml:space="preserve">
+    <value>Enables camera panning when moving mouse cursor to the border of the game window.</value>
+  </data>
+  <data name="GameSettings.Tsh.SystemTimeToolTip" xml:space="preserve">
+    <value>Scales the font size of the in-game system clock overlay.</value>
+  </data>
+  <data name="GameSettings.Tsh.PingDisplayToolTip" xml:space="preserve">
+    <value>Scales the font size of the multiplayer latency (ping) display.</value>
+  </data>
+  <data name="GameSettings.Tsh.FpsDisplayToolTip" xml:space="preserve">
+    <value>Scales the font size of the in-game frames-per-second counter.</value>
+  </data>
+  <data name="GameSettings.Tsh.ResolutionFontOffsetToolTip" xml:space="preserve">
+    <value>Adjusts on-screen interface font sizing relative to display resolution.</value>
+  </data>
+  <data name="GameSettings.Tsh.TransactionVolumeToolTip" xml:space="preserve">
+    <value>Controls audio volume for cash transactions, bounties, and economic events.</value>
+  </data>
+  <data name="GameSettings.Tsh.TransitionSpeedToolTip" xml:space="preserve">
+    <value>Adjusts UI transition and menu animation speeds.</value>
+  </data>
+  <data name="GameSettings.Go.CameraMoveSpeedToolTip" xml:space="preserve">
+    <value>Scales camera movement and panning responsiveness.</value>
+  </data>
+  <data name="GameSettings.Go.MinCameraHeightToolTip" xml:space="preserve">
+    <value>Sets the minimum allowable camera altitude when zooming in.</value>
+  </data>
+  <data name="GameSettings.Go.MaxCameraHeightToolTip" xml:space="preserve">
+    <value>Enforces maximum camera altitude limit when hosting a multiplayer match.</value>
+  </data>
+  <data name="GameSettings.Go.GlobalNotificationsToolTip" xml:space="preserve">
+    <value>Master switch to enable or disable desktop and in-game social notifications.</value>
+  </data>
+  <data name="GameSettings.Go.SoundNotificationsToolTip" xml:space="preserve">
+    <value>Plays audio chimes when receiving friend invites or messages.</value>
+  </data>
+  <data name="GameSettings.Go.ChatFontSizeToolTip" xml:space="preserve">
+    <value>Adjusts the font size of multiplayer lobby and match chat.</value>
+  </data>
+  <data name="GameSettings.Go.ChatFadeoutToolTip" xml:space="preserve">
+    <value>Duration in seconds before in-game chat messages fade from view.</value>
+  </data>
+  <data name="GameSettings.Go.GameSpyIpOverrideToolTip" xml:space="preserve">
+    <value>Custom IP address used for GameSpy protocol network discovery and LAN routing.</value>
+  </data>
+  <data name="Info.Demo.WidthLabel" xml:space="preserve">
+    <value>W:</value>
+  </data>
+  <data name="Info.Demo.HeightLabel" xml:space="preserve">
+    <value>H:</value>
+  </data>
+  <data name="Info.Card.tools.demo-replay.Title" xml:space="preserve">
+    <value>Replay Manager Demo</value>
+  </data>
+  <data name="Info.Card.tools.demo-map.Title" xml:space="preserve">
+    <value>Map Manager Demo</value>
+  </data>
+  <data name="Info.Card.tools.demo-hotkeys.Title" xml:space="preserve">
+    <value>Hotkey Editor Demo</value>
+  </data>
+  <data name="Info.Card.tools.demo-publisher.Title" xml:space="preserve">
+    <value>Publisher Studio Demo</value>
+  </data>
+  <data name="Info.Card.tools.demo-modbuilder.Title" xml:space="preserve">
+    <value>ModBuilder Demo</value>
+  </data>
+  <data name="Info.Card.tools.demo-wnd.Title" xml:space="preserve">
+    <value>WND Editor Demo</value>
+  </data>
   <data name="Common.Dismiss" xml:space="preserve">
     <value>Dismiss</value>
   </data>
@@ -15648,6 +15783,22 @@ Errors:
   <data name="Tools.GenPatcher.Notification.BatchCompletedWithErrors.Title" xml:space="preserve">
     <value>Fixes Completed with Errors ({0}/{1} successful)</value>
   </data>
+  <data name="Content.Prompt.CommunityPatchUpdateAvailable.Title" xml:space="preserve">
+    <value>Community Patch Update Available</value>
+  </data>
+  <data name="Content.Prompt.CommunityPatchUpdateAvailable.Message" xml:space="preserve">
+    <value>A new version of the **Community Patch** is available ({0}).
+
+How do you want to apply this update?</value>
+  </data>
+  <data name="Content.Prompt.SuperHackersUpdateAvailable.Title" xml:space="preserve">
+    <value>SuperHackers Update Available</value>
+  </data>
+  <data name="Content.Prompt.SuperHackersUpdateAvailable.Message" xml:space="preserve">
+    <value>A new version of **The Super Hackers** is available ({0}).
+
+How do you want to apply this update?</value>
+  </data>
   <data name="Info.Card.tools.publisher-studio-authoring.Action.NAV_Tools" xml:space="preserve">
     <value>Open Publisher Studio</value>
   </data>
@@ -15662,140 +15813,5 @@ Errors:
   </data>
   <data name="Info.Demo.SizeExpanded" xml:space="preserve">
     <value>Expanded (980x680)</value>
-  </data>
-  <data name="GameProfiles.Card.Tooltip.MoveLeft" xml:space="preserve">
-    <value>Move Left</value>
-  </data>
-  <data name="GameProfiles.Card.Tooltip.MoveRight" xml:space="preserve">
-    <value>Move Right</value>
-  </data>
-  <data name="GameProfiles.Launcher.Tooltip.Sort" xml:space="preserve">
-    <value>Sort Profiles</value>
-  </data>
-  <data name="GameProfiles.Sort.LastPlayed" xml:space="preserve">
-    <value>Recently Played</value>
-  </data>
-  <data name="GameProfiles.Sort.DateCreated" xml:space="preserve">
-    <value>Date Created</value>
-  </data>
-  <data name="GameProfiles.Sort.Alphabetical" xml:space="preserve">
-    <value>Name (A to Z)</value>
-  </data>
-  <data name="GameProfiles.Sort.AlphabeticalDesc" xml:space="preserve">
-    <value>Name (Z to A)</value>
-  </data>
-  <data name="GameProfiles.Sort.Free" xml:space="preserve">
-    <value>Custom Order</value>
-  </data>
-  <data name="GameProfiles.Settings.CustomImage.InvalidFile.Title" xml:space="preserve">
-    <value>Invalid image file</value>
-  </data>
-  <data name="GameProfiles.Settings.CustomImage.InvalidFile.Message" xml:space="preserve">
-    <value>Please select a valid image file (PNG, JPG, JPEG, WEBP, BMP, GIF, ICO).</value>
-  </data>
-  <data name="GameProfiles.Notification.ReorderFailed.Title" xml:space="preserve">
-    <value>Failed to save profile order</value>
-  </data>
-  <data name="GameProfiles.Notification.ReorderFailed.Message" xml:space="preserve">
-    <value>The new profile order could not be saved and the previous order was restored.</value>
-  </data>
-  <data name="GameProfiles.Status.ContentServicesUnavailable" xml:space="preserve">
-    <value>Content services unavailable</value>
-  </data>
-  <data name="GameProfiles.Settings.LocalContent.AddedStatus" xml:space="preserve">
-    <value>Added {0}</value>
-  </data>
-  <data name="GameProfiles.Settings.LocalContent.AddedTitle" xml:space="preserve">
-    <value>Content Added</value>
-  </data>
-  <data name="GameProfiles.Settings.LocalContent.AddedMessage" xml:space="preserve">
-    <value>"{0}" has been added successfully.</value>
-  </data>
-  <data name="GameProfiles.Settings.Save.DropImportInProgress.Title" xml:space="preserve">
-    <value>Import in progress</value>
-  </data>
-  <data name="GameProfiles.Settings.Save.DropImportInProgress.Message" xml:space="preserve">
-    <value>Please wait for the dropped content import to finish before saving.</value>
-  </data>
-  <data name="GameProfiles.Settings.LocalContent.ImportError" xml:space="preserve">
-    <value>Error importing dropped files</value>
-  </data>
-  <data name="GameSettings.Audio.AudioEnabledToolTip" xml:space="preserve">
-    <value>Master toggle to enable or disable all game audio output.</value>
-  </data>
-  <data name="GameSettings.Audio.AudioChannelsToolTip" xml:space="preserve">
-    <value>Number of simultaneous sound mixing channels (DirectSound buffers). Higher values prevent sound cutouts during intense battles.</value>
-  </data>
-  <data name="GameSettings.Tsh.CursorCaptureToolTip" xml:space="preserve">
-    <value>Restricts mouse cursor movement within game window or screen boundaries to prevent accidentally clicking outside.</value>
-  </data>
-  <data name="GameSettings.Tsh.ScreenEdgeScrollToolTip" xml:space="preserve">
-    <value>Enables camera panning when moving mouse cursor to the border of the game window.</value>
-  </data>
-  <data name="GameSettings.Tsh.SystemTimeToolTip" xml:space="preserve">
-    <value>Scales the font size of the in-game system clock overlay.</value>
-  </data>
-  <data name="GameSettings.Tsh.PingDisplayToolTip" xml:space="preserve">
-    <value>Scales the font size of the multiplayer latency (ping) display.</value>
-  </data>
-  <data name="GameSettings.Tsh.FpsDisplayToolTip" xml:space="preserve">
-    <value>Scales the font size of the in-game frames-per-second counter.</value>
-  </data>
-  <data name="GameSettings.Tsh.ResolutionFontOffsetToolTip" xml:space="preserve">
-    <value>Adjusts on-screen interface font sizing relative to display resolution.</value>
-  </data>
-  <data name="GameSettings.Tsh.TransactionVolumeToolTip" xml:space="preserve">
-    <value>Controls audio volume for cash transactions, bounties, and economic events.</value>
-  </data>
-  <data name="GameSettings.Tsh.TransitionSpeedToolTip" xml:space="preserve">
-    <value>Adjusts UI transition and menu animation speeds.</value>
-  </data>
-  <data name="GameSettings.Go.CameraMoveSpeedToolTip" xml:space="preserve">
-    <value>Scales camera movement and panning responsiveness.</value>
-  </data>
-  <data name="GameSettings.Go.MinCameraHeightToolTip" xml:space="preserve">
-    <value>Sets the minimum allowable camera altitude when zooming in.</value>
-  </data>
-  <data name="GameSettings.Go.MaxCameraHeightToolTip" xml:space="preserve">
-    <value>Enforces maximum camera altitude limit when hosting a multiplayer match.</value>
-  </data>
-  <data name="GameSettings.Go.GlobalNotificationsToolTip" xml:space="preserve">
-    <value>Master switch to enable or disable desktop and in-game social notifications.</value>
-  </data>
-  <data name="GameSettings.Go.SoundNotificationsToolTip" xml:space="preserve">
-    <value>Plays audio chimes when receiving friend invites or messages.</value>
-  </data>
-  <data name="GameSettings.Go.ChatFontSizeToolTip" xml:space="preserve">
-    <value>Adjusts the font size of multiplayer lobby and match chat.</value>
-  </data>
-  <data name="GameSettings.Go.ChatFadeoutToolTip" xml:space="preserve">
-    <value>Duration in seconds before in-game chat messages fade from view.</value>
-  </data>
-  <data name="GameSettings.Go.GameSpyIpOverrideToolTip" xml:space="preserve">
-    <value>Custom IP address used for GameSpy protocol network discovery and LAN routing.</value>
-  </data>
-  <data name="Info.Demo.WidthLabel" xml:space="preserve">
-    <value>W:</value>
-  </data>
-  <data name="Info.Demo.HeightLabel" xml:space="preserve">
-    <value>H:</value>
-  </data>
-  <data name="Info.Card.tools.demo-replay.Title" xml:space="preserve">
-    <value>Replay Manager Demo</value>
-  </data>
-  <data name="Info.Card.tools.demo-map.Title" xml:space="preserve">
-    <value>Map Manager Demo</value>
-  </data>
-  <data name="Info.Card.tools.demo-hotkeys.Title" xml:space="preserve">
-    <value>Hotkey Editor Demo</value>
-  </data>
-  <data name="Info.Card.tools.demo-publisher.Title" xml:space="preserve">
-    <value>Publisher Studio Demo</value>
-  </data>
-  <data name="Info.Card.tools.demo-modbuilder.Title" xml:space="preserve">
-    <value>ModBuilder Demo</value>
-  </data>
-  <data name="Info.Card.tools.demo-wnd.Title" xml:space="preserve">
-    <value>WND Editor Demo</value>
   </data>
 </root>
