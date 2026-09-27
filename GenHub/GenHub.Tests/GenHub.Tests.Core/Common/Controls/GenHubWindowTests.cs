@@ -12,13 +12,14 @@ namespace GenHub.Tests.Core.Common.Controls;
 public class GenHubWindowTests
 {
     /// <summary>
-    /// Verifies that constructing a <see cref="GenHubWindow"/> applies platform decorations
-    /// without throwing and yields a usable <see cref="Window"/>.
+    /// Verifies that opening a <see cref="GenHubWindow"/> applies platform decorations,
+    /// overriding any explicit XAML value the same way XAML assignment would.
     /// </summary>
     [AvaloniaFact]
-    public void Constructor_AppliesPlatformDecorations()
+    public void Opened_AppliesPlatformDecorations()
     {
-        var window = new GenHubWindow();
+        var window = new GenHubWindow { SystemDecorations = SystemDecorations.Full };
+        window.Show();
 
         Assert.IsAssignableFrom<Window>(window);
         if (OperatingSystem.IsLinux())
@@ -29,5 +30,7 @@ public class GenHubWindowTests
         {
             Assert.Equal(SystemDecorations.Full, window.SystemDecorations);
         }
+
+        window.Close();
     }
 }

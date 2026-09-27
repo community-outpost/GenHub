@@ -14971,12 +14971,6 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="GameProfiles.Settings.Notification.LiveRollbackFailed.Message" xml:space="preserve">
     <value>Profile save failed ({0}), and live content rollback reported: {1}</value>
   </data>
-  <data name="GameProfiles.Settings.Notification.ContentAdded.Title" xml:space="preserve">
-    <value>Content Added</value>
-  </data>
-  <data name="GameProfiles.Settings.Notification.ContentAdded.Message" xml:space="preserve">
-    <value>'{0}' has been added successfully.</value>
-  </data>
   <data name="GameProfiles.Settings.Notification.ContentUpdated.Message" xml:space="preserve">
     <value>'{0}' has been updated.</value>
   </data>

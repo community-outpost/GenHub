@@ -15,7 +15,6 @@
         MinHeight="460" MaxHeight="750"
         WindowStartupLocation="CenterOwner"
         CanResize="True"
-        SystemDecorations="Full"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="-1"

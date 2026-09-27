@@ -14912,12 +14912,6 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="GameProfiles.Settings.Notification.LiveRollbackFailed.Message" xml:space="preserve">
     <value>Не удалось сохранить профиль ({0}), а откат живого содержимого сообщил: {1}</value>
   </data>
-  <data name="GameProfiles.Settings.Notification.ContentAdded.Title" xml:space="preserve">
-    <value>Содержимое добавлено</value>
-  </data>
-  <data name="GameProfiles.Settings.Notification.ContentAdded.Message" xml:space="preserve">
-    <value>«{0}» успешно добавлено.</value>
-  </data>
   <data name="GameProfiles.Settings.Notification.ContentUpdated.Message" xml:space="preserve">
     <value>«{0}» обновлено.</value>
   </data>

@@ -1502,10 +1502,6 @@ public partial class GameProfileSettingsViewModel
 
                 // Refresh filters and content to ensure new type appears and list updates
                 await RefreshFiltersAndContentAsync();
-
-                _localNotificationService?.ShowSuccess(
-                     _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.ContentAdded.Title", "Content Added"),
-                     _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.ContentAdded.Message", $"'{contentItem.DisplayName}' has been added successfully.", contentItem.DisplayName));
             }
         }
         catch (Exception ex)

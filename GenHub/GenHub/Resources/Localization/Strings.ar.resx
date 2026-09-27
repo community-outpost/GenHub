@@ -14912,12 +14912,6 @@ https://example.com/screenshot2.png</value>
   <data name="GameProfiles.Settings.Notification.LiveRollbackFailed.Message" xml:space="preserve">
     <value>فشل حفظ الملف الشخصي ({0})، وأبلغ التراجع عن المحتوى المباشر: {1}</value>
   </data>
-  <data name="GameProfiles.Settings.Notification.ContentAdded.Title" xml:space="preserve">
-    <value>تمت إضافة المحتوى</value>
-  </data>
-  <data name="GameProfiles.Settings.Notification.ContentAdded.Message" xml:space="preserve">
-    <value>تمت إضافة '{0}' بنجاح.</value>
-  </data>
   <data name="GameProfiles.Settings.Notification.ContentUpdated.Message" xml:space="preserve">
     <value>تم تحديث '{0}'.</value>
   </data>
