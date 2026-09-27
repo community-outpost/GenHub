@@ -481,6 +481,9 @@ public class SetupWizardServiceTests
 
     private Mock<SuperHackersProvider> CreateSuperHackersProviderMock(string version)
     {
+        var discovererMock = new Mock<IContentDiscoverer>();
+        discovererMock.Setup(x => x.SourceName).Returns(PublisherTypeConstants.TheSuperHackers);
+
         var resolverMock = new Mock<IContentResolver>();
         resolverMock.Setup(x => x.ResolverId).Returns(SuperHackersConstants.ResolverId);
 
@@ -489,7 +492,7 @@ public class SetupWizardServiceTests
 
         var providerMock = new Mock<SuperHackersProvider>(
             Mock.Of<IProviderDefinitionLoader>(),
-            Mock.Of<IGitHubApiClient>(),
+            new[] { discovererMock.Object },
             new[] { resolverMock.Object },
             new[] { delivererMock.Object },
             Mock.Of<IContentValidator>(),
