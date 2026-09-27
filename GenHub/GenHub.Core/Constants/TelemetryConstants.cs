@@ -37,6 +37,12 @@ public static class TelemetryConstants
     public const int MaxBreadcrumbsCount = 50;
 
     /// <summary>
+    /// Maximum number of content identifiers joined into a single telemetry property.
+    /// The full count is always reported separately through the content count property.
+    /// </summary>
+    public const int MaxTelemetryContentIds = 20;
+
+    /// <summary>
     /// Mask string for sanitized sensitive data or user directories.
     /// </summary>
     public const string UserDirectoryMask = "<USER_DIR>";
@@ -146,6 +152,9 @@ public static class TelemetryConstants
 
         /// <summary>Publisher identifier inferred for Gentool-hosted downloads.</summary>
         public const string GenTool = "gentool";
+
+        /// <summary>Publisher identifier attributed to replay URL imports.</summary>
+        public const string Replay = "replay";
 
         /// <summary>Fallback identifier when publisher or author attribution cannot be resolved.</summary>
         public const string Unknown = PublisherTypeConstants.Unknown;
@@ -575,6 +584,33 @@ public static class TelemetryConstants
 
         /// <summary>Target hosting or provider type (e.g. GitHub, Dropbox, Direct).</summary>
         public const string ProviderType = "provider_type";
+
+        /// <summary>Legacy publisher alias kept for existing PostHog breakdowns.</summary>
+        public const string Publisher = "publisher";
+
+        /// <summary>Legacy content name alias kept for existing PostHog breakdowns.</summary>
+        public const string Content = "content";
+
+        /// <summary>Legacy package name alias kept for existing PostHog breakdowns.</summary>
+        public const string Package = "package";
+
+        /// <summary>Legacy game client name alias kept for existing PostHog breakdowns.</summary>
+        public const string GameClient = "game_client";
+
+        /// <summary>Legacy joined content identifiers alias kept for existing PostHog breakdowns.</summary>
+        public const string ContentIds = "content_ids";
+
+        /// <summary>Legacy content count alias kept for existing PostHog breakdowns.</summary>
+        public const string ContentCount = "content_count";
+
+        /// <summary>Legacy session duration in hours alias kept for existing PostHog breakdowns.</summary>
+        public const string DurationHours = "duration_hours";
+
+        /// <summary>Legacy crash indicator alias kept for existing PostHog breakdowns.</summary>
+        public const string Crashed = "crashed";
+
+        /// <summary>Legacy crash indicator alias kept for existing PostHog breakdowns.</summary>
+        public const string IsCrash = "is_crash";
     }
 
     /// <summary>
@@ -629,6 +665,9 @@ public static class TelemetryConstants
     {
         /// <summary>Generic downloadable package.</summary>
         public const string Package = "Package";
+
+        /// <summary>Game replay file.</summary>
+        public const string Replay = "Replay";
 
         /// <summary>Publisher Studio catalog export.</summary>
         public const string Catalog = "catalog";

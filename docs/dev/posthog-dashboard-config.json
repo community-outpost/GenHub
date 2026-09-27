@@ -6,7 +6,7 @@
     {
       "id": "genhub-master-command-center",
       "name": "GenHub - Master Command Center (Unified Overview)",
-      "description": "Consolidated single-pane view of GenHub vital health indicators across all 9 domains: engagement, launch reliability, stability, downloads, updates, CAS, workspaces, and replays.",
+      "description": "Consolidated single-pane view of GenHub vital health indicators across all 9 domains: engagement, launch reliability, stability, downloads, updates, sharing, CAS, workspaces, and replays.",
       "pinned": true,
       "tiles": [
         {

@@ -17,6 +17,7 @@ using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Features.Content.ViewModels.Catalog;
 using GenHub.Features.Downloads.Views;
@@ -78,6 +79,7 @@ public partial class App : Application
     private readonly TaskCompletionSource<MainWindow> _mainWindowReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly SemaphoreSlim _urlActivationLock = new(1, 1);
     private bool _startupArgsHandled;
+    private int _appStartedTracked;
 
     /// <summary>
     /// Gets the application service provider.
@@ -193,13 +195,17 @@ public partial class App : Application
             // Handle startup arguments sequentially once the window is opened and active
             mainWindow.Opened += (_, _) =>
             {
-                _telemetryService?.TrackEvent(TelemetryConstants.Events.AppStarted, new Dictionary<string, object?>
+                if (Interlocked.Exchange(ref _appStartedTracked, 1) == 0)
                 {
-                    [TelemetryConstants.Properties.AppVersion] = AppConstants.AppVersion,
-                    [TelemetryConstants.Properties.FullDisplayVersion] = AppConstants.FullDisplayVersion,
-                    [TelemetryConstants.Properties.GitShortHash] = AppConstants.GitShortHash,
-                    [TelemetryConstants.Properties.BuildChannel] = AppConstants.BuildChannel,
-                });
+                    _telemetryService?.TrackEvent(TelemetryConstants.Events.AppStarted, new Dictionary<string, object?>
+                    {
+                        [TelemetryConstants.Properties.AppVersion] = AppConstants.AppVersion,
+                        [TelemetryConstants.Properties.FullDisplayVersion] = AppConstants.FullDisplayVersion,
+                        [TelemetryConstants.Properties.GitShortHash] = AppConstants.GitShortHash,
+                        [TelemetryConstants.Properties.BuildChannel] = AppConstants.BuildChannel,
+                    });
+                }
+
                 SafeFireAndForget(CompleteWindowStartupAsync(desktop.Args, mainWindow), nameof(CompleteWindowStartupAsync));
             };
 
@@ -821,6 +827,7 @@ public partial class App : Application
         var profileManager = _serviceProvider.GetService<IGameProfileManager>();
 
         var sw = Stopwatch.StartNew();
+        GameClient? gameClient = null;
         try
         {
             GameProfile? profile = null;
@@ -833,7 +840,7 @@ public partial class App : Application
                 }
             }
 
-            var gameClient = profile?.GameClient;
+            gameClient = profile?.GameClient;
 
             logger?.LogInformation("Launching profile {ProfileId}...", profileId);
 
@@ -856,11 +863,11 @@ public partial class App : Application
                     [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
                     [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
                     [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
-                    ["game_client"] = gameClient?.Name,
+                    [TelemetryConstants.Properties.GameClient] = gameClient?.Name,
                     [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
                     [TelemetryConstants.Properties.GameClientPublisher] = clientPublisher,
                     [TelemetryConstants.Properties.PublisherId] = clientPublisher,
-                    ["publisher"] = clientPublisher,
+                    [TelemetryConstants.Properties.Publisher] = clientPublisher,
                     [TelemetryConstants.Properties.LaunchSource] = launchSource,
                     [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
                 });
@@ -892,11 +899,11 @@ public partial class App : Application
                     [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
                     [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
                     [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
-                    ["game_client"] = gameClient?.Name,
+                    [TelemetryConstants.Properties.GameClient] = gameClient?.Name,
                     [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
                     [TelemetryConstants.Properties.GameClientPublisher] = failedClientPublisher,
                     [TelemetryConstants.Properties.PublisherId] = failedClientPublisher,
-                    ["publisher"] = failedClientPublisher,
+                    [TelemetryConstants.Properties.Publisher] = failedClientPublisher,
                     [TelemetryConstants.Properties.LaunchSource] = launchSource,
                     [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
                     [TelemetryConstants.Properties.ErrorCategory] = TelemetryConstants.ErrorCategories.LaunchFailed,
@@ -907,9 +914,18 @@ public partial class App : Application
         {
             sw.Stop();
             logger?.LogError(ex, "Exception while launching profile {ProfileId}", profileId);
+            var exceptionClientPublisher = GameClientTelemetryHelper.ResolvePublisher(gameClient);
             _telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchFailed, new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.ProfileId] = profileId,
+                [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
+                [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
+                [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
+                [TelemetryConstants.Properties.GameClient] = gameClient?.Name,
+                [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
+                [TelemetryConstants.Properties.GameClientPublisher] = exceptionClientPublisher,
+                [TelemetryConstants.Properties.PublisherId] = exceptionClientPublisher,
+                [TelemetryConstants.Properties.Publisher] = exceptionClientPublisher,
                 [TelemetryConstants.Properties.LaunchSource] = launchSource,
                 [TelemetryConstants.Properties.TimeToLaunchMs] = sw.ElapsedMilliseconds,
                 [TelemetryConstants.Properties.ErrorCategory] = ex.GetType().Name,

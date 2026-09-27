@@ -1740,7 +1740,7 @@ public class DownloadServiceTests
 
         var httpClient = new HttpClient(handler.Object);
         var service = new DownloadService(loggerMock.Object, httpClient, new Sha256HashProvider(), null, telemetryMock.Object);
-        var tempFile = Path.Combine(Path.GetTempPath(), "test-file.zip");
+        var tempFile = Path.Combine(Path.GetTempPath(), $"test-file_{Guid.NewGuid():N}.zip");
 
         try
         {
@@ -1756,8 +1756,8 @@ public class DownloadServiceTests
             Assert.NotNull(trackedProps);
             Assert.Equal("github", trackedProps[TelemetryConstants.Properties.PublisherId]);
             Assert.Equal("github", trackedProps["publisher"]);
-            Assert.Equal("test-file.zip", trackedProps[TelemetryConstants.Properties.ContentName]);
-            Assert.Equal("test-file.zip", trackedProps["content"]);
+            Assert.Equal(Path.GetFileName(tempFile), trackedProps[TelemetryConstants.Properties.ContentName]);
+            Assert.Equal(Path.GetFileName(tempFile), trackedProps["content"]);
         }
         finally
         {

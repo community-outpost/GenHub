@@ -251,7 +251,7 @@ public class GenericCatalogProfileReconciler(
                 [TelemetryConstants.Properties.PublisherId] = subscription.PublisherId,
                 [TelemetryConstants.Properties.ContentName] = item.Name,
                 [TelemetryConstants.Properties.ContentId] = localManifestId,
-                [TelemetryConstants.Properties.Author] = subscription.PublisherName ?? subscription.PublisherId,
+                [TelemetryConstants.Properties.Author] = item.AuthorName ?? subscription.PublisherName ?? subscription.PublisherId,
                 [TelemetryConstants.Properties.ErrorMessage] = downloadResult.FirstError ?? "Failed to download update",
             });
             return OperationResult<PublisherReconciliationResult>.CreateFailure($"Failed to download update: {downloadResult.FirstError}");
@@ -294,7 +294,7 @@ public class GenericCatalogProfileReconciler(
                 [TelemetryConstants.Properties.PublisherId] = subscription.PublisherId,
                 [TelemetryConstants.Properties.ContentName] = item.Name,
                 [TelemetryConstants.Properties.ContentId] = newManifest.Id.Value,
-                [TelemetryConstants.Properties.Author] = subscription.PublisherName ?? subscription.PublisherId,
+                [TelemetryConstants.Properties.Author] = item.AuthorName ?? subscription.PublisherName ?? subscription.PublisherId,
                 [TelemetryConstants.Properties.ErrorMessage] = updateOutcome.Error ?? "Failed to apply update",
             });
             return OperationResult<PublisherReconciliationResult>.CreateFailure(updateOutcome.Error ?? "Failed to apply update");
@@ -310,7 +310,7 @@ public class GenericCatalogProfileReconciler(
             [TelemetryConstants.Properties.PublisherId] = subscription.PublisherId,
             [TelemetryConstants.Properties.ContentName] = item.Name,
             [TelemetryConstants.Properties.ContentId] = newManifest.Id.Value,
-            [TelemetryConstants.Properties.Author] = subscription.PublisherName ?? subscription.PublisherId,
+            [TelemetryConstants.Properties.Author] = item.AuthorName ?? subscription.PublisherName ?? subscription.PublisherId,
             [TelemetryConstants.Properties.FromVersion] = oldManifestResult.Data?.Version ?? string.Empty,
             [TelemetryConstants.Properties.ToVersion] = itemVersion,
             [TelemetryConstants.Properties.Strategy] = strategy.ToString(),

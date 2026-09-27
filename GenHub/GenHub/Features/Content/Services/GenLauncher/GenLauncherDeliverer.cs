@@ -109,6 +109,16 @@ public class GenLauncherDeliverer(
         }
     }
 
+    private sealed record ConcurrentFileDownload(
+        ContentManifest Manifest,
+        ManifestFile File,
+        int Index,
+        int TotalFiles,
+        string TargetDirectory,
+        ConcurrentDownloadState State,
+        SemaphoreSlim Semaphore,
+        CancellationTokenSource LinkedCts);
+
     /// <inheritdoc/>
     public string SourceName => PublisherTypeConstants.GenLauncher;
 
@@ -328,14 +338,15 @@ public class GenLauncherDeliverer(
         var state = new ConcurrentDownloadState(files.Count, totalBytes, progress);
 
         var tasks = files.Select((file, index) => RunConcurrentFileDownloadAsync(
-            manifest,
-            file,
-            index,
-            files.Count,
-            targetDirectory,
-            state,
-            semaphore,
-            linkedCts)).ToList();
+            new ConcurrentFileDownload(
+                manifest,
+                file,
+                index,
+                files.Count,
+                targetDirectory,
+                state,
+                semaphore,
+                linkedCts))).ToList();
 
         try
         {
@@ -356,45 +367,37 @@ public class GenLauncherDeliverer(
         return OperationResult<bool>.CreateSuccess(true);
     }
 
-    private async Task RunConcurrentFileDownloadAsync(
-        ContentManifest manifest,
-        ManifestFile file,
-        int index,
-        int totalFiles,
-        string targetDirectory,
-        ConcurrentDownloadState state,
-        SemaphoreSlim semaphore,
-        CancellationTokenSource linkedCts)
+    private async Task RunConcurrentFileDownloadAsync(ConcurrentFileDownload download)
     {
         await Task.Yield();
-        await semaphore.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+        await download.Semaphore.WaitAsync(download.LinkedCts.Token).ConfigureAwait(false);
         try
         {
-            linkedCts.Token.ThrowIfCancellationRequested();
+            download.LinkedCts.Token.ThrowIfCancellationRequested();
 
-            var fileProgress = state.CreateFileProgress(index, file);
-            var result = await DownloadSingleFileAsync(manifest, file, index, totalFiles, targetDirectory, fileProgress, linkedCts.Token).ConfigureAwait(false);
+            var fileProgress = download.State.CreateFileProgress(download.Index, download.File);
+            var result = await DownloadSingleFileAsync(download.Manifest, download.File, download.Index, download.TotalFiles, download.TargetDirectory, fileProgress, download.LinkedCts.Token).ConfigureAwait(false);
             if (!result.Success)
             {
-                state.RecordFileFailure(result.FirstError ?? $"Failed to download {file.RelativePath}");
-                await linkedCts.CancelAsync().ConfigureAwait(false);
+                download.State.RecordFileFailure(result.FirstError ?? $"Failed to download {download.File.RelativePath}");
+                await download.LinkedCts.CancelAsync().ConfigureAwait(false);
                 return;
             }
 
-            state.RecordFileSuccess(index, file.Size);
+            download.State.RecordFileSuccess(download.Index, download.File.Size);
         }
-        catch (OperationCanceledException) when (linkedCts.IsCancellationRequested)
+        catch (OperationCanceledException) when (download.LinkedCts.IsCancellationRequested)
         {
             // Handled via firstError or cancellationToken
         }
         catch (Exception ex)
         {
-            state.RecordFileFailure($"Error downloading {file.RelativePath}: {ex.Message}");
-            await linkedCts.CancelAsync().ConfigureAwait(false);
+            download.State.RecordFileFailure($"Error downloading {download.File.RelativePath}: {ex.Message}");
+            await download.LinkedCts.CancelAsync().ConfigureAwait(false);
         }
         finally
         {
-            semaphore.Release();
+            download.Semaphore.Release();
         }
     }
 

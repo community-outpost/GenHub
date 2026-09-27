@@ -10,7 +10,7 @@ public static class TelemetryUrlHelper
     /// and fragments are never transmitted to analytics endpoints.
     /// </summary>
     /// <param name="url">The URL to scrub.</param>
-    /// <returns>The URL without user info, query string, or fragment; or null when the value is not an absolute URI.</returns>
+    /// <returns>The URL without user info, query string, or fragment; or null when the value is not an absolute HTTP(S) URI.</returns>
     public static string? StripSensitiveUrlParts(string? url)
     {
         if (string.IsNullOrWhiteSpace(url))
@@ -19,6 +19,12 @@ public static class TelemetryUrlHelper
         }
 
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return null;
+        }
+
+        if (!uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
+            !uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }

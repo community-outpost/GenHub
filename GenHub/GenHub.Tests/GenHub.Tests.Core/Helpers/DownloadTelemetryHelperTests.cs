@@ -118,6 +118,9 @@ public class DownloadTelemetryHelperTests
     [InlineData("https://1drv.ms/u/abc", "onedrive")]
     [InlineData("https://gentool.net/files/test.zip", "gentool")]
     [InlineData("https://github.com/owner/repo/releases/download/v1/mod.zip", "github")]
+    [InlineData("https://github.com./owner/repo/releases/download/v1/mod.zip", "github")]
+    [InlineData("https://gentool.net./files/test.zip", "gentool")]
+    [InlineData("https://legi.cc./downloads/test.zip", "communityoutpost")]
     public void ResolvePublisherId_MapsHostsToCanonicalPublishers(string url, string expected)
     {
         var config = new DownloadConfiguration

@@ -20,6 +20,7 @@ public class TelemetryConstantsTests
         Assert.Equal(500, TelemetryConstants.MaxQueueCapacity);
         Assert.Equal(5, TelemetryConstants.SessionHeartbeatIntervalMinutes);
         Assert.Equal(50, TelemetryConstants.MaxBreadcrumbsCount);
+        Assert.Equal(20, TelemetryConstants.MaxTelemetryContentIds);
         Assert.StartsWith("https://", TelemetryConstants.DefaultSentryDsn);
         Assert.StartsWith("phc_", TelemetryConstants.DefaultPostHogApiKey);
         Assert.Equal("https://us.i.posthog.com", TelemetryConstants.DefaultPostHogHost);
@@ -79,6 +80,13 @@ public class TelemetryConstantsTests
             TelemetryConstants.Events.WndDocumentValidated,
             TelemetryConstants.Events.WndTexturesImported,
             TelemetryConstants.Events.AppCrash,
+            TelemetryConstants.Events.AppStarted,
+            TelemetryConstants.Events.PublisherSubscribed,
+            TelemetryConstants.Events.PublisherUnsubscribed,
+            TelemetryConstants.Events.PublisherStudioOpened,
+            TelemetryConstants.Events.PublisherStudioProjectCreated,
+            TelemetryConstants.Events.PublisherStudioDefinitionExported,
+            TelemetryConstants.Events.PublisherStudioPublished,
         };
 
         foreach (var ev in events)
@@ -183,6 +191,15 @@ public class TelemetryConstantsTests
             TelemetryConstants.Properties.DefinitionUrl,
             TelemetryConstants.Properties.CatalogCount,
             TelemetryConstants.Properties.ProviderType,
+            TelemetryConstants.Properties.Publisher,
+            TelemetryConstants.Properties.Content,
+            TelemetryConstants.Properties.Package,
+            TelemetryConstants.Properties.GameClient,
+            TelemetryConstants.Properties.ContentIds,
+            TelemetryConstants.Properties.ContentCount,
+            TelemetryConstants.Properties.DurationHours,
+            TelemetryConstants.Properties.Crashed,
+            TelemetryConstants.Properties.IsCrash,
         };
 
         foreach (var prop in properties)

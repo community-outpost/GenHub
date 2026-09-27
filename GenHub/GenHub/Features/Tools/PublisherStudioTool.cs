@@ -21,6 +21,7 @@ public class PublisherStudioTool(ILogger<PublisherStudioTool> logger) : IToolPlu
     private PublisherStudioViewModel? _viewModel;
     private PublisherStudioView? _view;
     private Task? _autoSaveTask;
+    private int _openedTracked;
 
     /// <inheritdoc/>
     public ToolMetadata Metadata => new()
@@ -50,9 +51,6 @@ public class PublisherStudioTool(ILogger<PublisherStudioTool> logger) : IToolPlu
     /// <inheritdoc/>
     public void OnActivated(IServiceProvider serviceProvider)
     {
-        var telemetry = serviceProvider.GetService<ITelemetryService>();
-        telemetry?.TrackEvent(TelemetryConstants.Events.PublisherStudioOpened);
-
         // Only create ViewModel once - preserve state across activations
         if (_viewModel == null)
         {
@@ -62,6 +60,11 @@ public class PublisherStudioTool(ILogger<PublisherStudioTool> logger) : IToolPlu
                 CancellationToken.None,
                 TaskContinuationOptions.OnlyOnFaulted,
                 TaskScheduler.Default);
+
+            if (Interlocked.Exchange(ref _openedTracked, 1) == 0)
+            {
+                serviceProvider.GetService<ITelemetryService>()?.TrackEvent(TelemetryConstants.Events.PublisherStudioOpened);
+            }
         }
 
         if (_view != null)

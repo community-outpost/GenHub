@@ -5,6 +5,7 @@ using GenHub.Core.Models.Manifest;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace GenHub.Core.Helpers;
 
@@ -86,16 +87,10 @@ public static class DownloadTelemetryHelper
                 return TelemetryConstants.DownloadAttribution.ModDb;
             }
 
-            foreach (var (hosts, publisherId) in KnownHostPublishers)
-            {
-                foreach (var knownHost in hosts)
-                {
-                    if (HostMatches(host, knownHost))
-                    {
-                        return publisherId;
-                    }
-                }
-            }
+            return KnownHostPublishers
+                .Where(entry => entry.Hosts.Any(knownHost => HostMatches(host, knownHost)))
+                .Select(entry => entry.PublisherId)
+                .FirstOrDefault() ?? TelemetryConstants.DownloadAttribution.Unknown;
         }
 
         return TelemetryConstants.DownloadAttribution.Unknown;
@@ -187,11 +182,11 @@ public static class DownloadTelemetryHelper
             [TelemetryConstants.Properties.SpeedMbps] = Math.Round(speedMbps, 2),
             [TelemetryConstants.Properties.ContentType] = configuration.ContentType ?? TelemetryConstants.DownloadAttribution.DefaultContentType,
             [TelemetryConstants.Properties.PublisherId] = publisherId,
-            ["publisher"] = publisherId,
+            [TelemetryConstants.Properties.Publisher] = publisherId,
             [TelemetryConstants.Properties.ContentId] = contentId,
             [TelemetryConstants.Properties.ContentName] = contentName,
-            ["content"] = contentName,
-            ["package"] = contentName,
+            [TelemetryConstants.Properties.Content] = contentName,
+            [TelemetryConstants.Properties.Package] = contentName,
             [TelemetryConstants.Properties.Author] = ResolveAuthor(configuration),
             [TelemetryConstants.Properties.FileName] = Path.GetFileName(configuration.DestinationPath),
         };
@@ -219,11 +214,11 @@ public static class DownloadTelemetryHelper
         {
             [TelemetryConstants.Properties.ContentType] = configuration.ContentType ?? TelemetryConstants.DownloadAttribution.DefaultContentType,
             [TelemetryConstants.Properties.PublisherId] = publisherId,
-            ["publisher"] = publisherId,
+            [TelemetryConstants.Properties.Publisher] = publisherId,
             [TelemetryConstants.Properties.ContentId] = contentId,
             [TelemetryConstants.Properties.ContentName] = contentName,
-            ["content"] = contentName,
-            ["package"] = contentName,
+            [TelemetryConstants.Properties.Content] = contentName,
+            [TelemetryConstants.Properties.Package] = contentName,
             [TelemetryConstants.Properties.Author] = ResolveAuthor(configuration),
             [TelemetryConstants.Properties.FileName] = Path.GetFileName(configuration.DestinationPath),
             [TelemetryConstants.Properties.ErrorMessage] = errorMessage,
@@ -237,20 +232,13 @@ public static class DownloadTelemetryHelper
         telemetryService?.TrackEvent(TelemetryConstants.Events.ContentDownloadFailed, properties);
     }
 
-    private static bool HostMatches(string host, string knownHost) =>
-        host.Equals(knownHost, StringComparison.OrdinalIgnoreCase) ||
-        host.EndsWith("." + knownHost, StringComparison.OrdinalIgnoreCase);
-
-    private static string? FirstNonEmpty(params string?[] candidates)
+    private static bool HostMatches(string host, string knownHost)
     {
-        foreach (var candidate in candidates)
-        {
-            if (!string.IsNullOrWhiteSpace(candidate))
-            {
-                return candidate;
-            }
-        }
-
-        return null;
+        var normalizedHost = host.TrimEnd('.');
+        return normalizedHost.Equals(knownHost, StringComparison.OrdinalIgnoreCase) ||
+            normalizedHost.EndsWith("." + knownHost, StringComparison.OrdinalIgnoreCase);
     }
+
+    private static string? FirstNonEmpty(params string?[] candidates) =>
+        candidates.FirstOrDefault(candidate => !string.IsNullOrWhiteSpace(candidate));
 }

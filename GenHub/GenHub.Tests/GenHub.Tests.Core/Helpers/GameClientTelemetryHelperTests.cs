@@ -16,7 +16,7 @@ public class GameClientTelemetryHelperTests
     [Fact]
     public void ResolvePublisher_WhenClientIsNull_ReturnsRetail()
     {
-        Assert.Equal("Retail", GameClientTelemetryHelper.ResolvePublisher((GameClient?)null));
+        Assert.Equal("retail", GameClientTelemetryHelper.ResolvePublisher((GameClient?)null));
     }
 
     /// <summary>
@@ -25,7 +25,7 @@ public class GameClientTelemetryHelperTests
     [Fact]
     public void ResolvePublisher_WhenProfileIsNull_ReturnsRetail()
     {
-        Assert.Equal("Retail", GameClientTelemetryHelper.ResolvePublisher((GameProfile?)null));
+        Assert.Equal("retail", GameClientTelemetryHelper.ResolvePublisher((GameProfile?)null));
     }
 
     /// <summary>
@@ -47,6 +47,28 @@ public class GameClientTelemetryHelperTests
     {
         var client = new GameClient { InstallationId = "steam" };
 
-        Assert.Equal("Retail", GameClientTelemetryHelper.ResolvePublisher(client));
+        Assert.Equal("retail", GameClientTelemetryHelper.ResolvePublisher(client));
+    }
+
+    /// <summary>
+    /// Verifies that publisher types are normalized to lowercase so dashboard buckets never split on casing.
+    /// </summary>
+    [Fact]
+    public void ResolvePublisher_WhenPublisherTypeHasUppercase_NormalizesToLowercase()
+    {
+        var client = new GameClient { PublisherType = "Retail" };
+
+        Assert.Equal("retail", GameClientTelemetryHelper.ResolvePublisher(client));
+    }
+
+    /// <summary>
+    /// Verifies that a publisher client without a usable publisher type resolves to the generic publisher fallback.
+    /// </summary>
+    [Fact]
+    public void ResolvePublisher_WhenPublisherTypeIsBlankButPublisherClient_ReturnsPublisherFallback()
+    {
+        var client = new GameClient { PublisherType = "  " };
+
+        Assert.Equal("publisher", GameClientTelemetryHelper.ResolvePublisher(client));
     }
 }

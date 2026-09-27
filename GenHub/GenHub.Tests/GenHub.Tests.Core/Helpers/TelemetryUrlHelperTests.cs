@@ -23,6 +23,10 @@ public class TelemetryUrlHelperTests
     [InlineData("https://user:password@example.com/download?token=secret#frag", "https://example.com/download")]
     [InlineData("catalog.json", null)]
     [InlineData("not a url", null)]
+    [InlineData("file:///C:/Users/someone/catalogs/catalog.json", null)]
+    [InlineData("file:///home/someone/catalogs/catalog.json", null)]
+    [InlineData("ftp://example.com/catalog.json", null)]
+    [InlineData("http://example.com/catalog.json", "http://example.com/catalog.json")]
     [InlineData("", "")]
     [InlineData(null, null)]
     public void StripSensitiveUrlParts_RemovesCredentialsQueryAndFragment(string? url, string? expected)

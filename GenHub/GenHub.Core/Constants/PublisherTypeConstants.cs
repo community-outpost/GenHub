@@ -96,6 +96,9 @@ public static class PublisherTypeConstants
     /// <summary>Generic community client publisher.</summary>
     public const string Community = "community";
 
+    /// <summary>Generic publisher fallback for publisher clients without a specific publisher type.</summary>
+    public const string Publisher = "publisher";
+
     /// <summary>CNC Labs community site.</summary>
     public const string CncLabs = "cnclabs";
 
