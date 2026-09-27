@@ -916,7 +916,8 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
         string version,
         CancellationToken cancellationToken)
     {
-        var candidateExePath = await GetPersistedClientExecutablePathAsync(clientId, gamePath, cancellationToken)
+        var (persistedExePath, persistedClientName) = await GetPersistedClientDetailsAsync(clientId, gamePath, cancellationToken);
+        var candidateExePath = persistedExePath
             ?? ResolveClientExecutablePath(null, installation, gamePath, gameType);
 
         if (!candidateExePath.TryGetFileCaseInsensitive(out var exePath))
@@ -944,7 +945,9 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
 
         if (identification is null)
         {
-            gameClient.Name = GameClientDetector.GetInstallationClientName(gameType, version);
+            gameClient.Name = string.IsNullOrWhiteSpace(persistedClientName)
+                ? GameClientDetector.GetInstallationClientName(gameType, version)
+                : persistedClientName;
             gameClient.Version = version;
             gameClient.PublisherType = installation.InstallationType.ToIdentifierString();
         }
@@ -960,30 +963,32 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
     }
 
     /// <summary>
-    /// Resolves the executable recorded in the pooled GameClient manifest.
+    /// Reads the executable and display name recorded in the pooled GameClient manifest.
     /// </summary>
     /// <param name="clientId">The GameClient manifest ID.</param>
     /// <param name="gamePath">The game path the manifest's files are relative to.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
-    /// <returns>The absolute executable path, or null when no manifest records one.</returns>
-    private async Task<string?> GetPersistedClientExecutablePathAsync(
+    /// <returns>The persisted executable path and display name, or null values when unavailable.</returns>
+    private async Task<(string? ExecutablePath, string? Name)> GetPersistedClientDetailsAsync(
         string clientId,
         string gamePath,
         CancellationToken cancellationToken)
     {
         if (contentManifestPool is null || !ManifestId.TryCreate(clientId, out var clientManifestId))
         {
-            return null;
+            return (null, null);
         }
 
         var clientManifest = await contentManifestPool.GetManifestAsync(clientManifestId, cancellationToken);
         if (clientManifest?.Success != true || clientManifest.Data == null)
         {
-            return null;
+            return (null, null);
         }
 
         var entryPoint = ManifestVariantResolver.ResolveEntryPoint(clientManifest.Data);
-        return entryPoint.Success ? Path.Combine(gamePath, entryPoint.RelativePath!) : null;
+        return (
+            entryPoint.Success ? Path.Combine(gamePath, entryPoint.RelativePath!) : null,
+            clientManifest.Data.Name);
     }
 
     /// <summary>

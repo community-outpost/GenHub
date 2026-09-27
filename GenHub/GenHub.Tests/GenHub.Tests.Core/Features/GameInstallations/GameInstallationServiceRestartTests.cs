@@ -76,9 +76,13 @@ public sealed class GameInstallationServiceRestartTests : IDisposable
     /// <summary>
     /// A retail install with both games keeps each game's client name and executable after restart.
     /// </summary>
+    /// <param name="generalsVersion">The initially detected Generals version.</param>
+    /// <param name="zeroHourVersion">The initially detected Zero Hour version.</param>
     /// <returns>A task representing the asynchronous test.</returns>
-    [Fact]
-    public async Task RetailInstall_AfterRestart_ReloadsBothBaseClientsAsync()
+    [Theory]
+    [InlineData("1.08", "1.04")]
+    [InlineData(GameClientConstants.UnknownVersion, GameClientConstants.UnknownVersion)]
+    public async Task RetailInstall_AfterRestart_ReloadsBothBaseClientsAsync(string generalsVersion, string zeroHourVersion)
     {
         var generalsPath = Directory.CreateDirectory(Path.Combine(_root, GameClientConstants.GeneralsDirectoryName)).FullName;
         var zeroHourPath = Directory.CreateDirectory(Path.Combine(_root, GameClientConstants.ZeroHourDirectoryName)).FullName;
@@ -89,8 +93,8 @@ public sealed class GameInstallationServiceRestartTests : IDisposable
 
         GameClient[] DetectClients(GameInstallation installation) =>
         [
-            CreateBaseClient(installation, GameType.Generals, "Generals 1.08", "1.08", generalsPath),
-            CreateBaseClient(installation, GameType.ZeroHour, "Zero Hour 1.04", "1.04", zeroHourPath),
+            CreateBaseClient(installation, GameType.Generals, $"Generals {generalsVersion}", generalsVersion, generalsPath),
+            CreateBaseClient(installation, GameType.ZeroHour, $"Zero Hour {zeroHourVersion}", zeroHourVersion, zeroHourPath),
         ];
 
         var firstRun = await LoadClientsAsync(() => CreateInstallation(generalsPath, zeroHourPath), DetectClients);
@@ -175,10 +179,10 @@ public sealed class GameInstallationServiceRestartTests : IDisposable
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<PublisherInfo?>()))
-            .ReturnsAsync((string _, GameType gameType, string _, string version, string executablePath, PublisherInfo? _) =>
+            .ReturnsAsync((string _, GameType gameType, string name, string version, string executablePath, PublisherInfo? _) =>
                 CreateBuilder(() => new ContentManifest
                 {
-                    Name = gameType.ToString().ToLowerInvariant(),
+                    Name = name,
                     Version = version,
                     TargetGame = gameType,
                     EntryPoint = Path.GetFileName(executablePath),
