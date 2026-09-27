@@ -6,11 +6,11 @@ namespace GenHub.Core.Helpers;
 public static class TelemetryUrlHelper
 {
     /// <summary>
-    /// Reduces a URL to scheme, host, and path so query strings and fragments that may
-    /// carry credentials or signed tokens are never transmitted to analytics endpoints.
+    /// Reduces a URL to scheme, host, and path so embedded credentials, query strings,
+    /// and fragments are never transmitted to analytics endpoints.
     /// </summary>
     /// <param name="url">The URL to scrub.</param>
-    /// <returns>The URL without query string or fragment, or the original value when it is not an absolute URI.</returns>
+    /// <returns>The URL without user info, query string, or fragment; or null when the value is not an absolute URI.</returns>
     public static string? StripSensitiveUrlParts(string? url)
     {
         if (string.IsNullOrWhiteSpace(url))
@@ -20,9 +20,15 @@ public static class TelemetryUrlHelper
 
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
         {
-            return url;
+            return null;
         }
 
-        return uri.GetLeftPart(UriPartial.Path);
+        var sanitizedUri = new UriBuilder(uri)
+        {
+            UserName = string.Empty,
+            Password = string.Empty,
+        }.Uri;
+
+        return sanitizedUri.GetLeftPart(UriPartial.Path);
     }
 }

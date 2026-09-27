@@ -9,7 +9,8 @@ namespace GenHub.Tests.Core.Helpers;
 public class TelemetryUrlHelperTests
 {
     /// <summary>
-    /// Verifies that query strings and fragments are stripped from absolute URLs.
+    /// Verifies that user info, query strings, and fragments are stripped from absolute URLs,
+    /// and that non-absolute values are omitted.
     /// </summary>
     /// <param name="url">The URL to scrub.</param>
     /// <param name="expected">The expected scrubbed URL.</param>
@@ -18,11 +19,13 @@ public class TelemetryUrlHelperTests
     [InlineData("https://example.com/definition.json#section", "https://example.com/definition.json")]
     [InlineData("https://example.com/a/b.json?sig=abc#frag", "https://example.com/a/b.json")]
     [InlineData("https://example.com/a/b.json", "https://example.com/a/b.json")]
-    [InlineData("catalog.json", "catalog.json")]
-    [InlineData("not a url", "not a url")]
+    [InlineData("https://user:password@example.com/download", "https://example.com/download")]
+    [InlineData("https://user:password@example.com/download?token=secret#frag", "https://example.com/download")]
+    [InlineData("catalog.json", null)]
+    [InlineData("not a url", null)]
     [InlineData("", "")]
     [InlineData(null, null)]
-    public void StripSensitiveUrlParts_RemovesQueryAndFragment(string? url, string? expected)
+    public void StripSensitiveUrlParts_RemovesCredentialsQueryAndFragment(string? url, string? expected)
     {
         Assert.Equal(expected, TelemetryUrlHelper.StripSensitiveUrlParts(url));
     }

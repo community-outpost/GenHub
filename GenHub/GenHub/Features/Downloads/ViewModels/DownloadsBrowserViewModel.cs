@@ -2845,6 +2845,21 @@ public sealed partial class DownloadsBrowserViewModel(
                 }
 
                 var targetPublisherId = publisherId ?? targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? DefaultPublisherName;
+
+                if (!updateOutcome.Proceed)
+                {
+                    targetItem.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{updateOutcome.Error ?? ContentConstants.UpdateFailedStatusMessage}";
+                    _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
+                    {
+                        [TelemetryConstants.Properties.PublisherId] = targetPublisherId,
+                        [TelemetryConstants.Properties.ContentName] = targetItem.Name,
+                        [TelemetryConstants.Properties.ContentId] = newManifestId ?? targetItem.Id,
+                        [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName,
+                        [TelemetryConstants.Properties.ErrorMessage] = updateOutcome.Error ?? "Failed to apply update",
+                    });
+                    return false;
+                }
+
                 _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateApplied, new Dictionary<string, object?>
                 {
                     [TelemetryConstants.Properties.PublisherId] = targetPublisherId,
