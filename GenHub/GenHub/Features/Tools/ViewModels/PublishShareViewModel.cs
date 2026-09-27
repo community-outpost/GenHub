@@ -3909,7 +3909,7 @@ public partial class PublishShareViewModel(
                     [TelemetryConstants.Properties.PublisherName] = project.Catalog.Publisher?.Name ?? project.ProjectName,
                     [TelemetryConstants.Properties.ContentType] = "definition",
                     [TelemetryConstants.Properties.CatalogCount] = catalogHostingInfo.Count,
-                    [TelemetryConstants.Properties.DefinitionUrl] = ProviderDefinitionUrl,
+                    [TelemetryConstants.Properties.DefinitionUrl] = TelemetryUrlHelper.StripSensitiveUrlParts(ProviderDefinitionUrl),
                 });
                 return true;
             }

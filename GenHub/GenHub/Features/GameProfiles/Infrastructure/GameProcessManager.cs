@@ -55,7 +55,6 @@ public class GameProcessManager(
         string? GameClientVersion = null,
         string? GameClientPublisher = null,
         string? ProfileId = null,
-        string? ProfileName = null,
         string? EnabledContentIds = null,
         int ContentCount = 0);
 
@@ -2092,7 +2091,6 @@ public class GameProcessManager(
         var gameClientVersion = config?.GameClientVersion;
         var gameClientPublisher = config?.GameClientPublisher ?? "Retail";
         var profileId = config?.ProfileId;
-        var profileName = config?.ProfileName;
         var enabledContentIds = config?.EnabledContentIds;
         var contentCount = config?.ContentCount ?? 0;
 
@@ -2107,7 +2105,6 @@ public class GameProcessManager(
             gameClientVersion,
             gameClientPublisher,
             profileId,
-            profileName,
             enabledContentIds,
             contentCount);
 
@@ -2132,8 +2129,6 @@ public class GameProcessManager(
             {
                 [TelemetryConstants.Properties.SessionId] = sessionId,
                 [TelemetryConstants.Properties.ProfileId] = profileId,
-                [TelemetryConstants.Properties.ProfileName] = profileName,
-                ["profile"] = profileName,
                 [TelemetryConstants.Properties.ExecutablePath] = execName,
                 [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
                 [TelemetryConstants.Properties.Runner] = runner,
@@ -2164,8 +2159,6 @@ public class GameProcessManager(
             {
                 [TelemetryConstants.Properties.SessionId] = meta.SessionId,
                 [TelemetryConstants.Properties.ProfileId] = meta.ProfileId,
-                [TelemetryConstants.Properties.ProfileName] = meta.ProfileName,
-                ["profile"] = meta.ProfileName,
                 [TelemetryConstants.Properties.DurationSeconds] = (DateTime.UtcNow - meta.StartTime).TotalSeconds,
                 [TelemetryConstants.Properties.ExecutablePath] = meta.ExecName,
                 [TelemetryConstants.Properties.Runner] = meta.Runner,
@@ -2192,8 +2185,6 @@ public class GameProcessManager(
             {
                 [TelemetryConstants.Properties.SessionId] = sessionMeta.SessionId,
                 [TelemetryConstants.Properties.ProfileId] = sessionMeta.ProfileId,
-                [TelemetryConstants.Properties.ProfileName] = sessionMeta.ProfileName,
-                ["profile"] = sessionMeta.ProfileName,
                 [TelemetryConstants.Properties.DurationSeconds] = duration,
                 ["duration_hours"] = Math.Round(duration / 3600.0, 4),
                 [TelemetryConstants.Properties.ExecutablePath] = sessionMeta.ExecName,

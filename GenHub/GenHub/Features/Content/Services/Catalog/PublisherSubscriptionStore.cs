@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Telemetry;
@@ -123,8 +124,8 @@ public class PublisherSubscriptionStore(
             {
                 [TelemetryConstants.Properties.PublisherId] = subscription.PublisherId,
                 [TelemetryConstants.Properties.PublisherName] = subscription.PublisherName ?? subscription.PublisherId,
-                [TelemetryConstants.Properties.CatalogUrl] = subscription.CatalogUrl,
-                [TelemetryConstants.Properties.DefinitionUrl] = subscription.DefinitionUrl,
+                [TelemetryConstants.Properties.CatalogUrl] = TelemetryUrlHelper.StripSensitiveUrlParts(subscription.CatalogUrl),
+                [TelemetryConstants.Properties.DefinitionUrl] = TelemetryUrlHelper.StripSensitiveUrlParts(subscription.DefinitionUrl),
                 [TelemetryConstants.Properties.Author] = subscription.PublisherName ?? subscription.PublisherId,
             });
             return OperationResult<bool>.CreateSuccess(true);

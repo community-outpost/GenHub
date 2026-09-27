@@ -122,6 +122,42 @@ public static class TelemetryConstants
     };
 
     /// <summary>
+    /// Publisher identifiers and host mappings used when inferring download attribution from URLs.
+    /// </summary>
+    public static class DownloadAttribution
+    {
+        /// <summary>Publisher identifier inferred for GitHub-hosted downloads.</summary>
+        public const string GitHub = PublisherTypeConstants.GitHub;
+
+        /// <summary>Publisher identifier inferred for ModDB-hosted downloads.</summary>
+        public const string ModDb = PublisherTypeConstants.ModDB;
+
+        /// <summary>Publisher identifier inferred for Community Outpost-hosted downloads.</summary>
+        public const string CommunityOutpost = PublisherTypeConstants.CommunityOutpost;
+
+        /// <summary>Publisher identifier inferred for Generals Online-hosted downloads.</summary>
+        public const string GeneralsOnline = PublisherTypeConstants.GeneralsOnline;
+
+        /// <summary>Fallback identifier when publisher or author attribution cannot be resolved.</summary>
+        public const string Unknown = PublisherTypeConstants.Unknown;
+
+        /// <summary>Default content type used when the download configuration omits one.</summary>
+        public const string DefaultContentType = "Package";
+
+        /// <summary>Host name serving GitHub repositories and releases.</summary>
+        public const string GitHubHost = GitHubConstants.GitHubHost;
+
+        /// <summary>Host suffix serving GitHub release assets and raw content.</summary>
+        public const string GitHubUserContentHost = GitHubConstants.GitHubUserContentHost;
+
+        /// <summary>Host name serving Community Outpost content (see CommunityOutpostConstants.BaseUrl).</summary>
+        public const string CommunityOutpostHost = "legi.cc";
+
+        /// <summary>Host name serving Generals Online content (see GeneralsOnlineConstants.WebsiteUrl).</summary>
+        public const string GeneralsOnlineHost = "playgenerals.online";
+    }
+
+    /// <summary>
     /// Telemetry event names.
     /// </summary>
     public static class Events

@@ -517,34 +517,39 @@ public class DownloadService(
             return configuration.PublisherId;
         }
 
-        if (configuration.Url != null && !string.IsNullOrWhiteSpace(configuration.Url.Host))
+        var host = configuration.Url?.Host;
+        if (!string.IsNullOrWhiteSpace(host))
         {
-            var host = configuration.Url.Host.ToLowerInvariant();
-            if (host.Contains("github"))
+            if (HostMatches(host, TelemetryConstants.DownloadAttribution.GitHubHost) ||
+                HostMatches(host, TelemetryConstants.DownloadAttribution.GitHubUserContentHost))
             {
-                return "github";
+                return TelemetryConstants.DownloadAttribution.GitHub;
             }
 
-            if (host.Contains("moddb"))
+            if (ModDBConstants.IsModDbOrDbolicalHost(host))
             {
-                return "moddb";
+                return TelemetryConstants.DownloadAttribution.ModDb;
             }
 
-            if (host.Contains("community-outpost") || host.Contains("communityoutpost"))
+            if (HostMatches(host, TelemetryConstants.DownloadAttribution.CommunityOutpostHost))
             {
-                return "communityoutpost";
+                return TelemetryConstants.DownloadAttribution.CommunityOutpost;
             }
 
-            if (host.Contains("generalsonline") || host.Contains("generals-online"))
+            if (HostMatches(host, TelemetryConstants.DownloadAttribution.GeneralsOnlineHost))
             {
-                return "generalsonline";
+                return TelemetryConstants.DownloadAttribution.GeneralsOnline;
             }
 
-            return host;
+            return host.ToLowerInvariant();
         }
 
-        return "unknown";
+        return TelemetryConstants.DownloadAttribution.Unknown;
     }
+
+    private static bool HostMatches(string host, string knownHost) =>
+        host.Equals(knownHost, StringComparison.OrdinalIgnoreCase) ||
+        host.EndsWith("." + knownHost, StringComparison.OrdinalIgnoreCase);
 
     private static string ResolveContentName(DownloadConfiguration configuration)
     {
@@ -578,7 +583,7 @@ public class DownloadService(
             return configuration.Author;
         }
 
-        return "unknown";
+        return TelemetryConstants.DownloadAttribution.Unknown;
     }
 
     private async Task<HttpResponseMessage> SendChunkRequestAsync(
@@ -1071,6 +1076,11 @@ public class DownloadService(
                 MaxRetryAttempts = configuration.MaxRetryAttempts,
                 RetryDelay = configuration.RetryDelay,
                 ValidateRedirectsManually = configuration.ValidateRedirectsManually,
+                PublisherId = configuration.PublisherId,
+                ContentName = configuration.ContentName,
+                ContentId = configuration.ContentId,
+                ContentType = configuration.ContentType,
+                Author = configuration.Author,
             };
             return await SendRequestAsync(confirmedConfig, validator, 0, cancellationToken);
         }
@@ -1135,7 +1145,7 @@ public class DownloadService(
             [TelemetryConstants.Properties.SizeMb] = Math.Round(sizeMb, 2),
             [TelemetryConstants.Properties.DurationSeconds] = Math.Round(totalElapsedSeconds, 2),
             [TelemetryConstants.Properties.SpeedMbps] = Math.Round(speedMbps, 2),
-            [TelemetryConstants.Properties.ContentType] = configuration.ContentType ?? TelemetryConstants.ContentTypes.Package,
+            [TelemetryConstants.Properties.ContentType] = configuration.ContentType ?? TelemetryConstants.DownloadAttribution.DefaultContentType,
             [TelemetryConstants.Properties.PublisherId] = publisherId,
             ["publisher"] = publisherId,
             [TelemetryConstants.Properties.ContentId] = contentId,
@@ -1157,7 +1167,7 @@ public class DownloadService(
 
         var properties = new Dictionary<string, object?>
         {
-            [TelemetryConstants.Properties.ContentType] = configuration.ContentType ?? TelemetryConstants.ContentTypes.Package,
+            [TelemetryConstants.Properties.ContentType] = configuration.ContentType ?? TelemetryConstants.DownloadAttribution.DefaultContentType,
             [TelemetryConstants.Properties.PublisherId] = publisherId,
             ["publisher"] = publisherId,
             [TelemetryConstants.Properties.ContentId] = contentId,

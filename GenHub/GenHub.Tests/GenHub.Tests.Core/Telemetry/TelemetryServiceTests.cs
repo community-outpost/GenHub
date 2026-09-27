@@ -12,6 +12,7 @@ using Moq;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -180,6 +181,78 @@ public class TelemetryServiceTests : IDisposable
                                            e.Properties.ContainsKey(TelemetryConstants.Properties.ExceptionType)),
                 It.IsAny<CancellationToken>()),
             Times.AtLeastOnce);
+    }
+
+    /// <summary>
+    /// Verifies that TrackException emits a slim anonymous-level crash summary without
+    /// exception messages, stack traces, or breadcrumbs when AnonymousMetrics is enabled.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task TrackException_WhenAnonymousMetrics_EmitsCrashSummaryWithoutSensitiveDetailsAsync()
+    {
+        _settings.TelemetryPreference = TelemetryLevel.AnonymousMetrics;
+        var captured = new List<TelemetryEvent>();
+        _mockSink.Setup(s => s.EmitAsync(It.IsAny<TelemetryEvent>(), It.IsAny<CancellationToken>()))
+            .Callback<TelemetryEvent, CancellationToken>((e, _) => captured.Add(e))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        await using var service = new TelemetryService(
+            _mockLogger.Object,
+            _sanitizer,
+            _mockUserSettingsService.Object,
+            [_mockSink.Object]);
+
+        try
+        {
+            throw new InvalidOperationException("Failed to launch");
+        }
+        catch (Exception ex)
+        {
+            service.TrackException(ex, "GameLauncher", isFatal: true);
+        }
+
+        await service.FlushAsync();
+
+        Assert.Equal(2, captured.Count);
+        var summary = captured.FirstOrDefault(e => e.Level == TelemetryLevel.AnonymousMetrics);
+        Assert.NotNull(summary);
+        Assert.Equal(TelemetryConstants.Events.AppCrash, summary.EventName);
+        Assert.False(summary.Properties.ContainsKey(TelemetryConstants.Properties.ExceptionMessage));
+        Assert.False(summary.Properties.ContainsKey(TelemetryConstants.Properties.StackTrace));
+        Assert.False(summary.Properties.ContainsKey("breadcrumbs"));
+        Assert.True(summary.Properties[TelemetryConstants.Properties.IsFatal] is true);
+    }
+
+    /// <summary>
+    /// Verifies that TrackException does not emit the anonymous crash summary when only crash reports are enabled.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task TrackException_WhenCrashReportsOnly_DoesNotEmitAnonymousSummaryAsync()
+    {
+        _settings.TelemetryPreference = TelemetryLevel.CrashReportsOnly;
+
+        await using var service = new TelemetryService(
+            _mockLogger.Object,
+            _sanitizer,
+            _mockUserSettingsService.Object,
+            [_mockSink.Object]);
+
+        try
+        {
+            throw new InvalidOperationException("Failed to launch");
+        }
+        catch (Exception ex)
+        {
+            service.TrackException(ex, "GameLauncher", isFatal: true);
+        }
+
+        await service.FlushAsync();
+
+        _mockSink.Verify(
+            s => s.EmitAsync(It.IsAny<TelemetryEvent>(), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     /// <summary>

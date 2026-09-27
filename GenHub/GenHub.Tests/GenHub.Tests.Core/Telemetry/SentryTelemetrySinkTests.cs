@@ -50,8 +50,15 @@ public class SentryTelemetrySinkTests
             Level = TelemetryLevel.AnonymousMetrics,
         };
 
+        var crashSummaryEvent = new TelemetryEvent
+        {
+            EventName = TelemetryConstants.Events.AppCrash,
+            Level = TelemetryLevel.AnonymousMetrics,
+        };
+
         Assert.True(_sink.CanHandle(crashEvent));
         Assert.False(_sink.CanHandle(standardEvent));
+        Assert.False(_sink.CanHandle(crashSummaryEvent));
     }
 
     /// <summary>

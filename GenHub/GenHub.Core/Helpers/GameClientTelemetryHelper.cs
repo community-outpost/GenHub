@@ -33,11 +33,6 @@ public static class GameClientTelemetryHelper
             return GenericPublisher;
         }
 
-        if (!string.IsNullOrWhiteSpace(gameClient.InstallationId))
-        {
-            return gameClient.InstallationId;
-        }
-
         return DefaultPublisher;
     }
 

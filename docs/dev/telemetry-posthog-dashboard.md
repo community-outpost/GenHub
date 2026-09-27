@@ -182,7 +182,7 @@ SELECT
     count() AS download_count,
     round(sum(toFloat64OrNull(properties.size_mb)), 2) AS total_mb
 FROM events
-WHERE event = "content_download_completed"
+WHERE event = 'content_download_completed'
 GROUP BY publisher, content
 ORDER BY download_count DESC
 ```
@@ -231,7 +231,7 @@ SELECT
     properties.provider_type AS hosting_provider,
     count() AS count
 FROM events
-WHERE event IN (\publisher_studio_opened', \publisher_studio_project_created', \publisher_studio_definition_exported', \publisher_studio_published')
+WHERE event IN ('publisher_studio_opened', 'publisher_studio_project_created', 'publisher_studio_definition_exported', 'publisher_studio_published')
 GROUP BY event, publisher, hosting_provider
 ORDER BY count DESC
 ```

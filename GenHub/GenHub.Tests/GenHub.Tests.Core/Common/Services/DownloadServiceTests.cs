@@ -1768,6 +1768,67 @@ public class DownloadServiceTests
         }
     }
 
+    /// <summary>
+    /// Verifies that publisher inference matches exact hosts or subdomains instead of substrings.
+    /// </summary>
+    /// <param name="url">The download URL.</param>
+    /// <param name="expectedPublisherId">The expected inferred publisher identifier.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Theory]
+    [InlineData("https://www.moddb.com/mods/test", "moddb")]
+    [InlineData("https://cdn.playgenerals.online/releases/test.zip", "generalsonline")]
+    [InlineData("https://legi.cc/downloads/test.zip", "communityoutpost")]
+    [InlineData("https://objects.githubusercontent.com/test.zip", "github")]
+    [InlineData("https://mygithubclone.example.com/test.zip", "mygithubclone.example.com")]
+    [InlineData("https://notmoddb.net/test.zip", "notmoddb.net")]
+    public async Task DownloadFileAsync_InfersPublisherFromExactHostOrSubdomainAsync(string url, string expectedPublisherId)
+    {
+        var content = new byte[] { 1, 2, 3 };
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(content),
+            });
+
+        var loggerMock = new Mock<ILogger<DownloadService>>();
+        var telemetryMock = new Mock<ITelemetryService>();
+        IReadOnlyDictionary<string, object?>? trackedProps = null;
+
+        telemetryMock.Setup(t => t.TrackEvent(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, object?>?>(), It.IsAny<TelemetryLevel>()))
+            .Callback<string, IReadOnlyDictionary<string, object?>?, TelemetryLevel>((_, props, _) => trackedProps = props);
+
+        var httpClient = new HttpClient(handler.Object);
+        var service = new DownloadService(loggerMock.Object, httpClient, new Sha256HashProvider(), null, telemetryMock.Object);
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri(url),
+                DestinationPath = tempFile,
+            };
+
+            var result = await service.DownloadFileAsync(config);
+
+            Assert.True(result.Success);
+            Assert.NotNull(trackedProps);
+            Assert.Equal(expectedPublisherId, trackedProps[TelemetryConstants.Properties.PublisherId]);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
     private sealed class CustomStreamingContent(byte[] data, long? declaredContentLength) : HttpContent
     {
         protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) =>

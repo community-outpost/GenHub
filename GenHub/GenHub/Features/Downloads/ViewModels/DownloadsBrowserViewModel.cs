@@ -2774,7 +2774,7 @@ public sealed partial class DownloadsBrowserViewModel(
         var downloadSuccess = await DownloadContentAsync(targetItem, ct);
         if (!downloadSuccess)
         {
-            var failedPublisherId = targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? DefaultPublisherName;
+            var failedPublisherId = publisherId ?? targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? DefaultPublisherName;
             _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.PublisherId] = failedPublisherId,
@@ -2851,7 +2851,7 @@ public sealed partial class DownloadsBrowserViewModel(
                     [TelemetryConstants.Properties.ContentName] = targetItem.Name,
                     [TelemetryConstants.Properties.ContentId] = newManifestId ?? targetItem.Id,
                     [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName,
-                    [TelemetryConstants.Properties.FromVersion] = oldManifestId,
+                    [TelemetryConstants.Properties.FromVersion] = oldManifest?.Data?.Version ?? string.Empty,
                     [TelemetryConstants.Properties.ToVersion] = targetItem.SearchResult?.Version ?? string.Empty,
                     [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
                     [TelemetryConstants.Properties.ProfilesUpdated] = updateOutcome.ProfilesUpdated,

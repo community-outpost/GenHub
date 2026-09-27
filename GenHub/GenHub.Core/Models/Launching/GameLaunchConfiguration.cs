@@ -31,9 +31,6 @@ public class GameLaunchConfiguration
     /// <summary>Gets or sets the profile ID.</summary>
     public string? ProfileId { get; set; }
 
-    /// <summary>Gets or sets the profile display name.</summary>
-    public string? ProfileName { get; set; }
-
     /// <summary>Gets or sets a comma-separated list of enabled content/mod IDs in the profile.</summary>
     public string? EnabledContentIds { get; set; }
 

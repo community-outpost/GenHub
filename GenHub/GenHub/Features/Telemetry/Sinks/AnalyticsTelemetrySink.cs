@@ -50,8 +50,7 @@ public sealed class AnalyticsTelemetrySink(
     public bool CanHandle(TelemetryEvent telemetryEvent)
     {
         ArgumentNullException.ThrowIfNull(telemetryEvent);
-        return telemetryEvent.Level == TelemetryLevel.AnonymousMetrics ||
-               telemetryEvent.Level == TelemetryLevel.CrashReportsOnly;
+        return telemetryEvent.Level == TelemetryLevel.AnonymousMetrics;
     }
 
     /// <inheritdoc/>

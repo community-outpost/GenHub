@@ -176,6 +176,13 @@ public class TelemetryConstantsTests
             TelemetryConstants.Properties.HasLinkedAssets,
             TelemetryConstants.Properties.IsValid,
             TelemetryConstants.Properties.TextureCount,
+            TelemetryConstants.Properties.FilePath,
+            TelemetryConstants.Properties.PublisherName,
+            TelemetryConstants.Properties.Author,
+            TelemetryConstants.Properties.CatalogUrl,
+            TelemetryConstants.Properties.DefinitionUrl,
+            TelemetryConstants.Properties.CatalogCount,
+            TelemetryConstants.Properties.ProviderType,
         };
 
         foreach (var prop in properties)

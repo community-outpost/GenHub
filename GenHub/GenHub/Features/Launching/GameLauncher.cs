@@ -1832,7 +1832,6 @@ public class GameLauncher(
             GameClientName = profile.GameClient?.Name,
             GameClientVersion = profile.GameClient?.Version,
             ProfileId = profile.Id,
-            ProfileName = profile.Name,
             EnabledContentIds = profile.EnabledContentIds != null && profile.EnabledContentIds.Count > 0 ? string.Join(",", profile.EnabledContentIds) : null,
             ContentCount = profile.EnabledContentIds?.Count ?? 0,
             GameClientPublisher = GameClientTelemetryHelper.ResolvePublisher(profile),

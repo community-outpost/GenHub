@@ -2336,8 +2336,6 @@ public partial class GameProfileLauncherViewModel(
             telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunched, new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.ProfileId] = liveProfile.ProfileId,
-                [TelemetryConstants.Properties.ProfileName] = liveProfile.Name,
-                ["profile"] = liveProfile.Name,
                 [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
                 [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
                 [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
@@ -2372,8 +2370,6 @@ public partial class GameProfileLauncherViewModel(
             telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchFailed, new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.ProfileId] = profile.ProfileId,
-                [TelemetryConstants.Properties.ProfileName] = profile.Name,
-                ["profile"] = profile.Name,
                 [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
                 [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
                 [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,

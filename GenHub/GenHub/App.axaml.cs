@@ -853,8 +853,6 @@ public partial class App : Application
                 _telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunched, new Dictionary<string, object?>
                 {
                     [TelemetryConstants.Properties.ProfileId] = profileId,
-                    [TelemetryConstants.Properties.ProfileName] = profile?.Name,
-                    ["profile"] = profile?.Name,
                     [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
                     [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
                     [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
@@ -871,8 +869,6 @@ public partial class App : Application
                     _telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchedFromShortcut, new Dictionary<string, object?>
                     {
                         [TelemetryConstants.Properties.ProfileId] = profileId,
-                        [TelemetryConstants.Properties.ProfileName] = profile?.Name,
-                        ["profile"] = profile?.Name,
                         [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
                     });
                 }
@@ -893,8 +889,6 @@ public partial class App : Application
                 _telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchFailed, new Dictionary<string, object?>
                 {
                     [TelemetryConstants.Properties.ProfileId] = profileId,
-                    [TelemetryConstants.Properties.ProfileName] = profile?.Name,
-                    ["profile"] = profile?.Name,
                     [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
                     [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
                     [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,

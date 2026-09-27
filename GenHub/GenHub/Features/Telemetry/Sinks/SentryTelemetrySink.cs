@@ -47,8 +47,7 @@ public sealed class SentryTelemetrySink(
     public bool CanHandle(TelemetryEvent telemetryEvent)
     {
         ArgumentNullException.ThrowIfNull(telemetryEvent);
-        return telemetryEvent.EventName == TelemetryConstants.Events.AppCrash ||
-               telemetryEvent.Level == TelemetryLevel.CrashReportsOnly;
+        return telemetryEvent.Level == TelemetryLevel.CrashReportsOnly;
     }
 
     /// <inheritdoc/>

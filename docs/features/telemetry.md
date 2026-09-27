@@ -30,9 +30,9 @@ Telemetry strictly honors user choice and local regulations:
 | `profile_launched` | `Events.ProfileLaunched` | A game profile is launched | `profile_id`, `game_type`, `launch_source` ("launcher" \| "shortcut" \| "ipc"), `time_to_launch_ms` |
 | `profile_launch_failed` | `Events.ProfileLaunchFailed` | A game profile fails to launch | `profile_id`, `game_type`, `launch_source`, `time_to_launch_ms`, `error_category` |
 | `profile_launched_from_shortcut` | `Events.ProfileLaunchedFromShortcut` | A game profile is launched via OS shortcut or IPC URI | `profile_id` |
-| `profile_pinned` | `Events.ProfilePinned` | A game profile is pinned to desktop or launcher shortcuts | `profile_id`, `profile_name`, `game_type`, `shortcut_type` ("desktop") |
+| `profile_pinned` | `Events.ProfilePinned` | A game profile is pinned to desktop or launcher shortcuts | `profile_id`, `game_type`, `shortcut_type` ("desktop") |
 | `profile_shared` | `Events.ProfileShared` | A profile is exported/shared to URI, JSON, or `.ghprofile` file | `profile_id`, `share_format` ("uri" \| "file" \| "json"), `file_size_bytes` |
-| `profile_imported` | `Events.ProfileImported` | A shared profile package is imported | `profile_id`, `profile_name`, `game_type`, `success`, `file_count`, `error_message` |
+| `profile_imported` | `Events.ProfileImported` | A shared profile package is imported | `profile_id`, `game_type`, `success`, `file_count`, `error_message` |
 | `game_session_started` | `Events.GameSessionStarted` | Game executable process starts | `game_type`, `runner`, `installation_type`, `is_custom_runner`, `is_direct_play` |
 | `game_session_ended` | `Events.GameSessionEnded` | Game executable process exits | `game_type`, `runner`, `duration_seconds`, `exit_code`, `was_graceful` |
 | `game_session_heartbeat` | `Events.GameSessionHeartbeat` | Periodic alive signal while in-game (5 min) | `game_type`, `duration_seconds` |
@@ -49,8 +49,8 @@ Telemetry strictly honors user choice and local regulations:
 | `modbuilder_project_created` | `Events.ModProjectCreated` | A new ModBuilder project is initialized | `project_name`, `content_type` |
 | `modbuilder_mod_built` | `Events.ModBuilt` | A ModBuilder build pipeline finishes | `project_name`, `build_steps`, `success`, `file_count`, `duration_seconds`, `error_message` |
 | `wnd_editor_opened` | `Events.WndEditorOpened` | WND Editor tool is opened | (None) |
-| `wnd_document_opened` | `Events.WndDocumentOpened` | Window definition document opened | `window_count`, `file_path`, `has_linked_assets` |
-| `wnd_document_saved` | `Events.WndDocumentSaved` | Window definition document saved | `window_count`, `file_path` |
+| `wnd_document_opened` | `Events.WndDocumentOpened` | Window definition document opened | `window_count`, `file_path` |
+| `wnd_document_saved` | `Events.WndDocumentSaved` | Window definition document saved | `window_count`, `file_path`, `has_linked_assets` |
 | `wnd_document_validated` | `Events.WndDocumentValidated` | Window definition document validated | `is_valid`, `window_count` |
 | `wnd_textures_imported` | `Events.WndTexturesImported` | Textures imported into WND Editor | `texture_count` |
 | `publisher_subscribed` | `Events.PublisherSubscribed` | User subscribes to a publisher catalog/feed | `publisher_id`, `publisher_name`, `catalog_url`, `definition_url`, `author` |

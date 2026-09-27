@@ -35,11 +35,17 @@ public class AnalyticsTelemetrySinkTests
     /// Verifies sink metadata and CanHandle predicate.
     /// </summary>
     [Fact]
-    public void CanHandle_HandlesAnonymousMetricsAndCrashReportsEvents()
+    public void CanHandle_HandlesOnlyAnonymousMetricsEvents()
     {
         var anonymousEvent = new TelemetryEvent
         {
             EventName = TelemetryConstants.Events.GameSessionStarted,
+            Level = TelemetryLevel.AnonymousMetrics,
+        };
+
+        var crashSummaryEvent = new TelemetryEvent
+        {
+            EventName = TelemetryConstants.Events.AppCrash,
             Level = TelemetryLevel.AnonymousMetrics,
         };
 
@@ -56,7 +62,8 @@ public class AnalyticsTelemetrySinkTests
         };
 
         Assert.True(_sink.CanHandle(anonymousEvent));
-        Assert.True(_sink.CanHandle(crashEvent));
+        Assert.True(_sink.CanHandle(crashSummaryEvent));
+        Assert.False(_sink.CanHandle(crashEvent));
         Assert.False(_sink.CanHandle(disabledEvent));
     }
 
