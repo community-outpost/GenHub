@@ -16,6 +16,7 @@ using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Interfaces.Tools;
+using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Content;
@@ -3169,7 +3170,8 @@ public sealed partial class DownloadsBrowserViewModel(
                 dialogService: dialogService,
                 deletedAction: OnContentDeletedAsync,
                 artworkService: serviceProvider.GetService<IContentArtworkService>(),
-                gitHubApiClient: serviceProvider.GetService(typeof(IGitHubApiClient)) as IGitHubApiClient);
+                gitHubApiClient: serviceProvider.GetService(typeof(IGitHubApiClient)) as IGitHubApiClient,
+                workspaceManager: serviceProvider.GetService<IWorkspaceManager>());
 
             if (item.HasBundleComponents)
             {

@@ -1316,7 +1316,10 @@ public partial class PublishShareViewModel(
     /// Both the original filename and the generated fallback are checked against the
     /// names owned by other catalogs, incrementing until the name is unused.
     /// </summary>
-    private static string ResolveUniqueCatalogFileName(PublisherStudioProject project, NamedCatalog activeCatalog)
+    private static string ResolveUniqueCatalogFileName(
+        PublisherStudioProject project,
+        NamedCatalog activeCatalog,
+        IEnumerable<string>? additionalUsedNames = null)
     {
         var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var other in project.Catalogs)
@@ -1327,6 +1330,17 @@ public partial class PublishShareViewModel(
             }
 
             usedNames.Add(!string.IsNullOrWhiteSpace(other.FileName) ? other.FileName : $"catalog-{other.Id}.json");
+        }
+
+        if (additionalUsedNames != null)
+        {
+            foreach (var name in additionalUsedNames)
+            {
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    usedNames.Add(name);
+                }
+            }
         }
 
         var fileName = activeCatalog.FileName;
@@ -1344,6 +1358,20 @@ public partial class PublishShareViewModel(
         }
 
         return candidate;
+    }
+
+    /// <summary>
+    /// Gets remote filenames already claimed by other catalogs in persisted hosting state.
+    /// These are the actual upload names, which can differ from the project filenames
+    /// after collision resolution.
+    /// </summary>
+    private static IReadOnlyList<string> GetPersistedCatalogFileNames(HostingState? hostingState, string activeCatalogId)
+    {
+        return hostingState?.Catalogs
+            .Where(c => !string.Equals(c.CatalogId, activeCatalogId, StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrWhiteSpace(c.FileName))
+            .Select(c => c.FileName)
+            .ToList() ?? [];
     }
 
     private static (string Name, string Url, long Size)? FindInArtifacts(IEnumerable<ReleaseArtifact>? artifacts, string sha256)
@@ -1538,7 +1566,8 @@ public partial class PublishShareViewModel(
     {
         foreach (var catalog in project.Catalogs)
         {
-            var catHosting = _currentHostingState?.Catalogs.FirstOrDefault(c => c.CatalogId == catalog.Id || c.FileName == catalog.FileName);
+            var catHosting = _currentHostingState?.Catalogs.FirstOrDefault(c => c.CatalogId == catalog.Id)
+                ?? _currentHostingState?.Catalogs.FirstOrDefault(c => c.FileName == catalog.FileName);
             var isCatHosted = catHosting != null && !string.IsNullOrWhiteSpace(catHosting.Url);
             var catSize = catHosting?.FileSize ?? 0;
             var catUrl = catHosting?.Url ?? string.Empty;
@@ -2797,7 +2826,7 @@ public partial class PublishShareViewModel(
             ? _currentHostingState!.Catalogs.FirstOrDefault(c => c.CatalogId == ActiveCatalog.Id)?.FileId
             : null;
 
-        var catalogFileName = ResolveUniqueCatalogFileName(project, ActiveCatalog);
+        var catalogFileName = ResolveUniqueCatalogFileName(project, ActiveCatalog, GetPersistedCatalogFileNames(_currentHostingState, ActiveCatalog.Id));
 
         // A file ID shared with another catalog means a previous filename collision merged
         // both catalogs into one remote file. Upload fresh so this catalog gets its own file.
@@ -3139,7 +3168,8 @@ public partial class PublishShareViewModel(
     {
         if (IsPendingArtworkPath(value))
         {
-            pending.Add((content, slot, value!.Trim()));
+            var trimmed = value!.Trim();
+            pending.Add((content, slot, ResolveArtworkLocalPath(trimmed) ?? trimmed));
         }
     }
 
@@ -3152,14 +3182,44 @@ public partial class PublishShareViewModel(
 
         var trimmed = value.Trim();
         if (trimmed.StartsWith("avares://", StringComparison.OrdinalIgnoreCase) ||
-            trimmed.StartsWith("/Assets/", StringComparison.OrdinalIgnoreCase) ||
-            trimmed.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
+            trimmed.StartsWith("/Assets/", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
 
+        // A bare Assets/ reference is a built-in resource unless it exists as a
+        // publisher-local file, in which case it must be uploaded for subscribers.
+        if (trimmed.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
+        {
+            return ResolveArtworkLocalPath(trimmed) != null;
+        }
+
         return !Uri.TryCreate(trimmed, UriKind.Absolute, out var uri)
             || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps);
+    }
+
+    /// <summary>
+    /// Resolves an artwork path to an existing local file, checking the path as
+    /// given first and then relative to the studio project directory.
+    /// </summary>
+    private string? ResolveArtworkLocalPath(string trimmed)
+    {
+        if (File.Exists(trimmed))
+        {
+            return trimmed;
+        }
+
+        var projectDirectory = Path.GetDirectoryName(project.ProjectPath);
+        if (!string.IsNullOrEmpty(projectDirectory))
+        {
+            var combined = Path.Combine(projectDirectory, trimmed);
+            if (File.Exists(combined))
+            {
+                return combined;
+            }
+        }
+
+        return null;
     }
 
     private void ApplyArtworkUrl(CatalogContentItem content, ArtworkSlot slot, string url)
@@ -3521,7 +3581,9 @@ public partial class PublishShareViewModel(
         catalogEntry.FileId = catalogFileId;
         catalogEntry.Url = catalogUrl;
         catalogEntry.FileSize = catalogFileSize;
-        catalogEntry.FileName = ActiveCatalog?.FileName ?? $"catalog-{catalogId}.json";
+        catalogEntry.FileName = ActiveCatalog != null
+            ? ResolveUniqueCatalogFileName(project, ActiveCatalog, GetPersistedCatalogFileNames(_currentHostingState, catalogId))
+            : $"catalog-{catalogId}.json";
         catalogEntry.CatalogName = ActiveCatalog?.Name ?? catalogId;
         catalogEntry.LastUpdated = DateTime.UtcNow;
 

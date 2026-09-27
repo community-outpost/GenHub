@@ -12,6 +12,7 @@ using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Parsers;
+using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Dialogs;
@@ -74,6 +75,7 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <param name="deletedAction">Optional callback invoked with the deleted manifest ID after a successful delete.</param>
 /// <param name="artworkService">Optional artwork service for purging persisted icons and covers on delete.</param>
 /// <param name="gitHubApiClient">Optional GitHub API client for README and release-notes hydration.</param>
+/// <param name="workspaceManager">Optional workspace manager for cleaning stale workspaces on bundle updates.</param>
 [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "ContentDetailViewModel coordinates rich media, downloads, profile binding, and custom tabs.")]
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Properties and methods access CommunityToolkit MVVM generated instance properties.")]
 [SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "Content detail ViewModel coordinates complex UI state, downloads, and multiple catalog sources.")]
@@ -99,7 +101,8 @@ public partial class ContentDetailViewModel(
     IDialogService? dialogService = null,
     Func<string, Task>? deletedAction = null,
     IContentArtworkService? artworkService = null,
-    IGitHubApiClient? gitHubApiClient = null) : ObservableObject, IDisposable
+    IGitHubApiClient? gitHubApiClient = null,
+    IWorkspaceManager? workspaceManager = null) : ObservableObject, IDisposable
 {
     // ===== Constants =====
     private const string UnknownValue = "Unknown";
@@ -1459,6 +1462,98 @@ public partial class ContentDetailViewModel(
 
             _preloadTask = PreloadRecentItemDetailsCoreAsync(cancellationToken);
             return _preloadTask;
+        }
+    }
+
+    /// <summary>
+    /// Applies the bundle-component update strategy: updates referencing profiles,
+    /// notifies open profile settings of the replacement, and optionally deletes
+    /// the superseded manifest.
+    /// </summary>
+    /// <param name="target">The bundle component search result being updated.</param>
+    /// <param name="originalContentId">The original content ID mapped to the old manifest.</param>
+    /// <param name="oldManifestId">The superseded manifest ID, or null for new installs.</param>
+    /// <param name="newManifest">The replacement content manifest.</param>
+    /// <param name="promptResult">The update strategy chosen by the user.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    internal async Task ApplyBundleComponentUpdateStrategyAsync(
+        ContentSearchResult target,
+        string originalContentId,
+        string? oldManifestId,
+        ContentManifest newManifest,
+        UpdateDialogResult promptResult,
+        CancellationToken cancellationToken)
+    {
+        var newManifestId = newManifest.Id.Value;
+
+        if (profileManager != null && !string.IsNullOrEmpty(oldManifestId))
+        {
+            bool profilesUpdated;
+            try
+            {
+                profilesUpdated = await ApplyBundleProfileUpdatesAsync(target, oldManifestId, newManifest, promptResult, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to apply profile update strategy for bundle component {Name}", target.Name);
+                return;
+            }
+
+            if (!profilesUpdated)
+            {
+                logger.LogWarning(
+                    "Skipping deletion of old manifest {OldManifestId} for bundle component {Name} because one or more profile updates failed",
+                    oldManifestId,
+                    target.Name);
+                return;
+            }
+
+            // Mirror the shared bulk-update path: open profile settings listen for
+            // this broadcast to swap the replaced manifest without losing UI state.
+            if (promptResult.Strategy == UpdateStrategy.ReplaceCurrent &&
+                !string.Equals(oldManifestId, newManifestId, StringComparison.OrdinalIgnoreCase))
+            {
+                WeakReferenceMessenger.Default.Send(new ManifestReplacedMessage(oldManifestId, newManifestId));
+            }
+        }
+
+        // Creating a new profile leaves the original profile on the old manifest, so the
+        // old manifest must stay installed regardless of the delete-old-versions option.
+        if (promptResult.DeleteOldVersions && !string.IsNullOrEmpty(oldManifestId) &&
+            !string.Equals(oldManifestId, newManifestId, StringComparison.OrdinalIgnoreCase) &&
+            promptResult.Strategy != UpdateStrategy.CreateNewProfile)
+        {
+            try
+            {
+                var removeResult = await manifestPool.RemoveManifestAsync(ManifestId.Create(oldManifestId), cancellationToken: cancellationToken);
+                if (removeResult.Success)
+                {
+                    if (artworkService != null)
+                    {
+                        await artworkService.PurgeArtworkAsync(oldManifestId, cancellationToken);
+                    }
+
+                    if (profileManager != null)
+                    {
+                        await profileManager.ScrubDeletedManifestReferencesAsync([oldManifestId], cancellationToken);
+                    }
+
+                    // The replacement manifest is already downloaded and mapped to the original
+                    // content ID, so re-affirm Downloaded instead of broadcasting NotDownloaded:
+                    // the latter would drop the fresh session mapping and flip open views bound
+                    // to the old manifest even though the replacement is installed.
+                    contentStateService.NotifyStateChanged(originalContentId, ContentState.Downloaded, newManifestId);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to delete old manifest {OldManifestId} for bundle component {Name}", oldManifestId, target.Name);
+            }
         }
     }
 
@@ -5116,78 +5211,6 @@ public partial class ContentDetailViewModel(
         }
     }
 
-    private async Task ApplyBundleComponentUpdateStrategyAsync(
-        ContentSearchResult target,
-        string originalContentId,
-        string? oldManifestId,
-        ContentManifest newManifest,
-        UpdateDialogResult promptResult,
-        CancellationToken cancellationToken)
-    {
-        var newManifestId = newManifest.Id.Value;
-
-        if (profileManager != null && !string.IsNullOrEmpty(oldManifestId))
-        {
-            bool profilesUpdated;
-            try
-            {
-                profilesUpdated = await ApplyBundleProfileUpdatesAsync(target, oldManifestId, newManifest, promptResult, cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to apply profile update strategy for bundle component {Name}", target.Name);
-                return;
-            }
-
-            if (!profilesUpdated)
-            {
-                logger.LogWarning(
-                    "Skipping deletion of old manifest {OldManifestId} for bundle component {Name} because one or more profile updates failed",
-                    oldManifestId,
-                    target.Name);
-                return;
-            }
-        }
-
-        // Creating a new profile leaves the original profile on the old manifest, so the
-        // old manifest must stay installed regardless of the delete-old-versions option.
-        if (promptResult.DeleteOldVersions && !string.IsNullOrEmpty(oldManifestId) &&
-            !string.Equals(oldManifestId, newManifestId, StringComparison.OrdinalIgnoreCase) &&
-            promptResult.Strategy != UpdateStrategy.CreateNewProfile)
-        {
-            try
-            {
-                var removeResult = await manifestPool.RemoveManifestAsync(ManifestId.Create(oldManifestId), cancellationToken: cancellationToken);
-                if (removeResult.Success)
-                {
-                    if (artworkService != null)
-                    {
-                        await artworkService.PurgeArtworkAsync(oldManifestId, cancellationToken);
-                    }
-
-                    if (profileManager != null)
-                    {
-                        await profileManager.ScrubDeletedManifestReferencesAsync([oldManifestId], cancellationToken);
-                    }
-
-                    // The replacement manifest is already downloaded and mapped to the original
-                    // content ID, so re-affirm Downloaded instead of broadcasting NotDownloaded:
-                    // the latter would drop the fresh session mapping and flip open views bound
-                    // to the old manifest even though the replacement is installed.
-                    contentStateService.NotifyStateChanged(originalContentId, ContentState.Downloaded, newManifestId);
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to delete old manifest {OldManifestId} for bundle component {Name}", oldManifestId, target.Name);
-            }
-        }
-    }
-
     /// <summary>
     /// Applies the bundle update strategy to every profile referencing the old manifest.
     /// </summary>
@@ -5267,6 +5290,21 @@ public partial class ContentDetailViewModel(
 
         if (promptResult.Strategy == UpdateStrategy.ReplaceCurrent)
         {
+            // Mirror the shared bulk-update path: drop the stale workspace so the
+            // next launch re-syncs from the replacement manifest.
+            if (!string.IsNullOrEmpty(profile.ActiveWorkspaceId) && workspaceManager != null)
+            {
+                var cleanupResult = await workspaceManager.CleanupWorkspaceAsync(profile.ActiveWorkspaceId, cancellationToken);
+                if (!cleanupResult.Success)
+                {
+                    logger.LogWarning(
+                        "Failed to cleanup workspace '{WorkspaceId}' for profile '{ProfileName}': {Error}",
+                        profile.ActiveWorkspaceId,
+                        profile.Name,
+                        cleanupResult.FirstError);
+                }
+            }
+
             var updateRequest = new UpdateProfileRequest
             {
                 Name = profile.Name,
@@ -5274,6 +5312,7 @@ public partial class ContentDetailViewModel(
                 WorkspaceStrategy = profile.WorkspaceStrategy,
                 EnabledContentIds = updatedContentIds,
                 GameClient = updatedClient,
+                ActiveWorkspaceId = string.Empty,
             };
 
             var updateResult = await profileManager.UpdateProfileAsync(profile.Id, updateRequest, cancellationToken);

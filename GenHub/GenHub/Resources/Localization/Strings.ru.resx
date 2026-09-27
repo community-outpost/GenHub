@@ -14448,48 +14448,6 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="Settings.Profiles.DeletedMessage" xml:space="preserve">
     <value>Успешно удалено профилей: {0}.</value>
   </data>
-  <data name="Tools.PublisherStudio.Content.FeaturedMark" xml:space="preserve">
-    <value>Отметить как золотой избранный</value>
-  </data>
-  <data name="Tools.PublisherStudio.Content.FeaturedBadgeLabel" xml:space="preserve">
-    <value>Текст значка избранного</value>
-  </data>
-  <data name="Tools.PublisherStudio.Content.FeaturedBadgePlaceholder" xml:space="preserve">
-    <value>★ ИЗБРАННЫЙ НАБОР</value>
-  </data>
-  <data name="Tools.PublisherStudio.Content.BundleComponentMatrix" xml:space="preserve">
-    <value>Матрица компонентов набора</value>
-  </data>
-  <data name="Tools.PublisherStudio.Content.BundleComponentMatrixDesc" xml:space="preserve">
-    <value>Выберите элементы каталога для объединения с опциональными вариантами по умолчанию.</value>
-  </data>
-  <data name="Tools.PublisherStudio.Content.DefaultVariant" xml:space="preserve">
-    <value>Вариант по умолчанию:</value>
-  </data>
-  <data name="Tools.PublisherStudio.Content.UpstreamTrack" xml:space="preserve">
-    <value>Отслеживать апстрим-источник (автономные релизы)</value>
-  </data>
-  <data name="Tools.PublisherStudio.Content.UpstreamProvider" xml:space="preserve">
-    <value>Апстрим-провайдер</value>
-  </data>
-  <data name="Tools.PublisherStudio.Content.UpstreamRepo" xml:space="preserve">
-    <value>Репозиторий (владелец/репозиторий для GitHub)</value>
-  </data>
-  <data name="Tools.PublisherStudio.Content.UpstreamRepoPlaceholder" xml:space="preserve">
-    <value>TheSuperHackers/GeneralsGameCode</value>
-  </data>
-  <data name="Tools.PublisherStudio.Content.UpstreamChannel" xml:space="preserve">
-    <value>Канал релиза</value>
-  </data>
-  <data name="Tools.PublisherStudio.Content.UpstreamChannelPlaceholder" xml:space="preserve">
-    <value>stable</value>
-  </data>
-  <data name="Tools.PublisherStudio.Content.UpstreamVariantAxis" xml:space="preserve">
-    <value>Ось вариантов</value>
-  </data>
-  <data name="Tools.PublisherStudio.Content.UpstreamVariantAxisPlaceholder" xml:space="preserve">
-    <value>game-type</value>
-  </data>
   <data name="GameProfiles.Card.Tooltip.MoveLeft" xml:space="preserve">
     <value>Переместить влево</value>
   </data>
@@ -15715,6 +15673,48 @@ Error: не удалось: {3}
     <value>Доступна новая версия **The Super Hackers** ({0}).
 
 Как вы хотите применить это обновление?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedMark" xml:space="preserve">
+    <value>Отметить как избранное</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedBadgeLabel" xml:space="preserve">
+    <value>Текст значка избранного</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedBadgePlaceholder" xml:space="preserve">
+    <value>★ ИЗБРАННЫЙ НАБОР</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BundleComponentMatrix" xml:space="preserve">
+    <value>Матрица компонентов набора</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BundleComponentMatrixDesc" xml:space="preserve">
+    <value>Выберите элементы каталога для объединения с опциональными вариантами по умолчанию.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DefaultVariant" xml:space="preserve">
+    <value>Вариант по умолчанию:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamTrack" xml:space="preserve">
+    <value>Отслеживать апстрим-источник (автономные релизы)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamProvider" xml:space="preserve">
+    <value>Апстрим-провайдер</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamRepo" xml:space="preserve">
+    <value>Репозиторий (владелец/репозиторий для GitHub)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamRepoPlaceholder" xml:space="preserve">
+    <value>TheSuperHackers/GeneralsGameCode</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamChannel" xml:space="preserve">
+    <value>Канал релиза</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamChannelPlaceholder" xml:space="preserve">
+    <value>stable</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamVariantAxis" xml:space="preserve">
+    <value>Ось вариантов</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamVariantAxisPlaceholder" xml:space="preserve">
+    <value>game-type</value>
   </data>
   <data name="Info.Card.tools.publisher-studio-authoring.Action.NAV_Tools" xml:space="preserve">
     <value>Открыть студию издателя</value>

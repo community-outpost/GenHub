@@ -300,11 +300,21 @@ public class CatalogUpstreamIngestionService(
 
     private static ContentSearchResult? FindMatchingDiscoveryItem(IReadOnlyList<ContentSearchResult> items, CatalogContentItem item)
     {
-        return items.FirstOrDefault(i =>
+        var exact = items.FirstOrDefault(i =>
             string.Equals(i.Id, item.Id, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(i.Name, item.Name, StringComparison.OrdinalIgnoreCase) ||
-            (!string.IsNullOrWhiteSpace(item.Name) && !string.IsNullOrWhiteSpace(i.Name) &&
-             (item.Name.Contains(i.Name, StringComparison.OrdinalIgnoreCase) || i.Name.Contains(item.Name, StringComparison.OrdinalIgnoreCase))));
+            string.Equals(i.Name, item.Name, StringComparison.OrdinalIgnoreCase));
+        if (exact != null || string.IsNullOrWhiteSpace(item.Name))
+        {
+            return exact;
+        }
+
+        // Containment matching is ambiguous when several discovered items contain the
+        // catalog name (or vice versa), so only a single fuzzy candidate is trusted.
+        var fuzzy = items.Where(i => !string.IsNullOrWhiteSpace(i.Name) &&
+            (item.Name.Contains(i.Name, StringComparison.OrdinalIgnoreCase) || i.Name.Contains(item.Name, StringComparison.OrdinalIgnoreCase)))
+            .Take(2)
+            .ToList();
+        return fuzzy.Count == 1 ? fuzzy[0] : null;
     }
 
     private async Task IngestSingleItemAsync(

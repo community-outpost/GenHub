@@ -403,6 +403,120 @@ public sealed class CatalogUpstreamIngestionServiceTests
         Assert.Equal(sourceUrl, artifact.DownloadUrl);
     }
 
+    /// <summary>
+    /// Tests that ambiguous containment matches bind to no discovered item instead of the first hit.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task IngestCatalogAsync_AmbiguousContainmentMatch_BindsToNothingAsync()
+    {
+        var discovered = new ContentDiscoveryResult
+        {
+            Items =
+            [
+                new ContentSearchResult
+                {
+                    Id = "go-a",
+                    Name = "Generals Online",
+                    Version = "1.0.0",
+                    SelectedDownloadUrl = "https://generals-online.test/a.zip",
+                },
+                new ContentSearchResult
+                {
+                    Id = "go-b",
+                    Name = "Generals Online 60Hz",
+                    Version = "2.0.0",
+                    SelectedDownloadUrl = "https://generals-online.test/b.zip",
+                },
+            ],
+        };
+        var service = new CatalogUpstreamIngestionService(
+            _gitHubClientMock.Object,
+            NullLogger<CatalogUpstreamIngestionService>.Instance,
+            generalsOnlineDiscoverer: new StubGeneralsOnlineDiscoverer(discovered));
+
+        var item = new CatalogContentItem
+        {
+            Id = "go-60hz-client",
+            Name = "Generals Online 60Hz Client",
+            ContentType = ContentType.GameClient,
+            Releases = [],
+            UpstreamSync = new CatalogUpstreamSync
+            {
+                Provider = CatalogConstants.UpstreamProviders.GeneralsOnline,
+            },
+        };
+
+        var catalog = new PublisherCatalog
+        {
+            SchemaVersion = 1,
+            Publisher = new PublisherProfile { Id = "test-pub", Name = "Test Publisher" },
+            Content = [item],
+        };
+
+        await service.IngestCatalogAsync(catalog, CancellationToken.None);
+
+        Assert.Empty(item.Releases);
+    }
+
+    /// <summary>
+    /// Tests that an exact identifier match wins over containment matches elsewhere in the list.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task IngestCatalogAsync_ExactIdMatch_PreferredOverContainmentAsync()
+    {
+        const string exactUrl = "https://generals-online.test/exact.zip";
+        var discovered = new ContentDiscoveryResult
+        {
+            Items =
+            [
+                new ContentSearchResult
+                {
+                    Id = "go-other",
+                    Name = "Generals Online",
+                    Version = "1.0.0",
+                    SelectedDownloadUrl = "https://generals-online.test/other.zip",
+                },
+                new ContentSearchResult
+                {
+                    Id = "go-60hz-client",
+                    Name = "Some Unrelated Display Name",
+                    Version = "3.0.0",
+                    SelectedDownloadUrl = exactUrl,
+                },
+            ],
+        };
+        var service = new CatalogUpstreamIngestionService(
+            _gitHubClientMock.Object,
+            NullLogger<CatalogUpstreamIngestionService>.Instance,
+            generalsOnlineDiscoverer: new StubGeneralsOnlineDiscoverer(discovered));
+
+        var item = new CatalogContentItem
+        {
+            Id = "go-60hz-client",
+            Name = "Generals Online 60Hz Client",
+            ContentType = ContentType.GameClient,
+            Releases = [],
+            UpstreamSync = new CatalogUpstreamSync
+            {
+                Provider = CatalogConstants.UpstreamProviders.GeneralsOnline,
+            },
+        };
+
+        var catalog = new PublisherCatalog
+        {
+            SchemaVersion = 1,
+            Publisher = new PublisherProfile { Id = "test-pub", Name = "Test Publisher" },
+            Content = [item],
+        };
+
+        await service.IngestCatalogAsync(catalog, CancellationToken.None);
+
+        var artifact = Assert.Single(Assert.Single(item.Releases).Artifacts);
+        Assert.Equal(exactUrl, artifact.DownloadUrl);
+    }
+
     private sealed class StubGeneralsOnlineDiscoverer(ContentDiscoveryResult result) : GeneralsOnlineDiscoverer(
         NullLogger<GeneralsOnlineDiscoverer>.Instance,
         Mock.Of<IProviderDefinitionLoader>(),

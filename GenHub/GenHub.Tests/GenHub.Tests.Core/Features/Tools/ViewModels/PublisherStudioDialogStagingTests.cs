@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Features.Tools.ViewModels.Dialogs;
@@ -239,6 +240,91 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
     }
 
     /// <summary>
+    /// Cloned release dependencies must keep their variant defaults so editing
+    /// and saving an item does not lose bundle variant configuration.
+    /// </summary>
+    [Fact]
+    public void EditItem_ExistingReleaseDependency_PreservesVariantFields()
+    {
+        var existingItem = new CatalogContentItem
+        {
+            Id = "variant-mod",
+            Name = "Variant Mod",
+            Description = "Initial description that meets length requirements",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
+            Releases =
+            [
+                new ContentRelease
+                {
+                    Version = "1.0.0",
+                    Artifacts = [new ReleaseArtifact { DownloadUrl = "https://example.com/mod.zip" }],
+                    Dependencies =
+                    [
+                        new CatalogDependency
+                        {
+                            ContentId = "base-client",
+                            DefaultVariant = "720p",
+                            AllowedVariantAxes = ["resolution", "language"],
+                        },
+                    ],
+                },
+            ],
+        };
+
+        CatalogContentItem? savedItem = null;
+        var vm = new AddContentDialogViewModel(existingItem, item => savedItem = item);
+        vm.CreateContentCommand.Execute(null);
+
+        Assert.NotNull(savedItem);
+        var savedDependency = Assert.Single(Assert.Single(savedItem.Releases).Dependencies ?? []);
+        Assert.Equal("720p", savedDependency.DefaultVariant);
+        Assert.Equal(["resolution", "language"], savedDependency.AllowedVariantAxes);
+    }
+
+    /// <summary>
+    /// Saving an edited bundle must not keep stale release dependencies for
+    /// deselected components, since bundle resolution prefers them over BundledItems.
+    /// </summary>
+    [Fact]
+    public void EditContentBundle_DeselectedComponent_ClearsStaleReleaseDependencies()
+    {
+        var existingBundle = new CatalogContentItem
+        {
+            Id = "competitive-pack",
+            Name = "Competitive Pack",
+            Description = "A complete competitive package for Zero Hour.",
+            ContentType = GenHub.Core.Models.Enums.ContentType.ContentBundle,
+            BundledItems =
+            [
+                new CatalogDependency { ContentId = "comp-a" },
+                new CatalogDependency { ContentId = "comp-b" },
+            ],
+            Releases =
+            [
+                new ContentRelease
+                {
+                    Version = "1.0.0",
+                    Dependencies =
+                    [
+                        new CatalogDependency { ContentId = "comp-a" },
+                        new CatalogDependency { ContentId = "comp-b" },
+                    ],
+                },
+            ],
+        };
+
+        CatalogContentItem? savedItem = null;
+        var vm = new AddContentDialogViewModel(existingBundle, item => savedItem = item);
+        var deselected = vm.BundleComponentOptions.First(o => o.ContentId == "comp-b");
+        deselected.IsSelected = false;
+        vm.CreateContentCommand.Execute(null);
+
+        Assert.NotNull(savedItem);
+        Assert.Equal("comp-a", Assert.Single(savedItem.BundledItems).ContentId);
+        Assert.All(savedItem.Releases, release => Assert.Empty(release.Dependencies ?? []));
+    }
+
+    /// <summary>
     /// Converting an upstream item back to static releases must preserve its
     /// publisher identity instead of dropping it.
     /// </summary>
@@ -269,6 +355,36 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
         Assert.NotNull(savedItem);
         Assert.Equal("thesuperhackers", savedItem.PublisherType);
         Assert.Null(savedItem.UpstreamSync);
+    }
+
+    /// <summary>
+    /// Editing an upstream item with a blank stored provider must fall back to the
+    /// default provider so the provider selector shows a valid selection.
+    /// </summary>
+    /// <param name="provider">The blank stored provider value.</param>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void EditUpstreamItem_BlankProvider_FallsBackToDefault(string? provider)
+    {
+        var existingItem = new CatalogContentItem
+        {
+            Id = "upstream-client",
+            Name = "Upstream Client",
+            Description = "Initial description that meets length requirements",
+            ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
+            UpstreamSync = new CatalogUpstreamSync
+            {
+                Provider = provider!,
+                Repository = "TheSuperHackers/GeneralsGameCode",
+            },
+        };
+
+        var vm = new AddContentDialogViewModel(existingItem, _ => { });
+
+        Assert.True(vm.IsUpstreamSource);
+        Assert.Equal(CatalogConstants.UpstreamProviders.TheSuperHackers, vm.SelectedUpstreamProvider);
     }
 
     /// <summary>

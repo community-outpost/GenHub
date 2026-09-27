@@ -398,7 +398,9 @@ public partial class AddContentDialogViewModel(
         if (existing.UpstreamSync != null)
         {
             IsUpstreamSource = true;
-            SelectedUpstreamProvider = existing.UpstreamSync.Provider;
+            SelectedUpstreamProvider = string.IsNullOrWhiteSpace(existing.UpstreamSync.Provider)
+                ? CatalogConstants.UpstreamProviders.TheSuperHackers
+                : existing.UpstreamSync.Provider;
             UpstreamRepository = existing.UpstreamSync.Repository;
             UpstreamChannel = existing.UpstreamSync.Channel;
             UpstreamVariantAxis = existing.UpstreamSync.VariantAxis;
@@ -915,6 +917,8 @@ public partial class AddContentDialogViewModel(
             DependencyType = source.DependencyType,
             DefinitionUrl = source.DefinitionUrl,
             ConflictsWith = [.. source.ConflictsWith],
+            DefaultVariant = source.DefaultVariant,
+            AllowedVariantAxes = [.. source.AllowedVariantAxes],
         };
     }
 
@@ -2173,6 +2177,17 @@ public partial class AddContentDialogViewModel(
         foreach (var release in _existingItem.Releases)
         {
             contentItem.Releases.Add(CloneRelease(release));
+        }
+
+        // Bundle components round-trip through BundledItems, so drop cloned release
+        // dependencies: bundle resolution prefers them when present, which would
+        // otherwise resurrect components the user just deselected.
+        if (contentItem.ContentType == ContentType.ContentBundle)
+        {
+            foreach (var release in contentItem.Releases)
+            {
+                release.Dependencies?.Clear();
+            }
         }
 
         if (contentItem.ContentType != ContentType.ContentBundle && _existingItem.ContentType != ContentType.ContentBundle)

@@ -47,38 +47,7 @@
                 "bannerUrl": "avares://GenHub/Assets/Covers/china-cover.jpg",
                 "documentationUrl": "https://github.com/TheSuperHackers/GeneralsGameCode"
             },
-            "releases": [
-                {
-                    "version": "0.9",
-                    "releaseDate": "2026-06-01T00:00:00Z",
-                    "isLatest": true,
-                    "changelog": "TheSuperHackers community engine update with high refresh rate support and modern OS fixes.",
-                    "artifacts": [
-                        {
-                            "filename": "generalszh-0.9.zip",
-                            "downloadUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/v0.9/generalszh-0.9.zip",
-                            "size": 8500000,
-                            "sha256": "",
-                            "contentType": "application/zip",
-                            "variantAxis": "game-type",
-                            "variant": "Zero Hour",
-                            "isDefaultVariant": true,
-                            "isPrimary": true
-                        },
-                        {
-                            "filename": "generals-0.9.zip",
-                            "downloadUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/v0.9/generals-0.9.zip",
-                            "size": 8500000,
-                            "sha256": "",
-                            "contentType": "application/zip",
-                            "variantAxis": "game-type",
-                            "variant": "Generals",
-                            "isDefaultVariant": false,
-                            "isPrimary": false
-                        }
-                    ]
-                }
-            ]
+            "releases": []
         },
         {
             "id": "generalsonline-client",
@@ -209,8 +178,8 @@
                         {
                             "filename": "ControlBarProLemonEditionZH_v1.3_1280x720.zip",
                             "downloadUrl": "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1280x720.zip",
-                            "size": 4993550,
-                            "sha256": "d79d8be0448461adeba69f4def5bf9a759bfea1266d7c0f5af6bd5287abeb221",
+                            "size": 1224790,
+                            "sha256": "733ee8d81cf79f23b7b3f536970b9feb01785f64809aa84733f8fe08d6ef197c",
                             "contentType": "application/zip",
                             "variantAxis": "resolution",
                             "variant": "720p",

@@ -125,6 +125,194 @@ public class PublishShareCollisionTests
         Assert.NotEqual(sharedFileId, hostingState.Catalogs.Single(c => c.CatalogId == "a").FileId);
     }
 
+    /// <summary>
+    /// Hosting state must record the resolved upload filename so later lookups
+    /// and collision checks see the actual remote name.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PublishCatalogCommand_CollidingFileName_PersistsResolvedFileNameAsync()
+    {
+        var catalogA = CreateCatalog("a", "Alpha", "catalog.json");
+        var project = new PublisherStudioProject
+        {
+            ProjectPath = "/test/path/project.json",
+            Catalogs = [catalogA, CreateCatalog("b", "Beta", "catalog.json")],
+        };
+        var (vm, _) = CreateViewModel(project);
+
+        PublisherHostingStates? savedStates = null;
+        _mockHostingStateManager
+            .Setup(m => m.SaveStatesAsync(It.IsAny<string>(), It.IsAny<PublisherHostingStates>(), It.IsAny<CancellationToken>()))
+            .Callback<string, PublisherHostingStates, CancellationToken>((_, states, _) => savedStates = states)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        await vm.InitializeAsync();
+        await vm.PublishCatalogCommand.ExecuteAsync(catalogA);
+
+        Assert.NotNull(savedStates);
+        var entry = Assert.Single(savedStates.States[HostingConstants.Dropbox].Catalogs, c => c.CatalogId == "a");
+        Assert.Equal("catalog-a.json", entry.FileName);
+    }
+
+    /// <summary>
+    /// Two catalogs sharing one project filename must each display their own
+    /// published URL instead of the first matching entry.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PublishCatalogCommand_SameFileName_EachCatalogShowsOwnUrlAsync()
+    {
+        var catalogA = CreateCatalog("a", "Alpha", "catalog.json");
+        var catalogB = CreateCatalog("b", "Beta", "catalog.json");
+        var project = new PublisherStudioProject
+        {
+            ProjectPath = "/test/path/project.json",
+            Catalogs = [catalogA, catalogB],
+        };
+        var (vm, _) = CreateViewModel(project);
+
+        await vm.InitializeAsync();
+        await vm.PublishCatalogCommand.ExecuteAsync(catalogA);
+        await vm.PublishCatalogCommand.ExecuteAsync(catalogB);
+
+        var assetA = Assert.Single(vm.HostedAssets, a => a.AssetKind == HostedAssetKind.Catalog && a.CatalogId == "a");
+        var assetB = Assert.Single(vm.HostedAssets, a => a.AssetKind == HostedAssetKind.Catalog && a.CatalogId == "b");
+        Assert.Contains("catalog-a.json", assetA.Url);
+        Assert.Contains("catalog-b.json", assetB.Url);
+    }
+
+    /// <summary>
+    /// A catalog whose project filename equals another catalog's resolved remote
+    /// name must upload under a different name instead of colliding remotely.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PublishCatalogCommand_FileNameMatchesPersistedRemoteName_UploadsUnderFallbackAsync()
+    {
+        var catalogAlpha = CreateCatalog("alpha", "Alpha", "foo.json");
+        var project = new PublisherStudioProject
+        {
+            ProjectPath = "/test/path/project.json",
+            Catalogs = [catalogAlpha, CreateCatalog("beta", "Beta", "foo.json"), CreateCatalog("gamma", "Gamma", "catalog-alpha.json")],
+        };
+        var hostingState = new HostingState
+        {
+            ProviderId = HostingConstants.Dropbox,
+            Catalogs =
+            [
+                new() { CatalogId = "alpha", CatalogName = "Alpha", FileName = "catalog-alpha.json", FileId = "id-alpha", Url = "https://dl.dropboxusercontent.com/s/x/catalog-alpha.json" },
+            ],
+        };
+        var container = new PublisherHostingStates
+        {
+            States = { [HostingConstants.Dropbox] = hostingState },
+        };
+        var (vm, _) = CreateViewModel(project, container);
+
+        await vm.InitializeAsync();
+        await vm.PublishCatalogCommand.ExecuteAsync(project.Catalogs[2]);
+
+        Assert.Equal(["catalog-gamma.json"], _uploadedCatalogFiles);
+    }
+
+    /// <summary>
+    /// A project-relative Assets file referenced by content metadata must be
+    /// uploaded and rewritten to a hosted URL instead of skipped as built-in.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PublishCatalogCommand_ProjectRelativeAssetsFile_UploadsArtworkAsync()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"genhub_artwork_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(Path.Combine(tempDir, "Assets"));
+        await File.WriteAllTextAsync(Path.Combine(tempDir, "Assets", "custom-icon.png"), "fake-png-bytes");
+
+        try
+        {
+            var content = new CatalogContentItem
+            {
+                Id = "icon-item",
+                Name = "Icon Item",
+                ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
+                Metadata = new ContentRichMetadata { IconUrl = "Assets/custom-icon.png" },
+            };
+            var catalog = CreateCatalog("a", "Alpha", "catalog-a.json");
+            catalog.Catalog.Content = [content];
+            var project = new PublisherStudioProject
+            {
+                ProjectPath = Path.Combine(tempDir, "project.json"),
+                Catalogs = [catalog],
+            };
+            var (vm, mockProvider) = CreateViewModel(project);
+
+            await vm.InitializeAsync();
+            await vm.PublishCatalogCommand.ExecuteAsync(catalog);
+
+            mockProvider.Verify(
+                p => p.UploadFileAsync(
+                    It.IsAny<Stream>(),
+                    It.Is<string>(name => name.EndsWith("custom-icon.png", StringComparison.Ordinal)),
+                    It.IsAny<string?>(),
+                    It.IsAny<IProgress<int>?>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+            Assert.StartsWith("https://", content.Metadata!.IconUrl);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// An Assets reference without a matching local file must still be treated
+    /// as a built-in resource and skipped during artwork upload.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PublishCatalogCommand_MissingAssetsFile_SkipsArtworkUploadAsync()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"genhub_artwork_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var content = new CatalogContentItem
+            {
+                Id = "icon-item",
+                Name = "Icon Item",
+                ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
+                Metadata = new ContentRichMetadata { IconUrl = "Assets/missing-icon.png" },
+            };
+            var catalog = CreateCatalog("a", "Alpha", "catalog-a.json");
+            catalog.Catalog.Content = [content];
+            var project = new PublisherStudioProject
+            {
+                ProjectPath = Path.Combine(tempDir, "project.json"),
+                Catalogs = [catalog],
+            };
+            var (vm, mockProvider) = CreateViewModel(project);
+
+            await vm.InitializeAsync();
+            await vm.PublishCatalogCommand.ExecuteAsync(catalog);
+
+            mockProvider.Verify(
+                p => p.UploadFileAsync(
+                    It.IsAny<Stream>(),
+                    It.Is<string>(name => name.Contains("missing-icon", StringComparison.Ordinal)),
+                    It.IsAny<string?>(),
+                    It.IsAny<IProgress<int>?>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+            Assert.Equal("Assets/missing-icon.png", content.Metadata!.IconUrl);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
     private static NamedCatalog CreateCatalog(string id, string name, string fileName) => new()
     {
         Id = id,

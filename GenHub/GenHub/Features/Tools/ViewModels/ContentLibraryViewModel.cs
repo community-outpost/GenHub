@@ -115,6 +115,7 @@ public partial class ContentLibraryViewModel(
     private bool _isUpstreamPreviewLoading;
 
     private CancellationTokenSource? _upstreamPreviewCts;
+    private bool _suppressUpstreamPreviewReload;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ContentLibraryViewModel"/> class with default catalog.
@@ -1375,6 +1376,11 @@ public partial class ContentLibraryViewModel(
     partial void OnSelectedContentChanged(CatalogContentItem? value)
     {
         RefreshHostingHint();
+        if (_suppressUpstreamPreviewReload)
+        {
+            return;
+        }
+
         BeginUpstreamPreviewLoad(value);
     }
 
@@ -1471,8 +1477,19 @@ public partial class ContentLibraryViewModel(
             return;
         }
 
-        SelectedContent = null;
-        SelectedContent = selected;
+        // The selection round-trip only forces the detail panel to rebuild for the same
+        // item, so keep the upstream preview instead of cancelling and re-fetching it.
+        _suppressUpstreamPreviewReload = true;
+        try
+        {
+            SelectedContent = null;
+            SelectedContent = selected;
+        }
+        finally
+        {
+            _suppressUpstreamPreviewReload = false;
+        }
+
         OnPropertyChanged(nameof(FilteredContent));
         RefreshHostingHint();
     }
