@@ -12,7 +12,7 @@ namespace GenHub.Features.GameProfiles.ViewModels.Wizard;
 /// Manages the list of setup items and user confirmation.
 /// </summary>
 /// <param name="items">The initial list of setup items.</param>
-public sealed partial class SetupWizardViewModel(IEnumerable<SetupWizardItemViewModel> items) : ViewModelBase
+public sealed partial class SetupWizardViewModel(IEnumerable<SetupWizardItemViewModel> items) : ViewModelBase, IRequestCloseViewModel
 {
     [ObservableProperty]
     private ObservableCollection<SetupWizardItemViewModel> _items = new(items);
@@ -65,14 +65,14 @@ public sealed partial class SetupWizardViewModel(IEnumerable<SetupWizardItemView
         _confirmed = true;
 
         // Close window logic will be handled by the View's close handler binding to this command or interaction
-        OnCloseRequested();
+        OnRequestClose();
     }
 
     [RelayCommand]
     private void Cancel()
     {
         _confirmed = false;
-        OnCloseRequested();
+        OnRequestClose();
     }
 
     private void UpdateLabels()
@@ -84,7 +84,7 @@ public sealed partial class SetupWizardViewModel(IEnumerable<SetupWizardItemView
     /// <summary>
     /// Event to signal view to close.
     /// </summary>
-    public event System.EventHandler? CloseRequested;
+    public event System.EventHandler? RequestClose;
 
-    private void OnCloseRequested() => CloseRequested?.Invoke(this, System.EventArgs.Empty);
+    private void OnRequestClose() => RequestClose?.Invoke(this, System.EventArgs.Empty);
 }

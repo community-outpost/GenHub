@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Common.ViewModels;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using Microsoft.Extensions.Logging;
@@ -20,7 +21,7 @@ public partial class ShareLinksViewModel(
     string genHubUrl,
     INotificationService? notificationService = null,
     ILocalizationService? localizationService = null,
-    ILogger? logger = null) : ObservableObject
+    ILogger? logger = null) : ObservableObject, IRequestCloseViewModel
 {
     /// <summary>
     /// Gets the plain download URL.
@@ -35,7 +36,7 @@ public partial class ShareLinksViewModel(
     /// <summary>
     /// Event raised when the dialog should be closed.
     /// </summary>
-    public event EventHandler? CloseRequested;
+    public event EventHandler? RequestClose;
 
     private static TopLevel? GetMainWindowTopLevel()
     {
@@ -78,7 +79,7 @@ public partial class ShareLinksViewModel(
     [RelayCommand]
     private void Close()
     {
-        CloseRequested?.Invoke(this, EventArgs.Empty);
+        RequestClose?.Invoke(this, EventArgs.Empty);
     }
 
     private string GetString(string key, string fallback)

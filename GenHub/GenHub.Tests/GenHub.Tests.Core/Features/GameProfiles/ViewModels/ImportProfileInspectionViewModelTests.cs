@@ -142,7 +142,7 @@ public class ImportProfileInspectionViewModelTests
             NullLogger<ImportProfileInspectionViewModel>.Instance);
 
         bool closed = false;
-        vm.CloseRequested += (s, e) => closed = true;
+        vm.RequestClose += (s, e) => closed = true;
 
         // Act
         await vm.ConfirmImportCommand.ExecuteAsync(null);

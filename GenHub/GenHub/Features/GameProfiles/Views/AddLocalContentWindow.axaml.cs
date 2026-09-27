@@ -21,8 +21,6 @@ public partial class AddLocalContentWindow : GenHubWindow
     public AddLocalContentWindow()
     {
         InitializeComponent();
-        AddHandler(DragDrop.DropEvent, OnDrop);
-        AddHandler(DragDrop.DragOverEvent, OnDragOver);
     }
 
     /// <inheritdoc />
@@ -36,51 +34,29 @@ public partial class AddLocalContentWindow : GenHubWindow
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
+
+        // The hosted AddLocalContentView wires the browse delegates and drag/drop;
+        // the window only closes itself when the view model requests it.
         if (DataContext is AddLocalContentViewModel vm)
         {
-            vm.RequestClose += (s, result) => Close(result);
-
-            // Wire up the browse delegates
-            vm.BrowseFolderAction = async () =>
-            {
-                if (StorageProvider == null)
-                {
-                    return null;
-                }
-
-                var result = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
-                {
-                    Title = "Select Content Folder",
-                    AllowMultiple = false,
-                });
-                return result.Count > 0 ? result[0].Path.LocalPath : null;
-            };
-
-            vm.BrowseFileAction = async () =>
-            {
-                if (StorageProvider == null)
-                {
-                    return null;
-                }
-
-                var result = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-                {
-                    Title = "Select Files",
-                    AllowMultiple = true,
-                    FileTypeFilter =
-                    [
-                        new("Supported Content Files (*.zip, *.7z, *.rar, *.tar, *.gz, *.big)")
-                        {
-                            Patterns = ["*.zip", "*.7z", "*.rar", "*.tar", "*.gz", "*.big"],
-                        },
-                        new("Zip Archives (*.zip)") { Patterns = ["*.zip"] },
-                        new("BIG Files (*.big)") { Patterns = ["*.big"] },
-                        FilePickerFileTypes.All,
-                    ],
-                });
-                return result.Count > 0 ? result.Select(f => f.Path.LocalPath).ToList() : null;
-            };
+            vm.RequestClose += OnViewModelRequestClose;
         }
+    }
+
+    /// <inheritdoc />
+    protected override void OnClosed(EventArgs e)
+    {
+        base.OnClosed(e);
+
+        if (DataContext is AddLocalContentViewModel vm)
+        {
+            vm.RequestClose -= OnViewModelRequestClose;
+        }
+    }
+
+    private void OnViewModelRequestClose(object? sender, bool result)
+    {
+        Close(result);
     }
 
     private void OnAdminDrop(string[] files)
@@ -111,28 +87,5 @@ public partial class AddLocalContentWindow : GenHubWindow
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
-    }
-
-    // Drag & Drop handlers
-    private void OnDragOver(object? sender, DragEventArgs e)
-    {
-        e.DragEffects = e.Data.Contains(DataFormats.Files) ? DragDropEffects.Copy : DragDropEffects.None;
-    }
-
-    private async void OnDrop(object? sender, DragEventArgs e)
-    {
-        if (DataContext is not AddLocalContentViewModel vm) return;
-
-        var files = e.Data.GetFiles();
-        if (files != null)
-        {
-            foreach (var file in files)
-            {
-                if (file?.Path?.LocalPath is { } path)
-                {
-                    await vm.ImportContentAsync(path);
-                }
-            }
-        }
     }
 }

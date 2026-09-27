@@ -1,7 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.VisualTree;
+using GenHub.Common.Controls;
 using GenHub.Core.Helpers;
 using GenHub.Features.Tools.ViewModels.Dialogs;
 using System;
@@ -24,33 +24,18 @@ public partial class AddContentDialogView : UserControl
     public AddContentDialogView()
     {
         InitializeComponent();
-        DragDrop.SetAllowDrop(this, true);
-        AddHandler(DragDrop.DragOverEvent, OnDragOver, handledEventsToo: true);
-        AddHandler(DragDrop.DropEvent, OnDrop, handledEventsToo: true);
-    }
-
-    private static void OnDragOver(object? sender, DragEventArgs e)
-    {
-        if (e.Data.Contains(DataFormats.Files))
-        {
-            e.DragEffects = DragDropEffects.Copy;
-            e.Handled = true;
-        }
-        else
-        {
-            e.DragEffects = DragDropEffects.None;
-        }
+        ViewDropHelper.EnableFileDrop(this, OnDrop);
     }
 
     private static async Task<bool> TryHandleDropZonesAsync(Visual? sourceVisual, List<string> paths, AddContentDialogViewModel vm)
     {
-        if (IsInSubtree(sourceVisual, "ContentMediaDropZone"))
+        if (ViewDropHelper.IsInSubtree(sourceVisual, "ContentMediaDropZone"))
         {
             await vm.AddScreenshotsFromPathsAsync(paths);
             return true;
         }
 
-        if (IsInSubtree(sourceVisual, "VideoDropTarget"))
+        if (ViewDropHelper.IsInSubtree(sourceVisual, "VideoDropTarget"))
         {
             var videoPaths = paths.Where(IsVideoFile).ToList();
             if (videoPaths.Count > 0)
@@ -62,7 +47,7 @@ public partial class AddContentDialogView : UserControl
             return false;
         }
 
-        if (IsInSubtree(sourceVisual, "InitialReleaseDropZone") || IsInSubtree(sourceVisual, "InitialReleaseSection"))
+        if (ViewDropHelper.IsInSubtree(sourceVisual, "InitialReleaseDropZone") || ViewDropHelper.IsInSubtree(sourceVisual, "InitialReleaseSection"))
         {
             await vm.AddReleaseArtifactsFromPathsAsync(paths);
             return true;
@@ -142,21 +127,6 @@ public partial class AddContentDialogView : UserControl
 
     private static bool IsVideoFile(string path) => MediaFileHelper.IsVideoFile(path);
 
-    private static bool IsInSubtree(Visual? visual, string name)
-    {
-        while (visual != null)
-        {
-            if (visual is Control control && control.Name == name)
-            {
-                return true;
-            }
-
-            visual = visual.GetVisualParent();
-        }
-
-        return false;
-    }
-
     private async void OnDrop(object? sender, DragEventArgs e)
     {
         if (e.Handled || !e.Data.Contains(DataFormats.Files) || DataContext is not AddContentDialogViewModel vm)
@@ -166,18 +136,7 @@ public partial class AddContentDialogView : UserControl
 
         try
         {
-            var files = e.Data.GetFiles();
-            if (files == null)
-            {
-                return;
-            }
-
-            var paths = files
-                .Select(f => f.Path?.LocalPath)
-                .Where(p => !string.IsNullOrWhiteSpace(p))
-                .Cast<string>()
-                .ToList();
-
+            var paths = ViewDropHelper.ExtractDroppedPaths(e);
             if (paths.Count == 0)
             {
                 return;

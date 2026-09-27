@@ -1,7 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.VisualTree;
+using GenHub.Common.Controls;
 using GenHub.Features.Tools.ViewModels;
 using System;
 using System.Collections.Generic;
@@ -23,46 +23,7 @@ public partial class ContentLibraryView : UserControl
     public ContentLibraryView()
     {
         InitializeComponent();
-        DragDrop.SetAllowDrop(this, true);
-        AddHandler(DragDrop.DragOverEvent, OnDragOver, handledEventsToo: true);
-        AddHandler(DragDrop.DropEvent, OnDrop, handledEventsToo: true);
-    }
-
-    private static void OnDragOver(object? sender, DragEventArgs e)
-    {
-        if (e.Data.Contains(DataFormats.Files))
-        {
-            e.DragEffects = DragDropEffects.Copy;
-            e.Handled = true;
-        }
-        else
-        {
-            e.DragEffects = DragDropEffects.None;
-        }
-    }
-
-    private static bool IsInSubtree(Visual? visual, string name)
-    {
-        while (visual != null)
-        {
-            if (visual is Control control && control.Name == name)
-            {
-                return true;
-            }
-
-            visual = visual.GetVisualParent();
-        }
-
-        return false;
-    }
-
-    private static List<string> ExtractDroppedPaths(DragEventArgs e)
-    {
-        return e.Data.GetFiles()?
-            .Select(f => f.Path?.LocalPath)
-            .Where(p => !string.IsNullOrWhiteSpace(p))
-            .Cast<string>()
-            .ToList() ?? [];
+        ViewDropHelper.EnableFileDrop(this, OnDrop);
     }
 
     private static async Task<bool> TryImportCatalogDropAsync(ContentLibraryViewModel vm, List<string> paths, DragEventArgs e)
@@ -78,31 +39,31 @@ public partial class ContentLibraryView : UserControl
 
     private static async Task RouteDroppedPathsAsync(ContentLibraryViewModel vm, List<string> paths, Visual? sourceVisual)
     {
-        if (IsInSubtree(sourceVisual, "AddonsDropZone") || IsInSubtree(sourceVisual, "AddonsSection"))
+        if (ViewDropHelper.IsInSubtree(sourceVisual, "AddonsDropZone") || ViewDropHelper.IsInSubtree(sourceVisual, "AddonsSection"))
         {
             await vm.AddAddonWithPathsAsync(paths);
             return;
         }
 
-        if (IsInSubtree(sourceVisual, "ReleasesDropZone") || IsInSubtree(sourceVisual, "ReleasesSection"))
+        if (ViewDropHelper.IsInSubtree(sourceVisual, "ReleasesDropZone") || ViewDropHelper.IsInSubtree(sourceVisual, "ReleasesSection"))
         {
             await vm.AddReleaseWithPathsAsync(paths);
             return;
         }
 
-        if (IsInSubtree(sourceVisual, "ContentItemsDropZone") || IsInSubtree(sourceVisual, "CatalogListPanel"))
+        if (ViewDropHelper.IsInSubtree(sourceVisual, "ContentItemsDropZone") || ViewDropHelper.IsInSubtree(sourceVisual, "CatalogListPanel"))
         {
             await AddContentItemsDropAsync(vm, paths);
             return;
         }
 
-        if (IsInSubtree(sourceVisual, "MediaScreenshotsDropZone") || IsInSubtree(sourceVisual, "MediaVideosDropZone"))
+        if (ViewDropHelper.IsInSubtree(sourceVisual, "MediaScreenshotsDropZone") || ViewDropHelper.IsInSubtree(sourceVisual, "MediaVideosDropZone"))
         {
             await vm.AddMediaToSelectedContentAsync(paths);
             return;
         }
 
-        if (vm.SelectedContent != null && IsInSubtree(sourceVisual, "ContentDetailPanel"))
+        if (vm.SelectedContent != null && ViewDropHelper.IsInSubtree(sourceVisual, "ContentDetailPanel"))
         {
             await vm.AddReleaseWithPathsAsync(paths);
             return;
@@ -137,7 +98,7 @@ public partial class ContentLibraryView : UserControl
 
         try
         {
-            var paths = ExtractDroppedPaths(e);
+            var paths = ViewDropHelper.ExtractDroppedPaths(e);
             if (paths.Count == 0)
             {
                 return;

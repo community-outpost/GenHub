@@ -39,7 +39,8 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// </summary>
 public partial class GameProfileSettingsViewModel : ViewModelBase,
     IRecipient<Core.Models.Content.ContentAcquiredMessage>,
-    IRecipient<ManifestReplacedMessage>
+    IRecipient<ManifestReplacedMessage>,
+    IRequestCloseViewModel
 {
     /// <summary>
     /// Information about a content filter type.
@@ -243,7 +244,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// <summary>
     /// Event triggered when the view model requests to close.
     /// </summary>
-    public event EventHandler? CloseRequested;
+    public event EventHandler? RequestClose;
 
     /// <inheritdoc/>
     public void Receive(Core.Models.Content.ContentAcquiredMessage message)

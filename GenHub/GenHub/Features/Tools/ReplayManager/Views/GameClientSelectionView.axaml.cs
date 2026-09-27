@@ -10,8 +10,6 @@ namespace GenHub.Features.Tools.ReplayManager.Views;
 /// </summary>
 public partial class GameClientSelectionView : GenHubWindow
 {
-    private GameClientSelectionViewModel? _viewModel;
-
     /// <summary>
     /// Initializes a new instance of the <see cref="GameClientSelectionView"/> class.
     /// </summary>
@@ -28,39 +26,5 @@ public partial class GameClientSelectionView : GenHubWindow
         : this()
     {
         DataContext = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
-    }
-
-    /// <inheritdoc/>
-    protected override void OnDataContextChanged(EventArgs e)
-    {
-        base.OnDataContextChanged(e);
-
-        if (_viewModel != null)
-        {
-            _viewModel.RequestClose -= OnRequestClose;
-        }
-
-        if (DataContext is GameClientSelectionViewModel viewModel)
-        {
-            _viewModel = viewModel;
-            _viewModel.RequestClose += OnRequestClose;
-        }
-    }
-
-    /// <inheritdoc/>
-    protected override void OnClosed(EventArgs e)
-    {
-        base.OnClosed(e);
-
-        if (_viewModel != null)
-        {
-            _viewModel.RequestClose -= OnRequestClose;
-            _viewModel = null;
-        }
-    }
-
-    private void OnRequestClose(object? sender, EventArgs e)
-    {
-        Close();
     }
 }

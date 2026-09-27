@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Common.ViewModels;
 using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -40,7 +41,7 @@ public sealed partial class ProfileSelectionViewModel(
     IProfileContentService profileContentService,
     IContentManifestPool manifestPool,
     INotificationService notificationService,
-    ILocalizationService? localizationService = null) : ObservableObject, IDisposable
+    ILocalizationService? localizationService = null) : ObservableObject, IDisposable, IRequestCloseViewModel
 {
     private readonly CancellationTokenSource _cts = new();
     private bool _disposed;

@@ -1453,7 +1453,7 @@ public partial class GameProfileSettingsViewModel
     private void ExecuteCancel()
     {
         StatusMessage = "Cancelled";
-        CloseRequested?.Invoke(this, EventArgs.Empty);
+        RequestClose?.Invoke(this, EventArgs.Empty);
     }
 
     [RelayCommand]

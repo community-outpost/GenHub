@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using GenHub.Common.Helpers;
+using GenHub.Common.ViewModels;
 using System;
 
 namespace GenHub.Common.Controls;
@@ -17,6 +18,8 @@ namespace GenHub.Common.Controls;
 /// </summary>
 public class GenHubWindow : Window
 {
+    private IRequestCloseViewModel? _wiredViewModel;
+
     /// <summary>
     /// Gets a value indicating whether pressing Escape closes the window.
     /// Override to <c>false</c> for windows that must stay open, such as the main window.
@@ -77,9 +80,18 @@ public class GenHubWindow : Window
     protected virtual void OnEscapePressed() => Close();
 
     /// <inheritdoc/>
+    protected override void OnDataContextChanged(EventArgs e)
+    {
+        base.OnDataContextChanged(e);
+        UnwireRequestClose();
+        WireRequestClose();
+    }
+
+    /// <inheritdoc/>
     protected override void OnClosed(EventArgs e)
     {
         base.OnClosed(e);
+        UnwireRequestClose();
         if (DisposeDataContextOnClose && DataContext is IDisposable disposable)
         {
             disposable.Dispose();
@@ -203,5 +215,28 @@ public class GenHubWindow : Window
         {
             Position = new PixelPoint(newX, newY);
         }
+    }
+
+    private void WireRequestClose()
+    {
+        if (DataContext is IRequestCloseViewModel viewModel)
+        {
+            _wiredViewModel = viewModel;
+            viewModel.RequestClose += OnViewModelRequestClose;
+        }
+    }
+
+    private void UnwireRequestClose()
+    {
+        if (_wiredViewModel != null)
+        {
+            _wiredViewModel.RequestClose -= OnViewModelRequestClose;
+            _wiredViewModel = null;
+        }
+    }
+
+    private void OnViewModelRequestClose(object? sender, EventArgs e)
+    {
+        Close();
     }
 }

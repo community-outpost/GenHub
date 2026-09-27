@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
@@ -29,7 +30,7 @@ public sealed partial class ImportProfileInspectionViewModel(
     IProfileSharingService profileSharingService,
     INotificationService? notificationService,
     ILogger<ImportProfileInspectionViewModel> logger,
-    ILocalizationService? localizationService = null) : ObservableObject, IDisposable
+    ILocalizationService? localizationService = null) : ObservableObject, IDisposable, IRequestCloseViewModel
 {
     private readonly bool _guardsChecked = ValidateArguments(inspectionResult, profileSharingService, logger);
     private CancellationTokenSource? _importCts;
@@ -132,7 +133,7 @@ public sealed partial class ImportProfileInspectionViewModel(
     /// <summary>
     /// Event triggered when the dialog requests to close.
     /// </summary>
-    public event EventHandler? CloseRequested;
+    public event EventHandler? RequestClose;
 
     /// <summary>
     /// Releases unmanaged and managed resources used by the view model.
@@ -483,7 +484,7 @@ public sealed partial class ImportProfileInspectionViewModel(
                 var successTitle = localizationService?.GetString("GameProfiles.ImportInspection.Notification.ImportSuccessTitle") ?? "Profile Imported";
                 var successMessageFormat = localizationService?.GetString("GameProfiles.ImportInspection.Notification.ImportSuccess") ?? "Successfully imported '{0}'.";
                 notificationService?.ShowSuccess(successTitle, string.Format(System.Globalization.CultureInfo.CurrentCulture, successMessageFormat, ProfileName));
-                CloseRequested?.Invoke(this, EventArgs.Empty);
+                RequestClose?.Invoke(this, EventArgs.Empty);
             }
             else
             {
@@ -522,7 +523,7 @@ public sealed partial class ImportProfileInspectionViewModel(
     private void Cancel()
     {
         _importCts?.Cancel();
-        CloseRequested?.Invoke(this, EventArgs.Empty);
+        RequestClose?.Invoke(this, EventArgs.Empty);
     }
 
     private void SetError(string message)

@@ -1,7 +1,5 @@
 using Avalonia.Markup.Xaml;
 using GenHub.Common.Controls;
-using GenHub.Features.GameProfiles.ViewModels;
-using System;
 
 namespace GenHub.Features.GameProfiles.Views;
 
@@ -10,15 +8,12 @@ namespace GenHub.Features.GameProfiles.Views;
 /// </summary>
 public partial class ShareProfileDialogWindow : GenHubWindow
 {
-    private ShareProfileDialogViewModel? attachedViewModel;
-
     /// <summary>
     /// Initializes a new instance of the <see cref="ShareProfileDialogWindow"/> class.
     /// </summary>
     public ShareProfileDialogWindow()
     {
         InitializeComponent();
-        DataContextChanged += OnDataContextChanged;
     }
 
     /// <inheritdoc/>
@@ -28,24 +23,4 @@ public partial class ShareProfileDialogWindow : GenHubWindow
     {
         AvaloniaXamlLoader.Load(this);
     }
-
-    private void OnDataContextChanged(object? sender, EventArgs e)
-    {
-        if (attachedViewModel is { } previous)
-        {
-            previous.CloseRequested -= OnCloseRequested;
-        }
-
-        if (DataContext is ShareProfileDialogViewModel viewModel)
-        {
-            attachedViewModel = viewModel;
-            viewModel.CloseRequested += OnCloseRequested;
-        }
-        else
-        {
-            attachedViewModel = null;
-        }
-    }
-
-    private void OnCloseRequested(object? sender, EventArgs e) => Close();
 }

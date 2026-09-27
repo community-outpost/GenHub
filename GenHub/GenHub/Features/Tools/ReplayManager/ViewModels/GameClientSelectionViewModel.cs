@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -34,7 +35,7 @@ public sealed partial class GameClientSelectionViewModel(
     ICrcMappingRegistry crcMappingRegistry,
     ILogger<GameClientSelectionViewModel> logger,
     IGameCrcCalculatorService? crcCalculator = null,
-    IGameInstallationService? installationService = null) : ObservableObject
+    IGameInstallationService? installationService = null) : ObservableObject, IRequestCloseViewModel
 {
     private readonly List<GameClientCardViewModel> _allClients = [];
 
