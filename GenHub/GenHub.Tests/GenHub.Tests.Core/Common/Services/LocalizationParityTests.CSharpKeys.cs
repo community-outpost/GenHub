@@ -90,6 +90,6 @@ public partial class LocalizationParityTests
         return count;
     }
 
-    [GeneratedRegex("(?<![\\w.])(?:(?<receiver>[A-Za-z_][A-Za-z0-9_]*)\\?\\.\\s*)?GetString\\(\\s*\"(?<key>[A-Za-z0-9_\\.]+)\"")]
+    [GeneratedRegex("(?<![\\w.])(?:(?<receiver>[A-Za-z_][A-Za-z0-9_]*)\\??\\.\\s*)?GetString\\(\\s*\"(?<key>[A-Za-z0-9_\\.]+)\"")]
     private static partial Regex CSharpGetStringRegex();
 }
