@@ -37,10 +37,11 @@ public static class DownloadTelemetryHelper
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentNullException.ThrowIfNull(manifest);
 
+        var publisherId = FirstNonEmpty(SkipUnknown(manifest.Publisher?.PublisherType), manifest.OriginalProviderName, providerFallback);
         var publisherName = FirstNonEmpty(manifest.Publisher?.Name, manifest.OriginalProviderName, providerFallback);
         if (string.IsNullOrWhiteSpace(configuration.PublisherId))
         {
-            configuration.PublisherId = publisherName;
+            configuration.PublisherId = publisherId;
         }
 
         if (string.IsNullOrWhiteSpace(configuration.Author))
@@ -241,4 +242,7 @@ public static class DownloadTelemetryHelper
 
     private static string? FirstNonEmpty(params string?[] candidates) =>
         candidates.FirstOrDefault(candidate => !string.IsNullOrWhiteSpace(candidate));
+
+    private static string? SkipUnknown(string? value) =>
+        string.Equals(value, PublisherTypeConstants.Unknown, StringComparison.OrdinalIgnoreCase) ? null : value;
 }

@@ -38,11 +38,37 @@ public class DownloadTelemetryHelperTests
 
         DownloadTelemetryHelper.ApplyManifestAttribution(config, manifest, PublisherTypeConstants.GitHub);
 
-        Assert.Equal("ModAuthor", config.PublisherId);
+        Assert.Equal(PublisherTypeConstants.GitHub, config.PublisherId);
         Assert.Equal("ModAuthor", config.Author);
         Assert.Equal("Cool Mod", config.ContentName);
         Assert.Equal("1.0.github.mod.cool-mod", config.ContentId);
         Assert.Equal("Mod", config.ContentType);
+    }
+
+    /// <summary>
+    /// Verifies that an unknown publisher type falls through to the provider name instead of shadowing it.
+    /// </summary>
+    [Fact]
+    public void ApplyManifestAttribution_WithUnknownPublisherType_PrefersProviderName()
+    {
+        var config = new DownloadConfiguration
+        {
+            Url = new Uri("https://example.com/files/mod.zip"),
+            DestinationPath = "/tmp/mod.zip",
+        };
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.aodmaps.map.cool-map"),
+            Name = "Cool Map",
+            ContentType = ContentType.Map,
+            OriginalProviderName = PublisherTypeConstants.AODMaps,
+            Publisher = new PublisherInfo { Name = "MapAuthor", PublisherType = PublisherTypeConstants.Unknown },
+        };
+
+        DownloadTelemetryHelper.ApplyManifestAttribution(config, manifest);
+
+        Assert.Equal(PublisherTypeConstants.AODMaps, config.PublisherId);
+        Assert.Equal("MapAuthor", config.Author);
     }
 
     /// <summary>
