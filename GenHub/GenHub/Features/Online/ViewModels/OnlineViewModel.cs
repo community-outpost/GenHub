@@ -80,7 +80,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
 
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
     private readonly SemaphoreSlim _profileLock = new(1, 1);
-    private readonly ConcurrentDictionary<string, OnlineProfileSetup> _profileSetupCache = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, (OnlineProfileSetup Setup, DateTime CachedAtUtc)> _profileSetupCache = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, IReadOnlyDictionary<string, ContentType>> _contentTypeCache = new(StringComparer.Ordinal);
     private CancellationTokenSource? _searchCts;
     private CancellationTokenSource? _nicknameCts;
@@ -2447,7 +2447,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
             return new OnlineProfileSetup(string.Empty, string.Empty, []);
         }
 
-        if (includeCompatibilityCrcs && _profileSetupCache.TryGetValue(profile.Id, out var cachedSetup))
+        if (includeCompatibilityCrcs && TryGetFreshSetup(profile.Id, out var cachedSetup))
         {
             return cachedSetup;
         }
@@ -2466,10 +2466,28 @@ public sealed partial class OnlineViewModel : ViewModelBase,
 
         if (includeCompatibilityCrcs)
         {
-            _profileSetupCache[profile.Id] = setup;
+            _profileSetupCache[profile.Id] = (setup, DateTime.UtcNow);
         }
 
         return setup;
+    }
+
+    private bool TryGetFreshSetup(string profileId, [NotNullWhen(true)] out OnlineProfileSetup? setup)
+    {
+        setup = null;
+        if (!_profileSetupCache.TryGetValue(profileId, out var cached))
+        {
+            return false;
+        }
+
+        if (DateTime.UtcNow - cached.CachedAtUtc > TimeSpan.FromMinutes(OnlineConstants.ProfileSetupCacheTtlMinutes))
+        {
+            _profileSetupCache.TryRemove(profileId, out _);
+            return false;
+        }
+
+        setup = cached.Setup;
+        return true;
     }
 
     /// <summary>
@@ -2574,7 +2592,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
             }
 
             var sideloads = await ResolveGameplaySideloadsAsync(profile, gameplayIds, cancellationToken);
-            var iniResult = await _crcCalculator.CalculateIniCrcAsync(gameRoot, profile.GameClient.GameType, sideloads, null, null, null, cancellationToken);
+            var iniResult = await _crcCalculator.CalculateIniCrcAsync(gameRoot, profile.GameClient.GameType, sideloads, null, null, null, ct: cancellationToken);
             var iniCrc = iniResult.Success && !string.IsNullOrEmpty(iniResult.Data) ? iniResult.Data : string.Empty;
             return (iniCrc, exeCrc);
         }

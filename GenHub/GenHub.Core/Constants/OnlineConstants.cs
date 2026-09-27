@@ -173,6 +173,14 @@ public static class OnlineConstants
     public const int DirectoryStaleSeconds = 3600;
 
     /// <summary>
+    /// Time-to-live for cached per-profile compatibility fingerprints. The
+    /// fingerprints embed INI and exe CRCs computed from the game
+    /// installation, so entries expire to pick up file changes that happen
+    /// without a profile event (patches, reinstalls, tool fixes).
+    /// </summary>
+    public const int ProfileSetupCacheTtlMinutes = 15;
+
+    /// <summary>
     /// Error code for a failed game launch from the Online tab.
     /// </summary>
     public const string ErrorLaunchFailed = "online.launch-failed";

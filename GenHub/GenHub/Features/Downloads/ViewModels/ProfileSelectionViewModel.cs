@@ -130,13 +130,7 @@ public sealed partial class ProfileSelectionViewModel(
         get => !string.IsNullOrWhiteSpace(_actionBadgeText)
             ? _actionBadgeText
             : (_localizationService?.GetString("Downloads.ProfileSelection.Add") ?? "Add");
-        set
-        {
-            if (SetProperty(ref _actionBadgeText, value))
-            {
-                OnPropertyChanged(nameof(ActionBadgeText));
-            }
-        }
+        set => SetProperty(ref _actionBadgeText, value);
     }
 
     [ObservableProperty]
