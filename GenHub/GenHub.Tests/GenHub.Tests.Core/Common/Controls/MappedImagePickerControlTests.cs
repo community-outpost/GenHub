@@ -6,7 +6,6 @@ using Avalonia.Media;
 using GenHub.Common.Controls;
 using GenHub.Core.Models.Tools.TextureEditor;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using Xunit;
 
 namespace GenHub.Tests.Core.Common.Controls;
@@ -78,11 +77,9 @@ public sealed class MappedImagePickerControlTests
         var list = picker.FindControl<ListBox>("ImagesList");
         Assert.NotNull(list);
 
-        // TappedEventArgs has no public constructor, so raise an uninitialized
-        // instance: the handler only reads the selection, never the gesture args.
-        var args = (TappedEventArgs)RuntimeHelpers.GetUninitializedObject(typeof(TappedEventArgs));
-        args.RoutedEvent = InputElement.DoubleTappedEvent;
-        list.RaiseEvent(args);
+        // The handler only reads the selection, never the gesture args, so the
+        // pointer payload is intentionally null.
+        list.RaiseEvent(new TappedEventArgs(InputElement.DoubleTappedEvent, null!));
 
         Assert.Same(images[0], requested);
     }

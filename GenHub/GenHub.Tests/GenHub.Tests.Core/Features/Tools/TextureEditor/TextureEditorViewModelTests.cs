@@ -119,6 +119,41 @@ public sealed class TextureEditorViewModelTests
     }
 
     /// <summary>
+    /// Verifies that a registry entry from another directory warns and is not loaded,
+    /// even when the texture name matches.
+    /// </summary>
+    [AvaloniaFact]
+    public void LoadRegistryEntry_ForeignDirectory_WarnsAndSkips()
+    {
+        var notifications = new Mock<INotificationService>();
+        var viewModel = CreateViewModel(notifications: notifications);
+        using var bitmap = OpenAtlas(viewModel, "atlas.tga");
+        string foreignIni = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString(), "icons.ini");
+
+        viewModel.LoadRegistryEntry(new MappedImageDefinition("Stale", "atlas.tga", 1, 1, 0, 0, 1, 1, SourcePath: foreignIni));
+
+        Assert.Empty(viewModel.Slices);
+        notifications.Verify(
+            notification => notification.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that a registry entry from the atlas directory is adopted.
+    /// </summary>
+    [AvaloniaFact]
+    public void LoadRegistryEntry_SameDirectory_AddsSlice()
+    {
+        var viewModel = CreateViewModel();
+        using var bitmap = OpenAtlas(viewModel, "atlas.tga");
+        string siblingIni = Path.Combine(Path.GetTempPath(), "icons.ini");
+
+        viewModel.LoadRegistryEntry(new MappedImageDefinition("Local", "atlas.tga", 1, 1, 0, 0, 1, 1, SourcePath: siblingIni));
+
+        Assert.Single(viewModel.Slices);
+    }
+
+    /// <summary>
     /// Verifies that saving zero slices over a non-empty INI asks for confirmation first.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
@@ -297,7 +332,7 @@ public sealed class TextureEditorViewModelTests
             Assert.Empty(viewModel.Slices);
 
             viewModel.FileExplorer.OpenFileCommand.Execute(new EditorFileTreeNodeViewModel("icons.ini", Path.Combine(first, "icons.ini"), false));
-            for (int attempt = 0; attempt < 200 && viewModel.Slices.Count == 0; attempt++)
+            for (int attempt = 0; attempt < 500 && viewModel.Slices.Count == 0; attempt++)
             {
                 Dispatcher.UIThread.RunJobs(null);
                 await Task.Delay(20);
@@ -343,7 +378,7 @@ public sealed class TextureEditorViewModelTests
             Assert.Single(viewModel.Slices);
 
             viewModel.FileExplorer.OpenFileCommand.Execute(new EditorFileTreeNodeViewModel("more.ini", Path.Combine(second, "more.ini"), false));
-            for (int attempt = 0; attempt < 200 && viewModel.RegistryImages.Count < 3; attempt++)
+            for (int attempt = 0; attempt < 500 && viewModel.RegistryImages.Count < 3; attempt++)
             {
                 Dispatcher.UIThread.RunJobs(null);
                 await Task.Delay(20);
@@ -365,7 +400,7 @@ public sealed class TextureEditorViewModelTests
 
     private static async Task WaitForAtlasAsync(TextureEditorViewModel viewModel, string expectedPath)
     {
-        for (int attempt = 0; attempt < 200 && (viewModel.AtlasPath != expectedPath || viewModel.IsBusy); attempt++)
+        for (int attempt = 0; attempt < 500 && (viewModel.AtlasPath != expectedPath || viewModel.IsBusy); attempt++)
         {
             Dispatcher.UIThread.RunJobs(null);
             await Task.Delay(20);

@@ -12,7 +12,7 @@ pieces instead of reimplementing pan, zoom, tabs, or menus.
 - `EditorCanvasControl`: pan and zoom canvas host. Middle-drag always pans,
   left-drag pans while `IsPanMode` is set, and Ctrl+mouse wheel zooms anchored
   at the cursor. Bind `Zoom` and `IsPanMode` two-way; set `MaxZoom` when a tool
-  needs a tighter limit (WND uses 2). Call `FrameContent()` to center or
+  needs a tighter limit (bind the tool ViewModel's zoom maximum). Call
   `FrameTo(offset)` to scroll to a content offset after layout.
 - `FileExplorerViewModel` + `EditorFileExplorerControl`: project folder tree
   with `BrowseFolderAsync` and the `DirectoryAdoptedAsync` hook. Hosts set the

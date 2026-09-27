@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Tools.TextureEditor;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.TextureEditor;
@@ -142,7 +143,7 @@ public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<M
         lock (_syncLock)
         {
             return _entries.Values
-                .Where(image => image.TextureFileName.Equals(textureFileName, StringComparison.OrdinalIgnoreCase))
+                .Where(image => MappedImageTextureMatcher.Matches(image.TextureFileName, textureFileName))
                 .OrderBy(image => image.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
         }

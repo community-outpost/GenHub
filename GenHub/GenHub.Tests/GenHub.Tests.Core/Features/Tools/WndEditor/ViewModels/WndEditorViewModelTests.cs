@@ -12,6 +12,7 @@ using GenHub.Core.Interfaces.Tools.WndEditor;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Tools.Common;
 using GenHub.Core.Models.Tools.WndEditor;
 using GenHub.Features.Tools.WndEditor.Services;
 using GenHub.Features.Tools.WndEditor.ViewModels;
@@ -456,7 +457,7 @@ public sealed class WndEditorViewModelTests : IDisposable
         var item = _viewModel.CanvasItems.First(i => i.Window.ControlType == WndControlType.PushButton);
 
         // Act - resize SouthEast (drag corner by +20, +30)
-        _viewModel.BeginCanvasResize(item, WndResizeDirection.SouthEast, new Point(110, 60));
+        _viewModel.BeginCanvasResize(item, CanvasResizeDirection.SouthEast, new Point(110, 60));
         _viewModel.UpdateCanvasDrag(new Point(130, 90));
         _viewModel.EndCanvasDrag();
 

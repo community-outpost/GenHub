@@ -593,11 +593,10 @@
                     BorderThickness="1" CornerRadius="8"
                     Background="{DynamicResource SurfaceElevatedBrush}"
                     ClipToBounds="True">
-              <!-- MaxZoom matches WndConstants.Editor.MaxZoom. -->
               <editors:EditorCanvasControl x:Name="EditorCanvas"
                                            Zoom="{Binding Zoom, Mode=TwoWay}"
                                            IsPanMode="{Binding IsPanMode, Mode=TwoWay}"
-                                           MaxZoom="2">
+                                           MaxZoom="{Binding ZoomMax}">
                 <Panel x:Name="CanvasHost"
                        Background="Transparent"
                        Cursor="{Binding CanvasCursor}"
@@ -728,37 +727,29 @@
                                      IsVisible="{Binding ShowFallbackNameTag}"
                                      IsHitTestVisible="False"/>
                           <Canvas Width="{Binding Width}" Height="{Binding Height}" IsVisible="{Binding IsSelected}" IsHitTestVisible="True">
-                            <Border Canvas.Left="-5" Canvas.Top="-5" Width="10" Height="10"
-                                    Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource AccentBrush}"
-                                    BorderThickness="1.5" CornerRadius="2" Cursor="TopLeftCorner" Tag="NorthWest"
+                            <Border Canvas.Left="-5" Canvas.Top="-5" Classes="resize-handle"
+                                    Cursor="TopLeftCorner" Tag="NorthWest"
                                     PointerPressed="OnResizeHandlePointerPressed"/>
-                            <Border Canvas.Left="{Binding HalfWidthMinusHandle}" Canvas.Top="-5" Width="10" Height="10"
-                                    Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource AccentBrush}"
-                                    BorderThickness="1.5" CornerRadius="2" Cursor="TopSide" Tag="North"
+                            <Border Canvas.Left="{Binding HalfWidthMinusHandle}" Canvas.Top="-5" Classes="resize-handle"
+                                    Cursor="TopSide" Tag="North"
                                     PointerPressed="OnResizeHandlePointerPressed"/>
-                            <Border Canvas.Left="{Binding WidthMinusHandle}" Canvas.Top="-5" Width="10" Height="10"
-                                    Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource AccentBrush}"
-                                    BorderThickness="1.5" CornerRadius="2" Cursor="TopRightCorner" Tag="NorthEast"
+                            <Border Canvas.Left="{Binding WidthMinusHandle}" Canvas.Top="-5" Classes="resize-handle"
+                                    Cursor="TopRightCorner" Tag="NorthEast"
                                     PointerPressed="OnResizeHandlePointerPressed"/>
-                            <Border Canvas.Left="{Binding WidthMinusHandle}" Canvas.Top="{Binding HalfHeightMinusHandle}" Width="10" Height="10"
-                                    Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource AccentBrush}"
-                                    BorderThickness="1.5" CornerRadius="2" Cursor="RightSide" Tag="East"
+                            <Border Canvas.Left="{Binding WidthMinusHandle}" Canvas.Top="{Binding HalfHeightMinusHandle}" Classes="resize-handle"
+                                    Cursor="RightSide" Tag="East"
                                     PointerPressed="OnResizeHandlePointerPressed"/>
-                            <Border Canvas.Left="{Binding WidthMinusHandle}" Canvas.Top="{Binding HeightMinusHandle}" Width="10" Height="10"
-                                    Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource AccentBrush}"
-                                    BorderThickness="1.5" CornerRadius="2" Cursor="BottomRightCorner" Tag="SouthEast"
+                            <Border Canvas.Left="{Binding WidthMinusHandle}" Canvas.Top="{Binding HeightMinusHandle}" Classes="resize-handle"
+                                    Cursor="BottomRightCorner" Tag="SouthEast"
                                     PointerPressed="OnResizeHandlePointerPressed"/>
-                            <Border Canvas.Left="{Binding HalfWidthMinusHandle}" Canvas.Top="{Binding HeightMinusHandle}" Width="10" Height="10"
-                                    Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource AccentBrush}"
-                                    BorderThickness="1.5" CornerRadius="2" Cursor="BottomSide" Tag="South"
+                            <Border Canvas.Left="{Binding HalfWidthMinusHandle}" Canvas.Top="{Binding HeightMinusHandle}" Classes="resize-handle"
+                                    Cursor="BottomSide" Tag="South"
                                     PointerPressed="OnResizeHandlePointerPressed"/>
-                            <Border Canvas.Left="-5" Canvas.Top="{Binding HeightMinusHandle}" Width="10" Height="10"
-                                    Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource AccentBrush}"
-                                    BorderThickness="1.5" CornerRadius="2" Cursor="BottomLeftCorner" Tag="SouthWest"
+                            <Border Canvas.Left="-5" Canvas.Top="{Binding HeightMinusHandle}" Classes="resize-handle"
+                                    Cursor="BottomLeftCorner" Tag="SouthWest"
                                     PointerPressed="OnResizeHandlePointerPressed"/>
-                            <Border Canvas.Left="-5" Canvas.Top="{Binding HalfHeightMinusHandle}" Width="10" Height="10"
-                                    Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource AccentBrush}"
-                                    BorderThickness="1.5" CornerRadius="2" Cursor="LeftSide" Tag="West"
+                            <Border Canvas.Left="-5" Canvas.Top="{Binding HalfHeightMinusHandle}" Classes="resize-handle"
+                                    Cursor="LeftSide" Tag="West"
                                     PointerPressed="OnResizeHandlePointerPressed"/>
                           </Canvas>
                         </Panel>

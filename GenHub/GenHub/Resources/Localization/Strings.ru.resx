@@ -14655,9 +14655,6 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="TextureEditor.Tooltip.ResetZoom" xml:space="preserve">
     <value>Сбросить масштаб до 100%</value>
   </data>
-  <data name="TextureEditor.Tooltip.OpenAtlas" xml:space="preserve">
-    <value>Открыть атлас текстур (TGA, DDS, PNG)</value>
-  </data>
   <data name="TextureEditor.Tooltip.ScanRegistry" xml:space="preserve">
     <value>Сканировать папку с INI-файлами MappedImages</value>
   </data>
@@ -14684,9 +14681,6 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   </data>
   <data name="TextureEditor.Tooltip.PresetHud" xml:space="preserve">
     <value>Размер среза: кнопка HUD 32x32</value>
-  </data>
-  <data name="TextureEditor.Button.Open" xml:space="preserve">
-    <value>Открыть</value>
   </data>
   <data name="TextureEditor.Button.Scan" xml:space="preserve">
     <value>Сканировать</value>
@@ -14980,22 +14974,28 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
     <value>Все записи ({0}) применены к {1}.</value>
   </data>
   <data name="TextureEditor.Notify.ImportDetail.AppliedPartial" xml:space="preserve">
-    <value>Применено {0} из {1} записей к {2}; остальные — в библиотеке.</value>
+    <value>Применено {0} из {1} записей к {2}; остальные — в библиотеке. Щёлкните запись в библиотеке, чтобы открыть её текстуру.</value>
   </data>
   <data name="TextureEditor.Notify.ImportDetail.KeptSlices" xml:space="preserve">
-    <value>{0} из {1} записей относятся к {2}; текущие срезы сохранены, все записи — в библиотеке.</value>
+    <value>{0} из {1} записей относятся к {2}; текущие срезы сохранены, все записи — в библиотеке. Щёлкните запись в библиотеке, чтобы открыть её текстуру.</value>
   </data>
   <data name="TextureEditor.Notify.ImportDetail.NoMatch" xml:space="preserve">
-    <value>Ни одна не относится к {0}; все записи — в библиотеке.</value>
+    <value>Ни одна не относится к {0}; все записи — в библиотеке. Щёлкните запись в библиотеке, чтобы открыть её текстуру.</value>
   </data>
   <data name="TextureEditor.Notify.ImportDetail.NoAtlas" xml:space="preserve">
     <value>Откройте текстуру, чтобы применить их как срезы; все записи — в библиотеке.</value>
   </data>
-  <data name="TextureEditor.Notify.RegistryMismatch.Title" xml:space="preserve">
-    <value>Другая текстура</value>
+  <data name="TextureEditor.Notify.RegistryOpened.Title" xml:space="preserve">
+    <value>Текстура открыта</value>
   </data>
-  <data name="TextureEditor.Notify.RegistryMismatch.Message" xml:space="preserve">
-    <value>'{0}' относится к {1}, а не к открытому атласу. Откройте {1}, чтобы редактировать его.</value>
+  <data name="TextureEditor.Notify.RegistryOpened.Message" xml:space="preserve">
+    <value>Открыта текстура {0} для редактирования «{1}».</value>
+  </data>
+  <data name="TextureEditor.Notify.TextureNotFound.Title" xml:space="preserve">
+    <value>Текстура не найдена</value>
+  </data>
+  <data name="TextureEditor.Notify.TextureNotFound.Message" xml:space="preserve">
+    <value>«{0}» относится к {1}, которая не найдена. Откройте папку, содержащую {1}, и повторите попытку.</value>
   </data>
   <data name="TextureEditor.Dialog.ClearSlices.Title" xml:space="preserve">
     <value>Заменить срезы пустым набором?</value>
@@ -15005,6 +15005,18 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   </data>
   <data name="TextureEditor.Dialog.ClearSlices.Confirm" xml:space="preserve">
     <value>Сохранить пустым</value>
+  </data>
+  <data name="TextureEditor.Dialog.OpenTexture.Title" xml:space="preserve">
+    <value>Открыть текстуру?</value>
+  </data>
+  <data name="TextureEditor.Dialog.OpenTexture.Message" xml:space="preserve">
+    <value>{0} ссылается на текстур: {1}. Открыть {2}, чтобы редактировать её срезы ({3})?</value>
+  </data>
+  <data name="TextureEditor.Dialog.OpenTexture.Confirm" xml:space="preserve">
+    <value>Открыть</value>
+  </data>
+  <data name="TextureEditor.Dialog.OpenTexture.Cancel" xml:space="preserve">
+    <value>Отмена</value>
   </data>
   <data name="TextureEditor.Dialog.ClearSlices.Cancel" xml:space="preserve">
     <value>Отмена</value>

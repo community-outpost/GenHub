@@ -16,10 +16,6 @@
     <KeyBinding Gesture="Ctrl+O" Command="{Binding OpenFileCommand}"/>
     <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveCommand}"/>
     <KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding SaveAsCommand}"/>
-    <!-- Undo/redo gestures bind the shared editor verbs ahead of the slice-history work (see canvas QOL roadmap in TextureEditorView.axaml.cs); they enable once TextureEditorViewModel overrides CanUndo/CanRedo. -->
-    <KeyBinding Gesture="Ctrl+Z" Command="{Binding UndoCommand}"/>
-    <KeyBinding Gesture="Ctrl+Y" Command="{Binding RedoCommand}"/>
-    <KeyBinding Gesture="Ctrl+Shift+Z" Command="{Binding RedoCommand}"/>
     <KeyBinding Gesture="Ctrl+C" Command="{Binding CopyCommand}"/>
     <KeyBinding Gesture="Ctrl+X" Command="{Binding CutCommand}"/>
     <KeyBinding Gesture="Ctrl+V" Command="{Binding PasteCommand}"/>
@@ -233,10 +229,38 @@
                 </ItemsControl.ItemContainerTheme>
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="vm:TextureSliceViewModel">
-                    <Border Width="{Binding DisplayWidth}" Height="{Binding DisplayHeight}"
-                            Classes="slice" Classes.selected="{Binding IsSelected}" Classes.invalid="{Binding !IsWithinTexture}"
-                            BorderThickness="2" Background="Transparent"
-                            Cursor="SizeAll"/>
+                    <Panel Background="Transparent">
+                      <Border Width="{Binding DisplayWidth}" Height="{Binding DisplayHeight}"
+                              Classes="slice" Classes.selected="{Binding IsSelected}" Classes.invalid="{Binding !IsWithinTexture}"
+                              BorderThickness="2" Background="Transparent"
+                              Cursor="SizeAll"/>
+                      <Canvas Width="{Binding DisplayWidth}" Height="{Binding DisplayHeight}" IsVisible="{Binding IsSelected}">
+                        <Border Canvas.Left="-5" Canvas.Top="-5" Classes="resize-handle"
+                                Cursor="TopLeftCorner" Tag="NorthWest"
+                                PointerPressed="OnResizeHandlePointerPressed"/>
+                        <Border Canvas.Left="{Binding HalfWidthMinusHandle}" Canvas.Top="-5" Classes="resize-handle"
+                                Cursor="TopSide" Tag="North"
+                                PointerPressed="OnResizeHandlePointerPressed"/>
+                        <Border Canvas.Left="{Binding WidthMinusHandle}" Canvas.Top="-5" Classes="resize-handle"
+                                Cursor="TopRightCorner" Tag="NorthEast"
+                                PointerPressed="OnResizeHandlePointerPressed"/>
+                        <Border Canvas.Left="{Binding WidthMinusHandle}" Canvas.Top="{Binding HalfHeightMinusHandle}" Classes="resize-handle"
+                                Cursor="RightSide" Tag="East"
+                                PointerPressed="OnResizeHandlePointerPressed"/>
+                        <Border Canvas.Left="{Binding WidthMinusHandle}" Canvas.Top="{Binding HeightMinusHandle}" Classes="resize-handle"
+                                Cursor="BottomRightCorner" Tag="SouthEast"
+                                PointerPressed="OnResizeHandlePointerPressed"/>
+                        <Border Canvas.Left="{Binding HalfWidthMinusHandle}" Canvas.Top="{Binding HeightMinusHandle}" Classes="resize-handle"
+                                Cursor="BottomSide" Tag="South"
+                                PointerPressed="OnResizeHandlePointerPressed"/>
+                        <Border Canvas.Left="-5" Canvas.Top="{Binding HeightMinusHandle}" Classes="resize-handle"
+                                Cursor="BottomLeftCorner" Tag="SouthWest"
+                                PointerPressed="OnResizeHandlePointerPressed"/>
+                        <Border Canvas.Left="-5" Canvas.Top="{Binding HalfHeightMinusHandle}" Classes="resize-handle"
+                                Cursor="LeftSide" Tag="West"
+                                PointerPressed="OnResizeHandlePointerPressed"/>
+                      </Canvas>
+                    </Panel>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
               </ItemsControl>

@@ -1,7 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
-using GenHub.Core.Models.Tools.WndEditor;
+using GenHub.Core.Models.Tools.Common;
 using GenHub.Features.Tools.WndEditor.ViewModels;
 using System;
 using System.Collections.Generic;
@@ -97,7 +97,7 @@ public partial class WndEditorView : UserControl
             && control.DataContext is WndCanvasItemViewModel item
             && point.Properties.IsLeftButtonPressed
             && control.Tag is string tagStr
-            && Enum.TryParse<WndResizeDirection>(tagStr, out var direction))
+            && Enum.TryParse<CanvasResizeDirection>(tagStr, out var direction))
         {
             e.Pointer.Capture(CanvasHost);
             viewModel.BeginCanvasResize(item, direction, e.GetPosition(CanvasHost));

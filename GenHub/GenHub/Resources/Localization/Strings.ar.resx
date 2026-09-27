@@ -14655,9 +14655,6 @@ https://example.com/screenshot2.png</value>
   <data name="TextureEditor.Tooltip.ResetZoom" xml:space="preserve">
     <value>إعادة التكبير إلى 100٪</value>
   </data>
-  <data name="TextureEditor.Tooltip.OpenAtlas" xml:space="preserve">
-    <value>فتح أطلس قوام (TGA أو DDS أو PNG)</value>
-  </data>
   <data name="TextureEditor.Tooltip.ScanRegistry" xml:space="preserve">
     <value>فحص مجلد بحثًا عن ملفات MappedImages INI</value>
   </data>
@@ -14684,9 +14681,6 @@ https://example.com/screenshot2.png</value>
   </data>
   <data name="TextureEditor.Tooltip.PresetHud" xml:space="preserve">
     <value>تغيير حجم الشريحة إلى زر HUD بمقاس 32x32</value>
-  </data>
-  <data name="TextureEditor.Button.Open" xml:space="preserve">
-    <value>فتح</value>
   </data>
   <data name="TextureEditor.Button.Scan" xml:space="preserve">
     <value>فحص</value>
@@ -14980,22 +14974,28 @@ https://example.com/screenshot2.png</value>
     <value>تم تطبيق جميع العناصر ({0}) على {1}.</value>
   </data>
   <data name="TextureEditor.Notify.ImportDetail.AppliedPartial" xml:space="preserve">
-    <value>تم تطبيق {0} من {1} من العناصر على {2}؛ والباقي في المكتبة.</value>
+    <value>تم تطبيق {0} من {1} من العناصر على {2}؛ والباقي في المكتبة. انقر فوق عنصر في المكتبة لفتح النسيج الخاص به.</value>
   </data>
   <data name="TextureEditor.Notify.ImportDetail.KeptSlices" xml:space="preserve">
-    <value>{0} من {1} من العناصر تستهدف {2}؛ تم الاحتفاظ بالشرائح الحالية وجميع العناصر في المكتبة.</value>
+    <value>تم تطبيق {0} من {1} من العناصر تستهدف {2}؛ تم الاحتفاظ بالشرائح الحالية وجميع العناصر في المكتبة. انقر فوق عنصر في المكتبة لفتح النسيج الخاص به.</value>
   </data>
   <data name="TextureEditor.Notify.ImportDetail.NoMatch" xml:space="preserve">
-    <value>لا شيء يستهدف {0}؛ جميع العناصر في المكتبة.</value>
+    <value>لا شيء يستهدف {0}؛ جميع العناصر في المكتبة. انقر فوق عنصر في المكتبة لفتح النسيج الخاص به.</value>
   </data>
   <data name="TextureEditor.Notify.ImportDetail.NoAtlas" xml:space="preserve">
     <value>افتح نسيجًا لتطبيقها كشرائح؛ جميع العناصر في المكتبة.</value>
   </data>
-  <data name="TextureEditor.Notify.RegistryMismatch.Title" xml:space="preserve">
-    <value>نسيج مختلف</value>
+  <data name="TextureEditor.Notify.RegistryOpened.Title" xml:space="preserve">
+    <value>تم فتح النسيج</value>
   </data>
-  <data name="TextureEditor.Notify.RegistryMismatch.Message" xml:space="preserve">
-    <value>'{0}' ينتمي إلى {1}، وليس إلى الأطلس المفتوح. افتح {1} لتحريره.</value>
+  <data name="TextureEditor.Notify.RegistryOpened.Message" xml:space="preserve">
+    <value>تم فتح {0} لتحرير '{1}'.</value>
+  </data>
+  <data name="TextureEditor.Notify.TextureNotFound.Title" xml:space="preserve">
+    <value>النسيج غير موجود</value>
+  </data>
+  <data name="TextureEditor.Notify.TextureNotFound.Message" xml:space="preserve">
+    <value>'{0}' ينتمي إلى {1}، وهو غير موجود. افتح المجلد الذي يحتوي على {1} وحاول مرة أخرى.</value>
   </data>
   <data name="TextureEditor.Dialog.ClearSlices.Title" xml:space="preserve">
     <value>استبدال الشرائح بمجموعة فارغة؟</value>
@@ -15005,6 +15005,18 @@ https://example.com/screenshot2.png</value>
   </data>
   <data name="TextureEditor.Dialog.ClearSlices.Confirm" xml:space="preserve">
     <value>حفظ فارغ</value>
+  </data>
+  <data name="TextureEditor.Dialog.OpenTexture.Title" xml:space="preserve">
+    <value>فتح النسيج؟</value>
+  </data>
+  <data name="TextureEditor.Dialog.OpenTexture.Message" xml:space="preserve">
+    <value>يشير {0} إلى {1} من الأنسجة. هل تريد فتح {2} لتحرير الشرائح الخاصة به ({3})؟</value>
+  </data>
+  <data name="TextureEditor.Dialog.OpenTexture.Confirm" xml:space="preserve">
+    <value>فتح</value>
+  </data>
+  <data name="TextureEditor.Dialog.OpenTexture.Cancel" xml:space="preserve">
+    <value>إلغاء</value>
   </data>
   <data name="TextureEditor.Dialog.ClearSlices.Cancel" xml:space="preserve">
     <value>إلغاء</value>

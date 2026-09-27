@@ -34,4 +34,14 @@ public static class EditorConstants
     /// Maximum recursion depth when building file explorer trees.
     /// </summary>
     public const int FileExplorerMaxDepth = 20;
+
+    /// <summary>
+    /// Edge length of the square canvas resize handles in device-independent pixels.
+    /// </summary>
+    public const double ResizeHandleSize = 10.0;
+
+    /// <summary>
+    /// Half the resize handle edge length, used to center handles on rectangle corners and edges.
+    /// </summary>
+    public const double ResizeHandleHalfSize = 5.0;
 }

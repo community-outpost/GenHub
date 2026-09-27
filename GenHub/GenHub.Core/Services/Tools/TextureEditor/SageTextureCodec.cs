@@ -15,6 +15,12 @@ public sealed class SageTextureCodec(ILogger<SageTextureCodec> logger) : ISageTe
 {
     private sealed record DdsUncompressedRequest(byte[] Data, int Offset, int Width, int Height, int BytesPerPixel, int Pitch, uint RedMask, bool HasAlpha, string SourceName, long Started);
 
+    private sealed record DdsImageHeader(byte[] Data, int HeaderOffset, int DataOffset, int Width, int Height, int PixelOffset, int PixelFlags, uint FourCc, int RgbBitCount, uint RedMask, string SourceName, long Started);
+
+    private sealed record DdsBlockDecodeRequest(byte[] Data, int Offset, int Width, int Height, string SourceName, long Started, bool IsDxt5, bool Premultiplied, string Label);
+
+    private sealed record DdsBlitTarget(byte[] Rgba, int Width, int Height);
+
     private const int TgaHeaderSize = 18;
     private const int TgaTypeUncompressed = 2;
     private const int TgaTypeRle = 10;
@@ -269,7 +275,7 @@ public sealed class SageTextureCodec(ILogger<SageTextureCodec> logger) : ISageTe
         return rgba;
     }
 
-    private static void DecodeDxt1Block(byte[] data, int offset, byte[] rgba, int width, int height, int blockX, int blockY)
+    private static void DecodeDxt1Block(byte[] data, int offset, DdsBlitTarget target, int blockX, int blockY)
     {
         ushort color0 = ReadUInt16(data, offset);
         ushort color1 = ReadUInt16(data, offset + 2);
@@ -280,25 +286,15 @@ public sealed class SageTextureCodec(ILogger<SageTextureCodec> logger) : ISageTe
         ExpandRgb565(color1, palette.Slice(4, 4));
         MixDxt1Colors(palette, color0 > color1);
 
-        for (int y = 0; y < 4; y++)
+        // DXT1 carries alpha in the palette entries (index 3 is transparent in
+        // three-color mode), so expand it per pixel for the shared blit.
+        Span<byte> alphas = stackalloc byte[16];
+        for (int i = 0; i < 16; i++)
         {
-            for (int x = 0; x < 4; x++)
-            {
-                int px = (blockX * 4) + x;
-                int py = (blockY * 4) + y;
-                if (px >= width || py >= height)
-                {
-                    continue;
-                }
-
-                int paletteIndex = (int)((codes >> (((y * 4) + x) * 2)) & 0x3) * 4;
-                int dest = ((py * width) + px) * 4;
-                rgba[dest] = palette[paletteIndex];
-                rgba[dest + 1] = palette[paletteIndex + 1];
-                rgba[dest + 2] = palette[paletteIndex + 2];
-                rgba[dest + 3] = palette[paletteIndex + 3];
-            }
+            alphas[i] = palette[(((int)((codes >> (i * 2)) & 0x3)) * 4) + 3];
         }
+
+        BlitDxtBlock(codes, palette, alphas, target, blockX, blockY);
     }
 
     private static void ExpandRgb565(ushort color, Span<byte> output)
@@ -393,12 +389,13 @@ public sealed class SageTextureCodec(ILogger<SageTextureCodec> logger) : ISageTe
         }
 
         var rgba = new byte[(int)pixelBytes];
+        var target = new DdsBlitTarget(rgba, width, height);
         int blockIndex = 0;
         for (long blockY = 0; blockY < blocksY; blockY++)
         {
             for (long blockX = 0; blockX < blocksX; blockX++)
             {
-                DecodeDxt1Block(data, offset + (blockIndex * 8), rgba, width, height, (int)blockX, (int)blockY);
+                DecodeDxt1Block(data, offset + (blockIndex * 8), target, (int)blockX, (int)blockY);
                 blockIndex++;
             }
         }
@@ -467,7 +464,7 @@ public sealed class SageTextureCodec(ILogger<SageTextureCodec> logger) : ISageTe
         }
     }
 
-    private static void BlitDxtBlock(uint codes, ReadOnlySpan<byte> palette, ReadOnlySpan<byte> alphas, byte[] rgba, int width, int height, int blockX, int blockY)
+    private static void BlitDxtBlock(uint codes, ReadOnlySpan<byte> palette, ReadOnlySpan<byte> alphas, DdsBlitTarget target, int blockX, int blockY)
     {
         for (int y = 0; y < 4; y++)
         {
@@ -475,33 +472,34 @@ public sealed class SageTextureCodec(ILogger<SageTextureCodec> logger) : ISageTe
             {
                 int px = (blockX * 4) + x;
                 int py = (blockY * 4) + y;
-                if (px >= width || py >= height)
+                if (px >= target.Width || py >= target.Height)
                 {
                     continue;
                 }
 
                 int paletteIndex = (int)((codes >> (((y * 4) + x) * 2)) & 0x3) * 4;
-                int dest = ((py * width) + px) * 4;
-                rgba[dest] = palette[paletteIndex];
-                rgba[dest + 1] = palette[paletteIndex + 1];
-                rgba[dest + 2] = palette[paletteIndex + 2];
-                rgba[dest + 3] = alphas[(y * 4) + x];
+                int dest = ((py * target.Width) + px) * 4;
+                target.Rgba[dest] = palette[paletteIndex];
+                target.Rgba[dest + 1] = palette[paletteIndex + 1];
+                target.Rgba[dest + 2] = palette[paletteIndex + 2];
+                target.Rgba[dest + 3] = alphas[(y * 4) + x];
             }
         }
     }
 
-    private static OperationResult<DecodedTexture> DecodeDdsDxt35(byte[] data, int offset, int width, int height, string sourceName, long started, bool isDxt5, bool premultiplied, string label)
+    private static OperationResult<DecodedTexture> DecodeDdsDxt35(DdsBlockDecodeRequest request)
     {
-        long blocksX = ((long)width + 3) / 4;
-        long blocksY = ((long)height + 3) / 4;
+        long blocksX = ((long)request.Width + 3) / 4;
+        long blocksY = ((long)request.Height + 3) / 4;
         long expected = blocksX * blocksY * 16;
-        long pixelBytes = (long)width * height * 4;
-        if (pixelBytes > int.MaxValue || expected > int.MaxValue || data.Length - offset < expected)
+        long pixelBytes = (long)request.Width * request.Height * 4;
+        if (pixelBytes > int.MaxValue || expected > int.MaxValue || request.Data.Length - request.Offset < expected)
         {
-            return OperationResult<DecodedTexture>.CreateFailure($"Truncated DDS {label} data: {sourceName}", Stopwatch.GetElapsedTime(started));
+            return OperationResult<DecodedTexture>.CreateFailure($"Truncated DDS {request.Label} data: {request.SourceName}", Stopwatch.GetElapsedTime(request.Started));
         }
 
         var rgba = new byte[(int)pixelBytes];
+        var target = new DdsBlitTarget(rgba, request.Width, request.Height);
         Span<byte> palette = stackalloc byte[16];
         Span<byte> alphas = stackalloc byte[16];
         int blockIndex = 0;
@@ -509,28 +507,28 @@ public sealed class SageTextureCodec(ILogger<SageTextureCodec> logger) : ISageTe
         {
             for (long blockX = 0; blockX < blocksX; blockX++)
             {
-                int blockOffset = offset + (blockIndex * 16);
-                if (isDxt5)
+                int blockOffset = request.Offset + (blockIndex * 16);
+                if (request.IsDxt5)
                 {
-                    DecodeDxt5Alpha(data, blockOffset, alphas);
+                    DecodeDxt5Alpha(request.Data, blockOffset, alphas);
                 }
                 else
                 {
-                    DecodeDxt3Alpha(data, blockOffset, alphas);
+                    DecodeDxt3Alpha(request.Data, blockOffset, alphas);
                 }
 
-                uint codes = DecodeDxtColorPalette(data, blockOffset + 8, palette);
-                BlitDxtBlock(codes, palette, alphas, rgba, width, height, (int)blockX, (int)blockY);
+                uint codes = DecodeDxtColorPalette(request.Data, blockOffset + 8, palette);
+                BlitDxtBlock(codes, palette, alphas, target, (int)blockX, (int)blockY);
                 blockIndex++;
             }
         }
 
-        if (premultiplied)
+        if (request.Premultiplied)
         {
             UnPremultiplyAlpha(rgba);
         }
 
-        return OperationResult<DecodedTexture>.CreateSuccess(new DecodedTexture(width, height, rgba), Stopwatch.GetElapsedTime(started));
+        return OperationResult<DecodedTexture>.CreateSuccess(new DecodedTexture(request.Width, request.Height, rgba), Stopwatch.GetElapsedTime(request.Started));
     }
 
     private static void UnPremultiplyAlpha(byte[] rgba)
@@ -643,33 +641,38 @@ public sealed class SageTextureCodec(ILogger<SageTextureCodec> logger) : ISageTe
         uint redMask = (uint)ReadInt32(data, pixelOffset + DdsPixelFormatRedMaskOffset);
         int dataOffset = DdsMagicSize + DdsHeaderSize;
 
-        bool hasFourCc = (pixelFlags & DdsPixelFormatFourCcFlag) != 0;
-        if (hasFourCc && fourCc == DdsFourCcDxt1)
+        return DecodeDdsPixels(new DdsImageHeader(data, headerOffset, dataOffset, width, height, pixelOffset, pixelFlags, fourCc, rgbBitCount, redMask, sourceName, started));
+    }
+
+    private OperationResult<DecodedTexture> DecodeDdsPixels(DdsImageHeader header)
+    {
+        bool hasFourCc = (header.PixelFlags & DdsPixelFormatFourCcFlag) != 0;
+        if (hasFourCc && header.FourCc == DdsFourCcDxt1)
         {
-            return DecodeDdsDxt1(data, dataOffset, width, height, sourceName, started);
+            return DecodeDdsDxt1(header.Data, header.DataOffset, header.Width, header.Height, header.SourceName, header.Started);
         }
 
-        if (hasFourCc && (fourCc == DdsFourCcDxt2 || fourCc == DdsFourCcDxt3))
+        if (hasFourCc && (header.FourCc == DdsFourCcDxt2 || header.FourCc == DdsFourCcDxt3))
         {
-            bool premultiplied = fourCc == DdsFourCcDxt2;
-            return DecodeDdsDxt35(data, dataOffset, width, height, sourceName, started, false, premultiplied, premultiplied ? "DXT2" : "DXT3");
+            bool premultiplied = header.FourCc == DdsFourCcDxt2;
+            return DecodeDdsDxt35(new DdsBlockDecodeRequest(header.Data, header.DataOffset, header.Width, header.Height, header.SourceName, header.Started, false, premultiplied, premultiplied ? "DXT2" : "DXT3"));
         }
 
-        if (hasFourCc && (fourCc == DdsFourCcDxt4 || fourCc == DdsFourCcDxt5))
+        if (hasFourCc && (header.FourCc == DdsFourCcDxt4 || header.FourCc == DdsFourCcDxt5))
         {
-            bool premultiplied = fourCc == DdsFourCcDxt4;
-            return DecodeDdsDxt35(data, dataOffset, width, height, sourceName, started, true, premultiplied, premultiplied ? "DXT4" : "DXT5");
+            bool premultiplied = header.FourCc == DdsFourCcDxt4;
+            return DecodeDdsDxt35(new DdsBlockDecodeRequest(header.Data, header.DataOffset, header.Width, header.Height, header.SourceName, header.Started, true, premultiplied, premultiplied ? "DXT4" : "DXT5"));
         }
 
-        if (!hasFourCc && (rgbBitCount == 32 || rgbBitCount == 24))
+        if (!hasFourCc && (header.RgbBitCount == 32 || header.RgbBitCount == 24))
         {
-            int pitch = ReadInt32(data, headerOffset + DdsPitchOffset);
-            uint alphaMask = (uint)ReadInt32(data, pixelOffset + DdsPixelFormatAlphaMaskOffset);
-            bool hasAlpha = (pixelFlags & DdsPixelFormatAlphaPixelsFlag) != 0 || alphaMask != 0;
-            return DecodeDdsUncompressed(new DdsUncompressedRequest(data, dataOffset, width, height, rgbBitCount / 8, pitch, redMask, hasAlpha, sourceName, started));
+            int pitch = ReadInt32(header.Data, header.HeaderOffset + DdsPitchOffset);
+            uint alphaMask = (uint)ReadInt32(header.Data, header.PixelOffset + DdsPixelFormatAlphaMaskOffset);
+            bool hasAlpha = (header.PixelFlags & DdsPixelFormatAlphaPixelsFlag) != 0 || alphaMask != 0;
+            return DecodeDdsUncompressed(new DdsUncompressedRequest(header.Data, header.DataOffset, header.Width, header.Height, header.RgbBitCount / 8, pitch, header.RedMask, hasAlpha, header.SourceName, header.Started));
         }
 
-        logger.LogWarning("Unsupported DDS pixel format in {Source}", sourceName);
-        return OperationResult<DecodedTexture>.CreateFailure($"Unsupported DDS pixel format: {sourceName}", Stopwatch.GetElapsedTime(started));
+        logger.LogWarning("Unsupported DDS pixel format in {Source}", header.SourceName);
+        return OperationResult<DecodedTexture>.CreateFailure($"Unsupported DDS pixel format: {header.SourceName}", Stopwatch.GetElapsedTime(header.Started));
     }
 }

@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using GenHub.Core.Constants;
 using System;
 
@@ -63,6 +64,8 @@ public class EditorCanvasControl : ContentControl
             defaultValue: false,
             defaultBindingMode: Avalonia.Data.BindingMode.TwoWay);
 
+    private static Cursor? _panCursor;
+
     private ScrollViewer? _scrollViewer;
     private bool _isPanning;
     private Point _panStart;
@@ -72,7 +75,6 @@ public class EditorCanvasControl : ContentControl
     private Point _pendingViewportAnchor;
     private double _pendingZoomScale = double.NaN;
     private Vector? _pendingFrameOffset;
-    private bool _pendingFrame;
 
     /// <summary>
     /// Gets or sets the canvas zoom factor.
@@ -120,16 +122,6 @@ public class EditorCanvasControl : ContentControl
     }
 
     /// <summary>
-    /// Centers the canvas content in the viewport on the next layout pass.
-    /// </summary>
-    public void FrameContent()
-    {
-        _pendingZoomScale = double.NaN;
-        _pendingFrameOffset = null;
-        _pendingFrame = true;
-    }
-
-    /// <summary>
     /// Scrolls the canvas to the given content offset on the next layout pass.
     /// </summary>
     /// <param name="offset">The content offset to show.</param>
@@ -137,7 +129,6 @@ public class EditorCanvasControl : ContentControl
     {
         _pendingZoomScale = double.NaN;
         _pendingFrameOffset = offset;
-        _pendingFrame = true;
     }
 
     /// <inheritdoc />
@@ -155,7 +146,11 @@ public class EditorCanvasControl : ContentControl
         _scrollViewer.PointerMoved += OnScrollPointerMoved;
         _scrollViewer.PointerReleased += OnScrollPointerReleased;
         _scrollViewer.PointerCaptureLost += OnScrollPointerCaptureLost;
-        _scrollViewer.PointerWheelChanged += OnScrollWheelChanged;
+        _scrollViewer.AddHandler(
+            InputElement.PointerWheelChangedEvent,
+            OnScrollWheelChanged,
+            RoutingStrategies.Tunnel,
+            handledEventsToo: true);
         _scrollViewer.LayoutUpdated += OnScrollLayoutUpdated;
     }
 
@@ -170,7 +165,7 @@ public class EditorCanvasControl : ContentControl
         _scrollViewer.PointerMoved -= OnScrollPointerMoved;
         _scrollViewer.PointerReleased -= OnScrollPointerReleased;
         _scrollViewer.PointerCaptureLost -= OnScrollPointerCaptureLost;
-        _scrollViewer.PointerWheelChanged -= OnScrollWheelChanged;
+        _scrollViewer.RemoveHandler(InputElement.PointerWheelChangedEvent, OnScrollWheelChanged);
         _scrollViewer.LayoutUpdated -= OnScrollLayoutUpdated;
         _scrollViewer = null;
     }
@@ -192,7 +187,7 @@ public class EditorCanvasControl : ContentControl
         _panStart = e.GetPosition(_scrollViewer);
         _panOrigin = _scrollViewer.Offset;
         _previousCursor = Cursor;
-        Cursor = new Cursor(StandardCursorType.Hand);
+        Cursor = _panCursor ??= new Cursor(StandardCursorType.Hand);
         e.Pointer.Capture(_scrollViewer);
         e.Handled = true;
     }
@@ -237,6 +232,15 @@ public class EditorCanvasControl : ContentControl
             return;
         }
 
+        // Ctrl+wheel zooms instead of scrolling. The tunnel subscription runs
+        // before the scroll viewer pans, so marking handled here suppresses
+        // the scroll even mid-range instead of only at the scrollbar limits.
+        e.Handled = true;
+        if (e.Delta.Y == 0)
+        {
+            return;
+        }
+
         double factor = e.Delta.Y > 0 ? WheelZoomFactor : 1.0 / WheelZoomFactor;
         double newZoom = Math.Clamp(Zoom * factor, MinZoom, MaxZoom);
         if (Math.Abs(newZoom - Zoom) < 0.0001)
@@ -251,7 +255,7 @@ public class EditorCanvasControl : ContentControl
             _scrollViewer.Offset.Y + viewportPoint.Y);
         _pendingViewportAnchor = viewportPoint;
         _pendingZoomScale = newZoom / Zoom;
-        _pendingFrame = false;
+        _pendingFrameOffset = null;
         Zoom = newZoom;
         e.Handled = true;
     }
@@ -270,20 +274,10 @@ public class EditorCanvasControl : ContentControl
             return;
         }
 
-        if (_pendingFrame)
+        if (_pendingFrameOffset is { } offset)
         {
-            _pendingFrame = false;
-            if (_pendingFrameOffset is { } offset)
-            {
-                _pendingFrameOffset = null;
-                _scrollViewer.Offset = offset;
-                return;
-            }
-
-            var centered = new Vector(
-                Math.Max(0, (_scrollViewer.Extent.Width - _scrollViewer.Viewport.Width) / 2),
-                Math.Max(0, (_scrollViewer.Extent.Height - _scrollViewer.Viewport.Height) / 2));
-            _scrollViewer.Offset = centered;
+            _pendingFrameOffset = null;
+            _scrollViewer.Offset = offset;
         }
     }
 }

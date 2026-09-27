@@ -1,7 +1,18 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:editors="clr-namespace:GenHub.Common.Editors">
+        xmlns:editors="clr-namespace:GenHub.Common.Editors"
+        xmlns:constants="using:GenHub.Core.Constants">
   <!-- Shared editor shell styles for the WND, Texture, and future INI editors. -->
+
+  <!-- Square resize handles shared by every editor canvas. -->
+  <Style Selector="Border.resize-handle">
+    <Setter Property="Width" Value="{x:Static constants:EditorConstants.ResizeHandleSize}" />
+    <Setter Property="Height" Value="{x:Static constants:EditorConstants.ResizeHandleSize}" />
+    <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="BorderThickness" Value="1.5" />
+    <Setter Property="CornerRadius" Value="2" />
+  </Style>
 
   <!-- Pan/zoom canvas host template. -->
   <Style Selector="editors|EditorCanvasControl">

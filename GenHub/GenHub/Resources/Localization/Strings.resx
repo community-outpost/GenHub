@@ -14714,9 +14714,6 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="TextureEditor.Tooltip.ResetZoom" xml:space="preserve">
     <value>Reset zoom to 100%</value>
   </data>
-  <data name="TextureEditor.Tooltip.OpenAtlas" xml:space="preserve">
-    <value>Open a texture atlas (TGA, DDS, PNG)</value>
-  </data>
   <data name="TextureEditor.Tooltip.ScanRegistry" xml:space="preserve">
     <value>Scan a folder for MappedImages INI files</value>
   </data>
@@ -14743,9 +14740,6 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   </data>
   <data name="TextureEditor.Tooltip.PresetHud" xml:space="preserve">
     <value>Resize slice to 32x32 HUD button</value>
-  </data>
-  <data name="TextureEditor.Button.Open" xml:space="preserve">
-    <value>Open</value>
   </data>
   <data name="TextureEditor.Button.Scan" xml:space="preserve">
     <value>Scan</value>
@@ -15039,22 +15033,28 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
     <value>All {0} entries were applied to {1}.</value>
   </data>
   <data name="TextureEditor.Notify.ImportDetail.AppliedPartial" xml:space="preserve">
-    <value>{0} of {1} entries were applied to {2}; the rest are in the Library.</value>
+    <value>{0} of {1} entries were applied to {2}; the rest are in the Library. Click a Library entry to open its texture.</value>
   </data>
   <data name="TextureEditor.Notify.ImportDetail.KeptSlices" xml:space="preserve">
-    <value>{0} of {1} entries target {2}; current slices were kept and all entries are in the Library.</value>
+    <value>{0} of {1} entries target {2}; current slices were kept and all entries are in the Library. Click a Library entry to open its texture.</value>
   </data>
   <data name="TextureEditor.Notify.ImportDetail.NoMatch" xml:space="preserve">
-    <value>None target {0}; all entries are in the Library.</value>
+    <value>None target {0}; all entries are in the Library. Click a Library entry to open its texture.</value>
   </data>
   <data name="TextureEditor.Notify.ImportDetail.NoAtlas" xml:space="preserve">
     <value>Open a texture to apply them as slices; all entries are in the Library.</value>
   </data>
-  <data name="TextureEditor.Notify.RegistryMismatch.Title" xml:space="preserve">
-    <value>Different texture</value>
+  <data name="TextureEditor.Notify.RegistryOpened.Title" xml:space="preserve">
+    <value>Texture opened</value>
   </data>
-  <data name="TextureEditor.Notify.RegistryMismatch.Message" xml:space="preserve">
-    <value>'{0}' belongs to {1}, not to the open atlas. Open {1} to edit it.</value>
+  <data name="TextureEditor.Notify.RegistryOpened.Message" xml:space="preserve">
+    <value>Opened {0} to edit '{1}'.</value>
+  </data>
+  <data name="TextureEditor.Notify.TextureNotFound.Title" xml:space="preserve">
+    <value>Texture not found</value>
+  </data>
+  <data name="TextureEditor.Notify.TextureNotFound.Message" xml:space="preserve">
+    <value>'{0}' belongs to {1}, which was not found. Open the folder containing {1} and try again.</value>
   </data>
   <data name="TextureEditor.Dialog.ClearSlices.Title" xml:space="preserve">
     <value>Replace slices with an empty set?</value>
@@ -15064,6 +15064,18 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   </data>
   <data name="TextureEditor.Dialog.ClearSlices.Confirm" xml:space="preserve">
     <value>Save empty</value>
+  </data>
+  <data name="TextureEditor.Dialog.OpenTexture.Title" xml:space="preserve">
+    <value>Open texture?</value>
+  </data>
+  <data name="TextureEditor.Dialog.OpenTexture.Message" xml:space="preserve">
+    <value>{0} references {1} textures. Open {2} to edit its {3} slices?</value>
+  </data>
+  <data name="TextureEditor.Dialog.OpenTexture.Confirm" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="TextureEditor.Dialog.OpenTexture.Cancel" xml:space="preserve">
+    <value>Cancel</value>
   </data>
   <data name="TextureEditor.Dialog.ClearSlices.Cancel" xml:space="preserve">
     <value>Cancel</value>

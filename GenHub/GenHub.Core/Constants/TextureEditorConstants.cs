@@ -186,6 +186,11 @@ public static class TextureEditorConstants
     public const int PasteOffset = 16;
 
     /// <summary>
+    /// Minimum slice width and height in pixels when resizing on the canvas.
+    /// </summary>
+    public const int MinSliceDimension = 1;
+
+    /// <summary>
     /// Supported texture file extensions for the editor.
     /// </summary>
     public static readonly string[] TextureExtensions = [".tga", ".dds", ".png"];

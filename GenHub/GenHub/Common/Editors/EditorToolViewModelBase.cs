@@ -173,6 +173,11 @@ public abstract class EditorToolViewModelBase : ObservableObject, IDisposable
     public virtual string ZoomDisplayText => $"{Zoom:P0}";
 
     /// <summary>
+    /// Gets the maximum canvas zoom factor.
+    /// </summary>
+    public virtual double ZoomMax => EditorConstants.ZoomMax;
+
+    /// <summary>
     /// Gets a value indicating whether a cancellable operation is running.
     /// </summary>
     public bool IsBusy
@@ -356,11 +361,6 @@ public abstract class EditorToolViewModelBase : ObservableObject, IDisposable
     /// Gets the minimum canvas zoom factor.
     /// </summary>
     protected virtual double ZoomMin => EditorConstants.ZoomMin;
-
-    /// <summary>
-    /// Gets the maximum canvas zoom factor.
-    /// </summary>
-    protected virtual double ZoomMax => EditorConstants.ZoomMax;
 
     /// <summary>
     /// Gets a value indicating whether unsaved changes block destructive actions.
@@ -624,6 +624,13 @@ public abstract class EditorToolViewModelBase : ObservableObject, IDisposable
             _operationCts.Cancel();
             _operationCts.Dispose();
             _operationCts = null;
+        }
+
+        // Cancelling the operation source does not stop async commands started
+        // outside RunOperationAsync, so cancel those directly as well.
+        foreach (var command in _asyncCommands.ToArray())
+        {
+            command.Cancel();
         }
     }
 
