@@ -77,6 +77,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
     private readonly IGameCrcCalculatorService? _crcCalculator;
     private readonly IGameInstallationService? _installationService;
     private readonly IContentManifestPool? _manifestPool;
+    private readonly TimeProvider _timeProvider;
 
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
     private readonly SemaphoreSlim _profileLock = new(1, 1);
@@ -131,6 +132,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         _crcCalculator = dependencies?.CrcCalculator;
         _installationService = dependencies?.GameInstallationService;
         _manifestPool = dependencies?.ManifestPool;
+        _timeProvider = dependencies?.TimeProvider ?? TimeProvider.System;
 
         WeakReferenceMessenger.Default.Register<ProfileCreatedMessage>(this);
         WeakReferenceMessenger.Default.Register<ProfileUpdatedMessage>(this);
@@ -2466,7 +2468,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
 
         if (includeCompatibilityCrcs)
         {
-            _profileSetupCache[profile.Id] = (setup, DateTime.UtcNow);
+            _profileSetupCache[profile.Id] = (setup, _timeProvider.GetUtcNow().UtcDateTime);
         }
 
         return setup;
@@ -2480,9 +2482,12 @@ public sealed partial class OnlineViewModel : ViewModelBase,
             return false;
         }
 
-        if (DateTime.UtcNow - cached.CachedAtUtc > TimeSpan.FromMinutes(OnlineConstants.ProfileSetupCacheTtlMinutes))
+        if (_timeProvider.GetUtcNow().UtcDateTime - cached.CachedAtUtc > TimeSpan.FromMinutes(OnlineConstants.ProfileSetupCacheTtlMinutes))
         {
-            _profileSetupCache.TryRemove(profileId, out _);
+            // Remove only the observed stale value: a concurrent recompute may
+            // have already stored a fresh entry for this profile.
+            var staleEntry = KeyValuePair.Create(profileId, cached);
+            ((ICollection<KeyValuePair<string, (OnlineProfileSetup, DateTime)>>)_profileSetupCache).Remove(staleEntry);
             return false;
         }
 

@@ -1303,6 +1303,57 @@ public class OnlineViewModelTests
     }
 
     /// <summary>
+    /// Tests that a cached profile setup older than the TTL is evicted and recomputed.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task FindCompatibleProfileIds_EvictsStaleCacheEntryAfterTtlAsync()
+    {
+        // Arrange
+        var profile = ProfileWithClient("p1", "Profile 1", GameType.ZeroHour, "client-1", "1.04", "mod-a");
+        var manifests = new List<ContentManifest>
+        {
+            new() { Id = new ManifestId("mod-a"), ContentType = GenHub.Core.Models.Enums.ContentType.Mod },
+        };
+        var profiles = new Mock<IGameProfileManager>();
+        profiles.Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
+        profiles.Setup(p => p.GetAvailableContentAsync(It.IsAny<GameClient>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<ContentManifest>>.CreateSuccess(manifests));
+
+        var now = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var clock = new Mock<TimeProvider>();
+        clock.Setup(c => c.GetUtcNow()).Returns(() => now);
+
+        var vm = CreateViewModel(profiles: profiles.Object, timeProvider: clock.Object);
+        vm.IsCurrentUserHost = false;
+
+        var expectedFp = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|client-1", ["mod-a"]);
+        var method = typeof(OnlineViewModel).GetMethod("FindCompatibleProfileIdsAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+
+        // Act 1: the initial call populates the cache with the current clock time.
+        var task1 = (Task<HashSet<string>?>)method.Invoke(vm, [expectedFp, "ZeroHour|1.04|client-1", CancellationToken.None])!;
+        var result1 = await task1;
+        Assert.NotNull(result1);
+        Assert.Contains("p1", result1);
+        Assert.Equal(now.UtcDateTime, GetCachedAtUtc(vm, "p1"));
+
+        // Act 2: a second call before expiry is a cache hit and keeps the stamp.
+        var task2 = (Task<HashSet<string>?>)method.Invoke(vm, [expectedFp, "ZeroHour|1.04|client-1", CancellationToken.None])!;
+        var result2 = await task2;
+        Assert.NotNull(result2);
+        Assert.Equal(now.UtcDateTime, GetCachedAtUtc(vm, "p1"));
+
+        // Act 3: advancing past the TTL evicts the stale entry and recomputes.
+        now = now.AddMinutes(OnlineConstants.ProfileSetupCacheTtlMinutes + 1);
+        var task3 = (Task<HashSet<string>?>)method.Invoke(vm, [expectedFp, "ZeroHour|1.04|client-1", CancellationToken.None])!;
+        var result3 = await task3;
+        Assert.NotNull(result3);
+        Assert.Contains("p1", result3);
+        Assert.Equal(now.UtcDateTime, GetCachedAtUtc(vm, "p1"));
+    }
+
+    /// <summary>
     /// Tests that the profile fan-out prewarms one content-type map per distinct
     /// game client instead of racing one cold scan per profile.
     /// </summary>
@@ -1410,6 +1461,14 @@ public class OnlineViewModelTests
         return CreateViewModel(networkMock.Object, profiles: profiles.Object);
     }
 
+    private static DateTime GetCachedAtUtc(OnlineViewModel vm, string profileId)
+    {
+        var field = typeof(OnlineViewModel).GetField("_profileSetupCache", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        var cache = (System.Collections.IDictionary)field.GetValue(vm)!;
+        var entry = cache[profileId]!;
+        return (DateTime)entry.GetType().GetField("Item2")!.GetValue(entry)!;
+    }
+
     private static OnlineViewModel CreateViewModel(
         IOnlineNetworkService? network = null,
         INotificationService? notifications = null,
@@ -1417,7 +1476,8 @@ public class OnlineViewModelTests
         IDialogService? dialogs = null,
         IGameProfileManager? profiles = null,
         IUserSettingsService? userSettings = null,
-        IGameCrcCalculatorService? crcCalculator = null)
+        IGameCrcCalculatorService? crcCalculator = null,
+        TimeProvider? timeProvider = null)
     {
         return new OnlineViewModel(
             network ?? Mock.Of<IOnlineNetworkService>(),
@@ -1426,6 +1486,6 @@ public class OnlineViewModelTests
             notifications ?? Mock.Of<INotificationService>(),
             dialogs ?? Mock.Of<IDialogService>(),
             Mock.Of<ILogger<OnlineViewModel>>(),
-            new OnlineViewModelDependencies(null, userSettings, null, crcCalculator));
+            new OnlineViewModelDependencies(null, userSettings, null, crcCalculator, TimeProvider: timeProvider));
     }
 }

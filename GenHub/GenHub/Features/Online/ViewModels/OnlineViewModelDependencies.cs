@@ -18,10 +18,12 @@ namespace GenHub.Features.Online.ViewModels;
 /// <param name="CrcCalculator">The optional game CRC calculator service.</param>
 /// <param name="ServiceProvider">The optional service provider for resolving dialogs.</param>
 /// <param name="ManifestPool">The optional content manifest pool.</param>
+/// <param name="TimeProvider">The optional clock for cache expiry. Defaults to <see cref="TimeProvider.System"/>.</param>
 public sealed record OnlineViewModelDependencies(
     ILocalizationService? LocalizationService = null,
     IUserSettingsService? UserSettingsService = null,
     IGameInstallationService? GameInstallationService = null,
     IGameCrcCalculatorService? CrcCalculator = null,
     IServiceProvider? ServiceProvider = null,
-    IContentManifestPool? ManifestPool = null);
+    IContentManifestPool? ManifestPool = null,
+    TimeProvider? TimeProvider = null);
