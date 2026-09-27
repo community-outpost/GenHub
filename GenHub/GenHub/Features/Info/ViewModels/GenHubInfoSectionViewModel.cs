@@ -11,8 +11,12 @@ using GenHub.Core.Models.Info;
 using GenHub.Features.AppUpdate.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Info.Services;
+using GenHub.Features.Tools.GenHotkeys.ViewModels;
 using GenHub.Features.Tools.MapManager.ViewModels;
+using GenHub.Features.Tools.ModBuilder.ViewModels;
 using GenHub.Features.Tools.ReplayManager.ViewModels;
+using GenHub.Features.Tools.ViewModels;
+using GenHub.Features.Tools.WndEditor.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -47,6 +51,7 @@ public partial class GenHubInfoSectionViewModel(
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsGameProfilesSelected))]
+    [NotifyPropertyChangedFor(nameof(IsGameProfileSettingsSelected))]
     [NotifyPropertyChangedFor(nameof(IsGameSettingsSelected))]
     [NotifyPropertyChangedFor(nameof(IsGameProfileContentSelected))]
     [NotifyPropertyChangedFor(nameof(IsShortcutsSelected))]
@@ -59,8 +64,17 @@ public partial class GenHubInfoSectionViewModel(
     [NotifyPropertyChangedFor(nameof(IsFaqSelected))]
     [NotifyPropertyChangedFor(nameof(IsGoChangelogSelected))]
     [NotifyPropertyChangedFor(nameof(IsQuickStartSelected))]
+    [NotifyPropertyChangedFor(nameof(IsStandardCardsVisible))]
+    [NotifyPropertyChangedFor(nameof(MainColumnCards))]
     [NotifyPropertyChangedFor(nameof(FaqCardsLeft))]
     [NotifyPropertyChangedFor(nameof(FaqCardsRight))]
+    [NotifyPropertyChangedFor(nameof(ToolsIntroCards))]
+    [NotifyPropertyChangedFor(nameof(ToolsReplayCards))]
+    [NotifyPropertyChangedFor(nameof(ToolsMapCards))]
+    [NotifyPropertyChangedFor(nameof(ToolsHotkeyCards))]
+    [NotifyPropertyChangedFor(nameof(ToolsPublisherCards))]
+    [NotifyPropertyChangedFor(nameof(ToolsModBuilderCards))]
+    [NotifyPropertyChangedFor(nameof(ToolsWndCards))]
     private InfoSectionViewModel? _selectedSection;
 
     [ObservableProperty]
@@ -163,7 +177,7 @@ public partial class GenHubInfoSectionViewModel(
     public void NavigateToSectionById(string sectionId)
     {
         var target = Sections.FirstOrDefault(s => s.Id == sectionId);
-        if (target != null)
+        if (target != null && !ReferenceEquals(SelectedSection, target))
         {
             SelectedSection = target;
         }
@@ -200,6 +214,53 @@ public partial class GenHubInfoSectionViewModel(
     /// Gets the FAQ cards for the right column.
     /// </summary>
     public IEnumerable<InfoCardViewModel> FaqCardsRight => SelectedSection?.Cards.Where((_, i) => i % 2 != 0) ?? [];
+
+    /// <summary>
+    /// Gets a value indicating whether the standard single-column card list is visible.
+    /// The Tools section renders its cards interleaved with per-tool demos instead.
+    /// </summary>
+    public bool IsStandardCardsVisible => !IsFaqSelected && !IsToolsSelected;
+
+    /// <summary>
+    /// Gets the cards rendered in the main single-column list.
+    /// Excludes navigation-only entries that point at demo browser items (release and patch note cards).
+    /// </summary>
+    public IEnumerable<InfoCardViewModel> MainColumnCards => SelectedSection?.Cards.Where(c => c.TargetItem == null) ?? [];
+
+    /// <summary>
+    /// Gets the Tools suite intro card rendered above the per-tool groups.
+    /// </summary>
+    public IEnumerable<InfoCardViewModel> ToolsIntroCards => FilterToolsCards(InfoConstants.CardToolsDemo);
+
+    /// <summary>
+    /// Gets the Replay Manager guide cards rendered under the Replay Manager demo.
+    /// </summary>
+    public IEnumerable<InfoCardViewModel> ToolsReplayCards => FilterToolsCards("replay-");
+
+    /// <summary>
+    /// Gets the Map Manager guide cards rendered under the Map Manager demo.
+    /// </summary>
+    public IEnumerable<InfoCardViewModel> ToolsMapCards => FilterToolsCards("map-");
+
+    /// <summary>
+    /// Gets the Hotkey Editor guide cards rendered under the Hotkey Editor demo.
+    /// </summary>
+    public IEnumerable<InfoCardViewModel> ToolsHotkeyCards => FilterToolsCards("hotkey-");
+
+    /// <summary>
+    /// Gets the Publisher Studio guide cards rendered under the Publisher Studio demo.
+    /// </summary>
+    public IEnumerable<InfoCardViewModel> ToolsPublisherCards => FilterToolsCards("publisher-");
+
+    /// <summary>
+    /// Gets the ModBuilder guide cards rendered under the ModBuilder demo.
+    /// </summary>
+    public IEnumerable<InfoCardViewModel> ToolsModBuilderCards => FilterToolsCards("modbuilder-");
+
+    /// <summary>
+    /// Gets the WND Editor guide cards rendered under the WND Editor demo.
+    /// </summary>
+    public IEnumerable<InfoCardViewModel> ToolsWndCards => FilterToolsCards("wnd-editor-");
 
     /// <inheritdoc/>
     public string Id => "guide";
@@ -238,6 +299,11 @@ public partial class GenHubInfoSectionViewModel(
     public GameProfileSettingsViewModel? DemoGameSettings_ContentTab { get; private set; } = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_ContentTab();
 
     /// <summary>
+    /// Gets the demo game settings for the Profile Settings demonstration.
+    /// </summary>
+    public GameProfileSettingsViewModel? DemoGameSettings_ProfileTab { get; private set; } = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_ProfileTab();
+
+    /// <summary>
     /// Gets the demo game settings for the Game Settings demonstration.
     /// </summary>
     public GameProfileSettingsViewModel? DemoGameSettings_SettingsTab { get; private set; } = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_SettingsTab();
@@ -255,17 +321,22 @@ public partial class GenHubInfoSectionViewModel(
     /// <summary>
     /// Gets the demo WND editor for interactive demonstrations.
     /// </summary>
-    public WndEditorDemoViewModel? DemoWndEditor { get; private set; }
+    public WndEditorViewModel? DemoWndEditor { get; private set; }
 
     /// <summary>
     /// Gets the demo ModBuilder for interactive demonstrations.
     /// </summary>
-    public ModBuilderDemoViewModel? DemoModBuilder { get; private set; }
+    public ModBuilderViewModel? DemoModBuilder { get; private set; }
 
     /// <summary>
     /// Gets the demo Hotkey Editor for interactive demonstrations.
     /// </summary>
-    public HotkeyEditorDemoViewModel? DemoHotkeyEditor { get; private set; }
+    public GenHotkeysViewModel? DemoHotkeyEditor { get; private set; }
+
+    /// <summary>
+    /// Gets the demo Publisher Studio for interactive demonstrations.
+    /// </summary>
+    public PublisherStudioViewModel? DemoPublisherStudio { get; private set; }
 
     /// <summary>
     /// Gets the demo add local content view model.
@@ -291,6 +362,11 @@ public partial class GenHubInfoSectionViewModel(
     /// Gets a value indicating whether the Game Profiles section is selected.
     /// </summary>
     public bool IsGameProfilesSelected => SelectedSection?.Id == InfoConstants.SectionGameProfiles;
+
+    /// <summary>
+    /// Gets a value indicating whether the Game Profile Settings section is selected.
+    /// </summary>
+    public bool IsGameProfileSettingsSelected => SelectedSection?.Id == InfoConstants.SectionGameProfileSettings;
 
     /// <summary>
     /// Gets a value indicating whether the Game Settings section is selected.
@@ -618,6 +694,17 @@ public partial class GenHubInfoSectionViewModel(
             cTab.NavigationRequested = NavigateToSectionById;
         }
 
+        if (DemoGameSettings_ProfileTab == null)
+        {
+            DemoGameSettings_ProfileTab = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_ProfileTab();
+            OnPropertyChanged(nameof(DemoGameSettings_ProfileTab));
+        }
+
+        if (DemoGameSettings_ProfileTab is DemoGameProfileSettingsViewModel pTab)
+        {
+            pTab.NavigationRequested = NavigateToSectionById;
+        }
+
         if (DemoGameSettings_SettingsTab == null)
         {
             DemoGameSettings_SettingsTab = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_SettingsTab();
@@ -653,15 +740,16 @@ public partial class GenHubInfoSectionViewModel(
             OnPropertyChanged(nameof(DemoModBuilder));
         }
 
-        if (DemoModBuilder != null)
-        {
-            DemoModBuilder.NavigationRequested = NavigateToSectionById;
-        }
-
         if (DemoHotkeyEditor == null)
         {
-            DemoHotkeyEditor = DemoViewModelFactory.CreateDemoHotkeyEditor(notificationService, localizationService);
+            DemoHotkeyEditor = DemoViewModelFactory.CreateDemoGenHotkeys(notificationService, localizationService);
             OnPropertyChanged(nameof(DemoHotkeyEditor));
+        }
+
+        if (DemoPublisherStudio == null)
+        {
+            DemoPublisherStudio = DemoViewModelFactory.CreateDemoPublisherStudio(notificationService, localizationService);
+            OnPropertyChanged(nameof(DemoPublisherStudio));
         }
 
         if (DemoAddLocalContent == null)
@@ -719,6 +807,10 @@ public partial class GenHubInfoSectionViewModel(
 
             DemoReplayManager?.Dispose();
             DemoMapManager?.Dispose();
+            DemoWndEditor?.Dispose();
+            DemoModBuilder?.Dispose();
+            DemoHotkeyEditor?.Dispose();
+            DemoPublisherStudio?.Dispose();
         }
 
         _disposed = true;
@@ -778,6 +870,33 @@ public partial class GenHubInfoSectionViewModel(
     }
 
     /// <summary>
+    /// Moves navigation-only cards linked to demo browser items to the front of the sidebar,
+    /// matching the visual order of the demo browser above the guide cards.
+    /// </summary>
+    /// <param name="section">The section whose cards to reorder.</param>
+    /// <param name="orderedTargets">The demo browser items in display order.</param>
+    private static void MoveLinkedCardsToFront(InfoSectionViewModel section, IEnumerable<object?> orderedTargets)
+    {
+        var targetIndex = 0;
+        foreach (var target in orderedTargets)
+        {
+            var card = section.Cards.FirstOrDefault(c => ReferenceEquals(c.TargetItem, target));
+            if (card == null)
+            {
+                continue;
+            }
+
+            var currentIndex = section.Cards.IndexOf(card);
+            if (currentIndex != targetIndex)
+            {
+                section.Cards.Move(currentIndex, targetIndex);
+            }
+
+            targetIndex++;
+        }
+    }
+
+    /// <summary>
     /// Navigates to the tools tab.
     /// </summary>
     [RelayCommand]
@@ -799,6 +918,16 @@ public partial class GenHubInfoSectionViewModel(
         {
             sec.NotifyLocalizationChanged();
         }
+    }
+
+    private IEnumerable<InfoCardViewModel> FilterToolsCards(string idPrefix)
+    {
+        if (SelectedSection?.Id != InfoConstants.SectionTools)
+        {
+            return [];
+        }
+
+        return SelectedSection.Cards.Where(c => c.Id.StartsWith(idPrefix, StringComparison.Ordinal));
     }
 
     private void FilterSections()
@@ -886,6 +1015,8 @@ public partial class GenHubInfoSectionViewModel(
             section.Cards.Add(cardVm);
         }
 
+        MoveLinkedCardsToFront(section, Changelogs.Releases);
+
         if (SelectedSection?.Id == InfoConstants.SectionChangelogs)
         {
             UpdateCardsPaneLengthForSection(SelectedSection);
@@ -935,6 +1066,8 @@ public partial class GenHubInfoSectionViewModel(
             section.Cards.Add(cardVm);
         }
 
+        MoveLinkedCardsToFront(section, GoChangelog.PatchNotes);
+
         if (SelectedSection?.Id == InfoConstants.SectionGoChangelog)
         {
             UpdateCardsPaneLengthForSection(SelectedSection);
@@ -971,7 +1104,11 @@ public partial class GenHubInfoSectionViewModel(
 
         if (newValue?.Cards != null)
         {
-            _cardsCollectionChangedHandler ??= (_, _) => UpdateCardsPaneLengthForSection(SelectedSection);
+            _cardsCollectionChangedHandler ??= (_, _) =>
+            {
+                UpdateCardsPaneLengthForSection(SelectedSection);
+                OnPropertyChanged(nameof(MainColumnCards));
+            };
             newValue.Cards.CollectionChanged += _cardsCollectionChangedHandler;
             _selectedSectionCards = newValue.Cards;
         }
@@ -982,6 +1119,7 @@ public partial class GenHubInfoSectionViewModel(
 
         OnPropertyChanged(nameof(IsQuickStartSelected));
         OnPropertyChanged(nameof(IsGameProfilesSelected));
+        OnPropertyChanged(nameof(IsGameProfileSettingsSelected));
         OnPropertyChanged(nameof(IsGameSettingsSelected));
         OnPropertyChanged(nameof(IsGameProfileContentSelected));
         OnPropertyChanged(nameof(IsShortcutsSelected));
@@ -993,12 +1131,26 @@ public partial class GenHubInfoSectionViewModel(
         OnPropertyChanged(nameof(IsWorkspaceSelected));
         OnPropertyChanged(nameof(IsFaqSelected));
         OnPropertyChanged(nameof(IsGoChangelogSelected));
+        OnPropertyChanged(nameof(IsStandardCardsVisible));
+        OnPropertyChanged(nameof(MainColumnCards));
+        OnPropertyChanged(nameof(ToolsIntroCards));
+        OnPropertyChanged(nameof(ToolsReplayCards));
+        OnPropertyChanged(nameof(ToolsMapCards));
+        OnPropertyChanged(nameof(ToolsHotkeyCards));
+        OnPropertyChanged(nameof(ToolsPublisherCards));
+        OnPropertyChanged(nameof(ToolsModBuilderCards));
+        OnPropertyChanged(nameof(ToolsWndCards));
 
         if (newValue != null)
         {
             if (DemoGameSettings_SettingsTab is DemoGameProfileSettingsViewModel demoSettings)
             {
                 demoSettings.SyncTabToSection(newValue.Id);
+            }
+
+            if (DemoGameSettings_ProfileTab is DemoGameProfileSettingsViewModel demoProfile)
+            {
+                demoProfile.SyncTabToSection(newValue.Id);
             }
 
             if (DemoGameSettings_ContentTab is DemoGameProfileSettingsViewModel demoContent)

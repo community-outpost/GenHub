@@ -6,14 +6,24 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Notifications;
+using GenHub.Core.Models.Providers;
+using GenHub.Core.Models.Publishers;
 using GenHub.Features.AppUpdate.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Info.Services;
+using GenHub.Features.Tools.GenHotkeys.Services;
+using GenHub.Features.Tools.GenHotkeys.ViewModels;
 using GenHub.Features.Tools.MapManager.ViewModels;
+using GenHub.Features.Tools.ModBuilder.ViewModels;
 using GenHub.Features.Tools.ReplayManager.ViewModels;
+using GenHub.Features.Tools.ViewModels;
+using GenHub.Features.Tools.WndEditor.Services;
+using GenHub.Features.Tools.WndEditor.ViewModels;
 using GenHub.Infrastructure.Imaging;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -24,6 +34,28 @@ namespace GenHub.Features.Info.ViewModels;
 /// </summary>
 public static class DemoViewModelFactory
 {
+    private const string SampleWndDocumentText =
+        "FILE_VERSION = 2;\n" +
+        "WINDOW\n" +
+        "  WINDOWTYPE = USER;\n" +
+        "  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 800 600, CREATIONRESOLUTION: 800 600;\n" +
+        "  NAME = \"DemoMainMenu.wnd:ParentMenu\";\n" +
+        "  STATUS = ENABLED;\n" +
+        "  CHILD\n" +
+        "  WINDOW\n" +
+        "    WINDOWTYPE = PUSHBUTTON;\n" +
+        "    SCREENRECT = UPPERLEFT: 10 20, BOTTOMRIGHT: 210 60, CREATIONRESOLUTION: 800 600;\n" +
+        "    NAME = \"DemoMainMenu.wnd:StartButton\";\n" +
+        "  END\n" +
+        "  CHILD\n" +
+        "  WINDOW\n" +
+        "    WINDOWTYPE = PUSHBUTTON;\n" +
+        "    SCREENRECT = UPPERLEFT: 10 80, BOTTOMRIGHT: 210 120, CREATIONRESOLUTION: 800 600;\n" +
+        "    NAME = \"DemoMainMenu.wnd:OptionsButton\";\n" +
+        "  END\n" +
+        "  ENDALLCHILDREN\n" +
+        "END\n";
+
     /// <summary>
     /// Creates a demo GameProfileItemViewModel with sample data.
     /// </summary>
@@ -170,7 +202,7 @@ public static class DemoViewModelFactory
         }
 
         vm.AvailableBranches.Clear();
-        foreach (var branch in new[] { "main", "dev", "v1.2-beta", "feature/ui-rework" })
+        foreach (var branch in new[] { "main", "development", "v1.2-beta", "feature/ui-rework" })
         {
             vm.AvailableBranches.Add(branch);
         }
@@ -300,42 +332,169 @@ public static class DemoViewModelFactory
     }
 
     /// <summary>
-    /// Creates a demo WND editor view model with placeholder window layouts.
+    /// Creates the actual WND editor view model with a sample window layout loaded from text.
+    /// Uses the real document parser with mock asset and installation services so nothing touches disk.
     /// </summary>
     /// <param name="notificationService">Optional notification service for demo actions.</param>
     /// <param name="localizationService">Optional localization service for dynamic string translation.</param>
-    /// <returns>A configured demo WND editor view model.</returns>
-    public static WndEditorDemoViewModel CreateDemoWndEditor(
+    /// <returns>A configured WND editor view model with sample content.</returns>
+    public static WndEditorViewModel CreateDemoWndEditor(
         INotificationService? notificationService = null,
         ILocalizationService? localizationService = null)
     {
-        return new WndEditorDemoViewModel(notificationService, localizationService);
+        var vm = new WndEditorViewModel(
+            new WndDocumentService(new MockLogger<WndDocumentService>()),
+            notificationService ?? new MockNotificationService(),
+            localizationService ?? new MockLocalizationService(),
+            new MockDialogService(),
+            new MockGameInstallationService(),
+            new MockWndEditorAssetService(),
+            new MockWndTextureImportService(),
+            new MockChallengeMedalService(),
+            new MockLogger<WndEditorViewModel>());
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await vm.LoadFromTextAsync(SampleWndDocumentText, "DemoMainMenu.wnd");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to seed demo WND document: {ex}");
+            }
+        });
+
+        return vm;
     }
 
     /// <summary>
-    /// Creates a demo ModBuilder view model with placeholder sample project data.
+    /// Creates the actual ModBuilder view model with mock build and project services.
     /// </summary>
     /// <param name="notificationService">Optional notification service for demo actions.</param>
     /// <param name="localizationService">Optional localization service for dynamic string translation.</param>
-    /// <returns>A configured demo ModBuilder view model.</returns>
-    public static ModBuilderDemoViewModel CreateDemoModBuilder(
+    /// <returns>A configured ModBuilder view model.</returns>
+    public static ModBuilderViewModel CreateDemoModBuilder(
         INotificationService? notificationService = null,
         ILocalizationService? localizationService = null)
     {
-        return new ModBuilderDemoViewModel(notificationService, localizationService);
+        var notify = notificationService ?? new MockNotificationService();
+        var loc = localizationService ?? new MockLocalizationService();
+        var fileManager = new FileManagerViewModel(
+            new MockGameInstallationService(),
+            notify,
+            new WndDocumentService(new MockLogger<WndDocumentService>()),
+            loc,
+            new MockLogger<FileManagerViewModel>());
+
+        var vm = new ModBuilderViewModel(
+            new MockBuildEngineService(),
+            new MockProjectConfigService(),
+            new MockConfigurationLoaderService(),
+            new MockProjectStructureGenerator(),
+            notify,
+            loc,
+            fileManager,
+            NullLoggerFactory.Instance,
+            new MockLogger<ModBuilderViewModel>(),
+            new MockDialogService(),
+            null);
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await vm.InitializeAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to initialize demo ModBuilder: {ex}");
+            }
+        });
+
+        return vm;
     }
 
     /// <summary>
-    /// Creates a demo Hotkey Editor view model with a placeholder command card.
+    /// Creates the actual GenHotkeys view model with the real tech tree and an in-memory sample profile.
     /// </summary>
     /// <param name="notificationService">Optional notification service for demo actions.</param>
     /// <param name="localizationService">Optional localization service for dynamic string translation.</param>
-    /// <returns>A configured demo Hotkey Editor view model.</returns>
-    public static HotkeyEditorDemoViewModel CreateDemoHotkeyEditor(
+    /// <returns>A configured GenHotkeys view model with sample content.</returns>
+    public static GenHotkeysViewModel CreateDemoGenHotkeys(
         INotificationService? notificationService = null,
         ILocalizationService? localizationService = null)
     {
-        return new HotkeyEditorDemoViewModel(notificationService, localizationService);
+        var vm = new GenHotkeysViewModel(
+            new TechTreeService(new MockLogger<TechTreeService>()),
+            new MockHotkeyProfileStorageService(),
+            new MockHotkeyPackageService(),
+            new MockLogger<GenHotkeysViewModel>(),
+            notificationService ?? new MockNotificationService(),
+            new MockGameProfileManager(),
+            null,
+            null,
+            null,
+            new MockDialogService(),
+            localizationService);
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await vm.InitializeAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to initialize demo GenHotkeys: {ex}");
+            }
+        });
+
+        return vm;
+    }
+
+    /// <summary>
+    /// Creates the actual Publisher Studio view model with an in-memory sample project.
+    /// Nothing is read from or written to disk.
+    /// </summary>
+    /// <param name="notificationService">Optional notification service for demo actions.</param>
+    /// <param name="localizationService">Optional localization service for dynamic string translation.</param>
+    /// <returns>A configured Publisher Studio view model with sample content.</returns>
+    public static PublisherStudioViewModel CreateDemoPublisherStudio(
+        INotificationService? notificationService = null,
+        ILocalizationService? localizationService = null)
+    {
+        var notify = notificationService ?? new MockNotificationService();
+        var dialogService = new MockPublisherStudioDialogService();
+        var studioLogger = new MockLogger<PublisherStudioViewModel>();
+        var vm = new PublisherStudioViewModel(
+            studioLogger,
+            new MockPublisherStudioService(),
+            dialogService,
+            null,
+            null,
+            notify,
+            new MockConfigurationProviderService(),
+            localizationService);
+
+        var project = CreateSamplePublisherProject();
+        vm.CurrentProject = project;
+        vm.PublisherProfileViewModel = new PublisherProfileViewModel(project, vm, studioLogger, notify, localizationService);
+        vm.ReferralsViewModel = new ReferralsViewModel(project, vm, studioLogger, dialogService, notify, localizationService);
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await vm.ReloadFromCurrentProjectAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to seed demo Publisher Studio: {ex}");
+            }
+        });
+
+        return vm;
     }
 
     /// <summary>
@@ -368,6 +527,15 @@ public static class DemoViewModelFactory
     public static GameProfileSettingsViewModel CreateDemoProfileSettingsViewModel_ContentTab()
     {
         return CreateBaseDemoProfileSettingsViewModel(0);
+    }
+
+    /// <summary>
+    /// Creates a demo GameProfileSettingsViewModel with the Profile Settings tab selected and visible.
+    /// </summary>
+    /// <returns>A configured demo profile settings view model for the Profile Settings tab demo.</returns>
+    public static GameProfileSettingsViewModel CreateDemoProfileSettingsViewModel_ProfileTab()
+    {
+        return CreateBaseDemoProfileSettingsViewModel(1);
     }
 
     /// <summary>
@@ -462,6 +630,80 @@ public static class DemoViewModelFactory
             SelectedTabIndex = selectedTabIndex,
             IsAddLocalContentDialogOpen = false,
         };
+    }
+
+    private static PublisherStudioProject CreateSamplePublisherProject()
+    {
+        var catalog = new PublisherCatalog
+        {
+            Publisher = new PublisherProfile
+            {
+                Id = "demo-publisher",
+                Name = "Demo Publisher",
+                Description = "Sample publisher for the interactive guide.",
+            },
+            LastUpdated = DateTime.UtcNow,
+            Content =
+            [
+                new CatalogContentItem
+                {
+                    Id = "demo-mod",
+                    Name = "Demo Mod",
+                    Description = "A sample mod entry with one release.",
+                    ContentType = ContentType.Mod,
+                    TargetGame = GameType.ZeroHour,
+                    Releases =
+                    [
+                        new ContentRelease
+                        {
+                            Title = "Demo Mod",
+                            Version = "1.0.0",
+                            ReleaseDate = DateTime.UtcNow.AddDays(-7),
+                            IsLatest = true,
+                            Changelog = "Initial demo release.",
+                        },
+                    ],
+                    Tags = ["demo", "sample"],
+                },
+                new CatalogContentItem
+                {
+                    Id = "demo-map-pack",
+                    Name = "Demo Map Pack",
+                    Description = "A sample map pack entry with one release.",
+                    ContentType = ContentType.MapPack,
+                    TargetGame = GameType.ZeroHour,
+                    Releases =
+                    [
+                        new ContentRelease
+                        {
+                            Title = "Demo Map Pack",
+                            Version = "2.1.0",
+                            ReleaseDate = DateTime.UtcNow.AddDays(-2),
+                            IsLatest = true,
+                            Changelog = "Added two tournament maps.",
+                        },
+                    ],
+                    Tags = ["demo", "maps"],
+                },
+            ],
+        };
+
+        var project = new PublisherStudioProject
+        {
+            ProjectName = "Demo Publisher",
+            Catalog = catalog,
+            LastModified = DateTime.UtcNow,
+        };
+        project.Catalogs.Add(new NamedCatalog
+        {
+            Id = "demo-catalog",
+            Name = "Demo Catalog",
+            Description = "Sample catalog for the interactive guide.",
+            Catalog = catalog,
+            FileName = "catalog-demo.json",
+        });
+
+        return project;
     }
 
     private static GameProfile CreateDemoRecoveryProfile() => new()

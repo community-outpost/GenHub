@@ -56,6 +56,11 @@ public static class InfoConstants
     public const string SectionGameProfiles = "game-profiles";
 
     /// <summary>
+    /// Section ID for Game Profile Settings guide.
+    /// </summary>
+    public const string SectionGameProfileSettings = "game-profile-settings";
+
+    /// <summary>
     /// Section ID for Game Settings guide.
     /// </summary>
     public const string SectionGameSettings = "game-settings";
@@ -161,6 +166,21 @@ public static class InfoConstants
     public const string ActionNavToolsSection = "NAV_INFO_tools";
 
     /// <summary>
+    /// Action identifier to navigate to the Workspaces info section.
+    /// </summary>
+    public const string ActionNavWorkspaces = "NAV_INFO_workspaces";
+
+    /// <summary>
+    /// Action identifier to navigate to the Game Profile Settings info section.
+    /// </summary>
+    public const string ActionNavGameProfileSettings = "NAV_INFO_game-profile-settings";
+
+    /// <summary>
+    /// Action identifier to navigate to the Changelog info section.
+    /// </summary>
+    public const string ActionNavChangelogs = "NAV_INFO_changelogs";
+
+    /// <summary>
     /// Localization string key for the info cards right sidebar title.
     /// </summary>
     public const string StringInfoSidebarCardsTitle = "Info.Sidebar.CardsTitle";
@@ -194,6 +214,11 @@ public static class InfoConstants
     /// Card ID for Updates Demo.
     /// </summary>
     public const string CardUpdatesDemo = "demo-updates";
+
+    /// <summary>
+    /// Card ID for GitHub branches and pull requests explainer.
+    /// </summary>
+    public const string CardUpdatesGitHubBranchesPrs = "github-branches-prs";
 
     /// <summary>
     /// Card ID for Tools Demo.
@@ -304,6 +329,26 @@ public static class InfoConstants
     /// Card ID for Profiles Advanced Options.
     /// </summary>
     public const string CardProfilesAdvancedOptions = "advanced-options";
+
+    /// <summary>
+    /// Card ID for Profile Settings Identity.
+    /// </summary>
+    public const string CardProfileSettingsIdentity = "profile-identity";
+
+    /// <summary>
+    /// Card ID for Profile Settings Appearance.
+    /// </summary>
+    public const string CardProfileSettingsAppearance = "profile-appearance";
+
+    /// <summary>
+    /// Card ID for Profile Settings Launch Options.
+    /// </summary>
+    public const string CardProfileSettingsLaunch = "profile-launch";
+
+    /// <summary>
+    /// Card ID for Profile Settings Saving.
+    /// </summary>
+    public const string CardProfileSettingsSaving = "profile-saving";
 
     /// <summary>
     /// Card ID for Content Importing.

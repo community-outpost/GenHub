@@ -36,8 +36,10 @@ public class DefaultInfoContentProviderTests
         [
             InfoConstants.SectionQuickstart,
             InfoConstants.SectionGameProfiles,
+            InfoConstants.SectionGameProfileSettings,
             InfoConstants.SectionGameSettings,
             InfoConstants.SectionGameProfileContent,
+            InfoConstants.SectionContentManifests,
             InfoConstants.SectionShortcuts,
             InfoConstants.SectionSteam,
             InfoConstants.SectionLocalContent,
@@ -48,7 +50,6 @@ public class DefaultInfoContentProviderTests
             InfoConstants.SectionChangelogs,
             InfoConstants.SectionFaq,
             InfoConstants.SectionGoChangelog,
-            InfoConstants.SectionContentManifests,
         ]);
     }
 
@@ -255,6 +256,7 @@ public class DefaultInfoContentProviderTests
         var cardIds = section!.Cards.Select(c => c.Id).ToList();
         cardIds.Should().Contain([
             InfoConstants.CardUpdatesVersionControl,
+            InfoConstants.CardUpdatesGitHubBranchesPrs,
             InfoConstants.CardUpdatesWorkflow,
             InfoConstants.CardUpdatesRollback,
             InfoConstants.CardUpdatesGithubOauthDevice,
@@ -282,6 +284,12 @@ public class DefaultInfoContentProviderTests
         offlineCard.DetailedContent.Should().Contain("CAS");
         offlineCard.DetailedContent.Should().Contain("SHA-256");
         offlineCard.DetailedContent.Should().Contain("Cascade Deletion");
+
+        var githubCard = section.Cards.First(c => c.Id == InfoConstants.CardUpdatesGitHubBranchesPrs);
+        githubCard.DetailedContent.Should().Contain("Branches");
+        githubCard.DetailedContent.Should().Contain("Pull Requests");
+        githubCard.DetailedContent.Should().Contain("Subscribe");
+        githubCard.Actions.Should().ContainSingle(a => a.ActionId == InfoConstants.ActionNavChangelogs);
     }
 
     /// <summary>
@@ -331,6 +339,29 @@ public class DefaultInfoContentProviderTests
         var advancedCard = section!.Cards.First(c => c.Id == InfoConstants.CardProfilesAdvancedOptions);
         advancedCard.DetailedContent.Should().Contain("Camera & Visual Tuning");
         advancedCard.DetailedContent.Should().NotContain("pitch");
+    }
+
+    /// <summary>
+    /// Verifies that profile content and manifests sections cross-link each other.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GetSectionAsync_ProfileContentAndManifests_CrossLinkEachOtherAsync()
+    {
+        var contentSection = await _provider.GetSectionAsync(InfoConstants.SectionGameProfileContent);
+        var manifestsSection = await _provider.GetSectionAsync(InfoConstants.SectionContentManifests);
+
+        contentSection.Should().NotBeNull();
+        manifestsSection.Should().NotBeNull();
+
+        var hierarchyCard = contentSection!.Cards.First(c => c.Id == InfoConstants.CardProfilesHierarchy);
+        hierarchyCard.Actions.Should().ContainSingle(a => a.ActionId == InfoConstants.ActionNavContentManifests);
+
+        var overviewCard = manifestsSection!.Cards.First(c => c.Id == InfoConstants.CardManifestsOverview);
+        overviewCard.Actions.Should().ContainSingle(a => a.ActionId == InfoConstants.ActionNavGameProfileContent);
+
+        var pipelineCard = manifestsSection.Cards.First(c => c.Id == InfoConstants.CardManifestsPipeline);
+        pipelineCard.Actions.Should().ContainSingle(a => a.ActionId == InfoConstants.ActionNavWorkspaces);
     }
 
     /// <summary>

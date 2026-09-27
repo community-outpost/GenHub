@@ -25,8 +25,10 @@ public class DefaultInfoContentProvider : IInfoContentProvider
         [
             CreateQuickStartSection(),
             CreateGameProfilesSection(),
+            CreateGameProfileSettingsSection(),
             CreateGameSettingsSection(),
             CreateGameProfileContentSection(),
+            CreateContentManifestsSection(),
             CreateShortcutsSection(),
             CreateSteamIntegrationSection(),
             CreateLocalContentSection(),
@@ -37,7 +39,6 @@ public class DefaultInfoContentProvider : IInfoContentProvider
             CreateChangelogSection(),
             CreateGeneralsOnlineFAQSection(),
             CreateGeneralsOnlineChangeLogSection(),
-            CreateContentManifestsSection(),
         ];
     }
 
@@ -267,6 +268,83 @@ public class DefaultInfoContentProvider : IInfoContentProvider
     }
 
     /// <summary>
+    /// Creates the game profile settings section.
+    /// </summary>
+    /// <returns>The game profile settings <see cref="InfoSection"/>.</returns>
+    private static InfoSection CreateGameProfileSettingsSection()
+    {
+        (string Id, string Title, string Content, InfoCardType Type, string Detailed)[] cardData =
+        [
+            (InfoConstants.CardProfileSettingsIdentity,
+             "Profile Identity",
+             "Name, description, and game installation.",
+             InfoCardType.HowTo,
+             """
+             **Naming Your Profile:**
+             The Profile Settings tab holds the fields that identify one profile on the Game Profiles list: a display name and a longer description shown on the profile card.
+
+             **Game Installation:**
+             The installation picker selects which detected game the profile launches (Steam, EA App, or disc). Switching installations disables enabled content that does not match the new game type, so the profile can never launch with an incompatible mix.
+             """),
+            (InfoConstants.CardProfileSettingsAppearance,
+             "Icons, Covers & Theme Color",
+             "Visual identity for the profile card.",
+             InfoCardType.Feature,
+             """
+             **Icons and Covers:**
+             Pick an icon and cover from the built-in galleries, or use Browse to point at your own image files. The icon represents the profile in lists and shortcuts; the cover fills the profile card header.
+
+             **Theme Color:**
+             The swatch grid sets the profile accent color, applied to the editor header and the profile card. The dice button next to Save picks a random color.
+             """),
+            (InfoConstants.CardProfileSettingsLaunch,
+             "Workspace Strategy & Launch Arguments",
+             "How the profile builds its workspace and starts the game.",
+             InfoCardType.HowTo,
+             """
+             **Workspace Strategy:**
+             The strategy picker chooses how the profile workspace links game files. The picker locks after the profile's first launch, since changing it later would orphan the existing workspace.
+
+             **Command-Line Arguments:**
+             Extra arguments are passed straight to the game executable on launch, for example `-win` for windowed mode or `-quickstart` to skip intro videos.
+             """),
+            (InfoConstants.CardProfileSettingsSaving,
+             "Saving & Window Memory",
+             "What Save keeps and what the editor remembers.",
+             InfoCardType.Concept,
+             """
+             **Save and Cancel:**
+             Save writes every tab (profile settings, content, and game settings) to the profile. Cancel closes the editor and discards unsaved changes.
+
+             **Window Memory:**
+             The editor remembers its window size, maximized state, and sidebar widths across restarts, per settings tab.
+             """),
+        ];
+
+        var section = new InfoSection
+        {
+            Id = InfoConstants.SectionGameProfileSettings,
+            Title = "Game Profile Settings",
+            Description = "Name, appearance, launch options, and saving for a single profile.",
+            Order = 1,
+            Cards = cardData.Select(c => CreateCard(c.Id, c.Title, c.Content, c.Type, c.Detailed)).ToList(),
+        };
+
+        section.Cards.First(c => c.Id == InfoConstants.CardProfileSettingsLaunch).Actions =
+        [
+            new InfoAction
+            {
+                Label = "How workspaces work",
+                ActionId = InfoConstants.ActionNavWorkspaces,
+                IconKey = InfoConstants.IconBookOpenVariant,
+                IsPrimary = true,
+            },
+        ];
+
+        return section;
+    }
+
+    /// <summary>
     /// Creates the game settings section.
     /// </summary>
     /// <returns>The game settings <see cref="InfoSection"/>.</returns>
@@ -277,7 +355,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
             Id = InfoConstants.SectionGameSettings,
             Title = "Game Settings",
             Description = "Configure display, audio, and engine settings per profile.",
-            Order = 1,
+            Order = 2,
             Cards =
             [
                 new InfoCard
@@ -434,7 +512,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
             Id = InfoConstants.SectionGameProfileContent,
             Title = "Profile Content",
             Description = "Manage mods, maps, and patches enabled for each profile.",
-            Order = 2,
+            Order = 3,
             Cards =
             [
                 new InfoCard
@@ -481,6 +559,16 @@ public class DefaultInfoContentProvider : IInfoContentProvider
                     **Tool:**
                     External utilities (such as World Builder, Hotkey Editor, or FinalBIG) that can be opened directly from your profile dashboard.
                     """,
+                    Actions =
+                    [
+                        new InfoAction
+                        {
+                            Label = "Learn about manifests",
+                            ActionId = InfoConstants.ActionNavContentManifests,
+                            IconKey = InfoConstants.IconBookOpenVariant,
+                            IsPrimary = true,
+                        },
+                    ],
                 },
                 new InfoCard
                 {
@@ -543,56 +631,65 @@ public class DefaultInfoContentProvider : IInfoContentProvider
         [
             (InfoConstants.CardShortcutsDemo,
              "Interactive Demo: Desktop Shortcuts",
-             "Interactive flow showing profile shortcut generation and command line targets.",
+             "See the shortcut flow: from profile card to desktop icon.",
              InfoCardType.Example,
              """
-             **Interactive Desktop Shortcut Simulation:**
-             Inspect how GenHub connects desktop shortcut (.lnk) files directly to isolated profile workspaces.
-             * Double-clicking launches the profile in headless mode without keeping the main UI open.
-             * Custom high-DPI icon artwork is extracted and embedded automatically.
+             Right-click a profile card, choose Create Desktop Shortcut, and a launcher icon for that profile lands on your desktop.
+             * Double-clicking launches the profile headless, without keeping the main window open.
+             * If GenHub is already running, the launch request is forwarded to it instead of starting a second copy.
              """),
             (InfoConstants.CardShortcutsHeadless,
              "Headless Mode Launcher",
              "Launch profiles directly from your desktop.",
              InfoCardType.Concept,
              """
-             **Direct Desktop Launching:**
-             Shortcuts allow you to start any mod configuration straight from your desktop without keeping the main launcher window open:
+             A shortcut starts the game straight from your desktop, without opening the main window. GenHub does its part and gets out of the way:
 
-             1. **Direct Launch:** Double-click the shortcut to start the game immediately.
-             2. **Silent Setup:** GenHub runs briefly in the background to prepare the profile workspace, then hands off to the game.
-             3. **Clean Exit:** Workspace temporary files are automatically cleaned up when the game closes.
+             1. Double-click the shortcut to start the game.
+             2. GenHub runs briefly in the background to prepare the profile workspace, then hands off to the game.
+             3. If GenHub is already running, the shortcut forwards the profile to it instead of starting a second copy.
              """),
             (InfoConstants.CardShortcutsCreation,
              "Shortcut Creation",
              "How to add a profile shortcut to your desktop.",
              InfoCardType.HowTo,
              """
-             **Creating a Shortcut:**
              1. In **Game Profiles**, right-click any profile card (or click the Desktop shortcut icon).
              2. Select **Create Desktop Shortcut**.
-             3. A standard Windows shortcut (`.lnk`) appears on your desktop.
-             4. Double-clicking this shortcut launches that specific profile configuration immediately.
+             3. GenHub writes the shortcut for your OS: a `.lnk` file on Windows, a `.desktop` entry on Linux, or a `.command` script on macOS.
+             4. Double-click it to launch that profile.
              """),
             (InfoConstants.CardShortcutsIcons,
              "Icon Customization",
-             "Visual icons for your desktop shortcuts.",
+             "Which icon lands on your desktop.",
              InfoCardType.Feature,
              """
-             **Shortcut Icons:**
-             GenHub extracts official high-resolution icon resources from the game executable (`generals.exe` or `game.dat`).
-             If your profile uses custom metadata or mod artwork, GenHub converts that image into an icon embedded directly in the shortcut.
+             The shortcut reuses your profile's own icon file when one is set, and falls back to the GenHub launcher icon otherwise.
+             Pick or change the icon any time from the Icon row in Profile Settings. Shortcuts you create afterwards pick it up automatically.
              """),
         ];
 
-        return new InfoSection
+        var section = new InfoSection
         {
             Id = InfoConstants.SectionShortcuts,
             Title = "Desktop Shortcuts",
             Description = "Create one-click desktop shortcuts for your profiles.",
-            Order = 3,
+            Order = 5,
             Cards = cardData.Select(c => CreateCard(c.Id, c.Title, c.Content, c.Type, c.Detailed)).ToList(),
         };
+
+        section.Cards.First(c => c.Id == InfoConstants.CardShortcutsIcons).Actions =
+        [
+            new InfoAction
+            {
+                Label = "Open Profile Settings guide",
+                ActionId = InfoConstants.ActionNavGameProfileSettings,
+                IconKey = InfoConstants.IconBookOpenVariant,
+                IsPrimary = true,
+            },
+        ];
+
+        return section;
     }
 
     /// <summary>
@@ -650,7 +747,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
             Id = InfoConstants.SectionSteam,
             Title = "Steam Integration",
             Description = "Track playtime and use the Steam Overlay with mods.",
-            Order = 4,
+            Order = 6,
             Cards = cardData.Select(c => CreateCard(c.Id, c.Title, c.Content, c.Type, c.Detailed)).ToList(),
         };
     }
@@ -666,7 +763,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
             Id = InfoConstants.SectionLocalContent,
             Title = "Local Content",
             Description = "Import external mods, custom engine builds, modding tools, and maps.",
-            Order = 5,
+            Order = 7,
             Cards =
             [
                 new InfoCard
@@ -1119,7 +1216,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
             Id = InfoConstants.SectionTools,
             Title = "Tools & Utilities",
             Description = "Inspect replays, manage maps, rebind hotkeys, edit interface layouts, build mods, and publish community content catalogs.",
-            Order = 6,
+            Order = 8,
             Cards = cardData.Select(c => CreateCard(c.Id, c.Title, c.Content, c.Type, c.Detailed, c.Actions)).ToList(),
         };
     }
@@ -1184,7 +1281,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
             Id = InfoConstants.SectionScanGames,
             Title = "Game Detection",
             Description = "Automatically detect, verify, and link game installations across Windows, Linux, and macOS.",
-            Order = 7,
+            Order = 9,
             Cards = cardData.Select(c => CreateCard(c.Id, c.Title, c.Content, c.Type, c.Detailed)).ToList(),
         };
     }
@@ -1200,7 +1297,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
             Id = InfoConstants.SectionWorkspaces,
             Title = "Virtual Workspaces",
             Description = "Workspace strategies, file linking techniques, and isolation mechanics.",
-            Order = 8,
+            Order = 10,
             Cards =
             [
                 new InfoCard
@@ -1380,11 +1477,27 @@ public class DefaultInfoContentProvider : IInfoContentProvider
 
              **Browse Builds Tab.**
              * **Open Pull Requests:** Browse automated CI builds for active pull requests (such as #101 Feature: Enhanced Profile Management or #102 Fix: Application crash on startup). Click any PR link to view its review status on GitHub.
-             * **Branches:** Browse builds generated from Git branches (such as dev, v1.2-beta, or feature/ui-rework).
+             * **Branches:** Browse builds generated from Git branches (such as development, v1.2-beta, or feature/ui-rework).
              * **Subscribe:** Click Subscribe next to a PR or branch to track that channel and get notified when new CI test builds are published.
 
              **Interactive Sandbox.**
              The demo panel above runs against simulated data so you can safely switch tabs, click buttons, and inspect the interface without modifying your installed files.
+             """),
+            (InfoConstants.CardUpdatesGitHubBranchesPrs,
+             "GitHub, Branches & Pull Requests",
+             "How GenHub is built in the open, and where test builds come from.",
+             InfoCardType.Concept,
+             """
+             GenHub is built in the open on GitHub. Every change, from typo fixes to new tools, travels the same road: a branch, a pull request, automated test builds, review, then merge.
+
+             **Branches.**
+             A branch is a parallel copy of the code. `main` is the stable line that releases are cut from. `development` carries reviewed work heading for the next release. Feature branches like `feature/ui-rework` hold one change at a time so experiments never destabilize the rest.
+
+             **Pull Requests.**
+             A pull request proposes merging one branch into another. It shows exactly what changed, runs the CI pipeline, and collects review comments. Nothing lands without passing checks and a human review.
+
+             **CI Builds & Subscribing.**
+             Every pull request and branch gets automated test builds from CI. In the **Browse Builds** tab of the update window (try the demo above), click **Subscribe** next to any PR or branch to track it. GenHub notifies you when fresh builds land, and one click installs the test build. Unsubscribe any time to return to stable releases.
              """),
             (InfoConstants.CardUpdatesWorkflow,
              "Update Delivery & Background Downloads",
@@ -1461,14 +1574,27 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              """),
         ];
 
-        return new InfoSection
+        var section = new InfoSection
         {
             Id = InfoConstants.SectionAppUpdates,
             Title = "App Updates",
             Description = "Manage launcher updates, GitHub authentication, and offline content storage.",
-            Order = 9,
+            Order = 11,
             Cards = cardData.Select(c => CreateCard(c.Id, c.Title, c.Content, c.Type, c.Detailed)).ToList(),
         };
+
+        section.Cards.First(c => c.Id == InfoConstants.CardUpdatesGitHubBranchesPrs).Actions =
+        [
+            new InfoAction
+            {
+                Label = "Browse the changelog",
+                ActionId = InfoConstants.ActionNavChangelogs,
+                IconKey = InfoConstants.IconBookOpenVariant,
+                IsPrimary = true,
+            },
+        ];
+
+        return section;
     }
 
     /// <summary>
@@ -1484,11 +1610,10 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              "Live interactive release notes browser with version selection, asset links, and filters.",
              InfoCardType.Example,
              """
-             **Interactive Changelog Viewer:**
-             Browse all official GenHub releases, view release assets, inspect patch notes, and see what's new in each build.
-             * Click any release in the list below to inspect its detailed release notes.
+             Browse all official GenHub releases in the browser above: view release assets, inspect patch notes, and see what's new in each build.
+             * Click any release in the browser above to inspect its detailed release notes.
              * Directly download installers or source assets.
-             * Release items are automatically linked in the right navigation bar.
+             * Releases are listed first in the right navigation bar; picking one jumps straight to it here.
              """),
             (InfoConstants.CardChangelogsOverview,
              "Release History & Changelogs",
@@ -1520,14 +1645,27 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              """),
         ];
 
-        return new InfoSection
+        var section = new InfoSection
         {
             Id = InfoConstants.SectionChangelogs,
             Title = "Changelog",
             Description = "Version history and patch notes for GenHub releases.",
-            Order = 10,
+            Order = 12,
             Cards = cardData.Select(c => CreateCard(c.Id, c.Title, c.Content, c.Type, c.Detailed)).ToList(),
         };
+
+        section.Cards.First(c => c.Id == InfoConstants.CardChangelogsUpdates).Actions =
+        [
+            new InfoAction
+            {
+                Label = "Manage app updates",
+                ActionId = InfoConstants.ActionNavAppUpdates,
+                IconKey = InfoConstants.IconBookOpenVariant,
+                IsPrimary = true,
+            },
+        ];
+
+        return section;
     }
 
     /// <summary>
@@ -1567,7 +1705,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
             Id = InfoConstants.SectionFaq,
             Title = "Frequently Asked Questions",
             Description = "Common questions about the Generals Online service.",
-            Order = 11,
+            Order = 13,
             Cards = faqData.Select(c => CreateCard(c.Id, c.Title, c.Content, c.Type, c.Detailed)).ToList(),
         };
     }
@@ -1585,10 +1723,9 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              "Live feed of multiplayer service updates, netcode improvements, and balance patches.",
              InfoCardType.Example,
              """
-             **Generals Online Patch Notes Viewer:**
-             Stay informed about multiplayer network changes, matchmaker improvements, balance adjustments, and anti-cheat updates deployed to the Generals Online network.
-             * Select any update from the patch notes list below to view its details.
-             * All updates are indexed and navigable from the right sidebar table of contents.
+             The patch notes browser above tracks multiplayer network changes, matchmaker improvements, balance adjustments, and anti-cheat updates deployed to the Generals Online network.
+             * Select any update in the browser above to view its details.
+             * Patch notes are listed first in the right navigation bar; picking one jumps straight to it here.
              """),
             (InfoConstants.CardGoChangelogOverview,
              "Generals Online Patch Notes",
@@ -1613,7 +1750,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
             Id = InfoConstants.SectionGoChangelog,
             Title = "Changelog",
             Description = "View the latest changes and updates to the Generals Online service.",
-            Order = 12,
+            Order = 14,
             Cards = cardData.Select(c => CreateCard(c.Id, c.Title, c.Content, c.Type, c.Detailed)).ToList(),
         };
     }
@@ -1640,7 +1777,15 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              **Identity & Versioning.**
              Every manifest carries a Manifest ID (such as 1.0.shockwave.mod.shockwave-chaos-edition) plus a human-readable name and version. Publishers sign releases with SHA-256 hashes so GenHub can verify every byte before installing.
              """,
-             null),
+             [
+                 new InfoAction
+                 {
+                     Label = "See profile content",
+                     ActionId = InfoConstants.ActionNavGameProfileContent,
+                     IconKey = InfoConstants.IconBookOpenVariant,
+                     IsPrimary = true,
+                 },
+             ]),
             (InfoConstants.CardManifestsContentTypes,
              "Content Types & Manifest IDs",
              "How GenHub classifies foundation releases, content, and meta references.",
@@ -1683,7 +1828,15 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              **5. Profile Launch.**
              Reconciliation maps pooled files into an isolated workspace using hardlinks, symlinks, or copies, then launches the game against that workspace.
              """,
-             null),
+             [
+                 new InfoAction
+                 {
+                     Label = "See workspaces",
+                     ActionId = InfoConstants.ActionNavWorkspaces,
+                     IconKey = InfoConstants.IconBookOpenVariant,
+                     IsPrimary = false,
+                 },
+             ]),
             (InfoConstants.CardManifestsBundles,
              "Bundles, Variants & Dependencies",
              "Package files into bundles, offer alternatives, and declare requirements.",
@@ -1739,7 +1892,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
             Id = InfoConstants.SectionContentManifests,
             Title = "Content Manifests",
             Description = "How manifests classify content and carry it from catalogs through CAS into launchable workspaces.",
-            Order = 13,
+            Order = 4,
             Cards = cardData.Select(c => CreateCard(c.Id, c.Title, c.Content, c.Type, c.Detailed, c.Actions)).ToList(),
         };
     }

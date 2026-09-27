@@ -40,6 +40,7 @@ public partial class InfoSectionViewModel(InfoSection model, ILocalizationServic
     {
         InfoConstants.SectionQuickstart => Material.Icons.MaterialIconKind.RocketLaunchOutline,
         InfoConstants.SectionGameProfiles => Material.Icons.MaterialIconKind.AccountMultipleOutline,
+        InfoConstants.SectionGameProfileSettings => Material.Icons.MaterialIconKind.AccountCogOutline,
         InfoConstants.SectionGameSettings => Material.Icons.MaterialIconKind.TuneVariant,
         InfoConstants.SectionGameProfileContent => Material.Icons.MaterialIconKind.FolderCogOutline,
         InfoConstants.SectionShortcuts => Material.Icons.MaterialIconKind.Launch,

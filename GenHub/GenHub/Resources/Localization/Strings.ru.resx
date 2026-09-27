@@ -3017,7 +3017,16 @@
     <value>СОВЕТ: Вы можете изменить размер этого окна, потянув за правый или нижний край!</value>
   </data>
   <data name="Info.Demo.GameSettings.Hint" xml:space="preserve">
-    <value>Попробуйте переключить пользовательское разрешение или нажать кнопку обзора!</value>
+    <value>Попробуйте изменить настройки или нажмите другие вкладки, чтобы перейти к их руководствам!</value>
+  </data>
+  <data name="Info.Demo.ProfileSettings.Title" xml:space="preserve">
+    <value>Демо: профиль и параметры запуска</value>
+  </data>
+  <data name="Info.Demo.ProfileSettings.Subtitle" xml:space="preserve">
+    <value>Название профиля, значок, обложка и параметры рабочей области.</value>
+  </data>
+  <data name="Info.Demo.ProfileSettings.Hint" xml:space="preserve">
+    <value>Нажмите другие вкладки, чтобы перейти к их руководствам!</value>
   </data>
   <data name="Info.Demo.ContentSelection.Title" xml:space="preserve">
     <value>Демо: Выбор контента</value>
@@ -3029,7 +3038,7 @@
     <value>Редактор контента позволяет составить список материалов для конкретного профиля.</value>
   </data>
   <data name="Info.Demo.ContentSelection.Hint" xml:space="preserve">
-    <value>Попробуйте переключить моды, изменить порядок или нажать «Добавить локальный»!</value>
+    <value>Попробуйте переключать моды или нажмите другие вкладки, чтобы перейти к их руководствам!</value>
   </data>
   <data name="Info.Demo.Tools.ReplayManagerTitle" xml:space="preserve">
     <value>Менеджер повторов</value>
@@ -3049,36 +3058,6 @@
   <data name="Info.Demo.Tools.PublisherStudioSubtitle" xml:space="preserve">
     <value>Создавайте каталоги контента, упаковывайте варианты и настраивайте внешнюю дистрибуцию через CDN.</value>
   </data>
-  <data name="Info.Demo.Tools.PublisherStudioShowcaseHeading" xml:space="preserve">
-    <value>Децентрализованная трехзвенная дистрибуция контента</value>
-  </data>
-  <data name="Info.Demo.Tools.PublisherStudioShowcaseDesc" xml:space="preserve">
-    <value>Студия издателя позволяет авторам модификаций и создателям контента публиковать обновления напрямую игрокам через GitHub Releases, Google Drive, Dropbox или собственные CDN без необходимости центрального сервера GenHub.</value>
-  </data>
-  <data name="Info.Demo.Tools.LaunchPublisherStudio" xml:space="preserve">
-    <value>Открыть студию издателя</value>
-  </data>
-  <data name="Info.Demo.Tools.PublisherStudioShowcaseSubheading" xml:space="preserve">
-    <value>Уровень 1 (Манифест издателя) → Уровень 2 (Каталоги контента) → Уровень 3 (Архивы артефактов)</value>
-  </data>
-  <data name="Info.Demo.Tools.PublisherStudioStep1Title" xml:space="preserve">
-    <value>1. Создание каталога</value>
-  </data>
-  <data name="Info.Demo.Tools.PublisherStudioStep1Desc" xml:space="preserve">
-    <value>Упаковывайте контент, вычисляйте хеши, настраивайте варианты и зависимости.</value>
-  </data>
-  <data name="Info.Demo.Tools.PublisherStudioStep2Title" xml:space="preserve">
-    <value>2. Внешний хостинг CDN</value>
-  </data>
-  <data name="Info.Demo.Tools.PublisherStudioStep2Desc" xml:space="preserve">
-    <value>Размещайте манифесты и архивы на GitHub Releases, Google Drive, Dropbox или собственных CDN.</value>
-  </data>
-  <data name="Info.Demo.Tools.PublisherStudioStep3Title" xml:space="preserve">
-    <value>3. Уведомления игроков</value>
-  </data>
-  <data name="Info.Demo.Tools.PublisherStudioStep3Desc" xml:space="preserve">
-    <value>Подписанные игроки опрашивают манифесты каждые 30 мин, получают уведомления и скачивают обновления с проверкой CAS.</value>
-  </data>
   <data name="Info.Demo.Tools.HotkeyEditorTitle" xml:space="preserve">
     <value>Редактор горячих клавиш</value>
   </data>
@@ -3096,222 +3075,6 @@
   </data>
   <data name="Info.Demo.Tools.WndEditorSubtitle" xml:space="preserve">
     <value>Редактируйте оконные раскладки с живым предпросмотром.</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.File" xml:space="preserve">
-    <value>Файл</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.New" xml:space="preserve">
-    <value>Новый</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.Save" xml:space="preserve">
-    <value>Сохранить</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.Validate" xml:space="preserve">
-    <value>Проверить</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.Edit" xml:space="preserve">
-    <value>Правка</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.AddChild" xml:space="preserve">
-    <value>Добавить дочернее окно</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.Delete" xml:space="preserve">
-    <value>Удалить окно</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.View" xml:space="preserve">
-    <value>Вид</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.ZoomIn" xml:space="preserve">
-    <value>Приблизить</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.ZoomOut" xml:space="preserve">
-    <value>Отдалить</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.ResetZoom" xml:space="preserve">
-    <value>Сбросить масштаб</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.Assets" xml:space="preserve">
-    <value>Ресурсы</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.LinkFolder" xml:space="preserve">
-    <value>Подключить папку мода...</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.ImportTexture" xml:space="preserve">
-    <value>Импортировать текстуру...</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Files.Label" xml:space="preserve">
-    <value>Файлы</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Tree.Label" xml:space="preserve">
-    <value>Дерево окон</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Canvas.Label" xml:space="preserve">
-    <value>Предпросмотр холста</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Properties.Title" xml:space="preserve">
-    <value>Свойства</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Properties.X" xml:space="preserve">
-    <value>X</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Properties.Y" xml:space="preserve">
-    <value>Y</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Properties.Width" xml:space="preserve">
-    <value>Ширина</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Properties.Height" xml:space="preserve">
-    <value>Высота</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Properties.Validate" xml:space="preserve">
-    <value>Проверить</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Status.Windows" xml:space="preserve">
-    <value>Окна:</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Status.Ready" xml:space="preserve">
-    <value>Выберите окно, чтобы изменить его геометрию.</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Status.NotValidated" xml:space="preserve">
-    <value>Ещё не проверено.</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Status.Invalid" xml:space="preserve">
-    <value>У некоторых окон пустая геометрия.</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Status.Valid" xml:space="preserve">
-    <value>Документ корректен: 0 ошибок.</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Status.Added" xml:space="preserve">
-    <value>Дочернее окно добавлено.</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Status.Deleted" xml:space="preserve">
-    <value>Окно удалено.</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Toast.Title" xml:space="preserve">
-    <value>Демо</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Toast.NewMessage" xml:space="preserve">
-    <value>Создана новая раскладка без названия. (Симуляция)</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Toast.SaveMessage" xml:space="preserve">
-    <value>Документ сохранён. (Симуляция)</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Toast.DeleteRootMessage" xml:space="preserve">
-    <value>Выберите дочернее окно для удаления. Корневой экран удалить нельзя.</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Toast.LinkMessage" xml:space="preserve">
-    <value>Пример папки мода подключён. (Симуляция)</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Toast.ImportMessage" xml:space="preserve">
-    <value>Пример текстуры импортирован. (Симуляция)</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Variants.Textures" xml:space="preserve">
-    <value>Текстуры:</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Variants.Audio" xml:space="preserve">
-    <value>Звук:</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Files.Label" xml:space="preserve">
-    <value>Файлы проекта</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Files.Add" xml:space="preserve">
-    <value>Добавить в пакет</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Packs.Label" xml:space="preserve">
-    <value>Пакеты</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.PackItems.Label" xml:space="preserve">
-    <value>Элементы пакета</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.PackItems.Remove" xml:space="preserve">
-    <value>Убрать из пакета</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.PackItems.MoveUp" xml:space="preserve">
-    <value>Переместить вверх</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.PackItems.MoveDown" xml:space="preserve">
-    <value>Переместить вниз</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.PackItems.ConvertDds" xml:space="preserve">
-    <value>Преобразовать все TGA в DDS</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Manifest.Label" xml:space="preserve">
-    <value>Предпросмотр манифеста</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Build.Run" xml:space="preserve">
-    <value>Собрать пакет</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Build.LearnManifests" xml:space="preserve">
-    <value>О манифестах</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Build.LogLabel" xml:space="preserve">
-    <value>Журнал сборки</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Status.BundledFiles" xml:space="preserve">
-    <value>Файлов в пакетах:</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Status.Ready" xml:space="preserve">
-    <value>Соберите пакеты, затем соберите пример проекта.</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Status.Converted" xml:space="preserve">
-    <value>Текстуры пакета преобразованы в DDS.</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Status.NothingToConvert" xml:space="preserve">
-    <value>В этом пакете нет непреобразованных текстур TGA.</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Toast.Title" xml:space="preserve">
-    <value>Демо</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Toast.DuplicateMessage" xml:space="preserve">
-    <value>Этот файл уже есть в пакете.</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Toast.BuildMessage" xml:space="preserve">
-    <value>Пакет собран. (Симуляция)</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Faction.Label" xml:space="preserve">
-    <value>Фракция:</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Conflicts.Label" xml:space="preserve">
-    <value>Конфликты:</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Clear.Label" xml:space="preserve">
-    <value>Очистить</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Clear.Tooltip" xml:space="preserve">
-    <value>Очистить выбранную ячейку</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Addon.Label" xml:space="preserve">
-    <value>Создать аддон</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Addon.Tooltip" xml:space="preserve">
-    <value>Упаковать привязки в манифест аддона</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Grid.Label" xml:space="preserve">
-    <value>Панель команд</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Palette.Label" xml:space="preserve">
-    <value>Палитра клавиш</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Palette.Hint" xml:space="preserve">
-    <value>Выберите клавишу, чтобы назначить её выбранной ячейке.</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Slot.Conflict" xml:space="preserve">
-    <value>Конфликт</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Status.Ready" xml:space="preserve">
-    <value>Выберите ячейку, затем выберите клавишу для переназначения.</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Status.Conflict" xml:space="preserve">
-    <value>Конфликт: ячейки используют одну клавишу. Выберите разные клавиши.</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Status.Clear" xml:space="preserve">
-    <value>Клавиша назначена. Конфликтов нет.</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Toast.Title" xml:space="preserve">
-    <value>Демо</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Toast.AddonMessage" xml:space="preserve">
-    <value>Манифест аддона горячих клавиш создан. (Симуляция)</value>
   </data>
   <data name="Info.Demo.ScanWizard.Title" xml:space="preserve">
     <value>Мастер сканирования</value>
@@ -4065,6 +3828,12 @@
   </data>
   <data name="Info.Section.game-profiles.Description" xml:space="preserve">
     <value>Сердце GenHub: управление изолированными установками, модами, патчами и конфигурациями.</value>
+  </data>
+  <data name="Info.Section.game-profile-settings.Title" xml:space="preserve">
+    <value>Настройки игрового профиля</value>
+  </data>
+  <data name="Info.Section.game-profile-settings.Description" xml:space="preserve">
+    <value>Имя, внешний вид, параметры запуска и сохранение одного профиля.</value>
   </data>
   <data name="Info.Section.game-settings.Title" xml:space="preserve">
     <value>Настройки игры (Options.ini)</value>
@@ -5511,7 +5280,7 @@
 
 **Вкладка сборки.**
 * **Открытые пулреквесты (PR):** Просмотр автоматических сборок CI для активных PR (например, #101 Улучшенное управление профилями или #102 Исправление сбоя при запуске). Нажмите на ссылку любого PR, чтобы просмотреть статус ревью на GitHub.
-* **Ветки:** Просмотр сборок из веток Git (например, dev, v1.2-beta или feature/ui-rework).
+* **Ветки:** Просмотр сборок из веток Git (например, development, v1.2-beta или feature/ui-rework).
 * **Подписка:** Нажмите «Подписаться» рядом с PR или веткой, чтобы отслеживать этот канал и получать уведомления при появлении новых тестовых сборок CI.
 
 **Интерактивная песочница.**
@@ -5519,6 +5288,30 @@
   </data>
   <data name="Info.Card.app-updates.version-control.Title" xml:space="preserve">
     <value>Интерактивное окно обновлений и каналы релизов</value>
+  </data>
+  <data name="Info.Card.app-updates.github-branches-prs.Content" xml:space="preserve">
+    <value>Как GenHub разрабатывается открыто и откуда берутся тестовые сборки.</value>
+  </data>
+  <data name="Info.Card.app-updates.github-branches-prs.DetailedContent" xml:space="preserve">
+    <value>GenHub разрабатывается открыто на GitHub. Каждое изменение, от опечаток до новых инструментов, проходит один путь: ветка, пулреквест, автоматические тестовые сборки, ревью, затем слияние.
+
+**Ветки.**
+Ветка — параллельная копия кода. `main` — стабильная линия, от которой отрезаются релизы. `development` несет проверенную работу для следующего релиза. Функциональные ветки вроде `feature/ui-rework` содержат по одному изменению, чтобы эксперименты не подрывали стабильность остального.
+
+**Пулреквесты.**
+Пулреквест предлагает слить одну ветку в другую. Он показывает ровно то, что изменилось, запускает CI-конвейер и собирает комментарии ревью. Ничего не попадает в код без прохождения проверок и человеческого ревью.
+
+**CI-сборки и подписки.**
+Каждый пулреквест и ветка получают автоматические тестовые сборки от CI. На вкладке **Browse Builds** окна обновлений (попробуйте демо выше) нажмите **Subscribe** рядом с PR или веткой, чтобы отслеживать их. GenHub уведомит о свежих сборках, и один клик установит тестовую сборку. Отпишитесь в любой момент, чтобы вернуться к стабильным релизам.</value>
+  </data>
+  <data name="Info.Card.app-updates.github-branches-prs.Title" xml:space="preserve">
+    <value>GitHub, ветки и пулреквесты</value>
+  </data>
+  <data name="Info.Card.app-updates.github-branches-prs.Action.NAV_INFO_changelogs" xml:space="preserve">
+    <value>Открыть журнал изменений</value>
+  </data>
+  <data name="Info.Card.changelogs.changelogs-updates.Action.NAV_INFO_app-updates" xml:space="preserve">
+    <value>Управление обновлениями</value>
   </data>
   <data name="Info.Card.app-updates.workflow.Content" xml:space="preserve">
     <value>Фоновая загрузка без блокировки с проверкой SHA-256 и атомарной заменой.</value>
@@ -5782,6 +5575,9 @@
   <data name="Info.Card.game-profile-content.hierarchy.Title" xml:space="preserve">
     <value>Типы контента и иерархия</value>
   </data>
+  <data name="Info.Card.game-profile-content.hierarchy.Action.NAV_INFO_content-manifests" xml:space="preserve">
+    <value>О манифестах</value>
+  </data>
   <data name="Info.Card.game-profile-content.vfs.Content" xml:space="preserve">
     <value>Как объединяются файлы при подготовке игры к запуску.</value>
   </data>
@@ -5852,6 +5648,61 @@ GenHub передает аргументы командной строки на�
   </data>
   <data name="Info.Card.game-profiles.sandbox.Title" xml:space="preserve">
     <value>Ваша личная песочница</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-identity.Title" xml:space="preserve">
+    <value>Идентификация профиля</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-identity.Content" xml:space="preserve">
+    <value>Имя, описание и установка игры.</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-identity.DetailedContent" xml:space="preserve">
+    <value>**Имя профиля:**
+Вкладка настроек профиля содержит поля, идентифицирующие один профиль в списке: отображаемое имя и подробное описание на карточке профиля.
+
+**Установка игры:**
+Селектор установки выбирает обнаруженную игру, которую запускает профиль (Steam, EA App или диск). Смена установки отключает включённый контент, не подходящий новому типу игры, поэтому профиль никогда не запустится с несовместимым набором.</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-appearance.Title" xml:space="preserve">
+    <value>Иконки, обложки и цвет темы</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-appearance.Content" xml:space="preserve">
+    <value>Визуальная идентичность карточки профиля.</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-appearance.DetailedContent" xml:space="preserve">
+    <value>**Иконки и обложки:**
+Выберите иконку и обложку из встроенных галерей или укажите собственные файлы изображений через Обзор. Иконка представляет профиль в списках и ярлыках; обложка заполняет шапку карточки профиля.
+
+**Цвет темы:**
+Палитра задаёт акцентный цвет профиля для шапки редактора и карточки профиля. Кнопка-кубик рядом с Сохранить выбирает случайный цвет.</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-launch.Title" xml:space="preserve">
+    <value>Стратегия рабочей области и аргументы запуска</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-launch.Content" xml:space="preserve">
+    <value>Как профиль собирает рабочую область и запускает игру.</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-launch.DetailedContent" xml:space="preserve">
+    <value>**Стратегия рабочей области:**
+Селектор стратегии выбирает, как рабочая область профиля связывает файлы игры. Селектор блокируется после первого запуска профиля, так как поздняя смена осиротила бы существующую рабочую область.
+
+**Аргументы командной строки:**
+Дополнительные аргументы передаются напрямую исполняемому файлу игры при запуске, например `-win` для оконного режима или `-quickstart` для пропуска вступительных роликов.</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-launch.Action.NAV_INFO_workspaces" xml:space="preserve">
+    <value>Как работают рабочие области</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-saving.Title" xml:space="preserve">
+    <value>Сохранение и память окна</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-saving.Content" xml:space="preserve">
+    <value>Что сохраняет кнопка Сохранить и что помнит редактор.</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-saving.DetailedContent" xml:space="preserve">
+    <value>**Сохранение и отмена:**
+Сохранение записывает в профиль все вкладки (настройки профиля, контент и настройки игры). Отмена закрывает редактор и отбрасывает несохранённые изменения.
+
+**Память окна:**
+Редактор запоминает размер окна, состояние развёртывания и ширину боковых панелей между перезапусками для каждой вкладки настроек.</value>
   </data>
   <data name="Info.Card.game-settings.generals-online.Content" xml:space="preserve">
     <value>Сетевое лобби и функции автоматического подбора матчей.</value>
@@ -6045,42 +5896,50 @@ GenHub сканирует систему для поиска официальн�
     <value>Как добавить ярлык профиля на рабочий стол Windows.</value>
   </data>
   <data name="Info.Card.shortcuts.creation.DetailedContent" xml:space="preserve">
-    <value>**Создание ярлыка:**
-1. Во вкладке **Профили игры** щелкните правой кнопкой мыши по карточке профиля (или нажмите иконку ярлыка).
+    <value>1. Во вкладке **Профили игры** щелкните правой кнопкой мыши по карточке профиля (или нажмите иконку ярлыка).
 2. Выберите **Создать ярлык на рабочем столе**.
-3. На рабочем столе появится стандартный ярлык Windows (`.lnk`).
-4. Двойной клик по ярлыку сразу запустит выбранную конфигурацию профиля.</value>
+3. GenHub создаст ярлык для вашей ОС: файл `.lnk` в Windows, запись `.desktop` в Linux или скрипт `.command` в macOS.
+4. Дважды щелкните его, чтобы запустить этот профиль.</value>
   </data>
   <data name="Info.Card.shortcuts.creation.Title" xml:space="preserve">
     <value>Создание ярлыков</value>
+  </data>
+  <data name="Info.Card.shortcuts.demo-shortcuts.Title" xml:space="preserve">
+    <value>Интерактивное демо: ярлыки на рабочем столе</value>
+  </data>
+  <data name="Info.Card.shortcuts.demo-shortcuts.Content" xml:space="preserve">
+    <value>Схема создания ярлыка: от карточки профиля до значка на рабочем столе.</value>
+  </data>
+  <data name="Info.Card.shortcuts.demo-shortcuts.DetailedContent" xml:space="preserve">
+    <value>Щелкните правой кнопкой по карточке профиля, выберите «Создать ярлык», и значок запуска этого профиля появится на рабочем столе.
+* Двойной щелчок запускает профиль без главного окна.
+* Если GenHub уже запущен, запрос передается ему вместо запуска второй копии.</value>
   </data>
   <data name="Info.Card.shortcuts.headless.Content" xml:space="preserve">
     <value>Запуск профилей прямо с рабочего стола без открытия главного окна.</value>
   </data>
   <data name="Info.Card.shortcuts.headless.DetailedContent" xml:space="preserve">
-    <value>**Прямой запуск с рабочего стола:**
-Ярлыки позволяют запускать нужную конфигурацию модов прямо с рабочего стола без необходимости держать главное окно открытым:
+    <value>Ярлык запускает игру прямо с рабочего стола, не открывая главное окно. GenHub делает свое дело и уходит с дороги:
 
-1. **Прямой запуск:** Двойной клик по ярлыку для немедленного старта.
-2. **Тихая подготовка:** GenHub быстро настраивает рабочую область в фоне и передает управление игре.
-3. **Чистый выход:** Временные файлы автоматически удаляются при выходе из игры.</value>
+1. Дважды щелкните ярлык, чтобы запустить игру.
+2. GenHub ненадолго запускается в фоне, готовит рабочую область профиля и передает управление игре.
+3. Если GenHub уже запущен, ярлык передает ему профиль вместо запуска второй копии.</value>
   </data>
   <data name="Info.Card.shortcuts.headless.Title" xml:space="preserve">
     <value>Автономный режим запуска (Headless)</value>
   </data>
   <data name="Info.Card.shortcuts.icons.Content" xml:space="preserve">
-    <value>Четкие визуальные иконки для ваших ярлыков на рабочем столе.</value>
+    <value>Какой значок попадет на рабочий стол.</value>
   </data>
   <data name="Info.Card.shortcuts.icons.DetailedContent" xml:space="preserve">
-    <value>**Иконки высокого разрешения:**
-GenHub автоматически связывает с ярлыками высококачественные иконки:
-
-*   **Иконки модов:** Если мод содержит собственную иконку (например, ShockWave или Contra), ярлык использует ее.
-*   **HD-иконки Zero Hour и Generals:** Для стандартных профилей применяются четкие иконки 256x256 вместо старых размытых иконок 32x32.
-*   **Пользовательские иконки:** Вы можете сменить иконку ярлыка через стандартные свойства Windows.</value>
+    <value>Ярлык повторно использует файл иконки вашего профиля, если он задан, иначе используется иконка лаунчера GenHub.
+Выберите или смените значок в любое время в строке значка в настройках профиля. Ярлыки, созданные после этого, подхватят его автоматически.</value>
   </data>
   <data name="Info.Card.shortcuts.icons.Title" xml:space="preserve">
     <value>Настройка иконок</value>
+  </data>
+  <data name="Info.Card.shortcuts.icons.Action.NAV_INFO_game-profile-settings" xml:space="preserve">
+    <value>Открыть руководство по настройкам профиля</value>
   </data>
   <data name="Info.Card.steam-integration.appid.Content" xml:space="preserve">
     <value>Учет времени Steam и внутриигровой оверлей для любых модификаций.</value>
@@ -14513,6 +14372,9 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
 **Идентификация и версии.**
 Каждый манифест несёт идентификатор манифеста (например, 1.0.shockwave.mod.shockwave-chaos-edition), а также понятное имя и версию. Издатели подписывают релизы хешами SHA-256, чтобы GenHub проверял каждый байт перед установкой.</value>
   </data>
+  <data name="Info.Card.content-manifests.manifest-overview.Action.NAV_INFO_game-profile-content" xml:space="preserve">
+    <value>Контент профиля</value>
+  </data>
   <data name="Info.Card.content-manifests.manifest-content-types.Title" xml:space="preserve">
     <value>Типы контента и идентификаторы манифестов</value>
   </data>
@@ -14557,6 +14419,9 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
 
 **5. Запуск профиля.**
 Сверка отображает файлы пула в изолированную рабочую область через жёсткие ссылки, символические ссылки или копии, затем запускает игру в этой рабочей области.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-pipeline.Action.NAV_INFO_workspaces" xml:space="preserve">
+    <value>Рабочие области</value>
   </data>
   <data name="Info.Card.content-manifests.manifest-bundles.Title" xml:space="preserve">
     <value>Пакеты, варианты и зависимости</value>

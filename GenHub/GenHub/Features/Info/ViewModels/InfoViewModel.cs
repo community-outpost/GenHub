@@ -163,6 +163,12 @@ public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipie
             faqSection.PropertyChanged -= OnFaqSectionPropertyChanged;
         }
 
+        var genHubSection = Sections.OfType<GenHubInfoSectionViewModel>().FirstOrDefault();
+        if (genHubSection != null)
+        {
+            genHubSection.PropertyChanged -= OnGenHubSectionPropertyChanged;
+        }
+
         foreach (var disposableSection in Sections.OfType<IDisposable>())
         {
             disposableSection.Dispose();
@@ -256,11 +262,18 @@ public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipie
             faqSection.PropertyChanged -= OnFaqSectionPropertyChanged;
         }
 
+        var genHubSection = Sections.OfType<GenHubInfoSectionViewModel>().FirstOrDefault();
+        if (genHubSection != null)
+        {
+            genHubSection.PropertyChanged -= OnGenHubSectionPropertyChanged;
+        }
+
         if (string.Equals(SelectedModule, InfoConstants.ModuleGuide, StringComparison.Ordinal))
         {
-            var genHubSection = Sections.OfType<GenHubInfoSectionViewModel>().FirstOrDefault();
             if (genHubSection != null)
             {
+                // Subscribe to sync programmatic navigation (e.g. demo tab redirects) back to the sidebar
+                genHubSection.PropertyChanged += OnGenHubSectionPropertyChanged;
                 genHubSection.SetModuleContext(GeneralsHubModule.Guide);
 
                 SelectedSection = genHubSection;
@@ -270,9 +283,10 @@ public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipie
         }
         else if (string.Equals(SelectedModule, InfoConstants.ModuleGeneralsOnline, StringComparison.Ordinal))
         {
-            var genHubSection = Sections.OfType<GenHubInfoSectionViewModel>().FirstOrDefault();
             if (genHubSection != null)
             {
+                // Subscribe to sync programmatic navigation (e.g. demo tab redirects) back to the sidebar
+                genHubSection.PropertyChanged += OnGenHubSectionPropertyChanged;
                 genHubSection.SetModuleContext(GeneralsHubModule.GeneralsOnline);
 
                 SelectedSection = genHubSection;
@@ -323,6 +337,14 @@ public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipie
         if (e.PropertyName == nameof(FaqSectionViewModel.SelectedCategory) && sender is FaqSectionViewModel faqSection)
         {
             SelectedSidebarItem = faqSection.SelectedCategory;
+        }
+    }
+
+    private void OnGenHubSectionPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(GenHubInfoSectionViewModel.SelectedSection) && sender is GenHubInfoSectionViewModel genHubSection)
+        {
+            SelectedSidebarItem = genHubSection.SelectedSection;
         }
     }
 }

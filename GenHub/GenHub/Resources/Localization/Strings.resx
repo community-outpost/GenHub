@@ -3017,7 +3017,16 @@ Applied: {2} / {3} applicable fixes.</value>
     <value>TIP: You can resize this demo window by dragging the right or bottom edge!</value>
   </data>
   <data name="Info.Demo.GameSettings.Hint" xml:space="preserve">
-    <value>Try toggling custom resolution or clicking the browse buttons!</value>
+    <value>Try changing settings, or click the other tabs to jump to their guides!</value>
+  </data>
+  <data name="Info.Demo.ProfileSettings.Title" xml:space="preserve">
+    <value>Demo: Profile Identity and Launch Options</value>
+  </data>
+  <data name="Info.Demo.ProfileSettings.Subtitle" xml:space="preserve">
+    <value>Naming the profile and tuning its icon, cover art, and workspace options.</value>
+  </data>
+  <data name="Info.Demo.ProfileSettings.Hint" xml:space="preserve">
+    <value>Click the other tabs to jump to their guides!</value>
   </data>
   <data name="Info.Demo.ContentSelection.Title" xml:space="preserve">
     <value>Demo: Content Selection</value>
@@ -3029,7 +3038,7 @@ Applied: {2} / {3} applicable fixes.</value>
     <value>The Content Editor is where you construct the 'Playlist' of content for a specific profile.</value>
   </data>
   <data name="Info.Demo.ContentSelection.Hint" xml:space="preserve">
-    <value>Try toggling mods, reordering content, or clicking Add Local!</value>
+    <value>Try toggling mods, or click the other tabs to jump to their guides!</value>
   </data>
   <data name="Info.Demo.Tools.ReplayManagerTitle" xml:space="preserve">
     <value>Replay Manager</value>
@@ -3049,36 +3058,6 @@ Applied: {2} / {3} applicable fixes.</value>
   <data name="Info.Demo.Tools.PublisherStudioSubtitle" xml:space="preserve">
     <value>Author content catalogs, package variants, and configure external CDN distribution.</value>
   </data>
-  <data name="Info.Demo.Tools.PublisherStudioShowcaseHeading" xml:space="preserve">
-    <value>Decentralized 3-Tier Content Distribution</value>
-  </data>
-  <data name="Info.Demo.Tools.PublisherStudioShowcaseDesc" xml:space="preserve">
-    <value>Publisher Studio empowers mod authors and content creators to publish updates directly to players via GitHub Releases, Google Drive, Dropbox, or custom CDNs without requiring central GenHub server infrastructure.</value>
-  </data>
-  <data name="Info.Demo.Tools.LaunchPublisherStudio" xml:space="preserve">
-    <value>Open Publisher Studio</value>
-  </data>
-  <data name="Info.Demo.Tools.PublisherStudioShowcaseSubheading" xml:space="preserve">
-    <value>Tier 1 (Publisher Manifest) → Tier 2 (Content Catalogs) → Tier 3 (Artifact Archives)</value>
-  </data>
-  <data name="Info.Demo.Tools.PublisherStudioStep1Title" xml:space="preserve">
-    <value>1. Catalog Authoring</value>
-  </data>
-  <data name="Info.Demo.Tools.PublisherStudioStep1Desc" xml:space="preserve">
-    <value>Package content, hash files, configure variants, and specify dependencies.</value>
-  </data>
-  <data name="Info.Demo.Tools.PublisherStudioStep2Title" xml:space="preserve">
-    <value>2. External CDN Hosting</value>
-  </data>
-  <data name="Info.Demo.Tools.PublisherStudioStep2Desc" xml:space="preserve">
-    <value>Host manifests &amp; archives on GitHub Releases, Google Drive, Dropbox, or custom CDNs.</value>
-  </data>
-  <data name="Info.Demo.Tools.PublisherStudioStep3Title" xml:space="preserve">
-    <value>3. Player Notifications</value>
-  </data>
-  <data name="Info.Demo.Tools.PublisherStudioStep3Desc" xml:space="preserve">
-    <value>Subscribed players poll manifests every 30m, get notified, and download updates CAS-verified.</value>
-  </data>
   <data name="Info.Demo.Tools.HotkeyEditorTitle" xml:space="preserve">
     <value>Hotkey Editor</value>
   </data>
@@ -3096,222 +3075,6 @@ Applied: {2} / {3} applicable fixes.</value>
   </data>
   <data name="Info.Demo.Tools.WndEditorSubtitle" xml:space="preserve">
     <value>Edit window layouts with a live canvas preview.</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.File" xml:space="preserve">
-    <value>File</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.New" xml:space="preserve">
-    <value>New</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.Save" xml:space="preserve">
-    <value>Save</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.Validate" xml:space="preserve">
-    <value>Validate</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.Edit" xml:space="preserve">
-    <value>Edit</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.AddChild" xml:space="preserve">
-    <value>Add Child Window</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.Delete" xml:space="preserve">
-    <value>Delete Window</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.View" xml:space="preserve">
-    <value>View</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.ZoomIn" xml:space="preserve">
-    <value>Zoom In</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.ZoomOut" xml:space="preserve">
-    <value>Zoom Out</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.ResetZoom" xml:space="preserve">
-    <value>Reset Zoom</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.Assets" xml:space="preserve">
-    <value>Assets</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.LinkFolder" xml:space="preserve">
-    <value>Link Mod Folder...</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.ImportTexture" xml:space="preserve">
-    <value>Import Texture...</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Files.Label" xml:space="preserve">
-    <value>Files</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Tree.Label" xml:space="preserve">
-    <value>Window Tree</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Canvas.Label" xml:space="preserve">
-    <value>Canvas Preview</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Properties.Title" xml:space="preserve">
-    <value>Properties</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Properties.X" xml:space="preserve">
-    <value>X</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Properties.Y" xml:space="preserve">
-    <value>Y</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Properties.Width" xml:space="preserve">
-    <value>Width</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Properties.Height" xml:space="preserve">
-    <value>Height</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Properties.Validate" xml:space="preserve">
-    <value>Validate</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Status.Windows" xml:space="preserve">
-    <value>Windows:</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Status.Ready" xml:space="preserve">
-    <value>Select a window to edit its geometry.</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Status.NotValidated" xml:space="preserve">
-    <value>Not validated yet.</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Status.Invalid" xml:space="preserve">
-    <value>Some windows have empty geometry.</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Status.Valid" xml:space="preserve">
-    <value>Document is valid: 0 errors.</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Status.Added" xml:space="preserve">
-    <value>Child window added.</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Status.Deleted" xml:space="preserve">
-    <value>Window deleted.</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Toast.Title" xml:space="preserve">
-    <value>Demo</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Toast.NewMessage" xml:space="preserve">
-    <value>Created a new untitled layout. (Simulated)</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Toast.SaveMessage" xml:space="preserve">
-    <value>Document saved. (Simulated)</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Toast.DeleteRootMessage" xml:space="preserve">
-    <value>Select a child window to delete. The root screen cannot be removed.</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Toast.LinkMessage" xml:space="preserve">
-    <value>Linked sample mod folder. (Simulated)</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Toast.ImportMessage" xml:space="preserve">
-    <value>Imported sample texture. (Simulated)</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Variants.Textures" xml:space="preserve">
-    <value>Textures:</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Variants.Audio" xml:space="preserve">
-    <value>Audio:</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Files.Label" xml:space="preserve">
-    <value>Project Files</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Files.Add" xml:space="preserve">
-    <value>Add to Pack</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Packs.Label" xml:space="preserve">
-    <value>Bundle Packs</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.PackItems.Label" xml:space="preserve">
-    <value>Pack Items</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.PackItems.Remove" xml:space="preserve">
-    <value>Remove from pack</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.PackItems.MoveUp" xml:space="preserve">
-    <value>Move up</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.PackItems.MoveDown" xml:space="preserve">
-    <value>Move down</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.PackItems.ConvertDds" xml:space="preserve">
-    <value>Convert all TGA to DDS</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Manifest.Label" xml:space="preserve">
-    <value>Manifest Preview</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Build.Run" xml:space="preserve">
-    <value>Build Pack</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Build.LearnManifests" xml:space="preserve">
-    <value>Learn About Manifests</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Build.LogLabel" xml:space="preserve">
-    <value>Build Log</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Status.BundledFiles" xml:space="preserve">
-    <value>Bundled files:</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Status.Ready" xml:space="preserve">
-    <value>Assemble bundle packs, then build the sample project.</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Status.Converted" xml:space="preserve">
-    <value>Converted pack textures to DDS.</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Status.NothingToConvert" xml:space="preserve">
-    <value>No unconverted TGA textures in this pack.</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Toast.Title" xml:space="preserve">
-    <value>Demo</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Toast.DuplicateMessage" xml:space="preserve">
-    <value>That file is already in this pack.</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Toast.BuildMessage" xml:space="preserve">
-    <value>Bundle pack built. (Simulated)</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Faction.Label" xml:space="preserve">
-    <value>Faction:</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Conflicts.Label" xml:space="preserve">
-    <value>Conflicts:</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Clear.Label" xml:space="preserve">
-    <value>Clear</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Clear.Tooltip" xml:space="preserve">
-    <value>Clear the selected slot</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Addon.Label" xml:space="preserve">
-    <value>Create Addon</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Addon.Tooltip" xml:space="preserve">
-    <value>Package bindings into an addon manifest</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Grid.Label" xml:space="preserve">
-    <value>Command Card</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Palette.Label" xml:space="preserve">
-    <value>Key Palette</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Palette.Hint" xml:space="preserve">
-    <value>Pick a key to assign it to the selected slot.</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Slot.Conflict" xml:space="preserve">
-    <value>Conflict</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Status.Ready" xml:space="preserve">
-    <value>Select a slot, then pick a key to rebind it.</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Status.Conflict" xml:space="preserve">
-    <value>Conflict: slots share a key. Pick distinct keys to clear it.</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Status.Clear" xml:space="preserve">
-    <value>Key assigned. No conflicts.</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Toast.Title" xml:space="preserve">
-    <value>Demo</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Toast.AddonMessage" xml:space="preserve">
-    <value>Hotkey addon manifest created. (Simulated)</value>
   </data>
   <data name="Info.Demo.ScanWizard.Title" xml:space="preserve">
     <value>Scan Wizard</value>
@@ -4065,6 +3828,12 @@ Applied: {2} / {3} applicable fixes.</value>
   </data>
   <data name="Info.Section.game-profiles.Description" xml:space="preserve">
     <value>The heart of GenHub: manage isolated installations, mods, patches, and configurations.</value>
+  </data>
+  <data name="Info.Section.game-profile-settings.Title" xml:space="preserve">
+    <value>Game Profile Settings</value>
+  </data>
+  <data name="Info.Section.game-profile-settings.Description" xml:space="preserve">
+    <value>Name, appearance, launch options, and saving for a single profile.</value>
   </data>
   <data name="Info.Section.game-settings.Title" xml:space="preserve">
     <value>Game Settings (Options.ini)</value>
@@ -5511,7 +5280,7 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
 
 **Browse Builds Tab.**
 * **Open Pull Requests:** Browse automated CI builds for active pull requests (such as #101 Feature: Enhanced Profile Management or #102 Fix: Application crash on startup). Click any PR link to view its review status on GitHub.
-* **Branches:** Browse builds generated from Git branches (such as dev, v1.2-beta, or feature/ui-rework).
+* **Branches:** Browse builds generated from Git branches (such as development, v1.2-beta, or feature/ui-rework).
 * **Subscribe:** Click Subscribe next to a PR or branch to track that channel and get notified when new CI test builds are published.
 
 **Interactive Sandbox.**
@@ -5519,6 +5288,30 @@ The demo panel above runs against simulated data so you can safely switch tabs, 
   </data>
   <data name="Info.Card.app-updates.version-control.Title" xml:space="preserve">
     <value>Interactive Update Window &amp; Release Channels</value>
+  </data>
+  <data name="Info.Card.app-updates.github-branches-prs.Content" xml:space="preserve">
+    <value>How GenHub is built in the open, and where test builds come from.</value>
+  </data>
+  <data name="Info.Card.app-updates.github-branches-prs.DetailedContent" xml:space="preserve">
+    <value>GenHub is built in the open on GitHub. Every change, from typo fixes to new tools, travels the same road: a branch, a pull request, automated test builds, review, then merge.
+
+**Branches.**
+A branch is a parallel copy of the code. `main` is the stable line that releases are cut from. `development` carries reviewed work heading for the next release. Feature branches like `feature/ui-rework` hold one change at a time so experiments never destabilize the rest.
+
+**Pull Requests.**
+A pull request proposes merging one branch into another. It shows exactly what changed, runs the CI pipeline, and collects review comments. Nothing lands without passing checks and a human review.
+
+**CI Builds &amp; Subscribing.**
+Every pull request and branch gets automated test builds from CI. In the **Browse Builds** tab of the update window (try the demo above), click **Subscribe** next to any PR or branch to track it. GenHub notifies you when fresh builds land, and one click installs the test build. Unsubscribe any time to return to stable releases.</value>
+  </data>
+  <data name="Info.Card.app-updates.github-branches-prs.Title" xml:space="preserve">
+    <value>GitHub, Branches &amp; Pull Requests</value>
+  </data>
+  <data name="Info.Card.app-updates.github-branches-prs.Action.NAV_INFO_changelogs" xml:space="preserve">
+    <value>Browse the changelog</value>
+  </data>
+  <data name="Info.Card.changelogs.changelogs-updates.Action.NAV_INFO_app-updates" xml:space="preserve">
+    <value>Manage app updates</value>
   </data>
   <data name="Info.Card.app-updates.workflow.Content" xml:space="preserve">
     <value>Background package downloads with delta compression via Velopack.</value>
@@ -5791,6 +5584,9 @@ External utilities (such as World Builder, Hotkey Editor, or FinalBIG) that can 
   <data name="Info.Card.game-profile-content.hierarchy.Title" xml:space="preserve">
     <value>Content Types &amp; Hierarchy</value>
   </data>
+  <data name="Info.Card.game-profile-content.hierarchy.Action.NAV_INFO_content-manifests" xml:space="preserve">
+    <value>Learn about manifests</value>
+  </data>
   <data name="Info.Card.game-profile-content.vfs.Content" xml:space="preserve">
     <value>How files are merged when launching.</value>
   </data>
@@ -5854,6 +5650,61 @@ A profile is an independent configuration for your game. Instead of reinstalling
   </data>
   <data name="Info.Card.game-profiles.sandbox.Title" xml:space="preserve">
     <value>Your Personal Sandbox</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-identity.Title" xml:space="preserve">
+    <value>Profile Identity</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-identity.Content" xml:space="preserve">
+    <value>Name, description, and game installation.</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-identity.DetailedContent" xml:space="preserve">
+    <value>**Naming Your Profile:**
+The Profile Settings tab holds the fields that identify one profile on the Game Profiles list: a display name and a longer description shown on the profile card.
+
+**Game Installation:**
+The installation picker selects which detected game the profile launches (Steam, EA App, or disc). Switching installations disables enabled content that does not match the new game type, so the profile can never launch with an incompatible mix.</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-appearance.Title" xml:space="preserve">
+    <value>Icons, Covers &amp; Theme Color</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-appearance.Content" xml:space="preserve">
+    <value>Visual identity for the profile card.</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-appearance.DetailedContent" xml:space="preserve">
+    <value>**Icons and Covers:**
+Pick an icon and cover from the built-in galleries, or use Browse to point at your own image files. The icon represents the profile in lists and shortcuts; the cover fills the profile card header.
+
+**Theme Color:**
+The swatch grid sets the profile accent color, applied to the editor header and the profile card. The dice button next to Save picks a random color.</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-launch.Title" xml:space="preserve">
+    <value>Workspace Strategy &amp; Launch Arguments</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-launch.Content" xml:space="preserve">
+    <value>How the profile builds its workspace and starts the game.</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-launch.DetailedContent" xml:space="preserve">
+    <value>**Workspace Strategy:**
+The strategy picker chooses how the profile workspace links game files. The picker locks after the profile's first launch, since changing it later would orphan the existing workspace.
+
+**Command-Line Arguments:**
+Extra arguments are passed straight to the game executable on launch, for example `-win` for windowed mode or `-quickstart` to skip intro videos.</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-launch.Action.NAV_INFO_workspaces" xml:space="preserve">
+    <value>How workspaces work</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-saving.Title" xml:space="preserve">
+    <value>Saving &amp; Window Memory</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-saving.Content" xml:space="preserve">
+    <value>What Save keeps and what the editor remembers.</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-saving.DetailedContent" xml:space="preserve">
+    <value>**Save and Cancel:**
+Save writes every tab (profile settings, content, and game settings) to the profile. Cancel closes the editor and discards unsaved changes.
+
+**Window Memory:**
+The editor remembers its window size, maximized state, and sidebar widths across restarts, per settings tab.</value>
   </data>
   <data name="Info.Card.game-settings.generals-online.Content" xml:space="preserve">
     <value>Online multiplayer lobby and matchmaking features.</value>
@@ -6069,39 +5920,50 @@ When signature checks pass, GenHub verifies that game assets are authentic and r
     <value>How to add a profile shortcut to your desktop.</value>
   </data>
   <data name="Info.Card.shortcuts.creation.DetailedContent" xml:space="preserve">
-    <value>**Creating a Shortcut:**
-1. In **Game Profiles**, right-click any profile card (or click the Desktop shortcut icon).
+    <value>1. In **Game Profiles**, right-click any profile card (or click the Desktop shortcut icon).
 2. Select **Create Desktop Shortcut**.
-3. A standard Windows shortcut (`.lnk`) appears on your desktop.
-4. Double-clicking this shortcut launches that specific profile configuration immediately.</value>
+3. GenHub writes the shortcut for your OS: a `.lnk` file on Windows, a `.desktop` entry on Linux, or a `.command` script on macOS.
+4. Double-click it to launch that profile.</value>
   </data>
   <data name="Info.Card.shortcuts.creation.Title" xml:space="preserve">
     <value>Shortcut Creation</value>
+  </data>
+  <data name="Info.Card.shortcuts.demo-shortcuts.Title" xml:space="preserve">
+    <value>Interactive Demo: Desktop Shortcuts</value>
+  </data>
+  <data name="Info.Card.shortcuts.demo-shortcuts.Content" xml:space="preserve">
+    <value>See the shortcut flow: from profile card to desktop icon.</value>
+  </data>
+  <data name="Info.Card.shortcuts.demo-shortcuts.DetailedContent" xml:space="preserve">
+    <value>Right-click a profile card, choose Create Desktop Shortcut, and a launcher icon for that profile lands on your desktop.
+* Double-clicking launches the profile headless, without keeping the main window open.
+* If GenHub is already running, the launch request is forwarded to it instead of starting a second copy.</value>
   </data>
   <data name="Info.Card.shortcuts.headless.Content" xml:space="preserve">
     <value>Launch profiles directly from your desktop.</value>
   </data>
   <data name="Info.Card.shortcuts.headless.DetailedContent" xml:space="preserve">
-    <value>**Direct Desktop Launching:**
-Shortcuts allow you to start any mod configuration straight from your desktop without keeping the main launcher window open:
+    <value>A shortcut starts the game straight from your desktop, without opening the main window. GenHub does its part and gets out of the way:
 
-1. **Direct Launch:** Double-click the shortcut to start the game immediately.
-2. **Silent Setup:** GenHub runs briefly in the background to prepare the profile workspace, then hands off to the game.
-3. **Clean Exit:** Workspace temporary files are automatically cleaned up when the game closes.</value>
+1. Double-click the shortcut to start the game.
+2. GenHub runs briefly in the background to prepare the profile workspace, then hands off to the game.
+3. If GenHub is already running, the shortcut forwards the profile to it instead of starting a second copy.</value>
   </data>
   <data name="Info.Card.shortcuts.headless.Title" xml:space="preserve">
     <value>Headless Mode Launcher</value>
   </data>
   <data name="Info.Card.shortcuts.icons.Content" xml:space="preserve">
-    <value>Visual icons for your desktop shortcuts.</value>
+    <value>Which icon lands on your desktop.</value>
   </data>
   <data name="Info.Card.shortcuts.icons.DetailedContent" xml:space="preserve">
-    <value>**Shortcut Icons:**
-GenHub extracts official high-resolution icon resources from the game executable (`generals.exe` or `game.dat`).
-If your profile uses custom metadata or mod artwork, GenHub converts that image into an icon embedded directly in the shortcut.</value>
+    <value>The shortcut reuses your profile's own icon file when one is set, and falls back to the GenHub launcher icon otherwise.
+Pick or change the icon any time from the Icon row in Profile Settings. Shortcuts you create afterwards pick it up automatically.</value>
   </data>
   <data name="Info.Card.shortcuts.icons.Title" xml:space="preserve">
     <value>Icon Customization</value>
+  </data>
+  <data name="Info.Card.shortcuts.icons.Action.NAV_INFO_game-profile-settings" xml:space="preserve">
+    <value>Open Profile Settings guide</value>
   </data>
   <data name="Info.Card.steam-integration.appid.Content" xml:space="preserve">
     <value>Use Steam playtime tracking and the overlay with any mod.</value>
@@ -14569,6 +14431,9 @@ Insert child windows under the current selection or remove controls you no longe
 **Identity &amp; Versioning.**
 Every manifest carries a Manifest ID (such as 1.0.shockwave.mod.shockwave-chaos-edition) plus a human-readable name and version. Publishers sign releases with SHA-256 hashes so GenHub can verify every byte before installing.</value>
   </data>
+  <data name="Info.Card.content-manifests.manifest-overview.Action.NAV_INFO_game-profile-content" xml:space="preserve">
+    <value>See profile content</value>
+  </data>
   <data name="Info.Card.content-manifests.manifest-content-types.Title" xml:space="preserve">
     <value>Content Types &amp; Manifest IDs</value>
   </data>
@@ -14613,6 +14478,9 @@ Resolved manifests wait in the pool, ready to attach to any profile. Switching v
 
 **5. Profile Launch.**
 Reconciliation maps pooled files into an isolated workspace using hardlinks, symlinks, or copies, then launches the game against that workspace.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-pipeline.Action.NAV_INFO_workspaces" xml:space="preserve">
+    <value>See workspaces</value>
   </data>
   <data name="Info.Card.content-manifests.manifest-bundles.Title" xml:space="preserve">
     <value>Bundles, Variants &amp; Dependencies</value>

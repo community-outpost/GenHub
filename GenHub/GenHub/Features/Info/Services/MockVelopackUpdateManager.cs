@@ -118,7 +118,7 @@ public class MockVelopackUpdateManager(INotificationService? notificationService
 
     /// <inheritdoc/>
     public Task<IReadOnlyList<string>> GetBranchesAsync(CancellationToken cancellationToken = default)
-        => Task.FromResult<IReadOnlyList<string>>(["main", "dev", "v1.2-beta", "feature/ui-rework"]);
+        => Task.FromResult<IReadOnlyList<string>>(["main", "development", "v1.2-beta", "feature/ui-rework"]);
 
     /// <inheritdoc/>
     public Task<IReadOnlyList<PullRequestInfo>> GetOpenPullRequestsAsync(CancellationToken cancellationToken = default)

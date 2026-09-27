@@ -303,7 +303,7 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
         int targetIndex = sectionId switch
         {
             InfoConstants.SectionGameProfileContent => 0,
-            InfoConstants.SectionGameProfiles => 1,
+            InfoConstants.SectionGameProfileSettings => 1,
             InfoConstants.SectionGameSettings => 2,
             _ => -1,
         };
@@ -371,10 +371,11 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
     protected override void OnTabSelected(int tabIndex)
     {
         base.OnTabSelected(tabIndex);
+
         string? targetSection = tabIndex switch
         {
             0 => InfoConstants.SectionGameProfileContent,
-            1 => InfoConstants.SectionGameProfiles,
+            1 => InfoConstants.SectionGameProfileSettings,
             2 => InfoConstants.SectionGameSettings,
             _ => null,
         };

@@ -3017,7 +3017,16 @@
     <value>نصيحة: يمكنك تغيير حجم نافذة العرض هذه بسحب الحافة اليمنى أو السفلية!</value>
   </data>
   <data name="Info.Demo.GameSettings.Hint" xml:space="preserve">
-    <value>جرب تبديل الدقة المخصصة أو النقر فوق أزرار الاستعراض!</value>
+    <value>جرّب تغيير الإعدادات، أو انقر علامات التبويب الأخرى للانتقال إلى أدلتها!</value>
+  </data>
+  <data name="Info.Demo.ProfileSettings.Title" xml:space="preserve">
+    <value>عرض: هوية الملف وخيارات التشغيل</value>
+  </data>
+  <data name="Info.Demo.ProfileSettings.Subtitle" xml:space="preserve">
+    <value>تسمية الملف وضبط الأيقونة وصورة الغلاف وخيارات مساحة العمل.</value>
+  </data>
+  <data name="Info.Demo.ProfileSettings.Hint" xml:space="preserve">
+    <value>انقر علامات التبويب الأخرى للانتقال إلى أدلتها!</value>
   </data>
   <data name="Info.Demo.ContentSelection.Title" xml:space="preserve">
     <value>عرض توضيحي: تحديد المحتوى</value>
@@ -3029,7 +3038,7 @@
     <value>محرر المحتوى هو المكان الذي تقوم فيه بإنشاء قائمة تشغيل المحتوى لملف شخصي محدد.</value>
   </data>
   <data name="Info.Demo.ContentSelection.Hint" xml:space="preserve">
-    <value>جرب تبديل التعديلات أو إعادة ترتيب المحتوى أو النقر فوق إضافة محلي!</value>
+    <value>جرّب تبديل التعديلات، أو انقر علامات التبويب الأخرى للانتقال إلى أدلتها!</value>
   </data>
   <data name="Info.Demo.Tools.ReplayManagerTitle" xml:space="preserve">
     <value>إدارة الإعادات</value>
@@ -3049,36 +3058,6 @@
   <data name="Info.Demo.Tools.PublisherStudioSubtitle" xml:space="preserve">
     <value>قم بإنشاء كتالوجات المحتوى وحزم المتغيرات وتكوين توزيع CDN الخارجي.</value>
   </data>
-  <data name="Info.Demo.Tools.PublisherStudioShowcaseHeading" xml:space="preserve">
-    <value>توزيع محتوى لامركزي ثلاثي المستويات</value>
-  </data>
-  <data name="Info.Demo.Tools.PublisherStudioShowcaseDesc" xml:space="preserve">
-    <value>يمكّن استوديو الناشر مؤلفي التعديلات ومنشئي المحتوى من نشر التحديثات مباشرة للاعبين عبر GitHub Releases أو Google Drive أو Dropbox أو شبكات CDN المخصصة دون الحاجة إلى خادم GenHub مركزي.</value>
-  </data>
-  <data name="Info.Demo.Tools.LaunchPublisherStudio" xml:space="preserve">
-    <value>فتح استوديو الناشر</value>
-  </data>
-  <data name="Info.Demo.Tools.PublisherStudioShowcaseSubheading" xml:space="preserve">
-    <value>المستوى 1 (بيان الناشر) ← المستوى 2 (فهارس المحتوى) ← المستوى 3 (أرشيفات العناصر)</value>
-  </data>
-  <data name="Info.Demo.Tools.PublisherStudioStep1Title" xml:space="preserve">
-    <value>1. تأليف الفهرس</value>
-  </data>
-  <data name="Info.Demo.Tools.PublisherStudioStep1Desc" xml:space="preserve">
-    <value>حزم المحتوى وتجزئة الملفات وتكوين المتغيرات وتحديد التبعيات.</value>
-  </data>
-  <data name="Info.Demo.Tools.PublisherStudioStep2Title" xml:space="preserve">
-    <value>2. استضافة CDN خارجية</value>
-  </data>
-  <data name="Info.Demo.Tools.PublisherStudioStep2Desc" xml:space="preserve">
-    <value>استضافة البيانات والأرشيفات على GitHub Releases أو Google Drive أو Dropbox أو شبكات CDN المخصصة.</value>
-  </data>
-  <data name="Info.Demo.Tools.PublisherStudioStep3Title" xml:space="preserve">
-    <value>3. إشعارات اللاعبين</value>
-  </data>
-  <data name="Info.Demo.Tools.PublisherStudioStep3Desc" xml:space="preserve">
-    <value>يقوم اللاعبون المشتركون بالتحقق من البيانات كل 30 دقيقة وتلقي الإشعارات وتنزيل التحديثات المعتمدة من CAS.</value>
-  </data>
   <data name="Info.Demo.Tools.HotkeyEditorTitle" xml:space="preserve">
     <value>محرر الاختصارات</value>
   </data>
@@ -3096,222 +3075,6 @@
   </data>
   <data name="Info.Demo.Tools.WndEditorSubtitle" xml:space="preserve">
     <value>حرر تخطيطات النوافذ مع معاينة حية على اللوحة.</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.File" xml:space="preserve">
-    <value>ملف</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.New" xml:space="preserve">
-    <value>جديد</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.Save" xml:space="preserve">
-    <value>حفظ</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.Validate" xml:space="preserve">
-    <value>تحقق</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.Edit" xml:space="preserve">
-    <value>تحرير</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.AddChild" xml:space="preserve">
-    <value>إضافة نافذة فرعية</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.Delete" xml:space="preserve">
-    <value>حذف النافذة</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.View" xml:space="preserve">
-    <value>عرض</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.ZoomIn" xml:space="preserve">
-    <value>تكبير</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.ZoomOut" xml:space="preserve">
-    <value>تصغير</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.ResetZoom" xml:space="preserve">
-    <value>إعادة ضبط التقريب</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.Assets" xml:space="preserve">
-    <value>الأصول</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.LinkFolder" xml:space="preserve">
-    <value>ربط مجلد التعديل...</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Menu.ImportTexture" xml:space="preserve">
-    <value>استيراد خامة...</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Files.Label" xml:space="preserve">
-    <value>الملفات</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Tree.Label" xml:space="preserve">
-    <value>شجرة النوافذ</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Canvas.Label" xml:space="preserve">
-    <value>معاينة اللوحة</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Properties.Title" xml:space="preserve">
-    <value>الخصائص</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Properties.X" xml:space="preserve">
-    <value>X</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Properties.Y" xml:space="preserve">
-    <value>Y</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Properties.Width" xml:space="preserve">
-    <value>العرض</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Properties.Height" xml:space="preserve">
-    <value>الارتفاع</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Properties.Validate" xml:space="preserve">
-    <value>تحقق</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Status.Windows" xml:space="preserve">
-    <value>النوافذ:</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Status.Ready" xml:space="preserve">
-    <value>حدد نافذة لتحرير أبعادها.</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Status.NotValidated" xml:space="preserve">
-    <value>لم يتم التحقق بعد.</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Status.Invalid" xml:space="preserve">
-    <value>بعض النوافذ لها أبعاد فارغة.</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Status.Valid" xml:space="preserve">
-    <value>المستند صالح: 0 أخطاء.</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Status.Added" xml:space="preserve">
-    <value>تمت إضافة نافذة فرعية.</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Status.Deleted" xml:space="preserve">
-    <value>تم حذف النافذة.</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Toast.Title" xml:space="preserve">
-    <value>عرض تجريبي</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Toast.NewMessage" xml:space="preserve">
-    <value>تم إنشاء تخطيط جديد بدون عنوان. (محاكاة)</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Toast.SaveMessage" xml:space="preserve">
-    <value>تم حفظ المستند. (محاكاة)</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Toast.DeleteRootMessage" xml:space="preserve">
-    <value>حدد نافذة فرعية لحذفها. لا يمكن إزالة الشاشة الجذرية.</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Toast.LinkMessage" xml:space="preserve">
-    <value>تم ربط مجلد تعديل تجريبي. (محاكاة)</value>
-  </data>
-  <data name="Info.Demo.Tools.WndEditor.Toast.ImportMessage" xml:space="preserve">
-    <value>تم استيراد خامة تجريبية. (محاكاة)</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Variants.Textures" xml:space="preserve">
-    <value>الخامات:</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Variants.Audio" xml:space="preserve">
-    <value>الصوت:</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Files.Label" xml:space="preserve">
-    <value>ملفات المشروع</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Files.Add" xml:space="preserve">
-    <value>إضافة إلى الحزمة</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Packs.Label" xml:space="preserve">
-    <value>حزم المحتوى</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.PackItems.Label" xml:space="preserve">
-    <value>عناصر الحزمة</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.PackItems.Remove" xml:space="preserve">
-    <value>إزالة من الحزمة</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.PackItems.MoveUp" xml:space="preserve">
-    <value>نقل لأعلى</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.PackItems.MoveDown" xml:space="preserve">
-    <value>نقل لأسفل</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.PackItems.ConvertDds" xml:space="preserve">
-    <value>تحويل كل TGA إلى DDS</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Manifest.Label" xml:space="preserve">
-    <value>معاينة البيان</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Build.Run" xml:space="preserve">
-    <value>بناء الحزمة</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Build.LearnManifests" xml:space="preserve">
-    <value>تعرف على البيانات الوصفية</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Build.LogLabel" xml:space="preserve">
-    <value>سجل البناء</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Status.BundledFiles" xml:space="preserve">
-    <value>الملفات المجمعة:</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Status.Ready" xml:space="preserve">
-    <value>جمّع حزم المحتوى ثم ابنِ المشروع التجريبي.</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Status.Converted" xml:space="preserve">
-    <value>تم تحويل خامات الحزمة إلى DDS.</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Status.NothingToConvert" xml:space="preserve">
-    <value>لا توجد خامات TGA غير محولة في هذه الحزمة.</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Toast.Title" xml:space="preserve">
-    <value>عرض تجريبي</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Toast.DuplicateMessage" xml:space="preserve">
-    <value>هذا الملف موجود بالفعل في هذه الحزمة.</value>
-  </data>
-  <data name="Info.Demo.Tools.ModBuilder.Toast.BuildMessage" xml:space="preserve">
-    <value>تم بناء حزمة المحتوى. (محاكاة)</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Faction.Label" xml:space="preserve">
-    <value>الفصيل:</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Conflicts.Label" xml:space="preserve">
-    <value>التعارضات:</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Clear.Label" xml:space="preserve">
-    <value>مسح</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Clear.Tooltip" xml:space="preserve">
-    <value>مسح الخانة المحددة</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Addon.Label" xml:space="preserve">
-    <value>إنشاء إضافة</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Addon.Tooltip" xml:space="preserve">
-    <value>تغليف الربط في بيان إضافة</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Grid.Label" xml:space="preserve">
-    <value>بطاقة الأوامر</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Palette.Label" xml:space="preserve">
-    <value>لوحة المفاتيح</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Palette.Hint" xml:space="preserve">
-    <value>اختر مفتاحًا لإسناده إلى الخانة المحددة.</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Slot.Conflict" xml:space="preserve">
-    <value>تعارض</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Status.Ready" xml:space="preserve">
-    <value>حدد خانة ثم اختر مفتاحًا لإعادة ربطها.</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Status.Conflict" xml:space="preserve">
-    <value>تعارض: الخانات تشترك في مفتاح. اختر مفاتيح مميزة لمسحه.</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Status.Clear" xml:space="preserve">
-    <value>تم إسناد المفتاح. لا تعارضات.</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Toast.Title" xml:space="preserve">
-    <value>عرض تجريبي</value>
-  </data>
-  <data name="Info.Demo.Tools.HotkeyEditor.Toast.AddonMessage" xml:space="preserve">
-    <value>تم إنشاء بيان إضافة الاختصارات. (محاكاة)</value>
   </data>
   <data name="Info.Demo.ScanWizard.Title" xml:space="preserve">
     <value>معالج الفحص</value>
@@ -4065,6 +3828,12 @@
   </data>
   <data name="Info.Section.game-profiles.Description" xml:space="preserve">
     <value>قلب GenHub النابض: إدارة التثبيتات المعزولة، التعديلات، التحديثات والتكوينات.</value>
+  </data>
+  <data name="Info.Section.game-profile-settings.Title" xml:space="preserve">
+    <value>إعدادات ملف تعريف اللعبة</value>
+  </data>
+  <data name="Info.Section.game-profile-settings.Description" xml:space="preserve">
+    <value>الاسم والمظهر وخيارات التشغيل والحفظ لملف تعريف واحد.</value>
   </data>
   <data name="Info.Section.game-settings.Title" xml:space="preserve">
     <value>إعدادات اللعبة (Options.ini)</value>
@@ -5511,7 +5280,7 @@
 
 **علامة تبويب تصفح البناءات.**
 * **طلبات السحب المفتوحة (PRs):** تصفح بناءات التكامل المستمر (CI) التلقائية لطلبات السحب النشطة (مثل #101 ميزة: إدارة ملفات التعريف المحسنة أو #102 إصلاح: تعطل التطبيق عند بدء التشغيل). انقر فوق أي رابط PR لعرض حالة مراجعته على GitHub.
-* **الفروع:** تصفح البناءات التي تم إنشاؤها من فروع Git (مثل dev أو v1.2-beta أو feature/ui-rework).
+* **الفروع:** تصفح البناءات التي تم إنشاؤها من فروع Git (مثل development أو v1.2-beta أو feature/ui-rework).
 * **اشتراك:** انقر فوق اشتراك بجوار طلب سحب أو فرع لتتبع تلك القناة وتلقي إشعارات عند نشر بناءات اختبار CI جديدة.
 
 **بيئة الاختبار التفاعلية.**
@@ -5519,6 +5288,30 @@
   </data>
   <data name="Info.Card.app-updates.version-control.Title" xml:space="preserve">
     <value>نافذة التحديث التفاعلية وقنوات الإصدار</value>
+  </data>
+  <data name="Info.Card.app-updates.github-branches-prs.Content" xml:space="preserve">
+    <value>كيف يُبنى GenHub علنًا، ومن أين تأتي بناءات الاختبار.</value>
+  </data>
+  <data name="Info.Card.app-updates.github-branches-prs.DetailedContent" xml:space="preserve">
+    <value>يُبنى GenHub علنًا على GitHub. كل تغيير، من إصلاح الأخطاء المطبعية إلى الأدوات الجديدة، يسلك الطريق نفسه: فرع، ثم طلب سحب، ثم بناءات اختبار آلية، ثم مراجعة، ثم دمج.
+
+**الفروع.**
+الفرع نسخة متوازية من الكود. `main` هو الخط المستقر الذي تُقطع منه الإصدارات. `development` يحمل العمل المراجَع المتجه إلى الإصدار التالي. فروع الميزات مثل `feature/ui-rework` تحمل تغييرًا واحدًا في كل مرة حتى لا تزعزع التجارب استقرار الباقي.
+
+**طلبات السحب.**
+طلب السحب يقترح دمج فرع في آخر. يعرض بالضبط ما تغيّر، ويشغّل خط التكامل المستمر، ويجمع تعليقات المراجعة. لا يصل شيء دون اجتياز الفحوصات ومراجعة بشرية.
+
+**بناءات CI والاشتراك.**
+كل طلب سحب وفرع يحصل على بناءات اختبار آلية من CI. في علامة تبويب **تصفح البناءات** في نافذة التحديث (جرّب العرض أعلاه)، انقر **اشتراك** بجوار أي طلب سحب أو فرع لتتبعه. يُعلمك GenHub عند وصول بناءات جديدة، ونقرة واحدة تثبّت بناء الاختبار. ألغِ الاشتراك في أي وقت للعودة إلى الإصدارات المستقرة.</value>
+  </data>
+  <data name="Info.Card.app-updates.github-branches-prs.Title" xml:space="preserve">
+    <value>GitHub والفروع وطلبات السحب</value>
+  </data>
+  <data name="Info.Card.app-updates.github-branches-prs.Action.NAV_INFO_changelogs" xml:space="preserve">
+    <value>تصفح سجل التغييرات</value>
+  </data>
+  <data name="Info.Card.changelogs.changelogs-updates.Action.NAV_INFO_app-updates" xml:space="preserve">
+    <value>إدارة تحديثات التطبيق</value>
   </data>
   <data name="Info.Card.app-updates.workflow.Content" xml:space="preserve">
     <value>تنزيلات خلفية غير معطلة مع التحقق من SHA-256 والتبديل الذري.</value>
@@ -5782,6 +5575,9 @@
   <data name="Info.Card.game-profile-content.hierarchy.Title" xml:space="preserve">
     <value>أنواع المحتوى وهرمية الأولوية</value>
   </data>
+  <data name="Info.Card.game-profile-content.hierarchy.Action.NAV_INFO_content-manifests" xml:space="preserve">
+    <value>تعرف على البيانات الوصفية</value>
+  </data>
   <data name="Info.Card.game-profile-content.vfs.Content" xml:space="preserve">
     <value>كيف يتم دمج وتنظيم الملفات عند تحضير اللعبة للإطلاق.</value>
   </data>
@@ -5852,6 +5648,61 @@
   </data>
   <data name="Info.Card.game-profiles.sandbox.Title" xml:space="preserve">
     <value>بيئة التشغيل المعزولة (Sandbox)</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-identity.Title" xml:space="preserve">
+    <value>هوية الملف</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-identity.Content" xml:space="preserve">
+    <value>الاسم والوصف ونسخة اللعبة.</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-identity.DetailedContent" xml:space="preserve">
+    <value>**تسمية ملف التعريف:**
+يحمل تبويب إعدادات الملف الحقول التي تميز ملفاً واحداً في قائمة ملفات اللعبة: اسم عرض ووصف أطول يظهر على بطاقة الملف.
+
+**نسخة اللعبة:**
+يحدد منتقي التثبيت نسخة اللعبة المكتشفة التي يشغلها الملف (Steam أو EA App أو القرص). تبديل النسخة يعطل المحتوى المفعّل غير المتوافق مع نوع اللعبة الجديد، فلا يعمل الملف بمزيج غير متوافق أبداً.</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-appearance.Title" xml:space="preserve">
+    <value>الأيقونات والأغلفة ولون السمة</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-appearance.Content" xml:space="preserve">
+    <value>الهوية المرئية لبطاقة الملف.</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-appearance.DetailedContent" xml:space="preserve">
+    <value>**الأيقونات والأغلفة:**
+اختر أيقونة وغلافاً من المعارض المدمجة، أو استخدم استعراض للإشارة إلى ملفات صور خاصة بك. تمثل الأيقونة الملف في القوائم والاختصارات؛ ويملأ الغلاف ترويسة بطاقة الملف.
+
+**لون السمة:**
+تحدد شبكة الألوان لون تمييز الملف، ويُطبق على ترويسة المحرر وبطاقة الملف. زر النرد بجانب حفظ يختار لوناً عشوائياً.</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-launch.Title" xml:space="preserve">
+    <value>استراتيجية مساحة العمل ووسائط التشغيل</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-launch.Content" xml:space="preserve">
+    <value>كيف يبني الملف مساحة عمله ويشغل اللعبة.</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-launch.DetailedContent" xml:space="preserve">
+    <value>**استراتيجية مساحة العمل:**
+يحدد المنتقي كيفية ربط مساحة عمل الملف لملفات اللعبة. يُقفل المنتقي بعد أول تشغيل للملف، لأن تغييره لاحقاً سيترك مساحة العمل الحالية يتيمة.
+
+**وسائط سطر الأوامر:**
+تُمرر الوسائط الإضافية مباشرة إلى ملف اللعبة التنفيذي عند التشغيل، مثل `-win` لوضع النافذة أو `-quickstart` لتخطي مقاطع المقدمة.</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-launch.Action.NAV_INFO_workspaces" xml:space="preserve">
+    <value>كيف تعمل مساحات العمل</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-saving.Title" xml:space="preserve">
+    <value>الحفظ وذاكرة النافذة</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-saving.Content" xml:space="preserve">
+    <value>ما الذي يحفظه زر حفظ وما الذي يتذكره المحرر.</value>
+  </data>
+  <data name="Info.Card.game-profile-settings.profile-saving.DetailedContent" xml:space="preserve">
+    <value>**حفظ وإلغاء:**
+يكتب زر حفظ كل التبويبات (إعدادات الملف والمحتوى وإعدادات اللعبة) في الملف. يغلق زر إلغاء المحرر ويتجاهل التغييرات غير المحفوظة.
+
+**ذاكرة النافذة:**
+يتذكر المحرر حجم النافذة وحالة التكبير وعروض الأشرطة الجانبية عبر عمليات إعادة التشغيل، لكل تبويب إعدادات.</value>
   </data>
   <data name="Info.Card.game-settings.generals-online.Content" xml:space="preserve">
     <value>ردهة اللعب الجماعي عبر الإنترنت ونظام المطابقة التلقائية.</value>
@@ -6045,42 +5896,50 @@
     <value>طريقة إضافة اختصار لملف التعريف على سطح مكتب Windows.</value>
   </data>
   <data name="Info.Card.shortcuts.creation.DetailedContent" xml:space="preserve">
-    <value>**إنشاء اختصار:**
-1. في **ملفات تعريف اللعبة**، انقر بزر الماوس الأيمن على أي بطاقة ملف تعريف (أو انقر فوق أيقونة اختصار سطح المكتب).
+    <value>1. في **ملفات تعريف اللعبة**، انقر بزر الماوس الأيمن على أي بطاقة ملف تعريف (أو انقر فوق أيقونة اختصار سطح المكتب).
 2. اختر **إنشاء اختصار على سطح المكتب**.
-3. يظهر اختصار قياسي لنظام Windows (`.lnk`) على سطح المكتب.
-4. يؤدي النقر المزدوج على هذا الاختصار إلى تشغيل تكوين ملف التعريف المحدد مباشرة وبسرعة.</value>
+3. يكتب GenHub الاختصار المناسب لنظامك: ملف `.lnk` على Windows، أو مدخل `.desktop` على Linux، أو سكربت `.command` على macOS.
+4. انقر نقرًا مزدوجًا عليه لتشغيل ملف التعريف.</value>
   </data>
   <data name="Info.Card.shortcuts.creation.Title" xml:space="preserve">
     <value>إنشاء الاختصارات</value>
+  </data>
+  <data name="Info.Card.shortcuts.demo-shortcuts.Title" xml:space="preserve">
+    <value>عرض تفاعلي: اختصارات سطح المكتب</value>
+  </data>
+  <data name="Info.Card.shortcuts.demo-shortcuts.Content" xml:space="preserve">
+    <value>شاهد تدفق الاختصار: من بطاقة الملف إلى أيقونة سطح المكتب.</value>
+  </data>
+  <data name="Info.Card.shortcuts.demo-shortcuts.DetailedContent" xml:space="preserve">
+    <value>انقر بزر الماوس الأيمن على بطاقة ملف تعريف، واختر إنشاء اختصار على سطح المكتب، وستظهر أيقونة تشغيل لملف التعريف على سطح المكتب.
+* يؤدي النقر المزدوج إلى تشغيل ملف التعريف دون إبقاء النافذة الرئيسية مفتوحة.
+* إذا كان GenHub يعمل بالفعل، يُمرَّر طلب التشغيل إليه بدلًا من بدء نسخة ثانية.</value>
   </data>
   <data name="Info.Card.shortcuts.headless.Content" xml:space="preserve">
     <value>تشغيل ملفات التعريف مباشرة من سطح المكتب دون فتح الواجهة الرئيسية.</value>
   </data>
   <data name="Info.Card.shortcuts.headless.DetailedContent" xml:space="preserve">
-    <value>**التشغيل المباشر من سطح المكتب:**
-تتيح لك الاختصارات تشغيل أي تكوين تعديل مباشرةً من سطح المكتب دون الحاجة إلى إبقاء نافذة المشغل الرئيسية مفتوحة:
+    <value>الاختصار يشغّل اللعبة مباشرة من سطح المكتب، دون فتح النافذة الرئيسية. يقوم GenHub بدوره ثم يبتعد عن الطريق:
 
-1. **تشغيل مباشر:** انقر نقرًا مزدوجًا فوق الاختصار لبدء اللعبة فورًا.
-2. **إعداد صامت:** يعمل GenHub للحظات في الخلفية لإعداد مساحة عمل ملف التعريف، ثم يسلم التحكم إلى اللعبة.
-3. **إغلاق نظيف:** يتم تنظيف الملفات المؤقتة لمساحة العمل تلقائيًا عند إغلاق اللعبة.</value>
+1. انقر نقرًا مزدوجًا فوق الاختصار لبدء اللعبة.
+2. يعمل GenHub للحظات في الخلفية لإعداد مساحة عمل ملف التعريف، ثم يسلم التحكم إلى اللعبة.
+3. إذا كان GenHub يعمل بالفعل، يمرر الاختصار ملف التعريف إليه بدلًا من بدء نسخة ثانية.</value>
   </data>
   <data name="Info.Card.shortcuts.headless.Title" xml:space="preserve">
     <value>مشغل الوضع المستقل (Headless)</value>
   </data>
   <data name="Info.Card.shortcuts.icons.Content" xml:space="preserve">
-    <value>أيقونات بصرية عالية الوضوح لاختصاراتك على سطح المكتب.</value>
+    <value>أي أيقونة تظهر على سطح المكتب.</value>
   </data>
   <data name="Info.Card.shortcuts.icons.DetailedContent" xml:space="preserve">
-    <value>**أيقونات فائقة الدقة:**
-يربط GenHub الاختصارات بأيقونات عالية الجودة تلقائياً:
-
-*   **أيقونات التعديلات:** إذا كان التعديل يحتوي على أيقونة مخصصة (مثل ShockWave أو Contra)، فسيستخدمها الاختصار.
-*   **أيقونات HD للعبة:** تستخدم الملفات القياسية أيقونات 256×256 واضحة بدلاً من الأيقونات القديمة المشوشة.
-*   **أيقونات مخصصة:** يمكنك تخصيص وتغيير أيقونة الاختصار في أي وقت عبر خصائص Windows.</value>
+    <value>يعيد الاختصار استخدام ملف الأيقونة الخاص بملف التعريف عند تعيينه، ويعود إلى أيقونة مشغل GenHub في غير ذلك.
+اختر الأيقونة أو غيّرها في أي وقت من صف الأيقونة في إعدادات ملف التعريف. الاختصارات التي تنشئها بعد ذلك تلتقطها تلقائيًا.</value>
   </data>
   <data name="Info.Card.shortcuts.icons.Title" xml:space="preserve">
     <value>تخصيص الأيقونات</value>
+  </data>
+  <data name="Info.Card.shortcuts.icons.Action.NAV_INFO_game-profile-settings" xml:space="preserve">
+    <value>فتح دليل إعدادات ملف التعريف</value>
   </data>
   <data name="Info.Card.steam-integration.appid.Content" xml:space="preserve">
     <value>احتساب ساعات اللعب في Steam وتفعيل التراكب مع أي تعديل.</value>
@@ -14513,6 +14372,9 @@ https://example.com/screenshot2.png</value>
 **الهوية والإصدارات.**
 يحمل كل بيان معرف بيان (مثل 1.0.shockwave.mod.shockwave-chaos-edition) إضافة إلى اسم مقروء ونسخة. يوقع الناشرون الإصدارات ببصمات SHA-256 ليتحقق GenHub من كل بايت قبل التثبيت.</value>
   </data>
+  <data name="Info.Card.content-manifests.manifest-overview.Action.NAV_INFO_game-profile-content" xml:space="preserve">
+    <value>عرض محتوى الملف</value>
+  </data>
   <data name="Info.Card.content-manifests.manifest-content-types.Title" xml:space="preserve">
     <value>أنواع المحتوى ومعرفات البيانات</value>
   </data>
@@ -14557,6 +14419,9 @@ https://example.com/screenshot2.png</value>
 
 **5. تشغيل الملف الشخصي.**
 تربط التسوية الملفات المجمعة في مساحة عمل معزولة باستخدام الروابط الصلبة أو الرمزية أو النسخ، ثم تشغّل اللعبة ضد مساحة العمل تلك.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-pipeline.Action.NAV_INFO_workspaces" xml:space="preserve">
+    <value>عرض مساحات العمل</value>
   </data>
   <data name="Info.Card.content-manifests.manifest-bundles.Title" xml:space="preserve">
     <value>الحزم والمتغيرات والاعتماديات</value>

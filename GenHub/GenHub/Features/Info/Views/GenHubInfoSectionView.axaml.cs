@@ -21,6 +21,7 @@ public partial class GenHubInfoSectionView : UserControl
     private const string GoChangelogViewName = "GenHubGoChangelogView";
 
     private readonly Dictionary<string, Vector> _sectionScrollOffsets = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<ItemsControl> _toolCardControls = [];
     private string? _currentSectionId;
     private GenHubInfoSectionViewModel? _boundViewModel;
     private SectionScrollSpy<InfoCardViewModel>? _scrollSpy;
@@ -106,6 +107,26 @@ public partial class GenHubInfoSectionView : UserControl
         HookItemsControl(_cardsItemsControl);
         HookItemsControl(_faqLeftItemsControl);
         HookItemsControl(_faqRightItemsControl);
+
+        string[] toolControlNames =
+        [
+            "ToolsIntroCardsControl",
+            "ToolsReplayCardsControl",
+            "ToolsMapCardsControl",
+            "ToolsHotkeyCardsControl",
+            "ToolsPublisherCardsControl",
+            "ToolsModBuilderCardsControl",
+            "ToolsWndCardsControl",
+        ];
+        foreach (var name in toolControlNames)
+        {
+            var control = this.FindControl<ItemsControl>(name);
+            if (control != null)
+            {
+                _toolCardControls.Add(control);
+                HookItemsControl(control);
+            }
+        }
     }
 
     private void HookItemsControl(ItemsControl? control)
@@ -131,7 +152,12 @@ public partial class GenHubInfoSectionView : UserControl
         UnhookItemsControl(_cardsItemsControl);
         UnhookItemsControl(_faqLeftItemsControl);
         UnhookItemsControl(_faqRightItemsControl);
+        foreach (var control in _toolCardControls)
+        {
+            UnhookItemsControl(control);
+        }
 
+        _toolCardControls.Clear();
         _cardsItemsControl = null;
         _faqLeftItemsControl = null;
         _faqRightItemsControl = null;
@@ -276,6 +302,10 @@ public partial class GenHubInfoSectionView : UserControl
         RegisterCardsFromControl(_cardsItemsControl ??= this.FindControl<ItemsControl>("CardsItemsControl"));
         RegisterCardsFromControl(_faqLeftItemsControl ??= this.FindControl<ItemsControl>("FaqLeftItemsControl"));
         RegisterCardsFromControl(_faqRightItemsControl ??= this.FindControl<ItemsControl>("FaqRightItemsControl"));
+        foreach (var toolControl in _toolCardControls)
+        {
+            RegisterCardsFromControl(toolControl);
+        }
 
         _changelogsView ??= this.FindControl<ChangelogsView>(ChangelogsViewName);
         _goChangelogView ??= this.FindControl<GeneralsOnlineChangelogView>(GoChangelogViewName);
@@ -391,9 +421,23 @@ public partial class GenHubInfoSectionView : UserControl
 
         container ??= FindDemoContainer(card.Id);
 
-        return container ?? ((_cardsItemsControl?.ContainerFromItem(card)
+        container ??= (_cardsItemsControl?.ContainerFromItem(card)
             ?? _faqLeftItemsControl?.ContainerFromItem(card)
-            ?? _faqRightItemsControl?.ContainerFromItem(card)) as Control);
+            ?? _faqRightItemsControl?.ContainerFromItem(card)) as Control;
+
+        if (container == null)
+        {
+            foreach (var toolControl in _toolCardControls)
+            {
+                container = toolControl.ContainerFromItem(card) as Control;
+                if (container != null)
+                {
+                    break;
+                }
+            }
+        }
+
+        return container;
     }
 
     private void DeferScrollToCard(InfoCardViewModel card)

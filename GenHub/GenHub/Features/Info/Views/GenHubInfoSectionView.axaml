@@ -9,6 +9,10 @@
              xmlns:views="clr-namespace:GenHub.Features.Info.Views"
              xmlns:toolsRep="clr-namespace:GenHub.Features.Tools.ReplayManager.Views"
              xmlns:toolsMap="clr-namespace:GenHub.Features.Tools.MapManager.Views"
+             xmlns:toolsHotkeys="clr-namespace:GenHub.Features.Tools.GenHotkeys.Views"
+             xmlns:toolsMod="clr-namespace:GenHub.Features.Tools.ModBuilder.Views"
+             xmlns:toolsWnd="clr-namespace:GenHub.Features.Tools.WndEditor.Views"
+             xmlns:toolsPub="clr-namespace:GenHub.Features.Tools.Views.PublisherStudio"
              xmlns:infra="clr-namespace:GenHub.Infrastructure.Controls;assembly=GenHub"
              xmlns:conv="using:Avalonia.Data.Converters"
              xmlns:notifications="clr-namespace:GenHub.Features.Notifications.Views"
@@ -19,7 +23,107 @@
              x:Class="GenHub.Features.Info.Views.GenHubInfoSectionView"
              x:DataType="vm:GenHubInfoSectionViewModel">
 
+  <UserControl.Resources>
+    <!-- Shared info card template used by the main column and every per-tool card group -->
+    <DataTemplate x:Key="InfoCardTemplate" x:DataType="vm:InfoCardViewModel">
+      <!-- Outermost Button to make entire card clickable -->
+      <Button Command="{Binding ToggleExpansionCommand}"
+              Background="Transparent" BorderThickness="0" Padding="0"
+              HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+              HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+              Margin="0,0,0,24"
+              ClipToBounds="False"
+              Classes="info-card-btn">
+        <Border Classes="info-card">
+          <Grid RowDefinitions="Auto, Auto">
+            <Grid RowDefinitions="Auto, Auto, Auto" Grid.Row="0">
+              <!-- Card Header -->
+              <Grid ColumnDefinitions="*, Auto" Grid.Row="0" Margin="0,0,0,16">
+                <!-- Type Icon + Title -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                  <material:MaterialIcon Kind="{Binding IconKind}" Width="20" Height="20" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                  <TextBlock Text="{Binding Title}" Classes="card-title" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <!-- Expand Icon -->
+                <Border Grid.Column="1"
+                        Background="{DynamicResource SurfaceHoverBrush}"
+                        BorderBrush="{DynamicResource BorderSubtleBrush}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="10,6"
+                        Margin="12,0,0,0"
+                        IsVisible="{Binding IsExpandable}">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                      <TextBlock Text="{Binding IsExpanded, Converter={StaticResource BoolToExpandTextConverter}, FallbackValue='Read More'}"
+                                 FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                      <material:MaterialIcon Kind="{Binding IsExpanded, Converter={StaticResource BoolToExpandIconConverter}}"
+                                             Width="16" Height="16" Foreground="{DynamicResource TextMuted}"/>
+                  </StackPanel>
+                </Border>
+              </Grid>
+
+              <!-- Main Content -->
+              <infra:MarkdownTextBlock Grid.Row="1" Markdown="{Binding Content}" Classes="card-content" Margin="0,0,0,24" FontSize="15" Foreground="#CCC"/>
+
+              <!-- Expanded Content -->
+              <Border Grid.Row="2"
+                      IsVisible="{Binding IsExpanded}"
+                      Background="#CC111111"
+                      BorderBrush="#333"
+                      BorderThickness="1"
+                      CornerRadius="8"
+                      Padding="20"
+                      Margin="0,0,0,24">
+                <StackPanel>
+                    <TextBlock Text="{localization:Localize Info.Guide.DetailedGuide}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextMuted}" Margin="0,0,0,12"/>
+                    <infra:MarkdownTextBlock Markdown="{Binding DetailedContent}" Classes="card-content" FontSize="14" Foreground="{DynamicResource TextSecondary}"/>
+                </StackPanel>
+              </Border>
+            </Grid>
+
+            <!-- Actions Footer -->
+            <ItemsControl Grid.Row="1" ItemsSource="{Binding Actions}" IsVisible="{Binding Actions.Count}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="models:InfoAction">
+                  <Button Classes="action-btn"
+                          Margin="0,0,10,8"
+                          Classes.primary="{Binding IsPrimary}"
+                          Command="{Binding ((vm:GenHubInfoSectionViewModel)DataContext).HandleActionCommand, RelativeSource={RelativeSource AncestorType=views:GenHubInfoSectionView}}"
+                          CommandParameter="{Binding}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <material:MaterialIcon Kind="ChevronRight" Width="16" Height="16" Foreground="{StaticResource SystemAccentColorBrush}"/>
+                      <TextBlock Text="{Binding Label}"/>
+                    </StackPanel>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </Grid>
+        </Border>
+      </Button>
+    </DataTemplate>
+  </UserControl.Resources>
+
   <UserControl.Styles>
+    <!-- Per-tool card lists share the standard card template -->
+    <Style Selector="ItemsControl.tool-cards">
+      <Setter Property="ItemTemplate" Value="{StaticResource InfoCardTemplate}"/>
+      <Setter Property="Margin" Value="0,8,0,0"/>
+      <Setter Property="ItemsPanel">
+        <Setter.Value>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="0" ClipToBounds="False"/>
+          </ItemsPanelTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
     <!-- Section Header Style -->
     <Style Selector="TextBlock.section-header">
       <Setter Property="FontSize" Value="36"/>
@@ -460,6 +564,56 @@
         </Border>
 
         <!-- ============================================== -->
+        <!-- DEMO: PROFILE SETTINGS                         -->
+        <!-- ============================================== -->
+        <Border x:Name="GameProfileSettingsDemoContainer" IsVisible="{Binding IsGameProfileSettingsSelected}" Margin="0,0,0,50">
+          <StackPanel Spacing="16">
+             <StackPanel HorizontalAlignment="Left" Spacing="8">
+                <TextBlock Text="{localization:Localize Info.Demo.ProfileSettings.Title}" Classes="demo-title"/>
+                <TextBlock Text="{localization:Localize Info.Demo.ProfileSettings.Subtitle}" Classes="demo-subtitle"/>
+            </StackPanel>
+
+            <Border Classes="demo-container">
+               <StackPanel Spacing="16">
+                  <!-- Demo Size Preset Bar -->
+                  <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="0,0,0,4">
+                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="{localization:Localize Info.Demo.WindowSize}" FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                        <Button Classes="preset-btn" Classes.preset-active="{Binding IsDemoSizeCompact}" Command="{Binding SetDemoCompactCommand}" Content="{localization:Localize Info.Demo.SizeCompact}" Padding="10,4" FontSize="11" CornerRadius="6"/>
+                        <Button Classes="preset-btn" Classes.preset-active="{Binding IsDemoSizeStandard}" Command="{Binding SetDemoStandardCommand}" Content="{localization:Localize Info.Demo.SizeStandard}" Padding="10,4" FontSize="11" CornerRadius="6"/>
+                        <Button Classes="preset-btn" Classes.preset-active="{Binding IsDemoSizeExpanded}" Command="{Binding SetDemoExpandedCommand}" Content="{localization:Localize Info.Demo.SizeExpanded}" Padding="10,4" FontSize="11" CornerRadius="6"/>
+                     </StackPanel>
+                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="14,0,0,0">
+                        <TextBlock Text="{localization:Localize Info.Demo.WidthLabel}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                        <Slider Width="85" Minimum="640" Maximum="1040" Value="{Binding DemoSettingsWidth, Mode=TwoWay}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{localization:Localize Info.Demo.HeightLabel}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                        <Slider Width="75" Minimum="440" Maximum="750" Value="{Binding DemoSettingsHeight, Mode=TwoWay}" VerticalAlignment="Center"/>
+                     </StackPanel>
+                     <TextBlock Grid.Column="3" Text="{localization:Localize Info.Demo.ProfileSettings.Hint}" FontSize="11" Foreground="{DynamicResource TextMuted}" FontStyle="Italic" VerticalAlignment="Center"/>
+                  </Grid>
+
+                  <!-- The Resizable Mock Window Content with responsive downscaling -->
+                  <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Center">
+                    <Border Width="{Binding DemoSettingsWidth}"
+                            Height="{Binding DemoSettingsHeight}"
+                            MinWidth="640"
+                            MaxWidth="1040"
+                            MinHeight="440"
+                            MaxHeight="750"
+                            Background="#0F0F0F"
+                            BorderBrush="#333"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            ClipToBounds="True">
+                        <local:DemoGameProfileSettingsWindowMock DataContext="{Binding DemoGameSettings_ProfileTab}"/>
+                    </Border>
+                  </Viewbox>
+               </StackPanel>
+            </Border>
+          </StackPanel>
+        </Border>
+
+        <!-- ============================================== -->
         <!-- DEMO: CONTENT SELECTION                        -->
         <!-- ============================================== -->
         <Border x:Name="GameProfileContentDemoContainer" IsVisible="{Binding IsGameProfileContentSelected}" Margin="0,0,0,50">
@@ -521,6 +675,12 @@
         <Border x:Name="ToolsDemoContainer" IsVisible="{Binding IsToolsSelected}" Margin="0,0,0,50">
             <StackPanel Spacing="60">
 
+                <!-- Suite intro card -->
+                <ItemsControl x:Name="ToolsIntroCardsControl"
+                              Classes="tool-cards"
+                              ItemsSource="{Binding ToolsIntroCards}"
+                              ClipToBounds="False"/>
+
                 <!-- 1. REPLAY MANAGER -->
                 <StackPanel Spacing="40">
                     <!-- Header -->
@@ -542,6 +702,12 @@
                             </Grid>
                         </Viewbox>
                     </Border>
+
+                    <!-- Replay Manager guide cards -->
+                    <ItemsControl x:Name="ToolsReplayCardsControl"
+                                  Classes="tool-cards"
+                                  ItemsSource="{Binding ToolsReplayCards}"
+                                  ClipToBounds="False"/>
                 </StackPanel>
 
                 <!-- 2. MAP MANAGER -->
@@ -565,10 +731,45 @@
                             </Grid>
                         </Viewbox>
                     </Border>
+
+                    <!-- Map Manager guide cards -->
+                    <ItemsControl x:Name="ToolsMapCardsControl"
+                                  Classes="tool-cards"
+                                  ItemsSource="{Binding ToolsMapCards}"
+                                  ClipToBounds="False"/>
                 </StackPanel>
 
-                <!-- 3. PUBLISHER STUDIO -->
-                <StackPanel Spacing="24">
+                <!-- 3. HOTKEY EDITOR -->
+                <StackPanel Spacing="40">
+                    <!-- Header -->
+                    <StackPanel HorizontalAlignment="Left" Spacing="8">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <material:MaterialIcon Kind="KeyboardOutline" Width="26" Height="26" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{localization:Localize Info.Demo.Tools.HotkeyEditorTitle}" Classes="demo-title" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock Text="{localization:Localize Info.Demo.Tools.HotkeyEditorSubtitle}" Classes="demo-subtitle"/>
+                    </StackPanel>
+
+                    <!-- Interactive Demo (actual GenHotkeys view) -->
+                    <Border Classes="demo-container">
+                        <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
+                            <Grid Width="800" Height="600" HorizontalAlignment="Center">
+                                <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                                    <toolsHotkeys:GenHotkeysView DataContext="{Binding DemoHotkeyEditor}"/>
+                                </Border>
+                            </Grid>
+                        </Viewbox>
+                    </Border>
+
+                    <!-- Hotkey Editor guide cards -->
+                    <ItemsControl x:Name="ToolsHotkeyCardsControl"
+                                  Classes="tool-cards"
+                                  ItemsSource="{Binding ToolsHotkeyCards}"
+                                  ClipToBounds="False"/>
+                </StackPanel>
+
+                <!-- 4. PUBLISHER STUDIO -->
+                <StackPanel Spacing="40">
                     <!-- Header -->
                     <StackPanel HorizontalAlignment="Left" Spacing="8">
                         <StackPanel Orientation="Horizontal" Spacing="10">
@@ -578,95 +779,22 @@
                         <TextBlock Text="{localization:Localize Info.Demo.Tools.PublisherStudioSubtitle}" Classes="demo-subtitle"/>
                     </StackPanel>
 
-                    <!-- Showcase Card -->
+                    <!-- Interactive Demo (actual Publisher Studio view) -->
                     <Border Classes="demo-container">
-                        <Border Background="{DynamicResource SurfaceElevatedDarkBrush}"
-                                BorderBrush="{DynamicResource BorderSubtleBrush}"
-                                BorderThickness="1"
-                                CornerRadius="8"
-                                Padding="28,24">
-                            <StackPanel Spacing="18">
-                                <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                                    <material:MaterialIcon Kind="Publish" Width="28" Height="28" Foreground="{DynamicResource AccentBrush}"/>
-                                    <StackPanel Spacing="2">
-                                        <TextBlock Text="{localization:Localize Info.Demo.Tools.PublisherStudioShowcaseHeading}"
-                                                   FontSize="16" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource TextPrimary}"/>
-                                        <TextBlock Text="{localization:Localize Info.Demo.Tools.PublisherStudioShowcaseSubheading}"
-                                                   FontSize="12" Foreground="{DynamicResource TextMuted}"/>
-                                    </StackPanel>
-                                </StackPanel>
-
-                                <TextBlock Text="{localization:Localize Info.Demo.Tools.PublisherStudioShowcaseDesc}"
-                                           FontSize="13" TextWrapping="Wrap"
-                                           Foreground="{DynamicResource TextSecondary}"
-                                           LineHeight="20"/>
-
-                                <Grid ColumnDefinitions="*,*,*" Margin="0,6,0,6">
-                                    <!-- Step 1 -->
-                                    <Border Grid.Column="0" Margin="0,0,6,0" Padding="14,12" Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="6" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="1">
-                                        <StackPanel Spacing="6">
-                                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <material:MaterialIcon Kind="PackageVariantClosed" Width="16" Height="16" Foreground="{DynamicResource AccentBrush}"/>
-                                                <TextBlock Text="{localization:Localize Info.Demo.Tools.PublisherStudioStep1Title}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
-                                            </StackPanel>
-                                            <TextBlock Text="{localization:Localize Info.Demo.Tools.PublisherStudioStep1Desc}" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextMuted}"/>
-                                        </StackPanel>
-                                    </Border>
-                                    <!-- Step 2 -->
-                                    <Border Grid.Column="1" Margin="3,0,3,0" Padding="14,12" Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="6" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="1">
-                                        <StackPanel Spacing="6">
-                                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <material:MaterialIcon Kind="CloudUploadOutline" Width="16" Height="16" Foreground="{DynamicResource AccentBrush}"/>
-                                                <TextBlock Text="{localization:Localize Info.Demo.Tools.PublisherStudioStep2Title}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
-                                            </StackPanel>
-                                            <TextBlock Text="{localization:Localize Info.Demo.Tools.PublisherStudioStep2Desc}" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextMuted}"/>
-                                        </StackPanel>
-                                    </Border>
-                                    <!-- Step 3 -->
-                                    <Border Grid.Column="2" Margin="6,0,0,0" Padding="14,12" Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="6" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="1">
-                                        <StackPanel Spacing="6">
-                                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <material:MaterialIcon Kind="BellRingOutline" Width="16" Height="16" Foreground="{DynamicResource AccentBrush}"/>
-                                                <TextBlock Text="{localization:Localize Info.Demo.Tools.PublisherStudioStep3Title}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
-                                            </StackPanel>
-                                            <TextBlock Text="{localization:Localize Info.Demo.Tools.PublisherStudioStep3Desc}" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextMuted}"/>
-                                        </StackPanel>
-                                    </Border>
-                                </Grid>
-
-                                <DockPanel LastChildFill="False">
-                                    <Button DockPanel.Dock="Left"
-                                            Classes="preset-btn preset-active"
-                                            Command="{Binding OpenToolsTabCommand}">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <material:MaterialIcon Kind="RocketLaunch" Width="16" Height="16"/>
-                                            <TextBlock Text="{localization:Localize Info.Demo.Tools.LaunchPublisherStudio}"/>
-                                        </StackPanel>
-                                    </Button>
-                                </DockPanel>
-                            </StackPanel>
-                        </Border>
-                    </Border>
-                </StackPanel>
-
-                <!-- 4. HOTKEY EDITOR -->
-                <StackPanel Spacing="40">
-                    <!-- Header -->
-                    <StackPanel HorizontalAlignment="Left" Spacing="8">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <material:MaterialIcon Kind="PlayCircleOutline" Width="26" Height="26" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
-                            <TextBlock Text="{localization:Localize Info.Demo.Tools.HotkeyEditorTitle}" Classes="demo-title" VerticalAlignment="Center"/>
-                        </StackPanel>
-                        <TextBlock Text="{localization:Localize Info.Demo.Tools.HotkeyEditorSubtitle}" Classes="demo-subtitle"/>
-                    </StackPanel>
-
-                    <!-- Interactive Demo -->
-                    <Border Classes="demo-container">
-                        <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
-                            <views:HotkeyEditorDemoView DataContext="{Binding DemoHotkeyEditor}" Width="800" Height="560"/>
+                        <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="860">
+                            <Grid Width="860" Height="640" HorizontalAlignment="Center">
+                                <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                                    <toolsPub:PublisherStudioView DataContext="{Binding DemoPublisherStudio}"/>
+                                </Border>
+                            </Grid>
                         </Viewbox>
                     </Border>
+
+                    <!-- Publisher Studio guide cards -->
+                    <ItemsControl x:Name="ToolsPublisherCardsControl"
+                                  Classes="tool-cards"
+                                  ItemsSource="{Binding ToolsPublisherCards}"
+                                  ClipToBounds="False"/>
                 </StackPanel>
 
                 <!-- 5. MODBUILDER -->
@@ -680,12 +808,22 @@
                         <TextBlock Text="{localization:Localize Info.Demo.Tools.ModBuilderSubtitle}" Classes="demo-subtitle"/>
                     </StackPanel>
 
-                    <!-- Interactive Demo -->
+                    <!-- Interactive Demo (actual ModBuilder view) -->
                     <Border Classes="demo-container">
                         <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
-                            <views:ModBuilderDemoView DataContext="{Binding DemoModBuilder}" Width="800" Height="600"/>
+                            <Grid Width="800" Height="620" HorizontalAlignment="Center">
+                                <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                                    <toolsMod:ModBuilderView DataContext="{Binding DemoModBuilder}"/>
+                                </Border>
+                            </Grid>
                         </Viewbox>
                     </Border>
+
+                    <!-- ModBuilder guide cards -->
+                    <ItemsControl x:Name="ToolsModBuilderCardsControl"
+                                  Classes="tool-cards"
+                                  ItemsSource="{Binding ToolsModBuilderCards}"
+                                  ClipToBounds="False"/>
                 </StackPanel>
 
                 <!-- 6. WND EDITOR -->
@@ -699,12 +837,22 @@
                         <TextBlock Text="{localization:Localize Info.Demo.Tools.WndEditorSubtitle}" Classes="demo-subtitle"/>
                     </StackPanel>
 
-                    <!-- Interactive Demo -->
+                    <!-- Interactive Demo (actual WND Editor view) -->
                     <Border Classes="demo-container">
                         <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
-                            <views:WndEditorDemoView DataContext="{Binding DemoWndEditor}" Width="800" Height="560"/>
+                            <Grid Width="800" Height="600" HorizontalAlignment="Center">
+                                <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                                    <toolsWnd:WndEditorView DataContext="{Binding DemoWndEditor}"/>
+                                </Border>
+                            </Grid>
                         </Viewbox>
                     </Border>
+
+                    <!-- WND Editor guide cards -->
+                    <ItemsControl x:Name="ToolsWndCardsControl"
+                                  Classes="tool-cards"
+                                  ItemsSource="{Binding ToolsWndCards}"
+                                  ClipToBounds="False"/>
                 </StackPanel>
 
             </StackPanel>
@@ -869,8 +1017,9 @@
 
         <!-- Standard Layout (Single Column) -->
         <ItemsControl x:Name="CardsItemsControl"
-                      ItemsSource="{Binding SelectedSection.Cards}"
-                      IsVisible="{Binding !IsFaqSelected}"
+                      ItemsSource="{Binding MainColumnCards}"
+                      ItemTemplate="{StaticResource InfoCardTemplate}"
+                      IsVisible="{Binding IsStandardCardsVisible}"
                       Margin="0,0,0,32"
                       ClipToBounds="False">
           <ItemsControl.ItemsPanel>
@@ -878,91 +1027,6 @@
               <StackPanel Spacing="0" ClipToBounds="False"/>
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
-          <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="vm:InfoCardViewModel">
-              <!-- Outermost Button to make entire card clickable -->
-              <Button Command="{Binding ToggleExpansionCommand}"
-                      Background="Transparent" BorderThickness="0" Padding="0"
-                      HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
-                      HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
-                      Margin="0,0,0,24"
-                      ClipToBounds="False"
-                      Classes="info-card-btn">
-                <Border Classes="info-card">
-                  <Grid RowDefinitions="Auto, Auto">
-                    <Grid RowDefinitions="Auto, Auto, Auto" Grid.Row="0">
-                      <!-- Card Header -->
-                      <Grid ColumnDefinitions="*, Auto" Grid.Row="0" Margin="0,0,0,16">
-                        <!-- Type Icon + Title -->
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                          <material:MaterialIcon Kind="{Binding IconKind}" Width="20" Height="20" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
-                          <TextBlock Text="{Binding Title}" Classes="card-title" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                        </StackPanel>
-
-                        <!-- Expand Icon -->
-                        <Border Grid.Column="1"
-                                Background="{DynamicResource SurfaceHoverBrush}"
-                                BorderBrush="{DynamicResource BorderSubtleBrush}"
-                                BorderThickness="1"
-                                CornerRadius="4"
-                                Padding="10,6"
-                                Margin="12,0,0,0"
-                                IsVisible="{Binding IsExpandable}">
-                          <StackPanel Orientation="Horizontal" Spacing="8">
-                              <TextBlock Text="{Binding IsExpanded, Converter={StaticResource BoolToExpandTextConverter}, FallbackValue='Read More'}"
-                                         FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
-                              <material:MaterialIcon Kind="{Binding IsExpanded, Converter={StaticResource BoolToExpandIconConverter}}"
-                                                     Width="16" Height="16" Foreground="{DynamicResource TextMuted}"/>
-                          </StackPanel>
-                        </Border>
-                      </Grid>
-
-                      <!-- Main Content -->
-                      <infra:MarkdownTextBlock Grid.Row="1" Markdown="{Binding Content}" Classes="card-content" Margin="0,0,0,24" FontSize="15" Foreground="#CCC"/>
-
-                      <!-- Expanded Content -->
-                      <Border Grid.Row="2"
-                              IsVisible="{Binding IsExpanded}"
-                              Background="#CC111111"
-                              BorderBrush="#333"
-                              BorderThickness="1"
-                              CornerRadius="8"
-                              Padding="20"
-                              Margin="0,0,0,24">
-                        <StackPanel>
-                            <TextBlock Text="{localization:Localize Info.Guide.DetailedGuide}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextMuted}" Margin="0,0,0,12"/>
-                            <infra:MarkdownTextBlock Markdown="{Binding DetailedContent}" Classes="card-content" FontSize="14" Foreground="{DynamicResource TextSecondary}"/>
-                        </StackPanel>
-                      </Border>
-                    </Grid>
-
-                    <!-- Actions Footer -->
-                    <ItemsControl Grid.Row="1" ItemsSource="{Binding Actions}" IsVisible="{Binding Actions.Count}">
-                      <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                          <WrapPanel Orientation="Horizontal" />
-                        </ItemsPanelTemplate>
-                      </ItemsControl.ItemsPanel>
-                      <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="models:InfoAction">
-                          <Button Classes="action-btn"
-                                  Margin="0,0,10,8"
-                                  Classes.primary="{Binding IsPrimary}"
-                                  Command="{Binding ((vm:GenHubInfoSectionViewModel)DataContext).HandleActionCommand, RelativeSource={RelativeSource AncestorType=views:GenHubInfoSectionView}}"
-                                  CommandParameter="{Binding}">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                              <material:MaterialIcon Kind="ChevronRight" Width="16" Height="16" Foreground="{StaticResource SystemAccentColorBrush}"/>
-                              <TextBlock Text="{Binding Label}"/>
-                            </StackPanel>
-                          </Button>
-                        </DataTemplate>
-                      </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                  </Grid>
-                </Border>
-              </Button>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
         </ItemsControl>
 
         <!-- FAQ Layout (Independent Columns for Staggered/Masonry Look) -->
