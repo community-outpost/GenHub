@@ -301,7 +301,8 @@ public class CatalogUpstreamIngestionService(
     private static ContentSearchResult? FindMatchingDiscoveryItem(IReadOnlyList<ContentSearchResult> items, CatalogContentItem item)
     {
         var exact = items.FirstOrDefault(i =>
-            string.Equals(i.Id, item.Id, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(i.Id, item.Id, StringComparison.OrdinalIgnoreCase));
+        exact ??= items.FirstOrDefault(i =>
             string.Equals(i.Name, item.Name, StringComparison.OrdinalIgnoreCase));
         if (exact != null || string.IsNullOrWhiteSpace(item.Name))
         {

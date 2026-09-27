@@ -75,16 +75,16 @@
             },
             "releases": [
                 {
-                    "version": "1.0.4",
-                    "releaseDate": "2026-06-15T00:00:00Z",
+                    "version": "081326",
+                    "releaseDate": "2026-08-13T00:00:00Z",
                     "isLatest": true,
                     "changelog": "Generals Online ladder client with 60Hz tickrate engine and automatic matchmaking.",
                     "artifacts": [
                         {
-                            "filename": "GeneralsOnline-1.0.4-portable.zip",
-                            "downloadUrl": "https://launcher.generals-online.com/downloads/GeneralsOnline-1.0.4-portable.zip",
-                            "size": 25000000,
-                            "sha256": "",
+                            "filename": "GeneralsOnline_portable_081326.zip",
+                            "downloadUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_081326.zip",
+                            "size": 30083309,
+                            "sha256": "f046a9284959b9b1d99630bf24a610a590afa9aef7e620aebea7b5eabb7231f9",
                             "contentType": "application/zip",
                             "variantAxis": null,
                             "variant": null,

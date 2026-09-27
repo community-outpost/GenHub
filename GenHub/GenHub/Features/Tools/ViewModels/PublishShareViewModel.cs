@@ -1334,13 +1334,7 @@ public partial class PublishShareViewModel(
 
         if (additionalUsedNames != null)
         {
-            foreach (var name in additionalUsedNames)
-            {
-                if (!string.IsNullOrWhiteSpace(name))
-                {
-                    usedNames.Add(name);
-                }
-            }
+            usedNames.UnionWith(additionalUsedNames.Where(name => !string.IsNullOrWhiteSpace(name)));
         }
 
         var fileName = activeCatalog.FileName;

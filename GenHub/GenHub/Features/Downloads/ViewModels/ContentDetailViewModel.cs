@@ -1550,6 +1550,10 @@ public partial class ContentDetailViewModel(
                     contentStateService.NotifyStateChanged(originalContentId, ContentState.Downloaded, newManifestId);
                 }
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Failed to delete old manifest {OldManifestId} for bundle component {Name}", oldManifestId, target.Name);
@@ -5290,21 +5294,6 @@ public partial class ContentDetailViewModel(
 
         if (promptResult.Strategy == UpdateStrategy.ReplaceCurrent)
         {
-            // Mirror the shared bulk-update path: drop the stale workspace so the
-            // next launch re-syncs from the replacement manifest.
-            if (!string.IsNullOrEmpty(profile.ActiveWorkspaceId) && workspaceManager != null)
-            {
-                var cleanupResult = await workspaceManager.CleanupWorkspaceAsync(profile.ActiveWorkspaceId, cancellationToken);
-                if (!cleanupResult.Success)
-                {
-                    logger.LogWarning(
-                        "Failed to cleanup workspace '{WorkspaceId}' for profile '{ProfileName}': {Error}",
-                        profile.ActiveWorkspaceId,
-                        profile.Name,
-                        cleanupResult.FirstError);
-                }
-            }
-
             var updateRequest = new UpdateProfileRequest
             {
                 Name = profile.Name,
@@ -5324,6 +5313,21 @@ public partial class ContentDetailViewModel(
                     target.Name,
                     updateResult.FirstError);
                 return false;
+            }
+
+            // Drop the stale workspace only after the profile update succeeds, so a
+            // failed update keeps pointing at its intact workspace.
+            if (!string.IsNullOrEmpty(profile.ActiveWorkspaceId) && workspaceManager != null)
+            {
+                var cleanupResult = await workspaceManager.CleanupWorkspaceAsync(profile.ActiveWorkspaceId, cancellationToken);
+                if (!cleanupResult.Success)
+                {
+                    logger.LogWarning(
+                        "Failed to cleanup workspace '{WorkspaceId}' for profile '{ProfileName}': {Error}",
+                        profile.ActiveWorkspaceId,
+                        profile.Name,
+                        cleanupResult.FirstError);
+                }
             }
 
             return true;

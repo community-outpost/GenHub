@@ -1445,9 +1445,9 @@ public partial class ContentLibraryViewModel(
                 OnPropertyChanged(nameof(HasUpstreamPreview));
             });
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogDebug("Upstream release preview for '{ContentId}' was canceled", item.Id);
+            logger.LogDebug(ex, "Upstream release preview for '{ContentId}' was canceled", item.Id);
         }
         catch (Exception ex)
         {
@@ -1459,7 +1459,13 @@ public partial class ContentLibraryViewModel(
             {
                 _upstreamPreviewCts = null;
                 cts.Dispose();
-                await Dispatcher.UIThread.InvokeAsync(() => IsUpstreamPreviewLoading = false);
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    if (_upstreamPreviewCts == cts)
+                    {
+                        IsUpstreamPreviewLoading = false;
+                    }
+                });
             }
         }
     }

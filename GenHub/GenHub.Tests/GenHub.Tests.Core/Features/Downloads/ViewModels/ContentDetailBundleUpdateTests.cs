@@ -144,7 +144,105 @@ public sealed class ContentDetailBundleUpdateTests
         Assert.Null(received);
     }
 
-    private static ContentDetailViewModel CreateViewModel(IGameProfileManager profileManager, IWorkspaceManager workspaceManager)
+    /// <summary>
+    /// Verifies that a failed profile update skips workspace cleanup and the
+    /// replacement broadcast, leaving the old workspace intact.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ApplyBundleComponentUpdateStrategy_UpdateFails_SkipsCleanupAndBroadcastAsync()
+    {
+        var profile = new GameProfile
+        {
+            Id = "profile-1",
+            Name = "Profile",
+            EnabledContentIds = [OldManifestId],
+            ActiveWorkspaceId = "workspace-1",
+        };
+        var profileManagerMock = new Mock<IGameProfileManager>();
+        profileManagerMock
+            .Setup(m => m.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
+        profileManagerMock
+            .Setup(m => m.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateFailure("update failed"));
+        var workspaceMock = new Mock<IWorkspaceManager>();
+
+        var viewModel = CreateViewModel(profileManagerMock.Object, workspaceMock.Object);
+        var recipient = new object();
+        ManifestReplacedMessage? received = null;
+        WeakReferenceMessenger.Default.Register<ManifestReplacedMessage>(recipient, (_, message) => received = message);
+
+        try
+        {
+            await viewModel.ApplyBundleComponentUpdateStrategyAsync(
+                new ContentSearchResult { Id = "content-1", Name = "Content" },
+                "content-1",
+                OldManifestId,
+                CreateManifest(),
+                new UpdateDialogResult { Strategy = UpdateStrategy.ReplaceCurrent, DeleteOldVersions = false },
+                CancellationToken.None);
+        }
+        finally
+        {
+            WeakReferenceMessenger.Default.Unregister<ManifestReplacedMessage>(recipient);
+        }
+
+        workspaceMock.Verify(
+            m => m.CleanupWorkspaceAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        Assert.Null(received);
+    }
+
+    /// <summary>
+    /// Verifies that cancellation during old-manifest removal propagates instead
+    /// of being swallowed by the removal error handler.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ApplyBundleComponentUpdateStrategy_RemovalCanceled_RethrowsAsync()
+    {
+        var profile = new GameProfile
+        {
+            Id = "profile-1",
+            Name = "Profile",
+            EnabledContentIds = [OldManifestId],
+            ActiveWorkspaceId = "workspace-1",
+        };
+        var profileManagerMock = new Mock<IGameProfileManager>();
+        profileManagerMock
+            .Setup(m => m.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
+        profileManagerMock
+            .Setup(m => m.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        var manifestPoolMock = new Mock<IContentManifestPool>();
+        manifestPoolMock
+            .Setup(m => m.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+        var workspaceMock = new Mock<IWorkspaceManager>();
+        workspaceMock
+            .Setup(m => m.CleanupWorkspaceAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var viewModel = CreateViewModel(
+            profileManagerMock.Object,
+            workspaceMock.Object,
+            manifestPoolMock.Object);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => viewModel.ApplyBundleComponentUpdateStrategyAsync(
+            new ContentSearchResult { Id = "content-1", Name = "Content" },
+            "content-1",
+            OldManifestId,
+            CreateManifest(),
+            new UpdateDialogResult { Strategy = UpdateStrategy.ReplaceCurrent, DeleteOldVersions = true },
+            CancellationToken.None));
+    }
+
+    private static ContentDetailViewModel CreateViewModel(
+        IGameProfileManager profileManager,
+        IWorkspaceManager workspaceManager,
+        IContentManifestPool? manifestPool = null)
     {
         return new ContentDetailViewModel(
             new ContentSearchResult { Id = "content-1", Name = "Content" },
@@ -155,7 +253,7 @@ public sealed class ContentDetailBundleUpdateTests
             Mock.Of<ITabProviderRegistry>(),
             Mock.Of<IContentStateService>(),
             Mock.Of<IContentDownloadCoordinator>(),
-            Mock.Of<IContentManifestPool>(),
+            manifestPool ?? Mock.Of<IContentManifestPool>(),
             NullLoggerFactory.Instance,
             NullLogger<ContentDetailViewModel>.Instance,
             workspaceManager: workspaceManager);
