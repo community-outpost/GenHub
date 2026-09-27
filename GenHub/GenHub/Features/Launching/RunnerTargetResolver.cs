@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
@@ -53,6 +54,49 @@ internal static class RunnerTargetResolver
         return appId is null
             ? Localize(localizationService, LaunchMessageConstants.FlatpakRequiresInstallUnknownIdKey, LaunchMessageConstants.FlatpakRequiresInstallUnknownId, bundlePath)
             : Localize(localizationService, LaunchMessageConstants.FlatpakRequiresInstallKey, LaunchMessageConstants.FlatpakRequiresInstall, bundlePath, appId);
+    }
+
+    /// <summary>
+    /// Applies the shared launch guards: Flatpak bundles fail with install guidance,
+    /// cross-OS targets fail with a guard message, and bundle roots resolve to their
+    /// executables before the guard runs again on the resolved path.
+    /// </summary>
+    /// <param name="executablePath">The configured launch target.</param>
+    /// <param name="logger">The calling runner's logger.</param>
+    /// <param name="localizationService">Optional localization; English fallback when absent.</param>
+    /// <returns>The guarded executable path, or a failure describing the block.</returns>
+    internal static OperationResult<string> ResolveGuardedTarget(
+        string executablePath,
+        ILogger logger,
+        ILocalizationService? localizationService)
+    {
+        if (executablePath.EndsWith(ContentFormatConstants.FlatpakExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            return OperationResult<string>.CreateFailure(FlatpakGuidance(executablePath, logger, localizationService));
+        }
+
+        var mismatch = LaunchGuardMessages.GetCrossOsError(ExecutableFileClassifier.DetectPlatform(executablePath), localizationService);
+        if (mismatch is not null)
+        {
+            logger.LogWarning("Launch blocked by OS guard: {Error} ({ExecutablePath})", mismatch, executablePath);
+            return OperationResult<string>.CreateFailure(mismatch);
+        }
+
+        var resolvedPath = ResolveBundleTarget(executablePath, logger);
+        if (resolvedPath is null)
+        {
+            return OperationResult<string>.CreateFailure(
+                Localize(localizationService, LaunchMessageConstants.BundleUnresolvableKey, LaunchMessageConstants.BundleUnresolvable, executablePath));
+        }
+
+        mismatch = LaunchGuardMessages.GetCrossOsError(ExecutableFileClassifier.DetectPlatform(resolvedPath), localizationService);
+        if (mismatch is not null)
+        {
+            logger.LogWarning("Launch blocked by OS guard: {Error} ({ExecutablePath})", mismatch, resolvedPath);
+            return OperationResult<string>.CreateFailure(mismatch);
+        }
+
+        return OperationResult<string>.CreateSuccess(resolvedPath);
     }
 
     /// <summary>

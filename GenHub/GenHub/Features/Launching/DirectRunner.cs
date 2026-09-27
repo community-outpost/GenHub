@@ -30,33 +30,13 @@ public class DirectRunner(ILogger<DirectRunner> logger, ILocalizationService? lo
     {
         ArgumentNullException.ThrowIfNull(configuration);
 
-        var executablePath = configuration.ExecutablePath;
-        if (executablePath.EndsWith(ContentFormatConstants.FlatpakExtension, StringComparison.OrdinalIgnoreCase))
+        var targetResult = RunnerTargetResolver.ResolveGuardedTarget(configuration.ExecutablePath, logger, localizationService);
+        if (!targetResult.Success || targetResult.Data is null)
         {
-            return OperationResult<RunnerCommand>.CreateFailure(RunnerTargetResolver.FlatpakGuidance(executablePath, logger, localizationService));
+            return OperationResult<RunnerCommand>.CreateFailure(targetResult.FirstError ?? configuration.ExecutablePath);
         }
 
-        var mismatch = LaunchGuardMessages.GetCrossOsError(ExecutableFileClassifier.DetectPlatform(executablePath), localizationService);
-        if (mismatch is not null)
-        {
-            logger.LogWarning("Launch blocked by OS guard: {Error} ({ExecutablePath})", mismatch, executablePath);
-            return OperationResult<RunnerCommand>.CreateFailure(mismatch);
-        }
-
-        executablePath = RunnerTargetResolver.ResolveBundleTarget(executablePath, logger);
-        if (executablePath is null)
-        {
-            return OperationResult<RunnerCommand>.CreateFailure(
-                RunnerTargetResolver.Localize(localizationService, LaunchMessageConstants.BundleUnresolvableKey, LaunchMessageConstants.BundleUnresolvable, configuration.ExecutablePath));
-        }
-
-        mismatch = LaunchGuardMessages.GetCrossOsError(ExecutableFileClassifier.DetectPlatform(executablePath), localizationService);
-        if (mismatch is not null)
-        {
-            logger.LogWarning("Launch blocked by OS guard: {Error} ({ExecutablePath})", mismatch, executablePath);
-            return OperationResult<RunnerCommand>.CreateFailure(mismatch);
-        }
-
+        var executablePath = targetResult.Data;
         logger.LogDebug("Launching {ExecutablePath} directly with no compatibility runner", executablePath);
         return OperationResult<RunnerCommand>.CreateSuccess(
             new RunnerCommand(executablePath, string.Empty, new Dictionary<string, string>()));

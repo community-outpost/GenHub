@@ -19,48 +19,21 @@ namespace GenHub.Windows.Features.Workspace;
 public partial class WindowsFileOperationsService(
     FileOperationsService baseService,
     ICasService casService,
-    ILogger<WindowsFileOperationsService> logger) : IFileOperationsService
+    ILogger<WindowsFileOperationsService> logger)
+    : DelegatingFileOperationsService(baseService, casService, logger)
 {
     /// <inheritdoc/>
-    public Task CopyFileAsync(string sourcePath, string destinationPath, CancellationToken cancellationToken = default)
-        => baseService.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
-
-    /// <inheritdoc/>
-    public Task CreateSymlinkAsync(string linkPath, string targetPath, bool allowFallback = true, CancellationToken cancellationToken = default)
-        => baseService.CreateSymlinkAsync(linkPath, targetPath, allowFallback, cancellationToken);
-
-    /// <inheritdoc/>
-    public Task<bool> VerifyFileHashAsync(string filePath, string expectedHash, CancellationToken cancellationToken = default)
-        => baseService.VerifyFileHashAsync(filePath, expectedHash, cancellationToken);
-
-    /// <inheritdoc/>
-    public Task<FileHashVerification> CheckFileHashAsync(string filePath, string expectedHash, CancellationToken cancellationToken = default)
-        => baseService.CheckFileHashAsync(filePath, expectedHash, cancellationToken);
-
-    /// <inheritdoc/>
-    public Task DownloadFileAsync(Uri url, string destinationPath, IProgress<DownloadProgress>? progress = null, CancellationToken cancellationToken = default)
-        => baseService.DownloadFileAsync(url, destinationPath, progress, cancellationToken);
-
-    /// <inheritdoc/>
-    public Task ApplyPatchAsync(string targetPath, string patchPath, CancellationToken cancellationToken = default)
-        => baseService.ApplyPatchAsync(targetPath, patchPath, cancellationToken);
-
-    /// <inheritdoc/>
-    public Task<string?> StoreInCasAsync(string sourcePath, string? expectedHash = null, CancellationToken cancellationToken = default)
-        => baseService.StoreInCasAsync(sourcePath, expectedHash, cancellationToken);
-
-    /// <inheritdoc/>
-    public async Task<bool> CopyFromCasAsync(string hash, string destinationPath, ContentType? contentType = null, CancellationToken cancellationToken = default)
+    public override async Task<bool> CopyFromCasAsync(string hash, string destinationPath, ContentType? contentType = null, CancellationToken cancellationToken = default)
     {
         try
         {
             var pathResult = contentType.HasValue
-                ? await casService.GetContentPathAsync(hash, contentType.Value, cancellationToken).ConfigureAwait(false)
-                : await casService.GetContentPathAsync(hash, cancellationToken).ConfigureAwait(false);
+                ? await CasService.GetContentPathAsync(hash, contentType.Value, cancellationToken).ConfigureAwait(false)
+                : await CasService.GetContentPathAsync(hash, cancellationToken).ConfigureAwait(false);
 
             if (!pathResult.Success || pathResult.Data == null)
             {
-                logger.LogError("CAS content not found for hash {Hash} for copy: {Error}", hash, pathResult.FirstError);
+                Logger.LogError("CAS content not found for hash {Hash} for copy: {Error}", hash, pathResult.FirstError);
                 return false;
             }
 
@@ -69,13 +42,13 @@ public partial class WindowsFileOperationsService(
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            logger.LogError(ex, "Failed to copy from CAS for hash {Hash} to {TargetPath}", hash, destinationPath);
+            Logger.LogError(ex, "Failed to copy from CAS for hash {Hash} to {TargetPath}", hash, destinationPath);
             return false;
         }
     }
 
     /// <inheritdoc/>
-    public async Task<bool> LinkFromCasAsync(
+    public override async Task<bool> LinkFromCasAsync(
         string hash,
         string destinationPath,
         bool useHardLink = false,
@@ -85,12 +58,12 @@ public partial class WindowsFileOperationsService(
         try
         {
             var pathResult = contentType.HasValue
-                ? await casService.GetContentPathAsync(hash, contentType.Value, cancellationToken).ConfigureAwait(false)
-                : await casService.GetContentPathAsync(hash, cancellationToken).ConfigureAwait(false);
+                ? await CasService.GetContentPathAsync(hash, contentType.Value, cancellationToken).ConfigureAwait(false)
+                : await CasService.GetContentPathAsync(hash, cancellationToken).ConfigureAwait(false);
 
             if (!pathResult.Success || pathResult.Data == null)
             {
-                logger.LogError("CAS content not found for hash {Hash}: {Error}", hash, pathResult.FirstError);
+                Logger.LogError("CAS content not found for hash {Hash}: {Error}", hash, pathResult.FirstError);
                 return false;
             }
 
@@ -106,29 +79,29 @@ public partial class WindowsFileOperationsService(
                 if (!sameVolume && contentType.HasValue)
                 {
                     // Content is in wrong CAS pool (different volume), need to migrate it
-                    logger.LogWarning(
+                    Logger.LogWarning(
                         "Content {Hash} found on volume {SourceVolume} but workspace is on {DestVolume}. Migrating content to correct CAS pool for hard link support.",
                         hash,
                         sourceRoot,
                         destRoot);
 
                     // Store the content in the correct pool (determined by contentType)
-                    var migrateResult = await casService.StoreContentAsync(casSourcePath, contentType.Value, hash, cancellationToken).ConfigureAwait(false);
+                    var migrateResult = await CasService.StoreContentAsync(casSourcePath, contentType.Value, hash, cancellationToken).ConfigureAwait(false);
                     if (migrateResult.Success)
                     {
-                        var newPathResult = await casService.GetContentPathAsync(hash, contentType.Value, cancellationToken).ConfigureAwait(false);
+                        var newPathResult = await CasService.GetContentPathAsync(hash, contentType.Value, cancellationToken).ConfigureAwait(false);
                         if (newPathResult.Success && newPathResult.Data != null)
                         {
                             casSourcePath = newPathResult.Data;
                             sameVolume = FileOperationsService.AreSameVolume(casSourcePath, destinationPath);
                             if (sameVolume)
                             {
-                                logger.LogInformation("Successfully migrated content {Hash} to correct CAS pool at {NewPath}", hash, casSourcePath);
+                                Logger.LogInformation("Successfully migrated content {Hash} to correct CAS pool at {NewPath}", hash, casSourcePath);
                             }
                         }
                         else
                         {
-                            logger.LogWarning(
+                            Logger.LogWarning(
                                 "Migrated content {Hash} to CAS pool but failed to retrieve new path: {Error}",
                                 hash,
                                 newPathResult.FirstError ?? "Retrieved CAS content path was null after successful migration.");
@@ -137,7 +110,7 @@ public partial class WindowsFileOperationsService(
                     }
                     else
                     {
-                        logger.LogWarning(
+                        Logger.LogWarning(
                             "Failed to migrate content {Hash} to correct CAS pool: {Error}",
                             hash,
                             migrateResult.FirstError);
@@ -146,7 +119,7 @@ public partial class WindowsFileOperationsService(
 
                     if (!sameVolume)
                     {
-                        logger.LogWarning(
+                        Logger.LogWarning(
                             "Cannot create hard link across different volumes/drives (Source={SourceRoot}, Destination={DestRoot}) for hash {Hash}",
                             Path.GetPathRoot(casSourcePath),
                             destRoot,
@@ -156,7 +129,7 @@ public partial class WindowsFileOperationsService(
                 }
                 else if (!sameVolume)
                 {
-                    logger.LogWarning(
+                    Logger.LogWarning(
                         "Cannot create hard link across different volumes/drives without content type (Source={SourceRoot}, Destination={DestRoot}) for hash {Hash}",
                         sourceRoot,
                         destRoot,
@@ -177,22 +150,18 @@ public partial class WindowsFileOperationsService(
                 await CreateSymlinkAsync(destinationPath, casSourcePath, allowFallback: false, cancellationToken).ConfigureAwait(false);
             }
 
-            logger.LogDebug("Created {LinkType} from CAS hash {Hash} to {DestinationPath}", useHardLink ? "hard link" : "symlink", hash, destinationPath);
+            Logger.LogDebug("Created {LinkType} from CAS hash {Hash} to {DestinationPath}", useHardLink ? "hard link" : "symlink", hash, destinationPath);
             return true;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            logger.LogError(ex, "Failed to create {LinkType} from CAS hash {Hash} to {DestinationPath}", useHardLink ? "hard link" : "symlink", hash, destinationPath);
+            Logger.LogError(ex, "Failed to create {LinkType} from CAS hash {Hash} to {DestinationPath}", useHardLink ? "hard link" : "symlink", hash, destinationPath);
             return false;
         }
     }
 
     /// <inheritdoc/>
-    public Task<Stream?> OpenCasContentAsync(string hash, CancellationToken cancellationToken = default)
-        => baseService.OpenCasContentAsync(hash, cancellationToken);
-
-    /// <inheritdoc/>
-    public async Task CreateHardLinkAsync(
+    public override async Task CreateHardLinkAsync(
         string linkPath,
         string targetPath,
         CancellationToken cancellationToken = default)
@@ -222,14 +191,14 @@ public partial class WindowsFileOperationsService(
                 },
                 cancellationToken);
 
-            logger.LogDebug(
+            Logger.LogDebug(
                 "Created hard link from {Link} to {Target}",
                 linkPath,
                 targetPath);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            logger.LogError(
+            Logger.LogError(
                 ex,
                 "Failed to create hard link from {Link} to {Target}",
                 linkPath,
