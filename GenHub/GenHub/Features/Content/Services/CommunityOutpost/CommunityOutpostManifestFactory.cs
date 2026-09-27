@@ -795,6 +795,12 @@ public class CommunityOutpostManifestFactory(
                 Variants = variant != null ? [] : (contentMetadata.Variants ?? []),
                 RequiresVariantSelection = false,
                 SelectedVariantId = variant?.Id,
+                VariantGroupId = variant != null
+                    ? CommunityOutpostVariantGrouping.BuildVariantGroupId(originalManifest.ContentType, contentMetadata.ContentCode, originalManifest.Version)
+                    : null,
+                VariantFamilyName = variant != null
+                    ? CommunityOutpostVariantGrouping.BuildVariantFamilyName(contentMetadata.ContentCode)
+                    : null,
             },
         };
 

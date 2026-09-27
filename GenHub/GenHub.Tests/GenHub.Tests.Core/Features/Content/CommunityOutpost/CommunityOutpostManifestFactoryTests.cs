@@ -336,6 +336,82 @@ public class CommunityOutpostManifestFactoryTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that variant manifests carry the shared group id and family name so the
+    /// downloaded library collapses one release into a single card with a picker.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_WithVariants_StampsVariantGroupingAsync()
+    {
+        // Arrange
+        var zhEnDir = Path.Combine(_tempDir, "ZH", "BIG EN");
+        Directory.CreateDirectory(zhEnDir);
+        File.WriteAllText(Path.Combine(zhEnDir, "!HotkeysLeikezeENZH.big"), "mock content");
+
+        var originalManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.hlei"),
+            Name = "Leikeze's Hotkeys",
+            Version = "1.0",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata
+            {
+                Tags = ["contentCode:hlei"],
+            },
+        };
+
+        // Act
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+
+        // Assert
+        Assert.True(result.Success);
+        var manifests = result.Data!;
+        Assert.NotEmpty(manifests);
+        Assert.All(manifests, manifest =>
+        {
+            Assert.Equal("communityoutpost.addon.hlei.1.0", manifest.Metadata?.VariantGroupId);
+            Assert.Equal("Leikeze's Hotkeys", manifest.Metadata?.VariantFamilyName);
+        });
+    }
+
+    /// <summary>
+    /// Verifies that single-manifest content leaves grouping unset so it keeps rendering
+    /// as a plain card without a variant picker.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_WithoutVariants_LeavesGroupingUnsetAsync()
+    {
+        // Arrange
+        File.WriteAllText(Path.Combine(_tempDir, "400_ControlBarHDEnglishZH.big"), "language big");
+
+        var originalManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.cben"),
+            Name = "Control Bar HD (Language)",
+            Version = "1.0",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata
+            {
+                Tags = ["contentCode:cben"],
+            },
+        };
+
+        // Act
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+
+        // Assert
+        Assert.True(result.Success);
+        var manifest = Assert.Single(result.Data!);
+        Assert.Null(manifest.Metadata?.VariantGroupId);
+        Assert.Null(manifest.Metadata?.VariantFamilyName);
+    }
+
+    /// <summary>
     /// Verifies that when a Control Bar variant produces no outputs (assets not present in package),
     /// no manifest is emitted for that missing variant.
     /// </summary>
