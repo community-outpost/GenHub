@@ -228,6 +228,15 @@
                         AutomationProperties.Name="{localization:Localize Tools.WndEditor.Canvas.PanTooltip}">
             <material:MaterialIcon Kind="HandBackLeft" Width="14" Height="14"/>
           </ToggleButton>
+          <ToggleButton IsChecked="{Binding ShowHiddenWindows, Mode=TwoWay}"
+                        Padding="8,4"
+                        Background="{DynamicResource SurfaceElevatedBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1" CornerRadius="6"
+                        ToolTip.Tip="{localization:Localize Tools.WndEditor.Canvas.ShowHiddenTooltip}"
+                        AutomationProperties.Name="{localization:Localize Tools.WndEditor.Canvas.ShowHiddenTooltip}">
+            <material:MaterialIcon Kind="EyeOutline" Width="14" Height="14"/>
+          </ToggleButton>
           <Button Command="{Binding ZoomOutCommand}"
                   Padding="8,4"
                   Background="{DynamicResource SurfaceElevatedBrush}"

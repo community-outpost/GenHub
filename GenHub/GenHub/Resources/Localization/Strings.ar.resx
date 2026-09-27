@@ -7249,6 +7249,9 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.WndEditor.Canvas.PanTooltip" xml:space="preserve">
     <value>تحريك اللوحة</value>
   </data>
+  <data name="Tools.WndEditor.Canvas.ShowHiddenTooltip" xml:space="preserve">
+    <value>إظهار النوافذ المخفية على اللوحة</value>
+  </data>
   <data name="Tools.WndEditor.Canvas.ZoomInTooltip" xml:space="preserve">
     <value>تكبير (Ctrl + +)</value>
   </data>
@@ -7668,6 +7671,12 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Tools.WndEditor.Tree.HiddenBadge" xml:space="preserve">
     <value>مخفي</value>
+  </data>
+  <data name="Tools.WndEditor.Hidden.HiddenTitle" xml:space="preserve">
+    <value>تم إخفاء النافذة</value>
+  </data>
+  <data name="Tools.WndEditor.Hidden.HiddenMessage" xml:space="preserve">
+    <value>حددها في شجرة النوافذ أو فعّل إظهار المخفي لتحريرها مجددا.</value>
   </data>
   <data name="Tools.WndEditor.Validate.SuccessTitle" xml:space="preserve">
     <value>المستند صالح</value>

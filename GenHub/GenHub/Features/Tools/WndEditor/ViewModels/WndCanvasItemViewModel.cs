@@ -121,6 +121,13 @@ public sealed partial class WndCanvasItemViewModel : ObservableObject
     private bool _isPreviewHidden;
 
     /// <summary>
+    /// Gets or sets whether hidden windows are forced visible on the canvas.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanvasVisible))]
+    private bool _showHiddenWindows;
+
+    /// <summary>
     /// Gets or sets the game asset preview image, or null when unresolved.
     /// </summary>
     [ObservableProperty]
@@ -202,10 +209,11 @@ public sealed partial class WndCanvasItemViewModel : ObservableObject
     /// <summary>
     /// Gets a value indicating whether the item shows on the canvas.
     /// Engine-hidden windows (popups, alternate option pages) stay invisible unless
-    /// selected for editing, so the canvas matches the game's at-rest layout.
+    /// selected for editing or the show hidden toggle is enabled, so the canvas
+    /// matches the game's at-rest layout by default.
     /// </summary>
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
-    public bool CanvasVisible => !IsPreviewHidden || IsSelected;
+    public bool CanvasVisible => !IsPreviewHidden || IsSelected || ShowHiddenWindows;
 
     /// <summary>
     /// Gets or sets the control text font family.

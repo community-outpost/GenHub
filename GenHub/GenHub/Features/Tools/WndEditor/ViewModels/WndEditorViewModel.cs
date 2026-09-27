@@ -271,6 +271,12 @@ public sealed partial class WndEditorViewModel(
     private bool _isPanMode;
 
     /// <summary>
+    /// Gets or sets whether engine-hidden windows stay visible on the canvas.
+    /// </summary>
+    [ObservableProperty]
+    private bool _showHiddenWindows;
+
+    /// <summary>
     /// Gets or sets the installation used as the canvas asset source.
     /// </summary>
     [ObservableProperty]
@@ -2592,6 +2598,14 @@ public sealed partial class WndEditorViewModel(
         RebuildCanvas();
     }
 
+    partial void OnShowHiddenWindowsChanged(bool value)
+    {
+        foreach (var item in CanvasItems)
+        {
+            item.ShowHiddenWindows = value;
+        }
+    }
+
     partial void OnSelectedAssetInstallationChanged(GameInstallationOption? value)
     {
         _resolvedStrings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -2729,6 +2743,7 @@ public sealed partial class WndEditorViewModel(
         AutoSelectAssetInstallation();
         RebuildAll();
         RefreshAssetStatus();
+        LeftSidebarTabIndex = 0;
         CanvasFramingRequested?.Invoke(this, EventArgs.Empty);
     }
 
@@ -2917,6 +2932,7 @@ public sealed partial class WndEditorViewModel(
             var item = new WndCanvasItemViewModel(window)
             {
                 IsSelected = window.Id == selectedId,
+                ShowHiddenWindows = ShowHiddenWindows,
                 X = (rect.UpperLeftX + WndConstants.Editor.CanvasPadding) * Zoom,
                 Y = (rect.UpperLeftY + WndConstants.Editor.CanvasPadding) * Zoom,
                 Width = Math.Max(0, rect.Width) * Zoom,
@@ -2999,6 +3015,7 @@ public sealed partial class WndEditorViewModel(
                 SyncAfterEdit(window);
             }));
         SyncAfterEdit(window);
+        NotifyIfNewlyHidden(key, oldValue, value);
     }
 
     private void RemovePropertyByKey(WndWindow window, string key)
@@ -3056,6 +3073,51 @@ public sealed partial class WndEditorViewModel(
                 RebuildAll();
             }));
         RebuildAll();
+        NotifyIfNewlyHidden(
+            WndConstants.PropertyKeys.Status,
+            FindPropertyValue(previous, WndConstants.PropertyKeys.Status),
+            FindPropertyValue(properties, WndConstants.PropertyKeys.Status));
+    }
+
+    private void NotifyIfNewlyHidden(string key, string? oldValue, string? newValue)
+    {
+        if (!string.Equals(key, WndConstants.PropertyKeys.Status, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (ContainsHiddenFlag(oldValue) || !ContainsHiddenFlag(newValue))
+        {
+            return;
+        }
+
+        notificationService.ShowInfo(
+            localizationService.GetString("Tools.WndEditor.Hidden.HiddenTitle"),
+            localizationService.GetString("Tools.WndEditor.Hidden.HiddenMessage"),
+            NotificationDurations.Medium);
+    }
+
+    private static string? FindPropertyValue(IReadOnlyList<WndProperty> properties, string key)
+    {
+        foreach (var property in properties)
+        {
+            if (string.Equals(property.Key, key, StringComparison.OrdinalIgnoreCase))
+            {
+                return property.Value;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool ContainsHiddenFlag(string? statusValue)
+    {
+        if (string.IsNullOrWhiteSpace(statusValue))
+        {
+            return false;
+        }
+
+        return WndStatusValue.ParseStatus(statusValue).Flags.Contains(WndConstants.StatusFlags.Hidden, StringComparer.OrdinalIgnoreCase);
     }
 
     private void SyncAfterEdit(WndWindow window)

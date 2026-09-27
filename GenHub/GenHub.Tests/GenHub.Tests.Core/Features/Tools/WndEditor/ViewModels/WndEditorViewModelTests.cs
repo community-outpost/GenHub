@@ -1157,6 +1157,97 @@ public sealed class WndEditorViewModelTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that loading a document switches the sidebar to the Windows tree so hidden
+    /// windows stay discoverable after opening a file from the explorer.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LoadFromText_SwitchesToWindowsTab()
+    {
+        // Arrange
+        _viewModel.LeftSidebarTabIndex = 1;
+
+        // Act
+        await _viewModel.LoadFromTextAsync(SampleDocument, null);
+
+        // Assert
+        _viewModel.LeftSidebarTabIndex.Should().Be(0);
+    }
+
+    /// <summary>
+    /// Tests that the show hidden toggle reveals engine-hidden canvas items without selection.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ShowHiddenWindows_RevealsHiddenCanvasItems()
+    {
+        // Arrange
+        var doc =
+            "FILE_VERSION = 2;\n" +
+            "WINDOW\n" +
+            "  WINDOWTYPE = USER;\n" +
+            "  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 100 40, CREATIONRESOLUTION: 800 600;\n" +
+            "  STATUS = HIDDEN;\n" +
+            "END\n";
+        await _viewModel.LoadFromTextAsync(doc, null);
+
+        // Assert
+        _viewModel.CanvasItems.Should().ContainSingle();
+        _viewModel.CanvasItems[0].IsPreviewHidden.Should().BeTrue();
+        _viewModel.CanvasItems[0].CanvasVisible.Should().BeFalse();
+
+        // Act
+        _viewModel.ShowHiddenWindows = true;
+
+        // Assert
+        _viewModel.CanvasItems[0].ShowHiddenWindows.Should().BeTrue();
+        _viewModel.CanvasItems[0].CanvasVisible.Should().BeTrue();
+
+        // Act
+        _viewModel.ShowHiddenWindows = false;
+
+        // Assert
+        _viewModel.CanvasItems[0].CanvasVisible.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Tests that hiding the selected window shows guidance for selecting it again.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task HidingSelectedWindow_ShowsUnhideGuidance()
+    {
+        // Arrange
+        var doc =
+            "FILE_VERSION = 2;\n" +
+            "WINDOW\n" +
+            "  WINDOWTYPE = USER;\n" +
+            "  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 100 40, CREATIONRESOLUTION: 800 600;\n" +
+            "  STATUS = ENABLED;\n" +
+            "END\n";
+        await _viewModel.LoadFromTextAsync(doc, null);
+        _viewModel.SelectedNode = _viewModel.RootNodes[0];
+        var hiddenFlag = _viewModel.SelectedProperties!.BasicStatusFlags.First(f => f.Name == WndConstants.StatusFlags.Hidden);
+        hiddenFlag.IsChecked.Should().BeFalse();
+
+        // Act
+        hiddenFlag.IsChecked = true;
+
+        // Assert
+        _viewModel.RootNodes[0].IsHidden.Should().BeTrue();
+        _viewModel.CanvasItems.Should().ContainSingle();
+        _viewModel.CanvasItems[0].IsPreviewHidden.Should().BeTrue();
+        _viewModel.CanvasItems[0].CanvasVisible.Should().BeTrue();
+        _mockNotificationService.Verify(
+            n => n.ShowInfo(
+                "Tools.WndEditor.Hidden.HiddenTitle",
+                "Tools.WndEditor.Hidden.HiddenMessage",
+                NotificationDurations.Medium,
+                It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
     /// Tests that three-piece button art requests left, middle, and right images.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
@@ -1753,7 +1844,7 @@ public sealed class WndEditorViewModelTests : IDisposable
     }
 
     /// <summary>
-    /// Tests that OpenFolderAsync populates the tree, switches to the Files tab, and opens the first WND file.
+    /// Tests that OpenFolderAsync populates the tree, opens the first WND file, and switches to the Windows tab.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
@@ -1775,7 +1866,7 @@ public sealed class WndEditorViewModelTests : IDisposable
         // Assert
         result.Should().BeTrue();
         _viewModel.FilesDirectory.Should().Be(rootDir);
-        _viewModel.LeftSidebarTabIndex.Should().Be(1);
+        _viewModel.LeftSidebarTabIndex.Should().Be(0);
         _viewModel.HasDocument.Should().BeTrue();
         _viewModel.FilePath.Should().Be(firstWnd);
 

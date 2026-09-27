@@ -7249,6 +7249,9 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.WndEditor.Canvas.PanTooltip" xml:space="preserve">
     <value>Сдвинуть предпросмотр</value>
   </data>
+  <data name="Tools.WndEditor.Canvas.ShowHiddenTooltip" xml:space="preserve">
+    <value>Показать скрытые окна на холсте</value>
+  </data>
   <data name="Tools.WndEditor.Canvas.ZoomInTooltip" xml:space="preserve">
     <value>Приблизить (Ctrl + +)</value>
   </data>
@@ -7668,6 +7671,12 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Tools.WndEditor.Tree.HiddenBadge" xml:space="preserve">
     <value>Скрыто</value>
+  </data>
+  <data name="Tools.WndEditor.Hidden.HiddenTitle" xml:space="preserve">
+    <value>Окно скрыто</value>
+  </data>
+  <data name="Tools.WndEditor.Hidden.HiddenMessage" xml:space="preserve">
+    <value>Выберите его в дереве окон или включите показ скрытых, чтобы редактировать снова.</value>
   </data>
   <data name="Tools.WndEditor.Validate.SuccessTitle" xml:space="preserve">
     <value>Документ допустим</value>

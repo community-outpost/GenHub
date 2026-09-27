@@ -7347,6 +7347,9 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Tools.WndEditor.Canvas.PanTooltip" xml:space="preserve">
     <value>Pan the canvas</value>
   </data>
+  <data name="Tools.WndEditor.Canvas.ShowHiddenTooltip" xml:space="preserve">
+    <value>Show hidden windows on the canvas</value>
+  </data>
   <data name="Tools.WndEditor.Canvas.ZoomInTooltip" xml:space="preserve">
     <value>Zoom in (Ctrl + +)</value>
   </data>
@@ -7766,6 +7769,12 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   </data>
   <data name="Tools.WndEditor.Tree.HiddenBadge" xml:space="preserve">
     <value>Hidden</value>
+  </data>
+  <data name="Tools.WndEditor.Hidden.HiddenTitle" xml:space="preserve">
+    <value>Window hidden</value>
+  </data>
+  <data name="Tools.WndEditor.Hidden.HiddenMessage" xml:space="preserve">
+    <value>Select it in the Windows tree or enable Show hidden to edit it again.</value>
   </data>
   <data name="Tools.WndEditor.Validate.SuccessTitle" xml:space="preserve">
     <value>Document is valid</value>
