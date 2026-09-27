@@ -444,6 +444,9 @@ public static class TelemetryConstants
         /// <summary>Indicates whether EA App game installation is present.</summary>
         public const string HasEAApp = "has_ea_app";
 
+        /// <summary>Indicates whether EA App game installation is present (alias for HasEAApp).</summary>
+        public const string HasEaApp = HasEAApp;
+
         /// <summary>Indicates whether The First Decade game installation is present.</summary>
         public const string HasTheFirstDecade = "has_the_first_decade";
 
@@ -470,6 +473,9 @@ public static class TelemetryConstants
 
         /// <summary>Number of textures imported.</summary>
         public const string TextureCount = "texture_count";
+
+        /// <summary>File path or name involved in a document operation.</summary>
+        public const string FilePath = "file_path";
     }
 
     /// <summary>

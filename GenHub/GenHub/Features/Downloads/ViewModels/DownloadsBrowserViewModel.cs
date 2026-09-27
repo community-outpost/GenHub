@@ -1,4 +1,3 @@
-using GenHub.Core.Interfaces.Telemetry;
 using Avalonia;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -15,6 +14,7 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Parsers;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Publishers;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.CommunityOutpost;
@@ -147,6 +147,7 @@ public sealed partial class DownloadsBrowserViewModel(
 
     private readonly IPublisherReconcilerRegistry? _reconcilerRegistry =
         reconcilerRegistry ?? serviceProvider.GetService<IPublisherReconcilerRegistry>();
+
     private readonly ITelemetryService? _telemetryService =
         serviceProvider.GetService<ITelemetryService>();
 
@@ -2840,10 +2841,10 @@ public sealed partial class DownloadsBrowserViewModel(
                     await reconciliationService.ScheduleGarbageCollectionAsync(false, ct);
                 }
 
-                var publisherId = targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? "Content";
+                var targetPublisherId = publisherId ?? targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? "Content";
                 _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateApplied, new Dictionary<string, object?>
                 {
-                    [TelemetryConstants.Properties.PublisherId] = publisherId,
+                    [TelemetryConstants.Properties.PublisherId] = targetPublisherId,
                     [TelemetryConstants.Properties.ContentName] = targetItem.Name,
                     [TelemetryConstants.Properties.ContentId] = newManifestId ?? targetItem.Id,
                     [TelemetryConstants.Properties.FromVersion] = oldManifestId,
@@ -2856,10 +2857,10 @@ public sealed partial class DownloadsBrowserViewModel(
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Failed to apply update strategy for {OldManifestId} -> {NewManifestId}", oldManifestId, newManifestId);
-                var publisherId = targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? "Content";
+                var targetPublisherId = publisherId ?? targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? "Content";
                 _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
                 {
-                    [TelemetryConstants.Properties.PublisherId] = publisherId,
+                    [TelemetryConstants.Properties.PublisherId] = targetPublisherId,
                     [TelemetryConstants.Properties.ContentName] = targetItem.Name,
                     [TelemetryConstants.Properties.ContentId] = newManifestId ?? targetItem.Id,
                     [TelemetryConstants.Properties.ErrorMessage] = ex.Message,

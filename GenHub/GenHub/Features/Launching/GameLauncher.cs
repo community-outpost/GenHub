@@ -1813,7 +1813,7 @@ public class GameLauncher(
         return OperationResult<string>.CreateSuccess(finalExecutablePath);
     }
 
-    private static string ResolveGameClientPublisher(GameProfile profile)
+    private string ResolveGameClientPublisher(GameProfile profile)
     {
         if (!string.IsNullOrWhiteSpace(profile.GameClient?.PublisherType))
         {

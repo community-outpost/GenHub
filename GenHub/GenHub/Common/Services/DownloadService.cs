@@ -1050,7 +1050,7 @@ public class DownloadService(
         return action;
     }
 
-    private static string ResolvePublisherId(DownloadConfiguration configuration)
+    private string ResolvePublisherId(DownloadConfiguration configuration)
     {
         if (!string.IsNullOrWhiteSpace(configuration.PublisherId))
         {
@@ -1086,7 +1086,7 @@ public class DownloadService(
         return "unknown";
     }
 
-    private static string ResolveContentName(DownloadConfiguration configuration)
+    private string ResolveContentName(DownloadConfiguration configuration)
     {
         if (!string.IsNullOrWhiteSpace(configuration.ContentName))
         {
@@ -1101,7 +1101,7 @@ public class DownloadService(
         return "unknown";
     }
 
-    private static string ResolveContentId(DownloadConfiguration configuration)
+    private string ResolveContentId(DownloadConfiguration configuration)
     {
         if (!string.IsNullOrWhiteSpace(configuration.ContentId))
         {
