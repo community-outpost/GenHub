@@ -87,6 +87,22 @@ public class GenHubWindowTests
     }
 
     /// <summary>
+    /// Verifies that <see cref="GameProfileSettingsWindow"/> opts out of fit-to-screen
+    /// because it owns persisted placement logic that clamping would corrupt.
+    /// </summary>
+    [AvaloniaFact]
+    public void GameProfileSettingsWindow_OptsOutOfFitToScreen()
+    {
+        var window = new GameProfileSettingsWindow();
+        window.Show();
+
+        Assert.Equal(double.PositiveInfinity, window.MaxWidth);
+        Assert.Equal(double.PositiveInfinity, window.MaxHeight);
+
+        window.Close();
+    }
+
+    /// <summary>
     /// Gets factories for every window migrated to <see cref="GenHubWindow"/>.
     /// </summary>
     /// <returns>The window names and factories.</returns>

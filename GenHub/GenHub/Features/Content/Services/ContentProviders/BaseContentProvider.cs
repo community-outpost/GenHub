@@ -670,6 +670,9 @@ public abstract class BaseContentProvider : IContentProvider
             LastUpdated = manifest.Metadata?.ReleaseDate ?? discovered.LastUpdated,
             DownloadSize = manifest.Files?.Sum(f => f.Size) ?? discovered.DownloadSize,
             RequiresResolution = false,
+            VariantGroupId = discovered.VariantGroupId,
+            VariantFamilyName = discovered.VariantFamilyName,
+            Variants = discovered.Variants,
             SourceUrl = discovered.SourceUrl,
             SkipAutomaticWebParsing = discovered.SkipAutomaticWebParsing,
         };

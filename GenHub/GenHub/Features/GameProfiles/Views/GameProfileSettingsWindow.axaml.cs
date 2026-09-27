@@ -65,6 +65,12 @@ public partial class GameProfileSettingsWindow : GenHubWindow
     }
 
     /// <summary>
+    /// Gets a value indicating whether the window is fitted to the working area on open.
+    /// Disabled because this window owns persisted placement logic that clamping would corrupt.
+    /// </summary>
+    protected override bool FitToScreenOnOpen => false;
+
+    /// <summary>
     /// Gets the saved sidebar width for the specified tab.
     /// </summary>
     /// <param name="tab">The profile settings tab.</param>

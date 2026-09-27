@@ -325,6 +325,74 @@ public class BaseContentProviderTests
     }
 
     /// <summary>
+    /// Verifies that resolved search results keep the discovered variant grouping fields.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SearchAsync_PreservesVariantGroupingOnResolvedCardsAsync()
+    {
+        // Arrange
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.sh.gameclient.weekly-test"),
+            Name = "Game code",
+            Version = "weekly-test",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+        };
+        var variants = new List<ContentVariantInfo>
+        {
+            new() { Id = "zerohour", Name = "Zero Hour", VariantType = "game-type", TargetGame = GameType.ZeroHour },
+        };
+        var discovered = new ContentSearchResult
+        {
+            Id = "1.0.sh.gameclient.weekly-test",
+            Name = "Game code",
+            RequiresResolution = true,
+            VariantGroupId = "thesuperhackers.gameclient.weekly-test",
+            VariantFamilyName = "Game code",
+            Variants = variants,
+        };
+
+        var discovererMock = new Mock<IContentDiscoverer>();
+        discovererMock.Setup(d => d.DiscoverAsync(
+                It.IsAny<ProviderDefinition?>(),
+                It.IsAny<ContentSearchQuery>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(
+                new ContentDiscoveryResult { Items = [discovered] }));
+
+        var resolverMock = new Mock<IContentResolver>();
+        resolverMock.Setup(r => r.ResolveAsync(
+                It.IsAny<ProviderDefinition?>(),
+                It.IsAny<ContentSearchResult>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
+
+        var validatorMock = new Mock<IContentValidator>();
+        validatorMock.Setup(v => v.ValidateManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifest.Id, new List<ValidationIssue>()));
+
+        var provider = new TestContentProvider(
+            validatorMock.Object,
+            Mock.Of<IInstallationInstructionsService>(),
+            Mock.Of<ILogger>(),
+            discovererMock.Object,
+            resolverMock.Object,
+            Mock.Of<IContentDeliverer>());
+
+        // Act
+        var result = await provider.SearchAsync(new ContentSearchQuery());
+
+        // Assert
+        Assert.True(result.Success);
+        var card = Assert.Single(result.Data!);
+        Assert.Equal("thesuperhackers.gameclient.weekly-test", card.VariantGroupId);
+        Assert.Equal("Game code", card.VariantFamilyName);
+        Assert.Same(variants, card.Variants);
+    }
+
+    /// <summary>
     /// Test implementation exposing the search-by-ID helper.
     /// </summary>
     private class SearchTestProvider : BaseContentProvider
