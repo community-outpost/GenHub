@@ -149,17 +149,11 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
         var firstPageIds = new HashSet<string>(
             sortedResults.Take(pageSize).Select(r => r.Id),
             StringComparer.Ordinal);
-        var missing = new List<ContentSearchResult>();
-        foreach (var group in groups)
-        {
-            foreach (var card in FindLatestReleaseCards(group))
-            {
-                if (!firstPageIds.Contains(card.Id) && missing.All(m => !m.Id.Equals(card.Id, StringComparison.Ordinal)))
-                {
-                    missing.Add(card);
-                }
-            }
-        }
+        var missing = groups
+            .SelectMany(FindLatestReleaseCards)
+            .Where(card => !firstPageIds.Contains(card.Id))
+            .DistinctBy(card => card.Id, StringComparer.Ordinal)
+            .ToList();
 
         if (missing.Count == 0)
         {
@@ -188,7 +182,7 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
             .Where(r => r.ResolverMetadata.TryGetValue(GitHubConstants.TagMetadataKey, out var candidateTag) &&
                 candidateTag.Equals(tag, StringComparison.Ordinal))
             .ToList();
-        return latestCards.Count > 0 ? latestCards : [newest];
+        return latestCards;
     }
 
     private static string GetRepositoryKey(ContentSearchResult result)
