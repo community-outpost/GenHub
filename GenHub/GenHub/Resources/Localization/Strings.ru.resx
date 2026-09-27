@@ -8450,6 +8450,9 @@ GenHub связывает запуск модификаций со Steam, отк
   <data name="Maps.Error.FolderNotWritable" xml:space="preserve">
     <value>GenHub не удалось сделать папку карты «{0}» доступной для записи. Убедитесь, что ваша учётная запись владеет папкой и она не заблокирована, затем повторите попытку.</value>
   </data>
+  <data name="Maps.Error.FolderAccessDenied" xml:space="preserve">
+    <value>GenHub не может изменять содержимое «{0}». Убедитесь, что ваша учётная запись имеет право записи в эту папку и она не заблокирована, затем повторите попытку.</value>
+  </data>
   <data name="Maps.Error.DeleteFailed" xml:space="preserve">
     <value>Не удалось удалить «{0}».</value>
   </data>

@@ -8508,6 +8508,9 @@ Recovery Engine: Profile '{0}' supports checkpoint saves, replay resumption, and
   <data name="Maps.Error.FolderNotWritable" xml:space="preserve">
     <value>GenHub could not make the map folder "{0}" writable. Check that your account owns the folder and that it is not locked, then try again.</value>
   </data>
+  <data name="Maps.Error.FolderAccessDenied" xml:space="preserve">
+    <value>GenHub is not allowed to change the contents of "{0}". Check that your account can write to the folder and that it is not locked, then try again.</value>
+  </data>
   <data name="Maps.Error.DeleteFailed" xml:space="preserve">
     <value>Could not delete "{0}".</value>
   </data>

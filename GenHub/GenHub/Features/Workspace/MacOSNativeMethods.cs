@@ -59,6 +59,18 @@ internal static partial class MacOSNativeMethods
         return Marshal.GetLastPInvokeError() == ENOATTR;
     }
 
+    /// <summary>
+    /// Clears the flags of a file without following a symbolic link, so an immutable or
+    /// append-only file the user owns can be removed. Does nothing on other platforms.
+    /// </summary>
+    /// <param name="path">The file to clear.</param>
+    /// <returns><c>true</c> when the flags were cleared.</returns>
+    internal static bool TryClearFileFlags(string path) =>
+        OperatingSystem.IsMacOS() && SetFileFlagsNoFollow(path, 0) == 0;
+
+    [LibraryImport("libc", EntryPoint = "lchflags", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
+    private static partial int SetFileFlagsNoFollow(string path, uint flags);
+
     [LibraryImport("libc", EntryPoint = "removexattr", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
     private static partial int RemoveExtendedAttribute(string path, string name, int options);
 }
