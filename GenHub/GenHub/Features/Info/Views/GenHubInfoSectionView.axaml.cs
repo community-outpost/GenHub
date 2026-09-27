@@ -77,6 +77,7 @@ public partial class GenHubInfoSectionView : UserControl
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
+        _scrollSpy?.ClearSections();
         UnhookViewModel();
         if (DataContext is GenHubInfoSectionViewModel vm)
         {

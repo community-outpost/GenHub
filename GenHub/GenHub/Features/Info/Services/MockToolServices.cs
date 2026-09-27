@@ -250,16 +250,17 @@ public class MockReplayDirectoryService : IReplayDirectoryService
                 {
                     MapName = "Tournament Desert",
                     VersionString = "1.04",
-                    ExeCrc = 0x27533BB0,
+                    ExeCrc = 0x401D89EA,
                     IniCrc = 0x76B251A3,
                     Players = ["Commander Alpha", "General Bravo"],
                 },
                 MatchedClient = new CrcMappingEntry
                 {
-                    Description = "Zero Hour 1.04",
+                    Description = "Official Steam Zero Hour 1.04",
                     Publisher = PublisherTypeConstants.Steam,
                     GameType = nameof(GameType.ZeroHour),
                     Version = "1.04",
+                    ManifestId = "1.104.steam.gameclient.zerohour",
                 },
                 CompatibilityStatus = ReplayCompatibilityStatus.RequiresProfile,
                 SupportsCheckpoints = true,
@@ -277,16 +278,17 @@ public class MockReplayDirectoryService : IReplayDirectoryService
                 {
                     MapName = "Twilight Flame",
                     VersionString = "1.04",
-                    ExeCrc = 0x8C1F04D2,
-                    IniCrc = 0x3E9A71C4,
+                    ExeCrc = 0xDA2B4B18,
+                    IniCrc = 0x8FB8AE76,
                     Players = ["ShockWave", "Viper", "Ironclad", "DuneFox"],
                 },
                 MatchedClient = new CrcMappingEntry
                 {
-                    Description = "Zero Hour 1.04",
-                    Publisher = PublisherTypeConstants.Steam,
+                    Description = "Zero Hour 1.04 (Community Patch)",
+                    Publisher = PublisherTypeConstants.CommunityOutpost,
                     GameType = nameof(GameType.ZeroHour),
                     Version = "1.04",
+                    ManifestId = "1.104.retail.gameclient.zerohour",
                 },
                 CompatibilityStatus = ReplayCompatibilityStatus.Downloadable,
             },
