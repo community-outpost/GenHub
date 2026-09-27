@@ -1,6 +1,5 @@
-using Avalonia.Controls;
-using Avalonia.Input;
 using Avalonia.Markup.Xaml;
+using GenHub.Common.Controls;
 using GenHub.Common.ViewModels.Dialogs;
 
 namespace GenHub.Common.Views.Dialogs;
@@ -8,7 +7,7 @@ namespace GenHub.Common.Views.Dialogs;
 /// <summary>
 /// Window for displaying a confirmation dialog.
 /// </summary>
-public partial class ConfirmationDialogWindow : Window
+public partial class ConfirmationDialogWindow : GenHubWindow
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="ConfirmationDialogWindow"/> class.
@@ -29,16 +28,7 @@ public partial class ConfirmationDialogWindow : Window
     }
 
     /// <inheritdoc/>
-    /// <param name="e">The key event arguments.</param>
-    protected override void OnKeyDown(KeyEventArgs e)
-    {
-        base.OnKeyDown(e);
-        if (e.Key == Key.Escape && !e.Handled)
-        {
-            e.Handled = true;
-            Close(false);
-        }
-    }
+    protected override void OnEscapePressed() => Close(false);
 
     /// <summary>
     /// Loads and initializes the XAML components for this window.

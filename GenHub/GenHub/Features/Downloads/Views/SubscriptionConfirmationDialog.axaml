@@ -1,4 +1,4 @@
-<Window xmlns="https://github.com/avaloniaui"
+<controls:GenHubWindow xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -7,7 +7,7 @@
         xmlns:infraControls="clr-namespace:GenHub.Infrastructure.Controls"
         xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
         xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
-        xmlns:helpers="clr-namespace:GenHub.Common.Helpers;assembly=GenHub"
+        xmlns:controls="clr-namespace:GenHub.Common.Controls"
         mc:Ignorable="d" d:DesignWidth="780" d:DesignHeight="760"
         x:Class="GenHub.Features.Downloads.Views.SubscriptionConfirmationDialog"
         x:DataType="vm:SubscriptionConfirmationViewModel"
@@ -21,9 +21,7 @@
         TransparencyLevelHint="AcrylicBlur"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="NoChrome"
-        ExtendClientAreaTitleBarHeightHint="-1"
-        SystemDecorations="Full"
-        helpers:WindowChromeHelper.AdaptForPlatform="True">
+        ExtendClientAreaTitleBarHeightHint="-1">
 
     <Window.Resources>
         <converters:LocalizedFormatConverter x:Key="LocalizedFormatConverter" />
@@ -580,4 +578,4 @@
             </Grid>
         </Panel>
     </Border>
-</Window>
+</controls:GenHubWindow>

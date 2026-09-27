@@ -2,7 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
-using GenHub.Common.Helpers;
+using GenHub.Common.Controls;
 using GenHub.Features.GameProfiles.ViewModels;
 using System;
 using System.Linq;
@@ -13,7 +13,7 @@ namespace GenHub.Features.GameProfiles.Views;
 /// <summary>
 /// Window for adding local content to game profiles.
 /// </summary>
-public partial class AddLocalContentWindow : Window
+public partial class AddLocalContentWindow : GenHubWindow
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="AddLocalContentWindow"/> class.
@@ -21,7 +21,6 @@ public partial class AddLocalContentWindow : Window
     public AddLocalContentWindow()
     {
         InitializeComponent();
-        WindowChromeHelper.ApplyPlatformDecorations(this);
         AddHandler(DragDrop.DropEvent, OnDrop);
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
     }
@@ -84,18 +83,6 @@ public partial class AddLocalContentWindow : Window
         }
     }
 
-    /// <inheritdoc/>
-    /// <param name="e">The key event arguments.</param>
-    protected override void OnKeyDown(KeyEventArgs e)
-    {
-        base.OnKeyDown(e);
-        if (e.Key == Key.Escape && !e.Handled)
-        {
-            e.Handled = true;
-            Close();
-        }
-    }
-
     private void OnAdminDrop(string[] files)
     {
         _ = ProcessAdminDropAsync(files);
@@ -146,20 +133,6 @@ public partial class AddLocalContentWindow : Window
                     await vm.ImportContentAsync(path);
                 }
             }
-        }
-    }
-
-    private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
-        {
-            if (e.ClickCount == 2 && CanResize)
-            {
-                WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-                return;
-            }
-
-            BeginMoveDrag(e);
         }
     }
 }

@@ -1,6 +1,5 @@
-using Avalonia.Controls;
-using Avalonia.Input;
 using Avalonia.Markup.Xaml;
+using GenHub.Common.Controls;
 using GenHub.Common.ViewModels.Dialogs;
 using System;
 
@@ -9,7 +8,7 @@ namespace GenHub.Common.Views.Dialogs;
 /// <summary>
 /// Window for displaying update options to the user.
 /// </summary>
-public partial class UpdateOptionDialogWindow : Window
+public partial class UpdateOptionDialogWindow : GenHubWindow
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="UpdateOptionDialogWindow"/> class.
@@ -29,18 +28,6 @@ public partial class UpdateOptionDialogWindow : Window
         if (DataContext is UpdateOptionDialogViewModel vm)
         {
             vm.CloseAction = (result) => Close(result);
-        }
-    }
-
-    /// <inheritdoc/>
-    /// <param name="e">The key event arguments.</param>
-    protected override void OnKeyDown(KeyEventArgs e)
-    {
-        base.OnKeyDown(e);
-        if (e.Key == Key.Escape && !e.Handled)
-        {
-            e.Handled = true;
-            Close();
         }
     }
 

@@ -1,5 +1,3 @@
-using Avalonia.Controls;
-using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using GenHub.Common.Controls;
 using GenHub.Features.GameProfiles.ViewModels;
@@ -21,20 +19,10 @@ public partial class ImportProfileInspectionWindow : GenHubWindow
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
-        Closed += (_, _) => (DataContext as IDisposable)?.Dispose();
     }
 
     /// <inheritdoc/>
-    /// <param name="e">The key event arguments.</param>
-    protected override void OnKeyDown(KeyEventArgs e)
-    {
-        base.OnKeyDown(e);
-        if (e.Key == Key.Escape && !e.Handled)
-        {
-            e.Handled = true;
-            Close();
-        }
-    }
+    protected override bool DisposeDataContextOnClose => true;
 
     private void InitializeComponent()
     {
@@ -56,14 +44,6 @@ public partial class ImportProfileInspectionWindow : GenHubWindow
         else
         {
             attachedViewModel = null;
-        }
-    }
-
-    private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
-        {
-            BeginMoveDrag(e);
         }
     }
 

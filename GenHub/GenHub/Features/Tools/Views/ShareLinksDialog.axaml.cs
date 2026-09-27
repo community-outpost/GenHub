@@ -1,5 +1,3 @@
-using Avalonia.Controls;
-using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using GenHub.Common.Controls;
 using GenHub.Features.Tools.ViewModels;
@@ -13,18 +11,6 @@ namespace GenHub.Features.Tools.Views;
 public partial class ShareLinksDialog : GenHubWindow
 {
     private ShareLinksViewModel? attachedViewModel;
-
-    /// <inheritdoc/>
-    /// <param name="e">The key event arguments.</param>
-    protected override void OnKeyDown(KeyEventArgs e)
-    {
-        base.OnKeyDown(e);
-        if (e.Key == Key.Escape && !e.Handled)
-        {
-            e.Handled = true;
-            Close();
-        }
-    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ShareLinksDialog"/> class.
@@ -55,14 +41,6 @@ public partial class ShareLinksDialog : GenHubWindow
         else
         {
             attachedViewModel = null;
-        }
-    }
-
-    private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
-        {
-            BeginMoveDrag(e);
         }
     }
 

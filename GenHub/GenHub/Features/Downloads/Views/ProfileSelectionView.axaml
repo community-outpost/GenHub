@@ -1,11 +1,11 @@
-<Window xmlns="https://github.com/avaloniaui"
+<controls:GenHubWindow xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:GenHub.Features.Downloads.ViewModels"
         xmlns:profileViews="clr-namespace:GenHub.Features.GameProfiles.Views"
         xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
-        xmlns:helpers="clr-namespace:GenHub.Common.Helpers;assembly=GenHub"
+        xmlns:controls="clr-namespace:GenHub.Common.Controls"
         mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="780"
         x:Class="GenHub.Features.Downloads.Views.ProfileSelectionView"
         x:DataType="vm:ProfileSelectionViewModel"
@@ -15,8 +15,6 @@
         CanResize="True"
         MinWidth="820" MinHeight="600"
         Icon="avares://GenHub/Assets/Icons/generalshub-icon.png"
-        SystemDecorations="Full"
-        helpers:WindowChromeHelper.AdaptForPlatform="True"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="-1"
@@ -98,6 +96,15 @@
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
         </Style>
+        <Style Selector="Path.restore-icon">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
+        <Style Selector="Window[WindowState=Maximized] Path.restore-icon">
+            <Setter Property="IsVisible" Value="True"/>
+        </Style>
+        <Style Selector="Window[WindowState=Maximized] Path.maximize-icon">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
     </Window.Styles>
 
     <Grid RowDefinitions="40,*">
@@ -155,13 +162,22 @@
                     Padding="0"
                     Width="46" Height="40"
                     Click="MaximizeButton_Click">
-                <Path x:Name="MaximizeIcon"
-                      Data="M4,4H20V20H4V4M6,8V18H18V8H6Z"
-                      Fill="{Binding $parent[Button].Foreground}"
-                      Width="12" Height="12"
-                      Stretch="Uniform"
-                      VerticalAlignment="Center"
-                      HorizontalAlignment="Center" />
+                <Panel>
+                    <Path Classes="maximize-icon"
+                          Data="M4,4H20V20H4V4M6,8V18H18V8H6Z"
+                          Fill="{Binding $parent[Button].Foreground}"
+                          Width="12" Height="12"
+                          Stretch="Uniform"
+                          VerticalAlignment="Center"
+                          HorizontalAlignment="Center" />
+                    <Path Classes="restore-icon"
+                          Data="M4,8H8V4H20V16H16V20H4V8M16,8V6H10V8H16M6,10V18H14V10H6Z"
+                          Fill="{Binding $parent[Button].Foreground}"
+                          Width="12" Height="12"
+                          Stretch="Uniform"
+                          VerticalAlignment="Center"
+                          HorizontalAlignment="Center" />
+                </Panel>
                 <Button.Styles>
                     <Style Selector="Button:pointerover">
                         <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
@@ -308,4 +324,4 @@
             </ScrollViewer>
         </Grid>
     </Grid>
-</Window>
+</controls:GenHubWindow>

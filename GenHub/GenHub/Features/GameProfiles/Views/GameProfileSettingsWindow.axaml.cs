@@ -3,7 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
-using GenHub.Common.Helpers;
+using GenHub.Common.Controls;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Features.GameProfiles.ViewModels;
@@ -15,7 +15,7 @@ namespace GenHub.Features.GameProfiles.Views;
 /// <summary>
 /// Window for managing game profile settings.
 /// </summary>
-public partial class GameProfileSettingsWindow : Window
+public partial class GameProfileSettingsWindow : GenHubWindow
 {
     private static double? _savedWidth;
     private static double? _savedHeight;
@@ -53,7 +53,6 @@ public partial class GameProfileSettingsWindow : Window
     public GameProfileSettingsWindow()
     {
         InitializeComponent();
-        WindowChromeHelper.ApplyPlatformDecorations(this);
 
         // Subscribe to DataContext changes to handle commands
         DataContextChanged += OnDataContextChanged;
@@ -66,15 +65,6 @@ public partial class GameProfileSettingsWindow : Window
 
         // Subscribe to window events
         Activated += OnWindowActivated;
-
-        KeyDown += (_, e) =>
-        {
-            if (e.Key == Avalonia.Input.Key.Escape && !e.Handled)
-            {
-                e.Handled = true;
-                Close();
-            }
-        };
     }
 
     /// <summary>

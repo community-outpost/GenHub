@@ -1,11 +1,8 @@
 using Avalonia.Controls;
-using Avalonia.Input;
-using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
-using GenHub.Common.Helpers;
+using GenHub.Common.Controls;
 using GenHub.Features.AppUpdate.ViewModels;
 using Microsoft.Extensions.Logging;
-using System;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.AppUpdate.Views;
@@ -13,7 +10,7 @@ namespace GenHub.Features.AppUpdate.Views;
 /// <summary>
 /// Window for displaying update notifications.
 /// </summary>
-public partial class UpdateNotificationWindow : Window
+public partial class UpdateNotificationWindow : GenHubWindow
 {
     private readonly ILogger<UpdateNotificationWindow>? _logger;
 
@@ -25,7 +22,6 @@ public partial class UpdateNotificationWindow : Window
         _logger = AppLocator.GetServiceOrDefault<ILogger<UpdateNotificationWindow>>();
 
         InitializeComponent();
-        WindowChromeHelper.ApplyPlatformDecorations(this);
 
         try
         {
@@ -37,26 +33,10 @@ public partial class UpdateNotificationWindow : Window
         {
             _logger?.LogError(ex, "Failed to initialize UpdateNotificationWindow ViewModel");
         }
-
-        KeyDown += (_, e) =>
-        {
-            if (e.Key == Key.Escape && !e.Handled)
-            {
-                e.Handled = true;
-                Close();
-            }
-        };
-
-        // The view model is transient but subscribes to singleton service events,
-        // so it must be disposed when the window closes to avoid leaking it.
-        Closed += (_, _) =>
-        {
-            if (DataContext is IDisposable disposable)
-            {
-                disposable.Dispose();
-            }
-        };
     }
+
+    /// <inheritdoc/>
+    protected override bool DisposeDataContextOnClose => true;
 
     /// <summary>
     /// Shows the update notification window as a dialog.
@@ -83,44 +63,4 @@ public partial class UpdateNotificationWindow : Window
     }
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
-
-    /// <summary>
-    /// Handles the maximize/restore button click event.
-    /// </summary>
-    /// <param name="sender">The sender.</param>
-    /// <param name="e">The event args.</param>
-    private void MaximizeButton_Click(object? sender, RoutedEventArgs e)
-    {
-        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-    }
-
-    /// <summary>
-    /// Handles the close button click event.
-    /// </summary>
-    /// <param name="sender">The sender.</param>
-    /// <param name="e">The event args.</param>
-    private void CloseButton_Click(object? sender, RoutedEventArgs e)
-    {
-        Close();
-    }
-
-    /// <summary>
-    /// Handles pointer pressed event for the title bar to enable window dragging and double-click maximize.
-    /// </summary>
-    /// <param name="sender">The sender.</param>
-    /// <param name="e">The pointer event args.</param>
-    private void TitleBar_PointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
-        {
-            if (e.ClickCount == 2)
-            {
-                MaximizeButton_Click(sender, new RoutedEventArgs());
-            }
-            else
-            {
-                BeginMoveDrag(e);
-            }
-        }
-    }
 }
