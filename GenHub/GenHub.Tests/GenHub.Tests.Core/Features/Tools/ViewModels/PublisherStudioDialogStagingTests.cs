@@ -133,6 +133,7 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
         var file = WriteTempFile("mod.big", "payload");
         using var vm = new AddContentDialogViewModel(_ => { });
         vm.PopulateFromPath(file);
+        await WaitForComputeAsync(vm);
         Assert.NotEmpty(vm.StagedFiles);
 
         await WaitForComputeAsync(vm);
