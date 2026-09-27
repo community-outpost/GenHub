@@ -218,7 +218,7 @@ public static class CatalogDocumentReader
     {
         if (IPAddress.TryParse(host, out var ip))
         {
-            if (!ImageCacheService.IsSafeIpAddress(ip))
+            if (!NetworkSecurityHelper.IsSafeIpAddress(ip))
             {
                 throw CreateSafetyException(
                     $"Catalog {(isRedirect ? "redirect target" : "host")} '{host}' resolves to an unsafe IP address.",
@@ -236,7 +236,7 @@ public static class CatalogDocumentReader
         try
         {
             var addresses = await Dns.GetHostAddressesAsync(host, cancellationToken).ConfigureAwait(false);
-            if (addresses.Length == 0 || addresses.Any(a => !ImageCacheService.IsSafeIpAddress(a)))
+            if (addresses.Length == 0 || addresses.Any(a => !NetworkSecurityHelper.IsSafeIpAddress(a)))
             {
                 throw CreateSafetyException(
                     $"Catalog {(isRedirect ? "redirect target" : "host")} '{host}' resolves to an unsafe IP address.",

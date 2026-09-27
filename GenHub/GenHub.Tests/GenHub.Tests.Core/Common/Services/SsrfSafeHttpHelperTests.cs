@@ -245,6 +245,63 @@ public sealed class SsrfSafeHttpHelperTests
             CancellationToken.None));
     }
 
+    /// <summary>
+    /// Verifies that HTTPS to HTTP downgrades are rejected when blocking is enabled.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task SendWithValidatedRedirectsAsync_WithDowngradeBlocked_ThrowsAsync()
+    {
+        var initialUri = new Uri("https://example.com/start");
+        using var handler = new QueueHandler(
+        [
+            Redirect(HttpStatusCode.Found, new Uri("http://example.com/plain")),
+        ]);
+        using var httpClient = new HttpClient(handler);
+        var validator = CreateValidator(true);
+
+        await Assert.ThrowsAsync<HttpRequestException>(() => SsrfSafeHttpHelper.SendWithValidatedRedirectsAsync(
+            httpClient,
+            static uri => new HttpRequestMessage(HttpMethod.Get, uri),
+            initialUri,
+            5,
+            validator.Object,
+            CancellationToken.None,
+            blockHttpsDowngrade: true));
+
+        Assert.Equal([initialUri], handler.RequestedUris);
+    }
+
+    /// <summary>
+    /// Verifies that HTTPS to HTTP downgrades are followed by default.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task SendWithValidatedRedirectsAsync_WithDowngradeAllowed_FollowsAsync()
+    {
+        var initialUri = new Uri("https://example.com/start");
+        var downgradedUri = new Uri("http://example.com/plain");
+        using var handler = new QueueHandler(
+        [
+            Redirect(HttpStatusCode.Found, downgradedUri),
+            new HttpResponseMessage(HttpStatusCode.OK),
+        ]);
+        using var httpClient = new HttpClient(handler);
+        var validator = CreateValidator(true);
+
+        var validated = await SsrfSafeHttpHelper.SendWithValidatedRedirectsAsync(
+            httpClient,
+            static uri => new HttpRequestMessage(HttpMethod.Get, uri),
+            initialUri,
+            5,
+            validator.Object,
+            CancellationToken.None);
+
+        using var response = validated.Response;
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(downgradedUri, validated.FinalUri);
+    }
+
     private static Mock<IDownloadUrlValidator> CreateValidator(bool result)
     {
         var validator = new Mock<IDownloadUrlValidator>();

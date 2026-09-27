@@ -2004,7 +2004,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 _notificationService.ShowSuccess(
                     "Data Deleted",
                     _localizationService?.GetString("Settings.DangerZone.DeleteAllData.SuccessMessage") ?? "Profiles, workspaces, manifests, user data, and unreferenced CAS objects were deleted.",
-                    5000);
+                    NotificationDurations.Medium);
             }
             else
             {
