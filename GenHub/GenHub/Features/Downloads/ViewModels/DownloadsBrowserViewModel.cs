@@ -578,6 +578,49 @@ public sealed partial class DownloadsBrowserViewModel(
     }
 
     /// <summary>
+    /// Reconciles the update state of a downloaded variant against its non-downloaded siblings.
+    /// Only manifest IDs arbitrate newness; variant display names are labels, never versions.
+    /// </summary>
+    /// <param name="item">The content grid item whose variants to reconcile.</param>
+    internal static void ReconcileItemVariants(ContentGridItemViewModel item)
+    {
+        if (item.Variants.Count <= 1)
+        {
+            return;
+        }
+
+        var downloadedVariants = item.Variants.Where(v => v.CurrentState == ContentState.Downloaded).ToList();
+        if (downloadedVariants.Count == 0)
+        {
+            return;
+        }
+
+        var hasNewerVariant = false;
+        foreach (var downloaded in downloadedVariants)
+        {
+            var isAnyNewer = item.Variants.Any(v =>
+                v.CurrentState != ContentState.Downloaded &&
+                !string.IsNullOrEmpty(v.ManifestId) &&
+                !string.IsNullOrEmpty(downloaded.ManifestId) &&
+                ContentStateService.IsNewerVersion(v.ManifestId, downloaded.ManifestId));
+
+            if (isAnyNewer)
+            {
+                downloaded.CurrentState = ContentState.UpdateAvailable;
+                hasNewerVariant = true;
+            }
+        }
+
+        if (hasNewerVariant)
+        {
+            item.CurrentState = ContentState.UpdateAvailable;
+            item.IsDownloaded = true;
+            item.UpdateTargetVm = item;
+            item.NotifyStateChanged();
+        }
+    }
+
+    /// <summary>
     /// Cleans up in-flight browse operations and disposes un-retained items.
     /// </summary>
     /// <param name="publisherId">The publisher ID whose in-flight operation completed or faulted.</param>

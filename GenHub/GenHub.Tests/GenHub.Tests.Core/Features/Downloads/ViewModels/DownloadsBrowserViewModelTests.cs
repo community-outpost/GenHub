@@ -1666,6 +1666,64 @@ public class DownloadsBrowserViewModelTests
     }
 
     /// <summary>
+    /// Verifies that same-release variant siblings with different display names do not mark
+    /// a downloaded variant as UpdateAvailable. Variant labels are not versions and must
+    /// never drive the newer-version comparison.
+    /// </summary>
+    [Fact]
+    public void ReconcileItemVariants_WhenSameReleaseSiblingsHaveDifferentDisplayNames_DownloadedVariantStaysDownloaded()
+    {
+        // Arrange: three variants of one release (equal manifest-ID version segments).
+        var stateServiceMock = new Mock<IContentStateService>();
+        var loggerMock = new Mock<ILogger<ContentGridItemViewModel>>();
+        var searchResult = new ContentSearchResult
+        {
+            Id = "genericcatalog.genhub-test-publishers.addon.eliorataimprovedmenus",
+            Name = "ImprovedMenus",
+            Version = "v1.3_h1",
+            ProviderName = "genhub-test-publishers",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+        };
+        var item = new ContentGridItemViewModel(searchResult, stateServiceMock.Object, loggerMock.Object)
+        {
+            CurrentState = ContentState.Downloaded,
+            IsDownloaded = true,
+        };
+        var spanish = new InstallableVariant
+        {
+            Name = "ImprovedMenus (Spanish)",
+            ManifestId = "1.103.genericcatalog.addon.eliorataimprovedmenuslanguagespanish",
+            CurrentState = ContentState.NotDownloaded,
+        };
+        var russian = new InstallableVariant
+        {
+            Name = "ImprovedMenus (Russian)",
+            ManifestId = "1.103.genericcatalog.addon.eliorataimprovedmenuslanguagerussian",
+            CurrentState = ContentState.NotDownloaded,
+        };
+        var english = new InstallableVariant
+        {
+            Name = "ImprovedMenus (English)",
+            ManifestId = "1.103.genericcatalog.addon.eliorataimprovedmenuslanguageenglish",
+            CurrentState = ContentState.Downloaded,
+        };
+        item.Variants.Add(spanish);
+        item.Variants.Add(russian);
+        item.Variants.Add(english);
+        item.SelectedVariant = english;
+
+        // Act
+        DownloadsBrowserViewModel.ReconcileItemVariants(item);
+
+        // Assert
+        Assert.Equal(ContentState.Downloaded, english.CurrentState);
+        Assert.Equal(ContentState.Downloaded, item.CurrentState);
+        Assert.True(item.IsDownloaded);
+        Assert.Null(item.UpdateTargetVm);
+    }
+
+    /// <summary>
     /// Verifies that UpdateContentCommand invokes the publisher reconciler when one is registered.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>

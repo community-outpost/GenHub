@@ -3193,24 +3193,35 @@ public partial class PublishShareViewModel(
     }
 
     /// <summary>
-    /// Resolves an artwork path to an existing local file, checking the path as
-    /// given first and then relative to the studio project directory.
+    /// Resolves an artwork path to an existing local file. Relative paths resolve
+    /// against the studio project directory and must stay inside it, so crafted
+    /// catalog metadata cannot exfiltrate publisher-local files outside the project.
+    /// Values that escape the project or cannot be parsed as paths resolve to null.
     /// </summary>
     private string? ResolveArtworkLocalPath(string trimmed)
     {
-        if (File.Exists(trimmed))
-        {
-            return trimmed;
-        }
-
         var projectDirectory = Path.GetDirectoryName(project.ProjectPath);
         if (!string.IsNullOrEmpty(projectDirectory))
         {
-            var combined = Path.Combine(projectDirectory, trimmed);
-            if (File.Exists(combined))
+            try
             {
-                return combined;
+                var root = Path.GetFullPath(projectDirectory) + Path.DirectorySeparatorChar;
+                var combined = Path.GetFullPath(Path.Combine(projectDirectory, trimmed));
+                if (combined.StartsWith(root, StringComparison.OrdinalIgnoreCase) && File.Exists(combined))
+                {
+                    return combined;
+                }
             }
+            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+            {
+                logger.LogDebug(ex, "Ignoring artwork path that cannot be resolved under the project directory");
+                return null;
+            }
+        }
+
+        if (Path.IsPathRooted(trimmed) && File.Exists(trimmed))
+        {
+            return trimmed;
         }
 
         return null;

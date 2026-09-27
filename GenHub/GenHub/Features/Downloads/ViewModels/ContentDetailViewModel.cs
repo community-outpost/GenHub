@@ -1540,7 +1540,34 @@ public partial class ContentDetailViewModel(
 
                     if (profileManager != null)
                     {
-                        await profileManager.ScrubDeletedManifestReferencesAsync([oldManifestId], cancellationToken);
+                        var scrubResult = await profileManager.ScrubDeletedManifestReferencesAsync([oldManifestId], cancellationToken);
+                        if (!scrubResult.Success || scrubResult.Data == null)
+                        {
+                            logger.LogWarning(
+                                "Failed to scrub deleted manifest {OldManifestId} from profiles for bundle component {Name}: {Error}",
+                                oldManifestId,
+                                target.Name,
+                                scrubResult.FirstError);
+                            notificationService.ShowWarning(
+                                GetLocalizedString("Settings.Manifests.ScrubFailed.Title", "Profile Update Incomplete"),
+                                GetLocalizedString("Settings.Manifests.ScrubFailed.EnumerationMessage", "The profile list could not be loaded, so deleted manifests may still be referenced by profiles."));
+                        }
+                        else if (scrubResult.Data.FailedProfileNames.Count > 0)
+                        {
+                            logger.LogWarning(
+                                "Failed to scrub deleted manifest {OldManifestId} from {ProfileCount} profile(s) for bundle component {Name}: {Profiles}",
+                                oldManifestId,
+                                scrubResult.Data.FailedProfileNames.Count,
+                                target.Name,
+                                string.Join(", ", scrubResult.Data.FailedProfileNames));
+                            notificationService.ShowWarning(
+                                GetLocalizedString("Settings.Manifests.ScrubFailed.Title", "Profile Update Incomplete"),
+                                string.Format(
+                                    CultureInfo.InvariantCulture,
+                                    GetLocalizedString("Settings.Manifests.ScrubFailed.Message", "Deleted manifests could not be removed from {0} profile(s): {1}."),
+                                    scrubResult.Data.FailedProfileNames.Count,
+                                    string.Join(", ", scrubResult.Data.FailedProfileNames)));
+                        }
                     }
 
                     // The replacement manifest is already downloaded and mapped to the original

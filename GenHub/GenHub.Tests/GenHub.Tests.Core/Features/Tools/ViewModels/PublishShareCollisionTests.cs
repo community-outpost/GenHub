@@ -313,6 +313,124 @@ public class PublishShareCollisionTests
         }
     }
 
+    /// <summary>
+    /// A relative artwork path escaping the project directory must never be
+    /// uploaded, even when the escaped file exists on the publisher machine.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PublishCatalogCommand_TraversalArtworkPath_SkipsUploadAsync()
+    {
+        var rootDir = Path.Combine(Path.GetTempPath(), $"genhub_traversal_{Guid.NewGuid():N}");
+        var projectDir = Path.Combine(rootDir, "proj");
+        Directory.CreateDirectory(Path.Combine(projectDir, "Assets"));
+        await File.WriteAllTextAsync(Path.Combine(rootDir, "secret.txt"), "publisher-secret");
+        await File.WriteAllTextAsync(Path.Combine(projectDir, "Assets", "ok-icon.png"), "fake-png-bytes");
+
+        try
+        {
+            var evil = new CatalogContentItem
+            {
+                Id = "evil-item",
+                Name = "Evil Item",
+                ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
+                Metadata = new ContentRichMetadata { IconUrl = "Assets/../../secret.txt" },
+            };
+            var good = new CatalogContentItem
+            {
+                Id = "good-item",
+                Name = "Good Item",
+                ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
+                Metadata = new ContentRichMetadata { IconUrl = "Assets/ok-icon.png" },
+            };
+            var catalog = CreateCatalog("a", "Alpha", "catalog-a.json");
+            catalog.Catalog.Content = [evil, good];
+            var project = new PublisherStudioProject
+            {
+                ProjectPath = Path.Combine(projectDir, "project.json"),
+                Catalogs = [catalog],
+            };
+            var (vm, mockProvider) = CreateViewModel(project);
+
+            await vm.InitializeAsync();
+            await vm.PublishCatalogCommand.ExecuteAsync(catalog);
+
+            mockProvider.Verify(
+                p => p.UploadFileAsync(
+                    It.IsAny<Stream>(),
+                    It.Is<string>(name => name.Contains("secret.txt", StringComparison.Ordinal)),
+                    It.IsAny<string?>(),
+                    It.IsAny<IProgress<int>?>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+            Assert.Equal("Assets/../../secret.txt", evil.Metadata!.IconUrl);
+            Assert.StartsWith("https://", good.Metadata!.IconUrl);
+        }
+        finally
+        {
+            Directory.Delete(rootDir, true);
+        }
+    }
+
+    /// <summary>
+    /// An artwork path that cannot be parsed as a path must be skipped without
+    /// failing the publish, even when canonicalization would throw.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PublishCatalogCommand_UnparseableArtworkPath_SkipsUploadAsync()
+    {
+        var rootDir = Path.Combine(Path.GetTempPath(), $"genhub_unparseable_{Guid.NewGuid():N}");
+        var projectDir = Path.Combine(rootDir, "proj");
+        Directory.CreateDirectory(Path.Combine(projectDir, "Assets"));
+        await File.WriteAllTextAsync(Path.Combine(projectDir, "Assets", "ok-icon.png"), "fake-png-bytes");
+
+        try
+        {
+            const string badIconUrl = "Assets/\0evil.txt";
+            var bad = new CatalogContentItem
+            {
+                Id = "bad-item",
+                Name = "Bad Item",
+                ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
+                Metadata = new ContentRichMetadata { IconUrl = badIconUrl },
+            };
+            var good = new CatalogContentItem
+            {
+                Id = "good-item",
+                Name = "Good Item",
+                ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
+                Metadata = new ContentRichMetadata { IconUrl = "Assets/ok-icon.png" },
+            };
+            var catalog = CreateCatalog("a", "Alpha", "catalog-a.json");
+            catalog.Catalog.Content = [bad, good];
+            var project = new PublisherStudioProject
+            {
+                ProjectPath = Path.Combine(projectDir, "project.json"),
+                Catalogs = [catalog],
+            };
+            var (vm, mockProvider) = CreateViewModel(project);
+
+            await vm.InitializeAsync();
+            await vm.PublishCatalogCommand.ExecuteAsync(catalog);
+
+            mockProvider.Verify(
+                p => p.UploadFileAsync(
+                    It.IsAny<Stream>(),
+                    It.Is<string>(name => name.Contains("evil", StringComparison.Ordinal)),
+                    It.IsAny<string?>(),
+                    It.IsAny<IProgress<int>?>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+            Assert.Equal(badIconUrl, bad.Metadata!.IconUrl);
+            Assert.StartsWith("https://", good.Metadata!.IconUrl);
+        }
+        finally
+        {
+            Directory.Delete(rootDir, true);
+        }
+    }
+
     private static NamedCatalog CreateCatalog(string id, string name, string fileName) => new()
     {
         Id = id,

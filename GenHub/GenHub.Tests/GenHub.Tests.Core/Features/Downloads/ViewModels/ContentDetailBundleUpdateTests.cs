@@ -15,6 +15,7 @@ using GenHub.Features.Downloads.ViewModels;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -239,19 +240,141 @@ public sealed class ContentDetailBundleUpdateTests
             CancellationToken.None));
     }
 
+    /// <summary>
+    /// Verifies that a failed profile scrub surfaces a warning while the manifest
+    /// deletion still stands and the downloaded state is still reported.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ApplyBundleComponentUpdateStrategy_ScrubFails_WarnsButKeepsDeletionAsync()
+    {
+        var profile = new GameProfile
+        {
+            Id = "profile-1",
+            Name = "Profile",
+            EnabledContentIds = [OldManifestId],
+            ActiveWorkspaceId = "workspace-1",
+        };
+        var profileManagerMock = new Mock<IGameProfileManager>();
+        profileManagerMock
+            .Setup(m => m.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
+        profileManagerMock
+            .Setup(m => m.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        profileManagerMock
+            .Setup(m => m.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateFailure("Profile store unavailable"));
+        var manifestPoolMock = new Mock<IContentManifestPool>();
+        manifestPoolMock
+            .Setup(m => m.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        var workspaceMock = new Mock<IWorkspaceManager>();
+        workspaceMock
+            .Setup(m => m.CleanupWorkspaceAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        var notificationMock = new Mock<INotificationService>();
+        var contentStateMock = new Mock<IContentStateService>();
+
+        var viewModel = CreateViewModel(
+            profileManagerMock.Object,
+            workspaceMock.Object,
+            manifestPoolMock.Object,
+            notificationMock.Object,
+            contentStateMock.Object);
+
+        await viewModel.ApplyBundleComponentUpdateStrategyAsync(
+            new ContentSearchResult { Id = "content-1", Name = "Content" },
+            "content-1",
+            OldManifestId,
+            CreateManifest(),
+            new UpdateDialogResult { Strategy = UpdateStrategy.ReplaceCurrent, DeleteOldVersions = true },
+            CancellationToken.None);
+
+        manifestPoolMock.Verify(
+            m => m.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+        notificationMock.Verify(
+            n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        contentStateMock.Verify(
+            s => s.NotifyStateChanged("content-1", ContentState.Downloaded, NewManifestId, null),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that a partially failed profile scrub surfaces a warning naming
+    /// the affected profiles.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ApplyBundleComponentUpdateStrategy_ScrubPartial_WarnsWithProfileNamesAsync()
+    {
+        var profile = new GameProfile
+        {
+            Id = "profile-1",
+            Name = "Profile",
+            EnabledContentIds = [OldManifestId],
+            ActiveWorkspaceId = "workspace-1",
+        };
+        var profileManagerMock = new Mock<IGameProfileManager>();
+        profileManagerMock
+            .Setup(m => m.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
+        profileManagerMock
+            .Setup(m => m.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        profileManagerMock
+            .Setup(m => m.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateSuccess(new ProfileScrubResult(0, 0, ["Stale Profile"])));
+        var manifestPoolMock = new Mock<IContentManifestPool>();
+        manifestPoolMock
+            .Setup(m => m.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        var workspaceMock = new Mock<IWorkspaceManager>();
+        workspaceMock
+            .Setup(m => m.CleanupWorkspaceAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        var notificationMock = new Mock<INotificationService>();
+
+        var viewModel = CreateViewModel(
+            profileManagerMock.Object,
+            workspaceMock.Object,
+            manifestPoolMock.Object,
+            notificationMock.Object);
+
+        await viewModel.ApplyBundleComponentUpdateStrategyAsync(
+            new ContentSearchResult { Id = "content-1", Name = "Content" },
+            "content-1",
+            OldManifestId,
+            CreateManifest(),
+            new UpdateDialogResult { Strategy = UpdateStrategy.ReplaceCurrent, DeleteOldVersions = true },
+            CancellationToken.None);
+
+        notificationMock.Verify(
+            n => n.ShowWarning(
+                It.IsAny<string>(),
+                It.Is<string>(message => message.Contains("Stale Profile", StringComparison.Ordinal)),
+                It.IsAny<int?>(),
+                It.IsAny<bool>()),
+            Times.Once);
+    }
+
     private static ContentDetailViewModel CreateViewModel(
         IGameProfileManager profileManager,
         IWorkspaceManager workspaceManager,
-        IContentManifestPool? manifestPool = null)
+        IContentManifestPool? manifestPool = null,
+        INotificationService? notificationService = null,
+        IContentStateService? contentStateService = null)
     {
         return new ContentDetailViewModel(
             new ContentSearchResult { Id = "content-1", Name = "Content" },
             [],
             Mock.Of<IProfileContentService>(),
             profileManager,
-            Mock.Of<INotificationService>(),
+            notificationService ?? Mock.Of<INotificationService>(),
             Mock.Of<ITabProviderRegistry>(),
-            Mock.Of<IContentStateService>(),
+            contentStateService ?? Mock.Of<IContentStateService>(),
             Mock.Of<IContentDownloadCoordinator>(),
             manifestPool ?? Mock.Of<IContentManifestPool>(),
             NullLoggerFactory.Instance,
