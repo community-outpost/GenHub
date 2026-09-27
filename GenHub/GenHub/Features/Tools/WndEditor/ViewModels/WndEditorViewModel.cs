@@ -11,6 +11,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions.GameInstallations;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
@@ -2509,10 +2510,15 @@ public sealed partial class WndEditorViewModel(
     {
         try
         {
+            // Default macOS volumes are case-insensitive, so explorer containment must ignore
+            // casing there; case-sensitive platforms keep ordinal semantics.
+            var comparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
             var normalizedPath = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             var normalizedBase = Path.GetFullPath(basePath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            return normalizedPath.StartsWith(normalizedBase + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(normalizedPath, normalizedBase, StringComparison.OrdinalIgnoreCase);
+            return normalizedPath.StartsWith(normalizedBase + Path.DirectorySeparatorChar, comparison)
+                || string.Equals(normalizedPath, normalizedBase, comparison);
         }
         catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException or SecurityException)
         {
@@ -3169,7 +3175,7 @@ public sealed partial class WndEditorViewModel(
     private bool IsZeroHourPath(GameInstallationOption option)
     {
         return _installations.Any(installation =>
-            string.Equals(option.Path, installation.ZeroHourPath, StringComparison.OrdinalIgnoreCase));
+            string.Equals(option.Path, installation.ZeroHourPath, PathHelper.PathComparison));
     }
 
     private GameInstallationOption? SelectBestAssetInstallation()
@@ -3201,7 +3207,7 @@ public sealed partial class WndEditorViewModel(
         {
             var fullFile = Path.GetFullPath(filePath);
             var fullDirectory = Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            return fullFile.StartsWith(fullDirectory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+            return fullFile.StartsWith(fullDirectory + Path.DirectorySeparatorChar, PathHelper.PathComparison);
         }
         catch (IOException)
         {
@@ -3226,13 +3232,13 @@ public sealed partial class WndEditorViewModel(
         foreach (var installation in _installations)
         {
             if (!string.IsNullOrEmpty(installation.ZeroHourPath)
-                && string.Equals(selection.Path, installation.ZeroHourPath, StringComparison.OrdinalIgnoreCase))
+                && string.Equals(selection.Path, installation.ZeroHourPath, PathHelper.PathComparison))
             {
                 return ResolveZeroHourAssetRoots(installation);
             }
 
             if (!string.IsNullOrEmpty(installation.GeneralsPath)
-                && string.Equals(selection.Path, installation.GeneralsPath, StringComparison.OrdinalIgnoreCase))
+                && string.Equals(selection.Path, installation.GeneralsPath, PathHelper.PathComparison))
             {
                 return new AssetRoots(installation.GeneralsPath, false);
             }
@@ -3694,8 +3700,17 @@ public sealed partial class WndEditorViewModel(
             var projectDirectory = CombineProjectDirectories(linkedModFolderSnapshot, detectedProjectDir);
             var linkedBigs = linkedBigFilesSnapshot;
             var schemeOverrides = await Task.Run(() => ResolveSchemeOverrides(roots, projectDirectory, cancellationToken, linkedBigs), cancellationToken).ConfigureAwait(false);
-            _schemeOverrides = schemeOverrides;
+            if (generation != _previewGeneration)
+            {
+                return;
+            }
+
             var medalsResult = await medalService.GetMedalsAsync(roots.BaseRoot, null, projectDirectory, linkedBigs, roots.IsZeroHour, cancellationToken).ConfigureAwait(false);
+            if (generation != _previewGeneration)
+            {
+                return;
+            }
+
             var medals = medalsResult.Success && medalsResult.Data != null ? medalsResult.Data : null;
             var runtimeArt = BuildRuntimeArt(document, medals);
             logger.LogDebug(
@@ -3703,8 +3718,8 @@ public sealed partial class WndEditorViewModel(
                 document.SourcePath == null ? "untitled" : Path.GetFileName(document.SourcePath),
                 runtimeArt.MedalImages.Count,
                 runtimeArt.HiddenWindows.Count);
-            var names = CollectPreviewImageNames(document, _schemeOverrides, runtimeArt);
-            var labels = CollectPreviewLabels(document, _schemeOverrides, runtimeArt);
+            var names = CollectPreviewImageNames(document, schemeOverrides, runtimeArt);
+            var labels = CollectPreviewLabels(document, schemeOverrides, runtimeArt);
             var images = await assetService.Images.GetImagesAsync(names, roots.BaseRoot, null, projectDirectory, linkedBigs, roots.IsZeroHour, cancellationToken).ConfigureAwait(false);
             var strings = await assetService.Strings.GetStringsAsync(labels, roots.BaseRoot, null, projectDirectory, linkedBigs, roots.IsZeroHour, cancellationToken).ConfigureAwait(false);
             if (generation != _previewGeneration)
@@ -3722,7 +3737,7 @@ public sealed partial class WndEditorViewModel(
             var bitmaps = images.Success ? images.Data : null;
             var values = strings.Success ? strings.Data : null;
             var knownNames = known.Success && known.Data != null ? known.Data : null;
-            await InvokeOnUIThreadAsync(() => ApplyPreviews(bitmaps, values, generation, labels, knownNames, runtimeArt)).ConfigureAwait(false);
+            await InvokeOnUIThreadAsync(() => ApplyPreviews(bitmaps, values, generation, labels, knownNames, runtimeArt, schemeOverrides)).ConfigureAwait(false);
         }
         catch (OperationCanceledException ex)
         {
@@ -3740,11 +3755,17 @@ public sealed partial class WndEditorViewModel(
         int generation,
         IReadOnlyCollection<string>? attemptedLabels = null,
         IReadOnlyList<string>? knownNames = null,
-        WndRuntimeArt? runtimeArt = null)
+        WndRuntimeArt? runtimeArt = null,
+        IReadOnlyDictionary<string, string>? schemeOverrides = null)
     {
         if (generation != _previewGeneration)
         {
             return;
+        }
+
+        if (schemeOverrides != null)
+        {
+            _schemeOverrides = schemeOverrides;
         }
 
         if (runtimeArt != null)
@@ -4157,11 +4178,10 @@ public sealed partial class WndEditorViewModel(
                 }
 
                 if (candidateWithGameFolders == null &&
-                    (Directory.Exists(Path.Combine(current, WndConstants.StringTables.DataDirectory))
-                    || Directory.Exists(Path.Combine(current, "Window"))
-                    || Directory.Exists(Path.Combine(current, "window"))
-                    || Directory.Exists(Path.Combine(current, "Art"))
-                    || Directory.Exists(Path.Combine(current, "INI"))))
+                    (HasMarkerDirectory(current, WndConstants.StringTables.DataDirectory)
+                    || HasMarkerDirectory(current, WndConstants.ModRoots.WindowFolder)
+                    || HasMarkerDirectory(current, WndConstants.MappedImages.ArtFolder)
+                    || HasMarkerDirectory(current, WndConstants.ControlBarScheme.IniDirectory)))
                 {
                     candidateWithGameFolders = current;
                 }
@@ -4181,6 +4201,36 @@ public sealed partial class WndEditorViewModel(
         return candidateWithGameFolders;
     }
 
+    private static bool HasMarkerDirectory(string parent, string name)
+    {
+        if (Directory.Exists(Path.Combine(parent, name)))
+        {
+            return true;
+        }
+
+        try
+        {
+            foreach (var dir in Directory.EnumerateDirectories(parent))
+            {
+                var folderName = Path.GetFileName(dir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+                if (string.Equals(folderName, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+
+        return false;
+    }
+
     private IReadOnlyDictionary<string, string> ResolveSchemeOverrides(
         AssetRoots roots,
         string? projectDirectory,
@@ -4190,15 +4240,15 @@ public sealed partial class WndEditorViewModel(
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             [WndConstants.ControlBarScheme.BackgroundMarkerKey] = roots.IsZeroHour ? WndConstants.ControlBarScheme.DefaultAmericaBaseZeroHour : WndConstants.ControlBarScheme.DefaultAmericaBaseGenerals,
-            [WndConstants.ControlBarScheme.RightHUDKey] = "SALogo",
-            [WndConstants.ControlBarScheme.ButtonOptionsKey] = "SAOptions",
-            [WndConstants.ControlBarScheme.ButtonIdleWorkerKey] = "SAWorker",
-            [WndConstants.ControlBarScheme.ButtonChatKey] = "SAChat",
-            [WndConstants.ControlBarScheme.ButtonPlaceBeaconKey] = "SABeacon",
-            [WndConstants.ControlBarScheme.ButtonGeneralKey] = "SAGeneral",
-            [WndConstants.ControlBarScheme.ButtonUAttackKey] = "SAUAttackI",
-            [WndConstants.ControlBarScheme.ExpBarForegroundKey] = "SAExpBar",
-            [WndConstants.ControlBarScheme.QueueButtonImageKey] = "SCBigButton",
+            [WndConstants.ControlBarScheme.RightHUDKey] = WndConstants.ControlBarScheme.DefaultRightHudImageName,
+            [WndConstants.ControlBarScheme.ButtonOptionsKey] = WndConstants.ControlBarScheme.DefaultButtonOptionsImageName,
+            [WndConstants.ControlBarScheme.ButtonIdleWorkerKey] = WndConstants.ControlBarScheme.DefaultButtonIdleWorkerImageName,
+            [WndConstants.ControlBarScheme.ButtonChatKey] = WndConstants.ControlBarScheme.DefaultButtonChatImageName,
+            [WndConstants.ControlBarScheme.ButtonPlaceBeaconKey] = WndConstants.ControlBarScheme.DefaultButtonPlaceBeaconImageName,
+            [WndConstants.ControlBarScheme.ButtonGeneralKey] = WndConstants.ControlBarScheme.DefaultButtonGeneralImageName,
+            [WndConstants.ControlBarScheme.ButtonUAttackKey] = WndConstants.ControlBarScheme.DefaultButtonUAttackImageName,
+            [WndConstants.ControlBarScheme.ExpBarForegroundKey] = WndConstants.ControlBarScheme.DefaultExpBarForegroundImageName,
+            [WndConstants.ControlBarScheme.QueueButtonImageKey] = WndConstants.ControlBarScheme.DefaultQueueButtonImageName,
         };
 
         try
@@ -4234,7 +4284,7 @@ public sealed partial class WndEditorViewModel(
         var p1 = Path.GetFullPath(linkedDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         var p2 = Path.GetFullPath(autoDetectedDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
-        if (string.Equals(p1, p2, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(p1, p2, PathHelper.PathComparison))
         {
             return linkedDir;
         }

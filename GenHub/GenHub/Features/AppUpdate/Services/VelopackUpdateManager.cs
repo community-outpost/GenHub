@@ -461,6 +461,10 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 await _telemetryService.FlushAsync(flushCts.Token);
             }
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogDebug(ex, "Failed to flush telemetry before Velopack update apply");
