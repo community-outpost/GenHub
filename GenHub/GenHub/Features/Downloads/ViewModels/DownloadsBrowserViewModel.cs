@@ -784,6 +784,14 @@ public sealed partial class DownloadsBrowserViewModel(
             return false;
         }
 
+        // Tag-style labels (such as "nightly") carry no ordering information and would
+        // degrade the comparison below to a hash fallback, so fail closed without them.
+        if (!CatalogManifestIdentity.IsValidVersion(candidateVersion) ||
+            !CatalogManifestIdentity.IsValidVersion(downloadedVersion))
+        {
+            return false;
+        }
+
         return ContentStateService.IsNewerVersion(
             candidate.ManifestId,
             downloaded.ManifestId,

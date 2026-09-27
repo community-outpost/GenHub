@@ -1546,6 +1546,57 @@ public class DownloadsBrowserViewModelTests
     }
 
     /// <summary>
+    /// Verifies that sibling variants carrying unparseable version labels (such as
+    /// tag-style "nightly" builds) never mark a downloaded variant as UpdateAvailable.
+    /// Without structured version evidence the comparison fails closed.
+    /// </summary>
+    /// <param name="candidateVersion">The uninstalled sibling's version label.</param>
+    /// <param name="downloadedVersion">The downloaded variant's version label.</param>
+    [Theory]
+    [InlineData("weekly", "nightly")]
+    [InlineData("nightly", "weekly")]
+    public void ReconcileReleaseUpdateStates_WhenSiblingVariantVersionsAreUnparseable_DoesNotShowUpdate(
+        string candidateVersion,
+        string downloadedVersion)
+    {
+        // Arrange
+        var stateServiceMock = new Mock<IContentStateService>();
+        var loggerMock = new Mock<ILogger<ContentGridItemViewModel>>();
+
+        var cardSr = new ContentSearchResult
+        {
+            Id = "1.0.github.gameclient.zerohourb",
+            Name = "Zero Hour",
+            Version = downloadedVersion,
+            ProviderName = "github",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+        };
+        var card = new ContentGridItemViewModel(cardSr, stateServiceMock.Object, loggerMock.Object);
+
+        var downloaded = AddCardVariant(card, "1.0.github.gameclient.zerohourb", "Zero Hour", downloadedVersion, ContentState.Downloaded);
+        AddCardVariant(card, "1.0.github.gameclient.zerohoura", "Zero Hour", candidateVersion, ContentState.NotDownloaded);
+
+        card.SelectedVariant = downloaded;
+        card.CurrentState = ContentState.Downloaded;
+        card.IsDownloaded = true;
+
+        // A second, unrelated card so the reconcile pass runs.
+        var unrelated = CreateUnrelatedCard(stateServiceMock.Object, loggerMock.Object);
+
+        // Act
+        DownloadsBrowserViewModel.ReconcileReleaseUpdateStates([card, unrelated]);
+
+        // Assert: unparseable labels are not version evidence; no update is offered.
+        Assert.Equal(ContentState.Downloaded, downloaded.CurrentState);
+        Assert.Equal(ContentState.Downloaded, card.CurrentState);
+        Assert.True(card.IsDownloaded);
+        Assert.Null(card.UpdateTargetVm);
+        Assert.False(card.ShowUpdateButton);
+        Assert.True(card.ShowAddToProfileButton);
+    }
+
+    /// <summary>
     /// Verifies that UpdateContentCommand invokes the publisher reconciler when one is registered.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
