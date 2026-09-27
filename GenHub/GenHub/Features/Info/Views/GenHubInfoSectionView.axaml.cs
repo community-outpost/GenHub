@@ -34,7 +34,7 @@ public partial class GenHubInfoSectionView : UserControl
     private GeneralsOnlineChangelogView? _goChangelogView;
     private bool _syncingSelectionFromScroll;
     private bool _isSwitchingSection;
-    private bool _deferredScrollPending;
+    private InfoCardViewModel? _deferredScrollCard;
     private int _sectionSwitchGeneration;
 
     /// <summary>
@@ -68,7 +68,7 @@ public partial class GenHubInfoSectionView : UserControl
         base.OnDetachedFromVisualTree(e);
         _scrollSpy?.Dispose();
         _scrollSpy = null;
-        _deferredScrollPending = false;
+        _deferredScrollCard = null;
         UnhookControls();
         UnhookViewModel();
     }
@@ -450,20 +450,22 @@ public partial class GenHubInfoSectionView : UserControl
 
     private void DeferScrollToCard(InfoCardViewModel card)
     {
-        if (_deferredScrollPending)
+        if (_deferredScrollCard != null)
         {
+            _deferredScrollCard = card;
             return;
         }
 
-        _deferredScrollPending = true;
+        _deferredScrollCard = card;
         Dispatcher.UIThread.Post(
             () =>
             {
-                _deferredScrollPending = false;
-                if (_boundViewModel?.SelectedCard != null && ReferenceEquals(_boundViewModel.SelectedCard, card))
+                var pending = _deferredScrollCard;
+                _deferredScrollCard = null;
+                if (pending != null && ReferenceEquals(_boundViewModel?.SelectedCard, pending))
                 {
                     RegisterAllCardContainers();
-                    _scrollSpy?.ScrollToSection(card);
+                    _scrollSpy?.ScrollToSection(pending);
                 }
             },
             DispatcherPriority.Loaded);
