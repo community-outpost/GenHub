@@ -230,25 +230,9 @@ public partial class CNCLabsManifestFactory(
         }
 
         // Create updated manifest with extracted files
-        var updatedManifest = new ContentManifest
+        var updatedManifest = new ContentManifest(originalManifest)
         {
-            SchemaVersion = originalManifest.SchemaVersion,
-            Id = originalManifest.Id,
-            Name = originalManifest.Name,
-            Version = originalManifest.Version,
-            ContentType = originalManifest.ContentType,
-            TargetGame = originalManifest.TargetGame,
-            Publisher = originalManifest.Publisher,
-            Metadata = originalManifest.Metadata,
-            OriginalProviderName = originalManifest.OriginalProviderName,
-            OriginalContentId = originalManifest.OriginalContentId,
-            SourcePath = originalManifest.SourcePath,
-            Dependencies = originalManifest.Dependencies,
-            ContentReferences = originalManifest.ContentReferences,
-            KnownAddons = originalManifest.KnownAddons,
             Files = extractedFiles,
-            RequiredDirectories = originalManifest.RequiredDirectories,
-            InstallationInstructions = originalManifest.InstallationInstructions,
         };
 
         logger.LogInformation(

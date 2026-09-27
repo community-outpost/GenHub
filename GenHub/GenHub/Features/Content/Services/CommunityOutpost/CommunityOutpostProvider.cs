@@ -51,8 +51,6 @@ public class CommunityOutpostProvider(
             d.SourceName?.Equals(CommunityOutpostConstants.PublisherId, StringComparison.OrdinalIgnoreCase) == true)
             ?? throw new InvalidOperationException("No Community Outpost deliverer found");
 
-    private ProviderDefinition? _cachedProviderDefinition;
-
     /// <inheritdoc/>
     public override string SourceName => CommunityOutpostConstants.PublisherType;
 
@@ -74,33 +72,13 @@ public class CommunityOutpostProvider(
     {
         Logger.LogInformation("Getting Community Outpost manifest for: {ContentId}", contentId);
 
-        var searchResult = new ContentSearchResult
-        {
-            Id = contentId,
-            Name = CommunityOutpostConstants.ContentName,
-            Version = contentId,
-            ProviderName = SourceName,
-            RequiresResolution = true,
-            ResolverId = CommunityOutpostConstants.PublisherId,
-        };
+        var searchResult = CreateResolutionRequest(
+            contentId,
+            CommunityOutpostConstants.ContentName,
+            contentId,
+            CommunityOutpostConstants.PublisherId);
 
-        var manifestResult = await Resolver.ResolveAsync(searchResult, cancellationToken);
-        if (!manifestResult.Success || manifestResult.Data == null)
-        {
-            return OperationResult<ContentManifest>.CreateFailure(
-                $"Failed to resolve manifest: {manifestResult.FirstError}");
-        }
-
-        var validationResult = await ContentValidator.ValidateManifestAsync(
-            manifestResult.Data, cancellationToken);
-
-        if (!validationResult.IsValid)
-        {
-            var errors = validationResult.Issues.Select(i => $"Validation failed: {i.Message}");
-            return OperationResult<ContentManifest>.CreateFailure(errors);
-        }
-
-        return manifestResult;
+        return await ResolveAndValidateAsync(searchResult, cancellationToken);
     }
 
     /// <inheritdoc/>
@@ -120,29 +98,7 @@ public class CommunityOutpostProvider(
     /// </remarks>
     protected override ProviderDefinition? GetProviderDefinition()
     {
-        // Use cached definition if available
-        if (_cachedProviderDefinition != null)
-        {
-            return _cachedProviderDefinition;
-        }
-
-        // Try to get from the loader (it should already be loaded at startup)
-        _cachedProviderDefinition = providerDefinitionLoader.GetProvider(CommunityOutpostConstants.PublisherId);
-
-        if (_cachedProviderDefinition == null)
-        {
-            Logger.LogDebug(
-                "No provider definition found for {ProviderId}, using hardcoded constants",
-                CommunityOutpostConstants.PublisherId);
-        }
-        else
-        {
-            Logger.LogInformation(
-                "Using provider definition for {ProviderId} from JSON configuration",
-                CommunityOutpostConstants.PublisherId);
-        }
-
-        return _cachedProviderDefinition;
+        return GetCachedProviderDefinition(providerDefinitionLoader, CommunityOutpostConstants.PublisherId);
     }
 
     /// <inheritdoc/>
@@ -156,29 +112,12 @@ public class CommunityOutpostProvider(
 
         try
         {
-            if (!Deliverer.CanDeliver(manifest))
-            {
-                return OperationResult<ContentManifest>.CreateFailure(
-                    $"Cannot deliver content for manifest {manifest.Id}");
-            }
-
-            var deliveryResult = await Deliverer.DeliverContentAsync(
+            return await DeliverContentOnlyAsync(
+                Deliverer,
                 manifest,
                 workingDirectory,
                 progress,
                 cancellationToken);
-
-            if (!deliveryResult.Success)
-            {
-                return OperationResult<ContentManifest>.CreateFailure(
-                    $"Content delivery failed: {deliveryResult.FirstError}");
-            }
-
-            var resultManifest = deliveryResult.Data ?? manifest;
-            Logger.LogInformation(
-                "Successfully prepared Community Outpost content {ManifestId}",
-                manifest.Id);
-            return OperationResult<ContentManifest>.CreateSuccess(resultManifest);
         }
         catch (Exception ex)
         {

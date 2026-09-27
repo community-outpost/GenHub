@@ -117,24 +117,9 @@ public class GitHubManifestFactory(
         files.AddRange(processedFiles.Where(f => f != null)!);
 
         // Clone the original manifest but replace files
-        var manifest = new ContentManifest
+        var manifest = new ContentManifest(originalManifest)
         {
-            ManifestVersion = originalManifest.ManifestVersion,
-            Id = originalManifest.Id, // Keep original ID
-            Name = originalManifest.Name,
-            Version = originalManifest.Version,
-            ContentType = originalManifest.ContentType,
-            TargetGame = originalManifest.TargetGame,
-            Publisher = originalManifest.Publisher,
-            Metadata = originalManifest.Metadata,
-            Dependencies = originalManifest.Dependencies,
-            ContentReferences = originalManifest.ContentReferences,
-            KnownAddons = originalManifest.KnownAddons,
             Files = files,
-            Variants = originalManifest.Variants,
-            EntryPoint = originalManifest.EntryPoint,
-            RequiredDirectories = originalManifest.RequiredDirectories,
-            InstallationInstructions = originalManifest.InstallationInstructions,
         };
 
         var entryResult = ManifestEntryPointHelper.BakeEntryPoint(manifest, extractedDirectory, cancellationToken, localizationService);

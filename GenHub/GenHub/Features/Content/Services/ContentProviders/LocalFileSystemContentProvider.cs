@@ -66,20 +66,7 @@ public class LocalFileSystemContentProvider(
     public override async Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
         string contentId, CancellationToken cancellationToken = default)
     {
-        var query = new ContentSearchQuery { SearchTerm = contentId, Take = ContentConstants.SingleResultQueryLimit };
-        var searchResult = await SearchAsync(query, cancellationToken);
-
-        if (!searchResult.Success || !searchResult.Data!.Any())
-        {
-            return OperationResult<ContentManifest>.CreateFailure($"Content not found: {contentId}");
-        }
-
-        var result = searchResult.Data!.First();
-        var manifest = result.GetData<ContentManifest>();
-
-        return manifest != null
-            ? OperationResult<ContentManifest>.CreateSuccess(manifest)
-            : OperationResult<ContentManifest>.CreateFailure("Manifest not available in search result");
+        return await SearchManifestByIdAsync(contentId, requireExactIdMatch: false, cancellationToken);
     }
 
     /// <inheritdoc />

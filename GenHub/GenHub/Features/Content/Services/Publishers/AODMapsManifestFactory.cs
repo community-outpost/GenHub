@@ -118,25 +118,9 @@ public partial class AODMapsManifestFactory(
 
         return OperationResult<List<ContentManifest>>.CreateSuccess(
         [
-            new ContentManifest
+            new ContentManifest(originalManifest)
             {
-                SchemaVersion = originalManifest.SchemaVersion,
-                Id = originalManifest.Id,
-                Name = originalManifest.Name,
-                Version = originalManifest.Version,
-                ContentType = originalManifest.ContentType,
-                TargetGame = originalManifest.TargetGame,
-                Publisher = originalManifest.Publisher,
-                Metadata = originalManifest.Metadata,
-                OriginalProviderName = originalManifest.OriginalProviderName,
-                OriginalContentId = originalManifest.OriginalContentId,
-                SourcePath = originalManifest.SourcePath,
-                Dependencies = originalManifest.Dependencies,
-                ContentReferences = originalManifest.ContentReferences,
-                KnownAddons = originalManifest.KnownAddons,
                 Files = files,
-                RequiredDirectories = originalManifest.RequiredDirectories,
-                InstallationInstructions = originalManifest.InstallationInstructions,
             },
         ]);
     }

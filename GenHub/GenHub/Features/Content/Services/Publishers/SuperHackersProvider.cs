@@ -45,8 +45,6 @@ public class SuperHackersProvider(
             d.SourceName?.Equals(ContentSourceNames.GitHubDeliverer, StringComparison.OrdinalIgnoreCase) == true)
         ?? throw new InvalidOperationException("No GitHub deliverer found for SuperHackers");
 
-    private ProviderDefinition? _cachedProviderDefinition;
-
     /// <inheritdoc/>
     public override string SourceName => PublisherTypeConstants.TheSuperHackers;
 
@@ -154,34 +152,13 @@ public class SuperHackersProvider(
         Logger.LogInformation("Getting SuperHackers manifest for: {ContentId}", contentId);
 
         // Create a search result for resolution
-        var searchResult = new ContentSearchResult
-        {
-            Id = contentId,
-            Name = SuperHackersConstants.PublisherName,
-            Version = contentId,
-            ProviderName = SourceName,
-            RequiresResolution = true,
-            ResolverId = SuperHackersConstants.ResolverId,
-        };
+        var searchResult = CreateResolutionRequest(
+            contentId,
+            SuperHackersConstants.PublisherName,
+            contentId,
+            SuperHackersConstants.ResolverId);
 
-        var manifestResult = await Resolver.ResolveAsync(searchResult, cancellationToken);
-        if (!manifestResult.Success || manifestResult.Data == null)
-        {
-            return OperationResult<ContentManifest>.CreateFailure(
-                $"Failed to resolve manifest: {manifestResult.FirstError}");
-        }
-
-        var validationResult = await ContentValidator.ValidateManifestAsync(
-            manifestResult.Data,
-            cancellationToken);
-
-        if (!validationResult.IsValid)
-        {
-            var errors = validationResult.Issues.Select(i => $"Validation failed: {i.Message}");
-            return OperationResult<ContentManifest>.CreateFailure(errors);
-        }
-
-        return manifestResult;
+        return await ResolveAndValidateAsync(searchResult, cancellationToken);
     }
 
     /// <inheritdoc/>
@@ -191,26 +168,7 @@ public class SuperHackersProvider(
     /// </remarks>
     protected override ProviderDefinition? GetProviderDefinition()
     {
-        if (_cachedProviderDefinition != null)
-        {
-            return _cachedProviderDefinition;
-        }
-
-        _cachedProviderDefinition = providerDefinitionLoader.GetProvider(SuperHackersConstants.PublisherId);
-        if (_cachedProviderDefinition == null)
-        {
-            Logger.LogWarning(
-                "No provider definition found for {ProviderId}, using hardcoded constants",
-                SuperHackersConstants.PublisherId);
-        }
-        else
-        {
-            Logger.LogInformation(
-                "Using provider definition for {ProviderId} from JSON configuration",
-                SuperHackersConstants.PublisherId);
-        }
-
-        return _cachedProviderDefinition;
+        return GetCachedProviderDefinition(providerDefinitionLoader, SuperHackersConstants.PublisherId);
     }
 
     /// <inheritdoc/>
@@ -224,27 +182,12 @@ public class SuperHackersProvider(
 
         try
         {
-            if (!Deliverer.CanDeliver(manifest))
-            {
-                return OperationResult<ContentManifest>.CreateFailure(
-                    $"Cannot deliver content for manifest {manifest.Id}");
-            }
-
-            var deliveryResult = await Deliverer.DeliverContentAsync(
+            return await DeliverContentOnlyAsync(
+                Deliverer,
                 manifest,
                 workingDirectory,
                 progress,
                 cancellationToken);
-
-            if (!deliveryResult.Success)
-            {
-                return OperationResult<ContentManifest>.CreateFailure(
-                    $"Content delivery failed: {deliveryResult.FirstError}");
-            }
-
-            var resultManifest = deliveryResult.Data ?? manifest;
-            Logger.LogInformation("Successfully prepared SuperHackers content {ManifestId}", manifest.Id);
-            return OperationResult<ContentManifest>.CreateSuccess(resultManifest);
         }
         catch (Exception ex)
         {

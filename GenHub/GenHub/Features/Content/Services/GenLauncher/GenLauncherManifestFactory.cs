@@ -64,26 +64,9 @@ public class GenLauncherManifestFactory(
             await archivePayloadProcessor.ExtractArchivesSafelyAsync(extractedDirectory, originalManifest.ContentType, cancellationToken);
             await archivePayloadProcessor.NormalizeDirectoryStructureAsync(extractedDirectory, originalManifest.ContentType, originalManifest.TargetGame, cancellationToken);
 
-            var manifest = new ContentManifest
+            var manifest = new ContentManifest(originalManifest)
             {
-                SchemaVersion = originalManifest.SchemaVersion,
-                Id = originalManifest.Id,
-                Name = originalManifest.Name,
-                Version = originalManifest.Version,
-                TargetGame = originalManifest.TargetGame,
-                ContentType = originalManifest.ContentType,
-                Publisher = originalManifest.Publisher,
-                Metadata = originalManifest.Metadata,
-                Dependencies = [.. originalManifest.Dependencies],
-                OriginalProviderName = originalManifest.OriginalProviderName,
-                OriginalContentId = originalManifest.OriginalContentId,
                 SourcePath = Directory.Exists(originalManifest.SourcePath) || File.Exists(originalManifest.SourcePath) ? originalManifest.SourcePath : null,
-                ContentReferences = [.. originalManifest.ContentReferences],
-                KnownAddons = [.. originalManifest.KnownAddons],
-                Variants = originalManifest.Variants,
-                EntryPoint = originalManifest.EntryPoint,
-                RequiredDirectories = [.. originalManifest.RequiredDirectories],
-                InstallationInstructions = originalManifest.InstallationInstructions,
                 Files = [],
             };
 

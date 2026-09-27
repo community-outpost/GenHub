@@ -64,20 +64,7 @@ public class GitHubContentProvider(
     public override async Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
         string contentId, CancellationToken cancellationToken = default)
     {
-        var query = new ContentSearchQuery { SearchTerm = contentId, Take = ContentConstants.SingleResultQueryLimit };
-        var searchResult = await SearchAsync(query, cancellationToken);
-
-        if (!searchResult.Success || !searchResult.Data!.Any())
-        {
-            return OperationResult<ContentManifest>.CreateFailure($"Content not found: {contentId}");
-        }
-
-        var result = searchResult.Data!.First();
-        var manifest = result.GetData<ContentManifest>();
-
-        return manifest != null
-            ? OperationResult<ContentManifest>.CreateSuccess(manifest)
-            : OperationResult<ContentManifest>.CreateFailure("Manifest not available in search result");
+        return await SearchManifestByIdAsync(contentId, requireExactIdMatch: false, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -92,19 +79,19 @@ public class GitHubContentProvider(
             Logger.LogDebug("Preparing GitHub content for {ManifestId}", manifest.Id);
 
             // Use the deliverer to handle content acquisition
-            if (!Deliverer.CanDeliver(manifest))
+            var deliveryResult = await DeliverContentOnlyAsync(
+                Deliverer,
+                manifest,
+                workingDirectory,
+                progress,
+                cancellationToken);
+            if (!deliveryResult.Success || deliveryResult.Data == null)
             {
-                return OperationResult<ContentManifest>.CreateFailure($"Cannot deliver content for manifest {manifest.Id}");
-            }
-
-            var deliveryResult = await Deliverer.DeliverContentAsync(manifest, workingDirectory, progress, cancellationToken);
-            if (!deliveryResult.Success)
-            {
-                return OperationResult<ContentManifest>.CreateFailure($"Content delivery failed: {deliveryResult.FirstError}");
+                return deliveryResult;
             }
 
             // Ensure we have valid data before validation
-            var resultManifest = deliveryResult.Data ?? manifest;
+            var resultManifest = deliveryResult.Data;
 
             // Validate the delivered content (full validation)
             // Forward the provider progress reporter to the validator for user-visible progress

@@ -50,8 +50,6 @@ public class GenLauncherProvider(
         d.SourceName.Equals(PublisherTypeConstants.GenLauncher, StringComparison.OrdinalIgnoreCase))
         ?? throw new InvalidOperationException("No GenLauncher deliverer found");
 
-    private ProviderDefinition? _cachedProviderDefinition;
-
     /// <inheritdoc/>
     public override string SourceName => PublisherTypeConstants.GenLauncher;
 
@@ -94,19 +92,7 @@ public class GenLauncherProvider(
             return OperationResult<ContentManifest>.CreateFailure($"Content '{contentId}' was not found in GenLauncher catalog");
         }
 
-        var resolved = await Resolver.ResolveAsync(item, cancellationToken).ConfigureAwait(false);
-        if (!resolved.Success || resolved.Data == null)
-        {
-            return OperationResult<ContentManifest>.CreateFailure($"Failed to resolve manifest for '{contentId}': {resolved.FirstError}");
-        }
-
-        var validation = await ContentValidator.ValidateManifestAsync(resolved.Data, cancellationToken).ConfigureAwait(false);
-        if (!validation.IsValid)
-        {
-            return OperationResult<ContentManifest>.CreateFailure(validation.Issues.Select(i => i.Message));
-        }
-
-        return resolved;
+        return await ResolveAndValidateAsync(item, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
@@ -121,13 +107,7 @@ public class GenLauncherProvider(
     /// <inheritdoc/>
     protected override ProviderDefinition? GetProviderDefinition()
     {
-        if (_cachedProviderDefinition != null)
-        {
-            return _cachedProviderDefinition;
-        }
-
-        _cachedProviderDefinition = providerDefinitionLoader.GetProvider(GenLauncherConstants.PublisherId);
-        return _cachedProviderDefinition;
+        return GetCachedProviderDefinition(providerDefinitionLoader, GenLauncherConstants.PublisherId);
     }
 
     /// <inheritdoc/>

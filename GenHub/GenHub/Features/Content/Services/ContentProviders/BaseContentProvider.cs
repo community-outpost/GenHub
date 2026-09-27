@@ -1,4 +1,6 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -23,6 +25,7 @@ public abstract class BaseContentProvider : IContentProvider
     private readonly IContentValidator _contentValidator;
     private readonly IInstallationInstructionsService _installationInstructionsService;
     private readonly ILogger _logger;
+    private ProviderDefinition? _cachedProviderDefinition;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="BaseContentProvider"/> class.
@@ -375,22 +378,16 @@ public abstract class BaseContentProvider : IContentProvider
 
         try
         {
-            if (!deliverer.CanDeliver(manifest))
-            {
-                return OperationResult<ContentManifest>.CreateFailure(
-                    $"Cannot deliver content for manifest {manifest.Id}");
-            }
-
-            var deliveryResult = await deliverer.DeliverContentAsync(
+            var deliveryResult = await DeliverContentOnlyAsync(
+                deliverer,
                 manifest,
                 workingDirectory,
                 progress,
                 cancellationToken).ConfigureAwait(false);
 
-            if (!deliveryResult.Success)
+            if (!deliveryResult.Success || deliveryResult.Data == null)
             {
-                return OperationResult<ContentManifest>.CreateFailure(
-                    $"Content delivery failed: {deliveryResult.FirstError}");
+                return deliveryResult;
             }
 
             var manifestResult = await manifestFactory.CreateManifestsFromExtractedContentAsync(
@@ -425,6 +422,184 @@ public abstract class BaseContentProvider : IContentProvider
             return OperationResult<ContentManifest>.CreateFailure(
                 $"Content preparation failed: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Delivers content using the specified deliverer without manifest factory enrichment.
+    /// </summary>
+    /// <param name="deliverer">The content deliverer.</param>
+    /// <param name="manifest">The content manifest.</param>
+    /// <param name="workingDirectory">The working directory.</param>
+    /// <param name="progress">Progress reporter for tracking progress.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A result containing the delivered content manifest.</returns>
+    protected async Task<OperationResult<ContentManifest>> DeliverContentOnlyAsync(
+        IContentDeliverer deliverer,
+        ContentManifest manifest,
+        string workingDirectory,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(deliverer);
+        ArgumentNullException.ThrowIfNull(manifest);
+
+        if (!deliverer.CanDeliver(manifest))
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Cannot deliver content for manifest {manifest.Id}");
+        }
+
+        var deliveryResult = await deliverer.DeliverContentAsync(
+            manifest,
+            workingDirectory,
+            progress,
+            cancellationToken).ConfigureAwait(false);
+
+        if (!deliveryResult.Success)
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Content delivery failed: {deliveryResult.FirstError}");
+        }
+
+        var resultManifest = deliveryResult.Data ?? manifest;
+        Logger.LogInformation(
+            "Successfully prepared {SourceName} content {ManifestId}",
+            SourceName,
+            resultManifest.Id);
+
+        return OperationResult<ContentManifest>.CreateSuccess(resultManifest);
+    }
+
+    /// <summary>
+    /// Searches for content by ID and extracts the embedded manifest from the search result.
+    /// </summary>
+    /// <param name="contentId">The content identifier to search for.</param>
+    /// <param name="requireExactIdMatch">Whether the search result ID must exactly match the requested ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A result containing the validated content manifest.</returns>
+    protected async Task<OperationResult<ContentManifest>> SearchManifestByIdAsync(
+        string contentId,
+        bool requireExactIdMatch,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(contentId))
+        {
+            return OperationResult<ContentManifest>.CreateFailure("Content ID cannot be null or empty");
+        }
+
+        var query = new ContentSearchQuery { SearchTerm = contentId, Take = ContentConstants.SingleResultQueryLimit };
+        var searchResult = await SearchAsync(query, cancellationToken).ConfigureAwait(false);
+
+        if (!searchResult.Success || searchResult.Data == null || !searchResult.Data.Any())
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Content not found for ID '{contentId}': {searchResult.FirstError ?? "No matching results"}");
+        }
+
+        var result = requireExactIdMatch
+            ? searchResult.Data.FirstOrDefault(r => string.Equals(r.Id, contentId, StringComparison.OrdinalIgnoreCase))
+            : searchResult.Data.FirstOrDefault();
+
+        if (result == null)
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Content not found for ID '{contentId}'.");
+        }
+
+        var manifest = result.GetData<ContentManifest>();
+
+        return manifest != null
+            ? OperationResult<ContentManifest>.CreateSuccess(manifest)
+            : OperationResult<ContentManifest>.CreateFailure($"Invalid manifest data for content ID '{contentId}'");
+    }
+
+    /// <summary>
+    /// Creates a synthetic search result used to resolve a manifest by content ID.
+    /// </summary>
+    /// <param name="contentId">The content identifier.</param>
+    /// <param name="name">The display name for the resolution request.</param>
+    /// <param name="version">The version for the resolution request.</param>
+    /// <param name="resolverId">The resolver identifier.</param>
+    /// <returns>A search result flagged for resolution.</returns>
+    protected ContentSearchResult CreateResolutionRequest(
+        string contentId,
+        string name,
+        string version,
+        string resolverId)
+    {
+        return new ContentSearchResult
+        {
+            Id = contentId,
+            Name = name,
+            Version = version,
+            ProviderName = SourceName,
+            RequiresResolution = true,
+            ResolverId = resolverId,
+        };
+    }
+
+    /// <summary>
+    /// Resolves a manifest from a search result and validates it.
+    /// </summary>
+    /// <param name="item">The search result to resolve.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A result containing the validated content manifest.</returns>
+    protected async Task<OperationResult<ContentManifest>> ResolveAndValidateAsync(
+        ContentSearchResult item,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+
+        var manifestResult = await Resolver.ResolveAsync(item, cancellationToken).ConfigureAwait(false);
+        if (!manifestResult.Success || manifestResult.Data == null)
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Failed to resolve manifest: {manifestResult.FirstError}");
+        }
+
+        var validationResult = await ContentValidator.ValidateManifestAsync(
+            manifestResult.Data,
+            cancellationToken).ConfigureAwait(false);
+
+        if (!validationResult.IsValid)
+        {
+            var errors = validationResult.Issues.Select(i => $"Validation failed: {i.Message}");
+            return OperationResult<ContentManifest>.CreateFailure(errors);
+        }
+
+        return manifestResult;
+    }
+
+    /// <summary>
+    /// Gets the cached provider definition, loading it from JSON configuration on first use.
+    /// </summary>
+    /// <param name="loader">The provider definition loader.</param>
+    /// <param name="publisherId">The publisher identifier.</param>
+    /// <returns>The provider definition, or null if the provider uses hardcoded configuration.</returns>
+    protected ProviderDefinition? GetCachedProviderDefinition(IProviderDefinitionLoader loader, string publisherId)
+    {
+        ArgumentNullException.ThrowIfNull(loader);
+
+        if (_cachedProviderDefinition != null)
+        {
+            return _cachedProviderDefinition;
+        }
+
+        _cachedProviderDefinition = loader.GetProvider(publisherId);
+        if (_cachedProviderDefinition == null)
+        {
+            Logger.LogWarning(
+                "No provider definition found for {ProviderId}, using hardcoded constants",
+                publisherId);
+        }
+        else
+        {
+            Logger.LogInformation(
+                "Using provider definition for {ProviderId} from JSON configuration",
+                publisherId);
+        }
+
+        return _cachedProviderDefinition;
     }
 
     /// <summary>

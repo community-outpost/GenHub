@@ -647,19 +647,9 @@ public class GeneralsOnlineManifestFactory(
 
             var instructions = BuildInstallationInstructions(manifest, filesWithHashes);
 
-            updatedManifests.Add(new ContentManifest
+            updatedManifests.Add(new ContentManifest(manifest)
             {
-                Id = manifest.Id,
-                Name = manifest.Name,
-                Version = manifest.Version,
-                ContentType = manifest.ContentType,
-                TargetGame = manifest.TargetGame,
-                OriginalProviderName = manifest.OriginalProviderName,
-                OriginalContentId = manifest.OriginalContentId,
-                Publisher = manifest.Publisher,
-                Metadata = manifest.Metadata,
                 Files = manifestFiles,
-                Dependencies = manifest.Dependencies,
                 InstallationInstructions = instructions,
             });
         }
