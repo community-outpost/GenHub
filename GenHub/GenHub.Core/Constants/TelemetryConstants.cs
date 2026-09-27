@@ -225,6 +225,24 @@ public static class TelemetryConstants
         /// <summary>Emitted when textures are imported into the WND Editor.</summary>
         public const string WndTexturesImported = "wnd_textures_imported";
 
+        /// <summary>Emitted when a user subscribes to a content publisher.</summary>
+        public const string PublisherSubscribed = "publisher_subscribed";
+
+        /// <summary>Emitted when a user unsubscribes from a content publisher.</summary>
+        public const string PublisherUnsubscribed = "publisher_unsubscribed";
+
+        /// <summary>Emitted when Publisher Studio tool is opened.</summary>
+        public const string PublisherStudioOpened = "publisher_studio_opened";
+
+        /// <summary>Emitted when a new project is created in Publisher Studio.</summary>
+        public const string PublisherStudioProjectCreated = "publisher_studio_project_created";
+
+        /// <summary>Emitted when a definition or catalog is exported in Publisher Studio.</summary>
+        public const string PublisherStudioDefinitionExported = "publisher_studio_definition_exported";
+
+        /// <summary>Emitted when content is published or shared from Publisher Studio.</summary>
+        public const string PublisherStudioPublished = "publisher_studio_published";
+
         /// <summary>Emitted when an unhandled application exception or crash occurs.</summary>
         public const string AppCrash = "app_unhandled_crash";
     }
@@ -476,6 +494,24 @@ public static class TelemetryConstants
 
         /// <summary>File path or name involved in a document operation.</summary>
         public const string FilePath = "file_path";
+
+        /// <summary>Publisher name or display label.</summary>
+        public const string PublisherName = "publisher_name";
+
+        /// <summary>Content or package author/creator.</summary>
+        public const string Author = "author";
+
+        /// <summary>Publisher catalog endpoint URL or host.</summary>
+        public const string CatalogUrl = "catalog_url";
+
+        /// <summary>Publisher definition URL or host.</summary>
+        public const string DefinitionUrl = "definition_url";
+
+        /// <summary>Number of catalogs or catalog items.</summary>
+        public const string CatalogCount = "catalog_count";
+
+        /// <summary>Target hosting or provider type (e.g. GitHub, Dropbox, Direct).</summary>
+        public const string ProviderType = "provider_type";
     }
 
     /// <summary>

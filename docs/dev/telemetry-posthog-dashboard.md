@@ -198,6 +198,44 @@ GROUP BY error
 ORDER BY failure_count DESC
 ```
 
+#### Downloads by Author
+```sql
+SELECT
+    properties.author AS author,
+    properties.publisher_id AS publisher,
+    count() AS total_downloads,
+    round(sum(toFloat64OrNull(properties.size_mb)), 2) AS total_mb
+FROM events
+WHERE event = 'content_download_completed'
+GROUP BY author, publisher
+ORDER BY total_downloads DESC
+```
+
+#### Publisher Subscriptions & Subscribed Publishers
+```sql
+SELECT
+    properties.publisher_name AS publisher,
+    properties.publisher_id AS publisher_id,
+    count() AS total_subscriptions
+FROM events
+WHERE event = 'publisher_subscribed'
+GROUP BY publisher, publisher_id
+ORDER BY total_subscriptions DESC
+```
+
+#### Publisher Studio Pipeline & Export/Publish Volume
+```sql
+SELECT
+    event,
+    properties.publisher_name AS publisher,
+    properties.provider_type AS hosting_provider,
+    count() AS count
+FROM events
+WHERE event IN (\publisher_studio_opened', \publisher_studio_project_created', \publisher_studio_definition_exported', \publisher_studio_published')
+GROUP BY event, publisher, hosting_provider
+ORDER BY count DESC
+```
+
 ---
 
 ## 5. Dashboard 5: GenPatcher, ModBuilder & WND Editor Tools

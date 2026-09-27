@@ -317,6 +317,7 @@ public class GeneralsOnlineDeliverer(
             ContentName = packageManifest.Name,
             ContentId = packageManifest.Id.Value,
             ContentType = packageManifest.ContentType.ToString(),
+            Author = packageManifest.Publisher?.Name ?? "GeneralsOnline",
         };
 
         var downloadResult = await downloadService.DownloadFileAsync(

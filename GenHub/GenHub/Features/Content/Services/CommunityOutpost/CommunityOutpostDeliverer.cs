@@ -612,6 +612,7 @@ public class CommunityOutpostDeliverer(
             ContentName = manifest?.Name ?? Path.GetFileName(targetPath),
             ContentId = manifest?.Id.Value ?? Path.GetFileName(targetPath),
             ContentType = manifest?.ContentType.ToString() ?? "Package",
+            Author = manifest?.Publisher?.Name ?? "Community Outpost",
         };
         var result = await downloadService.DownloadFileAsync(
             config,

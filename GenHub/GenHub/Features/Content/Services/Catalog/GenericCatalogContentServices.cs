@@ -1,5 +1,6 @@
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Telemetry;
 
 namespace GenHub.Features.Content.Services.Catalog;
 
@@ -11,7 +12,8 @@ public sealed class GenericCatalogContentServices(
     GenericCatalogDiscoverer catalogDiscoverer,
     IContentStateService contentStateService,
     IContentDownloadCoordinator downloadCoordinator,
-    IContentReconciliationService reconciliationService)
+    IContentReconciliationService reconciliationService,
+    ITelemetryService? telemetryService = null)
 {
     /// <summary>
     /// Gets the content manifest pool.
@@ -37,4 +39,9 @@ public sealed class GenericCatalogContentServices(
     /// Gets the content reconciliation service.
     /// </summary>
     public IContentReconciliationService ReconciliationService { get; } = reconciliationService;
+
+    /// <summary>
+    /// Gets the optional telemetry service.
+    /// </summary>
+    public ITelemetryService? TelemetryService { get; } = telemetryService;
 }

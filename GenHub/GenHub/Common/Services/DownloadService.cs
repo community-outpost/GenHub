@@ -510,6 +510,77 @@ public class DownloadService(
         }
     }
 
+    private static string ResolvePublisherId(DownloadConfiguration configuration)
+    {
+        if (!string.IsNullOrWhiteSpace(configuration.PublisherId))
+        {
+            return configuration.PublisherId;
+        }
+
+        if (configuration.Url != null && !string.IsNullOrWhiteSpace(configuration.Url.Host))
+        {
+            var host = configuration.Url.Host.ToLowerInvariant();
+            if (host.Contains("github"))
+            {
+                return "github";
+            }
+
+            if (host.Contains("moddb"))
+            {
+                return "moddb";
+            }
+
+            if (host.Contains("community-outpost") || host.Contains("communityoutpost"))
+            {
+                return "communityoutpost";
+            }
+
+            if (host.Contains("generalsonline") || host.Contains("generals-online"))
+            {
+                return "generalsonline";
+            }
+
+            return host;
+        }
+
+        return "unknown";
+    }
+
+    private static string ResolveContentName(DownloadConfiguration configuration)
+    {
+        if (!string.IsNullOrWhiteSpace(configuration.ContentName))
+        {
+            return configuration.ContentName;
+        }
+
+        if (!string.IsNullOrWhiteSpace(configuration.DestinationPath))
+        {
+            return Path.GetFileName(configuration.DestinationPath);
+        }
+
+        return "unknown";
+    }
+
+    private static string ResolveContentId(DownloadConfiguration configuration)
+    {
+        if (!string.IsNullOrWhiteSpace(configuration.ContentId))
+        {
+            return configuration.ContentId;
+        }
+
+        return ResolveContentName(configuration);
+    }
+
+    private static string ResolveAuthor(DownloadConfiguration configuration)
+    {
+        if (!string.IsNullOrWhiteSpace(configuration.Author))
+        {
+            return configuration.Author;
+        }
+
+        return "unknown";
+    }
+
     private async Task<HttpResponseMessage> SendChunkRequestAsync(
         ParallelDownloadContext context,
         long start,
@@ -1050,67 +1121,6 @@ public class DownloadService(
         return action;
     }
 
-    private string ResolvePublisherId(DownloadConfiguration configuration)
-    {
-        if (!string.IsNullOrWhiteSpace(configuration.PublisherId))
-        {
-            return configuration.PublisherId;
-        }
-
-        if (configuration.Url != null && !string.IsNullOrWhiteSpace(configuration.Url.Host))
-        {
-            var host = configuration.Url.Host.ToLowerInvariant();
-            if (host.Contains("github"))
-            {
-                return "github";
-            }
-
-            if (host.Contains("moddb"))
-            {
-                return "moddb";
-            }
-
-            if (host.Contains("community-outpost") || host.Contains("communityoutpost"))
-            {
-                return "communityoutpost";
-            }
-
-            if (host.Contains("generalsonline") || host.Contains("generals-online"))
-            {
-                return "generalsonline";
-            }
-
-            return configuration.Url.Host;
-        }
-
-        return "unknown";
-    }
-
-    private string ResolveContentName(DownloadConfiguration configuration)
-    {
-        if (!string.IsNullOrWhiteSpace(configuration.ContentName))
-        {
-            return configuration.ContentName;
-        }
-
-        if (!string.IsNullOrWhiteSpace(configuration.DestinationPath))
-        {
-            return Path.GetFileName(configuration.DestinationPath);
-        }
-
-        return "unknown";
-    }
-
-    private string ResolveContentId(DownloadConfiguration configuration)
-    {
-        if (!string.IsNullOrWhiteSpace(configuration.ContentId))
-        {
-            return configuration.ContentId;
-        }
-
-        return ResolveContentName(configuration);
-    }
-
     private void TrackDownloadCompleted(DownloadConfiguration configuration, long downloadedBytes, TimeSpan elapsed)
     {
         var totalElapsedSeconds = elapsed.TotalSeconds;
@@ -1132,6 +1142,7 @@ public class DownloadService(
             [TelemetryConstants.Properties.ContentName] = contentName,
             ["content"] = contentName,
             ["package"] = contentName,
+            [TelemetryConstants.Properties.Author] = ResolveAuthor(configuration),
             [TelemetryConstants.Properties.FileName] = Path.GetFileName(configuration.DestinationPath),
         };
 
@@ -1153,6 +1164,7 @@ public class DownloadService(
             [TelemetryConstants.Properties.ContentName] = contentName,
             ["content"] = contentName,
             ["package"] = contentName,
+            [TelemetryConstants.Properties.Author] = ResolveAuthor(configuration),
             [TelemetryConstants.Properties.FileName] = Path.GetFileName(configuration.DestinationPath),
             [TelemetryConstants.Properties.ErrorMessage] = errorMessage,
         };

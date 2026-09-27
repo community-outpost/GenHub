@@ -12,7 +12,7 @@ Telemetry strictly honors user choice and local regulations:
    - **In-App Toggle**: In **Settings > Diagnostics & Privacy > Telemetry Preference**, switch to `Disabled`.
    - **Environment Variables**: Set `DO_NOT_TRACK=1` or `GENHUB_TELEMETRY_OPTOUT=1` in your environment to unconditionally disable all telemetry.
    - `Disabled (0)`: Completely disables all telemetry and error tracking. No network requests are made.
-   - `CrashReportsOnly (1)`: Sends anonymized crash reports and exceptions via Sentry.
+   - `CrashReportsOnly (1)`: Sends anonymized crash reports and unhandled exceptions via Sentry and PostHog.
    - `AnonymousMetrics (2)`: Sends anonymous operational and product usage events via PostHog in addition to anonymous error reports.
 2. **Anonymous Identification**: Telemetry events use only a randomly generated installation GUID (`AnonymousInstallationId`) for user identification. No IP addresses, usernames, personal directory paths, or hardware serials are included in event payloads. Outbound requests are sent over HTTPS where the destination endpoint observes standard network layer addresses.
 3. **Data Sanitization**: All event payloads, stack traces, and error messages pass through [`TelemetrySanitizer`](../../GenHub/GenHub.Core/Utilities/TelemetrySanitizer.cs) prior to dispatching:
@@ -48,6 +48,17 @@ Telemetry strictly honors user choice and local regulations:
 | `genpatcher_fix_applied` | `Events.GenPatcherFixApplied` | A GenPatcher compatibility or registry fix is executed | `fix_id`, `fix_name`, `game_type`, `is_crucial`, `success`, `error_message` |
 | `modbuilder_project_created` | `Events.ModProjectCreated` | A new ModBuilder project is initialized | `project_name`, `content_type` |
 | `modbuilder_mod_built` | `Events.ModBuilt` | A ModBuilder build pipeline finishes | `project_name`, `build_steps`, `success`, `file_count`, `duration_seconds`, `error_message` |
+| `wnd_editor_opened` | `Events.WndEditorOpened` | WND Editor tool is opened | (None) |
+| `wnd_document_opened` | `Events.WndDocumentOpened` | Window definition document opened | `window_count`, `file_path`, `has_linked_assets` |
+| `wnd_document_saved` | `Events.WndDocumentSaved` | Window definition document saved | `window_count`, `file_path` |
+| `wnd_document_validated` | `Events.WndDocumentValidated` | Window definition document validated | `is_valid`, `window_count` |
+| `wnd_textures_imported` | `Events.WndTexturesImported` | Textures imported into WND Editor | `texture_count` |
+| `publisher_subscribed` | `Events.PublisherSubscribed` | User subscribes to a publisher catalog/feed | `publisher_id`, `publisher_name`, `catalog_url`, `definition_url`, `author` |
+| `publisher_unsubscribed` | `Events.PublisherUnsubscribed` | User unsubscribes from a publisher | `publisher_id` |
+| `publisher_studio_opened` | `Events.PublisherStudioOpened` | Publisher Studio tool is opened | (None) |
+| `publisher_studio_project_created` | `Events.PublisherStudioProjectCreated` | New publisher project created | `publisher_name` |
+| `publisher_studio_definition_exported` | `Events.PublisherStudioDefinitionExported` | Catalog or provider definition JSON exported | `publisher_name`, `content_type`, `catalog_count`, `definition_url` |
+| `publisher_studio_published` | `Events.PublisherStudioPublished` | Content/catalog uploaded to hosting provider | `publisher_name`, `content_name`, `provider_type`, `success`, `error_message` |
 
 ---
 

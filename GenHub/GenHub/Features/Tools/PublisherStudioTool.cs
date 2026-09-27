@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Tools;
 using GenHub.Features.Tools.ViewModels;
@@ -49,6 +50,9 @@ public class PublisherStudioTool(ILogger<PublisherStudioTool> logger) : IToolPlu
     /// <inheritdoc/>
     public void OnActivated(IServiceProvider serviceProvider)
     {
+        var telemetry = serviceProvider.GetService<ITelemetryService>();
+        telemetry?.TrackEvent(TelemetryConstants.Events.PublisherStudioOpened);
+
         // Only create ViewModel once - preserve state across activations
         if (_viewModel == null)
         {

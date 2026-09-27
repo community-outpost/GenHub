@@ -1813,26 +1813,6 @@ public class GameLauncher(
         return OperationResult<string>.CreateSuccess(finalExecutablePath);
     }
 
-    private string ResolveGameClientPublisher(GameProfile profile)
-    {
-        if (!string.IsNullOrWhiteSpace(profile.GameClient?.PublisherType))
-        {
-            return profile.GameClient.PublisherType;
-        }
-
-        if (profile.GameClient?.IsPublisherClient == true)
-        {
-            return "Publisher";
-        }
-
-        if (!string.IsNullOrWhiteSpace(profile.GameClient?.InstallationId))
-        {
-            return profile.GameClient.InstallationId;
-        }
-
-        return "Retail";
-    }
-
     private GameLaunchConfiguration BuildGameLaunchConfiguration(
         string finalExecutablePath,
         WorkspaceInfo workspaceInfo,
@@ -1851,7 +1831,11 @@ public class GameLauncher(
             GameClientId = profile.GameClient?.Id,
             GameClientName = profile.GameClient?.Name,
             GameClientVersion = profile.GameClient?.Version,
-            GameClientPublisher = ResolveGameClientPublisher(profile),
+            ProfileId = profile.Id,
+            ProfileName = profile.Name,
+            EnabledContentIds = profile.EnabledContentIds != null && profile.EnabledContentIds.Count > 0 ? string.Join(",", profile.EnabledContentIds) : null,
+            ContentCount = profile.EnabledContentIds?.Count ?? 0,
+            GameClientPublisher = GameClientTelemetryHelper.ResolvePublisher(profile),
             NativeOptionsIniPath = TryGetNativeOptionsIniPath(profile.GameClient?.GameType),
         };
     }

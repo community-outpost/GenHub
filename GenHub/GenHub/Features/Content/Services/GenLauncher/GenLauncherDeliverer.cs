@@ -47,6 +47,8 @@ public class GenLauncherDeliverer(
         private int completedFiles;
         private string? firstError;
 
+        public int TotalFiles => totalFiles;
+
         public string? FirstError => Volatile.Read(ref firstError);
 
         public void RecordFileFailure(string error)
@@ -331,7 +333,6 @@ public class GenLauncherDeliverer(
             manifest,
             file,
             index,
-            files.Count,
             targetDirectory,
             state,
             semaphore,
@@ -360,7 +361,6 @@ public class GenLauncherDeliverer(
         ContentManifest manifest,
         ManifestFile file,
         int index,
-        int totalFiles,
         string targetDirectory,
         ConcurrentDownloadState state,
         SemaphoreSlim semaphore,
@@ -373,7 +373,7 @@ public class GenLauncherDeliverer(
             linkedCts.Token.ThrowIfCancellationRequested();
 
             var fileProgress = state.CreateFileProgress(index, file);
-            var result = await DownloadSingleFileAsync(manifest, file, index, totalFiles, targetDirectory, fileProgress, linkedCts.Token).ConfigureAwait(false);
+            var result = await DownloadSingleFileAsync(manifest, file, index, state.TotalFiles, targetDirectory, fileProgress, linkedCts.Token).ConfigureAwait(false);
             if (!result.Success)
             {
                 state.RecordFileFailure(result.FirstError ?? $"Failed to download {file.RelativePath}");
@@ -540,6 +540,7 @@ public class GenLauncherDeliverer(
                 ContentName = manifest.Name,
                 ContentId = manifest.Id.Value,
                 ContentType = manifest.ContentType.ToString(),
+                Author = manifest.Publisher?.Name ?? "genlauncher",
             };
 
             if (!string.IsNullOrWhiteSpace(expectedEtag))

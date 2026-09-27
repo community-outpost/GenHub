@@ -78,6 +78,8 @@ public sealed partial class DownloadsBrowserViewModel(
     IPublisherReconcilerRegistry? reconcilerRegistry = null,
     ILocalizationService? localizationService = null) : ObservableObject, IDisposable
 {
+    private const string DefaultPublisherName = "Content";
+
     private long _subscriptionRefreshVersion;
 
     /// <summary>
@@ -2772,12 +2774,13 @@ public sealed partial class DownloadsBrowserViewModel(
         var downloadSuccess = await DownloadContentAsync(targetItem, ct);
         if (!downloadSuccess)
         {
-            var failedPublisherId = targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? "Content";
+            var failedPublisherId = targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? DefaultPublisherName;
             _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.PublisherId] = failedPublisherId,
                 [TelemetryConstants.Properties.ContentName] = targetItem.Name,
                 [TelemetryConstants.Properties.ContentId] = oldManifestId ?? targetItem.Id,
+                [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName,
                 [TelemetryConstants.Properties.ErrorMessage] = "Download failed during update",
             });
             return false;
@@ -2821,7 +2824,7 @@ public sealed partial class DownloadsBrowserViewModel(
                     reconciliationService,
                     notificationService,
                     logger,
-                    targetItem.SearchResult?.ProviderName ?? "Content",
+                    targetItem.SearchResult?.ProviderName ?? DefaultPublisherName,
                     "[Downloads Update]");
 
                 var updateOutcome = await PublisherReconcilerHelper.ApplyUpdateStrategyAsync(
@@ -2841,12 +2844,13 @@ public sealed partial class DownloadsBrowserViewModel(
                     await reconciliationService.ScheduleGarbageCollectionAsync(false, ct);
                 }
 
-                var targetPublisherId = publisherId ?? targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? "Content";
+                var targetPublisherId = publisherId ?? targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? DefaultPublisherName;
                 _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateApplied, new Dictionary<string, object?>
                 {
                     [TelemetryConstants.Properties.PublisherId] = targetPublisherId,
                     [TelemetryConstants.Properties.ContentName] = targetItem.Name,
                     [TelemetryConstants.Properties.ContentId] = newManifestId ?? targetItem.Id,
+                    [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName,
                     [TelemetryConstants.Properties.FromVersion] = oldManifestId,
                     [TelemetryConstants.Properties.ToVersion] = targetItem.SearchResult?.Version ?? string.Empty,
                     [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
@@ -2857,12 +2861,13 @@ public sealed partial class DownloadsBrowserViewModel(
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Failed to apply update strategy for {OldManifestId} -> {NewManifestId}", oldManifestId, newManifestId);
-                var targetPublisherId = publisherId ?? targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? "Content";
+                var targetPublisherId = publisherId ?? targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? DefaultPublisherName;
                 _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
                 {
                     [TelemetryConstants.Properties.PublisherId] = targetPublisherId,
                     [TelemetryConstants.Properties.ContentName] = targetItem.Name,
                     [TelemetryConstants.Properties.ContentId] = newManifestId ?? targetItem.Id,
+                    [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName,
                     [TelemetryConstants.Properties.ErrorMessage] = ex.Message,
                 });
             }

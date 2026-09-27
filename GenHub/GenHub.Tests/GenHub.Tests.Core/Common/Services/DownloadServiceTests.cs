@@ -3,6 +3,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.Protected;

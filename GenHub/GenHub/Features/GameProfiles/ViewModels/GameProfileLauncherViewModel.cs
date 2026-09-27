@@ -2331,19 +2331,21 @@ public partial class GameProfileLauncherViewModel(
             notificationService.ShowSuccess(localizationService["GameProfiles.Notification.GameLaunched.Title"], localizationService.GetString("GameProfiles.Notification.GameLaunched.Message", liveProfile.Name));
 
             var gameClient = liveProfile.Profile.GameClient;
-            var clientPublisher = !string.IsNullOrWhiteSpace(gameClient?.PublisherType)
-                ? gameClient.PublisherType
-                : (gameClient?.IsPublisherClient == true ? "Publisher" : "Retail");
+            var clientPublisher = GameClientTelemetryHelper.ResolvePublisher(gameClient);
 
             telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunched, new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.ProfileId] = liveProfile.ProfileId,
+                [TelemetryConstants.Properties.ProfileName] = liveProfile.Name,
+                ["profile"] = liveProfile.Name,
                 [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
                 [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
                 [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
+                ["game_client"] = gameClient?.Name,
                 [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
                 [TelemetryConstants.Properties.GameClientPublisher] = clientPublisher,
                 [TelemetryConstants.Properties.PublisherId] = clientPublisher,
+                ["publisher"] = clientPublisher,
                 [TelemetryConstants.Properties.LaunchSource] = TelemetryConstants.LaunchSources.Launcher,
                 [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
             });
@@ -2366,13 +2368,20 @@ public partial class GameProfileLauncherViewModel(
             notificationService.ShowError(localizationService["GameProfiles.Notification.LaunchFailed.Title"], localizationService.GetString("GameProfiles.Notification.LaunchFailed.Message", profile.Name, errors));
 
             var gameClient = profile.Profile.GameClient;
+            var clientPublisher = GameClientTelemetryHelper.ResolvePublisher(gameClient);
             telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchFailed, new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.ProfileId] = profile.ProfileId,
+                [TelemetryConstants.Properties.ProfileName] = profile.Name,
+                ["profile"] = profile.Name,
                 [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
                 [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
                 [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
+                ["game_client"] = gameClient?.Name,
                 [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
+                [TelemetryConstants.Properties.GameClientPublisher] = clientPublisher,
+                [TelemetryConstants.Properties.PublisherId] = clientPublisher,
+                ["publisher"] = clientPublisher,
                 [TelemetryConstants.Properties.LaunchSource] = TelemetryConstants.LaunchSources.Launcher,
                 [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
                 [TelemetryConstants.Properties.ErrorCategory] = TelemetryConstants.ErrorCategories.LaunchFailed,

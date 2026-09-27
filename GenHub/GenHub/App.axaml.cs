@@ -848,19 +848,21 @@ public partial class App : Application
                     profileId,
                     launchResult.Data.ProcessInfo.ProcessId);
 
-                var clientPublisher = !string.IsNullOrWhiteSpace(gameClient?.PublisherType)
-                    ? gameClient.PublisherType
-                    : (gameClient?.IsPublisherClient == true ? "Publisher" : "Retail");
+                var clientPublisher = GameClientTelemetryHelper.ResolvePublisher(gameClient);
 
                 _telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunched, new Dictionary<string, object?>
                 {
                     [TelemetryConstants.Properties.ProfileId] = profileId,
+                    [TelemetryConstants.Properties.ProfileName] = profile?.Name,
+                    ["profile"] = profile?.Name,
                     [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
                     [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
                     [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
+                    ["game_client"] = gameClient?.Name,
                     [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
                     [TelemetryConstants.Properties.GameClientPublisher] = clientPublisher,
                     [TelemetryConstants.Properties.PublisherId] = clientPublisher,
+                    ["publisher"] = clientPublisher,
                     [TelemetryConstants.Properties.LaunchSource] = launchSource,
                     [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
                 });
@@ -869,6 +871,8 @@ public partial class App : Application
                     _telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchedFromShortcut, new Dictionary<string, object?>
                     {
                         [TelemetryConstants.Properties.ProfileId] = profileId,
+                        [TelemetryConstants.Properties.ProfileName] = profile?.Name,
+                        ["profile"] = profile?.Name,
                         [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
                     });
                 }
@@ -885,13 +889,20 @@ public partial class App : Application
                     _localizationService["GameProfiles.Notification.LaunchFailed.Title"],
                     _localizationService.GetString("GameProfiles.Notification.LaunchFailed.Message", profileId, errors));
 
+                var failedClientPublisher = GameClientTelemetryHelper.ResolvePublisher(gameClient);
                 _telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchFailed, new Dictionary<string, object?>
                 {
                     [TelemetryConstants.Properties.ProfileId] = profileId,
+                    [TelemetryConstants.Properties.ProfileName] = profile?.Name,
+                    ["profile"] = profile?.Name,
                     [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
                     [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
                     [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
+                    ["game_client"] = gameClient?.Name,
                     [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
+                    [TelemetryConstants.Properties.GameClientPublisher] = failedClientPublisher,
+                    [TelemetryConstants.Properties.PublisherId] = failedClientPublisher,
+                    ["publisher"] = failedClientPublisher,
                     [TelemetryConstants.Properties.LaunchSource] = launchSource,
                     [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
                     [TelemetryConstants.Properties.ErrorCategory] = TelemetryConstants.ErrorCategories.LaunchFailed,

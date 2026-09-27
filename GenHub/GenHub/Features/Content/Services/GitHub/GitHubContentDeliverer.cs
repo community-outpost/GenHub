@@ -139,6 +139,7 @@ public class GitHubContentDeliverer(
                     ContentName = packageManifest.Name,
                     ContentId = packageManifest.Id.Value,
                     ContentType = packageManifest.ContentType.ToString(),
+                    Author = packageManifest.Publisher?.Name ?? packageManifest.OriginalProviderName,
                 };
 
                 var downloadResult = await downloadService.DownloadFileAsync(

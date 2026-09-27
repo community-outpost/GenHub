@@ -436,34 +436,90 @@ public class TelemetryInstrumentationTests
     }
 
     /// <summary>
-    /// Verifies that WndEditorViewModel tracks document validation telemetry.
+    /// Verifies that WndEditorViewModel does not track document validation telemetry when no document is loaded.
     /// </summary>
     [Fact]
-    public void WndEditorViewModel_ValidateDocument_TracksWndDocumentValidated()
+    public void WndEditorViewModel_ValidateDocument_WithoutDocument_DoesNotTrack()
     {
         var docServiceMock = new Mock<IWndDocumentService>();
         docServiceMock
             .Setup(x => x.ValidateDocument(It.IsAny<WndDocument>(), It.IsAny<string>()))
             .Returns(new ValidationResult("test", []));
 
+        var installServiceMock = new Mock<IGameInstallationService>();
+        installServiceMock
+            .Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([]));
+
         var vm = new WndEditorViewModel(
             docServiceMock.Object,
             Mock.Of<INotificationService>(),
             Mock.Of<ILocalizationService>(),
             Mock.Of<IDialogService>(),
-            Mock.Of<IGameInstallationService>(),
+            installServiceMock.Object,
             Mock.Of<IWndEditorAssetService>(),
             Mock.Of<IWndTextureImportService>(),
             Mock.Of<IChallengeMedalService>(),
             Mock.Of<ILogger<WndEditorViewModel>>(),
             _telemetryServiceMock.Object);
 
-        // Invoke private or command ValidateDocument
+        // Invoke command ValidateDocument without loading a document
         vm.ValidateDocumentCommand.Execute(null);
 
         // Since no document is loaded, it should return early and not track
         _telemetryServiceMock.Verify(
             t => t.TrackEvent(TelemetryConstants.Events.WndDocumentValidated, It.IsAny<IReadOnlyDictionary<string, object?>?>(), It.IsAny<TelemetryLevel>()),
             Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that WndEditorViewModel tracks document validation telemetry when a document is loaded.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task WndEditorViewModel_ValidateDocument_WithDocument_TracksWndDocumentValidated()
+    {
+        var docServiceMock = new Mock<IWndDocumentService>();
+        var window = new WndWindow();
+        window.Properties.Add(new WndProperty(WndConstants.PropertyKeys.Name, "TestWindow"));
+        var doc = new WndDocument();
+        doc.Windows.Add(window);
+        docServiceMock
+            .Setup(x => x.ParseText(It.IsAny<string>(), It.IsAny<string?>()))
+            .Returns(OperationResult<WndDocument>.CreateSuccess(doc));
+        docServiceMock
+            .Setup(x => x.ValidateDocument(It.IsAny<WndDocument>(), It.IsAny<string>()))
+            .Returns(new ValidationResult("test", []));
+
+        var installMock = new Mock<IGameInstallationService>();
+        installMock
+            .Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([]));
+
+        var vm = new WndEditorViewModel(
+            docServiceMock.Object,
+            Mock.Of<INotificationService>(),
+            Mock.Of<ILocalizationService>(),
+            Mock.Of<IDialogService>(),
+            installMock.Object,
+            Mock.Of<IWndEditorAssetService>(),
+            Mock.Of<IWndTextureImportService>(),
+            Mock.Of<IChallengeMedalService>(),
+            Mock.Of<ILogger<WndEditorViewModel>>(),
+            _telemetryServiceMock.Object);
+
+        await vm.LoadFromTextAsync("FILE_VERSION = 2;\nWINDOW\n  NAME = \"TestWindow\";\nEND\n", null);
+
+        vm.ValidateDocumentCommand.Execute(null);
+
+        _telemetryServiceMock.Verify(
+            t => t.TrackEvent(
+                TelemetryConstants.Events.WndDocumentValidated,
+                It.Is<IReadOnlyDictionary<string, object?>?>(props =>
+                    props != null &&
+                    props.ContainsKey(TelemetryConstants.Properties.IsValid) &&
+                    props.ContainsKey(TelemetryConstants.Properties.WindowCount)),
+                It.IsAny<TelemetryLevel>()),
+            Times.Once);
     }
 }

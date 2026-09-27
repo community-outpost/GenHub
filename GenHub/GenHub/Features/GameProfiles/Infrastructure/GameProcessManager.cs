@@ -53,7 +53,11 @@ public class GameProcessManager(
         string? GameClientId = null,
         string? GameClientName = null,
         string? GameClientVersion = null,
-        string? GameClientPublisher = null);
+        string? GameClientPublisher = null,
+        string? ProfileId = null,
+        string? ProfileName = null,
+        string? EnabledContentIds = null,
+        int ContentCount = 0);
 
     private readonly ConditionalWeakTable<Process, ExitFinalizationState> _exitFinalizations = new();
     private readonly ConcurrentDictionary<int, Process> _managedProcesses = new();
@@ -2087,6 +2091,10 @@ public class GameProcessManager(
         var gameClientName = config?.GameClientName;
         var gameClientVersion = config?.GameClientVersion;
         var gameClientPublisher = config?.GameClientPublisher ?? "Retail";
+        var profileId = config?.ProfileId;
+        var profileName = config?.ProfileName;
+        var enabledContentIds = config?.EnabledContentIds;
+        var contentCount = config?.ContentCount ?? 0;
 
         var meta = new GameSessionMeta(
             sessionId,
@@ -2097,7 +2105,11 @@ public class GameProcessManager(
             gameClientId,
             gameClientName,
             gameClientVersion,
-            gameClientPublisher);
+            gameClientPublisher,
+            profileId,
+            profileName,
+            enabledContentIds,
+            contentCount);
 
         if (!_sessionMetadata.TryAdd(process, meta))
         {
@@ -2119,15 +2131,22 @@ public class GameProcessManager(
             telemetryService.TrackEvent(TelemetryConstants.Events.GameSessionStarted, new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.SessionId] = sessionId,
+                [TelemetryConstants.Properties.ProfileId] = profileId,
+                [TelemetryConstants.Properties.ProfileName] = profileName,
+                ["profile"] = profileName,
                 [TelemetryConstants.Properties.ExecutablePath] = execName,
                 [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
                 [TelemetryConstants.Properties.Runner] = runner,
                 [TelemetryConstants.Properties.GameType] = gameType,
                 [TelemetryConstants.Properties.GameClientId] = gameClientId,
                 [TelemetryConstants.Properties.GameClientName] = gameClientName,
+                ["game_client"] = gameClientName,
                 [TelemetryConstants.Properties.GameClientVersion] = gameClientVersion,
                 [TelemetryConstants.Properties.GameClientPublisher] = gameClientPublisher,
                 [TelemetryConstants.Properties.PublisherId] = gameClientPublisher,
+                ["publisher"] = gameClientPublisher,
+                ["content_ids"] = enabledContentIds,
+                ["content_count"] = contentCount,
             });
         }
     }
@@ -2144,13 +2163,19 @@ public class GameProcessManager(
             telemetryService.TrackEvent(TelemetryConstants.Events.GameSessionHeartbeat, new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.SessionId] = meta.SessionId,
+                [TelemetryConstants.Properties.ProfileId] = meta.ProfileId,
+                [TelemetryConstants.Properties.ProfileName] = meta.ProfileName,
+                ["profile"] = meta.ProfileName,
                 [TelemetryConstants.Properties.DurationSeconds] = (DateTime.UtcNow - meta.StartTime).TotalSeconds,
                 [TelemetryConstants.Properties.ExecutablePath] = meta.ExecName,
                 [TelemetryConstants.Properties.Runner] = meta.Runner,
                 [TelemetryConstants.Properties.GameType] = meta.GameType,
                 [TelemetryConstants.Properties.GameClientId] = meta.GameClientId,
+                [TelemetryConstants.Properties.GameClientName] = meta.GameClientName,
+                ["game_client"] = meta.GameClientName,
                 [TelemetryConstants.Properties.GameClientPublisher] = meta.GameClientPublisher,
                 [TelemetryConstants.Properties.PublisherId] = meta.GameClientPublisher,
+                ["publisher"] = meta.GameClientPublisher,
             });
         }
     }
@@ -2166,22 +2191,33 @@ public class GameProcessManager(
             var endProperties = new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.SessionId] = sessionMeta.SessionId,
+                [TelemetryConstants.Properties.ProfileId] = sessionMeta.ProfileId,
+                [TelemetryConstants.Properties.ProfileName] = sessionMeta.ProfileName,
+                ["profile"] = sessionMeta.ProfileName,
                 [TelemetryConstants.Properties.DurationSeconds] = duration,
+                ["duration_hours"] = Math.Round(duration / 3600.0, 4),
                 [TelemetryConstants.Properties.ExecutablePath] = sessionMeta.ExecName,
                 [TelemetryConstants.Properties.Runner] = sessionMeta.Runner,
                 [TelemetryConstants.Properties.GameType] = sessionMeta.GameType,
                 [TelemetryConstants.Properties.GameClientId] = sessionMeta.GameClientId,
                 [TelemetryConstants.Properties.GameClientName] = sessionMeta.GameClientName,
+                ["game_client"] = sessionMeta.GameClientName,
                 [TelemetryConstants.Properties.GameClientVersion] = sessionMeta.GameClientVersion,
                 [TelemetryConstants.Properties.GameClientPublisher] = sessionMeta.GameClientPublisher,
                 [TelemetryConstants.Properties.PublisherId] = sessionMeta.GameClientPublisher,
+                ["publisher"] = sessionMeta.GameClientPublisher,
+                ["content_ids"] = sessionMeta.EnabledContentIds,
+                ["content_count"] = sessionMeta.ContentCount,
             };
 
             // An unknown exit code is not a crash; omit both properties instead of reporting failure.
             if (exitCode is int knownExitCode)
             {
                 endProperties[TelemetryConstants.Properties.ExitCode] = knownExitCode;
-                endProperties[TelemetryConstants.Properties.WasGraceful] = knownExitCode == ProcessConstants.ExitCodeSuccess;
+                var wasGraceful = knownExitCode == ProcessConstants.ExitCodeSuccess;
+                endProperties[TelemetryConstants.Properties.WasGraceful] = wasGraceful;
+                endProperties["crashed"] = !wasGraceful;
+                endProperties["is_crash"] = !wasGraceful;
             }
 
             telemetryService.TrackEvent(TelemetryConstants.Events.GameSessionEnded, endProperties);

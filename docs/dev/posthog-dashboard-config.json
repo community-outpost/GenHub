@@ -1156,6 +1156,141 @@
               "display": "ActionsTable"
             }
           }
+        },
+        {
+          "name": "Downloads by Author",
+          "type": "Trends",
+          "display": "ActionsTable",
+          "description": "Download volume broken down by content author.",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "content_download_completed",
+                "name": "Downloads by Author",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "interval": "day",
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "author"
+                }
+              ]
+            },
+            "trendsFilter": {
+              "display": "ActionsTable"
+            }
+          }
+        },
+        {
+          "name": "Publisher Subscriptions & Unsubscriptions",
+          "type": "Trends",
+          "display": "ActionsLineGraph",
+          "description": "Daily volume of publisher subscriptions versus unsubscriptions.",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "publisher_subscribed",
+                "name": "Subscribed",
+                "math": "total"
+              },
+              {
+                "kind": "EventsNode",
+                "event": "publisher_unsubscribed",
+                "name": "Unsubscribed",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "interval": "day",
+            "trendsFilter": {
+              "display": "ActionsLineGraph"
+            }
+          }
+        },
+        {
+          "name": "Subscriptions by Publisher",
+          "type": "Trends",
+          "display": "ActionsBar",
+          "description": "Subscription volume broken down by publisher name.",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "publisher_subscribed",
+                "name": "Subscriptions",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "publisher_name"
+                }
+              ]
+            },
+            "trendsFilter": {
+              "display": "ActionsBar"
+            }
+          }
+        },
+        {
+          "name": "Publisher Studio Activity",
+          "type": "Trends",
+          "display": "ActionsLineGraph",
+          "description": "Publisher Studio project creations, definition exports, and publishing actions.",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "publisher_studio_opened",
+                "name": "Studio Opened",
+                "math": "total"
+              },
+              {
+                "kind": "EventsNode",
+                "event": "publisher_studio_project_created",
+                "name": "Projects Created",
+                "math": "total"
+              },
+              {
+                "kind": "EventsNode",
+                "event": "publisher_studio_definition_exported",
+                "name": "Definitions Exported",
+                "math": "total"
+              },
+              {
+                "kind": "EventsNode",
+                "event": "publisher_studio_published",
+                "name": "Catalogs Published",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "interval": "day",
+            "trendsFilter": {
+              "display": "ActionsLineGraph"
+            }
+          }
         }
       ]
     },

@@ -7,6 +7,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Publishers;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Notifications;
@@ -61,6 +62,9 @@ public partial class PublishShareViewModel(
     Action<string>? browserLauncher = null,
     IPublisherSubscriptionStore? subscriptionStore = null) : ObservableObject, IDisposable
 {
+    /// <summary>Gets or sets the telemetry service.</summary>
+    public ITelemetryService? TelemetryService { get; set; }
+
     /// <summary>
     /// Artwork slots that can reference local image files in content metadata.
     /// </summary>
@@ -2466,6 +2470,12 @@ public partial class PublishShareViewModel(
             {
                 CatalogJson = result.Data;
                 logger.LogInformation("Exported catalog '{CatalogName}' JSON", ActiveCatalog.Name);
+                TelemetryService?.TrackEvent(TelemetryConstants.Events.PublisherStudioDefinitionExported, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.PublisherName] = project.Catalog.Publisher?.Name ?? project.ProjectName,
+                    [TelemetryConstants.Properties.ContentName] = ActiveCatalog.Name,
+                    [TelemetryConstants.Properties.ContentType] = "catalog",
+                });
             }
             else
             {
@@ -3894,6 +3904,13 @@ public partial class PublishShareViewModel(
             {
                 ProviderDefinitionJson = result.Data;
                 logger.LogInformation("Generated provider definition JSON with {CatalogCount} catalogs", catalogHostingInfo.Count);
+                TelemetryService?.TrackEvent(TelemetryConstants.Events.PublisherStudioDefinitionExported, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.PublisherName] = project.Catalog.Publisher?.Name ?? project.ProjectName,
+                    [TelemetryConstants.Properties.ContentType] = "definition",
+                    [TelemetryConstants.Properties.CatalogCount] = catalogHostingInfo.Count,
+                    [TelemetryConstants.Properties.DefinitionUrl] = ProviderDefinitionUrl,
+                });
                 return true;
             }
             else
@@ -4580,6 +4597,14 @@ public partial class PublishShareViewModel(
                 manageUploadingState: false,
                 suppressNotifications: true,
                 uploadDefinition: uploadDefinition);
+            TelemetryService?.TrackEvent(TelemetryConstants.Events.PublisherStudioPublished, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.PublisherName] = project.Catalog.Publisher?.Name ?? project.ProjectName,
+                [TelemetryConstants.Properties.ContentName] = catalog.Name,
+                [TelemetryConstants.Properties.Success] = res.Success,
+                [TelemetryConstants.Properties.ProviderType] = SelectedHostingProvider?.ProviderId,
+                [TelemetryConstants.Properties.ErrorMessage] = res.FirstError,
+            });
             if (res.Success)
             {
                 // Publish status is updated centrally in CompletePublishSuccessAsync.

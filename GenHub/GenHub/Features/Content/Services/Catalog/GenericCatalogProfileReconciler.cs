@@ -37,9 +37,10 @@ public class GenericCatalogProfileReconciler(
     GenericCatalogContentServices contentServices,
     INotificationService notificationService,
     IDialogService dialogService,
-    IUserSettingsService userSettingsService,
-    ITelemetryService? telemetryService = null) : IGenericCatalogProfileReconciler
+    IUserSettingsService userSettingsService) : IGenericCatalogProfileReconciler
 {
+    private readonly ITelemetryService? _telemetryService = contentServices.TelemetryService;
+
     /// <inheritdoc />
     public string PublisherType => CatalogConstants.GenericPublisherType;
 
@@ -280,11 +281,12 @@ public class GenericCatalogProfileReconciler(
 
         if (!updateOutcome.Proceed)
         {
-            telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
+            _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.PublisherId] = subscription.PublisherId,
                 [TelemetryConstants.Properties.ContentName] = item.Name,
                 [TelemetryConstants.Properties.ContentId] = newManifest.Id.Value,
+                [TelemetryConstants.Properties.Author] = subscription.PublisherName ?? subscription.PublisherId,
                 [TelemetryConstants.Properties.ErrorMessage] = updateOutcome.Error ?? "Failed to apply update",
             });
             return OperationResult<PublisherReconciliationResult>.CreateFailure(updateOutcome.Error ?? "Failed to apply update");
@@ -295,11 +297,12 @@ public class GenericCatalogProfileReconciler(
             await contentServices.ReconciliationService.ScheduleGarbageCollectionAsync(false, cancellationToken);
         }
 
-        telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateApplied, new Dictionary<string, object?>
+        _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateApplied, new Dictionary<string, object?>
         {
             [TelemetryConstants.Properties.PublisherId] = subscription.PublisherId,
             [TelemetryConstants.Properties.ContentName] = item.Name,
             [TelemetryConstants.Properties.ContentId] = newManifest.Id.Value,
+            [TelemetryConstants.Properties.Author] = subscription.PublisherName ?? subscription.PublisherId,
             [TelemetryConstants.Properties.FromVersion] = localManifestId,
             [TelemetryConstants.Properties.ToVersion] = itemVersion,
             [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
