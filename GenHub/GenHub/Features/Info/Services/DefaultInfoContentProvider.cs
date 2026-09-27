@@ -639,7 +639,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              * If GenHub is already running, the launch request is forwarded to it instead of starting a second copy.
              """),
             (InfoConstants.CardShortcutsHeadless,
-             "Headless Mode Launcher",
+             "Direct Desktop Launching",
              "Launch profiles directly from your desktop.",
              InfoCardType.Concept,
              """

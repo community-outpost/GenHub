@@ -5926,7 +5926,7 @@ GenHub сканирует систему для поиска официальн�
 3. Если GenHub уже запущен, ярлык передает ему профиль вместо запуска второй копии.</value>
   </data>
   <data name="Info.Card.shortcuts.headless.Title" xml:space="preserve">
-    <value>Автономный режим запуска (Headless)</value>
+    <value>Прямой запуск с рабочего стола</value>
   </data>
   <data name="Info.Card.shortcuts.icons.Content" xml:space="preserve">
     <value>Какой значок попадет на рабочий стол.</value>

@@ -5950,7 +5950,7 @@ When signature checks pass, GenHub verifies that game assets are authentic and r
 3. If GenHub is already running, the shortcut forwards the profile to it instead of starting a second copy.</value>
   </data>
   <data name="Info.Card.shortcuts.headless.Title" xml:space="preserve">
-    <value>Headless Mode Launcher</value>
+    <value>Direct Desktop Launching</value>
   </data>
   <data name="Info.Card.shortcuts.icons.Content" xml:space="preserve">
     <value>Which icon lands on your desktop.</value>

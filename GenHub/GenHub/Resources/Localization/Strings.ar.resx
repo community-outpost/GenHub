@@ -5926,7 +5926,7 @@
 3. إذا كان GenHub يعمل بالفعل، يمرر الاختصار ملف التعريف إليه بدلًا من بدء نسخة ثانية.</value>
   </data>
   <data name="Info.Card.shortcuts.headless.Title" xml:space="preserve">
-    <value>مشغل الوضع المستقل (Headless)</value>
+    <value>التشغيل المباشر من سطح المكتب</value>
   </data>
   <data name="Info.Card.shortcuts.icons.Content" xml:space="preserve">
     <value>أي أيقونة تظهر على سطح المكتب.</value>
