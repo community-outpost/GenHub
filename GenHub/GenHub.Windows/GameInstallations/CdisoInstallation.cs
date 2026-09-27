@@ -3,6 +3,7 @@ using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
+using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 using System;
@@ -15,7 +16,7 @@ namespace GenHub.Windows.GameInstallations;
 /// CD/ISO installation detector for games installed from CD/ISO media.
 /// Uses registry lookup as a fallback when Steam and EA App installations are not found.
 /// </summary>
-public class CdisoInstallation(ILogger<CdisoInstallation>? logger) : IGameInstallation
+public class CdisoInstallation(ILogger<CdisoInstallation>? logger) : GameInstallationBase
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="CdisoInstallation"/> class, optionally fetching installation details.
@@ -32,28 +33,10 @@ public class CdisoInstallation(ILogger<CdisoInstallation>? logger) : IGameInstal
     }
 
     /// <inheritdoc/>
-    public string Id => "CDISO";
+    public override string Id => "CDISO";
 
     /// <inheritdoc/>
-    public GameInstallationType InstallationType => GameInstallationType.CDISO;
-
-    /// <inheritdoc/>
-    public string InstallationPath { get; private set; } = string.Empty;
-
-    /// <inheritdoc/>
-    public bool HasGenerals { get; private set; }
-
-    /// <inheritdoc/>
-    public string GeneralsPath { get; private set; } = string.Empty;
-
-    /// <inheritdoc/>
-    public bool HasZeroHour { get; private set; }
-
-    /// <inheritdoc/>
-    public string ZeroHourPath { get; private set; } = string.Empty;
-
-    /// <inheritdoc/>
-    public List<GameClient> AvailableGameClients { get; } = [];
+    public override GameInstallationType InstallationType => GameInstallationType.CDISO;
 
     /// <summary>
     /// Gets a value indicating whether a CD/ISO installation was found via registry.
@@ -61,29 +44,7 @@ public class CdisoInstallation(ILogger<CdisoInstallation>? logger) : IGameInstal
     public bool IsCdisoInstalled { get; private set; }
 
     /// <inheritdoc/>
-    public void SetPaths(string? generalsPath, string? zeroHourPath)
-    {
-        if (!string.IsNullOrEmpty(generalsPath))
-        {
-            HasGenerals = true;
-            GeneralsPath = generalsPath;
-        }
-
-        if (!string.IsNullOrEmpty(zeroHourPath))
-        {
-            HasZeroHour = true;
-            ZeroHourPath = zeroHourPath;
-        }
-    }
-
-    /// <inheritdoc/>
-    public void PopulateGameClients(IEnumerable<GameClient> clients)
-    {
-        AvailableGameClients.AddRange(clients);
-    }
-
-    /// <inheritdoc/>
-    public void Fetch()
+    public override void Fetch()
     {
         logger?.LogInformation("Starting CD/ISO installation detection");
 

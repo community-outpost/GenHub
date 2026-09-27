@@ -49,14 +49,38 @@ public static class InstallationSearchPathConstants
         /// <summary>Default Wine prefix directory.</summary>
         public const string WinePrefixDirectoryName = ".wine";
 
+        /// <summary>Shared user directory for manually created Wine prefixes.</summary>
+        public const string WinePrefixesDirectoryName = "wineprefixes";
+
+        /// <summary>PlayOnLinux per-user configuration directory.</summary>
+        public const string PlayOnLinuxDirectoryName = ".PlayOnLinux";
+
+        /// <summary>PlayOnLinux Wine prefix container directory.</summary>
+        public const string PlayOnLinuxWinePrefixDirectoryName = "wineprefix";
+
+        /// <summary>Bottles Flatpak application identifier.</summary>
+        public const string BottlesFlatpakApplicationId = "com.usebottles.bottles";
+
+        /// <summary>Bottles bottle container directory.</summary>
+        public const string BottlesDirectoryName = "bottles";
+
         /// <summary>Windows C: drive mapping inside a Wine prefix.</summary>
         public const string WineDriveCDirectoryName = "drive_c";
+
+        /// <summary>Windows directory inside a Wine prefix drive.</summary>
+        public const string WineWindowsDirectoryName = "windows";
+
+        /// <summary>System32 directory inside a Wine prefix Windows directory.</summary>
+        public const string WineSystem32DirectoryName = "system32";
 
         /// <summary>32-bit Windows program files directory inside a Wine prefix.</summary>
         public const string ProgramFilesX86DirectoryName = "Program Files (x86)";
 
         /// <summary>64-bit Windows program files directory inside a Wine prefix.</summary>
         public const string ProgramFilesDirectoryName = "Program Files";
+
+        /// <summary>System-wide Wine installation directory.</summary>
+        public static readonly string SystemWineDirectory = Path.Combine(Path.DirectorySeparatorChar.ToString(), "opt", "wine");
     }
 
     /// <summary>

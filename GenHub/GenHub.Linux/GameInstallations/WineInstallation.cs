@@ -3,6 +3,7 @@ using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
+using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -14,7 +15,7 @@ namespace GenHub.Linux.GameInstallations;
 /// <summary>
 /// Wine/Proton installation detector and manager for Linux.
 /// </summary>
-public class WineInstallation(ILogger<WineInstallation>? logger = null) : IGameInstallation
+public class WineInstallation(ILogger<WineInstallation>? logger = null) : GameInstallationBase
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="WineInstallation"/> class.
@@ -31,28 +32,10 @@ public class WineInstallation(ILogger<WineInstallation>? logger = null) : IGameI
     }
 
     /// <inheritdoc/>
-    public string Id => "Wine";
+    public override string Id => "Wine";
 
     /// <inheritdoc/>
-    public GameInstallationType InstallationType => GameInstallationType.Wine;
-
-    /// <inheritdoc/>
-    public string InstallationPath { get; private set; } = string.Empty;
-
-    /// <inheritdoc/>
-    public bool HasGenerals { get; private set; }
-
-    /// <inheritdoc/>
-    public string GeneralsPath { get; private set; } = string.Empty;
-
-    /// <inheritdoc/>
-    public bool HasZeroHour { get; private set; }
-
-    /// <inheritdoc/>
-    public string ZeroHourPath { get; private set; } = string.Empty;
-
-    /// <inheritdoc/>
-    public List<GameClient> AvailableGameClients { get; } = new();
+    public override GameInstallationType InstallationType => GameInstallationType.Wine;
 
     /// <summary>
     /// Gets a value indicating whether Wine is installed successfully.
@@ -60,35 +43,13 @@ public class WineInstallation(ILogger<WineInstallation>? logger = null) : IGameI
     public bool IsWineInstalled { get; private set; }
 
     /// <inheritdoc/>
-    public void SetPaths(string? generalsPath, string? zeroHourPath)
-    {
-        if (!string.IsNullOrEmpty(generalsPath))
-        {
-            HasGenerals = true;
-            GeneralsPath = generalsPath;
-        }
-
-        if (!string.IsNullOrEmpty(zeroHourPath))
-        {
-            HasZeroHour = true;
-            ZeroHourPath = zeroHourPath;
-        }
-    }
-
-    /// <inheritdoc/>
-    public void PopulateGameClients(IEnumerable<GameClient> clients)
-    {
-        AvailableGameClients.AddRange(clients);
-    }
-
-    /// <inheritdoc/>
-    public void Fetch()
+    public override void Fetch()
     {
         logger?.LogInformation("Starting Wine/Proton installation detection on Linux");
 
         try
         {
-            var winePrefixes = GetWinePrefixes();
+            var winePrefixes = WinePrefixHelper.GetWinePrefixes(logger);
             if (!winePrefixes.Any())
             {
                 logger?.LogDebug("No Wine prefixes found on Linux");
@@ -154,82 +115,6 @@ public class WineInstallation(ILogger<WineInstallation>? logger = null) : IGameI
         {
             logger?.LogError(ex, "Error occurred during Wine installation detection on Linux");
             IsWineInstalled = false;
-        }
-    }
-
-    /// <summary>
-    /// Gets Wine prefix directories.
-    /// </summary>
-    /// <returns>Collection of Wine prefix paths.</returns>
-    private IEnumerable<string> GetWinePrefixes()
-    {
-        var winePrefixes = new List<string>();
-
-        try
-        {
-            var homeDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-
-            // Common Wine prefix locations
-            var commonWinePaths = new[]
-            {
-                Path.Combine(homeDirectory, ".wine"),
-                Path.Combine(homeDirectory, ".local", "share", "wineprefixes"),
-                Path.Combine(homeDirectory, ".PlayOnLinux", "wineprefix"),
-                Path.Combine(homeDirectory, ".var", "app", "com.usebottles.bottles", "data", "bottles", "bottles"),
-                "/opt/wine",
-            };
-
-            foreach (var winePath in commonWinePaths.Where(Directory.Exists))
-            {
-                if (IsValidWinePrefix(winePath))
-                {
-                    winePrefixes.Add(winePath);
-                    logger?.LogDebug("Found Wine prefix: {WinePrefix}", winePath);
-                }
-
-                // Check subdirectories for additional prefixes
-                try
-                {
-                    var subdirectories = Directory.GetDirectories(winePath);
-                    foreach (var subdir in subdirectories)
-                    {
-                        if (IsValidWinePrefix(subdir))
-                        {
-                            winePrefixes.Add(subdir);
-                            logger?.LogDebug("Found Wine prefix: {WinePrefix}", subdir);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger?.LogDebug(ex, "Failed to enumerate subdirectories in {WinePath}", winePath);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            logger?.LogWarning(ex, "Failed to enumerate Wine prefixes");
-        }
-
-        return winePrefixes;
-    }
-
-    /// <summary>
-    /// Validates if a directory is a valid Wine prefix.
-    /// </summary>
-    /// <param name="path">Path to check.</param>
-    /// <returns>True if valid Wine prefix.</returns>
-    private bool IsValidWinePrefix(string path)
-    {
-        try
-        {
-            var driveCPath = Path.Combine(path, "drive_c");
-            var systemPath = Path.Combine(driveCPath, "windows", "system32");
-            return Directory.Exists(driveCPath) && Directory.Exists(systemPath);
-        }
-        catch
-        {
-            return false;
         }
     }
 
