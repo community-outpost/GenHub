@@ -26,6 +26,11 @@ public static class EditorConstants
     public const double ZoomStep = 0.25;
 
     /// <summary>
+    /// Multiplicative zoom factor applied per Ctrl+mouse wheel notch on the shared canvas.
+    /// </summary>
+    public const double ZoomWheelFactor = 1.2;
+
+    /// <summary>
     /// Maximum recursion depth when building file explorer trees.
     /// </summary>
     public const int FileExplorerMaxDepth = 20;

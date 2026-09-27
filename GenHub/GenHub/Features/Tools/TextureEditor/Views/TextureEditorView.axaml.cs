@@ -36,12 +36,6 @@ public partial class TextureEditorView : UserControl
             _overlay.PointerCaptureLost += OnOverlayPointerCaptureLost;
         }
 
-        var scroll = this.Find<ScrollViewer>("CanvasScroll");
-        if (scroll is not null)
-        {
-            scroll.PointerWheelChanged += OnCanvasWheelChanged;
-        }
-
         var picker = this.Find<GenHub.Common.Controls.MappedImagePickerControl>("ImagePicker");
         if (picker is not null)
         {
@@ -85,8 +79,9 @@ public partial class TextureEditorView : UserControl
         }
 
         var slice = FindSlice(e.Source as Visual);
-        if (slice is null || !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        if (slice is null || viewModel.IsPanMode || !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
+            // Pan gestures bubble to the shared EditorCanvasControl.
             return;
         }
 
@@ -132,24 +127,5 @@ public partial class TextureEditorView : UserControl
     private void OnOverlayPointerCaptureLost(object? sender, PointerCaptureLostEventArgs e)
     {
         _dragSlice = null;
-    }
-
-    private void OnCanvasWheelChanged(object? sender, PointerWheelEventArgs e)
-    {
-        if (DataContext is not TextureEditorViewModel viewModel || !e.KeyModifiers.HasFlag(KeyModifiers.Control))
-        {
-            return;
-        }
-
-        if (e.Delta.Y > 0)
-        {
-            viewModel.ZoomInCommand.Execute(null);
-        }
-        else
-        {
-            viewModel.ZoomOutCommand.Execute(null);
-        }
-
-        e.Handled = true;
     }
 }

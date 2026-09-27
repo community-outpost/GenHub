@@ -322,6 +322,59 @@ public sealed class AtlasPackingServiceTests
     }
 
     /// <summary>
+    /// Verifies that a non-TGA target texture returns an explicit failure.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task BuildAtlasAsync_NonTgaTargetTexture_ReturnsFailureAsync()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var loader = new Mock<ITextureImageLoader>();
+            var request = new TextureAtlasBuildRequest(directory, Path.Combine(directory, "out.png"), Path.Combine(directory, "out.ini"));
+
+            var result = await _service.BuildAtlasAsync(request, loader.Object);
+
+            Assert.True(result.Failed);
+            Assert.Contains(".tga", result.FirstError ?? string.Empty);
+            loader.Verify(loader => loader.LoadAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that identical texture and INI targets return an explicit failure.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task BuildAtlasAsync_SameTextureAndIniTarget_ReturnsFailureAsync()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var loader = new Mock<ITextureImageLoader>();
+            string target = Path.Combine(directory, "same.tga");
+            var request = new TextureAtlasBuildRequest(directory, target, target);
+
+            var result = await _service.BuildAtlasAsync(request, loader.Object);
+
+            Assert.True(result.Failed);
+            Assert.Contains("different files", result.FirstError ?? string.Empty);
+            loader.Verify(loader => loader.LoadAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that requesting mipmaps returns an explicit failure instead of silent output.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>

@@ -171,6 +171,11 @@ public static class TextureEditorConstants
     public const string MappedImagesExtension = ".ini";
 
     /// <summary>
+    /// TGA file extension. The atlas packer always emits TGA bytes.
+    /// </summary>
+    public const string TgaExtension = ".tga";
+
+    /// <summary>
     /// Suffix appended to duplicated slice names.
     /// </summary>
     public const string DuplicateNameSuffix = "_Copy";

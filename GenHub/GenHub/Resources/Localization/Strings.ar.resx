@@ -17270,4 +17270,17 @@ Error: فشل: {3}
   <data name="Tools.IniEditor.Reference.NotFoundTitle" xml:space="preserve">
     <value>التعريف غير موجود</value>
   </data>
+  <data name="TextureEditor.Button.OpenFolder" xml:space="preserve">
+    <value>فتح مجلد</value>
+  </data>
+  <data name="TextureEditor.Tooltip.OpenFolder" xml:space="preserve">
+    <value>فتح مجلد مشروع يحتوي على القوام وMappedImages</value>
+  </data>
+  <data name="TextureEditor.Tooltip.Menu" xml:space="preserve">
+    <value>إجراءات أخرى</value>
+  </data>
+  <data name="TextureEditor.Tooltip.PanMode" xml:space="preserve">
+    <value>تبديل أداة التحريك</value>
+  </data>
+
 </root>

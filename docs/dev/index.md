@@ -82,6 +82,12 @@ GeneralsHub defines a mandatory [User feedback standard](./ui-styling.md#user-fe
 
 ---
 
+### Editor Shell
+
+The WND, Texture, and future INI editors share one [editor shell](./editor-shell.md): `EditorToolViewModelBase`, the `EditorCanvasControl` pan/zoom host, the shared file explorer, `compact-tabs` styling, and header/empty-state conventions. New editors must reuse it instead of reimplementing canvas behavior.
+
+---
+
 ## Architecture
 
 ### Dependency Injection

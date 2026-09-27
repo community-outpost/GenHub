@@ -171,6 +171,18 @@ public sealed class WndEditorViewModelTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that disposing the editor twice is safe and runs cleanup once.
+    /// </summary>
+    [Fact]
+    public void Dispose_CalledTwice_DoesNotThrow()
+    {
+        _viewModel.Dispose();
+        var exception = Record.Exception(() => _viewModel.Dispose());
+
+        Assert.Null(exception);
+    }
+
+    /// <summary>
     /// Tests that loading valid content builds the tree, canvas, and selection.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>

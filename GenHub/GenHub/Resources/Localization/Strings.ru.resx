@@ -17270,4 +17270,17 @@ Error: не удалось: {3}
   <data name="Tools.IniEditor.Reference.NotFoundTitle" xml:space="preserve">
     <value>Определение не найдено</value>
   </data>
+  <data name="TextureEditor.Button.OpenFolder" xml:space="preserve">
+    <value>Открыть папку</value>
+  </data>
+  <data name="TextureEditor.Tooltip.OpenFolder" xml:space="preserve">
+    <value>Открыть папку проекта с текстурами и MappedImages</value>
+  </data>
+  <data name="TextureEditor.Tooltip.Menu" xml:space="preserve">
+    <value>Другие действия</value>
+  </data>
+  <data name="TextureEditor.Tooltip.PanMode" xml:space="preserve">
+    <value>Переключить инструмент панорамирования</value>
+  </data>
+
 </root>

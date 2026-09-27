@@ -21,6 +21,10 @@ public sealed class SageTextureCodec(ILogger<SageTextureCodec> logger) : ISageTe
     private const int DdsHeaderSize = 124;
     private const int DdsMagicSize = 4;
     private const uint DdsFourCcDxt1 = 0x31545844;
+    private const uint DdsFourCcDxt2 = 0x32545844;
+    private const uint DdsFourCcDxt3 = 0x33545844;
+    private const uint DdsFourCcDxt4 = 0x34545844;
+    private const uint DdsFourCcDxt5 = 0x35545844;
     private const int DdsPixelFormatOffset = 72;
     private const int DdsHeightOffset = 8;
     private const int DdsWidthOffset = 12;
@@ -28,6 +32,7 @@ public sealed class SageTextureCodec(ILogger<SageTextureCodec> logger) : ISageTe
     private const int DdsPixelFormatFlagsOffset = 4;
     private const int DdsPixelFormatFourCcOffset = 8;
     private const int DdsPixelFormatBitCountOffset = 12;
+    private const int DdsPixelFormatAlphaMaskOffset = 28;
     private const int DdsPixelFormatRedMaskOffset = 16;
     private const int DdsPixelFormatFourCcFlag = 0x4;
     private const int DdsPixelFormatAlphaPixelsFlag = 0x1;
@@ -401,6 +406,128 @@ public sealed class SageTextureCodec(ILogger<SageTextureCodec> logger) : ISageTe
         return OperationResult<DecodedTexture>.CreateSuccess(new DecodedTexture(width, height, rgba), Stopwatch.GetElapsedTime(started));
     }
 
+    private static uint DecodeDxtColorPalette(byte[] data, int offset, Span<byte> palette)
+    {
+        ushort color0 = ReadUInt16(data, offset);
+        ushort color1 = ReadUInt16(data, offset + 2);
+        ExpandRgb565(color0, palette.Slice(0, 4));
+        ExpandRgb565(color1, palette.Slice(4, 4));
+        MixDxt1Colors(palette, true);
+        return (uint)ReadInt32(data, offset + 4);
+    }
+
+    private static void DecodeDxt3Alpha(byte[] data, int offset, Span<byte> alphas)
+    {
+        for (int i = 0; i < 16; i++)
+        {
+            int nibble = (data[offset + (i / 2)] >> ((i % 2) * 4)) & 0xF;
+            alphas[i] = (byte)(nibble * 17);
+        }
+    }
+
+    private static void DecodeDxt5Alpha(byte[] data, int offset, Span<byte> alphas)
+    {
+        byte alpha0 = data[offset];
+        byte alpha1 = data[offset + 1];
+        ulong bits = 0;
+        for (int i = 0; i < 6; i++)
+        {
+            bits |= (ulong)data[offset + 2 + i] << (i * 8);
+        }
+
+        Span<byte> table = stackalloc byte[8];
+        BuildDxt5AlphaTable(alpha0, alpha1, table);
+        for (int i = 0; i < 16; i++)
+        {
+            alphas[i] = table[(int)((bits >> (i * 3)) & 0x7)];
+        }
+    }
+
+    private static void BuildDxt5AlphaTable(byte alpha0, byte alpha1, Span<byte> table)
+    {
+        table[0] = alpha0;
+        table[1] = alpha1;
+        if (alpha0 > alpha1)
+        {
+            table[2] = (byte)(((6 * alpha0) + alpha1) / 7);
+            table[3] = (byte)(((5 * alpha0) + (2 * alpha1)) / 7);
+            table[4] = (byte)(((4 * alpha0) + (3 * alpha1)) / 7);
+            table[5] = (byte)(((3 * alpha0) + (4 * alpha1)) / 7);
+            table[6] = (byte)(((2 * alpha0) + (5 * alpha1)) / 7);
+            table[7] = (byte)((alpha0 + (6 * alpha1)) / 7);
+        }
+        else
+        {
+            table[2] = (byte)(((4 * alpha0) + alpha1) / 5);
+            table[3] = (byte)(((3 * alpha0) + (2 * alpha1)) / 5);
+            table[4] = (byte)(((2 * alpha0) + (3 * alpha1)) / 5);
+            table[5] = (byte)((alpha0 + (4 * alpha1)) / 5);
+            table[6] = 0;
+            table[7] = 255;
+        }
+    }
+
+    private static void BlitDxtBlock(uint codes, ReadOnlySpan<byte> palette, ReadOnlySpan<byte> alphas, byte[] rgba, int width, int height, int blockX, int blockY)
+    {
+        for (int y = 0; y < 4; y++)
+        {
+            for (int x = 0; x < 4; x++)
+            {
+                int px = (blockX * 4) + x;
+                int py = (blockY * 4) + y;
+                if (px >= width || py >= height)
+                {
+                    continue;
+                }
+
+                int paletteIndex = (int)((codes >> (((y * 4) + x) * 2)) & 0x3) * 4;
+                int dest = ((py * width) + px) * 4;
+                rgba[dest] = palette[paletteIndex];
+                rgba[dest + 1] = palette[paletteIndex + 1];
+                rgba[dest + 2] = palette[paletteIndex + 2];
+                rgba[dest + 3] = alphas[(y * 4) + x];
+            }
+        }
+    }
+
+    private static OperationResult<DecodedTexture> DecodeDdsDxt35(byte[] data, int offset, int width, int height, string sourceName, long started, bool isDxt5, string label)
+    {
+        long blocksX = ((long)width + 3) / 4;
+        long blocksY = ((long)height + 3) / 4;
+        long expected = blocksX * blocksY * 16;
+        long pixelBytes = (long)width * height * 4;
+        if (pixelBytes > int.MaxValue || expected > int.MaxValue || data.Length - offset < expected)
+        {
+            return OperationResult<DecodedTexture>.CreateFailure($"Truncated DDS {label} data: {sourceName}", Stopwatch.GetElapsedTime(started));
+        }
+
+        var rgba = new byte[(int)pixelBytes];
+        Span<byte> palette = stackalloc byte[16];
+        Span<byte> alphas = stackalloc byte[16];
+        int blockIndex = 0;
+        for (long blockY = 0; blockY < blocksY; blockY++)
+        {
+            for (long blockX = 0; blockX < blocksX; blockX++)
+            {
+                int blockOffset = offset + (blockIndex * 16);
+                if (isDxt5)
+                {
+                    DecodeDxt5Alpha(data, blockOffset, alphas);
+                }
+                else
+                {
+                    DecodeDxt3Alpha(data, blockOffset, alphas);
+                }
+
+                uint codes = DecodeDxtColorPalette(data, blockOffset + 8, palette);
+                BlitDxtBlock(codes, palette, alphas, rgba, width, height, (int)blockX, (int)blockY);
+                blockIndex++;
+            }
+        }
+
+        return OperationResult<DecodedTexture>.CreateSuccess(new DecodedTexture(width, height, rgba), Stopwatch.GetElapsedTime(started));
+    }
+
     private OperationResult<DecodedTexture> DecodeTga(byte[] data, string sourceName, long started)
     {
         if (data.Length < TgaHeaderSize)
@@ -495,10 +622,21 @@ public sealed class SageTextureCodec(ILogger<SageTextureCodec> logger) : ISageTe
             return DecodeDdsDxt1(data, dataOffset, width, height, sourceName, started);
         }
 
+        if (hasFourCc && (fourCc == DdsFourCcDxt2 || fourCc == DdsFourCcDxt3))
+        {
+            return DecodeDdsDxt35(data, dataOffset, width, height, sourceName, started, false, "DXT3");
+        }
+
+        if (hasFourCc && (fourCc == DdsFourCcDxt4 || fourCc == DdsFourCcDxt5))
+        {
+            return DecodeDdsDxt35(data, dataOffset, width, height, sourceName, started, true, "DXT5");
+        }
+
         if (!hasFourCc && (rgbBitCount == 32 || rgbBitCount == 24))
         {
             int pitch = ReadInt32(data, headerOffset + DdsPitchOffset);
-            bool hasAlpha = (pixelFlags & DdsPixelFormatAlphaPixelsFlag) != 0;
+            uint alphaMask = (uint)ReadInt32(data, pixelOffset + DdsPixelFormatAlphaMaskOffset);
+            bool hasAlpha = (pixelFlags & DdsPixelFormatAlphaPixelsFlag) != 0 || alphaMask != 0;
             return DecodeDdsUncompressed(new DdsUncompressedRequest(data, dataOffset, width, height, rgbBitCount / 8, pitch, redMask, hasAlpha, sourceName, started));
         }
 

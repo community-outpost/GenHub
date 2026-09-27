@@ -985,7 +985,7 @@ public sealed partial class WndEditorViewModel(
     /// <inheritdoc />
     protected override void Dispose(bool disposing)
     {
-        if (!disposing)
+        if (IsDisposed || !disposing)
         {
             return;
         }

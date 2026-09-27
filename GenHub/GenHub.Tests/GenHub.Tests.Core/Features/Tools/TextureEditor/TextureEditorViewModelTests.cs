@@ -53,6 +53,20 @@ public sealed class TextureEditorViewModelTests
     }
 
     /// <summary>
+    /// Verifies that disposing twice is safe and runs cleanup once.
+    /// </summary>
+    [Fact]
+    public void Dispose_CalledTwice_DoesNotThrow()
+    {
+        var viewModel = CreateViewModel();
+
+        viewModel.Dispose();
+        var exception = Record.Exception(() => viewModel.Dispose());
+
+        Assert.Null(exception);
+    }
+
+    /// <summary>
     /// Verifies that a registry entry from another texture warns and is not loaded.
     /// </summary>
     [AvaloniaFact]
@@ -149,6 +163,63 @@ public sealed class TextureEditorViewModelTests
         }
     }
 
+    /// <summary>
+    /// Verifies that browsing a folder scans mapped images and opens the first texture,
+    /// so the header Open folder button behaves like the Files tab browse action.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task BrowseFolder_AdoptedFlow_ScansAndOpensFirstTextureAsync()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(directory);
+        try
+        {
+            await File.WriteAllBytesAsync(Path.Combine(directory, "atlas.png"), ValidPngBytes);
+            await File.WriteAllTextAsync(
+                Path.Combine(directory, "atlas.ini"),
+                "MappedImage Hero\n  Texture = atlas.png\n  TextureWidth = 1\n  TextureHeight = 1\n  Coords = Left:0 Top:0 Right:1 Bottom:1\n  Status = NONE\nEnd\n");
+
+            var bitmapService = new TextureBitmapService(
+                new Mock<ISageTextureCodec>().Object,
+                NullLogger<TextureBitmapService>.Instance);
+            var viewModel = new TextureEditorViewModel(
+                new SageMappedImageParser(NullLogger<SageMappedImageParser>.Instance),
+                new MappedImageRegistry(
+                    new SageMappedImageParser(NullLogger<SageMappedImageParser>.Instance),
+                    NullLogger<MappedImageRegistry>.Instance),
+                new Mock<IAtlasPackingService>().Object,
+                new Mock<ITextureImageLoader>().Object,
+                bitmapService,
+                new Mock<INotificationService>().Object,
+                NullLogger<TextureEditorViewModel>.Instance,
+                new Mock<ILocalizationService>().Object,
+                new Mock<IDialogService>().Object);
+            viewModel.FileExplorer.BrowseFolderAsync = _ => Task.FromResult<string?>(directory);
+
+            await viewModel.FileExplorer.BrowseCommand.ExecuteAsync(null);
+
+            Assert.NotNull(viewModel.AtlasBitmap);
+            Assert.Equal("atlas.png", viewModel.AtlasFileName);
+            Assert.NotEmpty(viewModel.RegistryImages);
+            var slice = Assert.Single(viewModel.Slices);
+            Assert.Equal("Hero", slice.Name);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    private static Bitmap OpenAtlas(TextureEditorViewModel viewModel, string fileName)
+    {
+        using var stream = new MemoryStream(ValidPngBytes);
+        var bitmap = new Bitmap(stream);
+        viewModel.AtlasPath = Path.Combine(Path.GetTempPath(), fileName);
+        viewModel.AtlasBitmap = bitmap;
+        return bitmap;
+    }
+
     private static TextureEditorViewModel CreateViewModel(Mock<INotificationService>? notifications = null, Mock<IDialogService>? dialogs = null)
     {
         var bitmapService = new TextureBitmapService(
@@ -164,14 +235,5 @@ public sealed class TextureEditorViewModelTests
             NullLogger<TextureEditorViewModel>.Instance,
             new Mock<ILocalizationService>().Object,
             (dialogs ?? new Mock<IDialogService>()).Object);
-    }
-
-    private static Bitmap OpenAtlas(TextureEditorViewModel viewModel, string fileName)
-    {
-        using var stream = new MemoryStream(ValidPngBytes);
-        var bitmap = new Bitmap(stream);
-        viewModel.AtlasPath = Path.Combine(Path.GetTempPath(), fileName);
-        viewModel.AtlasBitmap = bitmap;
-        return bitmap;
     }
 }

@@ -64,6 +64,9 @@ public sealed partial class TextureEditorViewModel(
     [ObservableProperty]
     private TextureSliceViewModel? _selectedSlice;
 
+    [ObservableProperty]
+    private bool _isPanMode;
+
     /// <summary>
     /// Gets the shared file explorer listing textures and MappedImages INI files.
     /// </summary>
@@ -336,10 +339,13 @@ public sealed partial class TextureEditorViewModel(
     protected override async Task OnOpenFolderAsync(CancellationToken cancellationToken)
     {
         string? folder = await BrowseExplorerFolderAsync(cancellationToken).ConfigureAwait(true);
-        if (!string.IsNullOrEmpty(folder))
+        if (string.IsNullOrEmpty(folder))
         {
-            FileExplorer.Directory = folder;
+            return;
         }
+
+        FileExplorer.Directory = folder;
+        await OnExplorerDirectoryAdoptedAsync(folder, cancellationToken).ConfigureAwait(true);
     }
 
     /// <inheritdoc />
@@ -479,7 +485,7 @@ public sealed partial class TextureEditorViewModel(
     /// <inheritdoc />
     protected override void Dispose(bool disposing)
     {
-        if (!disposing)
+        if (IsDisposed || !disposing)
         {
             return;
         }
@@ -498,12 +504,32 @@ public sealed partial class TextureEditorViewModel(
 
     private static void DisposeThumbnail(Avalonia.Media.IImage? thumbnail)
     {
-        // Never dispose CroppedBitmap: disposing a crop also disposes its Source,
-        // which would kill the shared AtlasBitmap all thumbnails are cut from.
+        // CroppedBitmap is a resourceless view over the shared AtlasBitmap, so
+        // crops are intentionally left for the GC: disposing a crop would also
+        // dispose its Source and kill the atlas every thumbnail is cut from.
         if (thumbnail is IDisposable disposable && thumbnail is not CroppedBitmap)
         {
             disposable.Dispose();
         }
+    }
+
+    private static string? FindFirstTextureFile(IEnumerable<EditorFileTreeNodeViewModel> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            if (node.IsFile && TextureEditorConstants.TextureExtensions.Contains(Path.GetExtension(node.FullPath), StringComparer.OrdinalIgnoreCase))
+            {
+                return node.FullPath;
+            }
+
+            string? child = FindFirstTextureFile(node.Children);
+            if (child is not null)
+            {
+                return child;
+            }
+        }
+
+        return null;
     }
 
     partial void OnAtlasBitmapChanged(Bitmap? value)
@@ -528,24 +554,30 @@ public sealed partial class TextureEditorViewModel(
     [RelayCommand]
     private async Task ScanRegistryAsync()
     {
-        var topLevel = GetTopLevel();
-        if (topLevel is null)
+        string? directory = FileExplorer.Directory;
+        if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory))
         {
-            return;
+            var topLevel = GetTopLevel();
+            if (topLevel is null)
+            {
+                return;
+            }
+
+            var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = Localize("TextureEditor.Dialog.ScanFolder", "Select MappedImages folder"),
+                AllowMultiple = false,
+            }).ConfigureAwait(true);
+
+            if (folders.Count == 0)
+            {
+                return;
+            }
+
+            directory = folders[0].Path.LocalPath;
+            FileExplorer.Directory = directory;
         }
 
-        var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
-        {
-            Title = Localize("TextureEditor.Dialog.ScanFolder", "Select MappedImages folder"),
-            AllowMultiple = false,
-        }).ConfigureAwait(true);
-
-        if (folders.Count == 0)
-        {
-            return;
-        }
-
-        string directory = folders[0].Path.LocalPath;
         try
         {
             await RunOperationAsync(async operationToken =>
@@ -864,6 +896,7 @@ public sealed partial class TextureEditorViewModel(
         explorer.ShowFileExtensions = true;
         explorer.ExcludedDirectoryNames = [ModBuilderConstants.DefaultBuildDir, ModBuilderConstants.DefaultReleaseDir];
         explorer.BrowseFolderAsync = BrowseExplorerFolderAsync;
+        explorer.DirectoryAdoptedAsync = OnExplorerDirectoryAdoptedAsync;
         explorer.FileActivated += OnExplorerFileActivated;
         return explorer;
     }
@@ -888,6 +921,56 @@ public sealed partial class TextureEditorViewModel(
 
         cancellationToken.ThrowIfCancellationRequested();
         return folders[0].TryGetLocalPath();
+    }
+
+    private async Task OnExplorerDirectoryAdoptedAsync(string folder, CancellationToken cancellationToken)
+    {
+        try
+        {
+            bool scanned = false;
+            await RunOperationAsync(async operationToken =>
+            {
+                var result = await registry.ScanDirectoryAsync(folder, operationToken).ConfigureAwait(true);
+                operationToken.ThrowIfCancellationRequested();
+                RefreshRegistryImages();
+                scanned = result.Success && result.Data is not null;
+                if (scanned && result.Data is not null)
+                {
+                    Notifications.ShowSuccess(
+                        Localize("TextureEditor.Notify.ScanComplete.Title", "Scan complete"),
+                        Localize("TextureEditor.Notify.ScanComplete.Message", "Indexed {0} mapped images from {1} files.", result.Data.ImagesIndexed, result.Data.FilesScanned),
+                        NotificationDurations.Medium);
+                }
+                else
+                {
+                    Notifications.ShowError(
+                        Localize("TextureEditor.Notify.ScanFailed.Title", "Scan failed"),
+                        result.FirstError ?? Localize("TextureEditor.Notify.ScanFailed.Message", "Failed to scan MappedImages folder."),
+                        NotificationDurations.Long);
+                }
+            }).ConfigureAwait(true);
+
+            if (scanned)
+            {
+                string? texture = FindFirstTextureFile(FileExplorer.Nodes);
+                if (texture is not null)
+                {
+                    await LoadAtlasAsync(texture, cancellationToken).ConfigureAwait(true);
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Cooperative cancellation from the busy overlay is silent by design.
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Folder scan failed for {Folder}", folder);
+            Notifications.ShowError(
+                Localize("TextureEditor.Notify.ScanFailed.Title", "Scan failed"),
+                ex.Message,
+                NotificationDurations.Long);
+        }
     }
 
     private void OnExplorerFileActivated(object? sender, EditorFileTreeNodeViewModel node)
@@ -971,9 +1054,19 @@ public sealed partial class TextureEditorViewModel(
         }
 
         var parsed = await parser.ParseFileAsync(sibling, cancellationToken).ConfigureAwait(true);
-        if (parsed.Data is null || parsed.Data.Count == 0)
+        if (parsed.Data is null)
         {
-            logger.LogWarning("Sibling INI {Path} holds no mapped images: {Error}", sibling, parsed.FirstError ?? "unknown");
+            logger.LogWarning("Sibling INI {Path} failed to parse: {Error}", sibling, parsed.FirstError ?? "unknown");
+            Notifications.ShowWarning(
+                Localize("TextureEditor.Notify.ImportFailed.Title", "Import failed"),
+                parsed.FirstError ?? Localize("TextureEditor.Notify.ImportFailed.Message", "No mapped images found."),
+                NotificationDurations.Medium);
+            return;
+        }
+
+        if (parsed.Data.Count == 0)
+        {
+            logger.LogWarning("Sibling INI {Path} holds no mapped images.", sibling);
             Notifications.ShowWarning(
                 Localize("TextureEditor.Notify.ImportFailed.Title", "Import failed"),
                 Localize("TextureEditor.Notify.ImportFailed.Message", "No mapped images found."),
@@ -1245,7 +1338,7 @@ public sealed partial class TextureEditorViewModel(
 
     private async Task<bool> WritePackOutputsAsync(TextureAtlasBuildRequest request, byte[] textureBytes, string iniContent, CancellationToken cancellationToken)
     {
-        var (previousTexture, hadTexture) = await ReadExistingFileBytesAsync(request.TargetTexture).ConfigureAwait(true);
+        var (previousTexture, hadTexture) = await ReadExistingFileBytesAsync(request.TargetTexture, cancellationToken).ConfigureAwait(true);
         await AtomicFile.WriteAllBytesAsync(request.TargetTexture, textureBytes, cancellationToken).ConfigureAwait(true);
         try
         {
@@ -1270,7 +1363,7 @@ public sealed partial class TextureEditorViewModel(
         return true;
     }
 
-    private async Task<(byte[]? Bytes, bool Existed)> ReadExistingFileBytesAsync(string path)
+    private async Task<(byte[]? Bytes, bool Existed)> ReadExistingFileBytesAsync(string path, CancellationToken cancellationToken)
     {
         if (!File.Exists(path))
         {
@@ -1279,7 +1372,7 @@ public sealed partial class TextureEditorViewModel(
 
         try
         {
-            return (await File.ReadAllBytesAsync(path).ConfigureAwait(true), true);
+            return (await File.ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(true), true);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

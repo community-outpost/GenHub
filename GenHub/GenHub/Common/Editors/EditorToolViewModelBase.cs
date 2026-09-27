@@ -572,6 +572,12 @@ public abstract class EditorToolViewModelBase : ObservableObject, IDisposable
     }
 
     /// <summary>
+    /// Gets a value indicating whether this instance has been disposed.
+    /// Overrides check this first so a second Dispose call skips their cleanup.
+    /// </summary>
+    protected bool IsDisposed => _disposed;
+
+    /// <summary>
     /// Releases managed resources.
     /// </summary>
     /// <param name="disposing">Whether managed resources should be released.</param>

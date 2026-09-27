@@ -21,6 +21,26 @@ To access the Texture Editor:
 1. Open GenHub.
 2. Navigate to the **TOOLS** tab.
 3. Select **Texture Editor** from the sidebar.
+4. Click **Open folder** and pick a project folder. The editor scans it for
+   `MappedImages` INI files, lists its textures and INI files in the Files tab,
+   and opens the first texture with its slices loaded. This one action replaces
+   the old open-file, scan-folder, and import steps.
+
+### When to use what
+
+- **Open folder** (primary flow): project folders with textures plus INI files.
+  Scans, lists, and opens automatically.
+- **Open file** (hamburger menu): a single standalone atlas without a project
+  folder. Slices load from the registry when the texture name matches, and a
+  same-name INI next to the atlas is imported automatically.
+- **Scan** (hamburger menu): re-scans the open folder, or asks for a folder
+  when none is open.
+- **Auto-pack** (hamburger menu): creates a new packed atlas from a folder of
+  loose images. It does not modify the current atlas; export the results after
+  reviewing them.
+- **Save / Save as / Export INI / Export sheet**: Save writes slices to the
+  atlas-side INI; the exports write copies elsewhere without changing the
+  current paths.
 
 ## Interface Overview
 

@@ -17329,4 +17329,17 @@ Mapped image texture reference</value>
   <data name="Tools.IniEditor.Reference.NotFoundTitle" xml:space="preserve">
     <value>Definition Not Found</value>
   </data>
+  <data name="TextureEditor.Button.OpenFolder" xml:space="preserve">
+    <value>Open folder</value>
+  </data>
+  <data name="TextureEditor.Tooltip.OpenFolder" xml:space="preserve">
+    <value>Open a project folder with textures and MappedImages</value>
+  </data>
+  <data name="TextureEditor.Tooltip.Menu" xml:space="preserve">
+    <value>More actions</value>
+  </data>
+  <data name="TextureEditor.Tooltip.PanMode" xml:space="preserve">
+    <value>Toggle pan tool</value>
+  </data>
+
 </root>
