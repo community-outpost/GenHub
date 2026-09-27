@@ -12213,6 +12213,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="GameProfiles.Notification.LaunchChanged.VariantsRemoved" xml:space="preserve">
     <value>لم يعد عميل اللعبة يحدد نسخًا مخصصة للمنصات.</value>
   </data>
+  <data name="GameProfiles.Notification.LaunchChanged.InstallationRefreshed" xml:space="preserve">
+    <value>تغيّر مجلد اللعبة منذ الاكتشاف، لذلك أُعيدت فهرسة ملفات التثبيت لهذا التشغيل.</value>
+  </data>
   <data name="Tools.WndEditor.Assets.LinkMenu" xml:space="preserve">
     <value>ربط الموارد</value>
   </data>

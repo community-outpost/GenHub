@@ -342,6 +342,16 @@ public static class ModBuilderConstants
     public const string MenuTexturesSpanishItemName = "MenuTexturesSpanish";
 
     /// <summary>
+    /// Override prefix applied to SAGE engine BIG archives so they sort before vanilla
+    /// archives and win file resolution. The engine loads archives alphabetically and
+    /// the first match wins, so mod archives without this prefix lose to vanilla files
+    /// (for example INI, Textures, and Window archives) and mod content silently fails
+    /// to apply. Bundle items that produce game-ready BIG archives should set this as
+    /// their name prefix.
+    /// </summary>
+    public const string SageOverridePrefix = "0_";
+
+    /// <summary>
     /// Source wildcard pattern for loose TGA textures under Art/Textures.
     /// </summary>
     public const string ArtTexturesWildcardPattern = "Art/Textures/**/*.tga";

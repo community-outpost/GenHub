@@ -350,6 +350,77 @@ public sealed class BuildEngineServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ExecuteBuildAsync_WithOverridePrefixedItem_PreservesPrefixInBundleArchive()
+    {
+        // Arrange: SAGE loads BIG archives alphabetically with first match winning, so
+        // mod bundle items carry the 0_ override prefix (see ModBuilderConstants.SageOverridePrefix).
+        var sourceFile = Path.Combine(_tempDirectory, "MainMenu.wnd");
+        await File.WriteAllTextAsync(sourceFile, "WINDOW\r\nEND");
+
+        var buildDir = Path.Combine(_tempDirectory, "output");
+        var project = new ModBuilderProject
+        {
+            Name = "TestProject",
+            ProjectDir = _tempDirectory,
+            Directories = new ProjectDirectories
+            {
+                GameFilesEdited = _tempDirectory,
+                Build = buildDir
+            },
+            BundleConfigs = new List<string>()
+        };
+
+        var configuration = new BuildConfiguration
+        {
+            Items = new List<BundleItem>
+            {
+                new()
+                {
+                    Name = ModBuilderConstants.MenuWindowsItemName,
+                    NamePrefix = ModBuilderConstants.SageOverridePrefix,
+                    Files = new List<BundleFile>
+                    {
+                        new()
+                        {
+                            AbsSourceParent = _tempDirectory,
+                            AbsSourceFile = sourceFile,
+                            RelTargetFile = "window/Menus/MainMenu.wnd"
+                        }
+                    }
+                }
+            },
+            Packs = new List<BundlePack>
+            {
+                new() { Name = "TestPack", ItemNames = new List<string> { ModBuilderConstants.MenuWindowsItemName } }
+            }
+        };
+
+        var selectedPacks = new List<string> { "TestPack" };
+
+        _mockHashProvider.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("hash123");
+
+        _mockCacheService.Setup(x => x.DetermineFileStatus(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
+            .Returns(BuildFileStatus.Added);
+
+        _mockFileConversionService.Setup(x => x.ConvertFileAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ConversionOperationResult.CreateSuccess());
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(project, configuration, selectedPacks, BuildStep.Build);
+
+        // Assert: pack still resolves the item by plain name, and the intermediate
+        // archive keeps the override prefix so it beats vanilla archives in-game.
+        result.Success.Should().BeTrue(result.FirstError);
+        var expectedBig = Path.Combine(
+            buildDir,
+            ModBuilderConstants.BundlesSubdir,
+            $"{ModBuilderConstants.SageOverridePrefix}{ModBuilderConstants.MenuWindowsItemName}{ModBuilderConstants.BigExtension}");
+        File.Exists(expectedBig).Should().BeTrue($"expected prefixed bundle archive at {expectedBig}");
+    }
+
+    [Fact]
     public async Task ExecuteBuildAsync_WithUnchangedFiles_SkipsFiles()
     {
         // Arrange

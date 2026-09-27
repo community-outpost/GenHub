@@ -12,6 +12,9 @@ public static class LaunchReceiptConstants
     /// <summary>Localization key for a manifest that no longer declares platform variants.</summary>
     public const string VariantsRemovedWarningKey = "GameProfiles.Notification.LaunchChanged.VariantsRemoved";
 
+    /// <summary>Localization key for installation manifests regenerated because the game folder changed since detection.</summary>
+    public const string InstallationManifestRefreshedWarningKey = "GameProfiles.Notification.LaunchChanged.InstallationRefreshed";
+
     /// <summary>Schema storing environment names without value fingerprints.</summary>
     public const int CurrentSchemaVersion = 2;
 

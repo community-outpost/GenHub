@@ -12271,6 +12271,9 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="GameProfiles.Notification.LaunchChanged.VariantsRemoved" xml:space="preserve">
     <value>The game client no longer declares platform variants.</value>
   </data>
+  <data name="GameProfiles.Notification.LaunchChanged.InstallationRefreshed" xml:space="preserve">
+    <value>The game folder changed since detection, so the installation files were re-indexed for this launch.</value>
+  </data>
   <data name="Tools.WndEditor.Assets.LinkMenu" xml:space="preserve">
     <value>Link Assets</value>
   </data>

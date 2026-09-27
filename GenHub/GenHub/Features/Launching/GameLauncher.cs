@@ -1371,11 +1371,19 @@ public class GameLauncher(
 
             var (installation, gameClient, actualInstallationPath, dynamicWorkspacePath, isSteamLaunch) = installResult.Data;
 
+            var receiptDriftWarnings = new List<string>();
+            var refreshOutcome = await TryRefreshStaleInstallationManifestsAsync(
+                installation, manifests, receiptDriftWarnings, cancellationToken);
+            if (refreshOutcome.Refreshed)
+            {
+                manifests = refreshOutcome.Manifests;
+                manifestSourcePaths = await ManifestSourcePathResolver.ResolveManifestSourcePathsAsync(manifests, profile, manifestPool, logger, cancellationToken);
+            }
+
             var candidateExecutable = TryResolveManifestExecutablePath(manifests) ?? gameClient.ExecutablePath;
             isSteamLaunch = AdjustSteamLaunchForExecutable(isSteamLaunch, profile.Id, candidateExecutable);
 
             // Reconciliation removes the prior receipt, so compare it before preparation.
-            var receiptDriftWarnings = new List<string>();
             var previousReceipt = await RevalidateLaunchReceiptAsync(
                 Path.Combine(dynamicWorkspacePath, profile.Id), profile.Id, receiptDriftWarnings, cancellationToken);
 
@@ -2270,6 +2278,119 @@ public class GameLauncher(
 
         logger.LogInformation("[GameLauncher] Monitoring for process: {ProcessName}", processName);
         return processName;
+    }
+
+    /// <summary>
+    /// Regenerates game installation manifests when the installation folder changed since
+    /// detection (loose mod archives added, removed, or modified). Best effort: any failure
+    /// keeps the stored manifests so the launch proceeds exactly as before.
+    /// </summary>
+    /// <param name="installation">The resolved retail installation.</param>
+    /// <param name="manifests">The manifests resolved for this launch.</param>
+    /// <param name="driftWarnings">Collects the drifted fields for the launch result.</param>
+    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <returns>Whether manifests were refreshed and the manifests to launch with.</returns>
+    private async Task<(bool Refreshed, List<ContentManifest> Manifests)> TryRefreshStaleInstallationManifestsAsync(
+        GameInstallation installation,
+        List<ContentManifest> manifests,
+        List<string> driftWarnings,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var installationManifests = manifests
+                .Where(m => m.ContentType == ContentType.GameInstallation)
+                .ToList();
+            if (installationManifests.Count == 0)
+            {
+                return (false, manifests);
+            }
+
+            var driftedManifests = new List<(ContentManifest Manifest, InstallationManifestDrift Drift)>();
+            foreach (var manifest in installationManifests)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var gameDir = manifest.TargetGame == GameType.Generals
+                    ? installation.GeneralsPath
+                    : installation.ZeroHourPath;
+                if (string.IsNullOrWhiteSpace(gameDir) || !Directory.Exists(gameDir))
+                {
+                    continue;
+                }
+
+                var drift = InstallationManifestDriftDetector.DetectDrift(
+                    gameDir, manifest.TargetGame, manifest.Version, manifest.Files, cancellationToken);
+                if (drift.HasDrift)
+                {
+                    driftedManifests.Add((manifest, drift));
+                }
+            }
+
+            if (driftedManifests.Count == 0)
+            {
+                return (false, manifests);
+            }
+
+            foreach (var (manifest, drift) in driftedManifests)
+            {
+                logger.LogInformation(
+                    "[GameLauncher] Installation folder changed since manifest {ManifestId} was generated ({Added} added, {Removed} removed, {Changed} changed); regenerating installation manifests",
+                    manifest.Id.Value,
+                    drift.AddedFiles.Count,
+                    drift.RemovedFiles.Count,
+                    drift.ChangedFiles.Count);
+            }
+
+            await gameInstallationService.CreateAndRegisterInstallationManifestsAsync(installation, cancellationToken);
+
+            var refreshed = await ReResolveInstallationManifestsAsync(manifests, cancellationToken);
+            if (!refreshed.Success || refreshed.Data == null)
+            {
+                logger.LogWarning(
+                    "[GameLauncher] Installation manifests regenerated but re-resolution failed: {Error}; launching with stored manifests",
+                    refreshed.FirstError);
+                return (false, manifests);
+            }
+
+            driftWarnings.Add(LaunchReceiptConstants.InstallationManifestRefreshedWarningKey);
+            return (true, refreshed.Data);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "[GameLauncher] Best-effort installation manifest refresh failed; launching with stored manifests");
+            return (false, manifests);
+        }
+    }
+
+    private async Task<OperationResult<List<ContentManifest>>> ReResolveInstallationManifestsAsync(
+        List<ContentManifest> manifests,
+        CancellationToken cancellationToken)
+    {
+        var updated = new List<ContentManifest>(manifests.Count);
+        foreach (var manifest in manifests)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (manifest.ContentType != ContentType.GameInstallation)
+            {
+                updated.Add(manifest);
+                continue;
+            }
+
+            var reloaded = await manifestPool.GetManifestAsync(manifest.Id, cancellationToken);
+            if (reloaded == null || !reloaded.Success || reloaded.Data == null)
+            {
+                return OperationResult<List<ContentManifest>>.CreateFailure(
+                    reloaded?.FirstError ?? $"Failed to reload installation manifest {manifest.Id.Value}.");
+            }
+
+            updated.Add(reloaded.Data);
+        }
+
+        return OperationResult<List<ContentManifest>>.CreateSuccess(updated);
     }
 
     /// <summary>
