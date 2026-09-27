@@ -10,11 +10,11 @@ using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.GameProfiles.Services;
-using GenHub.Features.GameProfiles.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -234,7 +234,7 @@ public class ProfileContentLoaderManifestIdTests
         try
         {
             File.WriteAllText(tempFile, "fake exe");
-            var (exePath, workingDir) = GameProfileClientResolutionHelper.ResolveClientPaths(tempFile);
+            var (exePath, workingDir) = ClientPathResolver.ResolveClientPaths(tempFile);
             Assert.Equal(tempFile, exePath);
             Assert.Equal(Path.GetDirectoryName(tempFile), workingDir);
         }
@@ -257,7 +257,7 @@ public class ProfileContentLoaderManifestIdTests
         try
         {
             File.WriteAllText(tempFile, "fake binary");
-            var (exePath, workingDir) = GameProfileClientResolutionHelper.ResolveClientPaths(tempFile);
+            var (exePath, workingDir) = ClientPathResolver.ResolveClientPaths(tempFile);
             Assert.Equal(tempFile, exePath);
             Assert.Equal(Path.GetDirectoryName(tempFile), workingDir);
         }
@@ -286,7 +286,7 @@ public class ProfileContentLoaderManifestIdTests
         try
         {
             File.WriteAllText(tempFile, "fake archive");
-            var (exePath, workingDir) = GameProfileClientResolutionHelper.ResolveClientPaths(tempFile);
+            var (exePath, workingDir) = ClientPathResolver.ResolveClientPaths(tempFile);
             Assert.Null(exePath);
             Assert.Null(workingDir);
         }

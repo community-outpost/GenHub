@@ -186,9 +186,9 @@ public class ControlBarPackageProcessor(
             || fileName.Equals($"340_ControlBarProLemonEdition{variantSuffix}ZH.big", StringComparison.OrdinalIgnoreCase)
             || fileName.Equals($"340_ControlBarProLemonEdition-Fix{variantSuffix}ZH.big", StringComparison.OrdinalIgnoreCase)
             || fileName.Equals(GameContentConstants.ControlBarProLemonBaseFileName, StringComparison.OrdinalIgnoreCase)
-            || fileName.Equals("400_ControlBarHDEnglishZH.big", StringComparison.OrdinalIgnoreCase)
-            || fileName.Equals("400_ControlBarProCoreZH.big", StringComparison.OrdinalIgnoreCase)
-            || fileName.Equals("400_ControlBarHDBaseZH.big", StringComparison.OrdinalIgnoreCase);
+            || fileName.Equals(GameContentConstants.ControlBarHdEnglishFileName, StringComparison.OrdinalIgnoreCase)
+            || fileName.Equals(GameContentConstants.ControlBarProCoreFileName, StringComparison.OrdinalIgnoreCase)
+            || fileName.Equals(GameContentConstants.ControlBarHdBaseFileName, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <inheritdoc/>
@@ -951,7 +951,7 @@ public class ControlBarPackageProcessor(
             foreach (var file in looseFiles)
             {
                 var fileName = Path.GetFileName(file);
-                if (repackedOutputs.Contains(fileName) || IsMetadataOnlyBig(fileName))
+                if (repackedOutputs.Contains(fileName) || IsMetadataOnlyBig(fileName) || GameContentConstants.IsSharedControlBarBig(fileName))
                 {
                     continue;
                 }

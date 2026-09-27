@@ -259,13 +259,7 @@ public class GenLauncherDiscoverer(
 
     private static string ResolveSourceUrl(string? modLink, string? parentManifestUrl)
     {
-        var rawSourceUrl = !string.IsNullOrWhiteSpace(modLink)
-            ? modLink
-            : parentManifestUrl ?? string.Empty;
-
-        return !string.IsNullOrWhiteSpace(rawSourceUrl) && IsValidHttpUrl(rawSourceUrl, out _)
-            ? rawSourceUrl
-            : string.Empty;
+        return GenLauncherConstants.ResolveAllowedSourceUrl(static url => IsValidHttpUrl(url, out _), modLink, parentManifestUrl);
     }
 
     private static string? ResolveFileDownloadUrl(string? simpleDownloadLink, string? fallbackUrl)
@@ -358,6 +352,59 @@ public class GenLauncherDiscoverer(
             Filename: fileName));
     }
 
+    private static bool IsValidChildManifest(
+        string manifestUrl,
+        GenLauncherVersionManifest versionManifest,
+        ILogger logger)
+    {
+        if (string.IsNullOrWhiteSpace(versionManifest.Name))
+        {
+            logger.LogWarning("Rejecting child manifest from {Url} with missing or empty Name", manifestUrl);
+            return false;
+        }
+
+        if (versionManifest.GetParsedType() == GenLauncherModificationType.Advertising)
+        {
+            logger.LogDebug("Skipping advertising entry: {Name}", versionManifest.Name);
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(versionManifest.SimpleDownloadLink) && !IsValidHttpUrl(versionManifest.SimpleDownloadLink, out _))
+        {
+            logger.LogWarning("Rejecting child manifest {Name} with unsafe download link: {Url}", versionManifest.Name, versionManifest.SimpleDownloadLink);
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Applies the manifest fallback links as the result source URL, marking it for
+    /// navigation only when a fallback replaced the previous URL.
+    /// </summary>
+    /// <param name="result">The search result to update.</param>
+    /// <param name="manifest">The version manifest supplying fallback links.</param>
+    private static void ApplyManifestSourceUrlFallback(ContentSearchResult result, GenLauncherVersionManifest manifest)
+    {
+        var previousSourceUrl = result.SourceUrl;
+        result.SourceUrl = GenLauncherConstants.ResolveAllowedSourceUrl(
+            static url => IsValidHttpUrl(url, out _),
+            manifest.NewsLink,
+            manifest.ModDBLink,
+            manifest.DiscordLink,
+            result.SourceUrl);
+
+        if (string.IsNullOrEmpty(result.SourceUrl) ||
+            string.Equals(result.SourceUrl, previousSourceUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        // A manifest fallback link replaced the previous URL. Keep it for browser navigation,
+        // but do not let automatic web parsing overwrite manifest-derived file rows.
+        result.SkipAutomaticWebParsing = true;
+    }
+
     private string GetLocalizedString(string key, string fallback)
     {
         return localizationService?.GetString(key) ?? fallback;
@@ -434,6 +481,8 @@ public class GenLauncherDiscoverer(
         {
             result.ResolverMetadata[GenLauncherConstants.ModDbLinkMetadataKey] = manifest.ModDBLink;
         }
+
+        ApplyManifestSourceUrlFallback(result, manifest);
 
         if (!string.IsNullOrEmpty(manifest.DependenceName))
         {
@@ -889,21 +938,8 @@ public class GenLauncherDiscoverer(
             return null;
         }
 
-        if (string.IsNullOrWhiteSpace(versionManifest.Name))
+        if (!IsValidChildManifest(manifestUrl, versionManifest, logger))
         {
-            logger.LogWarning("Rejecting child manifest from {Url} with missing or empty Name", manifestUrl);
-            return null;
-        }
-
-        if (versionManifest.GetParsedType() == GenLauncherModificationType.Advertising)
-        {
-            logger.LogDebug("Skipping advertising entry: {Name}", versionManifest.Name);
-            return null;
-        }
-
-        if (!string.IsNullOrWhiteSpace(versionManifest.SimpleDownloadLink) && !IsValidHttpUrl(versionManifest.SimpleDownloadLink, out _))
-        {
-            logger.LogWarning("Rejecting child manifest {Name} with unsafe download link: {Url}", versionManifest.Name, versionManifest.SimpleDownloadLink);
             return null;
         }
 
@@ -930,12 +966,21 @@ public class GenLauncherDiscoverer(
             TargetGame = context.Game,
             ProviderName = PublisherTypeConstants.GenLauncher,
             ResolverId = GenLauncherConstants.PublisherId,
-            SourceUrl = manifestUrl,
+            SourceUrl = GenLauncherConstants.ResolveAllowedSourceUrl(
+                static url => IsValidHttpUrl(url, out _),
+                versionManifest.NewsLink,
+                versionManifest.ModDBLink,
+                versionManifest.DiscordLink),
             IconUrl = ResolveIconUrl(versionManifest.UIImageSourceLink, context.ParentIconUrl),
             RequiresResolution = true,
             VariantGroupId = $"{context.Game.ToString().ToLowerInvariant()}-{context.ParentModSlug}",
             VariantFamilyName = context.ParentModName,
         };
+
+        // The version manifest is the canonical data source; the resolved link above is an
+        // external page kept for browser navigation and must not replace manifest file rows.
+        // Only assert the parsing skip when a safe link was actually resolved.
+        result.SkipAutomaticWebParsing = !string.IsNullOrEmpty(result.SourceUrl);
 
         result.Tags.Add("genlauncher");
         result.Tags.Add(actualType.ToString().ToLowerInvariant());

@@ -481,7 +481,7 @@ public partial class ContentDetailViewModel(
     /// <summary>
     /// Gets a value indicating whether the content has a source page to open.
     /// </summary>
-    public bool HasSourceUrl => !string.IsNullOrEmpty(searchResult.SourceUrl);
+    public bool HasSourceUrl => !string.IsNullOrEmpty(ResolveEffectiveSourceUrl());
 
     /// <summary>
     /// Gets a value indicating whether files are available.
@@ -2994,13 +2994,29 @@ public partial class ContentDetailViewModel(
         closeAction?.Invoke();
     }
 
+    private string? ResolveEffectiveSourceUrl()
+    {
+        searchResult.ResolverMetadata.TryGetValue(GenLauncherConstants.NewsLinkMetadataKey, out var newsLink);
+        searchResult.ResolverMetadata.TryGetValue(GenLauncherConstants.ModDbLinkMetadataKey, out var modDbLink);
+        searchResult.ResolverMetadata.TryGetValue(GenLauncherConstants.DiscordLinkMetadataKey, out var discordLink);
+
+        var resolved = GenLauncherConstants.ResolveAllowedSourceUrl(
+            static url => ImageCacheService.IsSafeRemoteUrl(url, out _),
+            searchResult.SourceUrl,
+            newsLink,
+            modDbLink,
+            discordLink);
+
+        return string.IsNullOrEmpty(resolved) ? null : resolved;
+    }
+
     /// <summary>
     /// Opens the content's source page in the system browser.
     /// </summary>
     [RelayCommand]
     private void OpenInBrowser()
     {
-        var url = searchResult.SourceUrl;
+        var url = ResolveEffectiveSourceUrl();
         if (string.IsNullOrEmpty(url))
         {
             return;
@@ -3217,6 +3233,20 @@ public partial class ContentDetailViewModel(
             IsLoadingDetails = true;
             if (string.IsNullOrEmpty(searchResult.SourceUrl))
             {
+                return;
+            }
+
+            if (searchResult.SkipAutomaticWebParsing)
+            {
+                // The source URL is an external fallback kept for browser navigation.
+                // Manifest-derived files and metadata stay authoritative.
+                logger.LogDebug("Skipping automatic web parsing for external source URL: {Url}", searchResult.SourceUrl);
+                await RunOnUiThreadAsync(() =>
+                {
+                    LoadRichContent();
+                    _basicContentLoaded = true;
+                    loaded = true;
+                });
                 return;
             }
 

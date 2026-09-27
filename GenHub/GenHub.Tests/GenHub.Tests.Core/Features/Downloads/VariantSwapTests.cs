@@ -89,6 +89,41 @@ public sealed class VariantSwapTests
     }
 
     /// <summary>
+    /// Verifies that Clone preserves the parsing skip flag so cloned results keep
+    /// pointing at external fallback pages without triggering automatic web parsing.
+    /// </summary>
+    [Fact]
+    public void Clone_PreservesSkipAutomaticWebParsing()
+    {
+        var source = new ContentSearchResult
+        {
+            Id = "base",
+            Name = "Base",
+            SourceUrl = "https://example.com/mod",
+            SkipAutomaticWebParsing = true,
+        };
+
+        var clone = VariantSwap.Clone(source);
+
+        Assert.True(clone.SkipAutomaticWebParsing);
+        Assert.Equal(source.SourceUrl, clone.SourceUrl);
+    }
+
+    /// <summary>
+    /// Verifies that Apply carries the parsing skip flag onto the target result.
+    /// </summary>
+    [Fact]
+    public void Apply_CopiesSkipAutomaticWebParsing()
+    {
+        var target = new ContentSearchResult { Id = "parent", Name = "Parent" };
+        var source = new ContentSearchResult { Id = "child", Name = "Child", SkipAutomaticWebParsing = true };
+
+        VariantSwap.Apply(target, source);
+
+        Assert.True(target.SkipAutomaticWebParsing);
+    }
+
+    /// <summary>
     /// Verifies that Apply overwrites aggregated payloads when the variant carries its own.
     /// </summary>
     [Fact]

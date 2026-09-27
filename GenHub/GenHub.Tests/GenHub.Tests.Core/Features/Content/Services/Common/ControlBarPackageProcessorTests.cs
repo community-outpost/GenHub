@@ -646,4 +646,63 @@ public sealed class ControlBarPackageProcessorTests : IDisposable
         Assert.Contains("340_ControlBarPro1080ZH.big", outputs);
         Assert.DoesNotContain("340_ControlBarProZH.big", outputs);
     }
+
+    /// <summary>
+    /// Verifies that source cleanup preserves shared Control Bar dependency BIG files
+    /// merged into the extract root by the deliverer.
+    /// </summary>
+    [Fact]
+    public void CleanupSourceDirectories_WithDependencyBigs_PreservesDependencyBigs()
+    {
+        // Arrange: selected variant output plus merged auto-install dependency BIGs,
+        // including the Generals base variant which cleanup must not delete either.
+        Directory.CreateDirectory(_testDir);
+        var selectedBig = "340_ControlBarProArt1080ZH.big";
+        var dependencyBigs = new[]
+        {
+            "400_ControlBarHDEnglishZH.big",
+            "400_ControlBarProCoreZH.big",
+            "400_ControlBarHDBaseZH.big",
+            "400_ControlBarHDBaseCCG.big",
+        };
+
+        File.WriteAllText(Path.Combine(_testDir, selectedBig), "1080 data");
+        foreach (var dependencyBig in dependencyBigs)
+        {
+            File.WriteAllText(Path.Combine(_testDir, dependencyBig), "dependency data");
+        }
+
+        var converter = new CompressedImageToTgaConverter(NullLogger<CompressedImageToTgaConverter>.Instance);
+        var processor = new ControlBarPackageProcessor(converter, NullLogger<ControlBarPackageProcessor>.Instance);
+
+        // Act
+        processor.CleanupSourceDirectories(_testDir, [selectedBig]);
+
+        // Assert: dependency BIGs must survive cleanup so variant manifests can register.
+        Assert.True(File.Exists(Path.Combine(_testDir, selectedBig)));
+        foreach (var dependencyBig in dependencyBigs)
+        {
+            Assert.True(File.Exists(Path.Combine(_testDir, dependencyBig)), $"Dependency BIG {dependencyBig} was deleted by cleanup");
+        }
+    }
+
+    /// <summary>
+    /// Verifies the shared dependency BIG contract for variant-root pickup: the three
+    /// Zero Hour shared files are allowed inputs, while the Generals base variant is
+    /// deliberately excluded from variant roots (cleanup still preserves it).
+    /// </summary>
+    /// <param name="fileName">The shared BIG file name to check.</param>
+    /// <param name="expected">The expected result.</param>
+    [Theory]
+    [InlineData("400_ControlBarHDEnglishZH.big", true)]
+    [InlineData("400_ControlBarProCoreZH.big", true)]
+    [InlineData("400_ControlBarHDBaseZH.big", true)]
+    [InlineData("400_ControlBarHDBaseCCG.big", false)]
+    public void IsAllowedControlBarBig_WithSharedDependencyBigs_MatchesExpectedContract(string fileName, bool expected)
+    {
+        var converter = new CompressedImageToTgaConverter(NullLogger<CompressedImageToTgaConverter>.Instance);
+        var processor = new ControlBarPackageProcessor(converter, NullLogger<ControlBarPackageProcessor>.Instance);
+
+        Assert.Equal(expected, processor.IsAllowedControlBarBig(fileName, "1080"));
+    }
 }

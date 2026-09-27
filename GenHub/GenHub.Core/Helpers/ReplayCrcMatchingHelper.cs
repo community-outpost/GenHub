@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions.GameInstallations;
+using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Tools.Checksum;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -22,6 +23,21 @@ namespace GenHub.Core.Helpers;
 /// </summary>
 public static class ReplayCrcMatchingHelper
 {
+    /// <summary>
+    /// Verification inputs for a live INI CRC calculation.
+    /// </summary>
+    /// <param name="TargetDirectory">The game directory to verify.</param>
+    /// <param name="EffectiveGameType">The game type used to judge the calculated CRC.</param>
+    /// <param name="ProfileName">The profile name used for logging.</param>
+    /// <param name="AllowedBaseRelativePaths">Optional allow-list of game-root-relative base file paths.</param>
+    /// <param name="OverlayModPaths">Optional profile overlay mod directories or .big archive paths.</param>
+    private sealed record IniCrcVerificationRequest(
+        string TargetDirectory,
+        GameType EffectiveGameType,
+        string? ProfileName,
+        IReadOnlyCollection<string>? AllowedBaseRelativePaths,
+        IReadOnlyList<string>? OverlayModPaths);
+
     /// <summary>
     /// Known SHA-256 hashes for official retail Generals executables (1.08, 1.09).
     /// </summary>
@@ -371,7 +387,7 @@ public static class ReplayCrcMatchingHelper
     /// <returns><c>true</c> if an official base game client; otherwise, <c>false</c>.</returns>
     public static bool IsOfficialBaseClient(GameClient? client)
     {
-        if (client == null || IsNonRetailEngineClient(client))
+        if (client == null || IsNonRetailEngineClient(client) || HasNonRetailExecutableFormat(client))
         {
             return false;
         }
@@ -381,7 +397,7 @@ public static class ReplayCrcMatchingHelper
             return true;
         }
 
-        if (!IsOfficialPublisher(client) && client.IsPublisherClient)
+        if (!IsOfficialPublisher(client))
         {
             return false;
         }
@@ -390,7 +406,7 @@ public static class ReplayCrcMatchingHelper
         {
             GameType.Generals => IsGeneralsRetailVersion(client),
             GameType.ZeroHour => IsZeroHourRetailVersion(client),
-            _ => !client.IsPublisherClient,
+            _ => false,
         };
     }
 
@@ -408,16 +424,6 @@ public static class ReplayCrcMatchingHelper
         if (client == null)
         {
             return false;
-        }
-
-        if (IsNonRetailCandidate(client, enabledContentIds))
-        {
-            return false;
-        }
-
-        if (IsRecognizedRetailDistribution(client))
-        {
-            return true;
         }
 
         return IsClientRetailCompatible(client, enabledContentIds, IsZeroHourRetailIniCrc, IsZeroHourRetailExeCrc, IsZeroHourRetailExeSha256, GameType.ZeroHour);
@@ -440,22 +446,61 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        if (IsNonRetailCandidate(client, enabledContentIds))
+        return IsExplicitGeneralsClient(client)
+            ? IsGeneralsRetailCompatible(client, enabledContentIds)
+            : IsZeroHourRetailCompatible(client, enabledContentIds);
+    }
+
+    /// <summary>
+    /// Determines whether the specified game profile is compatible with retail executable CRC and content.
+    /// Evaluates the profile's game client, enabled content, and any custom executable path.
+    /// </summary>
+    /// <param name="profile">The game profile to evaluate.</param>
+    /// <returns><c>true</c> if compatible with retail; otherwise, <c>false</c>.</returns>
+    public static bool IsRetailCompatible(IGameProfile? profile)
+    {
+        if (profile?.GameClient == null)
         {
             return false;
         }
 
-        if (IsRecognizedRetailDistribution(client))
+        var customExe = profile.CustomExecutablePath;
+
+        var workingDir = profile.WorkingDirectory;
+        if (string.IsNullOrWhiteSpace(workingDir))
         {
-            return true;
+            workingDir = profile.GameClient.WorkingDirectory;
         }
 
-        if (IsExplicitGeneralsClient(client))
+        var effectiveGameType = IsExplicitGeneralsClient(profile.GameClient) ? GameType.Generals : GameType.ZeroHour;
+        if (!ValidateCustomExecutablePath(customExe, workingDir, effectiveGameType))
         {
-            return IsGeneralsRetailCompatible(client, enabledContentIds);
+            return false;
         }
 
-        return IsZeroHourRetailCompatible(client, enabledContentIds);
+        return IsRetailCompatible(profile.GameClient, profile.EnabledContentIds);
+    }
+
+    /// <summary>
+    /// Heuristically determines whether the specified game profile looks retail compatible
+    /// from client metadata and enabled content alone, without touching the filesystem.
+    /// </summary>
+    /// <remarks>
+    /// Intended for synchronous UI badge resolution, where hashing executables would block
+    /// the UI thread. The scheduled asynchronous verification performs full validation
+    /// (executable hashes and live INI CRC) and corrects the badge when it disagrees.
+    /// </remarks>
+    /// <param name="profile">The game profile to evaluate.</param>
+    /// <returns><c>true</c> if metadata suggests retail compatibility; otherwise, <c>false</c>.</returns>
+    public static bool IsRetailCompatibleHeuristic(IGameProfile? profile)
+    {
+        if (profile?.GameClient == null)
+        {
+            return false;
+        }
+
+        return !IsNonRetailCandidate(profile.GameClient, profile.EnabledContentIds) &&
+            IsOfficialBaseClient(profile.GameClient);
     }
 
     /// <summary>
@@ -610,12 +655,16 @@ public static class ReplayCrcMatchingHelper
     /// <param name="profile">The game profile to evaluate.</param>
     /// <param name="crcCalculator">Optional game CRC calculator service.</param>
     /// <param name="logger">Optional logger instance.</param>
+    /// <param name="allowedBaseRelativePaths">Optional allow-list of game-root-relative base file paths.</param>
+    /// <param name="overlayModPaths">Optional profile overlay mod directories or .big archive paths.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns><c>true</c> if compatible with retail gameplay; otherwise, <c>false</c>.</returns>
     public static async Task<bool> IsRetailCompatibleAsync(
         GameProfile? profile,
         IGameCrcCalculatorService? crcCalculator = null,
         ILogger? logger = null,
+        IReadOnlyCollection<string>? allowedBaseRelativePaths = null,
+        IReadOnlyList<string>? overlayModPaths = null,
         CancellationToken ct = default)
     {
         if (profile?.GameClient == null)
@@ -629,31 +678,46 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        if (IsRetailCompatible(client, profile.EnabledContentIds))
-        {
-            return true;
-        }
-
         var effectiveGameType = IsExplicitGeneralsClient(client) ? GameType.Generals : GameType.ZeroHour;
-        if (TryGetCachedIniCrc(client, effectiveGameType, out var cachedIniCrc) && IsRetailIniCrc(cachedIniCrc, effectiveGameType))
+
+        var customExe = profile.CustomExecutablePath;
+        var workingDir = profile.WorkingDirectory;
+        if (string.IsNullOrWhiteSpace(workingDir))
         {
-            return true;
+            workingDir = client.WorkingDirectory;
         }
 
-        var exePath = ResolveProfileFullExePath(client);
-        var gameRoot = !string.IsNullOrEmpty(exePath) ? Path.GetDirectoryName(exePath) : null;
-
-        if (crcCalculator != null && !string.IsNullOrEmpty(gameRoot) && Directory.Exists(gameRoot))
+        if (!ValidateCustomExecutablePath(customExe, workingDir, effectiveGameType))
         {
-            logger?.LogDebug("Calculating INI CRC for profile '{Profile}' at '{Root}'", profile.Name, gameRoot);
-            var iniResult = await crcCalculator.CalculateIniCrcAsync(gameRoot, effectiveGameType, ct: ct);
-            if (iniResult.Success && !string.IsNullOrEmpty(iniResult.Data) && IsRetailIniCrc(iniResult.Data, effectiveGameType))
+            return false;
+        }
+
+        var targetDir = ResolveProfileVerificationDirectory(profile, client);
+
+        if (crcCalculator != null)
+        {
+            if (string.IsNullOrEmpty(targetDir) || !Directory.Exists(targetDir))
             {
-                return true;
+                return false;
             }
+
+            var request = new IniCrcVerificationRequest(
+                targetDir,
+                effectiveGameType,
+                profile.Name,
+                allowedBaseRelativePaths,
+                overlayModPaths);
+            return await CalculateAndVerifyIniCrcAsync(crcCalculator, request, logger, ct).ConfigureAwait(false);
         }
 
-        return false;
+        if (TryGetCachedIniCrc(client, effectiveGameType, out var cachedIniCrc) && !string.IsNullOrWhiteSpace(cachedIniCrc))
+        {
+            return IsRetailIniCrc(cachedIniCrc, effectiveGameType);
+        }
+
+        return effectiveGameType == GameType.Generals
+            ? IsGeneralsRetailCompatible(client, profile.EnabledContentIds)
+            : IsZeroHourRetailCompatible(client, profile.EnabledContentIds);
     }
 
     /// <summary>
@@ -912,6 +976,22 @@ public static class ReplayCrcMatchingHelper
     }
 
     /// <summary>
+    /// Determines whether the list of enabled content identifiers contains any non-retail content,
+    /// such as mods or non-retail patches that alter game rules or INIs.
+    /// </summary>
+    /// <param name="enabledContentIds">The list of manifest IDs enabled on the profile.</param>
+    /// <returns><c>true</c> if non-retail content was found; otherwise, <c>false</c>.</returns>
+    public static bool HasNonRetailContent(IReadOnlyList<string>? enabledContentIds)
+    {
+        if (enabledContentIds == null || enabledContentIds.Count == 0)
+        {
+            return false;
+        }
+
+        return enabledContentIds.Any(IsNonRetailId);
+    }
+
+    /// <summary>
     /// Determines whether the specified client is explicitly for Generals rather than Zero Hour.
     /// </summary>
     /// <param name="client">The game client to evaluate.</param>
@@ -974,9 +1054,11 @@ public static class ReplayCrcMatchingHelper
             return true;
         }
 
-        if (TryGetCachedIniCrc(client, targetGameType, out var cachedIniCrc) && isRetailIniCrc(cachedIniCrc))
+        if (TryGetCachedIniCrc(client, targetGameType, out var cachedIniCrc) &&
+            !string.IsNullOrWhiteSpace(cachedIniCrc) &&
+            !isRetailIniCrc(cachedIniCrc))
         {
-            return true;
+            return false;
         }
 
         if (TryGetCachedExeCrc(client, out var cachedCrc) && isRetailExeCrc(cachedCrc))
@@ -985,39 +1067,235 @@ public static class ReplayCrcMatchingHelper
         }
 
         var exePath = ResolveProfileFullExePath(client);
-        if (MatchesExeOrGameDat(exePath, isRetailExeCrc, isRetailExeSha))
+        if (!string.IsNullOrEmpty(exePath) && exePath.TryGetFileCaseInsensitive(out var actualPath))
         {
-            return true;
+            if (MatchesClientExecutable(actualPath, client, isRetailExeCrc, isRetailExeSha))
+            {
+                return true;
+            }
+
+            // If the client is not an official publisher installation and hash does not match retail, it is not retail.
+            if (!client.IsPublisherClient && !IsOfficialPublisher(client))
+            {
+                return false;
+            }
         }
 
         return IsOfficialBaseClient(client);
     }
 
-    /// <summary>
-    /// Checks whether the resolved executable or its adjacent game.dat matches known retail signatures.
-    /// </summary>
-    private static bool MatchesExeOrGameDat(
-        string? exePath,
+    private static bool MatchesClientExecutable(
+        string actualPath,
+        GameClient client,
         Func<string?, bool> isRetailExeCrc,
         Func<string?, bool> isRetailExeSha)
     {
-        if (string.IsNullOrEmpty(exePath) || !exePath.TryGetFileCaseInsensitive(out var actualPath))
-        {
-            return false;
-        }
-
         var sha = GetCachedExeSha256(actualPath);
         if (!string.IsNullOrEmpty(sha) && isRetailExeSha(sha))
         {
             return true;
         }
 
-        return MatchesGameDat(actualPath, isRetailExeCrc, isRetailExeSha);
+        var crc = GetCachedExeCrc(actualPath);
+        if (!string.IsNullOrEmpty(crc) && isRetailExeCrc(crc))
+        {
+            return true;
+        }
+
+        // Only allow Steam Game.dat fallback if this is an official Steam installation client
+        return IsOfficialSteamClient(client) && MatchesGameDat(actualPath, isRetailExeCrc, isRetailExeSha);
+    }
+
+    private static bool ValidateCustomExecutablePath(
+        string? customExePath,
+        string? workingDirectory,
+        GameType effectiveGameType)
+    {
+        if (string.IsNullOrWhiteSpace(customExePath))
+        {
+            return true;
+        }
+
+        var candidatePath = customExePath;
+        if (!Path.IsPathRooted(candidatePath) && !string.IsNullOrWhiteSpace(workingDirectory))
+        {
+            candidatePath = Path.Combine(workingDirectory, candidatePath);
+        }
+
+        if (!candidatePath.TryGetFileCaseInsensitive(out var actualCustomExePath))
+        {
+            return false;
+        }
+
+        var sha = GetCachedExeSha256(actualCustomExePath);
+        var isShaRetail = effectiveGameType == GameType.Generals
+            ? IsGeneralsRetailExeSha256(sha)
+            : IsZeroHourRetailExeSha256(sha);
+
+        if (isShaRetail)
+        {
+            return true;
+        }
+
+        var crc = GetCachedExeCrc(actualCustomExePath);
+        return effectiveGameType == GameType.Generals
+            ? IsGeneralsRetailExeCrc(crc)
+            : IsZeroHourRetailExeCrc(crc);
+    }
+
+    private static async Task<bool> CalculateAndVerifyIniCrcAsync(
+        IGameCrcCalculatorService crcCalculator,
+        IniCrcVerificationRequest request,
+        ILogger? logger,
+        CancellationToken ct)
+    {
+        logger?.LogDebug("Calculating INI CRC for profile '{Profile}' at '{Root}'", request.ProfileName, request.TargetDirectory);
+        var iniResult = await crcCalculator.CalculateIniCrcAsync(
+            request.TargetDirectory,
+            request.EffectiveGameType,
+            allowedBaseRelativePaths: request.AllowedBaseRelativePaths,
+            overlayModPaths: request.OverlayModPaths,
+            ct: ct).ConfigureAwait(false);
+        if (iniResult.Success && !string.IsNullOrEmpty(iniResult.Data))
+        {
+            return IsRetailIniCrc(iniResult.Data, request.EffectiveGameType);
+        }
+
+        return false;
+    }
+
+    private static bool IsNonRetailId(string? id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return false;
+        }
+
+        if (CommunityOutpostConstants.IsNonRetailIdentifier(id))
+        {
+            return true;
+        }
+
+        var segments = id.Split(ManifestConstants.ManifestIdSegmentSeparator);
+        if (segments.Length >= ManifestConstants.ManifestStructuredIdMinimumSegments)
+        {
+            var typeSegment = segments[ManifestConstants.ManifestContentTypeSegmentIndex].Trim();
+            if (string.Equals(typeSegment, ManifestConstants.ModContentTypeName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return string.Equals(typeSegment, ManifestConstants.PatchContentTypeName, StringComparison.OrdinalIgnoreCase) &&
+                   (id.Contains(CommunityOutpostConstants.NonRetKeyword, StringComparison.OrdinalIgnoreCase) ||
+                    id.Contains(CommunityOutpostConstants.NonRetHyphenatedKeyword, StringComparison.OrdinalIgnoreCase) ||
+                    id.Contains(CommunityOutpostConstants.StreamTag, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return id.Contains(ManifestConstants.ModManifestSegment, StringComparison.OrdinalIgnoreCase) ||
+               id.StartsWith(ManifestConstants.ModManifestPrefix, StringComparison.OrdinalIgnoreCase) ||
+               id.EndsWith(ManifestConstants.ModManifestSuffix, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
-    /// Checks whether game.dat adjacent to the executable matches known retail signatures.
+    /// Resolves the candidate full executable path for profile verification.
     /// </summary>
+    private static string? ResolveFullCandidateExePath(GameProfile profile, GameClient client)
+    {
+        var exePath = profile.CustomExecutablePath;
+        if (string.IsNullOrWhiteSpace(exePath))
+        {
+            exePath = profile.ExecutablePath;
+        }
+
+        if (string.IsNullOrWhiteSpace(exePath))
+        {
+            return ResolveProfileFullExePath(client);
+        }
+
+        if (Path.IsPathRooted(exePath))
+        {
+            return exePath;
+        }
+
+        var workingDir = !string.IsNullOrWhiteSpace(profile.WorkingDirectory)
+            ? profile.WorkingDirectory
+            : client.WorkingDirectory;
+
+        return !string.IsNullOrWhiteSpace(workingDir)
+            ? Path.Combine(workingDir, exePath)
+            : exePath;
+    }
+
+    /// <summary>
+    /// Resolves the root directory to verify for a game profile.
+    /// </summary>
+    private static string? ResolveProfileVerificationDirectory(GameProfile profile, GameClient client)
+    {
+        var exePath = ResolveFullCandidateExePath(profile, client);
+        if (!string.IsNullOrEmpty(exePath))
+        {
+            var dir = exePath.TryGetFileCaseInsensitive(out var actual)
+                ? Path.GetDirectoryName(actual)
+                : Path.GetDirectoryName(exePath);
+
+            if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
+            {
+                return dir;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(profile.WorkingDirectory) && Directory.Exists(profile.WorkingDirectory))
+        {
+            return profile.WorkingDirectory;
+        }
+
+        if (!string.IsNullOrWhiteSpace(client.WorkingDirectory) && Directory.Exists(client.WorkingDirectory))
+        {
+            return client.WorkingDirectory;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Resolves the publisher identifier for a game client, falling back to the publisher
+    /// segment of a structured manifest ID when <c>PublisherType</c> is empty.
+    /// </summary>
+    /// <param name="client">The game client to evaluate.</param>
+    /// <returns>The publisher identifier, or <c>null</c> when it cannot be resolved.</returns>
+    private static string? ResolvePublisherIdentifier(GameClient? client)
+    {
+        if (client == null)
+        {
+            return null;
+        }
+
+        if (!string.IsNullOrEmpty(client.PublisherType))
+        {
+            return client.PublisherType;
+        }
+
+        if (string.IsNullOrEmpty(client.Id))
+        {
+            return null;
+        }
+
+        var segments = client.Id.Split([ManifestConstants.ManifestIdSegmentSeparator], StringSplitOptions.None);
+        return segments.Length >= ManifestConstants.ManifestStructuredIdMinimumSegments
+            ? segments[ManifestConstants.ManifestPublisherSegmentIndex]
+            : null;
+    }
+
+    private static bool IsOfficialSteamClient(GameClient? client)
+    {
+        if (client == null)
+        {
+            return false;
+        }
+
+        return string.Equals(ResolvePublisherIdentifier(client), PublisherTypeConstants.Steam, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static bool MatchesGameDat(
         string exePath,
         Func<string?, bool> isRetailExeCrc,
@@ -1123,7 +1401,7 @@ public static class ReplayCrcMatchingHelper
         return CommunityOutpostConstants.IsNonRetailIdentifier(client.Id) ||
             CommunityOutpostConstants.IsNonRetailIdentifier(client.Name) ||
             CommunityOutpostConstants.IsNonRetailIdentifier(client.PublisherType) ||
-            (enabledContentIds != null && enabledContentIds.Any(CommunityOutpostConstants.IsNonRetailIdentifier));
+            HasNonRetailContent(enabledContentIds);
     }
 
     private static bool IsOfficialPublisher(GameClient? client)
@@ -1133,28 +1411,22 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        var pub = client.PublisherType;
-        if (string.IsNullOrEmpty(pub) && !string.IsNullOrEmpty(client.Id))
-        {
-            var segments = client.Id.Split([ManifestConstants.ManifestIdSegmentSeparator], StringSplitOptions.None);
-            if (segments.Length >= 4)
-            {
-                pub = segments[2];
-            }
-        }
+        var pub = ResolvePublisherIdentifier(client);
 
         var normalizedPub = pub?.Trim().ToLowerInvariant() ?? string.Empty;
-        return string.IsNullOrEmpty(normalizedPub) ||
-               normalizedPub == PublisherTypeConstants.Steam ||
+        if (string.IsNullOrEmpty(normalizedPub))
+        {
+            return false;
+        }
+
+        return normalizedPub == PublisherTypeConstants.Steam ||
                normalizedPub == PublisherTypeConstants.Ea ||
                normalizedPub == PublisherTypeConstants.EaApp ||
                normalizedPub == PublisherTypeConstants.Retail ||
-               normalizedPub == "electronic arts" ||
-               normalizedPub == "ea" ||
-               normalizedPub == "ea app" ||
-               normalizedPub == "eaapp" ||
-               normalizedPub == "community outpost" ||
-               normalizedPub == PublisherTypeConstants.CommunityOutpost;
+               normalizedPub == PublisherTypeConstants.ElectronicArtsAlias ||
+               normalizedPub == PublisherTypeConstants.EaAppAlias ||
+               normalizedPub == InstallationSourceConstants.TheFirstDecade ||
+               normalizedPub == InstallationSourceConstants.CdIso;
     }
 
     private static bool IsCommunityOutpostRetailClient(GameClient? client)
@@ -1194,20 +1466,18 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        if (!client.IsPublisherClient)
-        {
-            return true;
-        }
-
         var ver = client.Version?.Trim().TrimStart('v', 'V').Trim() ?? string.Empty;
-        var id = client.Id ?? string.Empty;
-        var name = client.Name ?? string.Empty;
+        var id = client.Id?.Trim() ?? string.Empty;
+        var name = client.Name?.Trim() ?? string.Empty;
 
-        return versionPrefixes.Any(prefix =>
-                   ver.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ||
-                   name.Contains(prefix, StringComparison.OrdinalIgnoreCase)) ||
-               exactVersions.Any(exact => string.Equals(ver, exact, StringComparison.OrdinalIgnoreCase)) ||
-               idTokens.Any(idToken => id.Contains(idToken, StringComparison.OrdinalIgnoreCase));
+        var hasVersionEvidence =
+            (!string.IsNullOrEmpty(ver) && (
+                versionPrefixes.Any(prefix => ver.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) ||
+                exactVersions.Any(exact => string.Equals(ver, exact, StringComparison.OrdinalIgnoreCase)))) ||
+            versionPrefixes.Any(prefix => name.Contains(prefix, StringComparison.OrdinalIgnoreCase)) ||
+            idTokens.Any(idToken => id.Contains(idToken, StringComparison.OrdinalIgnoreCase));
+
+        return hasVersionEvidence;
     }
 
     private static bool IsGeneralsRetailVersion(GameClient? client) =>

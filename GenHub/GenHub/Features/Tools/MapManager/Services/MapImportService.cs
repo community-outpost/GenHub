@@ -282,7 +282,7 @@ public sealed class MapImportService(
                 logger.LogInformation("Imported map file to directory: {DirectoryName}/{FileName}", mapName, Path.GetFileName(filePath));
 
                 // Create MapFile object
-                var displayName = mapNameParser.ParseMapName(destPath);
+                var (displayName, playerCount) = mapNameParser.ParseMapDetails(destPath, ct);
                 var mapFile = new MapFile
                 {
                     FileName = Path.GetFileName(filePath),
@@ -296,6 +296,7 @@ public sealed class MapImportService(
                     DisplayName = displayName,
                     ThumbnailPath = thumbnailPath,
                     ThumbnailBitmap = null,
+                    PlayerCount = playerCount,
                 };
                 result.ImportedMaps.Add(mapFile);
             }
@@ -540,7 +541,7 @@ public sealed class MapImportService(
                             logger.LogInformation("Extracted map to directory: {DirectoryName}/{FileName}", mapDirName, mapEntry.Name);
 
                             // Create MapFile object
-                            var displayName = mapNameParser.ParseMapName(mapDestPath);
+                            var (displayName, playerCount) = mapNameParser.ParseMapDetails(mapDestPath, ct);
                             var mapFile = new MapFile
                             {
                                 FileName = mapEntry.Name,
@@ -554,6 +555,7 @@ public sealed class MapImportService(
                                 DisplayName = displayName,
                                 ThumbnailPath = thumbnailPath,
                                 ThumbnailBitmap = null,
+                                PlayerCount = playerCount,
                             };
                             result.ImportedMaps.Add(mapFile);
                         }
@@ -1265,7 +1267,7 @@ public sealed class MapImportService(
         var totalSize = new FileInfo(mapDestPath).Length + assetFiles.Sum(f => new FileInfo(f).Length);
         logger.LogInformation("Extracted map to directory: {DirectoryName}/{FileName}", mapDirName, mapFileName);
 
-        var displayName = mapNameParser.ParseMapName(mapDestPath);
+        var (displayName, playerCount) = mapNameParser.ParseMapDetails(mapDestPath, context.CancellationToken);
         return new MapFile
         {
             FileName = mapFileName,
@@ -1279,6 +1281,7 @@ public sealed class MapImportService(
             DisplayName = displayName,
             ThumbnailPath = thumbnailPath,
             ThumbnailBitmap = null,
+            PlayerCount = playerCount,
         };
     }
 }

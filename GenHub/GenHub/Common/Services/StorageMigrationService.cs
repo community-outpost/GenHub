@@ -78,6 +78,11 @@ public class StorageMigrationService(
         StorageMigrationConstants.MapPacksCapitalizedDirectoryName,
         StorageMigrationConstants.MapPacksLowercaseDirectoryName,
         StorageMigrationConstants.DotGenHubCasDirectoryName,
+        PublisherStudioConstants.StudioFolderName,
+        "Hotkeys",
+        "Artwork",
+        "credentials",
+        ".ghtoken",
     };
 
     private static readonly Lazy<bool> CachedIsCustomInstallRoot = new(ComputeIsCustomInstallRoot);

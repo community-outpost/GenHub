@@ -186,6 +186,13 @@ public partial class GameProfileSettingsViewModel
     [ObservableProperty]
     private bool _isSaving;
 
+    /// <summary>
+    /// Gets or sets a value indicating whether a dropped-content import is running.
+    /// Saving is blocked while true so a profile cannot be saved before its content arrives.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isDropImportInProgress;
+
     [ObservableProperty]
     private string _statusMessage = string.Empty;
 

@@ -3,6 +3,7 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Launching;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Events;
 using GenHub.Core.Models.Launching;
@@ -18,6 +19,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -30,7 +32,8 @@ public class GameProcessManager(
     ILogger<GameProcessManager> logger,
     IGameLaunchRunner launchRunner,
     ILocalizationService localizationService,
-    IFlatpakProvisioner flatpakProvisioner) : IGameProcessManager, IDisposable
+    IFlatpakProvisioner flatpakProvisioner,
+    ITelemetryService? telemetryService = null) : IGameProcessManager, IDisposable
 {
     private sealed class ExitFinalizationState
     {
@@ -41,8 +44,19 @@ public class GameProcessManager(
         public bool TryFinalize() => Interlocked.Exchange(ref _finalized, 1) == 0;
     }
 
+    private sealed record GameSessionMeta(
+        string SessionId,
+        DateTime StartTime,
+        string ExecName,
+        string Runner,
+        string? GameType = null,
+        string? GameClientId = null,
+        string? GameClientName = null,
+        string? GameClientVersion = null);
+
     private readonly ConditionalWeakTable<Process, ExitFinalizationState> _exitFinalizations = new();
     private readonly ConcurrentDictionary<int, Process> _managedProcesses = new();
+    private readonly ConcurrentDictionary<Process, GameSessionMeta> _sessionMetadata = new();
 
     /// <summary>
     /// Stderr captures for processes this manager started itself, keyed by process instance.
@@ -73,6 +87,11 @@ public class GameProcessManager(
     // exit callback owns disposal, unless an explicit stop takes that ownership over.
     private readonly ConcurrentDictionary<Process, byte> _failedStartCleanups = new();
     private readonly SemaphoreSlim _terminationSemaphore = new(1, 1);
+
+    /// <summary>
+    /// Periodic timer to send anonymous heartbeats for active game sessions.
+    /// </summary>
+    private Timer? _heartbeatTimer;
 
     private bool _disposed;
 
@@ -183,6 +202,8 @@ public class GameProcessManager(
 
             cancellationToken.ThrowIfCancellationRequested();
             _managedProcesses[process.Id] = process;
+            var combinedEnvVars = MergeEnvironmentVariables(configuration.EnvironmentVariables, runnerResult.Data.EnvironmentVariables);
+            RegisterSessionAndEmitStarted(process, configuration.ExecutablePath, combinedEnvVars, configuration);
 
             if (configuration.WaitForExit)
             {
@@ -436,6 +457,7 @@ public class GameProcessManager(
 
         var processInfo = BuildProcessInfo(process, GetProcessExecutablePath(process));
         _managedProcesses[process.Id] = process;
+        RegisterSessionAndEmitStarted(process, process.ProcessName);
 
         RegisterProcessEventHandlers(process);
         return processInfo;
@@ -465,6 +487,7 @@ public class GameProcessManager(
 
                 // Track it
                 _managedProcesses[process.Id] = process;
+                RegisterSessionAndEmitStarted(process, processName);
 
                 // BuildProcessInfo assigns the fallback to GameProcessInfo.ExecutablePath, which
                 // GameLauncher persists. Passing the directory alone would store a folder where a
@@ -538,6 +561,9 @@ public class GameProcessManager(
 
         logger.LogDebug("Disposing GameProcessManager with {Count} managed processes", _managedProcesses.Count);
 
+        // Dispose timers first
+        _heartbeatTimer?.Dispose();
+
         // Clean up all managed processes
         foreach (var kvp in _managedProcesses)
         {
@@ -552,6 +578,7 @@ public class GameProcessManager(
         }
 
         _managedProcesses.Clear();
+        _sessionMetadata.Clear();
         _stderrBuffers.Clear();
         _requestedTerminations.Clear();
         _failedStartCleanups.Clear();
@@ -694,36 +721,19 @@ public class GameProcessManager(
             return;
         }
 
-        var exitTime = DateTime.UtcNow;
-        int? exitCode = null;
-        try
-        {
-            exitTime = process.ExitTime.ToUniversalTime();
-            exitCode = process.ExitCode;
-        }
-        catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
-        {
-            // Process may have already been disposed or its metadata may be inaccessible.
-        }
+        var (exitTime, exitCode) = CaptureExitInfo(process);
 
         // A delayed callback must not remove a new process that reused the same PID.
         _managedProcesses.TryRemove(new KeyValuePair<int, Process>(processId, process));
+
+        EmitSessionEndedTelemetry(process, exitCode);
 
         var terminationRequested = _requestedTerminations.TryRemove(process, out _);
 
         // Attach the stderr capture, when this manager started the process itself. This
         // is what makes an abort that outlived the detection window explicable: the exit
         // is already after "launched", so the event is the only place the evidence fits.
-        string? stderrTail = null;
-        IReadOnlyList<string> unmountableArchives = [];
-        if (_stderrBuffers.TryRemove(process, out var capturedErrors))
-        {
-            DrainStandardError(capturedErrors);
-
-            var tail = capturedErrors.ToString();
-            stderrTail = string.IsNullOrWhiteSpace(tail) ? null : tail;
-            unmountableArchives = ExtractUnmountableArchives(capturedErrors.Snapshot());
-        }
+        var (stderrTail, unmountableArchives) = CaptureExitDiagnostics(process);
 
         if (!terminationRequested && exitCode is int code && code != ProcessConstants.ExitCodeSuccess)
         {
@@ -797,6 +807,26 @@ public class GameProcessManager(
         }
 
         return archives;
+    }
+
+    /// <summary>Captures exit metadata that may already be inaccessible after disposal.</summary>
+    /// <param name="process">The exited process.</param>
+    /// <returns>The exit time and exit code, defaulting when the process metadata is gone.</returns>
+    private static (DateTime ExitTime, int? ExitCode) CaptureExitInfo(Process process)
+    {
+        var exitTime = DateTime.UtcNow;
+        int? exitCode = null;
+        try
+        {
+            exitTime = process.ExitTime.ToUniversalTime();
+            exitCode = process.ExitCode;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
+        {
+            // Process may have already been disposed or its metadata may be inaccessible.
+        }
+
+        return (exitTime, exitCode);
     }
 
     /// <summary>
@@ -1016,6 +1046,69 @@ public class GameProcessManager(
         var fileName = Path.GetFileName(runnerCommand.FileName);
         return fileName.Equals(WineConstants.WineBinaryName, StringComparison.OrdinalIgnoreCase) ||
                fileName.Equals(WineConstants.Wine64BinaryName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string DetectRunnerEnvironment(IReadOnlyDictionary<string, string>? envVars = null)
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return TelemetryConstants.Runners.Native;
+        }
+
+        if (envVars?.TryGetValue(WineConstants.ProtonVersionEnvironmentVariable, out var configProton) is true && !string.IsNullOrWhiteSpace(configProton))
+        {
+            return $"{TelemetryConstants.Runners.ProtonPrefix}{configProton}";
+        }
+
+        if (Environment.GetEnvironmentVariable(WineConstants.ProtonVersionEnvironmentVariable) is { Length: > 0 } proton)
+        {
+            return $"{TelemetryConstants.Runners.ProtonPrefix}{proton}";
+        }
+
+        if (envVars?.ContainsKey(WineConstants.PrefixEnvironmentVariable) is true || Environment.GetEnvironmentVariable(WineConstants.PrefixEnvironmentVariable) is { Length: > 0 })
+        {
+            return TelemetryConstants.Runners.Wine;
+        }
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            return TelemetryConstants.Runners.Linux;
+        }
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            return TelemetryConstants.Runners.MacOS;
+        }
+
+        return TelemetryConstants.Runners.Native;
+    }
+
+    private static IReadOnlyDictionary<string, string>? MergeEnvironmentVariables(
+        IReadOnlyDictionary<string, string>? configVars,
+        IReadOnlyDictionary<string, string>? runnerVars)
+    {
+        if (configVars == null || configVars.Count == 0)
+        {
+            return runnerVars;
+        }
+
+        if (runnerVars == null || runnerVars.Count == 0)
+        {
+            return configVars;
+        }
+
+        var merged = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var kvp in runnerVars)
+        {
+            merged[kvp.Key] = kvp.Value;
+        }
+
+        foreach (var kvp in configVars)
+        {
+            merged[kvp.Key] = kvp.Value;
+        }
+
+        return merged;
     }
 
     /// <summary>
@@ -1450,6 +1543,7 @@ public class GameProcessManager(
         _stderrBuffers.TryRemove(launcherProcess, out _);
         launcherProcess.Dispose();
         _managedProcesses[spawnedProcess.Id] = spawnedProcess;
+        RegisterSessionAndEmitStarted(spawnedProcess, configuration.ExecutablePath, configuration.EnvironmentVariables, configuration);
 
         var spawnedProcessInfo = BuildProcessInfo(spawnedProcess, configuration.ExecutablePath);
         RegisterProcessEventHandlers(spawnedProcess);
@@ -1591,6 +1685,7 @@ public class GameProcessManager(
                 if (child != null)
                 {
                     _managedProcesses[child.Id] = child;
+                    RegisterSessionAndEmitStarted(child, expectedName, configuration.EnvironmentVariables, configuration);
 
                     var childInfo = BuildProcessInfo(child, configuration.ExecutablePath);
                     RegisterProcessEventHandlers(child);
@@ -1977,8 +2072,115 @@ public class GameProcessManager(
         }
     }
 
+    private void RegisterSessionAndEmitStarted(
+        Process process,
+        string executableName,
+        IReadOnlyDictionary<string, string>? envVars = null,
+        GameLaunchConfiguration? config = null)
+    {
+        var sessionId = Guid.NewGuid().ToString("N");
+        var execName = Path.GetFileName(executableName);
+        var runner = DetectRunnerEnvironment(envVars);
+        var gameType = config?.GameType?.ToString();
+        var gameClientId = config?.GameClientId;
+        var gameClientName = config?.GameClientName;
+        var gameClientVersion = config?.GameClientVersion;
+
+        var meta = new GameSessionMeta(
+            sessionId,
+            DateTime.UtcNow,
+            execName,
+            runner,
+            gameType,
+            gameClientId,
+            gameClientName,
+            gameClientVersion);
+
+        if (!_sessionMetadata.TryAdd(process, meta))
+        {
+            return;
+        }
+
+        if (telemetryService != null)
+        {
+            if (_heartbeatTimer == null)
+            {
+                var interval = TimeSpan.FromMinutes(TelemetryConstants.SessionHeartbeatIntervalMinutes);
+                var newTimer = new Timer(_ => EmitHeartbeats(), null, interval, interval);
+                if (Interlocked.CompareExchange(ref _heartbeatTimer, newTimer, null) != null)
+                {
+                    newTimer.Dispose();
+                }
+            }
+
+            telemetryService.TrackEvent(TelemetryConstants.Events.GameSessionStarted, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.SessionId] = sessionId,
+                [TelemetryConstants.Properties.ExecutablePath] = execName,
+                [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
+                [TelemetryConstants.Properties.Runner] = runner,
+                [TelemetryConstants.Properties.GameType] = gameType,
+                [TelemetryConstants.Properties.GameClientId] = gameClientId,
+                [TelemetryConstants.Properties.GameClientName] = gameClientName,
+                [TelemetryConstants.Properties.GameClientVersion] = gameClientVersion,
+            });
+        }
+    }
+
+    private void EmitHeartbeats()
+    {
+        if (_disposed || telemetryService == null || _sessionMetadata.IsEmpty)
+        {
+            return;
+        }
+
+        foreach (var (_, meta) in _sessionMetadata)
+        {
+            telemetryService.TrackEvent(TelemetryConstants.Events.GameSessionHeartbeat, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.SessionId] = meta.SessionId,
+                [TelemetryConstants.Properties.DurationSeconds] = (DateTime.UtcNow - meta.StartTime).TotalSeconds,
+                [TelemetryConstants.Properties.ExecutablePath] = meta.ExecName,
+                [TelemetryConstants.Properties.Runner] = meta.Runner,
+                [TelemetryConstants.Properties.GameType] = meta.GameType,
+                [TelemetryConstants.Properties.GameClientId] = meta.GameClientId,
+            });
+        }
+    }
+
+    /// <summary>Emits the session end telemetry for a finalized process exit.</summary>
+    /// <param name="process">The exited process whose session metadata is removed.</param>
+    /// <param name="exitCode">The process exit code, when it could be captured.</param>
+    private void EmitSessionEndedTelemetry(Process process, int? exitCode)
+    {
+        if (_sessionMetadata.TryRemove(process, out var sessionMeta) && telemetryService != null)
+        {
+            var duration = (DateTime.UtcNow - sessionMeta.StartTime).TotalSeconds;
+            var endProperties = new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.SessionId] = sessionMeta.SessionId,
+                [TelemetryConstants.Properties.DurationSeconds] = duration,
+                [TelemetryConstants.Properties.ExecutablePath] = sessionMeta.ExecName,
+                [TelemetryConstants.Properties.Runner] = sessionMeta.Runner,
+                [TelemetryConstants.Properties.GameType] = sessionMeta.GameType,
+                [TelemetryConstants.Properties.GameClientId] = sessionMeta.GameClientId,
+                [TelemetryConstants.Properties.GameClientName] = sessionMeta.GameClientName,
+                [TelemetryConstants.Properties.GameClientVersion] = sessionMeta.GameClientVersion,
+            };
+
+            // An unknown exit code is not a crash; omit both properties instead of reporting failure.
+            if (exitCode is int knownExitCode)
+            {
+                endProperties[TelemetryConstants.Properties.ExitCode] = knownExitCode;
+                endProperties[TelemetryConstants.Properties.WasGraceful] = knownExitCode == ProcessConstants.ExitCodeSuccess;
+            }
+
+            telemetryService.TrackEvent(TelemetryConstants.Events.GameSessionEnded, endProperties);
+        }
+    }
+
     /// <summary>
-    /// Waits for the asynchronous stderr handlers to finish before the capture is read.
+    /// Waits for asynchronous stderr reads to finish draining so the buffer holds the complete output.
     /// </summary>
     /// <remarks>
     /// Process exit does not guarantee delivery of the final redirected lines. Wait for
@@ -2003,6 +2205,25 @@ public class GameProcessManager(
             logger.LogDebug(
                 "[Process] Standard error did not signal end of stream; the captured output may be incomplete");
         }
+    }
+
+    /// <summary>Captures the stderr tail and named archives for a finalized process exit.</summary>
+    /// <param name="process">The exited process whose stderr buffer is removed.</param>
+    /// <returns>The stderr tail and the distinct archives named by mount-failure sentinels.</returns>
+    private (string? StderrTail, IReadOnlyList<string> UnmountableArchives) CaptureExitDiagnostics(Process process)
+    {
+        string? stderrTail = null;
+        IReadOnlyList<string> unmountableArchives = [];
+        if (_stderrBuffers.TryRemove(process, out var capturedErrors))
+        {
+            DrainStandardError(capturedErrors);
+
+            var tail = capturedErrors.ToString();
+            stderrTail = string.IsNullOrWhiteSpace(tail) ? null : tail;
+            unmountableArchives = ExtractUnmountableArchives(capturedErrors.Snapshot());
+        }
+
+        return (stderrTail, unmountableArchives);
     }
 
     /// <summary>

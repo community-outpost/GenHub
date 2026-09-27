@@ -21,6 +21,7 @@ using GenHub.Features.GameProfiles.Helpers;
 using GenHub.Features.GameProfiles.Services;
 using GenHub.Features.Notifications.Services;
 using GenHub.Features.Notifications.ViewModels;
+using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
@@ -51,9 +52,15 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private const string DefaultErrorLoadingContent = "Error loading content";
     private const string ProfileManagerUnavailableMessageKey = "Errors.Operations.ServiceNotAvailable.GameProfileManager";
     private const string DefaultProfileManagerUnavailableMessage = "Profile manager not available";
+    private const string InvalidCustomImageTitleKey = "GameProfiles.Settings.CustomImage.InvalidFile.Title";
+    private const string DefaultInvalidCustomImageTitle = "Invalid image file";
+    private const string InvalidCustomImageMessageKey = "GameProfiles.Settings.CustomImage.InvalidFile.Message";
+    private const string DefaultInvalidCustomImageMessage = "Please select a valid image file (PNG, JPG, JPEG, WEBP, BMP, GIF, ICO).";
     private const string ContentLockedMessage = "This content item is locked and cannot be modified";
     private const string ContentLockedTitle = "Content Locked";
     private const string LiveSyncFailedTitle = "Live Sync Failed";
+    private const string ContentResourceIconFormatKey = "GameProfiles.Resources.IconFormat";
+    private const string ContentResourceCoverFormatKey = "GameProfiles.Resources.CoverFormat";
 
     private readonly IGameProfileManager? _gameProfileManager;
     private readonly IConfigurationProviderService? _configurationProvider;
@@ -284,18 +291,19 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         if (enabledClients.Count > 0)
         {
             hasGo = enabledClients.Any(IsGeneralsOnlineItem);
-            hasTsh = hasGo || enabledClients.Any(c => IsTheSuperHackersClientItem(c, _originalProfile));
+            hasTsh = hasGo || enabledClients.Any(c => IsTheSuperHackersClientItem(c, _originalProfile) || IsCommunityPatchClientItem(c, _originalProfile));
         }
         else if (activeInstallation != null)
         {
             hasGo = IsGeneralsOnlineItem(activeInstallation);
-            hasTsh = hasGo || IsTheSuperHackersClientItem(activeInstallation, _originalProfile);
+            hasTsh = hasGo || IsTheSuperHackersClientItem(activeInstallation, _originalProfile) || IsCommunityPatchClientItem(activeInstallation, _originalProfile);
         }
         else
         {
             hasGo = _originalProfile?.IsGeneralsOnlineProfile() == true;
             hasTsh = hasGo || (_originalProfile?.IsTheSuperHackersProfile() == true) ||
-                     (_originalProfile?.GameClient != null && IsTheSuperHackersGameClient(_originalProfile.GameClient));
+                     (_originalProfile?.IsCommunityOutpostProfile() == true) ||
+                     (_originalProfile?.GameClient != null && (IsTheSuperHackersGameClient(_originalProfile.GameClient) || IsCommunityPatchGameClient(_originalProfile.GameClient)));
         }
 
         GameSettingsViewModel?.UpdateApplicableClientVisibility(hasTsh, hasGo);
@@ -407,6 +415,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     {
         await RefreshVisibleFiltersAsync();
         await LoadAvailableContentAsync();
+        LoadAvailableIconsAndCovers(GameTypeFilter.ToString());
     }
 
     private static string NormalizeResourcePath(string? path, string defaultUri = "")
@@ -445,6 +454,16 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
 
         return $"{UriConstants.AvarUriScheme}GenHub/{normalizedPath.TrimStart('/')}";
+    }
+
+    private static ProfileBranding CreateCommunityOutpostBranding(string name, GameType gameType)
+    {
+        return new ProfileBranding(
+            name,
+            CommunityOutpostConstants.ThemeColor,
+            CommunityOutpostConstants.LogoSource,
+            NormalizeResourcePath(CommunityOutpostConstants.CoverSource),
+            gameType);
     }
 
     private static void PopulateGameSettings(CreateProfileRequest request, UpdateProfileRequest? gameSettings)
@@ -571,6 +590,11 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
     private static bool MatchesTheSuperHackersIdentifiers(string? id, string? publisher, string? name)
     {
+        if (CommunityOutpostConstants.IsCommunityOutpostIdentity(publisher, id, name))
+        {
+            return false;
+        }
+
         if (!string.IsNullOrEmpty(publisher) &&
             (string.Equals(publisher, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
              string.Equals(publisher, PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase) ||
@@ -582,17 +606,14 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
         if (!string.IsNullOrEmpty(id) &&
             (id.Contains("thesuperhackers", StringComparison.OrdinalIgnoreCase) ||
-             id.Contains("superhackers", StringComparison.OrdinalIgnoreCase) ||
-             id.Contains("community-patch", StringComparison.OrdinalIgnoreCase) ||
-             id.Contains("communitypatch", StringComparison.OrdinalIgnoreCase)))
+             id.Contains("superhackers", StringComparison.OrdinalIgnoreCase)))
         {
             return true;
         }
 
         if (!string.IsNullOrEmpty(name) &&
             (name.Contains(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
-             name.Contains("superhackers", StringComparison.OrdinalIgnoreCase) ||
-             name.Contains("community patch", StringComparison.OrdinalIgnoreCase)))
+             name.Contains("superhackers", StringComparison.OrdinalIgnoreCase)))
         {
             return true;
         }
@@ -662,8 +683,29 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         return null;
     }
 
+    private static bool IsCommunityPatchClientItem(ContentDisplayItem item, GameProfile? profile)
+    {
+        if (CommunityOutpostConstants.IsCommunityOutpostIdentity(item.Publisher, item.ManifestId.Value, item.DisplayName))
+        {
+            return true;
+        }
+
+        var client = item.GameClient ?? profile?.GameClient;
+        return client != null && IsCommunityPatchGameClient(client);
+    }
+
+    private static bool IsCommunityPatchGameClient(GameClient client)
+    {
+        return CommunityOutpostConstants.IsCommunityOutpostIdentity(client.PublisherType, client.Id, client.Name);
+    }
+
     private static bool IsTheSuperHackersClientItem(ContentDisplayItem item, GameProfile? profile)
     {
+        if (CommunityOutpostConstants.IsCommunityOutpostIdentity(item.Publisher, item.ManifestId.Value, item.DisplayName))
+        {
+            return false;
+        }
+
         if (IsGeneralsOnlineItem(item))
         {
             return true;
@@ -701,6 +743,11 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
     private static bool IsTheSuperHackersGameClient(GameClient client)
     {
+        if (CommunityOutpostConstants.IsCommunityOutpostIdentity(client.PublisherType, client.Id, client.Name))
+        {
+            return false;
+        }
+
         if (IsGeneralsOnlineGameClient(client))
         {
             return true;
@@ -775,18 +822,17 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
     private static ProfileBranding? TryResolveSpecialPublisherBranding(string displayName, string publisher, string itemName, Core.Models.Enums.GameType gameType)
     {
-        bool isTsh = publisher.Contains(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
-                     publisher.Contains(SuperHackersConstants.PublisherId, StringComparison.OrdinalIgnoreCase) ||
-                     publisher.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
-                     itemName.Contains(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
-                     itemName.Contains("SuperHackers", StringComparison.OrdinalIgnoreCase);
+        bool isCo = publisher.Contains(CommunityOutpostConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
+                    publisher.Contains(CommunityOutpostConstants.PublisherId, StringComparison.OrdinalIgnoreCase) ||
+                    publisher.Contains(PublisherTypeConstants.CommunityOutpost, StringComparison.OrdinalIgnoreCase) ||
+                    itemName.Contains("Community Outpost", StringComparison.OrdinalIgnoreCase) ||
+                    itemName.Contains("CommunityOutpost", StringComparison.OrdinalIgnoreCase) ||
+                    CommunityOutpostConstants.IsCommunityPatchIdentifier(itemName) ||
+                    CommunityOutpostConstants.IsCommunityPatchIdentifier(displayName);
 
-        if (isTsh)
+        if (isCo)
         {
-            var color = gameType == Core.Models.Enums.GameType.Generals ? SuperHackersConstants.GeneralsThemeColor : SuperHackersConstants.ZeroHourThemeColor;
-            var cover = NormalizeResourcePath(SuperHackersConstants.ZeroHourCoverSource);
-            var icon = UriConstants.SuperHackersLogoUri;
-            return new ProfileBranding(displayName, color, icon, cover, gameType);
+            return CreateCommunityOutpostBranding(displayName, gameType);
         }
 
         bool isGo = publisher.Contains(GeneralsOnlineConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
@@ -802,21 +848,59 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             return new ProfileBranding(displayName, color, icon, cover, gameType);
         }
 
-        bool isCo = publisher.Contains(CommunityOutpostConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
-                    publisher.Contains(CommunityOutpostConstants.PublisherId, StringComparison.OrdinalIgnoreCase) ||
-                    publisher.Contains(PublisherTypeConstants.CommunityOutpost, StringComparison.OrdinalIgnoreCase) ||
-                    itemName.Contains("Community Outpost", StringComparison.OrdinalIgnoreCase) ||
-                    itemName.Contains("CommunityOutpost", StringComparison.OrdinalIgnoreCase);
+        bool isTsh = publisher.Contains(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
+                     publisher.Contains(SuperHackersConstants.PublisherId, StringComparison.OrdinalIgnoreCase) ||
+                     publisher.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+                     itemName.Contains(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
+                     itemName.Contains("SuperHackers", StringComparison.OrdinalIgnoreCase);
 
-        if (isCo)
+        if (isTsh)
         {
-            var color = CommunityOutpostConstants.ThemeColor;
-            var cover = NormalizeResourcePath(CommunityOutpostConstants.CoverSource);
-            var icon = CommunityOutpostConstants.LogoSource;
+            var color = gameType == Core.Models.Enums.GameType.Generals ? SuperHackersConstants.GeneralsThemeColor : SuperHackersConstants.ZeroHourThemeColor;
+            var cover = NormalizeResourcePath(SuperHackersConstants.ZeroHourCoverSource);
+            var icon = UriConstants.SuperHackersLogoUri;
             return new ProfileBranding(displayName, color, icon, cover, gameType);
         }
 
         return null;
+    }
+
+    private static void AppendContentResource(
+        List<ProfileResourceItem> items,
+        string id,
+        string? path,
+        string displayName,
+        string gameType)
+    {
+        if (!string.IsNullOrEmpty(path) && items.All(i => i.Path != path) && IsRenderableResourcePath(path))
+        {
+            items.Add(new ProfileResourceItem
+            {
+                Id = id,
+                Path = path,
+                DisplayName = displayName,
+                IsBuiltIn = false,
+                GameType = gameType,
+            });
+        }
+    }
+
+    /// <summary>
+    /// Determines whether a resource path can be rendered by the image converter.
+    /// Remote artwork renders only when already present in the image memory cache;
+    /// otherwise the tile stays blank and selecting it would save an unusable path.
+    /// </summary>
+    /// <param name="path">The resource path.</param>
+    /// <returns>True when the path renders; otherwise false.</returns>
+    private static bool IsRenderableResourcePath(string path)
+    {
+        if (!path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+            !path.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return ImageCacheService.Instance.GetBitmapFromMemory(path) != null;
     }
 
     private ContentDisplayItem ConvertToViewModelContentDisplayItem(Core.Models.Content.ContentDisplayItem coreItem)
@@ -1089,6 +1173,11 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         var primaryItem = activeClientItem ?? activeInstallationItem;
         if (primaryItem == null)
         {
+            if (CommunityOutpostConstants.IsCommunityPatchIdentifier(Name))
+            {
+                return CreateCommunityOutpostBranding(Name, GameTypeFilter);
+            }
+
             return ResolveFallbackBranding();
         }
 
@@ -1097,8 +1186,18 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         var publisher = primaryItem.Publisher ?? primaryItem.GameClient?.PublisherType ?? string.Empty;
         var itemName = primaryItem.DisplayName ?? primaryItem.GameClient?.Name ?? string.Empty;
 
-        return TryResolveSpecialPublisherBranding(displayName, publisher, itemName, gameType)
-            ?? ResolveStandardGameBranding(displayName, gameType);
+        var specialBranding = TryResolveSpecialPublisherBranding(displayName, publisher, itemName, gameType);
+        if (specialBranding != null)
+        {
+            return specialBranding;
+        }
+
+        if (_isNameCustomized && CommunityOutpostConstants.IsCommunityPatchIdentifier(Name))
+        {
+            return CreateCommunityOutpostBranding(Name, gameType);
+        }
+
+        return ResolveStandardGameBranding(displayName, gameType);
     }
 
     private void ApplyPrimaryBranding()
@@ -1156,7 +1255,11 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
     }
 
-    private async Task OnContentTypeChangedAsync() => await LoadAvailableContentAsync();
+    private async Task OnContentTypeChangedAsync()
+    {
+        await LoadAvailableContentAsync();
+        LoadAvailableIconsAndCovers(GameTypeFilter.ToString());
+    }
 
     private async Task EnableContentInternal(
         ContentDisplayItem? contentItem,
@@ -1875,12 +1978,36 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     {
         try
         {
-            if (_profileResourceService == null) return;
+            if (_profileResourceService == null)
+            {
+                return;
+            }
 
-            var icons = _profileResourceService.GetIconsForGameType(gameType);
+            var icons = _profileResourceService.GetIconsForGameType(gameType).ToList();
+            var covers = _profileResourceService.GetAvailableCovers().ToList();
+
+            if (AvailableContent != null)
+            {
+                foreach (var content in AvailableContent.Concat(EnabledContent))
+                {
+                    var gameTypeStr = content.GameType.ToString();
+                    AppendContentResource(
+                        icons,
+                        $"content-icon-{content.Id}",
+                        content.Manifest?.Metadata?.IconUrl,
+                        _localizationService?.GetString(ContentResourceIconFormatKey, content.DisplayName) ?? $"{content.DisplayName} Icon",
+                        gameTypeStr);
+
+                    AppendContentResource(
+                        covers,
+                        $"content-cover-{content.Id}",
+                        content.Manifest?.Metadata?.CoverUrl,
+                        _localizationService?.GetString(ContentResourceCoverFormatKey, content.DisplayName) ?? $"{content.DisplayName} Cover",
+                        gameTypeStr);
+                }
+            }
+
             AvailableIcons = new ObservableCollection<ProfileResourceItem>(icons);
-
-            var covers = _profileResourceService.GetAvailableCovers();
             AvailableCoversForSelection = new ObservableCollection<ProfileResourceItem>(covers);
 
             if (!string.IsNullOrEmpty(IconPath))

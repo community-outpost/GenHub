@@ -151,6 +151,7 @@
                         <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.25" />
                         <BrushTransition Property="Background" Duration="0:0:0.2" />
                         <BrushTransition Property="BorderBrush" Duration="0:0:0.2" />
+                        <DoubleTransition Property="Opacity" Duration="0:0:0.2" />
                     </Transitions>
                 </Setter.Value>
             </Setter>
@@ -260,6 +261,23 @@
                                             Content="{localization:Localize GameProfiles.Button.Scan}"
                                             Classes="outline"
                                             IsVisible="{Binding !IsScanning}" />
+
+                                    <!-- Sort Dropdown -->
+                                    <ComboBox x:Name="SortModeComboBox"
+                                              ItemsSource="{Binding AvailableSortModes}"
+                                              SelectedItem="{Binding SelectedSortModeItem}"
+                                              ToolTip.Tip="{localization:Localize GameProfiles.Launcher.Tooltip.Sort}"
+                                              VerticalAlignment="Center"
+                                              Width="140"
+                                              DropDownOpened="SortModeComboBox_DropDownOpened"
+                                              DropDownClosed="SortModeComboBox_DropDownClosed"
+                                              IsVisible="{Binding !IsScanning}">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding DisplayName}" />
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
                                 </StackPanel>
 
                                 <!-- Loading UI -->

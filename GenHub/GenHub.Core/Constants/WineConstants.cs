@@ -16,6 +16,9 @@ public static class WineConstants
     /// <summary>Environment variable selecting the Wine prefix.</summary>
     public const string PrefixEnvironmentVariable = "WINEPREFIX";
 
+    /// <summary>Environment variable reporting the Proton version.</summary>
+    public const string ProtonVersionEnvironmentVariable = "PROTON_VERSION";
+
     /// <summary>Environment variable configuring Wine DLL overrides.</summary>
     public const string DllOverridesEnvironmentVariable = "WINEDLLOVERRIDES";
 

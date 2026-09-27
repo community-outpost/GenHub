@@ -55,25 +55,68 @@ public static class GameProfileExtensions
     }
 
     /// <summary>
+    /// Checks if a profile runs a Community Outpost or Community Patch client.
+    /// </summary>
+    /// <param name="profile">The game profile.</param>
+    /// <returns>True if the profile runs Community Outpost or Community Patch, false otherwise.</returns>
+    public static bool IsCommunityOutpostProfile(this GameProfile profile)
+    {
+        // Check Community Patch identifiers first so legacy or mislabeled publisher types do not cause a false negative
+        if (CommunityOutpostConstants.IsCommunityPatchIdentifier(profile.GameClient?.Name) ||
+            CommunityOutpostConstants.IsCommunityPatchIdentifier(profile.GameClient?.Id) ||
+            CommunityOutpostConstants.IsCommunityPatchIdentifier(profile.Name) ||
+            profile.GameClient?.Name?.Contains(CommunityOutpostConstants.PublisherName, StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return true;
+        }
+
+        var publisherType = profile.GameClient?.PublisherType;
+        if (!string.IsNullOrWhiteSpace(publisherType))
+        {
+            return string.Equals(publisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Only inspect enabled content if it represents a game client or patch manifest, not just an addon/map
+        if (profile.EnabledContentIds?
+            .Any(id => (id.Contains(ManifestConstants.GameClientManifestSegment, StringComparison.OrdinalIgnoreCase) ||
+                        id.Contains(ManifestConstants.PatchManifestSegment, StringComparison.OrdinalIgnoreCase)) &&
+                       (id.Contains(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase) ||
+                        CommunityOutpostConstants.IsCommunityPatchIdentifier(id))) == true)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Checks if a profile runs the TheSuperHackers client.
     /// </summary>
     /// <param name="profile">The game profile.</param>
     /// <returns>True if the profile runs TheSuperHackers, false otherwise.</returns>
     public static bool IsTheSuperHackersProfile(this GameProfile profile)
     {
+        if (profile.IsCommunityOutpostProfile())
+        {
+            return false;
+        }
+
         var publisherType = profile.GameClient?.PublisherType;
         if (!string.IsNullOrWhiteSpace(publisherType))
         {
-            return string.Equals(publisherType, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase);
+            return string.Equals(publisherType, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(publisherType, PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase);
         }
 
-        if (profile.GameClient?.Name?.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) == true)
+        if (profile.GameClient?.Name?.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) == true ||
+            profile.GameClient?.Name?.Contains(SuperHackersConstants.NameMarker, StringComparison.OrdinalIgnoreCase) == true)
         {
             return true;
         }
 
         return profile.EnabledContentIds?
-            .Any(id => id.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase)) == true;
+            .Any(id => id.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) &&
+                       !CommunityOutpostConstants.IsCommunityPatchIdentifier(id)) == true;
     }
 
     /// <summary>

@@ -1207,6 +1207,23 @@ public class AddLocalContentViewModelTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that a cancelled caller token propagates out of ImportContentAsync so callers stop processing.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ImportContentAsync_WhenCallerTokenCancelled_ThrowsToCaller()
+    {
+        var tempDir = CreateTempDirectory();
+        File.WriteAllText(Path.Combine(tempDir, "file.txt"), "data");
+
+        var vm = CreateViewModel();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => vm.ImportContentAsync(tempDir, cts.Token));
+    }
+
+    /// <summary>
     /// Verifies that when directory collision is detected and user declines overwrite, files are not replaced.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

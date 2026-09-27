@@ -9,6 +9,7 @@ using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
@@ -47,7 +48,8 @@ public partial class GeneralsOnlineProfileReconciler(
     IUserSettingsService userSettingsService,
     IGameProfileManager profileManager,
     IContentVersionComparer versionComparer,
-    IGameInstallationService? installationService = null)
+    IGameInstallationService? installationService = null,
+    ITelemetryService? telemetryService = null)
     : IGeneralsOnlineProfileReconciler, IPublisherReconciler
 {
     private readonly SemaphoreSlim _reconcileLock = new(1, 1);
@@ -106,6 +108,16 @@ public partial class GeneralsOnlineProfileReconciler(
                 var acquireResult = await AcquireLatestVersionAsync(oldManifests, progressNotificationId, cancellationToken);
                 if (!acquireResult.Success)
                 {
+                    telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
+                    {
+                        [TelemetryConstants.Properties.PublisherId] = GeneralsOnlineConstants.PublisherType,
+                        [TelemetryConstants.Properties.ContentName] = GeneralsOnlineConstants.ClientName,
+                        [TelemetryConstants.Properties.FromVersion] = updateResult.CurrentVersion,
+                        [TelemetryConstants.Properties.ToVersion] = updateResult.LatestVersion,
+                        [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
+                        [TelemetryConstants.Properties.ErrorMessage] = acquireResult.FirstError,
+                    });
+
                     notificationService.ShowError(
                         "GeneralsOnline Update Failed",
                         $"Failed to download update: {acquireResult.FirstError}",
@@ -126,6 +138,16 @@ public partial class GeneralsOnlineProfileReconciler(
                 var updateResultData = await ApplyUpdateStrategyAsync(strategy, oldManifests, newManifests, updateResult.LatestVersion ?? "Unknown", triggeringProfileId, cancellationToken);
                 if (!updateResultData.Success)
                 {
+                    telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
+                    {
+                        [TelemetryConstants.Properties.PublisherId] = GeneralsOnlineConstants.PublisherType,
+                        [TelemetryConstants.Properties.ContentName] = GeneralsOnlineConstants.ClientName,
+                        [TelemetryConstants.Properties.FromVersion] = updateResult.CurrentVersion,
+                        [TelemetryConstants.Properties.ToVersion] = updateResult.LatestVersion,
+                        [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
+                        [TelemetryConstants.Properties.ErrorMessage] = updateResultData.FirstError,
+                    });
+
                     return OperationResult<PublisherReconciliationResult>.CreateFailure(updateResultData.FirstError ?? "Failed to apply update strategy");
                 }
 
@@ -140,6 +162,17 @@ public partial class GeneralsOnlineProfileReconciler(
 
                 bool deleteOldVersions = (strategy != UpdateStrategy.CreateNewProfile) && shouldDeleteOldVersions;
                 await HandleOldManifestsAndCleanupAsync(deleteOldVersions, anyFailure, manifestMapping, oldManifests, cancellationToken);
+
+                telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateApplied, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.PublisherId] = GeneralsOnlineConstants.PublisherType,
+                    [TelemetryConstants.Properties.ContentName] = GeneralsOnlineConstants.ClientName,
+                    [TelemetryConstants.Properties.FromVersion] = updateResult.CurrentVersion,
+                    [TelemetryConstants.Properties.ToVersion] = updateResult.LatestVersion,
+                    [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
+                    [TelemetryConstants.Properties.ProfilesUpdated] = profilesUpdated,
+                    [TelemetryConstants.Properties.Success] = !anyFailure,
+                });
 
                 if (anyFailure)
                 {

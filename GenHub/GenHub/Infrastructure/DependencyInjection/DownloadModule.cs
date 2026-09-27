@@ -1,6 +1,7 @@
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -39,7 +40,8 @@ public static class DownloadModule
                 serviceProvider.GetService<ILogger<DownloadService>>() ?? NullLogger<DownloadService>.Instance,
                 downloadClient,
                 serviceProvider.GetRequiredService<IFileHashProvider>(),
-                serviceProvider.GetRequiredService<IDownloadUrlValidator>());
+                serviceProvider.GetRequiredService<IDownloadUrlValidator>(),
+                serviceProvider.GetService<ITelemetryService>());
         });
         services.AddSingleton<IDownloadService>(serviceProvider => serviceProvider.GetRequiredService<DownloadService>());
 

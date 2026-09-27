@@ -281,6 +281,81 @@ public class GameProfileManagerTests
     }
 
     /// <summary>
+    /// Should apply LastPlayedAt and DisplayOrder when the update request sets them.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task UpdateProfileAsync_Should_ApplyLastPlayedAtAndDisplayOrder_When_SetAsync()
+    {
+        // Arrange
+        var profileId = Guid.NewGuid().ToString();
+        var existingProfile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Profile",
+            GameInstallationId = "install-1",
+            GameClient = new GameClient { Id = "client-1", Version = "1.0" },
+        };
+        var stamp = new DateTime(2026, 1, 10, 12, 0, 0, DateTimeKind.Utc);
+        var request = new UpdateProfileRequest { LastPlayedAt = stamp, DisplayOrder = 7 };
+        GameProfile? savedProfile = null;
+
+        _profileRepositoryMock.Setup(x => x.LoadProfileAsync(profileId, default))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(existingProfile));
+        _profileRepositoryMock.Setup(x => x.SaveProfileAsync(It.IsAny<GameProfile>(), default))
+            .Callback<GameProfile, CancellationToken>((profile, _) => savedProfile = profile)
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(existingProfile));
+
+        // Act
+        var result = await _profileManager.UpdateProfileAsync(profileId, request);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(savedProfile);
+        Assert.Equal(stamp, savedProfile.LastPlayedAt);
+        Assert.Equal(7, savedProfile.DisplayOrder);
+    }
+
+    /// <summary>
+    /// Should preserve LastPlayedAt and DisplayOrder when the update request omits them.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task UpdateProfileAsync_Should_PreserveLastPlayedAtAndDisplayOrder_When_OmittedAsync()
+    {
+        // Arrange
+        var profileId = Guid.NewGuid().ToString();
+        var existingStamp = new DateTime(2026, 2, 1, 8, 30, 0, DateTimeKind.Utc);
+        var existingProfile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Old Name",
+            GameInstallationId = "install-1",
+            GameClient = new GameClient { Id = "client-1", Version = "1.0" },
+            LastPlayedAt = existingStamp,
+            DisplayOrder = 3,
+        };
+        var request = new UpdateProfileRequest { Name = "New Name" };
+        GameProfile? savedProfile = null;
+
+        _profileRepositoryMock.Setup(x => x.LoadProfileAsync(profileId, default))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(existingProfile));
+        _profileRepositoryMock.Setup(x => x.SaveProfileAsync(It.IsAny<GameProfile>(), default))
+            .Callback<GameProfile, CancellationToken>((profile, _) => savedProfile = profile)
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(existingProfile));
+
+        // Act
+        var result = await _profileManager.UpdateProfileAsync(profileId, request);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(savedProfile);
+        Assert.Equal("New Name", savedProfile.Name);
+        Assert.Equal(existingStamp, savedProfile.LastPlayedAt);
+        Assert.Equal(3, savedProfile.DisplayOrder);
+    }
+
+    /// <summary>
     /// Should successfully delete existing profile.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>

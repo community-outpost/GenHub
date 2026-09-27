@@ -31,6 +31,11 @@ public static class SettingsConstants
     public const string SectionMigrateInstallation = "migrate-installation";
 
     /// <summary>
+    /// Section ID for Diagnostics and Privacy.
+    /// </summary>
+    public const string SectionDiagnosticsPrivacy = "diagnostics-privacy";
+
+    /// <summary>
     /// Section ID for Logs.
     /// </summary>
     public const string SectionLogs = "logs";

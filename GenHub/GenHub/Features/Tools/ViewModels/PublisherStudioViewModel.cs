@@ -69,7 +69,7 @@ public partial class PublisherStudioViewModel(
 
     private readonly string _settingsPath = Path.Combine(
         configurationProvider?.GetApplicationDataPath() ?? Path.GetTempPath(),
-        AppConstants.AppName,
+        PublisherStudioConstants.StudioFolderName,
         PublisherStudioConstants.SettingsFileName);
 
     private readonly SemaphoreSlim _saveLock = new(1, 1);
@@ -1035,9 +1035,45 @@ public partial class PublisherStudioViewModel(
     {
         try
         {
-            if (!File.Exists(_settingsPath))
+            var legacySettings = Path.Combine(
+                configurationProvider?.GetApplicationDataPath() ?? Path.GetTempPath(),
+                AppConstants.AppName,
+                PublisherStudioConstants.SettingsFileName);
+
+            if (!File.Exists(_settingsPath) && File.Exists(legacySettings))
+            {
+                try
+                {
+                    var dir = Path.GetDirectoryName(_settingsPath);
+                    if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    {
+                        Directory.CreateDirectory(dir);
+                    }
+
+                    File.Move(legacySettings, _settingsPath);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogDebug(ex, "Failed to migrate legacy settings file {File}", legacySettings);
+                }
+            }
+
+            string? activeSettingsPath = null;
+            if (File.Exists(_settingsPath))
+            {
+                activeSettingsPath = _settingsPath;
+            }
+            else if (File.Exists(legacySettings))
+            {
+                activeSettingsPath = legacySettings;
+            }
+
+            if (activeSettingsPath == null)
+            {
                 return null;
-            var json = await File.ReadAllTextAsync(_settingsPath);
+            }
+
+            var json = await File.ReadAllTextAsync(activeSettingsPath);
             using var doc = System.Text.Json.JsonDocument.Parse(json);
             return doc.RootElement.TryGetProperty("LastProjectPath", out var prop) ? prop.GetString() : null;
         }

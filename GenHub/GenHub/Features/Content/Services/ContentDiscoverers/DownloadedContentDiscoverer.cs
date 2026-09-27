@@ -7,6 +7,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Content.Services.CommunityOutpost;
 using GenHub.Features.Content.Services.GeneralsOnline;
 using Microsoft.Extensions.Logging;
 using System;
@@ -194,6 +195,14 @@ public sealed class DownloadedContentDiscoverer(
             return GeneralsOnlineVariantGrouping.BuildVariantGroupId(manifest.Version);
         }
 
+        // Legacy Community Outpost pool entries predate variant group stamping; derive it so
+        // the resolution/language variants of one release collapse into one card. Singles keep
+        // a null group id so they render as plain cards without a picker.
+        if (CommunityOutpostVariantGrouping.TryGetVariantContentCode(manifest, out var contentCode))
+        {
+            return CommunityOutpostVariantGrouping.BuildVariantGroupId(manifest.ContentType, contentCode, manifest.Version);
+        }
+
         return null;
     }
 
@@ -207,6 +216,11 @@ public sealed class DownloadedContentDiscoverer(
         if (GeneralsOnlineVariantGrouping.IsGeneralsOnlineManifest(manifest))
         {
             return GeneralsOnlineVariantGrouping.BuildVariantFamilyName(manifest.Version);
+        }
+
+        if (CommunityOutpostVariantGrouping.TryGetVariantContentCode(manifest, out var contentCode))
+        {
+            return CommunityOutpostVariantGrouping.BuildVariantFamilyName(contentCode);
         }
 
         return null;

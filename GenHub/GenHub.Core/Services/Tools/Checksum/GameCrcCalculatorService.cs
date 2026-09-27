@@ -45,7 +45,9 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
         string GameRootPath,
         GameType GameType,
         IReadOnlyList<string>? SideloadPaths,
-        string? ModPath);
+        string? ModPath,
+        IReadOnlyCollection<string>? AllowedBaseRelativePaths,
+        IReadOnlyList<string>? OverlayModPaths);
 
     private static readonly ConcurrentDictionary<string, (DateTime LastWriteTimeUtc, long FileLength, long SkirmishTicks, long SkirmishLength, long MpTicks, long MpLength, string Crc)> ExeCrcCache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, (long MaxTicks, long TotalLength, int FileCount, string Crc)> IniCrcCache = new(StringComparer.OrdinalIgnoreCase);
@@ -61,11 +63,35 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
     /// <param name="gameType">Target game type (Generals or Zero Hour).</param>
     /// <param name="sideloadPaths">Optional list of sideload BIG file paths.</param>
     /// <param name="modPath">Optional mod path.</param>
+    /// <param name="allowedBaseRelativePaths">Optional allow-list of game-root-relative file paths.</param>
+    /// <param name="overlayModPaths">Optional profile overlay mod directories or .big archive paths.</param>
     /// <returns>A string cache key representing the INI configuration.</returns>
-    public static string BuildIniCacheKey(string gameRootPath, GameType gameType, IReadOnlyList<string>? sideloadPaths = null, string? modPath = null)
+    public static string BuildIniCacheKey(
+        string gameRootPath,
+        GameType gameType,
+        IReadOnlyList<string>? sideloadPaths = null,
+        string? modPath = null,
+        IReadOnlyCollection<string>? allowedBaseRelativePaths = null,
+        IReadOnlyList<string>? overlayModPaths = null)
     {
         var sideloadsPart = sideloadPaths != null && sideloadPaths.Count > 0 ? string.Join(';', sideloadPaths) : string.Empty;
-        return $"{gameRootPath}|{gameType}|{sideloadsPart}|{modPath}";
+        var baseKey = $"{gameRootPath}|{gameType}|{sideloadsPart}|{modPath}";
+
+        // An explicitly empty allow-list excludes every base file, which differs from
+        // the unrestricted scan, so only a null allow-list reuses the legacy key.
+        if (allowedBaseRelativePaths == null &&
+            (overlayModPaths == null || overlayModPaths.Count == 0))
+        {
+            return baseKey;
+        }
+
+        var allowedPart = allowedBaseRelativePaths != null && allowedBaseRelativePaths.Count > 0
+            ? string.Join(';', allowedBaseRelativePaths.OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
+            : string.Empty;
+        var overlaysPart = overlayModPaths != null && overlayModPaths.Count > 0
+            ? string.Join(';', overlayModPaths)
+            : string.Empty;
+        return $"{baseKey}|base:{allowedPart}|overlays:{overlaysPart}";
     }
 
     /// <summary>
@@ -203,6 +229,8 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
         GameType gameType,
         IReadOnlyList<string>? sideloadPaths = null,
         string? modPath = null,
+        IReadOnlyCollection<string>? allowedBaseRelativePaths = null,
+        IReadOnlyList<string>? overlayModPaths = null,
         CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -212,9 +240,9 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
             return OperationResult<string>.CreateFailure($"Game root directory not found at '{gameRootPath}'.");
         }
 
-        var context = new IniCalculationContext(gameRootPath, gameType, sideloadPaths, modPath);
-        var cacheKey = BuildIniCacheKey(gameRootPath, gameType, sideloadPaths, modPath);
-        var freshness = GetIniFreshnessSignature(gameRootPath, sideloadPaths, modPath);
+        var context = new IniCalculationContext(gameRootPath, gameType, sideloadPaths, modPath, allowedBaseRelativePaths, overlayModPaths);
+        var cacheKey = BuildIniCacheKey(gameRootPath, gameType, sideloadPaths, modPath, allowedBaseRelativePaths, overlayModPaths);
+        var freshness = GetIniFreshnessSignature(gameRootPath, sideloadPaths, modPath, overlayModPaths);
 
         if (IniCrcCache.TryGetValue(cacheKey, out var cachedIni) &&
             IsFresh((cachedIni.MaxTicks, cachedIni.TotalLength, cachedIni.FileCount), freshness))
@@ -348,7 +376,8 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
     private static (long MaxTicks, long TotalLength, int FileCount) GetIniFreshnessSignature(
         string gameRootPath,
         IReadOnlyList<string>? sideloadPaths,
-        string? modPath)
+        string? modPath,
+        IReadOnlyList<string>? overlayModPaths = null)
     {
         var accumulator = new FreshnessAccumulator();
 
@@ -365,6 +394,14 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
         if (!string.IsNullOrWhiteSpace(modPath))
         {
             UpdateFreshnessFromPath(accumulator, modPath);
+        }
+
+        if (overlayModPaths != null)
+        {
+            foreach (var overlay in overlayModPaths)
+            {
+                UpdateFreshnessFromPath(accumulator, overlay);
+            }
         }
 
         return (accumulator.MaxTicks, accumulator.TotalLength, accumulator.FileCount);
@@ -536,7 +573,13 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
         ct.ThrowIfCancellationRequested();
 
         bool isZeroHour = context.GameType == GameType.ZeroHour;
-        var vfs = new SageVirtualFileSystem(context.GameRootPath, isZeroHour, logger, cancellationToken: ct);
+        var vfs = new SageVirtualFileSystem(
+            context.GameRootPath,
+            isZeroHour,
+            logger,
+            cancellationToken: ct,
+            skipIniZhBig: isZeroHour,
+            allowedBaseRelativePaths: context.AllowedBaseRelativePaths);
         var crc = new XferChecksum();
 
         var order = isZeroHour
@@ -547,7 +590,7 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
         LoadOrderStep(order[0], vfs, crc);
 
         // Phase 2: Mount Sideloads and Mods
-        MountSideloadsAndMods(vfs, context.SideloadPaths, context.ModPath);
+        MountSideloadsAndMods(vfs, context.SideloadPaths, context.ModPath, context.OverlayModPaths);
 
         // Phase 3: Load remaining categories
         for (int i = 1; i < order.Length; i++)
@@ -572,7 +615,11 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
         }
     }
 
-    private static void MountSideloadsAndMods(SageVirtualFileSystem vfs, IReadOnlyList<string>? sideloadPaths, string? modPath)
+    private static void MountSideloadsAndMods(
+        SageVirtualFileSystem vfs,
+        IReadOnlyList<string>? sideloadPaths,
+        string? modPath,
+        IReadOnlyList<string>? overlayModPaths = null)
     {
         if (sideloadPaths != null)
         {
@@ -586,6 +633,25 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
         {
             vfs.AddMod(modPath);
         }
+
+        if (overlayModPaths != null)
+        {
+            foreach (var overlay in overlayModPaths)
+            {
+                MountOverlayMod(vfs, overlay);
+            }
+        }
+    }
+
+    private static void MountOverlayMod(SageVirtualFileSystem vfs, string overlay)
+    {
+        if (Directory.Exists(overlay))
+        {
+            vfs.AddMod(overlay);
+            return;
+        }
+
+        vfs.AddModArchive(overlay);
     }
 
     private static (string DefaultPath, string OverridePath)[] BuildGeneralsOrder()

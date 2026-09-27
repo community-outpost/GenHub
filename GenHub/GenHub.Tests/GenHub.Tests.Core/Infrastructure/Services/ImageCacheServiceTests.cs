@@ -136,7 +136,7 @@ public class ImageCacheServiceTests
             configMock.Setup(c => c.GetApplicationDataPath()).Returns(tempRoot);
 
             _ = new ImageCacheService(configMock.Object);
-            var expectedCacheDir = Path.Combine(tempRoot, "Images");
+            var expectedCacheDir = Path.Combine(tempRoot, DirectoryNames.Cache, "Images");
 
             Assert.True(Directory.Exists(expectedCacheDir));
         }

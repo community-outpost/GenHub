@@ -129,10 +129,18 @@ public sealed class UnsupportedPlatformUpdateManager(
     }
 
     /// <inheritdoc/>
-    public void ApplyUpdatesAndRestart(UpdateInfo updateInfo) => LogSuppressed(nameof(ApplyUpdatesAndRestart));
+    public Task ApplyUpdatesAndRestartAsync(UpdateInfo updateInfo, CancellationToken cancellationToken = default)
+    {
+        LogSuppressed(nameof(ApplyUpdatesAndRestartAsync));
+        return Task.CompletedTask;
+    }
 
     /// <inheritdoc/>
-    public void ApplyUpdatesAndExit(UpdateInfo updateInfo) => LogSuppressed(nameof(ApplyUpdatesAndExit));
+    public Task ApplyUpdatesAndExitAsync(UpdateInfo updateInfo, CancellationToken cancellationToken = default)
+    {
+        LogSuppressed(nameof(ApplyUpdatesAndExitAsync));
+        return Task.CompletedTask;
+    }
 
     /// <inheritdoc/>
     public void Uninstall() => LogSuppressed(nameof(Uninstall));

@@ -367,7 +367,7 @@ public class ProfileContentLoader(
             ? manifest.Version
             : string.Empty;
 
-        var (exePath, workingDir) = GenHub.Features.GameProfiles.ViewModels.GameProfileClientResolutionHelper.ResolveClientPaths(manifest.SourcePath, manifest.EntryPoint);
+        var (exePath, workingDir) = ClientPathResolver.ResolveClientPaths(manifest.SourcePath, manifest.EntryPoint);
 
         return new GameClient
         {

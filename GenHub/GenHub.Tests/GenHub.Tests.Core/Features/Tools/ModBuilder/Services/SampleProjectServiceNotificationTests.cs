@@ -250,7 +250,7 @@ public sealed class SampleProjectServiceNotificationTests : IDisposable
         {
             var stashDir = Path.Combine(tempDirectory, "cache-stash");
             Directory.CreateDirectory(stashDir);
-            var cacheDir = Path.Combine(AppDataPathHelper.GetDataRoot(), ModBuilderConstants.SampleCacheDirName);
+            var cacheDir = Path.Combine(AppDataPathHelper.GetDataRoot(), DirectoryNames.Cache, ModBuilderConstants.SampleCacheDirName);
             var guard = new SampleCacheGuard(cacheDir);
             if (Directory.Exists(cacheDir))
             {

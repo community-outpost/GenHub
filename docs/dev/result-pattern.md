@@ -353,6 +353,10 @@ public async Task<ContentUpdateCheckResult> CheckForUpdatesAsync(ContentManifest
 }
 ```
 
+## Scope: Launch, Detection, and IO
+
+Launch, game detection, downloads, hashing, and file IO are fallible and must return `OperationResult<T>` or the matching domain result (`LaunchResult`, `DetectionResult<T>`, `DownloadResult`, `ValidationResult`). Only cooperative cancellation (`OperationCanceledException`) and argument contract violations (`ArgumentNullException`, invalid arguments) cross these boundaries as exceptions. Convert `IOException`, `UnauthorizedAccessException`, Win32, and timeout failures into result failures.
+
 ## Best Practices
 
 1. **Always check Success/Failed**: Before accessing Data or other properties, check if the operation succeeded.

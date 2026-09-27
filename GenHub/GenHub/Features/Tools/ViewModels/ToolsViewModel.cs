@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.ViewModels;
@@ -33,7 +34,7 @@ public sealed partial class ToolsViewModel(
     IToolManager toolService,
     ILogger<ToolsViewModel> logger,
     IServiceProvider serviceProvider,
-    ILocalizationService? localizationService = null) : ObservableObject, IRecipient<ToolStatusMessage>, IDisposable
+    ILocalizationService? localizationService = null) : ObservableObject, IRecipient<ToolStatusMessage>, IRecipient<OpenFileInToolMessage>, IDisposable
 {
     [ObservableProperty]
     private IToolPlugin? _selectedTool;
@@ -98,6 +99,15 @@ public sealed partial class ToolsViewModel(
     }
 
     /// <summary>
+    /// Receives requests to open a file in a tool.
+    /// </summary>
+    /// <param name="message">The open file message.</param>
+    public void Receive(OpenFileInToolMessage message)
+    {
+        _ = HandleOpenFileInToolAsync(message);
+    }
+
+    /// <summary>
     /// Initializes the ViewModel by loading saved tools.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
@@ -107,7 +117,12 @@ public sealed partial class ToolsViewModel(
         {
             if (!WeakReferenceMessenger.Default.IsRegistered<ToolStatusMessage>(this))
             {
-                WeakReferenceMessenger.Default.Register(this);
+                WeakReferenceMessenger.Default.Register<ToolStatusMessage>(this);
+            }
+
+            if (!WeakReferenceMessenger.Default.IsRegistered<OpenFileInToolMessage>(this))
+            {
+                WeakReferenceMessenger.Default.Register<OpenFileInToolMessage>(this);
             }
 
             if (localizationService != null)
@@ -522,6 +537,29 @@ public sealed partial class ToolsViewModel(
             logger.LogError(ex, "Error activating tool: {ToolName}", tool.Metadata.Name);
             CurrentToolControl = null;
             ShowStatusMessage(localizationService?.GetString("Tools.Status.ErrorActivatingTool", tool.Metadata.Name, ex.Message) ?? $"Error loading tool '{tool.Metadata.Name}': {ex.Message}", MessageType.Error);
+        }
+    }
+
+    private async Task HandleOpenFileInToolAsync(OpenFileInToolMessage message)
+    {
+        try
+        {
+            var tool = InstalledTools.FirstOrDefault(t => string.Equals(t.Metadata.Id, message.ToolId, StringComparison.OrdinalIgnoreCase));
+            if (tool == null)
+            {
+                logger.LogWarning("Tool {ToolId} not found for open file request", message.ToolId);
+                return;
+            }
+
+            SelectedTool = tool;
+            if (tool is IFileOpenTarget target)
+            {
+                await target.OpenFileAsync(message.FilePath, CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to open file in tool {ToolId}", message.ToolId);
         }
     }
 

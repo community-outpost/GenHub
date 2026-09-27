@@ -306,6 +306,22 @@ public class CommunityOutpostManifestFactory(
         return dependencyBigFiles;
     }
 
+    /// <summary>
+    /// Adds shared Control Bar outputs to the preservation set so source cleanup keeps
+    /// auto-install dependency BIG files merged into the extract root.
+    /// </summary>
+    /// <param name="contentMetadata">The content metadata.</param>
+    /// <param name="originalManifest">The original manifest.</param>
+    /// <param name="allControlBarOutputs">The accumulated Control Bar outputs to preserve.</param>
+    private static void PreserveSharedControlBarOutputs(
+        GenPatcherContentMetadata contentMetadata,
+        ContentManifest originalManifest,
+        HashSet<string> allControlBarOutputs)
+    {
+        allControlBarOutputs.UnionWith(CollectDependencyBigFiles(contentMetadata, originalManifest.TargetGame));
+        allControlBarOutputs.Add(GameContentConstants.ControlBarProBaseFileName);
+    }
+
     private static bool HasVariantBigFiles(
         string[] allFiles,
         ContentVariant variant,
@@ -400,6 +416,7 @@ public class CommunityOutpostManifestFactory(
 
         if (allControlBarOutputs is { Count: > 0 })
         {
+            PreserveSharedControlBarOutputs(contentMetadata, originalManifest, allControlBarOutputs);
             controlBarProcessor.CleanupSourceDirectories(extractedDirectory, allControlBarOutputs);
         }
 
@@ -440,7 +457,7 @@ public class CommunityOutpostManifestFactory(
             var alwaysIncludeFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (contentMetadata.Category == GenPatcherContentCategory.ControlBar)
             {
-                alwaysIncludeFiles.Add("340_ControlBarProZH.big");
+                alwaysIncludeFiles.Add(GameContentConstants.ControlBarProBaseFileName);
             }
 
             var controlBarContext = await ProcessControlBarOutputsAsync(
@@ -778,6 +795,12 @@ public class CommunityOutpostManifestFactory(
                 Variants = variant != null ? [] : (contentMetadata.Variants ?? []),
                 RequiresVariantSelection = false,
                 SelectedVariantId = variant?.Id,
+                VariantGroupId = variant != null
+                    ? CommunityOutpostVariantGrouping.BuildVariantGroupId(originalManifest.ContentType, contentMetadata.ContentCode, originalManifest.Version)
+                    : null,
+                VariantFamilyName = variant != null
+                    ? CommunityOutpostVariantGrouping.BuildVariantFamilyName(contentMetadata.ContentCode)
+                    : null,
             },
         };
 

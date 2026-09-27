@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Features.GameProfiles.ViewModels;
 using Moq;
@@ -173,6 +174,43 @@ public class GameProfileItemViewModelTests
     }
 
     /// <summary>
+    /// Verifies that calling UpdateFromProfile normalizes stale SuperHackers theme color on a Community Outpost profile.
+    /// </summary>
+    [Fact]
+    public void UpdateFromProfile_WithStaleSuperHackersThemeColor_NormalizesToCommunityOutpostThemeColor()
+    {
+        // Arrange
+        var initialProfile = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = "test-profile-color",
+            Name = "Initial Profile",
+        };
+
+        var vm = new GameProfileItemViewModel("test-profile-color", initialProfile, null!, null!);
+
+        var updatedClient = new GenHub.Core.Models.GameClients.GameClient
+        {
+            Id = "1.000.communityoutpost.gameclient.zerohour",
+            Name = "Community Patch",
+            PublisherType = "TheSuperHackers",
+        };
+
+        var updatedProfile = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = "test-profile-color",
+            Name = "Community Patch",
+            GameClient = updatedClient,
+            ThemeColor = SuperHackersConstants.ZeroHourThemeColor,
+        };
+
+        // Act
+        vm.UpdateFromProfile(updatedProfile);
+
+        // Assert
+        Assert.Equal(CommunityOutpostConstants.ThemeColor, vm.ColorValue);
+    }
+
+    /// <summary>
     /// Verifies that release-date versions like 20260821 are not divided into v202608.21.
     /// </summary>
     [Fact]
@@ -241,6 +279,8 @@ public class GameProfileItemViewModelTests
                 Id = "steam",
                 Name = "Steam Client",
                 PublisherType = "Steam",
+                Version = "1.04",
+                GameType = GenHub.Core.Models.Enums.GameType.ZeroHour,
             },
             EnabledContentIds = ["1.106.communityoutpost.patch.zerohour"],
         };
@@ -449,6 +489,8 @@ public class GameProfileItemViewModelTests
                 Id = "steam",
                 Name = "Command & Conquer Generals Zero Hour (Steam)",
                 PublisherType = "Steam",
+                Version = "1.04",
+                GameType = GenHub.Core.Models.Enums.GameType.ZeroHour,
             },
         };
 
@@ -499,6 +541,8 @@ public class GameProfileItemViewModelTests
                 Id = "steam",
                 Name = "Steam Client",
                 PublisherType = "Steam",
+                Version = "1.04",
+                GameType = GenHub.Core.Models.Enums.GameType.ZeroHour,
             },
         };
 

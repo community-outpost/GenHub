@@ -433,6 +433,60 @@ public static class GenLauncherConstants
     }
 
     /// <summary>
+    /// Chooses the first valid HTTP or HTTPS news, ModDB, or Discord link that is not a YAML descriptor.
+    /// </summary>
+    /// <param name="candidateUrls">Candidate URLs in priority order (e.g. NewsLink, ModDBLink, DiscordLink).</param>
+    /// <returns>The resolved valid URL, or string.Empty if none found.</returns>
+    public static string ResolveEffectiveSourceUrl(params string?[] candidateUrls)
+    {
+        return ResolveAllowedSourceUrl(null, candidateUrls);
+    }
+
+    /// <summary>
+    /// Chooses the first valid HTTP or HTTPS news, ModDB, or Discord link that is not a YAML descriptor
+    /// and satisfies an additional caller-supplied allow check (for example host-safety validation).
+    /// </summary>
+    /// <param name="isUrlAllowed">Optional predicate a candidate must satisfy; null allows any well-formed URL.</param>
+    /// <param name="candidateUrls">Candidate URLs in priority order (e.g. NewsLink, ModDBLink, DiscordLink).</param>
+    /// <returns>The resolved valid URL, or string.Empty if none found.</returns>
+    public static string ResolveAllowedSourceUrl(Func<string, bool>? isUrlAllowed, params string?[] candidateUrls)
+    {
+        if (candidateUrls == null)
+        {
+            return string.Empty;
+        }
+
+        foreach (var url in candidateUrls)
+        {
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                continue;
+            }
+
+            var trimmed = url.Trim();
+            if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            {
+                continue;
+            }
+
+            if (IsYamlDescriptorPath(uri.AbsolutePath))
+            {
+                continue;
+            }
+
+            if (isUrlAllowed != null && !isUrlAllowed(trimmed))
+            {
+                continue;
+            }
+
+            return trimmed;
+        }
+
+        return string.Empty;
+    }
+
+    /// <summary>
     /// Determines whether a URL-derived file name is usable as an archive file name.
     /// </summary>
     /// <param name="fileName">The file name extracted from a download URL.</param>
@@ -469,6 +523,7 @@ public static class GenLauncherConstants
         }
 
         return KnownArchiveExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase) ||
-               ChecksumExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
+               ChecksumExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase) ||
+               InactiveBigExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
     }
 }

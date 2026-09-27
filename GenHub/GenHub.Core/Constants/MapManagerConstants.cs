@@ -11,6 +11,13 @@ public static class MapManagerConstants
     public const long MaxMapSizeBytes = 10 * 1024 * 1024;
 
     /// <summary>
+    /// Maximum file size admitted to the map text scan in bytes (10 MB), also bounding
+    /// the bytes scanned from a single file. Kept separate from the import validation
+    /// limit so retuning imports never silently changes which files the parser reads.
+    /// </summary>
+    public const long MaxPlayerCountScanBytes = 10 * 1024 * 1024;
+
+    /// <summary>
     /// Maximum allowed entries in a map ZIP archive.
     /// </summary>
     public const int MaxZipEntries = 500;
@@ -215,6 +222,24 @@ public static class MapManagerConstants
 
     /// <summary>Diagnostic used when no localization service is supplied.</summary>
     public const string NoMapsFoundFallbackMessage = "No map files were found to import.";
+
+    /// <summary>Localization key for a map folder that could not be made writable. Takes the folder path.</summary>
+    public const string FolderNotWritableMessageKey = "Maps.Error.FolderNotWritable";
+
+    /// <summary>Message used when no localization service is supplied. Takes the folder path.</summary>
+    public const string FolderNotWritableFallbackMessage = "GenHub could not make the map folder \"{0}\" writable. Check that your account owns the folder and that it is not locked, then try again.";
+
+    /// <summary>Localization key for a map that could not be deleted. Takes the map name.</summary>
+    public const string DeleteFailedMessageKey = "Maps.Error.DeleteFailed";
+
+    /// <summary>Message used when no localization service is supplied. Takes the map name.</summary>
+    public const string DeleteFailedFallbackMessage = "Could not delete \"{0}\".";
+
+    /// <summary>Localization key for a map that could not be renamed. Takes the map name.</summary>
+    public const string RenameFailedMessageKey = "Maps.Error.RenameFailed";
+
+    /// <summary>Message used when no localization service is supplied. Takes the map name.</summary>
+    public const string RenameFailedFallbackMessage = "Could not rename \"{0}\".";
 
     /// <summary>
     /// Allowed file extensions for map packages.

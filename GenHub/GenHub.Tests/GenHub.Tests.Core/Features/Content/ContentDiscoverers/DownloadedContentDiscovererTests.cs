@@ -415,6 +415,80 @@ public sealed class DownloadedContentDiscovererTests
     }
 
     /// <summary>
+    /// Verifies that legacy Community Outpost variant pool entries without stored grouping
+    /// collapse by content code and version while other releases stay separate.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_LegacyCommunityOutpostVariants_ShareVersionedGroupAsync()
+    {
+        var pro1080 = CreateCommunityOutpostManifest("1.0.communityoutpost.addon.cbpr-1080p", "Control Bar Pro (ExiLe) - 1080p", "1.0", "1080p");
+        var pro720 = CreateCommunityOutpostManifest("1.0.communityoutpost.addon.cbpr-720p", "Control Bar Pro (ExiLe) - 720p", "1.0", "720p");
+        var nextRelease = CreateCommunityOutpostManifest("1.1.communityoutpost.addon.cbpr-1080p", "Control Bar Pro (ExiLe) - 1080p", "v2026.07.15", "1080p");
+
+        var discoverer = CreateDiscoverer([pro1080, pro720, nextRelease]);
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery { Take = 10 });
+
+        Assert.True(result.Success);
+        Assert.Equal(3, result.Data!.Items.Count());
+        var current = result.Data.Items.Where(item => item.Version == "1.0").ToList();
+        var next = result.Data.Items.Where(item => item.Version == "v2026.07.15").ToList();
+        Assert.Equal(2, current.Count);
+        var updated = Assert.Single(next);
+        Assert.Equal("communityoutpost.addon.cbpr.1.0", current[0].VariantGroupId);
+        Assert.Equal(current[0].VariantGroupId, current[1].VariantGroupId);
+        Assert.Equal("communityoutpost.addon.cbpr.v2026.07.15", updated.VariantGroupId);
+        Assert.Equal("Control Bar Pro (ExiLe)", current[0].VariantFamilyName);
+    }
+
+    /// <summary>
+    /// Verifies that Community Outpost singles keep a null group id so they render as
+    /// plain cards without a variant picker.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_CommunityOutpostSingle_DoesNotGroupAsync()
+    {
+        var single = CreateManifest("1.0.communityoutpost.addon.cbhd", "Control Bar HD", ContentType.Addon, GameType.ZeroHour);
+        single.Version = "1.0";
+        single.Publisher = new PublisherInfo { Name = "Community Outpost", PublisherType = CommunityOutpostConstants.PublisherType };
+        single.Metadata.Tags.Add("contentCode:cbhd");
+
+        var discoverer = CreateDiscoverer([single]);
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery { Take = 10 });
+
+        Assert.True(result.Success);
+        var item = Assert.Single(result.Data!.Items);
+        Assert.Null(item.VariantGroupId);
+        Assert.Null(item.VariantFamilyName);
+    }
+
+    /// <summary>
+    /// Verifies that variant-looking manifests from other publishers never join
+    /// Community Outpost groups.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_NonCommunityOutpostVariantLike_DoesNotGroupAsync()
+    {
+        var foreign = CreateManifest("1.0.test.addon.cbpr-1080p", "Foreign Control Bar", ContentType.Addon, GameType.ZeroHour);
+        foreign.Version = "1.0";
+        foreign.Publisher = new PublisherInfo { Name = "Test", PublisherType = "test" };
+        foreign.Metadata.Tags.Add("contentCode:cbpr");
+        foreign.Metadata.Tags.Add("variant:1080p");
+
+        var discoverer = CreateDiscoverer([foreign]);
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery { Take = 10 });
+
+        Assert.True(result.Success);
+        var item = Assert.Single(result.Data!.Items);
+        Assert.Null(item.VariantGroupId);
+    }
+
+    /// <summary>
     /// Verifies that a stored variant group id takes precedence over derived grouping.
     /// </summary>
     /// <returns>A task that represents the asynchronous test.</returns>
@@ -506,6 +580,25 @@ public sealed class DownloadedContentDiscovererTests
             TargetGame = GameType.ZeroHour,
             OriginalProviderName = PublisherTypeConstants.GeneralsOnline,
             Publisher = new PublisherInfo { Name = "Generals Online", PublisherType = PublisherTypeConstants.GeneralsOnline },
+        };
+    }
+
+    private static ContentManifest CreateCommunityOutpostManifest(string id, string name, string version, string variantId)
+    {
+        return new ContentManifest
+        {
+            Id = ManifestId.Create(id),
+            Name = name,
+            Version = version,
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = CommunityOutpostConstants.PublisherType,
+            Publisher = new PublisherInfo { Name = "Community Outpost", PublisherType = CommunityOutpostConstants.PublisherType },
+            Metadata = new ContentMetadata
+            {
+                Tags = ["contentCode:cbpr", $"variant:{variantId}", $"selectedVariant:{variantId}"],
+                SelectedVariantId = variantId,
+            },
         };
     }
 }

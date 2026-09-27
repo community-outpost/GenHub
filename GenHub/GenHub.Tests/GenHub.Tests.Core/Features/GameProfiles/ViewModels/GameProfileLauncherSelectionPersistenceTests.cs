@@ -191,6 +191,9 @@ public sealed class GameProfileLauncherSelectionPersistenceTests : IDisposable
                 ProcessInfo = new GameProcessInfo { ProcessId = 123 },
             }));
 
+        var localization = new Mock<ILocalizationService>();
+        localization.SetupGet(l => l.CurrentCulture).Returns(System.Globalization.CultureInfo.InvariantCulture);
+
         return new GameProfileLauncherViewModel(
             new Mock<IGameInstallationService>().Object,
             profileManager.Object,
@@ -202,13 +205,13 @@ public sealed class GameProfileLauncherSelectionPersistenceTests : IDisposable
             new Mock<IShortcutService>().Object,
             new Mock<IPublisherProfileOrchestrator>().Object,
             new Mock<ISteamManifestPatcher>().Object,
-            new ProfileResourceService(NullLogger<ProfileResourceService>.Instance),
+            new ProfileResourceService(NullLogger<ProfileResourceService>.Instance, localization.Object),
             new Mock<IGameClientDetector>().Object,
             new Mock<INotificationService>().Object,
             new Mock<ISetupWizardService>().Object,
             new Mock<IDialogService>().Object,
             NullLogger<GameProfileLauncherViewModel>.Instance,
-            new Mock<ILocalizationService>().Object,
+            localization.Object,
             userSettingsService: settings);
     }
 

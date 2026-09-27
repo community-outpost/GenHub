@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Enums;
 using System;
 using System.IO;
+using System.Linq;
 
 namespace GenHub.Core.Models.Tools.ReplayManager;
 
@@ -53,6 +54,51 @@ public sealed class ReplayFile : IExportableFile
     /// Gets the INI configuration CRC from the replay metadata, if available.
     /// </summary>
     public uint? IniCrc => Metadata?.IniCrc;
+
+    /// <summary>
+    /// Gets the map name from the replay metadata, or null when unknown.
+    /// Null suppresses the tooltip instead of rendering an empty box.
+    /// </summary>
+    public string? MapName => Metadata?.MapName;
+
+    /// <summary>
+    /// Gets the number of players in the replay match.
+    /// Slot entries are seat-accurate; the player name list is deduplicated and
+    /// undercounts matches where slots share a name, so it is only a fallback.
+    /// </summary>
+    public int PlayerCount => (Metadata?.Slots, Metadata?.Players) switch
+    {
+        ({ Count: > 0 } slots, _) => slots.Count,
+        (_, { Count: > 0 } players) => players.Count,
+        _ => 0,
+    };
+
+    /// <summary>
+    /// Gets the formatted display text for the number of players.
+    /// </summary>
+    public string FormattedPlayerCount => PlayerCount > 0 ? PlayerCount.ToString() : "-";
+
+    /// <summary>
+    /// Gets a comma-separated list of player names in the replay match, or null when unknown.
+    /// Null suppresses the tooltip instead of rendering an empty box.
+    /// </summary>
+    public string? PlayerNamesDisplay
+    {
+        get
+        {
+            if (Metadata?.Players is { Count: > 0 } players)
+            {
+                return string.Join(", ", players);
+            }
+
+            if (Metadata?.Slots is { Count: > 0 } slots)
+            {
+                return string.Join(", ", slots.Select(s => s.PlayerName));
+            }
+
+            return null;
+        }
+    }
 
     /// <summary>
     /// Gets or sets the compatibility status against known and installed game clients.

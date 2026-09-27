@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
@@ -51,6 +52,110 @@ public partial class GameProfileSettingsViewModel
     public void UpdateContentEditorCategoryFromScroll(ContentEditorCategory category)
     {
         SelectedContentEditorCategory = category;
+    }
+
+    /// <summary>
+    /// Imports dropped files or directories directly into the Add Local Content flow.
+    /// </summary>
+    /// <param name="paths">The paths to the dropped files or directories.</param>
+    /// <param name="suggestedContentType">Optional suggested content type based on binary detection.</param>
+    /// <param name="suggestedGameType">Optional suggested game type based on binary detection.</param>
+    /// <param name="owner">Optional window owner for modal dialogs.</param>
+    /// <param name="cancellationToken">Token to cancel staging of the dropped paths.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public async Task ImportDroppedFilesAsync(
+        IReadOnlyList<string> paths,
+        ContentType? suggestedContentType = null,
+        GameType? suggestedGameType = null,
+        Avalonia.Controls.Window? owner = null,
+        CancellationToken cancellationToken = default)
+    {
+        IsDropImportInProgress = true;
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (_localContentService == null || _contentStorageService == null)
+            {
+                StatusMessage = _localizationService?["GameProfiles.Status.ContentServicesUnavailable"] ?? "Content services unavailable";
+                return;
+            }
+
+            var dialogOwner = owner ?? (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+                ? desktop.MainWindow
+                : null);
+
+            if (dialogOwner == null)
+            {
+                return;
+            }
+
+            using var vm = new AddLocalContentViewModel(
+                _localContentService,
+                _contentStorageService,
+                _genLauncherNormalizationService,
+                _dialogService,
+                _archivePayloadProcessor);
+
+            if (suggestedContentType.HasValue)
+            {
+                vm.SelectedContentType = suggestedContentType.Value;
+            }
+
+            if (suggestedGameType.HasValue)
+            {
+                vm.SelectedGameType = suggestedGameType.Value;
+            }
+
+            foreach (var p in paths.Where(p => System.IO.File.Exists(p) || System.IO.Directory.Exists(p)))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await vm.ImportContentAsync(p, cancellationToken);
+            }
+
+            var window = new Views.AddLocalContentWindow
+            {
+                DataContext = vm,
+            };
+
+            var result = await window.ShowDialog<bool>(dialogOwner);
+
+            if (result && vm.CreatedContentItem != null)
+            {
+                var contentItem = vm.CreatedContentItem;
+
+                if (AvailableContent.All(a => a.ManifestId.Value != contentItem.ManifestId.Value))
+                {
+                    AvailableContent.Add(contentItem);
+                }
+
+                _logger?.LogInformation("Added dropped local content via dialog: {Name}", contentItem.DisplayName);
+
+                NotifyLocalContentAdded(contentItem.DisplayName);
+
+                // The confirmed dialog result is a committed operation: enabling runs to completion
+                // so cancellation cannot leave the profile and displayed collections partially updated.
+                await EnableContentInternal(contentItem, bypassLoadingGuard: true, cancellationToken: CancellationToken.None);
+
+                await RefreshFiltersAndContentAsync();
+            }
+        }
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        {
+            _logger?.LogInformation(ex, "Dropped file import was cancelled.");
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error importing dropped files into Add Local Content dialog");
+            var importErrorMessage = _localizationService?.GetString("GameProfiles.Settings.LocalContent.ImportError") ?? "Error importing dropped files";
+            StatusMessage = importErrorMessage;
+            _localNotificationService.ShowError(
+                _localizationService?.GetString("GameProfiles.Notification.Error.Title") ?? "Error",
+                importErrorMessage);
+        }
+        finally
+        {
+            IsDropImportInProgress = false;
+        }
     }
 
     /// <summary>
@@ -473,6 +578,17 @@ public partial class GameProfileSettingsViewModel
         try
         {
             IsSaving = true;
+
+            if (IsDropImportInProgress)
+            {
+                var importTitle = _localizationService?.GetString("GameProfiles.Settings.Save.DropImportInProgress.Title") ?? "Import in progress";
+                var importMessage = _localizationService?.GetString("GameProfiles.Settings.Save.DropImportInProgress.Message") ?? "Please wait for the dropped content import to finish before saving.";
+                StatusMessage = importMessage;
+                _localNotificationService.ShowWarning(importTitle, importMessage);
+                _logger?.LogWarning("Profile save blocked: dropped content import still in progress");
+                return;
+            }
+
             StatusMessage = "Saving profile...";
 
             if (_gameProfileManager == null)
@@ -1068,6 +1184,22 @@ public partial class GameProfileSettingsViewModel
         _logger?.LogInformation("Selected cover: {DisplayName} ({Path})", cover.DisplayName, cover.Path);
     }
 
+    /// <summary>
+    /// Reports a newly added local content item via status and toast notification using shared localized strings.
+    /// </summary>
+    /// <param name="displayName">The display name of the added content item.</param>
+    private void NotifyLocalContentAdded(string displayName)
+    {
+        var addedStatusFormat = _localizationService?.GetString("GameProfiles.Settings.LocalContent.AddedStatus") ?? "Added {0}";
+        StatusMessage = string.Format(CultureInfo.CurrentCulture, addedStatusFormat, displayName);
+
+        var addedTitle = _localizationService?.GetString("GameProfiles.Settings.LocalContent.AddedTitle") ?? "Content Added";
+        var addedMessageFormat = _localizationService?.GetString("GameProfiles.Settings.LocalContent.AddedMessage") ?? "\"{0}\" has been added successfully.";
+        _localNotificationService?.ShowSuccess(
+             addedTitle,
+             string.Format(CultureInfo.CurrentCulture, addedMessageFormat, displayName));
+    }
+
     [RelayCommand]
     private async Task BrowseForCustomIconAsync()
     {
@@ -1081,8 +1213,9 @@ public partial class GameProfileSettingsViewModel
                 [
                     new Avalonia.Platform.Storage.FilePickerFileType("Image Files")
                     {
-                        Patterns = [ "*.png", "*.jpg", "*.jpeg", "*.bmp", "*.ico" ],
+                        Patterns = MediaFileHelper.ImageExtensions.Select(ext => $"*{ext}").ToArray(),
                     },
+                    Avalonia.Platform.Storage.FilePickerFileTypes.All,
                 ],
             };
 
@@ -1098,7 +1231,13 @@ public partial class GameProfileSettingsViewModel
                 if (result.Count > 0)
                 {
                     var selectedFile = result[0];
-                    IconPath = selectedFile.Path.LocalPath;
+                    var validatedPath = ValidateCustomImagePath(selectedFile.Path.LocalPath);
+                    if (validatedPath == null)
+                    {
+                        return;
+                    }
+
+                    IconPath = validatedPath;
                     SelectedIcon = null;
                     _isIconCustomized = true;
                     _logger?.LogInformation("Selected custom icon: {Path}", IconPath);
@@ -1126,8 +1265,9 @@ public partial class GameProfileSettingsViewModel
                 [
                     new Avalonia.Platform.Storage.FilePickerFileType("Image Files")
                     {
-                        Patterns = [ "*.png", "*.jpg", "*.jpeg", "*.bmp" ],
+                        Patterns = MediaFileHelper.ImageExtensions.Select(ext => $"*{ext}").ToArray(),
                     },
+                    Avalonia.Platform.Storage.FilePickerFileTypes.All,
                 ],
             };
 
@@ -1143,7 +1283,13 @@ public partial class GameProfileSettingsViewModel
                 if (result.Count > 0)
                 {
                     var selectedFile = result[0];
-                    CoverPath = selectedFile.Path.LocalPath;
+                    var validatedPath = ValidateCustomImagePath(selectedFile.Path.LocalPath);
+                    if (validatedPath == null)
+                    {
+                        return;
+                    }
+
+                    CoverPath = validatedPath;
                     SelectedCoverItem = null;
                     _isCoverCustomized = true;
                     _logger?.LogInformation("Selected custom cover: {Path}", CoverPath);
@@ -1156,6 +1302,34 @@ public partial class GameProfileSettingsViewModel
             _logger?.LogError(ex, "Error browsing for custom cover");
             StatusMessage = "Error selecting custom cover";
         }
+    }
+
+    /// <summary>
+    /// Validates that a user-picked file is a supported image before it is stored as an icon or cover.
+    /// </summary>
+    /// <param name="localPath">The picked file path.</param>
+    /// <returns>The path when it is a supported image; otherwise null after notifying the user.</returns>
+    private string? ValidateCustomImagePath(string? localPath)
+    {
+        if (!string.IsNullOrEmpty(localPath) && MediaFileHelper.IsImageFile(localPath))
+        {
+            if (MediaFileHelper.HasImageContent(localPath))
+            {
+                return localPath;
+            }
+
+            _logger?.LogWarning("Rejected custom profile image with unreadable or mismatched content: {Path}", localPath);
+        }
+        else
+        {
+            _logger?.LogWarning("Rejected custom profile image with unsupported extension: {Path}", localPath);
+        }
+
+        INotificationService notifier = _notificationService ?? _localNotificationService;
+        notifier.ShowError(
+            _localizationService?.GetString(InvalidCustomImageTitleKey) ?? DefaultInvalidCustomImageTitle,
+            _localizationService?.GetString(InvalidCustomImageMessageKey) ?? DefaultInvalidCustomImageMessage);
+        return null;
     }
 
     [RelayCommand]
@@ -1293,15 +1467,11 @@ public partial class GameProfileSettingsViewModel
 
                 _logger?.LogInformation("Added local content via dialog: {Name}", contentItem.DisplayName);
 
-                StatusMessage = $"Added {contentItem.DisplayName}";
+                NotifyLocalContentAdded(contentItem.DisplayName);
                 await EnableContentInternal(contentItem, bypassLoadingGuard: true);
 
                 // Refresh filters and content to ensure new type appears and list updates
                 await RefreshFiltersAndContentAsync();
-
-                _localNotificationService?.ShowSuccess(
-                     "Content Added",
-                     $"'{contentItem.DisplayName}' has been added successfully.");
             }
         }
         catch (Exception ex)

@@ -51,6 +51,9 @@ public class UserSettings
     /// <summary>Gets or sets the ID of the last used game profile.</summary>
     public string? LastUsedProfileId { get; set; }
 
+    /// <summary>Gets or sets the sorting mode for game profiles on the launcher screen.</summary>
+    public ProfileSortMode ProfileSortMode { get; set; } = ProfileSortMode.LastPlayed;
+
     /// <summary>Gets or sets the last selected navigation tab.</summary>
     public NavigationTab LastSelectedTab { get; set; } = NavigationTab.Home;
 
@@ -218,6 +221,21 @@ public class UserSettings
     /// </summary>
     public bool IsNotificationMuted { get; set; }
 
+    /// <summary>
+    /// Gets or sets the telemetry collection preference level.
+    /// </summary>
+    public TelemetryLevel TelemetryPreference { get; set; } = TelemetryLevel.Disabled;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the telemetry onboarding prompt has been shown.
+    /// </summary>
+    public bool EnableTelemetryPromptShown { get; set; }
+
+    /// <summary>
+    /// Gets or sets the anonymous installation GUID used for aggregate metrics.
+    /// </summary>
+    public string? AnonymousInstallationId { get; set; }
+
     /// <summary>Creates a deep copy of the current UserSettings instance.</summary>
     /// <returns>A new UserSettings instance with all properties deeply copied.</returns>
     public UserSettings Clone()
@@ -238,6 +256,7 @@ public class UserSettings
             ProfileSettingsGameSidebarWidth = ProfileSettingsGameSidebarWidth,
             WorkspacePath = WorkspacePath,
             LastUsedProfileId = LastUsedProfileId,
+            ProfileSortMode = ProfileSortMode,
             LastSelectedTab = LastSelectedTab,
             MaxConcurrentDownloads = MaxConcurrentDownloads,
             AllowBackgroundDownloads = AllowBackgroundDownloads,
@@ -255,6 +274,9 @@ public class UserSettings
             ApplicationDataPath = ApplicationDataPath,
             HasSeenQuickStart = HasSeenQuickStart,
             IsNotificationMuted = IsNotificationMuted,
+            TelemetryPreference = TelemetryPreference,
+            EnableTelemetryPromptShown = EnableTelemetryPromptShown,
+            AnonymousInstallationId = AnonymousInstallationId,
 
             SubscribedPrNumber = SubscribedPrNumber,
             SubscribedBranch = SubscribedBranch,

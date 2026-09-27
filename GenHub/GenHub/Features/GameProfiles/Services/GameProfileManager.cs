@@ -1049,6 +1049,16 @@ public class GameProfileManager(
         {
             profile.ActiveWorkspaceId = request.ActiveWorkspaceId;
         }
+
+        if (request.LastPlayedAt.HasValue)
+        {
+            profile.LastPlayedAt = request.LastPlayedAt.Value;
+        }
+
+        if (request.DisplayOrder.HasValue)
+        {
+            profile.DisplayOrder = request.DisplayOrder.Value;
+        }
     }
 
     private void CheckAndHandleContentChanges(

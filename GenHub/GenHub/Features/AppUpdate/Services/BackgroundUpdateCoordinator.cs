@@ -774,7 +774,7 @@ public class BackgroundUpdateCoordinator(
                 scope.CompleteWithPinnedMessage(AppUpdateConstants.UpdateDownloadedRestartingMessage);
                 try
                 {
-                    velopackUpdateManager.ApplyUpdatesAndRestart(updateInfo!);
+                    await velopackUpdateManager.ApplyUpdatesAndRestartAsync(updateInfo!, lifetimeToken);
                 }
                 catch
                 {

@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GitHub;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Enums;
 using GenHub.Features.AppUpdate.Interfaces;
@@ -42,6 +43,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     private readonly IGitHubAuthService? _gitHubAuthService;
     private readonly IUserSettingsService? _userSettingsService;
     private readonly IFileDownloader _fileDownloader;
+    private readonly ITelemetryService? _telemetryService;
     private readonly UpdateManager? _updateManager;
     private readonly GithubSource _githubSource;
 
@@ -123,18 +125,21 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     /// <param name="gitHubAuthService">The GitHub authentication service (optional).</param>
     /// <param name="userSettingsService">The user settings service (optional).</param>
     /// <param name="fileDownloader">The high-performance file downloader (optional).</param>
+    /// <param name="telemetryService">The telemetry service (optional).</param>
     public VelopackUpdateManager(
         ILogger<VelopackUpdateManager> logger,
         IHttpClientFactory httpClientFactory,
         IGitHubAuthService? gitHubAuthService = null,
         IUserSettingsService? userSettingsService = null,
-        IFileDownloader? fileDownloader = null)
+        IFileDownloader? fileDownloader = null,
+        ITelemetryService? telemetryService = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
         _gitHubAuthService = gitHubAuthService;
         _userSettingsService = userSettingsService;
         _fileDownloader = fileDownloader ?? new FastHttpClientFileDownloader();
+        _telemetryService = telemetryService;
 
         // Always initialize GithubSource for update checking with high-performance downloader
         _githubSource = new GithubSource(AppConstants.GitHubRepositoryUrl, string.Empty, true, _fileDownloader);
@@ -191,6 +196,9 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         GC.SuppressFinalize(this);
     }
 
+    private string TelemetryChannel =>
+        _subscribedPrNumber.HasValue ? $"{TelemetryConstants.PullRequestChannelPrefix}{_subscribedPrNumber}" : _subscribedBranch ?? TelemetryConstants.ReleaseChannel;
+
     /// <inheritdoc/>
     public async Task<UpdateInfo?> CheckForUpdatesAsync(CancellationToken cancellationToken = default)
     {
@@ -212,6 +220,15 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         }
 
         _logger.LogInformation("Starting GitHub update check for repository: {Url}", AppConstants.GitHubRepositoryUrl);
+
+        _telemetryService?.TrackEvent(TelemetryConstants.Events.AppUpdateChecked, new Dictionary<string, object?>
+        {
+            [TelemetryConstants.Properties.FromVersion] = CurrentAppVersion,
+            [TelemetryConstants.Properties.FullDisplayVersion] = AppConstants.FullDisplayVersion,
+            [TelemetryConstants.Properties.BuildChannel] = AppConstants.BuildChannel,
+            [TelemetryConstants.Properties.Channel] = TelemetryChannel,
+            [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
+        });
 
         try
         {
@@ -329,6 +346,15 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             });
 
             _logger.LogInformation("Update downloaded successfully");
+            _telemetryService?.TrackEvent(TelemetryConstants.Events.AppUpdateDownloaded, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.FromVersion] = CurrentAppVersion,
+                [TelemetryConstants.Properties.ToVersion] = updateInfo.TargetFullRelease.Version.ToString(),
+                [TelemetryConstants.Properties.FullDisplayVersion] = AppConstants.FullDisplayVersion,
+                [TelemetryConstants.Properties.BuildChannel] = AppConstants.BuildChannel,
+                [TelemetryConstants.Properties.Channel] = TelemetryChannel,
+                [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
+            });
         }
         catch (Exception ex)
         {
@@ -338,7 +364,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     }
 
     /// <inheritdoc/>
-    public void ApplyUpdatesAndRestart(UpdateInfo updateInfo)
+    public async Task ApplyUpdatesAndRestartAsync(UpdateInfo updateInfo, CancellationToken cancellationToken = default)
     {
         if (_updateManager == null)
         {
@@ -354,13 +380,27 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             _logger.LogInformation("Update package: {Package}", updateInfo.TargetFullRelease.FileName);
             _logger.LogInformation("Current app will exit and restart with new version");
 
+            await TrackUpdateAppliedAndFlushAsync(updateInfo.TargetFullRelease.Version.ToString(), null, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+
             _updateManager.ApplyUpdatesAndRestart(updateInfo.TargetFullRelease);
 
             // If we reach here, restart might have failed
             _logger.LogWarning("ApplyUpdatesAndRestart returned without exiting - this is unexpected");
 
-            // Wait a bit for exit to happen (sync context: blocking sleep avoids thread-pool sync-over-async)
-            Thread.Sleep(AppUpdateConstants.PostUpdateExitDelay);
+            // Wait a bit for exit to happen without blocking the calling thread
+            await Task.Delay(AppUpdateConstants.PostUpdateExitDelay, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (ObjectDisposedException)
+        {
+            // The caller's token source was disposed (for example the update window
+            // closed mid-apply). Fail without the exit fallback: re-applying a package
+            // the restart path already applied would be spurious.
+            throw;
         }
         catch (Exception ex)
         {
@@ -381,7 +421,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     }
 
     /// <inheritdoc/>
-    public void ApplyUpdatesAndExit(UpdateInfo updateInfo)
+    public async Task ApplyUpdatesAndExitAsync(UpdateInfo updateInfo, CancellationToken cancellationToken = default)
     {
         if (_updateManager == null)
         {
@@ -394,12 +434,50 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         {
             CleanStrayAppDirectoryArtifacts();
             _logger.LogInformation("Applying update {Version} and exiting...", updateInfo.TargetFullRelease.Version);
+            await TrackUpdateAppliedAndFlushAsync(updateInfo.TargetFullRelease.Version.ToString(), null, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
             _updateManager.ApplyUpdatesAndExit(updateInfo.TargetFullRelease);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to apply updates and restart");
+            _logger.LogError(ex, "Failed to apply updates and exit");
             throw;
+        }
+    }
+
+    private async Task TrackUpdateAppliedAndFlushAsync(string targetVersion, string? channel = null, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _telemetryService?.TrackEvent(TelemetryConstants.Events.AppUpdateApplied, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.FromVersion] = CurrentAppVersion,
+                [TelemetryConstants.Properties.ToVersion] = targetVersion,
+                [TelemetryConstants.Properties.FullDisplayVersion] = AppConstants.FullDisplayVersion,
+                [TelemetryConstants.Properties.BuildChannel] = AppConstants.BuildChannel,
+                [TelemetryConstants.Properties.Channel] = channel ?? TelemetryChannel,
+                [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
+            });
+
+            if (_telemetryService != null)
+            {
+                using var flushCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                flushCts.CancelAfter(TimeSpan.FromSeconds(TelemetryConstants.FlushTimeoutSeconds));
+                await _telemetryService.FlushAsync(flushCts.Token).WaitAsync(flushCts.Token).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Failed to flush telemetry before Velopack update apply");
         }
     }
 
@@ -884,15 +962,42 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                     },
                     cancellationToken);
 
+                string artifactChannel;
+                if (artifactInfo.PullRequestNumber.HasValue)
+                {
+                    artifactChannel = $"{TelemetryConstants.PullRequestChannelPrefix}{artifactInfo.PullRequestNumber.Value}";
+                }
+                else if (!string.IsNullOrEmpty(artifactInfo.ArtifactName))
+                {
+                    artifactChannel = artifactInfo.ArtifactName;
+                }
+                else
+                {
+                    artifactChannel = TelemetryChannel;
+                }
+
+                _telemetryService?.TrackEvent(TelemetryConstants.Events.AppUpdateDownloaded, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.FromVersion] = CurrentAppVersion,
+                    [TelemetryConstants.Properties.ToVersion] = fileVersion,
+                    [TelemetryConstants.Properties.FullDisplayVersion] = AppConstants.FullDisplayVersion,
+                    [TelemetryConstants.Properties.BuildChannel] = AppConstants.BuildChannel,
+                    [TelemetryConstants.Properties.Channel] = artifactChannel,
+                    [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
+                });
+
                 progress?.Report(new UpdateProgress { Status = "Installing update...", PercentComplete = 90 });
 
                 CleanStrayAppDirectoryArtifacts();
                 _logger.LogInformation("Applying {Label} update and restarting", label);
 
+                await TrackUpdateAppliedAndFlushAsync(fileVersion, artifactChannel, cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+
                 localUpdateManager.ApplyUpdatesAndRestart(updateInfo.TargetFullRelease);
 
                 _logger.LogWarning("ApplyUpdatesAndRestart returned without exiting - waiting for exit...");
-                await Task.Delay(AppUpdateConstants.PostUpdateExitDelay, cancellationToken);
+                await Task.Delay(AppUpdateConstants.PostUpdateExitDelay, cancellationToken).ConfigureAwait(false);
 
                 _logger.LogError("Application did not exit after ApplyUpdatesAndRestart. Update may have failed.");
                 throw new InvalidOperationException("Application did not exit after applying update");

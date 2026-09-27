@@ -268,6 +268,19 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
+    /// Verifies that AvailableTelemetryLevels exposes every telemetry level as an indexable list.
+    /// </summary>
+    [Fact]
+    public void AvailableTelemetryLevels_ReturnsAllEnumValuesAsReadOnlyList()
+    {
+        // Act
+        IReadOnlyList<TelemetryLevel> levels = SettingsViewModel.AvailableTelemetryLevels;
+
+        // Assert
+        Assert.Equal(Enum.GetValues<TelemetryLevel>(), levels);
+    }
+
+    /// <summary>
     /// Verifies that SaveSettingsCommand handles configuration service exceptions.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>

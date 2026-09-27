@@ -44,18 +44,20 @@ public class MockVelopackUpdateManager(INotificationService? notificationService
     public bool IsPrMergedOrClosed => false;
 
     /// <inheritdoc/>
-    public void ApplyUpdatesAndExit(UpdateInfo updateInfo)
+    public Task ApplyUpdatesAndExitAsync(UpdateInfo updateInfo, CancellationToken cancellationToken = default)
     {
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc/>
-    public void ApplyUpdatesAndRestart(UpdateInfo updateInfo)
+    public Task ApplyUpdatesAndRestartAsync(UpdateInfo updateInfo, CancellationToken cancellationToken = default)
     {
         _notificationService?.Show(new NotificationMessage(
             NotificationType.Success,
             "Demo Update",
             "In a real installation, the app would restart now to apply the update!",
             5000));
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc/>

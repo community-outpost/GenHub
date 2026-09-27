@@ -86,6 +86,13 @@ public class ContentSearchResult
     public string? SourceUrl { get; set; }
 
     /// <summary>
+    /// Gets or sets a value indicating whether <see cref="SourceUrl"/> is an external fallback link
+    /// kept for browser navigation only. When true, the detail view must not automatically parse the
+    /// URL into <see cref="ParsedPageData"/>, so manifest-derived files and metadata stay authoritative.
+    /// </summary>
+    public bool SkipAutomaticWebParsing { get; set; }
+
+    /// <summary>
     /// Gets or sets the direct URL selected from a content-details file list.
     /// The resolver retains <see cref="SourceUrl"/> as the detail page and uses this value to
     /// select the requested artifact without parsing the page again.

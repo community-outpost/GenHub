@@ -1,7 +1,9 @@
+using System.Diagnostics.CodeAnalysis;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
@@ -35,6 +37,8 @@ namespace GenHub.Features.Tools.ModBuilder.Services;
 /// <param name="archiveService">The archive service.</param>
 /// <param name="serviceScopeFactory">The service scope factory for resolving scoped dependencies.</param>
 /// <param name="logger">The logger instance.</param>
+/// <param name="telemetryService">The optional telemetry service.</param>
+[method: SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Primary constructor injects required dependencies for ModBuilder engine pipeline.")]
 public sealed class BuildEngineService(
     IBuildCacheService cacheService,
     IFileConversionService fileConversionService,
@@ -42,7 +46,8 @@ public sealed class BuildEngineService(
     IConfigurationLoaderService configurationLoaderService,
     IArchiveService archiveService,
     IServiceScopeFactory serviceScopeFactory,
-    ILogger<BuildEngineService> logger) : IBuildEngineService
+    ILogger<BuildEngineService> logger,
+    ITelemetryService? telemetryService = null) : IBuildEngineService
 {
     private sealed class StageProgressTracker(int totalFiles)
     {
@@ -107,6 +112,13 @@ public sealed class BuildEngineService(
         {
             var msg = $"Cannot execute build within the application installation directory: '{project.ProjectDir}'. The project must be located in a user directory.";
             logger.LogError(msg);
+            telemetryService?.TrackEvent(TelemetryConstants.Events.ModBuilt, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.BuildSteps] = buildSteps.ToString(),
+                [TelemetryConstants.Properties.Success] = false,
+                [TelemetryConstants.Properties.DurationSeconds] = 0.0,
+                [TelemetryConstants.Properties.ErrorMessage] = msg,
+            });
             return BuildOperationResult.CreateFailure(msg);
         }
 
@@ -133,6 +145,13 @@ public sealed class BuildEngineService(
             {
                 logger.LogError("Invalid bundle configuration: {Error}", duplicateNamesError);
                 sw.Stop();
+                telemetryService?.TrackEvent(TelemetryConstants.Events.ModBuilt, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.BuildSteps] = buildSteps.ToString(),
+                    [TelemetryConstants.Properties.Success] = false,
+                    [TelemetryConstants.Properties.DurationSeconds] = sw.Elapsed.TotalSeconds,
+                    [TelemetryConstants.Properties.ErrorMessage] = duplicateNamesError,
+                });
                 return BuildOperationResult.CreateFailure(duplicateNamesError, 0, 0, 0, sw.Elapsed);
             }
 
@@ -150,6 +169,15 @@ public sealed class BuildEngineService(
 
             sw.Stop();
 
+            telemetryService?.TrackEvent(TelemetryConstants.Events.ModBuilt, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.BuildSteps] = buildSteps.ToString(),
+                [TelemetryConstants.Properties.Success] = success,
+                [TelemetryConstants.Properties.FileCount] = _filesProcessed,
+                [TelemetryConstants.Properties.DurationSeconds] = sw.Elapsed.TotalSeconds,
+                [TelemetryConstants.Properties.ErrorMessage] = success ? null : _lastErrorMessage ?? "Build failed",
+            });
+
             return success
                 ? BuildOperationResult.CreateSuccess(_filesProcessed, _filesSkipped, _filesFailed, sw.Elapsed)
                 : BuildOperationResult.CreateFailure(_lastErrorMessage ?? "Build failed", _filesProcessed, _filesSkipped, _filesFailed, sw.Elapsed);
@@ -157,12 +185,27 @@ public sealed class BuildEngineService(
         catch (OperationCanceledException)
         {
             sw.Stop();
+            telemetryService?.TrackEvent(TelemetryConstants.Events.ModBuilt, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.BuildSteps] = buildSteps.ToString(),
+                [TelemetryConstants.Properties.Success] = false,
+                [TelemetryConstants.Properties.FileCount] = _filesProcessed,
+                [TelemetryConstants.Properties.DurationSeconds] = sw.Elapsed.TotalSeconds,
+                [TelemetryConstants.Properties.ErrorMessage] = "Build cancelled",
+            });
             throw;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "ExecuteBuildAsync failed");
             sw.Stop();
+            telemetryService?.TrackEvent(TelemetryConstants.Events.ModBuilt, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.BuildSteps] = buildSteps.ToString(),
+                [TelemetryConstants.Properties.Success] = false,
+                [TelemetryConstants.Properties.DurationSeconds] = sw.Elapsed.TotalSeconds,
+                [TelemetryConstants.Properties.ErrorMessage] = ex.Message,
+            });
             return BuildOperationResult.CreateFailure($"Build failed: {ex.Message}", _filesProcessed, _filesSkipped, _filesFailed, sw.Elapsed);
         }
         finally
@@ -1147,14 +1190,26 @@ public sealed class BuildEngineService(
             }
 
             var packFileName = Path.GetFileName(packFilePath);
-            if (manifest.EntryOrder.Count > 0 && TryReadBigEntryCount(packFilePath, out var entryCount) && entryCount != manifest.EntryOrder.Count)
+            if (!string.IsNullOrEmpty(manifest.BigFileName)
+                && !string.Equals(manifest.BigFileName, packFileName, StringComparison.OrdinalIgnoreCase))
             {
-                var countMismatchMsg = $"Archive {packFileName} contains {entryCount} entries but the manifest lists {manifest.EntryOrder.Count}; entry count mismatch";
-                logger.LogError("{MismatchMessage}", countMismatchMsg);
-                _lastErrorMessage = countMismatchMsg;
-                Interlocked.Increment(ref _filesFailed);
+                logger.LogWarning(
+                    "Manifest BigFileName '{ManifestBig}' does not match pack file '{PackFile}'; skipping integrity verification",
+                    manifest.BigFileName,
+                    packFileName);
                 return;
             }
+
+            if (manifest.EntryOrder.Count > 0 && TryReadBigEntryCount(packFilePath, out var entryCount) && entryCount != manifest.EntryOrder.Count)
+            {
+                logger.LogInformation(
+                    "Archive {PackFileName} contains {EntryCount} entries while reference manifest lists {ManifestCount}; skipping byte-for-byte exact match verification (archive contains project modifications)",
+                    packFileName,
+                    entryCount,
+                    manifest.EntryOrder.Count);
+                return;
+            }
+
             progress?.Report(new BuildProgress
             {
                 CurrentStage = BuildStage.Verifying,
@@ -1177,10 +1232,11 @@ public sealed class BuildEngineService(
             }
             else
             {
-                var mismatchMsg = $"BIG archive SHA256 mismatch for {Path.GetFileName(packFilePath)}! Expected {manifest.Sha256}, got {builtSha256}";
-                logger.LogWarning("{MismatchMessage}", mismatchMsg);
-                _lastErrorMessage = mismatchMsg;
-                Interlocked.Increment(ref _filesFailed);
+                logger.LogInformation(
+                    "BIG archive {PackFileName} SHA256 differs from reference manifest (expected for modified projects). Reference: {Expected}, Built: {Actual}",
+                    packFileName,
+                    manifest.Sha256,
+                    builtSha256);
             }
         }
         catch (OperationCanceledException)
@@ -1189,10 +1245,7 @@ public sealed class BuildEngineService(
         }
         catch (Exception ex)
         {
-            var readErrorMsg = $"Failed to verify hash for built archive {packFilePath}: {ex.Message}";
-            logger.LogError(ex, "Failed to verify hash for built archive: {Path}", packFilePath);
-            _lastErrorMessage = readErrorMsg;
-            Interlocked.Increment(ref _filesFailed);
+            logger.LogWarning(ex, "Failed to verify hash for built archive: {Path}", packFilePath);
         }
     }
 
@@ -2474,6 +2527,47 @@ public sealed class BuildEngineService(
         }
     }
 
+    private async Task StageBigPackArchiveForManifestAsync(
+        BundlePack pack,
+        BuildSetup setup,
+        string entryStagingDir,
+        string? releaseDir,
+        IProgress<BuildProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var effectiveReleaseDir = releaseDir ?? setup.Folders?.AbsReleaseDir ?? ModBuilderConstants.DefaultReleaseDir;
+        var packFileName = GetPackFileName(pack);
+        var packFilePath = Path.Combine(effectiveReleaseDir, packFileName);
+        var destPath = Path.Combine(entryStagingDir, packFileName);
+
+        if (!IsSubpathOf(effectiveReleaseDir, packFilePath) || !IsSubpathOf(entryStagingDir, destPath))
+        {
+            var escapeError = $"BIG pack archive '{packFileName}' resolves outside staging or release directories.";
+            logger.LogError(ModBuilderConstants.EscapeErrorLogTemplate, escapeError);
+            Interlocked.Increment(ref _filesFailed);
+            _lastErrorMessage = escapeError;
+            return;
+        }
+
+        if (!File.Exists(packFilePath))
+        {
+            logger.LogInformation("BIG pack archive '{PackFile}' not found in release directory; building it before staging for manifest...", packFileName);
+            await BuildSingleReleaseBundlePackAsync(pack, setup, progress, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (File.Exists(packFilePath))
+        {
+            EnsureDestinationDirectory(destPath);
+            File.Copy(packFilePath, destPath, overwrite: true);
+            logger.LogInformation("Staged BIG pack archive '{PackFile}' into manifest staging directory.", packFileName);
+        }
+        else
+        {
+            logger.LogError("BIG pack archive '{PackFile}' was not found and could not be built.", packFileName);
+            _lastErrorMessage = $"Failed to build or locate BIG pack archive '{packFileName}' for manifest.";
+        }
+    }
+
     private async Task<bool> ExecuteManifestPlanEntryAsync(
         BuildStructure buildStructure,
         ManifestPlanEntry entry,
@@ -2504,7 +2598,14 @@ public sealed class BuildEngineService(
         foreach (var pack in entry.Packs)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await StagePackFilesAsync(pack, items, stagingPaths, progress, cancellationToken).ConfigureAwait(false);
+            if (pack.IsBigPack)
+            {
+                await StageBigPackArchiveForManifestAsync(pack, buildStructure.Setup, entryStagingDir, dirs.ReleaseDir, progress, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await StagePackFilesAsync(pack, items, stagingPaths, progress, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         var stagedFiles = Directory.GetFiles(entryStagingDir, "*", SearchOption.AllDirectories);

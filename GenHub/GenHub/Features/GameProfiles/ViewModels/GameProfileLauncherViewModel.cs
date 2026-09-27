@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
@@ -18,12 +19,14 @@ using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Steam;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Utilities;
 using GenHub.Features.GameProfiles.Services;
 using GenHub.Features.GameProfiles.Views;
 using Microsoft.Extensions.Logging;
@@ -66,6 +69,7 @@ public partial class GameProfileLauncherViewModel(
     ILoggerFactory? loggerFactory = null,
     IUploadHistoryService? uploadHistoryService = null,
     Func<IProfileSharingService>? profileSharingServiceFactory = null,
+    ITelemetryService? telemetryService = null,
     IUserSettingsService? userSettingsService = null) : ViewModelBase,
     IRecipient<ProfileCreatedMessage>,
     IRecipient<ProfileUpdatedMessage>,
@@ -75,21 +79,108 @@ public partial class GameProfileLauncherViewModel(
     IRecipient<ProfileDeletedMessage>
 {
     private const int MaxReceiptDriftNoticeLines = 5;
+    private const int MaxDirectoryExecutablesToInspect = 8;
+    private const string NotificationErrorTitleKey = "GameProfiles.Notification.Error.Title";
+    private const string ReorderFailedTitleKey = "GameProfiles.Notification.ReorderFailed.Title";
+    private const string ReorderFailedMessageKey = "GameProfiles.Notification.ReorderFailed.Message";
 
     private readonly Dictionary<int, (Guid Identity, bool IsTool, string ProfileId)> _announcedProcesses = new();
 
     private readonly SemaphoreSlim _launchSemaphore = new(1, 1);
     private readonly SemaphoreSlim _importDialogSemaphore = new(1, 1);
     private readonly SemaphoreSlim _shareDialogSemaphore = new(1, 1);
+    private readonly SemaphoreSlim _reorderLock = new(1, 1);
+    private readonly SemaphoreSlim _sortPersistLock = new(1, 1);
 
     private readonly System.Timers.Timer _headerCollapseTimer = new(TimeIntervals.HeaderCollapseDelayMs);
     private readonly System.Timers.Timer _headerExpansionTimer = new(TimeIntervals.HeaderExpansionDelayMs);
+    private bool _isLoadingSortMode;
     private bool _isHovering;
     private bool _isTimersConfigured;
     private bool _lastOperationSuccess;
     private string? _expectedProfileIdForSuccess;
     private bool _isCreatingNewProfile;
     private bool _isRestoringSelection;
+
+    /// <summary>
+    /// Represents a profile sorting option.
+    /// </summary>
+    /// <param name="Mode">The sorting mode enum value.</param>
+    /// <param name="DisplayName">The user-facing localized display name.</param>
+    public record ProfileSortOption(ProfileSortMode Mode, string DisplayName);
+
+    /// <summary>
+    /// Gets the list of available sorting modes.
+    /// </summary>
+    [ObservableProperty]
+    private ObservableCollection<ProfileSortOption> _availableSortModes = [];
+
+    /// <summary>
+    /// Gets or sets the selected sorting mode item in the dropdown.
+    /// </summary>
+    [ObservableProperty]
+    private ProfileSortOption? _selectedSortModeItem;
+
+    /// <summary>
+    /// Gets or sets the current sorting mode enum.
+    /// </summary>
+    [ObservableProperty]
+    private ProfileSortMode _selectedSortMode = ProfileSortMode.LastPlayed;
+
+    partial void OnSelectedSortModeItemChanged(ProfileSortOption? value)
+    {
+        if (value != null && SelectedSortMode != value.Mode)
+        {
+            SelectedSortMode = value.Mode;
+        }
+    }
+
+    partial void OnSelectedSortModeChanged(ProfileSortMode value)
+    {
+        SelectedSortModeItem = AvailableSortModes.FirstOrDefault(o => o.Mode == value);
+        ApplySorting();
+
+        if (userSettingsService != null)
+        {
+            _ = PersistSortModeAsync(userSettingsService, value);
+        }
+    }
+
+    /// <summary>
+    /// Persists the selected sort mode, skipping stale requests so rapid changes keep the latest selection.
+    /// </summary>
+    /// <param name="settingsService">The user settings service.</param>
+    /// <param name="mode">The sort mode to persist.</param>
+    private async Task PersistSortModeAsync(IUserSettingsService settingsService, ProfileSortMode mode)
+    {
+        if (_isLoadingSortMode)
+        {
+            return;
+        }
+
+        await _sortPersistLock.WaitAsync();
+        try
+        {
+            if (_isLoadingSortMode || SelectedSortMode != mode)
+            {
+                return;
+            }
+
+            await settingsService.TryUpdateAndSaveAsync(s =>
+            {
+                s.ProfileSortMode = mode;
+                return true;
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to persist profile sort mode setting");
+        }
+        finally
+        {
+            _sortPersistLock.Release();
+        }
+    }
 
     private ObservableCollection<GameProfileItemViewModel>? _profiles;
 
@@ -138,6 +229,13 @@ public partial class GameProfileLauncherViewModel(
 
     [ObservableProperty]
     private bool _isHeaderExpanded = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the sort-mode dropdown is open.
+    /// While open, the header must stay expanded so the popup is not left hanging.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isSortDropdownOpen;
 
     /// <summary>
     /// Gets a value indicating whether profiles have been loaded successfully from storage.
@@ -238,7 +336,7 @@ public partial class GameProfileLauncherViewModel(
                 _headerCollapseTimer.Elapsed += (s, e) =>
                     Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
                     {
-                        if (!_isHovering && !IsScanning)
+                        if (!_isHovering && !IsScanning && !IsSortDropdownOpen)
                         {
                             IsHeaderExpanded = false;
                         }
@@ -257,6 +355,33 @@ public partial class GameProfileLauncherViewModel(
                 gameProcessManager.ProcessExited += OnProcessExited;
                 localizationService.PropertyChanged -= OnLocalizationPropertyChanged;
                 localizationService.PropertyChanged += OnLocalizationPropertyChanged;
+            }
+
+            InitializeSortOptions();
+            if (userSettingsService != null)
+            {
+                try
+                {
+                    _isLoadingSortMode = true;
+                    var settings = userSettingsService.Get();
+                    var savedSortMode = settings.ProfileSortMode;
+                    if (!Enum.IsDefined(savedSortMode))
+                    {
+                        logger.LogWarning("Ignoring out-of-range saved profile sort mode {SortMode}", (int)savedSortMode);
+                        savedSortMode = ProfileSortMode.LastPlayed;
+                    }
+
+                    SelectedSortMode = savedSortMode;
+                    SelectedSortModeItem = AvailableSortModes.FirstOrDefault(o => o.Mode == SelectedSortMode);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to load user sort mode setting");
+                }
+                finally
+                {
+                    _isLoadingSortMode = false;
+                }
             }
 
             StatusMessage = localizationService["GameProfiles.Status.LoadingProfiles"];
@@ -307,6 +432,8 @@ public partial class GameProfileLauncherViewModel(
                 // Add "Add New Profile" item at the end
                 Profiles.Add(new AddProfileItemViewModel());
                 RestoreSelectedProfile(selectedProfileId);
+
+                ApplySorting();
 
                 var profileCount = Profiles.Count - 1;
                 HasLoadedProfilesSuccessfully = true;
@@ -536,6 +663,7 @@ public partial class GameProfileLauncherViewModel(
                 {
                     Profiles.Remove(profile);
                     ClearSelectionIfRemoved(profile);
+                    ApplySorting();
                 }
             }
             catch (Exception ex)
@@ -564,7 +692,7 @@ public partial class GameProfileLauncherViewModel(
         _headerExpansionTimer.Stop();
 
         // Only start the auto-collapse timer if the user is NOT currently hovering
-        if (!_isHovering && !IsScanning)
+        if (!_isHovering && !IsScanning && !IsSortDropdownOpen)
         {
             _headerCollapseTimer.Start();
         }
@@ -644,6 +772,98 @@ public partial class GameProfileLauncherViewModel(
         finally
         {
             _importDialogSemaphore.Release();
+        }
+    }
+
+    /// <summary>
+    /// Applies the current sort order to the profiles collection, keeping the Add card at the end.
+    /// </summary>
+    public void ApplySorting()
+    {
+        if (_profiles == null || _profiles.Count <= 1)
+        {
+            return;
+        }
+
+        var addCard = _profiles.OfType<AddProfileItemViewModel>().FirstOrDefault();
+        var profileItems = _profiles.OfType<GameProfileItemViewModel>().Where(p => p is not AddProfileItemViewModel).ToList();
+
+        if (profileItems.Count == 0)
+        {
+            return;
+        }
+
+        bool isFree = SelectedSortMode == ProfileSortMode.Free;
+        UpdateFreeReorderState(profileItems, isFree);
+
+        var sorted = SortProfileItems(profileItems, SelectedSortMode);
+        UpdateMoveAvailability(sorted, isFree);
+
+        if (!IsCurrentOrder(sorted, addCard))
+        {
+            ReplaceProfileOrder(sorted, addCard);
+        }
+    }
+
+    /// <summary>
+    /// Handles dropped content files or folders by inspecting them and opening the new profile creation flow with the content pre-staged.
+    /// </summary>
+    /// <param name="paths">The paths of dropped files or directories.</param>
+    /// <param name="cancellationToken">Token to cancel binary inspection of the dropped paths.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public async Task HandleDroppedContentAsync(IReadOnlyList<string> paths, CancellationToken cancellationToken = default)
+    {
+        if (paths == null || paths.Count == 0)
+        {
+            return;
+        }
+
+        var dialogLockAcquired = false;
+        try
+        {
+            if (!await TryAcquireDropImportLockAsync(cancellationToken))
+            {
+                return;
+            }
+
+            dialogLockAcquired = true;
+            var (detectedGameType, detectedContentType) = await DetectContentTypeAndGameTypeAsync(paths, cancellationToken);
+
+            await settingsViewModel.InitializeForNewProfileAsync();
+            if (detectedGameType != GameType.Unknown)
+            {
+                settingsViewModel.GameType = detectedGameType.ToString();
+            }
+
+            var mainWindow = GetMainWindow();
+            if (mainWindow != null)
+            {
+                await ShowDropNewProfileDialogAsync(paths, detectedGameType, detectedContentType, mainWindow, cancellationToken);
+            }
+            else
+            {
+                NotifyMainWindowMissing();
+            }
+        }
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        {
+            logger.LogInformation(ex, "Dropped content inspection was cancelled.");
+            StatusMessage = localizationService["GameProfiles.Status.ProfileCreationCancelled"];
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error handling dropped content");
+            StatusMessage = localizationService["GameProfiles.Error.ErrorCreatingNewProfile"];
+            notificationService.ShowError(
+                localizationService[NotificationErrorTitleKey],
+                localizationService.GetString("GameProfiles.Notification.OpenNewProfileError.Message", ex.Message));
+        }
+        finally
+        {
+            if (dialogLockAcquired)
+            {
+                _importDialogSemaphore.Release();
+            }
         }
     }
 
@@ -802,10 +1022,531 @@ public partial class GameProfileLauncherViewModel(
         }
     }
 
+    /// <summary>
+    /// Sorts profile items according to the selected sort mode.
+    /// </summary>
+    /// <param name="profileItems">The profile items to sort.</param>
+    /// <param name="sortMode">The sort mode to apply.</param>
+    /// <returns>The sorted profile items.</returns>
+    private static List<GameProfileItemViewModel> SortProfileItems(List<GameProfileItemViewModel> profileItems, ProfileSortMode sortMode)
+    {
+        return sortMode switch
+        {
+            ProfileSortMode.LastPlayed => profileItems
+                .OrderByDescending(p => p.LastPlayedAt.HasValue)
+                .ThenByDescending(p => p.LastPlayedAt ?? DateTime.MinValue)
+                .ThenByDescending(p => p.CreatedAt)
+                .ToList(),
+            ProfileSortMode.DateCreated => profileItems
+                .OrderByDescending(p => p.CreatedAt)
+                .ToList(),
+            ProfileSortMode.Alphabetical => profileItems
+                .OrderBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
+                .ToList(),
+            ProfileSortMode.AlphabeticalDesc => profileItems
+                .OrderByDescending(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
+                .ToList(),
+            _ => profileItems
+                .OrderBy(p => p.DisplayOrder)
+                .ThenByDescending(p => p.CreatedAt)
+                .ToList(),
+        };
+    }
+
+    /// <summary>
+    /// Updates move-button availability for the sorted profile items.
+    /// </summary>
+    /// <param name="sorted">The sorted profile items.</param>
+    /// <param name="isFree">Whether free reorder mode is active.</param>
+    private static void UpdateMoveAvailability(List<GameProfileItemViewModel> sorted, bool isFree)
+    {
+        for (int i = 0; i < sorted.Count; i++)
+        {
+            sorted[i].CanMoveLeft = isFree && i > 0;
+            sorted[i].CanMoveRight = isFree && i < sorted.Count - 1;
+        }
+    }
+
+    /// <summary>
+    /// Moves an item within the list by the given delta.
+    /// </summary>
+    /// <param name="profileItems">The ordered profile items.</param>
+    /// <param name="item">The item to move.</param>
+    /// <param name="delta">The relative move distance.</param>
+    /// <returns>True when the item was moved; otherwise false.</returns>
+    private static bool TryMoveItem(List<GameProfileItemViewModel> profileItems, GameProfileItemViewModel item, int delta)
+    {
+        int currentIndex = profileItems.IndexOf(item);
+        if (currentIndex < 0)
+        {
+            return false;
+        }
+
+        int newIndex = currentIndex + delta;
+        if (newIndex < 0 || newIndex >= profileItems.Count)
+        {
+            return false;
+        }
+
+        profileItems.RemoveAt(currentIndex);
+        profileItems.Insert(newIndex, item);
+        return true;
+    }
+
+    /// <summary>
+    /// Assigns sequential display orders to the reordered items, mirroring them onto the models.
+    /// </summary>
+    /// <param name="profileItems">The reordered profile items.</param>
+    private static void AssignDisplayOrders(List<GameProfileItemViewModel> profileItems)
+    {
+        for (int i = 0; i < profileItems.Count; i++)
+        {
+            profileItems[i].DisplayOrder = i;
+            if (profileItems[i].Profile is GameProfile gp)
+            {
+                gp.DisplayOrder = i;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Restores in-memory display orders after a failed reorder.
+    /// </summary>
+    /// <param name="profileItems">The reordered profile items.</param>
+    /// <param name="originalOrders">The display orders before the reorder.</param>
+    private static void RestoreInMemoryOrders(List<GameProfileItemViewModel> profileItems, List<int> originalOrders)
+    {
+        for (int i = 0; i < profileItems.Count && i < originalOrders.Count; i++)
+        {
+            profileItems[i].DisplayOrder = originalOrders[i];
+            if (profileItems[i].Profile is GameProfile restoreGp)
+            {
+                restoreGp.DisplayOrder = originalOrders[i];
+            }
+        }
+    }
+
+    /// <summary>
+    /// Infers the target game type from archive file names and directory names.
+    /// </summary>
+    /// <param name="path">The dropped file or directory path.</param>
+    /// <param name="current">The currently inferred game type.</param>
+    /// <returns>The updated game type inference.</returns>
+    private static GameType InferGameTypeFromName(string path, GameType current)
+    {
+        if (File.Exists(path))
+        {
+            return InferGameTypeFromArchiveName(Path.GetFileName(path), current);
+        }
+
+        if (Directory.Exists(path))
+        {
+            var dirName = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            return InferGameTypeFromDirectoryName(dirName, current);
+        }
+
+        return current;
+    }
+
+    /// <summary>
+    /// Infers the game type from a mod archive file name.
+    /// </summary>
+    /// <param name="filename">The archive file name.</param>
+    /// <param name="current">The currently inferred game type.</param>
+    /// <returns>The updated game type inference.</returns>
+    private static GameType InferGameTypeFromArchiveName(string filename, GameType current)
+    {
+        var ext = Path.GetExtension(filename);
+        if (!string.Equals(ext, ".big", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(ext, ".zip", StringComparison.OrdinalIgnoreCase))
+        {
+            return current;
+        }
+
+        if (filename.Contains("zh", StringComparison.OrdinalIgnoreCase) ||
+            filename.Contains("zerohour", StringComparison.OrdinalIgnoreCase))
+        {
+            return GameType.ZeroHour;
+        }
+
+        if (filename.Contains("generals", StringComparison.OrdinalIgnoreCase))
+        {
+            return GameType.Generals;
+        }
+
+        return current;
+    }
+
+    /// <summary>
+    /// Determines whether a file is worth binary inspection: classic executables and
+    /// extensionless binaries (ELF/Mach-O), which carry no extension by convention.
+    /// </summary>
+    /// <param name="filePath">The file path to check.</param>
+    /// <returns>True when the file should be inspected; otherwise false.</returns>
+    private static bool IsExecutableCandidate(string filePath)
+    {
+        var extension = Path.GetExtension(filePath);
+        return string.Equals(extension, ".exe", StringComparison.OrdinalIgnoreCase) || string.IsNullOrEmpty(extension);
+    }
+
+    /// <summary>
+    /// Infers the game type from a dropped directory name.
+    /// </summary>
+    /// <param name="dirName">The directory name.</param>
+    /// <param name="current">The currently inferred game type.</param>
+    /// <returns>The updated game type inference.</returns>
+    private static GameType InferGameTypeFromDirectoryName(string dirName, GameType current)
+    {
+        if (dirName.Contains("zh", StringComparison.OrdinalIgnoreCase) ||
+            dirName.Contains("zerohour", StringComparison.OrdinalIgnoreCase))
+        {
+            return GameType.ZeroHour;
+        }
+
+        if (dirName.Contains("generals", StringComparison.OrdinalIgnoreCase))
+        {
+            return GameType.Generals;
+        }
+
+        return current;
+    }
+
+    /// <summary>
+    /// Acquires the drop-import dialog lock, warning when another import is already in progress.
+    /// </summary>
+    /// <param name="cancellationToken">Token to cancel the lock acquisition.</param>
+    /// <returns>True when the lock was acquired; otherwise false.</returns>
+    private async Task<bool> TryAcquireDropImportLockAsync(CancellationToken cancellationToken)
+    {
+        if (await _importDialogSemaphore.WaitAsync(0, cancellationToken))
+        {
+            return true;
+        }
+
+        logger.LogWarning("A profile import is already in progress. Ignoring concurrent drop.");
+        notificationService.ShowWarning(
+            localizationService?.GetString("GameProfiles.Launcher.Notify.ImportInProgressTitle") ?? "Import In Progress",
+            localizationService?.GetString("GameProfiles.Launcher.Notify.ImportInProgressMsg") ?? "A profile import dialog is already open.");
+        return false;
+    }
+
+    /// <summary>
+    /// Shows the new-profile dialog for dropped content and reports the outcome.
+    /// </summary>
+    /// <param name="paths">The dropped paths to stage once the dialog opens.</param>
+    /// <param name="detectedGameType">The detected game type suggestion.</param>
+    /// <param name="detectedContentType">The detected content type suggestion.</param>
+    /// <param name="mainWindow">The owning main window.</param>
+    /// <param name="cancellationToken">Token to cancel staging of the dropped paths.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    private async Task ShowDropNewProfileDialogAsync(
+        IReadOnlyList<string> paths,
+        GameType detectedGameType,
+        ContentType detectedContentType,
+        Window mainWindow,
+        CancellationToken cancellationToken)
+    {
+        var settingsWindow = new GameProfileSettingsWindow
+        {
+            DataContext = settingsViewModel,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+        };
+
+        _lastOperationSuccess = false;
+        _expectedProfileIdForSuccess = null;
+        _isCreatingNewProfile = true;
+
+        settingsWindow.Opened += async (s, e) =>
+        {
+            try
+            {
+                await settingsViewModel.ImportDroppedFilesAsync(paths, detectedContentType, detectedGameType, settingsWindow, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to import dropped files into new profile");
+            }
+        };
+
+        try
+        {
+            await settingsWindow.ShowDialog(mainWindow);
+            NotifyDropOutcome();
+        }
+        finally
+        {
+            _isCreatingNewProfile = false;
+        }
+    }
+
+    /// <summary>
+    /// Reports the new-profile drop outcome through the status message and a toast.
+    /// </summary>
+    private void NotifyDropOutcome()
+    {
+        var outcomeMessage = _lastOperationSuccess
+            ? localizationService["GameProfiles.Status.ProfileCreatedSuccess"]
+            : localizationService["GameProfiles.Status.ProfileCreationCancelled"];
+        StatusMessage = outcomeMessage;
+        if (_lastOperationSuccess)
+        {
+            notificationService.ShowSuccess(
+                localizationService["Messages.Success.ProfileCreated"],
+                outcomeMessage,
+                NotificationDurations.Medium);
+        }
+        else
+        {
+            notificationService.ShowInfo(outcomeMessage, outcomeMessage, NotificationDurations.Medium);
+        }
+    }
+
+    /// <summary>
+    /// Reports that the main window is unavailable for the drop dialog.
+    /// </summary>
+    private void NotifyMainWindowMissing()
+    {
+        var mainWindowMissingMessage = localizationService["GameProfiles.Error.MainWindowNotFound"];
+        StatusMessage = mainWindowMissingMessage;
+        notificationService.ShowError(
+            localizationService[NotificationErrorTitleKey],
+            mainWindowMissingMessage,
+            NotificationDurations.Long);
+    }
+
+    /// <summary>
+    /// Updates free-reorder mode flags and move actions for the given profile items.
+    /// </summary>
+    /// <param name="profileItems">The profile items to update.</param>
+    /// <param name="isFree">Whether free reorder mode is active.</param>
+    private void UpdateFreeReorderState(List<GameProfileItemViewModel> profileItems, bool isFree)
+    {
+        foreach (var item in profileItems)
+        {
+            item.IsFreeReorderMode = isFree;
+            item.MoveLeftAction = isFree ? (p => MoveProfileRelativeAsync(p, -1)) : null;
+            item.MoveRightAction = isFree ? (p => MoveProfileRelativeAsync(p, 1)) : null;
+        }
+    }
+
+    /// <summary>
+    /// Determines whether the live collection already matches the sorted order.
+    /// </summary>
+    /// <param name="sorted">The sorted profile items.</param>
+    /// <param name="addCard">The trailing add-profile card, if present.</param>
+    /// <returns>True when the collection order already matches; otherwise false.</returns>
+    private bool IsCurrentOrder(List<GameProfileItemViewModel> sorted, AddProfileItemViewModel? addCard)
+    {
+        if (_profiles == null || _profiles.Count != sorted.Count + (addCard != null ? 1 : 0))
+        {
+            return false;
+        }
+
+        for (int i = 0; i < sorted.Count; i++)
+        {
+            if (!ReferenceEquals(_profiles[i], sorted[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Reorders the live collection in place to match the sorted order, keeping the Add card at the end.
+    /// Moving items preserves card visuals and loaded images; clearing and re-adding would tear down
+    /// every container, flash an empty frame, and force image reloads.
+    /// </summary>
+    /// <param name="sorted">The sorted profile items.</param>
+    /// <param name="addCard">The trailing add-profile card, if present.</param>
+    private void ReplaceProfileOrder(List<GameProfileItemViewModel> sorted, AddProfileItemViewModel? addCard)
+    {
+        if (_profiles == null)
+        {
+            return;
+        }
+
+        addCard ??= _profiles.OfType<AddProfileItemViewModel>().FirstOrDefault() ?? new AddProfileItemViewModel();
+        if (!_profiles.Contains(addCard))
+        {
+            _profiles.Add(addCard);
+        }
+
+        for (int i = _profiles.Count - 1; i >= 0; i--)
+        {
+            var current = _profiles[i];
+            if (!ReferenceEquals(current, addCard) && !sorted.Contains(current))
+            {
+                _profiles.RemoveAt(i);
+            }
+        }
+
+        for (int i = 0; i < sorted.Count; i++)
+        {
+            int currentIndex = _profiles.IndexOf(sorted[i]);
+            if (currentIndex < 0)
+            {
+                _profiles.Insert(Math.Min(i, _profiles.Count), sorted[i]);
+            }
+            else if (currentIndex != i)
+            {
+                _profiles.Move(currentIndex, i);
+            }
+        }
+
+        int addIndex = _profiles.IndexOf(addCard);
+        if (addIndex != _profiles.Count - 1)
+        {
+            _profiles.Move(addIndex, _profiles.Count - 1);
+        }
+    }
+
+    /// <summary>
+    /// Persists display orders that changed, skipping untouched profiles to avoid refresh churn.
+    /// </summary>
+    /// <param name="profileItems">The reordered profile items.</param>
+    /// <param name="originalOrders">The display orders before the reorder.</param>
+    /// <param name="cancellationToken">Token to cancel the persist.</param>
+    /// <returns>Whether all persists succeeded, along with the saved indexes for rollback.</returns>
+    private async Task<(bool Succeeded, List<int> SavedIndexes)> PersistChangedOrdersAsync(List<GameProfileItemViewModel> profileItems, List<int> originalOrders, CancellationToken cancellationToken = default)
+    {
+        var savedIndexes = new List<int>();
+        for (int i = 0; i < profileItems.Count; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (originalOrders[i] == i)
+            {
+                continue;
+            }
+
+            if (!await PersistSingleOrderAsync(profileItems[i], i, cancellationToken))
+            {
+                return (false, savedIndexes);
+            }
+
+            savedIndexes.Add(i);
+        }
+
+        return (true, savedIndexes);
+    }
+
+    /// <summary>
+    /// Persists a single display order value.
+    /// </summary>
+    /// <param name="item">The profile item.</param>
+    /// <param name="displayOrder">The display order to persist.</param>
+    /// <param name="cancellationToken">Token to cancel the persist.</param>
+    /// <returns>True when the persist succeeded; otherwise false.</returns>
+    private async Task<bool> PersistSingleOrderAsync(GameProfileItemViewModel item, int displayOrder, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var updateResult = await gameProfileManager.UpdateProfileAsync(item.ProfileId, new UpdateProfileRequest { DisplayOrder = displayOrder }, cancellationToken);
+            if (updateResult.Success)
+            {
+                return true;
+            }
+
+            logger.LogWarning("Failed to persist new DisplayOrder for profile {ProfileId}: {Errors}", item.ProfileId, string.Join(", ", updateResult.Errors));
+            return false;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to persist new DisplayOrder for profile {ProfileId}", item.ProfileId);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Classifies a single dropped path, returning a definitive game and content type when found.
+    /// </summary>
+    /// <param name="path">The dropped file or directory path.</param>
+    /// <param name="cancellationToken">Token to cancel binary inspection.</param>
+    /// <returns>The classified types, or null when detection should continue with other paths.</returns>
+    private async Task<(GameType GameType, ContentType ContentType)?> ClassifyDroppedPathAsync(string path, CancellationToken cancellationToken)
+    {
+        if (File.Exists(path))
+        {
+            return await ClassifyExecutableFileAsync(path, cancellationToken);
+        }
+
+        if (Directory.Exists(path))
+        {
+            return await ClassifyDirectoryExecutableAsync(path, cancellationToken);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Classifies a single dropped file by inspecting executable candidates.
+    /// </summary>
+    /// <param name="path">The dropped file path.</param>
+    /// <param name="cancellationToken">Token to cancel binary inspection.</param>
+    /// <returns>The classified types, or null when the file is not a recognized executable.</returns>
+    private async Task<(GameType GameType, ContentType ContentType)?> ClassifyExecutableFileAsync(string path, CancellationToken cancellationToken)
+    {
+        if (!IsExecutableCandidate(path))
+        {
+            return null;
+        }
+
+        var result = await InspectExecutableAsync(path, cancellationToken);
+        if (!result.HasValue)
+        {
+            return null;
+        }
+
+        return (result.Value.GameType ?? GameType.ZeroHour, result.Value.ContentType);
+    }
+
+    /// <summary>
+    /// Locates executables inside a dropped directory and returns the first recognized one,
+    /// so game and tool folders are detected instead of falling back to the directory name.
+    /// </summary>
+    /// <param name="directoryPath">The dropped directory path.</param>
+    /// <param name="cancellationToken">Token to cancel binary inspection.</param>
+    /// <returns>The classified types, or null when no executable is recognized.</returns>
+    private async Task<(GameType GameType, ContentType ContentType)?> ClassifyDirectoryExecutableAsync(string directoryPath, CancellationToken cancellationToken)
+    {
+        List<string> candidates;
+        try
+        {
+            candidates = Directory.EnumerateFiles(directoryPath, "*", SearchOption.TopDirectoryOnly)
+                .Where(IsExecutableCandidate)
+                .Take(MaxDirectoryExecutablesToInspect)
+                .ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(ex, "Failed to enumerate executables in dropped directory {Path}", directoryPath);
+            return null;
+        }
+
+        foreach (var candidate in candidates)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var classified = await ClassifyExecutableFileAsync(candidate, cancellationToken);
+            if (classified.HasValue)
+            {
+                return classified;
+            }
+        }
+
+        return null;
+    }
+
     private void OnLocalizationPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(ILocalizationService.CurrentCulture) || e.PropertyName == LocalizationConstants.IndexerPropertyName)
         {
+            InitializeSortOptions(forceRefresh: true);
+
             if (!IsServiceAvailable || !string.IsNullOrEmpty(ErrorMessage) || IsLaunching || IsPreparingWorkspace || IsScanning)
             {
                 return;
@@ -839,6 +1580,10 @@ public partial class GameProfileLauncherViewModel(
                     existingItem.IconPath = iconPath;
                     existingItem.CoverPath = coverPath;
                     existingItem.CoverImagePath = GameProfileItemViewModel.NormalizeCoverPath(coverPath);
+
+                    // Re-sort so timestamp and custom-order changes (LastPlayedAt, DisplayOrder,
+                    // CreatedAt) are reflected immediately instead of after an app restart.
+                    ApplySorting();
 
                     logger.LogInformation("Refreshed profile {ProfileId} in-place (Running: {IsRunning})", profileId, existingItem.IsProcessRunning);
                 }
@@ -1154,9 +1899,9 @@ public partial class GameProfileLauncherViewModel(
     [RelayCommand]
     private void StartHeaderTimer()
     {
-        if (IsScanning)
+        if (IsScanning || IsSortDropdownOpen)
         {
-            return; // Don't collapse header while scanning
+            return; // Don't collapse header while scanning or while the sort dropdown is open
         }
 
         _isHovering = false;
@@ -1348,56 +2093,76 @@ public partial class GameProfileLauncherViewModel(
     /// </summary>
     private (string IconPath, string CoverPath) ResolveProfileDisplayPaths(Core.Models.GameProfile.GameProfile profile, string fallbackGameType)
     {
+        var isCommunityOutpost = profile.IsCommunityOutpostProfile();
         var publisherKey = profile.GameClient?.PublisherType ?? profile.GameClient?.Name ?? profile.Name;
 
-        string iconPath;
+        var iconPath = ResolveProfileIconPath(profile, publisherKey, isCommunityOutpost);
+        var coverPath = ResolveProfileCoverPath(profile, publisherKey, fallbackGameType, isCommunityOutpost);
+
+        return (iconPath, coverPath);
+    }
+
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Kept as instance method to adhere to StyleCop SA1204 ordering rules.")]
+    private string ResolveProfileIconPath(Core.Models.GameProfile.GameProfile profile, string? publisherKey, bool isCommunityOutpost)
+    {
+        if (isCommunityOutpost &&
+            (string.IsNullOrEmpty(profile.IconPath) ||
+             profile.IconPath.Contains(UriConstants.GenHubIconMarker) ||
+             profile.IconPath.Contains(UriConstants.ZeroHourIconMarker) ||
+             profile.IconPath.Contains(UriConstants.SuperHackersLogoMarker, StringComparison.OrdinalIgnoreCase)))
+        {
+            return CommunityOutpostConstants.LogoSource;
+        }
+
         if (!string.IsNullOrEmpty(profile.IconPath) &&
             !profile.IconPath.Contains(UriConstants.GenHubIconMarker) &&
             !profile.IconPath.Contains(UriConstants.ZeroHourIconMarker))
         {
-            iconPath = profile.IconPath;
-        }
-        else
-        {
-            var publisherLogo = PublisherInfoConstants.GetPublisherLogo(publisherKey, profile.GameClient?.Id);
-            if (publisherLogo != null)
-            {
-                iconPath = publisherLogo;
-            }
-            else if (!string.IsNullOrEmpty(profile.IconPath))
-            {
-                iconPath = profile.IconPath;
-            }
-            else
-            {
-                iconPath = UriConstants.DefaultIconUri;
-            }
+            return profile.IconPath;
         }
 
-        string coverPath;
+        var publisherLogo = PublisherInfoConstants.GetPublisherLogo(publisherKey, profile.GameClient?.Id);
+        if (publisherLogo != null)
+        {
+            return publisherLogo;
+        }
+
+        if (!string.IsNullOrEmpty(profile.IconPath))
+        {
+            return profile.IconPath;
+        }
+
+        return UriConstants.DefaultIconUri;
+    }
+
+    private string ResolveProfileCoverPath(Core.Models.GameProfile.GameProfile profile, string? publisherKey, string fallbackGameType, bool isCommunityOutpost)
+    {
+        if (isCommunityOutpost &&
+            (string.IsNullOrEmpty(profile.CoverPath) ||
+             profile.CoverPath.Contains(UriConstants.ZeroHourCoverMarker) ||
+             profile.CoverPath.Contains(UriConstants.ChinaCoverMarker, StringComparison.OrdinalIgnoreCase)))
+        {
+            return CommunityOutpostConstants.CoverSource;
+        }
+
         if (!string.IsNullOrEmpty(profile.CoverPath) &&
             !profile.CoverPath.Contains(UriConstants.ZeroHourCoverMarker))
         {
-            coverPath = profile.CoverPath;
-        }
-        else
-        {
-            var publisherCover = PublisherInfoConstants.GetPublisherCover(publisherKey, profile.GameClient?.Id);
-            if (publisherCover != null)
-            {
-                coverPath = publisherCover;
-            }
-            else if (!string.IsNullOrEmpty(profile.CoverPath))
-            {
-                coverPath = profile.CoverPath;
-            }
-            else
-            {
-                coverPath = profileResourceService.GetDefaultCoverPath(fallbackGameType);
-            }
+            return profile.CoverPath;
         }
 
-        return (iconPath, coverPath);
+        var publisherCover = PublisherInfoConstants.GetPublisherCover(publisherKey, profile.GameClient?.Id);
+        if (publisherCover != null)
+        {
+            return publisherCover;
+        }
+
+        if (!string.IsNullOrEmpty(profile.CoverPath))
+        {
+            return profile.CoverPath;
+        }
+
+        return profileResourceService.GetDefaultCoverPath(fallbackGameType);
     }
 
     /// <summary>
@@ -1416,6 +2181,14 @@ public partial class GameProfileLauncherViewModel(
 
             var gameTypeStr = profile.GameClient?.GameType.ToString() ?? "ZeroHour";
             var (iconPath, coverPath) = ResolveProfileDisplayPaths(profile, gameTypeStr);
+
+            var existingItems = Profiles.OfType<GameProfileItemViewModel>().Where(p => p is not AddProfileItemViewModel).ToList();
+            if (profile.DisplayOrder == 0 && existingItems.Count > 0)
+            {
+                var nextOrder = existingItems.Max(p => p.DisplayOrder) + 1;
+                profile.DisplayOrder = nextOrder;
+                _ = PersistDisplayOrderAsync(profile.Id, nextOrder);
+            }
 
             var item = new GameProfileItemViewModel(
                 profile.Id,
@@ -1444,6 +2217,7 @@ public partial class GameProfileLauncherViewModel(
                 Profiles.Add(item);
             }
 
+            ApplySorting();
             logger.LogDebug("Added profile {ProfileName} to UI (Total: {Count})", profile.Name, Profiles.Count);
         }
         catch (Exception ex)
@@ -1466,6 +2240,7 @@ public partial class GameProfileLauncherViewModel(
             return;
         }
 
+        var stopwatch = Stopwatch.StartNew();
         try
         {
             try
@@ -1482,10 +2257,24 @@ public partial class GameProfileLauncherViewModel(
             }
             catch (Exception ex)
             {
+                stopwatch.Stop();
                 logger.LogError(ex, "Error starting launch process for {ProfileName}", profile.Name);
                 StatusMessage = localizationService.GetString("GameProfiles.Error.ErrorLaunchingProfile", profile.Name);
                 ErrorMessage = ex.Message;
                 notificationService.ShowError(localizationService["GameProfiles.Notification.LaunchError.Title"], localizationService.GetString("GameProfiles.Notification.LaunchError.Message", profile.Name, ex.Message));
+
+                var gameClient = profile.Profile.GameClient;
+                telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchFailed, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.ProfileId] = profile.ProfileId,
+                    [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
+                    [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
+                    [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
+                    [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
+                    [TelemetryConstants.Properties.LaunchSource] = TelemetryConstants.LaunchSources.Launcher,
+                    [TelemetryConstants.Properties.TimeToLaunchMs] = stopwatch.ElapsedMilliseconds,
+                    [TelemetryConstants.Properties.ErrorCategory] = ex.GetType().Name,
+                });
             }
             finally
             {
@@ -1505,8 +2294,12 @@ public partial class GameProfileLauncherViewModel(
     {
         StatusMessage = localizationService.GetString("GameProfiles.Status.LaunchingProfile", profile.Name);
 
+        var stopwatch = Stopwatch.StartNew();
+
         // With CAS hardlinks, profile switching is instant - maps are just symlinks
         var launchResult = await profileLauncherFacade.LaunchProfileAsync(profile.ProfileId, skipUserDataCleanup: false);
+        stopwatch.Stop();
+        var timeToLaunchMs = stopwatch.ElapsedMilliseconds;
 
         if (launchResult.Success && launchResult.Data != null)
         {
@@ -1526,10 +2319,28 @@ public partial class GameProfileLauncherViewModel(
             // Ensure notifications are sent for binding updates
             liveProfile.NotifyCanLaunchChanged();
 
-            SelectedProfile = liveProfile;
+            // Mirror the persisted LastPlayedAt so LastPlayed sorting reflects this launch immediately.
+            liveProfile.LastPlayedAt = DateTime.UtcNow;
+            ApplySorting();
+            if (Profiles.Contains(liveProfile))
+            {
+                SelectedProfile = liveProfile;
+            }
 
             StatusMessage = localizationService.GetString("GameProfiles.Status.ProfileLaunchedSuccess", liveProfile.Name, launchResult.Data.ProcessInfo.ProcessId);
             notificationService.ShowSuccess(localizationService["GameProfiles.Notification.GameLaunched.Title"], localizationService.GetString("GameProfiles.Notification.GameLaunched.Message", liveProfile.Name));
+
+            var gameClient = liveProfile.Profile.GameClient;
+            telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunched, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.ProfileId] = liveProfile.ProfileId,
+                [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
+                [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
+                [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
+                [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
+                [TelemetryConstants.Properties.LaunchSource] = TelemetryConstants.LaunchSources.Launcher,
+                [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
+            });
 
             // Advisory by design: receipt drift never blocks or fails a launch, so it is
             // surfaced as information beside the success, never through the error channel.
@@ -1547,6 +2358,19 @@ public partial class GameProfileLauncherViewModel(
             StatusMessage = localizationService.GetString("GameProfiles.Error.FailedToLaunchProfile", profile.Name, errors);
             ErrorMessage = errors;
             notificationService.ShowError(localizationService["GameProfiles.Notification.LaunchFailed.Title"], localizationService.GetString("GameProfiles.Notification.LaunchFailed.Message", profile.Name, errors));
+
+            var gameClient = profile.Profile.GameClient;
+            telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchFailed, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.ProfileId] = profile.ProfileId,
+                [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
+                [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
+                [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
+                [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
+                [TelemetryConstants.Properties.LaunchSource] = TelemetryConstants.LaunchSources.Launcher,
+                [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
+                [TelemetryConstants.Properties.ErrorCategory] = TelemetryConstants.ErrorCategories.LaunchFailed,
+            });
         }
     }
 
@@ -1861,7 +2685,7 @@ public partial class GameProfileLauncherViewModel(
         {
             logger.LogError(ex, "Error creating new profile");
             StatusMessage = localizationService["GameProfiles.Error.ErrorCreatingNewProfile"];
-            notificationService.ShowError(localizationService["GameProfiles.Notification.Error.Title"], localizationService.GetString("GameProfiles.Notification.OpenNewProfileError.Message", ex.Message));
+            notificationService.ShowError(localizationService[NotificationErrorTitleKey], localizationService.GetString("GameProfiles.Notification.OpenNewProfileError.Message", ex.Message));
         }
     }
 
@@ -1949,6 +2773,13 @@ public partial class GameProfileLauncherViewModel(
                 StatusMessage = localizationService.GetString("GameProfiles.Status.ShortcutCreatedSuccess", profile.Name);
                 logger.LogInformation("Created desktop shortcut for profile {ProfileName} at {Path}", profile.Name, result.Data);
                 notificationService.ShowSuccess(localizationService["GameProfiles.Notification.ShortcutCreated.Title"], localizationService.GetString("GameProfiles.Notification.ShortcutCreated.Message", profile.Name));
+
+                telemetryService?.TrackEvent(TelemetryConstants.Events.ProfilePinned, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.ProfileId] = profile.ProfileId,
+                    [TelemetryConstants.Properties.GameType] = profile.Profile.GameClient?.GameType.ToString(),
+                    [TelemetryConstants.Properties.ShortcutType] = TelemetryConstants.ShortcutTypes.Desktop,
+                });
             }
             else
             {
@@ -2265,7 +3096,7 @@ public partial class GameProfileLauncherViewModel(
         {
             logger.LogError(ex, "Error occurred during manual directory selection");
             notificationService.ShowError(
-                localizationService["GameProfiles.Notification.Error.Title"],
+                localizationService[NotificationErrorTitleKey],
                 localizationService.GetString("GameProfiles.Notification.ProcessDirectoryError.Message", ex.Message));
             return null;
         }
@@ -2421,7 +3252,7 @@ public partial class GameProfileLauncherViewModel(
         {
             logger.LogError(ex, "Failed to open store URL: {Url}", url);
             notificationService.ShowError(
-                localizationService["GameProfiles.Notification.Error.Title"],
+                localizationService[NotificationErrorTitleKey],
                 localizationService.GetString("GameProfiles.Storefront.FailedToOpenUrl", url));
         }
     }
@@ -2434,5 +3265,179 @@ public partial class GameProfileLauncherViewModel(
     private void UpdateHasNoProfiles()
     {
         HasNoProfiles = !Profiles.OfType<GameProfileItemViewModel>().Any(p => p.Profile is not GameProfile { IsToolProfile: true });
+    }
+
+    private void InitializeSortOptions(bool forceRefresh = false)
+    {
+        if (AvailableSortModes.Count > 0 && !forceRefresh)
+        {
+            return;
+        }
+
+        AvailableSortModes =
+        [
+            new ProfileSortOption(ProfileSortMode.LastPlayed, localizationService.GetString("GameProfiles.Sort.LastPlayed") ?? "Recently Played"),
+            new ProfileSortOption(ProfileSortMode.DateCreated, localizationService.GetString("GameProfiles.Sort.DateCreated") ?? "Date Created"),
+            new ProfileSortOption(ProfileSortMode.Alphabetical, localizationService.GetString("GameProfiles.Sort.Alphabetical") ?? "Name (A to Z)"),
+            new ProfileSortOption(ProfileSortMode.AlphabeticalDesc, localizationService.GetString("GameProfiles.Sort.AlphabeticalDesc") ?? "Name (Z to A)"),
+            new ProfileSortOption(ProfileSortMode.Free, localizationService.GetString("GameProfiles.Sort.Free") ?? "Custom Order"),
+        ];
+
+        SelectedSortModeItem = AvailableSortModes.FirstOrDefault(o => o.Mode == SelectedSortMode) ?? AvailableSortModes.FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Persists an assigned display order for a newly added profile so reloads keep the appended position.
+    /// </summary>
+    /// <param name="profileId">The profile identifier.</param>
+    /// <param name="displayOrder">The assigned display order.</param>
+    /// <param name="cancellationToken">Token to cancel the persist.</param>
+    private async Task PersistDisplayOrderAsync(string profileId, int displayOrder, CancellationToken cancellationToken = default)
+    {
+        await _reorderLock.WaitAsync(cancellationToken);
+        try
+        {
+            var updateResult = await gameProfileManager.UpdateProfileAsync(profileId, new UpdateProfileRequest { DisplayOrder = displayOrder }, cancellationToken);
+            if (!updateResult.Success)
+            {
+                logger.LogWarning("Failed to persist display order for profile {ProfileId}: {Errors}", profileId, string.Join(", ", updateResult.Errors));
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to persist display order for profile {ProfileId}", profileId);
+        }
+        finally
+        {
+            _reorderLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Writes previously saved display orders back to storage after a failed reorder.
+    /// </summary>
+    /// <param name="profileItems">The reordered profile items.</param>
+    /// <param name="originalOrders">The display orders before the reorder.</param>
+    /// <param name="savedIndexes">The indexes that were already persisted.</param>
+    /// <param name="cancellationToken">Token to cancel the restore.</param>
+    private async Task RestoreSavedDisplayOrdersAsync(List<GameProfileItemViewModel> profileItems, List<int> originalOrders, List<int> savedIndexes, CancellationToken cancellationToken = default)
+    {
+        foreach (var i in savedIndexes)
+        {
+            try
+            {
+                await gameProfileManager.UpdateProfileAsync(profileItems[i].ProfileId, new UpdateProfileRequest { DisplayOrder = originalOrders[i] }, cancellationToken);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning(ex, "Failed to restore display order for profile {ProfileId}", profileItems[i].ProfileId);
+            }
+        }
+    }
+
+    private async Task MoveProfileRelativeAsync(GameProfileItemViewModel item, int delta, CancellationToken cancellationToken = default)
+    {
+        if (SelectedSortMode != ProfileSortMode.Free)
+        {
+            return;
+        }
+
+        await _reorderLock.WaitAsync(cancellationToken);
+        try
+        {
+            var profileItems = Profiles.OfType<GameProfileItemViewModel>().Where(p => p is not AddProfileItemViewModel).ToList();
+            if (!TryMoveItem(profileItems, item, delta))
+            {
+                return;
+            }
+
+            var originalOrders = profileItems.Select(p => p.DisplayOrder).ToList();
+            AssignDisplayOrders(profileItems);
+
+            var (persistSucceeded, savedIndexes) = await PersistChangedOrdersAsync(profileItems, originalOrders, cancellationToken);
+            if (!persistSucceeded)
+            {
+                await RestoreSavedDisplayOrdersAsync(profileItems, originalOrders, savedIndexes, cancellationToken);
+                RestoreInMemoryOrders(profileItems, originalOrders);
+                notificationService.ShowWarning(localizationService[ReorderFailedTitleKey], localizationService[ReorderFailedMessageKey]);
+            }
+
+            ApplySorting();
+        }
+        finally
+        {
+            _reorderLock.Release();
+        }
+    }
+
+    private async Task<(GameType GameType, ContentType ContentType)> DetectContentTypeAndGameTypeAsync(IReadOnlyList<string> paths, CancellationToken cancellationToken)
+    {
+        var targetGameType = GameType.Unknown;
+        var targetContentType = ContentType.Mod;
+
+        foreach (var path in paths)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                continue;
+            }
+
+            var classified = await ClassifyDroppedPathAsync(path, cancellationToken);
+            if (classified.HasValue)
+            {
+                return classified.Value;
+            }
+
+            targetGameType = InferGameTypeFromName(path, targetGameType);
+        }
+
+        if (targetGameType == GameType.Unknown)
+        {
+            targetGameType = GameType.ZeroHour;
+        }
+
+        return (targetGameType, targetContentType);
+    }
+
+    private async Task<(GameType? GameType, ContentType ContentType)?> InspectExecutableAsync(string path, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var verdict = await GameBinaryInspector.InspectAsync(path, cancellationToken);
+            if (verdict.Success && verdict.Data != null && verdict.Data.Role != GameBinaryRole.NotExecutable)
+            {
+                var role = verdict.Data.Role switch
+                {
+                    GameBinaryRole.Engine => ContentType.GameClient,
+                    GameBinaryRole.Tool => ContentType.ModdingTool,
+                    _ => ContentType.Executable,
+                };
+                return (verdict.Data.GameType, role);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            logger.LogDebug(ex, "GameBinaryInspector inspection failed for {Path}", path);
+        }
+
+        var filename = Path.GetFileName(path);
+        if (filename.Contains("generalszh", StringComparison.OrdinalIgnoreCase) ||
+            filename.Contains("zerohour", StringComparison.OrdinalIgnoreCase) ||
+            filename.Contains("game.dat", StringComparison.OrdinalIgnoreCase))
+        {
+            return (GameType.ZeroHour, ContentType.GameClient);
+        }
+
+        if (filename.Contains("generals", StringComparison.OrdinalIgnoreCase))
+        {
+            return (GameType.Generals, ContentType.GameClient);
+        }
+
+        return null;
     }
 }

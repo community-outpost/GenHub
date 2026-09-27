@@ -73,6 +73,11 @@ public static class UriConstants
     /// </summary>
     public const string PublisherStudioIconUri = "avares://GenHub/Assets/Icons/publisherstudio-icon.png";
 
+    /// <summary>
+    /// Icon URI for WND Editor tool.
+    /// </summary>
+    public const string WndEditorIconUri = "avares://GenHub/Assets/Icons/wndeditor-icon.png";
+
     // Icon Path Constants
 
     /// <summary>
@@ -104,6 +109,11 @@ public static class UriConstants
     /// Substring marker for GenHub default icon asset.
     /// </summary>
     public const string GenHubIconMarker = "generalshub-icon";
+
+    /// <summary>
+    /// Substring marker for The Super Hackers logo asset.
+    /// </summary>
+    public const string SuperHackersLogoMarker = "thesuperhackers-logo";
 
     /// <summary>
     /// Filename for Steam platform icon.
@@ -145,6 +155,11 @@ public static class UriConstants
     /// </summary>
     public const string PublisherStudioIconFilename = "publisherstudio-icon.png";
 
+    /// <summary>
+    /// Filename for WND Editor icon.
+    /// </summary>
+    public const string WndEditorIconFilename = "wndeditor-icon.png";
+
     // Cover Path Constants
 
     /// <summary>
@@ -171,6 +186,11 @@ public static class UriConstants
     /// Substring marker for Zero Hour cover asset.
     /// </summary>
     public const string ZeroHourCoverMarker = "zerohour-cover";
+
+    /// <summary>
+    /// Substring marker for China cover asset.
+    /// </summary>
+    public const string ChinaCoverMarker = "china-cover";
 
     /// <summary>
     /// Filename for China cover.

@@ -12,6 +12,8 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Steam;
+using GenHub.Core.Interfaces.Telemetry;
+using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Events;
 using GenHub.Core.Models.GameClients;
@@ -26,6 +28,8 @@ using GenHub.Features.GameProfiles.ViewModels.Wizard;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System.Collections.Specialized;
+using System.Reflection;
 using System.Resources;
 
 namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;
@@ -126,6 +130,66 @@ public class GameProfileLauncherViewModelTests
         await vm.InitializeAsync();
 
         Assert.Empty(vm.Profiles); // No profiles returned by mock
+    }
+
+    /// <summary>
+    /// Verifies that an out-of-range saved sort mode falls back to last-played ordering.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task InitializeAsync_OutOfRangeSortMode_FallsBackToLastPlayedAsync()
+    {
+        var settingsService = new Mock<IUserSettingsService>();
+        settingsService.Setup(x => x.Get()).Returns(new UserSettings { ProfileSortMode = (ProfileSortMode)99 });
+        var profileManager = new Mock<IGameProfileManager>();
+        profileManager
+            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+        var vm = new GameProfileLauncherViewModel(
+            new Mock<IGameInstallationService>().Object,
+            profileManager.Object,
+            new Mock<IProfileLauncherFacade>().Object,
+            null!,
+            new Mock<IProfileEditorFacade>().Object,
+            new Mock<IConfigurationProviderService>().Object,
+            new Mock<IGameProcessManager>().Object,
+            new Mock<IShortcutService>().Object,
+            new Mock<IPublisherProfileOrchestrator>().Object,
+            new Mock<ISteamManifestPatcher>().Object,
+            CreateProfileResourceService(),
+            new Mock<IGameClientDetector>().Object,
+            new Mock<INotificationService>().Object,
+            new Mock<ISetupWizardService>().Object,
+            new Mock<IDialogService>().Object,
+            NullLogger<GameProfileLauncherViewModel>.Instance,
+            CreateLocalizationService(),
+            userSettingsService: settingsService.Object);
+
+        await vm.InitializeAsync();
+
+        Assert.Equal(ProfileSortMode.LastPlayed, vm.SelectedSortMode);
+        Assert.Equal(ProfileSortMode.LastPlayed, vm.SelectedSortModeItem?.Mode);
+    }
+
+    /// <summary>
+    /// Verifies that archive-name game inference detects Generals mods like directory names do.
+    /// </summary>
+    /// <param name="fileName">The archive file name to classify.</param>
+    /// <param name="expected">The expected inferred game type.</param>
+    [Theory]
+    [InlineData("generals_mod.zip", GameType.Generals)]
+    [InlineData("GeneralsZeroHour.big", GameType.ZeroHour)]
+    [InlineData("shockwave_mod.zip", GameType.Unknown)]
+    public void InferGameTypeFromArchiveName_ClassifiesExpectedGame(string fileName, GameType expected)
+    {
+        var method = typeof(GameProfileLauncherViewModel).GetMethod(
+            "InferGameTypeFromArchiveName",
+            BindingFlags.NonPublic | BindingFlags.Static);
+        Assert.NotNull(method);
+
+        var actual = (GameType)method.Invoke(null, [fileName, GameType.Unknown])!;
+
+        Assert.Equal(expected, actual);
     }
 
     /// <summary>
@@ -697,6 +761,76 @@ public class GameProfileLauncherViewModelTests
         notificationService.Verify(
             x => x.ShowInfo(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that a successful launch emits ProfileLaunched with game client and timing telemetry.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task LaunchProfileCommand_OnSuccess_TracksProfileLaunchedWithGameClientAndTimingAsync()
+    {
+        var notificationService = new Mock<INotificationService>();
+        var launcherFacade = new Mock<IProfileLauncherFacade>();
+        var telemetryService = new Mock<ITelemetryService>();
+        var launchInfo = new GameLaunchInfo
+        {
+            LaunchId = "launch-1",
+            ProfileId = "profile-1",
+            WorkspaceId = "profile-1",
+            ProcessInfo = new GameProcessInfo { ProcessId = 123 },
+        };
+        launcherFacade.Setup(x => x.LaunchProfileAsync("profile-1", It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
+
+        var vm = CreateLauncherViewModel(launcherFacade, notificationService, telemetryService);
+        var client = new GameClient { Id = "thesuperhackers.zh", Name = "TheSuperHackers Zero Hour", Version = "1.06", GameType = GameType.ZeroHour };
+        var profileItem = CreateProfileItemWithClient("profile-1", "Test Profile", client);
+
+        await vm.LaunchProfileCommand.ExecuteAsync(profileItem);
+
+        telemetryService.Verify(
+            x => x.TrackEvent(
+                TelemetryConstants.Events.ProfileLaunched,
+                It.Is<IReadOnlyDictionary<string, object?>>(props =>
+                    (string?)props[TelemetryConstants.Properties.ProfileId] == "profile-1" &&
+                    (string?)props[TelemetryConstants.Properties.GameClientId] == "thesuperhackers.zh" &&
+                    (string?)props[TelemetryConstants.Properties.GameClientName] == "TheSuperHackers Zero Hour" &&
+                    props.ContainsKey(TelemetryConstants.Properties.TimeToLaunchMs)),
+                TelemetryLevel.AnonymousMetrics),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that a failed launch emits ProfileLaunchFailed with game client and error telemetry.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task LaunchProfileCommand_OnFailure_TracksProfileLaunchFailedWithGameClientAndErrorsAsync()
+    {
+        var notificationService = new Mock<INotificationService>();
+        var launcherFacade = new Mock<IProfileLauncherFacade>();
+        var telemetryService = new Mock<ITelemetryService>();
+
+        launcherFacade.Setup(x => x.LaunchProfileAsync("profile-1", It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateFailure("Process start failed"));
+
+        var vm = CreateLauncherViewModel(launcherFacade, notificationService, telemetryService);
+        var client = new GameClient { Id = "thesuperhackers.zh", Name = "TheSuperHackers Zero Hour", Version = "1.06", GameType = GameType.ZeroHour };
+        var profileItem = CreateProfileItemWithClient("profile-1", "Test Profile", client);
+
+        await vm.LaunchProfileCommand.ExecuteAsync(profileItem);
+
+        telemetryService.Verify(
+            x => x.TrackEvent(
+                TelemetryConstants.Events.ProfileLaunchFailed,
+                It.Is<IReadOnlyDictionary<string, object?>>(props =>
+                    (string?)props[TelemetryConstants.Properties.ProfileId] == "profile-1" &&
+                    (string?)props[TelemetryConstants.Properties.GameClientId] == "thesuperhackers.zh" &&
+                    (string?)props[TelemetryConstants.Properties.ErrorCategory] == TelemetryConstants.ErrorCategories.LaunchFailed &&
+                    props.ContainsKey(TelemetryConstants.Properties.TimeToLaunchMs)),
+                TelemetryLevel.AnonymousMetrics),
+            Times.Once);
     }
 
     /// <summary>
@@ -1304,9 +1438,366 @@ public class GameProfileLauncherViewModelTests
         Assert.False(vm.HasNoDetectedInstallations);
     }
 
+    /// <summary>
+    /// Alphabetical sorting orders profiles by name and keeps the add card at the end.
+    /// </summary>
+    [Fact]
+    public void ApplySorting_Alphabetical_SortsProfilesByNameAndKeepsAddCardAtEnd()
+    {
+        var vm = CreateViewModel();
+        var itemB = CreateProfileItem("Bravo");
+        var itemA = CreateProfileItem("Alpha");
+        var itemC = CreateProfileItem("Charlie");
+
+        vm.Profiles.Add(itemB);
+        vm.Profiles.Add(itemA);
+        vm.Profiles.Add(itemC);
+        vm.Profiles.Add(new AddProfileItemViewModel());
+
+        vm.SelectedSortMode = ProfileSortMode.Alphabetical;
+        vm.ApplySorting();
+
+        Assert.Equal("Alpha", vm.Profiles[0].Name);
+        Assert.Equal("Bravo", vm.Profiles[1].Name);
+        Assert.Equal("Charlie", vm.Profiles[2].Name);
+        Assert.IsType<AddProfileItemViewModel>(vm.Profiles[3]);
+    }
+
+    /// <summary>
+    /// Descending alphabetical sorting orders profiles from Z to A.
+    /// </summary>
+    [Fact]
+    public void ApplySorting_AlphabeticalDesc_SortsProfilesDescending()
+    {
+        var vm = CreateViewModel();
+        var itemB = CreateProfileItem("Bravo");
+        var itemA = CreateProfileItem("Alpha");
+        var itemC = CreateProfileItem("Charlie");
+
+        vm.Profiles.Add(itemB);
+        vm.Profiles.Add(itemA);
+        vm.Profiles.Add(itemC);
+        vm.Profiles.Add(new AddProfileItemViewModel());
+
+        vm.SelectedSortMode = ProfileSortMode.AlphabeticalDesc;
+        vm.ApplySorting();
+
+        Assert.Equal("Charlie", vm.Profiles[0].Name);
+        Assert.Equal("Bravo", vm.Profiles[1].Name);
+        Assert.Equal("Alpha", vm.Profiles[2].Name);
+        Assert.IsType<AddProfileItemViewModel>(vm.Profiles[3]);
+    }
+
+    /// <summary>
+    /// Free mode enables manual reorder controls with correct edge flags.
+    /// </summary>
+    [Fact]
+    public void ApplySorting_FreeMode_EnablesReorderFlags()
+    {
+        var vm = CreateViewModel();
+        var itemA = CreateProfileItem("Alpha");
+        var itemB = CreateProfileItem("Bravo");
+
+        vm.Profiles.Add(itemA);
+        vm.Profiles.Add(itemB);
+        vm.Profiles.Add(new AddProfileItemViewModel());
+
+        vm.SelectedSortMode = ProfileSortMode.Free;
+        vm.ApplySorting();
+
+        Assert.True(itemA.IsFreeReorderMode);
+        Assert.True(itemB.IsFreeReorderMode);
+        Assert.False(itemA.CanMoveLeft);
+        Assert.True(itemA.CanMoveRight);
+        Assert.True(itemB.CanMoveLeft);
+        Assert.False(itemB.CanMoveRight);
+    }
+
+    /// <summary>
+    /// Sorting reorders the live collection in place so card visuals are preserved
+    /// instead of being torn down and rebuilt (which flashes a black frame).
+    /// </summary>
+    [Fact]
+    public void ApplySorting_ReordersInPlace_WithoutResettingCollection()
+    {
+        var vm = CreateViewModel();
+        var itemB = CreateProfileItem("Bravo");
+        var itemA = CreateProfileItem("Alpha");
+        var itemC = CreateProfileItem("Charlie");
+        var addCard = new AddProfileItemViewModel();
+
+        vm.Profiles.Add(itemB);
+        vm.Profiles.Add(itemA);
+        vm.Profiles.Add(itemC);
+        vm.Profiles.Add(addCard);
+
+        var actions = new List<NotifyCollectionChangedAction>();
+        vm.Profiles.CollectionChanged += (s, e) => actions.Add(e.Action);
+
+        vm.SelectedSortMode = ProfileSortMode.Alphabetical;
+
+        Assert.Equal("Alpha", vm.Profiles[0].Name);
+        Assert.Equal("Bravo", vm.Profiles[1].Name);
+        Assert.Equal("Charlie", vm.Profiles[2].Name);
+        Assert.Same(addCard, vm.Profiles[3]);
+        Assert.Same(itemA, vm.Profiles[0]);
+        Assert.Same(itemB, vm.Profiles[1]);
+        Assert.Same(itemC, vm.Profiles[2]);
+        Assert.DoesNotContain(NotifyCollectionChangedAction.Reset, actions);
+    }
+
+    /// <summary>
+    /// Last-played sorting puts the most recently played profile first and unplayed profiles last.
+    /// </summary>
+    [Fact]
+    public void ApplySorting_LastPlayed_PutsRecentlyPlayedFirst()
+    {
+        var vm = CreateViewModel();
+        var oldItem = CreateProfileItem("Old");
+        oldItem.LastPlayedAt = DateTime.UtcNow.AddDays(-7);
+        var newItem = CreateProfileItem("New");
+        newItem.LastPlayedAt = DateTime.UtcNow;
+        var neverItem = CreateProfileItem("Never");
+
+        vm.Profiles.Add(oldItem);
+        vm.Profiles.Add(neverItem);
+        vm.Profiles.Add(newItem);
+        vm.Profiles.Add(new AddProfileItemViewModel());
+
+        vm.SelectedSortMode = ProfileSortMode.LastPlayed;
+        vm.ApplySorting();
+
+        Assert.Equal("New", vm.Profiles[0].Name);
+        Assert.Equal("Old", vm.Profiles[1].Name);
+        Assert.Equal("Never", vm.Profiles[2].Name);
+        Assert.IsType<AddProfileItemViewModel>(vm.Profiles[3]);
+    }
+
+    /// <summary>
+    /// Last-played sorting breaks timestamp ties by creation date and keeps unplayed profiles last.
+    /// </summary>
+    [Fact]
+    public void ApplySorting_LastPlayed_BreaksTiesByCreationDate()
+    {
+        var vm = CreateViewModel();
+        var stamp = new DateTime(2026, 1, 10, 12, 0, 0, DateTimeKind.Utc);
+        var olderTie = CreateProfileItem("OlderTie");
+        olderTie.LastPlayedAt = stamp;
+        olderTie.CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var newerTie = CreateProfileItem("NewerTie");
+        newerTie.LastPlayedAt = stamp;
+        newerTie.CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var newerNever = CreateProfileItem("NewerNever");
+        newerNever.CreatedAt = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
+        var olderNever = CreateProfileItem("OlderNever");
+        olderNever.CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        vm.Profiles.Add(olderNever);
+        vm.Profiles.Add(olderTie);
+        vm.Profiles.Add(newerNever);
+        vm.Profiles.Add(newerTie);
+        vm.Profiles.Add(new AddProfileItemViewModel());
+
+        vm.SelectedSortMode = ProfileSortMode.LastPlayed;
+        vm.ApplySorting();
+
+        Assert.Equal("NewerTie", vm.Profiles[0].Name);
+        Assert.Equal("OlderTie", vm.Profiles[1].Name);
+        Assert.Equal("NewerNever", vm.Profiles[2].Name);
+        Assert.Equal("OlderNever", vm.Profiles[3].Name);
+        Assert.IsType<AddProfileItemViewModel>(vm.Profiles[4]);
+    }
+
+    /// <summary>
+    /// Rapid sort mode changes persist the final selection once earlier requests go stale.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SelectedSortMode_RapidChanges_PersistsFinalSelectionAsync()
+    {
+        var savedModes = new List<ProfileSortMode>();
+        var settingsService = new Mock<IUserSettingsService>();
+        settingsService.Setup(x => x.Get()).Returns(new UserSettings { ProfileSortMode = ProfileSortMode.LastPlayed });
+        settingsService
+            .Setup(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
+            .Callback<Func<UserSettings, bool>>(apply =>
+            {
+                var settings = new UserSettings();
+                if (apply(settings))
+                {
+                    lock (savedModes)
+                    {
+                        savedModes.Add(settings.ProfileSortMode);
+                    }
+                }
+            })
+            .ReturnsAsync(true);
+        var vm = new GameProfileLauncherViewModel(
+            new Mock<IGameInstallationService>().Object,
+            new Mock<IGameProfileManager>().Object,
+            new Mock<IProfileLauncherFacade>().Object,
+            null!,
+            new Mock<IProfileEditorFacade>().Object,
+            new Mock<IConfigurationProviderService>().Object,
+            new Mock<IGameProcessManager>().Object,
+            new Mock<IShortcutService>().Object,
+            new Mock<IPublisherProfileOrchestrator>().Object,
+            new Mock<ISteamManifestPatcher>().Object,
+            CreateProfileResourceService(),
+            new Mock<IGameClientDetector>().Object,
+            new Mock<INotificationService>().Object,
+            new Mock<ISetupWizardService>().Object,
+            new Mock<IDialogService>().Object,
+            NullLogger<GameProfileLauncherViewModel>.Instance,
+            CreateLocalizationService(),
+            userSettingsService: settingsService.Object);
+
+        vm.SelectedSortMode = ProfileSortMode.Alphabetical;
+        vm.SelectedSortMode = ProfileSortMode.DateCreated;
+
+        for (var attempt = 0; attempt < 200; attempt++)
+        {
+            lock (savedModes)
+            {
+                if (savedModes.Contains(ProfileSortMode.DateCreated))
+                {
+                    break;
+                }
+            }
+
+            await Task.Delay(20);
+        }
+
+        await Task.Delay(200);
+
+        lock (savedModes)
+        {
+            Assert.NotEmpty(savedModes);
+            Assert.Equal(ProfileSortMode.DateCreated, savedModes[^1]);
+        }
+    }
+
+    /// <summary>
+    /// The sort dropdown starts closed so the header collapse guard is inactive initially.
+    /// </summary>
+    [Fact]
+    public void IsSortDropdownOpen_DefaultsToFalse()
+    {
+        var vm = CreateViewModel();
+
+        Assert.False(vm.IsSortDropdownOpen);
+    }
+
+    /// <summary>
+    /// A successful move persists the new order for every profile.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task MoveProfileRelative_PersistSuccess_SavesNewOrderAsync()
+    {
+        var gameProfileManager = new Mock<IGameProfileManager>();
+        var persistedOrders = new List<(string ProfileId, int DisplayOrder)>();
+        gameProfileManager
+            .Setup(m => m.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<string, UpdateProfileRequest, CancellationToken>((profileId, request, _) => persistedOrders.Add((profileId, request.DisplayOrder ?? -1)))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile()));
+        var vm = CreateViewModelWithProfileManager(gameProfileManager, new Mock<IGameProcessManager>(), new Mock<INotificationService>());
+
+        var itemA = CreateProfileItem("alpha-id", "Alpha");
+        var itemB = CreateProfileItem("bravo-id", "Bravo");
+        itemA.DisplayOrder = 0;
+        itemB.DisplayOrder = 1;
+        vm.Profiles.Add(itemA);
+        vm.Profiles.Add(itemB);
+        vm.Profiles.Add(new AddProfileItemViewModel());
+        vm.SelectedSortMode = ProfileSortMode.Free;
+        vm.ApplySorting();
+
+        await itemA.MoveRightAction!(itemA);
+
+        Assert.Same(itemB, vm.Profiles[0]);
+        Assert.Same(itemA, vm.Profiles[1]);
+        Assert.Equal(0, itemB.DisplayOrder);
+        Assert.Equal(1, itemA.DisplayOrder);
+        Assert.Equal(new List<(string ProfileId, int DisplayOrder)> { ("bravo-id", 0), ("alpha-id", 1) }, persistedOrders);
+    }
+
+    /// <summary>
+    /// A failed move restores the previous order and warns the user.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task MoveProfileRelative_PersistFailure_RestoresOriginalOrderAndWarnsAsync()
+    {
+        var gameProfileManager = new Mock<IGameProfileManager>();
+        gameProfileManager
+            .Setup(m => m.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateFailure("disk error"));
+        var notificationService = new Mock<INotificationService>();
+        var vm = CreateViewModelWithProfileManager(gameProfileManager, new Mock<IGameProcessManager>(), notificationService);
+
+        var itemA = CreateProfileItem("alpha-id", "Alpha");
+        var itemB = CreateProfileItem("bravo-id", "Bravo");
+        itemA.DisplayOrder = 0;
+        itemB.DisplayOrder = 1;
+        vm.Profiles.Add(itemA);
+        vm.Profiles.Add(itemB);
+        vm.Profiles.Add(new AddProfileItemViewModel());
+        vm.SelectedSortMode = ProfileSortMode.Free;
+        vm.ApplySorting();
+
+        await itemA.MoveRightAction!(itemA);
+
+        Assert.Same(itemA, vm.Profiles[0]);
+        Assert.Same(itemB, vm.Profiles[1]);
+        Assert.Equal(0, itemA.DisplayOrder);
+        Assert.Equal(1, itemB.DisplayOrder);
+        notificationService.Verify(
+            n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// A partially failed move writes saved orders back so disk matches the restored in-memory order.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task MoveProfileRelative_PartialFailure_WritesBackSavedOrdersAsync()
+    {
+        var gameProfileManager = new Mock<IGameProfileManager>();
+        var persistedOrders = new List<(string ProfileId, int DisplayOrder)>();
+        var results = new Queue<ProfileOperationResult<GameProfile>>(
+        [
+            ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile()),
+            ProfileOperationResult<GameProfile>.CreateFailure("disk error"),
+            ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile()),
+        ]);
+        gameProfileManager
+            .Setup(m => m.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<string, UpdateProfileRequest, CancellationToken>((profileId, request, _) => persistedOrders.Add((profileId, request.DisplayOrder ?? -1)))
+            .ReturnsAsync(() => results.Dequeue());
+        var vm = CreateViewModelWithProfileManager(gameProfileManager, new Mock<IGameProcessManager>(), new Mock<INotificationService>());
+
+        var itemA = CreateProfileItem("alpha-id", "Alpha");
+        var itemB = CreateProfileItem("bravo-id", "Bravo");
+        itemA.DisplayOrder = 0;
+        itemB.DisplayOrder = 1;
+        vm.Profiles.Add(itemA);
+        vm.Profiles.Add(itemB);
+        vm.Profiles.Add(new AddProfileItemViewModel());
+        vm.SelectedSortMode = ProfileSortMode.Free;
+        vm.ApplySorting();
+
+        await itemA.MoveRightAction!(itemA);
+
+        Assert.Same(itemA, vm.Profiles[0]);
+        Assert.Same(itemB, vm.Profiles[1]);
+        Assert.Equal(new List<(string ProfileId, int DisplayOrder)> { ("bravo-id", 0), ("alpha-id", 1), ("bravo-id", 1) }, persistedOrders);
+    }
+
     private static ProfileResourceService CreateProfileResourceService()
     {
-        return new ProfileResourceService(NullLogger<ProfileResourceService>.Instance);
+        return new ProfileResourceService(NullLogger<ProfileResourceService>.Instance, CreateLocalizationService());
     }
 
     private static SuperHackersProvider CreateSuperHackersProvider()
@@ -1347,16 +1838,26 @@ public class GameProfileLauncherViewModelTests
         return new GameProfileItemViewModel(profileId, profile.Object, "icon.png", "cover.jpg");
     }
 
+    private static GameProfileItemViewModel CreateProfileItemWithClient(string profileId, string name, GameClient gameClient)
+    {
+        var profile = new Mock<IGameProfile>();
+        profile.Setup(x => x.Name).Returns(name);
+        profile.Setup(x => x.GameClient).Returns(gameClient);
+        return new GameProfileItemViewModel(profileId, profile.Object, "icon.png", "cover.jpg");
+    }
+
     /// <summary>
     /// Creates a GameProfileLauncherViewModel wired to the given launcher facade and
     /// notification service, with everything else mocked.
     /// </summary>
     /// <param name="launcherFacade">The launcher facade mock.</param>
     /// <param name="notificationService">The notification service mock.</param>
+    /// <param name="telemetryService">The optional telemetry service mock.</param>
     /// <returns>The view model.</returns>
     private static GameProfileLauncherViewModel CreateLauncherViewModel(
         Mock<IProfileLauncherFacade> launcherFacade,
-        Mock<INotificationService> notificationService)
+        Mock<INotificationService> notificationService,
+        Mock<ITelemetryService>? telemetryService = null)
     {
         return new GameProfileLauncherViewModel(
             new Mock<IGameInstallationService>().Object,
@@ -1375,7 +1876,8 @@ public class GameProfileLauncherViewModelTests
             new Mock<ISetupWizardService>().Object,
             new Mock<IDialogService>().Object,
             NullLogger<GameProfileLauncherViewModel>.Instance,
-            CreateLocalizationService());
+            CreateLocalizationService(),
+            telemetryService: telemetryService?.Object);
     }
 
     /// <summary>
@@ -1438,8 +1940,22 @@ public class GameProfileLauncherViewModelTests
         Mock<IGameProcessManager> gameProcessManager,
         Mock<INotificationService> notificationService)
     {
-        var gameProfileManager = new Mock<IGameProfileManager>();
+        return CreateViewModelWithProfileManager(new Mock<IGameProfileManager>(), gameProcessManager, notificationService);
+    }
 
+    /// <summary>
+    /// Creates a GameProfileLauncherViewModel wired to the given profile manager,
+    /// process manager, and notification mocks.
+    /// </summary>
+    /// <param name="gameProfileManager">The game profile manager mock.</param>
+    /// <param name="gameProcessManager">The process manager mock the view model subscribes to.</param>
+    /// <param name="notificationService">The notification service mock to observe.</param>
+    /// <returns>A GameProfileLauncherViewModel instance for testing.</returns>
+    private static GameProfileLauncherViewModel CreateViewModelWithProfileManager(
+        Mock<IGameProfileManager> gameProfileManager,
+        Mock<IGameProcessManager> gameProcessManager,
+        Mock<INotificationService> notificationService)
+    {
         // InitializeAsync must complete cleanly: it is what subscribes the view model to
         // ProcessExited, and a failed profile load would pollute the error state these
         // tests assert on.
@@ -1484,6 +2000,7 @@ public class GameProfileLauncherViewModelTests
     {
         var resourceManager = new ResourceManager(LocalizationConstants.StringResourceBaseName, typeof(GenHub.Common.Services.LocalizationService).Assembly);
         var mock = new Mock<ILocalizationService>();
+        mock.Setup(m => m.CurrentCulture).Returns(System.Globalization.CultureInfo.InvariantCulture);
         mock.Setup(m => m.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
             .Returns<string, object?[]>((key, args) =>
             {
@@ -1551,5 +2068,14 @@ public class GameProfileLauncherViewModelTests
         profile.SetupGet(p => p.ExecutablePath).Returns(string.Empty);
 
         return new GameProfileItemViewModel("profile-1", profile.Object, string.Empty, string.Empty);
+    }
+
+    /// <summary>
+    /// Creates a launcher view model with mocked dependencies for sorting tests.
+    /// </summary>
+    /// <returns>A launcher view model for testing.</returns>
+    private static GameProfileLauncherViewModel CreateViewModel()
+    {
+        return CreateViewModelWithMockDependencies();
     }
 }
