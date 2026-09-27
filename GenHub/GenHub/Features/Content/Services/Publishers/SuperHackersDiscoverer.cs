@@ -129,6 +129,7 @@ public class SuperHackersDiscoverer(
     {
         return string.IsNullOrWhiteSpace(searchTerm) ||
                release.Name?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) == true ||
+               release.TagName?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) == true ||
                repo.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
                displayName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
                release.Body?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) == true;

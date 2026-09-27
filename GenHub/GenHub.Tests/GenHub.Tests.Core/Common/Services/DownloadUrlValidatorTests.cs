@@ -68,6 +68,22 @@ public sealed class DownloadUrlValidatorTests
     }
 
     /// <summary>
+    /// Verifies that blocked local hostname scopes are rejected without relying on DNS failure.
+    /// </summary>
+    /// <param name="url">The URL to validate.</param>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Theory]
+    [InlineData("http://cache.localhost/maps.zip")]
+    [InlineData("http://printer.local/maps.zip")]
+    [InlineData("http://service.internal/maps.zip")]
+    public async Task IsSafeAsync_WithBlockedHostnameScope_ReturnsFalseAsync(string url)
+    {
+        var result = await _validator.IsSafeAsync(new Uri(url), CancellationToken.None);
+
+        Assert.False(result);
+    }
+
+    /// <summary>
     /// Verifies that unresolvable hosts fail closed.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>

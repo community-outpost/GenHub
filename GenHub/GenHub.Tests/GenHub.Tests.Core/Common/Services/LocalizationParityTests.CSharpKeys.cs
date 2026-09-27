@@ -21,10 +21,10 @@ public partial class LocalizationParityTests
     /// <c>GetString</c> and <c>GetLocalizedString</c> resource keys and verifies
     /// that each key exists in the default Strings.resx resource file. The scan
     /// matches full file contents so keys split across line breaks are detected,
-    /// only counts <c>GetString</c> receivers that resolve to the localization
-    /// service (plus bare helper calls), counts every <c>GetLocalizedString</c>
-    /// call regardless of receiver, and excludes test projects and build output
-    /// directories.
+    /// only counts <c>GetString</c> receiver chains that resolve through the
+    /// localization service (plus bare helper calls), counts every
+    /// <c>GetLocalizedString</c> call regardless of receiver, and excludes test
+    /// projects and build output directories.
     /// </summary>
     [Fact]
     public void CSharp_LocalizationCalls_ShouldReferenceExistingKeys()
@@ -85,8 +85,10 @@ public partial class LocalizationParityTests
 
     private static bool IsLocalizationReceiver(string receiver)
     {
-        return receiver.Contains("localiz", StringComparison.OrdinalIgnoreCase) ||
-            receiver.Equals("loc", StringComparison.OrdinalIgnoreCase);
+        var segments = receiver.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return segments.Any(segment =>
+            segment.TrimEnd('?').Contains("localiz", StringComparison.OrdinalIgnoreCase) ||
+            segment.TrimEnd('?').Equals("loc", StringComparison.OrdinalIgnoreCase));
     }
 
     private static int CountLines(string content, int index)
@@ -103,6 +105,6 @@ public partial class LocalizationParityTests
         return count;
     }
 
-    [GeneratedRegex("(?<![\\w.])(?:(?<receiver>[A-Za-z_][A-Za-z0-9_]*)\\??\\.\\s*)?(?<method>GetLocalizedString|GetString)\\(\\s*\"(?<key>[A-Za-z0-9_\\.]+)\"")]
+    [GeneratedRegex("(?<![\\w.])(?<receiver>(?:[A-Za-z_][A-Za-z0-9_]*\\??\\.\\s*)*)(?<method>GetLocalizedString|GetString)\\(\\s*\"(?<key>[A-Za-z0-9_\\.]+)\"")]
     private static partial Regex CSharpGetStringRegex();
 }

@@ -1757,6 +1757,9 @@
   <data name="Settings.DangerZone.DeleteAllData.SuccessMessage" xml:space="preserve">
     <value>تم حذف الملفات الشخصية ومساحات العمل والبيانات الوصفية وبيانات المستخدم وكائنات CAS غير المرجعية.</value>
   </data>
+  <data name="Settings.DangerZone.DeleteAllData.SuccessTitle" xml:space="preserve">
+    <value>تم حذف البيانات</value>
+  </data>
   <data name="Settings.DangerZone.DeleteCasStorage" xml:space="preserve">
     <value>حذف مساحة تخزين CAS</value>
   </data>
@@ -4254,6 +4257,21 @@
   </data>
   <data name="Profiles.AddLocalContent.BrowseFolder" xml:space="preserve">
     <value>تصفح المجلد</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Picker.SelectFolderTitle" xml:space="preserve">
+    <value>تحديد مجلد المحتوى</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Picker.SelectFilesTitle" xml:space="preserve">
+    <value>تحديد الملفات</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Picker.SupportedFilesFilter" xml:space="preserve">
+    <value>ملفات المحتوى المدعومة (*.zip, *.7z, *.rar, *.tar, *.gz, *.big)</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Picker.ZipArchivesFilter" xml:space="preserve">
+    <value>أرشيفات Zip (*.zip)</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Picker.BigFilesFilter" xml:space="preserve">
+    <value>ملفات BIG (*.big)</value>
   </data>
   <data name="Profiles.AddLocalContent.ContentPreview" xml:space="preserve">
     <value>معاينة المحتوى</value>
@@ -14751,11 +14769,17 @@ https://example.com/screenshot2.png</value>
   <data name="Content.Notification.DownloadUpdateFailed.Message" xml:space="preserve">
     <value>فشل تنزيل التحديث: {0}</value>
   </data>
+  <data name="Content.Notification.ManifestLoadFailed.Message" xml:space="preserve">
+    <value>تعذر تحميل بيانات {0} المثبتة: {1}</value>
+  </data>
   <data name="Content.Notification.ApplyingUpdate.Message" xml:space="preserve">
     <value>جارٍ تطبيق التحديث على الملفات الشخصية...</value>
   </data>
   <data name="Content.Notification.CommunityPatchUpdate.Title" xml:space="preserve">
     <value>تحديث باتش المجتمع</value>
+  </data>
+  <data name="Content.Notification.CommunityPatchUpdate.Message" xml:space="preserve">
+    <value>جارٍ تثبيت {0} {1}. يرجى الانتظار...</value>
   </data>
   <data name="Content.Notification.CommunityPatchUpdated.Title" xml:space="preserve">
     <value>تم تحديث باتش المجتمع</value>
@@ -14777,6 +14801,9 @@ https://example.com/screenshot2.png</value>
   </data>
   <data name="Content.Notification.SuperHackersUpdate.Title" xml:space="preserve">
     <value>تحديث SuperHackers</value>
+  </data>
+  <data name="Content.Notification.SuperHackersUpdate.Message" xml:space="preserve">
+    <value>جارٍ تثبيت {0} {1}. يرجى الانتظار...</value>
   </data>
   <data name="Content.Notification.SuperHackersUpdated.Title" xml:space="preserve">
     <value>تم تحديث SuperHackers</value>

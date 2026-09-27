@@ -39,23 +39,7 @@ public sealed class MacOSShortcutService(ILogger<MacOSShortcutService> logger) :
     {
         ArgumentNullException.ThrowIfNull(profile);
 
-        try
-        {
-            var shortcutPath = GetShortcutPath(profile);
-            if (!File.Exists(shortcutPath))
-            {
-                return Task.FromResult(OperationResult<bool>.CreateSuccess(false));
-            }
-
-            File.Delete(shortcutPath);
-            return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to remove macOS shortcut for profile {ProfileName}", profile.Name);
-            return Task.FromResult(
-                OperationResult<bool>.CreateFailure($"Failed to remove shortcut: {ex.Message}"));
-        }
+        return ShortcutFileHelper.RemoveShortcutFileAsync(GetShortcutPath(profile), profile.Name, logger);
     }
 
     /// <inheritdoc />

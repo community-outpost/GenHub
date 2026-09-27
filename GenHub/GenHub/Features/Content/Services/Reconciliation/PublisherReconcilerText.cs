@@ -21,7 +21,8 @@ public sealed record PublisherReconcilerText
         TelemetryContentName = CommunityOutpostConstants.CommunityPatchRetailDisplayName,
         ProgressTitleKey = "Content.Notification.CommunityPatchUpdate.Title",
         ProgressTitleFallback = "Community Patch Update",
-        ProgressBodyFormat = "Installing {0} {1}. Please wait...",
+        ProgressBodyKey = "Content.Notification.CommunityPatchUpdate.Message",
+        ProgressBodyFallback = "Installing {0} {1}. Please wait...",
         AcquireFailedTitleKey = "Content.Notification.CommunityPatchUpdateFailed.Title",
         AcquireFailedTitleFallback = "Community Patch Update Failed",
         AcquireFailedFormat = "Failed to acquire new {0} version: {1}",
@@ -50,7 +51,8 @@ public sealed record PublisherReconcilerText
         TelemetryContentName = SuperHackersConstants.ServiceName,
         ProgressTitleKey = "Content.Notification.SuperHackersUpdate.Title",
         ProgressTitleFallback = "SuperHackers Update",
-        ProgressBodyFormat = "Installing {0} {1}. Please wait...",
+        ProgressBodyKey = "Content.Notification.SuperHackersUpdate.Message",
+        ProgressBodyFallback = "Installing {0} {1}. Please wait...",
         AcquireFailedTitleKey = "Content.Notification.SuperHackersUpdateFailed.Title",
         AcquireFailedTitleFallback = "SuperHackers Update Failed",
         AcquireFailedFormat = "Failed to acquire new {0} version: {1}",
@@ -103,9 +105,14 @@ public sealed record PublisherReconcilerText
     public required string ProgressTitleFallback { get; init; }
 
     /// <summary>
-    /// Gets the progress notification body format ({0} is the content name, {1} is the version).
+    /// Gets the progress notification body resource key.
     /// </summary>
-    public required string ProgressBodyFormat { get; init; }
+    public required string ProgressBodyKey { get; init; }
+
+    /// <summary>
+    /// Gets the progress notification body fallback ({0} is the content name, {1} is the version).
+    /// </summary>
+    public required string ProgressBodyFallback { get; init; }
 
     /// <summary>
     /// Gets the acquisition-failed title resource key.

@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using System;
@@ -18,6 +19,12 @@ public abstract partial class ContentTypeFilterViewModelBase : FilterPanelViewMo
 
     [ObservableProperty]
     private ObservableCollection<ContentTypeFilterItem> _contentTypeFilters = [];
+
+    /// <summary>
+    /// Gets or sets the localization service used for filter summaries.
+    /// Set by the composition site; summaries fall back to English when null.
+    /// </summary>
+    public ILocalizationService? LocalizationService { get; set; }
 
     /// <inheritdoc />
     public override bool HasActiveFilters => SelectedContentType.HasValue;
@@ -53,8 +60,18 @@ public abstract partial class ContentTypeFilterViewModelBase : FilterPanelViewMo
     {
         if (SelectedContentType.HasValue)
         {
-            yield return $"Type: {SelectedContentType.Value}";
+            yield return $"{ResolveLabel("Downloads.Filter.ContentType", "Content Type")}: {SelectedContentType.Value}";
         }
+    }
+
+    private string ResolveLabel(string key, string fallback)
+    {
+        if (LocalizationService?.TryGetString(key, out var localized) == true)
+        {
+            return localized;
+        }
+
+        return fallback;
     }
 
     [RelayCommand]

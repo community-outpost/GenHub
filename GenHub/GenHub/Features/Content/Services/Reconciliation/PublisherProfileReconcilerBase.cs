@@ -100,7 +100,7 @@ public abstract class PublisherProfileReconcilerBase(
             var progressNotification = new NotificationMessage(
                 NotificationType.Info,
                 interactionServices.LocalizationService.GetLocalizedString(text.ProgressTitleKey, text.ProgressTitleFallback),
-                string.Format(text.ProgressBodyFormat, text.ContextDisplayName, updateResult.LatestVersion),
+                interactionServices.LocalizationService.GetLocalizedString(text.ProgressBodyKey, text.ProgressBodyFallback, text.ContextDisplayName, updateResult.LatestVersion),
                 autoDismissMilliseconds: null,
                 isPersistent: true)
             {
@@ -111,7 +111,25 @@ public abstract class PublisherProfileReconcilerBase(
             try
             {
                 // Step 3: Find all currently installed manifests for this publisher
-                var oldManifests = await FindPublisherManifestsAsync(cancellationToken);
+                var oldManifestsResult = await FindPublisherManifestsAsync(cancellationToken);
+                if (!oldManifestsResult.Success || oldManifestsResult.Data == null)
+                {
+                    var loadError = oldManifestsResult.FirstError ?? "Failed to load manifests from pool.";
+
+                    return FailUpdate(
+                        updateResult,
+                        strategy,
+                        interactionServices.LocalizationService.GetLocalizedString(text.ErrorTitleKey, text.ErrorTitleFallback),
+                        interactionServices.LocalizationService.GetLocalizedString(
+                            "Content.Notification.ManifestLoadFailed.Message",
+                            $"Failed to load installed {text.ContextDisplayName} manifests: {loadError}",
+                            text.ContextDisplayName,
+                            loadError),
+                        $"Failed to load installed {text.ContextDisplayName} manifests: {loadError}",
+                        loadError);
+                }
+
+                var oldManifests = oldManifestsResult.Data;
                 if (oldManifests.Count == 0)
                 {
                     logger.LogWarning("{Prefix} No existing {Publisher} manifests found in pool", text.LogPrefix, text.PublisherDisplayName);
@@ -127,23 +145,13 @@ public abstract class PublisherProfileReconcilerBase(
                 var acquireResult = await AcquireLatestVersionAsync(oldManifests, progressNotificationId, cancellationToken);
                 if (!acquireResult.Success)
                 {
-                    telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
-                    {
-                        [TelemetryConstants.Properties.PublisherId] = text.PublisherType,
-                        [TelemetryConstants.Properties.ContentName] = text.TelemetryContentName,
-                        [TelemetryConstants.Properties.FromVersion] = updateResult.CurrentVersion,
-                        [TelemetryConstants.Properties.ToVersion] = updateResult.LatestVersion,
-                        [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
-                        [TelemetryConstants.Properties.ErrorMessage] = acquireResult.FirstError,
-                    });
-
-                    interactionServices.NotificationService.ShowError(
+                    return FailUpdate(
+                        updateResult,
+                        strategy,
                         interactionServices.LocalizationService.GetLocalizedString(text.AcquireFailedTitleKey, text.AcquireFailedTitleFallback),
                         interactionServices.LocalizationService.GetLocalizedString("Content.Notification.DownloadUpdateFailed.Message", $"Failed to download update: {acquireResult.FirstError}", acquireResult.FirstError),
-                        NotificationDurations.Critical);
-
-                    return OperationResult<PublisherReconciliationResult>.CreateFailure(
-                        string.Format(text.AcquireFailedFormat, text.ContextDisplayName, acquireResult.FirstError));
+                        string.Format(text.AcquireFailedFormat, text.ContextDisplayName, acquireResult.FirstError),
+                        acquireResult.FirstError);
                 }
 
                 var newManifests = acquireResult.Data;
@@ -202,8 +210,9 @@ public abstract class PublisherProfileReconcilerBase(
                 {
                     await contentServices.ReconciliationService.ScheduleGarbageCollectionAsync(false, cancellationToken);
                 }
-                else if (shouldDeleteOldVersions && anyFailure)
+                else if (shouldDeleteOldVersions)
                 {
+                    // Reaching here with deletion requested implies a partial failure; otherwise GC would have run above.
                     logger.LogWarning("{Prefix} Skipping scheduled GC due to partial update failure to avoid deleting referenced content.", text.LogPrefix);
                 }
 
@@ -282,18 +291,42 @@ public abstract class PublisherProfileReconcilerBase(
         return mapping;
     }
 
-    private async Task<List<ContentManifest>> FindPublisherManifestsAsync(
+    private OperationResult<PublisherReconciliationResult> FailUpdate(
+        ContentUpdateCheckResult updateResult,
+        UpdateStrategy strategy,
+        string title,
+        string message,
+        string failureMessage,
+        string? error)
+    {
+        telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
+        {
+            [TelemetryConstants.Properties.PublisherId] = text.PublisherType,
+            [TelemetryConstants.Properties.ContentName] = text.TelemetryContentName,
+            [TelemetryConstants.Properties.FromVersion] = updateResult.CurrentVersion,
+            [TelemetryConstants.Properties.ToVersion] = updateResult.LatestVersion,
+            [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
+            [TelemetryConstants.Properties.ErrorMessage] = error,
+        });
+
+        interactionServices.NotificationService.ShowError(title, message, NotificationDurations.Critical);
+
+        return OperationResult<PublisherReconciliationResult>.CreateFailure(failureMessage);
+    }
+
+    private async Task<OperationResult<List<ContentManifest>>> FindPublisherManifestsAsync(
         CancellationToken cancellationToken)
     {
         var manifestsResult = await contentServices.ManifestPool.GetAllManifestsAsync(cancellationToken);
         if (!manifestsResult.Success || manifestsResult.Data == null)
         {
-            return [];
+            return OperationResult<List<ContentManifest>>.CreateFailure(
+                manifestsResult.FirstError ?? "Failed to load manifests from pool.");
         }
 
-        return [.. manifestsResult.Data
+        return OperationResult<List<ContentManifest>>.CreateSuccess([.. manifestsResult.Data
             .Where(m =>
-                m.Publisher?.PublisherType?.Equals(text.PublisherType, StringComparison.OrdinalIgnoreCase) == true)];
+                m.Publisher?.PublisherType?.Equals(text.PublisherType, StringComparison.OrdinalIgnoreCase) == true)]);
     }
 
     private IProgress<ContentAcquisitionProgress>? CreateAcquisitionProgress(
@@ -397,7 +430,14 @@ public abstract class PublisherProfileReconcilerBase(
                 return OperationResult<List<ContentManifest>>.CreateFailure(acquireResult.FirstError ?? "Failed to acquire content");
             }
 
-            var allManifests = await FindPublisherManifestsAsync(cancellationToken);
+            var allManifestsResult = await FindPublisherManifestsAsync(cancellationToken);
+            if (!allManifestsResult.Success || allManifestsResult.Data == null)
+            {
+                return OperationResult<List<ContentManifest>>.CreateFailure(
+                    allManifestsResult.FirstError ?? "Failed to load manifests from pool.");
+            }
+
+            var allManifests = allManifestsResult.Data;
             var oldIds = oldManifests.Select(m => m.Id.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             var newManifests = allManifests

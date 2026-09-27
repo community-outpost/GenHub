@@ -807,7 +807,7 @@ public partial class GenHotkeysViewModel(
         catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
         {
             logger.LogError(ex, "Failed to open profile selection dialog");
-            notificationService.ShowError(
+            notificationService?.ShowError(
                 GetLocalizedString("Tools.GenHotkeys.Notification.ProfileSelectionError.Title", "Profile Selection Error"),
                 GetLocalizedString("Tools.GenHotkeys.Notification.ProfileSelectionError.Message", $"Failed to open profile selection: {ex.Message}", ex.Message));
         }

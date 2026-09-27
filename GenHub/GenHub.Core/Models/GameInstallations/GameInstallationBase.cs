@@ -54,6 +54,12 @@ public abstract class GameInstallationBase : IGameInstallation
     }
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// Appends rather than replaces: installations accumulate manifest-loaded clients
+    /// and detection results across lifecycle phases, and scanned clients carry an
+    /// empty <see cref="GameClient.InstallationId"/> until manifest generation, so
+    /// filtering by installation is not possible here.
+    /// </remarks>
     public void PopulateGameClients(IEnumerable<GameClient> clients)
     {
         AvailableGameClients.AddRange(clients);

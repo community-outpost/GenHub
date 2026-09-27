@@ -103,7 +103,7 @@ public class WineInstallation(ILogger<WineInstallation>? logger = null) : GameIn
         }
 
         var generalsPath = Path.Combine(basePath, GameClientConstants.GeneralsDirectoryName);
-        if (Directory.Exists(generalsPath) && IsValidGameInstallation(generalsPath, "generals.exe"))
+        if (Directory.Exists(generalsPath) && IsValidGameInstallation(generalsPath, GameClientConstants.GeneralsExecutable))
         {
             HasGenerals = true;
             GeneralsPath = generalsPath;
@@ -120,7 +120,7 @@ public class WineInstallation(ILogger<WineInstallation>? logger = null) : GameIn
         }
 
         var zeroHourPath = Path.Combine(basePath, GameClientConstants.ZeroHourDirectoryName);
-        if (Directory.Exists(zeroHourPath) && IsValidGameInstallation(zeroHourPath, "generals.exe"))
+        if (Directory.Exists(zeroHourPath) && IsValidGameInstallation(zeroHourPath, GameClientConstants.GeneralsExecutable))
         {
             HasZeroHour = true;
             ZeroHourPath = zeroHourPath;

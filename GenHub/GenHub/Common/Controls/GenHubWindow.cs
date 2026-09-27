@@ -39,6 +39,12 @@ public class GenHubWindow : Window
     /// </summary>
     protected virtual bool DisposeDataContextOnClose => false;
 
+    /// <summary>
+    /// Gets a value indicating whether double-clicking the title bar toggles maximized
+    /// state. Override to <c>false</c> for fixed-purpose dialogs that should only drag.
+    /// </summary>
+    protected virtual bool TitleBarDoubleClickMaximizes => true;
+
     /// <inheritdoc/>
     protected override void OnOpened(EventArgs e)
     {
@@ -108,7 +114,7 @@ public class GenHubWindow : Window
     {
         if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
-            if (e.ClickCount == 2 && CanResize)
+            if (e.ClickCount == 2 && CanResize && TitleBarDoubleClickMaximizes)
             {
                 WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
             }
@@ -158,8 +164,18 @@ public class GenHubWindow : Window
         var maxDipsWidth = availableWidth * 0.90;
         var maxDipsHeight = availableHeight * 0.88;
 
-        MaxWidth = Math.Min(Math.Max(400, maxDipsWidth), availableWidth);
-        MaxHeight = Math.Min(Math.Max(300, maxDipsHeight), availableHeight);
+        var widthCap = Math.Min(Math.Max(Math.Max(MinWidth, 400), maxDipsWidth), availableWidth);
+        var heightCap = Math.Min(Math.Max(Math.Max(MinHeight, 300), maxDipsHeight), availableHeight);
+
+        if (MaxWidth > widthCap)
+        {
+            MaxWidth = widthCap;
+        }
+
+        if (MaxHeight > heightCap)
+        {
+            MaxHeight = heightCap;
+        }
 
         EnsurePositionWithinScreen();
     }

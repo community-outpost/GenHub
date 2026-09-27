@@ -38,7 +38,7 @@ public static class ShortcutFileHelper
             logger.LogWarning("Shortcut not found at {ShortcutPath}", shortcutPath);
             return Task.FromResult(OperationResult<bool>.CreateSuccess(false));
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
             logger.LogError(ex, "Failed to remove desktop shortcut for profile {ProfileName}", profileName);
             return Task.FromResult(OperationResult<bool>.CreateFailure($"Failed to remove shortcut: {ex.Message}"));

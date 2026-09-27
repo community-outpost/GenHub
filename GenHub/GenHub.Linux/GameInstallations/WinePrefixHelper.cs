@@ -31,7 +31,7 @@ public static class WinePrefixHelper
                 Path.Combine(homeDirectory, InstallationSearchPathConstants.Linux.WinePrefixDirectoryName),
                 Path.Combine(homeDirectory, InstallationSearchPathConstants.Linux.XdgLocalDirectoryName, InstallationSearchPathConstants.Linux.XdgShareDirectoryName, InstallationSearchPathConstants.Linux.WinePrefixesDirectoryName),
                 Path.Combine(homeDirectory, InstallationSearchPathConstants.Linux.PlayOnLinuxDirectoryName, InstallationSearchPathConstants.Linux.PlayOnLinuxWinePrefixDirectoryName),
-                Path.Combine(homeDirectory, InstallationSearchPathConstants.Linux.FlatpakVarDirectoryName, InstallationSearchPathConstants.Linux.FlatpakAppDirectoryName, InstallationSearchPathConstants.Linux.BottlesFlatpakApplicationId, InstallationSearchPathConstants.Linux.FlatpakDataDirectoryName, InstallationSearchPathConstants.Linux.BottlesDirectoryName, InstallationSearchPathConstants.Linux.BottlesDirectoryName),
+                Path.Combine(homeDirectory, InstallationSearchPathConstants.Linux.FlatpakVarDirectoryName, InstallationSearchPathConstants.Linux.FlatpakAppDirectoryName, InstallationSearchPathConstants.Linux.BottlesFlatpakApplicationId, InstallationSearchPathConstants.Linux.FlatpakDataDirectoryName, InstallationSearchPathConstants.Linux.BottlesDirectoryName),
                 InstallationSearchPathConstants.Linux.SystemWineDirectory,
             };
 

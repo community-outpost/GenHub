@@ -26,7 +26,6 @@ public partial class SettingsPanelViewModel(
 {
     /// <summary>
     /// Initializes the view model asynchronously by loading cache statistics.
-    /// Called by the composition site after construction.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     public async Task InitializeAsync()

@@ -1757,6 +1757,9 @@
   <data name="Settings.DangerZone.DeleteAllData.SuccessMessage" xml:space="preserve">
     <value>Profiles, workspaces, manifests, user data, and unreferenced CAS objects were deleted.</value>
   </data>
+  <data name="Settings.DangerZone.DeleteAllData.SuccessTitle" xml:space="preserve">
+    <value>Data Deleted</value>
+  </data>
   <data name="Settings.DangerZone.DeleteCasStorage" xml:space="preserve">
     <value>Delete CAS Storage</value>
   </data>
@@ -4254,6 +4257,21 @@ This will modify game files and configuration settings at:
   </data>
   <data name="Profiles.AddLocalContent.BrowseFolder" xml:space="preserve">
     <value>Browse Folder</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Picker.SelectFolderTitle" xml:space="preserve">
+    <value>Select Content Folder</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Picker.SelectFilesTitle" xml:space="preserve">
+    <value>Select Files</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Picker.SupportedFilesFilter" xml:space="preserve">
+    <value>Supported Content Files (*.zip, *.7z, *.rar, *.tar, *.gz, *.big)</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Picker.ZipArchivesFilter" xml:space="preserve">
+    <value>Zip Archives (*.zip)</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Picker.BigFilesFilter" xml:space="preserve">
+    <value>BIG Files (*.big)</value>
   </data>
   <data name="Profiles.AddLocalContent.ContentPreview" xml:space="preserve">
     <value>CONTENT PREVIEW</value>
@@ -14810,11 +14828,17 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="Content.Notification.DownloadUpdateFailed.Message" xml:space="preserve">
     <value>Failed to download update: {0}</value>
   </data>
+  <data name="Content.Notification.ManifestLoadFailed.Message" xml:space="preserve">
+    <value>Failed to load installed {0} manifests: {1}</value>
+  </data>
   <data name="Content.Notification.ApplyingUpdate.Message" xml:space="preserve">
     <value>Applying update to profiles...</value>
   </data>
   <data name="Content.Notification.CommunityPatchUpdate.Title" xml:space="preserve">
     <value>Community Patch Update</value>
+  </data>
+  <data name="Content.Notification.CommunityPatchUpdate.Message" xml:space="preserve">
+    <value>Installing {0} {1}. Please wait...</value>
   </data>
   <data name="Content.Notification.CommunityPatchUpdated.Title" xml:space="preserve">
     <value>Community Patch Updated</value>
@@ -14836,6 +14860,9 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   </data>
   <data name="Content.Notification.SuperHackersUpdate.Title" xml:space="preserve">
     <value>SuperHackers Update</value>
+  </data>
+  <data name="Content.Notification.SuperHackersUpdate.Message" xml:space="preserve">
+    <value>Installing {0} {1}. Please wait...</value>
   </data>
   <data name="Content.Notification.SuperHackersUpdated.Title" xml:space="preserve">
     <value>SuperHackers Updated</value>

@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
 using GenHub.Features.GameProfiles.ViewModels;
+using GenHub.Infrastructure.Converters;
 using System;
 using System.Linq;
 
@@ -51,6 +52,12 @@ public partial class AddLocalContentView : UserControl
         InitializeBrowseActions();
     }
 
+    private static string ResolvePickerString(string key, string fallback)
+    {
+        var localizationService = LocalizationConverterHelper.ResolveLocalizationService();
+        return LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, key, fallback);
+    }
+
     private void InitializeBrowseActions()
     {
         if (DataContext is AddLocalContentViewModel vm)
@@ -66,7 +73,7 @@ public partial class AddLocalContentView : UserControl
 
                 var result = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
                 {
-                    Title = "Select Content Folder",
+                    Title = ResolvePickerString("Profiles.AddLocalContent.Picker.SelectFolderTitle", "Select Content Folder"),
                     AllowMultiple = false,
                 });
                 return result.Count > 0 ? result[0].Path.LocalPath : null;
@@ -82,16 +89,16 @@ public partial class AddLocalContentView : UserControl
 
                 var result = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
                 {
-                    Title = "Select Files",
+                    Title = ResolvePickerString("Profiles.AddLocalContent.Picker.SelectFilesTitle", "Select Files"),
                     AllowMultiple = true,
                     FileTypeFilter =
                     [
-                        new("Supported Content Files (*.zip, *.7z, *.rar, *.tar, *.gz, *.big)")
+                        new(ResolvePickerString("Profiles.AddLocalContent.Picker.SupportedFilesFilter", "Supported Content Files (*.zip, *.7z, *.rar, *.tar, *.gz, *.big)"))
                         {
                             Patterns = ["*.zip", "*.7z", "*.rar", "*.tar", "*.gz", "*.big"],
                         },
-                        new("Zip Archives (*.zip)") { Patterns = ["*.zip"] },
-                        new("BIG Files (*.big)") { Patterns = ["*.big"] },
+                        new(ResolvePickerString("Profiles.AddLocalContent.Picker.ZipArchivesFilter", "Zip Archives (*.zip)")) { Patterns = ["*.zip"] },
+                        new(ResolvePickerString("Profiles.AddLocalContent.Picker.BigFilesFilter", "BIG Files (*.big)")) { Patterns = ["*.big"] },
                         FilePickerFileTypes.All,
                     ],
                 });

@@ -19,6 +19,9 @@ public partial class ImportProfileInspectionWindow : GenHubWindow
     /// <inheritdoc/>
     protected override bool DisposeDataContextOnClose => true;
 
+    /// <inheritdoc/>
+    protected override bool TitleBarDoubleClickMaximizes => false;
+
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);

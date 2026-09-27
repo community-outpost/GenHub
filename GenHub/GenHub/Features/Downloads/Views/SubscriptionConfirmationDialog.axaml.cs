@@ -76,6 +76,9 @@ public partial class SubscriptionConfirmationDialog : GenHubWindow
     protected override void OnEscapePressed() => CloseDialog(false);
 
     /// <inheritdoc/>
+    protected override bool TitleBarDoubleClickMaximizes => false;
+
+    /// <inheritdoc/>
     protected override void CloseButton_Click(object? sender, RoutedEventArgs e)
     {
         DialogResult = false;

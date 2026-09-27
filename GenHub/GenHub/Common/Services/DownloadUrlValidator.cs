@@ -26,6 +26,11 @@ public sealed class DownloadUrlValidator : IDownloadUrlValidator
             return false;
         }
 
+        if (NetworkSecurityHelper.IsBlockedHostName(uri))
+        {
+            return false;
+        }
+
         if (IPAddress.TryParse(uri.Host, out var literal))
         {
             return NetworkSecurityHelper.IsSafeIpAddress(literal);

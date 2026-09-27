@@ -2006,7 +2006,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             if (userDataDeleted && casOutcome == CasCleanupOutcome.Success)
             {
                 _notificationService.ShowSuccess(
-                    "Data Deleted",
+                    _localizationService?.GetString("Settings.DangerZone.DeleteAllData.SuccessTitle") ?? "Data Deleted",
                     _localizationService?.GetString("Settings.DangerZone.DeleteAllData.SuccessMessage") ?? "Profiles, workspaces, manifests, user data, and unreferenced CAS objects were deleted.",
                     NotificationDurations.Medium);
             }

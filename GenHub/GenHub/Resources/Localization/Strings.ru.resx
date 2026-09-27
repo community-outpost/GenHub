@@ -1757,6 +1757,9 @@
   <data name="Settings.DangerZone.DeleteAllData.SuccessMessage" xml:space="preserve">
     <value>Профили, рабочие области, манифесты, данные пользователя и несвязанные объекты CAS были удалены.</value>
   </data>
+  <data name="Settings.DangerZone.DeleteAllData.SuccessTitle" xml:space="preserve">
+    <value>Данные удалены</value>
+  </data>
   <data name="Settings.DangerZone.DeleteCasStorage" xml:space="preserve">
     <value>Удалить хранилище CAS</value>
   </data>
@@ -4254,6 +4257,21 @@
   </data>
   <data name="Profiles.AddLocalContent.BrowseFolder" xml:space="preserve">
     <value>Обзор папки</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Picker.SelectFolderTitle" xml:space="preserve">
+    <value>Выберите папку с контентом</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Picker.SelectFilesTitle" xml:space="preserve">
+    <value>Выберите файлы</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Picker.SupportedFilesFilter" xml:space="preserve">
+    <value>Поддерживаемые файлы контента (*.zip, *.7z, *.rar, *.tar, *.gz, *.big)</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Picker.ZipArchivesFilter" xml:space="preserve">
+    <value>Zip-архивы (*.zip)</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Picker.BigFilesFilter" xml:space="preserve">
+    <value>BIG-файлы (*.big)</value>
   </data>
   <data name="Profiles.AddLocalContent.ContentPreview" xml:space="preserve">
     <value>ПРЕДПРОСМОТР КОНТЕНТА</value>
@@ -14751,11 +14769,17 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="Content.Notification.DownloadUpdateFailed.Message" xml:space="preserve">
     <value>Не удалось загрузить обновление: {0}</value>
   </data>
+  <data name="Content.Notification.ManifestLoadFailed.Message" xml:space="preserve">
+    <value>Не удалось загрузить установленные манифесты {0}: {1}</value>
+  </data>
   <data name="Content.Notification.ApplyingUpdate.Message" xml:space="preserve">
     <value>Применение обновления к профилям...</value>
   </data>
   <data name="Content.Notification.CommunityPatchUpdate.Title" xml:space="preserve">
     <value>Обновление Community Patch</value>
+  </data>
+  <data name="Content.Notification.CommunityPatchUpdate.Message" xml:space="preserve">
+    <value>Установка {0} {1}. Пожалуйста, подождите...</value>
   </data>
   <data name="Content.Notification.CommunityPatchUpdated.Title" xml:space="preserve">
     <value>Community Patch обновлён</value>
@@ -14777,6 +14801,9 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   </data>
   <data name="Content.Notification.SuperHackersUpdate.Title" xml:space="preserve">
     <value>Обновление SuperHackers</value>
+  </data>
+  <data name="Content.Notification.SuperHackersUpdate.Message" xml:space="preserve">
+    <value>Установка {0} {1}. Пожалуйста, подождите...</value>
   </data>
   <data name="Content.Notification.SuperHackersUpdated.Title" xml:space="preserve">
     <value>SuperHackers обновлён</value>
