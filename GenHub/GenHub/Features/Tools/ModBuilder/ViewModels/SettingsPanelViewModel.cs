@@ -1,6 +1,8 @@
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Extensions;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
 using Microsoft.Extensions.Logging;
@@ -21,6 +23,7 @@ public partial class SettingsPanelViewModel : ObservableObject
     private readonly IBuildCacheService _buildCacheService;
     private readonly INotificationService _notificationService;
     private readonly ILogger<SettingsPanelViewModel> _logger;
+    private readonly ILocalizationService? _localizationService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SettingsPanelViewModel"/> class.
@@ -28,14 +31,17 @@ public partial class SettingsPanelViewModel : ObservableObject
     /// <param name="buildCacheService">The build cache service.</param>
     /// <param name="notificationService">The notification service.</param>
     /// <param name="logger">The logger.</param>
+    /// <param name="localizationService">The optional localization service for user-facing notifications.</param>
     public SettingsPanelViewModel(
         IBuildCacheService buildCacheService,
         INotificationService notificationService,
-        ILogger<SettingsPanelViewModel> logger)
+        ILogger<SettingsPanelViewModel> logger,
+        ILocalizationService? localizationService = null)
     {
         _buildCacheService = buildCacheService;
         _notificationService = notificationService;
         _logger = logger;
+        _localizationService = localizationService;
 
         // Initialize compression levels
         CompressionLevels.Add(CompressionLevel.NoCompression);
@@ -165,8 +171,8 @@ public partial class SettingsPanelViewModel : ObservableObject
             await LoadCacheStatisticsAsync();
 
             _notificationService.ShowSuccess(
-                "Cache Cleared",
-                "Build cache has been successfully cleared.");
+                _localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheCleared.Title", "Cache Cleared"),
+                _localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheCleared.Message", "Build cache has been successfully cleared."));
 
             _logger.LogInformation("Build cache cleared successfully");
         }
@@ -174,8 +180,8 @@ public partial class SettingsPanelViewModel : ObservableObject
         {
             _logger.LogError(ex, "Failed to clear cache");
             _notificationService.ShowError(
-                "Cache Clear Failed",
-                $"Failed to clear cache: {ex.Message}");
+                _localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheClearFailed.Title", "Cache Clear Failed"),
+                _localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheClearFailed.Message", $"Failed to clear cache: {ex.Message}", ex.Message));
         }
         finally
         {
@@ -197,15 +203,15 @@ public partial class SettingsPanelViewModel : ObservableObject
             IsCacheOperationInProgress = true;
 
             _notificationService.ShowInfo(
-                "Rebuilding Cache",
-                "Cache index is being rebuilt...");
+                _localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheRebuilding.Title", "Rebuilding Cache"),
+                _localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheRebuilding.Message", "Cache index is being rebuilt..."));
 
             _buildCacheService.Clear();
             await LoadCacheStatisticsAsync();
 
             _notificationService.ShowSuccess(
-                "Cache Rebuilt",
-                "Cache index has been successfully rebuilt.");
+                _localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheRebuilt.Title", "Cache Rebuilt"),
+                _localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheRebuilt.Message", "Cache index has been successfully rebuilt."));
 
             _logger.LogInformation("Cache index rebuilt successfully");
         }
@@ -213,8 +219,8 @@ public partial class SettingsPanelViewModel : ObservableObject
         {
             _logger.LogError(ex, "Failed to rebuild cache");
             _notificationService.ShowError(
-                "Cache Rebuild Failed",
-                $"Failed to rebuild cache: {ex.Message}");
+                _localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheRebuildFailed.Title", "Cache Rebuild Failed"),
+                _localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheRebuildFailed.Message", $"Failed to rebuild cache: {ex.Message}", ex.Message));
         }
         finally
         {
@@ -329,8 +335,8 @@ public partial class SettingsPanelViewModel : ObservableObject
         EnableSyntaxHighlighting = true;
 
         _notificationService.ShowSuccess(
-            "Settings Reset",
-            "All settings have been reset to defaults.");
+            _localizationService.GetLocalizedString("Tools.ModBuilder.Notification.SettingsReset.Title", "Settings Reset"),
+            _localizationService.GetLocalizedString("Tools.ModBuilder.Notification.SettingsReset.Message", "All settings have been reset to defaults."));
 
         _logger.LogInformation("Settings reset to defaults");
     }

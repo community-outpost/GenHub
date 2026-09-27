@@ -14541,6 +14541,1060 @@ https://example.com/screenshot2.png</value>
   <data name="Tools.ReplayManager.Status.ImportCancelled" xml:space="preserve">
     <value>Import cancelled.</value>
   </data>
+  <data name="Common.Notification.Copied.Title" xml:space="preserve">
+    <value>تم النسخ</value>
+  </data>
+  <data name="App.Notification.VersionCopied.Message" xml:space="preserve">
+    <value>تم نسخ الإصدار إلى الحافظة.</value>
+  </data>
+  <data name="Common.Notification.ClipboardUnavailable.Message" xml:space="preserve">
+    <value>الحافظة غير متوفرة.</value>
+  </data>
+  <data name="App.Notification.CopyVersionFailed.Message" xml:space="preserve">
+    <value>فشل نسخ الإصدار إلى الحافظة.</value>
+  </data>
+  <data name="Content.Notification.InstallationStepRunning.Title" xml:space="preserve">
+    <value>جارٍ تنفيذ خطوة التثبيت</value>
+  </data>
+  <data name="Content.Notification.InstallationStepFailed.Title" xml:space="preserve">
+    <value>فشلت خطوة التثبيت</value>
+  </data>
+  <data name="Content.Notification.InstallationStepFailed.StartMessage" xml:space="preserve">
+    <value>فشل بدء المثبّت '{0}'.</value>
+  </data>
+  <data name="Content.Notification.InstallationStepFailed.TimeoutMessage" xml:space="preserve">
+    <value>انتهت مهلة الخطوة '{0}'.</value>
+  </data>
+  <data name="Content.Notification.InstallationStepFailed.ExitCodeMessage" xml:space="preserve">
+    <value>فشلت الخطوة '{0}' مع رمز الخروج {1}.</value>
+  </data>
+  <data name="Content.Notification.InstallationStepCompleted.Title" xml:space="preserve">
+    <value>اكتملت خطوة التثبيت</value>
+  </data>
+  <data name="Content.Notification.InstallationStepCompleted.Message" xml:space="preserve">
+    <value>تم إكمال '{0}' بنجاح.</value>
+  </data>
+  <data name="Content.Notification.InstallationStepError.Title" xml:space="preserve">
+    <value>خطأ في خطوة التثبيت</value>
+  </data>
+  <data name="Content.Notification.InstallationStepError.Message" xml:space="preserve">
+    <value>خطأ أثناء تنفيذ '{0}': {1}</value>
+  </data>
+  <data name="Content.Notification.DownloadingUpdate.Title" xml:space="preserve">
+    <value>جارٍ تنزيل التحديث</value>
+  </data>
+  <data name="Content.Notification.DownloadingUpdate.Message" xml:space="preserve">
+    <value>جارٍ تنزيل {0} الإصدار {1}...</value>
+  </data>
+  <data name="Content.Notification.UpdateFailed.Title" xml:space="preserve">
+    <value>فشل التحديث</value>
+  </data>
+  <data name="Content.Notification.UpdateFailed.DownloadMessage" xml:space="preserve">
+    <value>فشل تنزيل {0}: {1}</value>
+  </data>
+  <data name="Content.Notification.UpdateCompleted.Title" xml:space="preserve">
+    <value>اكتمل التحديث</value>
+  </data>
+  <data name="Content.Notification.UpdateCompleted.Message" xml:space="preserve">
+    <value>تم تحديث {0} إلى الإصدار {1}.</value>
+  </data>
+  <data name="Content.Notification.PublisherUpdatePartial.Title" xml:space="preserve">
+    <value>تحديث {0} جزئي</value>
+  </data>
+  <data name="Content.Notification.PublisherUpdatePartial.CreateFailedMessage" xml:space="preserve">
+    <value>فشل إنشاء بعض الملفات الشخصية الجديدة: {0}</value>
+  </data>
+  <data name="Content.Notification.PublisherUpdatePartial.ProfilesFailedMessage" xml:space="preserve">
+    <value>تعذّر تحديث {0} من الملفات الشخصية.</value>
+  </data>
+  <data name="Content.Notification.PublisherUpdatePartial.UpdateFailedMessage" xml:space="preserve">
+    <value>تعذّر تحديث بعض الملفات الشخصية: {0}</value>
+  </data>
+  <data name="Content.Notification.CommunityPatchUpdateFailed.Title" xml:space="preserve">
+    <value>فشل تحديث باتش المجتمع</value>
+  </data>
+  <data name="Content.Notification.DownloadUpdateFailed.Message" xml:space="preserve">
+    <value>فشل تنزيل التحديث: {0}</value>
+  </data>
+  <data name="Content.Notification.ApplyingUpdate.Message" xml:space="preserve">
+    <value>جارٍ تطبيق التحديث على الملفات الشخصية...</value>
+  </data>
+  <data name="Content.Notification.CommunityPatchUpdate.Title" xml:space="preserve">
+    <value>تحديث باتش المجتمع</value>
+  </data>
+  <data name="Content.Notification.CommunityPatchUpdated.Title" xml:space="preserve">
+    <value>تم تحديث باتش المجتمع</value>
+  </data>
+  <data name="Content.Notification.ProfilesCreated.Word" xml:space="preserve">
+    <value>إنشاء</value>
+  </data>
+  <data name="Content.Notification.ProfilesUpdated.Word" xml:space="preserve">
+    <value>تحديث</value>
+  </data>
+  <data name="Content.Notification.CommunityPatchUpdateError.Title" xml:space="preserve">
+    <value>خطأ في تحديث باتش المجتمع</value>
+  </data>
+  <data name="Content.Notification.UpdateError.Message" xml:space="preserve">
+    <value>حدث خطأ أثناء التحديث: {0}</value>
+  </data>
+  <data name="Content.Notification.SuperHackersUpdateFailed.Title" xml:space="preserve">
+    <value>فشل تحديث SuperHackers</value>
+  </data>
+  <data name="Content.Notification.SuperHackersUpdate.Title" xml:space="preserve">
+    <value>تحديث SuperHackers</value>
+  </data>
+  <data name="Content.Notification.SuperHackersUpdated.Title" xml:space="preserve">
+    <value>تم تحديث SuperHackers</value>
+  </data>
+  <data name="Content.Notification.PublisherUpdated.Message" xml:space="preserve">
+    <value>تم التحديث بنجاح إلى الإصدار {0}. تم {2} {1} من الملفات الشخصية.</value>
+  </data>
+  <data name="Content.Notification.SuperHackersUpdateError.Title" xml:space="preserve">
+    <value>خطأ في تحديث SuperHackers</value>
+  </data>
+  <data name="Content.Notification.GeneralsOnlineUpdateFailed.Title" xml:space="preserve">
+    <value>فشل تحديث GeneralsOnline</value>
+  </data>
+  <data name="Content.Notification.GeneralsOnlineUpdate.Title" xml:space="preserve">
+    <value>تحديث GeneralsOnline</value>
+  </data>
+  <data name="Content.Notification.GeneralsOnlineUpdatedPartial.Title" xml:space="preserve">
+    <value>تم تحديث Generals Online (جزئيًا)</value>
+  </data>
+  <data name="Content.Notification.GeneralsOnlineUpdatedPartial.Message" xml:space="preserve">
+    <value>تم التحديث إلى {0}، لكن بعض الملفات الشخصية أو المكونات واجهت مشاكل.</value>
+  </data>
+  <data name="Content.Notification.GeneralsOnlineUpdated.Title" xml:space="preserve">
+    <value>تم تحديث Generals Online</value>
+  </data>
+  <data name="Content.Notification.GeneralsOnlineUpdated.Message" xml:space="preserve">
+    <value>تم تحديث {0} من الملفات الشخصية بنجاح إلى Generals Online {1}.</value>
+  </data>
+  <data name="Content.Notification.ProfilesUpdated.Title" xml:space="preserve">
+    <value>تم تحديث الملفات الشخصية</value>
+  </data>
+  <data name="Content.Notification.ProfilesUpdated.RenamedContentMessage" xml:space="preserve">
+    <value>تم تحديث {0} من الملفات الشخصية لاستخدام المحتوى المعاد تسميته.</value>
+  </data>
+  <data name="GameProfiles.Notification.ProfileCreated.Title" xml:space="preserve">
+    <value>تم إنشاء الملف الشخصي</value>
+  </data>
+  <data name="GameProfiles.Notification.ProfileCreated.Message" xml:space="preserve">
+    <value>تم إنشاء الملف الشخصي '{0}' مع {1}</value>
+  </data>
+  <data name="GameProfiles.Notification.ContentReplaced.Title" xml:space="preserve">
+    <value>تم استبدال المحتوى</value>
+  </data>
+  <data name="GameProfiles.Notification.ContentReplaced.Message" xml:space="preserve">
+    <value>تم استبدال '{0}' بـ '{1}'</value>
+  </data>
+  <data name="GameProfiles.Notification.DependenciesAdded.Title" xml:space="preserve">
+    <value>تمت إضافة التبعيات</value>
+  </data>
+  <data name="GameProfiles.Notification.DependenciesAdded.Message" xml:space="preserve">
+    <value>تمت إضافة التبعيات المطلوبة لـ '{0}': {1}</value>
+  </data>
+  <data name="GameProfiles.Notification.ToolLaunchFailed.Title" xml:space="preserve">
+    <value>فشل تشغيل الأداة</value>
+  </data>
+  <data name="GameProfiles.Notification.ToolLaunchFailed.Message" xml:space="preserve">
+    <value>فشل تشغيل '{0}': {1}</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchingProfile.Title" xml:space="preserve">
+    <value>جارٍ تشغيل الملف الشخصي</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchingProfile.Message" xml:space="preserve">
+    <value>بدء '{0}' مع استراتيجية مساحة العمل {1}...</value>
+  </data>
+  <data name="GameProfiles.Notification.WorkspaceStrategyChanged.Title" xml:space="preserve">
+    <value>تم تغيير استراتيجية مساحة العمل</value>
+  </data>
+  <data name="GameProfiles.Notification.WorkspaceStrategyChanged.Message" xml:space="preserve">
+    <value>لا يمكن لـ '{0}' استخدام {1} هنا لأن الروابط الرمزية غير متوفرة. يتم التبديل إلى HardLink.</value>
+  </data>
+  <data name="GameProfiles.Notification.PublisherProfilesCreated.Title" xml:space="preserve">
+    <value>تم إنشاء ملفات {0} الشخصية</value>
+  </data>
+  <data name="GameProfiles.Notification.PublisherProfilesCreated.Message" xml:space="preserve">
+    <value>تم إنشاء {0} من الملفات الشخصية لـ {1}.</value>
+  </data>
+  <data name="GameProfiles.Notification.PublisherContentNotFound.Title" xml:space="preserve">
+    <value>{0} غير موجود</value>
+  </data>
+  <data name="GameProfiles.Notification.PublisherContentNotFound.Message" xml:space="preserve">
+    <value>تعذّر العثور على محتوى {0} لتنزيله.</value>
+  </data>
+  <data name="Manifest.Notification.Verification.DifferingMessage" xml:space="preserve">
+    <value> ({0} يختلف عن الفهرس)</value>
+  </data>
+  <data name="Manifest.Notification.Indexed.Title" xml:space="preserve">
+    <value>تمت فهرسة ملفات اللعبة</value>
+  </data>
+  <data name="Manifest.Notification.VerificationComplete.Message" xml:space="preserve">
+    <value>اكتمل التحقق لـ {0} (تم التحقق من {1}/{2} من الملفات{3}).</value>
+  </data>
+  <data name="Manifest.Notification.ScanComplete.Message" xml:space="preserve">
+    <value>اكتمل فحص الملفات لـ {0} (تم فحص {1} من الملفات).</value>
+  </data>
+  <data name="Manifest.Notification.DirectoryScanWarning.Title" xml:space="preserve">
+    <value>تحذير فحص الدليل</value>
+  </data>
+  <data name="Manifest.Notification.DirectoryScanWarning.Message" xml:space="preserve">
+    <value>فشل إكمال فحص الدليل لـ {0}.</value>
+  </data>
+  <data name="Downloads.Notification.DiscoveryConnectionHint" xml:space="preserve">
+    <value>تحقق من اتصالك وحاول مرة أخرى.</value>
+  </data>
+  <data name="Downloads.Notification.DiscoveryFailed.Title" xml:space="preserve">
+    <value>فشل الاكتشاف</value>
+  </data>
+  <data name="Downloads.Notification.DiscoveryFailed.Message" xml:space="preserve">
+    <value>فشل اكتشاف {0}: {1}</value>
+  </data>
+  <data name="Downloads.Notification.NoContentLoaded.Title" xml:space="preserve">
+    <value>لم يتم تحميل أي محتوى</value>
+  </data>
+  <data name="Downloads.Notification.NoContentLoaded.Message" xml:space="preserve">
+    <value>لم يُرجع {0} أي محتوى.</value>
+  </data>
+  <data name="Downloads.Notification.LoadMoreFailed.Title" xml:space="preserve">
+    <value>فشل تحميل المزيد</value>
+  </data>
+  <data name="Downloads.Notification.LoadMoreFailed.Message" xml:space="preserve">
+    <value>تعذّر تحميل المزيد من المحتوى لـ {0}: {1}</value>
+  </data>
+  <data name="Downloads.Notification.ItemUpdated.Message" xml:space="preserve">
+    <value>تم تحديث {0} إلى أحدث إصدار.</value>
+  </data>
+  <data name="Downloads.Notification.CannotAddToProfile.Title" xml:space="preserve">
+    <value>تعذّر الإضافة إلى الملف الشخصي</value>
+  </data>
+  <data name="Downloads.Notification.CannotAddToProfile.DownloadFirstMessage" xml:space="preserve">
+    <value>يرجى تنزيل المحتوى أولًا قبل إضافته إلى ملف شخصي.</value>
+  </data>
+  <data name="Downloads.Notification.CannotAddToProfile.BundleMessage" xml:space="preserve">
+    <value>نزّل كل عناصر الحزمة المحددة (بما في ذلك المتغيرات المختارة) قبل إضافتها إلى ملف شخصي.</value>
+  </data>
+  <data name="Downloads.Notification.AddToProfileError.Title" xml:space="preserve">
+    <value>خطأ في الإضافة إلى الملف الشخصي</value>
+  </data>
+  <data name="Downloads.Notification.AddToProfileError.Message" xml:space="preserve">
+    <value>حدث خطأ غير متوقع: {0}</value>
+  </data>
+  <data name="Downloads.Notification.AddToProfileFailed.Message" xml:space="preserve">
+    <value>فشلت إضافة المحتوى إلى الملف الشخصي</value>
+  </data>
+  <data name="Downloads.Notification.AddToProfileFailed.Title" xml:space="preserve">
+    <value>فشلت الإضافة إلى الملف الشخصي</value>
+  </data>
+  <data name="Common.Notification.UnexpectedError.Message" xml:space="preserve">
+    <value>حدث خطأ: {0}</value>
+  </data>
+  <data name="Downloads.Notification.ProfileCreationFailed.Title" xml:space="preserve">
+    <value>فشل إنشاء الملف الشخصي</value>
+  </data>
+  <data name="Common.Notification.ContentUpdated.Title" xml:space="preserve">
+    <value>تم تحديث المحتوى</value>
+  </data>
+  <data name="Downloads.Notification.ContentSwapped.Message" xml:space="preserve">
+    <value>تم استبدال '{0}' بـ '{1}' في الملف الشخصي '{2}'.</value>
+  </data>
+  <data name="Downloads.Notification.ContentUpdatedInProfile.Message" xml:space="preserve">
+    <value>تم تحديث '{0}' في الملف الشخصي '{1}'.</value>
+  </data>
+  <data name="Downloads.Notification.AddedToProfile.Title" xml:space="preserve">
+    <value>تمت الإضافة إلى الملف الشخصي</value>
+  </data>
+  <data name="Downloads.Notification.AddedToProfile.Message" xml:space="preserve">
+    <value>تمت إضافة '{0}' إلى الملف الشخصي '{1}'.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentLocked.Title" xml:space="preserve">
+    <value>المحتوى مقفل</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentLocked.Message" xml:space="preserve">
+    <value>'{0}' مقفل ولا يمكن تعديله أثناء تشغيل اللعبة.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.CannotModifyContent.Title" xml:space="preserve">
+    <value>تعذّر تعديل المحتوى</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.CannotModifyContent.Message" xml:space="preserve">
+    <value>لا يمكن تعديل '{0}' في هذا الوضع.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ServiceUnavailable.Title" xml:space="preserve">
+    <value>الخدمة غير متوفرة</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ServiceUnavailable.Message" xml:space="preserve">
+    <value>خدمة حذف المحتوى غير متوفرة.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentDeleted.Title" xml:space="preserve">
+    <value>تم حذف المحتوى</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentDeleted.Message" xml:space="preserve">
+    <value>تم حذف '{0}' نهائيًا.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentDeleteFailed.Title" xml:space="preserve">
+    <value>فشل الحذف</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentDeleteFailed.Message" xml:space="preserve">
+    <value>فشل حذف '{0}': {1}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentDeleteError.Title" xml:space="preserve">
+    <value>خطأ في الحذف</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentDeleteError.Message" xml:space="preserve">
+    <value>حدث خطأ أثناء حذف '{0}'.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.MissingLaunchableContent.Title" xml:space="preserve">
+    <value>لا يوجد محتوى قابل للتشغيل</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.MissingLaunchableContent.Message" xml:space="preserve">
+    <value>يرجى تفعيل لعبة أو ملف تنفيذي أو أداة قبل الحفظ.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.MissingDependencies.Title" xml:space="preserve">
+    <value>تبعيات مفقودة</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.MissingDependencies.Message" xml:space="preserve">
+    <value>تعذّر حفظ الملف الشخصي مع تبعيات مفقودة:
+
+{0}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.HotswapModeEnabled.Title" xml:space="preserve">
+    <value>تم تفعيل وضع التبديل السريع</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.HotswapModeEnabled.Message" xml:space="preserve">
+    <value>تم بدء اللعبة أثناء تحرير هذا الملف الشخصي. تم قفل الإعدادات غير القابلة للتبديل السريع. يرجى مراجعة تغييراتك والحفظ مرة أخرى.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveSyncFailed.Title" xml:space="preserve">
+    <value>فشلت المزامنة المباشرة</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveSyncNoSnapshot.Message" xml:space="preserve">
+    <value>بدأت جلسة لعب أثناء الحفظ، وفشلت المزامنة المباشرة. كانت لقطة الملف الشخصي مفقودة لذا تعذّر التراجع.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveSyncRollbackFailed.Title" xml:space="preserve">
+    <value>فشلت المزامنة المباشرة والتراجع</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveSyncRollbackFailed.Message" xml:space="preserve">
+    <value>بدأت جلسة لعب أثناء الحفظ، وفشلت المزامنة المباشرة. علاوة على ذلك، فشل التراجع عن تغييرات الملف الشخصي المحفوظة: {0}. قد يكون الملف الشخصي واللعبة الجارية غير متزامنين.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveSyncRolledBack.Message" xml:space="preserve">
+    <value>بدأت جلسة لعب أثناء الحفظ، لكن المزامنة المباشرة فشلت. تم التراجع عن تغييرات الملف الشخصي لمطابقة اللعبة الجارية.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveSyncUserDataNotRestored.Message" xml:space="preserve">
+    <value>بدأت جلسة لعب أثناء الحفظ، وفشلت المزامنة المباشرة. تم التراجع عن تغييرات الملف الشخصي، لكن تعذّرت استعادة بيانات المستخدم المباشرة بالكامل لمطابقة اللعبة الجارية.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveUpdateComplete.Title" xml:space="preserve">
+    <value>اكتمل التحديث المباشر</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveUpdateComplete.Message" xml:space="preserve">
+    <value>تم تطبيق تغييرات المحتوى على جلسة اللعب النشطة.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveUpdateMissingManifests.Message" xml:space="preserve">
+    <value>تعذّرت المزامنة المباشرة للجلسة النشطة: فشل حل البيانات الوصفية لـ {0}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveUpdateWarning.Title" xml:space="preserve">
+    <value>تحذير التحديث المباشر</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveUpdateFailed.Title" xml:space="preserve">
+    <value>فشل التحديث المباشر</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveUpdateFailed.Message" xml:space="preserve">
+    <value>فشلت مزامنة المحتوى المباشرة: {0}. لم يتم حفظ تغييرات الملف الشخصي.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveRollbackWarning.Title" xml:space="preserve">
+    <value>تحذير التراجع المباشر</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveRollbackWarning.Message" xml:space="preserve">
+    <value>فشل حفظ الملف الشخصي ({0})، وتعذّر حل المحتوى الأصلي بالكامل للتراجع: {1}. تُرك المحتوى المباشر كما تمت مزامنته وقد لا يطابق الملف الشخصي المحفوظ.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveRollbackFailed.Title" xml:space="preserve">
+    <value>فشل التراجع المباشر</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveRollbackFailed.Message" xml:space="preserve">
+    <value>فشل حفظ الملف الشخصي ({0})، وأبلغ التراجع عن المحتوى المباشر: {1}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentAdded.Title" xml:space="preserve">
+    <value>تمت إضافة المحتوى</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentAdded.Message" xml:space="preserve">
+    <value>تمت إضافة '{0}' بنجاح.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentUpdated.Message" xml:space="preserve">
+    <value>تم تحديث '{0}'.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ValidationError.Title" xml:space="preserve">
+    <value>خطأ في التحقق</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ValidationNameRequired.Message" xml:space="preserve">
+    <value>يرجى إدخال اسم للمحتوى.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ValidationFolderRequired.Message" xml:space="preserve">
+    <value>يرجى تحديد مجلد للمحتوى.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentEnabled.Title" xml:space="preserve">
+    <value>تم تفعيل المحتوى</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentEnabledAutoResolved.Message" xml:space="preserve">
+    <value>تم تفعيل '{0}' والحل التلقائي: {1}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentEnabled.Message" xml:space="preserve">
+    <value>تم تفعيل '{0}'</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.DependencyLocked.Message" xml:space="preserve">
+    <value>التبعية المطلوبة '{0}' مقفلة ولا يمكن تفعيلها تلقائيًا أثناء تشغيل اللعبة.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.DependencyWarning.Title" xml:space="preserve">
+    <value>تحذير التبعية</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.DependencyWarning.Message" xml:space="preserve">
+    <value>بعد تفعيل '{0}':
+• {1}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LoadingResources.Title" xml:space="preserve">
+    <value>جارٍ تحميل الموارد</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LoadingResources.Message" xml:space="preserve">
+    <value>جارٍ تهيئة ذاكرة التخزين المؤقت لمحتوى اللعبة لأول مرة...</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyCleared.Message" xml:space="preserve">
+    <value>تم مسح مفتاح الاختصار لـ '{0}'.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyCleared.Title" xml:space="preserve">
+    <value>تم مسح مفتاح الاختصار</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.NoHotkeyValue" xml:space="preserve">
+    <value>لا يوجد</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyReset.Message" xml:space="preserve">
+    <value>تمت إعادة '{0}' إلى مفتاح الاختصار الافتراضي ({1}).</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyReset.Title" xml:space="preserve">
+    <value>تمت إعادة مفتاح الاختصار</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyAppliedToAll.Message" xml:space="preserve">
+    <value>تم تطبيق مفتاح الاختصار '{0}' على {1} من الإجراءات '{2}'{3}.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyAppliedToAll.Title" xml:space="preserve">
+    <value>تم تطبيق مفتاح الاختصار على الكل</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileExists.Message" xml:space="preserve">
+    <value>يوجد بالفعل ملف شخصي باسم '{0}'.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileExists.Title" xml:space="preserve">
+    <value>الملف الشخصي موجود</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileCreated.Message" xml:space="preserve">
+    <value>تم إنشاء الملف الشخصي '{0}'.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileCreated.Title" xml:space="preserve">
+    <value>تم إنشاء الملف الشخصي</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileNameEmpty.Message" xml:space="preserve">
+    <value>لا يمكن أن يكون اسم الملف الشخصي فارغًا.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileError.Title" xml:space="preserve">
+    <value>خطأ في الملف الشخصي</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileRenamed.Message" xml:space="preserve">
+    <value>تمت إعادة تسمية الملف الشخصي '{0}' إلى '{1}'.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileRenamed.Title" xml:space="preserve">
+    <value>تمت إعادة تسمية الملف الشخصي</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.OnlyProfileDelete.Message" xml:space="preserve">
+    <value>لا يمكن حذف الملف الشخصي الوحيد المتبقي.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileDeleted.Message" xml:space="preserve">
+    <value>تم حذف الملف الشخصي '{0}'.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileDeleted.Title" xml:space="preserve">
+    <value>تم حذف الملف الشخصي</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileSelectionError.Title" xml:space="preserve">
+    <value>خطأ في اختيار الملف الشخصي</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileSelectionError.Message" xml:space="preserve">
+    <value>فشل فتح اختيار الملف الشخصي: {0}</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.PresetAppliedCustom.Message" xml:space="preserve">
+    <value>تم تطبيق مفاتيح الاختصار المسبقة '{0}'.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.PresetAppliedVanilla.Message" xml:space="preserve">
+    <value>تم تطبيق مفاتيح الاختصار الافتراضية الأصلية.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.PresetApplied.Message" xml:space="preserve">
+    <value>تم تطبيق مفاتيح الاختصار المسبقة {0}.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.PresetSaveFailed.Message" xml:space="preserve">
+    <value>فشل حفظ الملف الشخصي بعد تطبيق الإعداد المسبق {0}.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.PresetApplied.Title" xml:space="preserve">
+    <value>تم تطبيق الإعداد المسبق</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.PresetError.Title" xml:space="preserve">
+    <value>خطأ في الإعداد المسبق</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.AddFilesFailed.ProjectMessage" xml:space="preserve">
+    <value>فشلت إضافة الملفات إلى المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.OperationFailed.Title" xml:space="preserve">
+    <value>فشلت العملية</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.OperationFailed.RemoveFilesMessage" xml:space="preserve">
+    <value>فشلت إزالة بعض الملفات من المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CacheCleared.Title" xml:space="preserve">
+    <value>تم مسح ذاكرة التخزين المؤقت</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CacheCleared.Message" xml:space="preserve">
+    <value>تم مسح ذاكرة التخزين المؤقت للبناء بنجاح.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CacheClearFailed.Title" xml:space="preserve">
+    <value>فشل مسح ذاكرة التخزين المؤقت</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CacheClearFailed.Message" xml:space="preserve">
+    <value>فشل مسح ذاكرة التخزين المؤقت: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CacheRebuilding.Title" xml:space="preserve">
+    <value>جارٍ إعادة بناء ذاكرة التخزين المؤقت</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CacheRebuilding.Message" xml:space="preserve">
+    <value>جارٍ إعادة بناء فهرس ذاكرة التخزين المؤقت...</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CacheRebuilt.Title" xml:space="preserve">
+    <value>تمت إعادة بناء ذاكرة التخزين المؤقت</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CacheRebuilt.Message" xml:space="preserve">
+    <value>تمت إعادة بناء فهرس ذاكرة التخزين المؤقت بنجاح.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CacheRebuildFailed.Title" xml:space="preserve">
+    <value>فشلت إعادة بناء ذاكرة التخزين المؤقت</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CacheRebuildFailed.Message" xml:space="preserve">
+    <value>فشلت إعادة بناء ذاكرة التخزين المؤقت: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.SettingsReset.Title" xml:space="preserve">
+    <value>تمت إعادة تعيين الإعدادات</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.SettingsReset.Message" xml:space="preserve">
+    <value>تمت إعادة تعيين جميع الإعدادات إلى القيم الافتراضية.</value>
+  </data>
+  <data name="Common.Notification.NoFilesImported.Message" xml:space="preserve">
+    <value>لم يتم استيراد أي ملفات.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.LoadError.Title" xml:space="preserve">
+    <value>خطأ في التحميل</value>
+  </data>
+  <data name="Tools.MapManager.Notification.LoadError.Message" xml:space="preserve">
+    <value>فشل تحميل الخرائط.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ImportMaps.Title" xml:space="preserve">
+    <value>استيراد الخرائط</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ImportMaps.Message" xml:space="preserve">
+    <value>يستورد ملفات الخرائط من عناوين URL أو عن طريق سحب الملفات وإفلاتها في دليل خرائط لعبتك.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ImportComplete.Title" xml:space="preserve">
+    <value>اكتمل الاستيراد</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ImportComplete.Message" xml:space="preserve">
+    <value>تم استيراد {0} من الملفات.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ImportFailed.Title" xml:space="preserve">
+    <value>فشل الاستيراد</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ImportError.Title" xml:space="preserve">
+    <value>خطأ في الاستيراد</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ImportFromUrl.Title" xml:space="preserve">
+    <value>استيراد من عنوان URL</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ImportFromUrl.Message" xml:space="preserve">
+    <value>ينزّل الخرائط من عنوان URL المقدم ويستوردها تلقائيًا إلى دليل خرائط لعبتك. يدعم تنزيلات ملفات الخرائط المباشرة وأرشيفات zip.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ImportComplete.FromUrlMessage" xml:space="preserve">
+    <value>تم استيراد {0} من الملفات من عنوان URL.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.BrowseImport.Title" xml:space="preserve">
+    <value>تصفح واستيراد</value>
+  </data>
+  <data name="Tools.MapManager.Notification.BrowseImport.Message" xml:space="preserve">
+    <value>يفتح مربع حوار لاختيار الملفات يتيح لك تحديد ملفات الخرائط (.map) أو أرشيفات zip من جهاز الكمبيوتر لاستيرادها إلى اللعبة.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteMaps.Title" xml:space="preserve">
+    <value>حذف الخرائط</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteMaps.Message" xml:space="preserve">
+    <value>يحذف نهائيًا الخرائط المحددة من دليل خرائط لعبتك. لا يمكن التراجع عن هذا الإجراء.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapsDeleted.Message" xml:space="preserve">
+    <value>تم حذف {0} من الخرائط.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteFailed.Title" xml:space="preserve">
+    <value>فشل الحذف</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteMapsFailed.Message" xml:space="preserve">
+    <value>تعذّر حذف الخرائط المحددة.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ExportZip.Title" xml:space="preserve">
+    <value>تصدير إلى ZIP</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ExportZip.Message" xml:space="preserve">
+    <value>ينشئ أرشيف ZIP يحتوي على الخرائط المحددة ويحفظه في دليل الخرائط. يمكنك بعد ذلك مشاركة ملف ZIP مع الآخرين أو استخدامه لأغراض النسخ الاحتياطي.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ZipCreated.Title" xml:space="preserve">
+    <value>تم إنشاء ZIP</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ZipCreated.Message" xml:space="preserve">
+    <value>تم إنشاء {0} في مجلد الخرائط.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ZipFailed.Title" xml:space="preserve">
+    <value>فشل إنشاء ZIP</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ZipFailed.Message" xml:space="preserve">
+    <value>فشل إنشاء أرشيف ZIP.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ExportError.Title" xml:space="preserve">
+    <value>خطأ في التصدير</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadFailed.Title" xml:space="preserve">
+    <value>فشل الرفع</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadError.Title" xml:space="preserve">
+    <value>خطأ في الرفع</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadError.Message" xml:space="preserve">
+    <value>فشل إكمال الرفع.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadShare.Title" xml:space="preserve">
+    <value>رفع ومشاركة</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadShare.Message" xml:space="preserve">
+    <value>يرفع الخرائط المحددة إلى خدمة UploadThing السحابية (بحد أقصى 10 ميجابايت) وينسخ رابط المشاركة إلى الحافظة. يمكنك بعد ذلك مشاركة الرابط مع الآخرين لتنزيل الخرائط.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.FileTooLarge.Title" xml:space="preserve">
+    <value>الملف كبير جدًا</value>
+  </data>
+  <data name="Tools.MapManager.Notification.FileTooLarge.Message" xml:space="preserve">
+    <value>الملف كبير جدًا. الحد الأقصى لحجم الرفع هو 10 ميجابايت.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.RateLimitExceeded.Title" xml:space="preserve">
+    <value>تم تجاوز حد المعدل</value>
+  </data>
+  <data name="Tools.MapManager.Notification.RateLimitExceeded.Message" xml:space="preserve">
+    <value>تم تجاوز حد الرفع للفترة الحالية (3 أيام). يرجى إزالة عناصر من سجل الرفع لتحرير الحصة فورًا.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadComplete.Title" xml:space="preserve">
+    <value>اكتمل الرفع</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadComplete.ExistingLinkMessage" xml:space="preserve">
+    <value>تم نسخ الرابط الموجود إلى الحافظة!</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadComplete.LinkCopiedMessage" xml:space="preserve">
+    <value>تم نسخ الرابط إلى الحافظة!</value>
+  </data>
+  <data name="Tools.MapManager.Notification.OpenMapFolder.Title" xml:space="preserve">
+    <value>فتح مجلد الخرائط</value>
+  </data>
+  <data name="Tools.MapManager.Notification.OpenMapFolder.Message" xml:space="preserve">
+    <value>يفتح دليل خرائط لعبتك في مستكشف Windows، مما يتيح لك إدارة ملفات الخرائط مباشرة.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.RevealMapFile.Title" xml:space="preserve">
+    <value>إظهار ملف الخريطة</value>
+  </data>
+  <data name="Tools.MapManager.Notification.RevealMapFile.Message" xml:space="preserve">
+    <value>يفتح مستكشف Windows ويبرز ملف الخريطة المحدد، مما يسهل تحديد موقعه وإدارته.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UncompressZip.Title" xml:space="preserve">
+    <value>فك ضغط ZIP</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UncompressZip.Message" xml:space="preserve">
+    <value>يستخرج محتويات أرشيفات ZIP المحددة ويستورد أي خرائط مضمنة إلى دليل خرائط لعبتك.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UncompressComplete.Title" xml:space="preserve">
+    <value>اكتمل فك الضغط</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UncompressComplete.Message" xml:space="preserve">
+    <value>تم استخراج {0} من الخرائط من أرشيفات ZIP المحددة.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UncompressWarning.Title" xml:space="preserve">
+    <value>تحذير فك الضغط</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UncompressError.Title" xml:space="preserve">
+    <value>خطأ في فك الضغط</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPacks.Title" xml:space="preserve">
+    <value>حزم الخرائط</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPacks.Message" xml:space="preserve">
+    <value>أنشئ مجموعات الخرائط (MapPacks) وأدرها للتبديل بسهولة بين مجموعات مختلفة من الخرائط لملفات اللعب الخاصة بك.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.CreateMapPack.Title" xml:space="preserve">
+    <value>إنشاء حزمة خرائط</value>
+  </data>
+  <data name="Tools.MapManager.Notification.CreateMapPack.HelpMessage" xml:space="preserve">
+    <value>ينشئ حزمة خرائط من الخرائط المحددة باستخدام نظام CAS (التخزين القابل للعنونة بالمحتوى). يمكن تفعيل حزم الخرائط في ملفات اللعب لتحميل خرائط مخصصة.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPackCreated.Title" xml:space="preserve">
+    <value>تم إنشاء حزمة الخرائط</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPackCreated.Message" xml:space="preserve">
+    <value>تم إنشاء '{0}'. فعّلها في ملفك الشخصي.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.LoadMapPack.Title" xml:space="preserve">
+    <value>تحميل حزمة الخرائط</value>
+  </data>
+  <data name="Tools.MapManager.Notification.LoadMapPack.Message" xml:space="preserve">
+    <value>يفعّل حزمة الخرائط المحددة، مما يجعل خرائطها متاحة عند تشغيل اللعبة مع الملف الشخصي المرتبط. ستكون الخرائط متاحة عند تشغيل الملف الشخصي التالي.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPackLoaded.Title" xml:space="preserve">
+    <value>تم تحميل حزمة الخرائط</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPackLoaded.Message" xml:space="preserve">
+    <value>تم تحميل '{0}'. ستكون الخرائط متاحة عند تشغيل الملف الشخصي التالي.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.LoadFailed.Title" xml:space="preserve">
+    <value>فشل التحميل</value>
+  </data>
+  <data name="Tools.MapManager.Notification.LoadFailed.MapPackMessage" xml:space="preserve">
+    <value>فشل تحميل حزمة الخرائط.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UnloadMapPack.Title" xml:space="preserve">
+    <value>إلغاء تحميل حزمة الخرائط</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UnloadMapPack.Message" xml:space="preserve">
+    <value>يعطّل حزمة الخرائط المحددة، ويزيل خرائطها من الخرائط المتاحة عند تشغيل اللعبة مع الملف الشخصي المرتبط.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPackUnloaded.Title" xml:space="preserve">
+    <value>تم إلغاء تحميل حزمة الخرائط</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPackUnloaded.Message" xml:space="preserve">
+    <value>تم إلغاء تحميل '{0}'.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UnloadFailed.Title" xml:space="preserve">
+    <value>فشل إلغاء التحميل</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UnloadFailed.Message" xml:space="preserve">
+    <value>فشل إلغاء تحميل حزمة الخرائط.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteMapPack.Title" xml:space="preserve">
+    <value>حذف حزمة الخرائط</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteMapPack.Message" xml:space="preserve">
+    <value>يحذف نهائيًا حزمة الخرائط المحددة من تخزين CAS. لا يمكن التراجع عن هذا الإجراء.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPackDeleted.Title" xml:space="preserve">
+    <value>تم حذف حزمة الخرائط</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPackDeleted.Message" xml:space="preserve">
+    <value>تم حذف '{0}'.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteMapPackFailed.Message" xml:space="preserve">
+    <value>فشل حذف حزمة الخرائط.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadHistory.Title" xml:space="preserve">
+    <value>سجل الرفع</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadHistory.Message" xml:space="preserve">
+    <value>يعرض قائمة بخرائطك المرفوعة سابقًا، مما يتيح لك إدارتها ونسخ روابط التنزيل.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.CopyLink.Title" xml:space="preserve">
+    <value>نسخ الرابط</value>
+  </data>
+  <data name="Tools.MapManager.Notification.CopyLink.Message" xml:space="preserve">
+    <value>ينسخ رابط تنزيل الملف المرفوع إلى الحافظة.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.LinkCopied.Message" xml:space="preserve">
+    <value>تم نسخ الرابط إلى الحافظة.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteUpload.Title" xml:space="preserve">
+    <value>حذف الرفع</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteUpload.Message" xml:space="preserve">
+    <value>يحذف نهائيًا الملف المرفوع من التخزين السحابي ويزيله من السجل.</value>
+  </data>
+  <data name="Tools.UploadHistory.Notification.FileDeleted.Title" xml:space="preserve">
+    <value>تم الحذف</value>
+  </data>
+  <data name="Tools.UploadHistory.Notification.FileDeleted.Message" xml:space="preserve">
+    <value>تم حذف الملف من التخزين السحابي وسجل الرفع.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteCloudFileFailed.Message" xml:space="preserve">
+    <value>فشل حذف الملف من التخزين السحابي.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteHistoryItemFailed.Message" xml:space="preserve">
+    <value>فشل حذف عنصر السجل.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ClearHistory.Title" xml:space="preserve">
+    <value>مسح السجل</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ClearHistory.Message" xml:space="preserve">
+    <value>يحذف نهائيًا جميع الملفات المرفوعة من التخزين السحابي ويمسح سجل الرفع.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.HistoryCleared.Title" xml:space="preserve">
+    <value>تم المسح</value>
+  </data>
+  <data name="Tools.MapManager.Notification.HistoryCleared.Message" xml:space="preserve">
+    <value>تم حذف جميع الملفات المرفوعة ({0}) من التخزين السحابي ومسح السجل.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.HistoryPartiallyCleared.Title" xml:space="preserve">
+    <value>تم المسح جزئيًا</value>
+  </data>
+  <data name="Tools.MapManager.Notification.HistoryPartiallyCleared.Message" xml:space="preserve">
+    <value>تم مسح {0} من عناصر السجل. تعذّر حذف {1} من العناصر من التخزين السحابي.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ClearFailed.Title" xml:space="preserve">
+    <value>فشل المسح</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ClearFailed.Message" xml:space="preserve">
+    <value>فشل مسح السجل.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.SelectionRequired.Title" xml:space="preserve">
+    <value>التحديد مطلوب</value>
+  </data>
+  <data name="Tools.MapManager.Notification.SelectionRequired.Message" xml:space="preserve">
+    <value>يرجى تحديد خريطة واحدة على الأقل.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.CreateMapPack.PanelMessage" xml:space="preserve">
+    <value>أدخل اسمًا ووصفًا في اللوحة، ثم انقر فوق إنشاء.</value>
+  </data>
+  <data name="Settings.Notification.SettingsNotSaved.Title" xml:space="preserve">
+    <value>لم يتم حفظ الإعدادات</value>
+  </data>
+  <data name="Settings.Notification.CustomInstallationAdded.Title" xml:space="preserve">
+    <value>تمت إضافة تثبيت مخصص</value>
+  </data>
+  <data name="Settings.Notification.CustomInstallationAdded.Message" xml:space="preserve">
+    <value>تم تسجيل '{0}' بنجاح.</value>
+  </data>
+  <data name="Settings.Notification.CustomInstallation.DisplayName" xml:space="preserve">
+    <value>تثبيت مخصص</value>
+  </data>
+  <data name="Settings.Notification.RegistrationFailed.Title" xml:space="preserve">
+    <value>فشل التسجيل</value>
+  </data>
+  <data name="Settings.Notification.AddInstallationFailed.Message" xml:space="preserve">
+    <value>فشلت إضافة التثبيت المخصص: {0}</value>
+  </data>
+  <data name="Settings.Notification.InstallationRemoved.Title" xml:space="preserve">
+    <value>تمت إزالة التثبيت</value>
+  </data>
+  <data name="Settings.Notification.InstallationRemoved.Message" xml:space="preserve">
+    <value>تمت إزالة التثبيت المخصص '{0}'.</value>
+  </data>
+  <data name="Settings.Notification.RemovalFailed.Title" xml:space="preserve">
+    <value>فشلت الإزالة</value>
+  </data>
+  <data name="Settings.Notification.RemoveInstallationFailed.Message" xml:space="preserve">
+    <value>فشلت إزالة التثبيت المخصص: {0}</value>
+  </data>
+  <data name="Settings.Notification.MigrationTargetRequired.Title" xml:space="preserve">
+    <value>المجلد الهدف للترحيل مطلوب</value>
+  </data>
+  <data name="Settings.Notification.MigrationTargetRequired.Message" xml:space="preserve">
+    <value>يرجى تحديد مجلد هدف للترحيل.</value>
+  </data>
+  <data name="Settings.Notification.MigrationPreflightFailed.Title" xml:space="preserve">
+    <value>فشل الفحص المسبق للترحيل</value>
+  </data>
+  <data name="Settings.Notification.MigrationFailed.Title" xml:space="preserve">
+    <value>فشل الترحيل</value>
+  </data>
+  <data name="Settings.Notification.MigrationError.Title" xml:space="preserve">
+    <value>خطأ في الترحيل</value>
+  </data>
+  <data name="Settings.Notification.DataPartiallyDeleted.Title" xml:space="preserve">
+    <value>تم حذف البيانات جزئيًا</value>
+  </data>
+  <data name="Settings.Notification.DataPartiallyDeleted.Message" xml:space="preserve">
+    <value>تم حذف الملفات الشخصية ومساحات العمل والبيانات الوصفية، لكن {0}.</value>
+  </data>
+  <data name="Settings.Notification.DeletionFailed.Title" xml:space="preserve">
+    <value>فشل الحذف</value>
+  </data>
+  <data name="Settings.Notification.DeleteAppDataFailed.Message" xml:space="preserve">
+    <value>فشل حذف جميع بيانات التطبيق: {0}</value>
+  </data>
+  <data name="Settings.Notification.CollectCasStorageFailed.Message" xml:space="preserve">
+    <value>فشل تجميع تخزين CAS</value>
+  </data>
+  <data name="Settings.Notification.CasCleared.Title" xml:space="preserve">
+    <value>تم مسح CAS</value>
+  </data>
+  <data name="Settings.Notification.CasCleared.Message" xml:space="preserve">
+    <value>تم حذف {0} من الكائنات، وتحرير {1:F2} غيغابايت.</value>
+  </data>
+  <data name="Settings.Notification.ManifestsDeleted.Title" xml:space="preserve">
+    <value>تم حذف البيانات الوصفية</value>
+  </data>
+  <data name="Settings.Notification.ManifestsDeleted.Message" xml:space="preserve">
+    <value>تم حذف {0} من البيانات الوصفية بنجاح.</value>
+  </data>
+  <data name="Settings.Notification.DeleteManifestsFailed.Message" xml:space="preserve">
+    <value>فشل حذف البيانات الوصفية: {0}</value>
+  </data>
+  <data name="Settings.Notification.WorkspacesDeleted.Title" xml:space="preserve">
+    <value>تم حذف مساحات العمل</value>
+  </data>
+  <data name="Settings.Notification.WorkspacesDeleted.Message" xml:space="preserve">
+    <value>تم حذف {0} من مساحات العمل بنجاح.</value>
+  </data>
+  <data name="Settings.Notification.WorkspacesClean.Title" xml:space="preserve">
+    <value>مساحات العمل نظيفة</value>
+  </data>
+  <data name="Settings.Notification.WorkspacesClean.Message" xml:space="preserve">
+    <value>لا توجد مساحات عمل لحذفها.</value>
+  </data>
+  <data name="Settings.Notification.DeleteWorkspacesFailed.Message" xml:space="preserve">
+    <value>فشل حذف مساحات العمل: {0}</value>
+  </data>
+  <data name="Settings.Notification.UserDataDeleted.Title" xml:space="preserve">
+    <value>تم حذف بيانات المستخدم</value>
+  </data>
+  <data name="Settings.Notification.UserDataDeleted.Message" xml:space="preserve">
+    <value>تم حذف جميع بيانات المستخدم بنجاح.</value>
+  </data>
+  <data name="Settings.Notification.UserDataPartiallyDeleted.Title" xml:space="preserve">
+    <value>تم حذف بيانات المستخدم جزئيًا</value>
+  </data>
+  <data name="Settings.Notification.UserDataPartiallyDeleted.Message" xml:space="preserve">
+    <value>تعذّر حذف بعض بيانات المستخدم المتعقبة.</value>
+  </data>
+  <data name="Settings.Notification.DeleteUserDataFailed.Message" xml:space="preserve">
+    <value>فشل حذف بيانات المستخدم: {0}</value>
+  </data>
+  <data name="Settings.Notification.DeleteProfilesFailed.Message" xml:space="preserve">
+    <value>فشل حذف الملفات الشخصية: {0}</value>
+  </data>
+  <data name="Settings.Notification.OpenLogsDirectoryFailed.Message" xml:space="preserve">
+    <value>فشل فتح دليل السجلات: {0}</value>
+  </data>
+  <data name="Settings.Notification.OpenAppDataDirectoryFailed.Message" xml:space="preserve">
+    <value>فشل فتح دليل AppData: {0}</value>
+  </data>
+  <data name="Settings.Notification.OpenProfilesDirectoryFailed.Message" xml:space="preserve">
+    <value>فشل فتح دليل الملفات الشخصية: {0}</value>
+  </data>
+  <data name="Settings.Notification.OpenManifestsDirectoryFailed.Message" xml:space="preserve">
+    <value>فشل فتح دليل البيانات الوصفية: {0}</value>
+  </data>
+  <data name="Settings.Notification.OpenWorkspacesDirectoryFailed.Message" xml:space="preserve">
+    <value>فشل فتح دليل مساحات العمل: {0}</value>
+  </data>
+  <data name="Settings.Notification.OpenCasPoolDirectoryFailed.Message" xml:space="preserve">
+    <value>فشل فتح دليل تجمع CAS: {0}</value>
+  </data>
+  <data name="Settings.Notification.LogsDirectoryNotFound.Message" xml:space="preserve">
+    <value>دليل السجلات غير موجود.</value>
+  </data>
+  <data name="Settings.Notification.NoLogFiles.Message" xml:space="preserve">
+    <value>لا توجد ملفات سجل.</value>
+  </data>
+  <data name="Settings.Notification.OpenLatestLogFailed.Message" xml:space="preserve">
+    <value>فشل فتح أحدث ملف سجل: {0}</value>
+  </data>
+  <data name="Settings.Notification.LogCopied.Message" xml:space="preserve">
+    <value>تم نسخ محتوى أحدث سجل إلى الحافظة.</value>
+  </data>
+  <data name="Settings.Notification.ReadLogFailed.Message" xml:space="preserve">
+    <value>تعذّرت قراءة ملف السجل (قد يكون قيد الاستخدام).</value>
+  </data>
+  <data name="Settings.Notification.CopyLogFailed.Message" xml:space="preserve">
+    <value>فشل نسخ أحدث سجل.</value>
+  </data>
+  <data name="Settings.Notification.LogsEmpty.Title" xml:space="preserve">
+    <value>السجلات فارغة</value>
+  </data>
+  <data name="Settings.Notification.LogsEmpty.NoDirectoryMessage" xml:space="preserve">
+    <value>دليل السجلات غير موجود.</value>
+  </data>
+  <data name="Settings.Notification.ClearLogsFailed.Message" xml:space="preserve">
+    <value>فشل مسح السجلات: {0}</value>
+  </data>
+  <data name="Settings.Notification.LogsEmpty.NoFilesMessage" xml:space="preserve">
+    <value>لا توجد ملفات سجل لمسحها.</value>
+  </data>
+  <data name="Settings.Notification.ClearActiveLogsFailed.Message" xml:space="preserve">
+    <value>تعذّر مسح ملفات السجل النشطة (قيد الاستخدام).</value>
+  </data>
+  <data name="Settings.Notification.LogsCleared.SizeFreedFragment" xml:space="preserve">
+    <value> (تم تحرير {0:F1} ميجابايت)</value>
+  </data>
+  <data name="Settings.Notification.LogsCleared.SkippedFragment" xml:space="preserve">
+    <value>، تم تخطي {0} من الملفات (قيد الاستخدام)</value>
+  </data>
+  <data name="Settings.Notification.LogsCleared.Title" xml:space="preserve">
+    <value>تم مسح السجلات</value>
+  </data>
+  <data name="Settings.Notification.LogsCleared.Message" xml:space="preserve">
+    <value>تم مسح {0} من ملفات السجل بنجاح{1}{2}.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.Cancelling.Title" xml:space="preserve">
+    <value>جارٍ الإلغاء</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.Cancelling.Message" xml:space="preserve">
+    <value>جارٍ إلغاء تطبيق {0}...</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.ApplyCancelled.Title" xml:space="preserve">
+    <value>تم إلغاء التطبيق</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.ApplyCancelled.Message" xml:space="preserve">
+    <value>تم إلغاء تطبيق {0}.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.ApplyFixFailed.ForceTitle" xml:space="preserve">
+    <value>فشل فرض تطبيق الإصلاح</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.ApplyFixFailed.Title" xml:space="preserve">
+    <value>فشل تطبيق الإصلاح</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.ApplyFixFailed.Message" xml:space="preserve">
+    <value>تعذّر تطبيق {0}: {1}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.FixForceApplied.Title" xml:space="preserve">
+    <value>تم فرض تطبيق الإصلاح: {0}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.FixApplied.Title" xml:space="preserve">
+    <value>تم تطبيق الإصلاح: {0}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.ApplyFailed.UnknownError" xml:space="preserve">
+    <value>حدث خطأ غير معروف.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.FixFailed.Title" xml:space="preserve">
+    <value>فشل الإصلاح: {0}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.AdminRightsRequired.Title" xml:space="preserve">
+    <value>صلاحيات المسؤول مطلوبة</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.AdminRightsRequired.Message" xml:space="preserve">
+    <value>صلاحيات المسؤول مطلوبة لـ 'Apply Recommended'. يرجى إعادة تشغيل GenHub كمسؤول.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.BatchSuccess.Title" xml:space="preserve">
+    <value>تم تطبيق جميع الإصلاحات بنجاح</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.BatchSuccess.Message" xml:space="preserve">
+    <value>OK: تم تطبيق جميع الإصلاحات ({0}) بنجاح على {1} ({2}).
+
+تم تحسين تثبيت لعبتك!</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.BatchPartialSummary.Message" xml:space="preserve">
+    <value>الهدف: {0} ({1})
+OK: تم تطبيقه بنجاح: {2}
+Error: فشل: {3}
+Warning: لم تتم المحاولة: {4}
+
+الأخطاء:
+{5}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.BatchErrorSummary.Message" xml:space="preserve">
+    <value>الهدف: {0} ({1})
+OK: تم تطبيقه بنجاح: {2}
+Error: فشل: {3}
+
+الأخطاء:
+{4}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.BatchCompletedWithErrors.Title" xml:space="preserve">
+    <value>اكتملت الإصلاحات مع أخطاء ({0}/{1} ناجحة)</value>
+  </data>
   <data name="Info.Card.tools.publisher-studio-authoring.Action.NAV_Tools" xml:space="preserve">
     <value>فتح استوديو الناشر</value>
   </data>

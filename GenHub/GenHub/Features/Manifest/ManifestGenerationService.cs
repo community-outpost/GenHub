@@ -1,6 +1,7 @@
 using CsvHelper;
 using CsvHelper.Configuration;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Features.GameInstallations;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
@@ -47,7 +48,8 @@ public class ManifestGenerationService(
     IConfigurationProviderService configurationProvider,
     ILanguageDetector? languageDetector = null,
     CsvResolver? csvResolver = null,
-    INotificationService? notificationService = null) : IManifestGenerationService
+    INotificationService? notificationService = null,
+    ILocalizationService? localizationService = null) : IManifestGenerationService
 {
     private enum AuthoritativeFileStatus
     {
@@ -1389,11 +1391,11 @@ public class ManifestGenerationService(
         else
         {
             var differingMessage = differingFiles.Count > 0
-                ? $" ({differingFiles.Count} differing from catalog)"
+                ? localizationService.GetLocalizedString("Manifest.Notification.Verification.DifferingMessage", $" ({differingFiles.Count} differing from catalog)", differingFiles.Count)
                 : string.Empty;
             notificationService?.ShowSuccess(
-                ManifestConstants.IndexedNotificationTitle,
-                $"Completed verification for {gameType} ({fileCount}/{totalEntries} files verified{differingMessage}).",
+                localizationService.GetLocalizedString("Manifest.Notification.Indexed.Title", ManifestConstants.IndexedNotificationTitle),
+                localizationService.GetLocalizedString("Manifest.Notification.VerificationComplete.Message", $"Completed verification for {gameType} ({fileCount}/{totalEntries} files verified{differingMessage}).", gameType, fileCount, totalEntries, differingMessage),
                 autoDismissMs: ManifestConstants.DefaultNotificationAutoDismissMs);
         }
     }
@@ -1474,8 +1476,8 @@ public class ManifestGenerationService(
             }
 
             notificationService?.ShowSuccess(
-                ManifestConstants.IndexedNotificationTitle,
-                $"Completed file scan for {gameType} ({scannedFiles} files scanned).",
+                localizationService.GetLocalizedString("Manifest.Notification.Indexed.Title", ManifestConstants.IndexedNotificationTitle),
+                localizationService.GetLocalizedString("Manifest.Notification.ScanComplete.Message", $"Completed file scan for {gameType} ({scannedFiles} files scanned).", gameType, scannedFiles),
                 autoDismissMs: ManifestConstants.DefaultNotificationAutoDismissMs);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -1486,16 +1488,16 @@ public class ManifestGenerationService(
         {
             logger.LogWarning(ex, "Failed to enumerate files during directory scan at {InstallationPath}", installationPath);
             notificationService?.ShowWarning(
-                ManifestConstants.DirectoryScanWarningNotificationTitle,
-                $"Failed to complete directory scan for {gameType}.",
+                localizationService.GetLocalizedString("Manifest.Notification.DirectoryScanWarning.Title", ManifestConstants.DirectoryScanWarningNotificationTitle),
+                localizationService.GetLocalizedString("Manifest.Notification.DirectoryScanWarning.Message", $"Failed to complete directory scan for {gameType}.", gameType),
                 autoDismissMs: ManifestConstants.WarningNotificationAutoDismissMs);
         }
         catch (UnauthorizedAccessException ex)
         {
             logger.LogWarning(ex, "Failed to enumerate files during directory scan at {InstallationPath}", installationPath);
             notificationService?.ShowWarning(
-                ManifestConstants.DirectoryScanWarningNotificationTitle,
-                $"Failed to complete directory scan for {gameType}.",
+                localizationService.GetLocalizedString("Manifest.Notification.DirectoryScanWarning.Title", ManifestConstants.DirectoryScanWarningNotificationTitle),
+                localizationService.GetLocalizedString("Manifest.Notification.DirectoryScanWarning.Message", $"Failed to complete directory scan for {gameType}.", gameType),
                 autoDismissMs: ManifestConstants.WarningNotificationAutoDismissMs);
         }
         finally

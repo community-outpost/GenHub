@@ -39,7 +39,8 @@ public class SuperHackersProfileReconciler(
     IDialogService dialogService,
     IUserSettingsService userSettingsService,
     IGameProfileManager profileManager,
-    ITelemetryService? telemetryService = null) : ISuperHackersProfileReconciler, IPublisherReconciler
+    ITelemetryService? telemetryService = null,
+    ILocalizationService? localizationService = null) : ISuperHackersProfileReconciler, IPublisherReconciler
 {
     /// <inheritdoc/>
     public string PublisherType => PublisherTypeConstants.TheSuperHackers;
@@ -134,8 +135,8 @@ public class SuperHackersProfileReconciler(
                     });
 
                     notificationService.ShowError(
-                        "SuperHackers Update Failed",
-                        $"Failed to download update: {acquireResult.FirstError}",
+                        localizationService.GetLocalizedString("Content.Notification.SuperHackersUpdateFailed.Title", "SuperHackers Update Failed"),
+                        localizationService.GetLocalizedString("Content.Notification.DownloadUpdateFailed.Message", $"Failed to download update: {acquireResult.FirstError}", acquireResult.FirstError),
                         NotificationDurations.Critical);
 
                     return OperationResult<PublisherReconciliationResult>.CreateFailure(
@@ -146,8 +147,8 @@ public class SuperHackersProfileReconciler(
 
                 notificationService.Update(
                     progressNotificationId,
-                    "Applying update to profiles...",
-                    "SuperHackers Update");
+                    localizationService.GetLocalizedString("Content.Notification.ApplyingUpdate.Message", "Applying update to profiles..."),
+                    localizationService.GetLocalizedString("Content.Notification.SuperHackersUpdate.Title", "SuperHackers Update"));
 
                 // Update profiles based on strategy
                 var manifestMapping = BuildManifestMapping(oldManifests, newManifests);
@@ -166,7 +167,8 @@ public class SuperHackersProfileReconciler(
                         notificationService,
                         logger,
                         "SuperHackers",
-                        "[SH Reconciler]"),
+                        "[SH Reconciler]",
+                        localizationService),
                     cancellationToken);
 
                 if (!updateOutcome.Proceed)
@@ -210,8 +212,8 @@ public class SuperHackersProfileReconciler(
                 });
 
                 notificationService.ShowSuccess(
-                    "SuperHackers Updated",
-                    $"Successfully updated to version {updateResult.LatestVersion}. {profilesUpdated} profiles {(strategy == UpdateStrategy.CreateNewProfile ? "created" : "updated")}.",
+                    localizationService.GetLocalizedString("Content.Notification.SuperHackersUpdated.Title", "SuperHackers Updated"),
+                    localizationService.GetLocalizedString("Content.Notification.PublisherUpdated.Message", $"Successfully updated to version {updateResult.LatestVersion}. {profilesUpdated} profiles {(strategy == UpdateStrategy.CreateNewProfile ? "created" : "updated")}.", updateResult.LatestVersion, profilesUpdated, strategy == UpdateStrategy.CreateNewProfile ? localizationService.GetLocalizedString("Content.Notification.ProfilesCreated.Word", "created") : localizationService.GetLocalizedString("Content.Notification.ProfilesUpdated.Word", "updated")),
                     NotificationDurations.Long);
 
                 logger.LogInformation(
@@ -238,8 +240,8 @@ public class SuperHackersProfileReconciler(
         {
             logger.LogError(ex, "[SH Reconciler] Reconciliation failed unexpectedly");
             notificationService.ShowError(
-                "SuperHackers Update Error",
-                $"An error occurred during update: {ex.Message}",
+                localizationService.GetLocalizedString("Content.Notification.SuperHackersUpdateError.Title", "SuperHackers Update Error"),
+                localizationService.GetLocalizedString("Content.Notification.UpdateError.Message", $"An error occurred during update: {ex.Message}", ex.Message),
                 NotificationDurations.Critical);
             return OperationResult<PublisherReconciliationResult>.CreateFailure($"Reconciliation failed: {ex.Message}");
         }
@@ -340,7 +342,7 @@ public class SuperHackersProfileReconciler(
             notificationService.Update(
                 notificationId,
                 message,
-                "SuperHackers Update");
+                localizationService.GetLocalizedString("Content.Notification.SuperHackersUpdate.Title", "SuperHackers Update"));
         });
     }
 

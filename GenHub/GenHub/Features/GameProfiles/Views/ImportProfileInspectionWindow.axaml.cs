@@ -1,7 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
-using GenHub.Common.Helpers;
+using GenHub.Common.Controls;
 using GenHub.Features.GameProfiles.ViewModels;
 using System;
 
@@ -10,7 +10,7 @@ namespace GenHub.Features.GameProfiles.Views;
 /// <summary>
 /// Window for inspecting and importing shared game profiles.
 /// </summary>
-public partial class ImportProfileInspectionWindow : Window
+public partial class ImportProfileInspectionWindow : GenHubWindow
 {
     private ImportProfileInspectionViewModel? attachedViewModel;
 
@@ -20,7 +20,6 @@ public partial class ImportProfileInspectionWindow : Window
     public ImportProfileInspectionWindow()
     {
         InitializeComponent();
-        WindowChromeHelper.ApplyPlatformDecorations(this);
         DataContextChanged += OnDataContextChanged;
         Closed += (_, _) => (DataContext as IDisposable)?.Dispose();
     }

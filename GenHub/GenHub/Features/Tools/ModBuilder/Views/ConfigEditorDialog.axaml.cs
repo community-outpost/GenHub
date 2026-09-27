@@ -1,6 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
-using GenHub.Common.Helpers;
+using GenHub.Common.Controls;
 using GenHub.Features.Tools.ModBuilder.ViewModels;
 
 namespace GenHub.Features.Tools.ModBuilder.Views;
@@ -8,7 +8,7 @@ namespace GenHub.Features.Tools.ModBuilder.Views;
 /// <summary>
 /// Dialog for editing ModBuilder configuration (bundle items and packs).
 /// </summary>
-public partial class ConfigEditorDialog : Window
+public partial class ConfigEditorDialog : GenHubWindow
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="ConfigEditorDialog"/> class.
@@ -16,7 +16,6 @@ public partial class ConfigEditorDialog : Window
     public ConfigEditorDialog()
     {
         InitializeComponent();
-        WindowChromeHelper.ApplyPlatformDecorations(this);
     }
 
     /// <summary>

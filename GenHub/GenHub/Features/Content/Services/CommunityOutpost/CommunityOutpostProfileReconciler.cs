@@ -40,7 +40,8 @@ public class CommunityOutpostProfileReconciler(
     IDialogService dialogService,
     IUserSettingsService userSettingsService,
     IGameProfileManager profileManager,
-    ITelemetryService? telemetryService = null)
+    ITelemetryService? telemetryService = null,
+    ILocalizationService? localizationService = null)
     : ICommunityOutpostProfileReconciler, IPublisherReconciler
 {
     /// <inheritdoc/>
@@ -140,8 +141,8 @@ public class CommunityOutpostProfileReconciler(
                     });
 
                     notificationService.ShowError(
-                        "Community Patch Update Failed",
-                        $"Failed to download update: {acquireResult.FirstError}",
+                        localizationService.GetLocalizedString("Content.Notification.CommunityPatchUpdateFailed.Title", "Community Patch Update Failed"),
+                        localizationService.GetLocalizedString("Content.Notification.DownloadUpdateFailed.Message", $"Failed to download update: {acquireResult.FirstError}", acquireResult.FirstError),
                         NotificationDurations.Critical);
 
                     return OperationResult<PublisherReconciliationResult>.CreateFailure(
@@ -155,8 +156,8 @@ public class CommunityOutpostProfileReconciler(
 
                 notificationService.Update(
                     progressNotificationId,
-                    "Applying update to profiles...",
-                    "Community Patch Update");
+                    localizationService.GetLocalizedString("Content.Notification.ApplyingUpdate.Message", "Applying update to profiles..."),
+                    localizationService.GetLocalizedString("Content.Notification.CommunityPatchUpdate.Title", "Community Patch Update"));
 
                 // Step 5: Update affected profiles based on strategy
                 var manifestMapping = BuildManifestMapping(oldManifests, newManifests);
@@ -175,7 +176,8 @@ public class CommunityOutpostProfileReconciler(
                         notificationService,
                         logger,
                         "Community Patch",
-                        "[CO Reconciler]"),
+                        "[CO Reconciler]",
+                        localizationService),
                     cancellationToken);
 
                 if (!updateOutcome.Proceed)
@@ -220,8 +222,8 @@ public class CommunityOutpostProfileReconciler(
 
                 // Step 7: Show success notification
                 notificationService.ShowSuccess(
-                    "Community Patch Updated",
-                    $"Successfully updated to version {updateResult.LatestVersion}. {profilesUpdated} profiles {(strategy == UpdateStrategy.CreateNewProfile ? "created" : "updated")}.",
+                    localizationService.GetLocalizedString("Content.Notification.CommunityPatchUpdated.Title", "Community Patch Updated"),
+                    localizationService.GetLocalizedString("Content.Notification.PublisherUpdated.Message", $"Successfully updated to version {updateResult.LatestVersion}. {profilesUpdated} profiles {(strategy == UpdateStrategy.CreateNewProfile ? "created" : "updated")}.", updateResult.LatestVersion, profilesUpdated, strategy == UpdateStrategy.CreateNewProfile ? localizationService.GetLocalizedString("Content.Notification.ProfilesCreated.Word", "created") : localizationService.GetLocalizedString("Content.Notification.ProfilesUpdated.Word", "updated")),
                     NotificationDurations.Long);
 
                 logger.LogInformation(
@@ -248,8 +250,8 @@ public class CommunityOutpostProfileReconciler(
         {
             logger.LogError(ex, "[CO Reconciler] Reconciliation failed unexpectedly");
             notificationService.ShowError(
-                "Community Patch Update Error",
-                $"An error occurred during update: {ex.Message}",
+                localizationService.GetLocalizedString("Content.Notification.CommunityPatchUpdateError.Title", "Community Patch Update Error"),
+                localizationService.GetLocalizedString("Content.Notification.UpdateError.Message", $"An error occurred during update: {ex.Message}", ex.Message),
                 NotificationDurations.Critical);
             return OperationResult<PublisherReconciliationResult>.CreateFailure($"Reconciliation failed: {ex.Message}");
         }
@@ -320,7 +322,7 @@ public class CommunityOutpostProfileReconciler(
             notificationService.Update(
                 notificationId,
                 message,
-                "Community Patch Update");
+                localizationService.GetLocalizedString("Content.Notification.CommunityPatchUpdate.Title", "Community Patch Update"));
         });
     }
 

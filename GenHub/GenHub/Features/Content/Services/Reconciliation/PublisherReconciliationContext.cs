@@ -1,3 +1,4 @@
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
@@ -14,10 +15,12 @@ namespace GenHub.Features.Content.Services.Reconciliation;
 /// <param name="Logger">The logger instance.</param>
 /// <param name="PublisherDisplayName">Display name for user-facing notifications.</param>
 /// <param name="LogPrefix">Logging prefix identifying the reconciler.</param>
+/// <param name="LocalizationService">The optional localization service for user-facing notifications.</param>
 public sealed record PublisherReconciliationContext(
     IGameProfileManager ProfileManager,
     IContentReconciliationService ReconciliationService,
     INotificationService NotificationService,
     ILogger Logger,
     string PublisherDisplayName,
-    string LogPrefix);
+    string LogPrefix,
+    ILocalizationService? LocalizationService = null);

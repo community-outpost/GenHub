@@ -1,7 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using GenHub.Common.Helpers;
+using GenHub.Common.Controls;
 using GenHub.Features.Tools.ModBuilder.ViewModels;
 
 namespace GenHub.Features.Tools.ModBuilder.Views;
@@ -9,7 +9,7 @@ namespace GenHub.Features.Tools.ModBuilder.Views;
 /// <summary>
 /// Dialog window for the ModBuilder Game Asset and File Manager.
 /// </summary>
-public partial class FileManagerDialog : Window
+public partial class FileManagerDialog : GenHubWindow
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="FileManagerDialog"/> class.
@@ -17,7 +17,6 @@ public partial class FileManagerDialog : Window
     public FileManagerDialog()
     {
         InitializeComponent();
-        WindowChromeHelper.ApplyPlatformDecorations(this);
     }
 
     /// <summary>

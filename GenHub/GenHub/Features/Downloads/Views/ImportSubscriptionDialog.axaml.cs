@@ -1,7 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
-using GenHub.Common.Helpers;
+using GenHub.Common.Controls;
 using GenHub.Features.Downloads.ViewModels;
 using System;
 
@@ -10,7 +10,7 @@ namespace GenHub.Features.Downloads.Views;
 /// <summary>
 /// Code-behind for the Import Subscription dialog.
 /// </summary>
-public partial class ImportSubscriptionDialog : Window
+public partial class ImportSubscriptionDialog : GenHubWindow
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="ImportSubscriptionDialog"/> class.
@@ -18,7 +18,6 @@ public partial class ImportSubscriptionDialog : Window
     public ImportSubscriptionDialog()
     {
         InitializeComponent();
-        WindowChromeHelper.ApplyPlatformDecorations(this);
     }
 
     /// <inheritdoc />

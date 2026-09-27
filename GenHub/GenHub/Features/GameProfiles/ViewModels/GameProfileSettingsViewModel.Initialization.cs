@@ -36,7 +36,10 @@ public partial class GameProfileSettingsViewModel
 
             if (!HasShownFirstLoadNotification)
             {
-                _notificationService?.ShowInfo("Loading Resources", "Initializing game content cache for the first time...", 3000);
+                _notificationService?.ShowInfo(
+                    _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LoadingResources.Title", "Loading Resources"),
+                    _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LoadingResources.Message", "Initializing game content cache for the first time..."),
+                    NotificationDurations.Short);
                 HasShownFirstLoadNotification = true;
             }
 
@@ -115,7 +118,10 @@ public partial class GameProfileSettingsViewModel
 
             if (!HasShownFirstLoadNotification)
             {
-                _notificationService?.ShowInfo("Loading Resources", "Initializing game content cache for the first time...", 3000);
+                _notificationService?.ShowInfo(
+                    _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LoadingResources.Title", "Loading Resources"),
+                    _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LoadingResources.Message", "Initializing game content cache for the first time..."),
+                    NotificationDurations.Short);
                 HasShownFirstLoadNotification = true;
             }
 

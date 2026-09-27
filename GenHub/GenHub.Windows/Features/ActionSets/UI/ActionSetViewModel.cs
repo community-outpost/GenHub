@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
@@ -271,7 +272,9 @@ public partial class ActionSetViewModel(
         {
             logger.LogInformation("User cancelled application of {Title} (ID={Id})", ActionSet.Title, ActionSet.Id);
             await _applyCts.CancelAsync();
-            notificationService.ShowWarning("Cancelling", $"Cancelling application of {ActionSet.Title}...");
+            notificationService.ShowWarning(
+                localizationService.GetLocalizedString("Tools.GenPatcher.Notification.Cancelling.Title", "Cancelling"),
+                localizationService.GetLocalizedString("Tools.GenPatcher.Notification.Cancelling.Message", $"Cancelling application of {ActionSet.Title}...", ActionSet.Title));
         }
     }
 
@@ -318,7 +321,9 @@ public partial class ActionSetViewModel(
         catch (OperationCanceledException ex) when (ct.IsCancellationRequested)
         {
             logger.LogWarning(ex, "Application of {Title} was cancelled by user", ActionSet.Title);
-            notificationService.ShowWarning("Apply Cancelled", $"Application of {ActionSet.Title} was cancelled.");
+            notificationService.ShowWarning(
+                localizationService.GetLocalizedString("Tools.GenPatcher.Notification.ApplyCancelled.Title", "Apply Cancelled"),
+                localizationService.GetLocalizedString("Tools.GenPatcher.Notification.ApplyCancelled.Message", $"Application of {ActionSet.Title} was cancelled.", ActionSet.Title));
         }
         catch (Exception ex)
         {
@@ -328,8 +333,10 @@ public partial class ActionSetViewModel(
                 ActionSet.Title,
                 ActionSet.Id);
             notificationService.ShowError(
-                isForce ? "Failed to Force Apply Fix" : "Failed to Apply Fix",
-                $"Could not apply {ActionSet.Title}: {ex.Message}");
+                isForce
+                    ? localizationService.GetLocalizedString("Tools.GenPatcher.Notification.ApplyFixFailed.ForceTitle", "Failed to Force Apply Fix")
+                    : localizationService.GetLocalizedString("Tools.GenPatcher.Notification.ApplyFixFailed.Title", "Failed to Apply Fix"),
+                localizationService.GetLocalizedString("Tools.GenPatcher.Notification.ApplyFixFailed.Message", $"Could not apply {ActionSet.Title}: {ex.Message}", ActionSet.Title, ex.Message));
         }
         finally
         {
@@ -376,7 +383,9 @@ public partial class ActionSetViewModel(
             result.Details.Count > 0 ? string.Join("; ", result.Details) : "No details provided");
 
         notificationService.ShowSuccess(
-            isForce ? $"Fix Force Applied: {ActionSet.Title}" : $"Fix Applied: {ActionSet.Title}",
+            isForce
+                ? localizationService.GetLocalizedString("Tools.GenPatcher.Notification.FixForceApplied.Title", $"Fix Force Applied: {ActionSet.Title}", ActionSet.Title)
+                : localizationService.GetLocalizedString("Tools.GenPatcher.Notification.FixApplied.Title", $"Fix Applied: {ActionSet.Title}", ActionSet.Title),
             detailsText);
     }
 
@@ -384,7 +393,7 @@ public partial class ActionSetViewModel(
     {
         var detailsText = result.Details.Count > 0
             ? result.FormatDetails()
-            : result.ErrorMessage ?? "Unknown error occurred.";
+            : result.ErrorMessage ?? localizationService.GetLocalizedString("Tools.GenPatcher.Notification.ApplyFailed.UnknownError", "Unknown error occurred.");
 
         LastActionResultDetails = detailsText;
         HasActionResultDetails = true;
@@ -397,7 +406,7 @@ public partial class ActionSetViewModel(
             result.Details.Count > 0 ? string.Join("; ", result.Details) : "No details");
 
         notificationService.ShowError(
-            $"Fix Failed: {ActionSet.Title}",
+            localizationService.GetLocalizedString("Tools.GenPatcher.Notification.FixFailed.Title", $"Fix Failed: {ActionSet.Title}", ActionSet.Title),
             detailsText);
     }
 

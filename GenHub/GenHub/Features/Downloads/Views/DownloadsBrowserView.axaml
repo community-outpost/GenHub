@@ -172,11 +172,10 @@
                                 BorderBrush="{DynamicResource BorderBrush}"
                                 BorderThickness="1"
                                 IsVisible="{Binding LogoSource, Converter={x:Static StringConverters.IsNullOrEmpty}}">
-                            <TextBlock Text="●"
-                                       FontSize="11"
-                                       Foreground="{DynamicResource AccentBrush}"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center" />
+                            <Ellipse Width="8" Height="8"
+                                     Fill="{DynamicResource AccentBrush}"
+                                     HorizontalAlignment="Center"
+                                     VerticalAlignment="Center" />
                         </Border>
                     </Panel>
 
@@ -406,15 +405,15 @@
                                     HorizontalAlignment="Center"
                                     Margin="0,10,0,40"
                                     IsVisible="{Binding IsLoading}">
-                            <TextBlock Text="⟳"
-                                       FontSize="24"
-                                       Foreground="{DynamicResource AccentBrush}"
-                                       Margin="0,0,10,0">
-                                <TextBlock.RenderTransform>
+                            <PathIcon Data="{StaticResource ToolIcon.Refresh}"
+                                      Width="24" Height="24"
+                                      Foreground="{DynamicResource AccentBrush}"
+                                      Margin="0,0,10,0">
+                                <PathIcon.RenderTransform>
                                     <RotateTransform Angle="0"/>
-                                </TextBlock.RenderTransform>
-                                <TextBlock.Styles>
-                                    <Style Selector="TextBlock">
+                                </PathIcon.RenderTransform>
+                                <PathIcon.Styles>
+                                    <Style Selector="PathIcon">
                                         <Style.Animations>
                                             <Animation Duration="0:0:1" IterationCount="Infinite">
                                                 <KeyFrame KeyTime="0:0:0">
@@ -426,8 +425,8 @@
                                             </Animation>
                                         </Style.Animations>
                                     </Style>
-                                </TextBlock.Styles>
-                            </TextBlock>
+                                </PathIcon.Styles>
+                            </PathIcon>
                             <TextBlock Text="{localization:Localize Downloads.LoadingDetails}"
                                        FontSize="15"
                                        Foreground="{DynamicResource TextSecondary}"

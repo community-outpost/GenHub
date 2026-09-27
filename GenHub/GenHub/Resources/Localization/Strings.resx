@@ -14600,6 +14600,1060 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="Tools.ReplayManager.Status.ImportCancelled" xml:space="preserve">
     <value>Import cancelled.</value>
   </data>
+  <data name="Common.Notification.Copied.Title" xml:space="preserve">
+    <value>Copied</value>
+  </data>
+  <data name="App.Notification.VersionCopied.Message" xml:space="preserve">
+    <value>Version copied to clipboard.</value>
+  </data>
+  <data name="Common.Notification.ClipboardUnavailable.Message" xml:space="preserve">
+    <value>Clipboard not available.</value>
+  </data>
+  <data name="App.Notification.CopyVersionFailed.Message" xml:space="preserve">
+    <value>Failed to copy version to clipboard.</value>
+  </data>
+  <data name="Content.Notification.InstallationStepRunning.Title" xml:space="preserve">
+    <value>Running Installation Step</value>
+  </data>
+  <data name="Content.Notification.InstallationStepFailed.Title" xml:space="preserve">
+    <value>Installation Step Failed</value>
+  </data>
+  <data name="Content.Notification.InstallationStepFailed.StartMessage" xml:space="preserve">
+    <value>Failed to start installer '{0}'.</value>
+  </data>
+  <data name="Content.Notification.InstallationStepFailed.TimeoutMessage" xml:space="preserve">
+    <value>Step '{0}' timed out.</value>
+  </data>
+  <data name="Content.Notification.InstallationStepFailed.ExitCodeMessage" xml:space="preserve">
+    <value>Step '{0}' failed with exit code {1}.</value>
+  </data>
+  <data name="Content.Notification.InstallationStepCompleted.Title" xml:space="preserve">
+    <value>Installation Step Completed</value>
+  </data>
+  <data name="Content.Notification.InstallationStepCompleted.Message" xml:space="preserve">
+    <value>Successfully completed '{0}'.</value>
+  </data>
+  <data name="Content.Notification.InstallationStepError.Title" xml:space="preserve">
+    <value>Installation Step Error</value>
+  </data>
+  <data name="Content.Notification.InstallationStepError.Message" xml:space="preserve">
+    <value>Error executing '{0}': {1}</value>
+  </data>
+  <data name="Content.Notification.DownloadingUpdate.Title" xml:space="preserve">
+    <value>Downloading Update</value>
+  </data>
+  <data name="Content.Notification.DownloadingUpdate.Message" xml:space="preserve">
+    <value>Downloading {0} v{1}...</value>
+  </data>
+  <data name="Content.Notification.UpdateFailed.Title" xml:space="preserve">
+    <value>Update Failed</value>
+  </data>
+  <data name="Content.Notification.UpdateFailed.DownloadMessage" xml:space="preserve">
+    <value>Failed to download {0}: {1}</value>
+  </data>
+  <data name="Content.Notification.UpdateCompleted.Title" xml:space="preserve">
+    <value>Update Completed</value>
+  </data>
+  <data name="Content.Notification.UpdateCompleted.Message" xml:space="preserve">
+    <value>Updated {0} to version {1}.</value>
+  </data>
+  <data name="Content.Notification.PublisherUpdatePartial.Title" xml:space="preserve">
+    <value>{0} Update Partial</value>
+  </data>
+  <data name="Content.Notification.PublisherUpdatePartial.CreateFailedMessage" xml:space="preserve">
+    <value>Failed to create some new profiles: {0}</value>
+  </data>
+  <data name="Content.Notification.PublisherUpdatePartial.ProfilesFailedMessage" xml:space="preserve">
+    <value>{0} profiles could not be updated.</value>
+  </data>
+  <data name="Content.Notification.PublisherUpdatePartial.UpdateFailedMessage" xml:space="preserve">
+    <value>Some profiles could not be updated: {0}</value>
+  </data>
+  <data name="Content.Notification.CommunityPatchUpdateFailed.Title" xml:space="preserve">
+    <value>Community Patch Update Failed</value>
+  </data>
+  <data name="Content.Notification.DownloadUpdateFailed.Message" xml:space="preserve">
+    <value>Failed to download update: {0}</value>
+  </data>
+  <data name="Content.Notification.ApplyingUpdate.Message" xml:space="preserve">
+    <value>Applying update to profiles...</value>
+  </data>
+  <data name="Content.Notification.CommunityPatchUpdate.Title" xml:space="preserve">
+    <value>Community Patch Update</value>
+  </data>
+  <data name="Content.Notification.CommunityPatchUpdated.Title" xml:space="preserve">
+    <value>Community Patch Updated</value>
+  </data>
+  <data name="Content.Notification.ProfilesCreated.Word" xml:space="preserve">
+    <value>created</value>
+  </data>
+  <data name="Content.Notification.ProfilesUpdated.Word" xml:space="preserve">
+    <value>updated</value>
+  </data>
+  <data name="Content.Notification.CommunityPatchUpdateError.Title" xml:space="preserve">
+    <value>Community Patch Update Error</value>
+  </data>
+  <data name="Content.Notification.UpdateError.Message" xml:space="preserve">
+    <value>An error occurred during update: {0}</value>
+  </data>
+  <data name="Content.Notification.SuperHackersUpdateFailed.Title" xml:space="preserve">
+    <value>SuperHackers Update Failed</value>
+  </data>
+  <data name="Content.Notification.SuperHackersUpdate.Title" xml:space="preserve">
+    <value>SuperHackers Update</value>
+  </data>
+  <data name="Content.Notification.SuperHackersUpdated.Title" xml:space="preserve">
+    <value>SuperHackers Updated</value>
+  </data>
+  <data name="Content.Notification.PublisherUpdated.Message" xml:space="preserve">
+    <value>Successfully updated to version {0}. {1} profiles {2}.</value>
+  </data>
+  <data name="Content.Notification.SuperHackersUpdateError.Title" xml:space="preserve">
+    <value>SuperHackers Update Error</value>
+  </data>
+  <data name="Content.Notification.GeneralsOnlineUpdateFailed.Title" xml:space="preserve">
+    <value>GeneralsOnline Update Failed</value>
+  </data>
+  <data name="Content.Notification.GeneralsOnlineUpdate.Title" xml:space="preserve">
+    <value>GeneralsOnline Update</value>
+  </data>
+  <data name="Content.Notification.GeneralsOnlineUpdatedPartial.Title" xml:space="preserve">
+    <value>Generals Online Updated (Partial)</value>
+  </data>
+  <data name="Content.Notification.GeneralsOnlineUpdatedPartial.Message" xml:space="preserve">
+    <value>Updated to {0}, but some profiles or components had issues.</value>
+  </data>
+  <data name="Content.Notification.GeneralsOnlineUpdated.Title" xml:space="preserve">
+    <value>Generals Online Updated</value>
+  </data>
+  <data name="Content.Notification.GeneralsOnlineUpdated.Message" xml:space="preserve">
+    <value>Successfully updated {0} profile(s) to Generals Online {1}.</value>
+  </data>
+  <data name="Content.Notification.ProfilesUpdated.Title" xml:space="preserve">
+    <value>Profiles Updated</value>
+  </data>
+  <data name="Content.Notification.ProfilesUpdated.RenamedContentMessage" xml:space="preserve">
+    <value>Updated {0} profile(s) to use the renamed content.</value>
+  </data>
+  <data name="GameProfiles.Notification.ProfileCreated.Title" xml:space="preserve">
+    <value>Profile Created</value>
+  </data>
+  <data name="GameProfiles.Notification.ProfileCreated.Message" xml:space="preserve">
+    <value>Created profile '{0}' with {1}</value>
+  </data>
+  <data name="GameProfiles.Notification.ContentReplaced.Title" xml:space="preserve">
+    <value>Content Replaced</value>
+  </data>
+  <data name="GameProfiles.Notification.ContentReplaced.Message" xml:space="preserve">
+    <value>Replaced '{0}' with '{1}'</value>
+  </data>
+  <data name="GameProfiles.Notification.DependenciesAdded.Title" xml:space="preserve">
+    <value>Dependencies Added</value>
+  </data>
+  <data name="GameProfiles.Notification.DependenciesAdded.Message" xml:space="preserve">
+    <value>Added required dependencies for '{0}': {1}</value>
+  </data>
+  <data name="GameProfiles.Notification.ToolLaunchFailed.Title" xml:space="preserve">
+    <value>Tool Launch Failed</value>
+  </data>
+  <data name="GameProfiles.Notification.ToolLaunchFailed.Message" xml:space="preserve">
+    <value>Failed to launch '{0}': {1}</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchingProfile.Title" xml:space="preserve">
+    <value>Launching Profile</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchingProfile.Message" xml:space="preserve">
+    <value>Starting '{0}' with {1} workspace strategy...</value>
+  </data>
+  <data name="GameProfiles.Notification.WorkspaceStrategyChanged.Title" xml:space="preserve">
+    <value>Workspace Strategy Changed</value>
+  </data>
+  <data name="GameProfiles.Notification.WorkspaceStrategyChanged.Message" xml:space="preserve">
+    <value>'{0}' cannot use {1} here because symlinks are unavailable. Switching to HardLink.</value>
+  </data>
+  <data name="GameProfiles.Notification.PublisherProfilesCreated.Title" xml:space="preserve">
+    <value>{0} Profiles Created</value>
+  </data>
+  <data name="GameProfiles.Notification.PublisherProfilesCreated.Message" xml:space="preserve">
+    <value>Created {0} profile(s) for {1}.</value>
+  </data>
+  <data name="GameProfiles.Notification.PublisherContentNotFound.Title" xml:space="preserve">
+    <value>{0} Not Found</value>
+  </data>
+  <data name="GameProfiles.Notification.PublisherContentNotFound.Message" xml:space="preserve">
+    <value>Could not find {0} content to download.</value>
+  </data>
+  <data name="Manifest.Notification.Verification.DifferingMessage" xml:space="preserve">
+    <value> ({0} differing from catalog)</value>
+  </data>
+  <data name="Manifest.Notification.Indexed.Title" xml:space="preserve">
+    <value>Game Files Indexed</value>
+  </data>
+  <data name="Manifest.Notification.VerificationComplete.Message" xml:space="preserve">
+    <value>Completed verification for {0} ({1}/{2} files verified{3}).</value>
+  </data>
+  <data name="Manifest.Notification.ScanComplete.Message" xml:space="preserve">
+    <value>Completed file scan for {0} ({1} files scanned).</value>
+  </data>
+  <data name="Manifest.Notification.DirectoryScanWarning.Title" xml:space="preserve">
+    <value>Directory Scan Warning</value>
+  </data>
+  <data name="Manifest.Notification.DirectoryScanWarning.Message" xml:space="preserve">
+    <value>Failed to complete directory scan for {0}.</value>
+  </data>
+  <data name="Downloads.Notification.DiscoveryConnectionHint" xml:space="preserve">
+    <value>Check your connection and try again.</value>
+  </data>
+  <data name="Downloads.Notification.DiscoveryFailed.Title" xml:space="preserve">
+    <value>Discovery Failed</value>
+  </data>
+  <data name="Downloads.Notification.DiscoveryFailed.Message" xml:space="preserve">
+    <value>{0} discovery failed: {1}</value>
+  </data>
+  <data name="Downloads.Notification.NoContentLoaded.Title" xml:space="preserve">
+    <value>No content loaded</value>
+  </data>
+  <data name="Downloads.Notification.NoContentLoaded.Message" xml:space="preserve">
+    <value>{0} returned no content.</value>
+  </data>
+  <data name="Downloads.Notification.LoadMoreFailed.Title" xml:space="preserve">
+    <value>Failed to Load More</value>
+  </data>
+  <data name="Downloads.Notification.LoadMoreFailed.Message" xml:space="preserve">
+    <value>Could not load more content for {0}: {1}</value>
+  </data>
+  <data name="Downloads.Notification.ItemUpdated.Message" xml:space="preserve">
+    <value>Updated {0} to latest version.</value>
+  </data>
+  <data name="Downloads.Notification.CannotAddToProfile.Title" xml:space="preserve">
+    <value>Cannot Add to Profile</value>
+  </data>
+  <data name="Downloads.Notification.CannotAddToProfile.DownloadFirstMessage" xml:space="preserve">
+    <value>Please download the content first before adding it to a profile.</value>
+  </data>
+  <data name="Downloads.Notification.CannotAddToProfile.BundleMessage" xml:space="preserve">
+    <value>Download every selected bundle item (including the chosen variants) before adding them to a profile.</value>
+  </data>
+  <data name="Downloads.Notification.AddToProfileError.Title" xml:space="preserve">
+    <value>Error Adding to Profile</value>
+  </data>
+  <data name="Downloads.Notification.AddToProfileError.Message" xml:space="preserve">
+    <value>An unexpected error occurred: {0}</value>
+  </data>
+  <data name="Downloads.Notification.AddToProfileFailed.Message" xml:space="preserve">
+    <value>Failed to add content to profile</value>
+  </data>
+  <data name="Downloads.Notification.AddToProfileFailed.Title" xml:space="preserve">
+    <value>Failed to Add to Profile</value>
+  </data>
+  <data name="Common.Notification.UnexpectedError.Message" xml:space="preserve">
+    <value>An error occurred: {0}</value>
+  </data>
+  <data name="Downloads.Notification.ProfileCreationFailed.Title" xml:space="preserve">
+    <value>Profile Creation Failed</value>
+  </data>
+  <data name="Common.Notification.ContentUpdated.Title" xml:space="preserve">
+    <value>Content Updated</value>
+  </data>
+  <data name="Downloads.Notification.ContentSwapped.Message" xml:space="preserve">
+    <value>Replaced '{0}' with '{1}' in profile '{2}'.</value>
+  </data>
+  <data name="Downloads.Notification.ContentUpdatedInProfile.Message" xml:space="preserve">
+    <value>Updated '{0}' in profile '{1}'.</value>
+  </data>
+  <data name="Downloads.Notification.AddedToProfile.Title" xml:space="preserve">
+    <value>Added to Profile</value>
+  </data>
+  <data name="Downloads.Notification.AddedToProfile.Message" xml:space="preserve">
+    <value>'{0}' has been added to profile '{1}'.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentLocked.Title" xml:space="preserve">
+    <value>Content Locked</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentLocked.Message" xml:space="preserve">
+    <value>'{0}' is locked and cannot be modified while the game is running.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.CannotModifyContent.Title" xml:space="preserve">
+    <value>Cannot Modify Content</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.CannotModifyContent.Message" xml:space="preserve">
+    <value>'{0}' cannot be modified in this mode.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ServiceUnavailable.Title" xml:space="preserve">
+    <value>Service Unavailable</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ServiceUnavailable.Message" xml:space="preserve">
+    <value>Content deletion service is not available.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentDeleted.Title" xml:space="preserve">
+    <value>Content Deleted</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentDeleted.Message" xml:space="preserve">
+    <value>'{0}' has been permanently deleted.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentDeleteFailed.Title" xml:space="preserve">
+    <value>Delete Failed</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentDeleteFailed.Message" xml:space="preserve">
+    <value>Failed to delete '{0}': {1}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentDeleteError.Title" xml:space="preserve">
+    <value>Delete Error</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentDeleteError.Message" xml:space="preserve">
+    <value>An error occurred while deleting '{0}'.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.MissingLaunchableContent.Title" xml:space="preserve">
+    <value>Missing Launchable Content</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.MissingLaunchableContent.Message" xml:space="preserve">
+    <value>Please enable a Game, Executable, or Tool before saving.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.MissingDependencies.Title" xml:space="preserve">
+    <value>Missing Dependencies</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.MissingDependencies.Message" xml:space="preserve">
+    <value>Cannot save profile with missing dependencies:
+
+{0}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.HotswapModeEnabled.Title" xml:space="preserve">
+    <value>Hotswap Mode Enabled</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.HotswapModeEnabled.Message" xml:space="preserve">
+    <value>The game was started while editing this profile. Non-hotswappable settings have been locked. Please review your changes and save again.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveSyncFailed.Title" xml:space="preserve">
+    <value>Live Sync Failed</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveSyncNoSnapshot.Message" xml:space="preserve">
+    <value>A game session was started during save, and live synchronization failed. Profile snapshot was missing so rollback could not be performed.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveSyncRollbackFailed.Title" xml:space="preserve">
+    <value>Live Sync &amp; Rollback Failed</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveSyncRollbackFailed.Message" xml:space="preserve">
+    <value>A game session was started during save, and live synchronization failed. Furthermore, rolling back persisted profile changes failed: {0}. Profile and running game may be out of sync.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveSyncRolledBack.Message" xml:space="preserve">
+    <value>A game session was started during save, but live synchronization failed. Profile changes were rolled back to match the running game.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveSyncUserDataNotRestored.Message" xml:space="preserve">
+    <value>A game session was started during save, and live synchronization failed. Profile changes were rolled back, but live user data could not be fully restored to match the running game.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveUpdateComplete.Title" xml:space="preserve">
+    <value>Live Update Complete</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveUpdateComplete.Message" xml:space="preserve">
+    <value>Content changes have been applied to the active game session.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveUpdateMissingManifests.Message" xml:space="preserve">
+    <value>Cannot live-sync active session: failed to resolve manifests for {0}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveUpdateWarning.Title" xml:space="preserve">
+    <value>Live Update Warning</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveUpdateFailed.Title" xml:space="preserve">
+    <value>Live Update Failed</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveUpdateFailed.Message" xml:space="preserve">
+    <value>Live content synchronization failed: {0}. Profile changes were not saved.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveRollbackWarning.Title" xml:space="preserve">
+    <value>Live Rollback Warning</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveRollbackWarning.Message" xml:space="preserve">
+    <value>Profile save failed ({0}), and original content could not be fully resolved for rollback: {1}. Live content was left as synchronized and may not match the saved profile.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveRollbackFailed.Title" xml:space="preserve">
+    <value>Live Rollback Failed</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveRollbackFailed.Message" xml:space="preserve">
+    <value>Profile save failed ({0}), and live content rollback reported: {1}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentAdded.Title" xml:space="preserve">
+    <value>Content Added</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentAdded.Message" xml:space="preserve">
+    <value>'{0}' has been added successfully.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentUpdated.Message" xml:space="preserve">
+    <value>'{0}' has been updated.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ValidationError.Title" xml:space="preserve">
+    <value>Validation Error</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ValidationNameRequired.Message" xml:space="preserve">
+    <value>Please enter a name for the content.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ValidationFolderRequired.Message" xml:space="preserve">
+    <value>Please select a folder for the content.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentEnabled.Title" xml:space="preserve">
+    <value>Content Enabled</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentEnabledAutoResolved.Message" xml:space="preserve">
+    <value>Enabled '{0}' and auto-resolved: {1}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentEnabled.Message" xml:space="preserve">
+    <value>Enabled '{0}'</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.DependencyLocked.Message" xml:space="preserve">
+    <value>Required dependency '{0}' is locked and cannot be automatically enabled while the game is running.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.DependencyWarning.Title" xml:space="preserve">
+    <value>Dependency Warning</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.DependencyWarning.Message" xml:space="preserve">
+    <value>After enabling '{0}':
+• {1}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LoadingResources.Title" xml:space="preserve">
+    <value>Loading Resources</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LoadingResources.Message" xml:space="preserve">
+    <value>Initializing game content cache for the first time...</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyCleared.Message" xml:space="preserve">
+    <value>Cleared hotkey for '{0}'.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyCleared.Title" xml:space="preserve">
+    <value>Hotkey Cleared</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.NoHotkeyValue" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyReset.Message" xml:space="preserve">
+    <value>Reset '{0}' to default hotkey ({1}).</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyReset.Title" xml:space="preserve">
+    <value>Hotkey Reset</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyAppliedToAll.Message" xml:space="preserve">
+    <value>Applied hotkey '{0}' to {1} '{2}' action{3}.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyAppliedToAll.Title" xml:space="preserve">
+    <value>Hotkey Applied to All</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileExists.Message" xml:space="preserve">
+    <value>A profile named '{0}' already exists.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileExists.Title" xml:space="preserve">
+    <value>Profile Exists</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileCreated.Message" xml:space="preserve">
+    <value>Created profile '{0}'.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileCreated.Title" xml:space="preserve">
+    <value>Profile Created</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileNameEmpty.Message" xml:space="preserve">
+    <value>Profile name cannot be empty.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileError.Title" xml:space="preserve">
+    <value>Profile Error</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileRenamed.Message" xml:space="preserve">
+    <value>Renamed profile '{0}' to '{1}'.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileRenamed.Title" xml:space="preserve">
+    <value>Profile Renamed</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.OnlyProfileDelete.Message" xml:space="preserve">
+    <value>Cannot delete the only remaining profile.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileDeleted.Message" xml:space="preserve">
+    <value>Deleted profile '{0}'.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileDeleted.Title" xml:space="preserve">
+    <value>Profile Deleted</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileSelectionError.Title" xml:space="preserve">
+    <value>Profile Selection Error</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileSelectionError.Message" xml:space="preserve">
+    <value>Failed to open profile selection: {0}</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.PresetAppliedCustom.Message" xml:space="preserve">
+    <value>Applied '{0}' preset hotkeys.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.PresetAppliedVanilla.Message" xml:space="preserve">
+    <value>Applied default vanilla retail hotkeys.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.PresetApplied.Message" xml:space="preserve">
+    <value>Applied {0} preset hotkeys.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.PresetSaveFailed.Message" xml:space="preserve">
+    <value>Failed to save profile after applying {0} preset.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.PresetApplied.Title" xml:space="preserve">
+    <value>Preset Applied</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.PresetError.Title" xml:space="preserve">
+    <value>Preset Error</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.AddFilesFailed.ProjectMessage" xml:space="preserve">
+    <value>Failed to add files to project</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.OperationFailed.Title" xml:space="preserve">
+    <value>Operation Failed</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.OperationFailed.RemoveFilesMessage" xml:space="preserve">
+    <value>Failed to remove some files from the project</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CacheCleared.Title" xml:space="preserve">
+    <value>Cache Cleared</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CacheCleared.Message" xml:space="preserve">
+    <value>Build cache has been successfully cleared.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CacheClearFailed.Title" xml:space="preserve">
+    <value>Cache Clear Failed</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CacheClearFailed.Message" xml:space="preserve">
+    <value>Failed to clear cache: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CacheRebuilding.Title" xml:space="preserve">
+    <value>Rebuilding Cache</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CacheRebuilding.Message" xml:space="preserve">
+    <value>Cache index is being rebuilt...</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CacheRebuilt.Title" xml:space="preserve">
+    <value>Cache Rebuilt</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CacheRebuilt.Message" xml:space="preserve">
+    <value>Cache index has been successfully rebuilt.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CacheRebuildFailed.Title" xml:space="preserve">
+    <value>Cache Rebuild Failed</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CacheRebuildFailed.Message" xml:space="preserve">
+    <value>Failed to rebuild cache: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.SettingsReset.Title" xml:space="preserve">
+    <value>Settings Reset</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.SettingsReset.Message" xml:space="preserve">
+    <value>All settings have been reset to defaults.</value>
+  </data>
+  <data name="Common.Notification.NoFilesImported.Message" xml:space="preserve">
+    <value>No files were imported.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.LoadError.Title" xml:space="preserve">
+    <value>Load Error</value>
+  </data>
+  <data name="Tools.MapManager.Notification.LoadError.Message" xml:space="preserve">
+    <value>Failed to load maps.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ImportMaps.Title" xml:space="preserve">
+    <value>Import Maps</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ImportMaps.Message" xml:space="preserve">
+    <value>Imports map files from URLs or by dragging and dropping files into your game's map directory.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ImportComplete.Title" xml:space="preserve">
+    <value>Import Complete</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ImportComplete.Message" xml:space="preserve">
+    <value>Imported {0} file(s).</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ImportFailed.Title" xml:space="preserve">
+    <value>Import Failed</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ImportError.Title" xml:space="preserve">
+    <value>Import Error</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ImportFromUrl.Title" xml:space="preserve">
+    <value>Import from URL</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ImportFromUrl.Message" xml:space="preserve">
+    <value>Downloads maps from a provided URL and automatically imports them into your game's map directory. Supports direct map file downloads and zip archives.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ImportComplete.FromUrlMessage" xml:space="preserve">
+    <value>Imported {0} file(s) from URL.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.BrowseImport.Title" xml:space="preserve">
+    <value>Browse and Import</value>
+  </data>
+  <data name="Tools.MapManager.Notification.BrowseImport.Message" xml:space="preserve">
+    <value>Opens a file picker dialog allowing you to select map files (.map) or zip archives from your computer to import into game.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteMaps.Title" xml:space="preserve">
+    <value>Delete Maps</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteMaps.Message" xml:space="preserve">
+    <value>Permanently deletes selected maps from your game's map directory. This action cannot be undone.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapsDeleted.Message" xml:space="preserve">
+    <value>Deleted {0} maps.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteFailed.Title" xml:space="preserve">
+    <value>Delete Failed</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteMapsFailed.Message" xml:space="preserve">
+    <value>Could not delete selected maps.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ExportZip.Title" xml:space="preserve">
+    <value>Export to ZIP</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ExportZip.Message" xml:space="preserve">
+    <value>Creates a ZIP archive containing selected maps and saves it to your map directory. You can then share the ZIP file with others or use it for backup purposes.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ZipCreated.Title" xml:space="preserve">
+    <value>Zip Created</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ZipCreated.Message" xml:space="preserve">
+    <value>Created {0} in map folder.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ZipFailed.Title" xml:space="preserve">
+    <value>Zip Failed</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ZipFailed.Message" xml:space="preserve">
+    <value>Failed to create ZIP archive.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ExportError.Title" xml:space="preserve">
+    <value>Export Error</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadFailed.Title" xml:space="preserve">
+    <value>Upload Failed</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadError.Title" xml:space="preserve">
+    <value>Upload Error</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadError.Message" xml:space="preserve">
+    <value>Failed to complete upload.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadShare.Title" xml:space="preserve">
+    <value>Upload and Share</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadShare.Message" xml:space="preserve">
+    <value>Uploads selected maps to UploadThing cloud service (max 10MB) and copies the share link to your clipboard. You can then share the link with others to download maps.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.FileTooLarge.Title" xml:space="preserve">
+    <value>File Too Large</value>
+  </data>
+  <data name="Tools.MapManager.Notification.FileTooLarge.Message" xml:space="preserve">
+    <value>File too large. Maximum upload size is 10MB.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.RateLimitExceeded.Title" xml:space="preserve">
+    <value>Rate Limit Exceeded</value>
+  </data>
+  <data name="Tools.MapManager.Notification.RateLimitExceeded.Message" xml:space="preserve">
+    <value>Upload limit exceeded for the current 3-day period. Please remove items from your Upload History to free up quota immediately.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadComplete.Title" xml:space="preserve">
+    <value>Upload Complete</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadComplete.ExistingLinkMessage" xml:space="preserve">
+    <value>Existing link copied to clipboard!</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadComplete.LinkCopiedMessage" xml:space="preserve">
+    <value>Link copied to clipboard!</value>
+  </data>
+  <data name="Tools.MapManager.Notification.OpenMapFolder.Title" xml:space="preserve">
+    <value>Open Map Folder</value>
+  </data>
+  <data name="Tools.MapManager.Notification.OpenMapFolder.Message" xml:space="preserve">
+    <value>Opens your game's map directory in Windows Explorer, allowing you to manage your map files directly.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.RevealMapFile.Title" xml:space="preserve">
+    <value>Reveal Map File</value>
+  </data>
+  <data name="Tools.MapManager.Notification.RevealMapFile.Message" xml:space="preserve">
+    <value>Opens Windows Explorer and highlights the selected map file, making it easy to locate and manage.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UncompressZip.Title" xml:space="preserve">
+    <value>Uncompress ZIP</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UncompressZip.Message" xml:space="preserve">
+    <value>Extracts contents of the selected ZIP archives and imports any contained maps into your game's map directory.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UncompressComplete.Title" xml:space="preserve">
+    <value>Uncompress Complete</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UncompressComplete.Message" xml:space="preserve">
+    <value>Extracted {0} maps from selected ZIP(s).</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UncompressWarning.Title" xml:space="preserve">
+    <value>Uncompress Warning</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UncompressError.Title" xml:space="preserve">
+    <value>Uncompress Error</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPacks.Title" xml:space="preserve">
+    <value>MapPacks</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPacks.Message" xml:space="preserve">
+    <value>Create and manage collections of maps (MapPacks) to easily switch between different sets of maps for your game profiles.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.CreateMapPack.Title" xml:space="preserve">
+    <value>Create MapPack</value>
+  </data>
+  <data name="Tools.MapManager.Notification.CreateMapPack.HelpMessage" xml:space="preserve">
+    <value>Creates a MapPack from the selected maps using CAS (Content Addressable Storage) system. MapPacks can be enabled in your game profiles to load custom maps.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPackCreated.Title" xml:space="preserve">
+    <value>MapPack Created</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPackCreated.Message" xml:space="preserve">
+    <value>Created '{0}'. Enable it in your Profile.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.LoadMapPack.Title" xml:space="preserve">
+    <value>Load MapPack</value>
+  </data>
+  <data name="Tools.MapManager.Notification.LoadMapPack.Message" xml:space="preserve">
+    <value>Enables the selected MapPack, making its maps available when launching the game with the associated profile. The maps will be available on next profile launch.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPackLoaded.Title" xml:space="preserve">
+    <value>MapPack Loaded</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPackLoaded.Message" xml:space="preserve">
+    <value>Loaded '{0}'. Maps will be available on next profile launch.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.LoadFailed.Title" xml:space="preserve">
+    <value>Load Failed</value>
+  </data>
+  <data name="Tools.MapManager.Notification.LoadFailed.MapPackMessage" xml:space="preserve">
+    <value>Failed to load MapPack.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UnloadMapPack.Title" xml:space="preserve">
+    <value>Unload MapPack</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UnloadMapPack.Message" xml:space="preserve">
+    <value>Disables the selected MapPack, removing its maps from the available maps when launching the game with the associated profile.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPackUnloaded.Title" xml:space="preserve">
+    <value>MapPack Unloaded</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPackUnloaded.Message" xml:space="preserve">
+    <value>Unloaded '{0}'.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UnloadFailed.Title" xml:space="preserve">
+    <value>Unload Failed</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UnloadFailed.Message" xml:space="preserve">
+    <value>Failed to unload MapPack.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteMapPack.Title" xml:space="preserve">
+    <value>Delete MapPack</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteMapPack.Message" xml:space="preserve">
+    <value>Permanently deletes the selected MapPack from CAS storage. This action cannot be undone.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPackDeleted.Title" xml:space="preserve">
+    <value>MapPack Deleted</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPackDeleted.Message" xml:space="preserve">
+    <value>Deleted '{0}'.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteMapPackFailed.Message" xml:space="preserve">
+    <value>Failed to delete MapPack.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadHistory.Title" xml:space="preserve">
+    <value>Upload History</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadHistory.Message" xml:space="preserve">
+    <value>Shows a list of your previously uploaded maps, allowing you to manage them and copy download links.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.CopyLink.Title" xml:space="preserve">
+    <value>Copy Link</value>
+  </data>
+  <data name="Tools.MapManager.Notification.CopyLink.Message" xml:space="preserve">
+    <value>Copies the download link of the uploaded file to your clipboard.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.LinkCopied.Message" xml:space="preserve">
+    <value>Link copied to clipboard.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteUpload.Title" xml:space="preserve">
+    <value>Delete Upload</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteUpload.Message" xml:space="preserve">
+    <value>Permanently deletes the uploaded file from cloud storage and removes it from history.</value>
+  </data>
+  <data name="Tools.UploadHistory.Notification.FileDeleted.Title" xml:space="preserve">
+    <value>Deleted</value>
+  </data>
+  <data name="Tools.UploadHistory.Notification.FileDeleted.Message" xml:space="preserve">
+    <value>File deleted from cloud storage and upload history.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteCloudFileFailed.Message" xml:space="preserve">
+    <value>Failed to delete file from cloud storage.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteHistoryItemFailed.Message" xml:space="preserve">
+    <value>Failed to delete history item.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ClearHistory.Title" xml:space="preserve">
+    <value>Clear History</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ClearHistory.Message" xml:space="preserve">
+    <value>Permanently deletes all uploaded files from cloud storage and clears upload history.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.HistoryCleared.Title" xml:space="preserve">
+    <value>Cleared</value>
+  </data>
+  <data name="Tools.MapManager.Notification.HistoryCleared.Message" xml:space="preserve">
+    <value>All {0} uploaded files deleted from cloud storage and history cleared.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.HistoryPartiallyCleared.Title" xml:space="preserve">
+    <value>Partially Cleared</value>
+  </data>
+  <data name="Tools.MapManager.Notification.HistoryPartiallyCleared.Message" xml:space="preserve">
+    <value>Cleared {0} history items. {1} item(s) could not be deleted from cloud storage.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ClearFailed.Title" xml:space="preserve">
+    <value>Clear Failed</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ClearFailed.Message" xml:space="preserve">
+    <value>Failed to clear history.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.SelectionRequired.Title" xml:space="preserve">
+    <value>Selection Required</value>
+  </data>
+  <data name="Tools.MapManager.Notification.SelectionRequired.Message" xml:space="preserve">
+    <value>Please select at least one map.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.CreateMapPack.PanelMessage" xml:space="preserve">
+    <value>Enter a name and description in the panel, then click Create.</value>
+  </data>
+  <data name="Settings.Notification.SettingsNotSaved.Title" xml:space="preserve">
+    <value>Settings Not Saved</value>
+  </data>
+  <data name="Settings.Notification.CustomInstallationAdded.Title" xml:space="preserve">
+    <value>Custom Installation Added</value>
+  </data>
+  <data name="Settings.Notification.CustomInstallationAdded.Message" xml:space="preserve">
+    <value>Successfully registered '{0}'.</value>
+  </data>
+  <data name="Settings.Notification.CustomInstallation.DisplayName" xml:space="preserve">
+    <value>Custom Installation</value>
+  </data>
+  <data name="Settings.Notification.RegistrationFailed.Title" xml:space="preserve">
+    <value>Registration Failed</value>
+  </data>
+  <data name="Settings.Notification.AddInstallationFailed.Message" xml:space="preserve">
+    <value>Failed to add custom installation: {0}</value>
+  </data>
+  <data name="Settings.Notification.InstallationRemoved.Title" xml:space="preserve">
+    <value>Installation Removed</value>
+  </data>
+  <data name="Settings.Notification.InstallationRemoved.Message" xml:space="preserve">
+    <value>Custom installation '{0}' was removed.</value>
+  </data>
+  <data name="Settings.Notification.RemovalFailed.Title" xml:space="preserve">
+    <value>Removal Failed</value>
+  </data>
+  <data name="Settings.Notification.RemoveInstallationFailed.Message" xml:space="preserve">
+    <value>Failed to remove custom installation: {0}</value>
+  </data>
+  <data name="Settings.Notification.MigrationTargetRequired.Title" xml:space="preserve">
+    <value>Migration Target Required</value>
+  </data>
+  <data name="Settings.Notification.MigrationTargetRequired.Message" xml:space="preserve">
+    <value>Please select a target directory for migration.</value>
+  </data>
+  <data name="Settings.Notification.MigrationPreflightFailed.Title" xml:space="preserve">
+    <value>Migration Pre-flight Failed</value>
+  </data>
+  <data name="Settings.Notification.MigrationFailed.Title" xml:space="preserve">
+    <value>Migration Failed</value>
+  </data>
+  <data name="Settings.Notification.MigrationError.Title" xml:space="preserve">
+    <value>Migration Error</value>
+  </data>
+  <data name="Settings.Notification.DataPartiallyDeleted.Title" xml:space="preserve">
+    <value>Data Partially Deleted</value>
+  </data>
+  <data name="Settings.Notification.DataPartiallyDeleted.Message" xml:space="preserve">
+    <value>Profiles, workspaces, and manifests were deleted, but {0}.</value>
+  </data>
+  <data name="Settings.Notification.DeletionFailed.Title" xml:space="preserve">
+    <value>Deletion Failed</value>
+  </data>
+  <data name="Settings.Notification.DeleteAppDataFailed.Message" xml:space="preserve">
+    <value>Failed to delete all application data: {0}</value>
+  </data>
+  <data name="Settings.Notification.CollectCasStorageFailed.Message" xml:space="preserve">
+    <value>Failed to collect CAS storage</value>
+  </data>
+  <data name="Settings.Notification.CasCleared.Title" xml:space="preserve">
+    <value>CAS Cleared</value>
+  </data>
+  <data name="Settings.Notification.CasCleared.Message" xml:space="preserve">
+    <value>Deleted {0} objects, freed {1:F2} GB.</value>
+  </data>
+  <data name="Settings.Notification.ManifestsDeleted.Title" xml:space="preserve">
+    <value>Manifests Deleted</value>
+  </data>
+  <data name="Settings.Notification.ManifestsDeleted.Message" xml:space="preserve">
+    <value>Deleted {0} manifest(s) successfully.</value>
+  </data>
+  <data name="Settings.Notification.DeleteManifestsFailed.Message" xml:space="preserve">
+    <value>Failed to delete manifests: {0}</value>
+  </data>
+  <data name="Settings.Notification.WorkspacesDeleted.Title" xml:space="preserve">
+    <value>Workspaces Deleted</value>
+  </data>
+  <data name="Settings.Notification.WorkspacesDeleted.Message" xml:space="preserve">
+    <value>Deleted {0} workspace(s) successfully.</value>
+  </data>
+  <data name="Settings.Notification.WorkspacesClean.Title" xml:space="preserve">
+    <value>Workspaces Clean</value>
+  </data>
+  <data name="Settings.Notification.WorkspacesClean.Message" xml:space="preserve">
+    <value>No workspaces found to delete.</value>
+  </data>
+  <data name="Settings.Notification.DeleteWorkspacesFailed.Message" xml:space="preserve">
+    <value>Failed to delete workspaces: {0}</value>
+  </data>
+  <data name="Settings.Notification.UserDataDeleted.Title" xml:space="preserve">
+    <value>User Data Deleted</value>
+  </data>
+  <data name="Settings.Notification.UserDataDeleted.Message" xml:space="preserve">
+    <value>All user data deleted successfully.</value>
+  </data>
+  <data name="Settings.Notification.UserDataPartiallyDeleted.Title" xml:space="preserve">
+    <value>User Data Partially Deleted</value>
+  </data>
+  <data name="Settings.Notification.UserDataPartiallyDeleted.Message" xml:space="preserve">
+    <value>Some tracked user data could not be deleted.</value>
+  </data>
+  <data name="Settings.Notification.DeleteUserDataFailed.Message" xml:space="preserve">
+    <value>Failed to delete user data: {0}</value>
+  </data>
+  <data name="Settings.Notification.DeleteProfilesFailed.Message" xml:space="preserve">
+    <value>Failed to delete profiles: {0}</value>
+  </data>
+  <data name="Settings.Notification.OpenLogsDirectoryFailed.Message" xml:space="preserve">
+    <value>Failed to open logs directory: {0}</value>
+  </data>
+  <data name="Settings.Notification.OpenAppDataDirectoryFailed.Message" xml:space="preserve">
+    <value>Failed to open AppData directory: {0}</value>
+  </data>
+  <data name="Settings.Notification.OpenProfilesDirectoryFailed.Message" xml:space="preserve">
+    <value>Failed to open profiles directory: {0}</value>
+  </data>
+  <data name="Settings.Notification.OpenManifestsDirectoryFailed.Message" xml:space="preserve">
+    <value>Failed to open manifests directory: {0}</value>
+  </data>
+  <data name="Settings.Notification.OpenWorkspacesDirectoryFailed.Message" xml:space="preserve">
+    <value>Failed to open workspaces directory: {0}</value>
+  </data>
+  <data name="Settings.Notification.OpenCasPoolDirectoryFailed.Message" xml:space="preserve">
+    <value>Failed to open CAS pool directory: {0}</value>
+  </data>
+  <data name="Settings.Notification.LogsDirectoryNotFound.Message" xml:space="preserve">
+    <value>Logs directory not found.</value>
+  </data>
+  <data name="Settings.Notification.NoLogFiles.Message" xml:space="preserve">
+    <value>No log files found.</value>
+  </data>
+  <data name="Settings.Notification.OpenLatestLogFailed.Message" xml:space="preserve">
+    <value>Failed to open latest log file: {0}</value>
+  </data>
+  <data name="Settings.Notification.LogCopied.Message" xml:space="preserve">
+    <value>Latest log content copied to clipboard.</value>
+  </data>
+  <data name="Settings.Notification.ReadLogFailed.Message" xml:space="preserve">
+    <value>Could not read log file (it might be in use).</value>
+  </data>
+  <data name="Settings.Notification.CopyLogFailed.Message" xml:space="preserve">
+    <value>Failed to copy latest log.</value>
+  </data>
+  <data name="Settings.Notification.LogsEmpty.Title" xml:space="preserve">
+    <value>Logs Empty</value>
+  </data>
+  <data name="Settings.Notification.LogsEmpty.NoDirectoryMessage" xml:space="preserve">
+    <value>No logs directory found.</value>
+  </data>
+  <data name="Settings.Notification.ClearLogsFailed.Message" xml:space="preserve">
+    <value>Failed to clear logs: {0}</value>
+  </data>
+  <data name="Settings.Notification.LogsEmpty.NoFilesMessage" xml:space="preserve">
+    <value>No log files found to clear.</value>
+  </data>
+  <data name="Settings.Notification.ClearActiveLogsFailed.Message" xml:space="preserve">
+    <value>Could not clear active log files (files in use).</value>
+  </data>
+  <data name="Settings.Notification.LogsCleared.SizeFreedFragment" xml:space="preserve">
+    <value> ({0:F1} MB freed)</value>
+  </data>
+  <data name="Settings.Notification.LogsCleared.SkippedFragment" xml:space="preserve">
+    <value>, {0} file(s) skipped (in use)</value>
+  </data>
+  <data name="Settings.Notification.LogsCleared.Title" xml:space="preserve">
+    <value>Logs Cleared</value>
+  </data>
+  <data name="Settings.Notification.LogsCleared.Message" xml:space="preserve">
+    <value>Successfully cleared {0} log file(s){1}{2}.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.Cancelling.Title" xml:space="preserve">
+    <value>Cancelling</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.Cancelling.Message" xml:space="preserve">
+    <value>Cancelling application of {0}...</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.ApplyCancelled.Title" xml:space="preserve">
+    <value>Apply Cancelled</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.ApplyCancelled.Message" xml:space="preserve">
+    <value>Application of {0} was cancelled.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.ApplyFixFailed.ForceTitle" xml:space="preserve">
+    <value>Failed to Force Apply Fix</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.ApplyFixFailed.Title" xml:space="preserve">
+    <value>Failed to Apply Fix</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.ApplyFixFailed.Message" xml:space="preserve">
+    <value>Could not apply {0}: {1}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.FixForceApplied.Title" xml:space="preserve">
+    <value>Fix Force Applied: {0}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.FixApplied.Title" xml:space="preserve">
+    <value>Fix Applied: {0}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.ApplyFailed.UnknownError" xml:space="preserve">
+    <value>Unknown error occurred.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.FixFailed.Title" xml:space="preserve">
+    <value>Fix Failed: {0}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.AdminRightsRequired.Title" xml:space="preserve">
+    <value>Administrator Rights Required</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.AdminRightsRequired.Message" xml:space="preserve">
+    <value>Administrator privileges required for 'Apply Recommended'. Please restart GenHub as Administrator.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.BatchSuccess.Title" xml:space="preserve">
+    <value>All Fixes Applied Successfully</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.BatchSuccess.Message" xml:space="preserve">
+    <value>OK: Successfully applied all {0} fix(es) to {1} ({2}).
+
+Your game installation has been optimized!</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.BatchPartialSummary.Message" xml:space="preserve">
+    <value>Target: {0} ({1})
+OK: Successfully applied: {2}
+Error: Failed: {3}
+Warning: Not attempted: {4}
+
+Errors:
+{5}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.BatchErrorSummary.Message" xml:space="preserve">
+    <value>Target: {0} ({1})
+OK: Successfully applied: {2}
+Error: Failed: {3}
+
+Errors:
+{4}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.BatchCompletedWithErrors.Title" xml:space="preserve">
+    <value>Fixes Completed with Errors ({0}/{1} successful)</value>
+  </data>
   <data name="Info.Card.tools.publisher-studio-authoring.Action.NAV_Tools" xml:space="preserve">
     <value>Open Publisher Studio</value>
   </data>

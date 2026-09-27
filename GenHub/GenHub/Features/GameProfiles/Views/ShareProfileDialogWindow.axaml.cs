@@ -1,7 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
-using GenHub.Common.Helpers;
+using GenHub.Common.Controls;
 using GenHub.Features.GameProfiles.ViewModels;
 using System;
 
@@ -10,7 +10,7 @@ namespace GenHub.Features.GameProfiles.Views;
 /// <summary>
 /// Window for sharing game profiles via genhub:// URI, Discord invite, or .ghprofile export.
 /// </summary>
-public partial class ShareProfileDialogWindow : Window
+public partial class ShareProfileDialogWindow : GenHubWindow
 {
     private ShareProfileDialogViewModel? attachedViewModel;
 
@@ -20,7 +20,6 @@ public partial class ShareProfileDialogWindow : Window
     public ShareProfileDialogWindow()
     {
         InitializeComponent();
-        WindowChromeHelper.ApplyPlatformDecorations(this);
         DataContextChanged += OnDataContextChanged;
         Closed += (s, e) => (DataContext as IDisposable)?.Dispose();
     }

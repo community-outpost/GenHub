@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -37,7 +38,8 @@ public sealed class ProfileContentService(
     IGameInstallationService installationService,
     IContentOrchestrator contentOrchestrator,
     INotificationService notificationService,
-    ILogger<ProfileContentService> logger) : IProfileContentService
+    ILogger<ProfileContentService> logger,
+    ILocalizationService? localizationService = null) : IProfileContentService
 {
     /// <summary>
     /// Content types that are exclusive (only one can be enabled at a time per profile).
@@ -316,8 +318,8 @@ public sealed class ProfileContentService(
                 }
 
                 notificationService.ShowSuccess(
-                    "Profile Created",
-                    $"Created profile '{profileName}' with {manifest.Name}");
+                    localizationService.GetLocalizedString("GameProfiles.Notification.ProfileCreated.Title", "Profile Created"),
+                    localizationService.GetLocalizedString("GameProfiles.Notification.ProfileCreated.Message", $"Created profile '{profileName}' with {manifest.Name}", profileName, manifest.Name));
 
                 logger.LogInformation(
                     "Successfully created profile {ProfileId} with content {ManifestId}",
@@ -382,8 +384,8 @@ public sealed class ProfileContentService(
             }
 
             notificationService.ShowSuccess(
-                "Profile Created",
-                $"Created profile '{profileName}' with {manifest.Name}");
+                localizationService.GetLocalizedString("GameProfiles.Notification.ProfileCreated.Title", "Profile Created"),
+                localizationService.GetLocalizedString("GameProfiles.Notification.ProfileCreated.Message", $"Created profile '{profileName}' with {manifest.Name}", profileName, manifest.Name));
 
             logger.LogInformation(
                 "Successfully created profile {ProfileId} with content {ManifestId}",
@@ -863,8 +865,8 @@ public sealed class ProfileContentService(
         if (!string.IsNullOrEmpty(swapResult.SwappedContentId))
         {
             notificationService.ShowInfo(
-                "Content Replaced",
-                $"Replaced '{swapResult.SwappedContentName ?? swapResult.SwappedContentId}' with '{contentName}'");
+                localizationService.GetLocalizedString("GameProfiles.Notification.ContentReplaced.Title", "Content Replaced"),
+                localizationService.GetLocalizedString("GameProfiles.Notification.ContentReplaced.Message", $"Replaced '{swapResult.SwappedContentName ?? swapResult.SwappedContentId}' with '{contentName}'", swapResult.SwappedContentName ?? swapResult.SwappedContentId, contentName));
 
             logger.LogInformation(
                 "Content swap complete: {OldContent} → {NewContent} in profile {ProfileId}",
@@ -942,8 +944,8 @@ public sealed class ProfileContentService(
                 var dependencyNames = await GetDependencyNamesAsync(newlyAdded, cancellationToken);
                 logger.LogInformation("Resolved {Count} dependencies for {ManifestId}", newlyAdded.Count, primaryManifestId);
                 notificationService.ShowInfo(
-                    "Dependencies Added",
-                    $"Added required dependencies for '{contentName}': {string.Join(", ", dependencyNames)}");
+                    localizationService.GetLocalizedString("GameProfiles.Notification.DependenciesAdded.Title", "Dependencies Added"),
+                    localizationService.GetLocalizedString("GameProfiles.Notification.DependenciesAdded.Message", $"Added required dependencies for '{contentName}': {string.Join(", ", dependencyNames)}", contentName, string.Join(", ", dependencyNames)));
             }
             catch (OperationCanceledException)
             {

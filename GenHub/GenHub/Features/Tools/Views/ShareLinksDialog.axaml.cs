@@ -1,7 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
-using GenHub.Common.Helpers;
+using GenHub.Common.Controls;
 using GenHub.Features.Tools.ViewModels;
 using System;
 
@@ -10,7 +10,7 @@ namespace GenHub.Features.Tools.Views;
 /// <summary>
 /// Dialog for sharing an upload via plain download link or GenHub protocol link.
 /// </summary>
-public partial class ShareLinksDialog : Window
+public partial class ShareLinksDialog : GenHubWindow
 {
     private ShareLinksViewModel? attachedViewModel;
 
@@ -32,7 +32,6 @@ public partial class ShareLinksDialog : Window
     public ShareLinksDialog()
     {
         InitializeComponent();
-        WindowChromeHelper.ApplyPlatformDecorations(this);
         DataContextChanged += OnDataContextChanged;
     }
 

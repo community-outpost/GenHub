@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Common.ViewModels.Dialogs;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Messages;
@@ -447,17 +448,26 @@ public partial class MainViewModel(
             if (topLevel?.Clipboard is { } clipboard)
             {
                 await clipboard.SetTextAsync(AppConstants.FullDisplayVersion);
-                notificationService.ShowSuccess("Copied", "Version copied to clipboard.", 3000);
+                notificationService.ShowSuccess(
+                    localizationService.GetLocalizedString("Common.Notification.Copied.Title", "Copied"),
+                    localizationService.GetLocalizedString("App.Notification.VersionCopied.Message", "Version copied to clipboard."),
+                    NotificationDurations.Short);
             }
             else
             {
-                notificationService.ShowError("Error", "Clipboard not available.", 3000);
+                notificationService.ShowError(
+                    localizationService.GetLocalizedString("Common.Notification.Error", "Error"),
+                    localizationService.GetLocalizedString("Common.Notification.ClipboardUnavailable.Message", "Clipboard not available."),
+                    NotificationDurations.Short);
             }
         }
         catch (Exception ex)
         {
             logger?.LogError(ex, "Failed to copy version to clipboard");
-            notificationService.ShowError("Error", "Failed to copy version to clipboard.", 3000);
+            notificationService.ShowError(
+                localizationService.GetLocalizedString("Common.Notification.Error", "Error"),
+                localizationService.GetLocalizedString("App.Notification.CopyVersionFailed.Message", "Failed to copy version to clipboard."),
+                NotificationDurations.Short);
         }
     }
 }

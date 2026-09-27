@@ -16,7 +16,6 @@
         <converters:StringToImageConverter x:Key="StringToImageConverter" />
         <converters:ColorToBrushConverter x:Key="ColorToBrushConverter" />
         <converters:IntToBoolConverter x:Key="IntToBoolConverter" />
-        <converters:ContentStateToTextConverter x:Key="ContentStateToTextConverter" />
         <converters:ContentStateToPathDataConverter x:Key="ContentStateToPathDataConverter" />
         <converters:ContentStateToBrushConverter x:Key="ContentStateToBrushConverter" />
         <converters:ContentTypeToBrushConverter x:Key="ContentTypeToBrushConverter" />
@@ -256,10 +255,10 @@
                                         Width="48" Height="48" CornerRadius="10" Background="{DynamicResource SurfaceElevatedBrush}" Padding="4">
                                     <Image Source="{Binding PublisherLogoBitmap}" Stretch="Uniform" />
                                 </Border>
-                                <TextBlock Text="📦"
-                                           FontSize="28"
-                                           HorizontalAlignment="Center"
-                                           IsVisible="{Binding PublisherLogoBitmap, Converter={x:Static ObjectConverters.IsNull}}" />
+                                <PathIcon Data="{StaticResource ToolIcon.PackageVariantClosed}"
+                                          Width="28" Height="28"
+                                          HorizontalAlignment="Center"
+                                          IsVisible="{Binding PublisherLogoBitmap, Converter={x:Static ObjectConverters.IsNull}}" />
                             </StackPanel>
 
                             <!-- Content metadata badges -->
