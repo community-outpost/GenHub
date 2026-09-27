@@ -1,15 +1,14 @@
-using GenHub.Core.Interfaces.GameInstallations;
-using GenHub.Core.Interfaces.Tools.WndEditor;
-using GenHub.Features.Tools.WndEditor.ViewModels;
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Telemetry;
+using GenHub.Core.Interfaces.Tools.WndEditor;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Dialogs;
@@ -19,7 +18,10 @@ using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Core.Models.Results.Validation;
+using GenHub.Core.Models.Tools.WndEditor;
 using GenHub.Features.Content.Services.CommunityOutpost;
+using GenHub.Features.Tools.WndEditor.ViewModels;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -443,7 +445,7 @@ public class TelemetryInstrumentationTests
         var docServiceMock = new Mock<IWndDocumentService>();
         docServiceMock
             .Setup(x => x.ValidateDocument(It.IsAny<WndDocument>(), It.IsAny<string>()))
-            .Returns(new WndValidationResult([], []));
+            .Returns(new ValidationResult("test", []));
 
         var vm = new WndEditorViewModel(
             docServiceMock.Object,

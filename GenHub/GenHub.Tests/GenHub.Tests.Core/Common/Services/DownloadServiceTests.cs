@@ -1666,8 +1666,8 @@ public class DownloadServiceTests
         string? trackedEvent = null;
         IReadOnlyDictionary<string, object?>? trackedProps = null;
 
-        telemetryMock.Setup(t => t.TrackEvent(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, object?>?>(), null))
-            .Callback<string, IReadOnlyDictionary<string, object?>?, DateTimeOffset?>((ev, props, _) =>
+        telemetryMock.Setup(t => t.TrackEvent(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, object?>?>(), It.IsAny<TelemetryLevel>()))
+            .Callback<string, IReadOnlyDictionary<string, object?>?, TelemetryLevel>((ev, props, _) =>
             {
                 trackedEvent = ev;
                 trackedProps = props;
@@ -1734,8 +1734,8 @@ public class DownloadServiceTests
         var telemetryMock = new Mock<ITelemetryService>();
         IReadOnlyDictionary<string, object?>? trackedProps = null;
 
-        telemetryMock.Setup(t => t.TrackEvent(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, object?>?>(), null))
-            .Callback<string, IReadOnlyDictionary<string, object?>?, DateTimeOffset?>((_, props, _) => trackedProps = props);
+        telemetryMock.Setup(t => t.TrackEvent(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, object?>?>(), It.IsAny<TelemetryLevel>()))
+            .Callback<string, IReadOnlyDictionary<string, object?>?, TelemetryLevel>((_, props, _) => trackedProps = props);
 
         var httpClient = new HttpClient(handler.Object);
         var service = new DownloadService(loggerMock.Object, httpClient, new Sha256HashProvider(), null, telemetryMock.Object);
