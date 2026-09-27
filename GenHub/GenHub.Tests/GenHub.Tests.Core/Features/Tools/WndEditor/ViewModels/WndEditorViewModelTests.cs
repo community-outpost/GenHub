@@ -1340,8 +1340,8 @@ public sealed class WndEditorViewModelTests : IDisposable
         _viewModel.CanvasItems[0].CanvasVisible.Should().BeTrue();
         _mockNotificationService.Verify(
             n => n.ShowInfo(
-                "Tools.WndEditor.Hidden.HiddenTitle",
-                "Tools.WndEditor.Hidden.HiddenMessage",
+                "Window hidden",
+                "Select it in the Windows tree or enable Show hidden to edit it again.",
                 NotificationDurations.Medium,
                 It.IsAny<bool>()),
             Times.Once);

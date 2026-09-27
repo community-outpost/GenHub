@@ -3065,8 +3065,8 @@ public sealed partial class WndEditorViewModel(
         }
 
         Notifications.ShowInfo(
-            Localization.GetString("Tools.WndEditor.Hidden.HiddenTitle"),
-            Localization.GetString("Tools.WndEditor.Hidden.HiddenMessage"),
+            Localize("Tools.WndEditor.Hidden.HiddenTitle", "Window hidden"),
+            Localize("Tools.WndEditor.Hidden.HiddenMessage", "Select it in the Windows tree or enable Show hidden to edit it again."),
             NotificationDurations.Medium);
     }
 
