@@ -115,12 +115,17 @@
             <DataGridTemplateColumn Header="" Width="48" CanUserSort="False">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate x:DataType="models:MapFile">
-                  <Image Source="{Binding ThumbnailBitmap}"
-                         Width="32" Height="32"
-                         Stretch="Uniform"
-                         Margin="4"
-                         VerticalAlignment="Center"
-                         HorizontalAlignment="Center"/>
+                  <Grid Width="32" Height="32" Margin="4" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <Image Source="{Binding ThumbnailBitmap}"
+                           Width="32" Height="32"
+                           Stretch="Uniform"
+                           IsVisible="{Binding ThumbnailBitmap, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                    <PathIcon Data="{StaticResource ToolIcon.MapOutline}"
+                              Width="20" Height="20"
+                              Foreground="{DynamicResource TextMuted}"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                              IsVisible="{Binding ThumbnailBitmap, Converter={x:Static ObjectConverters.IsNull}}"/>
+                  </Grid>
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
             </DataGridTemplateColumn>
@@ -140,7 +145,7 @@
                 <Binding Path="SizeBytes" Converter="{StaticResource FileSizeConverter}" Mode="OneWay" />
               </DataGridTextColumn.Binding>
             </DataGridTextColumn>
-            <DataGridTextColumn Header="{localization:Localize Maps.Column.Type}" Width="Auto" MinWidth="130" SortMemberPath="MapTypeSortKey">
+            <DataGridTextColumn Header="{localization:Localize Maps.Column.Type}" Width="Auto" MinWidth="150" SortMemberPath="MapTypeSortKey">
               <DataGridTextColumn.Binding>
                 <Binding Path="." Converter="{StaticResource MapTypeDisplayConverter}" Mode="OneWay" />
               </DataGridTextColumn.Binding>
@@ -471,8 +476,6 @@
   </Grid>
 
   <UserControl.Styles>
-    <StyleInclude Source="avares://GenHub/Features/Tools/Views/ToolActionBarStyles.axaml" />
-
     <Style Selector="RadioButton.TabButton">
       <Setter Property="Template">
         <ControlTemplate>
@@ -510,6 +513,9 @@
     <Style Selector="Button.Primary:pointerover, ToggleButton.Primary:pointerover">
       <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
     </Style>
+
+    <!-- Shared action bar styles come after local Primary styles so SplitLeft/SplitRight corner radii win, matching ReplayManagerView -->
+    <StyleInclude Source="avares://GenHub/Features/Tools/Views/ToolActionBarStyles.axaml" />
 
     <Style Selector="Button.Secondary">
       <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
