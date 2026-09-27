@@ -5,6 +5,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
@@ -33,13 +34,15 @@ namespace GenHub.Features.Content.Services.Tools;
 /// <param name="httpClientFactory">Factory for the HTTP client used by on-demand driver downloads.</param>
 /// <param name="notificationService">Optional notifications shown before a headed browser window opens.</param>
 /// <param name="localizationService">Optional localization service for notifications.</param>
+/// <param name="telemetryService">Optional telemetry service for download events.</param>
 public sealed class PlaywrightService(
     ILogger<PlaywrightService> logger,
     IConfigurationProviderService configurationProvider,
     IDialogService dialogService,
     IHttpClientFactory httpClientFactory,
     INotificationService? notificationService = null,
-    ILocalizationService? localizationService = null) : IPlaywrightService, IDisposable, IAsyncDisposable
+    ILocalizationService? localizationService = null,
+    ITelemetryService? telemetryService = null) : IPlaywrightService, IDisposable, IAsyncDisposable
 {
     private static readonly HashSet<string> UnsafeExtraHeaders = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -407,10 +410,10 @@ public sealed class PlaywrightService(
     /// <inheritdoc />
     public async Task<DownloadResult> DownloadFileAsync(GenHub.Core.Models.Common.DownloadConfiguration configuration, CancellationToken cancellationToken = default)
     {
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         try
         {
             logger.LogInformation("Starting Playwright download from {Url}", configuration.Url);
-            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
             var isModDbOrDbolical = IsModDbOrDbolicalHost(configuration.Url);
             var usePersistentModDbOrDbolicalProfile = isModDbOrDbolical && configuration.Url.Scheme == Uri.UriSchemeHttps;
@@ -431,7 +434,21 @@ public sealed class PlaywrightService(
 
             try
             {
-                return await DownloadFileCoreAsync(configuration, usePersistentModDbOrDbolicalProfile, stopwatch, cancellationToken);
+                var result = await DownloadFileCoreAsync(configuration, usePersistentModDbOrDbolicalProfile, stopwatch, cancellationToken);
+                if (result.Success)
+                {
+                    DownloadTelemetryHelper.TrackDownloadCompleted(telemetryService, configuration, result.BytesDownloaded, stopwatch.Elapsed);
+                }
+                else
+                {
+                    DownloadTelemetryHelper.TrackDownloadFailure(
+                        telemetryService,
+                        configuration,
+                        result.FirstError ?? "Playwright download failed.",
+                        stopwatch.Elapsed);
+                }
+
+                return result;
             }
             finally
             {
@@ -450,6 +467,7 @@ public sealed class PlaywrightService(
             var message = ex.Message.Contains("Executable doesn't exist", StringComparison.OrdinalIgnoreCase)
                 ? "The bundled Chromium runtime is unavailable. Install the application browser runtime and retry the ModDB download."
                 : ex.Message;
+            DownloadTelemetryHelper.TrackDownloadFailure(telemetryService, configuration, message, stopwatch.Elapsed);
             return DownloadResult.CreateFailure(message, bytesDownloaded: 0, elapsed: TimeSpan.Zero);
         }
     }

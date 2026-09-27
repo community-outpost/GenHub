@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Tools;
@@ -108,7 +109,7 @@ public class HttpContentDeliverer(
                 });
 
                 // Download the file
-                var downloadResult = await DownloadFileAsync(file, localPath, cancellationToken);
+                var downloadResult = await DownloadFileAsync(packageManifest, file, localPath, cancellationToken);
 
                 if (!downloadResult.Success)
                 {
@@ -180,6 +181,7 @@ public class HttpContentDeliverer(
     }
 
     private async Task<DownloadResult> DownloadFileAsync(
+        ContentManifest manifest,
         ManifestFile file,
         string localPath,
         CancellationToken cancellationToken)
@@ -195,21 +197,37 @@ public class HttpContentDeliverer(
             if (playwrightService != null)
             {
                 logger.LogInformation("Routing ModDB download through Playwright for {Url}", file.DownloadUrl);
-                var downloadConfig = new DownloadConfiguration
+                var playwrightConfig = new DownloadConfiguration
                 {
                     Url = fileUri,
                     DestinationPath = localPath,
                     OverwriteExisting = true,
                     ExpectedHash = file.Hash,
                 };
-                return await playwrightService.DownloadFileAsync(downloadConfig, cancellationToken);
+                DownloadTelemetryHelper.ApplyManifestAttribution(playwrightConfig, manifest);
+                return await playwrightService.DownloadFileAsync(playwrightConfig, cancellationToken);
             }
 
-            return await downloadService.DownloadFileAsync(
-                fileUri, localPath, file.Hash, null, cancellationToken);
+            return await DownloadAttributedFileAsync(manifest, fileUri, localPath, file.Hash, cancellationToken);
         }
 
-        return await downloadService.DownloadFileAsync(
-            new Uri(file.DownloadUrl!), localPath, file.Hash, null, cancellationToken);
+        return await DownloadAttributedFileAsync(manifest, new Uri(file.DownloadUrl!), localPath, file.Hash, cancellationToken);
+    }
+
+    private async Task<DownloadResult> DownloadAttributedFileAsync(
+        ContentManifest manifest,
+        Uri fileUri,
+        string localPath,
+        string? expectedHash,
+        CancellationToken cancellationToken)
+    {
+        var downloadConfig = new DownloadConfiguration
+        {
+            Url = fileUri,
+            DestinationPath = localPath,
+            ExpectedHash = expectedHash,
+        };
+        DownloadTelemetryHelper.ApplyManifestAttribution(downloadConfig, manifest);
+        return await downloadService.DownloadFileAsync(downloadConfig, null, cancellationToken);
     }
 }

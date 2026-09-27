@@ -454,7 +454,7 @@ public sealed partial class WndEditorViewModel(
         RefreshAssetPreviews();
         telemetryService?.TrackEvent(TelemetryConstants.Events.WndDocumentOpened, new Dictionary<string, object?>
         {
-            [TelemetryConstants.Properties.FilePath] = Path.GetFileName(filePath),
+            [TelemetryConstants.Properties.FilePath] = TelemetryConstants.WndEditor.AnonymousDocumentName,
             [TelemetryConstants.Properties.WindowCount] = result.Data.Windows.Count,
         });
         logger.LogInformation("Opened window definition file {Path}", filePath);
@@ -2688,7 +2688,7 @@ public sealed partial class WndEditorViewModel(
                 IsModified = false;
                 telemetryService?.TrackEvent(TelemetryConstants.Events.WndDocumentSaved, new Dictionary<string, object?>
                 {
-                    [TelemetryConstants.Properties.FilePath] = Path.GetFileName(filePath),
+                    [TelemetryConstants.Properties.FilePath] = TelemetryConstants.WndEditor.AnonymousDocumentName,
                     [TelemetryConstants.Properties.WindowCount] = _document.Windows.Count,
                     [TelemetryConstants.Properties.HasLinkedAssets] = HasLinkedAssets,
                 });

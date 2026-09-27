@@ -7,6 +7,7 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Telemetry;
 using GenHub.Core.Utilities;
 using GenHub.Features.Telemetry.Services;
+using GenHub.Tests.Core.Collections;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
@@ -22,6 +23,7 @@ namespace GenHub.Tests.Core.Telemetry;
 /// <summary>
 /// Unit tests for <see cref="TelemetryService"/>.
 /// </summary>
+[Collection(TelemetryEnvironmentCollection.Name)]
 public class TelemetryServiceTests : IDisposable
 {
     private static readonly object EnvironmentLock = new();
@@ -202,6 +204,8 @@ public class TelemetryServiceTests : IDisposable
             _sanitizer,
             _mockUserSettingsService.Object,
             [_mockSink.Object]);
+
+        service.AddBreadcrumb("Clicked Launch Button", "ui");
 
         try
         {

@@ -1779,8 +1779,14 @@ public class DownloadServiceTests
     [InlineData("https://cdn.playgenerals.online/releases/test.zip", "generalsonline")]
     [InlineData("https://legi.cc/downloads/test.zip", "communityoutpost")]
     [InlineData("https://objects.githubusercontent.com/test.zip", "github")]
-    [InlineData("https://mygithubclone.example.com/test.zip", "mygithubclone.example.com")]
-    [InlineData("https://notmoddb.net/test.zip", "notmoddb.net")]
+    [InlineData("https://drive.google.com/uc?export=download&id=abc", "googledrive")]
+    [InlineData("https://drive.usercontent.google.com/download?id=abc", "googledrive")]
+    [InlineData("https://onedrive.live.com/download?cid=abc", "onedrive")]
+    [InlineData("https://1drv.ms/u/abc", "onedrive")]
+    [InlineData("https://gentool.net/files/test.zip", "gentool")]
+    [InlineData("https://mygithubclone.example.com/test.zip", "unknown")]
+    [InlineData("https://notmoddb.net/test.zip", "unknown")]
+    [InlineData("https://192.168.1.10/files/test.zip", "unknown")]
     public async Task DownloadFileAsync_InfersPublisherFromExactHostOrSubdomainAsync(string url, string expectedPublisherId)
     {
         var content = new byte[] { 1, 2, 3 };

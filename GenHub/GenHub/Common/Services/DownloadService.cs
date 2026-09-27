@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Common;
@@ -510,82 +511,6 @@ public class DownloadService(
         }
     }
 
-    private static string ResolvePublisherId(DownloadConfiguration configuration)
-    {
-        if (!string.IsNullOrWhiteSpace(configuration.PublisherId))
-        {
-            return configuration.PublisherId;
-        }
-
-        var host = configuration.Url?.Host;
-        if (!string.IsNullOrWhiteSpace(host))
-        {
-            if (HostMatches(host, TelemetryConstants.DownloadAttribution.GitHubHost) ||
-                HostMatches(host, TelemetryConstants.DownloadAttribution.GitHubUserContentHost))
-            {
-                return TelemetryConstants.DownloadAttribution.GitHub;
-            }
-
-            if (ModDBConstants.IsModDbOrDbolicalHost(host))
-            {
-                return TelemetryConstants.DownloadAttribution.ModDb;
-            }
-
-            if (HostMatches(host, TelemetryConstants.DownloadAttribution.CommunityOutpostHost))
-            {
-                return TelemetryConstants.DownloadAttribution.CommunityOutpost;
-            }
-
-            if (HostMatches(host, TelemetryConstants.DownloadAttribution.GeneralsOnlineHost))
-            {
-                return TelemetryConstants.DownloadAttribution.GeneralsOnline;
-            }
-
-            return host.ToLowerInvariant();
-        }
-
-        return TelemetryConstants.DownloadAttribution.Unknown;
-    }
-
-    private static bool HostMatches(string host, string knownHost) =>
-        host.Equals(knownHost, StringComparison.OrdinalIgnoreCase) ||
-        host.EndsWith("." + knownHost, StringComparison.OrdinalIgnoreCase);
-
-    private static string ResolveContentName(DownloadConfiguration configuration)
-    {
-        if (!string.IsNullOrWhiteSpace(configuration.ContentName))
-        {
-            return configuration.ContentName;
-        }
-
-        if (!string.IsNullOrWhiteSpace(configuration.DestinationPath))
-        {
-            return Path.GetFileName(configuration.DestinationPath);
-        }
-
-        return "unknown";
-    }
-
-    private static string ResolveContentId(DownloadConfiguration configuration)
-    {
-        if (!string.IsNullOrWhiteSpace(configuration.ContentId))
-        {
-            return configuration.ContentId;
-        }
-
-        return ResolveContentName(configuration);
-    }
-
-    private static string ResolveAuthor(DownloadConfiguration configuration)
-    {
-        if (!string.IsNullOrWhiteSpace(configuration.Author))
-        {
-            return configuration.Author;
-        }
-
-        return TelemetryConstants.DownloadAttribution.Unknown;
-    }
-
     private async Task<HttpResponseMessage> SendChunkRequestAsync(
         ParallelDownloadContext context,
         long start,
@@ -729,6 +654,7 @@ public class DownloadService(
         CancellationToken cancellationToken)
     {
         var maxAttempts = Math.Max(1, configuration.MaxRetryAttempts);
+        var stopwatch = Stopwatch.StartNew();
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
             try
@@ -742,7 +668,7 @@ public class DownloadService(
             catch (InvalidDataException ex)
             {
                 logger.LogError(ex, "Download for {Url} failed with non-retryable invalid data error: {Message}", configuration.Url, ex.Message);
-                TrackDownloadFailure(configuration, ex.Message);
+                TrackDownloadFailure(configuration, ex.Message, stopwatch.Elapsed);
                 return DownloadResult.CreateFailure(ex.Message, 0, TimeSpan.Zero);
             }
             catch (Exception ex)
@@ -751,7 +677,7 @@ public class DownloadService(
                 {
                     logger.LogError(ex, "Download failed after {Attempts} attempts for {Url}", maxAttempts, configuration.Url);
                     var errorMessage = $"Download failed after {maxAttempts} attempts: {ex.Message}";
-                    TrackDownloadFailure(configuration, errorMessage);
+                    TrackDownloadFailure(configuration, errorMessage, stopwatch.Elapsed);
                     return DownloadResult.CreateFailure(errorMessage, 0, TimeSpan.Zero);
                 }
 
@@ -761,7 +687,7 @@ public class DownloadService(
         }
 
         var finalError = $"Download failed after {maxAttempts} attempts (unexpected error)";
-        TrackDownloadFailure(configuration, finalError);
+        TrackDownloadFailure(configuration, finalError, stopwatch.Elapsed);
         return DownloadResult.CreateFailure(finalError, 0, TimeSpan.Zero);
     }
 
@@ -1131,59 +1057,9 @@ public class DownloadService(
         return action;
     }
 
-    private void TrackDownloadCompleted(DownloadConfiguration configuration, long downloadedBytes, TimeSpan elapsed)
-    {
-        var totalElapsedSeconds = elapsed.TotalSeconds;
-        var sizeMb = downloadedBytes / (1024.0 * 1024.0);
-        var speedMbps = totalElapsedSeconds > 0 ? (sizeMb * 8.0) / totalElapsedSeconds : 0.0;
-        var publisherId = ResolvePublisherId(configuration);
-        var contentName = ResolveContentName(configuration);
-        var contentId = ResolveContentId(configuration);
+    private void TrackDownloadCompleted(DownloadConfiguration configuration, long downloadedBytes, TimeSpan elapsed) =>
+        DownloadTelemetryHelper.TrackDownloadCompleted(telemetryService, configuration, downloadedBytes, elapsed);
 
-        var downloadProperties = new Dictionary<string, object?>
-        {
-            [TelemetryConstants.Properties.SizeMb] = Math.Round(sizeMb, 2),
-            [TelemetryConstants.Properties.DurationSeconds] = Math.Round(totalElapsedSeconds, 2),
-            [TelemetryConstants.Properties.SpeedMbps] = Math.Round(speedMbps, 2),
-            [TelemetryConstants.Properties.ContentType] = configuration.ContentType ?? TelemetryConstants.DownloadAttribution.DefaultContentType,
-            [TelemetryConstants.Properties.PublisherId] = publisherId,
-            ["publisher"] = publisherId,
-            [TelemetryConstants.Properties.ContentId] = contentId,
-            [TelemetryConstants.Properties.ContentName] = contentName,
-            ["content"] = contentName,
-            ["package"] = contentName,
-            [TelemetryConstants.Properties.Author] = ResolveAuthor(configuration),
-            [TelemetryConstants.Properties.FileName] = Path.GetFileName(configuration.DestinationPath),
-        };
-
-        telemetryService?.TrackEvent(TelemetryConstants.Events.ContentDownloadCompleted, downloadProperties);
-    }
-
-    private void TrackDownloadFailure(DownloadConfiguration configuration, string errorMessage, TimeSpan? elapsed = null)
-    {
-        var publisherId = ResolvePublisherId(configuration);
-        var contentName = ResolveContentName(configuration);
-        var contentId = ResolveContentId(configuration);
-
-        var properties = new Dictionary<string, object?>
-        {
-            [TelemetryConstants.Properties.ContentType] = configuration.ContentType ?? TelemetryConstants.DownloadAttribution.DefaultContentType,
-            [TelemetryConstants.Properties.PublisherId] = publisherId,
-            ["publisher"] = publisherId,
-            [TelemetryConstants.Properties.ContentId] = contentId,
-            [TelemetryConstants.Properties.ContentName] = contentName,
-            ["content"] = contentName,
-            ["package"] = contentName,
-            [TelemetryConstants.Properties.Author] = ResolveAuthor(configuration),
-            [TelemetryConstants.Properties.FileName] = Path.GetFileName(configuration.DestinationPath),
-            [TelemetryConstants.Properties.ErrorMessage] = errorMessage,
-        };
-
-        if (elapsed.HasValue)
-        {
-            properties[TelemetryConstants.Properties.DurationSeconds] = Math.Round(elapsed.Value.TotalSeconds, 2);
-        }
-
-        telemetryService?.TrackEvent(TelemetryConstants.Events.ContentDownloadFailed, properties);
-    }
+    private void TrackDownloadFailure(DownloadConfiguration configuration, string errorMessage, TimeSpan? elapsed = null) =>
+        DownloadTelemetryHelper.TrackDownloadFailure(telemetryService, configuration, errorMessage, elapsed);
 }

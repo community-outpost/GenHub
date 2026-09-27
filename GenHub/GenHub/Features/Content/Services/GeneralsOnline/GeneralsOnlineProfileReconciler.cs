@@ -112,8 +112,10 @@ public partial class GeneralsOnlineProfileReconciler(
                     {
                         [TelemetryConstants.Properties.PublisherId] = GeneralsOnlineConstants.PublisherType,
                         [TelemetryConstants.Properties.ContentName] = GeneralsOnlineConstants.ClientName,
-                        [TelemetryConstants.Properties.FromVersion] = updateResult.CurrentVersion,
-                        [TelemetryConstants.Properties.ToVersion] = updateResult.LatestVersion,
+                        [TelemetryConstants.Properties.ContentId] = oldManifests.FirstOrDefault()?.Id.Value ?? string.Empty,
+                        [TelemetryConstants.Properties.Author] = GeneralsOnlineConstants.PublisherName,
+                        [TelemetryConstants.Properties.FromVersion] = updateResult.CurrentVersion ?? string.Empty,
+                        [TelemetryConstants.Properties.ToVersion] = updateResult.LatestVersion ?? string.Empty,
                         [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
                         [TelemetryConstants.Properties.ErrorMessage] = acquireResult.FirstError,
                     });
@@ -142,8 +144,10 @@ public partial class GeneralsOnlineProfileReconciler(
                     {
                         [TelemetryConstants.Properties.PublisherId] = GeneralsOnlineConstants.PublisherType,
                         [TelemetryConstants.Properties.ContentName] = GeneralsOnlineConstants.ClientName,
-                        [TelemetryConstants.Properties.FromVersion] = updateResult.CurrentVersion,
-                        [TelemetryConstants.Properties.ToVersion] = updateResult.LatestVersion,
+                        [TelemetryConstants.Properties.ContentId] = newManifests.FirstOrDefault()?.Id.Value ?? string.Empty,
+                        [TelemetryConstants.Properties.Author] = GeneralsOnlineConstants.PublisherName,
+                        [TelemetryConstants.Properties.FromVersion] = updateResult.CurrentVersion ?? string.Empty,
+                        [TelemetryConstants.Properties.ToVersion] = updateResult.LatestVersion ?? string.Empty,
                         [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
                         [TelemetryConstants.Properties.ErrorMessage] = updateResultData.FirstError,
                     });
@@ -167,8 +171,10 @@ public partial class GeneralsOnlineProfileReconciler(
                 {
                     [TelemetryConstants.Properties.PublisherId] = GeneralsOnlineConstants.PublisherType,
                     [TelemetryConstants.Properties.ContentName] = GeneralsOnlineConstants.ClientName,
-                    [TelemetryConstants.Properties.FromVersion] = updateResult.CurrentVersion,
-                    [TelemetryConstants.Properties.ToVersion] = updateResult.LatestVersion,
+                    [TelemetryConstants.Properties.ContentId] = newManifests.FirstOrDefault()?.Id.Value ?? string.Empty,
+                    [TelemetryConstants.Properties.Author] = GeneralsOnlineConstants.PublisherName,
+                    [TelemetryConstants.Properties.FromVersion] = updateResult.CurrentVersion ?? string.Empty,
+                    [TelemetryConstants.Properties.ToVersion] = updateResult.LatestVersion ?? string.Empty,
                     [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
                     [TelemetryConstants.Properties.ProfilesUpdated] = profilesUpdated,
                     [TelemetryConstants.Properties.Success] = !anyFailure,

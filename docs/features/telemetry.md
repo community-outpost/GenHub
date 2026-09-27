@@ -39,18 +39,18 @@ Telemetry strictly honors user choice and local regulations:
 | `app_update_checked` | `Events.AppUpdateChecked` | Velopack checks for application updates | `from_version`, `full_display_version`, `build_channel`, `channel`, `platform` |
 | `app_update_downloaded` | `Events.AppUpdateDownloaded` | Velopack finishes downloading an update package | `from_version`, `to_version` |
 | `app_update_applied` | `Events.AppUpdateApplied` | Application update is applied and app restarts | `from_version`, `to_version` |
-| `content_download_completed` | `Events.ContentDownloadCompleted` | Content download finishes | `content_type` ("Package"), `size_mb`, `speed_mbps`, `duration_seconds` |
-| `content_download_failed` | `Events.ContentDownloadFailed` | Content download fails | `content_type` ("Package"), `error_message`, `duration_seconds` |
-| `content_update_applied` | `Events.ContentUpdateApplied` | Publisher content update (GeneralsOnline, SuperHackers, CommunityOutpost) successfully applied | `publisher_id`, `content_name`, `from_version`, `to_version`, `strategy`, `profiles_updated`, `success` |
-| `content_update_failed` | `Events.ContentUpdateFailed` | Publisher content update fails | `publisher_id`, `content_name`, `from_version`, `to_version`, `strategy`, `error_message` |
+| `content_download_completed` | `Events.ContentDownloadCompleted` | Content download finishes | `publisher_id`, `content_name`, `content_id`, `author`, `file_name`, `content_type`, `size_mb`, `speed_mbps`, `duration_seconds` |
+| `content_download_failed` | `Events.ContentDownloadFailed` | Content download fails | `publisher_id`, `content_name`, `content_id`, `author`, `file_name`, `content_type`, `error_message`, `duration_seconds` |
+| `content_update_applied` | `Events.ContentUpdateApplied` | Publisher content update (GeneralsOnline, SuperHackers, CommunityOutpost) successfully applied | `publisher_id`, `content_name`, `content_id`, `author`, `from_version`, `to_version`, `strategy`, `profiles_updated`, `success` |
+| `content_update_failed` | `Events.ContentUpdateFailed` | Publisher content update fails | `publisher_id`, `content_name`, `content_id`, `author`, `from_version`, `to_version`, `strategy`, `error_message` |
 | `uploadthing_upload_completed` | `Events.UploadThingUploadCompleted` | User upload to UploadThing gateway succeeds | `file_name`, `size_mb`, `file_size_bytes`, `duration_seconds` |
 | `uploadthing_upload_failed` | `Events.UploadThingUploadFailed` | User upload to UploadThing gateway fails | `file_name`, `size_mb`, `duration_seconds`, `error_message` |
 | `genpatcher_fix_applied` | `Events.GenPatcherFixApplied` | A GenPatcher compatibility or registry fix is executed | `fix_id`, `fix_name`, `game_type`, `is_crucial`, `success`, `error_message` |
 | `modbuilder_project_created` | `Events.ModProjectCreated` | A new ModBuilder project is initialized | `project_name`, `content_type` |
 | `modbuilder_mod_built` | `Events.ModBuilt` | A ModBuilder build pipeline finishes | `project_name`, `build_steps`, `success`, `file_count`, `duration_seconds`, `error_message` |
 | `wnd_editor_opened` | `Events.WndEditorOpened` | WND Editor tool is opened | (None) |
-| `wnd_document_opened` | `Events.WndDocumentOpened` | Window definition document opened | `window_count`, `file_path` |
-| `wnd_document_saved` | `Events.WndDocumentSaved` | Window definition document saved | `window_count`, `file_path`, `has_linked_assets` |
+| `wnd_document_opened` | `Events.WndDocumentOpened` | Window definition document opened | `window_count`, `file_path` (constant `wnd_document`; user file names are never transmitted) |
+| `wnd_document_saved` | `Events.WndDocumentSaved` | Window definition document saved | `window_count`, `file_path` (constant `wnd_document`), `has_linked_assets` |
 | `wnd_document_validated` | `Events.WndDocumentValidated` | Window definition document validated | `is_valid`, `window_count` |
 | `wnd_textures_imported` | `Events.WndTexturesImported` | Textures imported into WND Editor | `texture_count` |
 | `publisher_subscribed` | `Events.PublisherSubscribed` | User subscribes to a publisher catalog/feed | `publisher_id`, `publisher_name`, `catalog_url`, `definition_url`, `author` |

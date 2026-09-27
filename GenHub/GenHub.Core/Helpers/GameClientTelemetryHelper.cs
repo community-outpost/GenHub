@@ -8,7 +8,11 @@ namespace GenHub.Core.Helpers;
 /// </summary>
 public static class GameClientTelemetryHelper
 {
-    private const string DefaultPublisher = "Retail";
+    /// <summary>
+    /// Fallback publisher identifier for base or retail game clients without publisher attribution.
+    /// </summary>
+    public const string DefaultPublisher = "Retail";
+
     private const string GenericPublisher = "Publisher";
 
     /// <summary>

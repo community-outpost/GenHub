@@ -2474,7 +2474,7 @@ public partial class PublishShareViewModel(
                 {
                     [TelemetryConstants.Properties.PublisherName] = project.Catalog.Publisher?.Name ?? project.ProjectName,
                     [TelemetryConstants.Properties.ContentName] = ActiveCatalog.Name,
-                    [TelemetryConstants.Properties.ContentType] = "catalog",
+                    [TelemetryConstants.Properties.ContentType] = TelemetryConstants.ContentTypes.Catalog,
                 });
             }
             else
@@ -2840,6 +2840,7 @@ public partial class PublishShareViewModel(
         }
         else
         {
+            TrackProviderDefinitionExported();
             UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.PublishedSuccessfully", "Published successfully!");
             if (!suppressNotifications)
             {
@@ -2849,6 +2850,22 @@ public partial class PublishShareViewModel(
                     autoDismissMs: 4000);
             }
         }
+    }
+
+    private void TrackProviderDefinitionExported()
+    {
+        var catalogCount = _currentHostingState?.Catalogs
+            .Where(c => !string.IsNullOrEmpty(c.Url))
+            .Select(c => c.CatalogId)
+            .Distinct()
+            .Count() ?? 0;
+        TelemetryService?.TrackEvent(TelemetryConstants.Events.PublisherStudioDefinitionExported, new Dictionary<string, object?>
+        {
+            [TelemetryConstants.Properties.PublisherName] = project.Catalog.Publisher?.Name ?? project.ProjectName,
+            [TelemetryConstants.Properties.ContentType] = TelemetryConstants.ContentTypes.Definition,
+            [TelemetryConstants.Properties.CatalogCount] = catalogCount,
+            [TelemetryConstants.Properties.DefinitionUrl] = TelemetryUrlHelper.StripSensitiveUrlParts(ProviderDefinitionUrl),
+        });
     }
 
     private void MarkActiveCatalogPublished(string catalogUrl)
@@ -3904,13 +3921,6 @@ public partial class PublishShareViewModel(
             {
                 ProviderDefinitionJson = result.Data;
                 logger.LogInformation("Generated provider definition JSON with {CatalogCount} catalogs", catalogHostingInfo.Count);
-                TelemetryService?.TrackEvent(TelemetryConstants.Events.PublisherStudioDefinitionExported, new Dictionary<string, object?>
-                {
-                    [TelemetryConstants.Properties.PublisherName] = project.Catalog.Publisher?.Name ?? project.ProjectName,
-                    [TelemetryConstants.Properties.ContentType] = "definition",
-                    [TelemetryConstants.Properties.CatalogCount] = catalogHostingInfo.Count,
-                    [TelemetryConstants.Properties.DefinitionUrl] = TelemetryUrlHelper.StripSensitiveUrlParts(ProviderDefinitionUrl),
-                });
                 return true;
             }
             else

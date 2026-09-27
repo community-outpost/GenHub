@@ -2089,7 +2089,7 @@ public class GameProcessManager(
         var gameClientId = config?.GameClientId;
         var gameClientName = config?.GameClientName;
         var gameClientVersion = config?.GameClientVersion;
-        var gameClientPublisher = config?.GameClientPublisher ?? "Retail";
+        var gameClientPublisher = config?.GameClientPublisher ?? GameClientTelemetryHelper.DefaultPublisher;
         var profileId = config?.ProfileId;
         var enabledContentIds = config?.EnabledContentIds;
         var contentCount = config?.ContentCount ?? 0;

@@ -2780,7 +2780,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 [TelemetryConstants.Properties.PublisherId] = failedPublisherId,
                 [TelemetryConstants.Properties.ContentName] = targetItem.Name,
                 [TelemetryConstants.Properties.ContentId] = oldManifestId ?? targetItem.Id,
-                [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName,
+                [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName ?? TelemetryConstants.DownloadAttribution.Unknown,
                 [TelemetryConstants.Properties.ErrorMessage] = "Download failed during update",
             });
             return false;
@@ -2854,7 +2854,7 @@ public sealed partial class DownloadsBrowserViewModel(
                         [TelemetryConstants.Properties.PublisherId] = targetPublisherId,
                         [TelemetryConstants.Properties.ContentName] = targetItem.Name,
                         [TelemetryConstants.Properties.ContentId] = newManifestId ?? targetItem.Id,
-                        [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName,
+                        [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName ?? TelemetryConstants.DownloadAttribution.Unknown,
                         [TelemetryConstants.Properties.ErrorMessage] = updateOutcome.Error ?? ContentConstants.UpdateFailedStatusMessage,
                     });
                     return false;
@@ -2865,7 +2865,7 @@ public sealed partial class DownloadsBrowserViewModel(
                     [TelemetryConstants.Properties.PublisherId] = targetPublisherId,
                     [TelemetryConstants.Properties.ContentName] = targetItem.Name,
                     [TelemetryConstants.Properties.ContentId] = newManifestId ?? targetItem.Id,
-                    [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName,
+                    [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName ?? TelemetryConstants.DownloadAttribution.Unknown,
                     [TelemetryConstants.Properties.FromVersion] = oldManifest?.Data?.Version ?? string.Empty,
                     [TelemetryConstants.Properties.ToVersion] = targetItem.SearchResult?.Version ?? string.Empty,
                     [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
@@ -2882,7 +2882,7 @@ public sealed partial class DownloadsBrowserViewModel(
                     [TelemetryConstants.Properties.PublisherId] = targetPublisherId,
                     [TelemetryConstants.Properties.ContentName] = targetItem.Name,
                     [TelemetryConstants.Properties.ContentId] = newManifestId ?? targetItem.Id,
-                    [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName,
+                    [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName ?? TelemetryConstants.DownloadAttribution.Unknown,
                     [TelemetryConstants.Properties.ErrorMessage] = ex.Message,
                 });
             }

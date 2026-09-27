@@ -522,4 +522,47 @@ public class TelemetryInstrumentationTests
                 It.IsAny<TelemetryLevel>()),
             Times.Once);
     }
+
+    /// <summary>
+    /// Verifies that opening a document reports a constant anonymous file identifier instead of the user file name.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task WndEditorViewModel_OpenFile_SendsAnonymousFilePathAsync()
+    {
+        var doc = new WndDocument();
+        var docServiceMock = new Mock<IWndDocumentService>();
+        docServiceMock
+            .Setup(x => x.ParseFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<WndDocument>.CreateSuccess(doc));
+
+        var installMock = new Mock<IGameInstallationService>();
+        installMock
+            .Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([]));
+
+        var vm = new WndEditorViewModel(
+            docServiceMock.Object,
+            Mock.Of<INotificationService>(),
+            Mock.Of<ILocalizationService>(),
+            Mock.Of<IDialogService>(),
+            installMock.Object,
+            Mock.Of<IWndEditorAssetService>(),
+            Mock.Of<IWndTextureImportService>(),
+            Mock.Of<IChallengeMedalService>(),
+            Mock.Of<ILogger<WndEditorViewModel>>(),
+            _telemetryServiceMock.Object);
+
+        var result = await vm.OpenFileAsync("/tmp/MySecretMap.wnd", CancellationToken.None);
+
+        Assert.True(result);
+        _telemetryServiceMock.Verify(
+            t => t.TrackEvent(
+                TelemetryConstants.Events.WndDocumentOpened,
+                It.Is<IReadOnlyDictionary<string, object?>?>(props =>
+                    props != null &&
+                    (string?)props[TelemetryConstants.Properties.FilePath] == TelemetryConstants.WndEditor.AnonymousDocumentName),
+                It.IsAny<TelemetryLevel>()),
+            Times.Once);
+    }
 }

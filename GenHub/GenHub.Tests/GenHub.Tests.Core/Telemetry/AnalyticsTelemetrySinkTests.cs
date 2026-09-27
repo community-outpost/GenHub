@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Telemetry;
 using GenHub.Features.Telemetry.Sinks;
+using GenHub.Tests.Core.Collections;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
@@ -18,6 +19,7 @@ namespace GenHub.Tests.Core.Telemetry;
 /// <summary>
 /// Unit tests for <see cref="AnalyticsTelemetrySink"/>.
 /// </summary>
+[Collection(TelemetryEnvironmentCollection.Name)]
 public class AnalyticsTelemetrySinkTests
 {
     private readonly Mock<ILogger<AnalyticsTelemetrySink>> _loggerMock = new();

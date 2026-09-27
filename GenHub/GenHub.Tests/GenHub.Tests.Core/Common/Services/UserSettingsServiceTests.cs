@@ -299,6 +299,43 @@ public class UserSettingsServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that legacy settings files without a telemetry preference stay disabled
+    /// instead of silently adopting the new anonymous-metrics default.
+    /// </summary>
+    [Fact]
+    public void LoadSettings_WithoutTelemetryPreference_PreservesDisabled()
+    {
+        var testDir = Path.Combine(_tempDirectory, Guid.NewGuid().ToString());
+        Directory.CreateDirectory(testDir);
+        var settingsPath = Path.Combine(testDir, FileTypes.JsonFileExtension);
+        File.WriteAllText(settingsPath, """{"windowWidth": 1600.0}""");
+
+        var appConfig = CreateAppConfigMock();
+        var service = new TestableUserSettingsService(_mockLogger.Object, appConfig, settingsPath);
+        var settings = service.Get();
+
+        Assert.Equal(TelemetryLevel.Disabled, settings.TelemetryPreference);
+    }
+
+    /// <summary>
+    /// Verifies that an explicitly stored telemetry preference survives a load round trip.
+    /// </summary>
+    [Fact]
+    public void LoadSettings_WithExplicitTelemetryPreference_PreservesValue()
+    {
+        var testDir = Path.Combine(_tempDirectory, Guid.NewGuid().ToString());
+        Directory.CreateDirectory(testDir);
+        var settingsPath = Path.Combine(testDir, FileTypes.JsonFileExtension);
+        File.WriteAllText(settingsPath, """{"telemetryPreference": "AnonymousMetrics"}""");
+
+        var appConfig = CreateAppConfigMock();
+        var service = new TestableUserSettingsService(_mockLogger.Object, appConfig, settingsPath);
+        var settings = service.Get();
+
+        Assert.Equal(TelemetryLevel.AnonymousMetrics, settings.TelemetryPreference);
+    }
+
+    /// <summary>
     /// Verifies that CachePath can be set and retrieved correctly.
     /// </summary>
     [Fact]

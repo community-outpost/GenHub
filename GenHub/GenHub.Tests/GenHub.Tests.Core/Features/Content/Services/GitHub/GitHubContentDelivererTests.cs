@@ -105,15 +105,13 @@ public class GitHubContentDelivererTests
         {
             _downloadService
                 .Setup(d => d.DownloadFileAsync(
-                    It.IsAny<Uri>(),
-                    It.IsAny<string>(),
-                    It.IsAny<string?>(),
+                    It.IsAny<DownloadConfiguration>(),
                     It.IsAny<IProgress<DownloadProgress>?>(),
                     It.IsAny<CancellationToken>()))
-                .Returns((Uri _, string destination, string? _, IProgress<DownloadProgress>? _, CancellationToken _) =>
+                .Returns((DownloadConfiguration config, IProgress<DownloadProgress>? _, CancellationToken _) =>
                 {
-                    CreateArchive(destination, "data.big");
-                    return Task.FromResult(DownloadResult.CreateSuccess(destination, 1, TimeSpan.FromSeconds(1)));
+                    CreateArchive(config.DestinationPath, "data.big");
+                    return Task.FromResult(DownloadResult.CreateSuccess(config.DestinationPath, 1, TimeSpan.FromSeconds(1)));
                 });
 
             var variantDefault = new ContentManifest
@@ -212,15 +210,13 @@ public class GitHubContentDelivererTests
             const int entryCount = 6;
             _downloadService
                 .Setup(d => d.DownloadFileAsync(
-                    It.IsAny<Uri>(),
-                    It.IsAny<string>(),
-                    It.IsAny<string?>(),
+                    It.IsAny<DownloadConfiguration>(),
                     It.IsAny<IProgress<DownloadProgress>?>(),
                     It.IsAny<CancellationToken>()))
-                .Returns((Uri _, string destination, string? _, IProgress<DownloadProgress>? _, CancellationToken _) =>
+                .Returns((DownloadConfiguration config, IProgress<DownloadProgress>? _, CancellationToken _) =>
                 {
-                    CreateArchive(destination, entryCount);
-                    return Task.FromResult(DownloadResult.CreateSuccess(destination, 1, TimeSpan.FromSeconds(1)));
+                    CreateArchive(config.DestinationPath, entryCount);
+                    return Task.FromResult(DownloadResult.CreateSuccess(config.DestinationPath, 1, TimeSpan.FromSeconds(1)));
                 });
 
             var deliverer = new GitHubContentDeliverer(
@@ -277,15 +273,13 @@ public class GitHubContentDelivererTests
         {
             _downloadService
                 .Setup(d => d.DownloadFileAsync(
-                    It.IsAny<Uri>(),
-                    It.IsAny<string>(),
-                    It.IsAny<string?>(),
+                    It.IsAny<DownloadConfiguration>(),
                     It.IsAny<IProgress<DownloadProgress>?>(),
                     It.IsAny<CancellationToken>()))
-                .Returns((Uri _, string destination, string? _, IProgress<DownloadProgress>? _, CancellationToken _) =>
+                .Returns((DownloadConfiguration config, IProgress<DownloadProgress>? _, CancellationToken _) =>
                 {
-                    CreateArchive(destination, "data.big");
-                    return Task.FromResult(DownloadResult.CreateSuccess(destination, 1, TimeSpan.FromSeconds(1)));
+                    CreateArchive(config.DestinationPath, "data.big");
+                    return Task.FromResult(DownloadResult.CreateSuccess(config.DestinationPath, 1, TimeSpan.FromSeconds(1)));
                 });
 
             var extractedManifest = new ContentManifest
@@ -370,15 +364,13 @@ public class GitHubContentDelivererTests
         {
             _downloadService
                 .Setup(d => d.DownloadFileAsync(
-                    It.IsAny<Uri>(),
-                    It.IsAny<string>(),
-                    It.IsAny<string?>(),
+                    It.IsAny<DownloadConfiguration>(),
                     It.IsAny<IProgress<DownloadProgress>?>(),
                     It.IsAny<CancellationToken>()))
-                .Returns((Uri _, string destination, string? _, IProgress<DownloadProgress>? _, CancellationToken _) =>
+                .Returns((DownloadConfiguration config, IProgress<DownloadProgress>? _, CancellationToken _) =>
                 {
-                    ArchiveFixtures.CreateWithSpoofedEntrySize(destination, "payload.dat", 12 * 1024 * 1024, 4096);
-                    return Task.FromResult(DownloadResult.CreateSuccess(destination, 1, TimeSpan.FromSeconds(1)));
+                    ArchiveFixtures.CreateWithSpoofedEntrySize(config.DestinationPath, "payload.dat", 12 * 1024 * 1024, 4096);
+                    return Task.FromResult(DownloadResult.CreateSuccess(config.DestinationPath, 1, TimeSpan.FromSeconds(1)));
                 });
 
             var deliverer = new GitHubContentDeliverer(

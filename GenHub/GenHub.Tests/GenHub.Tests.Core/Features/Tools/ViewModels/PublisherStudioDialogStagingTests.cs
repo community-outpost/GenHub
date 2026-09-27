@@ -249,5 +249,10 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
         {
             await Task.Delay(50);
         }
+
+        if (vm.IsComputingHash || string.IsNullOrEmpty(vm.Sha256Hash))
+        {
+            throw new TimeoutException($"Hash computation did not complete within {timeout.TotalSeconds} seconds.");
+        }
     }
 }

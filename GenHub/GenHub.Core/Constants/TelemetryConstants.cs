@@ -138,6 +138,15 @@ public static class TelemetryConstants
         /// <summary>Publisher identifier inferred for Generals Online-hosted downloads.</summary>
         public const string GeneralsOnline = PublisherTypeConstants.GeneralsOnline;
 
+        /// <summary>Publisher identifier inferred for Google Drive-hosted downloads.</summary>
+        public const string GoogleDrive = "googledrive";
+
+        /// <summary>Publisher identifier inferred for OneDrive-hosted downloads.</summary>
+        public const string OneDrive = "onedrive";
+
+        /// <summary>Publisher identifier inferred for Gentool-hosted downloads.</summary>
+        public const string GenTool = "gentool";
+
         /// <summary>Fallback identifier when publisher or author attribution cannot be resolved.</summary>
         public const string Unknown = PublisherTypeConstants.Unknown;
 
@@ -155,6 +164,24 @@ public static class TelemetryConstants
 
         /// <summary>Host name serving Generals Online content (see GeneralsOnlineConstants.WebsiteUrl).</summary>
         public const string GeneralsOnlineHost = "playgenerals.online";
+
+        /// <summary>Host name serving Gentool downloads.</summary>
+        public const string GenToolHost = "gentool.net";
+
+        /// <summary>Host names serving Google Drive downloads.</summary>
+        public static readonly string[] GoogleDriveHosts = ["drive.google.com", "drive.usercontent.google.com"];
+
+        /// <summary>Host names serving OneDrive downloads.</summary>
+        public static readonly string[] OneDriveHosts = ["onedrive.live.com", "1drv.ms"];
+    }
+
+    /// <summary>
+    /// Non-identifying placeholder values for WND editor telemetry.
+    /// </summary>
+    public static class WndEditor
+    {
+        /// <summary>Constant file identifier sent instead of user document names.</summary>
+        public const string AnonymousDocumentName = "wnd_document";
     }
 
     /// <summary>
@@ -602,6 +629,12 @@ public static class TelemetryConstants
     {
         /// <summary>Generic downloadable package.</summary>
         public const string Package = "Package";
+
+        /// <summary>Publisher Studio catalog export.</summary>
+        public const string Catalog = "catalog";
+
+        /// <summary>Publisher Studio provider definition export.</summary>
+        public const string Definition = "definition";
     }
 
     /// <summary>
