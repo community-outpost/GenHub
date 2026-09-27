@@ -3099,15 +3099,7 @@ public sealed partial class WndEditorViewModel(
 
     private static string? FindPropertyValue(IReadOnlyList<WndProperty> properties, string key)
     {
-        foreach (var property in properties)
-        {
-            if (string.Equals(property.Key, key, StringComparison.OrdinalIgnoreCase))
-            {
-                return property.Value;
-            }
-        }
-
-        return null;
+        return properties.FirstOrDefault(property => string.Equals(property.Key, key, StringComparison.OrdinalIgnoreCase))?.Value;
     }
 
     private static bool ContainsHiddenFlag(string? statusValue)
