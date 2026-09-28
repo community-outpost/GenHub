@@ -478,31 +478,39 @@ public class HttpContentDelivererTests
         var targetDirectory = CreateTargetDirectory();
         var manifest = CreateManifest("test-content", "1.0", "file.zip", "test-hash");
         var reportedProgress = new List<ContentAcquisitionProgress>();
+        var progressReported = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var progressMock = new Mock<IProgress<ContentAcquisitionProgress>>();
         progressMock
             .Setup(p => p.Report(It.IsAny<ContentAcquisitionProgress>()))
-            .Callback<ContentAcquisitionProgress>(reportedProgress.Add);
+            .Callback<ContentAcquisitionProgress>(progress =>
+            {
+                reportedProgress.Add(progress);
+                if (progress.Phase == ContentAcquisitionPhase.Downloading &&
+                    progress.CurrentOperation.Contains("/s", StringComparison.Ordinal) &&
+                    progress.ProgressPercentage > 0)
+                {
+                    progressReported.TrySetResult(true);
+                }
+            });
 
         var downloadService = new Mock<IDownloadService>();
         downloadService
             .Setup(d => d.DownloadFileAsync(
-                It.IsAny<Uri>(),
-                It.IsAny<string>(),
-                It.IsAny<string?>(),
+                It.IsAny<DownloadConfiguration>(),
                 It.IsAny<IProgress<DownloadProgress>?>(),
                 It.IsAny<CancellationToken>()))
-            .Returns((Uri url, string destinationPath, string? _, IProgress<DownloadProgress>? fileProgress, CancellationToken _) =>
+            .Returns((DownloadConfiguration config, IProgress<DownloadProgress>? fileProgress, CancellationToken _) =>
             {
                 fileProgress?.Report(new DownloadProgress(
                     bytesReceived: 512,
                     totalBytes: 1024,
                     fileName: "file.zip",
-                    url: url,
+                    url: config.Url,
                     bytesPerSecond: 5 * 1024 * 1024));
-                File.WriteAllText(destinationPath, "content");
+                File.WriteAllText(config.DestinationPath, "content");
                 return Task.FromResult(DownloadResult.CreateSuccess(
-                    destinationPath,
-                    new FileInfo(destinationPath).Length,
+                    config.DestinationPath,
+                    new FileInfo(config.DestinationPath).Length,
                     TimeSpan.FromMilliseconds(1),
                     hashVerified: true));
             });
@@ -514,6 +522,7 @@ public class HttpContentDelivererTests
             var result = await deliverer.DeliverContentAsync(manifest, targetDirectory, progressMock.Object);
 
             result.Success.Should().BeTrue();
+            await Task.WhenAny(progressReported.Task, Task.Delay(5000));
             reportedProgress.Should().Contain(p =>
                 p.Phase == ContentAcquisitionPhase.Downloading &&
                 p.CurrentOperation.Contains("/s", StringComparison.Ordinal) &&

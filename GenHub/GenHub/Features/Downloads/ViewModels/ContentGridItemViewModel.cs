@@ -58,6 +58,7 @@ public sealed partial class ContentGridItemViewModel(
     [NotifyPropertyChangedFor(nameof(CanDownload))]
     [NotifyPropertyChangedFor(nameof(CanUpdate))]
     [NotifyPropertyChangedFor(nameof(ShowDownloadButton))]
+    [NotifyPropertyChangedFor(nameof(ShowUpdateButton))]
     private bool _isDownloading;
 
     [ObservableProperty]
@@ -425,7 +426,7 @@ public sealed partial class ContentGridItemViewModel(
     /// </summary>
     public bool ShowUpdateButton => HasBundleComponents
         ? BundleComponentsNeedUpdate && !IsDownloading
-        : EffectiveCurrentState == ContentState.UpdateAvailable;
+        : EffectiveCurrentState == ContentState.UpdateAvailable && !IsDownloading;
 
     /// <summary>
     /// Gets a value indicating whether the Add to Profile button should be shown.

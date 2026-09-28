@@ -2751,10 +2751,23 @@ public sealed partial class DownloadsBrowserViewModel(
             return false;
         }
 
+        if (item.IsDownloading)
+        {
+            return false;
+        }
+
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_vmCts.Token, cancellationToken);
         if (item.HasBundleComponents)
         {
-            return await UpdateBundleComponentsAsync(item, linkedCts.Token);
+            try
+            {
+                item.IsDownloading = true;
+                return await UpdateBundleComponentsAsync(item, linkedCts.Token);
+            }
+            finally
+            {
+                item.IsDownloading = false;
+            }
         }
 
         var ct = linkedCts.Token;
@@ -3710,7 +3723,24 @@ public sealed partial class DownloadsBrowserViewModel(
         item.DownloadProgress = 100;
         item.DownloadStatus = ContentConstants.DownloadCompleteStatusMessage;
 
-        await ReconcileBundleMemberUpdatesAsync(item, acquired, promptResult, cancellationToken);
+        var updateOutcome = await ReconcileBundleMemberUpdatesAsync(item, acquired, promptResult, cancellationToken);
+        if (updateOutcome.HasValue && (!updateOutcome.Value.Proceed || updateOutcome.Value.AnyFailure))
+        {
+            var errorMessage = updateOutcome.Value.Error ?? ContentConstants.UpdateFailedStatusMessage;
+            item.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{errorMessage}";
+            var targetPublisherId = item.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? DefaultPublisherName;
+            _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.PublisherId] = targetPublisherId,
+                [TelemetryConstants.Properties.ContentName] = item.Name,
+                [TelemetryConstants.Properties.ContentId] = item.Id,
+                [TelemetryConstants.Properties.Author] = item.SearchResult?.AuthorName ?? TelemetryConstants.DownloadAttribution.Unknown,
+                [TelemetryConstants.Properties.ToVersion] = item.SearchResult?.Version ?? string.Empty,
+                [TelemetryConstants.Properties.Strategy] = promptResult?.Strategy.ToString() ?? UpdateStrategy.CreateNewProfile.ToString(),
+                [TelemetryConstants.Properties.ErrorMessage] = errorMessage,
+            });
+            return false;
+        }
 
         var activeNotificationService = notificationService ?? serviceProvider.GetService<INotificationService>();
         activeNotificationService?.ShowSuccess(
@@ -3819,8 +3849,8 @@ public sealed partial class DownloadsBrowserViewModel(
     /// <param name="acquired">Per-member acquisitions from the update run.</param>
     /// <param name="promptResult">The update dialog outcome, if the user was prompted.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    private async Task ReconcileBundleMemberUpdatesAsync(
+    /// <returns>The strategy execution outcome, or null if reconciliation was not performed.</returns>
+    private async Task<(bool Proceed, string? Error, int ProfilesUpdated, bool AnyFailure, bool ShouldDeleteOldVersions, string? TargetProfileId)?> ReconcileBundleMemberUpdatesAsync(
         ContentGridItemViewModel item,
         IReadOnlyList<(ContentSearchResult Target, string OriginalContentId, string? OldManifestId, string NewManifestId)> acquired,
         UpdateDialogResult? promptResult,
@@ -3832,7 +3862,7 @@ public sealed partial class DownloadsBrowserViewModel(
 
         if (activeProfileManager == null || reconciliationService == null || manifestPool == null)
         {
-            return;
+            return null;
         }
 
         try
@@ -3861,7 +3891,7 @@ public sealed partial class DownloadsBrowserViewModel(
 
             if (newManifests.Count == 0)
             {
-                return;
+                return null;
             }
 
             var strategy = promptResult?.Strategy ?? UpdateStrategy.CreateNewProfile;
@@ -3873,7 +3903,8 @@ public sealed partial class DownloadsBrowserViewModel(
                 notificationService,
                 logger,
                 item.SearchResult?.ProviderName ?? "Content",
-                "[Downloads Bundle Update]");
+                "[Downloads Bundle Update]",
+                localizationService);
 
             var updateOutcome = await PublisherReconcilerHelper.ApplyUpdateStrategyAsync(
                 new UpdateStrategyExecutionArgs(
@@ -3891,10 +3922,17 @@ public sealed partial class DownloadsBrowserViewModel(
             {
                 await reconciliationService.ScheduleGarbageCollectionAsync(false, cancellationToken);
             }
+
+            return updateOutcome;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to apply bundle update strategy for {Name}", item.Name);
+            return (false, ex.Message, 0, true, false, null);
         }
     }
 

@@ -421,6 +421,66 @@ public sealed class ContentDetailBundleUpdateTests
             Times.Once);
     }
 
+    /// <summary>
+    /// Verifies that when one profile update fails during a bundle update, earlier
+    /// replaced profiles are rolled back to their original state.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ApplyBundleComponentUpdateStrategy_ProfileUpdateFails_RollsBackEarlierReplacedProfilesAsync()
+    {
+        var profile1 = new GameProfile
+        {
+            Id = "profile-1",
+            Name = "Profile 1",
+            EnabledContentIds = [OldManifestId],
+            ActiveWorkspaceId = "workspace-1",
+        };
+        var profile2 = new GameProfile
+        {
+            Id = "profile-2",
+            Name = "Profile 2",
+            EnabledContentIds = [OldManifestId],
+            ActiveWorkspaceId = "workspace-2",
+        };
+
+        var profileManagerMock = new Mock<IGameProfileManager>();
+        profileManagerMock
+            .Setup(m => m.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile1, profile2]));
+
+        profileManagerMock
+            .Setup(m => m.UpdateProfileAsync("profile-1", It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile1));
+
+        profileManagerMock
+            .Setup(m => m.UpdateProfileAsync("profile-2", It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateFailure("Database error"));
+
+        var workspaceMock = new Mock<IWorkspaceManager>();
+        workspaceMock
+            .Setup(m => m.CleanupWorkspaceAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var notificationMock = new Mock<INotificationService>();
+        var viewModel = CreateViewModel(
+            profileManagerMock.Object,
+            workspaceMock.Object,
+            notificationService: notificationMock.Object);
+
+        await viewModel.ApplyBundleComponentUpdateStrategyAsync(
+            new ContentSearchResult { Id = "content-1", Name = "Content" },
+            "content-1",
+            OldManifestId,
+            CreateManifest(),
+            new UpdateDialogResult { Strategy = UpdateStrategy.ReplaceCurrent, DeleteOldVersions = true },
+            CancellationToken.None);
+
+        // Profile 1 was updated to new manifest, then rolled back to original
+        profileManagerMock.Verify(m => m.UpdateProfileAsync("profile-1", It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+        notificationMock.Verify(n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
     private static ContentDetailViewModel CreateViewModel(
         IGameProfileManager profileManager,
         IWorkspaceManager workspaceManager,

@@ -3219,11 +3219,6 @@ public partial class PublishShareViewModel(
             }
         }
 
-        if (Path.IsPathRooted(trimmed) && File.Exists(trimmed))
-        {
-            return trimmed;
-        }
-
         return null;
     }
 

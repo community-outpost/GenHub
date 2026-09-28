@@ -105,7 +105,7 @@ public class HttpContentDeliverer(
                     downloadProgress = new Progress<DownloadProgress>(dp =>
                     {
                         double fileProgressRange = 100.0 / totalFiles;
-                        double baseProgress = processedFiles * fileProgressRange;
+                        double baseProgress = (currentFileIndex - 1) * fileProgressRange;
                         double currentProgress = Math.Clamp(baseProgress + (dp.Percentage / 100.0 * fileProgressRange), 0, 100);
 
                         progress.Report(new ContentAcquisitionProgress
@@ -115,7 +115,7 @@ public class HttpContentDeliverer(
                             CurrentOperation = totalFiles > 1
                                 ? $"{file.RelativePath} ({currentFileIndex}/{totalFiles}) - {dp.Percentage:F0}% ({dp.FormattedSpeed})"
                                 : $"{file.RelativePath} - {dp.Percentage:F0}% ({dp.FormattedSpeed})",
-                            FilesProcessed = processedFiles,
+                            FilesProcessed = currentFileIndex - 1,
                             TotalFiles = totalFiles,
                             TotalBytes = dp.TotalBytes,
                             BytesProcessed = dp.BytesReceived,

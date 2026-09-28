@@ -5288,24 +5288,71 @@ public partial class ContentDetailViewModel(
             return false;
         }
 
-        var allUpdated = true;
+        var replacedProfiles = new List<GameProfile>();
+        var createdProfileIds = new List<string>();
+
         foreach (var profile in profilesResult.Data)
         {
-            var updated = await ApplyBundleProfileUpdateAsync(profile, target, oldManifestId, newManifest, promptResult, cancellationToken);
+            var (updated, wasModified, createdProfileId) = await ApplyBundleProfileUpdateAsync(profile, target, oldManifestId, newManifest, promptResult, cancellationToken);
             if (!updated)
             {
-                allUpdated = false;
+                foreach (var rollbackProfile in replacedProfiles)
+                {
+                    try
+                    {
+                        var rollbackRequest = new UpdateProfileRequest
+                        {
+                            Name = rollbackProfile.Name,
+                            Description = rollbackProfile.Description,
+                            WorkspaceStrategy = rollbackProfile.WorkspaceStrategy,
+                            EnabledContentIds = rollbackProfile.EnabledContentIds.ToList(),
+                            GameClient = rollbackProfile.GameClient,
+                            ActiveWorkspaceId = rollbackProfile.ActiveWorkspaceId,
+                        };
+                        await profileManager.UpdateProfileAsync(rollbackProfile.Id, rollbackRequest, CancellationToken.None);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Failed to rollback profile {ProfileId} during failed bundle update", rollbackProfile.Id);
+                    }
+                }
+
+                foreach (var createdId in createdProfileIds)
+                {
+                    try
+                    {
+                        await profileManager.DeleteProfileAsync(createdId, CancellationToken.None);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Failed to delete cloned profile {ProfileId} during failed bundle update rollback", createdId);
+                    }
+                }
+
+                return false;
+            }
+
+            if (wasModified)
+            {
+                if (createdProfileId != null)
+                {
+                    createdProfileIds.Add(createdProfileId);
+                }
+                else
+                {
+                    replacedProfiles.Add(profile);
+                }
             }
         }
 
-        return allUpdated;
+        return true;
     }
 
     /// <summary>
     /// Applies the bundle update strategy to a single profile when it references the old manifest.
     /// </summary>
     /// <returns>True when the profile did not reference the old manifest or was updated, false on failure.</returns>
-    private async Task<bool> ApplyBundleProfileUpdateAsync(
+    private async Task<(bool Success, bool WasModified, string? CreatedProfileId)> ApplyBundleProfileUpdateAsync(
         GameProfile profile,
         ContentSearchResult target,
         string oldManifestId,
@@ -5320,22 +5367,22 @@ public partial class ContentDetailViewModel(
 
         if (!isGameClientMatch && !hasContentMatch)
         {
-            return true;
+            return (true, false, null);
         }
 
         GameClient? updatedClient = profile.GameClient;
-        if (isGameClientMatch)
+        if (isGameClientMatch && profile.GameClient != null)
         {
-            updatedClient = new GameClient
+            updatedClient = profile.GameClient.Clone();
+            updatedClient.Id = newManifest.Id.Value;
+            updatedClient.Name = newManifest.Name;
+            updatedClient.Version = newManifest.Version ?? string.Empty;
+            updatedClient.GameType = newManifest.TargetGame;
+            updatedClient.SourceType = newManifest.ContentType;
+            if (newManifest.Publisher?.PublisherType != null)
             {
-                Id = newManifest.Id.Value,
-                Name = newManifest.Name,
-                Version = newManifest.Version ?? string.Empty,
-                GameType = newManifest.TargetGame,
-                SourceType = newManifest.ContentType,
-                PublisherType = newManifest.Publisher?.PublisherType,
-                InstallationId = profile.GameClient?.InstallationId,
-            };
+                updatedClient.PublisherType = newManifest.Publisher.PublisherType;
+            }
         }
 
         var updatedContentIds = profile.EnabledContentIds
@@ -5363,7 +5410,7 @@ public partial class ContentDetailViewModel(
                     profile.Name,
                     target.Name,
                     updateResult.FirstError);
-                return false;
+                return (false, false, null);
             }
 
             // Drop the stale workspace only after the profile update succeeds, so a
@@ -5381,7 +5428,7 @@ public partial class ContentDetailViewModel(
                 }
             }
 
-            return true;
+            return (true, true, null);
         }
 
         if (promptResult.Strategy == UpdateStrategy.CreateNewProfile)
@@ -5409,13 +5456,13 @@ public partial class ContentDetailViewModel(
                     "Failed to create profile for bundle component {Name}: {Error}",
                     target.Name,
                     createResult.FirstError);
-                return false;
+                return (false, false, null);
             }
 
-            return true;
+            return (true, true, createResult.Data?.Id);
         }
 
-        return true;
+        return (true, false, null);
     }
 
     /// <summary>
