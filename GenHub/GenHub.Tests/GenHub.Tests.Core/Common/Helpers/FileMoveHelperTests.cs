@@ -150,4 +150,69 @@ public sealed class FileMoveHelperTests : IDisposable
             }
         }
     }
+
+    /// <summary>
+    /// Verifies that the link fallback moves an ordinary file.
+    /// </summary>
+    [Fact]
+    public void MoveByLink_WithWritableFile_MovesFile()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var source = Path.Combine(_tempDirectory, "Old.map");
+        var destination = Path.Combine(_tempDirectory, "New.map");
+        File.WriteAllText(source, "map");
+
+        FileMoveHelper.MoveByLink(source, destination);
+
+        Assert.Equal(["New.map"], Directory.GetFiles(_tempDirectory).Select(Path.GetFileName));
+        Assert.Equal("map", File.ReadAllText(destination));
+    }
+
+    /// <summary>
+    /// Verifies that the link fallback refuses an existing destination and leaves both files untouched.
+    /// </summary>
+    [Fact]
+    public void MoveByLink_WhenDestinationExists_ThrowsAndKeepsBothFiles()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var source = Path.Combine(_tempDirectory, "Old.map");
+        var destination = Path.Combine(_tempDirectory, "New.map");
+        File.WriteAllText(source, "source");
+        File.WriteAllText(destination, "other");
+
+        Assert.Throws<IOException>(() => FileMoveHelper.MoveByLink(source, destination));
+
+        Assert.Equal("source", File.ReadAllText(source));
+        Assert.Equal("other", File.ReadAllText(destination));
+    }
+
+    /// <summary>
+    /// Verifies that the link fallback fails on a locked file without copying it, leaving only the source.
+    /// </summary>
+    [Fact]
+    public void MoveByLink_WhenSourceIsLocked_ThrowsAndLeavesOnlySource()
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        var source = Path.Combine(_tempDirectory, "Old.map");
+        var destination = Path.Combine(_tempDirectory, "New.map");
+        File.WriteAllText(source, "map");
+        ReadOnlyFolderFixtures.LockImmutable(source);
+
+        var exception = Record.Exception(() => FileMoveHelper.MoveByLink(source, destination));
+
+        Assert.True(exception is UnauthorizedAccessException or IOException, exception?.ToString());
+        Assert.Equal(["Old.map"], Directory.GetFiles(_tempDirectory).Select(Path.GetFileName));
+    }
 }
