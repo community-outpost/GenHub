@@ -1418,7 +1418,10 @@ public class DownloadsBrowserViewModelTests
         AddSibling("720p", "Control Bar Pro (Xezon) - 720p", ContentState.NotDownloaded);
         AddSibling("900p", "Control Bar Pro (Xezon) - 900p", ContentState.NotDownloaded);
         var downloaded = AddSibling("1080p", "Control Bar Pro (Xezon) - 1080p (Recommended)", ContentState.Downloaded);
-        AddSibling("1440p", "Control Bar Pro (Xezon) - 1440p (2K)", ContentState.NotDownloaded);
+
+        // A newer valid version on an uninstalled parallel option still must not
+        // produce an update: resolutions are install choices, not releases.
+        AddCardVariant(card, "1.0.communityoutpost.addon.cbpx-1440p", "Control Bar Pro (Xezon) - 1440p (2K)", "2.0", ContentState.NotDownloaded);
 
         card.SelectedVariant = downloaded;
         card.CurrentState = ContentState.Downloaded;
@@ -1470,7 +1473,10 @@ public class DownloadsBrowserViewModelTests
             AddCardVariant(card, $"1.0.communityoutpost.addon.hlei-{variantId}", name, "1.0", state);
 
         var downloaded = AddSibling("zerohour-en", "Leikeze's Hotkeys (EN)", ContentState.Downloaded);
-        AddSibling("zerohour-de", "Leikeze's Hotkeys (DE)", ContentState.NotDownloaded);
+
+        // A newer valid version on an uninstalled parallel option still must not
+        // produce an update: languages are install choices, not releases.
+        AddCardVariant(card, "1.0.communityoutpost.addon.hlei-zerohour-de", "Leikeze's Hotkeys (DE)", "2.0", ContentState.NotDownloaded);
         AddSibling("zerohour-ru", "Leikeze's Hotkeys (RU)", ContentState.NotDownloaded);
 
         card.SelectedVariant = downloaded;
@@ -1494,11 +1500,14 @@ public class DownloadsBrowserViewModelTests
     }
 
     /// <summary>
-    /// Verifies that a downloaded variant still offers an update when a sibling variant
-    /// carries a genuinely newer release version.
+    /// Verifies that a sibling variant with a genuinely newer release version never
+    /// produces a card-level self-update claim. Cross-variant comparisons cannot tell
+    /// parallel options and unrelated content apart from releases, and a self-target
+    /// would re-download the installed result; genuine updates surface through
+    /// per-variant states and cross-release families instead.
     /// </summary>
     [Fact]
-    public void ReconcileReleaseUpdateStates_WhenSiblingVariantHasNewerVersion_DownloadedVariantShowsUpdate()
+    public void ReconcileReleaseUpdateStates_WhenSiblingVariantHasNewerVersion_DoesNotClaimSelfUpdate()
     {
         // Arrange
         var stateServiceMock = new Mock<IContentStateService>();
@@ -1536,13 +1545,14 @@ public class DownloadsBrowserViewModelTests
         // Act
         DownloadsBrowserViewModel.ReconcileReleaseUpdateStates([card, unrelated]);
 
-        // Assert: the older installed variant offers an update targeting the card itself.
-        Assert.Equal(ContentState.UpdateAvailable, downloaded.CurrentState);
-        Assert.Equal(ContentState.UpdateAvailable, card.CurrentState);
+        // Assert: no card-level self-update is claimed for the newer sibling.
+        Assert.Equal(ContentState.Downloaded, downloaded.CurrentState);
+        Assert.Equal(ContentState.Downloaded, card.CurrentState);
         Assert.True(card.IsDownloaded);
-        Assert.Same(card, card.UpdateTargetVm);
-        Assert.True(card.ShowUpdateButton);
+        Assert.Null(card.UpdateTargetVm);
+        Assert.False(card.ShowUpdateButton);
         Assert.True(card.ShowAddToProfileButton);
+        Assert.False(card.ShowDownloadButton);
     }
 
     /// <summary>
@@ -1594,6 +1604,63 @@ public class DownloadsBrowserViewModelTests
         Assert.Null(card.UpdateTargetVm);
         Assert.False(card.ShowUpdateButton);
         Assert.True(card.ShowAddToProfileButton);
+    }
+
+    /// <summary>
+    /// Verifies that on a GenLauncher card grouping a whole mod (releases plus addons
+    /// as sibling variants), downloading a single addon does not mark it as
+    /// UpdateAvailable, even when other siblings carry valid newer versions.
+    /// Siblings are different content items, not newer releases of each other.
+    /// </summary>
+    [Fact]
+    public void ReconcileReleaseUpdateStates_WhenGenLauncherCardHasOneAddonDownloaded_DoesNotShowUpdate()
+    {
+        // Arrange
+        var stateServiceMock = new Mock<IContentStateService>();
+        var loggerMock = new Mock<ILogger<ContentGridItemViewModel>>();
+
+        var cardSr = new ContentSearchResult
+        {
+            Id = "genlauncher-zerohour-shockwave-cursor-pack-hd",
+            Name = "ShockWave Cursor Pack HD",
+            Version = "1.3",
+            ProviderName = "genlauncher",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            VariantFamilyName = "C&C ShockWave",
+            VariantGroupId = "zerohour-c-c-shockwave",
+        };
+        var card = new ContentGridItemViewModel(cardSr, stateServiceMock.Object, loggerMock.Object);
+
+        // Sibling content types are simplified: reconciliation only inspects variant
+        // states, identities, and versions, never the content type.
+        AddCardVariant(card, "genlauncher-zerohour-c-c-shockwave-public-beta", "C&C Shockwave Public Beta", "1.25 Beta 8", ContentState.NotDownloaded);
+        AddCardVariant(card, "genlauncher-zerohour-c-c-shockwave-1-201-genlauncher-fix-1", "C&C Shockwave 1.201 GenLauncher Fix 1", "1.201 GenLauncher Fix 1", ContentState.NotDownloaded);
+        AddCardVariant(card, "genlauncher-zerohour-shockwave-single-player-experience", "Shockwave Single Player Experience", "1.0", ContentState.NotDownloaded);
+        var downloaded = AddCardVariant(card, "genlauncher-zerohour-shockwave-cursor-pack-hd", "ShockWave Cursor Pack HD", "1.3", ContentState.Downloaded);
+        AddCardVariant(card, "genlauncher-zerohour-shockwave-russifier", "ShockWave Russifier", "2.0", ContentState.NotDownloaded);
+        AddCardVariant(card, "genlauncher-zerohour-lemon-shockwave-hotkeys", "Lemon Shockwave Hotkeys", "1.1", ContentState.NotDownloaded);
+        AddCardVariant(card, "genlauncher-zerohour-lemon-shockwave-beta-8-hotkeys", "Lemon Shockwave Beta 8 Hotkeys", "1.1", ContentState.NotDownloaded);
+        AddCardVariant(card, "genlauncher-zerohour-control-bar-pro-shockwave", "Control Bar Pro (Shockwave)", "1.0", ContentState.NotDownloaded);
+
+        card.SelectedVariant = downloaded;
+        card.CurrentState = ContentState.Downloaded;
+        card.IsDownloaded = true;
+
+        // A second, unrelated card so the reconcile pass runs.
+        var unrelated = CreateUnrelatedCard(stateServiceMock.Object, loggerMock.Object);
+
+        // Act
+        DownloadsBrowserViewModel.ReconcileReleaseUpdateStates([card, unrelated]);
+
+        // Assert: the installed addon stays current; sibling content is not an update.
+        Assert.Equal(ContentState.Downloaded, downloaded.CurrentState);
+        Assert.Equal(ContentState.Downloaded, card.CurrentState);
+        Assert.True(card.IsDownloaded);
+        Assert.Null(card.UpdateTargetVm);
+        Assert.False(card.ShowUpdateButton);
+        Assert.True(card.ShowAddToProfileButton);
+        Assert.False(card.ShowDownloadButton);
     }
 
     /// <summary>

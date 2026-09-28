@@ -512,13 +512,15 @@ public sealed partial class DownloadsBrowserViewModel(
                 .OrderByDescending(it => it.SearchResult.LastUpdated ?? DateTime.MinValue)
                 .ThenByDescending(it => it.SearchResult.Version, Comparer<string?>.Create((a, b) => ContentStateService.CompareVersions(a, b, isGeneralsOnline)))
                 .ToList();
+
+            // Single-item families need no reconciliation. In particular, sibling
+            // variants on one card are never compared against each other: they are
+            // parallel install options or unrelated content (such as the releases
+            // plus addons GenLauncher groups per mod), and a self-targeted update
+            // claim would re-download the installed result. Genuine updates surface
+            // through per-variant states and cross-release families instead.
             if (familyItems.Count <= 1)
             {
-                if (familyItems.Count == 1)
-                {
-                    ReconcileItemVariants(familyItems[0]);
-                }
-
                 continue;
             }
 
@@ -718,104 +720,6 @@ public sealed partial class DownloadsBrowserViewModel(
                 item.NotifyStateChanged();
             }
         }
-    }
-
-    private static void ReconcileItemVariants(ContentGridItemViewModel item)
-    {
-        if (item.Variants.Count <= 1)
-        {
-            return;
-        }
-
-        var downloadedVariants = item.Variants.Where(v => v.CurrentState == ContentState.Downloaded).ToList();
-        if (downloadedVariants.Count == 0)
-        {
-            return;
-        }
-
-        var hasNewerVariant = false;
-        foreach (var downloaded in downloadedVariants)
-        {
-            var isAnyNewer = item.Variants.Any(candidate => IsVariantUpdateCandidate(item, candidate, downloaded));
-
-            if (isAnyNewer)
-            {
-                downloaded.CurrentState = ContentState.UpdateAvailable;
-                hasNewerVariant = true;
-            }
-        }
-
-        if (hasNewerVariant)
-        {
-            item.CurrentState = ContentState.UpdateAvailable;
-            item.IsDownloaded = true;
-            item.UpdateTargetVm = item;
-            item.NotifyStateChanged();
-        }
-    }
-
-    /// <summary>
-    /// Determines whether an uninstalled sibling variant is a newer release of a
-    /// downloaded variant. Parallel options (such as different resolutions or
-    /// languages) are never updates of each other; only genuine release-version
-    /// evidence from the sibling search results can offer an update.
-    /// </summary>
-    /// <param name="item">The card owning both variants.</param>
-    /// <param name="candidate">The uninstalled sibling variant under inspection.</param>
-    /// <param name="downloaded">The downloaded variant to compare against.</param>
-    /// <returns><see langword="true"/> when the candidate is a newer release; otherwise, <see langword="false"/>.</returns>
-    private static bool IsVariantUpdateCandidate(
-        ContentGridItemViewModel item,
-        InstallableVariant candidate,
-        InstallableVariant downloaded)
-    {
-        if (candidate.CurrentState == ContentState.Downloaded ||
-            string.IsNullOrEmpty(candidate.ManifestId) ||
-            string.IsNullOrEmpty(downloaded.ManifestId) ||
-            AreParallelVariants(candidate, downloaded))
-        {
-            return false;
-        }
-
-        var candidateVersion = GetVariantVersion(item, candidate);
-        var downloadedVersion = GetVariantVersion(item, downloaded);
-        if (string.IsNullOrEmpty(candidateVersion) || string.IsNullOrEmpty(downloadedVersion))
-        {
-            return false;
-        }
-
-        // Tag-style labels (such as "nightly") carry no ordering information and would
-        // degrade the comparison below to a hash fallback, so fail closed without them.
-        if (!CatalogManifestIdentity.IsValidVersion(candidateVersion) ||
-            !CatalogManifestIdentity.IsValidVersion(downloadedVersion))
-        {
-            return false;
-        }
-
-        return ContentStateService.IsNewerVersion(
-            candidate.ManifestId,
-            downloaded.ManifestId,
-            candidateVersion,
-            downloadedVersion);
-    }
-
-    /// <summary>
-    /// Determines whether two variants are parallel install options (such as different
-    /// resolutions or languages) rather than successive releases of the same option.
-    /// </summary>
-    /// <param name="first">The first variant to compare.</param>
-    /// <param name="second">The second variant to compare.</param>
-    /// <returns><see langword="true"/> when both variants carry different recognized variant tokens; otherwise, <see langword="false"/>.</returns>
-    private static bool AreParallelVariants(InstallableVariant first, InstallableVariant second)
-    {
-        var firstToken = ContentStateService.ExtractVariantToken(first.Name)
-            ?? ContentStateService.ExtractVariantToken(first.ManifestId);
-        var secondToken = ContentStateService.ExtractVariantToken(second.Name)
-            ?? ContentStateService.ExtractVariantToken(second.ManifestId);
-
-        return !string.IsNullOrEmpty(firstToken) &&
-            !string.IsNullOrEmpty(secondToken) &&
-            !string.Equals(firstToken, secondToken, StringComparison.OrdinalIgnoreCase);
     }
 
     [RelayCommand]
