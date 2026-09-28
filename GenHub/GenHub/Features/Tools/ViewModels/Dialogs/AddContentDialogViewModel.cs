@@ -2094,19 +2094,7 @@ public partial class AddContentDialogViewModel(
     {
         if (SelectedContentType == ContentType.ContentBundle)
         {
-            var bundleVersion = string.IsNullOrWhiteSpace(InitialVersion) ? "1.0.0" : InitialVersion.Trim();
-            var bundleRelease = new ContentRelease
-            {
-                Version = bundleVersion,
-                ReleaseDate = DateTime.UtcNow,
-                IsLatest = true,
-                Changelog = string.IsNullOrWhiteSpace(ReleaseChangelog) ? "Initial bundle release" : ReleaseChangelog.Trim(),
-                Artifacts = [],
-                Dependencies = [],
-                ImageUrls = [],
-                VideoUrls = [],
-            };
-            contentItem.Releases.Add(bundleRelease);
+            AttachInitialBundleRelease(contentItem);
             return;
         }
 
@@ -2123,26 +2111,22 @@ public partial class AddContentDialogViewModel(
             IsLatest = true,
             Changelog = string.IsNullOrWhiteSpace(ReleaseChangelog) ? null : ReleaseChangelog.Trim(),
             BundleArtifacts = BundleArtifacts,
-            Artifacts = [],
+            Artifacts = [.. ReleaseArtifacts],
             Dependencies = [.. ReleaseDependencies],
             ImageUrls = [],
             VideoUrls = [],
         };
 
-        if (ReleaseArtifacts.Count > 0)
+        if (ReleaseArtifacts.Count == 0)
         {
-            foreach (var art in ReleaseArtifacts)
+            if (UseDirectUrl || StagedFiles.Count == 0)
             {
-                release.Artifacts.Add(art);
+                AttachSingleInitialArtifact(contentItem, release, version);
             }
-        }
-        else if (UseDirectUrl || StagedFiles.Count == 0)
-        {
-            AttachSingleInitialArtifact(contentItem, release, version);
-        }
-        else
-        {
-            AttachStagedInitialArtifacts(release);
+            else
+            {
+                AttachStagedInitialArtifacts(release);
+            }
         }
 
         contentItem.Releases.Add(release);
@@ -2150,6 +2134,23 @@ public partial class AddContentDialogViewModel(
         {
             contentItem.EntryPoint = release.EntryPoint;
         }
+    }
+
+    private void AttachInitialBundleRelease(CatalogContentItem contentItem)
+    {
+        var bundleVersion = string.IsNullOrWhiteSpace(InitialVersion) ? "1.0.0" : InitialVersion.Trim();
+        var bundleRelease = new ContentRelease
+        {
+            Version = bundleVersion,
+            ReleaseDate = DateTime.UtcNow,
+            IsLatest = true,
+            Changelog = string.IsNullOrWhiteSpace(ReleaseChangelog) ? "Initial bundle release" : ReleaseChangelog.Trim(),
+            Artifacts = [],
+            Dependencies = [],
+            ImageUrls = [],
+            VideoUrls = [],
+        };
+        contentItem.Releases.Add(bundleRelease);
     }
 
     private void AttachSingleInitialArtifact(CatalogContentItem contentItem, ContentRelease release, string version)

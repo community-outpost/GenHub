@@ -11,6 +11,7 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -74,10 +75,7 @@ public class HttpContentDeliverer(
         try
         {
             var filesToDownload = packageManifest.Files?.Where(f => !string.IsNullOrEmpty(f.DownloadUrl)).ToList() ?? [];
-            var totalFiles = filesToDownload.Count;
-            var processedFiles = 0;
-
-            if (totalFiles == 0)
+            if (filesToDownload.Count == 0)
             {
                 logger.LogInformation(
                     "Manifest {ManifestId} has no remote files to download (dependency-only bundle); delivery succeeded",
@@ -85,121 +83,13 @@ public class HttpContentDeliverer(
                 return OperationResult<ContentManifest>.CreateSuccess(packageManifest);
             }
 
-            // Download and add files
-            foreach (var file in filesToDownload)
+            var downloadResult = await DownloadAllFilesAsync(packageManifest, filesToDownload, targetDirectory, progress, cancellationToken);
+            if (!downloadResult.Success)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var localPath = ResolveTargetPath(targetDirectory, file.RelativePath);
-
-                // Ensure directory exists
-                var directory = Path.GetDirectoryName(localPath);
-                if (!string.IsNullOrEmpty(directory))
-                {
-                    Directory.CreateDirectory(directory);
-                }
-
-                var currentFileIndex = processedFiles + 1;
-
-                IProgress<DownloadProgress>? downloadProgress = null;
-                if (progress != null)
-                {
-                    downloadProgress = new Progress<DownloadProgress>(dp =>
-                    {
-                        double fileProgressRange = 100.0 / totalFiles;
-                        double baseProgress = (currentFileIndex - 1) * fileProgressRange;
-                        double currentProgress = Math.Clamp(baseProgress + (dp.Percentage / 100.0 * fileProgressRange), 0, 100);
-
-                        progress.Report(new ContentAcquisitionProgress
-                        {
-                            Phase = ContentAcquisitionPhase.Downloading,
-                            ProgressPercentage = currentProgress,
-                            CurrentOperation = totalFiles > 1
-                                ? $"{file.RelativePath} ({currentFileIndex}/{totalFiles}) - {dp.Percentage:F0}% ({dp.FormattedSpeed})"
-                                : $"{file.RelativePath} - {dp.Percentage:F0}% ({dp.FormattedSpeed})",
-                            FilesProcessed = currentFileIndex - 1,
-                            TotalFiles = totalFiles,
-                            TotalBytes = dp.TotalBytes,
-                            BytesProcessed = dp.BytesReceived,
-                            CurrentFile = file.RelativePath,
-                        });
-                    });
-                }
-
-                // Initial report before download starts
-                progress?.Report(new ContentAcquisitionProgress
-                {
-                    Phase = ContentAcquisitionPhase.Downloading,
-                    ProgressPercentage = (double)processedFiles / totalFiles * 100,
-                    CurrentOperation = totalFiles > 1
-                        ? $"Downloading {file.RelativePath} ({currentFileIndex}/{totalFiles})..."
-                        : $"Downloading {file.RelativePath}...",
-                    CurrentFile = file.RelativePath,
-                    FilesProcessed = processedFiles,
-                    TotalFiles = totalFiles,
-                });
-
-                // Download the file
-                var downloadResult = await DownloadFileAsync(packageManifest, file, localPath, downloadProgress, cancellationToken);
-
-                if (!downloadResult.Success)
-                {
-                    logger.LogError(
-                        "Failed to download file {File}: {Error}",
-                        file.RelativePath,
-                        downloadResult.FirstError);
-                    return OperationResult<ContentManifest>.CreateFailure(
-                        $"Failed to download file: {downloadResult.FirstError}");
-                }
-
-                cancellationToken.ThrowIfCancellationRequested();
-                processedFiles++;
-
-                var currentPercentage = (double)processedFiles / totalFiles * 100;
-                progress?.Report(new ContentAcquisitionProgress
-                {
-                    Phase = ContentAcquisitionPhase.Downloading,
-                    ProgressPercentage = currentPercentage,
-                    CurrentOperation = $"Downloaded {file.RelativePath} ({processedFiles}/{totalFiles})",
-                    CurrentFile = file.RelativePath,
-                    FilesProcessed = processedFiles,
-                    TotalFiles = totalFiles,
-                });
+                return downloadResult;
             }
 
-            // Extract archives if needed
-            if (archivePayloadProcessor != null)
-            {
-                await archivePayloadProcessor.ExtractArchivesSafelyAsync(
-                    targetDirectory,
-                    packageManifest.ContentType,
-                    progress,
-                    cancellationToken);
-            }
-            else
-            {
-                foreach (var file in filesToDownload)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    var localPath = ResolveTargetPath(targetDirectory, file.RelativePath);
-
-                    if (IsArchive(localPath) && File.Exists(localPath) && ZipValidation.IsValidZipFile(localPath))
-                    {
-                        progress?.Report(new ContentAcquisitionProgress
-                        {
-                            Phase = ContentAcquisitionPhase.Extracting,
-                            ProgressPercentage = 0,
-                            CurrentOperation = $"Extracting {file.RelativePath}...",
-                            CurrentFile = file.RelativePath,
-                        });
-
-                        var destDir = Path.GetDirectoryName(localPath) ?? targetDirectory;
-                        ZipArchiveGuard.ExtractToDirectory(localPath, destDir, cancellationToken);
-                        File.Delete(localPath);
-                    }
-                }
-            }
+            await ExtractArchivesAsync(packageManifest, filesToDownload, targetDirectory, progress, cancellationToken);
 
             // Delivery changes filesystem state only. The resolved manifest remains authoritative
             // for identity, version, hashes, source types, and installation metadata.
@@ -213,6 +103,174 @@ public class HttpContentDeliverer(
         {
             logger.LogError(ex, "Failed to deliver HTTP content for manifest {ManifestId}", packageManifest.Id);
             return OperationResult<ContentManifest>.CreateFailure($"Content delivery failed: {ex.Message}");
+        }
+    }
+
+    private async Task<OperationResult<ContentManifest>> DownloadAllFilesAsync(
+        ContentManifest packageManifest,
+        IReadOnlyList<ManifestFile> filesToDownload,
+        string targetDirectory,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var totalFiles = filesToDownload.Count;
+        var processedFiles = 0;
+
+        foreach (var file in filesToDownload)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var currentFileIndex = processedFiles + 1;
+            var downloadResult = await DownloadSingleFileWithProgressAsync(
+                packageManifest,
+                file,
+                targetDirectory,
+                currentFileIndex,
+                totalFiles,
+                progress,
+                cancellationToken);
+
+            if (!downloadResult.Success)
+            {
+                logger.LogError(
+                    "Failed to download file {File}: {Error}",
+                    file.RelativePath,
+                    downloadResult.FirstError);
+                return OperationResult<ContentManifest>.CreateFailure(
+                    $"Failed to download file: {downloadResult.FirstError}");
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            processedFiles++;
+
+            var currentPercentage = (double)processedFiles / totalFiles * 100;
+            progress?.Report(new ContentAcquisitionProgress
+            {
+                Phase = ContentAcquisitionPhase.Downloading,
+                ProgressPercentage = currentPercentage,
+                CurrentOperation = $"Downloaded {file.RelativePath} ({processedFiles}/{totalFiles})",
+                CurrentFile = file.RelativePath,
+                FilesProcessed = processedFiles,
+                TotalFiles = totalFiles,
+            });
+        }
+
+        return OperationResult<ContentManifest>.CreateSuccess(packageManifest);
+    }
+
+    private async Task<DownloadResult> DownloadSingleFileWithProgressAsync(
+        ContentManifest packageManifest,
+        ManifestFile file,
+        string targetDirectory,
+        int currentFileIndex,
+        int totalFiles,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var localPath = ResolveTargetPath(targetDirectory, file.RelativePath);
+        var directory = Path.GetDirectoryName(localPath);
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        var downloadProgress = CreateFileDownloadProgress(progress, file.RelativePath, currentFileIndex, totalFiles);
+
+        progress?.Report(new ContentAcquisitionProgress
+        {
+            Phase = ContentAcquisitionPhase.Downloading,
+            ProgressPercentage = (double)(currentFileIndex - 1) / totalFiles * 100,
+            CurrentOperation = totalFiles > 1
+                ? $"Downloading {file.RelativePath} ({currentFileIndex}/{totalFiles})..."
+                : $"Downloading {file.RelativePath}...",
+            CurrentFile = file.RelativePath,
+            FilesProcessed = currentFileIndex - 1,
+            TotalFiles = totalFiles,
+        });
+
+        return await DownloadFileAsync(packageManifest, file, localPath, downloadProgress, cancellationToken);
+    }
+
+    private static IProgress<DownloadProgress>? CreateFileDownloadProgress(
+        IProgress<ContentAcquisitionProgress>? progress,
+        string relativePath,
+        int currentFileIndex,
+        int totalFiles)
+    {
+        if (progress == null)
+        {
+            return null;
+        }
+
+        return new Progress<DownloadProgress>(dp =>
+        {
+            double fileProgressRange = 100.0 / totalFiles;
+            double baseProgress = (currentFileIndex - 1) * fileProgressRange;
+            double currentProgress = Math.Clamp(baseProgress + (dp.Percentage / 100.0 * fileProgressRange), 0, 100);
+
+            progress.Report(new ContentAcquisitionProgress
+            {
+                Phase = ContentAcquisitionPhase.Downloading,
+                ProgressPercentage = currentProgress,
+                CurrentOperation = totalFiles > 1
+                    ? $"{relativePath} ({currentFileIndex}/{totalFiles}) - {dp.Percentage:F0}% ({dp.FormattedSpeed})"
+                    : $"{relativePath} - {dp.Percentage:F0}% ({dp.FormattedSpeed})",
+                FilesProcessed = currentFileIndex - 1,
+                TotalFiles = totalFiles,
+                TotalBytes = dp.TotalBytes,
+                BytesProcessed = dp.BytesReceived,
+                CurrentFile = relativePath,
+            });
+        });
+    }
+
+    private async Task ExtractArchivesAsync(
+        ContentManifest packageManifest,
+        IReadOnlyList<ManifestFile> filesToDownload,
+        string targetDirectory,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        if (archivePayloadProcessor != null)
+        {
+            await archivePayloadProcessor.ExtractArchivesSafelyAsync(
+                targetDirectory,
+                packageManifest.ContentType,
+                progress,
+                cancellationToken);
+            return;
+        }
+
+        ExtractArchivesFallback(filesToDownload, targetDirectory, progress, cancellationToken);
+    }
+
+    private static void ExtractArchivesFallback(
+        IEnumerable<ManifestFile> filesToDownload,
+        string targetDirectory,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        foreach (var relativePath in filesToDownload.Select(file => file.RelativePath))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var localPath = ResolveTargetPath(targetDirectory, relativePath);
+            if (!IsArchive(localPath) || !File.Exists(localPath) || !ZipValidation.IsValidZipFile(localPath))
+            {
+                continue;
+            }
+
+            progress?.Report(new ContentAcquisitionProgress
+            {
+                Phase = ContentAcquisitionPhase.Extracting,
+                ProgressPercentage = 0,
+                CurrentOperation = $"Extracting {relativePath}...",
+                CurrentFile = relativePath,
+            });
+
+            var destDir = Path.GetDirectoryName(localPath) ?? targetDirectory;
+            ZipArchiveGuard.ExtractToDirectory(localPath, destDir, cancellationToken);
+            File.Delete(localPath);
         }
     }
 
