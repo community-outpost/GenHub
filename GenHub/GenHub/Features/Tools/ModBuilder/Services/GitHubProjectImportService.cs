@@ -44,6 +44,11 @@ public class GitHubProjectImportService(
                 logger.LogInformation("Target directory {Target} already contains project {Project}", targetDirectory, alreadyExisting);
                 return OperationResult<string>.CreateSuccess(alreadyExisting);
             }
+
+            if (Directory.EnumerateFileSystemEntries(targetDirectory).Any())
+            {
+                return OperationResult<string>.CreateFailure("Target directory is not empty and does not contain a project file.");
+            }
         }
 
         var stagingDir = Path.Combine(Path.GetTempPath(), $"genhub_github_{Guid.NewGuid():N}");

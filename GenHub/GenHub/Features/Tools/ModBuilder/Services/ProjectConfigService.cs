@@ -1498,18 +1498,13 @@ public sealed class ProjectConfigService(
         }
 
         var itemNames = await ReadExistingBundleItemNamesAsync(itemsPath, cancellationToken).ConfigureAwait(false);
-        if (itemNames.Contains(ModBuilderConstants.DefaultImportedGameFilesItemName, StringComparer.OrdinalIgnoreCase))
-        {
-            return itemNames;
-        }
-
         if (itemNames.Count == 0)
         {
             logger.LogWarning("Existing ModBundleItems.json at {Path} yielded no bundle item names; ensuring default imported bundle item is defined", itemsPath);
         }
 
         var appended = await EnsureDefaultImportedItemInFileAsync(itemsPath, project, cancellationToken).ConfigureAwait(false);
-        if (appended)
+        if (appended && !itemNames.Contains(ModBuilderConstants.DefaultImportedGameFilesItemName, StringComparer.OrdinalIgnoreCase))
         {
             itemNames.Add(ModBuilderConstants.DefaultImportedGameFilesItemName);
         }
@@ -1605,9 +1600,9 @@ public sealed class ProjectConfigService(
             rootObj[existingKey] = itemsArr;
         }
 
-        if (!ContainsNamedItem(itemsArr, ModBuilderConstants.DefaultImportedGameFilesItemName))
+        var updatedOrAdded = EnsureItemWithPrefix(itemsArr, defaultItem, ModBuilderConstants.DefaultImportedGameFilesItemName, ModBuilderConstants.SageOverridePrefix);
+        if (updatedOrAdded)
         {
-            itemsArr.Add(JsonNode.Parse(JsonSerializer.Serialize(defaultItem, _jsonOptions)));
             await AtomicWriteJsonFileAsync(itemsPath, rootObj, _jsonOptions, logger, cancellationToken).ConfigureAwait(false);
         }
 
@@ -1620,12 +1615,37 @@ public sealed class ProjectConfigService(
         object defaultItem,
         CancellationToken cancellationToken)
     {
-        if (!ContainsNamedItem(rootArr, ModBuilderConstants.DefaultImportedGameFilesItemName))
+        var updatedOrAdded = EnsureItemWithPrefix(rootArr, defaultItem, ModBuilderConstants.DefaultImportedGameFilesItemName, ModBuilderConstants.SageOverridePrefix);
+        if (updatedOrAdded)
         {
-            rootArr.Add(JsonNode.Parse(JsonSerializer.Serialize(defaultItem, _jsonOptions)));
             await AtomicWriteJsonFileAsync(itemsPath, rootArr, _jsonOptions, logger, cancellationToken).ConfigureAwait(false);
         }
 
+        return true;
+    }
+
+    private bool EnsureItemWithPrefix(JsonArray array, object defaultItem, string itemName, string expectedPrefix)
+    {
+        var existingObj = array.OfType<JsonObject>().FirstOrDefault(item =>
+            item.TryGetPropertyValue("name", out var nameVal) &&
+            string.Equals(nameVal?.ToString(), itemName, StringComparison.OrdinalIgnoreCase));
+
+        if (existingObj != null)
+        {
+            var prefixKey = existingObj.Select(kvp => kvp.Key)
+                .FirstOrDefault(k => string.Equals(k, "namePrefix", StringComparison.OrdinalIgnoreCase)) ?? "namePrefix";
+
+            if (!existingObj.TryGetPropertyValue(prefixKey, out var prefixVal) ||
+                !string.Equals(prefixVal?.ToString(), expectedPrefix, StringComparison.Ordinal))
+            {
+                existingObj[prefixKey] = expectedPrefix;
+                return true;
+            }
+
+            return false;
+        }
+
+        array.Add(JsonNode.Parse(JsonSerializer.Serialize(defaultItem, _jsonOptions)));
         return true;
     }
 
