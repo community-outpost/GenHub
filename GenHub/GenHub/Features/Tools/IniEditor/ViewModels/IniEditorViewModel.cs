@@ -71,6 +71,7 @@ public sealed partial class IniEditorViewModel(
     private readonly Stack<IniEditAction> _redoStack = new();
     private readonly Dictionary<string, Bitmap?> _textureThumbnails = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<GameInstallation> _installations = [];
+    private readonly List<IniTextureItemViewModel> _allTextureItems = [];
     private FileExplorerViewModel? _fileExplorer;
     private IniDocument? _document;
     private bool _cultureSubscribed;
@@ -133,22 +134,22 @@ public sealed partial class IniEditorViewModel(
     private int _leftSidebarTabIndex;
 
     /// <summary>
-    /// Gets whether the blocks sidebar tab is selected.
+    /// Gets a value indicating whether the blocks sidebar tab is selected.
     /// </summary>
     public bool IsBlocksTabSelected => LeftSidebarTabIndex == 0;
 
     /// <summary>
-    /// Gets whether the file explorer sidebar tab is selected.
+    /// Gets a value indicating whether the file explorer sidebar tab is selected.
     /// </summary>
     public bool IsFilesTabSelected => LeftSidebarTabIndex == 1;
 
     /// <summary>
-    /// Gets whether the reference index sidebar tab is selected.
+    /// Gets a value indicating whether the reference index sidebar tab is selected.
     /// </summary>
     public bool IsReferencesTabSelected => LeftSidebarTabIndex == 2;
 
     /// <summary>
-    /// Gets whether the textures sidebar tab is selected.
+    /// Gets a value indicating whether the textures sidebar tab is selected.
     /// </summary>
     public bool IsTexturesTabSelected => LeftSidebarTabIndex == 3;
 
@@ -158,7 +159,6 @@ public sealed partial class IniEditorViewModel(
     [ObservableProperty]
     private string? _textureStatusText;
 
-    private readonly List<IniTextureItemViewModel> _allTextureItems = [];
 
     /// <summary>
     /// Gets the filtered mapped images available for the 2-column texture picker.
@@ -172,7 +172,7 @@ public sealed partial class IniEditorViewModel(
     private IReadOnlyList<CanvasVitalItem> _selectedBlockVitals = [];
 
     /// <summary>
-    /// Gets whether the selected block has vitals to display.
+    /// Gets a value indicating whether the selected block has vitals to display.
     /// </summary>
     public bool HasSelectedBlockVitals => SelectedBlockVitals != null && SelectedBlockVitals.Count > 0;
 
@@ -1325,6 +1325,61 @@ public sealed partial class IniEditorViewModel(
         var cts = new CancellationTokenSource();
         slot = cts;
         _ = Task.Run(() => RunDeferredRefreshAsync(cts, delayMs, refresh), CancellationToken.None);
+    }
+
+    private static string? ResolveHealthValue(IniBlock block)
+    {
+        var health = FindFieldValue(block, IniConstants.FieldKeys.Health) ?? FindFieldValue(block, "MaxHealth") ?? FindFieldValue(block, "InitialHealth");
+        if (!string.IsNullOrWhiteSpace(health))
+        {
+            return health;
+        }
+
+        foreach (var child in block.Children)
+        {
+            if (child.BlockType.Contains("Body", StringComparison.OrdinalIgnoreCase) ||
+                child.AssignmentValue?.Contains("Body", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                var childHealth = FindFieldValue(child, "MaxHealth") ?? FindFieldValue(child, "InitialHealth");
+                if (!string.IsNullOrWhiteSpace(childHealth))
+                {
+                    return childHealth;
+                }
+
+                if (child.BlockType.Contains("Immortal", StringComparison.OrdinalIgnoreCase) ||
+                    child.AssignmentValue?.Contains("Immortal", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    return "Immortal";
+                }
+            }
+        }
+
+        var bodyField = block.Fields.FirstOrDefault(f => string.Equals(f.Key, "Body", StringComparison.OrdinalIgnoreCase));
+        if (bodyField != null && bodyField.Value.Contains("Immortal", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Immortal";
+        }
+
+        return null;
+    }
+
+    private static IniTreeNodeViewModel? FindNodeForBlock(IEnumerable<IniTreeNodeViewModel> nodes, IniBlock targetBlock)
+    {
+        foreach (var node in nodes)
+        {
+            if (node.Block == targetBlock)
+            {
+                return node;
+            }
+
+            var found = FindNodeForBlock(node.Children, targetBlock);
+            if (found != null)
+            {
+                return found;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -2619,32 +2674,77 @@ public sealed partial class IniEditorViewModel(
             key.Contains("Cameo", StringComparison.OrdinalIgnoreCase))
         {
             var textures = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var item in TexturePickerItems) textures.Add(item.Name);
-            foreach (var name in referenceService.GetNames("MappedImage")) textures.Add(name);
+            foreach (var item in TexturePickerItems)
+            {
+                textures.Add(item.Name);
+            }
+
+            foreach (var name in referenceService.GetNames("MappedImage"))
+            {
+                textures.Add(name);
+            }
+
             if (_document != null)
             {
                 foreach (var b in _document.Blocks.Where(b => string.Equals(b.BlockType, "MappedImage", StringComparison.OrdinalIgnoreCase)))
                 {
-                    if (!string.IsNullOrWhiteSpace(b.Name)) textures.Add(b.Name);
+                    if (!string.IsNullOrWhiteSpace(b.Name))
+                    {
+                        textures.Add(b.Name);
+                    }
                 }
             }
-            if (textures.Count > 0) return textures.OrderBy(t => t, StringComparer.OrdinalIgnoreCase).ToList();
+
+            if (textures.Count > 0)
+            {
+                return textures.OrderBy(t => t, StringComparer.OrdinalIgnoreCase).ToList();
+            }
         }
 
         // Block references
         var refType = schema?.ReferenceBlockType;
         if (string.IsNullOrEmpty(refType))
         {
-            if (string.Equals(key, "CommandButton", StringComparison.OrdinalIgnoreCase)) refType = IniConstants.BlockTypes.CommandButton;
-            else if (string.Equals(key, "CommandSet", StringComparison.OrdinalIgnoreCase)) refType = IniConstants.BlockTypes.CommandSet;
-            else if (key.Contains("Weapon", StringComparison.OrdinalIgnoreCase)) refType = IniConstants.BlockTypes.Weapon;
-            else if (key.Contains("Upgrade", StringComparison.OrdinalIgnoreCase)) refType = IniConstants.BlockTypes.Upgrade;
-            else if (string.Equals(key, IniConstants.FieldKeys.Object, StringComparison.OrdinalIgnoreCase) || string.Equals(key, "TargetObject", StringComparison.OrdinalIgnoreCase)) refType = IniConstants.BlockTypes.Object;
-            else if (key.Contains("Armor", StringComparison.OrdinalIgnoreCase)) refType = IniConstants.BlockTypes.Armor;
-            else if (key.Contains("DamageFX", StringComparison.OrdinalIgnoreCase)) refType = IniConstants.BlockTypes.DamageFX;
-            else if (key.Contains("Locomotor", StringComparison.OrdinalIgnoreCase)) refType = IniConstants.BlockTypes.Locomotor;
-            else if (key.Contains("SpecialPower", StringComparison.OrdinalIgnoreCase)) refType = IniConstants.BlockTypes.SpecialPower;
-            else if (key.Contains("Science", StringComparison.OrdinalIgnoreCase)) refType = "Science";
+            if (string.Equals(key, "CommandButton", StringComparison.OrdinalIgnoreCase))
+            {
+                refType = IniConstants.BlockTypes.CommandButton;
+            }
+            else if (string.Equals(key, "CommandSet", StringComparison.OrdinalIgnoreCase))
+            {
+                refType = IniConstants.BlockTypes.CommandSet;
+            }
+            else if (key.Contains("Weapon", StringComparison.OrdinalIgnoreCase))
+            {
+                refType = IniConstants.BlockTypes.Weapon;
+            }
+            else if (key.Contains("Upgrade", StringComparison.OrdinalIgnoreCase))
+            {
+                refType = IniConstants.BlockTypes.Upgrade;
+            }
+            else if (string.Equals(key, IniConstants.FieldKeys.Object, StringComparison.OrdinalIgnoreCase) || string.Equals(key, "TargetObject", StringComparison.OrdinalIgnoreCase))
+            {
+                refType = IniConstants.BlockTypes.Object;
+            }
+            else if (key.Contains("Armor", StringComparison.OrdinalIgnoreCase))
+            {
+                refType = IniConstants.BlockTypes.Armor;
+            }
+            else if (key.Contains("DamageFX", StringComparison.OrdinalIgnoreCase))
+            {
+                refType = IniConstants.BlockTypes.DamageFX;
+            }
+            else if (key.Contains("Locomotor", StringComparison.OrdinalIgnoreCase))
+            {
+                refType = IniConstants.BlockTypes.Locomotor;
+            }
+            else if (key.Contains("SpecialPower", StringComparison.OrdinalIgnoreCase))
+            {
+                refType = IniConstants.BlockTypes.SpecialPower;
+            }
+            else if (key.Contains("Science", StringComparison.OrdinalIgnoreCase))
+            {
+                refType = "Science";
+            }
         }
 
         if (!string.IsNullOrEmpty(refType))
@@ -2654,10 +2754,17 @@ public sealed partial class IniEditorViewModel(
             {
                 foreach (var b in _document.Blocks.Where(b => string.Equals(b.BlockType, refType, StringComparison.OrdinalIgnoreCase)))
                 {
-                    if (!string.IsNullOrWhiteSpace(b.Name)) refs.Add(b.Name);
+                    if (!string.IsNullOrWhiteSpace(b.Name))
+                    {
+                        refs.Add(b.Name);
+                    }
                 }
             }
-            if (refs.Count > 0) return refs.OrderBy(r => r, StringComparer.OrdinalIgnoreCase).ToList();
+
+            if (refs.Count > 0)
+            {
+                return refs.OrderBy(r => r, StringComparer.OrdinalIgnoreCase).ToList();
+            }
         }
 
         if (string.Equals(key, IniConstants.FieldKeys.KindOf, StringComparison.OrdinalIgnoreCase))
@@ -2964,7 +3071,7 @@ public sealed partial class IniEditorViewModel(
                 _allTextureItems.Add(new IniTextureItemViewModel
                 {
                     Name = definition.Name,
-                    Tooltip = $"{definition.Name} ({definition.Width}x{definition.Height}) [{(string.IsNullOrEmpty(definition.SourcePath) ? string.Empty : Path.GetFileName(definition.SourcePath))}]"
+                    Tooltip = $"{definition.Name} ({definition.Width}x{definition.Height}) [{(string.IsNullOrEmpty(definition.SourcePath) ? string.Empty : Path.GetFileName(definition.SourcePath))}]",
                 });
             }
 
@@ -3119,46 +3226,13 @@ public sealed partial class IniEditorViewModel(
         QueueThumbnailRefresh();
     }
 
-    private static string? ResolveHealthValue(IniBlock block)
-    {
-        var health = FindFieldValue(block, IniConstants.FieldKeys.Health) ?? FindFieldValue(block, "MaxHealth") ?? FindFieldValue(block, "InitialHealth");
-        if (!string.IsNullOrWhiteSpace(health))
-        {
-            return health;
-        }
-
-        foreach (var child in block.Children)
-        {
-            if (child.BlockType.Contains("Body", StringComparison.OrdinalIgnoreCase) ||
-                child.AssignmentValue?.Contains("Body", StringComparison.OrdinalIgnoreCase) == true)
-            {
-                var childHealth = FindFieldValue(child, "MaxHealth") ?? FindFieldValue(child, "InitialHealth");
-                if (!string.IsNullOrWhiteSpace(childHealth))
-                {
-                    return childHealth;
-                }
-
-                if (child.BlockType.Contains("Immortal", StringComparison.OrdinalIgnoreCase) ||
-                    child.AssignmentValue?.Contains("Immortal", StringComparison.OrdinalIgnoreCase) == true)
-                {
-                    return "Immortal";
-                }
-            }
-        }
-
-        var bodyField = block.Fields.FirstOrDefault(f => string.Equals(f.Key, "Body", StringComparison.OrdinalIgnoreCase));
-        if (bodyField != null && bodyField.Value.Contains("Immortal", StringComparison.OrdinalIgnoreCase))
-        {
-            return "Immortal";
-        }
-
-        return null;
-    }
-
     private void RebuildCanvasBlockCards()
     {
         CanvasBlockCards.Clear();
-        if (_document == null) return;
+        if (_document == null)
+        {
+            return;
+        }
 
         foreach (var block in _document.Blocks)
         {
@@ -3174,11 +3248,22 @@ public sealed partial class IniEditorViewModel(
 
             var vitals = new List<CanvasVitalItem>();
             var health = ResolveHealthValue(block);
-            if (!string.IsNullOrWhiteSpace(health)) vitals.Add(new("HP", health, "SuccessBrush"));
+            if (!string.IsNullOrWhiteSpace(health))
+            {
+                vitals.Add(new("HP", health, "SuccessBrush"));
+            }
+
             var cost = FindFieldValue(block, IniConstants.FieldKeys.BuildCost);
-            if (!string.IsNullOrWhiteSpace(cost)) vitals.Add(new("Cost", $"", "WarningBrush"));
+            if (!string.IsNullOrWhiteSpace(cost))
+            {
+                vitals.Add(new("Cost", $"${cost}", "WarningBrush"));
+            }
+
             var cmd = FindFieldValue(block, IniConstants.FieldKeys.Command);
-            if (!string.IsNullOrWhiteSpace(cmd)) vitals.Add(new("Cmd", cmd, "AccentBrush"));
+            if (!string.IsNullOrWhiteSpace(cmd))
+            {
+                vitals.Add(new("Cmd", cmd, "AccentBrush"));
+            }
 
             CanvasBlockCards.Add(new IniCanvasCardViewModel(block, title, block.BlockType, side, portrait, vitals));
         }
@@ -3193,24 +3278,17 @@ public sealed partial class IniEditorViewModel(
     [RelayCommand]
     private void SelectBlockCard(IniBlock? block)
     {
-        if (block == null) return;
+        if (block == null)
+        {
+            return;
+        }
+
         ShowAllBlocksOnCanvas = false;
         var targetNode = FindNodeForBlock(RootNodes, block);
         if (targetNode != null)
         {
             SelectedNode = targetNode;
         }
-    }
-
-    private static IniTreeNodeViewModel? FindNodeForBlock(IEnumerable<IniTreeNodeViewModel> nodes, IniBlock targetBlock)
-    {
-        foreach (var node in nodes)
-        {
-            if (node.Block == targetBlock) return node;
-            var found = FindNodeForBlock(node.Children, targetBlock);
-            if (found != null) return found;
-        }
-        return null;
     }
 
     [RelayCommand]
@@ -3326,7 +3404,7 @@ public sealed partial class IniEditorViewModel(
             if (!string.IsNullOrWhiteSpace(health)) vitals.Add(new("Health", health, "SuccessBrush"));
 
             var cost = FindFieldValue(block, IniConstants.FieldKeys.BuildCost);
-            if (!string.IsNullOrWhiteSpace(cost)) vitals.Add(new("Cost", $"", "WarningBrush"));
+            if (!string.IsNullOrWhiteSpace(cost)) vitals.Add(new("Cost", $"${cost}", "WarningBrush"));
 
             var time = FindFieldValue(block, IniConstants.FieldKeys.BuildTime);
             if (!string.IsNullOrWhiteSpace(time)) vitals.Add(new("Build Time", $"{time}s", "TextPrimary"));

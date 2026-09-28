@@ -1,7 +1,7 @@
-using System.Collections.Generic;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Models.Tools.IniEditor;
+using System.Collections.Generic;
 
 namespace GenHub.Features.Tools.IniEditor.ViewModels;
 
