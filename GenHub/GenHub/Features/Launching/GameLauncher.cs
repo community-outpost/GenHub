@@ -1373,7 +1373,6 @@ public class GameLauncher(
 
             var manifests = preflightResult.Data;
 
-            var manifestSourcePaths = await ManifestSourcePathResolver.ResolveManifestSourcePathsAsync(manifests, profile, manifestPool, logger, cancellationToken);
             var installResult = await ResolveInstallationAndPathsAsync(profile, cancellationToken);
             if (!installResult.Success)
             {
@@ -1386,6 +1385,8 @@ public class GameLauncher(
             var receiptDriftWarnings = new List<string>();
             manifests = await RefreshManifestsIfInstallationDriftedAsync(
                 installation, manifests, receiptDriftWarnings, cancellationToken);
+
+            var manifestSourcePaths = await ManifestSourcePathResolver.ResolveManifestSourcePathsAsync(manifests, profile, manifestPool, logger, cancellationToken);
 
             var candidateExecutable = TryResolveManifestExecutablePath(manifests) ?? gameClient.ExecutablePath;
             isSteamLaunch = AdjustSteamLaunchForExecutable(isSteamLaunch, profile.Id, candidateExecutable);

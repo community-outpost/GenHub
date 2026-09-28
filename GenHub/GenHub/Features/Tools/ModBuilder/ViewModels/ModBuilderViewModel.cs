@@ -1316,7 +1316,7 @@ public partial class ModBuilderViewModel(
             {
                 notificationService.ShowError(
                     localizationService.GetString(FolderRestrictedTitleKey),
-                    localizationService.GetString("Tools.ModBuilder.Notification.FolderRestricted.Message", targetDir));
+                    localizationService.GetString("Tools.ModBuilder.Notification.FolderRestricted.AppDir"));
                 return;
             }
 
@@ -2731,7 +2731,11 @@ public partial class ModBuilderViewModel(
                 await LoadBundlesAsync().ConfigureAwait(false);
                 if (CurrentProject != null && !string.IsNullOrEmpty(ProjectPath))
                 {
-                    await projectConfigService.SaveProjectAsync(ProjectPath, CurrentProject, CancellationToken.None).ConfigureAwait(false);
+                    var saveResult = await projectConfigService.SaveProjectAsync(ProjectPath, CurrentProject, CancellationToken.None).ConfigureAwait(false);
+                    if (!saveResult.Success)
+                    {
+                        logger.LogWarning("Failed to save project after configuration editor closed: {Error}", saveResult.FirstError);
+                    }
                 }
             });
         }
@@ -3701,7 +3705,7 @@ public partial class ModBuilderViewModel(
                 {
                     Name = manifest.Name,
                     Version = string.IsNullOrWhiteSpace(manifest.Version) ? (CurrentProject?.Version ?? ModBuilderConstants.DefaultManifestVersion) : manifest.Version,
-                    Publisher = string.IsNullOrWhiteSpace(manifest.Publisher) ? (CurrentProject?.Publisher ?? CurrentProject?.Author ?? string.Empty) : manifest.Publisher,
+                    Publisher = string.IsNullOrWhiteSpace(manifest.Publisher) ? ResolveProjectPublisher(CurrentProject) : manifest.Publisher,
                     Description = manifest.Description ?? string.Empty,
                     TargetGame = manifest.TargetGame,
                     ContentType = manifest.ContentType,
@@ -3715,7 +3719,7 @@ public partial class ModBuilderViewModel(
             {
                 Name = CurrentProject.Name,
                 Version = CurrentProject.Version,
-                Publisher = CurrentProject.Publisher ?? CurrentProject.Author ?? string.Empty,
+                Publisher = ResolveProjectPublisher(CurrentProject),
                 Description = string.Empty,
                 TargetGame = CurrentProject.TargetGame,
                 ContentType = CurrentProject.ContentType,
@@ -3723,6 +3727,11 @@ public partial class ModBuilderViewModel(
             });
         }
     }
+
+    private static string ResolveProjectPublisher(ModBuilderProject? project) =>
+        !string.IsNullOrWhiteSpace(project?.Publisher) ? project.Publisher
+        : !string.IsNullOrWhiteSpace(project?.Author) ? project.Author
+        : string.Empty;
 
     private async Task InitializeFileManagerAndGameDirectoryAsync(string projectDir)
     {

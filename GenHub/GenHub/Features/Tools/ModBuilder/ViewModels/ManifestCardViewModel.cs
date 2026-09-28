@@ -29,7 +29,6 @@ public partial class ManifestCardViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PacksSummary))]
-    [NotifyPropertyChangedFor(nameof(PacksCount))]
     private IReadOnlyList<string> _packNames = [];
 
     /// <summary>
@@ -38,11 +37,5 @@ public partial class ManifestCardViewModel : ObservableObject
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Bound as an instance property in XAML and reads source-generated instance state.")]
     public string PacksSummary => PackNames is { Count: > 0 }
         ? string.Join(", ", PackNames)
-        : "None";
-
-    /// <summary>
-    /// Gets the count of linked bundle packs.
-    /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Bound as an instance property in XAML and reads source-generated instance state.")]
-    public int PacksCount => PackNames.Count;
+        : "-";
 }

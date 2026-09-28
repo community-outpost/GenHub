@@ -1131,12 +1131,19 @@ public partial class ConfigEditorViewModel(
         try
         {
             var projectDir = CurrentProject.ProjectDir;
-            SyncItemsToConfiguration(projectDir);
-            SyncPacksToConfiguration();
-            SyncManifestsToConfiguration();
-            SyncCurrentProjectFromPrimaryManifest(CurrentProject, Configuration);
+            var stagedItems = BuildSyncedItems(projectDir);
+            var stagedPacks = BuildSyncedPacks();
+            var stagedManifests = BuildSyncedManifests();
 
-            await PersistConfigurationToDiskAsync(projectDir, cancellationToken).ConfigureAwait(false);
+            await PersistConfigurationToDiskAsync(projectDir, stagedItems, stagedPacks, stagedManifests, cancellationToken).ConfigureAwait(false);
+
+            Configuration.Items.Clear();
+            Configuration.Items.AddRange(stagedItems);
+            Configuration.Packs.Clear();
+            Configuration.Packs.AddRange(stagedPacks);
+            Configuration.Manifests.Clear();
+            Configuration.Manifests.AddRange(stagedManifests);
+            SyncCurrentProjectFromPrimaryManifest(CurrentProject, Configuration);
 
             HasChanges = false;
             notificationService.ShowSuccess(
@@ -1166,11 +1173,11 @@ public partial class ConfigEditorViewModel(
         }
     }
 
-    private void SyncItemsToConfiguration(string projectDir)
+    private List<BundleItem> BuildSyncedItems(string projectDir)
     {
         if (Configuration == null)
         {
-            return;
+            return [];
         }
 
         var existingItems = Configuration.Items
@@ -1178,19 +1185,20 @@ public partial class ConfigEditorViewModel(
             .GroupBy(i => i.Name, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
-        Configuration.Items.Clear();
         var uniqueBundleItems = BundleItems
             .Where(vm => !string.IsNullOrWhiteSpace(vm.Name))
             .GroupBy(vm => vm.Name.Trim(), StringComparer.OrdinalIgnoreCase)
             .Select(g => g.First());
 
+        var items = new List<BundleItem>();
         foreach (var itemVm in uniqueBundleItems)
         {
-            existingItems.TryGetValue(itemVm.Name, out var existingItem);
+            var itemName = itemVm.Name.Trim();
+            existingItems.TryGetValue(itemName, out var existingItem);
             var parsedFiles = ParseItemFiles(itemVm, existingItem, projectDir);
-            Configuration.Items.Add(new BundleItem
+            items.Add(new BundleItem
             {
-                Name = itemVm.Name,
+                Name = itemName,
                 NamePrefix = itemVm.NamePrefix,
                 NameSuffix = itemVm.NameSuffix,
                 IsBig = itemVm.IsBig,
@@ -1205,26 +1213,29 @@ public partial class ConfigEditorViewModel(
                 Events = existingItem?.Events != null ? new Dictionary<BundleEventType, BundleEvent>(existingItem.Events) : [],
             });
         }
+
+        return items;
     }
 
-    private void SyncPacksToConfiguration()
+    private List<BundlePack> BuildSyncedPacks()
     {
         if (Configuration == null)
         {
-            return;
+            return [];
         }
 
-        Configuration.Packs.Clear();
         var uniqueBundlePacks = BundlePacks
             .Where(vm => !string.IsNullOrWhiteSpace(vm.Name))
             .GroupBy(vm => vm.Name.Trim(), StringComparer.OrdinalIgnoreCase)
             .Select(g => g.First());
 
+        var packs = new List<BundlePack>();
         foreach (var packVm in uniqueBundlePacks)
         {
-            Configuration.Packs.Add(new BundlePack
+            var packName = packVm.Name.Trim();
+            packs.Add(new BundlePack
             {
-                Name = packVm.Name,
+                Name = packName,
                 NamePrefix = packVm.NamePrefix,
                 NameSuffix = packVm.NameSuffix,
                 AllowBuild = packVm.AllowBuild,
@@ -1237,19 +1248,21 @@ public partial class ConfigEditorViewModel(
                 ItemNames = packVm.ItemNames.ToList(),
             });
         }
+
+        return packs;
     }
 
-    private void SyncManifestsToConfiguration()
+    private List<BundleManifest> BuildSyncedManifests()
     {
         if (Configuration == null)
         {
-            return;
+            return [];
         }
 
-        Configuration.Manifests.Clear();
+        var manifests = new List<BundleManifest>();
         foreach (var manifestVm in BundleManifests.Where(m => !string.IsNullOrWhiteSpace(m.Name)))
         {
-            Configuration.Manifests.Add(new BundleManifest
+            manifests.Add(new BundleManifest
             {
                 Name = manifestVm.Name.Trim(),
                 Version = string.IsNullOrWhiteSpace(manifestVm.Version) ? ModBuilderConstants.DefaultManifestVersion : manifestVm.Version.Trim(),
@@ -1260,6 +1273,8 @@ public partial class ConfigEditorViewModel(
                 PackNames = manifestVm.PackNames.Where(p => !string.IsNullOrWhiteSpace(p)).ToList(),
             });
         }
+
+        return manifests;
     }
 
     private static void SyncCurrentProjectFromPrimaryManifest(ModBuilderProject? project, BuildConfiguration? configuration)
@@ -1309,23 +1324,86 @@ public partial class ConfigEditorViewModel(
         var fileParams = ConfigurationLoaderService.BuildFileParameters(itemVm.OutputFormat, itemVm.NoConvert);
         var configuredTarget = !string.IsNullOrWhiteSpace(itemVm.TargetDir) ? itemVm.TargetDir : string.Empty;
         var files = new List<BundleFile>(patterns.Length);
-        foreach (var rawPattern in patterns)
+        for (var i = 0; i < patterns.Length; i++)
         {
+            var rawPattern = patterns[i];
             // Relativize so entries corrupted by older saves heal back to portable patterns.
             var pattern = ConfigurationLoaderService.RelativizeToProject(rawPattern.Trim(), projectDir);
             var relTarget = ConfigurationLoaderService.ContainsWildcard(pattern)
                 ? configuredTarget
                 : ConfigurationLoaderService.StripGameFilesEditedPrefix(pattern.Replace('\\', '/'));
+
+            var existingFile = FindMatchingExistingFile(existingItem, pattern, rawPattern.Trim(), projectDir, i);
+
+            Dictionary<string, object>? mergedParams;
+            if (existingFile?.Params != null)
+            {
+                mergedParams = new Dictionary<string, object>(existingFile.Params, StringComparer.OrdinalIgnoreCase);
+                mergedParams.Remove(ModBuilderConstants.BundleParams.NoConvert);
+                mergedParams.Remove(ModBuilderConstants.BundleParams.OutputFormat);
+                if (fileParams != null)
+                {
+                    foreach (var kvp in fileParams)
+                    {
+                        mergedParams[kvp.Key] = kvp.Value;
+                    }
+                }
+
+                if (mergedParams.Count == 0)
+                {
+                    mergedParams = null;
+                }
+            }
+            else
+            {
+                mergedParams = fileParams;
+            }
+
             files.Add(new BundleFile
             {
                 AbsSourceParent = projectDir,
                 AbsSourceFile = pattern,
                 RelTargetFile = relTarget,
-                Params = fileParams,
+                Params = mergedParams,
+                ExcludeMarkersList = existingFile?.ExcludeMarkersList != null
+                    ? existingFile.ExcludeMarkersList.Select(m => new List<string>(m)).ToList()
+                    : null,
+                RegistryDef = existingFile?.RegistryDef != null
+                    ? new BundleRegistryDefinition
+                    {
+                        Paths = new List<string>(existingFile.RegistryDef.Paths),
+                        Crc32 = existingFile.RegistryDef.Crc32,
+                    }
+                    : null,
             });
         }
 
         return files;
+    }
+
+    private static BundleFile? FindMatchingExistingFile(BundleItem? existingItem, string pattern, string rawPattern, string projectDir, int index)
+    {
+        if (existingItem?.Files == null || existingItem.Files.Count == 0)
+        {
+            return null;
+        }
+
+        var match = existingItem.Files.FirstOrDefault(f =>
+            string.Equals(f.AbsSourceFile, pattern, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(f.AbsSourceFile, rawPattern, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(ConfigurationLoaderService.RelativizeToProject(f.AbsSourceFile, projectDir), pattern, StringComparison.OrdinalIgnoreCase));
+
+        if (match != null)
+        {
+            return match;
+        }
+
+        if (index >= 0 && index < existingItem.Files.Count)
+        {
+            return existingItem.Files[index];
+        }
+
+        return null;
     }
 
     private static string[] ResolveSavePatterns(BundleItemEditorViewModel itemVm, BundleItem? existingItem)
@@ -1404,13 +1482,13 @@ public partial class ConfigEditorViewModel(
             }).ToArray(),
         };
 
-    private async Task PersistConfigurationToDiskAsync(string projectDir, CancellationToken cancellationToken)
+    private async Task PersistConfigurationToDiskAsync(
+        string projectDir,
+        IReadOnlyList<BundleItem> items,
+        IReadOnlyList<BundlePack> packs,
+        IReadOnlyList<BundleManifest> manifests,
+        CancellationToken cancellationToken)
     {
-        if (Configuration == null)
-        {
-            return;
-        }
-
         var configDir = Path.Combine(projectDir, ModBuilderConstants.LowercaseConfigDir);
         Directory.CreateDirectory(configDir);
 
@@ -1424,21 +1502,61 @@ public partial class ConfigEditorViewModel(
             DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
         };
 
-        // Atomic temp-file writes so a crash mid-save never leaves truncated
-        // JSON behind (truncated files parse as empty on next import).
-        await ProjectConfigService.AtomicWriteJsonFileAsync(itemsPath, CreateItemsDto(Configuration.Items), serializerOptions, logger, cancellationToken).ConfigureAwait(false);
-        await ProjectConfigService.AtomicWriteJsonFileAsync(packsPath, CreatePacksDto(Configuration.Packs), serializerOptions, logger, cancellationToken).ConfigureAwait(false);
+        // Write all files to temporary files first so a failure mid-save never leaves partial state on disk.
+        var tempItemsPath = $"{itemsPath}.{Guid.NewGuid():N}.save.tmp";
+        var tempPacksPath = $"{packsPath}.{Guid.NewGuid():N}.save.tmp";
+        var tempManifestsPath = $"{manifestsPath}.{Guid.NewGuid():N}.save.tmp";
+        var tempFilesCreated = new List<string>();
 
-        if (Configuration.Manifests.Count > 0)
+        try
         {
-            await ProjectConfigService.AtomicWriteJsonFileAsync(manifestsPath, CreateManifestsDto(Configuration.Manifests), serializerOptions, logger, cancellationToken).ConfigureAwait(false);
-        }
-        else if (File.Exists(manifestsPath))
-        {
-            File.Delete(manifestsPath);
-        }
+            await ProjectConfigService.AtomicWriteJsonFileAsync(tempItemsPath, CreateItemsDto(items), serializerOptions, logger, cancellationToken).ConfigureAwait(false);
+            tempFilesCreated.Add(tempItemsPath);
 
-        logger.LogInformation("Saved bundle configuration to {ItemsPath} and {PacksPath}", itemsPath, packsPath);
+            await ProjectConfigService.AtomicWriteJsonFileAsync(tempPacksPath, CreatePacksDto(packs), serializerOptions, logger, cancellationToken).ConfigureAwait(false);
+            tempFilesCreated.Add(tempPacksPath);
+
+            if (manifests.Count > 0)
+            {
+                await ProjectConfigService.AtomicWriteJsonFileAsync(tempManifestsPath, CreateManifestsDto(manifests), serializerOptions, logger, cancellationToken).ConfigureAwait(false);
+                tempFilesCreated.Add(tempManifestsPath);
+            }
+
+            File.Move(tempItemsPath, itemsPath, overwrite: true);
+            tempFilesCreated.Remove(tempItemsPath);
+
+            File.Move(tempPacksPath, packsPath, overwrite: true);
+            tempFilesCreated.Remove(tempPacksPath);
+
+            if (manifests.Count > 0)
+            {
+                File.Move(tempManifestsPath, manifestsPath, overwrite: true);
+                tempFilesCreated.Remove(tempManifestsPath);
+            }
+            else if (File.Exists(manifestsPath))
+            {
+                File.Delete(manifestsPath);
+            }
+
+            logger.LogInformation("Saved bundle configuration to {ItemsPath} and {PacksPath}", itemsPath, packsPath);
+        }
+        finally
+        {
+            foreach (var tempFile in tempFilesCreated)
+            {
+                try
+                {
+                    if (File.Exists(tempFile))
+                    {
+                        File.Delete(tempFile);
+                    }
+                }
+                catch
+                {
+                    // Ignore temp file cleanup errors
+                }
+            }
+        }
     }
 
     /// <summary>

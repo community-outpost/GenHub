@@ -1106,7 +1106,8 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
                 gamePath,
                 gameClient,
                 versionForManifest,
-                cancellationToken);
+                cancellationToken,
+                forceRegeneration);
         }
         else
         {
@@ -1127,13 +1128,15 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
     /// <param name="gameClient">The detected game client, if available.</param>
     /// <param name="versionForManifest">The manifest version string.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
+    /// <param name="forceRegeneration">Whether to force regeneration of the client manifest even if it exists in the pool.</param>
     private async Task EnsureGameClientManifestAsync(
         GameInstallation installation,
         GameType gameType,
         string gamePath,
         GameClient? gameClient,
         string versionForManifest,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool forceRegeneration = false)
     {
         if (contentManifestPool is null || manifestGenerationService is null)
         {
@@ -1156,10 +1159,13 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
                 return;
             }
 
-            var existing = await contentManifestPool.GetManifestAsync(clientManifestId, cancellationToken);
-            if (existing?.Success == true && existing.Data != null)
+            if (!forceRegeneration)
             {
-                return;
+                var existing = await contentManifestPool.GetManifestAsync(clientManifestId, cancellationToken);
+                if (existing?.Success == true && existing.Data != null)
+                {
+                    return;
+                }
             }
 
             var exePath = ResolveClientExecutablePath(gameClient, installation, gamePath, gameType);

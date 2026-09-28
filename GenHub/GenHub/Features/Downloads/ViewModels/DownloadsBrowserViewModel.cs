@@ -2753,6 +2753,7 @@ public sealed partial class DownloadsBrowserViewModel(
         }
 
         var oldManifestId = await ResolveLocalInstalledManifestIdAsync(item, ct).ConfigureAwait(false);
+        var previousVariant = targetItem.SelectedVariant;
 
         if (ReferenceEquals(targetItem, item) && item.Variants.Count > 1)
         {
@@ -2772,6 +2773,7 @@ public sealed partial class DownloadsBrowserViewModel(
         var downloadSuccess = await DownloadContentAsync(targetItem, ct);
         if (!downloadSuccess)
         {
+            targetItem.SelectedVariant = previousVariant;
             if (ct.IsCancellationRequested ||
                 string.Equals(targetItem.DownloadStatus, ContentConstants.DownloadCancelledStatusMessage, StringComparison.Ordinal))
             {
