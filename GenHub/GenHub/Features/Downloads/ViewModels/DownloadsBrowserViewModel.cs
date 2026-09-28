@@ -3910,7 +3910,11 @@ public sealed partial class DownloadsBrowserViewModel(
             return;
         }
 
-        if (!item.EffectiveIsDownloaded && item.EffectiveCurrentState is not (ContentState.Downloaded or ContentState.UpdateAvailable))
+        var isReady = item.HasBundleComponents
+            ? item.AreBundleComponentsReadyForProfile
+            : item.EffectiveIsDownloaded || item.EffectiveCurrentState is ContentState.Downloaded or ContentState.UpdateAvailable;
+
+        if (!isReady)
         {
             item.DownloadStatus = ContentConstants.PleaseDownloadFirstStatusMessage;
             notificationService.ShowError(

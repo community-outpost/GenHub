@@ -313,7 +313,7 @@ public partial class ContentLibraryViewModel(
             return;
         }
 
-        var newContent = await dialogService.ShowAddContentDialogAsync(pathsList);
+        var newContent = await dialogService.ShowAddContentDialogAsync(pathsList, activeCatalog.Catalog);
         if (newContent != null)
         {
             if (activeCatalog.Catalog.Content.Any(c => string.Equals(c.Id, newContent.Id, StringComparison.OrdinalIgnoreCase)))

@@ -14,7 +14,7 @@
         {
             "id": "zerohour",
             "name": "TheSuperHackers Zero Hour Game Code",
-            "description": "Weekly release of Command & Conquer: Generals Zero Hour game code from TheSuperHackers.\n\nKey Highlights:\n• Community-maintained game client with extensive engine bug fixes and anti-desync stability.\n• Modern OS compatibility fixes for Windows 10/11 including widescreen scaling and multi-monitor support.\n• Fully compatible with stock 1.04 replay system and multiplayer matchmaking services.",
+            "description": "Weekly release of Command & Conquer: Generals Zero Hour game code from TheSuperHackers.\n\nKey Highlights:\n\u2022 Community-maintained game client with extensive engine bug fixes and anti-desync stability.\n\u2022 Modern OS compatibility fixes for Windows 10/11 including widescreen scaling and multi-monitor support.\n\u2022 Fully compatible with stock 1.04 replay system and multiplayer matchmaking services.",
             "contentType": "GameClient",
             "publisherType": "thesuperhackers",
             "isStandalone": true,
@@ -110,7 +110,7 @@
         {
             "id": "60hz",
             "name": "Generals Online (60Hz Client)",
-            "description": "Community-driven multiplayer service and enhanced client for C&C Generals Zero Hour.\n\nKey Highlights:\n• 60Hz tick rate physics engine for buttery smooth unit movement and responsive micro-management.\n• Built-in quickmatch matchmaking service, ladder leaderboards, and automatic map synchronization.\n• Enhanced anti-cheat protections and seamless reconnection handling.",
+            "description": "Community-driven multiplayer service and enhanced client for C&C Generals Zero Hour.\n\nKey Highlights:\n\u2022 60Hz tick rate physics engine for buttery smooth unit movement and responsive micro-management.\n\u2022 Built-in quickmatch matchmaking service, ladder leaderboards, and automatic map synchronization.\n\u2022 Enhanced anti-cheat protections and seamless reconnection handling.",
             "contentType": "GameClient",
             "publisherType": "generalsonline",
             "isStandalone": true,
@@ -183,7 +183,7 @@
         {
             "id": "community-patch-retail",
             "name": "Community Patch (TheSuperHackers Build)",
-            "description": "Community Patch game client (Retail Compatible) from Community Outpost, synced from upstream legi.cc builds.\n\nKey Highlights:\n• TheSuperHackers engine build with desync fixes and modern OS support.\n• Automatic updates whenever a new upstream build is published.",
+            "description": "Community Patch game client (Retail Compatible) from Community Outpost, synced from upstream legi.cc builds.\n\nKey Highlights:\n\u2022 TheSuperHackers engine build with desync fixes and modern OS support.\n\u2022 Automatic updates whenever a new upstream build is published.",
             "contentType": "GameClient",
             "publisherType": "communityoutpost",
             "isStandalone": true,
@@ -248,7 +248,7 @@
         {
             "id": "community-patch-nonretail",
             "name": "Community Patch (TheSuperHackers Non-Retail Build)",
-            "description": "Community Patch game client (Non-Retail) from Community Outpost, synced from upstream legi.cc builds.\n\nKey Highlights:\n• TheSuperHackers engine build with desync fixes and modern OS support.\n• Automatic updates whenever a new upstream build is published.",
+            "description": "Community Patch game client (Non-Retail) from Community Outpost, synced from upstream legi.cc builds.\n\nKey Highlights:\n\u2022 TheSuperHackers engine build with desync fixes and modern OS support.\n\u2022 Automatic updates whenever a new upstream build is published.",
             "contentType": "GameClient",
             "publisherType": "communityoutpost",
             "isStandalone": true,
@@ -311,41 +311,25 @@
             ]
         },
         {
-            "id": "lemon-controlbar",
-            "name": "Control Bar Pro Lemon Edition ZH",
-            "description": "Lemon-themed Control Bar Pro UI add-on for C&C Generals Zero Hour, shipping five tailored HUD resolution variants so you can select the exact match for your display.\n\nKey Highlights:\n• Re-designed Command & Control bar interface tuned for modern widescreen and high-resolution monitors.\n• Selectable resolution variants: 720p (HD), 900p (HD+), 1080p (Full HD - Recommended), 1440p (2K Quad HD), and 4K (2160p Ultra HD).\n• Lemon-edition custom unit portrait frames, optimized command build buttons, and expanded mini-map radar visibility.\n• Adjusted money and resource texture sizing for Observer, China, USA, and GLA control bars.\n• Fully compatible with standard SAGE engine .BIG packaging and profile managers.",
+            "id": "l3m-controlbar",
+            "name": "L3M Modern HD Control Bar",
+            "description": "Clean, high-definition competitive control bar overlay designed by L3M. Supports multiple display resolutions with pixel-perfect mini-map scaling and unit command cards.\n\nKey Highlights:\n\u2022 Re-designed Command & Control bar interface tuned for modern widescreen and high-resolution monitors.\n\u2022 Selectable resolution variants: 720p (HD), 900p (HD+), 1080p (Full HD - Recommended), 1440p (2K Quad HD), and 4K (2160p Ultra HD).\n\u2022 Custom unit portrait frames, optimized command build buttons, and expanded mini-map radar visibility.\n\u2022 Fully compatible with standard SAGE engine .BIG packaging and profile managers.",
             "contentType": "Addon",
-            "publisherType": "github",
-            "isStandalone": true,
             "targetGame": 1,
+            "isStandalone": true,
             "tags": [
-                "addon",
                 "controlbar",
-                "lemon",
+                "hd",
                 "ui",
-                "widescreen",
-                "1080p",
-                "1440p",
-                "4k",
-                "zerohour",
-                "github"
+                "l3m",
+                "resolutions"
             ],
             "metadata": {
-                "bannerUrl": "avares://GenHub/Assets/Covers/gla-cover.jpg",
-                "iconUrl": "avares://GenHub/Assets/Logos/github-logo.png",
-                "backdropUrl": "avares://GenHub/Assets/Covers/china-cover.jpg",
-                "screenshotUrls": [
-                    "avares://GenHub/Assets/Covers/gla-cover.jpg",
-                    "avares://GenHub/Assets/Covers/china-cover.jpg",
-                    "avares://GenHub/Assets/Covers/usa-cover.jpg",
-                    "avares://GenHub/Assets/Covers/zerohour-cover.png"
-                ],
-                "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                "author": "L3M",
+                "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
                 "documentationUrl": "https://github.com/L3-M/GeneralsControlBar",
-                "author": "L3-M",
-                "license": "GPL-3.0",
-                "category": "UI Addon",
-                "playerCount": 8
+                "iconUrl": "avares://GenHub/Assets/Logos/github-logo.png",
+                "backdropUrl": "avares://GenHub/Assets/Covers/usa-cover.jpg"
             },
             "releases": [
                 {
@@ -353,7 +337,7 @@
                     "releaseDate": "2026-07-10T00:00:00Z",
                     "isLatest": true,
                     "isPrerelease": false,
-                    "changelog": "Lemon Edition v1.3 release from GitHub publisher L3-M/GeneralsControlBar. Re-aligned GLA money frame, corrected 1440p radar minimap border alignment, and updated Observer build button hover states across all 5 resolution packs.",
+                    "changelog": "Lemon Edition v1.3 release from GitHub publisher L3-M/GeneralsControlBar. Re-aligned GLA money frame, corrected 1440p radar minimap border alignment, and updated Observer build button hover states across all resolution packs.",
                     "artifacts": [
                         {
                             "filename": "ControlBarProLemonEditionZH_v1.3_1280x720.zip",
@@ -418,83 +402,6 @@
                             "versionConstraint": "1.04",
                             "contentType": "GameInstallation",
                             "isOptional": false
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "id": "l3m-controlbar",
-            "name": "L3M Modern HD Control Bar",
-            "description": "Clean, high-definition competitive control bar overlay designed by L3M. Supports multiple display resolutions with pixel-perfect mini-map scaling and unit command cards.",
-            "contentType": "Addon",
-            "targetGame": 1,
-            "isStandalone": true,
-            "tags": [
-                "controlbar",
-                "hd",
-                "ui",
-                "l3m",
-                "resolutions"
-            ],
-            "metadata": {
-                "author": "L3M",
-                "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
-                "documentationUrl": "https://github.com/L3-M/GeneralsControlBar",
-                "iconUrl": "avares://GenHub/Assets/Logos/github-logo.png",
-                "backdropUrl": "avares://GenHub/Assets/Covers/usa-cover.jpg"
-            },
-            "releases": [
-                {
-                    "version": "1.3",
-                    "releaseDate": "2026-07-10T00:00:00Z",
-                    "isLatest": true,
-                    "isPrerelease": false,
-                    "changelog": "Lemon Edition v1.3 release from GitHub publisher L3-M/GeneralsControlBar. Re-aligned GLA money frame, corrected 1440p radar minimap border alignment, and updated Observer build button hover states across all resolution packs.",
-                    "artifacts": [
-                        {
-                            "filename": "ControlBarProLemonEditionZH_v1.3_1280x720.zip",
-                            "downloadUrl": "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1280x720.zip",
-                            "size": 1224790,
-                            "sha256": "733ee8d81cf79f23b7b3f536970b9feb01785f64809aa84733f8fe08d6ef197c",
-                            "contentType": "application/zip",
-                            "variantAxis": "resolution",
-                            "variant": "720p",
-                            "isDefaultVariant": false,
-                            "isPrimary": false
-                        },
-                        {
-                            "filename": "ControlBarProLemonEditionZH_v1.3_1920x1080.zip",
-                            "downloadUrl": "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1920x1080.zip",
-                            "size": 1224544,
-                            "sha256": "e0972cde7eaf4a01483eee5239b6ade7fab46f4907b9ed597b96d66447c1d940",
-                            "contentType": "application/zip",
-                            "variantAxis": "resolution",
-                            "variant": "1080p",
-                            "isDefaultVariant": true,
-                            "isPrimary": true
-                        },
-                        {
-                            "filename": "ControlBarProLemonEditionZH_v1.3_2560x1440.zip",
-                            "downloadUrl": "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_2560x1440.zip",
-                            "size": 4993590,
-                            "sha256": "a1d00b2def19786aa40ffe270c00c73e693ada3f6c8273a5555097f55ac04d13",
-                            "contentType": "application/zip",
-                            "variantAxis": "resolution",
-                            "variant": "1440p",
-                            "isDefaultVariant": false,
-                            "isPrimary": false
-                        },
-                        {
-                            "filename": "ControlBarProLemonEditionZH_v1.3_3840x2160.zip",
-                            "downloadUrl": "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_3840x2160.zip",
-                            "size": 4993603,
-                            "sha256": "4dc5b9cd4df5565c5f5417dbab7c87c3f3457dae40b4f843f630b7e07f306a90",
-                            "contentType": "application/zip",
-                            "variantAxis": "resolution",
-                            "variant": "4K",
-                            "isDefaultVariant": false,
-                            "isPrimary": false
                         }
                     ]
                 }
@@ -635,7 +542,7 @@
         {
             "id": "bundle-thesuperhackers-latest-stack",
             "name": "TheSuperHackers Latest Stack",
-            "description": "The premier competitive Zero Hour package curated for modern PC gaming. Combines TheSuperHackers weekly community game code engine fixes, GenTool 8.9 anti-cheat and widescreen suite, L3M Modern HD Control Bar HUD with selectable resolution variants (720p up to 4K), and Legionnaire's QWERTY hotkeys with real-time in-game visual overlay indicators.\n\nPackage Features:\n• TheSuperHackers Zero Hour Game Code: Continuous weekly engine improvements, multi-core and Windows 10/11 compatibility, anti-desync optimizations, and seamless replay support.\n• GenTool 8.9 Suite: Integrated anti-cheat validation, widescreen aspect ratio corrections, high-precision timer, and 3D camera controls.\n• L3M Modern HD Control Bar: Tailored widescreen command bars with five resolution presets (720p, 900p, 1080p, 1440p, 4K) and enhanced build queue visibility.\n• Legionnaire's Hotkeys: Streamlined competitive QWERTY command grid layout with in-game overlay badges.\n\nInstallation Notes:\nRequires a clean EA C&C Generals Zero Hour 1.04 installation. All bundled components are automatically sequenced and staged into your active game profile.",
+            "description": "The premier competitive Zero Hour package curated for modern PC gaming. Combines TheSuperHackers weekly community game code engine fixes, GenTool 8.9 anti-cheat and widescreen suite, L3M Modern HD Control Bar HUD with selectable resolution variants (720p up to 4K), and Legionnaire's QWERTY hotkeys with real-time in-game visual overlay indicators.\n\nPackage Features:\n\u2022 TheSuperHackers Zero Hour Game Code: Continuous weekly engine improvements, multi-core and Windows 10/11 compatibility, anti-desync optimizations, and seamless replay support.\n\u2022 GenTool 8.9 Suite: Integrated anti-cheat validation, widescreen aspect ratio corrections, high-precision timer, and 3D camera controls.\n\u2022 L3M Modern HD Control Bar: Tailored widescreen command bars with five resolution presets (720p, 900p, 1080p, 1440p, 4K) and enhanced build queue visibility.\n\u2022 Legionnaire's Hotkeys: Streamlined competitive QWERTY command grid layout with in-game overlay badges.\n\nInstallation Notes:\nRequires a clean EA C&C Generals Zero Hour 1.04 installation. All bundled components are automatically sequenced and staged into your active game profile.",
             "contentType": "ContentBundle",
             "publisherType": "generic-catalog",
             "isStandalone": true,
@@ -718,9 +625,9 @@
             ]
         },
         {
-            "id": "bundle-community-outpost-stack",
-            "name": "Community Outpost Patch Stack",
-            "description": "Comprehensive Community Outpost zero-configuration bundle for Command & Conquer: Generals Zero Hour. Bundles the official Community Outpost Game Client (legi.cc community patch), GenTool 8.9 Suite, L3M Modern HD Control Bar HUD variants, and Legionnaire Hotkeys for an authentic, tournament-grade community experience.\n\nPackage Features:\n• Community Outpost Game Client: Official community patch with balance adjustments, desync mitigations, fixed unit exploits, and modern OS performance tweaks.\n• GenTool 8.9 Suite: Anti-cheat protection, enhanced observer mode, and lossless replay recording.\n• L3M Modern HD Control Bar: Crisp high-resolution UI layouts selectable from 720p to 4K.\n• Legionnaire's Hotkeys: Standard tournament QWERTY hotkey bindings with visual on-screen indicators.\n\nInstallation Notes:\nRequires an installed copy of Zero Hour 1.04. Automatically sets up the entire patch stack with zero manual file copying.",
+            "id": "bundle-community-outpost-retail-stack",
+            "name": "Community Outpost Patch Stack (Retail)",
+            "description": "Comprehensive Community Outpost zero-configuration bundle for Command & Conquer: Generals Zero Hour (Retail Game Client edition). Bundles the official Community Outpost Retail Game Client (TheSuperHackers Build), GenTool 8.9 Suite, L3M Modern HD Control Bar HUD variants, and Legionnaire Hotkeys for an authentic, tournament-grade community experience.\n\nPackage Features:\n\u2022 Community Outpost Game Client (Retail): Official community patch built for retail disc, EA App, and First Decade installations with balance adjustments, desync mitigations, fixed unit exploits, and modern OS performance tweaks.\n\u2022 GenTool 8.9 Suite: Anti-cheat protection, enhanced observer mode, and lossless replay recording.\n\u2022 L3M Modern HD Control Bar: Crisp high-resolution UI layouts selectable from 720p to 4K.\n\u2022 Legionnaire's Hotkeys: Standard tournament QWERTY hotkey bindings with visual on-screen indicators.\n\nInstallation Notes:\nRequires an installed copy of Zero Hour 1.04. Automatically sets up the entire patch stack with zero manual file copying.",
             "contentType": "ContentBundle",
             "publisherType": "generic-catalog",
             "isStandalone": true,
@@ -729,6 +636,7 @@
                 "bundle",
                 "community",
                 "communityoutpost",
+                "retail",
                 "zerohour",
                 "competitive",
                 "complete",
@@ -759,7 +667,7 @@
                     "releaseDate": "2026-07-31T00:00:00Z",
                     "isLatest": true,
                     "isPrerelease": false,
-                    "changelog": "Community Outpost patch stack bundle. Unifies the Community Outpost game clients (retail and non-retail) with Leikeze Hotkeys, L3M Modern HD Control Bar, Eliorata Improved Menus, and Control Bar Pro Lemon Edition in a single synchronized setup.",
+                    "changelog": "Community Outpost retail patch stack bundle. Unifies the Community Outpost retail game client with Leikeze Hotkeys, L3M Modern HD Control Bar, and Eliorata Improved Menus in a single synchronized setup.",
                     "artifacts": [],
                     "dependencies": [
                         {
@@ -777,11 +685,90 @@
                             "isOptional": false
                         },
                         {
+                            "publisherId": "genhub-test-publishers",
+                            "contentId": "leikeze-hotkeys",
+                            "versionConstraint": "latest",
+                            "contentType": "Addon",
+                            "isOptional": false
+                        },
+                        {
+                            "publisherId": "genhub-test-publishers",
+                            "contentId": "l3m-controlbar",
+                            "versionConstraint": "latest",
+                            "contentType": "Addon",
+                            "isOptional": false
+                        },
+                        {
+                            "publisherId": "genhub-test-publishers",
+                            "contentId": "eliorata-improved-menus",
+                            "versionConstraint": "latest",
+                            "contentType": "Addon",
+                            "isOptional": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "bundle-community-outpost-nonretail-stack",
+            "name": "Community Outpost Patch Stack (Non-Retail)",
+            "description": "Comprehensive Community Outpost zero-configuration bundle for Command & Conquer: Generals Zero Hour (Non-Retail Game Client edition). Bundles the official Community Outpost Non-Retail Game Client (TheSuperHackers Non-Retail Build), GenTool 8.9 Suite, L3M Modern HD Control Bar HUD variants, and Legionnaire Hotkeys for an authentic, tournament-grade community experience.\n\nPackage Features:\n\u2022 Community Outpost Game Client (Non-Retail): Official community patch built for Steam and digital distributions with balance adjustments, desync mitigations, fixed unit exploits, and modern OS performance tweaks.\n\u2022 GenTool 8.9 Suite: Anti-cheat protection, enhanced observer mode, and lossless replay recording.\n\u2022 L3M Modern HD Control Bar: Crisp high-resolution UI layouts selectable from 720p to 4K.\n\u2022 Legionnaire's Hotkeys: Standard tournament QWERTY hotkey bindings with visual on-screen indicators.\n\nInstallation Notes:\nRequires an installed copy of Zero Hour 1.04. Automatically sets up the entire patch stack with zero manual file copying.",
+            "contentType": "ContentBundle",
+            "publisherType": "generic-catalog",
+            "isStandalone": true,
+            "targetGame": 1,
+            "tags": [
+                "bundle",
+                "community",
+                "communityoutpost",
+                "nonretail",
+                "steam",
+                "zerohour",
+                "competitive",
+                "complete",
+                "patch",
+                "gentool",
+                "hotkeys"
+            ],
+            "metadata": {
+                "bannerUrl": "avares://GenHub/Assets/Covers/usa-cover.jpg",
+                "iconUrl": "avares://GenHub/Assets/Logos/communityoutpost-logo.png",
+                "backdropUrl": "avares://GenHub/Assets/Covers/gla-cover.jpg",
+                "screenshotUrls": [
+                    "avares://GenHub/Assets/Covers/usa-cover.jpg",
+                    "avares://GenHub/Assets/Covers/china-cover.jpg",
+                    "avares://GenHub/Assets/Covers/zerohour-cover.png",
+                    "avares://GenHub/Assets/Covers/gla-cover.jpg"
+                ],
+                "videoUrl": "https://legi.cc/patch",
+                "documentationUrl": "https://legi.cc/patch",
+                "author": "Community Outpost & Contributors",
+                "license": "Freeware",
+                "category": "Community Patch Bundle",
+                "playerCount": 8
+            },
+            "releases": [
+                {
+                    "version": "2026.07.31",
+                    "releaseDate": "2026-07-31T00:00:00Z",
+                    "isLatest": true,
+                    "isPrerelease": false,
+                    "changelog": "Community Outpost non-retail patch stack bundle. Unifies the Community Outpost non-retail game client with Leikeze Hotkeys, L3M Modern HD Control Bar, and Eliorata Improved Menus in a single synchronized setup.",
+                    "artifacts": [],
+                    "dependencies": [
+                        {
+                            "publisherId": "ea",
+                            "contentId": "zerohour",
+                            "versionConstraint": "1.04",
+                            "contentType": "GameInstallation",
+                            "isOptional": false
+                        },
+                        {
                             "publisherId": "communityoutpost",
                             "contentId": "community-patch-nonretail",
                             "versionConstraint": "latest",
                             "contentType": "GameClient",
-                            "isOptional": true
+                            "isOptional": false
                         },
                         {
                             "publisherId": "genhub-test-publishers",
@@ -811,7 +798,7 @@
         {
             "id": "bundle-generalsonline-complete-pack",
             "name": "Generals Online Complete Pack",
-            "description": "The ultimate all-in-one multiplayer package for Generals Online. Features the high-performance 60Hz physics tick-rate client, the full competitive QuickMatch map pool, GenTool 8.9 Suite anti-cheat, L3M Modern HD Control Bar HUD variants, and Legionnaire Hotkeys.\n\nPackage Features:\n• Generals Online 60Hz Client: High tickrate multiplayer client delivering ultra-smooth unit pathfinding, responsive micro-control, and automatic ladder reconnection.\n• QuickMatch Maps: Comprehensive competitive tournament map pack synchronized with Generals Online ladder matchmaking.\n• GenTool 8.9 Suite: Anti-cheat verification, wide-angle camera support, and spectator toolset.\n• L3M Modern HD Control Bar: Resolution-specific HUD layouts (720p through 4K) tailored for high-framerate competitive play.\n• Legionnaire's Hotkeys: Fast QWERTY build shortcuts with integrated HUD overlay indicators.\n\nInstallation Notes:\nRequires Zero Hour 1.04 base game. One-click install configures everything required for instant online matchmaking.",
+            "description": "The ultimate all-in-one multiplayer package for Generals Online. Features the high-performance 60Hz physics tick-rate client, the full competitive QuickMatch map pool, GenTool 8.9 Suite anti-cheat, L3M Modern HD Control Bar HUD variants, and Legionnaire Hotkeys.\n\nPackage Features:\n\u2022 Generals Online 60Hz Client: High tickrate multiplayer client delivering ultra-smooth unit pathfinding, responsive micro-control, and automatic ladder reconnection.\n\u2022 QuickMatch Maps: Comprehensive competitive tournament map pack synchronized with Generals Online ladder matchmaking.\n\u2022 GenTool 8.9 Suite: Anti-cheat verification, wide-angle camera support, and spectator toolset.\n\u2022 L3M Modern HD Control Bar: Resolution-specific HUD layouts (720p through 4K) tailored for high-framerate competitive play.\n\u2022 Legionnaire's Hotkeys: Fast QWERTY build shortcuts with integrated HUD overlay indicators.\n\nInstallation Notes:\nRequires Zero Hour 1.04 base game. One-click install configures everything required for instant online matchmaking.",
             "contentType": "ContentBundle",
             "publisherType": "generic-catalog",
             "isStandalone": true,

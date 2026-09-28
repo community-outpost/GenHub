@@ -1015,10 +1015,12 @@ public sealed partial class ContentGridItemViewModel(
     /// <see cref="IsDownloaded"/> flag, which would keep "Add to Profile" visible after
     /// downloading a sibling and switching to an undownloaded variant.
     /// </summary>
-    public bool EffectiveIsDownloaded => SelectedVariant != null
-        ? SelectedVariant.CurrentState == ContentState.Downloaded ||
-          (SelectedVariant.CurrentState == ContentState.UpdateAvailable && (IsDownloaded || !string.IsNullOrEmpty(SelectedVariant.ManifestId)))
-        : IsDownloaded || CurrentState is ContentState.Downloaded or ContentState.UpdateAvailable;
+    public bool EffectiveIsDownloaded => HasBundleComponents
+        ? AreBundleComponentsReadyForProfile
+        : SelectedVariant != null
+            ? SelectedVariant.CurrentState == ContentState.Downloaded ||
+              (SelectedVariant.CurrentState == ContentState.UpdateAvailable && (IsDownloaded || !string.IsNullOrEmpty(SelectedVariant.ManifestId)))
+            : IsDownloaded || CurrentState is ContentState.Downloaded or ContentState.UpdateAvailable;
 
     /// <summary>
     /// Adds a variant and optionally maps its <see cref="ContentSearchResult"/> for

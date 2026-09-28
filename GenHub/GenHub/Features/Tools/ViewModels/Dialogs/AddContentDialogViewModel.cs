@@ -80,6 +80,26 @@ public partial class AddContentDialogViewModel(
         /// Gets a value indicating whether multiple variants are available.
         /// </summary>
         public bool HasVariants => AvailableVariants.Count > 0;
+
+        /// <summary>
+        /// Gets the publisher ID that provides this dependency.
+        /// </summary>
+        public string? PublisherId { get; init; }
+
+        /// <summary>
+        /// Gets the version constraint for this dependency.
+        /// </summary>
+        public string? VersionConstraint { get; init; }
+
+        /// <summary>
+        /// Gets the catalog URL hint for this dependency.
+        /// </summary>
+        public string? CatalogUrl { get; init; }
+
+        /// <summary>
+        /// Gets the source dependency if this option originated from an existing dependency.
+        /// </summary>
+        public CatalogDependency? SourceDependency { get; init; }
     }
 
     /// <summary>
@@ -458,11 +478,22 @@ public partial class AddContentDialogViewModel(
 
     private BundleComponentOption CreateBundleComponentOption(CatalogContentItem item)
     {
+        var existingDep = _existingItem?.BundledItems.FirstOrDefault(b =>
+                string.Equals(b.ContentId, item.Id, StringComparison.OrdinalIgnoreCase) &&
+                (string.IsNullOrWhiteSpace(b.PublisherId) || string.Equals(b.PublisherId, catalog?.Publisher?.Id, StringComparison.OrdinalIgnoreCase)))
+            ?? _existingItem?.Releases.SelectMany(r => r.Dependencies ?? []).FirstOrDefault(d =>
+                string.Equals(d.ContentId, item.Id, StringComparison.OrdinalIgnoreCase) &&
+                (string.IsNullOrWhiteSpace(d.PublisherId) || string.Equals(d.PublisherId, catalog?.Publisher?.Id, StringComparison.OrdinalIgnoreCase)));
+
         var option = new BundleComponentOption
         {
             ContentId = item.Id,
             Name = !string.IsNullOrWhiteSpace(item.Name) ? item.Name : item.Id,
             ContentType = item.ContentType,
+            PublisherId = existingDep?.PublisherId ?? catalog?.Publisher?.Id,
+            VersionConstraint = existingDep?.VersionConstraint,
+            CatalogUrl = existingDep?.CatalogUrl,
+            SourceDependency = existingDep,
         };
 
         var variants = CollectItemVariants(item);
@@ -471,8 +502,6 @@ public partial class AddContentDialogViewModel(
             option.AvailableVariants.Add(v);
         }
 
-        var existingDep = _existingItem?.BundledItems.FirstOrDefault(b => string.Equals(b.ContentId, item.Id, StringComparison.OrdinalIgnoreCase))
-            ?? _existingItem?.Releases.SelectMany(r => r.Dependencies ?? []).FirstOrDefault(d => string.Equals(d.ContentId, item.Id, StringComparison.OrdinalIgnoreCase));
         if (existingDep != null)
         {
             option.IsSelected = true;
@@ -503,7 +532,9 @@ public partial class AddContentDialogViewModel(
 
         foreach (var bundledItem in allDeps)
         {
-            if (BundleComponentOptions.Any(o => string.Equals(o.ContentId, bundledItem.ContentId, StringComparison.OrdinalIgnoreCase)))
+            if (BundleComponentOptions.Any(o =>
+                string.Equals(o.ContentId, bundledItem.ContentId, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(o.PublisherId ?? string.Empty, bundledItem.PublisherId ?? string.Empty, StringComparison.OrdinalIgnoreCase)))
             {
                 continue;
             }
@@ -511,10 +542,16 @@ public partial class AddContentDialogViewModel(
             var option = new BundleComponentOption
             {
                 ContentId = bundledItem.ContentId,
-                Name = bundledItem.ContentId,
+                Name = !string.IsNullOrWhiteSpace(bundledItem.PublisherId)
+                    ? $"{bundledItem.ContentId} ({bundledItem.PublisherId})"
+                    : bundledItem.ContentId,
                 ContentType = Enum.TryParse<ContentType>(bundledItem.ContentType, out var ct) ? ct : ContentType.Addon,
                 IsSelected = true,
                 SelectedVariant = bundledItem.DefaultVariant,
+                PublisherId = bundledItem.PublisherId,
+                VersionConstraint = bundledItem.VersionConstraint,
+                CatalogUrl = bundledItem.CatalogUrl,
+                SourceDependency = bundledItem,
             };
 
             if (!string.IsNullOrWhiteSpace(bundledItem.DefaultVariant))
@@ -1749,30 +1786,31 @@ public partial class AddContentDialogViewModel(
 
         if (SelectedContentType == ContentType.ContentBundle)
         {
-            // Preserve publisher identity from the previous release dependencies so a
-            // saved bundle keeps resolving external members (they are not inferable from
-            // the matrix option alone). Release dependencies are rebuilt from BundledItems
-            // downstream, so identity lost here is lost everywhere.
+            // Preserve publisher identity from the previous release dependencies and source options
+            // so a saved bundle keeps resolving external members across distinct publishers.
             var priorDeps = (_existingItem?.Releases ?? [])
                 .SelectMany(r => r.Dependencies ?? [])
                 .Concat(_existingItem?.BundledItems ?? [])
                 .Where(d => !string.IsNullOrWhiteSpace(d.ContentId))
-                .GroupBy(d => d.ContentId, StringComparer.OrdinalIgnoreCase)
+                .GroupBy(d => $"{d.PublisherId ?? string.Empty}::{d.ContentId}", StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
             contentItem.BundledItems.Clear();
             foreach (var opt in BundleComponentOptions.Where(o => o.IsSelected))
             {
-                priorDeps.TryGetValue(opt.ContentId, out var prior);
+                var key = $"{opt.PublisherId ?? string.Empty}::{opt.ContentId}";
+                priorDeps.TryGetValue(key, out var prior);
+                var source = opt.SourceDependency ?? prior;
+
                 contentItem.BundledItems.Add(new CatalogDependency
                 {
-                    PublisherId = prior?.PublisherId,
+                    PublisherId = opt.PublisherId ?? source?.PublisherId,
                     ContentId = opt.ContentId,
-                    VersionConstraint = prior?.VersionConstraint ?? "latest",
+                    VersionConstraint = opt.VersionConstraint ?? source?.VersionConstraint ?? "latest",
                     IsOptional = false,
                     DefaultVariant = opt.SelectedVariant,
                     ContentType = opt.ContentType.ToString(),
-                    CatalogUrl = prior?.CatalogUrl,
+                    CatalogUrl = opt.CatalogUrl ?? source?.CatalogUrl,
                 });
             }
         }
@@ -2054,7 +2092,25 @@ public partial class AddContentDialogViewModel(
 
     private void AttachInitialRelease(CatalogContentItem contentItem)
     {
-        if (SelectedContentType == ContentType.ContentBundle || IsUpstreamSource)
+        if (SelectedContentType == ContentType.ContentBundle)
+        {
+            var bundleVersion = string.IsNullOrWhiteSpace(InitialVersion) ? "1.0.0" : InitialVersion.Trim();
+            var bundleRelease = new ContentRelease
+            {
+                Version = bundleVersion,
+                ReleaseDate = DateTime.UtcNow,
+                IsLatest = true,
+                Changelog = string.IsNullOrWhiteSpace(ReleaseChangelog) ? "Initial bundle release" : ReleaseChangelog.Trim(),
+                Artifacts = [],
+                Dependencies = [],
+                ImageUrls = [],
+                VideoUrls = [],
+            };
+            contentItem.Releases.Add(bundleRelease);
+            return;
+        }
+
+        if (IsUpstreamSource)
         {
             return;
         }

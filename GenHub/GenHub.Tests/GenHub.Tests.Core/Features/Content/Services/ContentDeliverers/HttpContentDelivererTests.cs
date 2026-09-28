@@ -3,6 +3,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
@@ -10,6 +11,7 @@ using GenHub.Features.Content.Services.ContentDeliverers;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -462,6 +464,64 @@ public class HttpContentDelivererTests
         finally
         {
             Directory.Delete(rootDirectory, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="HttpContentDeliverer.DeliverContentAsync"/> passes an <see cref="IProgress{DownloadProgress}"/>
+    /// to <see cref="IDownloadService"/> and forwards progress updates including speed and percentage.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_WithProgress_ReportsDownloadSpeedAndProgressAsync()
+    {
+        var targetDirectory = CreateTargetDirectory();
+        var manifest = CreateManifest("test-content", "1.0", "file.zip", "test-hash");
+        var reportedProgress = new List<ContentAcquisitionProgress>();
+        var progressMock = new Mock<IProgress<ContentAcquisitionProgress>>();
+        progressMock
+            .Setup(p => p.Report(It.IsAny<ContentAcquisitionProgress>()))
+            .Callback<ContentAcquisitionProgress>(reportedProgress.Add);
+
+        var downloadService = new Mock<IDownloadService>();
+        downloadService
+            .Setup(d => d.DownloadFileAsync(
+                It.IsAny<Uri>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<IProgress<DownloadProgress>?>(),
+                It.IsAny<CancellationToken>()))
+            .Returns((Uri url, string destinationPath, string? _, IProgress<DownloadProgress>? fileProgress, CancellationToken _) =>
+            {
+                fileProgress?.Report(new DownloadProgress(
+                    bytesReceived: 512,
+                    totalBytes: 1024,
+                    fileName: "file.zip",
+                    url: url,
+                    bytesPerSecond: 5 * 1024 * 1024));
+                File.WriteAllText(destinationPath, "content");
+                return Task.FromResult(DownloadResult.CreateSuccess(
+                    destinationPath,
+                    new FileInfo(destinationPath).Length,
+                    TimeSpan.FromMilliseconds(1),
+                    hashVerified: true));
+            });
+
+        var deliverer = CreateDeliverer(downloadService.Object);
+
+        try
+        {
+            var result = await deliverer.DeliverContentAsync(manifest, targetDirectory, progressMock.Object);
+
+            result.Success.Should().BeTrue();
+            reportedProgress.Should().Contain(p =>
+                p.Phase == ContentAcquisitionPhase.Downloading &&
+                p.CurrentOperation.Contains("/s", StringComparison.Ordinal) &&
+                p.ProgressPercentage > 0);
+        }
+        finally
+        {
+            Directory.Delete(targetDirectory, recursive: true);
         }
     }
 

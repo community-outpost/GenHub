@@ -160,9 +160,14 @@ public sealed class JsonPublisherCatalogParserTests
             b => Assert.DoesNotContain(
                 b.Releases.SelectMany(r => r.Dependencies ?? []),
                 d => d.ContentId == "lemon-controlbar"));
-        Assert.Contains(result.Data.Content, c => c.Id == "bundle-community-outpost-stack");
+        Assert.Contains(result.Data.Content, c => c.Id == "bundle-community-outpost-retail-stack");
+        Assert.Contains(result.Data.Content, c => c.Id == "bundle-community-outpost-nonretail-stack");
         Assert.Contains(result.Data.Content, c => c.Id == "bundle-generalsonline-complete-pack");
-        Assert.True(result.Data.Content.First(c => c.Id == "lemon-controlbar").IsStandalone);
+        var l3m = result.Data.Content.First(c => c.Id == "l3m-controlbar");
+        Assert.True(l3m.IsStandalone);
+        Assert.Equal(5, l3m.Releases[0].Artifacts.Count);
+        Assert.Contains(l3m.Releases[0].Artifacts, a => a.Variant == "900p");
+        Assert.DoesNotContain(result.Data.Content, c => c.Id == "lemon-controlbar");
         Assert.True(stack.IsStandalone);
         Assert.All(result.Data.Content, c => Assert.True(c.IsStandalone));
     }

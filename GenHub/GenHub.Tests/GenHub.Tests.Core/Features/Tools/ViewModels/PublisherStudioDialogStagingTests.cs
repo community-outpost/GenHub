@@ -460,6 +460,64 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
         Assert.Equal("Gentool", opt.SelectedVariant);
     }
 
+    /// <summary>
+    /// Verifies that AddContentDialogViewModel preserves multiple dependencies with the same ContentId
+    /// when they originate from distinct publishers, without cross-overwriting metadata.
+    /// </summary>
+    [Fact]
+    public void AddContentDialogViewModel_ContentBundle_PreservesMultiplePublishersForSameContentId()
+    {
+        var existingBundle = new CatalogContentItem
+        {
+            Id = "multi-pack",
+            Name = "Multi Pack",
+            Description = "A bundle referencing distinct publisher versions of the same content ID.",
+            ContentType = GenHub.Core.Models.Enums.ContentType.ContentBundle,
+            BundledItems =
+            [
+                new CatalogDependency
+                {
+                    PublisherId = "pub-alpha",
+                    ContentId = "shared-mod",
+                    VersionConstraint = ">= 1.0.0",
+                    CatalogUrl = "https://alpha.example.com/catalog.json",
+                    ContentType = nameof(GenHub.Core.Models.Enums.ContentType.Mod),
+                },
+                new CatalogDependency
+                {
+                    PublisherId = "pub-beta",
+                    ContentId = "shared-mod",
+                    VersionConstraint = ">= 2.0.0",
+                    CatalogUrl = "https://beta.example.com/catalog.json",
+                    ContentType = nameof(GenHub.Core.Models.Enums.ContentType.Mod),
+                },
+            ],
+        };
+
+        CatalogContentItem? savedItem = null;
+        using var vm = new AddContentDialogViewModel(existingBundle, item => savedItem = item);
+
+        Assert.Equal(2, vm.BundleComponentOptions.Count);
+        Assert.All(vm.BundleComponentOptions, opt => Assert.True(opt.IsSelected));
+
+        vm.CreateContentCommand.Execute(null);
+
+        Assert.NotNull(savedItem);
+        Assert.Equal(2, savedItem.BundledItems.Count);
+        Assert.Contains(
+            savedItem.BundledItems,
+            b => b.PublisherId == "pub-alpha" &&
+                 b.ContentId == "shared-mod" &&
+                 b.VersionConstraint == ">= 1.0.0" &&
+                 b.CatalogUrl == "https://alpha.example.com/catalog.json");
+        Assert.Contains(
+            savedItem.BundledItems,
+            b => b.PublisherId == "pub-beta" &&
+                 b.ContentId == "shared-mod" &&
+                 b.VersionConstraint == ">= 2.0.0" &&
+                 b.CatalogUrl == "https://beta.example.com/catalog.json");
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {

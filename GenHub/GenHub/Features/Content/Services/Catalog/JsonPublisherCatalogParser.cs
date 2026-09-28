@@ -447,10 +447,12 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
             errors.Add($"Content '{content.Id}' has release with missing version");
         }
 
+        var isBundle = content.ContentType == ContentType.ContentBundle;
         var hasArtifacts = release.Artifacts is { Count: > 0 };
-        var hasDependencies = release.Dependencies is { Count: > 0 };
+        var hasDependencies = release.Dependencies is { Count: > 0 } ||
+            (isBundle && content.BundledItems is { Count: > 0 });
 
-        if (hasDependencies)
+        if (release.Dependencies is { Count: > 0 })
         {
             ValidateDependencies(content, release, itemsById, hostPublisherId, errors);
         }
