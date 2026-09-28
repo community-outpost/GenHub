@@ -228,6 +228,12 @@ public sealed partial class TextureEditorViewModel(
                 return;
             }
 
+            if (explicitOpen)
+            {
+                _ = OpenPlaceholderForEntryAsync(definition);
+                return;
+            }
+
             logger.LogInformation("Registry entry {Name} not loaded: no atlas is open.", definition.Name);
             Notifications.ShowInfo(
                 Localize("TextureEditor.Notify.NoAtlas.Title", "No atlas open"),
@@ -237,7 +243,9 @@ public sealed partial class TextureEditorViewModel(
         }
 
         bool textureMatches = MappedImageTextureMatcher.Matches(definition.TextureFileName, AtlasFileName);
-        bool sameDirectory = definition.SourcePath is null || IsSameDirectory(definition.SourcePath, AtlasPath);
+        bool sameDirectory = definition.SourcePath is null
+            || IsSameDirectory(definition.SourcePath, AtlasPath)
+            || (!string.IsNullOrEmpty(FileExplorer.Directory) && IsUnderDirectory(definition.SourcePath, FileExplorer.Directory));
         if (textureMatches && (sameDirectory || explicitOpen))
         {
             AdoptRegistryEntry(definition);
@@ -258,6 +266,12 @@ public sealed partial class TextureEditorViewModel(
             // The matching texture is already open but the entry was authored
             // elsewhere: this explicit click adopts it.
             AdoptRegistryEntry(definition);
+            return;
+        }
+
+        if (explicitOpen)
+        {
+            _ = OpenPlaceholderForEntryAsync(definition);
             return;
         }
 
@@ -506,13 +520,21 @@ public sealed partial class TextureEditorViewModel(
 
         var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = Localize("TextureEditor.Dialog.OpenAtlas", "Open texture atlas"),
+            Title = Localize("TextureEditor.Dialog.OpenAtlas", "Open texture atlas or INI"),
             AllowMultiple = false,
             FileTypeFilter =
             [
+                new FilePickerFileType(Localize("TextureEditor.Dialog.AllSupportedFiles", "Supported files (*.tga, *.dds, *.png, *.ini)"))
+                {
+                    Patterns = TextureEditorConstants.TextureExtensions.Concat([TextureEditorConstants.MappedImagesExtension]).Select(extension => "*" + extension).ToArray(),
+                },
                 new FilePickerFileType(Localize("TextureEditor.Dialog.TextureFiles", "Texture files"))
                 {
                     Patterns = TextureEditorConstants.TextureExtensions.Select(extension => "*" + extension).ToArray(),
+                },
+                new FilePickerFileType(Localize("TextureEditor.Dialog.IniFiles", "MappedImages INI files (*.ini)"))
+                {
+                    Patterns = ["*" + TextureEditorConstants.MappedImagesExtension],
                 },
             ],
         }).ConfigureAwait(true);
@@ -522,7 +544,15 @@ public sealed partial class TextureEditorViewModel(
             return;
         }
 
-        await LoadAtlasAsync(files[0].Path.LocalPath).ConfigureAwait(true);
+        string localPath = files[0].Path.LocalPath;
+        if (Path.GetExtension(localPath).Equals(TextureEditorConstants.MappedImagesExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            await OpenIniFileAsync(localPath).ConfigureAwait(true);
+        }
+        else
+        {
+            await LoadAtlasAsync(localPath).ConfigureAwait(true);
+        }
     }
 
     /// <inheritdoc />
@@ -712,6 +742,23 @@ public sealed partial class TextureEditorViewModel(
             string leftDirectory = Path.GetFullPath(Path.GetDirectoryName(left) ?? left);
             string rightDirectory = Path.GetFullPath(Path.GetDirectoryName(right) ?? right);
             return string.Equals(leftDirectory, rightDirectory, comparison);
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException or SecurityException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsUnderDirectory(string path, string root)
+    {
+        try
+        {
+            var comparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+            string fullPath = Path.GetFullPath(path);
+            string fullRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            return fullPath.StartsWith(fullRoot, comparison);
         }
         catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException or SecurityException)
         {
@@ -1173,7 +1220,7 @@ public sealed partial class TextureEditorViewModel(
         string extension = Path.GetExtension(node.FullPath);
         if (extension.Equals(TextureEditorConstants.MappedImagesExtension, StringComparison.OrdinalIgnoreCase))
         {
-            _ = ImportIniFileAsync(node.FullPath);
+            _ = OpenIniFileAsync(node.FullPath);
             return;
         }
 
@@ -1269,12 +1316,133 @@ public sealed partial class TextureEditorViewModel(
         RefreshRegistryImages();
     }
 
-    private async Task ImportIniFileAsync(string path)
+    private async Task OpenIniFileAsync(string path)
     {
-        IReadOnlyList<MappedImageDefinition>? imported = null;
         try
         {
-            imported = await RunOperationAsync(operationToken => ImportIniCoreAsync(path, operationToken)).ConfigureAwait(true);
+            await RunOperationAsync(async operationToken =>
+            {
+                var parsed = await parser.ParseFileAsync(path, operationToken).ConfigureAwait(true);
+                operationToken.ThrowIfCancellationRequested();
+                if (parsed.Data is null || parsed.Data.Count == 0)
+                {
+                    Notifications.ShowError(
+                        Localize(ImportFailedTitleKey, ImportFailedTitleFallback),
+                        parsed.FirstError ?? Localize("TextureEditor.Notify.ImportFailed.Message", "No mapped images found."),
+                        NotificationDurations.Long);
+                    return;
+                }
+
+                registry.ImportDefinitions(parsed.Data);
+                RefreshRegistryImages();
+
+                var groups = parsed.Data
+                    .GroupBy(image => image.TextureFileName, StringComparer.OrdinalIgnoreCase)
+                    .OrderByDescending(group => group.Count())
+                    .ToList();
+
+                var currentMatchGroup = AtlasBitmap is not null
+                    ? groups.FirstOrDefault(group => MappedImageTextureMatcher.Matches(group.Key, AtlasFileName))
+                    : null;
+
+                if (currentMatchGroup is not null)
+                {
+                    if (HasUnsavedChanges && !await ConfirmDiscardUnsavedAsync(operationToken).ConfigureAwait(true))
+                    {
+                        return;
+                    }
+
+                    ReplaceSlices(currentMatchGroup.ToList());
+                    _savedIniPath = path;
+                    FileExplorer.CurrentPath = path;
+                    MarkSaved();
+
+                    string extraInfo = groups.Count > 1
+                        ? $" ({groups.Count - 1} other textures in Library)"
+                        : string.Empty;
+                    Notifications.ShowSuccess(
+                        Localize("TextureEditor.Notify.ImportComplete.Title", "Loaded INI"),
+                        $"Loaded {currentMatchGroup.Count()} slices for {AtlasFileName} from {Path.GetFileName(path)}{extraInfo}.",
+                        NotificationDurations.Medium);
+                    return;
+                }
+
+                string? targetTexturePath = null;
+                IGrouping<string, MappedImageDefinition>? targetGroup = null;
+
+                foreach (var group in groups)
+                {
+                    string? candidate = FindTextureFile(group.Key, path);
+                    if (candidate is not null)
+                    {
+                        targetTexturePath = candidate;
+                        targetGroup = group;
+                        break;
+                    }
+                }
+
+                targetGroup ??= groups[0];
+
+                if (HasUnsavedChanges && !await ConfirmDiscardUnsavedAsync(operationToken).ConfigureAwait(true))
+                {
+                    return;
+                }
+
+                if (targetTexturePath is not null)
+                {
+                    var decoded = await bitmapService.LoadDecodedAsync(targetTexturePath, operationToken).ConfigureAwait(true);
+                    operationToken.ThrowIfCancellationRequested();
+                    if (decoded.Success && decoded.Data is not null && OpenDecodedAtlas(decoded.Data, targetTexturePath))
+                    {
+                        ReplaceSlices(targetGroup.ToList());
+                        _savedIniPath = path;
+                        FileExplorer.CurrentPath = path;
+                        MarkSaved();
+
+                        string extraInfo = groups.Count > 1
+                            ? $" ({groups.Count - 1} other textures in Library)"
+                            : string.Empty;
+                        Notifications.ShowSuccess(
+                            Localize("TextureEditor.Notify.ImportComplete.Title", "Loaded INI"),
+                            $"Loaded {targetGroup.Count()} slices for {Path.GetFileName(targetTexturePath)} from {Path.GetFileName(path)}{extraInfo}.",
+                            NotificationDurations.Medium);
+                        return;
+                    }
+                }
+
+                var firstDefinition = targetGroup.First();
+                if (firstDefinition.TextureWidth > 0 && firstDefinition.TextureHeight > 0)
+                {
+                    var placeholder = TextureBitmapService.CreatePlaceholder(firstDefinition.TextureWidth, firstDefinition.TextureHeight);
+                    string pseudoPath = Path.Combine(
+                        string.IsNullOrEmpty(FileExplorer.Directory)
+                            ? (Path.GetDirectoryName(path) ?? Directory.GetCurrentDirectory())
+                            : FileExplorer.Directory,
+                        targetGroup.Key);
+
+                    if (OpenDecodedAtlas(placeholder, pseudoPath))
+                    {
+                        ReplaceSlices(targetGroup.ToList());
+                        _savedIniPath = path;
+                        FileExplorer.CurrentPath = path;
+                        MarkSaved();
+
+                        string extraInfo = groups.Count > 1
+                            ? $" ({groups.Count - 1} other textures in Library)"
+                            : string.Empty;
+                        Notifications.ShowInfo(
+                            Localize("TextureEditor.Notify.PlaceholderOpened.Title", "Placeholder texture"),
+                            $"Opened placeholder canvas ({firstDefinition.TextureWidth}x{firstDefinition.TextureHeight}) with {targetGroup.Count()} slices from {Path.GetFileName(path)}{extraInfo}.",
+                            NotificationDurations.Medium);
+                        return;
+                    }
+                }
+
+                Notifications.ShowWarning(
+                    Localize("TextureEditor.Notify.ImportComplete.Title", "Imported"),
+                    $"Imported {parsed.Data.Count} mapped images into Library.",
+                    NotificationDurations.Medium);
+            }).ConfigureAwait(true);
         }
         catch (OperationCanceledException)
         {
@@ -1282,163 +1450,15 @@ public sealed partial class TextureEditorViewModel(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "INI import failed for {Path}", path);
+            logger.LogError(ex, "Failed to open INI {Path}", path);
             Notifications.ShowError(
                 Localize(ImportFailedTitleKey, ImportFailedTitleFallback),
                 ex.Message,
                 NotificationDurations.Long);
         }
-
-        // An INI that targets no open atlas is a dead end without its texture,
-        // so offer the referenced texture with the most entries once the busy
-        // overlay is gone. This stays outside the operation above because opening
-        // an atlas starts its own cancellable operation.
-        if (imported is not null && imported.Count > 0)
-        {
-            await MaybeOpenTextureForImportAsync(path, imported).ConfigureAwait(true);
-        }
     }
 
-    private async Task<IReadOnlyList<MappedImageDefinition>?> ImportIniCoreAsync(string path, CancellationToken cancellationToken)
-    {
-        var parsed = await parser.ParseFileAsync(path, cancellationToken).ConfigureAwait(true);
-        cancellationToken.ThrowIfCancellationRequested();
-        if (parsed.Data is null || parsed.Data.Count == 0)
-        {
-            Notifications.ShowError(
-                Localize(ImportFailedTitleKey, ImportFailedTitleFallback),
-                parsed.FirstError ?? Localize("TextureEditor.Notify.ImportFailed.Message", "No mapped images found."),
-                NotificationDurations.Long);
-            return null;
-        }
-
-        registry.ImportDefinitions(parsed.Data);
-        RefreshRegistryImages();
-
-        // An INI usually references many textures, so only its entries for
-        // the open atlas can become slices, and only when that cannot
-        // clobber unsaved work. Everything else stays browsable in the library.
-        // Explicit imports adopt their own entries regardless of folder:
-        // the user just pointed at this INI, unlike the automatic
-        // same-folder fallback in LoadSlicesForAtlas.
-        List<MappedImageDefinition> matches = AtlasBitmap is null
-            ? []
-            : parsed.Data
-                .Where(image => MappedImageTextureMatcher.Matches(image.TextureFileName, AtlasFileName))
-                .ToList();
-        bool adopted = matches.Count > 0 && Slices.Count == 0;
-        if (adopted)
-        {
-            ReplaceSlices(matches);
-            MarkSaved();
-        }
-
-        // The explorer badge tracks the open document, so importing an INI
-        // never moves it: the atlas stays current.
-        Notifications.ShowSuccess(
-            Localize("TextureEditor.Notify.ImportComplete.Title", "Import complete"),
-            BuildImportCompleteMessage(path, parsed.Data.Count, matches.Count, adopted),
-            NotificationDurations.Medium);
-        return parsed.Data;
-    }
-
-    private async Task MaybeOpenTextureForImportAsync(string iniPath, IReadOnlyList<MappedImageDefinition> imported)
-    {
-        // Only offer when no slices could be shown: disrupting visible work to
-        // switch atlases would be worse than the library hint in the toast.
-        if (IsBusy || Slices.Count > 0)
-        {
-            return;
-        }
-
-        if (AtlasBitmap is not null)
-        {
-            int currentMatches = imported.Count(image => MappedImageTextureMatcher.Matches(image.TextureFileName, AtlasFileName));
-            if (currentMatches > 0)
-            {
-                return;
-            }
-        }
-
-        var groups = imported
-            .GroupBy(image => image.TextureFileName, StringComparer.OrdinalIgnoreCase)
-            .OrderByDescending(group => group.Count())
-            .ToList();
-        foreach (var group in groups)
-        {
-            string? texturePath = FindTextureFile(group.Key, iniPath);
-            if (texturePath is null || string.Equals(texturePath, AtlasPath, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            bool open = await Dialogs.ShowConfirmationAsync(
-                Localize("TextureEditor.Dialog.OpenTexture.Title", "Open texture?"),
-                Localize(
-                    "TextureEditor.Dialog.OpenTexture.Message",
-                    "{0} references {1} textures. Open {2} to edit its {3} slices?",
-                    Path.GetFileName(iniPath),
-                    groups.Count,
-                    Path.GetFileName(texturePath),
-                    group.Count()),
-                Localize("TextureEditor.Dialog.OpenTexture.Confirm", "Open"),
-                Localize("TextureEditor.Dialog.OpenTexture.Cancel", "Cancel")).ConfigureAwait(true);
-            if (!open)
-            {
-                return;
-            }
-
-            await LoadAtlasAsync(texturePath).ConfigureAwait(true);
-            if (!string.Equals(AtlasPath, texturePath, StringComparison.OrdinalIgnoreCase))
-            {
-                return;
-            }
-
-            // The user explicitly chose this INI, so its entries take precedence
-            // over whatever LoadAtlasAsync adopted automatically.
-            var matches = imported
-                .Where(image => MappedImageTextureMatcher.Matches(image.TextureFileName, AtlasFileName))
-                .ToList();
-            if (matches.Count > 0)
-            {
-                ReplaceSlices(matches);
-                MarkSaved();
-            }
-
-            return;
-        }
-    }
-
-    private string BuildImportCompleteMessage(string path, int total, int matchCount, bool adopted)
-    {
-        string imported = Localize(
-            "TextureEditor.Notify.ImportComplete.Message",
-            "Imported {0} mapped images from {1}.",
-            total,
-            Path.GetFileName(path));
-
-        if (AtlasBitmap is null)
-        {
-            return $"{imported} {Localize("TextureEditor.Notify.ImportDetail.NoAtlas", "Open a texture to apply them as slices; all entries are in the Library.")}";
-        }
-
-        if (adopted && matchCount == total)
-        {
-            return $"{imported} {Localize("TextureEditor.Notify.ImportDetail.AppliedAll", "All {0} entries were applied to {1}.", total, AtlasFileName)}";
-        }
-
-        if (adopted)
-        {
-            return $"{imported} {Localize("TextureEditor.Notify.ImportDetail.AppliedPartial", "{0} of {1} entries were applied to {2}; the rest are in the Library. Click a Library entry to open its texture.", matchCount, total, AtlasFileName)}";
-        }
-
-        if (matchCount > 0)
-        {
-            return $"{imported} {Localize("TextureEditor.Notify.ImportDetail.KeptSlices", "{0} of {1} entries target {2}; current slices were kept and all entries are in the Library. Click a Library entry to open its texture.", matchCount, total, AtlasFileName)}";
-        }
-
-        return $"{imported} {Localize("TextureEditor.Notify.ImportDetail.NoMatch", "None target {0}; all entries are in the Library. Click a Library entry to open its texture.", AtlasFileName)}";
-    }
+    private Task ImportIniFileAsync(string path) => OpenIniFileAsync(path);
 
     private void RefreshRegistryImages()
     {
@@ -1482,15 +1502,41 @@ public sealed partial class TextureEditorViewModel(
         // authored next to this atlas so a same-named texture from another folder
         // never inherits stale slices. Entries with unknown origin keep the legacy
         // basename match.
-        var matches = registry.GetByTexture(AtlasFileName)
-            .Where(image => image.SourcePath is null || IsSameDirectory(image.SourcePath, AtlasPath))
-            .ToList();
-        if (matches.Count == 0)
+        var allMatches = registry.GetByTexture(AtlasFileName) ?? Array.Empty<MappedImageDefinition>();
+        if (allMatches.Count == 0)
         {
             return;
         }
 
-        ReplaceSlices(matches);
+        var sameDirMatches = allMatches
+            .Where(image => image.SourcePath is not null && IsSameDirectory(image.SourcePath, AtlasPath))
+            .ToList();
+        if (sameDirMatches.Count > 0)
+        {
+            ReplaceSlices(sameDirMatches);
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(FileExplorer.Directory))
+        {
+            var projectMatches = allMatches
+                .Where(image => image.SourcePath is not null && IsUnderDirectory(image.SourcePath, FileExplorer.Directory))
+                .ToList();
+            if (projectMatches.Count > 0)
+            {
+                ReplaceSlices(projectMatches);
+                return;
+            }
+        }
+
+        var fallbackMatches = allMatches
+            .Where(image => image.SourcePath is null)
+            .ToList();
+        if (fallbackMatches.Count > 0)
+        {
+            ReplaceSlices(fallbackMatches);
+            return;
+        }
     }
 
     private void AdoptRegistryEntry(MappedImageDefinition definition)
@@ -1530,6 +1576,68 @@ public sealed partial class TextureEditorViewModel(
             Localize("TextureEditor.Notify.RegistryOpened.Title", "Texture opened"),
             Localize("TextureEditor.Notify.RegistryOpened.Message", "Opened {0} to edit '{1}'.", Path.GetFileName(texturePath), definition.Name),
             NotificationDurations.Medium);
+    }
+
+    private async Task OpenPlaceholderForEntryAsync(MappedImageDefinition definition)
+    {
+        if (definition.TextureWidth <= 0 || definition.TextureHeight <= 0)
+        {
+            logger.LogWarning("Cannot open placeholder for {Name}: invalid dimensions {W}x{H}", definition.Name, definition.TextureWidth, definition.TextureHeight);
+            Notifications.ShowWarning(
+                Localize("TextureEditor.Notify.TextureNotFound.Title", "Texture not found"),
+                Localize("TextureEditor.Notify.TextureNotFound.Message", "'{0}' belongs to {1}, which was not found. Open the folder containing {1} and try again.", definition.Name, definition.TextureFileName),
+                NotificationDurations.Medium);
+            return;
+        }
+
+        try
+        {
+            await RunOperationAsync(async operationToken =>
+            {
+                if (HasUnsavedChanges && !await ConfirmDiscardUnsavedAsync(operationToken).ConfigureAwait(true))
+                {
+                    return;
+                }
+
+                var placeholder = TextureBitmapService.CreatePlaceholder(definition.TextureWidth, definition.TextureHeight);
+                string pseudoPath = Path.Combine(
+                    string.IsNullOrEmpty(FileExplorer.Directory)
+                        ? (definition.SourcePath is not null ? (Path.GetDirectoryName(definition.SourcePath) ?? Directory.GetCurrentDirectory()) : Directory.GetCurrentDirectory())
+                        : FileExplorer.Directory,
+                    definition.TextureFileName);
+
+                if (!OpenDecodedAtlas(placeholder, pseudoPath))
+                {
+                    return;
+                }
+
+                if (definition.SourcePath is not null)
+                {
+                    _savedIniPath = definition.SourcePath;
+                }
+
+                LoadSlicesForAtlas();
+                AdoptRegistryEntry(definition);
+                MarkSaved();
+
+                Notifications.ShowInfo(
+                    Localize("TextureEditor.Notify.PlaceholderOpened.Title", "Placeholder texture"),
+                    Localize("TextureEditor.Notify.PlaceholderOpened.Message", "Opened {0}x{1} placeholder for '{2}' (texture file not found on disk).", definition.TextureWidth, definition.TextureHeight, definition.TextureFileName),
+                    NotificationDurations.Medium);
+            }).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            // Cooperative cancellation from the busy overlay is silent by design.
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to open placeholder for {Name}", definition.Name);
+            Notifications.ShowError(
+                Localize("TextureEditor.Notify.OpenFailed.Title", "Failed to open placeholder"),
+                ex.Message,
+                NotificationDurations.Long);
+        }
     }
 
     private string? FindTextureFile(string textureFileName, string? sourcePath)

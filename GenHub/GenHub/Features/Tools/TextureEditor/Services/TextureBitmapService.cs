@@ -49,6 +49,39 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
     }
 
     /// <summary>
+    /// Creates a placeholder decoded texture of the specified dimensions with a dark checkerboard pattern.
+    /// Used when a mapped image definition or INI references a texture not found on disk.
+    /// </summary>
+    /// <param name="width">The texture width in pixels.</param>
+    /// <param name="height">The texture height in pixels.</param>
+    /// <returns>A decoded RGBA texture with a neutral dark checker pattern.</returns>
+    public static DecodedTexture CreatePlaceholder(int width, int height)
+    {
+        int safeWidth = Math.Clamp(width, 1, 4096);
+        int safeHeight = Math.Clamp(height, 1, 4096);
+        byte[] pixels = new byte[safeWidth * safeHeight * 4];
+        const int cellSize = 32;
+        for (int y = 0; y < safeHeight; y++)
+        {
+            int cellY = (y / cellSize) % 2;
+            int rowOffset = y * safeWidth * 4;
+            for (int x = 0; x < safeWidth; x++)
+            {
+                int cellX = (x / cellSize) % 2;
+                bool isLight = (cellX ^ cellY) == 0;
+                byte color = isLight ? (byte)45 : (byte)32;
+                int pixelOffset = rowOffset + (x * 4);
+                pixels[pixelOffset] = color;
+                pixels[pixelOffset + 1] = color;
+                pixels[pixelOffset + 2] = color;
+                pixels[pixelOffset + 3] = 255;
+            }
+        }
+
+        return new DecodedTexture(safeWidth, safeHeight, pixels);
+    }
+
+    /// <summary>
     /// Loads an image file into portable RGBA pixels.
     /// TGA and DDS files use the SAGE codec, other formats use ImageSharp.
     /// </summary>

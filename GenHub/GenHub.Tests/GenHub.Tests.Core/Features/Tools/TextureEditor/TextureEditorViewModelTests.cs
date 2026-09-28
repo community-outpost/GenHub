@@ -457,12 +457,12 @@ public sealed class TextureEditorViewModelTests
     }
 
     /// <summary>
-    /// Verifies that importing an INI while slices exist keeps the slices and
-    /// reports that the new entries landed in the library.
+    /// Verifies that opening an INI while slices exist loads the matching slices
+    /// and reports that the new entries landed in the library.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [AvaloniaFact]
-    public async Task ImportIniWithExistingSlices_KeepsSlicesAndReportsLibraryAsync()
+    public async Task ImportIniWithExistingSlices_LoadsMatchingSlicesAndReportsLibraryAsync()
     {
         string root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         string first = Path.Combine(root, "dir1");
@@ -493,12 +493,86 @@ public sealed class TextureEditorViewModelTests
                 await Task.Delay(20);
             }
 
-            var kept = Assert.Single(viewModel.Slices);
-            Assert.Equal("Hero", kept.Name);
+            var loaded = Assert.Single(viewModel.Slices);
+            Assert.Equal("Villain", loaded.Name);
             Assert.Contains(viewModel.RegistryImages, image => image.Name == "Villain");
             Assert.Contains(viewModel.RegistryImages, image => image.Name == "Stranger");
             notifications.Verify(
-                notification => notification.ShowSuccess(It.IsAny<string>(), It.Is<string>(message => message.Contains("kept")), It.IsAny<int?>(), It.IsAny<bool>()),
+                notification => notification.ShowSuccess(It.IsAny<string>(), It.Is<string>(message => message.Contains("Loaded 1 slices")), It.IsAny<int?>(), It.IsAny<bool>()),
+                Times.Once);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that explicitly requesting an edit for a registry entry whose texture is missing
+    /// on disk opens a placeholder canvas and adopts the slice.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task LoadRegistryEntry_ExplicitOpen_MissingTexture_OpensPlaceholderAsync()
+    {
+        var notifications = new Mock<INotificationService>();
+        var viewModel = CreateViewModel(notifications: notifications);
+        var definition = new MappedImageDefinition("MissingImage", "MissingTexture.tga", 512, 256, 10, 10, 50, 50);
+
+        viewModel.LoadRegistryEntry(definition, explicitOpen: true);
+
+        for (int attempt = 0; attempt < 500 && (viewModel.AtlasBitmap is null || viewModel.IsBusy); attempt++)
+        {
+            Dispatcher.UIThread.RunJobs(null);
+            await Task.Delay(20);
+        }
+
+        Assert.NotNull(viewModel.AtlasBitmap);
+        Assert.Equal(512, viewModel.AtlasBitmap.PixelSize.Width);
+        Assert.Equal(256, viewModel.AtlasBitmap.PixelSize.Height);
+        var slice = Assert.Single(viewModel.Slices);
+        Assert.Equal("MissingImage", slice.Name);
+        Assert.Same(slice, viewModel.SelectedSlice);
+        notifications.Verify(
+            notification => notification.ShowInfo(It.IsAny<string>(), It.Is<string>(message => message.Contains("placeholder")), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that opening an INI file whose texture cannot be found on disk
+    /// synthesizes a placeholder canvas and loads all slices for that texture.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task OpenIni_NoTextureOnDisk_OpensPlaceholderAndAdoptsSlicesAsync()
+    {
+        string root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(root);
+        try
+        {
+            string iniPath = Path.Combine(root, "orphan.ini");
+            string iniContent =
+                "MappedImage SliceOne\n  Texture = Ghost.tga\n  TextureWidth = 640\n  TextureHeight = 480\n  Coords = Left:0 Top:0 Right:100 Bottom:100\n  Status = NONE\nEnd\n" +
+                "MappedImage SliceTwo\n  Texture = Ghost.tga\n  TextureWidth = 640\n  TextureHeight = 480\n  Coords = Left:100 Top:100 Right:200 Bottom:200\n  Status = NONE\nEnd\n";
+            await File.WriteAllTextAsync(iniPath, iniContent);
+
+            var notifications = new Mock<INotificationService>();
+            var viewModel = CreateViewModelWithRegistry(notifications);
+
+            viewModel.FileExplorer.OpenFileCommand.Execute(new EditorFileTreeNodeViewModel("orphan.ini", iniPath, false));
+
+            for (int attempt = 0; attempt < 500 && (viewModel.AtlasBitmap is null || viewModel.IsBusy); attempt++)
+            {
+                Dispatcher.UIThread.RunJobs(null);
+                await Task.Delay(20);
+            }
+
+            Assert.NotNull(viewModel.AtlasBitmap);
+            Assert.Equal(640, viewModel.AtlasBitmap.PixelSize.Width);
+            Assert.Equal(480, viewModel.AtlasBitmap.PixelSize.Height);
+            Assert.Equal(2, viewModel.Slices.Count);
+            notifications.Verify(
+                notification => notification.ShowInfo(It.IsAny<string>(), It.Is<string>(message => message.Contains("placeholder")), It.IsAny<int?>(), It.IsAny<bool>()),
                 Times.Once);
         }
         finally
@@ -554,6 +628,7 @@ public sealed class TextureEditorViewModelTests
         {
             // Opening an atlas rebuilds the picker from the registry catalog.
             registryMock.Setup(mock => mock.All).Returns(new List<MappedImageDefinition>());
+            registryMock.Setup(mock => mock.GetByTexture(It.IsAny<string>())).Returns(Array.Empty<MappedImageDefinition>());
         }
 
         return new TextureEditorViewModel(

@@ -73,7 +73,7 @@ public partial class TextureEditorView : UserControl
     {
         if (DataContext is TextureEditorViewModel viewModel)
         {
-            viewModel.LoadRegistryEntry(definition);
+            viewModel.LoadRegistryEntry(definition, explicitOpen: true);
         }
     }
 
