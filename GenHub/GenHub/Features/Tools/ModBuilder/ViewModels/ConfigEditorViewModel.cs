@@ -1204,7 +1204,30 @@ public partial class ConfigEditorViewModel(
                 });
             }
 
-            await PersistConfigurationToDiskAsync(CurrentProject.ProjectDir, cancellationToken).ConfigureAwait(false);
+            if (CurrentProject != null)
+            {
+                var primaryManifest = Configuration.Manifests.FirstOrDefault();
+                if (primaryManifest != null)
+                {
+                    CurrentProject.Version = primaryManifest.Version;
+                    if (primaryManifest.ContentType.HasValue)
+                    {
+                        CurrentProject.ContentType = primaryManifest.ContentType.Value;
+                    }
+
+                    if (primaryManifest.TargetGame.HasValue)
+                    {
+                        CurrentProject.TargetGame = primaryManifest.TargetGame.Value;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(primaryManifest.Publisher))
+                    {
+                        CurrentProject.Publisher = primaryManifest.Publisher;
+                    }
+                }
+
+                await PersistConfigurationToDiskAsync(CurrentProject.ProjectDir, cancellationToken).ConfigureAwait(false);
+            }
 
             HasChanges = false;
             notificationService.ShowSuccess(

@@ -14777,4 +14777,10 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="Tools.ModBuilder.Notification.GitHubImportInProgress.Message" xml:space="preserve">
     <value>Importing {0}@{1}...</value>
   </data>
+  <data name="Tools.ModBuilder.View.ManifestsHeader" xml:space="preserve">
+    <value>Manifests</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipEditManifests" xml:space="preserve">
+    <value>Edit bundle manifests in Configuration Editor</value>
+  </data>
 </root>

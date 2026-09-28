@@ -14718,4 +14718,10 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="Tools.ModBuilder.Notification.GitHubImportInProgress.Message" xml:space="preserve">
     <value>Импорт {0}@{1}...</value>
   </data>
+  <data name="Tools.ModBuilder.View.ManifestsHeader" xml:space="preserve">
+    <value>Манифесты</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipEditManifests" xml:space="preserve">
+    <value>Редактировать манифесты сборки в редакторе конфигурации</value>
+  </data>
 </root>

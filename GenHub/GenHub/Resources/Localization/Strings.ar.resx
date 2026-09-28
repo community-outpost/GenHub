@@ -14718,4 +14718,10 @@ https://example.com/screenshot2.png</value>
   <data name="Tools.ModBuilder.Notification.GitHubImportInProgress.Message" xml:space="preserve">
     <value>جارٍ استيراد {0}@{1}...</value>
   </data>
+  <data name="Tools.ModBuilder.View.ManifestsHeader" xml:space="preserve">
+    <value>ملفات البيان</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipEditManifests" xml:space="preserve">
+    <value>تعديل بيانات الحزمة في محرر التكوين</value>
+  </data>
 </root>

@@ -251,6 +251,11 @@ public partial class ModBuilderViewModel(
     public ObservableCollection<BundleItemViewModel> BundlePacks => Bundles;
 
     /// <summary>
+    /// Gets the manifest cards displayed on the dashboard sidebar.
+    /// </summary>
+    public ObservableCollection<ManifestCardViewModel> ProjectManifests { get; } = [];
+
+    /// <summary>
     /// Gets or sets the selected bundle.
     /// </summary>
     [ObservableProperty]
@@ -2629,8 +2634,28 @@ public partial class ModBuilderViewModel(
 
         try
         {
-            CurrentProject.TargetGame = SelectedTargetGame;
-            CurrentProject.ContentType = SelectedContentType;
+            var primaryManifest = CurrentProject.Configuration?.Manifests?.FirstOrDefault(m => !string.IsNullOrWhiteSpace(m.Name));
+            if (primaryManifest != null)
+            {
+                if (primaryManifest.TargetGame.HasValue)
+                {
+                    CurrentProject.TargetGame = primaryManifest.TargetGame.Value;
+                }
+                if (primaryManifest.ContentType.HasValue)
+                {
+                    CurrentProject.ContentType = primaryManifest.ContentType.Value;
+                }
+                CurrentProject.Version = primaryManifest.Version;
+                if (!string.IsNullOrWhiteSpace(primaryManifest.Publisher))
+                {
+                    CurrentProject.Publisher = primaryManifest.Publisher;
+                }
+            }
+            else
+            {
+                CurrentProject.TargetGame = SelectedTargetGame;
+                CurrentProject.ContentType = SelectedContentType;
+            }
 
             // Update compression level in configuration
             if (CurrentProject.Configuration != null)
@@ -2716,6 +2741,10 @@ public partial class ModBuilderViewModel(
 
                 await initializeTask.ConfigureAwait(false);
                 await LoadBundlesAsync().ConfigureAwait(false);
+                if (CurrentProject != null && !string.IsNullOrEmpty(ProjectPath))
+                {
+                    await projectConfigService.SaveProjectAsync(ProjectPath, CurrentProject, CancellationToken.None).ConfigureAwait(false);
+                }
             });
         }
         catch (Exception ex)
@@ -2772,6 +2801,7 @@ public partial class ModBuilderViewModel(
             ProjectName = string.Empty;
             IsProjectLoaded = false;
             Bundles.Clear();
+            ProjectManifests.Clear();
             BuildLog.Clear();
         }).ConfigureAwait(false);
 
@@ -3648,6 +3678,58 @@ public partial class ModBuilderViewModel(
 
         FileCount = Bundles.Sum(b => b.FileCount);
         FilesToBuildCount = FileCount;
+
+        ProjectManifests.Clear();
+
+        var primaryManifest = config?.Manifests?.FirstOrDefault(m => !string.IsNullOrWhiteSpace(m.Name));
+        if (primaryManifest != null && CurrentProject != null)
+        {
+            CurrentProject.Version = primaryManifest.Version;
+            if (primaryManifest.ContentType.HasValue)
+            {
+                CurrentProject.ContentType = primaryManifest.ContentType.Value;
+                SelectedContentType = primaryManifest.ContentType.Value;
+            }
+            if (primaryManifest.TargetGame.HasValue)
+            {
+                CurrentProject.TargetGame = primaryManifest.TargetGame.Value;
+                SelectedTargetGame = primaryManifest.TargetGame.Value;
+            }
+            if (!string.IsNullOrWhiteSpace(primaryManifest.Publisher))
+            {
+                CurrentProject.Publisher = primaryManifest.Publisher;
+            }
+        }
+
+        if (config?.Manifests != null && config.Manifests.Count > 0)
+        {
+            foreach (var manifest in config.Manifests.Where(m => !string.IsNullOrWhiteSpace(m.Name)))
+            {
+                ProjectManifests.Add(new ManifestCardViewModel
+                {
+                    Name = manifest.Name,
+                    Version = string.IsNullOrWhiteSpace(manifest.Version) ? (CurrentProject?.Version ?? ModBuilderConstants.DefaultManifestVersion) : manifest.Version,
+                    Publisher = string.IsNullOrWhiteSpace(manifest.Publisher) ? (CurrentProject?.Publisher ?? CurrentProject?.Author ?? string.Empty) : manifest.Publisher,
+                    Description = manifest.Description ?? string.Empty,
+                    TargetGame = manifest.TargetGame,
+                    ContentType = manifest.ContentType,
+                    PackNames = manifest.PackNames?.ToList() ?? [],
+                });
+            }
+        }
+        else if (CurrentProject != null)
+        {
+            ProjectManifests.Add(new ManifestCardViewModel
+            {
+                Name = CurrentProject.Name,
+                Version = CurrentProject.Version,
+                Publisher = CurrentProject.Publisher ?? CurrentProject.Author ?? string.Empty,
+                Description = string.Empty,
+                TargetGame = CurrentProject.TargetGame,
+                ContentType = CurrentProject.ContentType,
+                PackNames = Bundles.Where(b => b.IsSelected).Select(b => b.Name).ToList(),
+            });
+        }
     }
 
     private async Task InitializeFileManagerAndGameDirectoryAsync(string projectDir)
@@ -3820,6 +3902,24 @@ public partial class ModBuilderViewModel(
                 value.TargetGame == GameType.Generals)
             {
                 value.TargetGame = GameType.ZeroHour;
+            }
+
+            var primaryManifest = value.Configuration?.Manifests?.FirstOrDefault(m => !string.IsNullOrWhiteSpace(m.Name));
+            if (primaryManifest != null)
+            {
+                value.Version = primaryManifest.Version;
+                if (primaryManifest.ContentType.HasValue)
+                {
+                    value.ContentType = primaryManifest.ContentType.Value;
+                }
+                if (primaryManifest.TargetGame.HasValue)
+                {
+                    value.TargetGame = primaryManifest.TargetGame.Value;
+                }
+                if (!string.IsNullOrWhiteSpace(primaryManifest.Publisher))
+                {
+                    value.Publisher = primaryManifest.Publisher;
+                }
             }
 
             SelectedTargetGame = value.TargetGame;
