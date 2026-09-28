@@ -1337,50 +1337,61 @@ public partial class ConfigEditorViewModel(
 
             var existingFile = FindMatchingExistingFile(existingItem, pattern, rawPattern.Trim(), projectDir);
 
-            Dictionary<string, object>? mergedParams;
-            if (existingFile?.Params != null)
-            {
-                mergedParams = new Dictionary<string, object>(existingFile.Params, StringComparer.OrdinalIgnoreCase);
-                mergedParams.Remove(ModBuilderConstants.BundleParams.NoConvert);
-                mergedParams.Remove(ModBuilderConstants.BundleParams.OutputFormat);
-                if (fileParams != null)
-                {
-                    foreach (var kvp in fileParams)
-                    {
-                        mergedParams[kvp.Key] = kvp.Value;
-                    }
-                }
-
-                if (mergedParams.Count == 0)
-                {
-                    mergedParams = null;
-                }
-            }
-            else
-            {
-                mergedParams = fileParams;
-            }
-
             files.Add(new BundleFile
             {
                 AbsSourceParent = projectDir,
                 AbsSourceFile = pattern,
                 RelTargetFile = relTarget,
-                Params = mergedParams,
-                ExcludeMarkersList = existingFile?.ExcludeMarkersList != null
-                    ? existingFile.ExcludeMarkersList.Select(m => new List<string>(m)).ToList()
-                    : null,
-                RegistryDef = existingFile?.RegistryDef != null
-                    ? new BundleRegistryDefinition
-                    {
-                        Paths = new List<string>(existingFile.RegistryDef.Paths),
-                        Crc32 = existingFile.RegistryDef.Crc32,
-                    }
-                    : null,
+                Params = MergeFileParameters(existingFile?.Params, fileParams),
+                ExcludeMarkersList = CloneExcludeMarkers(existingFile?.ExcludeMarkersList),
+                RegistryDef = CloneRegistryDefinition(existingFile?.RegistryDef),
             });
         }
 
         return files;
+    }
+
+    private static Dictionary<string, object>? MergeFileParameters(
+        IReadOnlyDictionary<string, object>? existingParams,
+        Dictionary<string, object>? fileParams)
+    {
+        if (existingParams == null)
+        {
+            return fileParams;
+        }
+
+        var merged = new Dictionary<string, object>(existingParams, StringComparer.OrdinalIgnoreCase);
+        merged.Remove(ModBuilderConstants.BundleParams.NoConvert);
+        merged.Remove(ModBuilderConstants.BundleParams.OutputFormat);
+
+        if (fileParams != null)
+        {
+            foreach (var kvp in fileParams)
+            {
+                merged[kvp.Key] = kvp.Value;
+            }
+        }
+
+        return merged.Count > 0 ? merged : null;
+    }
+
+    private static List<List<string>>? CloneExcludeMarkers(List<List<string>>? markers)
+    {
+        return markers?.Select(m => new List<string>(m)).ToList();
+    }
+
+    private static BundleRegistryDefinition? CloneRegistryDefinition(BundleRegistryDefinition? registryDef)
+    {
+        if (registryDef == null)
+        {
+            return null;
+        }
+
+        return new BundleRegistryDefinition
+        {
+            Paths = new List<string>(registryDef.Paths),
+            Crc32 = registryDef.Crc32,
+        };
     }
 
     private static BundleFile? FindMatchingExistingFile(BundleItem? existingItem, string pattern, string rawPattern, string projectDir)
@@ -1518,64 +1529,17 @@ public partial class ConfigEditorViewModel(
                 tempFilesCreated.Add(tempManifestsPath);
             }
 
-            // Create backups of existing files before replacing them so any move failure can be rolled back.
-            if (File.Exists(itemsPath))
-            {
-                var backup = $"{itemsPath}.{Guid.NewGuid():N}.save.bak";
-                File.Copy(itemsPath, backup, overwrite: true);
-                backups.Add((itemsPath, backup));
-            }
-
-            if (File.Exists(packsPath))
-            {
-                var backup = $"{packsPath}.{Guid.NewGuid():N}.save.bak";
-                File.Copy(packsPath, backup, overwrite: true);
-                backups.Add((packsPath, backup));
-            }
-
-            if (File.Exists(manifestsPath))
-            {
-                var backup = $"{manifestsPath}.{Guid.NewGuid():N}.save.bak";
-                File.Copy(manifestsPath, backup, overwrite: true);
-                backups.Add((manifestsPath, backup));
-            }
+            CreateFileBackup(itemsPath, backups);
+            CreateFileBackup(packsPath, backups);
+            CreateFileBackup(manifestsPath, backups);
 
             try
             {
-                File.Move(tempItemsPath, itemsPath, overwrite: true);
-                tempFilesCreated.Remove(tempItemsPath);
-
-                File.Move(tempPacksPath, packsPath, overwrite: true);
-                tempFilesCreated.Remove(tempPacksPath);
-
-                if (manifests.Count > 0)
-                {
-                    File.Move(tempManifestsPath, manifestsPath, overwrite: true);
-                    tempFilesCreated.Remove(tempManifestsPath);
-                }
-                else if (File.Exists(manifestsPath))
-                {
-                    File.Delete(manifestsPath);
-                }
+                ApplyFileReplacements(tempItemsPath, itemsPath, tempPacksPath, packsPath, tempManifestsPath, manifestsPath, manifests.Count, tempFilesCreated);
             }
             catch
             {
-                // Roll back restored files from backup if replacement failed mid-flight.
-                foreach (var (targetPath, backupPath) in backups)
-                {
-                    try
-                    {
-                        if (File.Exists(backupPath))
-                        {
-                            File.Copy(backupPath, targetPath, overwrite: true);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(ex, "Failed to restore backup {BackupPath} to {TargetPath}", backupPath, targetPath);
-                    }
-                }
-
+                RollbackFileBackups(backups, logger);
                 throw;
             }
 
@@ -1583,34 +1547,80 @@ public partial class ConfigEditorViewModel(
         }
         finally
         {
-            foreach (var tempFile in tempFilesCreated)
+            DeleteFilesSafely(tempFilesCreated);
+            DeleteFilesSafely(backups.Select(b => b.BackupPath));
+        }
+    }
+
+    private static void CreateFileBackup(string filePath, List<(string TargetPath, string BackupPath)> backups)
+    {
+        if (File.Exists(filePath))
+        {
+            var backup = $"{filePath}.{Guid.NewGuid():N}.save.bak";
+            File.Copy(filePath, backup, overwrite: true);
+            backups.Add((filePath, backup));
+        }
+    }
+
+    private static void ApplyFileReplacements(
+        string tempItemsPath,
+        string itemsPath,
+        string tempPacksPath,
+        string packsPath,
+        string tempManifestsPath,
+        string manifestsPath,
+        int manifestCount,
+        List<string> tempFilesCreated)
+    {
+        File.Move(tempItemsPath, itemsPath, overwrite: true);
+        tempFilesCreated.Remove(tempItemsPath);
+
+        File.Move(tempPacksPath, packsPath, overwrite: true);
+        tempFilesCreated.Remove(tempPacksPath);
+
+        if (manifestCount > 0)
+        {
+            File.Move(tempManifestsPath, manifestsPath, overwrite: true);
+            tempFilesCreated.Remove(tempManifestsPath);
+        }
+        else if (File.Exists(manifestsPath))
+        {
+            File.Delete(manifestsPath);
+        }
+    }
+
+    private static void RollbackFileBackups(List<(string TargetPath, string BackupPath)> backups, ILogger logger)
+    {
+        foreach (var (targetPath, backupPath) in backups)
+        {
+            try
             {
-                try
+                if (File.Exists(backupPath))
                 {
-                    if (File.Exists(tempFile))
-                    {
-                        File.Delete(tempFile);
-                    }
-                }
-                catch
-                {
-                    // Ignore temp file cleanup errors
+                    File.Copy(backupPath, targetPath, overwrite: true);
                 }
             }
-
-            foreach (var (_, backupPath) in backups)
+            catch (Exception ex)
             {
-                try
+                logger.LogWarning(ex, "Failed to restore backup {BackupPath} to {TargetPath}", backupPath, targetPath);
+            }
+        }
+    }
+
+    private static void DeleteFilesSafely(IEnumerable<string> filePaths)
+    {
+        foreach (var file in filePaths)
+        {
+            try
+            {
+                if (File.Exists(file))
                 {
-                    if (File.Exists(backupPath))
-                    {
-                        File.Delete(backupPath);
-                    }
+                    File.Delete(file);
                 }
-                catch
-                {
-                    // Ignore backup file cleanup errors
-                }
+            }
+            catch
+            {
+                // Ignore cleanup errors
             }
         }
     }

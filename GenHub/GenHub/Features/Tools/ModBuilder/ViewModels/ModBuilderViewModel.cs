@@ -3728,10 +3728,20 @@ public partial class ModBuilderViewModel(
         }
     }
 
-    private static string ResolveProjectPublisher(ModBuilderProject? project) =>
-        !string.IsNullOrWhiteSpace(project?.Publisher) ? project.Publisher
-        : !string.IsNullOrWhiteSpace(project?.Author) ? project.Author
-        : string.Empty;
+    private static string ResolveProjectPublisher(ModBuilderProject? project)
+    {
+        if (!string.IsNullOrWhiteSpace(project?.Publisher))
+        {
+            return project.Publisher;
+        }
+
+        if (!string.IsNullOrWhiteSpace(project?.Author))
+        {
+            return project.Author;
+        }
+
+        return string.Empty;
+    }
 
     private async Task InitializeFileManagerAndGameDirectoryAsync(string projectDir)
     {
