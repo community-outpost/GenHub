@@ -44,4 +44,9 @@ public static class EditorConstants
     /// Half the resize handle edge length, used to center handles on rectangle corners and edges.
     /// </summary>
     public const double ResizeHandleHalfSize = 5.0;
+
+    /// <summary>
+    /// Negative half resize handle edge length, used for leading-edge canvas placement.
+    /// </summary>
+    public const double ResizeHandleNegativeOffset = -ResizeHandleHalfSize;
 }

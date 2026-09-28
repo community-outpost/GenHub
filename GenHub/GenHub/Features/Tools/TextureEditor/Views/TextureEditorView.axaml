@@ -30,8 +30,14 @@
         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
           <PathIcon Data="{StaticResource ToolIcon.ImageOutline}" Width="22" Height="22" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
           <StackPanel Spacing="0" VerticalAlignment="Center">
-            <TextBlock Text="{Binding DocumentTitle}" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource TextPrimary}"
-                       IsVisible="{Binding HasAtlas}"/>
+            <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding HasAtlas}">
+              <TextBlock Text="{Binding DocumentTitle}" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource TextPrimary}"/>
+              <Border Background="{DynamicResource WarningBrush}" CornerRadius="4" Padding="6,2"
+                      IsVisible="{Binding IsPlaceholder}" VerticalAlignment="Center"
+                      ToolTip.Tip="{localization:Localize TextureEditor.Badge.PlaceholderTooltip}">
+                <TextBlock Text="{localization:Localize TextureEditor.Badge.Placeholder}" FontSize="10" Foreground="White" FontWeight="SemiBold"/>
+              </Border>
+            </StackPanel>
             <TextBlock Text="{localization:Localize TextureEditor.Header.NoAtlas}" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource TextPrimary}"
                        IsVisible="{Binding !HasAtlas}"/>
             <TextBlock Text="{Binding AtlasDimensions}" FontSize="11" Foreground="{DynamicResource TextSecondary}"
@@ -235,13 +241,13 @@
                               BorderThickness="2" Background="Transparent"
                               Cursor="SizeAll"/>
                       <Canvas Width="{Binding DisplayWidth}" Height="{Binding DisplayHeight}" IsVisible="{Binding IsSelected}">
-                        <Border Canvas.Left="-5" Canvas.Top="-5" Classes="resize-handle"
+                        <Border Canvas.Left="{x:Static constants:EditorConstants.ResizeHandleNegativeOffset}" Canvas.Top="{x:Static constants:EditorConstants.ResizeHandleNegativeOffset}" Classes="resize-handle"
                                 Cursor="TopLeftCorner" Tag="NorthWest"
                                 PointerPressed="OnResizeHandlePointerPressed"/>
-                        <Border Canvas.Left="{Binding HalfWidthMinusHandle}" Canvas.Top="-5" Classes="resize-handle"
+                        <Border Canvas.Left="{Binding HalfWidthMinusHandle}" Canvas.Top="{x:Static constants:EditorConstants.ResizeHandleNegativeOffset}" Classes="resize-handle"
                                 Cursor="TopSide" Tag="North"
                                 PointerPressed="OnResizeHandlePointerPressed"/>
-                        <Border Canvas.Left="{Binding WidthMinusHandle}" Canvas.Top="-5" Classes="resize-handle"
+                        <Border Canvas.Left="{Binding WidthMinusHandle}" Canvas.Top="{x:Static constants:EditorConstants.ResizeHandleNegativeOffset}" Classes="resize-handle"
                                 Cursor="TopRightCorner" Tag="NorthEast"
                                 PointerPressed="OnResizeHandlePointerPressed"/>
                         <Border Canvas.Left="{Binding WidthMinusHandle}" Canvas.Top="{Binding HalfHeightMinusHandle}" Classes="resize-handle"
@@ -253,10 +259,10 @@
                         <Border Canvas.Left="{Binding HalfWidthMinusHandle}" Canvas.Top="{Binding HeightMinusHandle}" Classes="resize-handle"
                                 Cursor="BottomSide" Tag="South"
                                 PointerPressed="OnResizeHandlePointerPressed"/>
-                        <Border Canvas.Left="-5" Canvas.Top="{Binding HeightMinusHandle}" Classes="resize-handle"
+                        <Border Canvas.Left="{x:Static constants:EditorConstants.ResizeHandleNegativeOffset}" Canvas.Top="{Binding HeightMinusHandle}" Classes="resize-handle"
                                 Cursor="BottomLeftCorner" Tag="SouthWest"
                                 PointerPressed="OnResizeHandlePointerPressed"/>
-                        <Border Canvas.Left="-5" Canvas.Top="{Binding HalfHeightMinusHandle}" Classes="resize-handle"
+                        <Border Canvas.Left="{x:Static constants:EditorConstants.ResizeHandleNegativeOffset}" Canvas.Top="{Binding HalfHeightMinusHandle}" Classes="resize-handle"
                                 Cursor="LeftSide" Tag="West"
                                 PointerPressed="OnResizeHandlePointerPressed"/>
                       </Canvas>

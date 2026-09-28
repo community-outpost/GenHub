@@ -8,14 +8,17 @@ using GenHub.Common.Editors;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.TextureEditor;
+using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Tools.Common;
 using GenHub.Core.Models.Tools.TextureEditor;
 using GenHub.Core.Services.Tools.Checksum;
 using GenHub.Features.Tools.TextureEditor.Services;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -25,7 +28,6 @@ using System.Linq;
 using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
-
 namespace GenHub.Features.Tools.TextureEditor.ViewModels;
 
 /// <summary>
@@ -40,7 +42,8 @@ public sealed partial class TextureEditorViewModel(
     INotificationService notificationService,
     ILogger<TextureEditorViewModel> logger,
     ILocalizationService localizationService,
-    IDialogService dialogService)
+    IDialogService dialogService,
+    IGameInstallationService? gameInstallationService = null)
     : EditorToolViewModelBase(notificationService, localizationService, dialogService)
 {
     private const string SavedMessageFallback = "Saved {0}.";
@@ -51,6 +54,10 @@ public sealed partial class TextureEditorViewModel(
     private const string ImportFailedTitleFallback = "Import failed";
     private const string ExportInvalidTitleKey = "TextureEditor.Notify.ExportInvalid.Title";
     private const string ExportInvalidTitleFallback = "Cannot export slices";
+    private const string OpenFailedTitleKey = "TextureEditor.Notify.OpenFailed.Title";
+    private const string OpenFailedTitleFallback = "Failed to open atlas";
+
+    private readonly ConcurrentDictionary<string, Dictionary<string, BigArchiveEntry>> _archiveIndexCache = new(StringComparer.OrdinalIgnoreCase);
 
     private DecodedTexture? _atlasDecoded;
     private FileExplorerViewModel? _fileExplorer;
@@ -82,6 +89,12 @@ public sealed partial class TextureEditorViewModel(
 
     [ObservableProperty]
     private bool _isPanMode;
+
+    /// <summary>
+    /// Gets a value indicating whether the current atlas is a synthesized placeholder canvas.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isPlaceholder;
 
     /// <summary>
     /// Gets the shared file explorer listing textures and MappedImages INI files.
@@ -216,11 +229,20 @@ public sealed partial class TextureEditorViewModel(
     {
         get
         {
-            string dir = !string.IsNullOrEmpty(FileExplorer.Directory)
-                ? FileExplorer.Directory
-                : (AtlasPath.Contains('#')
-                    ? (Path.GetDirectoryName(StripArchiveFragment(AtlasPath)) ?? string.Empty)
-                    : (Path.GetDirectoryName(AtlasPath) ?? string.Empty));
+            string dir;
+            if (!string.IsNullOrEmpty(FileExplorer.Directory))
+            {
+                dir = FileExplorer.Directory;
+            }
+            else if (AtlasPath.Contains('#'))
+            {
+                dir = Path.GetDirectoryName(StripArchiveFragment(AtlasPath)) ?? string.Empty;
+            }
+            else
+            {
+                dir = Path.GetDirectoryName(AtlasPath) ?? string.Empty;
+            }
+
             string baseName = Path.GetFileNameWithoutExtension(AtlasFileName);
             return Path.Combine(dir, baseName + TextureEditorConstants.MappedImagesExtension);
         }
@@ -245,85 +267,24 @@ public sealed partial class TextureEditorViewModel(
 
         if (AtlasBitmap is null)
         {
-            // No atlas is open, so resolve the entry's own texture the same way
-            // an INI import does instead of leaving the library dead-ended.
-            string? texturePath = FindTextureFile(definition.TextureFileName, definition.SourcePath);
-            if (texturePath is not null)
-            {
-                _ = OpenTextureAndLoadEntryAsync(texturePath, definition);
-                return;
-            }
-
-            if (explicitOpen)
-            {
-                _ = OpenPlaceholderForEntryAsync(definition);
-                return;
-            }
-
-            logger.LogInformation("Registry entry {Name} not loaded: no atlas is open.", definition.Name);
-            Notifications.ShowInfo(
-                Localize("TextureEditor.Notify.NoAtlas.Title", "No atlas open"),
-                Localize("TextureEditor.Notify.NoAtlas.Message", "Open a texture atlas before adding slices."),
-                NotificationDurations.Medium);
+            _ = HandleRegistryEntryWithoutAtlasAsync(definition, explicitOpen);
             return;
         }
 
-        bool textureMatches = MappedImageTextureMatcher.Matches(definition.TextureFileName, AtlasFileName);
-        bool sameDirectory = definition.SourcePath is null
-            || IsSameDirectory(definition.SourcePath, AtlasPath)
-            || (!string.IsNullOrEmpty(FileExplorer.Directory)
-                && IsUnderDirectory(definition.SourcePath, FileExplorer.Directory)
-                && !string.IsNullOrEmpty(AtlasPath)
-                && IsUnderDirectory(AtlasPath, FileExplorer.Directory));
-        if (textureMatches && (sameDirectory || explicitOpen))
+        bool sameDirectory = IsDefinitionInSameDirectory(definition);
+        if (TryAdoptMatchingAtlasEntry(definition, explicitOpen, sameDirectory))
         {
-            if (Slices.Count == 0)
-            {
-                LoadSlicesForAtlas();
-            }
-
-            AdoptRegistryEntry(definition);
             return;
         }
 
-        // The entry belongs to another atlas: open that texture when it can be
-        // found instead of rejecting the click with a dead-end warning.
-        string? resolved = FindTextureFile(definition.TextureFileName, definition.SourcePath);
-        if (resolved is not null && !string.Equals(resolved, AtlasPath, StringComparison.OrdinalIgnoreCase))
-        {
-            _ = OpenTextureAndLoadEntryAsync(resolved, definition);
-            return;
-        }
-
-        if (resolved is not null && sameDirectory)
-        {
-            // The matching texture is already open but the entry was authored
-            // elsewhere: this explicit click adopts it only when directories align.
-            AdoptRegistryEntry(definition);
-            return;
-        }
-
-        if (explicitOpen)
-        {
-            _ = OpenPlaceholderForEntryAsync(definition);
-            return;
-        }
-
-        logger.LogWarning(
-            "Registry entry {Name} targets {Expected} but no matching texture file was found.",
-            definition.Name,
-            definition.TextureFileName);
-        Notifications.ShowWarning(
-            Localize("TextureEditor.Notify.TextureNotFound.Title", "Texture not found"),
-            Localize("TextureEditor.Notify.TextureNotFound.Message", "'{0}' belongs to {1}, which was not found. Open the folder containing {1} and try again.", definition.Name, definition.TextureFileName),
-            NotificationDurations.Medium);
+        _ = ResolveExternalAtlasEntryAsync(definition, explicitOpen, sameDirectory);
     }
 
     /// <summary>
-    /// Starts dragging a slice on the canvas.
+    /// Starts dragging a slice across the canvas.
     /// </summary>
-    /// <param name="slice">The dragged slice.</param>
-    /// <param name="canvasPoint">The pointer position in canvas coordinates.</param>
+    /// <param name="slice">The slice being dragged.</param>
+    /// <param name="canvasPoint">The initial pointer position in canvas coordinates.</param>
     public void BeginSliceDrag(TextureSliceViewModel? slice, Point canvasPoint)
     {
         _dragSlice = null;
@@ -810,6 +771,93 @@ public sealed partial class TextureEditorViewModel(
         {
             return false;
         }
+    }
+
+    private static HashSet<string> GetTextureCandidates(string textureFileName)
+    {
+        var candidates = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { textureFileName };
+        string baseName = MappedImageTextureMatcher.Normalize(textureFileName);
+        foreach (string extension in TextureEditorConstants.TextureExtensions)
+        {
+            candidates.Add(baseName + extension);
+        }
+
+        return candidates;
+    }
+
+    private static int CompareBigArchiveTexturePriority(string a, string b)
+    {
+        bool aIsZh = a.Contains("ZH", StringComparison.OrdinalIgnoreCase);
+        bool bIsZh = b.Contains("ZH", StringComparison.OrdinalIgnoreCase);
+        if (aIsZh != bIsZh)
+        {
+            return aIsZh ? -1 : 1;
+        }
+
+        bool aIsTextureOrWindow = a.Contains("Window", StringComparison.OrdinalIgnoreCase) || a.Contains("Texture", StringComparison.OrdinalIgnoreCase);
+        bool bIsTextureOrWindow = b.Contains("Window", StringComparison.OrdinalIgnoreCase) || b.Contains("Texture", StringComparison.OrdinalIgnoreCase);
+        if (aIsTextureOrWindow != bIsTextureOrWindow)
+        {
+            return aIsTextureOrWindow ? -1 : 1;
+        }
+
+        return StringComparer.OrdinalIgnoreCase.Compare(a, b);
+    }
+
+    private string? FindTextureInBigArchives(string directory, HashSet<string> candidates, bool recurse = false)
+    {
+        if (!Directory.Exists(directory))
+        {
+            return null;
+        }
+
+        var enumOptions = new EnumerationOptions
+        {
+            RecurseSubdirectories = recurse,
+            IgnoreInaccessible = true,
+            MatchCasing = MatchCasing.CaseInsensitive,
+        };
+
+        string[] bigFiles;
+        try
+        {
+            bigFiles = Directory.GetFiles(directory, "*.big", enumOptions);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+
+        if (bigFiles.Length == 0)
+        {
+            return null;
+        }
+
+        Array.Sort(bigFiles, CompareBigArchiveTexturePriority);
+
+        foreach (var bigFile in bigFiles)
+        {
+            if (!_archiveIndexCache.TryGetValue(bigFile, out var entries))
+            {
+                if (!BigArchiveReader.TryReadIndex(bigFile, out entries))
+                {
+                    continue;
+                }
+
+                _archiveIndexCache[bigFile] = entries;
+            }
+
+            var matching = entries.Values
+                .Select(entry => entry.Path)
+                .FirstOrDefault(path => candidates.Contains(Path.GetFileName(path.Replace('/', '\\'))));
+
+            if (matching is not null)
+            {
+                return $"{bigFile}#{matching}";
+            }
+        }
+
+        return null;
     }
 
     partial void OnAtlasBitmapChanged(Bitmap? value)
@@ -1300,7 +1348,7 @@ public sealed partial class TextureEditorViewModel(
                 if (decoded.Failed || decoded.Data is null)
                 {
                     Notifications.ShowError(
-                        Localize("TextureEditor.Notify.OpenFailed.Title", "Failed to open atlas"),
+                        Localize(OpenFailedTitleKey, OpenFailedTitleFallback),
                         decoded.FirstError ?? string.Empty,
                         NotificationDurations.Long);
                     return;
@@ -1326,7 +1374,7 @@ public sealed partial class TextureEditorViewModel(
         {
             logger.LogError(ex, "Failed to open atlas {Path}", path);
             Notifications.ShowError(
-                Localize("TextureEditor.Notify.OpenFailed.Title", "Failed to open atlas"),
+                Localize(OpenFailedTitleKey, OpenFailedTitleFallback),
                 ex.Message,
                 NotificationDurations.Long);
         }
@@ -1334,6 +1382,11 @@ public sealed partial class TextureEditorViewModel(
 
     private async Task ImportSiblingIniAsync(string atlasPath, CancellationToken cancellationToken)
     {
+        if (atlasPath.Contains('#'))
+        {
+            return;
+        }
+
         string sibling = Path.Combine(
             Path.GetDirectoryName(atlasPath) ?? string.Empty,
             Path.GetFileNameWithoutExtension(atlasPath) + TextureEditorConstants.MappedImagesExtension);
@@ -1384,117 +1437,27 @@ public sealed partial class TextureEditorViewModel(
                     return;
                 }
 
-                registry.ImportDefinitions(parsed.Data);
-                RefreshRegistryImages();
-
                 var groups = parsed.Data
                     .GroupBy(image => image.TextureFileName, StringComparer.OrdinalIgnoreCase)
                     .OrderByDescending(group => group.Count())
                     .ToList();
 
-                bool isSourceCompatible = !string.IsNullOrEmpty(AtlasPath) &&
-                    (IsSameDirectory(path, AtlasPath) ||
-                     (!string.IsNullOrEmpty(FileExplorer.Directory) &&
-                      IsUnderDirectory(path, FileExplorer.Directory) &&
-                      IsUnderDirectory(AtlasPath, FileExplorer.Directory)));
-
-                var currentMatchGroup = (AtlasBitmap is not null && isSourceCompatible)
-                    ? groups.FirstOrDefault(group => MappedImageTextureMatcher.Matches(group.Key, AtlasFileName))
-                    : null;
-
-                if (currentMatchGroup is not null)
-                {
-                    if (HasUnsavedChanges && !await ConfirmDiscardUnsavedAsync(operationToken).ConfigureAwait(true))
-                    {
-                        return;
-                    }
-
-                    ReplaceSlices(currentMatchGroup.ToList());
-                    _savedIniPath = path;
-                    FileExplorer.CurrentPath = path;
-                    MarkSaved();
-
-                    string extraInfo = groups.Count > 1
-                        ? Localize("TextureEditor.Notify.ImportExtraTextures", " ({0} other textures in Library)", groups.Count - 1)
-                        : string.Empty;
-                    Notifications.ShowSuccess(
-                        Localize("TextureEditor.Notify.ImportComplete.Title", "Loaded INI"),
-                        Localize("TextureEditor.Notify.ImportComplete.LoadedCurrentAtlas", "Loaded {0} slices for {1} from {2}{3}.", currentMatchGroup.Count(), AtlasFileName, Path.GetFileName(path), extraInfo),
-                        NotificationDurations.Medium);
-                    return;
-                }
-
-                string? targetTexturePath = null;
-                IGrouping<string, MappedImageDefinition>? targetGroup = null;
-
-                foreach (var group in groups)
-                {
-                    string? candidate = FindTextureFile(group.Key, path);
-                    if (candidate is not null)
-                    {
-                        targetTexturePath = candidate;
-                        targetGroup = group;
-                        break;
-                    }
-                }
-
-                targetGroup ??= groups[0];
-
-                if (HasUnsavedChanges && !await ConfirmDiscardUnsavedAsync(operationToken).ConfigureAwait(true))
+                if (await TryOpenCurrentAtlasGroupAsync(groups, path, parsed.Data, operationToken).ConfigureAwait(true))
                 {
                     return;
                 }
 
-                if (targetTexturePath is not null)
+                if (await TryOpenTargetTextureGroupAsync(groups, path, parsed.Data, operationToken).ConfigureAwait(true))
                 {
-                    var decoded = await bitmapService.LoadDecodedAsync(targetTexturePath, operationToken).ConfigureAwait(true);
-                    operationToken.ThrowIfCancellationRequested();
-                    if (decoded.Success && decoded.Data is not null && OpenDecodedAtlas(decoded.Data, targetTexturePath))
-                    {
-                        ReplaceSlices(targetGroup.ToList());
-                        _savedIniPath = path;
-                        FileExplorer.CurrentPath = path;
-                        MarkSaved();
-
-                        string extraInfo = groups.Count > 1
-                            ? Localize("TextureEditor.Notify.ImportExtraTextures", " ({0} other textures in Library)", groups.Count - 1)
-                            : string.Empty;
-                        Notifications.ShowSuccess(
-                            Localize("TextureEditor.Notify.ImportComplete.Title", "Loaded INI"),
-                            Localize("TextureEditor.Notify.ImportComplete.LoadedTargetAtlas", "Loaded {0} slices for {1} from {2}{3}.", targetGroup.Count(), Path.GetFileName(targetTexturePath), Path.GetFileName(path), extraInfo),
-                            NotificationDurations.Medium);
-                        return;
-                    }
+                    return;
                 }
 
-                var firstDefinition = targetGroup.First();
-                if (firstDefinition.TextureWidth > 0 && firstDefinition.TextureHeight > 0)
+                if (await TryOpenPlaceholderGroupAsync(groups[0], path, parsed.Data, groups.Count, operationToken).ConfigureAwait(true))
                 {
-                    var placeholder = TextureBitmapService.CreatePlaceholder(firstDefinition.TextureWidth, firstDefinition.TextureHeight);
-                    string pseudoPath = Path.Combine(
-                        string.IsNullOrEmpty(FileExplorer.Directory)
-                            ? (Path.GetDirectoryName(path) ?? Directory.GetCurrentDirectory())
-                            : FileExplorer.Directory,
-                        targetGroup.Key);
-
-                    if (OpenDecodedAtlas(placeholder, pseudoPath))
-                    {
-                        ReplaceSlices(targetGroup.ToList());
-                        _savedIniPath = path;
-                        FileExplorer.CurrentPath = path;
-                        MarkSaved();
-
-                        string extraInfo = groups.Count > 1
-                            ? Localize("TextureEditor.Notify.ImportExtraTextures", " ({0} other textures in Library)", groups.Count - 1)
-                            : string.Empty;
-                        Notifications.ShowInfo(
-                            Localize("TextureEditor.Notify.PlaceholderOpened.Title", "Placeholder texture"),
-                            Localize("TextureEditor.Notify.PlaceholderOpened.Message", "Opened placeholder canvas ({0}x{1}) with {2} slices from {3}{4}.", firstDefinition.TextureWidth, firstDefinition.TextureHeight, targetGroup.Count(), Path.GetFileName(path), extraInfo),
-                            NotificationDurations.Medium);
-                        return;
-                    }
+                    return;
                 }
 
+                CommitParsedDefinitions(parsed.Data);
                 Notifications.ShowWarning(
                     Localize("TextureEditor.Notify.ImportComplete.Title", "Imported"),
                     Localize("TextureEditor.Notify.ImportComplete.LibraryOnly", "Imported {0} mapped images into Library.", parsed.Data.Count),
@@ -1515,6 +1478,153 @@ public sealed partial class TextureEditorViewModel(
         }
     }
 
+    private void CommitParsedDefinitions(IReadOnlyList<MappedImageDefinition> definitions)
+    {
+        registry.ImportDefinitions(definitions);
+        RefreshRegistryImages();
+    }
+
+    private async Task<bool> TryOpenCurrentAtlasGroupAsync(
+        List<IGrouping<string, MappedImageDefinition>> groups,
+        string path,
+        IReadOnlyList<MappedImageDefinition> allDefinitions,
+        CancellationToken operationToken)
+    {
+        bool isSourceCompatible = !string.IsNullOrEmpty(AtlasPath) &&
+            (IsSameDirectory(path, AtlasPath) ||
+             (!string.IsNullOrEmpty(FileExplorer.Directory) &&
+              IsUnderDirectory(path, FileExplorer.Directory) &&
+              IsUnderDirectory(AtlasPath, FileExplorer.Directory)));
+
+        var currentMatchGroup = (AtlasBitmap is not null && isSourceCompatible)
+            ? groups.FirstOrDefault(group => MappedImageTextureMatcher.Matches(group.Key, AtlasFileName))
+            : null;
+
+        if (currentMatchGroup is null)
+        {
+            return false;
+        }
+
+        if (HasUnsavedChanges && !await ConfirmDiscardUnsavedAsync(operationToken).ConfigureAwait(true))
+        {
+            return true;
+        }
+
+        CommitParsedDefinitions(allDefinitions);
+        ReplaceSlices(currentMatchGroup.ToList());
+        _savedIniPath = path;
+        FileExplorer.CurrentPath = path;
+        MarkSaved();
+
+        string extraInfo = groups.Count > 1
+            ? Localize("TextureEditor.Notify.ImportExtraTextures", " ({0} other textures in Library)", groups.Count - 1)
+            : string.Empty;
+        Notifications.ShowSuccess(
+            Localize("TextureEditor.Notify.ImportComplete.Title", "Loaded INI"),
+            Localize("TextureEditor.Notify.ImportComplete.LoadedCurrentAtlas", "Loaded {0} slices for {1} from {2}{3}.", currentMatchGroup.Count(), AtlasFileName, Path.GetFileName(path), extraInfo),
+            NotificationDurations.Medium);
+        return true;
+    }
+
+    private async Task<bool> TryOpenTargetTextureGroupAsync(
+        List<IGrouping<string, MappedImageDefinition>> groups,
+        string path,
+        IReadOnlyList<MappedImageDefinition> allDefinitions,
+        CancellationToken operationToken)
+    {
+        string? targetTexturePath = null;
+        IGrouping<string, MappedImageDefinition>? targetGroup = null;
+
+        foreach (var group in groups)
+        {
+            string? candidate = FindTextureFile(group.Key, path);
+            if (candidate is not null)
+            {
+                targetTexturePath = candidate;
+                targetGroup = group;
+                break;
+            }
+        }
+
+        if (targetTexturePath is null || targetGroup is null)
+        {
+            return false;
+        }
+
+        if (HasUnsavedChanges && !await ConfirmDiscardUnsavedAsync(operationToken).ConfigureAwait(true))
+        {
+            return true;
+        }
+
+        var decoded = await bitmapService.LoadDecodedAsync(targetTexturePath, operationToken).ConfigureAwait(true);
+        operationToken.ThrowIfCancellationRequested();
+        if (decoded.Success && decoded.Data is not null && OpenDecodedAtlas(decoded.Data, targetTexturePath))
+        {
+            CommitParsedDefinitions(allDefinitions);
+            ReplaceSlices(targetGroup.ToList());
+            _savedIniPath = path;
+            FileExplorer.CurrentPath = path;
+            MarkSaved();
+
+            string extraInfo = groups.Count > 1
+                ? Localize("TextureEditor.Notify.ImportExtraTextures", " ({0} other textures in Library)", groups.Count - 1)
+                : string.Empty;
+            Notifications.ShowSuccess(
+                Localize("TextureEditor.Notify.ImportComplete.Title", "Loaded INI"),
+                Localize("TextureEditor.Notify.ImportComplete.LoadedTargetAtlas", "Loaded {0} slices for {1} from {2}{3}.", targetGroup.Count(), Path.GetFileName(targetTexturePath), Path.GetFileName(path), extraInfo),
+                NotificationDurations.Medium);
+            return true;
+        }
+
+        return false;
+    }
+
+    private async Task<bool> TryOpenPlaceholderGroupAsync(
+        IGrouping<string, MappedImageDefinition> group,
+        string path,
+        IReadOnlyList<MappedImageDefinition> allDefinitions,
+        int totalGroupsCount,
+        CancellationToken operationToken)
+    {
+        var firstDefinition = group.First();
+        if (firstDefinition.TextureWidth <= 0 || firstDefinition.TextureHeight <= 0)
+        {
+            return false;
+        }
+
+        if (HasUnsavedChanges && !await ConfirmDiscardUnsavedAsync(operationToken).ConfigureAwait(true))
+        {
+            return true;
+        }
+
+        var placeholder = TextureBitmapService.CreatePlaceholder(firstDefinition.TextureWidth, firstDefinition.TextureHeight);
+        string pseudoPath = Path.Combine(
+            string.IsNullOrEmpty(FileExplorer.Directory)
+                ? (Path.GetDirectoryName(path) ?? Directory.GetCurrentDirectory())
+                : FileExplorer.Directory,
+            group.Key);
+
+        if (!OpenDecodedAtlas(placeholder, pseudoPath, isPlaceholder: true))
+        {
+            return false;
+        }
+
+        CommitParsedDefinitions(allDefinitions);
+        ReplaceSlices(group.ToList());
+        _savedIniPath = path;
+        FileExplorer.CurrentPath = path;
+        MarkSaved();
+
+        string extraInfo = totalGroupsCount > 1
+            ? Localize("TextureEditor.Notify.ImportExtraTextures", " ({0} other textures in Library)", totalGroupsCount - 1)
+            : string.Empty;
+        Notifications.ShowInfo(
+            Localize("TextureEditor.Notify.PlaceholderOpened.Title", "Placeholder texture"),
+            Localize("TextureEditor.Notify.PlaceholderOpened.Message", "Opened placeholder canvas ({0}x{1}) with {2} slices from {3}{4}.", firstDefinition.TextureWidth, firstDefinition.TextureHeight, group.Count(), Path.GetFileName(path), extraInfo),
+            NotificationDurations.Medium);
+        return true;
+    }
+
     private void RefreshRegistryImages()
     {
         // Replace the instance so bound pickers rebuild once for the whole
@@ -1523,13 +1633,13 @@ public sealed partial class TextureEditorViewModel(
         OnPropertyChanged(nameof(RegistryImages));
     }
 
-    private bool OpenDecodedAtlas(DecodedTexture decoded, string path)
+    private bool OpenDecodedAtlas(DecodedTexture decoded, string path, bool isPlaceholder = false)
     {
         var bitmap = bitmapService.ToBitmap(decoded);
         if (bitmap.Failed || bitmap.Data is null)
         {
             Notifications.ShowError(
-                Localize("TextureEditor.Notify.OpenFailed.Title", "Failed to open atlas"),
+                Localize(OpenFailedTitleKey, OpenFailedTitleFallback),
                 bitmap.FirstError ?? string.Empty,
                 NotificationDurations.Long);
             return false;
@@ -1539,6 +1649,7 @@ public sealed partial class TextureEditorViewModel(
         _atlasDecoded = decoded;
         AtlasPath = path;
         AtlasBitmap = bitmap.Data;
+        IsPlaceholder = isPlaceholder;
         RefreshRegistryImages();
         AddSliceCommand.NotifyCanExecuteChanged();
         ExportIniCommand.NotifyCanExecuteChanged();
@@ -1553,67 +1664,43 @@ public sealed partial class TextureEditorViewModel(
             return;
         }
 
-        // Registry entries carry the INI they were parsed from: only adopt entries
-        // authored next to this atlas so a same-named texture from another folder
-        // never inherits stale slices. Entries with unknown origin keep the legacy
-        // basename match.
         var allMatches = registry.GetByTexture(AtlasFileName) ?? Array.Empty<MappedImageDefinition>();
         if (allMatches.Count == 0)
         {
             return;
         }
 
-        bool isAtlasArchive = !string.IsNullOrEmpty(AtlasPath) && AtlasPath.Contains('#');
-        string cleanAtlas = isAtlasArchive ? StripArchiveFragment(AtlasPath) : AtlasPath;
+        bool isAtlasArchive = AtlasPath.Contains('#');
+        var matches = isAtlasArchive
+            ? FindArchiveAtlasMatches(allMatches, StripArchiveFragment(AtlasPath))
+            : FindLooseAtlasMatches(allMatches);
 
-        if (isAtlasArchive)
+        if (matches.Count > 0)
         {
-            var archiveMatches = allMatches
-                .Where(image => image.SourcePath is not null &&
-                                ((image.SourcePath.Contains('#') && string.Equals(StripArchiveFragment(image.SourcePath), cleanAtlas, StringComparison.OrdinalIgnoreCase)) ||
-                                 (!image.SourcePath.Contains('#') && (IsSameDirectory(image.SourcePath, cleanAtlas) ||
-                                  (!string.IsNullOrEmpty(FileExplorer.Directory) && IsUnderDirectory(image.SourcePath, FileExplorer.Directory) && IsUnderDirectory(cleanAtlas, FileExplorer.Directory))))))
-                .ToList();
-            if (archiveMatches.Count > 0)
-            {
-                ReplaceSlices(archiveMatches);
-                return;
-            }
-        }
-        else
-        {
-            var sameDirMatches = allMatches
-                .Where(image => image.SourcePath is not null && !image.SourcePath.Contains('#') && IsSameDirectory(image.SourcePath, AtlasPath))
-                .ToList();
-            if (sameDirMatches.Count > 0)
-            {
-                ReplaceSlices(sameDirMatches);
-                return;
-            }
-
-            if (!string.IsNullOrEmpty(FileExplorer.Directory) &&
-                !string.IsNullOrEmpty(AtlasPath) &&
-                IsUnderDirectory(AtlasPath, FileExplorer.Directory))
-            {
-                var projectMatches = allMatches
-                    .Where(image => image.SourcePath is not null && !image.SourcePath.Contains('#') && IsUnderDirectory(image.SourcePath, FileExplorer.Directory))
-                    .ToList();
-                if (projectMatches.Count > 0)
-                {
-                    ReplaceSlices(projectMatches);
-                    return;
-                }
-            }
+            ReplaceSlices(matches);
+            return;
         }
 
         if (!string.IsNullOrEmpty(_savedIniPath))
         {
-            var savedIniMatches = allMatches
-                .Where(image => string.Equals(image.SourcePath, _savedIniPath, StringComparison.OrdinalIgnoreCase))
-                .ToList();
+            var savedIniMatches = FindSavedIniAtlasMatches(allMatches);
             if (savedIniMatches.Count > 0)
             {
                 ReplaceSlices(savedIniMatches);
+                return;
+            }
+        }
+
+        // If the atlas was loaded from game archives or an external directory,
+        // definitions in the open project/workspace matching this texture must be adopted.
+        if (!string.IsNullOrEmpty(FileExplorer.Directory))
+        {
+            var projectMatches = allMatches
+                .Where(image => image.SourcePath is not null && IsUnderDirectory(image.SourcePath, FileExplorer.Directory))
+                .ToList();
+            if (projectMatches.Count > 0)
+            {
+                ReplaceSlices(projectMatches);
                 return;
             }
         }
@@ -1627,7 +1714,46 @@ public sealed partial class TextureEditorViewModel(
             return;
         }
 
-        ReplaceSlices([]);
+        ReplaceSlices(allMatches);
+    }
+
+    private List<MappedImageDefinition> FindArchiveAtlasMatches(IReadOnlyList<MappedImageDefinition> allMatches, string cleanAtlas)
+    {
+        return allMatches
+            .Where(image => image.SourcePath is not null &&
+                            ((image.SourcePath.Contains('#') && string.Equals(StripArchiveFragment(image.SourcePath), cleanAtlas, StringComparison.OrdinalIgnoreCase)) ||
+                             (!image.SourcePath.Contains('#') && (IsSameDirectory(image.SourcePath, cleanAtlas) ||
+                              (!string.IsNullOrEmpty(FileExplorer.Directory) && IsUnderDirectory(image.SourcePath, FileExplorer.Directory) && IsUnderDirectory(cleanAtlas, FileExplorer.Directory))))))
+            .ToList();
+    }
+
+    private List<MappedImageDefinition> FindLooseAtlasMatches(IReadOnlyList<MappedImageDefinition> allMatches)
+    {
+        var sameDirMatches = allMatches
+            .Where(image => image.SourcePath is not null && !image.SourcePath.Contains('#') && IsSameDirectory(image.SourcePath, AtlasPath))
+            .ToList();
+        if (sameDirMatches.Count > 0)
+        {
+            return sameDirMatches;
+        }
+
+        if (!string.IsNullOrEmpty(FileExplorer.Directory) &&
+            !string.IsNullOrEmpty(AtlasPath) &&
+            IsUnderDirectory(AtlasPath, FileExplorer.Directory))
+        {
+            return allMatches
+                .Where(image => image.SourcePath is not null && !image.SourcePath.Contains('#') && IsUnderDirectory(image.SourcePath, FileExplorer.Directory))
+                .ToList();
+        }
+
+        return [];
+    }
+
+    private List<MappedImageDefinition> FindSavedIniAtlasMatches(IReadOnlyList<MappedImageDefinition> allMatches)
+    {
+        return allMatches
+            .Where(image => string.Equals(image.SourcePath, _savedIniPath, StringComparison.OrdinalIgnoreCase))
+            .ToList();
     }
 
     private void AdoptRegistryEntry(MappedImageDefinition definition)
@@ -1669,6 +1795,98 @@ public sealed partial class TextureEditorViewModel(
             NotificationDurations.Medium);
     }
 
+    private async Task HandleRegistryEntryWithoutAtlasAsync(MappedImageDefinition definition, bool explicitOpen)
+    {
+        string? texturePath = FindTextureFile(definition.TextureFileName, definition.SourcePath);
+        if (texturePath is null && gameInstallationService is not null && gameInstallationService.CachedInstallations is null)
+        {
+            await EnsureGameInstallationsLoadedAsync().ConfigureAwait(true);
+            texturePath = FindTextureFile(definition.TextureFileName, definition.SourcePath);
+        }
+
+        if (texturePath is not null)
+        {
+            await OpenTextureAndLoadEntryAsync(texturePath, definition).ConfigureAwait(true);
+            return;
+        }
+
+        if (explicitOpen)
+        {
+            await OpenPlaceholderForEntryAsync(definition).ConfigureAwait(true);
+            return;
+        }
+
+        logger.LogInformation("Registry entry {Name} not loaded: no atlas is open.", definition.Name);
+        Notifications.ShowInfo(
+            Localize("TextureEditor.Notify.NoAtlas.Title", "No atlas open"),
+            Localize("TextureEditor.Notify.NoAtlas.Message", "Open a texture atlas before adding slices."),
+            NotificationDurations.Medium);
+    }
+
+    private bool IsDefinitionInSameDirectory(MappedImageDefinition definition)
+    {
+        return definition.SourcePath is null
+            || IsSameDirectory(definition.SourcePath, AtlasPath)
+            || (!string.IsNullOrEmpty(FileExplorer.Directory)
+                && IsUnderDirectory(definition.SourcePath, FileExplorer.Directory)
+                && !string.IsNullOrEmpty(AtlasPath)
+                && IsUnderDirectory(AtlasPath, FileExplorer.Directory));
+    }
+
+    private bool TryAdoptMatchingAtlasEntry(MappedImageDefinition definition, bool explicitOpen, bool sameDirectory)
+    {
+        bool textureMatches = MappedImageTextureMatcher.Matches(definition.TextureFileName, AtlasFileName);
+        if (textureMatches && (sameDirectory || explicitOpen))
+        {
+            if (Slices.Count == 0)
+            {
+                LoadSlicesForAtlas();
+            }
+
+            AdoptRegistryEntry(definition);
+            return true;
+        }
+
+        return false;
+    }
+
+    private async Task ResolveExternalAtlasEntryAsync(MappedImageDefinition definition, bool explicitOpen, bool sameDirectory)
+    {
+        string? resolved = FindTextureFile(definition.TextureFileName, definition.SourcePath);
+        if (resolved is null && gameInstallationService is not null && gameInstallationService.CachedInstallations is null)
+        {
+            await EnsureGameInstallationsLoadedAsync().ConfigureAwait(true);
+            resolved = FindTextureFile(definition.TextureFileName, definition.SourcePath);
+        }
+
+        if (resolved is not null && !string.Equals(resolved, AtlasPath, StringComparison.OrdinalIgnoreCase))
+        {
+            await OpenTextureAndLoadEntryAsync(resolved, definition).ConfigureAwait(true);
+            return;
+        }
+
+        if (resolved is not null && sameDirectory)
+        {
+            AdoptRegistryEntry(definition);
+            return;
+        }
+
+        if (explicitOpen)
+        {
+            await OpenPlaceholderForEntryAsync(definition).ConfigureAwait(true);
+            return;
+        }
+
+        logger.LogWarning(
+            "Registry entry {Name} targets {Expected} but no matching texture file was found.",
+            definition.Name,
+            definition.TextureFileName);
+        Notifications.ShowWarning(
+            Localize("TextureEditor.Notify.TextureNotFound.Title", "Texture not found"),
+            Localize("TextureEditor.Notify.TextureNotFound.Message", "'{0}' belongs to {1}, which was not found. Open the folder containing {1} and try again.", definition.Name, definition.TextureFileName),
+            NotificationDurations.Medium);
+    }
+
     private async Task OpenPlaceholderForEntryAsync(MappedImageDefinition definition)
     {
         if (definition.TextureWidth <= 0 || definition.TextureHeight <= 0)
@@ -1692,15 +1910,10 @@ public sealed partial class TextureEditorViewModel(
 
                 var placeholder = TextureBitmapService.CreatePlaceholder(definition.TextureWidth, definition.TextureHeight);
                 string? cleanSource = definition.SourcePath is not null ? StripArchiveFragment(definition.SourcePath) : null;
-                string pseudoDir = !string.IsNullOrEmpty(FileExplorer.Directory)
-                    ? FileExplorer.Directory
-                    : (cleanSource is not null
-                        ? (Path.GetDirectoryName(cleanSource) ?? Directory.GetCurrentDirectory())
-                        : Directory.GetCurrentDirectory());
-
+                string pseudoDir = ResolvePlaceholderDirectory(cleanSource);
                 string pseudoPath = Path.Combine(pseudoDir, definition.TextureFileName);
 
-                if (!OpenDecodedAtlas(placeholder, pseudoPath))
+                if (!OpenDecodedAtlas(placeholder, pseudoPath, isPlaceholder: true))
                 {
                     return;
                 }
@@ -1716,7 +1929,12 @@ public sealed partial class TextureEditorViewModel(
 
                 Notifications.ShowInfo(
                     Localize("TextureEditor.Notify.PlaceholderOpened.Title", "Placeholder texture"),
-                    Localize("TextureEditor.Notify.PlaceholderOpened.Message", "Opened {0}x{1} placeholder for '{2}' (texture file not found on disk).", definition.TextureWidth, definition.TextureHeight, definition.TextureFileName),
+                    Localize(
+                        "TextureEditor.Notify.PlaceholderSingleOpened.Message",
+                        "Opened {0}x{1} placeholder for '{2}' (texture file not found on disk or game archives).",
+                        definition.TextureWidth,
+                        definition.TextureHeight,
+                        definition.TextureFileName),
                     NotificationDurations.Medium);
             }).ConfigureAwait(true);
         }
@@ -1728,62 +1946,34 @@ public sealed partial class TextureEditorViewModel(
         {
             logger.LogError(ex, "Failed to open placeholder for {Name}", definition.Name);
             Notifications.ShowError(
-                Localize("TextureEditor.Notify.OpenFailed.Title", "Failed to open placeholder"),
+                Localize(OpenFailedTitleKey, "Failed to open placeholder"),
                 ex.Message,
                 NotificationDurations.Long);
         }
     }
 
-    private string? FindTextureFile(string textureFileName, string? sourcePath)
+    private string ResolvePlaceholderDirectory(string? cleanSource)
     {
-        var candidates = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { textureFileName };
-        string baseName = MappedImageTextureMatcher.Normalize(textureFileName);
-        foreach (string extension in TextureEditorConstants.TextureExtensions)
-        {
-            candidates.Add(baseName + extension);
-        }
-
-        // Probe the folders that can hold the texture without a tree walk: the
-        // INI that referenced it, the open explorer folder, and the open atlas.
-        var probeDirectories = new List<string>();
-        string? sourceDirectory = null;
-        if (!string.IsNullOrEmpty(sourcePath))
-        {
-            string cleanSource = StripArchiveFragment(sourcePath);
-            sourceDirectory = Path.GetDirectoryName(cleanSource);
-        }
-
-        if (!string.IsNullOrEmpty(sourceDirectory))
-        {
-            probeDirectories.Add(sourceDirectory);
-        }
-
         if (!string.IsNullOrEmpty(FileExplorer.Directory))
         {
-            probeDirectories.Add(FileExplorer.Directory);
+            return FileExplorer.Directory;
         }
 
-        string? atlasDirectory = null;
-        if (!string.IsNullOrEmpty(AtlasPath))
+        if (cleanSource is not null)
         {
-            string cleanAtlas = StripArchiveFragment(AtlasPath);
-            atlasDirectory = Path.GetDirectoryName(cleanAtlas);
+            return Path.GetDirectoryName(cleanSource) ?? Directory.GetCurrentDirectory();
         }
 
-        if (!string.IsNullOrEmpty(atlasDirectory) &&
-            (string.IsNullOrEmpty(sourcePath) ||
-             IsSameDirectory(sourcePath, AtlasPath) ||
-             (!string.IsNullOrEmpty(FileExplorer.Directory) &&
-              IsUnderDirectory(sourcePath, FileExplorer.Directory) &&
-              IsUnderDirectory(AtlasPath, FileExplorer.Directory))))
-        {
-            probeDirectories.Add(atlasDirectory);
-        }
+        return Directory.GetCurrentDirectory();
+    }
 
-        var distinctDirectories = probeDirectories.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    private string? FindTextureFile(string textureFileName, string? sourcePath)
+    {
+        var candidates = GetTextureCandidates(textureFileName);
+        var probeDirectories = GetProbeDirectories(sourcePath);
 
-        // 1. Check loose texture files in candidate directories
-        foreach (string directory in distinctDirectories)
+        // 1. Check loose texture files in candidate directories and common subdirectories
+        foreach (string directory in probeDirectories)
         {
             if (!Directory.Exists(directory))
             {
@@ -1797,84 +1987,205 @@ public sealed partial class TextureEditorViewModel(
                 {
                     return probed;
                 }
+
+                string artTextures = Path.Combine(directory, "Art", "Textures", candidate);
+                if (File.Exists(artTextures))
+                {
+                    return artTextures;
+                }
+
+                string texturesDir = Path.Combine(directory, "Textures", candidate);
+                if (File.Exists(texturesDir))
+                {
+                    return texturesDir;
+                }
+
+                string windowDir = Path.Combine(directory, "Window", candidate);
+                if (File.Exists(windowDir))
+                {
+                    return windowDir;
+                }
             }
         }
 
         // 2. Fall back to the already enumerated explorer tree
-        string? inTree = FindTextureInNodes(FileExplorer.Nodes, textureFileName);
-        if (inTree is not null)
+        if (FileExplorer is not null)
         {
-            return inTree;
+            foreach (var candidate in candidates)
+            {
+                string? inTree = FindTextureInNodes(FileExplorer.Nodes, candidate);
+                if (inTree is not null)
+                {
+                    return inTree;
+                }
+            }
         }
 
-        // 3. Check .BIG archives in candidate directories (e.g. TexturesZH.big, Textures.big)
-        foreach (string directory in distinctDirectories)
+        // 3. Check .BIG archives in candidate directories (recursively in workspace)
+        foreach (string directory in probeDirectories)
         {
             if (!Directory.Exists(directory))
             {
                 continue;
             }
 
-            string? fromBig = FindTextureInBigArchives(directory, candidates);
+            string? fromBig = FindTextureInBigArchives(directory, candidates, recurse: true);
             if (fromBig is not null)
             {
                 return fromBig;
             }
         }
 
-        return null;
-    }
-
-    private string? FindTextureInBigArchives(string directory, HashSet<string> candidates)
-    {
-        string[] bigFiles;
-        try
+        // 4. Fall back to detected game installations (Zero Hour / Generals retail archives & loose files)
+        var gameDirectories = GetGameInstallationDirectories();
+        foreach (string gameDir in gameDirectories)
         {
-            bigFiles = Directory
-                .GetFiles(directory, "*", SearchOption.TopDirectoryOnly)
-                .Where(file => string.Equals(Path.GetExtension(file), ".big", StringComparison.OrdinalIgnoreCase))
-                .ToArray();
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return null;
-        }
-
-        if (bigFiles.Length == 0)
-        {
-            return null;
-        }
-
-        Array.Sort(bigFiles, (a, b) =>
-        {
-            bool aIsZh = a.Contains("ZH", StringComparison.OrdinalIgnoreCase);
-            bool bIsZh = b.Contains("ZH", StringComparison.OrdinalIgnoreCase);
-            if (aIsZh != bIsZh)
-            {
-                return aIsZh ? -1 : 1;
-            }
-
-            return StringComparer.OrdinalIgnoreCase.Compare(a, b);
-        });
-
-        foreach (var bigFile in bigFiles)
-        {
-            if (!BigArchiveReader.TryReadIndex(bigFile, out var entries))
+            if (!Directory.Exists(gameDir))
             {
                 continue;
             }
 
-            foreach (var entry in entries.Values)
+            foreach (string candidate in candidates)
             {
-                string entryFileName = entry.Path.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? string.Empty;
-                if (candidates.Contains(entryFileName))
+                string probed = Path.Combine(gameDir, candidate);
+                if (File.Exists(probed))
                 {
-                    return $"{bigFile}#{entry.Path}";
+                    return probed;
                 }
+
+                string artTextures = Path.Combine(gameDir, "Art", "Textures", candidate);
+                if (File.Exists(artTextures))
+                {
+                    return artTextures;
+                }
+
+                string windowDir = Path.Combine(gameDir, "Window", candidate);
+                if (File.Exists(windowDir))
+                {
+                    return windowDir;
+                }
+
+                string windowMenusDir = Path.Combine(gameDir, "Window", "Menus", candidate);
+                if (File.Exists(windowMenusDir))
+                {
+                    return windowMenusDir;
+                }
+            }
+
+            string? fromGameBig = FindTextureInBigArchives(gameDir, candidates, recurse: true);
+            if (fromGameBig is not null)
+            {
+                return fromGameBig;
             }
         }
 
         return null;
+    }
+
+    private IReadOnlyList<string> GetGameInstallationDirectories()
+    {
+        if (gameInstallationService is null)
+        {
+            return [];
+        }
+
+        var installations = gameInstallationService.CachedInstallations;
+        if (installations is null || installations.Count == 0)
+        {
+            return [];
+        }
+
+        var directories = new List<string>();
+        foreach (var inst in installations)
+        {
+            if (inst.HasZeroHour && !string.IsNullOrEmpty(inst.ZeroHourPath) && Directory.Exists(inst.ZeroHourPath))
+            {
+                directories.Add(inst.ZeroHourPath);
+            }
+
+            if (!string.IsNullOrEmpty(inst.BundledGeneralsPath) && Directory.Exists(inst.BundledGeneralsPath))
+            {
+                directories.Add(inst.BundledGeneralsPath);
+            }
+
+            if (!string.IsNullOrEmpty(inst.EffectiveGeneralsArchivePath) && Directory.Exists(inst.EffectiveGeneralsArchivePath))
+            {
+                directories.Add(inst.EffectiveGeneralsArchivePath);
+            }
+            else if (inst.HasGenerals && !string.IsNullOrEmpty(inst.GeneralsPath) && Directory.Exists(inst.GeneralsPath))
+            {
+                directories.Add(inst.GeneralsPath);
+            }
+
+            if (!string.IsNullOrEmpty(inst.InstallationPath) && Directory.Exists(inst.InstallationPath))
+            {
+                directories.Add(inst.InstallationPath);
+            }
+        }
+
+        return directories.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    private async Task EnsureGameInstallationsLoadedAsync(CancellationToken cancellationToken = default)
+    {
+        if (gameInstallationService is null || gameInstallationService.CachedInstallations is not null)
+        {
+            return;
+        }
+
+        try
+        {
+            await gameInstallationService.GetAllInstallationsAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to load game installations for texture lookup");
+        }
+    }
+
+    private List<string> GetProbeDirectories(string? sourcePath)
+    {
+        var probeDirectories = new List<string>();
+        if (!string.IsNullOrEmpty(sourcePath))
+        {
+            string cleanSource = StripArchiveFragment(sourcePath);
+            string? sourceDir = Path.GetDirectoryName(cleanSource);
+            if (!string.IsNullOrEmpty(sourceDir))
+            {
+                probeDirectories.Add(sourceDir);
+            }
+        }
+
+        if (!string.IsNullOrEmpty(FileExplorer.Directory))
+        {
+            probeDirectories.Add(FileExplorer.Directory);
+        }
+
+        if (ShouldProbeAtlasDirectory(sourcePath, out string? atlasDirectory) && !string.IsNullOrEmpty(atlasDirectory))
+        {
+            probeDirectories.Add(atlasDirectory);
+        }
+
+        return probeDirectories.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    private bool ShouldProbeAtlasDirectory(string? sourcePath, out string? atlasDirectory)
+    {
+        atlasDirectory = null;
+        if (string.IsNullOrEmpty(AtlasPath))
+        {
+            return false;
+        }
+
+        string cleanAtlas = StripArchiveFragment(AtlasPath);
+        atlasDirectory = Path.GetDirectoryName(cleanAtlas);
+
+        return !string.IsNullOrEmpty(atlasDirectory) &&
+            (string.IsNullOrEmpty(sourcePath) ||
+             IsSameDirectory(sourcePath, AtlasPath) ||
+             (!string.IsNullOrEmpty(FileExplorer.Directory) &&
+              IsUnderDirectory(sourcePath, FileExplorer.Directory) &&
+              IsUnderDirectory(AtlasPath, FileExplorer.Directory)));
     }
 
     private void ReplaceSlices(IEnumerable<MappedImageDefinition> definitions)
@@ -1972,6 +2283,7 @@ public sealed partial class TextureEditorViewModel(
         AtlasBitmap = null;
         _atlasDecoded = null;
         AtlasPath = string.Empty;
+        IsPlaceholder = false;
         _savedIniPath = null;
         _copiedSlice = null;
         _isCutOperation = false;
@@ -2033,6 +2345,17 @@ public sealed partial class TextureEditorViewModel(
             }
 
             preserved.AddRange(existing.Data.Where(image => !MappedImageTextureMatcher.Matches(image.TextureFileName, AtlasFileName)));
+
+            var colliding = definitions.FirstOrDefault(d => preserved.Any(p => string.Equals(p.Name, d.Name, StringComparison.OrdinalIgnoreCase)));
+            if (colliding is not null)
+            {
+                logger.LogWarning("INI save aborted: slice name {Slice} collides with preserved entry in existing INI", colliding.Name);
+                Notifications.ShowError(
+                    Localize(ExportInvalidTitleKey, ExportInvalidTitleFallback),
+                    Localize("TextureEditor.Notify.ExportInvalidDuplicateName.Message", "Slice name '{0}' is duplicated. Slice names must be unique.", colliding.Name),
+                    NotificationDurations.Long);
+                return false;
+            }
         }
 
         if (definitions.Count == 0 && !await ConfirmEmptyOverwriteAsync(path, cancellationToken).ConfigureAwait(true))

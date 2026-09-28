@@ -17301,4 +17301,7 @@ Error: فشل: {3}
   <data name="TextureEditor.Notify.ImportComplete.LoadedCurrentAtlas" xml:space="preserve"><value>تم تحميل {0} شريحة لـ {1} من {2}{3}.</value></data>
   <data name="TextureEditor.Notify.ImportComplete.LoadedTargetAtlas" xml:space="preserve"><value>تم تحميل {0} شريحة لـ {1} من {2}{3}.</value></data>
   <data name="TextureEditor.Notify.ImportComplete.LibraryOnly" xml:space="preserve"><value>تم استيراد {0} صورة في المكتبة.</value></data>
+  <data name="TextureEditor.Notify.PlaceholderSingleOpened.Message" xml:space="preserve"><value>تم فتح لوحة قماشية مؤقتة {0}x{1} لـ '{2}' (لم يتم العثور على ملف النسيج على القرص أو في ملفات اللعبة).</value></data>
+  <data name="TextureEditor.Badge.Placeholder" xml:space="preserve"><value>نسيج مفقود (مؤقت)</value></data>
+  <data name="TextureEditor.Badge.PlaceholderTooltip" xml:space="preserve"><value>لم يتم العثور على ملف النسيج على القرص أو في أرشيفات اللعبة. يتم عرض لوحة قماشية مؤقتة.</value></data>
 </root>

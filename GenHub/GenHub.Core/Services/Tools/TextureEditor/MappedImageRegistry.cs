@@ -5,23 +5,30 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.TextureEditor;
 using GenHub.Core.Services.Tools.Checksum;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Core.Services.Tools.TextureEditor;
 
 /// <summary>
-/// Indexes MappedImage entries scanned from INI files and .BIG archives with SAGE load-order semantics.
+/// Catalogs SAGE MappedImage definitions discovered across workspace INI files and .BIG archives.
+/// Follows SAGE engine load-order semantics: loose files override .BIG archives,
+/// and within each source HandCreated entries override TextureSize_* entries.
+/// Thread-safe for concurrent read access.
 /// </summary>
 public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<MappedImageRegistry> logger) : IMappedImageRegistry
 {
-    private readonly Dictionary<string, MappedImageDefinition> _entries = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _syncLock = new();
+    private readonly Dictionary<string, MappedImageDefinition> _entries = new(StringComparer.OrdinalIgnoreCase);
     private int _scanGeneration;
 
     /// <inheritdoc />
-    [SuppressMessage("Critical Code Smell", "S2365:Properties should not return copies of collections", Justification = "IMappedImageRegistry contracts a property; the snapshot copy under lock is required for thread safety.")]
     public IReadOnlyList<MappedImageDefinition> All
     {
         get
@@ -56,35 +63,13 @@ public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<M
             return OperationResult<MappedImageScanResult>.CreateFailure($"Directory not found: {directory}", Stopwatch.GetElapsedTime(started));
         }
 
-        string[] files;
-        try
+        var (iniSuccess, files, iniFailure) = EnumerateMappedImageFiles(directory, started);
+        if (!iniSuccess || files is null)
         {
-            files = Directory.GetFiles(directory, TextureEditorConstants.MappedImagesFilePattern, SearchOption.AllDirectories);
-        }
-        catch (IOException ex)
-        {
-            logger.LogWarning(ex, "Failed to enumerate MappedImages directory: {Directory}", directory);
-            return OperationResult<MappedImageScanResult>.CreateFailure($"Failed to enumerate directory: {directory}", Stopwatch.GetElapsedTime(started));
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            logger.LogWarning(ex, "Access denied enumerating MappedImages directory: {Directory}", directory);
-            return OperationResult<MappedImageScanResult>.CreateFailure($"Access denied enumerating directory: {directory}", Stopwatch.GetElapsedTime(started));
+            return iniFailure!;
         }
 
-        string[] bigFiles = Array.Empty<string>();
-        try
-        {
-            bigFiles = Directory
-                .GetFiles(directory, "*", SearchOption.AllDirectories)
-                .Where(file => string.Equals(Path.GetExtension(file), ".big", StringComparison.OrdinalIgnoreCase))
-                .ToArray();
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            logger.LogDebug(ex, "Could not enumerate .big files in {Directory}", directory);
-        }
-
+        string[] bigFiles = EnumerateBigFiles(directory);
         Array.Sort(files, CompareSageLoadOrder);
         var errors = new List<string>();
 
@@ -94,119 +79,14 @@ public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<M
             generation = ++_scanGeneration;
         }
 
-        // Stage in a temporary catalog so a cancelled or failed scan
-        // never clears the previously valid entries.
         var staged = new Dictionary<string, MappedImageDefinition>(StringComparer.OrdinalIgnoreCase);
 
         // 1. Scan .BIG archives first so loose files override them according to SAGE load order.
-        int bigArchivesWithMappedImages = 0;
-        if (bigFiles.Length > 0)
-        {
-            Array.Sort(bigFiles, CompareBigArchiveOrder);
-            foreach (var bigFile in bigFiles)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (!BigArchiveReader.TryReadIndex(bigFile, out var archiveEntries))
-                {
-                    continue;
-                }
-
-                bool foundInArchive = false;
-                var orderedEntries = archiveEntries.Values
-                    .OrderBy(e => e.Path, Comparer<string>.Create(CompareSageLoadOrder))
-                    .ToList();
-                foreach (var entry in orderedEntries)
-                {
-                    if (!entry.Path.EndsWith(".ini", StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-
-                    if (!entry.Path.Contains("MappedImages", StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-
-                    cancellationToken.ThrowIfCancellationRequested();
-                    byte[] bytes;
-                    try
-                    {
-                        bytes = BigArchiveReader.ReadEntryData(entry);
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(ex, "Failed to read entry {Entry} from {Archive}", entry.Path, bigFile);
-                        continue;
-                    }
-
-                    string text = Encoding.UTF8.GetString(bytes);
-                    if (!text.Contains(TextureEditorConstants.IniBlockName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-
-                    string sourcePath = $"{bigFile}#{entry.Path}";
-                    var parsed = parser.ParseText(text, sourcePath);
-                    if (parsed.Data is not null)
-                    {
-                        foreach (var image in parsed.Data)
-                        {
-                            staged[image.Name] = image;
-                        }
-
-                        foundInArchive = true;
-                    }
-
-                    if (parsed.Failed)
-                    {
-                        errors.AddRange(parsed.Errors);
-                    }
-                }
-
-                if (foundInArchive)
-                {
-                    bigArchivesWithMappedImages++;
-                }
-            }
-        }
+        var (bigArchivesWithMappedImages, archiveErrors) = await ScanBigArchivesAsync(bigFiles, staged, cancellationToken).ConfigureAwait(false);
+        errors.AddRange(archiveErrors);
 
         // 2. Scan loose INI files, filtering out non-mapped-image files (e.g. Scripts.ini)
-        int looseFilesParsed = 0;
-        foreach (var file in files)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (!file.Contains("MappedImages", StringComparison.OrdinalIgnoreCase))
-            {
-                try
-                {
-                    string sample = await File.ReadAllTextAsync(file, cancellationToken).ConfigureAwait(false);
-                    if (!sample.Contains(TextureEditorConstants.IniBlockName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    continue;
-                }
-            }
-
-            looseFilesParsed++;
-            var parsed = await parser.ParseFileAsync(file, cancellationToken).ConfigureAwait(false);
-            if (parsed.Data is not null)
-            {
-                foreach (var image in parsed.Data)
-                {
-                    staged[image.Name] = image;
-                }
-            }
-
-            if (parsed.Failed)
-            {
-                errors.AddRange(parsed.Errors);
-            }
-        }
+        int looseFilesParsed = await ScanLooseFilesAsync(files, staged, errors, cancellationToken).ConfigureAwait(false);
 
         lock (_syncLock)
         {
@@ -332,5 +212,207 @@ public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<M
         }
 
         return textureSize ? 1 : 0;
+    }
+
+    private static string DecodeArchiveIniText(byte[] bytes)
+    {
+        return bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF
+            ? Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3)
+            : Encoding.Latin1.GetString(bytes);
+    }
+
+    private (bool Success, string[]? Files, OperationResult<MappedImageScanResult>? Failure) EnumerateMappedImageFiles(string directory, long started)
+    {
+        try
+        {
+            string[] files = Directory.GetFiles(directory, TextureEditorConstants.MappedImagesFilePattern, SearchOption.AllDirectories);
+            return (true, files, null);
+        }
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to enumerate MappedImages directory: {Directory}", directory);
+            return (false, null, OperationResult<MappedImageScanResult>.CreateFailure($"Failed to enumerate directory: {directory}", Stopwatch.GetElapsedTime(started)));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Access denied enumerating MappedImages directory: {Directory}", directory);
+            return (false, null, OperationResult<MappedImageScanResult>.CreateFailure($"Access denied enumerating directory: {directory}", Stopwatch.GetElapsedTime(started)));
+        }
+    }
+
+    private string[] EnumerateBigFiles(string directory)
+    {
+        try
+        {
+            return Directory
+                .GetFiles(directory, "*", SearchOption.AllDirectories)
+                .Where(file => string.Equals(Path.GetExtension(file), ".big", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(ex, "Could not enumerate .big files in {Directory}", directory);
+            return Array.Empty<string>();
+        }
+    }
+
+    private async Task<(int ArchiveCount, List<string> Errors)> ScanBigArchivesAsync(
+        string[] bigFiles,
+        Dictionary<string, MappedImageDefinition> staged,
+        CancellationToken cancellationToken)
+    {
+        if (bigFiles.Length == 0)
+        {
+            return (0, []);
+        }
+
+        (int Count, List<string> Errors) ScanArchives()
+        {
+            int count = 0;
+            var errs = new List<string>();
+            Array.Sort(bigFiles, CompareBigArchiveOrder);
+            foreach (var bigFile in bigFiles)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (TryScanSingleBigArchive(bigFile, staged, errs, cancellationToken))
+                {
+                    count++;
+                }
+            }
+
+            return (count, errs);
+        }
+
+        return await Task.Run(ScanArchives, cancellationToken).ConfigureAwait(false);
+    }
+
+    private bool TryScanSingleBigArchive(
+        string bigFile,
+        Dictionary<string, MappedImageDefinition> staged,
+        List<string> errors,
+        CancellationToken cancellationToken)
+    {
+        if (!BigArchiveReader.TryReadIndex(bigFile, out var archiveEntries))
+        {
+            logger.LogDebug("Failed to read BIG archive index from {Archive}, skipping", bigFile);
+            return false;
+        }
+
+        bool foundInArchive = false;
+        var orderedEntries = archiveEntries.Values
+            .OrderBy(e => e.Path, Comparer<string>.Create(CompareSageLoadOrder))
+            .ToList();
+
+        foreach (var entry in orderedEntries)
+        {
+            if (!entry.Path.EndsWith(".ini", StringComparison.OrdinalIgnoreCase)
+                || !entry.Path.Contains("MappedImages", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            if (TryProcessArchiveEntry(bigFile, entry, staged, errors))
+            {
+                foundInArchive = true;
+            }
+        }
+
+        return foundInArchive;
+    }
+
+    private bool TryProcessArchiveEntry(
+        string bigFile,
+        BigArchiveEntry entry,
+        Dictionary<string, MappedImageDefinition> staged,
+        List<string> errors)
+    {
+        byte[] bytes;
+        try
+        {
+            bytes = BigArchiveReader.ReadEntryData(entry);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
+        {
+            logger.LogWarning(ex, "Failed to read entry {Entry} from {Archive}", entry.Path, bigFile);
+            return false;
+        }
+
+        string text = DecodeArchiveIniText(bytes);
+        if (!text.Contains(TextureEditorConstants.IniBlockName, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        string sourcePath = $"{bigFile}#{entry.Path}";
+        var parsed = parser.ParseText(text, sourcePath);
+        if (parsed.Data is not null)
+        {
+            foreach (var image in parsed.Data)
+            {
+                staged[image.Name] = image;
+            }
+        }
+
+        if (parsed.Failed)
+        {
+            errors.AddRange(parsed.Errors);
+        }
+
+        return parsed.Data is not null;
+    }
+
+    private async Task<int> ScanLooseFilesAsync(
+        string[] files,
+        Dictionary<string, MappedImageDefinition> staged,
+        List<string> errors,
+        CancellationToken cancellationToken)
+    {
+        int looseFilesParsed = 0;
+        foreach (var file in files)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (!await ShouldIncludeLooseIniAsync(file, cancellationToken).ConfigureAwait(false))
+            {
+                continue;
+            }
+
+            looseFilesParsed++;
+            var parsed = await parser.ParseFileAsync(file, cancellationToken).ConfigureAwait(false);
+            if (parsed.Data is not null)
+            {
+                foreach (var image in parsed.Data)
+                {
+                    staged[image.Name] = image;
+                }
+            }
+
+            if (parsed.Failed)
+            {
+                errors.AddRange(parsed.Errors);
+            }
+        }
+
+        return looseFilesParsed;
+    }
+
+    private async Task<bool> ShouldIncludeLooseIniAsync(string file, CancellationToken cancellationToken)
+    {
+        if (file.Contains("MappedImages", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        try
+        {
+            string sample = await File.ReadAllTextAsync(file, cancellationToken).ConfigureAwait(false);
+            return sample.Contains(TextureEditorConstants.IniBlockName, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(ex, "Failed to read candidate INI file {File} during content probe, skipping", file);
+            return false;
+        }
     }
 }

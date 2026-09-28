@@ -17301,4 +17301,7 @@ Error: не удалось: {3}
   <data name="TextureEditor.Notify.ImportComplete.LoadedCurrentAtlas" xml:space="preserve"><value>Загружено {0} срезов для {1} из {2}{3}.</value></data>
   <data name="TextureEditor.Notify.ImportComplete.LoadedTargetAtlas" xml:space="preserve"><value>Загружено {0} срезов для {1} из {2}{3}.</value></data>
   <data name="TextureEditor.Notify.ImportComplete.LibraryOnly" xml:space="preserve"><value>Импортировано {0} связанных изображений в библиотеку.</value></data>
+  <data name="TextureEditor.Notify.PlaceholderSingleOpened.Message" xml:space="preserve"><value>Открыт временный холст {0}x{1} для '{2}' (файл текстуры не найден на диске или в архивах игры).</value></data>
+  <data name="TextureEditor.Badge.Placeholder" xml:space="preserve"><value>Текстура отсутствует (заполнитель)</value></data>
+  <data name="TextureEditor.Badge.PlaceholderTooltip" xml:space="preserve"><value>Файл текстуры не найден на диске или в архивах игры. Отображается временный холст.</value></data>
 </root>

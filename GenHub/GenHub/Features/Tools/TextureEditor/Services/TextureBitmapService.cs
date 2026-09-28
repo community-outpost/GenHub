@@ -96,57 +96,137 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
         var started = Stopwatch.GetTimestamp();
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
-        int hashIndex = path.IndexOf('#');
-        if (hashIndex > 0
-            && path[..hashIndex].EndsWith(".big", StringComparison.OrdinalIgnoreCase)
-            && File.Exists(path[..hashIndex]))
+        if (TryParseArchiveReference(path, out string archivePath, out string entryRelativePath))
         {
-            string[] parts = path.Split('#', 2);
-            string archivePath = parts[0];
-            string entryRelativePath = parts[1];
-
-            if (File.Exists(archivePath) && BigArchiveReader.TryReadIndex(archivePath, out var index))
-            {
-                string normKey = entryRelativePath.Replace('/', '\\').ToLowerInvariant();
-                if (!index.TryGetValue(normKey, out var entry))
-                {
-                    entry = index.Values.FirstOrDefault(e => string.Equals(e.Path.Replace('/', '\\'), entryRelativePath.Replace('/', '\\'), StringComparison.OrdinalIgnoreCase));
-                }
-
-                if (entry is not null)
-                {
-                    try
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        byte[] bytes = BigArchiveReader.ReadEntryData(entry);
-                        string ext = Path.GetExtension(entryRelativePath);
-                        if (codec.SupportsExtension(ext))
-                        {
-                            return codec.Decode(bytes, ext, entryRelativePath);
-                        }
-
-                        using var ms = new MemoryStream(bytes);
-                        using var image = await Image.LoadAsync<Rgba32>(ms, cancellationToken).ConfigureAwait(false);
-                        var pixels = new byte[image.Width * image.Height * 4];
-                        image.CopyPixelDataTo(pixels);
-                        var texture = new DecodedTexture(image.Width, image.Height, pixels);
-                        return OperationResult<DecodedTexture>.CreateSuccess(texture, Stopwatch.GetElapsedTime(started));
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        throw;
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(ex, "Failed to decode texture {Entry} from archive {Archive}", entryRelativePath, archivePath);
-                        return OperationResult<DecodedTexture>.CreateFailure($"Failed to decode texture from archive: {ex.Message}", Stopwatch.GetElapsedTime(started));
-                    }
-                }
-            }
-
-            return OperationResult<DecodedTexture>.CreateFailure($"Archive entry not found: {path}", Stopwatch.GetElapsedTime(started));
+            return await LoadDecodedFromArchiveAsync(archivePath, entryRelativePath, started, cancellationToken).ConfigureAwait(false);
         }
 
+        return await LoadDecodedFromLooseFileAsync(path, started, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Converts portable RGBA pixels into an Avalonia bitmap.
+    /// </summary>
+    /// <param name="texture">The decoded texture.</param>
+    /// <returns>The bitmap, or a failure describing the problem.</returns>
+    public OperationResult<Bitmap> ToBitmap(DecodedTexture texture)
+    {
+        var started = Stopwatch.GetTimestamp();
+        ArgumentNullException.ThrowIfNull(texture);
+
+        if (texture.Width <= 0 || texture.Height <= 0)
+        {
+            return OperationResult<Bitmap>.CreateFailure("Texture dimensions must be positive.", Stopwatch.GetElapsedTime(started));
+        }
+
+        if ((long)texture.Width * texture.Height * 4 != texture.PixelData.Length)
+        {
+            return OperationResult<Bitmap>.CreateFailure("Pixel data length does not match texture dimensions.", Stopwatch.GetElapsedTime(started));
+        }
+
+        try
+        {
+            var bitmap = new WriteableBitmap(
+                new PixelSize(texture.Width, texture.Height),
+                new Vector(96, 96),
+                PixelFormat.Rgba8888,
+                AlphaFormat.Unpremul);
+
+            using (var frameBuffer = bitmap.Lock())
+            {
+                Marshal.Copy(texture.PixelData, 0, frameBuffer.Address, texture.PixelData.Length);
+            }
+
+            return OperationResult<Bitmap>.CreateSuccess(bitmap, Stopwatch.GetElapsedTime(started));
+        }
+        catch (OutOfMemoryException ex)
+        {
+            logger.LogError(ex, "Out of memory allocating {Width}x{Height} bitmap", texture.Width, texture.Height);
+            return OperationResult<Bitmap>.CreateFailure($"Insufficient memory for {texture.Width}x{texture.Height} texture.", Stopwatch.GetElapsedTime(started));
+        }
+        catch (ArgumentException ex)
+        {
+            logger.LogError(ex, "Invalid bitmap arguments for {Width}x{Height} texture", texture.Width, texture.Height);
+            return OperationResult<Bitmap>.CreateFailure($"Invalid bitmap dimensions: {ex.Message}", Stopwatch.GetElapsedTime(started));
+        }
+    }
+
+    private static bool TryParseArchiveReference(string path, out string archivePath, out string entryRelativePath)
+    {
+        int hashIndex = path.IndexOf('#');
+        if (hashIndex > 0 && path[..hashIndex].EndsWith(".big", StringComparison.OrdinalIgnoreCase))
+        {
+            string[] parts = path.Split('#', 2);
+            archivePath = parts[0];
+            entryRelativePath = parts[1];
+            return true;
+        }
+
+        archivePath = string.Empty;
+        entryRelativePath = string.Empty;
+        return false;
+    }
+
+    private async Task<OperationResult<DecodedTexture>> LoadDecodedFromArchiveAsync(
+        string archivePath,
+        string entryRelativePath,
+        long started,
+        CancellationToken cancellationToken)
+    {
+        if (!File.Exists(archivePath))
+        {
+            return OperationResult<DecodedTexture>.CreateFailure($"Archive not found: {archivePath}", Stopwatch.GetElapsedTime(started));
+        }
+
+        if (!BigArchiveReader.TryReadIndex(archivePath, out var index))
+        {
+            return OperationResult<DecodedTexture>.CreateFailure($"Failed to read archive index: {archivePath}", Stopwatch.GetElapsedTime(started));
+        }
+
+        string normKey = entryRelativePath.Replace('/', '\\').ToLowerInvariant();
+        if (!index.TryGetValue(normKey, out var entry))
+        {
+            entry = index.Values.FirstOrDefault(e => string.Equals(e.Path.Replace('/', '\\'), entryRelativePath.Replace('/', '\\'), StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (entry is null)
+        {
+            return OperationResult<DecodedTexture>.CreateFailure($"Archive entry not found: {archivePath}#{entryRelativePath}", Stopwatch.GetElapsedTime(started));
+        }
+
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            byte[] bytes = BigArchiveReader.ReadEntryData(entry);
+            string ext = Path.GetExtension(entryRelativePath);
+            if (codec.SupportsExtension(ext))
+            {
+                return codec.Decode(bytes, ext, entryRelativePath);
+            }
+
+            using var ms = new MemoryStream(bytes);
+            using var image = await Image.LoadAsync<Rgba32>(ms, cancellationToken).ConfigureAwait(false);
+            var pixels = new byte[image.Width * image.Height * 4];
+            image.CopyPixelDataTo(pixels);
+            var texture = new DecodedTexture(image.Width, image.Height, pixels);
+            return OperationResult<DecodedTexture>.CreateSuccess(texture, Stopwatch.GetElapsedTime(started));
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to decode texture {Entry} from archive {Archive}", entryRelativePath, archivePath);
+            return OperationResult<DecodedTexture>.CreateFailure($"Failed to decode texture from archive: {ex.Message}", Stopwatch.GetElapsedTime(started));
+        }
+    }
+
+    private async Task<OperationResult<DecodedTexture>> LoadDecodedFromLooseFileAsync(
+        string path,
+        long started,
+        CancellationToken cancellationToken)
+    {
         string extension = Path.GetExtension(path);
         if (codec.SupportsExtension(extension))
         {
@@ -187,52 +267,6 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
             return OperationResult<DecodedTexture>.CreateFailure($"Access denied reading image file: {path}", Stopwatch.GetElapsedTime(started));
         }
     }
-
-    /// <summary>
-    /// Converts portable RGBA pixels into an Avalonia bitmap.
-    /// </summary>
-    /// <param name="texture">The decoded texture.</param>
-    /// <returns>The bitmap, or a failure describing the problem.</returns>
-    public OperationResult<Bitmap> ToBitmap(DecodedTexture texture)
-    {
-        var started = Stopwatch.GetTimestamp();
-        ArgumentNullException.ThrowIfNull(texture);
-
-        if (texture.Width <= 0 || texture.Height <= 0)
-        {
-            return OperationResult<Bitmap>.CreateFailure("Texture dimensions must be positive.", Stopwatch.GetElapsedTime(started));
-        }
-
-        if ((long)texture.Width * texture.Height * 4 != texture.PixelData.Length)
-        {
-            return OperationResult<Bitmap>.CreateFailure("Pixel data length does not match texture dimensions.", Stopwatch.GetElapsedTime(started));
-        }
-
-        try
-        {
-            var bitmap = new WriteableBitmap(
-                new PixelSize(texture.Width, texture.Height),
-                new Vector(96, 96),
-                PixelFormat.Rgba8888,
-                AlphaFormat.Unpremul);
-            using (var locked = bitmap.Lock())
-            {
-                int rowBytes = texture.Width * 4;
-                for (int y = 0; y < texture.Height; y++)
-                {
-                    Marshal.Copy(texture.PixelData, y * rowBytes, locked.Address + (y * locked.RowBytes), rowBytes);
-                }
-            }
-
-            return OperationResult<Bitmap>.CreateSuccess(bitmap, Stopwatch.GetElapsedTime(started));
-        }
-        catch (ArgumentException ex)
-        {
-            logger.LogWarning(ex, "Failed to create bitmap for {Width}x{Height} texture", texture.Width, texture.Height);
-            return OperationResult<Bitmap>.CreateFailure("Failed to create bitmap from texture pixels.", Stopwatch.GetElapsedTime(started));
-        }
-    }
-
     /// <summary>
     /// Encodes portable pixels as PNG and saves them to a file.
     /// </summary>
@@ -256,26 +290,37 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
             return OperationResult<string>.CreateFailure("Pixel data length does not match texture dimensions.", Stopwatch.GetElapsedTime(started));
         }
 
+        string? tempPath = null;
         try
         {
-            byte[] encoded;
-            using (var buffer = new MemoryStream())
+            cancellationToken.ThrowIfCancellationRequested();
+            tempPath = CreateTempPath(path);
+            using (var stream = File.Create(tempPath))
             {
                 using var image = Image.LoadPixelData<Rgba32>(texture.PixelData, texture.Width, texture.Height);
-                await image.SaveAsPngAsync(buffer, cancellationToken).ConfigureAwait(false);
-                encoded = buffer.ToArray();
+                await image.SaveAsPngAsync(stream, cancellationToken).ConfigureAwait(false);
+                await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
             }
 
-            await AtomicFile.WriteAllBytesAsync(path, encoded, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            ReplaceDestination(tempPath, path);
+            tempPath = null;
             return OperationResult<string>.CreateSuccess(path, Stopwatch.GetElapsedTime(started));
+        }
+        catch (OperationCanceledException)
+        {
+            DeleteQuietly(tempPath);
+            throw;
         }
         catch (IOException ex)
         {
+            DeleteQuietly(tempPath);
             logger.LogWarning(ex, "Failed to save PNG file: {Path}", path);
             return OperationResult<string>.CreateFailure($"Failed to save PNG file: {path}", Stopwatch.GetElapsedTime(started));
         }
         catch (UnauthorizedAccessException ex)
         {
+            DeleteQuietly(tempPath);
             logger.LogWarning(ex, "Access denied saving PNG file: {Path}", path);
             return OperationResult<string>.CreateFailure($"Access denied saving PNG file: {path}", Stopwatch.GetElapsedTime(started));
         }
@@ -300,20 +345,63 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
             return OperationResult<string>.CreateFailure(encoded, Stopwatch.GetElapsedTime(started));
         }
 
+        string? tempPath = null;
         try
         {
-            await AtomicFile.WriteAllBytesAsync(path, encoded.Data, cancellationToken).ConfigureAwait(false);
+            tempPath = CreateTempPath(path);
+            await File.WriteAllBytesAsync(tempPath, encoded.Data, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            ReplaceDestination(tempPath, path);
+            tempPath = null;
             return OperationResult<string>.CreateSuccess(path, Stopwatch.GetElapsedTime(started));
+        }
+        catch (OperationCanceledException)
+        {
+            DeleteQuietly(tempPath);
+            throw;
         }
         catch (IOException ex)
         {
+            DeleteQuietly(tempPath);
             logger.LogWarning(ex, "Failed to save TGA file: {Path}", path);
             return OperationResult<string>.CreateFailure($"Failed to save TGA file: {path}", Stopwatch.GetElapsedTime(started));
         }
         catch (UnauthorizedAccessException ex)
         {
+            DeleteQuietly(tempPath);
             logger.LogWarning(ex, "Access denied saving TGA file: {Path}", path);
             return OperationResult<string>.CreateFailure($"Access denied saving TGA file: {path}", Stopwatch.GetElapsedTime(started));
+        }
+    }
+
+    private static string CreateTempPath(string path)
+    {
+        string fileName = Path.GetFileName(path) + "." + Path.GetRandomFileName() + ".tmp";
+        string? directory = Path.GetDirectoryName(path);
+        return string.IsNullOrEmpty(directory) ? fileName : Path.Combine(directory, fileName);
+    }
+
+    private static void ReplaceDestination(string tempPath, string path) =>
+        File.Move(tempPath, path, overwrite: true);
+
+    private static void DeleteQuietly(string? tempPath)
+    {
+        if (tempPath is null)
+        {
+            return;
+        }
+
+        try
+        {
+            File.Delete(tempPath);
+        }
+        catch (IOException)
+        {
+            // Best effort cleanup of the temp file; the export result is already decided.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Best effort cleanup of the temp file; the export result is already decided.
         }
     }
 }

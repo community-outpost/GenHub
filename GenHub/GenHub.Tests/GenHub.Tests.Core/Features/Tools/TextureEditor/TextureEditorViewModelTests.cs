@@ -3,7 +3,9 @@ using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using GenHub.Common.Editors;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Interfaces.Tools.TextureEditor;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.TextureEditor;
@@ -566,6 +568,7 @@ public sealed class TextureEditorViewModelTests
         }
 
         Assert.NotNull(viewModel.AtlasBitmap);
+        Assert.True(viewModel.IsPlaceholder);
         Assert.Equal(512, viewModel.AtlasBitmap.PixelSize.Width);
         Assert.Equal(256, viewModel.AtlasBitmap.PixelSize.Height);
         var slice = Assert.Single(viewModel.Slices);
@@ -606,6 +609,7 @@ public sealed class TextureEditorViewModelTests
             }
 
             Assert.NotNull(viewModel.AtlasBitmap);
+            Assert.True(viewModel.IsPlaceholder);
             Assert.Equal(640, viewModel.AtlasBitmap.PixelSize.Width);
             Assert.Equal(480, viewModel.AtlasBitmap.PixelSize.Height);
             Assert.Equal(2, viewModel.Slices.Count);
@@ -616,6 +620,100 @@ public sealed class TextureEditorViewModelTests
         finally
         {
             Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that when a game installation contains the texture,
+    /// LoadRegistryEntry loads it directly from the game installation without a placeholder.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task LoadRegistryEntry_WithGameInstallation_LoadsGameTextureAsync()
+    {
+        string gameDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(gameDir);
+        try
+        {
+            string artDir = Path.Combine(gameDir, "Art", "Textures");
+            Directory.CreateDirectory(artDir);
+            await File.WriteAllBytesAsync(Path.Combine(artDir, "Skirmish_Load.png"), ValidPngBytes);
+
+            var gameMock = new Mock<IGameInstallationService>();
+            var inst = new GameInstallation
+            {
+                InstallationPath = gameDir,
+                ZeroHourPath = gameDir,
+                HasZeroHour = true,
+            };
+            gameMock.Setup(m => m.CachedInstallations).Returns(new List<GameInstallation> { inst });
+
+            var viewModel = CreateViewModel(gameInstallations: gameMock);
+            var definition = new MappedImageDefinition("SkirmishSlice", "Skirmish_Load.tga", 1, 1, 0, 0, 1, 1);
+
+            viewModel.LoadRegistryEntry(definition, explicitOpen: true);
+
+            for (int attempt = 0; attempt < 500 && (viewModel.AtlasBitmap is null || viewModel.IsBusy); attempt++)
+            {
+                Dispatcher.UIThread.RunJobs(null);
+                await Task.Delay(20);
+            }
+
+            Assert.NotNull(viewModel.AtlasBitmap);
+            Assert.False(viewModel.IsPlaceholder);
+            Assert.Single(viewModel.Slices);
+            Assert.Equal("SkirmishSlice", viewModel.Slices[0].Name);
+        }
+        finally
+        {
+            Directory.Delete(gameDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that when an atlas comes from an archive or external folder,
+    /// definitions matching the texture in the current workspace directory are adopted.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task LoadSlicesForAtlas_AtlasFromGameArchive_AdoptsProjectWorkspaceSlicesAsync()
+    {
+        string projectDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(projectDir);
+        try
+        {
+            string projectIni = Path.Combine(projectDir, "sample.ini");
+            var slice1 = new MappedImageDefinition("SliceOne", "Skirmish_Load.tga", 1, 1, 0, 0, 1, 1, SourcePath: projectIni);
+            var slice2 = new MappedImageDefinition("SliceTwo", "Skirmish_Load.tga", 1, 1, 1, 1, 2, 2, SourcePath: projectIni);
+
+            var registryMock = new Mock<IMappedImageRegistry>();
+            registryMock.Setup(m => m.All).Returns(new List<MappedImageDefinition> { slice1, slice2 });
+            registryMock.Setup(m => m.GetByTexture(It.Is<string>(s => s.Contains("Skirmish_Load"))))
+                .Returns(new List<MappedImageDefinition> { slice1, slice2 });
+
+            var viewModel = CreateViewModel(registry: registryMock);
+            viewModel.FileExplorer.Directory = projectDir;
+
+            using var stream = new MemoryStream(ValidPngBytes);
+            using var bitmap = new Bitmap(stream);
+            viewModel.AtlasPath = @"A:\Steam\steamapps\common\WindowZH.big#Window\Menus\Skirmish_Load.tga";
+            viewModel.AtlasBitmap = bitmap;
+
+            viewModel.LoadRegistryEntry(slice1, explicitOpen: true);
+
+            for (int attempt = 0; attempt < 100 && viewModel.Slices.Count < 2; attempt++)
+            {
+                Dispatcher.UIThread.RunJobs(null);
+                await Task.Delay(20);
+            }
+
+            Assert.Equal(2, viewModel.Slices.Count);
+            Assert.Contains(viewModel.Slices, s => s.Name == "SliceOne");
+            Assert.Contains(viewModel.Slices, s => s.Name == "SliceTwo");
+        }
+        finally
+        {
+            Directory.Delete(projectDir, true);
         }
     }
 
@@ -656,7 +754,11 @@ public sealed class TextureEditorViewModelTests
         return bitmap;
     }
 
-    private static TextureEditorViewModel CreateViewModel(Mock<INotificationService>? notifications = null, Mock<IDialogService>? dialogs = null, Mock<IMappedImageRegistry>? registry = null)
+    private static TextureEditorViewModel CreateViewModel(
+        Mock<INotificationService>? notifications = null,
+        Mock<IDialogService>? dialogs = null,
+        Mock<IMappedImageRegistry>? registry = null,
+        Mock<IGameInstallationService>? gameInstallations = null)
     {
         var bitmapService = new TextureBitmapService(
             new Mock<ISageTextureCodec>().Object,
@@ -678,6 +780,7 @@ public sealed class TextureEditorViewModelTests
             (notifications ?? new Mock<INotificationService>()).Object,
             NullLogger<TextureEditorViewModel>.Instance,
             new Mock<ILocalizationService>().Object,
-            (dialogs ?? new Mock<IDialogService>()).Object);
+            (dialogs ?? new Mock<IDialogService>()).Object,
+            gameInstallations?.Object);
     }
 }

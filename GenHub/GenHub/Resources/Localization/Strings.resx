@@ -17360,4 +17360,7 @@ Mapped image texture reference</value>
   <data name="TextureEditor.Notify.ImportComplete.LoadedCurrentAtlas" xml:space="preserve"><value>Loaded {0} slices for {1} from {2}{3}.</value></data>
   <data name="TextureEditor.Notify.ImportComplete.LoadedTargetAtlas" xml:space="preserve"><value>Loaded {0} slices for {1} from {2}{3}.</value></data>
   <data name="TextureEditor.Notify.ImportComplete.LibraryOnly" xml:space="preserve"><value>Imported {0} mapped images into Library.</value></data>
+  <data name="TextureEditor.Notify.PlaceholderSingleOpened.Message" xml:space="preserve"><value>Opened {0}x{1} placeholder for '{2}' (texture file not found on disk or game archives).</value></data>
+  <data name="TextureEditor.Badge.Placeholder" xml:space="preserve"><value>Missing Texture (Placeholder)</value></data>
+  <data name="TextureEditor.Badge.PlaceholderTooltip" xml:space="preserve"><value>Texture file was not found on disk or game archives. A temporary placeholder canvas is displayed.</value></data>
 </root>

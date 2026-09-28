@@ -408,9 +408,15 @@ public sealed class MappedImageRegistryTests
 
         try
         {
+            string scriptsContent = string.Join(
+                Environment.NewLine,
+                "Script MyScript",
+                "  Condition = Always",
+                "  Action = DoNothing",
+                "End");
             await File.WriteAllTextAsync(
                 Path.Combine(scriptsDir, "Scripts.ini"),
-                """Script MyScript\n  Condition = Always\n  Action = DoNothing\nEnd\n""");
+                scriptsContent);
 
             await File.WriteAllTextAsync(
                 Path.Combine(mappedDir, "Test.ini"),
