@@ -1535,7 +1535,17 @@ public partial class ConfigEditorViewModel(
 
             try
             {
-                ApplyFileReplacements(tempItemsPath, itemsPath, tempPacksPath, packsPath, tempManifestsPath, manifestsPath, manifests.Count, tempFilesCreated);
+                ApplyFileReplacement(tempItemsPath, itemsPath, tempFilesCreated);
+                ApplyFileReplacement(tempPacksPath, packsPath, tempFilesCreated);
+
+                if (manifests.Count > 0)
+                {
+                    ApplyFileReplacement(tempManifestsPath, manifestsPath, tempFilesCreated);
+                }
+                else if (File.Exists(manifestsPath))
+                {
+                    File.Delete(manifestsPath);
+                }
             }
             catch
             {
@@ -1562,31 +1572,10 @@ public partial class ConfigEditorViewModel(
         }
     }
 
-    private static void ApplyFileReplacements(
-        string tempItemsPath,
-        string itemsPath,
-        string tempPacksPath,
-        string packsPath,
-        string tempManifestsPath,
-        string manifestsPath,
-        int manifestCount,
-        List<string> tempFilesCreated)
+    private static void ApplyFileReplacement(string tempPath, string targetPath, List<string> tempFilesCreated)
     {
-        File.Move(tempItemsPath, itemsPath, overwrite: true);
-        tempFilesCreated.Remove(tempItemsPath);
-
-        File.Move(tempPacksPath, packsPath, overwrite: true);
-        tempFilesCreated.Remove(tempPacksPath);
-
-        if (manifestCount > 0)
-        {
-            File.Move(tempManifestsPath, manifestsPath, overwrite: true);
-            tempFilesCreated.Remove(tempManifestsPath);
-        }
-        else if (File.Exists(manifestsPath))
-        {
-            File.Delete(manifestsPath);
-        }
+        File.Move(tempPath, targetPath, overwrite: true);
+        tempFilesCreated.Remove(tempPath);
     }
 
     private static void RollbackFileBackups(List<(string TargetPath, string BackupPath)> backups, ILogger logger)
