@@ -2735,7 +2735,8 @@ public sealed partial class DownloadsBrowserViewModel(
                 targetItem.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{result.FirstError ?? ContentConstants.UpdateFailedStatusMessage}";
 
                 // No telemetry here: the publisher reconcilers own per-item failure
-                // reporting and already emit content_update_failed before returning.
+                // reporting and already emit content_update_failed for failures they
+                // handle. Reconciler infrastructure exceptions stay LogError-only.
                 return false;
             }
 
@@ -2882,6 +2883,7 @@ public sealed partial class DownloadsBrowserViewModel(
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Failed to apply update strategy for {OldManifestId} -> {NewManifestId}", oldManifestId, newManifestId);
+                targetItem.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{ex.Message}";
                 var targetPublisherId = publisherId ?? targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? DefaultPublisherName;
                 _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
                 {
@@ -2891,6 +2893,7 @@ public sealed partial class DownloadsBrowserViewModel(
                     [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName ?? TelemetryConstants.DownloadAttribution.Unknown,
                     [TelemetryConstants.Properties.ErrorMessage] = ex.Message,
                 });
+                return false;
             }
         }
 

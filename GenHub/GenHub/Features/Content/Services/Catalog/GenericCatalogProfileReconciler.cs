@@ -39,8 +39,6 @@ public class GenericCatalogProfileReconciler(
     IDialogService dialogService,
     IUserSettingsService userSettingsService) : IGenericCatalogProfileReconciler
 {
-    private readonly ITelemetryService? _telemetryService = contentServices.TelemetryService;
-
     /// <inheritdoc />
     public string PublisherType => CatalogConstants.GenericPublisherType;
 
@@ -246,7 +244,7 @@ public class GenericCatalogProfileReconciler(
         if (!downloadResult.Success || downloadResult.Data == null)
         {
             notificationService.ShowError("Update Failed", $"Failed to download {item.Name}: {downloadResult.FirstError}");
-            _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
+            contentServices.TelemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.PublisherId] = subscription.PublisherId,
                 [TelemetryConstants.Properties.ContentName] = item.Name,
@@ -289,7 +287,7 @@ public class GenericCatalogProfileReconciler(
 
         if (!updateOutcome.Proceed)
         {
-            _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
+            contentServices.TelemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.PublisherId] = subscription.PublisherId,
                 [TelemetryConstants.Properties.ContentName] = item.Name,
@@ -308,7 +306,7 @@ public class GenericCatalogProfileReconciler(
             await contentServices.ReconciliationService.ScheduleGarbageCollectionAsync(false, cancellationToken);
         }
 
-        _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateApplied, new Dictionary<string, object?>
+        contentServices.TelemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateApplied, new Dictionary<string, object?>
         {
             [TelemetryConstants.Properties.PublisherId] = subscription.PublisherId,
             [TelemetryConstants.Properties.ContentName] = item.Name,

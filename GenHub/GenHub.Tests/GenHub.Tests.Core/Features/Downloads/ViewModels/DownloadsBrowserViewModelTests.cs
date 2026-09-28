@@ -7,6 +7,7 @@ using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Parsers;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Manifest;
@@ -27,6 +28,7 @@ using ContentState = GenHub.Core.Models.Enums.ContentState;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 using GameType = GenHub.Core.Models.Enums.GameType;
 using PublisherSubscription = GenHub.Core.Models.Providers.PublisherSubscription;
+using TelemetryLevel = GenHub.Core.Models.Enums.TelemetryLevel;
 
 namespace GenHub.Tests.Core.Features.Downloads.ViewModels;
 
@@ -1564,6 +1566,104 @@ public class DownloadsBrowserViewModelTests
     }
 
     /// <summary>
+    /// Verifies that UpdateContentCommand reports failure without a completion notification
+    /// when applying the update strategy throws.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task UpdateContentCommand_WhenUpdateStrategyThrows_ReportsFailureWithoutCompletionNotificationAsync()
+    {
+        // Arrange
+        var orchestratorMock = new Mock<IContentOrchestrator>();
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.custom.mod.test"),
+            Name = "Custom Mod",
+            Version = "2.0.0",
+        };
+        orchestratorMock
+            .Setup(o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
+
+        var reconcilerRegistryMock = new Mock<IPublisherReconcilerRegistry>();
+        reconcilerRegistryMock
+            .Setup(r => r.GetReconciler(It.IsAny<string>()))
+            .Returns((IPublisherReconciler?)null);
+
+        var contentStateServiceMock = new Mock<IContentStateService>();
+        contentStateServiceMock
+            .Setup(s => s.GetLocalManifestIdAsync(It.IsAny<ContentSearchResult>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("1.0.custom.mod.old");
+
+        var manifestPoolMock = new Mock<IContentManifestPool>();
+        manifestPoolMock
+            .Setup(m => m.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Manifest pool unavailable"));
+
+        var telemetryMock = new Mock<ITelemetryService>();
+        var notificationMock = new Mock<INotificationService>();
+        var serviceProviderMock = new Mock<IServiceProvider>();
+        serviceProviderMock
+            .Setup(sp => sp.GetService(typeof(ITelemetryService)))
+            .Returns(telemetryMock.Object);
+        serviceProviderMock
+            .Setup(sp => sp.GetService(typeof(IContentReconciliationService)))
+            .Returns(Mock.Of<IContentReconciliationService>());
+        serviceProviderMock
+            .Setup(sp => sp.GetService(typeof(IContentManifestPool)))
+            .Returns(manifestPoolMock.Object);
+
+        var viewModel = CreateViewModel(
+            orchestrator: orchestratorMock.Object,
+            reconcilerRegistry: reconcilerRegistryMock.Object,
+            serviceProvider: serviceProviderMock.Object,
+            contentStateService: contentStateServiceMock.Object,
+            notificationService: notificationMock.Object);
+
+        var gridStateServiceMock = new Mock<IContentStateService>();
+        var loggerMock = new Mock<ILogger<ContentGridItemViewModel>>();
+        var targetSr = new ContentSearchResult
+        {
+            Id = "custom.mod.v2",
+            ProviderName = "custom",
+            Name = "Custom Mod v2",
+            Version = "2.0.0",
+        };
+        var targetVm = new ContentGridItemViewModel(targetSr, gridStateServiceMock.Object, loggerMock.Object);
+
+        var currentSr = new ContentSearchResult
+        {
+            Id = "custom.mod.v1",
+            ProviderName = "custom",
+            Name = "Custom Mod v1",
+            Version = "1.0.0",
+        };
+        var currentVm = new ContentGridItemViewModel(currentSr, gridStateServiceMock.Object, loggerMock.Object)
+        {
+            UpdateTargetVm = targetVm,
+        };
+
+        // Act
+        await viewModel.UpdateContentCommand.ExecuteAsync(currentVm);
+
+        // Assert: failure telemetry emitted, error status set, no completion notification
+        telemetryMock.Verify(
+            t => t.TrackEvent(
+                TelemetryConstants.Events.ContentUpdateFailed,
+                It.IsAny<IReadOnlyDictionary<string, object?>>(),
+                It.IsAny<TelemetryLevel>()),
+            Times.Once);
+        Assert.StartsWith(ContentConstants.ErrorStatusPrefix, targetVm.DownloadStatus);
+        notificationMock.Verify(
+            n => n.ShowSuccess(
+                "Update Completed",
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    /// <summary>
     /// Verifies that UpdateTargetVm is null when the selected variant is NotDownloaded,
     /// even if a sibling variant was downloaded (Kilo Code bot comment).
     /// </summary>
@@ -2013,7 +2113,10 @@ public class DownloadsBrowserViewModelTests
 
     private static DownloadsBrowserViewModel CreateViewModel(
         IContentOrchestrator? orchestrator = null,
-        IPublisherReconcilerRegistry? reconcilerRegistry = null)
+        IPublisherReconcilerRegistry? reconcilerRegistry = null,
+        IServiceProvider? serviceProvider = null,
+        IContentStateService? contentStateService = null,
+        INotificationService? notificationService = null)
     {
         var subscriptionStore = new Mock<IPublisherSubscriptionStore>();
         subscriptionStore
@@ -2021,14 +2124,14 @@ public class DownloadsBrowserViewModelTests
             .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess([]));
 
         return new DownloadsBrowserViewModel(
-            new Mock<IServiceProvider>().Object,
+            serviceProvider ?? new Mock<IServiceProvider>().Object,
             new Mock<ILogger<DownloadsBrowserViewModel>>().Object,
             [],
-            new Mock<IContentStateService>().Object,
+            contentStateService ?? new Mock<IContentStateService>().Object,
             orchestrator ?? new Mock<IContentOrchestrator>().Object,
             new Mock<IProfileContentService>().Object,
             new Mock<IGameProfileManager>().Object,
-            new Mock<INotificationService>().Object,
+            notificationService ?? new Mock<INotificationService>().Object,
             new Mock<ILoggerFactory>().Object,
             subscriptionStore.Object,
             reconcilerRegistry: reconcilerRegistry);
