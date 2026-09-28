@@ -12,11 +12,24 @@ namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 public partial class BundlePackConfigViewModel : ObservableObject
 {
     /// <summary>
+    /// Event raised when the pack's Name changes (oldName, newName).
+    /// </summary>
+    public event Action<string, string>? NameRenamed;
+
+    /// <summary>
     /// Gets or sets the name of the bundle pack.
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DisplayName))]
     private string _name = string.Empty;
+
+    partial void OnNameChanged(string? oldValue, string newValue)
+    {
+        if (!string.IsNullOrEmpty(oldValue) && !string.Equals(oldValue, newValue, StringComparison.Ordinal))
+        {
+            NameRenamed?.Invoke(oldValue, newValue);
+        }
+    }
 
     /// <summary>
     /// Gets or sets the name prefix.

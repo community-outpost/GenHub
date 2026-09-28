@@ -176,7 +176,7 @@ public static class BigFilePacker
         var trailerStart = stream.Position;
         uint firstDataOffset = entries.Count > 0 ? entries[0].Offset : headerSize;
         int trailerLength = (int)(firstDataOffset - trailerStart);
-        byte[] trailerBytes = trailerLength > 0 ? reader.ReadBytes(trailerLength) : new byte[8];
+        byte[] trailerBytes = trailerLength > 0 ? reader.ReadBytes(trailerLength) : Array.Empty<byte>();
 
         uint? headerOverride = null;
         if (headerSize != (trailerStart + trailerBytes.Length))
@@ -580,7 +580,7 @@ public static class BigFilePacker
     {
         if (string.IsNullOrEmpty(manifest?.TrailerHex))
         {
-            return new byte[8];
+            return Array.Empty<byte>();
         }
 
         try
@@ -589,7 +589,7 @@ public static class BigFilePacker
         }
         catch (FormatException)
         {
-            return new byte[8];
+            return Array.Empty<byte>();
         }
     }
 

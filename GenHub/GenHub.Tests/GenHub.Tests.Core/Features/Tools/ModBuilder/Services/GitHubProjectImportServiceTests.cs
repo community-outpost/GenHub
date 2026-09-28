@@ -104,7 +104,7 @@ public sealed class GitHubProjectImportServiceTests : IDisposable
         Assert.True(result.Success, result.FirstError);
         Assert.Equal(Path.Combine(targetDir, "MyRepo.mbproj"), result.Data);
         mockConfigService.Verify(
-            x => x.CreateProjectFromDirectoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<GenHub.Core.Models.Enums.ContentType>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()),
+            x => x.CreateProjectFromDirectoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<GenHub.Core.Models.Enums.ContentType>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 

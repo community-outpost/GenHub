@@ -74,6 +74,8 @@ public sealed class ProjectConfigService(
         string? gameInstallationId = null,
         ProjectTemplate? template = null,
         ContentType contentType = ContentType.Mod,
+        string? author = null,
+        string? publisher = null,
         CancellationToken cancellationToken = default)
     {
         var sw = Stopwatch.StartNew();
@@ -116,6 +118,8 @@ public sealed class ProjectConfigService(
             {
                 Name = projectName,
                 Description = template.Description ?? string.Empty,
+                Author = author ?? string.Empty,
+                Publisher = publisher ?? author ?? string.Empty,
                 GameInstallationId = gameInstallationId,
                 ContentType = contentType,
                 Directories = new ProjectDirectories(),
@@ -1050,6 +1054,8 @@ public sealed class ProjectConfigService(
         string sourceDirectory,
         string? gameInstallationId = null,
         ContentType contentType = ContentType.Mod,
+        string? author = null,
+        string? publisher = null,
         IProgress<double>? progress = null,
         CancellationToken cancellationToken = default)
     {
@@ -1073,6 +1079,8 @@ public sealed class ProjectConfigService(
                 gameInstallationId,
                 template: ProjectTemplate.ImportedBig,
                 contentType: contentType,
+                author: author,
+                publisher: publisher,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
 
             if (!createResult.Success || createResult.Data == null)
@@ -1486,15 +1494,23 @@ public sealed class ProjectConfigService(
         return await EnsureImportedBundlePacksAsync(packsPath, bigFilePaths, itemNames, cancellationToken).ConfigureAwait(false);
     }
 
+    private static string ResolveDefaultImportedItemName(ModBuilderProject? project)
+    {
+        return project != null && !string.IsNullOrWhiteSpace(project.Name)
+            ? SanitizePackName(project.Name)
+            : ModBuilderConstants.DefaultImportedGameFilesItemName;
+    }
+
     private async Task<List<string>> EnsureImportedBundleItemsAsync(
         string itemsPath,
         ModBuilderProject? project,
         CancellationToken cancellationToken)
     {
+        var defaultItemName = ResolveDefaultImportedItemName(project);
         if (!File.Exists(itemsPath))
         {
             await CreateDefaultImportedBundleItemsFileAsync(itemsPath, project, cancellationToken).ConfigureAwait(false);
-            return new List<string> { ModBuilderConstants.DefaultImportedGameFilesItemName };
+            return new List<string> { defaultItemName };
         }
 
         var itemNames = await ReadExistingBundleItemNamesAsync(itemsPath, cancellationToken).ConfigureAwait(false);
@@ -1504,9 +1520,9 @@ public sealed class ProjectConfigService(
         }
 
         var appended = await EnsureDefaultImportedItemInFileAsync(itemsPath, project, cancellationToken).ConfigureAwait(false);
-        if (appended && !itemNames.Contains(ModBuilderConstants.DefaultImportedGameFilesItemName, StringComparer.OrdinalIgnoreCase))
+        if (appended && !itemNames.Contains(defaultItemName, StringComparer.OrdinalIgnoreCase))
         {
-            itemNames.Add(ModBuilderConstants.DefaultImportedGameFilesItemName);
+            itemNames.Add(defaultItemName);
         }
 
         return itemNames;
@@ -1547,9 +1563,10 @@ public sealed class ProjectConfigService(
         CancellationToken cancellationToken)
     {
         var gameFilesDirName = project?.Directories?.GameFilesEdited ?? ModBuilderConstants.GameFilesEditedDir;
+        var itemName = ResolveDefaultImportedItemName(project);
         var defaultItem = new
         {
-            Name = ModBuilderConstants.DefaultImportedGameFilesItemName,
+            Name = itemName,
             NamePrefix = ModBuilderConstants.SageOverridePrefix,
             SourceFiles = new[] { $"{gameFilesDirName}/**/*" },
             Description = "Files extracted from imported BIG archive(s)",
@@ -1567,12 +1584,12 @@ public sealed class ProjectConfigService(
             var node = JsonNode.Parse(content, jsonNodeOptions, jsonDocumentOptions);
             if (node is JsonObject rootObj)
             {
-                return await AppendDefaultItemToObjectRootAsync(itemsPath, rootObj, defaultItem, cancellationToken).ConfigureAwait(false);
+                return await AppendDefaultItemToObjectRootAsync(itemsPath, rootObj, defaultItem, itemName, cancellationToken).ConfigureAwait(false);
             }
 
             if (node is JsonArray rootArr)
             {
-                return await AppendDefaultItemToArrayRootAsync(itemsPath, rootArr, defaultItem, cancellationToken).ConfigureAwait(false);
+                return await AppendDefaultItemToArrayRootAsync(itemsPath, rootArr, defaultItem, itemName, cancellationToken).ConfigureAwait(false);
             }
 
             logger.LogWarning("Existing ModBundleItems.json at {Path} is neither an object nor an array; preserving file without changes", itemsPath);
@@ -1589,6 +1606,7 @@ public sealed class ProjectConfigService(
         string itemsPath,
         JsonObject rootObj,
         object defaultItem,
+        string itemName,
         CancellationToken cancellationToken)
     {
         var existingKey = rootObj.Select(kvp => kvp.Key)
@@ -1600,7 +1618,7 @@ public sealed class ProjectConfigService(
             rootObj[existingKey] = itemsArr;
         }
 
-        var updatedOrAdded = EnsureItemWithPrefix(itemsArr, defaultItem, ModBuilderConstants.DefaultImportedGameFilesItemName, ModBuilderConstants.SageOverridePrefix);
+        var updatedOrAdded = EnsureItemWithPrefix(itemsArr, defaultItem, itemName, ModBuilderConstants.SageOverridePrefix);
         if (updatedOrAdded)
         {
             await AtomicWriteJsonFileAsync(itemsPath, rootObj, _jsonOptions, logger, cancellationToken).ConfigureAwait(false);
@@ -1613,9 +1631,10 @@ public sealed class ProjectConfigService(
         string itemsPath,
         JsonArray rootArr,
         object defaultItem,
+        string itemName,
         CancellationToken cancellationToken)
     {
-        var updatedOrAdded = EnsureItemWithPrefix(rootArr, defaultItem, ModBuilderConstants.DefaultImportedGameFilesItemName, ModBuilderConstants.SageOverridePrefix);
+        var updatedOrAdded = EnsureItemWithPrefix(rootArr, defaultItem, itemName, ModBuilderConstants.SageOverridePrefix);
         if (updatedOrAdded)
         {
             await AtomicWriteJsonFileAsync(itemsPath, rootArr, _jsonOptions, logger, cancellationToken).ConfigureAwait(false);
@@ -1655,13 +1674,14 @@ public sealed class ProjectConfigService(
         CancellationToken cancellationToken)
     {
         var gameFilesDirName = project?.Directories?.GameFilesEdited ?? ModBuilderConstants.GameFilesEditedDir;
+        var itemName = ResolveDefaultImportedItemName(project);
         var bundleItemsConfig = new
         {
             BundleItems = new object[]
             {
                 new
                 {
-                    Name = ModBuilderConstants.DefaultImportedGameFilesItemName,
+                    Name = itemName,
                     NamePrefix = ModBuilderConstants.SageOverridePrefix,
                     SourceFiles = new[] { $"{gameFilesDirName}/**/*" },
                     Description = "Files extracted from imported BIG archive(s)",

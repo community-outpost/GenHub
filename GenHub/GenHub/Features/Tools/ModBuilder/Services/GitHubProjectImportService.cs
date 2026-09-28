@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Models.Common;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Results;
@@ -66,7 +67,7 @@ public class GitHubProjectImportService(
             var stagedProject = FindProjectFile(contentRoot);
 
             var result = stagedProject != null
-                ? LinkExistingStagedProject(contentRoot, stagedProject, targetDirectory, reference, cancellationToken)
+                ? await LinkExistingStagedProjectAsync(contentRoot, stagedProject, targetDirectory, reference, cancellationToken).ConfigureAwait(false)
                 : await CreateNewProjectAsync(contentRoot, targetDirectory, reference, progress, cancellationToken).ConfigureAwait(false);
 
             if (!result.Success && !targetDirectoryExisted && Directory.Exists(targetDirectory))
@@ -111,10 +112,21 @@ public class GitHubProjectImportService(
     {
         progress?.Report($"Downloading {reference.FullName}@{reference.Branch} from GitHub...");
         var downloadUrl = ApiConstants.GetGitHubBranchZipUrl(reference.Owner, reference.Repo, reference.Branch);
+        var lastPct = -1;
+        var downloadProgress = progress == null ? null : new Progress<DownloadProgress>(p =>
+        {
+            var pct = Math.Clamp((int)p.Percentage, 0, 100);
+            if (pct != lastPct && (pct % 5 == 0 || pct == 100))
+            {
+                lastPct = pct;
+                progress.Report($"Downloading {reference.FullName}@{reference.Branch} ({pct}%)...");
+            }
+        });
+
         var downloadResult = await downloadService.DownloadFileAsync(
             new Uri(downloadUrl),
             archivePath,
-            progress: null,
+            progress: downloadProgress,
             cancellationToken: cancellationToken).ConfigureAwait(false);
 
         if (!downloadResult.Success || !File.Exists(archivePath))
@@ -124,15 +136,16 @@ public class GitHubProjectImportService(
                 $"Failed to download {reference.FullName}@{reference.Branch} from GitHub: {error}");
         }
 
-        progress?.Report($"Extracting {reference.FullName}...");
+        progress?.Report($"Extracting {reference.FullName} files...");
         Directory.CreateDirectory(stagingDir);
         await ModBuilderArchiveExtractor.ExtractArchiveFileAsync(archivePath, stagingDir, cancellationToken).ConfigureAwait(false);
 
         var contentRoot = UnwrapSingleDirectory(stagingDir);
+        progress?.Report($"Extracted {reference.FullName}.");
         return OperationResult<string>.CreateSuccess(contentRoot);
     }
 
-    private OperationResult<string> LinkExistingStagedProject(
+    private async Task<OperationResult<string>> LinkExistingStagedProjectAsync(
         string contentRoot,
         string stagedProject,
         string targetDirectory,
@@ -144,6 +157,35 @@ public class GitHubProjectImportService(
 
         var projectRelativePath = Path.GetRelativePath(contentRoot, stagedProject);
         var existingProject = Path.Combine(targetDirectory, projectRelativePath);
+
+        try
+        {
+            var loadResult = await projectConfigService.LoadProjectAsync(existingProject, validateIntegrity: false, cancellationToken).ConfigureAwait(false);
+            if (loadResult.Success && loadResult.Data != null)
+            {
+                var prj = loadResult.Data;
+                var changed = false;
+                if (string.IsNullOrWhiteSpace(prj.Author))
+                {
+                    prj.Author = reference.Owner;
+                    changed = true;
+                }
+                if (string.IsNullOrWhiteSpace(prj.Publisher))
+                {
+                    prj.Publisher = reference.Owner;
+                    changed = true;
+                }
+                if (changed)
+                {
+                    await projectConfigService.SaveProjectAsync(existingProject, prj, cancellationToken).ConfigureAwait(false);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to update author/publisher on adopted project {Path}", existingProject);
+        }
+
         logger.LogInformation("Linked GitHub repository {Repo} as existing project {Project}", reference.FullName, existingProject);
         return OperationResult<string>.CreateSuccess(existingProject);
     }
@@ -163,6 +205,8 @@ public class GitHubProjectImportService(
             projectPath,
             reference.Repo,
             contentRoot,
+            author: reference.Owner,
+            publisher: reference.Owner,
             progress: createProgress,
             cancellationToken: cancellationToken).ConfigureAwait(false);
 

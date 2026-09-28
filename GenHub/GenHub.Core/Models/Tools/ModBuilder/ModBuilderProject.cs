@@ -35,6 +35,12 @@ public class ModBuilderProject
     public string Author { get; set; } = string.Empty;
 
     /// <summary>
+    /// Gets or sets the project publisher.
+    /// </summary>
+    [JsonPropertyName("publisher")]
+    public string Publisher { get; set; } = string.Empty;
+
+    /// <summary>
     /// Gets or sets the target game type.
     /// </summary>
     [JsonPropertyName("targetGame")]

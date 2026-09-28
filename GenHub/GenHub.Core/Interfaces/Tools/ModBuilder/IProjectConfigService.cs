@@ -21,6 +21,8 @@ public interface IProjectConfigService
     /// <param name="gameInstallationId">Optional game installation ID to associate with the project.</param>
     /// <param name="template">Optional project template to use.</param>
     /// <param name="contentType">The content type (Mod, Patch, Addon, etc.). Defaults to Mod.</param>
+    /// <param name="author">Optional project author.</param>
+    /// <param name="publisher">Optional project publisher.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A result containing the created project.</returns>
     Task<ProjectOperationResult<ModBuilderProject>> CreateProjectAsync(
@@ -29,6 +31,8 @@ public interface IProjectConfigService
         string? gameInstallationId = null,
         ProjectTemplate? template = null,
         ContentType contentType = ContentType.Mod,
+        string? author = null,
+        string? publisher = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -166,6 +170,8 @@ public interface IProjectConfigService
     /// <param name="sourceDirectory">The directory whose contents populate the project.</param>
     /// <param name="gameInstallationId">Optional game installation ID.</param>
     /// <param name="contentType">The content type (Mod, Patch, Addon, etc.). Defaults to Mod.</param>
+    /// <param name="author">Optional project author.</param>
+    /// <param name="publisher">Optional project publisher.</param>
     /// <param name="progress">Optional progress reporter (0.0 to 1.0).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A result containing the created project.</returns>
@@ -175,6 +181,8 @@ public interface IProjectConfigService
         string sourceDirectory,
         string? gameInstallationId = null,
         ContentType contentType = ContentType.Mod,
+        string? author = null,
+        string? publisher = null,
         IProgress<double>? progress = null,
         CancellationToken cancellationToken = default);
 }

@@ -12,6 +12,8 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Notifications;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.ModBuilder;
 using GenHub.Features.Tools.ModBuilder.Models;
 using GenHub.Features.Tools.ModBuilder.Services;
@@ -1325,9 +1327,32 @@ public partial class ModBuilderViewModel(
                 return;
             }
 
+            var importTitle = localizationService.GetString("Tools.ModBuilder.Notification.GitHubImportInProgress.Title") ?? "Importing GitHub Repository";
+            var importNotification = new NotificationMessage(
+                NotificationType.Info,
+                importTitle,
+                $"Importing {reference.FullName}@{reference.Branch}...",
+                autoDismissMilliseconds: null);
+            var importNotificationId = importNotification.Id;
+            notificationService.Show(importNotification);
+
             AppendBuildLog($"Importing GitHub repository {reference.FullName}@{reference.Branch}...");
-            var progress = new Progress<string>(AppendBuildLog);
-            var importResult = await gitHubImportService.ImportRepositoryAsync(reference, targetDir, progress, cts.Token).ConfigureAwait(false);
+            var progress = new Progress<string>(msg =>
+            {
+                AppendBuildLog(msg);
+                notificationService.Update(importNotificationId, msg, importTitle);
+            });
+
+            OperationResult<string> importResult;
+            try
+            {
+                importResult = await gitHubImportService.ImportRepositoryAsync(reference, targetDir, progress, cts.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                notificationService.Dismiss(importNotificationId);
+            }
+
             if (!importResult.Success || string.IsNullOrEmpty(importResult.Data))
             {
                 notificationService.ShowError(

@@ -14712,4 +14712,7 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="Info.Card.tools.demo-wnd.Title" xml:space="preserve">
     <value>Демо редактора WND</value>
   </data>
+  <data name="Tools.ModBuilder.Notification.GitHubImportInProgress.Title" xml:space="preserve">
+    <value>Импорт репозитория GitHub</value>
+  </data>
 </root>

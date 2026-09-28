@@ -26,11 +26,24 @@ public partial class BundleItemEditorViewModel(ILocalizationService localization
     private bool _isUpdatingInternally;
 
     /// <summary>
+    /// Event raised when the item's Name changes (oldName, newName).
+    /// </summary>
+    public event Action<string, string>? NameRenamed;
+
+    /// <summary>
     /// Gets or sets the name of the bundle item.
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DisplayName))]
     private string _name = string.Empty;
+
+    partial void OnNameChanged(string? oldValue, string newValue)
+    {
+        if (!string.IsNullOrEmpty(oldValue) && !string.Equals(oldValue, newValue, StringComparison.Ordinal))
+        {
+            NameRenamed?.Invoke(oldValue, newValue);
+        }
+    }
 
     /// <summary>
     /// Gets or sets the name prefix.

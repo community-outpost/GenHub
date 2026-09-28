@@ -184,6 +184,72 @@ public partial class ConfigEditorViewModel(
         RemoveBundleManifestCommand.NotifyCanExecuteChanged();
     }
 
+    private void SubscribeBundleItem(BundleItemEditorViewModel item)
+    {
+        item.NameRenamed += OnBundleItemRenamed;
+    }
+
+    private void UnsubscribeBundleItem(BundleItemEditorViewModel item)
+    {
+        item.NameRenamed -= OnBundleItemRenamed;
+    }
+
+    private void OnBundleItemRenamed(string oldName, string newName)
+    {
+        if (string.IsNullOrWhiteSpace(oldName) || string.IsNullOrWhiteSpace(newName))
+        {
+            return;
+        }
+
+        foreach (var pack in BundlePacks)
+        {
+            for (var i = 0; i < pack.ItemNames.Count; i++)
+            {
+                if (string.Equals(pack.ItemNames[i], oldName, StringComparison.OrdinalIgnoreCase))
+                {
+                    pack.ItemNames[i] = newName;
+                }
+            }
+        }
+
+        HasChanges = true;
+        UpdatePackItemSelections();
+        UpdateBundleItemPackLinks();
+    }
+
+    private void SubscribeBundlePack(BundlePackConfigViewModel pack)
+    {
+        pack.NameRenamed += OnBundlePackRenamed;
+    }
+
+    private void UnsubscribeBundlePack(BundlePackConfigViewModel pack)
+    {
+        pack.NameRenamed -= OnBundlePackRenamed;
+    }
+
+    private void OnBundlePackRenamed(string oldName, string newName)
+    {
+        if (string.IsNullOrWhiteSpace(oldName) || string.IsNullOrWhiteSpace(newName))
+        {
+            return;
+        }
+
+        foreach (var manifest in BundleManifests)
+        {
+            for (var i = 0; i < manifest.PackNames.Count; i++)
+            {
+                if (string.Equals(manifest.PackNames[i], oldName, StringComparison.OrdinalIgnoreCase))
+                {
+                    manifest.PackNames[i] = newName;
+                }
+            }
+        }
+
+        HasChanges = true;
+        UpdateBundleItemPackLinks();
+        UpdateManifestPackSelections();
+    }
+
     private void UpdatePackItemSelections()
     {
         if (SelectedBundlePack == null)
@@ -461,12 +527,23 @@ public partial class ConfigEditorViewModel(
 
         void LoadData()
         {
+            foreach (var item in BundleItems)
+            {
+                UnsubscribeBundleItem(item);
+            }
+
+            foreach (var pack in BundlePacks)
+            {
+                UnsubscribeBundlePack(pack);
+            }
+
             BundleItems.Clear();
             BundlePacks.Clear();
             BundleManifests.Clear();
 
             foreach (var itemVm in precalculatedItems)
             {
+                SubscribeBundleItem(itemVm);
                 BundleItems.Add(itemVm);
             }
 
@@ -496,7 +573,9 @@ public partial class ConfigEditorViewModel(
     {
         foreach (var item in configuration.Items)
         {
-            BundleItems.Add(CreateBundleItemEditorViewModel(item, CurrentProject?.ProjectDir, _fileSnapshot, localizationService));
+            var itemVm = CreateBundleItemEditorViewModel(item, CurrentProject?.ProjectDir, _fileSnapshot, localizationService);
+            SubscribeBundleItem(itemVm);
+            BundleItems.Add(itemVm);
         }
     }
 
@@ -522,6 +601,7 @@ public partial class ConfigEditorViewModel(
                 viewModel.ItemNames.Add(itemName);
             }
 
+            SubscribeBundlePack(viewModel);
             BundlePacks.Add(viewModel);
         }
     }
@@ -564,7 +644,7 @@ public partial class ConfigEditorViewModel(
         {
             Name = ResolveDefaultManifestName(),
             Version = ResolveProjectVersion(CurrentProject),
-            Publisher = string.Empty,
+            Publisher = CurrentProject?.Publisher ?? CurrentProject?.Author ?? string.Empty,
             Description = CurrentProject?.Description ?? string.Empty,
             ContentType = ResolveEditorContentType(null, CurrentProject),
             TargetGame = ResolveEditorTargetGame(null, CurrentProject),
@@ -873,6 +953,7 @@ public partial class ConfigEditorViewModel(
         };
 
         newItem.RecalculateMatches(CurrentProject?.ProjectDir, _fileSnapshot);
+        SubscribeBundleItem(newItem);
         BundleItems.Add(newItem);
         SelectedBundleItem = newItem;
         HasChanges = true;
@@ -891,10 +972,19 @@ public partial class ConfigEditorViewModel(
             return;
         }
 
-        BundleItems.Remove(SelectedBundleItem);
+        var removed = SelectedBundleItem;
+        UnsubscribeBundleItem(removed);
+        BundleItems.Remove(removed);
+
+        foreach (var pack in BundlePacks)
+        {
+            RemovePackItem(pack.ItemNames, removed.Name);
+        }
+
         SelectedBundleItem = null;
         HasChanges = true;
         UpdatePackItemSelections();
+        UpdateBundleItemPackLinks();
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "RelayCommand CanExecute callback")]
@@ -923,6 +1013,7 @@ public partial class ConfigEditorViewModel(
             newPack.ItemNames.Add(item.Name);
         }
 
+        SubscribeBundlePack(newPack);
         BundlePacks.Add(newPack);
         SelectedBundlePack = newPack;
         HasChanges = true;
@@ -941,7 +1032,15 @@ public partial class ConfigEditorViewModel(
             return;
         }
 
-        BundlePacks.Remove(SelectedBundlePack);
+        var removed = SelectedBundlePack;
+        UnsubscribeBundlePack(removed);
+        BundlePacks.Remove(removed);
+
+        foreach (var manifest in BundleManifests)
+        {
+            RemovePackItem(manifest.PackNames, removed.Name);
+        }
+
         SelectedBundlePack = null;
         HasChanges = true;
         UpdateBundleItemPackLinks();
@@ -965,7 +1064,7 @@ public partial class ConfigEditorViewModel(
         {
             Name = $"NewManifest{BundleManifests.Count + 1}",
             Version = ResolveProjectVersion(CurrentProject),
-            Publisher = string.Empty,
+            Publisher = CurrentProject?.Publisher ?? CurrentProject?.Author ?? string.Empty,
             Description = string.Empty,
             ContentType = ResolveEditorContentType(null, CurrentProject),
             TargetGame = ResolveEditorTargetGame(null, CurrentProject),

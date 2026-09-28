@@ -462,6 +462,8 @@ public sealed class MockProjectConfigService : IProjectConfigService
         string sourceDirectory,
         string? gameInstallationId = null,
         ContentType contentType = ContentType.Mod,
+        string? author = null,
+        string? publisher = null,
         IProgress<double>? progress = null,
         CancellationToken cancellationToken = default)
     {
@@ -470,6 +472,8 @@ public sealed class MockProjectConfigService : IProjectConfigService
             Name = projectName,
             ProjectDir = Path.GetDirectoryName(projectPath) ?? string.Empty,
             ContentType = contentType,
+            Author = author ?? string.Empty,
+            Publisher = publisher ?? author ?? string.Empty,
         };
         _projects[projectPath] = project;
         TrackRecent(projectPath);
@@ -477,13 +481,23 @@ public sealed class MockProjectConfigService : IProjectConfigService
     }
 
     /// <inheritdoc/>
-    public Task<ProjectOperationResult<ModBuilderProject>> CreateProjectAsync(string projectPath, string projectName, string? gameInstallationId = null, ProjectTemplate? template = null, ContentType contentType = ContentType.Mod, CancellationToken cancellationToken = default)
+    public Task<ProjectOperationResult<ModBuilderProject>> CreateProjectAsync(
+        string projectPath,
+        string projectName,
+        string? gameInstallationId = null,
+        ProjectTemplate? template = null,
+        ContentType contentType = ContentType.Mod,
+        string? author = null,
+        string? publisher = null,
+        CancellationToken cancellationToken = default)
     {
         var project = new ModBuilderProject
         {
             Name = projectName,
             ProjectDir = Path.GetDirectoryName(projectPath) ?? string.Empty,
             ContentType = contentType,
+            Author = author ?? string.Empty,
+            Publisher = publisher ?? author ?? string.Empty,
         };
         _projects[projectPath] = project;
         TrackRecent(projectPath);
@@ -535,7 +549,7 @@ public sealed class MockProjectConfigService : IProjectConfigService
     public Task<ProjectOperationResult<int>> ImportBigFilesAsync(string projectPath, IEnumerable<string> bigFilePaths, bool createBundlePackForBig = true, IProgress<double>? progress = null, CancellationToken cancellationToken = default) => Task.FromResult(ProjectOperationResult<int>.CreateSuccess(0));
 
     /// <inheritdoc/>
-    public Task<ProjectOperationResult<ModBuilderProject>> CreateProjectFromBigFilesAsync(string projectPath, string projectName, IEnumerable<string> bigFilePaths, string? gameInstallationId = null, ContentType contentType = ContentType.Mod, IProgress<double>? progress = null, CancellationToken cancellationToken = default) => CreateProjectAsync(projectPath, projectName, gameInstallationId, null, contentType, cancellationToken);
+    public Task<ProjectOperationResult<ModBuilderProject>> CreateProjectFromBigFilesAsync(string projectPath, string projectName, IEnumerable<string> bigFilePaths, string? gameInstallationId = null, ContentType contentType = ContentType.Mod, IProgress<double>? progress = null, CancellationToken cancellationToken = default) => CreateProjectAsync(projectPath, projectName, gameInstallationId, null, contentType, cancellationToken: cancellationToken);
 
     private void TrackRecent(string projectPath)
     {
