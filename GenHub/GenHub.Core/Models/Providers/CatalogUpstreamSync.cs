@@ -33,6 +33,14 @@ public class CatalogUpstreamSync
     public string? VariantAxis { get; set; }
 
     /// <summary>
+    /// Gets or sets the explicit upstream feed key for catalog-backed providers
+    /// (e.g. the GenPatcher content code "hlei" for CommunityOutpost). When set,
+    /// ingestion binds the exact feed entry instead of guessing by item name.
+    /// </summary>
+    [JsonPropertyName("contentCode")]
+    public string? ContentCode { get; set; }
+
+    /// <summary>
     /// Gets or sets the asset rules for filtering and variant mapping.
     /// </summary>
     [JsonPropertyName("assetRules")]

@@ -9718,6 +9718,30 @@
   <data name="Tools.PublisherStudio.Artifact.PrimaryArtifactTooltip" xml:space="preserve">
     <value>هذا هو الملف الرئيسي الذي يجب على المستخدمين تنزيله.</value>
   </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantHeader" xml:space="preserve">
+    <value>المتغير</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantAxis" xml:space="preserve">
+    <value>محور المتغير</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantLabel" xml:space="preserve">
+    <value>تسمية المتغير</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantLabelPlaceholder" xml:space="preserve">
+    <value>مثال: 1080p أو English أو Zero Hour</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantLabelHint" xml:space="preserve">
+    <value>يُعرض في منتقي المتغيرات. الملفات التي تشترك في محور واحد تصبح خيارات قابلة للاختيار.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.DefaultVariant" xml:space="preserve">
+    <value>المتغير الافتراضي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.DefaultVariantTooltip" xml:space="preserve">
+    <value>تحديد هذا المتغير مسبقًا في المنتقي.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantAxisRequired" xml:space="preserve">
+    <value>اختر محور متغير عند تعيين تسمية متغير.</value>
+  </data>
   <data name="Tools.PublisherStudio.Artifact.Sha256Hash" xml:space="preserve">
     <value>تجزئة SHA256 (اختياري)</value>
   </data>
@@ -13554,6 +13578,12 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Release.VariantsModeDesc" xml:space="preserve">
     <value>كل ملف هو خيار مميز يختاره المستخدم (مثل الإنجليزية، الروسية، العربية أو 720p، 1080p، 4K).</value>
   </data>
+  <data name="Tools.PublisherStudio.Release.EditArtifactTooltip" xml:space="preserve">
+    <value>تحرير الملف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.EditTitle" xml:space="preserve">
+    <value>تحرير الملف</value>
+  </data>
   <data name="Tools.PublisherStudio.Release.BundleMode" xml:space="preserve">
     <value>تثبيت كافة الملفات معاً (حزمة)</value>
   </data>
@@ -13988,7 +14018,16 @@ https://example.com/screenshot2.png</value>
     <value>جارٍ تحميل إصدارات المصدر…</value>
   </data>
   <data name="Tools.PublisherStudio.Library.ReleasesFallbackNote" xml:space="preserve">
-    <value>إصدارات احتياطية (تُستخدم عند تعذّر الوصول إلى المصدر). إصدارات المصدر المباشرة مذكورة أدناه؛ التكرارات مخفية.</value>
+    <value>إصدارات المصدر المباشرة معروضة أدناه. الإصدارات الاحتياطية المخزنة (تُستخدم عند تعذّر الوصول إلى المصدر) مطوية في الأسفل.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UpstreamSyncFailedHint" xml:space="preserve">
+    <value>تحقق من إعدادات المزود (المستودع، رمز المحتوى، القناة) واتصالك، ثم أعد تحديد العنصر لإعادة المحاولة. تُستخدم الإصدارات الثابتة أدناه كاحتياطي.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ManualFallbackPrefix" xml:space="preserve">
+    <value>احتياطي يدوي:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.DefaultVariantBadge" xml:space="preserve">
+    <value>افتراضي</value>
   </data>
   <data name="Downloads.UpdateDialog.Title" xml:space="preserve">
     <value>تحديث متوفر لـ {0}</value>
@@ -14526,13 +14565,22 @@ https://example.com/screenshot2.png</value>
     <value>عدد ملفات التعريف المحذوفة بنجاح: {0}.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.FeaturedMark" xml:space="preserve">
-    <value>تمييز كعنصر مميز ذهبي</value>
+    <value>تمييز كعنصر مميز</value>
   </data>
   <data name="Tools.PublisherStudio.Content.FeaturedBadgeLabel" xml:space="preserve">
     <value>تسمية شارة التميز</value>
   </data>
   <data name="Tools.PublisherStudio.Content.FeaturedBadgePlaceholder" xml:space="preserve">
     <value>★ حزمة مميزة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedColor" xml:space="preserve">
+    <value>لون التمييز</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedColorHint" xml:space="preserve">
+    <value>اختر لون التمييز لهذه البطاقة المميزة. الافتراضي هو الذهبي.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedColorPick" xml:space="preserve">
+    <value>اختيار</value>
   </data>
   <data name="Tools.PublisherStudio.Content.BundleComponentMatrix" xml:space="preserve">
     <value>مصفوفة مكونات الحزمة</value>
@@ -14560,6 +14608,45 @@ https://example.com/screenshot2.png</value>
   </data>
   <data name="Tools.PublisherStudio.Content.UpstreamChannelPlaceholder" xml:space="preserve">
     <value>stable</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamContentCode" xml:space="preserve">
+    <value>رمز المحتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamContentCodePlaceholder" xml:space="preserve">
+    <value>مثال: hlei</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamContentCodeHint" xml:space="preserve">
+    <value>الإدخال الدقيق في فهرس المزود، مثل رمز GenPatcher ‏hlei‏ الخاص بمفاتيح Leikeze. اتركه فارغًا للمطابقة بالاسم.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.None" xml:space="preserve">
+    <value>(لا شيء)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.NoneDescription" xml:space="preserve">
+    <value>لا توجد متغيرات. يتم تثبيت جميع ملفات الإصدار معًا.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.GameTypeDescription" xml:space="preserve">
+    <value>نفس الإصدار لألعاب مختلفة، مثل نسختي Zero Hour وGenerals.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.ResolutionDescription" xml:space="preserve">
+    <value>نفس الإصدار بدقات مختلفة، مثل أشرطة تحكم 720p أو 1080p أو 4K.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.LanguageDescription" xml:space="preserve">
+    <value>نفس الإصدار بلغات مختلفة، مثل تخطيطات مفاتيح بالإنجليزية أو الألمانية.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.EditionDescription" xml:space="preserve">
+    <value>نفس الإصدار بإصدارات مختلفة، مثل Standard أو HD.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.Custom" xml:space="preserve">
+    <value>مخصص...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.CustomDescription" xml:space="preserve">
+    <value>استخدم اسم محور خاص بك، مثل compatibility أو platform.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamVariantAxisCustomPlaceholder" xml:space="preserve">
+    <value>مثال: compatibility</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UpstreamSyncFailedTitle" xml:space="preserve">
+    <value>لم يُرجع المصدر أي إصدارات</value>
   </data>
   <data name="Tools.PublisherStudio.Content.UpstreamVariantAxis" xml:space="preserve">
     <value>محور المتغير</value>

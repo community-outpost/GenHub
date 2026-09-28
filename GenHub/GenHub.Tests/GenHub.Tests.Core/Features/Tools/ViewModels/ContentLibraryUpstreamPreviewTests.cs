@@ -80,6 +80,63 @@ public sealed class ContentLibraryUpstreamPreviewTests
             Times.Exactly(2));
     }
 
+    /// <summary>
+    /// Verifies that an upstream load producing no new releases surfaces a failure
+    /// warning and keeps the static fallback list visible instead of showing static
+    /// leftovers as live data.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task PreviewMiss_SetsFailedWarningAndShowsStaticAsync()
+    {
+        var ingestionMock = new Mock<ICatalogUpstreamIngestionService>();
+        ingestionMock
+            .Setup(s => s.IngestCatalogAsync(It.IsAny<PublisherCatalog>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var item = CreateUpstreamItem("item-miss");
+        item.Releases.Add(new ContentRelease { Version = "1.0.0", IsLatest = true });
+        var viewModel = CreateViewModel(item, ingestionMock.Object);
+        viewModel.SelectedContent = item;
+        await WaitForPreviewSettledAsync(viewModel, ingestionMock);
+
+        Assert.True(viewModel.UpstreamPreviewFailed);
+        Assert.True(viewModel.ShowUpstreamSyncFailedWarning);
+        Assert.False(viewModel.HasUpstreamPreview);
+        Assert.True(viewModel.ShowStaticReleasesList);
+        Assert.False(viewModel.ShowFallbackReleasesNote);
+    }
+
+    /// <summary>
+    /// Verifies that a successful upstream load clears the failure warning and hands
+    /// the main list over to the live releases.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task PreviewSuccess_ClearsFailedAndHidesStaticAsync()
+    {
+        var ingestionMock = new Mock<ICatalogUpstreamIngestionService>();
+        ingestionMock
+            .Setup(s => s.IngestCatalogAsync(It.IsAny<PublisherCatalog>(), It.IsAny<CancellationToken>()))
+            .Callback<PublisherCatalog, CancellationToken>((catalog, _) =>
+                catalog.Content[0].Releases.Add(new ContentRelease { Version = "9.9.9" }))
+            .Returns(Task.CompletedTask);
+
+        var item = CreateUpstreamItem("item-live");
+        item.Releases.Add(new ContentRelease { Version = "1.0.0", IsLatest = true });
+        var viewModel = CreateViewModel(item, ingestionMock.Object);
+        viewModel.SelectedContent = item;
+
+        await WaitForPreviewAsync(viewModel);
+
+        Assert.False(viewModel.UpstreamPreviewFailed);
+        Assert.False(viewModel.ShowUpstreamSyncFailedWarning);
+        Assert.True(viewModel.HasUpstreamPreview);
+        Assert.False(viewModel.ShowStaticReleasesList);
+        Assert.True(viewModel.ShowFallbackReleasesNote);
+        Assert.True(viewModel.ShowManualFallbackReleases);
+    }
+
     private static CatalogContentItem CreateUpstreamItem(string id) => new()
     {
         Id = id,
@@ -126,6 +183,17 @@ public sealed class ContentLibraryUpstreamPreviewTests
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         while (viewModel.UpstreamPreviewReleases.Count == 0)
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(20), timeout.Token);
+        }
+    }
+
+    private static async Task WaitForPreviewSettledAsync(
+        ContentLibraryViewModel viewModel,
+        Mock<ICatalogUpstreamIngestionService> ingestionMock)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        while (ingestionMock.Invocations.Count < 1 || viewModel.IsUpstreamPreviewLoading)
         {
             await Task.Delay(TimeSpan.FromMilliseconds(20), timeout.Token);
         }

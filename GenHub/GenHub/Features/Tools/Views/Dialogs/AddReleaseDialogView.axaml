@@ -181,12 +181,35 @@
                     <ListBox ItemsSource="{Binding Artifacts}" MinHeight="60">
                          <ListBox.ItemTemplate>
                              <DataTemplate>
-                                 <Grid ColumnDefinitions="*,Auto">
+                                 <Grid ColumnDefinitions="*,Auto,Auto">
                                      <StackPanel>
                                          <TextBlock Text="{Binding Filename}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
-                                         <TextBlock Text="{Binding Size}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                                         <StackPanel Orientation="Horizontal" Spacing="8">
+                                             <TextBlock Text="{Binding Size}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                                             <Border Background="{DynamicResource GlassFillBrush}" CornerRadius="4" Padding="6,1"
+                                                     IsVisible="{Binding Variant, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                 <TextBlock FontSize="11" Foreground="{DynamicResource AccentBrush}">
+                                                     <Run Text="{Binding VariantAxis}"/>
+                                                     <Run Text=": "/>
+                                                     <Run Text="{Binding Variant}" FontWeight="SemiBold"/>
+                                                 </TextBlock>
+                                             </Border>
+                                             <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" CornerRadius="4" Padding="6,1"
+                                                     IsVisible="{Binding IsDefaultVariant}">
+                                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.DefaultVariantBadge}" FontSize="11" Foreground="{DynamicResource AccentColorBrush}"/>
+                                             </Border>
+                                         </StackPanel>
                                      </StackPanel>
                                      <Button Grid.Column="1"
+                                             Command="{ReflectionBinding DataContext.EditArtifactCommand, ElementName=Root}"
+                                             CommandParameter="{Binding}"
+                                             Background="Transparent"
+                                             BorderThickness="0"
+                                             Padding="8"
+                                             ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Release.EditArtifactTooltip}">
+                                         <PathIcon Data="{StaticResource EditIcon}" Width="12" Height="12" Foreground="{DynamicResource TextSecondary}"/>
+                                     </Button>
+                                     <Button Grid.Column="2"
                                              Command="{ReflectionBinding DataContext.RemoveArtifactCommand, ElementName=Root}"
                                              CommandParameter="{Binding}"
                                              Background="Transparent"

@@ -282,11 +282,11 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
     }
 
     /// <summary>
-    /// Saving an edited bundle must not keep stale release dependencies for
-    /// deselected components, since bundle resolution prefers them over BundledItems.
+    /// Saving an edited bundle must mirror the selected components into every release's
+    /// dependencies and drop deselected ones, so manual bundles match JSON-authored ones.
     /// </summary>
     [Fact]
-    public void EditContentBundle_DeselectedComponent_ClearsStaleReleaseDependencies()
+    public void EditContentBundle_DeselectedComponent_MirrorsSelectionIntoReleaseDependencies()
     {
         var existingBundle = new CatalogContentItem
         {
@@ -321,7 +321,8 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
 
         Assert.NotNull(savedItem);
         Assert.Equal("comp-a", Assert.Single(savedItem.BundledItems).ContentId);
-        Assert.All(savedItem.Releases, release => Assert.Empty(release.Dependencies ?? []));
+        Assert.All(savedItem.Releases, release =>
+            Assert.Equal("comp-a", Assert.Single(release.Dependencies ?? []).ContentId));
     }
 
     /// <summary>
@@ -516,6 +517,166 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
                  b.ContentId == "shared-mod" &&
                  b.VersionConstraint == ">= 2.0.0" &&
                  b.CatalogUrl == "https://beta.example.com/catalog.json");
+    }
+
+    /// <summary>
+    /// Editing an upstream item must preserve its JSON-loaded asset rules, since the
+    /// dialog has no rule editor and dropping them would break variant mapping.
+    /// </summary>
+    [Fact]
+    public void EditUpstreamItem_PreservesAssetRules()
+    {
+        var existingItem = new CatalogContentItem
+        {
+            Id = "variant-client",
+            Name = "Variant Client",
+            Description = "Initial description that meets length requirements",
+            ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
+            UpstreamSync = new CatalogUpstreamSync
+            {
+                Provider = CatalogConstants.UpstreamProviders.GitHubReleases,
+                Repository = "Example/Repo",
+                VariantAxis = "game-type",
+                AssetRules =
+                [
+                    new CatalogUpstreamAssetRule
+                    {
+                        Pattern = "generalszh-.*\\.zip$",
+                        Variant = "Zero Hour",
+                        IsDefault = true,
+                        TargetGame = GameType.ZeroHour,
+                    },
+                ],
+            },
+        };
+
+        CatalogContentItem? savedItem = null;
+        using var vm = new AddContentDialogViewModel(existingItem, item => savedItem = item);
+        vm.CreateContentCommand.Execute(null);
+
+        Assert.NotNull(savedItem);
+        Assert.NotNull(savedItem.UpstreamSync);
+        var rule = Assert.Single(savedItem.UpstreamSync.AssetRules);
+        Assert.Equal("generalszh-.*\\.zip$", rule.Pattern);
+        Assert.Equal("Zero Hour", rule.Variant);
+        Assert.True(rule.IsDefault);
+        Assert.Equal(GameType.ZeroHour, rule.TargetGame);
+    }
+
+    /// <summary>
+    /// Editing an upstream item with a provider alias must normalize to the canonical
+    /// provider so the selector and ingestion agree.
+    /// </summary>
+    [Fact]
+    public void EditUpstreamItem_AliasProvider_NormalizesToCanonical()
+    {
+        var existingItem = new CatalogContentItem
+        {
+            Id = "alias-client",
+            Name = "Alias Client",
+            Description = "Initial description that meets length requirements",
+            ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
+            UpstreamSync = new CatalogUpstreamSync
+            {
+                Provider = CatalogConstants.UpstreamProviders.GitHubReleasesAlias,
+                Repository = "Example/Repo",
+            },
+        };
+
+        using var vm = new AddContentDialogViewModel(existingItem, _ => { });
+
+        Assert.Equal(CatalogConstants.UpstreamProviders.GitHubReleases, vm.SelectedUpstreamProvider);
+    }
+
+    /// <summary>
+    /// Checking featured without an accent color must default to gold.
+    /// </summary>
+    [Fact]
+    public void CheckingFeatured_WithoutAccentColor_DefaultsToGold()
+    {
+        using var vm = new AddContentDialogViewModel(_ => { });
+
+        vm.IsFeatured = true;
+
+        Assert.Equal(CatalogConstants.FeaturedDefaultColor, vm.AccentColor);
+    }
+
+    /// <summary>
+    /// Checking featured must keep an explicitly chosen accent color.
+    /// </summary>
+    [Fact]
+    public void CheckingFeatured_WithAccentColor_KeepsCustomColor()
+    {
+        using var vm = new AddContentDialogViewModel(_ => { });
+        vm.AccentColor = "#FF0000";
+
+        vm.IsFeatured = true;
+
+        Assert.Equal("#FF0000", vm.AccentColor);
+    }
+
+    /// <summary>
+    /// GitHub-backed providers show repository and channel fields but no content code.
+    /// </summary>
+    /// <param name="provider">The GitHub-family provider identifier.</param>
+    [Theory]
+    [InlineData("GitHubReleases")]
+    [InlineData("TheSuperHackers")]
+    public void UpstreamProvider_GitHubFamily_ShowsRepositoryAndChannel(string provider)
+    {
+        using var vm = new AddContentDialogViewModel(_ => { });
+
+        vm.SelectedUpstreamProvider = provider;
+
+        Assert.True(vm.ShowUpstreamRepository);
+        Assert.True(vm.ShowUpstreamChannel);
+        Assert.False(vm.ShowUpstreamContentCode);
+    }
+
+    /// <summary>
+    /// Catalog-backed providers show the content code field but no repository or channel.
+    /// </summary>
+    /// <param name="provider">The catalog-backed provider identifier.</param>
+    [Theory]
+    [InlineData("GeneralsOnline")]
+    [InlineData("CommunityOutpost")]
+    public void UpstreamProvider_CatalogBacked_ShowsContentCodeOnly(string provider)
+    {
+        using var vm = new AddContentDialogViewModel(_ => { });
+
+        vm.SelectedUpstreamProvider = provider;
+
+        Assert.False(vm.ShowUpstreamRepository);
+        Assert.False(vm.ShowUpstreamChannel);
+        Assert.True(vm.ShowUpstreamContentCode);
+    }
+
+    /// <summary>
+    /// Saving a bundle without releases must synthesize one release mirroring the
+    /// selected components, so catalogs without releases display like complete ones.
+    /// </summary>
+    [Fact]
+    public void EditContentBundle_WithoutReleases_SynthesizesMirroredRelease()
+    {
+        var existingBundle = new CatalogContentItem
+        {
+            Id = "releaseless-pack",
+            Name = "Releaseless Pack",
+            Description = "A complete competitive package for Zero Hour.",
+            ContentType = GenHub.Core.Models.Enums.ContentType.ContentBundle,
+            BundledItems =
+            [
+                new CatalogDependency { ContentId = "comp-a" },
+            ],
+        };
+
+        CatalogContentItem? savedItem = null;
+        using var vm = new AddContentDialogViewModel(existingBundle, item => savedItem = item);
+        vm.CreateContentCommand.Execute(null);
+
+        Assert.NotNull(savedItem);
+        var release = Assert.Single(savedItem.Releases);
+        Assert.Equal("comp-a", Assert.Single(release.Dependencies ?? []).ContentId);
     }
 
     /// <inheritdoc/>

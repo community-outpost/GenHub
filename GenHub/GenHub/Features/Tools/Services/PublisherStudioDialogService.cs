@@ -165,6 +165,13 @@ public class PublisherStudioDialogService(
     }
 
     /// <inheritdoc/>
+    public async Task<ReleaseArtifact?> ShowEditArtifactDialogAsync(ReleaseArtifact existing)
+    {
+        return await ShowDialogAsync<AddArtifactDialogViewModel, AddArtifactDialogView, ReleaseArtifact>(
+           callback => new AddArtifactDialogViewModel(existing, callback, localizationService));
+    }
+
+    /// <inheritdoc/>
     public async Task<CatalogDependency?> ShowAddDependencyDialogAsync(PublisherCatalog catalog, CatalogContentItem currentContent)
     {
         return await ShowDialogAsync<AddDependencyDialogViewModel, AddDependencyDialogView, CatalogDependency>(

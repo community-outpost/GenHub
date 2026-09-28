@@ -9718,6 +9718,30 @@ GenHub связывает запуск модификаций со Steam, отк
   <data name="Tools.PublisherStudio.Artifact.PrimaryArtifactTooltip" xml:space="preserve">
     <value>Это основной файл, который должны загружать пользователи.</value>
   </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantHeader" xml:space="preserve">
+    <value>Вариант</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantAxis" xml:space="preserve">
+    <value>Ось вариантов</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantLabel" xml:space="preserve">
+    <value>Метка варианта</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantLabelPlaceholder" xml:space="preserve">
+    <value>например, 1080p, English, Zero Hour</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantLabelHint" xml:space="preserve">
+    <value>Отображается в выборе вариантов. Файлы с общей осью становятся выбираемыми опциями.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.DefaultVariant" xml:space="preserve">
+    <value>Вариант по умолчанию</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.DefaultVariantTooltip" xml:space="preserve">
+    <value>Предвыбирать этот вариант.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantAxisRequired" xml:space="preserve">
+    <value>Выберите ось вариантов, если задана метка варианта.</value>
+  </data>
   <data name="Tools.PublisherStudio.Artifact.Sha256Hash" xml:space="preserve">
     <value>Хэш SHA256 (необязательно)</value>
   </data>
@@ -13554,6 +13578,12 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Release.VariantsModeDesc" xml:space="preserve">
     <value>Каждый файл представляет отдельный вариант на выбор пользователя (напр., русский, английский или 720p, 1080p, 4K).</value>
   </data>
+  <data name="Tools.PublisherStudio.Release.EditArtifactTooltip" xml:space="preserve">
+    <value>Изменить файл</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.EditTitle" xml:space="preserve">
+    <value>Изменить файл</value>
+  </data>
   <data name="Tools.PublisherStudio.Release.BundleMode" xml:space="preserve">
     <value>Установить все файлы вместе (пакет)</value>
   </data>
@@ -13988,7 +14018,16 @@ https://example.com/screenshot2.png</value>
     <value>Загрузка релизов из источника…</value>
   </data>
   <data name="Tools.PublisherStudio.Library.ReleasesFallbackNote" xml:space="preserve">
-    <value>Резервные релизы (используются, когда источник недоступен). Актуальные релизы из источника перечислены ниже; дубликаты скрыты.</value>
+    <value>Актуальные релизы из источника показаны ниже. Сохранённые резервные релизы (на случай недоступности источника) свёрнуты внизу.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UpstreamSyncFailedHint" xml:space="preserve">
+    <value>Проверьте настройки провайдера (репозиторий, код контента, канал) и соединение, затем выберите элемент заново. Статичные релизы ниже используются как резервные.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ManualFallbackPrefix" xml:space="preserve">
+    <value>Вручную:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.DefaultVariantBadge" xml:space="preserve">
+    <value>По умолчанию</value>
   </data>
   <data name="Downloads.UpdateDialog.Title" xml:space="preserve">
     <value>Доступно обновление для {0}</value>
@@ -17186,6 +17225,15 @@ Error: не удалось: {3}
   <data name="Tools.PublisherStudio.Content.FeaturedBadgePlaceholder" xml:space="preserve">
     <value>★ ИЗБРАННЫЙ НАБОР</value>
   </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedColor" xml:space="preserve">
+    <value>Цвет избранного</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedColorHint" xml:space="preserve">
+    <value>Выберите цвет подсветки для этой избранной карточки. По умолчанию — золотой.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedColorPick" xml:space="preserve">
+    <value>Выбрать</value>
+  </data>
   <data name="Tools.PublisherStudio.Content.BundleComponentMatrix" xml:space="preserve">
     <value>Матрица компонентов набора</value>
   </data>
@@ -17212,6 +17260,45 @@ Error: не удалось: {3}
   </data>
   <data name="Tools.PublisherStudio.Content.UpstreamChannelPlaceholder" xml:space="preserve">
     <value>stable</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamContentCode" xml:space="preserve">
+    <value>Код контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamContentCodePlaceholder" xml:space="preserve">
+    <value>например, hlei</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamContentCodeHint" xml:space="preserve">
+    <value>Точная запись в каталоге провайдера, например код GenPatcher hlei для хоткеев Leikeze. Оставьте пустым для сопоставления по имени.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.None" xml:space="preserve">
+    <value>(Нет)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.NoneDescription" xml:space="preserve">
+    <value>Без вариантов. Все файлы релиза устанавливаются вместе.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.GameTypeDescription" xml:space="preserve">
+    <value>Один релиз для разных игр, например сборки Zero Hour и Generals.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.ResolutionDescription" xml:space="preserve">
+    <value>Один релиз в разных разрешениях, например панели управления 720p, 1080p или 4K.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.LanguageDescription" xml:space="preserve">
+    <value>Один релиз на разных языках, например раскладки хоткеев на английском или немецком.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.EditionDescription" xml:space="preserve">
+    <value>Один релиз в разных изданиях, например Standard или HD.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.Custom" xml:space="preserve">
+    <value>Свой...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.CustomDescription" xml:space="preserve">
+    <value>Используйте своё имя оси, например compatibility или platform.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamVariantAxisCustomPlaceholder" xml:space="preserve">
+    <value>например, compatibility</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UpstreamSyncFailedTitle" xml:space="preserve">
+    <value>Источник не вернул релизов</value>
   </data>
   <data name="Tools.PublisherStudio.Content.UpstreamVariantAxis" xml:space="preserve">
     <value>Ось вариантов</value>

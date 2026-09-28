@@ -144,7 +144,7 @@ public class CatalogUpstreamIngestionService(
                     DownloadUrl = asset.BrowserDownloadUrl,
                     Size = asset.Size,
                     Variant = matchedRule.Variant,
-                    VariantAxis = sync.VariantAxis ?? "game-type",
+                    VariantAxis = sync.VariantAxis ?? CatalogConstants.GameTypeVariantAxis,
                     IsDefaultVariant = matchedRule.IsDefault,
                     IsPrimary = matchedRule.IsDefault,
                     TargetGame = matchedRule.TargetGame,
@@ -188,7 +188,7 @@ public class CatalogUpstreamIngestionService(
                 DownloadUrl = asset.BrowserDownloadUrl,
                 Size = asset.Size,
                 Variant = variant,
-                VariantAxis = "game-type",
+                VariantAxis = CatalogConstants.GameTypeVariantAxis,
                 IsDefaultVariant = isZh,
                 IsPrimary = isZh,
                 TargetGame = ResolveArtifactTargetGame(isZh, isGen),
@@ -240,6 +240,7 @@ public class CatalogUpstreamIngestionService(
         bool isTrackPrerelease,
         CatalogUpstreamSync? sync,
         string? provider,
+        string? repository,
         ILogger logger)
     {
         var version = NormalizeReleaseVersion(release);
@@ -256,7 +257,7 @@ public class CatalogUpstreamIngestionService(
         {
             PopulateArtifactsFromAssetRules(synthesized, release.Assets, sync, logger);
         }
-        else if (string.Equals(provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
+        else if (IsDefaultSuperHackersRepository(provider, repository))
         {
             PopulateDefaultSuperHackersArtifacts(synthesized, release.Assets);
         }
@@ -266,6 +267,21 @@ public class CatalogUpstreamIngestionService(
         }
 
         return synthesized;
+    }
+
+    private static bool IsDefaultSuperHackersRepository(string? provider, string? repository)
+    {
+        if (!string.Equals(provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        // The zh/gen/full-client filename filter only fits the official game-code repo.
+        // Custom repositories under this provider hydrate every release asset instead
+        // of silently matching nothing.
+        var defaultRepository = $"{SuperHackersConstants.GeneralsGameCodeOwner}/{SuperHackersConstants.GeneralsGameCodeRepo}";
+        return string.IsNullOrWhiteSpace(repository) ||
+            string.Equals(repository.Trim(), defaultRepository, StringComparison.OrdinalIgnoreCase);
     }
 
     private static void AttachEaBaseGameDependency(
@@ -329,8 +345,17 @@ public class CatalogUpstreamIngestionService(
         }
     }
 
-    private static ContentSearchResult? FindMatchingDiscoveryItem(IReadOnlyList<ContentSearchResult> items, CatalogContentItem item)
+    private static ContentSearchResult? FindMatchingDiscoveryItem(
+        IReadOnlyList<ContentSearchResult> items,
+        CatalogContentItem item,
+        CatalogUpstreamSync? sync)
     {
+        if (!string.IsNullOrWhiteSpace(sync?.ContentCode))
+        {
+            // An explicit feed key fails closed: never fuzzy-guess when the publisher pinned an entry.
+            return items.FirstOrDefault(i => IsContentCodeMatch(i, sync.ContentCode.Trim()));
+        }
+
         var exact = items.FirstOrDefault(i =>
             string.Equals(i.Id, item.Id, StringComparison.OrdinalIgnoreCase));
         exact ??= items.FirstOrDefault(i =>
@@ -347,6 +372,44 @@ public class CatalogUpstreamIngestionService(
             .Take(2)
             .ToList();
         return fuzzy.Count == 1 ? fuzzy[0] : null;
+    }
+
+    private static bool IsContentCodeMatch(ContentSearchResult candidate, string contentCode)
+    {
+        if (candidate.ResolverMetadata.TryGetValue(CommunityOutpostCatalogConstants.ContentCodeKey, out var metadataCode) &&
+            string.Equals(metadataCode, contentCode, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (string.Equals(candidate.Id, contentCode, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(candidate.Name, contentCode, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // Feed ids are multi-segment paths ending with the content code (e.g. 1.0.communityoutpost.addon.hlei).
+        var lastSeparator = candidate.Id?.LastIndexOf('.') ?? -1;
+        return lastSeparator >= 0 &&
+            string.Equals(candidate.Id?[(lastSeparator + 1)..], contentCode, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ResolveDiscoveryVersion(ContentSearchResult matched)
+    {
+        if (!string.IsNullOrWhiteSpace(matched.Version))
+        {
+            return matched.Version;
+        }
+
+        // Catalog-backed feeds (GenPatcher dl.dat) stamp the catalog revision on every entry,
+        // which still moves when the publisher ships new files.
+        if (matched.ResolverMetadata.TryGetValue(CommunityOutpostCatalogConstants.CatalogVersionKey, out var catalogVersion) &&
+            !string.IsNullOrWhiteSpace(catalogVersion))
+        {
+            return catalogVersion;
+        }
+
+        return "1.0.0";
     }
 
     private async Task IngestSingleItemAsync(
@@ -445,7 +508,7 @@ public class CatalogUpstreamIngestionService(
             return;
         }
 
-        var synthesized = SynthesizeGitHubRelease(release, isTrackPrerelease, sync, provider, logger);
+        var synthesized = SynthesizeGitHubRelease(release, isTrackPrerelease, sync, provider, repo, logger);
         PreserveReleaseDependenciesAndMetadata(item, synthesized);
 
         if (synthesized.Artifacts.Count > 0)
@@ -491,7 +554,7 @@ public class CatalogUpstreamIngestionService(
             return;
         }
 
-        var matched = FindMatchingDiscoveryItem(items, item);
+        var matched = FindMatchingDiscoveryItem(items, item, item.UpstreamSync);
         if (matched == null)
         {
             return;
@@ -505,7 +568,7 @@ public class CatalogUpstreamIngestionService(
 
         var synthesized = new ContentRelease
         {
-            Version = !string.IsNullOrWhiteSpace(matched.Version) ? matched.Version : "1.0.0",
+            Version = ResolveDiscoveryVersion(matched),
             ReleaseDate = matched.LastUpdated ?? DateTime.UtcNow,
             IsLatest = true,
         };

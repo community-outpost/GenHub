@@ -65,7 +65,8 @@ public partial class ContentLibraryViewModel(
         if (!string.Equals(a.Provider, b.Provider, StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(a.Repository, b.Repository, StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(a.Channel, b.Channel, StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(a.VariantAxis, b.VariantAxis, StringComparison.OrdinalIgnoreCase))
+            !string.Equals(a.VariantAxis, b.VariantAxis, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(a.ContentCode, b.ContentCode, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
@@ -153,7 +154,12 @@ public partial class ContentLibraryViewModel(
     private ObservableCollection<ContentRelease> _upstreamPreviewReleases = [];
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowUpstreamSyncFailedWarning))]
     private bool _isUpstreamPreviewLoading;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowUpstreamSyncFailedWarning))]
+    private bool _upstreamPreviewFailed;
 
     private CancellationTokenSource? _upstreamPreviewCts;
     private bool _suppressUpstreamPreviewReload;
@@ -209,6 +215,18 @@ public partial class ContentLibraryViewModel(
     /// Gets a value indicating whether the manual fallback releases expander should be shown.
     /// </summary>
     public bool ShowManualFallbackReleases => ShowFallbackReleasesNote && (SelectedContent?.Releases?.Count ?? 0) > 0;
+
+    /// <summary>
+    /// Gets a value indicating whether the static releases list should be shown as the main list.
+    /// When live upstream releases are available they take over the main list and the
+    /// static releases collapse into the fallback expander instead.
+    /// </summary>
+    public bool ShowStaticReleasesList => !HasUpstreamPreview;
+
+    /// <summary>
+    /// Gets a value indicating whether the upstream sync failure warning should be shown.
+    /// </summary>
+    public bool ShowUpstreamSyncFailedWarning => SelectedContentTracksUpstream && UpstreamPreviewFailed && !IsUpstreamPreviewLoading;
 
     /// <summary>
     /// Gets the effective release count for the selected content item (upstream live count when tracked, or static count).
@@ -1473,6 +1491,8 @@ public partial class ContentLibraryViewModel(
         OnPropertyChanged(nameof(SelectedContentTracksUpstream));
         OnPropertyChanged(nameof(ShowFallbackReleasesNote));
         OnPropertyChanged(nameof(ShowManualFallbackReleases));
+        OnPropertyChanged(nameof(ShowStaticReleasesList));
+        OnPropertyChanged(nameof(ShowUpstreamSyncFailedWarning));
         OnPropertyChanged(nameof(EffectiveSelectedContentReleasesCount));
         if (_suppressUpstreamPreviewReload)
         {
@@ -1497,10 +1517,12 @@ public partial class ContentLibraryViewModel(
         UpstreamPreviewReleases.Clear();
         UpstreamPreviewVersions = [];
         IsUpstreamPreviewLoading = false;
+        UpstreamPreviewFailed = false;
         OnPropertyChanged(nameof(HasUpstreamPreview));
         OnPropertyChanged(nameof(UpstreamPreviewVersions));
         OnPropertyChanged(nameof(ShowFallbackReleasesNote));
         OnPropertyChanged(nameof(ShowManualFallbackReleases));
+        OnPropertyChanged(nameof(ShowStaticReleasesList));
         OnPropertyChanged(nameof(EffectiveSelectedContentReleasesCount));
 
         if (value == null || upstreamIngestionService == null || !IsSelectedContentUpstream())
@@ -1524,6 +1546,9 @@ public partial class ContentLibraryViewModel(
                 return;
             }
 
+            // Ingestion replaces releases on success and leaves them untouched on a miss,
+            // so reference comparison tells live data apart from static leftovers.
+            var staticRefs = new HashSet<ContentRelease>(clone.Releases);
             var preview = new PublisherCatalog { Content = [clone] };
             await upstreamIngestionService.IngestCatalogAsync(preview, cts.Token);
             if (cts.IsCancellationRequested)
@@ -1531,7 +1556,8 @@ public partial class ContentLibraryViewModel(
                 return;
             }
 
-            var releases = clone.Releases.ToList();
+            var releases = clone.Releases.Where(r => !staticRefs.Contains(r)).ToList();
+            var producedUpstream = releases.Count > 0;
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 if (_upstreamPreviewCts != cts)
@@ -1545,6 +1571,7 @@ public partial class ContentLibraryViewModel(
                     UpstreamPreviewReleases.Add(release);
                 }
 
+                UpstreamPreviewFailed = !producedUpstream;
                 UpstreamPreviewVersions = releases
                     .Where(r => !string.IsNullOrWhiteSpace(r.Version))
                     .Select(r => r.Version)
@@ -1553,6 +1580,7 @@ public partial class ContentLibraryViewModel(
                 OnPropertyChanged(nameof(UpstreamPreviewVersions));
                 OnPropertyChanged(nameof(ShowFallbackReleasesNote));
                 OnPropertyChanged(nameof(ShowManualFallbackReleases));
+                OnPropertyChanged(nameof(ShowStaticReleasesList));
                 OnPropertyChanged(nameof(EffectiveSelectedContentReleasesCount));
             });
         }

@@ -714,6 +714,9 @@ public sealed class MockPublisherStudioDialogService : IPublisherStudioDialogSer
     public Task<ReleaseArtifact?> ShowAddArtifactDialogAsync() => Task.FromResult<ReleaseArtifact?>(null);
 
     /// <inheritdoc/>
+    public Task<ReleaseArtifact?> ShowEditArtifactDialogAsync(ReleaseArtifact existing) => Task.FromResult<ReleaseArtifact?>(null);
+
+    /// <inheritdoc/>
     public Task<CatalogDependency?> ShowAddDependencyDialogAsync(PublisherCatalog catalog, CatalogContentItem currentContent) => Task.FromResult<CatalogDependency?>(null);
 
     /// <inheritdoc/>

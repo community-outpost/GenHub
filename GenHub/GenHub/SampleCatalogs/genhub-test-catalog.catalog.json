@@ -405,7 +405,45 @@
                         }
                     ]
                 }
-            ]
+            ],
+            "upstreamSync": {
+                "provider": "GitHubReleases",
+                "repository": "L3-M/GeneralsControlBar",
+                "channel": "stable",
+                "variantAxis": "resolution",
+                "assetRules": [
+                    {
+                        "pattern": "1280x720.*\\.zip$",
+                        "variant": "720p",
+                        "isDefault": false,
+                        "targetGame": 1
+                    },
+                    {
+                        "pattern": "1600x900.*\\.zip$",
+                        "variant": "900p",
+                        "isDefault": false,
+                        "targetGame": 1
+                    },
+                    {
+                        "pattern": "1920x1080.*\\.zip$",
+                        "variant": "1080p",
+                        "isDefault": true,
+                        "targetGame": 1
+                    },
+                    {
+                        "pattern": "2560x1440.*\\.zip$",
+                        "variant": "1440p",
+                        "isDefault": false,
+                        "targetGame": 1
+                    },
+                    {
+                        "pattern": "3840x2160.*\\.zip$",
+                        "variant": "4K",
+                        "isDefault": false,
+                        "targetGame": 1
+                    }
+                ]
+            }
         },
         {
             "id": "eliorata-improved-menus",
@@ -471,7 +509,33 @@
                         }
                     ]
                 }
-            ]
+            ],
+            "upstreamSync": {
+                "provider": "GitHubReleases",
+                "repository": "ElTioRata/ImprovedMenus",
+                "channel": "stable",
+                "variantAxis": "language",
+                "assetRules": [
+                    {
+                        "pattern": "0_ImprovedMenusEnglish\\.zip$",
+                        "variant": "English",
+                        "isDefault": true,
+                        "targetGame": 1
+                    },
+                    {
+                        "pattern": "0_ImprovedMenusRussian\\.zip$",
+                        "variant": "Russian",
+                        "isDefault": false,
+                        "targetGame": 1
+                    },
+                    {
+                        "pattern": "0_ImprovedMenusSpanish\\.zip$",
+                        "variant": "Spanish",
+                        "isDefault": false,
+                        "targetGame": 1
+                    }
+                ]
+            }
         },
         {
             "id": "leikeze-hotkeys",
@@ -537,7 +601,12 @@
                         }
                     ]
                 }
-            ]
+            ],
+            "upstreamSync": {
+                "provider": "CommunityOutpost",
+                "contentCode": "hlei",
+                "variantAxis": "language"
+            }
         },
         {
             "id": "bundle-thesuperhackers-latest-stack",

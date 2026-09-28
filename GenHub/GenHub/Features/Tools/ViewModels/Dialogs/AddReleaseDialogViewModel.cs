@@ -405,6 +405,7 @@ public partial class AddReleaseDialogViewModel(
             VariantAxis = source.VariantAxis,
             Variant = source.Variant,
             IsDefaultVariant = source.IsDefaultVariant,
+            TargetGame = source.TargetGame,
             LocalFilePath = source.LocalFilePath,
             EntryPoint = source.EntryPoint,
         };
@@ -661,6 +662,42 @@ public partial class AddReleaseDialogViewModel(
             IsPrimary = Artifacts.Count == 0,
             LocalFilePath = path,
         };
+    }
+
+    /// <summary>
+    /// Opens the edit artifact dialog for an existing artifact (file, URL, or variant mapping).
+    /// </summary>
+    /// <param name="artifact">The artifact to edit.</param>
+    [RelayCommand]
+    private async Task EditArtifactAsync(ReleaseArtifact? artifact)
+    {
+        if (dialogService == null || artifact == null)
+        {
+            return;
+        }
+
+        var index = Artifacts.IndexOf(artifact);
+        if (index < 0)
+        {
+            return;
+        }
+
+        var edited = await dialogService.ShowEditArtifactDialogAsync(artifact);
+        if (edited == null)
+        {
+            return;
+        }
+
+        if (edited.IsPrimary)
+        {
+            foreach (var other in Artifacts)
+            {
+                other.IsPrimary = false;
+            }
+        }
+
+        Artifacts[index] = edited;
+        Validate();
     }
 
     /// <summary>

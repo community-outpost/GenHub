@@ -9,6 +9,7 @@ using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Catalog;
+using GenHub.Features.Content.Services.CommunityOutpost;
 using GenHub.Features.Content.Services.GeneralsOnline;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -569,12 +570,247 @@ public sealed class CatalogUpstreamIngestionServiceTests
         Assert.Equal(nameUrl, artifact.DownloadUrl);
     }
 
+    /// <summary>
+    /// Tests that an explicit content code binds the exact catalog-backed feed entry
+    /// even when the item id and name match nothing.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task IngestCatalogAsync_ContentCodeMatch_BindsExactFeedEntryAsync()
+    {
+        const string hleiUrl = "https://legi.cc/gp2/f/hlei.dat";
+        var hlei = new ContentSearchResult
+        {
+            Id = "1.0.communityoutpost.addon.hlei",
+            Name = "Leikeze's Hotkeys",
+            Version = "1.0",
+            SelectedDownloadUrl = hleiUrl,
+        };
+        hlei.ResolverMetadata[CommunityOutpostCatalogConstants.ContentCodeKey] = "hlei";
+        var hlde = new ContentSearchResult
+        {
+            Id = "1.0.communityoutpost.addon.hlde",
+            Name = "Standard Hotkeys (German)",
+            Version = "1.0",
+            SelectedDownloadUrl = "https://legi.cc/gp2/f/hlde.dat",
+        };
+        hlde.ResolverMetadata[CommunityOutpostCatalogConstants.ContentCodeKey] = "hlde";
+        var discovered = new ContentDiscoveryResult { Items = [hlei, hlde] };
+        var service = new CatalogUpstreamIngestionService(
+            _gitHubClientMock.Object,
+            NullLogger<CatalogUpstreamIngestionService>.Instance,
+            communityOutpostDiscoverer: new StubCommunityOutpostDiscoverer(discovered));
+
+        var item = new CatalogContentItem
+        {
+            Id = "leikeze-hotkeys",
+            Name = "Leikeze Competitive Hotkeys",
+            ContentType = ContentType.Addon,
+            Releases = [],
+            UpstreamSync = new CatalogUpstreamSync
+            {
+                Provider = CatalogConstants.UpstreamProviders.CommunityOutpost,
+                ContentCode = "hlei",
+            },
+        };
+
+        var catalog = new PublisherCatalog
+        {
+            SchemaVersion = 1,
+            Publisher = new PublisherProfile { Id = "test-pub", Name = "Test Publisher" },
+            Content = [item],
+        };
+
+        await service.IngestCatalogAsync(catalog, CancellationToken.None);
+
+        var artifact = Assert.Single(Assert.Single(item.Releases).Artifacts);
+        Assert.Equal(hleiUrl, artifact.DownloadUrl);
+    }
+
+    /// <summary>
+    /// Tests that an explicit content code matching no feed entry binds nothing
+    /// instead of falling back to fuzzy name guessing.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task IngestCatalogAsync_ContentCodeMismatch_BindsNothingAsync()
+    {
+        var hlei = new ContentSearchResult
+        {
+            Id = "1.0.communityoutpost.addon.hlei",
+            Name = "Leikeze's Hotkeys",
+            Version = "1.0",
+            SelectedDownloadUrl = "https://legi.cc/gp2/f/hlei.dat",
+        };
+        hlei.ResolverMetadata[CommunityOutpostCatalogConstants.ContentCodeKey] = "hlei";
+        var discovered = new ContentDiscoveryResult { Items = [hlei] };
+        var service = new CatalogUpstreamIngestionService(
+            _gitHubClientMock.Object,
+            NullLogger<CatalogUpstreamIngestionService>.Instance,
+            communityOutpostDiscoverer: new StubCommunityOutpostDiscoverer(discovered));
+
+        var item = new CatalogContentItem
+        {
+            Id = "leikeze-hotkeys",
+            Name = "Leikeze's Hotkeys",
+            ContentType = ContentType.Addon,
+            Releases = [],
+            UpstreamSync = new CatalogUpstreamSync
+            {
+                Provider = CatalogConstants.UpstreamProviders.CommunityOutpost,
+                ContentCode = "missing-code",
+            },
+        };
+
+        var catalog = new PublisherCatalog
+        {
+            SchemaVersion = 1,
+            Publisher = new PublisherProfile { Id = "test-pub", Name = "Test Publisher" },
+            Content = [item],
+        };
+
+        await service.IngestCatalogAsync(catalog, CancellationToken.None);
+
+        Assert.Empty(item.Releases);
+    }
+
+    /// <summary>
+    /// Tests that the SuperHackers provider hydrates every asset for custom
+    /// repositories instead of applying the official game-code filename filter.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task IngestCatalogAsync_SuperHackersCustomRepo_HydratesAllAssetsAsync()
+    {
+        var release = new GitHubRelease
+        {
+            TagName = "v1.3",
+            CreatedAt = DateTime.UtcNow,
+            Assets =
+            [
+                new GitHubReleaseAsset
+                {
+                    Name = "ControlBar_1280x720.zip",
+                    BrowserDownloadUrl = "https://github.com/custom/download/720.zip",
+                    Size = 1_000_000,
+                },
+                new GitHubReleaseAsset
+                {
+                    Name = "ControlBar_1920x1080.zip",
+                    BrowserDownloadUrl = "https://github.com/custom/download/1080.zip",
+                    Size = 1_100_000,
+                },
+            ],
+        };
+
+        _gitHubClientMock
+            .Setup(c => c.GetLatestReleaseAsync("Custom", "Other", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(release);
+
+        var item = new CatalogContentItem
+        {
+            Id = "custom-addon",
+            Name = "Custom Addon",
+            ContentType = ContentType.Addon,
+            Releases = [],
+            UpstreamSync = new CatalogUpstreamSync
+            {
+                Provider = CatalogConstants.UpstreamProviders.TheSuperHackers,
+                Repository = "Custom/Other",
+            },
+        };
+
+        var catalog = new PublisherCatalog
+        {
+            SchemaVersion = 1,
+            Publisher = new PublisherProfile { Id = "test-pub", Name = "Test Publisher" },
+            Content = [item],
+        };
+
+        await _service.IngestCatalogAsync(catalog, CancellationToken.None);
+
+        Assert.Equal(2, Assert.Single(item.Releases).Artifacts.Count);
+    }
+
+    /// <summary>
+    /// Tests that the SuperHackers provider keeps the zh/gen/full-client filename
+    /// filter for the official game-code repository.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task IngestCatalogAsync_SuperHackersDefaultRepo_KeepsClientFilterAsync()
+    {
+        var release = new GitHubRelease
+        {
+            TagName = "weekly-2026-07-31",
+            CreatedAt = DateTime.UtcNow,
+            Assets =
+            [
+                new GitHubReleaseAsset
+                {
+                    Name = "game-zh-client.zip",
+                    BrowserDownloadUrl = "https://github.com/test/download/zh.zip",
+                    Size = 10_000_000,
+                },
+                new GitHubReleaseAsset
+                {
+                    Name = "readme.txt",
+                    BrowserDownloadUrl = "https://github.com/test/download/readme.txt",
+                    Size = 100,
+                },
+            ],
+        };
+
+        _gitHubClientMock
+            .Setup(c => c.GetLatestReleaseAsync("TheSuperHackers", "GeneralsGameCode", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(release);
+
+        var item = new CatalogContentItem
+        {
+            Id = "superhackers-client",
+            Name = "SuperHackers Client",
+            ContentType = ContentType.GameClient,
+            Releases = [],
+            UpstreamSync = new CatalogUpstreamSync
+            {
+                Provider = CatalogConstants.UpstreamProviders.TheSuperHackers,
+                Repository = "TheSuperHackers/GeneralsGameCode",
+            },
+        };
+
+        var catalog = new PublisherCatalog
+        {
+            SchemaVersion = 1,
+            Publisher = new PublisherProfile { Id = "test-pub", Name = "Test Publisher" },
+            Content = [item],
+        };
+
+        await _service.IngestCatalogAsync(catalog, CancellationToken.None);
+
+        var artifact = Assert.Single(Assert.Single(item.Releases).Artifacts);
+        Assert.Equal("game-zh-client.zip", artifact.Filename);
+    }
+
     private sealed class StubGeneralsOnlineDiscoverer(ContentDiscoveryResult result) : GeneralsOnlineDiscoverer(
         NullLogger<GeneralsOnlineDiscoverer>.Instance,
         Mock.Of<IProviderDefinitionLoader>(),
         Mock.Of<ICatalogParserFactory>(),
         Mock.Of<IHttpClientFactory>(),
         null)
+    {
+        public override Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
+            ContentSearchQuery query,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(OperationResult<ContentDiscoveryResult>.CreateSuccess(result));
+        }
+    }
+
+    private sealed class StubCommunityOutpostDiscoverer(ContentDiscoveryResult result) : CommunityOutpostDiscoverer(
+        Mock.Of<IHttpClientFactory>(),
+        Mock.Of<IProviderDefinitionLoader>(),
+        Mock.Of<ICatalogParserFactory>(),
+        NullLogger<CommunityOutpostDiscoverer>.Instance)
     {
         public override Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
             ContentSearchQuery query,

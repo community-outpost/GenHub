@@ -9776,6 +9776,30 @@ Install location:
   <data name="Tools.PublisherStudio.Artifact.PrimaryArtifactTooltip" xml:space="preserve">
     <value>This is the main file users should download.</value>
   </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantHeader" xml:space="preserve">
+    <value>Variant</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantAxis" xml:space="preserve">
+    <value>Variant Axis</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantLabel" xml:space="preserve">
+    <value>Variant Label</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantLabelPlaceholder" xml:space="preserve">
+    <value>e.g. 1080p, English, Zero Hour</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantLabelHint" xml:space="preserve">
+    <value>Shown in the variant picker. Artifacts sharing one axis become selectable options.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.DefaultVariant" xml:space="preserve">
+    <value>Default variant</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.DefaultVariantTooltip" xml:space="preserve">
+    <value>Pre-select this variant in the picker.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantAxisRequired" xml:space="preserve">
+    <value>Select a variant axis when a variant label is set.</value>
+  </data>
   <data name="Tools.PublisherStudio.Artifact.Sha256Hash" xml:space="preserve">
     <value>SHA256 Hash (Optional)</value>
   </data>
@@ -13615,6 +13639,12 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.PublisherStudio.Release.VariantsModeDesc" xml:space="preserve">
     <value>Each file is a distinct variant the user chooses from (e.g. English, Russian, Arabic or 720p, 1080p, 4K).</value>
   </data>
+  <data name="Tools.PublisherStudio.Release.EditArtifactTooltip" xml:space="preserve">
+    <value>Edit artifact</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.EditTitle" xml:space="preserve">
+    <value>Edit Artifact</value>
+  </data>
   <data name="Tools.PublisherStudio.Release.BundleMode" xml:space="preserve">
     <value>Install all files together (Bundle)</value>
   </data>
@@ -14046,7 +14076,16 @@ Would you like to use this existing hosted file instead of uploading a new copy?
     <value>Loading upstream releases…</value>
   </data>
   <data name="Tools.PublisherStudio.Library.ReleasesFallbackNote" xml:space="preserve">
-    <value>Fallback releases (used when upstream is unreachable). Live upstream releases are listed below; duplicates are hidden.</value>
+    <value>Live upstream releases are shown below. Stored fallback releases (used when upstream is unreachable) are collapsed at the bottom.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UpstreamSyncFailedHint" xml:space="preserve">
+    <value>Check the provider settings (repository, content code, channel) and your connection, then re-select the item to retry. Static releases below are used as fallback.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ManualFallbackPrefix" xml:space="preserve">
+    <value>Manual fallback:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.DefaultVariantBadge" xml:space="preserve">
+    <value>Default</value>
   </data>
   <data name="Downloads.UpdateDialog.Title" xml:space="preserve">
     <value>{0} Update Available</value>
@@ -14585,13 +14624,22 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
     <value>Deleted {0} profile(s) successfully.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.FeaturedMark" xml:space="preserve">
-    <value>Mark as Golden Featured</value>
+    <value>Mark as Featured</value>
   </data>
   <data name="Tools.PublisherStudio.Content.FeaturedBadgeLabel" xml:space="preserve">
     <value>Featured Badge Label</value>
   </data>
   <data name="Tools.PublisherStudio.Content.FeaturedBadgePlaceholder" xml:space="preserve">
     <value>★ FEATURED BUNDLE</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedColor" xml:space="preserve">
+    <value>Featured Color</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedColorHint" xml:space="preserve">
+    <value>Pick the highlight color for this featured card. Defaults to gold.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedColorPick" xml:space="preserve">
+    <value>Pick</value>
   </data>
   <data name="Tools.PublisherStudio.Content.BundleComponentMatrix" xml:space="preserve">
     <value>Bundle Component Matrix</value>
@@ -14619,6 +14667,45 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   </data>
   <data name="Tools.PublisherStudio.Content.UpstreamChannelPlaceholder" xml:space="preserve">
     <value>stable</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamContentCode" xml:space="preserve">
+    <value>Content Code</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamContentCodePlaceholder" xml:space="preserve">
+    <value>e.g. hlei</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamContentCodeHint" xml:space="preserve">
+    <value>Exact entry in the provider catalog, e.g. the GenPatcher code hlei for Leikeze's Hotkeys. Leave blank to match by name.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.None" xml:space="preserve">
+    <value>(None)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.NoneDescription" xml:space="preserve">
+    <value>No variants. Every artifact in the release is installed together.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.GameTypeDescription" xml:space="preserve">
+    <value>Same release for different games, e.g. Zero Hour and Generals builds.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.ResolutionDescription" xml:space="preserve">
+    <value>Same release in different resolutions, e.g. 720p, 1080p or 4K control bars.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.LanguageDescription" xml:space="preserve">
+    <value>Same release in different languages, e.g. English or German hotkey layouts.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.EditionDescription" xml:space="preserve">
+    <value>Same release in different editions, e.g. Standard or HD.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.Custom" xml:space="preserve">
+    <value>Custom...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.CustomDescription" xml:space="preserve">
+    <value>Use your own axis name, e.g. compatibility or platform.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamVariantAxisCustomPlaceholder" xml:space="preserve">
+    <value>e.g. compatibility</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UpstreamSyncFailedTitle" xml:space="preserve">
+    <value>Upstream returned no releases</value>
   </data>
   <data name="Tools.PublisherStudio.Content.UpstreamVariantAxis" xml:space="preserve">
     <value>Variant Axis</value>

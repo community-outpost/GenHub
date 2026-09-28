@@ -116,6 +116,13 @@ public interface IPublisherStudioDialogService
     Task<ReleaseArtifact?> ShowAddArtifactDialogAsync();
 
     /// <summary>
+    /// Shows the edit artifact dialog for an existing release artifact.
+    /// </summary>
+    /// <param name="existing">The existing artifact to edit.</param>
+    /// <returns>The updated release artifact, or null if cancelled.</returns>
+    Task<ReleaseArtifact?> ShowEditArtifactDialogAsync(ReleaseArtifact existing);
+
+    /// <summary>
     /// Shows the add dependency dialog for a content item.
     /// </summary>
     /// <param name="catalog">The parent catalog.</param>

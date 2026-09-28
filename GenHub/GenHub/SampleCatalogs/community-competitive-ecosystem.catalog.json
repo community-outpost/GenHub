@@ -221,7 +221,45 @@
                         }
                     ]
                 }
-            ]
+            ],
+            "upstreamSync": {
+                "provider": "GitHubReleases",
+                "repository": "L3-M/GeneralsControlBar",
+                "channel": "stable",
+                "variantAxis": "resolution",
+                "assetRules": [
+                    {
+                        "pattern": "1280x720.*\\.zip$",
+                        "variant": "720p",
+                        "isDefault": false,
+                        "targetGame": 1
+                    },
+                    {
+                        "pattern": "1600x900.*\\.zip$",
+                        "variant": "900p",
+                        "isDefault": false,
+                        "targetGame": 1
+                    },
+                    {
+                        "pattern": "1920x1080.*\\.zip$",
+                        "variant": "1080p",
+                        "isDefault": true,
+                        "targetGame": 1
+                    },
+                    {
+                        "pattern": "2560x1440.*\\.zip$",
+                        "variant": "1440p",
+                        "isDefault": false,
+                        "targetGame": 1
+                    },
+                    {
+                        "pattern": "3840x2160.*\\.zip$",
+                        "variant": "4K",
+                        "isDefault": false,
+                        "targetGame": 1
+                    }
+                ]
+            }
         },
         {
             "id": "leikeze-hotkeys",
@@ -285,7 +323,12 @@
                         }
                     ]
                 }
-            ]
+            ],
+            "upstreamSync": {
+                "provider": "CommunityOutpost",
+                "contentCode": "hlei",
+                "variantAxis": "language"
+            }
         },
         {
             "id": "eliorata-improved-menus",
@@ -349,7 +392,33 @@
                         }
                     ]
                 }
-            ]
+            ],
+            "upstreamSync": {
+                "provider": "GitHubReleases",
+                "repository": "ElTioRata/ImprovedMenus",
+                "channel": "stable",
+                "variantAxis": "language",
+                "assetRules": [
+                    {
+                        "pattern": "0_ImprovedMenusEnglish\\.zip$",
+                        "variant": "English",
+                        "isDefault": true,
+                        "targetGame": 1
+                    },
+                    {
+                        "pattern": "0_ImprovedMenusRussian\\.zip$",
+                        "variant": "Russian",
+                        "isDefault": false,
+                        "targetGame": 1
+                    },
+                    {
+                        "pattern": "0_ImprovedMenusSpanish\\.zip$",
+                        "variant": "Spanish",
+                        "isDefault": false,
+                        "targetGame": 1
+                    }
+                ]
+            }
         },
         {
             "id": "thesuperhackers-competitive-bundle",
@@ -394,7 +463,7 @@
                 },
                 {
                     "contentId": "leikeze-hotkeys",
-                    "versionConstraint": ">= 2026.07.01",
+                    "versionConstraint": "latest",
                     "isOptional": false,
                     "defaultVariant": "English",
                     "allowedVariantAxes": [
@@ -408,6 +477,53 @@
                     "defaultVariant": "English",
                     "allowedVariantAxes": [
                         "language"
+                    ]
+                }
+            ],
+            "releases": [
+                {
+                    "version": "1.0.0",
+                    "releaseDate": "2026-07-10T00:00:00Z",
+                    "isLatest": true,
+                    "isPrerelease": false,
+                    "changelog": "TheSuperHackers Pro Competitive Suite: latest engine, L3M control bar, Leikeze hotkeys, and improved menus.",
+                    "artifacts": [],
+                    "dependencies": [
+                        {
+                            "contentId": "thesuperhackers-client",
+                            "isOptional": false,
+                            "defaultVariant": "Zero Hour",
+                            "allowedVariantAxes": [
+                                "game-type"
+                            ]
+                        },
+                        {
+                            "contentId": "l3m-controlbar",
+                            "versionConstraint": ">= 1.3",
+                            "isOptional": false,
+                            "defaultVariant": "1080p",
+                            "allowedVariantAxes": [
+                                "resolution"
+                            ]
+                        },
+                        {
+                            "contentId": "leikeze-hotkeys",
+                            "versionConstraint": "latest",
+                            "isOptional": false,
+                            "defaultVariant": "English",
+                            "allowedVariantAxes": [
+                                "language"
+                            ]
+                        },
+                        {
+                            "contentId": "eliorata-improved-menus",
+                            "versionConstraint": ">= 1.3",
+                            "isOptional": false,
+                            "defaultVariant": "English",
+                            "allowedVariantAxes": [
+                                "language"
+                            ]
+                        }
                     ]
                 }
             ]
@@ -452,7 +568,7 @@
                 },
                 {
                     "contentId": "leikeze-hotkeys",
-                    "versionConstraint": ">= 2026.07.01",
+                    "versionConstraint": "latest",
                     "isOptional": false,
                     "defaultVariant": "English",
                     "allowedVariantAxes": [
@@ -466,6 +582,49 @@
                     "defaultVariant": "English",
                     "allowedVariantAxes": [
                         "language"
+                    ]
+                }
+            ],
+            "releases": [
+                {
+                    "version": "1.0.0",
+                    "releaseDate": "2026-08-13T00:00:00Z",
+                    "isLatest": true,
+                    "isPrerelease": false,
+                    "changelog": "Generals Online Matchmaking Pro Suite: 60Hz ladder client, L3M control bar, Leikeze hotkeys, and improved menus.",
+                    "artifacts": [],
+                    "dependencies": [
+                        {
+                            "contentId": "generalsonline-client",
+                            "isOptional": false
+                        },
+                        {
+                            "contentId": "l3m-controlbar",
+                            "versionConstraint": ">= 1.3",
+                            "isOptional": false,
+                            "defaultVariant": "1080p",
+                            "allowedVariantAxes": [
+                                "resolution"
+                            ]
+                        },
+                        {
+                            "contentId": "leikeze-hotkeys",
+                            "versionConstraint": "latest",
+                            "isOptional": false,
+                            "defaultVariant": "English",
+                            "allowedVariantAxes": [
+                                "language"
+                            ]
+                        },
+                        {
+                            "contentId": "eliorata-improved-menus",
+                            "versionConstraint": ">= 1.3",
+                            "isOptional": false,
+                            "defaultVariant": "English",
+                            "allowedVariantAxes": [
+                                "language"
+                            ]
+                        }
                     ]
                 }
             ]
@@ -513,7 +672,7 @@
                 },
                 {
                     "contentId": "leikeze-hotkeys",
-                    "versionConstraint": ">= 2026.07.01",
+                    "versionConstraint": "latest",
                     "isOptional": false,
                     "defaultVariant": "English",
                     "allowedVariantAxes": [
@@ -527,6 +686,53 @@
                     "defaultVariant": "English",
                     "allowedVariantAxes": [
                         "language"
+                    ]
+                }
+            ],
+            "releases": [
+                {
+                    "version": "1.0.0",
+                    "releaseDate": "2026-07-01T00:00:00Z",
+                    "isLatest": true,
+                    "isPrerelease": false,
+                    "changelog": "Community Outpost Standardized Tournament Suite: GenPatcher client, L3M control bar, Leikeze hotkeys, and improved menus.",
+                    "artifacts": [],
+                    "dependencies": [
+                        {
+                            "contentId": "community-patch-client",
+                            "isOptional": false,
+                            "defaultVariant": "Retail Compatible",
+                            "allowedVariantAxes": [
+                                "compatibility"
+                            ]
+                        },
+                        {
+                            "contentId": "l3m-controlbar",
+                            "versionConstraint": ">= 1.3",
+                            "isOptional": false,
+                            "defaultVariant": "1080p",
+                            "allowedVariantAxes": [
+                                "resolution"
+                            ]
+                        },
+                        {
+                            "contentId": "leikeze-hotkeys",
+                            "versionConstraint": "latest",
+                            "isOptional": false,
+                            "defaultVariant": "English",
+                            "allowedVariantAxes": [
+                                "language"
+                            ]
+                        },
+                        {
+                            "contentId": "eliorata-improved-menus",
+                            "versionConstraint": ">= 1.3",
+                            "isOptional": false,
+                            "defaultVariant": "English",
+                            "allowedVariantAxes": [
+                                "language"
+                            ]
+                        }
                     ]
                 }
             ]

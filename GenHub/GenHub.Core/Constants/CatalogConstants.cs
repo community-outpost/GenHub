@@ -226,6 +226,21 @@ public static class CatalogConstants
     public const string ResolutionVariantAxis = "resolution";
 
     /// <summary>
+    /// Variant axis name for localization language.
+    /// </summary>
+    public const string LanguageVariantAxis = "language";
+
+    /// <summary>
+    /// Variant axis name for content edition.
+    /// </summary>
+    public const string EditionVariantAxis = "edition";
+
+    /// <summary>
+    /// Default accent color for featured content cards (gold, #F59E0B).
+    /// </summary>
+    public const string FeaturedDefaultColor = "#F59E0B";
+
+    /// <summary>
     /// Variant label for Command &amp; Conquer Generals.
     /// </summary>
     public const string GeneralsVariantLabel = "Generals";
@@ -309,6 +324,17 @@ public static class CatalogConstants
     /// Status badge color for an up-to-date published catalog (#10B981).
     /// </summary>
     public const string CatalogStatusPublishedColor = "#10B981";
+
+    /// <summary>
+    /// Well-known variant axes offered in publisher UI dropdowns.
+    /// </summary>
+    public static readonly IReadOnlyList<string> KnownVariantAxes =
+    [
+        GameTypeVariantAxis,
+        ResolutionVariantAxis,
+        LanguageVariantAxis,
+        EditionVariantAxis,
+    ];
 
     /// <summary>
     /// Well-known upstream sync provider identifiers.

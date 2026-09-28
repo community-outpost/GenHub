@@ -440,6 +440,32 @@ public sealed class JsonPublisherCatalogParserTests
     }
 
     /// <summary>
+    /// Addon seeds must track their live upstreams instead of shipping hardcoded
+    /// artifacts only, so players always receive the newest published files.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ParseCatalogAsync_SampleCatalogs_AddonsTrackUpstreamAsync()
+    {
+        var parser = new JsonPublisherCatalogParser(NullLogger<JsonPublisherCatalogParser>.Instance);
+        foreach (var path in new[] { FindSampleCatalogPath(), FindCommunityCompetitiveCatalogPath() })
+        {
+            Assert.True(File.Exists(path), $"Sample catalog not found at {path}");
+            var result = await parser.ParseCatalogAsync(await File.ReadAllTextAsync(path));
+            Assert.True(result.Success, string.Join("; ", result.Errors));
+
+            var content = result.Data!.Content;
+            AssertUpstream(content, "l3m-controlbar", CatalogConstants.UpstreamProviders.GitHubReleases, "L3-M/GeneralsControlBar");
+            AssertUpstream(content, "eliorata-improved-menus", CatalogConstants.UpstreamProviders.GitHubReleases, "ElTioRata/ImprovedMenus");
+
+            var leikeze = Assert.Single(content, c => c.Id == "leikeze-hotkeys");
+            Assert.NotNull(leikeze.UpstreamSync);
+            Assert.Equal(CatalogConstants.UpstreamProviders.CommunityOutpost, leikeze.UpstreamSync.Provider);
+            Assert.Equal("hlei", leikeze.UpstreamSync.ContentCode);
+        }
+    }
+
+    /// <summary>
     /// Upstream GitHub items with whitespace in owner or repository identifier must fail validation.
     /// </summary>
     /// <param name="invalidRepo">The invalid repository string with whitespace.</param>
@@ -477,6 +503,19 @@ public sealed class JsonPublisherCatalogParserTests
 
         Assert.False(result.Success);
         Assert.Contains(result.Errors, e => e.Contains("must declare a valid repository in 'owner/repo' format", StringComparison.Ordinal));
+    }
+
+    private static void AssertUpstream(
+        System.Collections.Generic.IReadOnlyList<CatalogContentItem> content,
+        string id,
+        string provider,
+        string repository)
+    {
+        var item = Assert.Single(content, c => c.Id == id);
+        Assert.NotNull(item.UpstreamSync);
+        Assert.Equal(provider, item.UpstreamSync.Provider);
+        Assert.Equal(repository, item.UpstreamSync.Repository);
+        Assert.NotEmpty(item.UpstreamSync.AssetRules);
     }
 
     private static string FindDominatorMappacksCatalogPath()

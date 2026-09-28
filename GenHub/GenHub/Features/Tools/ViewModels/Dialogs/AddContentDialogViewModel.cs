@@ -1,3 +1,4 @@
+using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.Validation;
@@ -219,6 +220,9 @@ public partial class AddContentDialogViewModel(
     ];
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowUpstreamRepository))]
+    [NotifyPropertyChangedFor(nameof(ShowUpstreamChannel))]
+    [NotifyPropertyChangedFor(nameof(ShowUpstreamContentCode))]
     private string _selectedUpstreamProvider = CatalogConstants.UpstreamProviders.TheSuperHackers;
 
     [ObservableProperty]
@@ -228,26 +232,43 @@ public partial class AddContentDialogViewModel(
     private string? _upstreamChannel = "stable";
 
     [ObservableProperty]
-    private string? _upstreamVariantAxis = "game-type";
+    private string? _upstreamContentCode;
 
     /// <summary>
-    /// Gets predefined common variant axes for autocompletion.
+    /// Gets the variant-axis picker for upstream releases.
     /// </summary>
-    public IReadOnlyList<string> CommonVariantAxes { get; } =
-    [
-        "game-type",
-        "resolution",
-        "language",
-        "edition",
-        "channel",
-        "platform",
-    ];
+    public VariantAxisSelector UpstreamVariantAxisSelector { get; } = new(localizationService, CatalogConstants.GameTypeVariantAxis);
+
+    /// <summary>
+    /// Gets a value indicating whether the repository field applies to the selected provider (GitHub-backed providers).
+    /// </summary>
+    public bool ShowUpstreamRepository => IsGitHubFamilyProvider(SelectedUpstreamProvider);
+
+    /// <summary>
+    /// Gets a value indicating whether the release-channel field applies to the selected provider (GitHub-backed providers).
+    /// </summary>
+    public bool ShowUpstreamChannel => IsGitHubFamilyProvider(SelectedUpstreamProvider);
+
+    /// <summary>
+    /// Gets a value indicating whether the feed content-code field applies to the selected provider (catalog-backed providers).
+    /// </summary>
+    public bool ShowUpstreamContentCode => !IsGitHubFamilyProvider(SelectedUpstreamProvider);
 
     [ObservableProperty]
     private bool _isFeatured;
 
     [ObservableProperty]
     private string? _featuredBadge = localizationService?.GetString("Tools.PublisherStudio.Content.FeaturedBadgePlaceholder") ?? "★ FEATURED BUNDLE";
+
+    /// <summary>
+    /// Gets or sets the featured accent color as a <see cref="Color"/> for the color picker.
+    /// Synchronized with <see cref="AccentColor"/>; defaults to gold when unset.
+    /// </summary>
+    public Color FeaturedColor
+    {
+        get => Color.TryParse(AccentColor, out var color) ? color : Color.Parse(CatalogConstants.FeaturedDefaultColor);
+        set => AccentColor = $"#{value.R:X2}{value.G:X2}{value.B:X2}";
+    }
 
     /// <summary>
     /// Gets a value indicating whether the current content type is ContentBundle.
@@ -279,6 +300,7 @@ public partial class AddContentDialogViewModel(
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasValidAccentColor))]
+    [NotifyPropertyChangedFor(nameof(FeaturedColor))]
     private string? _accentColor;
 
     /// <summary>
@@ -432,12 +454,12 @@ public partial class AddContentDialogViewModel(
         if (existing.UpstreamSync != null)
         {
             IsUpstreamSource = true;
-            SelectedUpstreamProvider = string.IsNullOrWhiteSpace(existing.UpstreamSync.Provider)
-                ? CatalogConstants.UpstreamProviders.TheSuperHackers
-                : existing.UpstreamSync.Provider;
+            SelectedUpstreamProvider = CatalogConstants.UpstreamProviders.Normalize(existing.UpstreamSync.Provider)
+                ?? CatalogConstants.UpstreamProviders.TheSuperHackers;
             UpstreamRepository = existing.UpstreamSync.Repository;
             UpstreamChannel = existing.UpstreamSync.Channel;
-            UpstreamVariantAxis = existing.UpstreamSync.VariantAxis;
+            UpstreamContentCode = existing.UpstreamSync.ContentCode;
+            UpstreamVariantAxisSelector.SetValue(existing.UpstreamSync.VariantAxis);
         }
 
         if (existing.ContentType == ContentType.ContentBundle)
@@ -951,8 +973,17 @@ public partial class AddContentDialogViewModel(
             VariantAxis = source.VariantAxis,
             Variant = source.Variant,
             IsDefaultVariant = source.IsDefaultVariant,
+            TargetGame = source.TargetGame,
+            EntryPoint = source.EntryPoint,
             LocalFilePath = source.LocalFilePath,
         };
+    }
+
+    private static bool IsGitHubFamilyProvider(string? provider)
+    {
+        var normalized = CatalogConstants.UpstreamProviders.Normalize(provider);
+        return string.Equals(normalized, CatalogConstants.UpstreamProviders.GitHubReleases, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(normalized, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase);
     }
 
     private static CatalogDependency CloneDependency(CatalogDependency source)
@@ -1811,8 +1842,22 @@ public partial class AddContentDialogViewModel(
                 Provider = SelectedUpstreamProvider,
                 Repository = UpstreamRepository,
                 Channel = UpstreamChannel,
-                VariantAxis = UpstreamVariantAxis,
+                VariantAxis = UpstreamVariantAxisSelector.EffectiveValue,
+                ContentCode = string.IsNullOrWhiteSpace(UpstreamContentCode) ? null : UpstreamContentCode.Trim(),
             };
+
+            // The dialog has no asset-rule editor, so editing must never drop rules loaded from JSON.
+            if (IsEditMode && _existingItem?.UpstreamSync?.AssetRules is { Count: > 0 } existingRules)
+            {
+                contentItem.UpstreamSync.AssetRules = existingRules.Select(rule => new CatalogUpstreamAssetRule
+                {
+                    Pattern = rule.Pattern,
+                    Variant = rule.Variant,
+                    IsDefault = rule.IsDefault,
+                    TargetGame = rule.TargetGame,
+                }).ToList();
+            }
+
             contentItem.PublisherType = SelectedUpstreamProvider switch
             {
                 CatalogConstants.UpstreamProviders.TheSuperHackers => "thesuperhackers",
@@ -1865,6 +1910,11 @@ public partial class AddContentDialogViewModel(
         else
         {
             CopyFromExistingItem(contentItem);
+        }
+
+        if (SelectedContentType == ContentType.ContentBundle)
+        {
+            MirrorBundleComponentsIntoReleases(contentItem);
         }
 
         onContentCreated(contentItem);
@@ -2174,6 +2224,23 @@ public partial class AddContentDialogViewModel(
         }
     }
 
+    private void MirrorBundleComponentsIntoReleases(CatalogContentItem contentItem)
+    {
+        // Bundle membership has a single source of truth (the component matrix) but two
+        // serialized views: item-level BundledItems and per-release dependencies. Mirroring
+        // keeps manually created bundles identical to JSON-authored ones in the Releases tab
+        // and on the downloads side, which prefers release dependencies.
+        if (contentItem.Releases.Count == 0)
+        {
+            AttachInitialBundleRelease(contentItem);
+        }
+
+        foreach (var release in contentItem.Releases)
+        {
+            release.Dependencies = contentItem.BundledItems.Select(CloneDependency).ToList();
+        }
+    }
+
     private void AttachInitialBundleRelease(CatalogContentItem contentItem)
     {
         var bundleVersion = string.IsNullOrWhiteSpace(InitialVersion) ? "1.0.0" : InitialVersion.Trim();
@@ -2311,6 +2378,14 @@ public partial class AddContentDialogViewModel(
         foreach (var addon in _existingItem.Addons)
         {
             contentItem.Addons.Add(CloneDependency(addon));
+        }
+    }
+
+    partial void OnIsFeaturedChanged(bool value)
+    {
+        if (value && !HasValidAccentColor)
+        {
+            AccentColor = CatalogConstants.FeaturedDefaultColor;
         }
     }
 
