@@ -54,38 +54,46 @@ public class SetupWizardService(
             : [];
 
         // 2. Determine Scenarios for each component across all installations
+        static bool IsCpRetailClient(GameClient c) =>
+            c.PublisherType == CommunityOutpostConstants.PublisherType &&
+            !CommunityOutpostConstants.IsBaseGameIdentifier(c.Id) &&
+            !CommunityOutpostConstants.IsBaseGameIdentifier(c.Name) &&
+            !CommunityOutpostConstants.IsNonRetailIdentifier(c.Id) &&
+            !CommunityOutpostConstants.IsNonRetailIdentifier(c.Name);
+
+        static bool IsCpNonRetClient(GameClient c) =>
+            c.PublisherType == CommunityOutpostConstants.PublisherType &&
+            !CommunityOutpostConstants.IsBaseGameIdentifier(c.Id) &&
+            !CommunityOutpostConstants.IsBaseGameIdentifier(c.Name) &&
+            (CommunityOutpostConstants.IsNonRetailIdentifier(c.Id) ||
+             CommunityOutpostConstants.IsNonRetailIdentifier(c.Name));
+
+        static bool IsGeneralsOnlineClient(GameClient c) => c.PublisherType == PublisherTypeConstants.GeneralsOnline;
+
+        static bool IsSuperHackersClient(GameClient c) => c.PublisherType == PublisherTypeConstants.TheSuperHackers;
+
         var cpRetailGlobal = installationsList.Select(inst => new
         {
             Inst = inst,
-            Client = SelectClient(inst, c =>
-                c.PublisherType == CommunityOutpostConstants.PublisherType &&
-                !CommunityOutpostConstants.IsBaseGameIdentifier(c.Id) &&
-                !CommunityOutpostConstants.IsBaseGameIdentifier(c.Name) &&
-                !CommunityOutpostConstants.IsNonRetailIdentifier(c.Id) &&
-                !CommunityOutpostConstants.IsNonRetailIdentifier(c.Name)),
+            Client = SelectClient(inst, IsCpRetailClient),
         }).Where(x => x.Client != null).ToList();
 
         var cpNonRetGlobal = installationsList.Select(inst => new
         {
             Inst = inst,
-            Client = SelectClient(inst, c =>
-                c.PublisherType == CommunityOutpostConstants.PublisherType &&
-                !CommunityOutpostConstants.IsBaseGameIdentifier(c.Id) &&
-                !CommunityOutpostConstants.IsBaseGameIdentifier(c.Name) &&
-                (CommunityOutpostConstants.IsNonRetailIdentifier(c.Id) ||
-                 CommunityOutpostConstants.IsNonRetailIdentifier(c.Name))),
+            Client = SelectClient(inst, IsCpNonRetClient),
         }).Where(x => x.Client != null).ToList();
 
         var goGlobal = installationsList.Select(inst => new
         {
             Inst = inst,
-            Client = SelectClient(inst, c => c.PublisherType == PublisherTypeConstants.GeneralsOnline),
+            Client = SelectClient(inst, IsGeneralsOnlineClient),
         }).Where(x => x.Client != null).ToList();
 
         var shGlobal = installationsList.Select(inst => new
         {
             Inst = inst,
-            Client = SelectClient(inst, c => c.PublisherType == PublisherTypeConstants.TheSuperHackers),
+            Client = SelectClient(inst, IsSuperHackersClient),
         }).Where(x => x.Client != null).ToList();
 
         // 3. Collection Phase: Build Wizard Items
@@ -116,8 +124,7 @@ public class SetupWizardService(
                 .Select(x => x.Inst as GameInstallation)
                 .OfType<GameInstallation>()
                 .SelectMany(inst => inst.AvailableGameClients)
-                .Where(c => string.Equals(c.PublisherType, config.PublisherType, StringComparison.OrdinalIgnoreCase) &&
-                            PublisherProfileOrchestrator.IsHostNativeClient(c))
+                .Where(c => config.ClientFilter(c) && PublisherProfileOrchestrator.IsHostNativeClient(c))
                 .ToList();
             if (nativeClients.Count > 0)
             {
@@ -333,6 +340,7 @@ public class SetupWizardService(
         {
             PublisherType = CommunityOutpostConstants.PublisherType,
             ComponentGlobal = cpRetailGlobal,
+            ClientFilter = IsCpRetailClient,
             LatestVersion = cpRetailCleanVersion,
             Title = "Community Patch (Retail)",
             MissingDescription = cpRetailDescription,
@@ -348,6 +356,7 @@ public class SetupWizardService(
         {
             PublisherType = CommunityOutpostConstants.PublisherType,
             ComponentGlobal = cpNonRetGlobal,
+            ClientFilter = IsCpNonRetClient,
             LatestVersion = cpNonRetCleanVersion,
             Title = "Community Patch (Non-Retail)",
             MissingDescription = cpNonRetDescription,
@@ -364,6 +373,7 @@ public class SetupWizardService(
         {
             PublisherType = PublisherTypeConstants.GeneralsOnline,
             ComponentGlobal = goGlobal,
+            ClientFilter = IsGeneralsOnlineClient,
             LatestVersion = goCleanVersion,
             Title = "Generals Online",
             MissingDescription = string.IsNullOrEmpty(goCleanVersion) ? "Download and install Generals Online." : $"Download and install Generals Online {goCleanVersion}.",
@@ -378,6 +388,7 @@ public class SetupWizardService(
         {
             PublisherType = PublisherTypeConstants.TheSuperHackers,
             ComponentGlobal = shGlobal,
+            ClientFilter = IsSuperHackersClient,
             LatestVersion = shCleanVersion,
             Title = "TheSuperHackers",
             MissingDescription = string.IsNullOrEmpty(shCleanVersion) ? "Download and install TheSuperHackers." : $"Download and install TheSuperHackers {shCleanVersion}.",
@@ -594,6 +605,9 @@ public class SetupWizardService(
 
         /// <summary>Gets the collection of globally available clients for this component.</summary>
         public required System.Collections.IEnumerable ComponentGlobal { get; init; }
+
+        /// <summary>Gets the predicate that selects this component's clients in an installation.</summary>
+        public required Func<GameClient, bool> ClientFilter { get; init; }
 
         /// <summary>Gets the latest discovered version string.</summary>
         public required string LatestVersion { get; init; }

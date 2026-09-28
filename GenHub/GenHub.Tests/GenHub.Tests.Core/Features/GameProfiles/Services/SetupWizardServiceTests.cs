@@ -723,6 +723,90 @@ public class SetupWizardServiceTests
         }
     }
 
+    /// <summary>
+    /// Verifies that a native non-retail Community Patch client on macOS or Linux is offered only
+    /// under the non-retail component, not also under the retail one.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RunSetupWizardAsync_WhenNativeNonRetailCommunityPatchDetected_OffersOnlyNonRetailAsync()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var directory = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"GenHub.Wizard.{Guid.NewGuid():N}")).FullName;
+        try
+        {
+            const string nonRetClientId = "1.0.communityoutpost.gameclient.nonret";
+            var executablePath = Path.Combine(directory, "generalszh-nonret");
+            await File.WriteAllBytesAsync(executablePath, HostNativeExecutableHeader());
+            const string retailClientId = "1.0.communityoutpost.gameclient.retail";
+            var retailExecutablePath = Path.Combine(directory, "generalszh-retail.exe");
+            await File.WriteAllBytesAsync(retailExecutablePath, [0x4D, 0x5A, 0x90, 0x00, 0x03, 0x00, 0x00, 0x00]);
+
+            _goDiscovererMock
+                .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult { Items = [] }));
+            _cpDiscovererMock
+                .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult { Items = [] }));
+            _manifestPoolMock
+                .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+            _profileServiceMock
+                .Setup(s => s.ProfileExistsForGameClientAsync(nonRetClientId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(false);
+
+            var installation = new GameInstallation(directory, GameInstallationType.Retail, null);
+            installation.AvailableGameClients =
+            [
+                new GameClient
+                {
+                    Id = nonRetClientId,
+                    InstallationId = installation.Id,
+                    Name = "Community Patch Non-Retail",
+                    PublisherType = CommunityOutpostConstants.PublisherType,
+                    GameType = GameType.ZeroHour,
+                    Version = GameClientConstants.UnknownVersion,
+                    ExecutablePath = executablePath,
+                },
+                new GameClient
+                {
+                    Id = retailClientId,
+                    InstallationId = installation.Id,
+                    Name = "Community Patch",
+                    PublisherType = CommunityOutpostConstants.PublisherType,
+                    GameType = GameType.ZeroHour,
+                    Version = GameClientConstants.UnknownVersion,
+                    ExecutablePath = retailExecutablePath,
+                },
+            ];
+
+            var service = CreateService();
+            SetupWizardViewModel? capturedVm = null;
+            service.DialogShower = vm =>
+            {
+                capturedVm = vm;
+                vm.ConfirmCommand.Execute(null);
+                return Task.FromResult(true);
+            };
+
+            var result = await service.RunSetupWizardAsync([installation], CancellationToken.None);
+
+            var retailItem = capturedVm?.Items.FirstOrDefault(i => i.Title == "Community Patch (Retail)");
+            var nonRetItem = capturedVm?.Items.FirstOrDefault(i => i.Title == "Community Patch (Non-Retail)");
+            Assert.Equal(GameClientConstants.WizardActionTypes.CreateProfile, nonRetItem?.ActionType);
+            Assert.NotEqual(GameClientConstants.WizardActionTypes.CreateProfile, retailItem?.ActionType);
+            Assert.NotEqual(GameClientConstants.WizardActionTypes.CreateProfile, result.CommunityPatchAction);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
     private static byte[] HostNativeExecutableHeader() => OperatingSystem.IsLinux()
         ? [0x7F, 0x45, 0x4C, 0x46, 0x02, 0x01, 0x01, 0x00]
         : [0xCF, 0xFA, 0xED, 0xFE, 0x0C, 0x00, 0x00, 0x01];
