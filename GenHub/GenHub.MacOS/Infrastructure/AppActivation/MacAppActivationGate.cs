@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using static GenHub.MacOS.Infrastructure.AppActivation.ObjCRuntime;
 
 namespace GenHub.MacOS.Infrastructure.AppActivation;
 
@@ -21,7 +22,6 @@ namespace GenHub.MacOS.Infrastructure.AppActivation;
 [SupportedOSPlatform("macos")]
 internal static class MacAppActivationGate
 {
-    private const string ObjCLibrary = "/usr/lib/libobjc.A.dylib";
     private const string AppBundleExecutableMarker = ".app/Contents/MacOS/";
     private const double RecentInputWindowSeconds = 1.0;
 
@@ -243,44 +243,4 @@ internal static class MacAppActivationGate
             SendDouble(currentEvent, RegisterSelector("timestamp")),
             SendDouble(processInfo, RegisterSelector("systemUptime")));
     }
-
-    private static IntPtr GetSharedApplication() =>
-        SendIntPtr(GetClass("NSApplication"), RegisterSelector("sharedApplication"));
-
-    [DllImport(ObjCLibrary, EntryPoint = "objc_getClass")]
-    private static extern IntPtr GetClass(string name);
-
-    [DllImport(ObjCLibrary, EntryPoint = "sel_registerName")]
-    private static extern IntPtr RegisterSelector(string name);
-
-    [DllImport(ObjCLibrary, EntryPoint = "object_getClass")]
-    private static extern IntPtr GetObjectClass(IntPtr obj);
-
-    [DllImport(ObjCLibrary, EntryPoint = "class_getInstanceMethod")]
-    private static extern IntPtr GetInstanceMethod(IntPtr cls, IntPtr selector);
-
-    [DllImport(ObjCLibrary, EntryPoint = "method_getImplementation")]
-    private static extern IntPtr GetMethodImplementation(IntPtr method);
-
-    [DllImport(ObjCLibrary, EntryPoint = "method_getTypeEncoding")]
-    private static extern IntPtr GetMethodTypeEncoding(IntPtr method);
-
-    [DllImport(ObjCLibrary, EntryPoint = "class_replaceMethod")]
-    private static extern IntPtr ReplaceMethod(IntPtr cls, IntPtr selector, IntPtr implementation, IntPtr types);
-
-    [DllImport(ObjCLibrary, EntryPoint = "objc_msgSend")]
-    private static extern IntPtr SendIntPtr(IntPtr receiver, IntPtr selector);
-
-    [DllImport(ObjCLibrary, EntryPoint = "objc_msgSend")]
-    [return: MarshalAs(UnmanagedType.I1)]
-    private static extern bool SendBool(IntPtr receiver, IntPtr selector);
-
-    [DllImport(ObjCLibrary, EntryPoint = "objc_msgSend")]
-    private static extern int SendInt32(IntPtr receiver, IntPtr selector);
-
-    [DllImport(ObjCLibrary, EntryPoint = "objc_msgSend")]
-    private static extern ulong SendUInt64(IntPtr receiver, IntPtr selector);
-
-    [DllImport(ObjCLibrary, EntryPoint = "objc_msgSend")]
-    private static extern double SendDouble(IntPtr receiver, IntPtr selector);
 }

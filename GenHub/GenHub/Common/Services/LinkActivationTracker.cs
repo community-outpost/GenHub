@@ -8,47 +8,53 @@ namespace GenHub.Common.Services;
 /// <summary>
 /// In-memory implementation of <see cref="ILinkActivationTracker"/>.
 /// </summary>
-/// <param name="launchLinkWait">How long <see cref="WaitForLaunchLinkAsync"/> waits for a link that arrives after startup.</param>
-public sealed class LinkActivationTracker(TimeSpan launchLinkWait) : ILinkActivationTracker
+/// <remarks>
+/// On macOS a link that cold starts GenHub arrives as an Apple Event while AppKit finishes launching,
+/// so the macOS host marks the launch finished from AppKit's launch callback. Other platforms pass
+/// links as startup arguments, so their launch counts as finished immediately.
+/// </remarks>
+public sealed class LinkActivationTracker : ILinkActivationTracker, IDisposable
 {
-    /// <summary>
-    /// How long to wait on macOS, where a link that cold starts GenHub arrives as an Apple Event once the app finishes launching.
-    /// </summary>
-    public static readonly TimeSpan MacLaunchLinkWait = TimeSpan.FromSeconds(1.5);
-
-    private readonly TaskCompletionSource _linkReceived = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly CancellationTokenSource _linkReceived = new();
+    private readonly TaskCompletionSource _launchFinished = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="LinkActivationTracker"/> class with the wait for the current platform.
+    /// Initializes a new instance of the <see cref="LinkActivationTracker"/> class.
     /// </summary>
     public LinkActivationTracker()
-        : this(OperatingSystem.IsMacOS() ? MacLaunchLinkWait : TimeSpan.Zero)
     {
+        if (!OperatingSystem.IsMacOS())
+        {
+            MarkLaunchFinished();
+        }
     }
 
     /// <inheritdoc/>
-    public bool HasReceivedLink => _linkReceived.Task.IsCompleted;
+    public bool HasReceivedLink => _linkReceived.IsCancellationRequested;
 
     /// <inheritdoc/>
-    public void RecordLink() => _linkReceived.TrySetResult();
+    public CancellationToken LinkReceivedToken => _linkReceived.Token;
 
     /// <inheritdoc/>
-    public async Task<bool> WaitForLaunchLinkAsync(CancellationToken cancellationToken)
+    public void RecordLink()
     {
-        if (HasReceivedLink || launchLinkWait <= TimeSpan.Zero)
-        {
-            return HasReceivedLink;
-        }
-
         try
         {
-            await _linkReceived.Task.WaitAsync(launchLinkWait, cancellationToken).ConfigureAwait(false);
+            _linkReceived.Cancel();
         }
-        catch (TimeoutException)
+        catch (ObjectDisposedException)
         {
-            // No link arrived during the launch window.
+            // The session is shutting down.
         }
-
-        return HasReceivedLink;
     }
+
+    /// <inheritdoc/>
+    public void MarkLaunchFinished() => _launchFinished.TrySetResult();
+
+    /// <inheritdoc/>
+    public Task WaitForLaunchFinishedAsync(CancellationToken cancellationToken) =>
+        _launchFinished.Task.WaitAsync(cancellationToken);
+
+    /// <inheritdoc/>
+    public void Dispose() => _linkReceived.Dispose();
 }

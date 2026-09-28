@@ -14,15 +14,24 @@ public interface ILinkActivationTracker
     bool HasReceivedLink { get; }
 
     /// <summary>
+    /// Gets a token that is canceled when a link is received.
+    /// </summary>
+    CancellationToken LinkReceivedToken { get; }
+
+    /// <summary>
     /// Records that a link was received.
     /// </summary>
     void RecordLink();
 
     /// <summary>
-    /// Waits for a link that the operating system delivers after startup, such as the Apple Event of a macOS cold start from a link.
-    /// Completes as soon as a link is received or once the platform's launch link window has passed.
+    /// Records that the operating system has finished launching GenHub and has delivered any link that started it.
+    /// </summary>
+    void MarkLaunchFinished();
+
+    /// <summary>
+    /// Waits until the operating system has finished launching GenHub.
     /// </summary>
     /// <param name="cancellationToken">A token that cancels the wait.</param>
-    /// <returns><see langword="true"/> when a link has been received.</returns>
-    Task<bool> WaitForLaunchLinkAsync(CancellationToken cancellationToken);
+    /// <returns>A task that completes once launching has finished.</returns>
+    Task WaitForLaunchFinishedAsync(CancellationToken cancellationToken);
 }

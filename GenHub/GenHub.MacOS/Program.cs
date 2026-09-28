@@ -1,5 +1,6 @@
 using Avalonia;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Infrastructure.DependencyInjection;
 using GenHub.MacOS.Infrastructure.AppActivation;
 using GenHub.MacOS.Infrastructure.DependencyInjection;
@@ -50,8 +51,11 @@ public static class Program
             using var serviceProvider = services.BuildServiceProvider();
             AppLocator.Services = serviceProvider;
 
-            var activationLogger = serviceProvider.GetService<ILoggerFactory>()?.CreateLogger(typeof(MacAppActivationGate).FullName!);
+            var loggerFactory = serviceProvider.GetService<ILoggerFactory>();
+            var activationLogger = loggerFactory?.CreateLogger(typeof(MacAppActivationGate).FullName!);
+            var launchLogger = loggerFactory?.CreateLogger(typeof(MacLaunchCompletionHook).FullName!);
             BuildAvaloniaApp(serviceProvider)
+                .AfterSetup(_ => MacLaunchCompletionHook.Install(serviceProvider.GetRequiredService<ILinkActivationTracker>(), launchLogger))
                 .AfterSetup(_ => MacAppActivationGate.Install(Environment.ProcessPath, activationLogger))
                 .StartWithClassicDesktopLifetime(args);
         }

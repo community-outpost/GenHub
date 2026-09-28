@@ -272,10 +272,14 @@ public partial class MainViewModel(
             {
                 try
                 {
-                    if (linkActivationTracker != null && await linkActivationTracker.WaitForLaunchLinkAsync(cancellationToken))
+                    if (linkActivationTracker != null)
                     {
-                        logger?.LogInformation("Deferring the Getting Started dialog because this session was opened to handle a link");
-                        return;
+                        await linkActivationTracker.WaitForLaunchFinishedAsync(cancellationToken);
+                        if (linkActivationTracker.HasReceivedLink)
+                        {
+                            logger?.LogInformation("Deferring the Getting Started dialog because this session was opened to handle a link");
+                            return;
+                        }
                     }
                 }
                 catch (OperationCanceledException)
@@ -316,11 +320,27 @@ public partial class MainViewModel(
 
                 var title = localizationService?.GetString("GettingStarted.Title") ?? "Getting Started";
 
-                var result = await dialogService.ShowMessageAsync(
-                    title,
-                    content,
-                    actions,
-                    showDoNotAskAgain: true);
+                var linkReceived = linkActivationTracker?.LinkReceivedToken ?? CancellationToken.None;
+                using var dialogCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, linkReceived);
+                (DialogAction? Action, bool DoNotAskAgain) result;
+                try
+                {
+                    result = await dialogService.ShowMessageAsync(
+                        title,
+                        content,
+                        actions,
+                        showDoNotAskAgain: true,
+                        dialogCts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    if (linkReceived.IsCancellationRequested)
+                    {
+                        logger?.LogInformation("Closed the Getting Started dialog because a link arrived");
+                    }
+
+                    return;
+                }
 
                 if (result.DoNotAskAgain)
                 {
