@@ -203,7 +203,7 @@ public static class TextureEditorConstants
     /// <summary>
     /// File search patterns listed in the texture editor file explorer.
     /// </summary>
-    public static readonly string[] ExplorerFilePatterns = ["*.tga", "*.dds", "*.png", "*.ini"];
+    public static readonly string[] ExplorerFilePatterns = ["*.tga", "*.dds", "*.png", "*.ini", "*.big"];
 
     /// <summary>
     /// Match timeout guarding Coords parsing against pathological input lines.

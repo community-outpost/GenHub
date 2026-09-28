@@ -12,6 +12,7 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.TextureEditor;
 using GenHub.Core.Models.Tools.Common;
 using GenHub.Core.Models.Tools.TextureEditor;
+using GenHub.Core.Services.Tools.Checksum;
 using GenHub.Features.Tools.TextureEditor.Services;
 using Microsoft.Extensions.Logging;
 using System;
@@ -101,7 +102,21 @@ public sealed partial class TextureEditorViewModel(
     /// Gets the file name of the open atlas.
     /// </summary>
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads source-generated AtlasPath instance state and is bound from XAML.")]
-    public string AtlasFileName => Path.GetFileName(AtlasPath);
+    public string AtlasFileName
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(AtlasPath))
+            {
+                return string.Empty;
+            }
+
+            string clean = AtlasPath.Contains('#')
+                ? AtlasPath.Substring(AtlasPath.IndexOf('#') + 1)
+                : AtlasPath;
+            return clean.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? string.Empty;
+        }
+    }
 
     /// <summary>
     /// Gets a value indicating whether an atlas is open.
@@ -196,9 +211,19 @@ public sealed partial class TextureEditorViewModel(
     // Slice-snapshot undo history is future work. See the canvas QOL roadmap in
     // TextureEditorView.axaml.cs and the WndEditAction stacks.
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads source-generated AtlasPath instance state.")]
-    private string DefaultIniPath => Path.Combine(
-        Path.GetDirectoryName(AtlasPath) ?? string.Empty,
-        Path.GetFileNameWithoutExtension(AtlasPath) + TextureEditorConstants.MappedImagesExtension);
+    private string DefaultIniPath
+    {
+        get
+        {
+            string dir = !string.IsNullOrEmpty(FileExplorer.Directory)
+                ? FileExplorer.Directory
+                : (AtlasPath.Contains('#')
+                    ? (Path.GetDirectoryName(StripArchiveFragment(AtlasPath)) ?? string.Empty)
+                    : (Path.GetDirectoryName(AtlasPath) ?? string.Empty));
+            string baseName = Path.GetFileNameWithoutExtension(AtlasFileName);
+            return Path.Combine(dir, baseName + TextureEditorConstants.MappedImagesExtension);
+        }
+    }
 
     /// <summary>
     /// Loads a registry entry into the slice list for editing.
@@ -248,6 +273,11 @@ public sealed partial class TextureEditorViewModel(
             || (!string.IsNullOrEmpty(FileExplorer.Directory) && IsUnderDirectory(definition.SourcePath, FileExplorer.Directory));
         if (textureMatches && (sameDirectory || explicitOpen))
         {
+            if (Slices.Count == 0)
+            {
+                LoadSlicesForAtlas();
+            }
+
             AdoptRegistryEntry(definition);
             return;
         }
@@ -563,6 +593,12 @@ public sealed partial class TextureEditorViewModel(
             return;
         }
 
+        if (_savedIniPath is not null && _savedIniPath.Contains('#'))
+        {
+            await OnSaveAsAsync(cancellationToken).ConfigureAwait(true);
+            return;
+        }
+
         string path = _savedIniPath ?? DefaultIniPath;
         var operation = BeginOperation();
         try
@@ -730,6 +766,9 @@ public sealed partial class TextureEditorViewModel(
         return null;
     }
 
+    private static string StripArchiveFragment(string path) =>
+        path.Contains('#') ? path.Split('#')[0] : path;
+
     private static bool IsSameDirectory(string left, string right)
     {
         try
@@ -739,8 +778,10 @@ public sealed partial class TextureEditorViewModel(
             var comparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
                 ? StringComparison.OrdinalIgnoreCase
                 : StringComparison.Ordinal;
-            string leftDirectory = Path.GetFullPath(Path.GetDirectoryName(left) ?? left);
-            string rightDirectory = Path.GetFullPath(Path.GetDirectoryName(right) ?? right);
+            string cleanLeft = StripArchiveFragment(left);
+            string cleanRight = StripArchiveFragment(right);
+            string leftDirectory = Path.GetFullPath(Path.GetDirectoryName(cleanLeft) ?? cleanLeft);
+            string rightDirectory = Path.GetFullPath(Path.GetDirectoryName(cleanRight) ?? cleanRight);
             return string.Equals(leftDirectory, rightDirectory, comparison);
         }
         catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException or SecurityException)
@@ -756,7 +797,8 @@ public sealed partial class TextureEditorViewModel(
             var comparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
                 ? StringComparison.OrdinalIgnoreCase
                 : StringComparison.Ordinal;
-            string fullPath = Path.GetFullPath(path);
+            string cleanPath = StripArchiveFragment(path);
+            string fullPath = Path.GetFullPath(cleanPath);
             string fullRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
             return fullPath.StartsWith(fullRoot, comparison);
         }
@@ -978,7 +1020,7 @@ public sealed partial class TextureEditorViewModel(
         var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
             Title = Localize("TextureEditor.Dialog.ExportIni", "Export MappedImages INI"),
-            SuggestedFileName = Path.GetFileNameWithoutExtension(AtlasPath) + TextureEditorConstants.MappedImagesExtension,
+            SuggestedFileName = Path.GetFileNameWithoutExtension(AtlasFileName) + TextureEditorConstants.MappedImagesExtension,
             FileTypeChoices =
             [
                 new FilePickerFileType(Localize("TextureEditor.Dialog.IniFiles", "INI files"))
@@ -1038,7 +1080,7 @@ public sealed partial class TextureEditorViewModel(
         var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
             Title = Localize("TextureEditor.Dialog.ExportSheet", "Export texture sheet"),
-            SuggestedFileName = Path.GetFileNameWithoutExtension(AtlasPath),
+            SuggestedFileName = Path.GetFileNameWithoutExtension(AtlasFileName),
             FileTypeChoices =
             [
                 new FilePickerFileType("TGA")
@@ -1191,6 +1233,11 @@ public sealed partial class TextureEditorViewModel(
                 if (texture is not null)
                 {
                     await LoadAtlasAsync(texture).ConfigureAwait(true);
+                }
+                else if (RegistryImages.Count > 0)
+                {
+                    var firstEntry = RegistryImages[0];
+                    LoadRegistryEntry(firstEntry, explicitOpen: true);
                 }
             }
         }
@@ -1517,7 +1564,9 @@ public sealed partial class TextureEditorViewModel(
             return;
         }
 
-        if (!string.IsNullOrEmpty(FileExplorer.Directory))
+        if (!string.IsNullOrEmpty(FileExplorer.Directory) &&
+            !string.IsNullOrEmpty(AtlasPath) &&
+            IsUnderDirectory(AtlasPath, FileExplorer.Directory))
         {
             var projectMatches = allMatches
                 .Where(image => image.SourcePath is not null && IsUnderDirectory(image.SourcePath, FileExplorer.Directory))
@@ -1525,6 +1574,33 @@ public sealed partial class TextureEditorViewModel(
             if (projectMatches.Count > 0)
             {
                 ReplaceSlices(projectMatches);
+                return;
+            }
+        }
+
+        if (!string.IsNullOrEmpty(_savedIniPath))
+        {
+            var savedIniMatches = allMatches
+                .Where(image => string.Equals(image.SourcePath, _savedIniPath, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (savedIniMatches.Count > 0)
+            {
+                ReplaceSlices(savedIniMatches);
+                return;
+            }
+        }
+
+        if (!string.IsNullOrEmpty(AtlasPath) && AtlasPath.Contains('#'))
+        {
+            string cleanAtlas = StripArchiveFragment(AtlasPath);
+            var archiveMatches = allMatches
+                .Where(image => image.SourcePath is not null &&
+                                (image.SourcePath.Contains('#') || IsSameDirectory(image.SourcePath, cleanAtlas) ||
+                                 (!string.IsNullOrEmpty(FileExplorer.Directory) && IsUnderDirectory(image.SourcePath, FileExplorer.Directory))))
+                .ToList();
+            if (archiveMatches.Count > 0)
+            {
+                ReplaceSlices(archiveMatches);
                 return;
             }
         }
@@ -1537,6 +1613,8 @@ public sealed partial class TextureEditorViewModel(
             ReplaceSlices(fallbackMatches);
             return;
         }
+
+        ReplaceSlices([]);
     }
 
     private void AdoptRegistryEntry(MappedImageDefinition definition)
@@ -1574,7 +1652,7 @@ public sealed partial class TextureEditorViewModel(
         LoadRegistryEntry(definition, explicitOpen: true);
         Notifications.ShowInfo(
             Localize("TextureEditor.Notify.RegistryOpened.Title", "Texture opened"),
-            Localize("TextureEditor.Notify.RegistryOpened.Message", "Opened {0} to edit '{1}'.", Path.GetFileName(texturePath), definition.Name),
+            Localize("TextureEditor.Notify.RegistryOpened.Message", "Opened {0} to edit '{1}'.", AtlasFileName, definition.Name),
             NotificationDurations.Medium);
     }
 
@@ -1600,18 +1678,21 @@ public sealed partial class TextureEditorViewModel(
                 }
 
                 var placeholder = TextureBitmapService.CreatePlaceholder(definition.TextureWidth, definition.TextureHeight);
-                string pseudoPath = Path.Combine(
-                    string.IsNullOrEmpty(FileExplorer.Directory)
-                        ? (definition.SourcePath is not null ? (Path.GetDirectoryName(definition.SourcePath) ?? Directory.GetCurrentDirectory()) : Directory.GetCurrentDirectory())
-                        : FileExplorer.Directory,
-                    definition.TextureFileName);
+                string? cleanSource = definition.SourcePath is not null ? StripArchiveFragment(definition.SourcePath) : null;
+                string pseudoDir = !string.IsNullOrEmpty(FileExplorer.Directory)
+                    ? FileExplorer.Directory
+                    : (cleanSource is not null
+                        ? (Path.GetDirectoryName(cleanSource) ?? Directory.GetCurrentDirectory())
+                        : Directory.GetCurrentDirectory());
+
+                string pseudoPath = Path.Combine(pseudoDir, definition.TextureFileName);
 
                 if (!OpenDecodedAtlas(placeholder, pseudoPath))
                 {
                     return;
                 }
 
-                if (definition.SourcePath is not null)
+                if (definition.SourcePath is not null && !definition.SourcePath.Contains('#'))
                 {
                     _savedIniPath = definition.SourcePath;
                 }
@@ -1652,7 +1733,13 @@ public sealed partial class TextureEditorViewModel(
         // Probe the folders that can hold the texture without a tree walk: the
         // INI that referenced it, the open explorer folder, and the open atlas.
         var probeDirectories = new List<string>();
-        string? sourceDirectory = string.IsNullOrEmpty(sourcePath) ? null : Path.GetDirectoryName(sourcePath);
+        string? sourceDirectory = null;
+        if (!string.IsNullOrEmpty(sourcePath))
+        {
+            string cleanSource = StripArchiveFragment(sourcePath);
+            sourceDirectory = Path.GetDirectoryName(cleanSource);
+        }
+
         if (!string.IsNullOrEmpty(sourceDirectory))
         {
             probeDirectories.Add(sourceDirectory);
@@ -1663,14 +1750,28 @@ public sealed partial class TextureEditorViewModel(
             probeDirectories.Add(FileExplorer.Directory);
         }
 
-        string? atlasDirectory = string.IsNullOrEmpty(AtlasPath) ? null : Path.GetDirectoryName(AtlasPath);
+        string? atlasDirectory = null;
+        if (!string.IsNullOrEmpty(AtlasPath))
+        {
+            string cleanAtlas = StripArchiveFragment(AtlasPath);
+            atlasDirectory = Path.GetDirectoryName(cleanAtlas);
+        }
+
         if (!string.IsNullOrEmpty(atlasDirectory))
         {
             probeDirectories.Add(atlasDirectory);
         }
 
-        foreach (string directory in probeDirectories.Distinct(StringComparer.OrdinalIgnoreCase))
+        var distinctDirectories = probeDirectories.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+        // 1. Check loose texture files in candidate directories
+        foreach (string directory in distinctDirectories)
         {
+            if (!Directory.Exists(directory))
+            {
+                continue;
+            }
+
             foreach (string candidate in candidates)
             {
                 string probed = Path.Combine(directory, candidate);
@@ -1681,9 +1782,78 @@ public sealed partial class TextureEditorViewModel(
             }
         }
 
-        // Fall back to the already enumerated explorer tree, which covers nested
-        // project folders without another recursive disk scan.
-        return FindTextureInNodes(FileExplorer.Nodes, textureFileName);
+        // 2. Fall back to the already enumerated explorer tree
+        string? inTree = FindTextureInNodes(FileExplorer.Nodes, textureFileName);
+        if (inTree is not null)
+        {
+            return inTree;
+        }
+
+        // 3. Check .BIG archives in candidate directories (e.g. TexturesZH.big, Textures.big)
+        foreach (string directory in distinctDirectories)
+        {
+            if (!Directory.Exists(directory))
+            {
+                continue;
+            }
+
+            string? fromBig = FindTextureInBigArchives(directory, candidates);
+            if (fromBig is not null)
+            {
+                return fromBig;
+            }
+        }
+
+        return null;
+    }
+
+    private string? FindTextureInBigArchives(string directory, HashSet<string> candidates)
+    {
+        string[] bigFiles;
+        try
+        {
+            bigFiles = Directory.GetFiles(directory, "*.big", SearchOption.TopDirectoryOnly);
+        }
+        catch
+        {
+            return null;
+        }
+
+        if (bigFiles.Length == 0)
+        {
+            return null;
+        }
+
+        Array.Sort(bigFiles, (a, b) =>
+        {
+            bool aIsZh = a.Contains("ZH", StringComparison.OrdinalIgnoreCase);
+            bool bIsZh = b.Contains("ZH", StringComparison.OrdinalIgnoreCase);
+            if (aIsZh != bIsZh)
+            {
+                return aIsZh ? -1 : 1;
+            }
+
+            return StringComparer.OrdinalIgnoreCase.Compare(a, b);
+        });
+
+        foreach (var bigFile in bigFiles)
+        {
+            if (!BigArchiveReader.TryReadIndex(bigFile, out var entries))
+            {
+                continue;
+            }
+
+            foreach (var entry in entries.Values)
+            {
+                string entryFileName = entry.Path.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? string.Empty;
+                if (candidates.Contains(entryFileName))
+                {
+                    return $"{bigFile}#{entry.Path}";
+                }
+            }
+        }
+
+        return null;
     }
 
     private void ReplaceSlices(IEnumerable<MappedImageDefinition> definitions)

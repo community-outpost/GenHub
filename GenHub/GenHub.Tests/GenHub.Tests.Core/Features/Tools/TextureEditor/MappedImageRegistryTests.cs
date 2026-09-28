@@ -393,6 +393,183 @@ public sealed class MappedImageRegistryTests
         }
     }
 
+    /// <summary>
+    /// Verifies that non-MappedImages INI files (e.g. Scripts.ini) are skipped without parsing or warnings.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ScanDirectoryAsync_NonMappedImageIniFiles_AreSkippedWithoutErrorsAsync()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string scriptsDir = Path.Combine(directory, "Data", "Scripts");
+        string mappedDir = Path.Combine(directory, "Data", "INI", "MappedImages");
+        Directory.CreateDirectory(scriptsDir);
+        Directory.CreateDirectory(mappedDir);
+
+        try
+        {
+            await File.WriteAllTextAsync(
+                Path.Combine(scriptsDir, "Scripts.ini"),
+                """Script MyScript\n  Condition = Always\n  Action = DoNothing\nEnd\n""");
+
+            await File.WriteAllTextAsync(
+                Path.Combine(mappedDir, "Test.ini"),
+                Block("ValidImage", "valid.tga"));
+
+            var result = await _registry.ScanDirectoryAsync(directory);
+
+            Assert.True(result.Success);
+            Assert.Equal(1, _registry.Count);
+            Assert.NotNull(_registry.GetByName("ValidImage"));
+            Assert.Null(_registry.GetByName("MyScript"));
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that .BIG archives containing MappedImages are discovered and parsed.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ScanDirectoryAsync_BigArchive_IndexesMappedImagesFromBigArchiveAsync()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(directory);
+
+        try
+        {
+            string bigPath = Path.Combine(directory, "INIZH.big");
+            string entryContent = Block("BigHero", "big_textures.tga");
+            CreateTestBigArchive(bigPath, new Dictionary<string, byte[]>
+            {
+                [@"Data\INI\MappedImages\Heroes.ini"] = System.Text.Encoding.Latin1.GetBytes(entryContent),
+            });
+
+            var result = await _registry.ScanDirectoryAsync(directory);
+
+            Assert.True(result.Success);
+            Assert.Equal(1, _registry.Count);
+            var hero = _registry.GetByName("BigHero");
+            Assert.NotNull(hero);
+            Assert.Equal("big_textures.tga", hero.TextureFileName);
+            Assert.StartsWith(bigPath, hero.SourcePath, StringComparison.OrdinalIgnoreCase);
+            Assert.NotNull(hero.SourcePath);
+            Assert.Contains('#', hero.SourcePath);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that loose files override entries from .BIG archives.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ScanDirectoryAsync_LooseFileOverridesBigArchiveAsync()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string mappedDir = Path.Combine(directory, "Data", "INI", "MappedImages");
+        Directory.CreateDirectory(mappedDir);
+
+        try
+        {
+            string bigPath = Path.Combine(directory, "INI.big");
+            CreateTestBigArchive(bigPath, new Dictionary<string, byte[]>
+            {
+                [@"Data\INI\MappedImages\Heroes.ini"] = System.Text.Encoding.Latin1.GetBytes(Block("SharedHero", "archive_tex.tga")),
+            });
+
+            await File.WriteAllTextAsync(
+                Path.Combine(mappedDir, "Override.ini"),
+                Block("SharedHero", "loose_tex.tga"));
+
+            var result = await _registry.ScanDirectoryAsync(directory);
+
+            Assert.True(result.Success);
+            Assert.Equal(1, _registry.Count);
+            var hero = _registry.GetByName("SharedHero");
+            Assert.NotNull(hero);
+            Assert.Equal("loose_tex.tga", hero.TextureFileName);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    private static void CreateTestBigArchive(string filePath, Dictionary<string, byte[]> entries)
+    {
+        using var ms = new MemoryStream();
+        using var writer = new BinaryWriter(ms);
+
+        int dirSize = 0;
+        int totalPayload = 0;
+        foreach (var (key, val) in entries)
+        {
+            dirSize += 8 + System.Text.Encoding.Latin1.GetByteCount(key) + 1;
+            totalPayload += val.Length;
+        }
+
+        uint headerSize = (uint)(16 + dirSize);
+        uint currentOffset = headerSize;
+        uint totalFileSize = currentOffset + (uint)totalPayload;
+
+        writer.Write(new byte[] { (byte)'B', (byte)'I', (byte)'G', (byte)'F' });
+        writer.Write(totalFileSize);
+
+        byte[] countBytes = BitConverter.GetBytes((uint)entries.Count);
+        if (BitConverter.IsLittleEndian)
+        {
+            Array.Reverse(countBytes);
+        }
+
+        writer.Write(countBytes);
+
+        byte[] headerSizeBytes = BitConverter.GetBytes(headerSize);
+        if (BitConverter.IsLittleEndian)
+        {
+            Array.Reverse(headerSizeBytes);
+        }
+
+        writer.Write(headerSizeBytes);
+
+        foreach (var (path, data) in entries)
+        {
+            byte[] offsetBytes = BitConverter.GetBytes(currentOffset);
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(offsetBytes);
+            }
+
+            writer.Write(offsetBytes);
+
+            byte[] sizeBytes = BitConverter.GetBytes((uint)data.Length);
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(sizeBytes);
+            }
+
+            writer.Write(sizeBytes);
+
+            writer.Write(System.Text.Encoding.Latin1.GetBytes(path));
+            writer.Write((byte)0);
+
+            currentOffset += (uint)data.Length;
+        }
+
+        foreach (var data in entries.Values)
+        {
+            writer.Write(data);
+        }
+
+        File.WriteAllBytes(filePath, ms.ToArray());
+    }
+
     private static string Block(string name, string texture) =>
         $"MappedImage {name}\n  Texture = {texture}\n  TextureWidth = 64\n  TextureHeight = 64\n  Coords = Left:0 Top:0 Right:63 Bottom:63\n  Status = NONE\nEnd\n";
 }

@@ -3,14 +3,16 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Tools.TextureEditor;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.TextureEditor;
+using GenHub.Core.Services.Tools.Checksum;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Text;
 
 namespace GenHub.Core.Services.Tools.TextureEditor;
 
 /// <summary>
-/// Indexes MappedImage entries scanned from INI files with SAGE load-order semantics.
+/// Indexes MappedImage entries scanned from INI files and .BIG archives with SAGE load-order semantics.
 /// </summary>
 public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<MappedImageRegistry> logger) : IMappedImageRegistry
 {
@@ -70,6 +72,16 @@ public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<M
             return OperationResult<MappedImageScanResult>.CreateFailure($"Access denied enumerating directory: {directory}", Stopwatch.GetElapsedTime(started));
         }
 
+        string[] bigFiles = Array.Empty<string>();
+        try
+        {
+            bigFiles = Directory.GetFiles(directory, "*.big", SearchOption.TopDirectoryOnly);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(ex, "Could not enumerate .big files in {Directory}", directory);
+        }
+
         Array.Sort(files, CompareSageLoadOrder);
         var errors = new List<string>();
 
@@ -82,9 +94,99 @@ public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<M
         // Stage in a temporary catalog so a cancelled or failed scan
         // never clears the previously valid entries.
         var staged = new Dictionary<string, MappedImageDefinition>(StringComparer.OrdinalIgnoreCase);
+
+        // 1. Scan .BIG archives first so loose files override them according to SAGE load order.
+        int bigArchivesWithMappedImages = 0;
+        if (bigFiles.Length > 0)
+        {
+            Array.Sort(bigFiles, CompareBigArchiveOrder);
+            foreach (var bigFile in bigFiles)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!BigArchiveReader.TryReadIndex(bigFile, out var archiveEntries))
+                {
+                    continue;
+                }
+
+                bool foundInArchive = false;
+                foreach (var entry in archiveEntries.Values)
+                {
+                    if (!entry.Path.EndsWith(".ini", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    if (!entry.Path.Contains("MappedImages", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    cancellationToken.ThrowIfCancellationRequested();
+                    byte[] bytes;
+                    try
+                    {
+                        bytes = BigArchiveReader.ReadEntryData(entry);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Failed to read entry {Entry} from {Archive}", entry.Path, bigFile);
+                        continue;
+                    }
+
+                    string text = Encoding.UTF8.GetString(bytes);
+                    if (!text.Contains(TextureEditorConstants.IniBlockName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    string sourcePath = $"{bigFile}#{entry.Path}";
+                    var parsed = parser.ParseText(text, sourcePath);
+                    if (parsed.Data is not null)
+                    {
+                        foreach (var image in parsed.Data)
+                        {
+                            staged[image.Name] = image;
+                        }
+
+                        foundInArchive = true;
+                    }
+
+                    if (parsed.Failed)
+                    {
+                        errors.AddRange(parsed.Errors);
+                    }
+                }
+
+                if (foundInArchive)
+                {
+                    bigArchivesWithMappedImages++;
+                }
+            }
+        }
+
+        // 2. Scan loose INI files, filtering out non-mapped-image files (e.g. Scripts.ini)
+        int looseFilesParsed = 0;
         foreach (var file in files)
         {
             cancellationToken.ThrowIfCancellationRequested();
+
+            if (!file.Contains("MappedImages", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    string sample = await File.ReadAllTextAsync(file, cancellationToken).ConfigureAwait(false);
+                    if (!sample.Contains(TextureEditorConstants.IniBlockName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+                }
+                catch
+                {
+                    continue;
+                }
+            }
+
+            looseFilesParsed++;
             var parsed = await parser.ParseFileAsync(file, cancellationToken).ConfigureAwait(false);
             if (parsed.Data is not null)
             {
@@ -116,11 +218,12 @@ public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<M
         }
 
         int images = staged.Count;
+        int totalFilesScanned = looseFilesParsed + bigArchivesWithMappedImages;
 
         var elapsed = Stopwatch.GetElapsedTime(started);
-        logger.LogInformation("Scanned {Files} MappedImages INI files with {Images} entries from {Directory}", files.Length, images, directory);
+        logger.LogInformation("Scanned {Files} MappedImages INI sources ({Loose} loose, {Bigs} .BIG archives) with {Images} entries from {Directory}", totalFilesScanned, looseFilesParsed, bigArchivesWithMappedImages, images, directory);
 
-        var scan = new MappedImageScanResult(files.Length, images);
+        var scan = new MappedImageScanResult(totalFilesScanned, images);
         return errors.Count > 0
             ? OperationResult<MappedImageScanResult>.CreateFailure(errors, scan, elapsed)
             : OperationResult<MappedImageScanResult>.CreateSuccess(scan, elapsed);
@@ -171,6 +274,30 @@ public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<M
             _scanGeneration++;
             _entries.Clear();
         }
+    }
+
+    private static int CompareBigArchiveOrder(string left, string right)
+    {
+        int priorityLeft = BigArchiveLoadPriority(left);
+        int priorityRight = BigArchiveLoadPriority(right);
+        int cmp = priorityLeft.CompareTo(priorityRight);
+        return cmp != 0 ? cmp : StringComparer.OrdinalIgnoreCase.Compare(left, right);
+    }
+
+    private static int BigArchiveLoadPriority(string path)
+    {
+        string name = Path.GetFileName(path);
+        if (name.Equals("INI.big", StringComparison.OrdinalIgnoreCase))
+        {
+            return 0;
+        }
+
+        if (name.Equals("INIZH.big", StringComparison.OrdinalIgnoreCase))
+        {
+            return 1;
+        }
+
+        return 2;
     }
 
     private static int CompareSageLoadOrder(string left, string right)

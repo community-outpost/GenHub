@@ -6,12 +6,14 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Tools.TextureEditor;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.TextureEditor;
+using GenHub.Core.Services.Tools.Checksum;
 using Microsoft.Extensions.Logging;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -83,15 +85,59 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
 
     /// <summary>
     /// Loads an image file into portable RGBA pixels.
+    /// Supports loose files on disk and entries archived inside .BIG packages (via archive#entry syntax).
     /// TGA and DDS files use the SAGE codec, other formats use ImageSharp.
     /// </summary>
-    /// <param name="path">The image file path.</param>
+    /// <param name="path">The image file path or archive#entry reference.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The decoded texture, or a failure describing the problem.</returns>
     public async Task<OperationResult<DecodedTexture>> LoadDecodedAsync(string path, CancellationToken cancellationToken = default)
     {
         var started = Stopwatch.GetTimestamp();
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        if (path.Contains('#'))
+        {
+            string[] parts = path.Split('#', 2);
+            string archivePath = parts[0];
+            string entryRelativePath = parts[1];
+
+            if (File.Exists(archivePath) && BigArchiveReader.TryReadIndex(archivePath, out var index))
+            {
+                string normKey = entryRelativePath.Replace('/', '\\').ToLowerInvariant();
+                if (!index.TryGetValue(normKey, out var entry))
+                {
+                    entry = index.Values.FirstOrDefault(e => string.Equals(e.Path.Replace('/', '\\'), entryRelativePath.Replace('/', '\\'), StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (entry is not null)
+                {
+                    try
+                    {
+                        byte[] bytes = BigArchiveReader.ReadEntryData(entry);
+                        string ext = Path.GetExtension(entryRelativePath);
+                        if (codec.SupportsExtension(ext))
+                        {
+                            return codec.Decode(bytes, ext, entryRelativePath);
+                        }
+
+                        using var ms = new MemoryStream(bytes);
+                        using var image = await Image.LoadAsync<Rgba32>(ms, cancellationToken).ConfigureAwait(false);
+                        var pixels = new byte[image.Width * image.Height * 4];
+                        image.CopyPixelDataTo(pixels);
+                        var texture = new DecodedTexture(image.Width, image.Height, pixels);
+                        return OperationResult<DecodedTexture>.CreateSuccess(texture, Stopwatch.GetElapsedTime(started));
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Failed to decode texture {Entry} from archive {Archive}", entryRelativePath, archivePath);
+                        return OperationResult<DecodedTexture>.CreateFailure($"Failed to decode texture from archive: {ex.Message}", Stopwatch.GetElapsedTime(started));
+                    }
+                }
+            }
+
+            return OperationResult<DecodedTexture>.CreateFailure($"Archive entry not found: {path}", Stopwatch.GetElapsedTime(started));
+        }
 
         string extension = Path.GetExtension(path);
         if (codec.SupportsExtension(extension))
