@@ -14,7 +14,7 @@ namespace GenHub.MacOS.Features.Shortcuts;
 /// <summary>
 /// Provides an explicit placeholder for macOS shortcut support.
 /// </summary>
-public sealed class MacOSShortcutService(ILogger<MacOSShortcutService> logger) : IShortcutService
+public sealed class MacOSShortcutService(ILogger<MacOSShortcutService> logger, Func<string>? desktopDirectoryProvider = null) : IShortcutService
 {
     private const string ShortcutExtension = ".command";
 
@@ -54,7 +54,12 @@ public sealed class MacOSShortcutService(ILogger<MacOSShortcutService> logger) :
     {
         ArgumentNullException.ThrowIfNull(profile);
 
-        var desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+        var desktopPath = desktopDirectoryProvider?.Invoke();
+        if (string.IsNullOrWhiteSpace(desktopPath))
+        {
+            desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+        }
+
         if (string.IsNullOrWhiteSpace(desktopPath))
         {
             desktopPath = Path.Combine(

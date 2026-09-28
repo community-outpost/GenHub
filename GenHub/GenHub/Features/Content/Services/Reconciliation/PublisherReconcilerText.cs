@@ -28,6 +28,8 @@ public sealed record PublisherReconcilerText
         AcquireFailedFormat = "Failed to acquire new {0} version: {1}",
         UpdatedTitleKey = "Content.Notification.CommunityPatchUpdated.Title",
         UpdatedTitleFallback = "Community Patch Updated",
+        PartialUpdatedTitleKey = "Content.Notification.CommunityPatchUpdatedPartial.Title",
+        PartialUpdatedTitleFallback = "Community Patch Updated (Partial)",
         ErrorTitleKey = "Content.Notification.CommunityPatchUpdateError.Title",
         ErrorTitleFallback = "Community Patch Update Error",
         PromptTitleKey = "Content.Prompt.CommunityPatchUpdateAvailable.Title",
@@ -58,6 +60,8 @@ public sealed record PublisherReconcilerText
         AcquireFailedFormat = "Failed to acquire new {0} version: {1}",
         UpdatedTitleKey = "Content.Notification.SuperHackersUpdated.Title",
         UpdatedTitleFallback = "SuperHackers Updated",
+        PartialUpdatedTitleKey = "Content.Notification.SuperHackersUpdatedPartial.Title",
+        PartialUpdatedTitleFallback = "SuperHackers Updated (Partial)",
         ErrorTitleKey = "Content.Notification.SuperHackersUpdateError.Title",
         ErrorTitleFallback = "SuperHackers Update Error",
         PromptTitleKey = "Content.Prompt.SuperHackersUpdateAvailable.Title",
@@ -138,6 +142,16 @@ public sealed record PublisherReconcilerText
     /// Gets the updated title fallback.
     /// </summary>
     public required string UpdatedTitleFallback { get; init; }
+
+    /// <summary>
+    /// Gets the partially-updated title resource key.
+    /// </summary>
+    public required string PartialUpdatedTitleKey { get; init; }
+
+    /// <summary>
+    /// Gets the partially-updated title fallback.
+    /// </summary>
+    public required string PartialUpdatedTitleFallback { get; init; }
 
     /// <summary>
     /// Gets the update-error title resource key.

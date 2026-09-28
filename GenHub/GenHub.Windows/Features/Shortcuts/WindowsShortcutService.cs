@@ -19,7 +19,7 @@ namespace GenHub.Windows.Features.Shortcuts;
 /// <summary>
 /// Windows implementation of <see cref="IShortcutService"/> that creates .lnk shortcuts.
 /// </summary>
-public class WindowsShortcutService(ILogger<WindowsShortcutService> logger) : IShortcutService
+public class WindowsShortcutService(ILogger<WindowsShortcutService> logger, Func<string>? desktopDirectoryProvider = null) : IShortcutService
 {
     /// <summary>
     /// COM class for creating shell links.
@@ -192,7 +192,7 @@ public class WindowsShortcutService(ILogger<WindowsShortcutService> logger) : IS
     {
         ArgumentNullException.ThrowIfNull(profile);
 
-        var desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+        var desktopPath = desktopDirectoryProvider?.Invoke() ?? Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
         var name = SanitizeFileName(shortcutName ?? profile.Name);
         return Path.Combine(desktopPath, $"{AppConstants.AppName}-{name}.lnk");
     }

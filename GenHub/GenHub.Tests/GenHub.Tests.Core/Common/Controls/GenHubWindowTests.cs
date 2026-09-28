@@ -13,6 +13,7 @@ using GenHub.Features.Tools.Views;
 using GenHub.Features.Tools.Views.Dialogs;
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using Xunit;
 
 namespace GenHub.Tests.Core.Common.Controls;
@@ -22,6 +23,17 @@ namespace GenHub.Tests.Core.Common.Controls;
 /// </summary>
 public class GenHubWindowTests
 {
+    /// <summary>
+    /// Gets factories for the dialogs that must only drag on title-bar double-click.
+    /// </summary>
+    /// <returns>The window names and factories.</returns>
+    public static IEnumerable<object[]> TitleBarDoubleClickOptOutWindows()
+    {
+        yield return ["ShareProfileDialogWindow", new Func<GenHubWindow>(() => new ShareProfileDialogWindow())];
+        yield return ["ImportProfileInspectionWindow", new Func<GenHubWindow>(() => new ImportProfileInspectionWindow())];
+        yield return ["SubscriptionConfirmationDialog", new Func<GenHubWindow>(() => new SubscriptionConfirmationDialog())];
+    }
+
     /// <summary>
     /// Verifies that opening a <see cref="GenHubWindow"/> applies platform decorations,
     /// overriding any explicit XAML value the same way XAML assignment would.
@@ -103,6 +115,27 @@ public class GenHubWindowTests
     }
 
     /// <summary>
+    /// Verifies that fixed-purpose dialogs opt out of title-bar double-click maximize
+    /// so double-clicking the title bar only drags them.
+    /// </summary>
+    /// <param name="name">The window name used in failure messages.</param>
+    /// <param name="factory">Creates the window under test.</param>
+    [AvaloniaTheory]
+    [MemberData(nameof(TitleBarDoubleClickOptOutWindows))]
+    public void FixedDialog_OptsOutOfTitleBarDoubleClickMaximize(string name, Func<GenHubWindow> factory)
+    {
+        var window = factory();
+        try
+        {
+            Assert.False(ReadTitleBarDoubleClickMaximizes(window), $"{name} must opt out of title-bar double-click maximize.");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
     /// Gets factories for every window migrated to <see cref="GenHubWindow"/>.
     /// </summary>
     /// <returns>The window names and factories.</returns>
@@ -129,6 +162,15 @@ public class GenHubWindowTests
         yield return (nameof(ProfileSelectionView), () => new ProfileSelectionView());
         yield return (nameof(DependencyPreviewView), () => new DependencyPreviewView());
         yield return (nameof(GameClientSelectionView), () => new GameClientSelectionView());
+    }
+
+    private static bool ReadTitleBarDoubleClickMaximizes(GenHubWindow window)
+    {
+        var property = typeof(GenHubWindow).GetProperty(
+            "TitleBarDoubleClickMaximizes",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(property);
+        return (bool)property.GetValue(window)!;
     }
 
     private sealed class DisposeOptInWindow : GenHubWindow

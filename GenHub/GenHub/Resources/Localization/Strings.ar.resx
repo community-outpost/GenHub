@@ -14784,6 +14784,9 @@ https://example.com/screenshot2.png</value>
   <data name="Content.Notification.CommunityPatchUpdated.Title" xml:space="preserve">
     <value>تم تحديث باتش المجتمع</value>
   </data>
+  <data name="Content.Notification.CommunityPatchUpdatedPartial.Title" xml:space="preserve">
+    <value>تم تحديث باتش المجتمع (جزئيًا)</value>
+  </data>
   <data name="Content.Notification.ProfilesCreated.Word" xml:space="preserve">
     <value>إنشاء</value>
   </data>
@@ -14808,8 +14811,14 @@ https://example.com/screenshot2.png</value>
   <data name="Content.Notification.SuperHackersUpdated.Title" xml:space="preserve">
     <value>تم تحديث SuperHackers</value>
   </data>
+  <data name="Content.Notification.SuperHackersUpdatedPartial.Title" xml:space="preserve">
+    <value>تم تحديث SuperHackers (جزئيًا)</value>
+  </data>
   <data name="Content.Notification.PublisherUpdated.Message" xml:space="preserve">
     <value>تم التحديث بنجاح إلى الإصدار {0}. تم {2} {1} من الملفات الشخصية.</value>
+  </data>
+  <data name="Content.Notification.PublisherUpdatedPartial.Message" xml:space="preserve">
+    <value>تم التحديث إلى {0}، لكن بعض الملفات الشخصية أو المكونات واجهت مشاكل.</value>
   </data>
   <data name="Content.Notification.SuperHackersUpdateError.Title" xml:space="preserve">
     <value>خطأ في تحديث SuperHackers</value>

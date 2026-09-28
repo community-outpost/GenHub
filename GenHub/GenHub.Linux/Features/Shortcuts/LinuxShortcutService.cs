@@ -19,7 +19,7 @@ namespace GenHub.Linux.Features.Shortcuts;
 /// Linux implementation of <see cref="IShortcutService"/> that creates .desktop files.
 /// </summary>
 [SupportedOSPlatform("linux")]
-public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShortcutService
+public class LinuxShortcutService(ILogger<LinuxShortcutService> logger, Func<string>? desktopDirectoryProvider = null) : IShortcutService
 {
     private const string DesktopEntryVersion = "1.0";
     private const string DesktopEntryType = "Application";
@@ -367,8 +367,14 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
     /// <summary>
     /// Gets the user's desktop path, following XDG standards if available.
     /// </summary>
-    private static string GetDesktopPath()
+    private string GetDesktopPath()
     {
+        var injectedDesktop = desktopDirectoryProvider?.Invoke();
+        if (!string.IsNullOrWhiteSpace(injectedDesktop))
+        {
+            return injectedDesktop;
+        }
+
         var xdgDesktop = Environment.GetEnvironmentVariable("XDG_DESKTOP_DIR");
         if (!string.IsNullOrWhiteSpace(xdgDesktop) && Directory.Exists(xdgDesktop))
         {

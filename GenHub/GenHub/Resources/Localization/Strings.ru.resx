@@ -14784,6 +14784,9 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="Content.Notification.CommunityPatchUpdated.Title" xml:space="preserve">
     <value>Community Patch обновлён</value>
   </data>
+  <data name="Content.Notification.CommunityPatchUpdatedPartial.Title" xml:space="preserve">
+    <value>Community Patch обновлён (частично)</value>
+  </data>
   <data name="Content.Notification.ProfilesCreated.Word" xml:space="preserve">
     <value>создано</value>
   </data>
@@ -14808,8 +14811,14 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="Content.Notification.SuperHackersUpdated.Title" xml:space="preserve">
     <value>SuperHackers обновлён</value>
   </data>
+  <data name="Content.Notification.SuperHackersUpdatedPartial.Title" xml:space="preserve">
+    <value>SuperHackers обновлён (частично)</value>
+  </data>
   <data name="Content.Notification.PublisherUpdated.Message" xml:space="preserve">
     <value>Успешно обновлено до версии {0}. Профилей {2}: {1}.</value>
+  </data>
+  <data name="Content.Notification.PublisherUpdatedPartial.Message" xml:space="preserve">
+    <value>Обновлено до {0}, но в некоторых профилях или компонентах возникли проблемы.</value>
   </data>
   <data name="Content.Notification.SuperHackersUpdateError.Title" xml:space="preserve">
     <value>Ошибка обновления SuperHackers</value>

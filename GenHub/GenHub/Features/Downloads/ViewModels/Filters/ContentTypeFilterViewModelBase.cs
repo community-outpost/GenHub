@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
@@ -60,18 +61,8 @@ public abstract partial class ContentTypeFilterViewModelBase : FilterPanelViewMo
     {
         if (SelectedContentType.HasValue)
         {
-            yield return $"{ResolveLabel("Downloads.Filter.ContentType", "Content Type")}: {SelectedContentType.Value}";
+            yield return $"{LocalizationService.GetLocalizedString("Downloads.Filter.ContentType", "Content Type")}: {SelectedContentType.Value}";
         }
-    }
-
-    private string ResolveLabel(string key, string fallback)
-    {
-        if (LocalizationService?.TryGetString(key, out var localized) == true)
-        {
-            return localized;
-        }
-
-        return fallback;
     }
 
     [RelayCommand]

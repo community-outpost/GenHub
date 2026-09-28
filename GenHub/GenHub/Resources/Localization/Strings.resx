@@ -14843,6 +14843,9 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="Content.Notification.CommunityPatchUpdated.Title" xml:space="preserve">
     <value>Community Patch Updated</value>
   </data>
+  <data name="Content.Notification.CommunityPatchUpdatedPartial.Title" xml:space="preserve">
+    <value>Community Patch Updated (Partial)</value>
+  </data>
   <data name="Content.Notification.ProfilesCreated.Word" xml:space="preserve">
     <value>created</value>
   </data>
@@ -14867,8 +14870,14 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="Content.Notification.SuperHackersUpdated.Title" xml:space="preserve">
     <value>SuperHackers Updated</value>
   </data>
+  <data name="Content.Notification.SuperHackersUpdatedPartial.Title" xml:space="preserve">
+    <value>SuperHackers Updated (Partial)</value>
+  </data>
   <data name="Content.Notification.PublisherUpdated.Message" xml:space="preserve">
     <value>Successfully updated to version {0}. {1} profiles {2}.</value>
+  </data>
+  <data name="Content.Notification.PublisherUpdatedPartial.Message" xml:space="preserve">
+    <value>Updated to {0}, but some profiles or components had issues.</value>
   </data>
   <data name="Content.Notification.SuperHackersUpdateError.Title" xml:space="preserve">
     <value>SuperHackers Update Error</value>
