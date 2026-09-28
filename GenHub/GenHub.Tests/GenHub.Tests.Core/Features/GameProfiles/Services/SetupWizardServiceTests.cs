@@ -526,17 +526,21 @@ public class SetupWizardServiceTests
     /// Verifies that only a profile for the native build itself makes it up to date on macOS or Linux.
     /// A profile for a Windows build of the same publisher, such as one run under Wine, still leaves
     /// the native build to be profiled; neither case offers an Update. A Windows build listed before
-    /// the native one in the same installation does not hide it.
+    /// the native one in the same installation does not hide it, and neither does a profiled Windows
+    /// package that is already the latest release.
     /// </summary>
     /// <param name="nativeBuildHasProfile">Whether the native client has its own profile.</param>
     /// <param name="windowsBuildListedFirst">Whether a Windows client of the publisher precedes the native one.</param>
+    /// <param name="windowsPackageIsLatest">Whether the pooled Windows package is the latest release.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Theory]
-    [InlineData(true, false)]
-    [InlineData(false, false)]
-    [InlineData(true, true)]
-    [InlineData(false, true)]
-    public async Task RunSetupWizardAsync_WhenNativeSuperHackersBuildDetected_DecidesOnItsOwnProfileAsync(bool nativeBuildHasProfile, bool windowsBuildListedFirst)
+    [InlineData(true, false, false)]
+    [InlineData(false, false, false)]
+    [InlineData(true, true, false)]
+    [InlineData(false, true, false)]
+    [InlineData(true, false, true)]
+    [InlineData(false, false, true)]
+    public async Task RunSetupWizardAsync_WhenNativeSuperHackersBuildDetected_DecidesOnItsOwnProfileAsync(bool nativeBuildHasProfile, bool windowsBuildListedFirst, bool windowsPackageIsLatest)
     {
         var directory = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"GenHub.Wizard.{Guid.NewGuid():N}")).FullName;
         try
@@ -554,7 +558,7 @@ public class SetupWizardServiceTests
                 .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult { Items = [] }));
 
             // An older Windows package of the same publisher, profiled (for example under Wine).
-            var windowsPackage = CreateGameClientManifest(windowsManifestId, "TheSuperHackers - Zero Hour", "weekly-2026-09-01", PublisherTypeConstants.TheSuperHackers);
+            var windowsPackage = CreateGameClientManifest(windowsManifestId, "TheSuperHackers - Zero Hour", windowsPackageIsLatest ? "weekly-2026-09-25" : "weekly-2026-09-01", PublisherTypeConstants.TheSuperHackers);
             _manifestPoolMock
                 .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([windowsPackage]));
@@ -609,7 +613,7 @@ public class SetupWizardServiceTests
             var shItem = capturedVm?.Items.FirstOrDefault(i => i.Title == "TheSuperHackers");
             if (OperatingSystem.IsWindows())
             {
-                if (!windowsBuildListedFirst)
+                if (!windowsBuildListedFirst && !windowsPackageIsLatest)
                 {
                     Assert.Equal(GameClientConstants.WizardActionTypes.Update, shItem?.ActionType);
                 }

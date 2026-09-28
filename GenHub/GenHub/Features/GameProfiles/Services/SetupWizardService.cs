@@ -107,6 +107,43 @@ public class SetupWizardService(
         {
             var componentGlobal = config.ComponentGlobal.Cast<dynamic>().ToList();
 
+            // A native client on macOS or Linux is profiled as it is: the publisher package is a
+            // Windows build, so there is nothing to download or update for it. This runs before the
+            // up-to-date checks, which look at Windows packages and would otherwise hide it.
+            var nativeClients = componentGlobal
+                .Select(x => x.Client as GameClient)
+                .OfType<GameClient>()
+                .Where(PublisherProfileOrchestrator.IsHostNativeClient)
+                .ToList();
+            if (nativeClients.Count > 0)
+            {
+                // Only profiles for the native builds themselves count; one for a Windows build of
+                // the same publisher (for example under Wine) still leaves a native build unprofiled.
+                foreach (var nativeClient in nativeClients)
+                {
+                    if (string.IsNullOrEmpty(nativeClient.Id) ||
+                        !await gameClientProfileService.ProfileExistsForGameClientAsync(nativeClient.Id, cancellationToken))
+                    {
+                        var nativeItem = new SetupWizardItemViewModel
+                        {
+                            Title = config.Title,
+                            Status = GameClientConstants.WizardStatuses.Detected,
+                            Description = FormatCreateProfileDescription(config.Title, null) + (config.DescriptionSuffix ?? string.Empty),
+                            ActionLabel = GameClientConstants.WizardActionLabels.CreateProfile,
+                            ActionType = GameClientConstants.WizardActionTypes.CreateProfile,
+                            IsSelected = true,
+                            IconPath = config.IconPath,
+                            Metadata = config.Metadata,
+                        };
+                        wizardItems.Add(nativeItem);
+                        return (false, nativeItem.ActionType);
+                    }
+                }
+
+                logger.LogInformation("[SetupWizard] Native client and profile found for {Title}, nothing to update", config.Title);
+                return (true, GameClientConstants.WizardActionTypes.Decline);
+            }
+
             // 1. Identify managed clients in the manifest pool
             var managedManifests = allPoolManifests
                 .Where(m => m.ContentType == ContentType.GameClient &&
@@ -221,41 +258,7 @@ public class SetupWizardService(
                 Version = displayVersion,
             };
 
-            // A native client on macOS or Linux is profiled as it is: the publisher package is a
-            // Windows build, so there is nothing to download or update for it.
-            var nativeClients = componentGlobal
-                .Select(x => x.Client as GameClient)
-                .OfType<GameClient>()
-                .Where(PublisherProfileOrchestrator.IsHostNativeClient)
-                .ToList();
-            if (nativeClients.Count > 0)
-            {
-                // Only profiles for the native builds themselves count; one for a Windows build of
-                // the same publisher (for example under Wine) still leaves a native build unprofiled.
-                var allNativeProfiled = true;
-                foreach (var nativeClient in nativeClients)
-                {
-                    if (string.IsNullOrEmpty(nativeClient.Id) ||
-                        !await gameClientProfileService.ProfileExistsForGameClientAsync(nativeClient.Id, cancellationToken))
-                    {
-                        allNativeProfiled = false;
-                        break;
-                    }
-                }
-
-                if (allNativeProfiled)
-                {
-                    logger.LogInformation("[SetupWizard] Native client and profile found for {Title}, nothing to update", config.Title);
-                    return (true, GameClientConstants.WizardActionTypes.Decline);
-                }
-
-                item.Status = GameClientConstants.WizardStatuses.Detected;
-                item.Description = FormatCreateProfileDescription(config.Title, null) + (config.DescriptionSuffix ?? string.Empty);
-                item.ActionLabel = GameClientConstants.WizardActionLabels.CreateProfile;
-                item.ActionType = GameClientConstants.WizardActionTypes.CreateProfile;
-                item.IsSelected = true;
-            }
-            else if (anyProfileExists)
+            if (anyProfileExists)
             {
                 // Profile exists, but it is not the latest managed version
                 item.Status = GameClientConstants.WizardStatuses.Installed;
