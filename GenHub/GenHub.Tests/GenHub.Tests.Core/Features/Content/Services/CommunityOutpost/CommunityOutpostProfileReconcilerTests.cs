@@ -15,6 +15,7 @@ using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.CommunityOutpost;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.Content.Services.CommunityOutpost;
 
@@ -271,6 +272,111 @@ public class CommunityOutpostProfileReconcilerTests
     }
 
     /// <summary>
+    /// Returns failure without acquiring content when the manifest pool cannot be read.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckAndReconcileIfNeededAsync_ManifestPoolFails_ReturnsFailureAsync()
+    {
+        const string latestVersion = "2.0.0";
+
+        _updateServiceMock
+            .Setup(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentUpdateCheckResult.CreateUpdateAvailable(latestVersion, "1.0.0"));
+
+        var settings = new UserSettings();
+        settings.SetAutoUpdatePreference(CommunityOutpostConstants.PublisherType, true);
+        _userSettingsServiceMock.Setup(x => x.Get()).Returns(settings);
+
+        _manifestPoolMock
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateFailure("pool unavailable"));
+
+        var result = await _reconciler.CheckAndReconcileIfNeededAsync("profile1");
+
+        Assert.False(result.Success);
+        Assert.Contains("pool unavailable", result.FirstError, StringComparison.OrdinalIgnoreCase);
+        _contentOrchestratorMock.Verify(
+            x => x.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        _reconciliationServiceMock.Verify(
+            x => x.ScheduleGarbageCollectionAsync(It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that a partial failure during reconciliation displays a warning toast instead of success.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckAndReconcileIfNeededAsync_WhenBulkUpdateFails_ShowsWarningToastAsync()
+    {
+        const string latestVersion = "2.0.0";
+        var oldManifest = new ContentManifest
+        {
+            Id = new ManifestId("community.outpost.GameClient.community-patch.1.0"),
+            Name = "Community Patch 1.0",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Version = "1.0.0",
+            Publisher = new PublisherInfo { PublisherType = CommunityOutpostConstants.PublisherType },
+            Metadata = new ContentMetadata { Tags = ["contentcode:community-patch"] },
+        };
+        var newManifest = new ContentManifest
+        {
+            Id = new ManifestId("community.outpost.GameClient.community-patch.2.0"),
+            Name = "Community Patch 2.0",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Version = latestVersion,
+            Publisher = new PublisherInfo { PublisherType = CommunityOutpostConstants.PublisherType },
+            Metadata = new ContentMetadata { Tags = ["contentcode:community-patch"] },
+        };
+
+        _updateServiceMock
+            .Setup(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentUpdateCheckResult.CreateUpdateAvailable(latestVersion, "1.0.0"));
+
+        var settings = new UserSettings();
+        settings.SetAutoUpdatePreference(CommunityOutpostConstants.PublisherType, true);
+        _userSettingsServiceMock.Setup(x => x.Get()).Returns(settings);
+
+        _manifestPoolMock
+            .SetupSequence(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([oldManifest]))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([oldManifest, newManifest]));
+
+        _contentOrchestratorMock
+            .Setup(x => x.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
+            [
+                new ContentSearchResult { Name = "Community Patch", Version = latestVersion },
+            ]));
+
+        _contentOrchestratorMock
+            .Setup(x => x.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(newManifest));
+
+        _reconciliationServiceMock
+            .Setup(x => x.OrchestrateBulkUpdateAsync(It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ReconciliationResult>.CreateSuccess(new ReconciliationResult(1, 0, 1)));
+
+        var result = await _reconciler.CheckAndReconcileIfNeededAsync("profile1");
+
+        Assert.True(result.Success);
+        _notificationServiceMock.Verify(
+            x => x.ShowWarning(
+                It.Is<string>(title => title.Contains("Partial", StringComparison.OrdinalIgnoreCase)),
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.IsAny<bool>()),
+            Times.AtLeastOnce);
+        _notificationServiceMock.Verify(
+            x => x.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    /// <summary>
     /// Verifies that FindReplacementManifest correctly matches retail to retail and non-retail to non-retail.
     /// </summary>
     [Fact]
@@ -351,11 +457,24 @@ public class CommunityOutpostProfileReconcilerTests
             IDialogService dialogService,
             IUserSettingsService userSettingsService,
             IGameProfileManager profileManager)
-            : base(logger, updateService, manifestPool, contentOrchestrator, reconciliationService, notificationService, dialogService, userSettingsService, profileManager)
+            : base(
+                logger,
+                updateService,
+                manifestPool,
+                contentOrchestrator,
+                reconciliationService,
+                notificationService,
+                dialogService,
+                userSettingsService,
+                profileManager)
         {
         }
 
-        public ContentManifest? InvokeFindReplacementManifest(ContentManifest oldManifest, IReadOnlyList<ContentManifest> newManifests) =>
-            FindReplacementManifest(oldManifest, newManifests);
+        public ContentManifest? InvokeFindReplacementManifest(
+            ContentManifest oldManifest,
+            IReadOnlyList<ContentManifest> candidatePool)
+        {
+            return FindReplacementManifest(oldManifest, candidatePool);
+        }
     }
 }

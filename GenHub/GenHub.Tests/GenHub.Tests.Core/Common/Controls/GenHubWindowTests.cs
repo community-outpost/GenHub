@@ -118,20 +118,21 @@ public class GenHubWindowTests
     /// Verifies that fixed-purpose dialogs opt out of title-bar double-click maximize
     /// so double-clicking the title bar only drags them.
     /// </summary>
-    /// <param name="name">The window name used in failure messages.</param>
-    /// <param name="factory">Creates the window under test.</param>
-    [AvaloniaTheory]
-    [MemberData(nameof(TitleBarDoubleClickOptOutWindows))]
-    public void FixedDialog_OptsOutOfTitleBarDoubleClickMaximize(string name, Func<GenHubWindow> factory)
+    [AvaloniaFact]
+    public void FixedDialog_OptsOutOfTitleBarDoubleClickMaximize()
     {
-        var window = factory();
-        try
+        foreach (var row in TitleBarDoubleClickOptOutWindows())
         {
-            Assert.False(ReadTitleBarDoubleClickMaximizes(window), $"{name} must opt out of title-bar double-click maximize.");
-        }
-        finally
-        {
-            window.Close();
+            var name = (string)row[0];
+            var window = ((Func<GenHubWindow>)row[1])();
+            try
+            {
+                Assert.False(ReadTitleBarDoubleClickMaximizes(window), $"{name} must opt out of title-bar double-click maximize.");
+            }
+            finally
+            {
+                window.Close();
+            }
         }
     }
 

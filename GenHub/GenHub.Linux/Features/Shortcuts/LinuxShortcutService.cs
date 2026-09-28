@@ -442,7 +442,6 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger, Func<str
         return Path.Combine(home, "Desktop");
     }
 
-
     /// <summary>
     /// Makes a file executable using chmod.
     /// </summary>
