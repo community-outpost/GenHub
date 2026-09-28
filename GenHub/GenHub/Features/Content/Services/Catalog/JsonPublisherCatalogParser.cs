@@ -214,14 +214,7 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
             !dep.PublisherId.Equals(expectedPublisherType, StringComparison.OrdinalIgnoreCase) &&
             !dep.PublisherId.Equals(hostPublisherId, StringComparison.OrdinalIgnoreCase))
         {
-            if (!string.IsNullOrWhiteSpace(hostPublisherId))
-            {
-                dep.PublisherId = hostPublisherId;
-            }
-            else
-            {
-                errors.Add($"Dependency '{dep.ContentId}' in '{content.Id}' specifies publisherId '{dep.PublisherId}' which does not match sibling's declared publisherType '{expectedPublisherType}' or host catalog id '{hostPublisherId}'");
-            }
+            errors.Add($"Dependency '{dep.ContentId}' in '{content.Id}' specifies publisherId '{dep.PublisherId}' which does not match sibling's declared publisherType '{expectedPublisherType}' or host catalog id '{hostPublisherId}'");
         }
     }
 
