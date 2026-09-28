@@ -679,6 +679,25 @@ public sealed partial class TextureEditorViewModel(
         return null;
     }
 
+    private static string? FindTextureInNodes(IEnumerable<EditorFileTreeNodeViewModel> nodes, string textureFileName)
+    {
+        foreach (var node in nodes)
+        {
+            if (node.IsFile && MappedImageTextureMatcher.Matches(Path.GetFileName(node.FullPath), textureFileName))
+            {
+                return node.FullPath;
+            }
+
+            string? child = FindTextureInNodes(node.Children, textureFileName);
+            if (child is not null)
+            {
+                return child;
+            }
+        }
+
+        return null;
+    }
+
     private static bool IsSameDirectory(string left, string right)
     {
         try
@@ -1553,25 +1572,6 @@ public sealed partial class TextureEditorViewModel(
         // Fall back to the already enumerated explorer tree, which covers nested
         // project folders without another recursive disk scan.
         return FindTextureInNodes(FileExplorer.Nodes, textureFileName);
-    }
-
-    private static string? FindTextureInNodes(IEnumerable<EditorFileTreeNodeViewModel> nodes, string textureFileName)
-    {
-        foreach (var node in nodes)
-        {
-            if (node.IsFile && MappedImageTextureMatcher.Matches(Path.GetFileName(node.FullPath), textureFileName))
-            {
-                return node.FullPath;
-            }
-
-            string? child = FindTextureInNodes(node.Children, textureFileName);
-            if (child is not null)
-            {
-                return child;
-            }
-        }
-
-        return null;
     }
 
     private void ReplaceSlices(IEnumerable<MappedImageDefinition> definitions)
