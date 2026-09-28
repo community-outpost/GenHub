@@ -1153,6 +1153,60 @@ public class DownloadsBrowserViewModelTests
     }
 
     /// <summary>
+    /// Verifies that CommitBrowseResultsToCache returns false and disposes uncommitted view models
+    /// when the in-flight operation cancellation token is cancelled, and CleanupInFlight cleans up in-flight entries.
+    /// </summary>
+    [Fact]
+    public void CommitBrowseResultsToCache_WhenInFlightOperationIsCancelled_ReturnsFalseAndDisposesViewModels()
+    {
+        // Arrange
+        using var viewModel = CreateViewModel();
+
+        var publisherA = new PublisherItemViewModel("pub-a", "Publisher A");
+        viewModel.Publishers.Add(publisherA);
+
+        var itemA = new ContentGridItemViewModel(
+            new ContentSearchResult { Id = "mod-a", Name = "Mod A" },
+            new Mock<IContentStateService>().Object,
+            new Mock<ILogger<ContentGridItemViewModel>>().Object);
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var inFlightOpA = new DownloadsBrowserViewModel.PublisherInFlightOperation(
+            "pub-a",
+            new ContentSearchQuery(),
+            cts,
+            catalogId: "catalog-a")
+        {
+            ActiveRequestId = 1,
+            IsCompleted = false,
+        };
+
+        viewModel.SetInFlightOperationForTesting("pub-a", inFlightOpA);
+
+        // Act
+        var committed = viewModel.CommitBrowseResultsToCacheForTesting(
+            "pub-a",
+            new ContentSearchQuery(),
+            hasMoreItems: false,
+            isCustomQuery: false,
+            append: false,
+            inFlightOp: inFlightOpA,
+            newVms: [itemA]);
+
+        if (!committed)
+        {
+            viewModel.CleanupInFlight("pub-a", inFlightOpA);
+        }
+
+        // Assert
+        Assert.False(committed);
+        Assert.True(itemA.IsDisposed);
+        Assert.False(viewModel.HasInFlightOperationForTesting("pub-a"));
+    }
+
+    /// <summary>
     /// Verifies that SaveOutgoingPublisherState preserves the publisher's own catalog ID
     /// and does not overwrite it with another publisher's catalog ID.
     /// </summary>
