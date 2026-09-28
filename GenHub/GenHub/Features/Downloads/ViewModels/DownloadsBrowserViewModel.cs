@@ -546,7 +546,7 @@ public sealed partial class DownloadsBrowserViewModel(
             }
 
             ResetUninstalledFamilyItems(familyItems, installedItems);
-            ReconcileInstalledFamilyItems(familyItems, installedItems, familyItems[0], isGeneralsOnline);
+            ReconcileInstalledFamilyItems(familyItems, installedItems, isGeneralsOnline);
         }
     }
 
@@ -679,12 +679,9 @@ public sealed partial class DownloadsBrowserViewModel(
                 }
             }
 
-            foreach (var vm in vms)
+            foreach (var vm in vms.Where(vm => !retainedItems.Contains(vm)))
             {
-                if (!retainedItems.Contains(vm))
-                {
-                    vm.Dispose();
-                }
+                vm.Dispose();
             }
         }
     }
@@ -743,12 +740,11 @@ public sealed partial class DownloadsBrowserViewModel(
     private static void ReconcileInstalledFamilyItems(
         IEnumerable<ContentGridItemViewModel> items,
         HashSet<ContentGridItemViewModel> installedItems,
-        ContentGridItemViewModel newestItem,
         bool isGeneralsOnline)
     {
         // Same-version siblings (language/resolution variants surfaced as separate cards)
         // are not updates of each other: only a strictly newer newest item triggers updates.
-        newestItem = items
+        var newestItem = items
             .OrderByDescending(i => i.SearchResult.Version, Comparer<string?>.Create((a, b) => ContentStateService.CompareVersions(a, b, isGeneralsOnline)))
             .ThenByDescending(i => i.SearchResult.LastUpdated ?? DateTime.MinValue)
             .First();
