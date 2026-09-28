@@ -522,6 +522,76 @@ public class SetupWizardServiceTests
         }
     }
 
+    /// <summary>
+    /// Verifies that a native TheSuperHackers client on macOS or Linux that already has a profile
+    /// is treated as up to date: no Update is offered, since there is no native package to download.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RunSetupWizardAsync_WhenNativeSuperHackersBuildHasProfile_OffersNoUpdateOnUnixHostsAsync()
+    {
+        var directory = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"GenHub.Wizard.{Guid.NewGuid():N}")).FullName;
+        try
+        {
+            const string clientId = "1.104.retail.gameclient.zerohour";
+            var executablePath = Path.Combine(directory, Path.GetFileNameWithoutExtension(GameClientConstants.SuperHackersZeroHourExecutable));
+            await File.WriteAllBytesAsync(executablePath, [0xCF, 0xFA, 0xED, 0xFE, 0x0C, 0x00, 0x00, 0x01]);
+
+            _goDiscovererMock
+                .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult { Items = [] }));
+            _cpDiscovererMock
+                .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult { Items = [] }));
+            _manifestPoolMock
+                .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+            _profileServiceMock
+                .Setup(s => s.ProfileExistsForGameClientAsync(clientId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+
+            var installation = new GameInstallation(directory, GameInstallationType.Retail, null);
+            installation.AvailableGameClients =
+            [
+                new GameClient
+                {
+                    Id = clientId,
+                    InstallationId = installation.Id,
+                    Name = $"{SuperHackersConstants.PublisherName} - {SuperHackersConstants.ZeroHourDisplayName}",
+                    PublisherType = PublisherTypeConstants.TheSuperHackers,
+                    GameType = GameType.ZeroHour,
+                    Version = GameClientConstants.UnknownVersion,
+                    ExecutablePath = executablePath,
+                },
+            ];
+
+            var service = CreateService(CreateSuperHackersProviderMock("weekly-2026-09-25").Object);
+            SetupWizardViewModel? capturedVm = null;
+            service.DialogShower = vm =>
+            {
+                capturedVm = vm;
+                vm.ConfirmCommand.Execute(null);
+                return Task.FromResult(true);
+            };
+
+            var result = await service.RunSetupWizardAsync([installation], CancellationToken.None);
+
+            var shItem = capturedVm?.Items.FirstOrDefault(i => i.Title == "TheSuperHackers");
+            if (OperatingSystem.IsWindows())
+            {
+                Assert.Equal(GameClientConstants.WizardActionTypes.Update, shItem?.ActionType);
+                return;
+            }
+
+            Assert.Null(shItem);
+            Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.SuperHackersAction);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
     private SetupWizardService CreateService(SuperHackersProvider? superHackersProvider = null)
     {
         return new SetupWizardService(

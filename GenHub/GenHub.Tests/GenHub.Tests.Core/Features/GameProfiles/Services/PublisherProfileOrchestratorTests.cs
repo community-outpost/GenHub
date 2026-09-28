@@ -597,12 +597,12 @@ public sealed class PublisherProfileOrchestratorTests
             SetupProfileOutcome(installation, zeroHour, firstOutcome);
             SetupProfileOutcome(installation, generals, secondOutcome);
 
-            var method = typeof(PublisherProfileOrchestrator).GetMethod(
-                "CreateProfilesFromDetectedClientsAsync",
-                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
-            var result = await (Task<OperationResult<int>>)method.Invoke(
-                _orchestrator,
-                [installation, clients, PublisherTypeConstants.TheSuperHackers, false, CancellationToken.None])!;
+            var result = await _orchestrator.CreateProfilesFromDetectedClientsAsync(
+                installation,
+                clients,
+                PublisherTypeConstants.TheSuperHackers,
+                false,
+                CancellationToken.None);
 
             Assert.Equal(expectSuccess, result.Success);
             if (expectSuccess)
@@ -695,6 +695,8 @@ public sealed class PublisherProfileOrchestratorTests
                     break;
                 case "pe":
                     File.WriteAllBytes(path, [0x4D, 0x5A, 0x90, 0x00, 0x03, 0x00, 0x00, 0x00]);
+                    break;
+                default:
                     break;
             }
 

@@ -80,6 +80,13 @@ public class PublisherProfileOrchestrator(
                     .DistinctBy(c => c.ExecutablePath, StringComparer.Ordinal)
                     .ToList();
 
+                if (forceReacquireContent)
+                {
+                    logger.LogInformation(
+                        "Ignoring reacquire request for native {PublisherType} client: the publisher package is a Windows build, so a native install has nothing to acquire",
+                        publisherType);
+                }
+
                 logger.LogInformation(
                     "Using {Count} native {PublisherType} client(s) without acquiring publisher content",
                     nativeClients.Count,
@@ -242,47 +249,17 @@ public class PublisherProfileOrchestrator(
             && ExecutableFileClassifier.DetectPlatform(executablePath) is ExecutablePlatform.Linux or ExecutablePlatform.MacOS;
     }
 
-    private static string GetPublisherDisplayName(string publisherType, bool isNonRet)
-    {
-        if (publisherType.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
-        {
-            return SuperHackersConstants.PublisherName;
-        }
-
-        if (publisherType.Equals(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
-        {
-            return "Generals Online";
-        }
-
-        if (publisherType.Equals(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
-        {
-            return isNonRet
-                ? "Community Patch (Non-Retail)"
-                : CommunityOutpostConstants.PublisherName;
-        }
-
-        return publisherType;
-    }
-
-    private static bool HasExecutableOnDisk(GameClient gameClient) =>
-        !string.IsNullOrEmpty(gameClient.ExecutablePath) &&
-        (File.Exists(gameClient.ExecutablePath) || Directory.Exists(gameClient.ExecutablePath));
-
-    private static bool IsNonRetail(GameClient client) =>
-        CommunityOutpostConstants.IsNonRetailIdentifier(client.Id) ||
-        CommunityOutpostConstants.IsNonRetailIdentifier(client.Name);
-
-    private static bool IsNonRetail(ContentManifest manifest) =>
-        CommunityOutpostConstants.IsNonRetailIdentifier(manifest.Id.Value) ||
-        CommunityOutpostConstants.IsNonRetailIdentifier(manifest.Name) ||
-        (manifest.Metadata?.Tags != null && manifest.Metadata.Tags.Any(CommunityOutpostConstants.IsNonRetailIdentifier));
-
-    private static bool IsNonRetail(ContentSearchResult result) =>
-        CommunityOutpostConstants.IsNonRetailIdentifier(result.Id) ||
-        CommunityOutpostConstants.IsNonRetailIdentifier(result.Name) ||
-        (result.Tags != null && result.Tags.Any(CommunityOutpostConstants.IsNonRetailIdentifier));
-
-    private async Task<OperationResult<int>> CreateProfilesFromDetectedClientsAsync(
+    /// <summary>
+    /// Creates a profile for each detected client. An already existing profile is not an error;
+    /// real failures are reported and fail the result when nothing was created.
+    /// </summary>
+    /// <param name="installation">The parent game installation.</param>
+    /// <param name="gameClients">The detected clients to profile.</param>
+    /// <param name="publisherType">The publisher of the clients.</param>
+    /// <param name="isNonRet">Whether the clients are the non-retail Community Patch variant.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The number of profiles created, or a failure carrying the reasons.</returns>
+    internal async Task<OperationResult<int>> CreateProfilesFromDetectedClientsAsync(
         GameInstallation installation,
         IReadOnlyList<GameClient> gameClients,
         string publisherType,
@@ -347,6 +324,46 @@ public class PublisherProfileOrchestrator(
             ? OperationResult<int>.CreateSuccess(profilesCreated)
             : OperationResult<int>.CreateFailure(failures);
     }
+
+    private static string GetPublisherDisplayName(string publisherType, bool isNonRet)
+    {
+        if (publisherType.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
+        {
+            return SuperHackersConstants.PublisherName;
+        }
+
+        if (publisherType.Equals(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
+        {
+            return "Generals Online";
+        }
+
+        if (publisherType.Equals(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+        {
+            return isNonRet
+                ? "Community Patch (Non-Retail)"
+                : CommunityOutpostConstants.PublisherName;
+        }
+
+        return publisherType;
+    }
+
+    private static bool HasExecutableOnDisk(GameClient gameClient) =>
+        !string.IsNullOrEmpty(gameClient.ExecutablePath) &&
+        (File.Exists(gameClient.ExecutablePath) || Directory.Exists(gameClient.ExecutablePath));
+
+    private static bool IsNonRetail(GameClient client) =>
+        CommunityOutpostConstants.IsNonRetailIdentifier(client.Id) ||
+        CommunityOutpostConstants.IsNonRetailIdentifier(client.Name);
+
+    private static bool IsNonRetail(ContentManifest manifest) =>
+        CommunityOutpostConstants.IsNonRetailIdentifier(manifest.Id.Value) ||
+        CommunityOutpostConstants.IsNonRetailIdentifier(manifest.Name) ||
+        (manifest.Metadata?.Tags != null && manifest.Metadata.Tags.Any(CommunityOutpostConstants.IsNonRetailIdentifier));
+
+    private static bool IsNonRetail(ContentSearchResult result) =>
+        CommunityOutpostConstants.IsNonRetailIdentifier(result.Id) ||
+        CommunityOutpostConstants.IsNonRetailIdentifier(result.Name) ||
+        (result.Tags != null && result.Tags.Any(CommunityOutpostConstants.IsNonRetailIdentifier));
 
     private async Task<List<ContentManifest>> GetPublisherManifestsFromPoolAsync(string publisherType, CancellationToken cancellationToken)
     {

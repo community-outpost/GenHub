@@ -221,7 +221,23 @@ public class SetupWizardService(
                 Version = displayVersion,
             };
 
-            if (anyProfileExists)
+            // A native client on macOS or Linux is profiled as it is: the publisher package is a
+            // Windows build, so there is nothing to download or update for it.
+            if (componentGlobal.Any(x => x.Client is GameClient client && PublisherProfileOrchestrator.IsHostNativeClient(client)))
+            {
+                if (anyProfileExists)
+                {
+                    logger.LogInformation("[SetupWizard] Native client and profile found for {Title}, nothing to update", config.Title);
+                    return (true, GameClientConstants.WizardActionTypes.Decline);
+                }
+
+                item.Status = GameClientConstants.WizardStatuses.Detected;
+                item.Description = FormatCreateProfileDescription(config.Title, null) + (config.DescriptionSuffix ?? string.Empty);
+                item.ActionLabel = GameClientConstants.WizardActionLabels.CreateProfile;
+                item.ActionType = GameClientConstants.WizardActionTypes.CreateProfile;
+                item.IsSelected = true;
+            }
+            else if (anyProfileExists)
             {
                 // Profile exists, but it is not the latest managed version
                 item.Status = GameClientConstants.WizardStatuses.Installed;
@@ -235,15 +251,6 @@ public class SetupWizardService(
                 // Content downloaded in pool, but no profile exists
                 item.Status = GameClientConstants.WizardStatuses.Downloaded;
                 item.Description = FormatCreateProfileDescription(config.Title, displayVersion) + (config.DescriptionSuffix ?? string.Empty);
-                item.ActionLabel = GameClientConstants.WizardActionLabels.CreateProfile;
-                item.ActionType = GameClientConstants.WizardActionTypes.CreateProfile;
-                item.IsSelected = true;
-            }
-            else if (isDetected && componentGlobal.Any(x => x.Client is GameClient client && PublisherProfileOrchestrator.IsHostNativeClient(client)))
-            {
-                // A native client on macOS or Linux is profiled as it is; the publisher package is a Windows build.
-                item.Status = GameClientConstants.WizardStatuses.Detected;
-                item.Description = FormatCreateProfileDescription(config.Title, null) + (config.DescriptionSuffix ?? string.Empty);
                 item.ActionLabel = GameClientConstants.WizardActionLabels.CreateProfile;
                 item.ActionType = GameClientConstants.WizardActionTypes.CreateProfile;
                 item.IsSelected = true;
