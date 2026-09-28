@@ -2348,6 +2348,11 @@ public class GameLauncher(
                     drift.ChangedFiles.Count);
             }
 
+            if (!string.IsNullOrWhiteSpace(installation.Id))
+            {
+                _lastInstallationDriftRefresh[installation.Id] = DateTimeOffset.UtcNow;
+            }
+
             await gameInstallationService.CreateAndRegisterInstallationManifestsAsync(installation, cancellationToken, forceRegeneration: true);
 
             var refreshed = await ReResolveInstallationManifestsAsync(manifests, cancellationToken);
@@ -2357,11 +2362,6 @@ public class GameLauncher(
                     "[GameLauncher] Installation manifests regenerated but re-resolution failed: {Error}; launching with stored manifests",
                     refreshed.FirstError);
                 return (false, manifests);
-            }
-
-            if (!string.IsNullOrWhiteSpace(installation.Id))
-            {
-                _lastInstallationDriftRefresh[installation.Id] = DateTimeOffset.UtcNow;
             }
 
             driftWarnings.Add(LaunchReceiptConstants.InstallationManifestRefreshedWarningKey);

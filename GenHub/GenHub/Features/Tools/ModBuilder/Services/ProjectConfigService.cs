@@ -1235,7 +1235,7 @@ public sealed class ProjectConfigService(
         foreach (var dirName in new[] { ModBuilderConstants.LowercaseConfigDir, ModBuilderConstants.ConfigDir, ModBuilderConstants.LowercaseConfigsDir })
         {
             var candidate = Path.Combine(sourceDirectory, dirName);
-            if (Directory.Exists(candidate))
+            if (Directory.Exists(candidate) && HasAnyBundleConfigFile(candidate))
             {
                 sourceConfigsDir = candidate;
                 break;
@@ -1251,6 +1251,11 @@ public sealed class ProjectConfigService(
         AdoptSourceConfigFile(sourceConfigsDir, configsDir, ModBuilderConstants.BundlePacksConfigFileName);
         AdoptSourceConfigFile(sourceConfigsDir, configsDir, ModBuilderConstants.BundleManifestsConfigFileName);
     }
+
+    private static bool HasAnyBundleConfigFile(string directory) =>
+        File.Exists(Path.Combine(directory, ModBuilderConstants.BundleItemsConfigFileName)) ||
+        File.Exists(Path.Combine(directory, ModBuilderConstants.BundlePacksConfigFileName)) ||
+        File.Exists(Path.Combine(directory, ModBuilderConstants.BundleManifestsConfigFileName));
 
     private void AdoptSourceConfigFile(string sourceConfigsDir, string configsDir, string fileName)
     {

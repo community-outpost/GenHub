@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -5,6 +6,7 @@ using GenHub.Features.Manifest;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 
 namespace GenHub.Features.Launching;
@@ -54,17 +56,17 @@ internal static class InstallationManifestDriftDetector
             return empty;
         }
 
+        var manifestMap = BuildManifestMap(manifestFiles);
         Dictionary<string, long> diskFiles;
         try
         {
-            diskFiles = ScanDiskFiles(installationPath, cancellationToken);
+            diskFiles = ScanDiskFiles(installationPath, manifestMap, targetGame, cancellationToken);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return empty;
         }
 
-        var manifestMap = BuildManifestMap(manifestFiles);
         var removed = new List<string>();
         var changed = new List<string>();
         foreach (var (relativePath, size) in manifestMap)
@@ -116,13 +118,21 @@ internal static class InstallationManifestDriftDetector
         return added;
     }
 
-    private static Dictionary<string, long> ScanDiskFiles(string installationPath, CancellationToken cancellationToken)
+    private static Dictionary<string, long> ScanDiskFiles(
+        string installationPath,
+        Dictionary<string, long> manifestMap,
+        GameType targetGame,
+        CancellationToken cancellationToken)
     {
+        var primaryExecutable = targetGame == GameType.Generals
+            ? GameClientConstants.GeneralsExecutable
+            : GameClientConstants.ZeroHourExecutable;
+
         var diskFiles = new Dictionary<string, long>(PathHelper.PathComparer);
         foreach (var file in Directory.EnumerateFiles(installationPath, "*", ScanOptions))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var relativePath = TryGetIncludedRelativePath(installationPath, file);
+            var relativePath = TryGetIncludedRelativePath(installationPath, file, manifestMap, primaryExecutable);
             if (relativePath == null)
             {
                 continue;
@@ -142,7 +152,11 @@ internal static class InstallationManifestDriftDetector
         return diskFiles;
     }
 
-    private static string? TryGetIncludedRelativePath(string installationPath, string file)
+    private static string? TryGetIncludedRelativePath(
+        string installationPath,
+        string file,
+        Dictionary<string, long> manifestMap,
+        string primaryExecutable)
     {
         string relativePath;
         try
@@ -159,7 +173,11 @@ internal static class InstallationManifestDriftDetector
             return null;
         }
 
-        if (!GameInstallationScanRules.FallbackFileExtensions.Contains(Path.GetExtension(file)))
+        var isPrimary = relativePath.Equals(primaryExecutable, StringComparison.OrdinalIgnoreCase) ||
+                        manifestMap.ContainsKey(relativePath) ||
+                        GameClientConstants.ValidGameExecutableNames.Contains(Path.GetFileName(relativePath), StringComparer.OrdinalIgnoreCase);
+
+        if (!isPrimary && !GameInstallationScanRules.FallbackFileExtensions.Contains(Path.GetExtension(file)))
         {
             return null;
         }
