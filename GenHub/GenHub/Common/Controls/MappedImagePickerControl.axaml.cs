@@ -215,20 +215,27 @@ public partial class MappedImagePickerControl : UserControl
 
     private void RefreshFilter()
     {
-        _filteredItems.Clear();
-        if (ItemsSource is null)
+        _syncingSelection = true;
+        try
         {
-            return;
-        }
-
-        var search = (SearchBox.Text ?? string.Empty).Trim();
-        foreach (var image in ItemsSource)
-        {
-            if (MatchesSearch(image, search))
+            _filteredItems.Clear();
+            if (ItemsSource is not null)
             {
-                var thumbnail = ThumbnailProvider?.Invoke(image);
-                _filteredItems.Add(new MappedImagePickerItem(image, thumbnail));
+                var search = (SearchBox.Text ?? string.Empty).Trim();
+                var matching = ItemsSource
+                    .Where(image => MatchesSearch(image, search))
+                    .OrderBy(image => image.Name, StringComparer.OrdinalIgnoreCase);
+
+                foreach (var image in matching)
+                {
+                    var thumbnail = ThumbnailProvider?.Invoke(image);
+                    _filteredItems.Add(new MappedImagePickerItem(image, thumbnail));
+                }
             }
+        }
+        finally
+        {
+            _syncingSelection = false;
         }
 
         if (SelectedImage is not null && !_filteredItems.Any(item => string.Equals(item.Definition.Name, SelectedImage.Name, StringComparison.OrdinalIgnoreCase)))

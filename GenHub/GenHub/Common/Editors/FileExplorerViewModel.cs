@@ -31,6 +31,7 @@ public sealed partial class FileExplorerViewModel : ObservableObject
     private readonly ILogger _logger;
     private Func<CancellationToken, Task<string?>>? _browseFolderAsync;
     private CancellationTokenSource? _refreshCts;
+    private Task? _currentRefreshTask;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DirectoryName))]
@@ -147,32 +148,32 @@ public sealed partial class FileExplorerViewModel : ObservableObject
     /// <returns>The first file path, or null when the tree has no files.</returns>
     public string? FindFirstFile()
     {
-        var found = FindFirstFilePath(Nodes);
-        if (found != null)
-        {
-            return found;
-        }
+        return FindFirstFilePath(Nodes);
+    }
 
-        if (AsynchronousEnumeration && !string.IsNullOrEmpty(Directory) && System.IO.Directory.Exists(Directory))
+    /// <summary>
+    /// Finds the first file path in the tree asynchronously, awaiting any active background refresh first.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The first file path, or null when the tree has no files.</returns>
+    public async Task<string?> FindFirstFileAsync(CancellationToken cancellationToken = default)
+    {
+        var refreshTask = _currentRefreshTask;
+        if (refreshTask is not null)
         {
             try
             {
-                foreach (var pattern in FilePatterns)
-                {
-                    var file = System.IO.Directory.EnumerateFiles(Directory, pattern, SearchOption.AllDirectories).FirstOrDefault();
-                    if (file != null)
-                    {
-                        return file;
-                    }
-                }
+                await refreshTask.WaitAsync(cancellationToken).ConfigureAwait(false);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (OperationCanceledException)
             {
-                _logger.LogWarning(ex, "Failed to enumerate first file in {Directory}", Directory);
+                // Ignored
             }
         }
 
-        return null;
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return FindFirstFilePath(Nodes);
     }
 
     /// <summary>
@@ -193,11 +194,13 @@ public sealed partial class FileExplorerViewModel : ObservableObject
         {
             Nodes.Clear();
             IsLoading = false;
+            _currentRefreshTask = null;
             return;
         }
 
         if (!AsynchronousEnumeration)
         {
+            _currentRefreshTask = null;
             Nodes.Clear();
             IsLoading = false;
             try
@@ -206,6 +209,7 @@ public sealed partial class FileExplorerViewModel : ObservableObject
                 if (rootNode is not null)
                 {
                     Nodes.Add(rootNode);
+                    UpdateNodesCurrentState(Nodes, CurrentPath);
                 }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -218,8 +222,8 @@ public sealed partial class FileExplorerViewModel : ObservableObject
 
         IsLoading = true;
         Nodes.Clear();
-        _ = Task.Run(
-            () =>
+        _currentRefreshTask = Task.Run(
+            async () =>
             {
                 try
                 {
@@ -234,7 +238,7 @@ public sealed partial class FileExplorerViewModel : ObservableObject
                         return;
                     }
 
-                    Dispatcher.UIThread.Post(() =>
+                    await Dispatcher.UIThread.InvokeAsync(() =>
                     {
                         if (ct.IsCancellationRequested)
                         {
@@ -245,15 +249,25 @@ public sealed partial class FileExplorerViewModel : ObservableObject
                         if (rootNode is not null)
                         {
                             Nodes.Add(rootNode);
+                            UpdateNodesCurrentState(Nodes, CurrentPath);
                         }
 
                         IsLoading = false;
                     });
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     _logger.LogWarning(ex, "Failed to list files in {Directory}", directory);
-                    Dispatcher.UIThread.Post(() => IsLoading = false);
+                    if (!ct.IsCancellationRequested)
+                    {
+                        await Dispatcher.UIThread.InvokeAsync(() =>
+                        {
+                            if (!ct.IsCancellationRequested)
+                            {
+                                IsLoading = false;
+                            }
+                        });
+                    }
                 }
                 catch (OperationCanceledException)
                 {
@@ -380,7 +394,11 @@ public sealed partial class FileExplorerViewModel : ObservableObject
 
             foreach (var subDirectory in subDirectories)
             {
-                if (cancellationToken.IsCancellationRequested) return null;
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return null;
+                }
+
                 var childNode = BuildDirectoryNode(subDirectory, currentPath, node, depth + 1, cancellationToken);
                 if (childNode is not null && childNode.Children.Count > 0)
                 {
@@ -393,7 +411,11 @@ public sealed partial class FileExplorerViewModel : ObservableObject
             _logger.LogWarning(ex, "Access denied enumerating subdirectories in {Path}", directoryInfo.FullName);
         }
 
-        if (cancellationToken.IsCancellationRequested) return null;
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return null;
+        }
+
         AddFileNodes(node, directoryInfo, currentPath);
         return node.Children.Count == 0 ? null : node;
     }

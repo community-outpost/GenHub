@@ -241,9 +241,14 @@ public class EditorCanvasControl : ContentControl
             return;
         }
 
+        if (Zoom <= 0 || !double.IsFinite(Zoom))
+        {
+            Zoom = 1.0;
+        }
+
         double factor = e.Delta.Y > 0 ? WheelZoomFactor : 1.0 / WheelZoomFactor;
         double newZoom = Math.Clamp(Zoom * factor, MinZoom, MaxZoom);
-        if (Math.Abs(newZoom - Zoom) < 0.0001)
+        if (newZoom <= 0 || !double.IsFinite(newZoom) || Math.Abs(newZoom - Zoom) < 0.0001)
         {
             e.Handled = true;
             return;

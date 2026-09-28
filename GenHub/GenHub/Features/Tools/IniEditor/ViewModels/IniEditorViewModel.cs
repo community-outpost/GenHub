@@ -217,19 +217,19 @@ public sealed partial class IniEditorViewModel(
     /// Gets or sets the health of the selected block.
     /// </summary>
     [ObservableProperty]
-    private string _selectedBlockHealth = string.Empty;
+    private string? _selectedBlockHealth;
 
     /// <summary>
     /// Gets or sets the build cost of the selected block.
     /// </summary>
     [ObservableProperty]
-    private string _selectedBlockCost = string.Empty;
+    private string? _selectedBlockCost;
 
     /// <summary>
     /// Gets or sets the build time of the selected block.
     /// </summary>
     [ObservableProperty]
-    private string _selectedBlockTime = string.Empty;
+    private string? _selectedBlockTime;
 
     /// <summary>
     /// Gets or sets the 3D model asset name of the selected block.
@@ -258,6 +258,12 @@ public sealed partial class IniEditorViewModel(
     /// <summary>
     /// Gets a value indicating whether a block is currently selected.
     /// </summary>
+    [ObservableProperty]
+    private bool _hasSelectedBlockKindOf;
+
+    [ObservableProperty]
+    private bool _hasSelectedBlockModules;
+
     [ObservableProperty]
     private bool _hasSelectedBlock;
 
@@ -344,27 +350,27 @@ public sealed partial class IniEditorViewModel(
     /// <summary>
     /// Gets the health stat label for the canvas summary card.
     /// </summary>
-    public string HealthLabel => "HEALTH";
+    public string HealthLabel => Localization.GetString("Tools.IniEditor.Canvas.HealthLabel");
 
     /// <summary>
     /// Gets the cost stat label for the canvas summary card.
     /// </summary>
-    public string CostLabel => "COST";
+    public string CostLabel => Localization.GetString("Tools.IniEditor.Canvas.CostLabel");
 
     /// <summary>
     /// Gets the build time stat label for the canvas summary card.
     /// </summary>
-    public string BuildTimeLabel => "BUILD TIME";
+    public string BuildTimeLabel => Localization.GetString("Tools.IniEditor.Canvas.BuildTimeLabel");
 
     /// <summary>
     /// Gets the kind-of flags header label for the canvas summary card.
     /// </summary>
-    public string KindOfLabel => "KINDOF";
+    public string KindOfLabel => Localization.GetString("Tools.IniEditor.Canvas.KindOfLabel");
 
     /// <summary>
     /// Gets the modules header label for the canvas summary card.
     /// </summary>
-    public string ModulesLabel => "MODULES";
+    public string ModulesLabel => Localization.GetString("Tools.IniEditor.Canvas.ModulesLabel");
 
     /// <inheritdoc />
     public override bool CanDelete => HasDocument && SelectedNode != null;
@@ -449,14 +455,57 @@ public sealed partial class IniEditorViewModel(
         if (existingPortrait is not null)
         {
             var index = block.Fields.IndexOf(existingPortrait);
-            block.Fields[index] = existingPortrait with { Value = textureName };
+            var oldField = existingPortrait;
+            var newField = existingPortrait with { Value = textureName };
+            block.Fields[index] = newField;
+
+            PushUndo(new IniEditAction(
+                Title: Localization.GetString("Tools.IniEditor.History.AttachTexture"),
+                Redo: () =>
+                {
+                    var idx = block.Fields.IndexOf(oldField);
+                    if (idx >= 0)
+                    {
+                        block.Fields[idx] = newField;
+                    }
+                    else
+                    {
+                        block.Fields.Add(newField);
+                    }
+
+                    RebuildAll();
+                },
+                Undo: () =>
+                {
+                    var idx = block.Fields.IndexOf(newField);
+                    if (idx >= 0)
+                    {
+                        block.Fields[idx] = oldField;
+                    }
+
+                    RebuildAll();
+                }));
         }
         else
         {
             var key = string.Equals(block.BlockType, IniConstants.BlockTypes.CommandButton, StringComparison.OrdinalIgnoreCase)
                 ? "ButtonImage"
                 : IniConstants.FieldKeys.SelectPortrait;
-            block.Fields.Add(new IniField(key, textureName));
+            var newField = new IniField(key, textureName);
+            block.Fields.Add(newField);
+
+            PushUndo(new IniEditAction(
+                Title: Localization.GetString("Tools.IniEditor.History.AttachTexture"),
+                Redo: () =>
+                {
+                    block.Fields.Add(newField);
+                    RebuildAll();
+                },
+                Undo: () =>
+                {
+                    block.Fields.Remove(newField);
+                    RebuildAll();
+                }));
         }
 
         MarkDirty();
@@ -466,8 +515,8 @@ public sealed partial class IniEditorViewModel(
         RebuildVisualObjectCard();
         RefreshRawPreviewText();
         Notifications.ShowSuccess(
-            Localization.GetString("Tools.IniEditor.Save.SuccessTitle"),
-            $"Attached {textureName} to {block.Name}");
+            Localization.GetString("Tools.IniEditor.Toast.AttachTextureSuccessTitle"),
+            Localization.GetString("Tools.IniEditor.Toast.AttachTextureSuccessMessage", textureName, block.Name));
     }
 
     /// <summary>
@@ -530,7 +579,8 @@ public sealed partial class IniEditorViewModel(
             return true;
         }
 
-        var first = FileExplorer.FindFirstFile();
+        var first = await FileExplorer.FindFirstFileAsync(cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
         if (!string.IsNullOrEmpty(first))
         {
             var opened = await OpenFileAsync(first, cancellationToken).ConfigureAwait(false);
@@ -1552,7 +1602,8 @@ public sealed partial class IniEditorViewModel(
     [RelayCommand(CanExecute = nameof(CanInsertReference))]
     private async Task InsertReferenceAsync(CancellationToken cancellationToken = default)
     {
-        if (_document == null || SelectedReference == null)
+        var targetDoc = _document;
+        if (targetDoc == null || SelectedReference == null)
         {
             return;
         }
@@ -1579,19 +1630,30 @@ public sealed partial class IniEditorViewModel(
         var block = cloned.Data;
         await InvokeOnUIThreadAsync(() =>
         {
-            var index = _document.Blocks.Count;
-            _document.Blocks.Add(block);
+            if (_document != targetDoc)
+            {
+                return;
+            }
+
+            var index = targetDoc.Blocks.Count;
+            targetDoc.Blocks.Add(block);
             PushUndo(new IniEditAction(
-                Localization.GetString("Tools.IniEditor.History.InsertReference"),
-                () =>
+                Title: Localization.GetString("Tools.IniEditor.History.InsertReference"),
+                Redo: () =>
                 {
-                    _document.Blocks.Insert(Math.Min(index, _document.Blocks.Count), block);
-                    RebuildAll();
+                    if (_document == targetDoc)
+                    {
+                        targetDoc.Blocks.Insert(Math.Min(index, targetDoc.Blocks.Count), block);
+                        RebuildAll();
+                    }
                 },
-                () =>
+                Undo: () =>
                 {
-                    _document.Blocks.Remove(block);
-                    RebuildAll();
+                    if (_document == targetDoc)
+                    {
+                        targetDoc.Blocks.Remove(block);
+                        RebuildAll();
+                    }
                 }));
             MarkDirty();
             RebuildAll();
@@ -2418,7 +2480,8 @@ public sealed partial class IniEditorViewModel(
 
     private async Task OnExplorerDirectoryAdoptedAsync(string directory, CancellationToken cancellationToken)
     {
-        var first = FileExplorer.FindFirstFile();
+        var first = await FileExplorer.FindFirstFileAsync(cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
         if (string.IsNullOrEmpty(first))
         {
             return;
@@ -2510,7 +2573,23 @@ public sealed partial class IniEditorViewModel(
 
         if (string.Equals(key, IniConstants.FieldKeys.Side, StringComparison.OrdinalIgnoreCase))
         {
-            return ["America", "China", "GLA", "Civilian", "Boss"];
+            var suggestions = new HashSet<string>(IniConstants.Sides.All, StringComparer.OrdinalIgnoreCase);
+            if (_document != null)
+            {
+                foreach (var b in _document.Blocks)
+                {
+                    foreach (var f in b.Fields)
+                    {
+                        if (string.Equals(f.Key, IniConstants.FieldKeys.Side, StringComparison.OrdinalIgnoreCase) &&
+                            !string.IsNullOrWhiteSpace(f.Value))
+                        {
+                            suggestions.Add(f.Value.Trim());
+                        }
+                    }
+                }
+            }
+
+            return suggestions.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList();
         }
 
         if (_document != null)
@@ -2932,12 +3011,14 @@ public sealed partial class IniEditorViewModel(
         if (block == null)
         {
             HasSelectedBlock = false;
+            HasSelectedBlockKindOf = false;
+            HasSelectedBlockModules = false;
             SelectedBlockTitle = string.Empty;
             SelectedBlockType = string.Empty;
             SelectedBlockSide = string.Empty;
-            SelectedBlockHealth = string.Empty;
-            SelectedBlockCost = string.Empty;
-            SelectedBlockTime = string.Empty;
+            SelectedBlockHealth = null;
+            SelectedBlockCost = null;
+            SelectedBlockTime = null;
             SelectedBlockModel = string.Empty;
             SelectedBlockPortrait = null;
             SelectedBlockKindOfList.Clear();
@@ -2950,9 +3031,9 @@ public sealed partial class IniEditorViewModel(
         SelectedBlockType = block.BlockType;
 
         SelectedBlockSide = FindFieldValue(block, IniConstants.FieldKeys.Side) ?? string.Empty;
-        SelectedBlockHealth = FindFieldValue(block, IniConstants.FieldKeys.Health) ?? FindFieldValue(block, "MaxHealth") ?? string.Empty;
-        SelectedBlockCost = FindFieldValue(block, IniConstants.FieldKeys.BuildCost) ?? string.Empty;
-        SelectedBlockTime = FindFieldValue(block, IniConstants.FieldKeys.BuildTime) ?? string.Empty;
+        SelectedBlockHealth = FindFieldValue(block, IniConstants.FieldKeys.Health) ?? FindFieldValue(block, "MaxHealth");
+        SelectedBlockCost = FindFieldValue(block, IniConstants.FieldKeys.BuildCost);
+        SelectedBlockTime = FindFieldValue(block, IniConstants.FieldKeys.BuildTime);
 
         var modelField = block.Fields.FirstOrDefault(f => string.Equals(f.Key, "Model", StringComparison.OrdinalIgnoreCase));
         if (modelField != null)
@@ -2967,7 +3048,7 @@ public sealed partial class IniEditorViewModel(
             SelectedBlockModel = childModel?.Value ?? string.Empty;
         }
 
-        var portraitName = FindFieldValue(block, IniConstants.FieldKeys.SelectPortrait) ?? FindFieldValue(block, "ButtonImage");
+        var portraitName = (FindFieldValue(block, IniConstants.FieldKeys.SelectPortrait) ?? FindFieldValue(block, "ButtonImage"))?.Trim();
         if (!string.IsNullOrWhiteSpace(portraitName) && _textureThumbnails.TryGetValue(portraitName, out var thumb))
         {
             SelectedBlockPortrait = thumb;
@@ -2995,6 +3076,14 @@ public sealed partial class IniEditorViewModel(
                 SelectedBlockModules.Add(childNode);
             }
         }
+
+        HasSelectedBlockKindOf = SelectedBlockKindOfList.Count > 0;
+        HasSelectedBlockModules = SelectedBlockModules.Count > 0;
+        OnPropertyChanged(nameof(HealthLabel));
+        OnPropertyChanged(nameof(CostLabel));
+        OnPropertyChanged(nameof(BuildTimeLabel));
+        OnPropertyChanged(nameof(KindOfLabel));
+        OnPropertyChanged(nameof(ModulesLabel));
     }
 
     private void UpdateAvailableFieldKeys()
@@ -3047,9 +3136,15 @@ public sealed partial class IniEditorViewModel(
             return;
         }
 
+        var targetBlock = SelectedNode?.Block;
+        if (targetBlock == null)
+        {
+            return;
+        }
+
         ScheduleDeferred(ref _rawEditCts, IniConstants.Editor.PreviewRefreshDebounceMs, () =>
         {
-            ApplyRawPreviewEdit(value);
+            ApplyRawPreviewEdit(targetBlock, value);
         });
     }
 
@@ -3084,47 +3179,81 @@ public sealed partial class IniEditorViewModel(
         }
     }
 
-    private void ApplyRawPreviewEdit(string text)
+    private void ApplyRawPreviewEdit(IniBlock targetBlock, string text)
     {
-        if (SelectedNode?.Block == null || string.IsNullOrWhiteSpace(text))
+        if (_document == null || SelectedNode?.Block != targetBlock)
         {
             return;
         }
 
-        try
+        if (string.IsNullOrWhiteSpace(text))
         {
-            var parsed = iniDocumentService.ParseText(text);
-            if (parsed.Success && parsed.Data != null && parsed.Data.Blocks.Count > 0)
+            var emptyOldFields = targetBlock.Fields.ToList();
+            var emptyOldChildren = targetBlock.Children.ToList();
+            if (emptyOldFields.Count == 0 && emptyOldChildren.Count == 0)
             {
-                var newBlock = parsed.Data.Blocks[0];
-                var currentBlock = SelectedNode.Block;
-
-                currentBlock.Fields.Clear();
-                foreach (var f in newBlock.Fields)
-                {
-                    currentBlock.Fields.Add(f);
-                }
-
-                currentBlock.Children.Clear();
-                foreach (var c in newBlock.Children)
-                {
-                    currentBlock.Children.Add(c);
-                }
-
-                PostToUIThread(() =>
-                {
-                    MarkDirty();
-                    RebuildFieldRows();
-                    RebuildCanvasSummary();
-                    RebuildAssembledRows();
-                    RebuildVisualObjectCard();
-                });
+                return;
             }
+
+            void ApplyEmpty()
+            {
+                targetBlock.Fields.Clear();
+                targetBlock.Children.Clear();
+                RebuildAll();
+            }
+
+            void RevertEmpty()
+            {
+                targetBlock.Fields.Clear();
+                targetBlock.Fields.AddRange(emptyOldFields);
+                targetBlock.Children.Clear();
+                targetBlock.Children.AddRange(emptyOldChildren);
+                RebuildAll();
+            }
+
+            ApplyEmpty();
+            PushUndo(new IniEditAction(
+                Title: Localization.GetString("Tools.IniEditor.History.ApplyRawPreview"),
+                Redo: ApplyEmpty,
+                Undo: RevertEmpty));
+            MarkDirty();
+            return;
         }
-        catch (Exception ex)
+
+        var parsed = iniDocumentService.ParseText(text);
+        if (!parsed.Success || parsed.Data == null || parsed.Data.Blocks.Count == 0)
         {
-            logger.LogDebug(ex, "Failed to parse raw preview edit");
+            return;
         }
+
+        var newBlock = parsed.Data.Blocks[0];
+        var oldBlockType = targetBlock.BlockType;
+        var oldName = targetBlock.Name;
+        var oldFields = targetBlock.Fields.ToList();
+        var oldChildren = targetBlock.Children.ToList();
+
+        var newBlockType = newBlock.BlockType;
+        var newName = newBlock.Name;
+        var newFields = newBlock.Fields.ToList();
+        var newChildren = newBlock.Children.ToList();
+
+        void ApplyParsedState(string blockType, string name, List<IniField> fields, List<IniBlock> children)
+        {
+            targetBlock.BlockType = blockType;
+            targetBlock.Name = name;
+            targetBlock.Fields.Clear();
+            targetBlock.Fields.AddRange(fields);
+            targetBlock.Children.Clear();
+            targetBlock.Children.AddRange(children);
+            RebuildAll();
+        }
+
+        ApplyParsedState(newBlockType, newName, newFields, newChildren);
+        PushUndo(new IniEditAction(
+            Title: Localization.GetString("Tools.IniEditor.History.ApplyRawPreview"),
+            Redo: () => ApplyParsedState(newBlockType, newName, newFields, newChildren),
+            Undo: () => ApplyParsedState(oldBlockType, oldName, oldFields, oldChildren)));
+        MarkDirty();
     }
 
     partial void OnBlockFilterChanged(string? value)

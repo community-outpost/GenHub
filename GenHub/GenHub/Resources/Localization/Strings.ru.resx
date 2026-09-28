@@ -17635,6 +17635,33 @@ Error: не удалось: {3}
   <data name="Tools.IniEditor.Reference.NotFoundTitle" xml:space="preserve">
     <value>Определение не найдено</value>
   </data>
+  <data name="Tools.IniEditor.Canvas.HealthLabel" xml:space="preserve">
+    <value>ЗДОРОВЬЕ</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.CostLabel" xml:space="preserve">
+    <value>СТОИМОСТЬ</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.BuildTimeLabel" xml:space="preserve">
+    <value>ВРЕМЯ ПОСТРОЙКИ</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.KindOfLabel" xml:space="preserve">
+    <value>ТИП ОБЪЕКТА</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.ModulesLabel" xml:space="preserve">
+    <value>МОДУЛИ</value>
+  </data>
+  <data name="Tools.IniEditor.History.AttachTexture" xml:space="preserve">
+    <value>Прикрепить текстуру</value>
+  </data>
+  <data name="Tools.IniEditor.History.ApplyRawPreview" xml:space="preserve">
+    <value>Прямое редактирование INI</value>
+  </data>
+  <data name="Tools.IniEditor.Toast.AttachTextureSuccessTitle" xml:space="preserve">
+    <value>Текстура прикреплена</value>
+  </data>
+  <data name="Tools.IniEditor.Toast.AttachTextureSuccessMessage" xml:space="preserve">
+    <value>Прикреплено {0} к {1}.</value>
+  </data>
   <data name="TextureEditor.Button.OpenFolder" xml:space="preserve">
     <value>Открыть папку</value>
   </data>

@@ -91,7 +91,7 @@
                       <TextBlock Text="{Binding}" FontSize="9" FontWeight="SemiBold"
                                  Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
                       <Button x:CompileBindings="False"
-                              Command="{Binding DataContext.RemoveFlagCommand, RelativeSource={RelativeSource AncestorType=Border, AncestorLevel=2}}"
+                              Command="{Binding DataContext.RemoveFlagCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                               CommandParameter="{Binding}"
                               Padding="2,0" Background="Transparent" BorderThickness="0"
                               ToolTip.Tip="{localization:Localize Tools.IniEditor.Toolbar.Delete}">
@@ -639,7 +639,7 @@
                     </Grid>
 
                     <!-- KindOf Flags Chips -->
-                    <StackPanel Spacing="4" IsVisible="{Binding SelectedBlockKindOfList.Count}">
+                    <StackPanel Spacing="4" IsVisible="{Binding HasSelectedBlockKindOf}">
                       <TextBlock Text="{Binding KindOfLabel}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}"/>
                       <ItemsControl ItemsSource="{Binding SelectedBlockKindOfList}">
                         <ItemsControl.ItemsPanel>
@@ -660,7 +660,7 @@
                     </StackPanel>
 
                     <!-- Connected Child Modules (Clickable!) -->
-                    <StackPanel Spacing="4" IsVisible="{Binding SelectedBlockModules.Count}">
+                    <StackPanel Spacing="4" IsVisible="{Binding HasSelectedBlockModules}">
                       <TextBlock Text="{Binding ModulesLabel}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}"/>
                       <ItemsControl ItemsSource="{Binding SelectedBlockModules}">
                         <ItemsControl.ItemTemplate>
@@ -704,6 +704,7 @@
                       </Border>
                     </Grid>
                     <TextBox Text="{Binding RawPreviewText, Mode=TwoWay}"
+                             IsReadOnly="{Binding !HasSelectedBlock}"
                              AcceptsReturn="True" AcceptsTab="True"
                              FontFamily="Consolas,Menlo,monospace"
                              FontSize="{Binding CanvasFontSize}"

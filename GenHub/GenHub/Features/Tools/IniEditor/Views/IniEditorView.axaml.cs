@@ -57,7 +57,16 @@ public partial class IniEditorView : UserControl
             return;
         }
 
-        if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.Z)
+        var isPrimary = (e.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Meta)) != 0;
+        var hasShift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
+        var hasAlt = (e.KeyModifiers & KeyModifiers.Alt) != 0;
+
+        if (!isPrimary || hasAlt)
+        {
+            return;
+        }
+
+        if (!hasShift && e.Key == Key.Z)
         {
             if (viewModel.UndoCommand.CanExecute(null))
             {
@@ -65,8 +74,7 @@ public partial class IniEditorView : UserControl
                 e.Handled = true;
             }
         }
-        else if ((e.KeyModifiers == KeyModifiers.Control && e.Key == Key.Y) ||
-                 (e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift) && e.Key == Key.Z))
+        else if ((!hasShift && e.Key == Key.Y) || (hasShift && e.Key == Key.Z))
         {
             if (viewModel.RedoCommand.CanExecute(null))
             {
@@ -74,7 +82,7 @@ public partial class IniEditorView : UserControl
                 e.Handled = true;
             }
         }
-        else if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.S)
+        else if (!hasShift && e.Key == Key.S)
         {
             if (viewModel.SaveCommand.CanExecute(null))
             {
@@ -82,7 +90,7 @@ public partial class IniEditorView : UserControl
                 e.Handled = true;
             }
         }
-        else if (e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift) && e.Key == Key.S)
+        else if (hasShift && e.Key == Key.S)
         {
             if (viewModel.SaveAsCommand.CanExecute(null))
             {

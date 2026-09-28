@@ -23,9 +23,14 @@
                       HorizontalScrollBarVisibility="Auto"
                       VerticalScrollBarVisibility="Auto"
                       Background="{TemplateBinding Background}">
-          <ContentPresenter Name="PART_Content"
-                            Content="{TemplateBinding Content}"
-                            ContentTemplate="{TemplateBinding ContentTemplate}" />
+          <LayoutTransformControl>
+            <LayoutTransformControl.LayoutTransform>
+              <ScaleTransform ScaleX="{TemplateBinding Zoom}" ScaleY="{TemplateBinding Zoom}" />
+            </LayoutTransformControl.LayoutTransform>
+            <ContentPresenter Name="PART_Content"
+                              Content="{TemplateBinding Content}"
+                              ContentTemplate="{TemplateBinding ContentTemplate}" />
+          </LayoutTransformControl>
         </ScrollViewer>
       </ControlTemplate>
     </Setter>

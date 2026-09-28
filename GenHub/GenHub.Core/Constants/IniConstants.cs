@@ -90,72 +90,6 @@ public static class IniConstants
         /// <summary>Defines a mapped image sprite.</summary>
         public const string MappedImage = "MappedImage";
 
-        /// <summary>Default condition state sub-block.</summary>
-        public const string DefaultConditionState = "DefaultConditionState";
-
-        /// <summary>Replace module override in map.ini.</summary>
-        public const string ReplaceModule = "ReplaceModule";
-
-        /// <summary>Add module override in map.ini.</summary>
-        public const string AddModule = "AddModule";
-
-        /// <summary>Prerequisites sub-block.</summary>
-        public const string Prerequisites = "Prerequisites";
-
-        /// <summary>Turret sub-block.</summary>
-        public const string Turret = "Turret";
-
-        /// <summary>Alt turret sub-block.</summary>
-        public const string AltTurret = "AltTurret";
-
-        /// <summary>Create object sub-block.</summary>
-        public const string CreateObject = "CreateObject";
-
-        /// <summary>Create debris sub-block.</summary>
-        public const string CreateDebris = "CreateDebris";
-
-        /// <summary>Deliver payload sub-block.</summary>
-        public const string DeliverPayload = "DeliverPayload";
-
-        /// <summary>Apply random force sub-block.</summary>
-        public const string ApplyRandomForce = "ApplyRandomForce";
-
-        /// <summary>Fire weapon sub-block.</summary>
-        public const string FireWeapon = "FireWeapon";
-
-        /// <summary>FXList at bone pos sub-block.</summary>
-        public const string FXListAtBonePos = "FXListAtBonePos";
-
-        /// <summary>Unit specific sounds sub-block.</summary>
-        public const string UnitSpecificSounds = "UnitSpecificSounds";
-
-        /// <summary>Water transparency block.</summary>
-        public const string WaterTransparency = "WaterTransparency";
-
-        /// <summary>Weather block.</summary>
-        public const string Weather = "Weather";
-
-        /// <summary>AI Data block.</summary>
-        public const string AIData = "AIData";
-
-        /// <summary>Audio event block.</summary>
-        public const string AudioEvent = "AudioEvent";
-
-        /// <summary>Dialog event block.</summary>
-        public const string DialogEvent = "DialogEvent";
-
-        /// <summary>Music track block.</summary>
-        public const string MusicTrack = "MusicTrack";
-
-        /// <summary>FXList block.</summary>
-        public const string FXList = "FXList";
-
-        /// <summary>Particle system block.</summary>
-        public const string ParticleSystem = "ParticleSystem";
-
-        /// <summary>Object reskin block.</summary>
-        public const string ObjectReskin = "ObjectReskin";
-
         /// <summary>
         /// All top-level block types with schema assistance.
         /// </summary>
@@ -550,9 +484,55 @@ public static class IniConstants
             "FS_POWER", "FS_FACTORY", "FS_BASE_DEFENSE", "FS_TECHNOLOGY",
             "AUTO_RALLYPOINT", "CAPTURABLE", "TRANSPORT", "CLEARED_BY_BUILD",
             "BALLISTIC_MISSILE", "DEFENSIVE_WALL", "REBUILD_HOLE", "HEAL_PAD",
-            "STEALTH_GARRISON", "SUPPLY_SOURCE", "MONEY_STORE", "DOZER", "HARVESTER",
+            "STEALTH_GARRISON", "SUPPLY_SOURCE", "CASH_GENERATOR", "DOZER", "HARVESTER",
             "PRODUCED_AT_HELIPAD", "ATTACK_NEEDS_LINE_OF_SIGHT", "NO_COLLIDE",
-            "GARRISONABLE", "SALVAGER", "POWERED", "PARACHUTABLE",
+            "GARRISONABLE_UNTIL_DESTROYED", "SALVAGER", "POWERED", "PARACHUTABLE",
+        ];
+    }
+
+    /// <summary>
+    /// Known side and faction identifiers for Command &amp; Conquer Generals and Zero Hour.
+    /// </summary>
+    public static class Sides
+    {
+        /// <summary>America faction.</summary>
+        public const string America = "America";
+
+        /// <summary>USA alias.</summary>
+        public const string USA = "USA";
+
+        /// <summary>China faction.</summary>
+        public const string China = "China";
+
+        /// <summary>GLA faction.</summary>
+        public const string GLA = "GLA";
+
+        /// <summary>Civilian faction.</summary>
+        public const string Civilian = "Civilian";
+
+        /// <summary>Boss faction.</summary>
+        public const string Boss = "Boss";
+
+        /// <summary>
+        /// Representative list of sides and Zero Hour general factions.
+        /// </summary>
+        public static readonly IReadOnlyList<string> All =
+        [
+            America,
+            USA,
+            China,
+            GLA,
+            Civilian,
+            Boss,
+            "AmericaAirForceGeneral",
+            "AmericaLaserGeneral",
+            "AmericaSuperWeaponGeneral",
+            "ChinaTankGeneral",
+            "ChinaInfantryGeneral",
+            "ChinaNukeGeneral",
+            "GLAToxinGeneral",
+            "GLADemolitionGeneral",
+            "GLAStealthGeneral",
         ];
     }
 
@@ -589,15 +569,15 @@ public static class IniConstants
         public const int MaxReferenceResults = 500;
 
         /// <summary>Maximum picker textures preloaded with thumbnails.</summary>
-        public const int MaxPickerThumbnails = 2048;
+        public const int MaxPickerThumbnails = 64;
 
         /// <summary>Maximum mapped image files parsed for texture pickers.</summary>
-        public const int MaxMappedImageFiles = 250;
+        public const int MaxMappedImageFiles = 50;
 
         /// <summary>Maximum mapped image definitions offered by texture pickers.</summary>
-        public const int MaxPickerDefinitions = 10000;
+        public const int MaxPickerDefinitions = 2000;
 
         /// <summary>Maximum characters rendered in the raw text preview.</summary>
-        public const int MaxRawPreviewChars = 200000;
+        public const int MaxRawPreviewChars = 100000;
     }
 }

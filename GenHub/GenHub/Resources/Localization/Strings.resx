@@ -17694,6 +17694,33 @@ Mapped image texture reference</value>
   <data name="Tools.IniEditor.Reference.NotFoundTitle" xml:space="preserve">
     <value>Definition Not Found</value>
   </data>
+  <data name="Tools.IniEditor.Canvas.HealthLabel" xml:space="preserve">
+    <value>HEALTH</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.CostLabel" xml:space="preserve">
+    <value>COST</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.BuildTimeLabel" xml:space="preserve">
+    <value>BUILD TIME</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.KindOfLabel" xml:space="preserve">
+    <value>KINDOF</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.ModulesLabel" xml:space="preserve">
+    <value>MODULES</value>
+  </data>
+  <data name="Tools.IniEditor.History.AttachTexture" xml:space="preserve">
+    <value>Attach Texture</value>
+  </data>
+  <data name="Tools.IniEditor.History.ApplyRawPreview" xml:space="preserve">
+    <value>Raw INI Edit</value>
+  </data>
+  <data name="Tools.IniEditor.Toast.AttachTextureSuccessTitle" xml:space="preserve">
+    <value>Texture Attached</value>
+  </data>
+  <data name="Tools.IniEditor.Toast.AttachTextureSuccessMessage" xml:space="preserve">
+    <value>Attached {0} to {1}.</value>
+  </data>
   <data name="TextureEditor.Button.OpenFolder" xml:space="preserve">
     <value>Open folder</value>
   </data>

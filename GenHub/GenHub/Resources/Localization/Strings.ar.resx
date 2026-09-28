@@ -17635,6 +17635,33 @@ Error: فشل: {3}
   <data name="Tools.IniEditor.Reference.NotFoundTitle" xml:space="preserve">
     <value>التعريف غير موجود</value>
   </data>
+  <data name="Tools.IniEditor.Canvas.HealthLabel" xml:space="preserve">
+    <value>الصحة</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.CostLabel" xml:space="preserve">
+    <value>التكلفة</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.BuildTimeLabel" xml:space="preserve">
+    <value>وقت البناء</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.KindOfLabel" xml:space="preserve">
+    <value>نوع الكائن</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.ModulesLabel" xml:space="preserve">
+    <value>الوحدات</value>
+  </data>
+  <data name="Tools.IniEditor.History.AttachTexture" xml:space="preserve">
+    <value>إرفاق النسيج</value>
+  </data>
+  <data name="Tools.IniEditor.History.ApplyRawPreview" xml:space="preserve">
+    <value>تعديل INI المباشر</value>
+  </data>
+  <data name="Tools.IniEditor.Toast.AttachTextureSuccessTitle" xml:space="preserve">
+    <value>تم إرفاق النسيج</value>
+  </data>
+  <data name="Tools.IniEditor.Toast.AttachTextureSuccessMessage" xml:space="preserve">
+    <value>تم إرفاق {0} بـ {1}.</value>
+  </data>
   <data name="TextureEditor.Button.OpenFolder" xml:space="preserve">
     <value>فتح مجلد</value>
   </data>

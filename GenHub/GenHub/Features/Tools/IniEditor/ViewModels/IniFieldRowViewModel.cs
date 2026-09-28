@@ -170,23 +170,18 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
         }
     }
 
-    /// <summary>
-    /// Signals that editing of the value finished, recording undo state if changed.
-    /// </summary>
-    /// <param name="preEditValue">The value prior to the edit sequence.</param>
-    public void CommitEdit(string preEditValue)
-    {
-        if (!string.Equals(preEditValue, Value, StringComparison.Ordinal))
-        {
-            _onEditCommitted(preEditValue, Value);
-        }
-    }
-
     partial void OnSelectedFlagToAddChanged(string value)
     {
-        if (!string.IsNullOrWhiteSpace(value))
+        if (string.IsNullOrWhiteSpace(value))
         {
-            AddFlag(value);
+            return;
+        }
+
+        var trimmed = value.Trim();
+        var matched = AvailableKindOfFlags.FirstOrDefault(f => string.Equals(f, trimmed, StringComparison.OrdinalIgnoreCase));
+        if (matched is not null)
+        {
+            AddFlag(matched);
             SelectedFlagToAdd = string.Empty;
         }
     }
