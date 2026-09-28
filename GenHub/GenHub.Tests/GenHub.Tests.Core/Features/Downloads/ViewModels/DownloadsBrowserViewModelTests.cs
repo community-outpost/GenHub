@@ -7,6 +7,7 @@ using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Parsers;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Manifest;
@@ -27,6 +28,7 @@ using ContentState = GenHub.Core.Models.Enums.ContentState;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 using GameType = GenHub.Core.Models.Enums.GameType;
 using PublisherSubscription = GenHub.Core.Models.Providers.PublisherSubscription;
+using TelemetryLevel = GenHub.Core.Models.Enums.TelemetryLevel;
 
 namespace GenHub.Tests.Core.Features.Downloads.ViewModels;
 
@@ -1387,6 +1389,283 @@ public class DownloadsBrowserViewModelTests
     }
 
     /// <summary>
+    /// Verifies that on a single card grouping parallel resolution variants, a partially
+    /// installed set (for example after deleting unneeded resolutions) does not mark the
+    /// remaining installed variant as UpdateAvailable. Sibling resolutions are install
+    /// options, not newer versions of each other.
+    /// </summary>
+    [Fact]
+    public void ReconcileReleaseUpdateStates_WhenParallelResolutionVariantsPartiallyInstalled_DoesNotShowUpdate()
+    {
+        // Arrange
+        var stateServiceMock = new Mock<IContentStateService>();
+        var loggerMock = new Mock<ILogger<ContentGridItemViewModel>>();
+
+        var cardSr = new ContentSearchResult
+        {
+            Id = "1.0.communityoutpost.addon.cbpx-1080p",
+            Name = "Control Bar Pro (Xezon) - 1080p (Recommended)",
+            Version = "1.0",
+            ProviderName = CommunityOutpostConstants.PublisherType,
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            VariantFamilyName = "Control Bar Pro (Xezon)",
+            VariantGroupId = "communityoutpost.addon.cbpx.1.0",
+        };
+        var card = new ContentGridItemViewModel(cardSr, stateServiceMock.Object, loggerMock.Object);
+
+        InstallableVariant AddSibling(string variantId, string name, ContentState state) =>
+            AddCardVariant(card, $"1.0.communityoutpost.addon.cbpx-{variantId}", name, "1.0", state);
+
+        AddSibling("720p", "Control Bar Pro (Xezon) - 720p", ContentState.NotDownloaded);
+        AddSibling("900p", "Control Bar Pro (Xezon) - 900p", ContentState.NotDownloaded);
+        var downloaded = AddSibling("1080p", "Control Bar Pro (Xezon) - 1080p (Recommended)", ContentState.Downloaded);
+
+        // A newer valid version on an uninstalled parallel option still must not
+        // produce an update: resolutions are install choices, not releases.
+        AddCardVariant(card, "1.0.communityoutpost.addon.cbpx-1440p", "Control Bar Pro (Xezon) - 1440p (2K)", "2.0", ContentState.NotDownloaded);
+
+        card.SelectedVariant = downloaded;
+        card.CurrentState = ContentState.Downloaded;
+        card.IsDownloaded = true;
+
+        // A second, unrelated card so the reconcile pass runs; the cbpx card must
+        // still form a single-item family and keep its installed variant current.
+        var unrelated = CreateUnrelatedCard(stateServiceMock.Object, loggerMock.Object);
+
+        // Act
+        DownloadsBrowserViewModel.ReconcileReleaseUpdateStates([card, unrelated]);
+
+        // Assert: the installed resolution stays current; no update is offered.
+        Assert.Equal(ContentState.Downloaded, downloaded.CurrentState);
+        Assert.Equal(ContentState.Downloaded, card.CurrentState);
+        Assert.True(card.IsDownloaded);
+        Assert.Null(card.UpdateTargetVm);
+        Assert.False(card.ShowUpdateButton);
+        Assert.True(card.ShowAddToProfileButton);
+        Assert.False(card.ShowDownloadButton);
+    }
+
+    /// <summary>
+    /// Verifies that on a single card grouping parallel language variants, installing only
+    /// one language does not mark it as UpdateAvailable. Sibling languages are install
+    /// options, not newer versions of each other.
+    /// </summary>
+    [Fact]
+    public void ReconcileReleaseUpdateStates_WhenParallelLanguageVariantsPartiallyInstalled_DoesNotShowUpdate()
+    {
+        // Arrange
+        var stateServiceMock = new Mock<IContentStateService>();
+        var loggerMock = new Mock<ILogger<ContentGridItemViewModel>>();
+
+        var cardSr = new ContentSearchResult
+        {
+            Id = "1.0.communityoutpost.addon.hlei-zerohour-en",
+            Name = "Leikeze's Hotkeys (EN)",
+            Version = "1.0",
+            ProviderName = CommunityOutpostConstants.PublisherType,
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            VariantFamilyName = "Leikeze's Hotkeys",
+            VariantGroupId = "communityoutpost.addon.hlei.1.0",
+        };
+        var card = new ContentGridItemViewModel(cardSr, stateServiceMock.Object, loggerMock.Object);
+
+        InstallableVariant AddSibling(string variantId, string name, ContentState state) =>
+            AddCardVariant(card, $"1.0.communityoutpost.addon.hlei-{variantId}", name, "1.0", state);
+
+        var downloaded = AddSibling("zerohour-en", "Leikeze's Hotkeys (EN)", ContentState.Downloaded);
+
+        // A newer valid version on an uninstalled parallel option still must not
+        // produce an update: languages are install choices, not releases.
+        AddCardVariant(card, "1.0.communityoutpost.addon.hlei-zerohour-de", "Leikeze's Hotkeys (DE)", "2.0", ContentState.NotDownloaded);
+        AddSibling("zerohour-ru", "Leikeze's Hotkeys (RU)", ContentState.NotDownloaded);
+
+        card.SelectedVariant = downloaded;
+        card.CurrentState = ContentState.Downloaded;
+        card.IsDownloaded = true;
+
+        // A second, unrelated card so the reconcile pass runs; the hlei card must
+        // still form a single-item family and keep its installed variant current.
+        var unrelated = CreateUnrelatedCard(stateServiceMock.Object, loggerMock.Object);
+
+        // Act
+        DownloadsBrowserViewModel.ReconcileReleaseUpdateStates([card, unrelated]);
+
+        // Assert: the installed language stays current; no update is offered.
+        Assert.Equal(ContentState.Downloaded, downloaded.CurrentState);
+        Assert.Equal(ContentState.Downloaded, card.CurrentState);
+        Assert.True(card.IsDownloaded);
+        Assert.Null(card.UpdateTargetVm);
+        Assert.False(card.ShowUpdateButton);
+        Assert.True(card.ShowAddToProfileButton);
+    }
+
+    /// <summary>
+    /// Verifies that a sibling variant with a genuinely newer release version never
+    /// produces a card-level self-update claim. Cross-variant comparisons cannot tell
+    /// parallel options and unrelated content apart from releases, and a self-target
+    /// would re-download the installed result; genuine updates surface through
+    /// per-variant states and cross-release families instead.
+    /// </summary>
+    [Fact]
+    public void ReconcileReleaseUpdateStates_WhenSiblingVariantHasNewerVersion_DoesNotClaimSelfUpdate()
+    {
+        // Arrange
+        var stateServiceMock = new Mock<IContentStateService>();
+        var loggerMock = new Mock<ILogger<ContentGridItemViewModel>>();
+
+        var cardSr = new ContentSearchResult
+        {
+            Id = "github.TheSuperHackers.GeneralsGameCode.weekly-2026-08-28.zerohour",
+            Name = "GeneralsGameCode weekly-2026-08-28 — Zero Hour",
+            Version = "2026-08-28",
+            ProviderName = "thesuperhackers",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+        };
+        var card = new ContentGridItemViewModel(cardSr, stateServiceMock.Object, loggerMock.Object);
+
+        InstallableVariant AddSibling(string date, ContentState state) =>
+            AddCardVariant(
+                card,
+                $"1.{date.Replace("-", string.Empty)}.thesuperhackers.gameclient.zerohour",
+                "Zero Hour",
+                date,
+                state);
+
+        var downloaded = AddSibling("2026-08-28", ContentState.Downloaded);
+        AddSibling("2026-09-05", ContentState.NotDownloaded);
+
+        card.SelectedVariant = downloaded;
+        card.CurrentState = ContentState.Downloaded;
+        card.IsDownloaded = true;
+
+        // A second, unrelated card so the reconcile pass runs.
+        var unrelated = CreateUnrelatedCard(stateServiceMock.Object, loggerMock.Object);
+
+        // Act
+        DownloadsBrowserViewModel.ReconcileReleaseUpdateStates([card, unrelated]);
+
+        // Assert: no card-level self-update is claimed for the newer sibling.
+        Assert.Equal(ContentState.Downloaded, downloaded.CurrentState);
+        Assert.Equal(ContentState.Downloaded, card.CurrentState);
+        Assert.True(card.IsDownloaded);
+        Assert.Null(card.UpdateTargetVm);
+        Assert.False(card.ShowUpdateButton);
+        Assert.True(card.ShowAddToProfileButton);
+        Assert.False(card.ShowDownloadButton);
+    }
+
+    /// <summary>
+    /// Verifies that sibling variants carrying unparseable version labels (such as
+    /// tag-style "nightly" builds) never mark a downloaded variant as UpdateAvailable.
+    /// Without structured version evidence the comparison fails closed.
+    /// </summary>
+    /// <param name="candidateVersion">The uninstalled sibling's version label.</param>
+    /// <param name="downloadedVersion">The downloaded variant's version label.</param>
+    [Theory]
+    [InlineData("weekly", "nightly")]
+    [InlineData("nightly", "weekly")]
+    public void ReconcileReleaseUpdateStates_WhenSiblingVariantVersionsAreUnparseable_DoesNotShowUpdate(
+        string candidateVersion,
+        string downloadedVersion)
+    {
+        // Arrange
+        var stateServiceMock = new Mock<IContentStateService>();
+        var loggerMock = new Mock<ILogger<ContentGridItemViewModel>>();
+
+        var cardSr = new ContentSearchResult
+        {
+            Id = "1.0.github.gameclient.zerohourb",
+            Name = "Zero Hour",
+            Version = downloadedVersion,
+            ProviderName = "github",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+        };
+        var card = new ContentGridItemViewModel(cardSr, stateServiceMock.Object, loggerMock.Object);
+
+        var downloaded = AddCardVariant(card, "1.0.github.gameclient.zerohourb", "Zero Hour", downloadedVersion, ContentState.Downloaded);
+        AddCardVariant(card, "1.0.github.gameclient.zerohoura", "Zero Hour", candidateVersion, ContentState.NotDownloaded);
+
+        card.SelectedVariant = downloaded;
+        card.CurrentState = ContentState.Downloaded;
+        card.IsDownloaded = true;
+
+        // A second, unrelated card so the reconcile pass runs.
+        var unrelated = CreateUnrelatedCard(stateServiceMock.Object, loggerMock.Object);
+
+        // Act
+        DownloadsBrowserViewModel.ReconcileReleaseUpdateStates([card, unrelated]);
+
+        // Assert: unparseable labels are not version evidence; no update is offered.
+        Assert.Equal(ContentState.Downloaded, downloaded.CurrentState);
+        Assert.Equal(ContentState.Downloaded, card.CurrentState);
+        Assert.True(card.IsDownloaded);
+        Assert.Null(card.UpdateTargetVm);
+        Assert.False(card.ShowUpdateButton);
+        Assert.True(card.ShowAddToProfileButton);
+    }
+
+    /// <summary>
+    /// Verifies that on a GenLauncher card grouping a whole mod (releases plus addons
+    /// as sibling variants), downloading a single addon does not mark it as
+    /// UpdateAvailable, even when other siblings carry valid newer versions.
+    /// Siblings are different content items, not newer releases of each other.
+    /// </summary>
+    [Fact]
+    public void ReconcileReleaseUpdateStates_WhenGenLauncherCardHasOneAddonDownloaded_DoesNotShowUpdate()
+    {
+        // Arrange
+        var stateServiceMock = new Mock<IContentStateService>();
+        var loggerMock = new Mock<ILogger<ContentGridItemViewModel>>();
+
+        var cardSr = new ContentSearchResult
+        {
+            Id = "genlauncher-zerohour-shockwave-cursor-pack-hd",
+            Name = "ShockWave Cursor Pack HD",
+            Version = "1.3",
+            ProviderName = "genlauncher",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            VariantFamilyName = "C&C ShockWave",
+            VariantGroupId = "zerohour-c-c-shockwave",
+        };
+        var card = new ContentGridItemViewModel(cardSr, stateServiceMock.Object, loggerMock.Object);
+
+        // Sibling content types are simplified: reconciliation only inspects variant
+        // states, identities, and versions, never the content type.
+        AddCardVariant(card, "genlauncher-zerohour-c-c-shockwave-public-beta", "C&C Shockwave Public Beta", "1.25 Beta 8", ContentState.NotDownloaded);
+        AddCardVariant(card, "genlauncher-zerohour-c-c-shockwave-1-201-genlauncher-fix-1", "C&C Shockwave 1.201 GenLauncher Fix 1", "1.201 GenLauncher Fix 1", ContentState.NotDownloaded);
+        AddCardVariant(card, "genlauncher-zerohour-shockwave-single-player-experience", "Shockwave Single Player Experience", "1.0", ContentState.NotDownloaded);
+        var downloaded = AddCardVariant(card, "genlauncher-zerohour-shockwave-cursor-pack-hd", "ShockWave Cursor Pack HD", "1.3", ContentState.Downloaded);
+        AddCardVariant(card, "genlauncher-zerohour-shockwave-russifier", "ShockWave Russifier", "2.0", ContentState.NotDownloaded);
+        AddCardVariant(card, "genlauncher-zerohour-lemon-shockwave-hotkeys", "Lemon Shockwave Hotkeys", "1.1", ContentState.NotDownloaded);
+        AddCardVariant(card, "genlauncher-zerohour-lemon-shockwave-beta-8-hotkeys", "Lemon Shockwave Beta 8 Hotkeys", "1.1", ContentState.NotDownloaded);
+        AddCardVariant(card, "genlauncher-zerohour-control-bar-pro-shockwave", "Control Bar Pro (Shockwave)", "1.0", ContentState.NotDownloaded);
+
+        card.SelectedVariant = downloaded;
+        card.CurrentState = ContentState.Downloaded;
+        card.IsDownloaded = true;
+
+        // A second, unrelated card so the reconcile pass runs.
+        var unrelated = CreateUnrelatedCard(stateServiceMock.Object, loggerMock.Object);
+
+        // Act
+        DownloadsBrowserViewModel.ReconcileReleaseUpdateStates([card, unrelated]);
+
+        // Assert: the installed addon stays current; sibling content is not an update.
+        Assert.Equal(ContentState.Downloaded, downloaded.CurrentState);
+        Assert.Equal(ContentState.Downloaded, card.CurrentState);
+        Assert.True(card.IsDownloaded);
+        Assert.Null(card.UpdateTargetVm);
+        Assert.False(card.ShowUpdateButton);
+        Assert.True(card.ShowAddToProfileButton);
+        Assert.False(card.ShowDownloadButton);
+    }
+
+    /// <summary>
     /// Verifies that UpdateContentCommand invokes the publisher reconciler when one is registered.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
@@ -1561,6 +1840,226 @@ public class DownloadsBrowserViewModelTests
                 It.IsAny<IProgress<ContentAcquisitionProgress>?>(),
                 It.IsAny<CancellationToken>()),
             Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that UpdateContentCommand reports failure without a completion notification
+    /// when applying the update strategy throws.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task UpdateContentCommand_WhenUpdateStrategyThrows_ReportsFailureWithoutCompletionNotificationAsync()
+    {
+        // Arrange
+        var orchestratorMock = new Mock<IContentOrchestrator>();
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.custom.mod.test"),
+            Name = "Custom Mod",
+            Version = "2.0.0",
+        };
+        orchestratorMock
+            .Setup(o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
+
+        var reconcilerRegistryMock = new Mock<IPublisherReconcilerRegistry>();
+        reconcilerRegistryMock
+            .Setup(r => r.GetReconciler(It.IsAny<string>()))
+            .Returns((IPublisherReconciler?)null);
+
+        var contentStateServiceMock = new Mock<IContentStateService>();
+        contentStateServiceMock
+            .Setup(s => s.GetLocalManifestIdAsync(It.IsAny<ContentSearchResult>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("1.0.custom.mod.old");
+
+        var manifestPoolMock = new Mock<IContentManifestPool>();
+        manifestPoolMock
+            .Setup(m => m.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Manifest pool unavailable"));
+
+        var telemetryMock = new Mock<ITelemetryService>();
+        var notificationMock = new Mock<INotificationService>();
+        var serviceProviderMock = new Mock<IServiceProvider>();
+        serviceProviderMock
+            .Setup(sp => sp.GetService(typeof(ITelemetryService)))
+            .Returns(telemetryMock.Object);
+        serviceProviderMock
+            .Setup(sp => sp.GetService(typeof(IContentReconciliationService)))
+            .Returns(Mock.Of<IContentReconciliationService>());
+        serviceProviderMock
+            .Setup(sp => sp.GetService(typeof(IContentManifestPool)))
+            .Returns(manifestPoolMock.Object);
+
+        var viewModel = CreateViewModel(
+            orchestrator: orchestratorMock.Object,
+            reconcilerRegistry: reconcilerRegistryMock.Object,
+            serviceProvider: serviceProviderMock.Object,
+            contentStateService: contentStateServiceMock.Object,
+            notificationService: notificationMock.Object);
+
+        var gridStateServiceMock = new Mock<IContentStateService>();
+        var loggerMock = new Mock<ILogger<ContentGridItemViewModel>>();
+        var targetSr = new ContentSearchResult
+        {
+            Id = "custom.mod.v2",
+            ProviderName = "custom",
+            Name = "Custom Mod v2",
+            Version = "2.0.0",
+        };
+        var targetVm = new ContentGridItemViewModel(targetSr, gridStateServiceMock.Object, loggerMock.Object);
+
+        var currentSr = new ContentSearchResult
+        {
+            Id = "custom.mod.v1",
+            ProviderName = "custom",
+            Name = "Custom Mod v1",
+            Version = "1.0.0",
+        };
+        var currentVm = new ContentGridItemViewModel(currentSr, gridStateServiceMock.Object, loggerMock.Object)
+        {
+            UpdateTargetVm = targetVm,
+        };
+
+        // Act
+        await viewModel.UpdateContentCommand.ExecuteAsync(currentVm);
+
+        // Assert: failure telemetry emitted, error status set, no completion notification
+        telemetryMock.Verify(
+            t => t.TrackEvent(
+                TelemetryConstants.Events.ContentUpdateFailed,
+                It.IsAny<IReadOnlyDictionary<string, object?>>(),
+                It.IsAny<TelemetryLevel>()),
+            Times.Once);
+        Assert.StartsWith(ContentConstants.ErrorStatusPrefix, targetVm.DownloadStatus);
+        notificationMock.Verify(
+            n => n.ShowSuccess(
+                "Update Completed",
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that UpdateContentCommand does not emit failure telemetry when download is cancelled.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task UpdateContentCommand_WhenDownloadIsCancelled_DoesNotEmitContentUpdateFailedAsync()
+    {
+        // Arrange
+        var orchestratorMock = new Mock<IContentOrchestrator>();
+        using var cts = new CancellationTokenSource();
+        orchestratorMock
+            .Setup(o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>?>(), It.IsAny<CancellationToken>()))
+            .Callback(() => cts.Cancel())
+            .ThrowsAsync(new OperationCanceledException(cts.Token));
+
+        var reconcilerRegistryMock = new Mock<IPublisherReconcilerRegistry>();
+        var contentStateServiceMock = new Mock<IContentStateService>();
+        var telemetryMock = new Mock<ITelemetryService>();
+        var serviceProviderMock = new Mock<IServiceProvider>();
+        serviceProviderMock
+            .Setup(sp => sp.GetService(typeof(ITelemetryService)))
+            .Returns(telemetryMock.Object);
+
+        var viewModel = CreateViewModel(
+            orchestrator: orchestratorMock.Object,
+            reconcilerRegistry: reconcilerRegistryMock.Object,
+            serviceProvider: serviceProviderMock.Object,
+            contentStateService: contentStateServiceMock.Object);
+
+        var gridStateServiceMock = new Mock<IContentStateService>();
+        var loggerMock = new Mock<ILogger<ContentGridItemViewModel>>();
+        var targetSr = new ContentSearchResult { Id = "test.mod.v2", Name = "Mod v2", ProviderName = "custom" };
+        var targetVm = new ContentGridItemViewModel(targetSr, gridStateServiceMock.Object, loggerMock.Object);
+        var currentSr = new ContentSearchResult { Id = "test.mod.v1", Name = "Mod v1", ProviderName = "custom" };
+        var currentVm = new ContentGridItemViewModel(currentSr, gridStateServiceMock.Object, loggerMock.Object)
+        {
+            UpdateTargetVm = targetVm,
+        };
+
+        // Act
+        await viewModel.UpdateContentCommand.ExecuteAsync(currentVm);
+
+        // Assert: no ContentUpdateFailed telemetry emitted on cancellation
+        telemetryMock.Verify(
+            t => t.TrackEvent(
+                TelemetryConstants.Events.ContentUpdateFailed,
+                It.IsAny<IReadOnlyDictionary<string, object?>>(),
+                It.IsAny<TelemetryLevel>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that UpdateContentCommand does not emit failure telemetry when update strategy is cancelled.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task UpdateContentCommand_WhenUpdateStrategyIsCancelled_DoesNotEmitContentUpdateFailedAsync()
+    {
+        // Arrange
+        var orchestratorMock = new Mock<IContentOrchestrator>();
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.custom.mod.test"),
+            Name = "Custom Mod",
+            Version = "2.0.0",
+        };
+        orchestratorMock
+            .Setup(o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
+
+        var reconcilerRegistryMock = new Mock<IPublisherReconcilerRegistry>();
+        var contentStateServiceMock = new Mock<IContentStateService>();
+        contentStateServiceMock
+            .Setup(s => s.GetLocalManifestIdAsync(It.IsAny<ContentSearchResult>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("1.0.custom.mod.old");
+
+        var manifestPoolMock = new Mock<IContentManifestPool>();
+        manifestPoolMock
+            .Setup(m => m.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+
+        var telemetryMock = new Mock<ITelemetryService>();
+        var serviceProviderMock = new Mock<IServiceProvider>();
+        serviceProviderMock
+            .Setup(sp => sp.GetService(typeof(ITelemetryService)))
+            .Returns(telemetryMock.Object);
+        serviceProviderMock
+            .Setup(sp => sp.GetService(typeof(IContentReconciliationService)))
+            .Returns(Mock.Of<IContentReconciliationService>());
+        serviceProviderMock
+            .Setup(sp => sp.GetService(typeof(IContentManifestPool)))
+            .Returns(manifestPoolMock.Object);
+
+        var viewModel = CreateViewModel(
+            orchestrator: orchestratorMock.Object,
+            reconcilerRegistry: reconcilerRegistryMock.Object,
+            serviceProvider: serviceProviderMock.Object,
+            contentStateService: contentStateServiceMock.Object);
+
+        var gridStateServiceMock = new Mock<IContentStateService>();
+        var loggerMock = new Mock<ILogger<ContentGridItemViewModel>>();
+        var targetSr = new ContentSearchResult { Id = "test.mod.v2", Name = "Mod v2", ProviderName = "custom" };
+        var targetVm = new ContentGridItemViewModel(targetSr, gridStateServiceMock.Object, loggerMock.Object);
+        var currentSr = new ContentSearchResult { Id = "test.mod.v1", Name = "Mod v1", ProviderName = "custom" };
+        var currentVm = new ContentGridItemViewModel(currentSr, gridStateServiceMock.Object, loggerMock.Object)
+        {
+            UpdateTargetVm = targetVm,
+        };
+
+        // Act & Assert
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => viewModel.UpdateContentCommand.ExecuteAsync(currentVm));
+
+        // Assert: no ContentUpdateFailed telemetry emitted on cancellation and status not marked as error
+        telemetryMock.Verify(
+            t => t.TrackEvent(
+                TelemetryConstants.Events.ContentUpdateFailed,
+                It.IsAny<IReadOnlyDictionary<string, object?>>(),
+                It.IsAny<TelemetryLevel>()),
+            Times.Never);
+        Assert.False(targetVm.DownloadStatus?.StartsWith(ContentConstants.ErrorStatusPrefix) == true);
     }
 
     /// <summary>
@@ -2011,9 +2510,58 @@ public class DownloadsBrowserViewModelTests
         Assert.False(card.ShowAddToProfileButton);
     }
 
+    private static InstallableVariant AddCardVariant(
+        ContentGridItemViewModel card,
+        string manifestId,
+        string name,
+        string version,
+        ContentState state)
+    {
+        var sibling = new ContentSearchResult
+        {
+            Id = manifestId,
+            Name = name,
+            Version = version,
+            ProviderName = card.SearchResult.ProviderName,
+            ContentType = card.SearchResult.ContentType,
+            TargetGame = card.SearchResult.TargetGame,
+        };
+        var installable = new InstallableVariant
+        {
+            Name = name,
+            ManifestId = manifestId,
+            CurrentState = state,
+        };
+        card.AddVariant(installable, sibling);
+        return installable;
+    }
+
+    private static ContentGridItemViewModel CreateUnrelatedCard(
+        IContentStateService stateService,
+        ILogger<ContentGridItemViewModel> logger)
+    {
+        var sr = new ContentSearchResult
+        {
+            Id = "1.0.github.mod.unrelatedfixture",
+            Name = "Unrelated Fixture",
+            Version = "1.0",
+            ProviderName = "github",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+        return new ContentGridItemViewModel(sr, stateService, logger)
+        {
+            CurrentState = ContentState.NotDownloaded,
+            IsDownloaded = false,
+        };
+    }
+
     private static DownloadsBrowserViewModel CreateViewModel(
         IContentOrchestrator? orchestrator = null,
-        IPublisherReconcilerRegistry? reconcilerRegistry = null)
+        IPublisherReconcilerRegistry? reconcilerRegistry = null,
+        IServiceProvider? serviceProvider = null,
+        IContentStateService? contentStateService = null,
+        INotificationService? notificationService = null)
     {
         var subscriptionStore = new Mock<IPublisherSubscriptionStore>();
         subscriptionStore
@@ -2021,14 +2569,14 @@ public class DownloadsBrowserViewModelTests
             .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess([]));
 
         return new DownloadsBrowserViewModel(
-            new Mock<IServiceProvider>().Object,
+            serviceProvider ?? new Mock<IServiceProvider>().Object,
             new Mock<ILogger<DownloadsBrowserViewModel>>().Object,
             [],
-            new Mock<IContentStateService>().Object,
+            contentStateService ?? new Mock<IContentStateService>().Object,
             orchestrator ?? new Mock<IContentOrchestrator>().Object,
             new Mock<IProfileContentService>().Object,
             new Mock<IGameProfileManager>().Object,
-            new Mock<INotificationService>().Object,
+            notificationService ?? new Mock<INotificationService>().Object,
             new Mock<ILoggerFactory>().Object,
             subscriptionStore.Object,
             reconcilerRegistry: reconcilerRegistry);

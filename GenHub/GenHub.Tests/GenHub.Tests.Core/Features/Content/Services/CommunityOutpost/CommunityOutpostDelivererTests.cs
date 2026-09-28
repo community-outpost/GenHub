@@ -149,15 +149,13 @@ public sealed class CommunityOutpostDelivererTests : IDisposable
         var downloadService = new Mock<IDownloadService>();
         downloadService
             .Setup(d => d.DownloadFileAsync(
-                It.IsAny<Uri>(),
-                It.IsAny<string>(),
-                It.IsAny<string?>(),
+                It.IsAny<DownloadConfiguration>(),
                 It.IsAny<IProgress<DownloadProgress>?>(),
                 It.IsAny<CancellationToken>()))
-            .Returns((Uri _, string destination, string? _, IProgress<DownloadProgress>? _, CancellationToken _) =>
+            .Returns((DownloadConfiguration config, IProgress<DownloadProgress>? _, CancellationToken _) =>
             {
-                CreateArchive(destination, ("first.dat", 16), ("marker.dat", 16), ("large.dat", largeEntryBytes));
-                return Task.FromResult(DownloadResult.CreateSuccess(destination, 1, TimeSpan.FromSeconds(1)));
+                CreateArchive(config.DestinationPath, ("first.dat", 16), ("marker.dat", 16), ("large.dat", largeEntryBytes));
+                return Task.FromResult(DownloadResult.CreateSuccess(config.DestinationPath, 1, TimeSpan.FromSeconds(1)));
             });
 
         var manifestPool = new Mock<IContentManifestPool>();
@@ -218,19 +216,17 @@ public sealed class CommunityOutpostDelivererTests : IDisposable
         var downloadService = new Mock<IDownloadService>();
         downloadService
             .Setup(d => d.DownloadFileAsync(
-                It.IsAny<Uri>(),
-                It.IsAny<string>(),
-                It.IsAny<string?>(),
+                It.IsAny<DownloadConfiguration>(),
                 It.IsAny<IProgress<DownloadProgress>?>(),
                 It.IsAny<CancellationToken>()))
-            .Returns((Uri _, string destination, string? _, IProgress<DownloadProgress>? _, CancellationToken _) =>
+            .Returns((DownloadConfiguration config, IProgress<DownloadProgress>? _, CancellationToken _) =>
             {
                 CreateArchive(
-                    destination,
+                    config.DestinationPath,
                     "ZH/BIG EN/generals.csf",
                     "ZH/BIG RU/generals.csf",
                     "CCG/BIG EN/generals.csf");
-                return Task.FromResult(DownloadResult.CreateSuccess(destination, 1, TimeSpan.FromSeconds(1)));
+                return Task.FromResult(DownloadResult.CreateSuccess(config.DestinationPath, 1, TimeSpan.FromSeconds(1)));
             });
 
         var manifestPool = new Mock<IContentManifestPool>();

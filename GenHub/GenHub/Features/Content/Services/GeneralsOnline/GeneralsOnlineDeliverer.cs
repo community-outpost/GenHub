@@ -303,10 +303,15 @@ public class GeneralsOnlineDeliverer(
             : null;
 
         logger.LogDebug("Downloading ZIP from {Url} to {Path} (expected hash: {Hash})", zipFile.DownloadUrl, zipPath, expectedHash);
+        var downloadConfig = new DownloadConfiguration
+        {
+            Url = new Uri(zipFile.DownloadUrl!),
+            DestinationPath = zipPath,
+            ExpectedHash = expectedHash,
+        };
+        DownloadTelemetryHelper.ApplyManifestAttribution(downloadConfig, packageManifest, PublisherTypeConstants.GeneralsOnline);
         var downloadResult = await downloadService.DownloadFileAsync(
-            new Uri(zipFile.DownloadUrl!),
-            zipPath,
-            expectedHash: expectedHash,
+            downloadConfig,
             progress: downloadProgress,
             cancellationToken);
 

@@ -52,7 +52,11 @@ public class GameProcessManager(
         string? GameType = null,
         string? GameClientId = null,
         string? GameClientName = null,
-        string? GameClientVersion = null);
+        string? GameClientVersion = null,
+        string? GameClientPublisher = null,
+        string? ProfileId = null,
+        string? EnabledContentIds = null,
+        int ContentCount = 0);
 
     private readonly ConditionalWeakTable<Process, ExitFinalizationState> _exitFinalizations = new();
     private readonly ConcurrentDictionary<int, Process> _managedProcesses = new();
@@ -726,9 +730,9 @@ public class GameProcessManager(
         // A delayed callback must not remove a new process that reused the same PID.
         _managedProcesses.TryRemove(new KeyValuePair<int, Process>(processId, process));
 
-        EmitSessionEndedTelemetry(process, exitCode);
-
         var terminationRequested = _requestedTerminations.TryRemove(process, out _);
+
+        EmitSessionEndedTelemetry(process, exitCode, terminationRequested);
 
         // Attach the stderr capture, when this manager started the process itself. This
         // is what makes an abort that outlived the detection window explicable: the exit
@@ -2085,6 +2089,10 @@ public class GameProcessManager(
         var gameClientId = config?.GameClientId;
         var gameClientName = config?.GameClientName;
         var gameClientVersion = config?.GameClientVersion;
+        var gameClientPublisher = config?.GameClientPublisher ?? GameClientTelemetryHelper.DefaultPublisher;
+        var profileId = config?.ProfileId;
+        var enabledContentIds = config?.EnabledContentIds;
+        var contentCount = config?.ContentCount ?? 0;
 
         var meta = new GameSessionMeta(
             sessionId,
@@ -2094,7 +2102,11 @@ public class GameProcessManager(
             gameType,
             gameClientId,
             gameClientName,
-            gameClientVersion);
+            gameClientVersion,
+            gameClientPublisher,
+            profileId,
+            enabledContentIds,
+            contentCount);
 
         if (!_sessionMetadata.TryAdd(process, meta))
         {
@@ -2116,13 +2128,20 @@ public class GameProcessManager(
             telemetryService.TrackEvent(TelemetryConstants.Events.GameSessionStarted, new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.SessionId] = sessionId,
+                [TelemetryConstants.Properties.ProfileId] = profileId,
                 [TelemetryConstants.Properties.ExecutablePath] = execName,
                 [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
                 [TelemetryConstants.Properties.Runner] = runner,
                 [TelemetryConstants.Properties.GameType] = gameType,
                 [TelemetryConstants.Properties.GameClientId] = gameClientId,
                 [TelemetryConstants.Properties.GameClientName] = gameClientName,
+                [TelemetryConstants.Properties.GameClient] = gameClientName,
                 [TelemetryConstants.Properties.GameClientVersion] = gameClientVersion,
+                [TelemetryConstants.Properties.GameClientPublisher] = gameClientPublisher,
+                [TelemetryConstants.Properties.PublisherId] = gameClientPublisher,
+                [TelemetryConstants.Properties.Publisher] = gameClientPublisher,
+                [TelemetryConstants.Properties.ContentIds] = enabledContentIds,
+                [TelemetryConstants.Properties.ContentCount] = contentCount,
             });
         }
     }
@@ -2139,11 +2158,17 @@ public class GameProcessManager(
             telemetryService.TrackEvent(TelemetryConstants.Events.GameSessionHeartbeat, new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.SessionId] = meta.SessionId,
+                [TelemetryConstants.Properties.ProfileId] = meta.ProfileId,
                 [TelemetryConstants.Properties.DurationSeconds] = (DateTime.UtcNow - meta.StartTime).TotalSeconds,
                 [TelemetryConstants.Properties.ExecutablePath] = meta.ExecName,
                 [TelemetryConstants.Properties.Runner] = meta.Runner,
                 [TelemetryConstants.Properties.GameType] = meta.GameType,
                 [TelemetryConstants.Properties.GameClientId] = meta.GameClientId,
+                [TelemetryConstants.Properties.GameClientName] = meta.GameClientName,
+                [TelemetryConstants.Properties.GameClient] = meta.GameClientName,
+                [TelemetryConstants.Properties.GameClientPublisher] = meta.GameClientPublisher,
+                [TelemetryConstants.Properties.PublisherId] = meta.GameClientPublisher,
+                [TelemetryConstants.Properties.Publisher] = meta.GameClientPublisher,
             });
         }
     }
@@ -2151,7 +2176,8 @@ public class GameProcessManager(
     /// <summary>Emits the session end telemetry for a finalized process exit.</summary>
     /// <param name="process">The exited process whose session metadata is removed.</param>
     /// <param name="exitCode">The process exit code, when it could be captured.</param>
-    private void EmitSessionEndedTelemetry(Process process, int? exitCode)
+    /// <param name="terminationRequested">Whether the exit follows a deliberate user stop through GenHub.</param>
+    private void EmitSessionEndedTelemetry(Process process, int? exitCode, bool terminationRequested)
     {
         if (_sessionMetadata.TryRemove(process, out var sessionMeta) && telemetryService != null)
         {
@@ -2159,20 +2185,33 @@ public class GameProcessManager(
             var endProperties = new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.SessionId] = sessionMeta.SessionId,
+                [TelemetryConstants.Properties.ProfileId] = sessionMeta.ProfileId,
                 [TelemetryConstants.Properties.DurationSeconds] = duration,
+                [TelemetryConstants.Properties.DurationHours] = Math.Round(duration / 3600.0, 4),
                 [TelemetryConstants.Properties.ExecutablePath] = sessionMeta.ExecName,
                 [TelemetryConstants.Properties.Runner] = sessionMeta.Runner,
                 [TelemetryConstants.Properties.GameType] = sessionMeta.GameType,
                 [TelemetryConstants.Properties.GameClientId] = sessionMeta.GameClientId,
                 [TelemetryConstants.Properties.GameClientName] = sessionMeta.GameClientName,
+                [TelemetryConstants.Properties.GameClient] = sessionMeta.GameClientName,
                 [TelemetryConstants.Properties.GameClientVersion] = sessionMeta.GameClientVersion,
+                [TelemetryConstants.Properties.GameClientPublisher] = sessionMeta.GameClientPublisher,
+                [TelemetryConstants.Properties.PublisherId] = sessionMeta.GameClientPublisher,
+                [TelemetryConstants.Properties.Publisher] = sessionMeta.GameClientPublisher,
+                [TelemetryConstants.Properties.ContentIds] = sessionMeta.EnabledContentIds,
+                [TelemetryConstants.Properties.ContentCount] = sessionMeta.ContentCount,
             };
 
             // An unknown exit code is not a crash; omit both properties instead of reporting failure.
+            // A deliberate user stop is not a crash either, even with a non-zero exit code.
             if (exitCode is int knownExitCode)
             {
                 endProperties[TelemetryConstants.Properties.ExitCode] = knownExitCode;
-                endProperties[TelemetryConstants.Properties.WasGraceful] = knownExitCode == ProcessConstants.ExitCodeSuccess;
+                var wasGraceful = knownExitCode == ProcessConstants.ExitCodeSuccess;
+                var crashed = !wasGraceful && !terminationRequested;
+                endProperties[TelemetryConstants.Properties.WasGraceful] = wasGraceful;
+                endProperties[TelemetryConstants.Properties.Crashed] = crashed;
+                endProperties[TelemetryConstants.Properties.IsCrash] = crashed;
             }
 
             telemetryService.TrackEvent(TelemetryConstants.Events.GameSessionEnded, endProperties);

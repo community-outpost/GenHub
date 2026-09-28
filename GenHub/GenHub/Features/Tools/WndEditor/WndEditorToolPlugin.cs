@@ -2,6 +2,8 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Tools;
 using GenHub.Features.Tools.WndEditor.ViewModels;
@@ -20,6 +22,7 @@ public sealed class WndEditorToolPlugin : IToolPlugin, IFileOpenTarget
 {
     private WndEditorView? _view;
     private IServiceProvider? _serviceProvider;
+    private int _openedTracked;
 
     /// <inheritdoc />
     public ToolMetadata Metadata => new()
@@ -56,6 +59,10 @@ public sealed class WndEditorToolPlugin : IToolPlugin, IFileOpenTarget
     public void OnActivated(IServiceProvider serviceProvider)
     {
         _serviceProvider = serviceProvider;
+        if (Interlocked.Exchange(ref _openedTracked, 1) == 0)
+        {
+            _serviceProvider.GetService<ITelemetryService>()?.TrackEvent(TelemetryConstants.Events.WndEditorOpened);
+        }
     }
 
     /// <inheritdoc />

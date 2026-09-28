@@ -37,6 +37,12 @@ public static class TelemetryConstants
     public const int MaxBreadcrumbsCount = 50;
 
     /// <summary>
+    /// Maximum number of content identifiers joined into a single telemetry property.
+    /// The full count is always reported separately through the content count property.
+    /// </summary>
+    public const int MaxTelemetryContentIds = 20;
+
+    /// <summary>
     /// Mask string for sanitized sensitive data or user directories.
     /// </summary>
     public const string UserDirectoryMask = "<USER_DIR>";
@@ -60,6 +66,11 @@ public static class TelemetryConstants
     /// Mask string for sanitized tokens and secrets.
     /// </summary>
     public const string SecretTokenMask = "<TOKEN_MASKED>";
+
+    /// <summary>
+    /// Mask string replacing raw URLs in telemetry error messages.
+    /// </summary>
+    public const string UrlMask = "<URL>";
 
     /// <summary>
     /// Default Sentry DSN endpoint for crash reporting.
@@ -102,10 +113,99 @@ public static class TelemetryConstants
     public const string DefaultPostHogProjectId = "567732";
 
     /// <summary>
+    /// Environment variables that configure telemetry behavior.
+    /// </summary>
+    public static class EnvironmentVariables
+    {
+        /// <summary>Custom GenHub telemetry opt-out environment variable.</summary>
+        public const string GenHubTelemetryOptOut = "GENHUB_TELEMETRY_OPTOUT";
+
+        /// <summary>Standard cross-ecosystem telemetry opt-out environment variable.</summary>
+        public const string DoNotTrack = "DO_NOT_TRACK";
+    }
+
+    /// <summary>
+    /// Accepted truthy values indicating a user opted out of telemetry via environment variable.
+    /// </summary>
+    public static readonly IReadOnlySet<string> OptOutTruthyValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "1", "true", "yes", "on",
+    };
+
+    /// <summary>
+    /// Publisher identifiers and host mappings used when inferring download attribution from URLs.
+    /// </summary>
+    public static class DownloadAttribution
+    {
+        /// <summary>Publisher identifier inferred for GitHub-hosted downloads.</summary>
+        public const string GitHub = PublisherTypeConstants.GitHub;
+
+        /// <summary>Publisher identifier inferred for ModDB-hosted downloads.</summary>
+        public const string ModDb = PublisherTypeConstants.ModDB;
+
+        /// <summary>Publisher identifier inferred for Community Outpost-hosted downloads.</summary>
+        public const string CommunityOutpost = PublisherTypeConstants.CommunityOutpost;
+
+        /// <summary>Publisher identifier inferred for Generals Online-hosted downloads.</summary>
+        public const string GeneralsOnline = PublisherTypeConstants.GeneralsOnline;
+
+        /// <summary>Publisher identifier inferred for Google Drive-hosted downloads.</summary>
+        public const string GoogleDrive = "googledrive";
+
+        /// <summary>Publisher identifier inferred for OneDrive-hosted downloads.</summary>
+        public const string OneDrive = "onedrive";
+
+        /// <summary>Publisher identifier inferred for Gentool-hosted downloads.</summary>
+        public const string GenTool = "gentool";
+
+        /// <summary>Publisher identifier attributed to replay URL imports.</summary>
+        public const string Replay = "replay";
+
+        /// <summary>Fallback identifier when publisher or author attribution cannot be resolved.</summary>
+        public const string Unknown = PublisherTypeConstants.Unknown;
+
+        /// <summary>Default content type used when the download configuration omits one.</summary>
+        public const string DefaultContentType = "Package";
+
+        /// <summary>Host name serving GitHub repositories and releases.</summary>
+        public const string GitHubHost = GitHubConstants.GitHubHost;
+
+        /// <summary>Host suffix serving GitHub release assets and raw content.</summary>
+        public const string GitHubUserContentHost = GitHubConstants.GitHubUserContentHost;
+
+        /// <summary>Host name serving Community Outpost content (see CommunityOutpostConstants.BaseUrl).</summary>
+        public const string CommunityOutpostHost = "legi.cc";
+
+        /// <summary>Host name serving Generals Online content (see GeneralsOnlineConstants.WebsiteUrl).</summary>
+        public const string GeneralsOnlineHost = "playgenerals.online";
+
+        /// <summary>Host name serving Gentool downloads.</summary>
+        public const string GenToolHost = "gentool.net";
+
+        /// <summary>Host names serving Google Drive downloads.</summary>
+        public static readonly string[] GoogleDriveHosts = ["drive.google.com", "drive.usercontent.google.com"];
+
+        /// <summary>Host names serving OneDrive downloads.</summary>
+        public static readonly string[] OneDriveHosts = ["onedrive.live.com", "1drv.ms"];
+    }
+
+    /// <summary>
+    /// Non-identifying placeholder values for WND editor telemetry.
+    /// </summary>
+    public static class WndEditor
+    {
+        /// <summary>Constant file identifier sent instead of user document names.</summary>
+        public const string AnonymousDocumentName = "wnd_document";
+    }
+
+    /// <summary>
     /// Telemetry event names.
     /// </summary>
     public static class Events
     {
+        /// <summary>Emitted when the application launches and initializes the main window.</summary>
+        public const string AppStarted = "app_started";
+
         /// <summary>Emitted when a game process starts.</summary>
         public const string GameSessionStarted = "game_session_started";
 
@@ -187,6 +287,39 @@ public static class TelemetryConstants
         /// <summary>Emitted when a replay checkpoint is minted.</summary>
         public const string ReplayCheckpointMinted = "replay_checkpoint_minted";
 
+        /// <summary>Emitted when the WND Editor tool is opened.</summary>
+        public const string WndEditorOpened = "wnd_editor_opened";
+
+        /// <summary>Emitted when a window definition document is opened in the WND Editor.</summary>
+        public const string WndDocumentOpened = "wnd_document_opened";
+
+        /// <summary>Emitted when a window definition document is saved in the WND Editor.</summary>
+        public const string WndDocumentSaved = "wnd_document_saved";
+
+        /// <summary>Emitted when a window definition document is validated in the WND Editor.</summary>
+        public const string WndDocumentValidated = "wnd_document_validated";
+
+        /// <summary>Emitted when textures are imported into the WND Editor.</summary>
+        public const string WndTexturesImported = "wnd_textures_imported";
+
+        /// <summary>Emitted when a user subscribes to a content publisher.</summary>
+        public const string PublisherSubscribed = "publisher_subscribed";
+
+        /// <summary>Emitted when a user unsubscribes from a content publisher.</summary>
+        public const string PublisherUnsubscribed = "publisher_unsubscribed";
+
+        /// <summary>Emitted when Publisher Studio tool is opened.</summary>
+        public const string PublisherStudioOpened = "publisher_studio_opened";
+
+        /// <summary>Emitted when a new project is created in Publisher Studio.</summary>
+        public const string PublisherStudioProjectCreated = "publisher_studio_project_created";
+
+        /// <summary>Emitted when a definition or catalog is exported in Publisher Studio.</summary>
+        public const string PublisherStudioDefinitionExported = "publisher_studio_definition_exported";
+
+        /// <summary>Emitted when content is published or shared from Publisher Studio.</summary>
+        public const string PublisherStudioPublished = "publisher_studio_published";
+
         /// <summary>Emitted when an unhandled application exception or crash occurs.</summary>
         public const string AppCrash = "app_unhandled_crash";
     }
@@ -216,6 +349,9 @@ public static class TelemetryConstants
 
         /// <summary>Game client version string.</summary>
         public const string GameClientVersion = "game_client_version";
+
+        /// <summary>Game client publisher identifier (e.g. "thesuperhackers", "communityoutpost", "generalsonline", "retail").</summary>
+        public const string GameClientPublisher = "game_client_publisher";
 
         /// <summary>Time taken to launch in milliseconds.</summary>
         public const string TimeToLaunchMs = "time_to_launch_ms";
@@ -401,7 +537,10 @@ public static class TelemetryConstants
         public const string HasSteam = "has_steam";
 
         /// <summary>Indicates whether EA App game installation is present.</summary>
-        public const string HasEaApp = "has_ea_app";
+        public const string HasEAApp = "has_ea_app";
+
+        /// <summary>Indicates whether EA App game installation is present (alias for HasEAApp).</summary>
+        public const string HasEaApp = HasEAApp;
 
         /// <summary>Indicates whether The First Decade game installation is present.</summary>
         public const string HasTheFirstDecade = "has_the_first_decade";
@@ -417,6 +556,66 @@ public static class TelemetryConstants
 
         /// <summary>Target frame number for replay checkpoint.</summary>
         public const string TargetFrame = "target_frame";
+
+        /// <summary>Number of windows in a window definition document.</summary>
+        public const string WindowCount = "window_count";
+
+        /// <summary>Indicates whether linked assets are configured in the WND Editor.</summary>
+        public const string HasLinkedAssets = "has_linked_assets";
+
+        /// <summary>Indicates whether validation succeeded without fatal errors.</summary>
+        public const string IsValid = "is_valid";
+
+        /// <summary>Number of textures imported.</summary>
+        public const string TextureCount = "texture_count";
+
+        /// <summary>File path or name involved in a document operation.</summary>
+        public const string FilePath = "file_path";
+
+        /// <summary>Publisher name or display label.</summary>
+        public const string PublisherName = "publisher_name";
+
+        /// <summary>Content or package author/creator.</summary>
+        public const string Author = "author";
+
+        /// <summary>Publisher catalog endpoint URL or host.</summary>
+        public const string CatalogUrl = "catalog_url";
+
+        /// <summary>Publisher definition URL or host.</summary>
+        public const string DefinitionUrl = "definition_url";
+
+        /// <summary>Number of catalogs or catalog items.</summary>
+        public const string CatalogCount = "catalog_count";
+
+        /// <summary>Target hosting or provider type (e.g. GitHub, Dropbox, Direct).</summary>
+        public const string ProviderType = "provider_type";
+
+        /// <summary>Legacy publisher alias kept for existing PostHog breakdowns.</summary>
+        public const string Publisher = "publisher";
+
+        /// <summary>Legacy content name alias kept for existing PostHog breakdowns.</summary>
+        public const string Content = "content";
+
+        /// <summary>Legacy package name alias kept for existing PostHog breakdowns.</summary>
+        public const string Package = "package";
+
+        /// <summary>Legacy game client name alias kept for existing PostHog breakdowns.</summary>
+        public const string GameClient = "game_client";
+
+        /// <summary>Legacy joined content identifiers alias kept for existing PostHog breakdowns.</summary>
+        public const string ContentIds = "content_ids";
+
+        /// <summary>Legacy content count alias kept for existing PostHog breakdowns.</summary>
+        public const string ContentCount = "content_count";
+
+        /// <summary>Legacy session duration in hours alias kept for existing PostHog breakdowns.</summary>
+        public const string DurationHours = "duration_hours";
+
+        /// <summary>Legacy crash indicator alias kept for existing PostHog breakdowns.</summary>
+        public const string Crashed = "crashed";
+
+        /// <summary>Legacy crash indicator alias kept for existing PostHog breakdowns.</summary>
+        public const string IsCrash = "is_crash";
     }
 
     /// <summary>
@@ -471,6 +670,15 @@ public static class TelemetryConstants
     {
         /// <summary>Generic downloadable package.</summary>
         public const string Package = "Package";
+
+        /// <summary>Game replay file.</summary>
+        public const string Replay = "Replay";
+
+        /// <summary>Publisher Studio catalog export.</summary>
+        public const string Catalog = "catalog";
+
+        /// <summary>Publisher Studio provider definition export.</summary>
+        public const string Definition = "definition";
     }
 
     /// <summary>

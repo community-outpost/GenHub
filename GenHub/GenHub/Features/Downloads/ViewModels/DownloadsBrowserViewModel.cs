@@ -14,6 +14,7 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Parsers;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Publishers;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.CommunityOutpost;
@@ -77,6 +78,8 @@ public sealed partial class DownloadsBrowserViewModel(
     IPublisherReconcilerRegistry? reconcilerRegistry = null,
     ILocalizationService? localizationService = null) : ObservableObject, IDisposable
 {
+    private const string DefaultPublisherName = "Content";
+
     private long _subscriptionRefreshVersion;
 
     /// <summary>
@@ -146,6 +149,9 @@ public sealed partial class DownloadsBrowserViewModel(
 
     private readonly IPublisherReconcilerRegistry? _reconcilerRegistry =
         reconcilerRegistry ?? serviceProvider.GetService<IPublisherReconcilerRegistry>();
+
+    private readonly ITelemetryService? _telemetryService =
+        serviceProvider.GetService<ITelemetryService>();
 
     // GenericCatalogDiscoverer instances mapped by publisher ID for subscriber feeds.
     private readonly Dictionary<string, GenericCatalogDiscoverer> _subscribedDiscoverers =
@@ -512,13 +518,15 @@ public sealed partial class DownloadsBrowserViewModel(
                 .OrderByDescending(it => it.SearchResult.LastUpdated ?? DateTime.MinValue)
                 .ThenByDescending(it => it.SearchResult.Version, Comparer<string?>.Create((a, b) => ContentStateService.CompareVersions(a, b, isGeneralsOnline)))
                 .ToList();
+
+            // Single-item families need no reconciliation. In particular, sibling
+            // variants on one card are never compared against each other: they are
+            // parallel install options or unrelated content (such as the releases
+            // plus addons GenLauncher groups per mod), and a self-targeted update
+            // claim would re-download the installed result. Genuine updates surface
+            // through per-variant states and cross-release families instead.
             if (familyItems.Count <= 1)
             {
-                if (familyItems.Count == 1)
-                {
-                    ReconcileItemVariants(familyItems[0]);
-                }
-
                 continue;
             }
 
@@ -717,44 +725,6 @@ public sealed partial class DownloadsBrowserViewModel(
                 item.UpdateTargetVm = null;
                 item.NotifyStateChanged();
             }
-        }
-    }
-
-    private static void ReconcileItemVariants(ContentGridItemViewModel item)
-    {
-        if (item.Variants.Count <= 1)
-        {
-            return;
-        }
-
-        var downloadedVariants = item.Variants.Where(v => v.CurrentState == ContentState.Downloaded).ToList();
-        if (downloadedVariants.Count == 0)
-        {
-            return;
-        }
-
-        var hasNewerVariant = false;
-        foreach (var downloaded in downloadedVariants)
-        {
-            var isAnyNewer = item.Variants.Any(v =>
-                v.CurrentState != ContentState.Downloaded &&
-                !string.IsNullOrEmpty(v.ManifestId) &&
-                !string.IsNullOrEmpty(downloaded.ManifestId) &&
-                ContentStateService.IsNewerVersion(v.ManifestId, downloaded.ManifestId, v.Name, downloaded.Name));
-
-            if (isAnyNewer)
-            {
-                downloaded.CurrentState = ContentState.UpdateAvailable;
-                hasNewerVariant = true;
-            }
-        }
-
-        if (hasNewerVariant)
-        {
-            item.CurrentState = ContentState.UpdateAvailable;
-            item.IsDownloaded = true;
-            item.UpdateTargetVm = item;
-            item.NotifyStateChanged();
         }
     }
 
@@ -2727,6 +2697,10 @@ public sealed partial class DownloadsBrowserViewModel(
             {
                 logger.LogWarning("Reconciler failed for {PublisherId}: {Error}", publisherId, result.FirstError);
                 targetItem.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{result.FirstError ?? ContentConstants.UpdateFailedStatusMessage}";
+
+                // No telemetry here: the publisher reconcilers own per-item failure
+                // reporting and already emit content_update_failed for failures they
+                // handle. Reconciler infrastructure exceptions stay LogError-only.
                 return false;
             }
 
@@ -2768,6 +2742,21 @@ public sealed partial class DownloadsBrowserViewModel(
         var downloadSuccess = await DownloadContentAsync(targetItem, ct);
         if (!downloadSuccess)
         {
+            if (ct.IsCancellationRequested ||
+                string.Equals(targetItem.DownloadStatus, ContentConstants.DownloadCancelledStatusMessage, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            var failedPublisherId = publisherId ?? targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? DefaultPublisherName;
+            _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.PublisherId] = failedPublisherId,
+                [TelemetryConstants.Properties.ContentName] = targetItem.Name,
+                [TelemetryConstants.Properties.ContentId] = oldManifestId ?? targetItem.Id,
+                [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName ?? TelemetryConstants.DownloadAttribution.Unknown,
+                [TelemetryConstants.Properties.ErrorMessage] = "Download failed during update",
+            });
             return false;
         }
 
@@ -2809,7 +2798,7 @@ public sealed partial class DownloadsBrowserViewModel(
                     reconciliationService,
                     notificationService,
                     logger,
-                    targetItem.SearchResult?.ProviderName ?? "Content",
+                    targetItem.SearchResult?.ProviderName ?? DefaultPublisherName,
                     "[Downloads Update]",
                     localizationService);
 
@@ -2829,10 +2818,57 @@ public sealed partial class DownloadsBrowserViewModel(
                 {
                     await reconciliationService.ScheduleGarbageCollectionAsync(false, ct);
                 }
+
+                var targetPublisherId = publisherId ?? targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? DefaultPublisherName;
+
+                if (!updateOutcome.Proceed)
+                {
+                    targetItem.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{updateOutcome.Error ?? ContentConstants.UpdateFailedStatusMessage}";
+                    _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
+                    {
+                        [TelemetryConstants.Properties.PublisherId] = targetPublisherId,
+                        [TelemetryConstants.Properties.ContentName] = targetItem.Name,
+                        [TelemetryConstants.Properties.ContentId] = newManifestId ?? targetItem.Id,
+                        [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName ?? TelemetryConstants.DownloadAttribution.Unknown,
+                        [TelemetryConstants.Properties.FromVersion] = oldManifest?.Data?.Version ?? string.Empty,
+                        [TelemetryConstants.Properties.ToVersion] = targetItem.SearchResult?.Version ?? string.Empty,
+                        [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
+                        [TelemetryConstants.Properties.ErrorMessage] = updateOutcome.Error ?? ContentConstants.UpdateFailedStatusMessage,
+                    });
+                    return false;
+                }
+
+                _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateApplied, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.PublisherId] = targetPublisherId,
+                    [TelemetryConstants.Properties.ContentName] = targetItem.Name,
+                    [TelemetryConstants.Properties.ContentId] = newManifestId ?? targetItem.Id,
+                    [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName ?? TelemetryConstants.DownloadAttribution.Unknown,
+                    [TelemetryConstants.Properties.FromVersion] = oldManifest?.Data?.Version ?? string.Empty,
+                    [TelemetryConstants.Properties.ToVersion] = targetItem.SearchResult?.Version ?? string.Empty,
+                    [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
+                    [TelemetryConstants.Properties.ProfilesUpdated] = updateOutcome.ProfilesUpdated,
+                    [TelemetryConstants.Properties.Success] = !updateOutcome.AnyFailure,
+                });
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Failed to apply update strategy for {OldManifestId} -> {NewManifestId}", oldManifestId, newManifestId);
+                targetItem.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{ex.Message}";
+                var targetPublisherId = publisherId ?? targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? DefaultPublisherName;
+                _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.PublisherId] = targetPublisherId,
+                    [TelemetryConstants.Properties.ContentName] = targetItem.Name,
+                    [TelemetryConstants.Properties.ContentId] = newManifestId ?? targetItem.Id,
+                    [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName ?? TelemetryConstants.DownloadAttribution.Unknown,
+                    [TelemetryConstants.Properties.ErrorMessage] = ex.Message,
+                });
+                return false;
             }
         }
 

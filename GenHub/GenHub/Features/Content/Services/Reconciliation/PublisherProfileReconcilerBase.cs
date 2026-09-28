@@ -151,7 +151,8 @@ public abstract class PublisherProfileReconcilerBase(
                         interactionServices.LocalizationService.GetLocalizedString(text.AcquireFailedTitleKey, text.AcquireFailedTitleFallback),
                         interactionServices.LocalizationService.GetLocalizedString("Content.Notification.DownloadUpdateFailed.Message", $"Failed to download update: {acquireResult.FirstError}", acquireResult.FirstError),
                         string.Format(text.AcquireFailedFormat, text.ContextDisplayName, acquireResult.FirstError),
-                        acquireResult.FirstError);
+                        acquireResult.FirstError,
+                        oldManifests.FirstOrDefault()?.Id.Value);
                 }
 
                 var newManifests = acquireResult.Data;
@@ -192,8 +193,10 @@ public abstract class PublisherProfileReconcilerBase(
                     {
                         [TelemetryConstants.Properties.PublisherId] = text.PublisherType,
                         [TelemetryConstants.Properties.ContentName] = text.TelemetryContentName,
-                        [TelemetryConstants.Properties.FromVersion] = updateResult.CurrentVersion,
-                        [TelemetryConstants.Properties.ToVersion] = updateResult.LatestVersion,
+                        [TelemetryConstants.Properties.ContentId] = newManifests.FirstOrDefault()?.Id.Value ?? string.Empty,
+                        [TelemetryConstants.Properties.Author] = text.PublisherDisplayName,
+                        [TelemetryConstants.Properties.FromVersion] = updateResult.CurrentVersion ?? string.Empty,
+                        [TelemetryConstants.Properties.ToVersion] = updateResult.LatestVersion ?? string.Empty,
                         [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
                         [TelemetryConstants.Properties.ErrorMessage] = updateOutcome.Error ?? "Update strategy execution failed",
                     });
@@ -220,8 +223,10 @@ public abstract class PublisherProfileReconcilerBase(
                 {
                     [TelemetryConstants.Properties.PublisherId] = text.PublisherType,
                     [TelemetryConstants.Properties.ContentName] = text.TelemetryContentName,
-                    [TelemetryConstants.Properties.FromVersion] = updateResult.CurrentVersion,
-                    [TelemetryConstants.Properties.ToVersion] = updateResult.LatestVersion,
+                    [TelemetryConstants.Properties.ContentId] = newManifests.FirstOrDefault()?.Id.Value ?? string.Empty,
+                    [TelemetryConstants.Properties.Author] = text.PublisherDisplayName,
+                    [TelemetryConstants.Properties.FromVersion] = updateResult.CurrentVersion ?? string.Empty,
+                    [TelemetryConstants.Properties.ToVersion] = updateResult.LatestVersion ?? string.Empty,
                     [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
                     [TelemetryConstants.Properties.ProfilesUpdated] = profilesUpdated,
                     [TelemetryConstants.Properties.Success] = !anyFailure,
@@ -318,14 +323,17 @@ public abstract class PublisherProfileReconcilerBase(
         string title,
         string message,
         string failureMessage,
-        string? error)
+        string? error,
+        string? contentId = null)
     {
         telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
         {
             [TelemetryConstants.Properties.PublisherId] = text.PublisherType,
             [TelemetryConstants.Properties.ContentName] = text.TelemetryContentName,
-            [TelemetryConstants.Properties.FromVersion] = updateResult.CurrentVersion,
-            [TelemetryConstants.Properties.ToVersion] = updateResult.LatestVersion,
+            [TelemetryConstants.Properties.ContentId] = contentId ?? string.Empty,
+            [TelemetryConstants.Properties.Author] = text.PublisherDisplayName,
+            [TelemetryConstants.Properties.FromVersion] = updateResult.CurrentVersion ?? string.Empty,
+            [TelemetryConstants.Properties.ToVersion] = updateResult.LatestVersion ?? string.Empty,
             [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
             [TelemetryConstants.Properties.ErrorMessage] = error,
         });

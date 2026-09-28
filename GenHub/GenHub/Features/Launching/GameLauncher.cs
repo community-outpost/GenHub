@@ -1831,6 +1831,12 @@ public class GameLauncher(
             GameClientId = profile.GameClient?.Id,
             GameClientName = profile.GameClient?.Name,
             GameClientVersion = profile.GameClient?.Version,
+            ProfileId = profile.Id,
+            EnabledContentIds = profile.EnabledContentIds is { Count: > 0 }
+                ? string.Join(",", profile.EnabledContentIds.Take(TelemetryConstants.MaxTelemetryContentIds))
+                : null,
+            ContentCount = profile.EnabledContentIds?.Count ?? 0,
+            GameClientPublisher = GameClientTelemetryHelper.ResolvePublisher(profile),
             NativeOptionsIniPath = TryGetNativeOptionsIniPath(profile.GameClient?.GameType),
         };
     }

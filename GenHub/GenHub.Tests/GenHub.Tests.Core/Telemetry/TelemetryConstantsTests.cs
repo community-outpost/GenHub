@@ -20,6 +20,7 @@ public class TelemetryConstantsTests
         Assert.Equal(500, TelemetryConstants.MaxQueueCapacity);
         Assert.Equal(5, TelemetryConstants.SessionHeartbeatIntervalMinutes);
         Assert.Equal(50, TelemetryConstants.MaxBreadcrumbsCount);
+        Assert.Equal(20, TelemetryConstants.MaxTelemetryContentIds);
         Assert.StartsWith("https://", TelemetryConstants.DefaultSentryDsn);
         Assert.StartsWith("phc_", TelemetryConstants.DefaultPostHogApiKey);
         Assert.Equal("https://us.i.posthog.com", TelemetryConstants.DefaultPostHogHost);
@@ -73,7 +74,19 @@ public class TelemetryConstantsTests
             TelemetryConstants.Events.GameInstallationsDetected,
             TelemetryConstants.Events.ReplayExportedZip,
             TelemetryConstants.Events.ReplayCheckpointMinted,
+            TelemetryConstants.Events.WndEditorOpened,
+            TelemetryConstants.Events.WndDocumentOpened,
+            TelemetryConstants.Events.WndDocumentSaved,
+            TelemetryConstants.Events.WndDocumentValidated,
+            TelemetryConstants.Events.WndTexturesImported,
             TelemetryConstants.Events.AppCrash,
+            TelemetryConstants.Events.AppStarted,
+            TelemetryConstants.Events.PublisherSubscribed,
+            TelemetryConstants.Events.PublisherUnsubscribed,
+            TelemetryConstants.Events.PublisherStudioOpened,
+            TelemetryConstants.Events.PublisherStudioProjectCreated,
+            TelemetryConstants.Events.PublisherStudioDefinitionExported,
+            TelemetryConstants.Events.PublisherStudioPublished,
         };
 
         foreach (var ev in events)
@@ -85,10 +98,10 @@ public class TelemetryConstantsTests
     }
 
     /// <summary>
-    /// Verifies property key constants are non-empty and distinct.
+    /// Verifies property name constants are non-empty and distinct.
     /// </summary>
     [Fact]
-    public void PropertyKeys_AreDistinctAndNonEmpty()
+    public void PropertyNames_AreDistinctAndNonEmpty()
     {
         var properties = new[]
         {
@@ -99,6 +112,7 @@ public class TelemetryConstantsTests
             TelemetryConstants.Properties.GameClientId,
             TelemetryConstants.Properties.GameClientName,
             TelemetryConstants.Properties.GameClientVersion,
+            TelemetryConstants.Properties.GameClientPublisher,
             TelemetryConstants.Properties.TimeToLaunchMs,
             TelemetryConstants.Properties.LaunchSource,
             TelemetryConstants.Properties.ShortcutType,
@@ -160,12 +174,32 @@ public class TelemetryConstantsTests
             TelemetryConstants.Properties.IsReused,
             TelemetryConstants.Properties.InstallationCount,
             TelemetryConstants.Properties.HasSteam,
-            TelemetryConstants.Properties.HasEaApp,
+            TelemetryConstants.Properties.HasEAApp,
             TelemetryConstants.Properties.HasTheFirstDecade,
             TelemetryConstants.Properties.HasGenerals,
             TelemetryConstants.Properties.HasZeroHour,
             TelemetryConstants.Properties.ReplayCount,
             TelemetryConstants.Properties.TargetFrame,
+            TelemetryConstants.Properties.WindowCount,
+            TelemetryConstants.Properties.HasLinkedAssets,
+            TelemetryConstants.Properties.IsValid,
+            TelemetryConstants.Properties.TextureCount,
+            TelemetryConstants.Properties.FilePath,
+            TelemetryConstants.Properties.PublisherName,
+            TelemetryConstants.Properties.Author,
+            TelemetryConstants.Properties.CatalogUrl,
+            TelemetryConstants.Properties.DefinitionUrl,
+            TelemetryConstants.Properties.CatalogCount,
+            TelemetryConstants.Properties.ProviderType,
+            TelemetryConstants.Properties.Publisher,
+            TelemetryConstants.Properties.Content,
+            TelemetryConstants.Properties.Package,
+            TelemetryConstants.Properties.GameClient,
+            TelemetryConstants.Properties.ContentIds,
+            TelemetryConstants.Properties.ContentCount,
+            TelemetryConstants.Properties.DurationHours,
+            TelemetryConstants.Properties.Crashed,
+            TelemetryConstants.Properties.IsCrash,
         };
 
         foreach (var prop in properties)
@@ -174,5 +208,19 @@ public class TelemetryConstantsTests
         }
 
         Assert.Equal(properties.Length, properties.Distinct().Count());
+    }
+
+    /// <summary>
+    /// Verifies opt-out environment variables and truthy values.
+    /// </summary>
+    [Fact]
+    public void EnvironmentVariables_ContainExpectedKeys()
+    {
+        Assert.Equal("GENHUB_TELEMETRY_OPTOUT", TelemetryConstants.EnvironmentVariables.GenHubTelemetryOptOut);
+        Assert.Equal("DO_NOT_TRACK", TelemetryConstants.EnvironmentVariables.DoNotTrack);
+        Assert.Contains("1", TelemetryConstants.OptOutTruthyValues);
+        Assert.Contains("true", TelemetryConstants.OptOutTruthyValues);
+        Assert.Contains("yes", TelemetryConstants.OptOutTruthyValues);
+        Assert.Contains("on", TelemetryConstants.OptOutTruthyValues);
     }
 }

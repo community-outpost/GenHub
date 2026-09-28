@@ -7,6 +7,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Publishers;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Notifications;
@@ -59,7 +60,8 @@ public partial class PublishShareViewModel(
     ILocalizationService? localizationService = null,
     IHostingCredentialStore? credentialStore = null,
     Action<string>? browserLauncher = null,
-    IPublisherSubscriptionStore? subscriptionStore = null) : ObservableObject, IDisposable
+    IPublisherSubscriptionStore? subscriptionStore = null,
+    ITelemetryService? telemetryService = null) : ObservableObject, IDisposable
 {
     /// <summary>
     /// Artwork slots that can reference local image files in content metadata.
@@ -2451,7 +2453,9 @@ public partial class PublishShareViewModel(
     /// Exports the active catalog to JSON.
     /// </summary>
     [RelayCommand]
-    private async Task ExportCatalogAsync()
+    private async Task ExportCatalogAsync() => await ExportCatalogCoreAsync(trackTelemetry: true);
+
+    private async Task ExportCatalogCoreAsync(bool trackTelemetry)
     {
         try
         {
@@ -2466,6 +2470,15 @@ public partial class PublishShareViewModel(
             {
                 CatalogJson = result.Data;
                 logger.LogInformation("Exported catalog '{CatalogName}' JSON", ActiveCatalog.Name);
+                if (trackTelemetry)
+                {
+                    telemetryService?.TrackEvent(TelemetryConstants.Events.PublisherStudioDefinitionExported, new Dictionary<string, object?>
+                    {
+                        [TelemetryConstants.Properties.PublisherName] = project.Catalog.Publisher?.Name ?? project.ProjectName,
+                        [TelemetryConstants.Properties.ContentName] = ActiveCatalog.Name,
+                        [TelemetryConstants.Properties.ContentType] = TelemetryConstants.ContentTypes.Catalog,
+                    });
+                }
             }
             else
             {
@@ -2500,7 +2513,14 @@ public partial class PublishShareViewModel(
 
         try
         {
-            return await UploadCatalogCoreAsync(cts.Token, manageUploadingState: false);
+            var catalogName = ActiveCatalog?.Name;
+            var uploadResult = await UploadCatalogCoreAsync(cts.Token, manageUploadingState: false);
+            if (catalogName != null)
+            {
+                TrackCatalogPublished(catalogName, uploadResult);
+            }
+
+            return uploadResult;
         }
         finally
         {
@@ -2830,6 +2850,7 @@ public partial class PublishShareViewModel(
         }
         else
         {
+            TrackProviderDefinitionExported();
             UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.PublishedSuccessfully", "Published successfully!");
             if (!suppressNotifications)
             {
@@ -2839,6 +2860,22 @@ public partial class PublishShareViewModel(
                     autoDismissMs: 4000);
             }
         }
+    }
+
+    private void TrackProviderDefinitionExported()
+    {
+        var catalogCount = _currentHostingState?.Catalogs
+            .Where(c => !string.IsNullOrEmpty(c.Url))
+            .Select(c => c.CatalogId)
+            .Distinct()
+            .Count() ?? 0;
+        telemetryService?.TrackEvent(TelemetryConstants.Events.PublisherStudioDefinitionExported, new Dictionary<string, object?>
+        {
+            [TelemetryConstants.Properties.PublisherName] = project.Catalog.Publisher?.Name ?? project.ProjectName,
+            [TelemetryConstants.Properties.ContentType] = TelemetryConstants.ContentTypes.Definition,
+            [TelemetryConstants.Properties.CatalogCount] = catalogCount,
+            [TelemetryConstants.Properties.DefinitionUrl] = TelemetryUrlHelper.StripSensitiveUrlParts(ProviderDefinitionUrl),
+        });
     }
 
     private void MarkActiveCatalogPublished(string catalogUrl)
@@ -4171,8 +4208,8 @@ public partial class PublishShareViewModel(
     {
         if (string.IsNullOrWhiteSpace(CatalogJson))
         {
-            // Generate first if not already done
-            await ExportCatalogAsync();
+            // Generate first if not already done; a clipboard copy is not an export.
+            await ExportCatalogCoreAsync(trackTelemetry: false);
         }
 
         if (string.IsNullOrWhiteSpace(CatalogJson))
@@ -4355,6 +4392,7 @@ public partial class PublishShareViewModel(
         try
         {
             var uploadResult = await UploadCatalogCoreAsync(cancellationToken, manageUploadingState: false, suppressNotifications: true);
+            TrackCatalogPublished(catalog.Name, uploadResult);
             if (!uploadResult.Success && cancellationToken.IsCancellationRequested)
             {
                 UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.UploadCanceled", "Upload canceled.");
@@ -4562,6 +4600,24 @@ public partial class PublishShareViewModel(
             : GetLocalizedString("Tools.PublisherStudio.Publish.UploadDefinitionFailedMessage", "Failed to upload provider definition.");
     }
 
+    private void TrackCatalogPublished(string catalogName, OperationResult<HostingUploadResult> result)
+    {
+        var properties = new Dictionary<string, object?>
+        {
+            [TelemetryConstants.Properties.PublisherName] = project.Catalog.Publisher?.Name ?? project.ProjectName,
+            [TelemetryConstants.Properties.ContentName] = catalogName,
+            [TelemetryConstants.Properties.Success] = result.Success,
+            [TelemetryConstants.Properties.ProviderType] = SelectedHostingProvider?.ProviderId,
+        };
+
+        if (!result.Success && !string.IsNullOrWhiteSpace(result.FirstError))
+        {
+            properties[TelemetryConstants.Properties.ErrorMessage] = result.FirstError;
+        }
+
+        telemetryService?.TrackEvent(TelemetryConstants.Events.PublisherStudioPublished, properties);
+    }
+
     private async Task<(bool Success, string? Error)> PublishCatalogItemAsync(
         NamedCatalog catalog,
         int currentCatalog,
@@ -4580,6 +4636,7 @@ public partial class PublishShareViewModel(
                 manageUploadingState: false,
                 suppressNotifications: true,
                 uploadDefinition: uploadDefinition);
+            TrackCatalogPublished(catalog.Name, res);
             if (res.Success)
             {
                 // Publish status is updated centrally in CompletePublishSuccessAsync.

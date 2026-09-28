@@ -365,9 +365,14 @@ public class CommunityOutpostDeliverer(
                 : null;
 
             // Try downloading with mirror fallback
+            var downloadConfig = new DownloadConfiguration
+            {
+                Url = new Uri(archiveFile.DownloadUrl!),
+                DestinationPath = archivePath,
+            };
+            DownloadTelemetryHelper.ApplyManifestAttribution(downloadConfig, packageManifest, PublisherTypeConstants.CommunityOutpost);
             var downloadResult = await DownloadWithMirrorFallbackAsync(
-                archiveFile.DownloadUrl!,
-                archivePath,
+                downloadConfig,
                 downloadProgress,
                 cancellationToken);
 
@@ -585,26 +590,22 @@ public class CommunityOutpostDeliverer(
     /// Downloads a file with mirror fallback support.
     /// </summary>
     private Task<OperationResult<bool>> DownloadWithMirrorFallbackAsync(
-        string primaryUrl,
-        string targetPath,
+        DownloadConfiguration configuration,
         CancellationToken cancellationToken) =>
-        DownloadWithMirrorFallbackAsync(primaryUrl, targetPath, null, cancellationToken);
+        DownloadWithMirrorFallbackAsync(configuration, null, cancellationToken);
 
     /// <summary>
     /// Downloads a file with mirror fallback support and progress reporting.
     /// </summary>
     private async Task<OperationResult<bool>> DownloadWithMirrorFallbackAsync(
-        string primaryUrl,
-        string targetPath,
+        DownloadConfiguration configuration,
         IProgress<DownloadProgress>? progress,
         CancellationToken cancellationToken)
     {
         // Try primary URL first
-        logger.LogDebug("Downloading from primary URL: {Url}", primaryUrl);
+        logger.LogDebug("Downloading from primary URL: {Url}", configuration.Url);
         var result = await downloadService.DownloadFileAsync(
-            new Uri(primaryUrl),
-            targetPath,
-            expectedHash: null,
+            configuration,
             progress: progress,
             cancellationToken);
 
@@ -1032,7 +1033,17 @@ public class CommunityOutpostDeliverer(
                 foreach (var depUrl in urlsToTry)
                 {
                     logger.LogDebug("Trying dependency download from {Url}", depUrl);
-                    downloadResult = await DownloadWithMirrorFallbackAsync(depUrl, depArchive, cancellationToken);
+                    var dependencyConfig = new DownloadConfiguration
+                    {
+                        Url = new Uri(depUrl),
+                        DestinationPath = depArchive,
+                        PublisherId = PublisherTypeConstants.CommunityOutpost,
+                        ContentName = string.IsNullOrWhiteSpace(dep.Name) ? actualContentCode : dep.Name,
+                        ContentId = string.IsNullOrWhiteSpace(dep.Id.Value) ? actualContentCode : dep.Id.Value,
+                        ContentType = dep.DependencyType.ToString(),
+                        Author = CommunityOutpostConstants.PublisherName,
+                    };
+                    downloadResult = await DownloadWithMirrorFallbackAsync(dependencyConfig, cancellationToken);
                     if (downloadResult.Success) break;
                 }
 

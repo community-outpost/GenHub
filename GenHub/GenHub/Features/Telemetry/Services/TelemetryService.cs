@@ -54,6 +54,15 @@ public sealed class TelemetryService(
         {
             try
             {
+                var genHubOptOut = Environment.GetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.GenHubTelemetryOptOut);
+                var doNotTrack = Environment.GetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.DoNotTrack);
+
+                if ((!string.IsNullOrWhiteSpace(genHubOptOut) && TelemetryConstants.OptOutTruthyValues.Contains(genHubOptOut.Trim())) ||
+                    (!string.IsNullOrWhiteSpace(doNotTrack) && TelemetryConstants.OptOutTruthyValues.Contains(doNotTrack.Trim())))
+                {
+                    return TelemetryLevel.Disabled;
+                }
+
                 return _userSettingsService.Get().TelemetryPreference;
             }
             catch (Exception ex)
@@ -198,6 +207,20 @@ public sealed class TelemetryService(
             };
 
             _channel.Writer.TryWrite(telemetryEvent);
+
+            // Emit a slim anonymous-level crash summary so crash dashboards stay populated
+            // for AnonymousMetrics users without routing crash-level events (exception messages,
+            // stack traces, breadcrumbs) to the analytics endpoint. CrashReportsOnly users skip
+            // this via the AnonymousMetrics gate inside TrackEvent.
+            TrackEvent(
+                TelemetryConstants.Events.AppCrash,
+                new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.ExceptionType] = exception.GetType().FullName ?? exception.GetType().Name,
+                    [TelemetryConstants.Properties.IsFatal] = isFatal,
+                    [TelemetryConstants.Properties.Context] = context ?? "Application",
+                },
+                TelemetryLevel.AnonymousMetrics);
         }
         catch (Exception ex)
         {

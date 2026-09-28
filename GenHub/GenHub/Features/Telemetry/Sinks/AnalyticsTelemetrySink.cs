@@ -83,6 +83,8 @@ public sealed class AnalyticsTelemetrySink(
                 ["$process_person_profile"] = false,
             };
 
+            postHogProperties.TryAdd(TelemetryConstants.Properties.Platform, telemetryEvent.Platform);
+            postHogProperties.TryAdd(TelemetryConstants.Properties.AppVersion, telemetryEvent.AppVersion);
             postHogProperties.TryAdd(TelemetryConstants.Properties.FullDisplayVersion, AppConstants.FullDisplayVersion);
             postHogProperties.TryAdd(TelemetryConstants.Properties.BuildChannel, AppConstants.BuildChannel);
 

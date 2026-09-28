@@ -99,4 +99,7 @@ public sealed class DownloadConfiguration
 
     /// <summary>Gets or sets the content type (e.g. Mod, Map, Patch, Addon).</summary>
     public string? ContentType { get; set; }
+
+    /// <summary>Gets or sets the author or creator of the content being downloaded.</summary>
+    public string? Author { get; set; }
 }

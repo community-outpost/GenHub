@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Telemetry;
 using GenHub.Features.Telemetry.Sinks;
+using GenHub.Tests.Core.Collections;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
@@ -18,6 +19,7 @@ namespace GenHub.Tests.Core.Telemetry;
 /// <summary>
 /// Unit tests for <see cref="AnalyticsTelemetrySink"/>.
 /// </summary>
+[Collection(TelemetryEnvironmentCollection.Name)]
 public class AnalyticsTelemetrySinkTests
 {
     private readonly Mock<ILogger<AnalyticsTelemetrySink>> _loggerMock = new();
@@ -35,11 +37,17 @@ public class AnalyticsTelemetrySinkTests
     /// Verifies sink metadata and CanHandle predicate.
     /// </summary>
     [Fact]
-    public void CanHandle_OnlyHandlesAnonymousMetricsEvents()
+    public void CanHandle_HandlesOnlyAnonymousMetricsEvents()
     {
         var anonymousEvent = new TelemetryEvent
         {
             EventName = TelemetryConstants.Events.GameSessionStarted,
+            Level = TelemetryLevel.AnonymousMetrics,
+        };
+
+        var crashSummaryEvent = new TelemetryEvent
+        {
+            EventName = TelemetryConstants.Events.AppCrash,
             Level = TelemetryLevel.AnonymousMetrics,
         };
 
@@ -49,8 +57,16 @@ public class AnalyticsTelemetrySinkTests
             Level = TelemetryLevel.CrashReportsOnly,
         };
 
+        var disabledEvent = new TelemetryEvent
+        {
+            EventName = TelemetryConstants.Events.AppCrash,
+            Level = TelemetryLevel.Disabled,
+        };
+
         Assert.True(_sink.CanHandle(anonymousEvent));
+        Assert.True(_sink.CanHandle(crashSummaryEvent));
         Assert.False(_sink.CanHandle(crashEvent));
+        Assert.False(_sink.CanHandle(disabledEvent));
     }
 
     /// <summary>
@@ -168,6 +184,8 @@ public class AnalyticsTelemetrySinkTests
         Assert.Equal("GenHub", properties.GetProperty("$lib").GetString());
         Assert.Equal("sess-7777", properties.GetProperty("$session_id").GetString());
         Assert.Equal("ZeroHour", properties.GetProperty(TelemetryConstants.Properties.GameType).GetString());
+        Assert.Equal("Linux", properties.GetProperty(TelemetryConstants.Properties.Platform).GetString());
+        Assert.Equal("1.0.0", properties.GetProperty(TelemetryConstants.Properties.AppVersion).GetString());
         Assert.False(properties.GetProperty("$process_person_profile").GetBoolean());
     }
 

@@ -509,6 +509,74 @@ public sealed class DownloadedContentDiscovererTests
     }
 
     /// <summary>
+    /// Verifies that legacy GitHub per-game downloads of one multi-variant release
+    /// share a group id while other releases stay separate.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_LegacyGitHubGameClients_ShareReleaseGroupAsync()
+    {
+        var zeroHour = CreateGitHubManifest(
+            "1.20260925.thesuperhackers.gameclient.zerohour",
+            "SuperHackers - Zero Hour",
+            GameType.ZeroHour,
+            "weekly-2026-09-25",
+            "github.TheSuperHackers.GeneralsGameCode.weekly-2026-09-25.zerohour");
+        var generals = CreateGitHubManifest(
+            "1.20260925.thesuperhackers.gameclient.generals",
+            "SuperHackers - Generals",
+            GameType.Generals,
+            "weekly-2026-09-25",
+            "github.TheSuperHackers.GeneralsGameCode.weekly-2026-09-25.generals");
+        var olderWeekly = CreateGitHubManifest(
+            "1.20260918.thesuperhackers.gameclient.zerohour",
+            "SuperHackers - Zero Hour",
+            GameType.ZeroHour,
+            "weekly-2026-09-18",
+            "github.TheSuperHackers.GeneralsGameCode.weekly-2026-09-18.zerohour");
+
+        var discoverer = CreateDiscoverer([zeroHour, generals, olderWeekly]);
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery { Take = 10 });
+
+        Assert.True(result.Success);
+        Assert.Equal(3, result.Data!.Items.Count());
+        var zeroHourItem = Assert.Single(result.Data.Items, item => item.Id == zeroHour.Id.Value);
+        var generalsItem = Assert.Single(result.Data.Items, item => item.Id == generals.Id.Value);
+        var olderItem = Assert.Single(result.Data.Items, item => item.Id == olderWeekly.Id.Value);
+        Assert.Equal("github.TheSuperHackers.GeneralsGameCode.weekly-2026-09-25", zeroHourItem.VariantGroupId);
+        Assert.Equal(zeroHourItem.VariantGroupId, generalsItem.VariantGroupId);
+        Assert.Equal("weekly-2026-09-25", zeroHourItem.VariantFamilyName);
+        Assert.Equal(zeroHourItem.VariantFamilyName, generalsItem.VariantFamilyName);
+        Assert.NotEqual(zeroHourItem.VariantGroupId, olderItem.VariantGroupId);
+    }
+
+    /// <summary>
+    /// Verifies that GitHub single-asset downloads keep a null group id so they
+    /// render as plain cards without a variant picker.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_GitHubSingleAsset_DoesNotGroupAsync()
+    {
+        var single = CreateGitHubManifest(
+            "1.100.thesuperhackers.patch.generalsgamepatch2",
+            "Community Patch 2",
+            GameType.ZeroHour,
+            "1.100",
+            "github.TheSuperHackers.GeneralsGameCode.1.100");
+
+        var discoverer = CreateDiscoverer([single]);
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery { Take = 10 });
+
+        Assert.True(result.Success);
+        var item = Assert.Single(result.Data!.Items);
+        Assert.Null(item.VariantGroupId);
+        Assert.Null(item.VariantFamilyName);
+    }
+
+    /// <summary>
     /// Verifies that an unmappable manifest neither consumes a page slot nor inflates
     /// totals: the page fills with valid entries and counts exclude the skipped one.
     /// </summary>
@@ -599,6 +667,21 @@ public sealed class DownloadedContentDiscovererTests
                 Tags = ["contentCode:cbpr", $"variant:{variantId}", $"selectedVariant:{variantId}"],
                 SelectedVariantId = variantId,
             },
+        };
+    }
+
+    private static ContentManifest CreateGitHubManifest(string id, string name, GameType game, string version, string originalContentId)
+    {
+        return new ContentManifest
+        {
+            Id = ManifestId.Create(id),
+            Name = name,
+            Version = version,
+            ContentType = ContentType.GameClient,
+            TargetGame = game,
+            OriginalProviderName = PublisherTypeConstants.GitHub,
+            OriginalContentId = originalContentId,
+            Publisher = new PublisherInfo { Name = "The Super Hackers", PublisherType = PublisherTypeConstants.TheSuperHackers },
         };
     }
 }

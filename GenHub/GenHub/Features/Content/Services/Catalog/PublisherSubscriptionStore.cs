@@ -1,6 +1,8 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
@@ -27,7 +29,8 @@ namespace GenHub.Features.Content.Services.Catalog;
 /// </remarks>
 public class PublisherSubscriptionStore(
     ILogger<PublisherSubscriptionStore> logger,
-    IConfigurationProviderService configurationProvider) : IPublisherSubscriptionStore
+    IConfigurationProviderService configurationProvider,
+    ITelemetryService? telemetryService = null) : IPublisherSubscriptionStore
 {
     private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
 
@@ -117,6 +120,14 @@ public class PublisherSubscriptionStore(
             await SaveSubscriptionsAsync(collection, cancellationToken);
 
             logger.LogInformation("Added subscription for publisher: {PublisherId}", subscription.PublisherId);
+            telemetryService?.TrackEvent(TelemetryConstants.Events.PublisherSubscribed, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.PublisherId] = subscription.PublisherId,
+                [TelemetryConstants.Properties.PublisherName] = subscription.PublisherName ?? subscription.PublisherId,
+                [TelemetryConstants.Properties.CatalogUrl] = TelemetryUrlHelper.StripSensitiveUrlParts(subscription.CatalogUrl),
+                [TelemetryConstants.Properties.DefinitionUrl] = TelemetryUrlHelper.StripSensitiveUrlParts(subscription.DefinitionUrl),
+                [TelemetryConstants.Properties.Author] = subscription.PublisherName ?? subscription.PublisherId,
+            });
             return OperationResult<bool>.CreateSuccess(true);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -154,6 +165,10 @@ public class PublisherSubscriptionStore(
             await SaveSubscriptionsAsync(collection, cancellationToken);
 
             logger.LogInformation("Removed subscription for publisher: {PublisherId}", publisherId);
+            telemetryService?.TrackEvent(TelemetryConstants.Events.PublisherUnsubscribed, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.PublisherId] = publisherId,
+            });
             return OperationResult<bool>.CreateSuccess(true);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

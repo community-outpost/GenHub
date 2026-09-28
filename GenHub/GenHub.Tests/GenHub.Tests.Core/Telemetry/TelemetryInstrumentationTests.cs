@@ -3,10 +3,12 @@ using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Telemetry;
+using GenHub.Core.Interfaces.Tools.WndEditor;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Dialogs;
@@ -16,7 +18,9 @@ using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Core.Models.Tools.WndEditor;
 using GenHub.Features.Content.Services.CommunityOutpost;
+using GenHub.Features.Tools.WndEditor.ViewModels;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -429,5 +433,136 @@ public class TelemetryInstrumentationTests
                 File.Delete(tempFile);
             }
         }
+    }
+
+    /// <summary>
+    /// Verifies that WndEditorViewModel does not track document validation telemetry when no document is loaded.
+    /// </summary>
+    [Fact]
+    public void WndEditorViewModel_ValidateDocument_WithoutDocument_DoesNotTrack()
+    {
+        var docServiceMock = new Mock<IWndDocumentService>();
+        docServiceMock
+            .Setup(x => x.ValidateDocument(It.IsAny<WndDocument>(), It.IsAny<string>()))
+            .Returns(new ValidationResult("test", []));
+
+        var installServiceMock = new Mock<IGameInstallationService>();
+        installServiceMock
+            .Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([]));
+
+        var vm = new WndEditorViewModel(
+            docServiceMock.Object,
+            Mock.Of<INotificationService>(),
+            Mock.Of<ILocalizationService>(),
+            Mock.Of<IDialogService>(),
+            installServiceMock.Object,
+            Mock.Of<IWndEditorAssetService>(),
+            Mock.Of<IWndTextureImportService>(),
+            Mock.Of<IChallengeMedalService>(),
+            Mock.Of<ILogger<WndEditorViewModel>>(),
+            _telemetryServiceMock.Object);
+
+        // Invoke command ValidateDocument without loading a document
+        vm.ValidateDocumentCommand.Execute(null);
+
+        // Since no document is loaded, it should return early and not track
+        _telemetryServiceMock.Verify(
+            t => t.TrackEvent(TelemetryConstants.Events.WndDocumentValidated, It.IsAny<IReadOnlyDictionary<string, object?>?>(), It.IsAny<TelemetryLevel>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that WndEditorViewModel tracks document validation telemetry when a document is loaded.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task WndEditorViewModel_ValidateDocument_WithDocument_TracksWndDocumentValidated()
+    {
+        var docServiceMock = new Mock<IWndDocumentService>();
+        var window = new WndWindow();
+        window.Properties.Add(new WndProperty(WndConstants.PropertyKeys.Name, "TestWindow"));
+        var doc = new WndDocument();
+        doc.Windows.Add(window);
+        docServiceMock
+            .Setup(x => x.ParseText(It.IsAny<string>(), It.IsAny<string?>()))
+            .Returns(OperationResult<WndDocument>.CreateSuccess(doc));
+        docServiceMock
+            .Setup(x => x.ValidateDocument(It.IsAny<WndDocument>(), It.IsAny<string>()))
+            .Returns(new ValidationResult("test", []));
+
+        var installMock = new Mock<IGameInstallationService>();
+        installMock
+            .Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([]));
+
+        var vm = new WndEditorViewModel(
+            docServiceMock.Object,
+            Mock.Of<INotificationService>(),
+            Mock.Of<ILocalizationService>(),
+            Mock.Of<IDialogService>(),
+            installMock.Object,
+            Mock.Of<IWndEditorAssetService>(),
+            Mock.Of<IWndTextureImportService>(),
+            Mock.Of<IChallengeMedalService>(),
+            Mock.Of<ILogger<WndEditorViewModel>>(),
+            _telemetryServiceMock.Object);
+
+        await vm.LoadFromTextAsync("FILE_VERSION = 2;\nWINDOW\n  NAME = \"TestWindow\";\nEND\n", null);
+
+        vm.ValidateDocumentCommand.Execute(null);
+
+        _telemetryServiceMock.Verify(
+            t => t.TrackEvent(
+                TelemetryConstants.Events.WndDocumentValidated,
+                It.Is<IReadOnlyDictionary<string, object?>?>(props =>
+                    props != null &&
+                    props.ContainsKey(TelemetryConstants.Properties.IsValid) &&
+                    props.ContainsKey(TelemetryConstants.Properties.WindowCount)),
+                It.IsAny<TelemetryLevel>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that opening a document reports a constant anonymous file identifier instead of the user file name.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task WndEditorViewModel_OpenFile_SendsAnonymousFilePathAsync()
+    {
+        var doc = new WndDocument();
+        var docServiceMock = new Mock<IWndDocumentService>();
+        docServiceMock
+            .Setup(x => x.ParseFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<WndDocument>.CreateSuccess(doc));
+
+        var installMock = new Mock<IGameInstallationService>();
+        installMock
+            .Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([]));
+
+        var vm = new WndEditorViewModel(
+            docServiceMock.Object,
+            Mock.Of<INotificationService>(),
+            Mock.Of<ILocalizationService>(),
+            Mock.Of<IDialogService>(),
+            installMock.Object,
+            Mock.Of<IWndEditorAssetService>(),
+            Mock.Of<IWndTextureImportService>(),
+            Mock.Of<IChallengeMedalService>(),
+            Mock.Of<ILogger<WndEditorViewModel>>(),
+            _telemetryServiceMock.Object);
+
+        var result = await vm.OpenFileAsync("/tmp/MySecretMap.wnd", CancellationToken.None);
+
+        Assert.True(result);
+        _telemetryServiceMock.Verify(
+            t => t.TrackEvent(
+                TelemetryConstants.Events.WndDocumentOpened,
+                It.Is<IReadOnlyDictionary<string, object?>?>(props =>
+                    props != null &&
+                    (string?)props[TelemetryConstants.Properties.FilePath] == TelemetryConstants.WndEditor.AnonymousDocumentName),
+                It.IsAny<TelemetryLevel>()),
+            Times.Once);
     }
 }

@@ -25,6 +25,18 @@ public class GameLaunchConfiguration
     /// <summary>Gets or sets the game client version.</summary>
     public string? GameClientVersion { get; set; }
 
+    /// <summary>Gets or sets the game client publisher.</summary>
+    public string? GameClientPublisher { get; set; }
+
+    /// <summary>Gets or sets the profile ID.</summary>
+    public string? ProfileId { get; set; }
+
+    /// <summary>Gets or sets a comma-separated list of enabled content/mod IDs in the profile.</summary>
+    public string? EnabledContentIds { get; set; }
+
+    /// <summary>Gets or sets the number of enabled content/mod items in the profile.</summary>
+    public int ContentCount { get; set; }
+
     /// <summary>Gets or sets the native Options.ini path mirrored into compatibility prefixes.</summary>
     public string? NativeOptionsIniPath { get; set; }
 

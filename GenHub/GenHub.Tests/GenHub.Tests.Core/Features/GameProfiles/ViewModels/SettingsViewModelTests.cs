@@ -160,6 +160,28 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
+    /// Verifies that ResetToDefaultsCommand preserves the telemetry preference so consent survives unrelated resets.
+    /// </summary>
+    /// <param name="preference">The telemetry preference active before the reset.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Theory]
+    [InlineData(TelemetryLevel.Disabled)]
+    [InlineData(TelemetryLevel.CrashReportsOnly)]
+    [InlineData(TelemetryLevel.AnonymousMetrics)]
+    public async Task ResetToDefaultsCommand_PreservesTelemetryPreferenceAsync(TelemetryLevel preference)
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        viewModel.TelemetryPreference = preference;
+
+        // Act
+        await viewModel.ResetToDefaultsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.Equal(preference, viewModel.TelemetryPreference);
+    }
+
+    /// <summary>
     /// Verifies that periodic update settings are correctly loaded from UserSettings.
     /// </summary>
     [Fact]

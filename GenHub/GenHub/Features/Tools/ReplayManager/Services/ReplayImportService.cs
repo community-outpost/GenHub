@@ -476,12 +476,17 @@ public sealed class ReplayImportService(
 
         try
         {
+            var importedFileName = ExtractFileName(downloadUri);
             var downloadConfig = new DownloadConfiguration
             {
                 Url = downloadUri,
                 DestinationPath = tempPath,
                 UserAgent = userAgent,
                 ValidateRedirectsManually = true,
+                PublisherId = TelemetryConstants.DownloadAttribution.Replay,
+                ContentName = importedFileName,
+                ContentId = importedFileName,
+                ContentType = TelemetryConstants.ContentTypes.Replay,
             };
 
             var result = await downloadService.DownloadFileAsync(downloadConfig, progress: downloadProgress, cancellationToken: ct);
@@ -509,7 +514,6 @@ public sealed class ReplayImportService(
                 return Math.Max(zipResult.FilesSkipped, zipResult.Success ? 0 : 1);
             }
 
-            var importedFileName = ExtractFileName(new Uri(directUrl));
             using var stream = File.OpenRead(tempPath);
             var singleResult = await ImportFromStreamAsync(stream, importedFileName, targetVersion, ct);
             if (singleResult.Success)

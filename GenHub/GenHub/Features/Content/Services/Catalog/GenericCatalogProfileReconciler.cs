@@ -4,6 +4,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Dialogs;
 using GenHub.Core.Models.Enums;
@@ -247,6 +248,14 @@ public class GenericCatalogProfileReconciler(
             notificationService.ShowError(
                 localizationService.GetLocalizedString("Content.Notification.UpdateFailed.Title", "Update Failed"),
                 localizationService.GetLocalizedString("Content.Notification.UpdateFailed.DownloadMessage", $"Failed to download {item.Name}: {downloadResult.FirstError}", item.Name, downloadResult.FirstError));
+            contentServices.TelemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.PublisherId] = subscription.PublisherId,
+                [TelemetryConstants.Properties.ContentName] = item.Name,
+                [TelemetryConstants.Properties.ContentId] = localManifestId,
+                [TelemetryConstants.Properties.Author] = item.AuthorName ?? subscription.PublisherName ?? subscription.PublisherId,
+                [TelemetryConstants.Properties.ErrorMessage] = downloadResult.FirstError ?? "Failed to download update",
+            });
             return OperationResult<PublisherReconciliationResult>.CreateFailure($"Failed to download update: {downloadResult.FirstError}");
         }
 
@@ -283,6 +292,17 @@ public class GenericCatalogProfileReconciler(
 
         if (!updateOutcome.Proceed)
         {
+            contentServices.TelemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.PublisherId] = subscription.PublisherId,
+                [TelemetryConstants.Properties.ContentName] = item.Name,
+                [TelemetryConstants.Properties.ContentId] = newManifest.Id.Value,
+                [TelemetryConstants.Properties.Author] = item.AuthorName ?? subscription.PublisherName ?? subscription.PublisherId,
+                [TelemetryConstants.Properties.FromVersion] = oldManifestResult.Data?.Version ?? string.Empty,
+                [TelemetryConstants.Properties.ToVersion] = itemVersion,
+                [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
+                [TelemetryConstants.Properties.ErrorMessage] = updateOutcome.Error ?? "Failed to apply update",
+            });
             return OperationResult<PublisherReconciliationResult>.CreateFailure(updateOutcome.Error ?? "Failed to apply update");
         }
 
@@ -290,6 +310,19 @@ public class GenericCatalogProfileReconciler(
         {
             await contentServices.ReconciliationService.ScheduleGarbageCollectionAsync(false, cancellationToken);
         }
+
+        contentServices.TelemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateApplied, new Dictionary<string, object?>
+        {
+            [TelemetryConstants.Properties.PublisherId] = subscription.PublisherId,
+            [TelemetryConstants.Properties.ContentName] = item.Name,
+            [TelemetryConstants.Properties.ContentId] = newManifest.Id.Value,
+            [TelemetryConstants.Properties.Author] = item.AuthorName ?? subscription.PublisherName ?? subscription.PublisherId,
+            [TelemetryConstants.Properties.FromVersion] = oldManifestResult.Data?.Version ?? string.Empty,
+            [TelemetryConstants.Properties.ToVersion] = itemVersion,
+            [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
+            [TelemetryConstants.Properties.ProfilesUpdated] = updateOutcome.ProfilesUpdated,
+            [TelemetryConstants.Properties.Success] = !updateOutcome.AnyFailure,
+        });
 
         notificationService.ShowSuccess(
             localizationService.GetLocalizedString("Content.Notification.UpdateCompleted.Title", "Update Completed"),

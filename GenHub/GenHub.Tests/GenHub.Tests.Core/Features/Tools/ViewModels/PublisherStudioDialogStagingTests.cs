@@ -133,6 +133,7 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
         var file = WriteTempFile("mod.big", "payload");
         using var vm = new AddContentDialogViewModel(_ => { });
         vm.PopulateFromPath(file);
+        await WaitForComputeAsync(vm);
         Assert.NotEmpty(vm.StagedFiles);
 
         await WaitForComputeAsync(vm);
@@ -247,6 +248,11 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
         while ((vm.IsComputingHash || string.IsNullOrEmpty(vm.Sha256Hash)) && DateTime.UtcNow - start < timeout)
         {
             await Task.Delay(50);
+        }
+
+        if (vm.IsComputingHash || string.IsNullOrEmpty(vm.Sha256Hash))
+        {
+            throw new TimeoutException($"Hash computation did not complete within {timeout.TotalSeconds} seconds.");
         }
     }
 }

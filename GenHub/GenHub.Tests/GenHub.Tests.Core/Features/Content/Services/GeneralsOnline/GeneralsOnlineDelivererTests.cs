@@ -172,12 +172,10 @@ public class GeneralsOnlineDelivererTests : IDisposable
 
         _downloadServiceMock
             .Setup(d => d.DownloadFileAsync(
-                It.IsAny<Uri>(),
-                It.IsAny<string>(),
-                It.IsAny<string?>(),
+                It.IsAny<DownloadConfiguration>(),
                 It.IsAny<IProgress<DownloadProgress>?>(),
                 It.IsAny<CancellationToken>()))
-            .Callback<Uri, string, string?, IProgress<DownloadProgress>?, CancellationToken>((url, path, hash, prog, token) => File.Copy(zipPath, path, true))
+            .Callback<DownloadConfiguration, IProgress<DownloadProgress>?, CancellationToken>((config, prog, token) => File.Copy(zipPath, config.DestinationPath, true))
             .ReturnsAsync(DownloadResult.CreateSuccess(zipPath, 100, TimeSpan.FromSeconds(1)));
 
         var manifest = new ContentManifest
@@ -256,12 +254,10 @@ public class GeneralsOnlineDelivererTests : IDisposable
 
         _downloadServiceMock
             .Setup(d => d.DownloadFileAsync(
-                It.IsAny<Uri>(),
-                It.IsAny<string>(),
-                It.IsAny<string?>(),
+                It.IsAny<DownloadConfiguration>(),
                 It.IsAny<IProgress<DownloadProgress>?>(),
                 It.IsAny<CancellationToken>()))
-            .Callback<Uri, string, string?, IProgress<DownloadProgress>?, CancellationToken>((url, path, hash, prog, token) => File.Copy(zipPath, path, true))
+            .Callback<DownloadConfiguration, IProgress<DownloadProgress>?, CancellationToken>((config, prog, token) => File.Copy(zipPath, config.DestinationPath, true))
             .ReturnsAsync(DownloadResult.CreateSuccess(zipPath, 100, TimeSpan.FromSeconds(1)));
 
         var manifest = new ContentManifest
@@ -337,12 +333,10 @@ public class GeneralsOnlineDelivererTests : IDisposable
 
         _downloadServiceMock
             .Setup(d => d.DownloadFileAsync(
-                It.IsAny<Uri>(),
-                It.IsAny<string>(),
-                It.IsAny<string?>(),
+                It.IsAny<DownloadConfiguration>(),
                 It.IsAny<IProgress<DownloadProgress>?>(),
                 It.IsAny<CancellationToken>()))
-            .Callback<Uri, string, string?, IProgress<DownloadProgress>?, CancellationToken>((url, path, hash, prog, token) => File.Copy(zipPath, path, true))
+            .Callback<DownloadConfiguration, IProgress<DownloadProgress>?, CancellationToken>((config, prog, token) => File.Copy(zipPath, config.DestinationPath, true))
             .ReturnsAsync(DownloadResult.CreateSuccess(zipPath, 100, TimeSpan.FromSeconds(1)));
 
         var manifest = new ContentManifest
@@ -418,12 +412,10 @@ public class GeneralsOnlineDelivererTests : IDisposable
 
         _downloadServiceMock
             .Setup(d => d.DownloadFileAsync(
-                It.IsAny<Uri>(),
-                It.IsAny<string>(),
-                It.IsAny<string?>(),
+                It.IsAny<DownloadConfiguration>(),
                 It.IsAny<IProgress<DownloadProgress>?>(),
                 It.IsAny<CancellationToken>()))
-            .Callback<Uri, string, string?, IProgress<DownloadProgress>?, CancellationToken>((url, path, hash, prog, token) => File.Copy(zipPath, path, true))
+            .Callback<DownloadConfiguration, IProgress<DownloadProgress>?, CancellationToken>((config, prog, token) => File.Copy(zipPath, config.DestinationPath, true))
             .ReturnsAsync(DownloadResult.CreateSuccess(zipPath, 100, TimeSpan.FromSeconds(1)));
 
         var manifest = new ContentManifest
@@ -488,12 +480,10 @@ public class GeneralsOnlineDelivererTests : IDisposable
 
         _downloadServiceMock
             .Setup(d => d.DownloadFileAsync(
-                It.IsAny<Uri>(),
-                It.IsAny<string>(),
-                It.IsAny<string?>(),
+                It.IsAny<DownloadConfiguration>(),
                 It.IsAny<IProgress<DownloadProgress>?>(),
                 It.IsAny<CancellationToken>()))
-            .Callback<Uri, string, string?, IProgress<DownloadProgress>?, CancellationToken>((url, path, hash, prog, token) => File.Copy(zipPath, path, true))
+            .Callback<DownloadConfiguration, IProgress<DownloadProgress>?, CancellationToken>((config, prog, token) => File.Copy(zipPath, config.DestinationPath, true))
             .ReturnsAsync(DownloadResult.CreateSuccess(zipPath, 100, TimeSpan.FromSeconds(1)));
 
         var manifest = new ContentManifest
@@ -574,17 +564,17 @@ public class GeneralsOnlineDelivererTests : IDisposable
         CreateTestZip(zipPath);
 
         string? capturedExpectedHash = null;
+        DownloadConfiguration? capturedConfig = null;
         _downloadServiceMock
             .Setup(d => d.DownloadFileAsync(
-                It.IsAny<Uri>(),
-                It.IsAny<string>(),
-                It.IsAny<string?>(),
+                It.IsAny<DownloadConfiguration>(),
                 It.IsAny<IProgress<DownloadProgress>?>(),
                 It.IsAny<CancellationToken>()))
-            .Callback<Uri, string, string?, IProgress<DownloadProgress>?, CancellationToken>((url, path, hash, prog, token) =>
+            .Callback<DownloadConfiguration, IProgress<DownloadProgress>?, CancellationToken>((config, prog, token) =>
             {
-                capturedExpectedHash = hash;
-                File.Copy(zipPath, path, true);
+                capturedExpectedHash = config.ExpectedHash;
+                capturedConfig = config;
+                File.Copy(zipPath, config.DestinationPath, true);
             })
             .ReturnsAsync(DownloadResult.CreateSuccess(zipPath, 100, TimeSpan.FromSeconds(1)));
 
@@ -627,6 +617,10 @@ public class GeneralsOnlineDelivererTests : IDisposable
         // Assert
         Assert.True(result.Success);
         Assert.Equal(expectedHash, capturedExpectedHash);
+        Assert.NotNull(capturedConfig);
+        Assert.Equal(PublisherTypeConstants.GeneralsOnline, capturedConfig.PublisherId);
+        Assert.Equal(GameClientConstants.GeneralsOnline60HzDisplayName, capturedConfig.ContentName);
+        Assert.Equal("1.1015255.generalsonline.gameclient.60hz", capturedConfig.ContentId);
     }
 
     private static void CreateTestZip(string zipPath)

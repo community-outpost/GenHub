@@ -6,6 +6,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Publishers;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Core.Utilities;
@@ -45,7 +46,8 @@ public partial class PublisherStudioViewModel(
     ILocalizationService? localizationService = null,
     IHostingCredentialStore? credentialStore = null,
     IPublisherCatalogParser? catalogParser = null,
-    IPublisherSubscriptionStore? subscriptionStore = null) : ObservableObject, IDisposable
+    IPublisherSubscriptionStore? subscriptionStore = null,
+    ITelemetryService? telemetryService = null) : ObservableObject, IDisposable
 {
     /// <summary>Tab index for the Profile tab.</summary>
     public const int TabProfile = 0;
@@ -486,7 +488,7 @@ public partial class PublisherStudioViewModel(
         PublisherProfileViewModel = new GenHub.Features.Tools.ViewModels.PublisherProfileViewModel(CurrentProject, this, logger, notificationService, localizationService, subscriptionStore);
         ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, selectedCatalog, this, logger, dialogService, notificationService, localizationService);
         PublishShareViewModel?.Dispose();
-        PublishShareViewModel = new GenHub.Features.Tools.ViewModels.PublishShareViewModel(CurrentProject, publisherStudioService, logger, hostingProviderFactory, hostingStateManager, notificationService, localizationService, credentialStore, subscriptionStore: subscriptionStore);
+        PublishShareViewModel = new GenHub.Features.Tools.ViewModels.PublishShareViewModel(CurrentProject, publisherStudioService, logger, hostingProviderFactory, hostingStateManager, notificationService, localizationService, credentialStore, subscriptionStore: subscriptionStore, telemetryService: telemetryService);
         PublishShareViewModel.SaveProjectCallback = SaveProjectAfterPublishAsync;
         PublishShareViewModel.LibraryRefreshCallback = () => ContentLibraryViewModel?.RefreshContentDisplay();
         PublishShareViewModel.DefinitionUploadedCallback = () =>
@@ -1206,6 +1208,10 @@ public partial class PublisherStudioViewModel(
                 CurrentProject = result.Data;
                 CurrentProject.ProjectPath = GetDefaultProjectPath();
                 await InitializeChildViewModelsAsync();
+                telemetryService?.TrackEvent(TelemetryConstants.Events.PublisherStudioProjectCreated, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.PublisherName] = NewPublisherName,
+                });
                 StatusMessage = showWizard
                     ? GetStatusString("Tools.PublisherStudio.Studio.ProjectCreatedSetupHint", "New project created - configure your publisher profile to get started")
                     : GetStatusString("Tools.PublisherStudio.Studio.ProjectCreated", "New project created");

@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Common;
@@ -653,6 +654,7 @@ public class DownloadService(
         CancellationToken cancellationToken)
     {
         var maxAttempts = Math.Max(1, configuration.MaxRetryAttempts);
+        var stopwatch = Stopwatch.StartNew();
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
             try
@@ -666,7 +668,7 @@ public class DownloadService(
             catch (InvalidDataException ex)
             {
                 logger.LogError(ex, "Download for {Url} failed with non-retryable invalid data error: {Message}", configuration.Url, ex.Message);
-                TrackDownloadFailure(ex.Message);
+                TrackDownloadFailure(configuration, ex.Message, stopwatch.Elapsed);
                 return DownloadResult.CreateFailure(ex.Message, 0, TimeSpan.Zero);
             }
             catch (Exception ex)
@@ -675,7 +677,7 @@ public class DownloadService(
                 {
                     logger.LogError(ex, "Download failed after {Attempts} attempts for {Url}", maxAttempts, configuration.Url);
                     var errorMessage = $"Download failed after {maxAttempts} attempts: {ex.Message}";
-                    TrackDownloadFailure(errorMessage);
+                    TrackDownloadFailure(configuration, errorMessage, stopwatch.Elapsed);
                     return DownloadResult.CreateFailure(errorMessage, 0, TimeSpan.Zero);
                 }
 
@@ -685,7 +687,7 @@ public class DownloadService(
         }
 
         var finalError = $"Download failed after {maxAttempts} attempts (unexpected error)";
-        TrackDownloadFailure(finalError);
+        TrackDownloadFailure(configuration, finalError, stopwatch.Elapsed);
         return DownloadResult.CreateFailure(finalError, 0, TimeSpan.Zero);
     }
 
@@ -697,7 +699,7 @@ public class DownloadService(
         var destFileInfo = new FileInfo(configuration.DestinationPath);
         if (destFileInfo.Exists && await TrySkipAlreadyCompletedDownloadAsync(configuration, cancellationToken))
         {
-            TrackDownloadCompleted(destFileInfo.Length, TimeSpan.Zero);
+            TrackDownloadCompleted(configuration, destFileInfo.Length, TimeSpan.Zero);
             return DownloadResult.CreateSuccess(configuration.DestinationPath, destFileInfo.Length, TimeSpan.Zero, true);
         }
 
@@ -903,7 +905,7 @@ public class DownloadService(
 
         if (string.IsNullOrWhiteSpace(configuration.ExpectedHash))
         {
-            TrackDownloadCompleted(downloadedBytes, elapsed);
+            TrackDownloadCompleted(configuration, downloadedBytes, elapsed);
             return DownloadResult.CreateSuccess(configuration.DestinationPath, downloadedBytes, elapsed, false);
         }
 
@@ -913,7 +915,7 @@ public class DownloadService(
         {
             TryDeleteFile(configuration.DestinationPath);
             var hashError = $"Hash verification failed. Expected: {configuration.ExpectedHash}, Actual: {actualHash}";
-            TrackDownloadFailure(hashError, elapsed);
+            TrackDownloadFailure(configuration, hashError, elapsed);
 
             return DownloadResult.CreateFailure(
                 hashError,
@@ -921,7 +923,7 @@ public class DownloadService(
                 elapsed);
         }
 
-        TrackDownloadCompleted(downloadedBytes, elapsed);
+        TrackDownloadCompleted(configuration, downloadedBytes, elapsed);
         return DownloadResult.CreateSuccess(configuration.DestinationPath, downloadedBytes, elapsed, true);
     }
 
@@ -1000,6 +1002,11 @@ public class DownloadService(
                 MaxRetryAttempts = configuration.MaxRetryAttempts,
                 RetryDelay = configuration.RetryDelay,
                 ValidateRedirectsManually = configuration.ValidateRedirectsManually,
+                PublisherId = configuration.PublisherId,
+                ContentName = configuration.ContentName,
+                ContentId = configuration.ContentId,
+                ContentType = configuration.ContentType,
+                Author = configuration.Author,
             };
             return await SendRequestAsync(confirmedConfig, validator, 0, cancellationToken);
         }
@@ -1050,36 +1057,9 @@ public class DownloadService(
         return action;
     }
 
-    private void TrackDownloadCompleted(long downloadedBytes, TimeSpan elapsed)
-    {
-        var totalElapsedSeconds = elapsed.TotalSeconds;
-        var sizeMb = downloadedBytes / (1024.0 * 1024.0);
-        var speedMbps = totalElapsedSeconds > 0 ? (sizeMb * 8.0) / totalElapsedSeconds : 0.0;
+    private void TrackDownloadCompleted(DownloadConfiguration configuration, long downloadedBytes, TimeSpan elapsed) =>
+        DownloadTelemetryHelper.TrackDownloadCompleted(telemetryService, configuration, downloadedBytes, elapsed);
 
-        var downloadProperties = new Dictionary<string, object?>
-        {
-            [TelemetryConstants.Properties.SizeMb] = Math.Round(sizeMb, 2),
-            [TelemetryConstants.Properties.DurationSeconds] = Math.Round(totalElapsedSeconds, 2),
-            [TelemetryConstants.Properties.SpeedMbps] = Math.Round(speedMbps, 2),
-            [TelemetryConstants.Properties.ContentType] = TelemetryConstants.ContentTypes.Package,
-        };
-
-        telemetryService?.TrackEvent(TelemetryConstants.Events.ContentDownloadCompleted, downloadProperties);
-    }
-
-    private void TrackDownloadFailure(string errorMessage, TimeSpan? elapsed = null)
-    {
-        var properties = new Dictionary<string, object?>
-        {
-            [TelemetryConstants.Properties.ContentType] = TelemetryConstants.ContentTypes.Package,
-            [TelemetryConstants.Properties.ErrorMessage] = errorMessage,
-        };
-
-        if (elapsed.HasValue)
-        {
-            properties[TelemetryConstants.Properties.DurationSeconds] = Math.Round(elapsed.Value.TotalSeconds, 2);
-        }
-
-        telemetryService?.TrackEvent(TelemetryConstants.Events.ContentDownloadFailed, properties);
-    }
+    private void TrackDownloadFailure(DownloadConfiguration configuration, string errorMessage, TimeSpan? elapsed = null) =>
+        DownloadTelemetryHelper.TrackDownloadFailure(telemetryService, configuration, errorMessage, elapsed);
 }

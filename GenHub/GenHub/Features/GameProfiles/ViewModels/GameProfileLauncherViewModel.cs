@@ -2264,13 +2264,18 @@ public partial class GameProfileLauncherViewModel(
                 notificationService.ShowError(localizationService["GameProfiles.Notification.LaunchError.Title"], localizationService.GetString("GameProfiles.Notification.LaunchError.Message", profile.Name, ex.Message));
 
                 var gameClient = profile.Profile.GameClient;
+                var exceptionClientPublisher = GameClientTelemetryHelper.ResolvePublisher(gameClient);
                 telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchFailed, new Dictionary<string, object?>
                 {
                     [TelemetryConstants.Properties.ProfileId] = profile.ProfileId,
                     [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
                     [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
                     [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
+                    [TelemetryConstants.Properties.GameClient] = gameClient?.Name,
                     [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
+                    [TelemetryConstants.Properties.GameClientPublisher] = exceptionClientPublisher,
+                    [TelemetryConstants.Properties.PublisherId] = exceptionClientPublisher,
+                    [TelemetryConstants.Properties.Publisher] = exceptionClientPublisher,
                     [TelemetryConstants.Properties.LaunchSource] = TelemetryConstants.LaunchSources.Launcher,
                     [TelemetryConstants.Properties.TimeToLaunchMs] = stopwatch.ElapsedMilliseconds,
                     [TelemetryConstants.Properties.ErrorCategory] = ex.GetType().Name,
@@ -2331,13 +2336,19 @@ public partial class GameProfileLauncherViewModel(
             notificationService.ShowSuccess(localizationService["GameProfiles.Notification.GameLaunched.Title"], localizationService.GetString("GameProfiles.Notification.GameLaunched.Message", liveProfile.Name));
 
             var gameClient = liveProfile.Profile.GameClient;
+            var clientPublisher = GameClientTelemetryHelper.ResolvePublisher(gameClient);
+
             telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunched, new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.ProfileId] = liveProfile.ProfileId,
                 [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
                 [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
                 [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
+                [TelemetryConstants.Properties.GameClient] = gameClient?.Name,
                 [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
+                [TelemetryConstants.Properties.GameClientPublisher] = clientPublisher,
+                [TelemetryConstants.Properties.PublisherId] = clientPublisher,
+                [TelemetryConstants.Properties.Publisher] = clientPublisher,
                 [TelemetryConstants.Properties.LaunchSource] = TelemetryConstants.LaunchSources.Launcher,
                 [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
             });
@@ -2360,13 +2371,18 @@ public partial class GameProfileLauncherViewModel(
             notificationService.ShowError(localizationService["GameProfiles.Notification.LaunchFailed.Title"], localizationService.GetString("GameProfiles.Notification.LaunchFailed.Message", profile.Name, errors));
 
             var gameClient = profile.Profile.GameClient;
+            var clientPublisher = GameClientTelemetryHelper.ResolvePublisher(gameClient);
             telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchFailed, new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.ProfileId] = profile.ProfileId,
                 [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
                 [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
                 [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
+                [TelemetryConstants.Properties.GameClient] = gameClient?.Name,
                 [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
+                [TelemetryConstants.Properties.GameClientPublisher] = clientPublisher,
+                [TelemetryConstants.Properties.PublisherId] = clientPublisher,
+                [TelemetryConstants.Properties.Publisher] = clientPublisher,
                 [TelemetryConstants.Properties.LaunchSource] = TelemetryConstants.LaunchSources.Launcher,
                 [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
                 [TelemetryConstants.Properties.ErrorCategory] = TelemetryConstants.ErrorCategories.LaunchFailed,

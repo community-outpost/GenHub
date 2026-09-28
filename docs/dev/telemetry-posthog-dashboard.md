@@ -172,7 +172,20 @@ ORDER BY total_updates DESC
 
 #### Specific Content & Mod Downloads Clean Tracking
 
-Per-download attribution (`publisher_id`, `content_name`, `file_name`) was removed from `content_download_completed` for privacy; use the total and speed queries above for download volume.
+Per-download attribution (`publisher_id`, `content_name`, `file_name`, `content_type`) is cleanly populated on both `content_download_completed` and `content_download_failed`.
+
+#### Downloads by Publisher & Top Content
+```sql
+SELECT
+    properties.publisher_id AS publisher,
+    properties.content_name AS content,
+    count() AS download_count,
+    round(sum(toFloat64OrNull(properties.size_mb)), 2) AS total_mb
+FROM events
+WHERE event = 'content_download_completed'
+GROUP BY publisher, content
+ORDER BY download_count DESC
+```
 
 #### Download Failures & Errors
 ```sql
@@ -185,9 +198,47 @@ GROUP BY error
 ORDER BY failure_count DESC
 ```
 
+#### Downloads by Author
+```sql
+SELECT
+    properties.author AS author,
+    properties.publisher_id AS publisher,
+    count() AS total_downloads,
+    round(sum(toFloat64OrNull(properties.size_mb)), 2) AS total_mb
+FROM events
+WHERE event = 'content_download_completed'
+GROUP BY author, publisher
+ORDER BY total_downloads DESC
+```
+
+#### Publisher Subscriptions & Subscribed Publishers
+```sql
+SELECT
+    properties.publisher_name AS publisher,
+    properties.publisher_id AS publisher_id,
+    count() AS total_subscriptions
+FROM events
+WHERE event = 'publisher_subscribed'
+GROUP BY publisher, publisher_id
+ORDER BY total_subscriptions DESC
+```
+
+#### Publisher Studio Pipeline & Export/Publish Volume
+```sql
+SELECT
+    event,
+    properties.publisher_name AS publisher,
+    properties.provider_type AS hosting_provider,
+    count() AS count
+FROM events
+WHERE event IN ('publisher_studio_opened', 'publisher_studio_project_created', 'publisher_studio_definition_exported', 'publisher_studio_published')
+GROUP BY event, publisher, hosting_provider
+ORDER BY count DESC
+```
+
 ---
 
-## 5. Dashboard 5: GenPatcher Fixes & ModBuilder Usage
+## 5. Dashboard 5: GenPatcher, ModBuilder & WND Editor Tools
 
 **Target Audience**: Modders, tools team, QA.
 
@@ -211,6 +262,25 @@ ORDER BY failure_count DESC
    - **Event**: `modbuilder_mod_built`
    - **Breakdown**: `success`
    - **Secondary Metric**: Average `duration_seconds` grouped by `build_steps`.
+
+5. **WND Editor Launches & Sessions**
+   - **Event**: `wnd_editor_opened`
+   - **Display**: Trend line graph tracking daily tool activations.
+
+6. **WND Documents Opened vs Saved**
+   - **Events**: `wnd_document_opened` & `wnd_document_saved`
+   - **Properties**: `file_path`, `window_count`, `has_linked_assets`
+   - **Display**: Multi-series line graph tracking file activity.
+
+7. **WND Document Validation Outcomes**
+   - **Event**: `wnd_document_validated`
+   - **Breakdown**: `is_valid` (`true` vs `false`)
+   - **Display**: Pie chart showing validation success and structural compliance.
+
+8. **WND Textures Imported**
+   - **Event**: `wnd_textures_imported`
+   - **Metric**: `sum(properties.texture_count)`
+   - **Display**: Trend graph for asset and texture additions.
 
 ---
 

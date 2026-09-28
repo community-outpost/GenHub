@@ -9,6 +9,7 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.CommunityOutpost;
 using GenHub.Features.Content.Services.GeneralsOnline;
+using GenHub.Features.Content.Services.GitHub;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -203,6 +204,14 @@ public sealed class DownloadedContentDiscoverer(
             return CommunityOutpostVariantGrouping.BuildVariantGroupId(manifest.ContentType, contentCode, manifest.Version);
         }
 
+        // Legacy GitHub pool entries predate variant group stamping; derive it so the
+        // per-game downloads of one multi-variant release collapse into one card.
+        // Single-asset releases keep a null group id so they render as plain cards.
+        if (GitHubVariantGrouping.TryGetVariantGroupId(manifest, out var gitHubGroupId))
+        {
+            return gitHubGroupId;
+        }
+
         return null;
     }
 
@@ -221,6 +230,11 @@ public sealed class DownloadedContentDiscoverer(
         if (CommunityOutpostVariantGrouping.TryGetVariantContentCode(manifest, out var contentCode))
         {
             return CommunityOutpostVariantGrouping.BuildVariantFamilyName(contentCode);
+        }
+
+        if (GitHubVariantGrouping.TryGetVariantGroupId(manifest, out _))
+        {
+            return GitHubVariantGrouping.BuildVariantFamilyName(manifest);
         }
 
         return null;

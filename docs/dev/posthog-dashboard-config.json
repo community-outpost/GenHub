@@ -4,11 +4,388 @@
   "description": "Comprehensive PostHog product analytics dashboard configurations and insight definitions for GenHub telemetry events.",
   "dashboards": [
     {
+      "id": "genhub-master-command-center",
+      "name": "GenHub - Master Command Center (Unified Overview)",
+      "description": "Consolidated single-pane view of GenHub vital health indicators across all 9 domains: engagement, launch reliability, stability, downloads, updates, sharing, CAS, workspaces, and replays.",
+      "pinned": true,
+      "tiles": [
+        {
+          "name": "Master: Application Starts (DAU)",
+          "type": "Trends",
+          "display": "ActionsLineGraph",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "app_started",
+                "name": "Daily Active Users",
+                "math": "dau"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "interval": "day",
+            "trendsFilter": {
+              "display": "ActionsLineGraph"
+            }
+          }
+        },
+        {
+          "name": "Master: Daily Active Game Launchers (DAU)",
+          "type": "Trends",
+          "display": "ActionsLineGraph",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "game_session_started",
+                "name": "Game Launchers",
+                "math": "dau"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "trendsFilter": {
+              "display": "ActionsLineGraph"
+            }
+          }
+        },
+        {
+          "name": "Master: Total Game Sessions Started",
+          "type": "Trends",
+          "display": "BoldNumber",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "game_session_started",
+                "name": "Sessions",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "trendsFilter": {
+              "display": "BoldNumber"
+            }
+          }
+        },
+        {
+          "name": "Master: Launch Attempts: Success vs Failure",
+          "type": "Trends",
+          "display": "ActionsBar",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "profile_launched",
+                "name": "Success",
+                "math": "total"
+              },
+              {
+                "kind": "EventsNode",
+                "event": "profile_launch_failed",
+                "name": "Failed",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "trendsFilter": {
+              "display": "ActionsBar"
+            }
+          }
+        },
+        {
+          "name": "Master: Unhandled Application Crashes",
+          "type": "Trends",
+          "display": "BoldNumber",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "app_unhandled_crash",
+                "name": "Crashes",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "trendsFilter": {
+              "display": "BoldNumber"
+            }
+          }
+        },
+        {
+          "name": "Master: Gaming Session Heartbeat Volume (Hourly Pulse)",
+          "type": "Trends",
+          "display": "ActionsLineGraph",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "game_session_heartbeat",
+                "name": "Heartbeats",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-7d"
+            },
+            "interval": "hour",
+            "trendsFilter": {
+              "display": "ActionsLineGraph"
+            }
+          }
+        },
+        {
+          "name": "Master: Downloads by Publisher",
+          "type": "Trends",
+          "display": "ActionsBar",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "content_download_completed",
+                "name": "Downloads",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "publisher_id"
+                }
+              ],
+              "breakdown_type": "event"
+            },
+            "trendsFilter": {
+              "display": "ActionsBar"
+            }
+          }
+        },
+        {
+          "name": "Master: Content Updates Applied",
+          "type": "Trends",
+          "display": "BoldNumber",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "content_update_applied",
+                "name": "Updates Applied",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "trendsFilter": {
+              "display": "BoldNumber"
+            }
+          }
+        },
+        {
+          "name": "Master: GenPatcher Compatibility Fixes Applied",
+          "type": "Trends",
+          "display": "BoldNumber",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "genpatcher_fix_applied",
+                "name": "Fixes Applied",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "trendsFilter": {
+              "display": "BoldNumber"
+            }
+          }
+        },
+        {
+          "name": "Master: Workspaces Prepared by Strategy",
+          "type": "Trends",
+          "display": "ActionsBar",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "workspace_prepared",
+                "name": "Workspaces",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "strategy"
+                }
+              ],
+              "breakdown_type": "event"
+            },
+            "trendsFilter": {
+              "display": "ActionsBar"
+            }
+          }
+        },
+        {
+          "name": "Master: Total Storage Bytes Freed by CAS GC",
+          "type": "Trends",
+          "display": "BoldNumber",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "cas_garbage_collected",
+                "name": "Bytes Freed",
+                "math": "sum",
+                "math_property": "bytes_freed"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "trendsFilter": {
+              "display": "BoldNumber"
+            }
+          }
+        },
+        {
+          "name": "Master: Game Installation Detections Performed",
+          "type": "Trends",
+          "display": "BoldNumber",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "game_installations_detected",
+                "name": "Detections",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "trendsFilter": {
+              "display": "BoldNumber"
+            }
+          }
+        },
+        {
+          "name": "Master: Replay Checkpoints Minted by Game Type",
+          "type": "Trends",
+          "display": "ActionsBar",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "replay_checkpoint_minted",
+                "name": "Checkpoints",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "game_type"
+                }
+              ],
+              "breakdown_type": "event"
+            },
+            "trendsFilter": {
+              "display": "ActionsBar"
+            }
+          }
+        },
+        {
+          "name": "Master: WND Editor Saved Documents",
+          "type": "Trends",
+          "display": "BoldNumber",
+          "description": "Total WND definition documents saved through the editor.",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "wnd_document_saved",
+                "name": "WND Documents Saved",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "interval": "day",
+            "trendsFilter": {
+              "display": "BoldNumber"
+            }
+          }
+        }
+      ]
+    },
+    {
       "id": "genhub-executive-overview",
       "name": "GenHub - Executive Overview & Engagement",
       "description": "High-level engagement metrics including active users, game launches, updates, downloads, and sharing volume.",
       "pinned": true,
       "tiles": [
+        {
+          "name": "Application Starts (DAU)",
+          "type": "Trends",
+          "display": "ActionsLineGraph",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "app_started",
+                "name": "Daily Active Users",
+                "math": "dau"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "interval": "day",
+            "trendsFilter": {
+              "display": "ActionsLineGraph"
+            }
+          }
+        },
         {
           "name": "Daily Active Game Launchers (DAU)",
           "type": "Trends",
@@ -424,7 +801,7 @@
           }
         },
         {
-          "name": "Game Sessions by Game Client",
+          "name": "Game Sessions by Game Client Publisher",
           "type": "Trends",
           "display": "ActionsPie",
           "query": {
@@ -445,14 +822,15 @@
               "breakdowns": [
                 {
                   "type": "event",
-                  "property": "game_client_name"
+                  "property": "game_client_publisher"
                 }
               ]
             },
             "trendsFilter": {
               "display": "ActionsPie"
             }
-          }
+          },
+          "description": "Distribution of launched game sessions partitioned by client publisher."
         },
         {
           "name": "Profile Launch Failure Reasons",
@@ -714,13 +1092,222 @@
               "display": "ActionsLineGraph"
             }
           }
+        },
+        {
+          "name": "Downloads by Publisher",
+          "type": "Trends",
+          "display": "ActionsPie",
+          "description": "Download volume broken down by content publisher.",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "content_download_completed",
+                "name": "Downloads by Publisher",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "interval": "day",
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "publisher_id"
+                }
+              ]
+            },
+            "trendsFilter": {
+              "display": "ActionsPie"
+            }
+          }
+        },
+        {
+          "name": "Top Content & Packages Downloaded",
+          "type": "Trends",
+          "display": "ActionsTable",
+          "description": "Top downloaded packages and content items across all providers.",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "content_download_completed",
+                "name": "Downloads by Content Name",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "interval": "day",
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "content_name"
+                }
+              ]
+            },
+            "trendsFilter": {
+              "display": "ActionsTable"
+            }
+          }
+        },
+        {
+          "name": "Downloads by Author",
+          "type": "Trends",
+          "display": "ActionsTable",
+          "description": "Download volume broken down by content author.",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "content_download_completed",
+                "name": "Downloads by Author",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "interval": "day",
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "author"
+                }
+              ]
+            },
+            "trendsFilter": {
+              "display": "ActionsTable"
+            }
+          }
+        },
+        {
+          "name": "Publisher Subscriptions & Unsubscriptions",
+          "type": "Trends",
+          "display": "ActionsLineGraph",
+          "description": "Daily volume of publisher subscriptions versus unsubscriptions.",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "publisher_subscribed",
+                "name": "Subscribed",
+                "math": "total"
+              },
+              {
+                "kind": "EventsNode",
+                "event": "publisher_unsubscribed",
+                "name": "Unsubscribed",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "interval": "day",
+            "trendsFilter": {
+              "display": "ActionsLineGraph"
+            }
+          }
+        },
+        {
+          "name": "Subscriptions by Publisher",
+          "type": "Trends",
+          "display": "ActionsBar",
+          "description": "Subscription volume broken down by publisher name.",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "publisher_subscribed",
+                "name": "Subscriptions",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "publisher_name"
+                }
+              ]
+            },
+            "trendsFilter": {
+              "display": "ActionsBar"
+            }
+          }
+        },
+        {
+          "name": "Publisher Studio Activity",
+          "type": "Trends",
+          "display": "ActionsLineGraph",
+          "description": "Publisher Studio project creations, definition exports, and publishing actions.",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "publisher_studio_opened",
+                "name": "Studio Opened",
+                "math": "total"
+              },
+              {
+                "kind": "EventsNode",
+                "event": "publisher_studio_project_created",
+                "name": "Projects Created",
+                "math": "total"
+              },
+              {
+                "kind": "EventsNode",
+                "event": "publisher_studio_definition_exported",
+                "name": "Definitions Exported",
+                "math": "total",
+                "properties": [
+                  {
+                    "key": "content_type",
+                    "value": [
+                      "definition"
+                    ],
+                    "operator": "exact",
+                    "type": "event"
+                  }
+                ]
+              },
+              {
+                "kind": "EventsNode",
+                "event": "publisher_studio_published",
+                "name": "Catalogs Published",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "interval": "day",
+            "trendsFilter": {
+              "display": "ActionsLineGraph"
+            }
+          }
         }
       ]
     },
     {
       "id": "genhub-genpatcher-and-modbuilder",
-      "name": "GenHub - GenPatcher Fixes & ModBuilder Usage",
-      "description": "Observability into GenPatcher compatibility fixes and ModBuilder creator pipelines.",
+      "name": "GenHub - GenPatcher, ModBuilder & WND Editor Tools",
+      "description": "Usage metrics and health for developer & community tooling: GenPatcher fixes, ModBuilder builds, and WND Editor.",
       "pinned": false,
       "tiles": [
         {
@@ -861,6 +1448,117 @@
             "dateRange": {
               "date_from": "-30d"
             },
+            "trendsFilter": {
+              "display": "ActionsLineGraph"
+            }
+          }
+        },
+        {
+          "name": "WND Editor Launches & Sessions",
+          "type": "Trends",
+          "display": "ActionsLineGraph",
+          "description": "Daily WND Editor activations and editing sessions.",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "wnd_editor_opened",
+                "name": "WND Editor Opened",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "interval": "day",
+            "trendsFilter": {
+              "display": "ActionsLineGraph"
+            }
+          }
+        },
+        {
+          "name": "WND Documents Opened & Saved",
+          "type": "Trends",
+          "display": "ActionsLineGraph",
+          "description": "Volume of WND files opened versus saved.",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "wnd_document_opened",
+                "name": "Documents Opened",
+                "math": "total"
+              },
+              {
+                "kind": "EventsNode",
+                "event": "wnd_document_saved",
+                "name": "Documents Saved",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "interval": "day",
+            "trendsFilter": {
+              "display": "ActionsLineGraph"
+            }
+          }
+        },
+        {
+          "name": "WND Document Validation Outcomes",
+          "type": "Trends",
+          "display": "ActionsPie",
+          "description": "Validation results for WND document structures (Valid vs Invalid).",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "wnd_document_validated",
+                "name": "Validations",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "interval": "day",
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "is_valid"
+                }
+              ]
+            },
+            "trendsFilter": {
+              "display": "ActionsPie"
+            }
+          }
+        },
+        {
+          "name": "WND Textures Imported",
+          "type": "Trends",
+          "display": "ActionsLineGraph",
+          "description": "Cumulative textures imported into WND projects.",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "wnd_textures_imported",
+                "name": "Textures Imported",
+                "math": "sum",
+                "math_property": "texture_count"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "interval": "day",
             "trendsFilter": {
               "display": "ActionsLineGraph"
             }
@@ -1025,7 +1723,9 @@
                 "properties": [
                   {
                     "key": "success",
-                    "value": ["true"],
+                    "value": [
+                      "true"
+                    ],
                     "operator": "exact",
                     "type": "event"
                   }
@@ -1265,7 +1965,9 @@
                 "properties": [
                   {
                     "key": "success",
-                    "value": ["true"],
+                    "value": [
+                      "true"
+                    ],
                     "operator": "exact",
                     "type": "event"
                   }
@@ -1295,7 +1997,9 @@
                 "properties": [
                   {
                     "key": "success",
-                    "value": ["true"],
+                    "value": [
+                      "true"
+                    ],
                     "operator": "exact",
                     "type": "event"
                   }
@@ -1315,6 +2019,195 @@
             },
             "trendsFilter": {
               "display": "ActionsBar"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "genhub-application-health",
+      "name": "GenHub - Application Health & Crash Forensics",
+      "description": "Observability into unhandled application exceptions, fatal crashes, crash rate per session, platform distribution, and error context.",
+      "pinned": true,
+      "tiles": [
+        {
+          "name": "Total Unhandled Application Crashes",
+          "type": "Trends",
+          "display": "BoldNumber",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "app_unhandled_crash",
+                "name": "Crashes",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "trendsFilter": {
+              "display": "BoldNumber"
+            }
+          }
+        },
+        {
+          "name": "Crashes by Platform (Windows / Linux / macOS)",
+          "type": "Trends",
+          "display": "ActionsBar",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "app_unhandled_crash",
+                "name": "Crashes",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "platform"
+                }
+              ],
+              "breakdown_type": "event"
+            },
+            "trendsFilter": {
+              "display": "ActionsBar"
+            }
+          }
+        },
+        {
+          "name": "Fatal vs Non-Fatal Application Exceptions",
+          "type": "Trends",
+          "display": "ActionsPie",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "app_unhandled_crash",
+                "name": "Crashes",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "is_fatal"
+                }
+              ],
+              "breakdown_type": "event"
+            },
+            "trendsFilter": {
+              "display": "ActionsPie"
+            }
+          }
+        },
+        {
+          "name": "Top Exception Types",
+          "type": "Trends",
+          "display": "ActionsTable",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "app_unhandled_crash",
+                "name": "Exceptions",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "exception_type"
+                }
+              ],
+              "breakdown_type": "event"
+            },
+            "trendsFilter": {
+              "display": "ActionsTable"
+            }
+          }
+        },
+        {
+          "name": "Crashes by Subsystem Context",
+          "type": "Trends",
+          "display": "ActionsBar",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "app_unhandled_crash",
+                "name": "Crashes",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "context"
+                }
+              ],
+              "breakdown_type": "event"
+            },
+            "trendsFilter": {
+              "display": "ActionsBar"
+            }
+          }
+        },
+        {
+          "name": "Crashes by App Version / Build Channel",
+          "type": "Trends",
+          "display": "ActionsTable",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "app_unhandled_crash",
+                "name": "Crashes",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "app_version"
+                },
+                {
+                  "type": "event",
+                  "property": "build_channel"
+                }
+              ],
+              "breakdown_type": "event"
+            },
+            "trendsFilter": {
+              "display": "ActionsTable"
             }
           }
         }

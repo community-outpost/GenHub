@@ -1,6 +1,6 @@
 # Telemetry & Product Analytics Architecture
 
-GenHub features an opt-in, privacy-preserving telemetry and error-reporting architecture built on top of **Sentry** (for crash diagnostics and exception traces) and **PostHog** (for privacy-respecting product analytics and event telemetry).
+GenHub features an opt-out, privacy-preserving telemetry and error-reporting architecture built on top of **Sentry** (for crash diagnostics and exception traces) and **PostHog** (for privacy-respecting product analytics and event telemetry).
 
 ---
 
@@ -8,9 +8,11 @@ GenHub features an opt-in, privacy-preserving telemetry and error-reporting arch
 
 Telemetry strictly honors user choice and local regulations:
 
-1. **Explicit Preference**: Users configure their preference in **Settings > Telemetry & Diagnostics**.
+1. **Preference & Opt-Out**: Telemetry is enabled by default (`AnonymousMetrics`) to help maintain build health, track download reliability, and improve launcher stability without collecting PII. Users can opt out at any time:
+   - **In-App Toggle**: In **Settings > Diagnostics & Privacy > Telemetry & Crash Reporting Level**, switch to `Disabled`.
+   - **Environment Variables**: Set `DO_NOT_TRACK=1` or `GENHUB_TELEMETRY_OPTOUT=1` in your environment to unconditionally disable all telemetry.
    - `Disabled (0)`: Completely disables all telemetry and error tracking. No network requests are made.
-   - `CrashReportsOnly (1)`: Sends anonymized crash reports and exceptions via Sentry.
+   - `CrashReportsOnly (1)`: Sends anonymized crash reports and unhandled exceptions via Sentry.
    - `AnonymousMetrics (2)`: Sends anonymous operational and product usage events via PostHog in addition to anonymous error reports.
 2. **Anonymous Identification**: Telemetry events use only a randomly generated installation GUID (`AnonymousInstallationId`) for user identification. No IP addresses, usernames, personal directory paths, or hardware serials are included in event payloads. Outbound requests are sent over HTTPS where the destination endpoint observes standard network layer addresses.
 3. **Data Sanitization**: All event payloads, stack traces, and error messages pass through [`TelemetrySanitizer`](../../GenHub/GenHub.Core/Utilities/TelemetrySanitizer.cs) prior to dispatching:
@@ -24,27 +26,39 @@ Telemetry strictly honors user choice and local regulations:
 
 | Event Name | Constant | Emitted When | Key Properties |
 |---|---|---|---|
+| `app_started` | `Events.AppStarted` | Application starts and initializes main window | `app_version`, `full_display_version`, `git_short_hash`, `build_channel` |
 | `profile_launched` | `Events.ProfileLaunched` | A game profile is launched | `profile_id`, `game_type`, `launch_source` ("launcher" \| "shortcut" \| "ipc"), `time_to_launch_ms` |
 | `profile_launch_failed` | `Events.ProfileLaunchFailed` | A game profile fails to launch | `profile_id`, `game_type`, `launch_source`, `time_to_launch_ms`, `error_category` |
 | `profile_launched_from_shortcut` | `Events.ProfileLaunchedFromShortcut` | A game profile is launched via OS shortcut or IPC URI | `profile_id` |
-| `profile_pinned` | `Events.ProfilePinned` | A game profile is pinned to desktop or launcher shortcuts | `profile_id`, `profile_name`, `game_type`, `shortcut_type` ("desktop") |
+| `profile_pinned` | `Events.ProfilePinned` | A game profile is pinned to desktop or launcher shortcuts | `profile_id`, `game_type`, `shortcut_type` ("desktop") |
 | `profile_shared` | `Events.ProfileShared` | A profile is exported/shared to URI, JSON, or `.ghprofile` file | `profile_id`, `share_format` ("uri" \| "file" \| "json"), `file_size_bytes` |
-| `profile_imported` | `Events.ProfileImported` | A shared profile package is imported | `profile_id`, `profile_name`, `game_type`, `success`, `file_count`, `error_message` |
-| `game_session_started` | `Events.GameSessionStarted` | Game executable process starts | `game_type`, `runner`, `installation_type`, `is_custom_runner`, `is_direct_play` |
+| `profile_imported` | `Events.ProfileImported` | A shared profile package is imported | `profile_id`, `game_type`, `success`, `file_count`, `error_message` |
+| `game_session_started` | `Events.GameSessionStarted` | Game executable process starts | `session_id`, `profile_id`, `game_type`, `runner`, `game_client_id`, `game_client_name`, `game_client_publisher` |
 | `game_session_ended` | `Events.GameSessionEnded` | Game executable process exits | `game_type`, `runner`, `duration_seconds`, `exit_code`, `was_graceful` |
 | `game_session_heartbeat` | `Events.GameSessionHeartbeat` | Periodic alive signal while in-game (5 min) | `game_type`, `duration_seconds` |
 | `app_update_checked` | `Events.AppUpdateChecked` | Velopack checks for application updates | `from_version`, `full_display_version`, `build_channel`, `channel`, `platform` |
 | `app_update_downloaded` | `Events.AppUpdateDownloaded` | Velopack finishes downloading an update package | `from_version`, `to_version` |
 | `app_update_applied` | `Events.AppUpdateApplied` | Application update is applied and app restarts | `from_version`, `to_version` |
-| `content_download_completed` | `Events.ContentDownloadCompleted` | Content download finishes | `content_type` ("Package"), `size_mb`, `speed_mbps`, `duration_seconds` |
-| `content_download_failed` | `Events.ContentDownloadFailed` | Content download fails | `content_type` ("Package"), `error_message`, `duration_seconds` |
-| `content_update_applied` | `Events.ContentUpdateApplied` | Publisher content update (GeneralsOnline, SuperHackers, CommunityOutpost) successfully applied | `publisher_id`, `content_name`, `from_version`, `to_version`, `strategy`, `profiles_updated`, `success` |
-| `content_update_failed` | `Events.ContentUpdateFailed` | Publisher content update fails | `publisher_id`, `content_name`, `from_version`, `to_version`, `strategy`, `error_message` |
+| `content_download_completed` | `Events.ContentDownloadCompleted` | Content download finishes | `publisher_id`, `content_name`, `content_id`, `author`, `file_name`, `content_type`, `size_mb`, `speed_mbps`, `duration_seconds` |
+| `content_download_failed` | `Events.ContentDownloadFailed` | Content download fails | `publisher_id`, `content_name`, `content_id`, `author`, `file_name`, `content_type`, `error_message`, `duration_seconds` |
+| `content_update_applied` | `Events.ContentUpdateApplied` | Publisher content update (GeneralsOnline, SuperHackers, CommunityOutpost) successfully applied | `publisher_id`, `content_name`, `content_id`, `author`, `from_version`, `to_version`, `strategy`, `profiles_updated`, `success` |
+| `content_update_failed` | `Events.ContentUpdateFailed` | Publisher content update fails | `publisher_id`, `content_name`, `content_id`, `author`, `from_version`, `to_version`, `strategy`, `error_message` |
 | `uploadthing_upload_completed` | `Events.UploadThingUploadCompleted` | User upload to UploadThing gateway succeeds | `file_name`, `size_mb`, `file_size_bytes`, `duration_seconds` |
 | `uploadthing_upload_failed` | `Events.UploadThingUploadFailed` | User upload to UploadThing gateway fails | `file_name`, `size_mb`, `duration_seconds`, `error_message` |
 | `genpatcher_fix_applied` | `Events.GenPatcherFixApplied` | A GenPatcher compatibility or registry fix is executed | `fix_id`, `fix_name`, `game_type`, `is_crucial`, `success`, `error_message` |
 | `modbuilder_project_created` | `Events.ModProjectCreated` | A new ModBuilder project is initialized | `project_name`, `content_type` |
 | `modbuilder_mod_built` | `Events.ModBuilt` | A ModBuilder build pipeline finishes | `project_name`, `build_steps`, `success`, `file_count`, `duration_seconds`, `error_message` |
+| `wnd_editor_opened` | `Events.WndEditorOpened` | WND Editor tool is opened | (None) |
+| `wnd_document_opened` | `Events.WndDocumentOpened` | Window definition document opened | `window_count`, `file_path` (constant `wnd_document`; user file names are never transmitted) |
+| `wnd_document_saved` | `Events.WndDocumentSaved` | Window definition document saved | `window_count`, `file_path` (constant `wnd_document`), `has_linked_assets` |
+| `wnd_document_validated` | `Events.WndDocumentValidated` | Window definition document validated | `is_valid`, `window_count` |
+| `wnd_textures_imported` | `Events.WndTexturesImported` | Textures imported into WND Editor | `texture_count` |
+| `publisher_subscribed` | `Events.PublisherSubscribed` | User subscribes to a publisher catalog/feed | `publisher_id`, `publisher_name`, `catalog_url`, `definition_url`, `author` |
+| `publisher_unsubscribed` | `Events.PublisherUnsubscribed` | User unsubscribes from a publisher | `publisher_id` |
+| `publisher_studio_opened` | `Events.PublisherStudioOpened` | Publisher Studio tool is opened | (None) |
+| `publisher_studio_project_created` | `Events.PublisherStudioProjectCreated` | New publisher project created | `publisher_name` |
+| `publisher_studio_definition_exported` | `Events.PublisherStudioDefinitionExported` | Catalog or provider definition JSON exported | `publisher_name`, `content_type`, `catalog_count`, `definition_url` |
+| `publisher_studio_published` | `Events.PublisherStudioPublished` | Content/catalog uploaded to hosting provider | `publisher_name`, `content_name`, `provider_type`, `success`, `error_message` |
 
 ---
 

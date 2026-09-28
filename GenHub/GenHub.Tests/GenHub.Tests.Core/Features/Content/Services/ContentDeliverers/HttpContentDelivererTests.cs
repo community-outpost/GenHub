@@ -56,9 +56,14 @@ public class HttpContentDelivererTests
 
             downloadService.Verify(
                 d => d.DownloadFileAsync(
-                    new Uri("https://example.com/game.dat"),
-                    expectedDestinationPath,
-                    expectedHash,
+                    It.Is<DownloadConfiguration>(c =>
+                        c.Url == new Uri("https://example.com/game.dat") &&
+                        c.DestinationPath == expectedDestinationPath &&
+                        c.ExpectedHash == expectedHash &&
+                        c.PublisherId == CsvConstants.SourceName &&
+                        c.Author == CsvConstants.SourceName &&
+                        c.ContentName == "generals-1.08-en" &&
+                        c.ContentId == manifest.Id.Value),
                     It.IsAny<IProgress<DownloadProgress>?>(),
                     It.IsAny<CancellationToken>()),
                 Times.Once);
@@ -273,9 +278,9 @@ public class HttpContentDelivererTests
             File.Exists(expectedDestinationPath).Should().BeTrue();
             downloadService.Verify(
                 d => d.DownloadFileAsync(
-                    new Uri("https://www.moddb.com/downloads/start/99999"),
-                    expectedDestinationPath,
-                    It.IsAny<string?>(),
+                    It.Is<DownloadConfiguration>(c =>
+                        c.Url == new Uri("https://www.moddb.com/downloads/start/99999") &&
+                        c.DestinationPath == expectedDestinationPath),
                     It.IsAny<IProgress<DownloadProgress>?>(),
                     It.IsAny<CancellationToken>()),
                 Times.Once);
@@ -449,9 +454,7 @@ public class HttpContentDelivererTests
             File.Exists(Path.Combine(rootDirectory, "escaped.dat")).Should().BeFalse();
             downloadService.Verify(
                 d => d.DownloadFileAsync(
-                    It.IsAny<Uri>(),
-                    It.IsAny<string>(),
-                    It.IsAny<string?>(),
+                    It.IsAny<DownloadConfiguration>(),
                     It.IsAny<IProgress<DownloadProgress>?>(),
                     It.IsAny<CancellationToken>()),
                 Times.Never);
@@ -470,17 +473,15 @@ public class HttpContentDelivererTests
         var downloadService = new Mock<IDownloadService>();
         downloadService
             .Setup(d => d.DownloadFileAsync(
-                It.IsAny<Uri>(),
-                It.IsAny<string>(),
-                It.IsAny<string?>(),
+                It.IsAny<DownloadConfiguration>(),
                 It.IsAny<IProgress<DownloadProgress>?>(),
                 It.IsAny<CancellationToken>()))
-            .Returns((Uri _, string destinationPath, string? _, IProgress<DownloadProgress>? _, CancellationToken _) =>
+            .Returns((DownloadConfiguration config, IProgress<DownloadProgress>? _, CancellationToken _) =>
             {
-                File.WriteAllText(destinationPath, "content");
+                File.WriteAllText(config.DestinationPath, "content");
                 return Task.FromResult(DownloadResult.CreateSuccess(
-                    destinationPath,
-                    new FileInfo(destinationPath).Length,
+                    config.DestinationPath,
+                    new FileInfo(config.DestinationPath).Length,
                     TimeSpan.FromMilliseconds(1),
                     hashVerified: true));
             });

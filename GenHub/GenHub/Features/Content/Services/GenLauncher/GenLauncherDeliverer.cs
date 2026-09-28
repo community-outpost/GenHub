@@ -109,6 +109,16 @@ public class GenLauncherDeliverer(
         }
     }
 
+    private sealed record ConcurrentFileDownload(
+        ContentManifest Manifest,
+        ManifestFile File,
+        int Index,
+        int TotalFiles,
+        string TargetDirectory,
+        ConcurrentDownloadState State,
+        SemaphoreSlim Semaphore,
+        CancellationTokenSource LinkedCts);
+
     /// <inheritdoc/>
     public string SourceName => PublisherTypeConstants.GenLauncher;
 
@@ -167,7 +177,7 @@ public class GenLauncherDeliverer(
                 return OperationResult<ContentManifest>.CreateFailure("Manifest does not contain any downloadable files");
             }
 
-            var downloadResult = await DownloadAllFilesAsync(filesToDownload, targetDirectory, progress, cancellationToken);
+            var downloadResult = await DownloadAllFilesAsync(packageManifest, filesToDownload, targetDirectory, progress, cancellationToken);
             if (!downloadResult.Success)
             {
                 return OperationResult<ContentManifest>.CreateFailure(downloadResult.FirstError ?? "Failed to download files");
@@ -248,6 +258,7 @@ public class GenLauncherDeliverer(
     }
 
     private async Task<OperationResult<bool>> DownloadAllFilesAsync(
+        ContentManifest manifest,
         List<ManifestFile> files,
         string targetDirectory,
         IProgress<ContentAcquisitionProgress>? progress,
@@ -273,13 +284,14 @@ public class GenLauncherDeliverer(
 
         if (totalFiles <= 1 || maxConcurrency <= 1)
         {
-            return await DownloadSequentiallyAsync(files, targetDirectory, progress, cancellationToken).ConfigureAwait(false);
+            return await DownloadSequentiallyAsync(manifest, files, targetDirectory, progress, cancellationToken).ConfigureAwait(false);
         }
 
-        return await DownloadConcurrentlyAsync(files, targetDirectory, maxConcurrency, totalBytes, progress, cancellationToken).ConfigureAwait(false);
+        return await DownloadConcurrentlyAsync(manifest, files, targetDirectory, maxConcurrency, totalBytes, progress, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<OperationResult<bool>> DownloadSequentiallyAsync(
+        ContentManifest manifest,
         List<ManifestFile> files,
         string targetDirectory,
         IProgress<ContentAcquisitionProgress>? progress,
@@ -302,7 +314,7 @@ public class GenLauncherDeliverer(
 
             var fileProgress = CreateFileProgress(progress, i, totalFiles, file.RelativePath);
 
-            var result = await DownloadSingleFileAsync(file, i, totalFiles, targetDirectory, fileProgress, cancellationToken).ConfigureAwait(false);
+            var result = await DownloadSingleFileAsync(manifest, file, i, totalFiles, targetDirectory, fileProgress, cancellationToken).ConfigureAwait(false);
             if (!result.Success)
             {
                 return result;
@@ -313,6 +325,7 @@ public class GenLauncherDeliverer(
     }
 
     private async Task<OperationResult<bool>> DownloadConcurrentlyAsync(
+        ContentManifest manifest,
         List<ManifestFile> files,
         string targetDirectory,
         int maxConcurrency,
@@ -325,13 +338,15 @@ public class GenLauncherDeliverer(
         var state = new ConcurrentDownloadState(files.Count, totalBytes, progress);
 
         var tasks = files.Select((file, index) => RunConcurrentFileDownloadAsync(
-            file,
-            index,
-            files.Count,
-            targetDirectory,
-            state,
-            semaphore,
-            linkedCts)).ToList();
+            new ConcurrentFileDownload(
+                manifest,
+                file,
+                index,
+                files.Count,
+                targetDirectory,
+                state,
+                semaphore,
+                linkedCts))).ToList();
 
         try
         {
@@ -352,48 +367,42 @@ public class GenLauncherDeliverer(
         return OperationResult<bool>.CreateSuccess(true);
     }
 
-    private async Task RunConcurrentFileDownloadAsync(
-        ManifestFile file,
-        int index,
-        int totalFiles,
-        string targetDirectory,
-        ConcurrentDownloadState state,
-        SemaphoreSlim semaphore,
-        CancellationTokenSource linkedCts)
+    private async Task RunConcurrentFileDownloadAsync(ConcurrentFileDownload download)
     {
         await Task.Yield();
-        await semaphore.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+        await download.Semaphore.WaitAsync(download.LinkedCts.Token).ConfigureAwait(false);
         try
         {
-            linkedCts.Token.ThrowIfCancellationRequested();
+            download.LinkedCts.Token.ThrowIfCancellationRequested();
 
-            var fileProgress = state.CreateFileProgress(index, file);
-            var result = await DownloadSingleFileAsync(file, index, totalFiles, targetDirectory, fileProgress, linkedCts.Token).ConfigureAwait(false);
+            var fileProgress = download.State.CreateFileProgress(download.Index, download.File);
+            var result = await DownloadSingleFileAsync(download.Manifest, download.File, download.Index, download.TotalFiles, download.TargetDirectory, fileProgress, download.LinkedCts.Token).ConfigureAwait(false);
             if (!result.Success)
             {
-                state.RecordFileFailure(result.FirstError ?? $"Failed to download {file.RelativePath}");
-                await linkedCts.CancelAsync().ConfigureAwait(false);
+                download.State.RecordFileFailure(result.FirstError ?? $"Failed to download {download.File.RelativePath}");
+                await download.LinkedCts.CancelAsync().ConfigureAwait(false);
                 return;
             }
 
-            state.RecordFileSuccess(index, file.Size);
+            download.State.RecordFileSuccess(download.Index, download.File.Size);
         }
-        catch (OperationCanceledException) when (linkedCts.IsCancellationRequested)
+        catch (OperationCanceledException) when (download.LinkedCts.IsCancellationRequested)
         {
             // Handled via firstError or cancellationToken
         }
         catch (Exception ex)
         {
-            state.RecordFileFailure($"Error downloading {file.RelativePath}: {ex.Message}");
-            await linkedCts.CancelAsync().ConfigureAwait(false);
+            download.State.RecordFileFailure($"Error downloading {download.File.RelativePath}: {ex.Message}");
+            await download.LinkedCts.CancelAsync().ConfigureAwait(false);
         }
         finally
         {
-            semaphore.Release();
+            download.Semaphore.Release();
         }
     }
 
     private async Task<OperationResult<bool>> DownloadSingleFileAsync(
+        ContentManifest manifest,
         ManifestFile file,
         int fileIndex,
         int totalFiles,
@@ -433,7 +442,7 @@ public class GenLauncherDeliverer(
 
         var fileStopwatch = Stopwatch.StartNew();
 
-        var downloadResult = await DownloadAndValidateFileAsync(file, destinationPath, downloadUri, fileProgress, totalFiles, cancellationToken);
+        var downloadResult = await DownloadAndValidateFileAsync(manifest, file, destinationPath, downloadUri, fileProgress, totalFiles, cancellationToken);
         fileStopwatch.Stop();
 
         if (!downloadResult.Success)
@@ -482,6 +491,7 @@ public class GenLauncherDeliverer(
     }
 
     private async Task<OperationResult<bool>> DownloadAndValidateFileAsync(
+        ContentManifest manifest,
         ManifestFile file,
         string destinationPath,
         Uri downloadUri,
@@ -525,6 +535,7 @@ public class GenLauncherDeliverer(
                     ? maxConcurrency
                     : Math.Min(maxConcurrency, 2),
             };
+            DownloadTelemetryHelper.ApplyManifestAttribution(downloadConfig, manifest, PublisherTypeConstants.GenLauncher);
 
             if (!string.IsNullOrWhiteSpace(expectedEtag))
             {

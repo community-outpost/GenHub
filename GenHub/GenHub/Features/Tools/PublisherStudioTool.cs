@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Tools;
 using GenHub.Features.Tools.ViewModels;
@@ -20,6 +21,7 @@ public class PublisherStudioTool(ILogger<PublisherStudioTool> logger) : IToolPlu
     private PublisherStudioViewModel? _viewModel;
     private PublisherStudioView? _view;
     private Task? _autoSaveTask;
+    private int _openedTracked;
 
     /// <inheritdoc/>
     public ToolMetadata Metadata => new()
@@ -58,6 +60,11 @@ public class PublisherStudioTool(ILogger<PublisherStudioTool> logger) : IToolPlu
                 CancellationToken.None,
                 TaskContinuationOptions.OnlyOnFaulted,
                 TaskScheduler.Default);
+
+            if (Interlocked.Exchange(ref _openedTracked, 1) == 0)
+            {
+                serviceProvider.GetService<ITelemetryService>()?.TrackEvent(TelemetryConstants.Events.PublisherStudioOpened);
+            }
         }
 
         if (_view != null)
