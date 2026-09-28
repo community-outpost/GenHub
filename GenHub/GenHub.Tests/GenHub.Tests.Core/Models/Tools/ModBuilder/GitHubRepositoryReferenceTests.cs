@@ -28,6 +28,8 @@ public sealed class GitHubRepositoryReferenceTests
     [InlineData("https://github.com/owner/repo.git", "owner", "repo", "main")]
     [InlineData("owner/repo.git", "owner", "repo", "main")]
     [InlineData("https://github.com/owner/repo/tree/develop", "owner", "repo", "develop")]
+    [InlineData("https://github.com/owner/repo/tree/feature+linux", "owner", "repo", "feature+linux")]
+    [InlineData("owner/repo@v1.0.0,build.1", "owner", "repo", "v1.0.0,build.1")]
     [InlineData("https://github.com/owner/repo/tree/feature/foo", "owner", "repo", "feature/foo")]
     [InlineData("owner-name/repo.name_2", "owner-name", "repo.name_2", "main")]
     [InlineData("owner/github.com", "owner", "github.com", "main")]

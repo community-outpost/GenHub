@@ -1299,7 +1299,7 @@ public partial class ModBuilderViewModel(
                 return;
             }
 
-            var targetDir = BuildGitHubImportDirectory(GetUserModBuilderDirectory(), reference.Owner, reference.Repo);
+            var targetDir = BuildGitHubImportDirectory(GetUserModBuilderDirectory(), reference.Owner, reference.Repo, reference.Branch);
             if (IsPathInsideAppDirectory(targetDir))
             {
                 notificationService.ShowError(
@@ -1356,9 +1356,17 @@ public partial class ModBuilderViewModel(
         }
     }
 
-    internal static string BuildGitHubImportDirectory(string modBuilderRoot, string owner, string repo)
+    internal static string BuildGitHubImportDirectory(string modBuilderRoot, string owner, string repo, string? branch = null)
     {
-        return Path.Combine(modBuilderRoot, ModBuilderConstants.GitHubImportsDirName, $"{owner}_{repo}");
+        if (string.IsNullOrWhiteSpace(branch))
+        {
+            return Path.Combine(modBuilderRoot, ModBuilderConstants.GitHubImportsDirName, $"{owner}_{repo}");
+        }
+
+        var sanitizedBranch = PathHelper.SanitizeFileName(branch, replaceSpaces: true)
+            .Replace('/', '_')
+            .Replace('\\', '_');
+        return Path.Combine(modBuilderRoot, ModBuilderConstants.GitHubImportsDirName, $"{owner}_{repo}_{sanitizedBranch}");
     }
 
     /// <summary>

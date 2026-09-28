@@ -188,15 +188,42 @@ public sealed record GitHubRepositoryReference(string Owner, string Repo, string
 
     private static bool IsValidBranch(string branch)
     {
-        if (string.IsNullOrWhiteSpace(branch) || branch.Length > MaxSegmentLength)
+        const int maxRefLength = 255;
+        if (string.IsNullOrWhiteSpace(branch) || branch.Length > maxRefLength)
+        {
+            return false;
+        }
+
+        if (branch.StartsWith('/') || branch.EndsWith('/') || branch.StartsWith('.') || branch.EndsWith('.'))
+        {
+            return false;
+        }
+
+        if (branch.EndsWith(".lock", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (branch.Contains("//", StringComparison.Ordinal) ||
+            branch.Contains("..", StringComparison.Ordinal) ||
+            branch.Contains("@{", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (branch == "@")
         {
             return false;
         }
 
         foreach (var c in branch)
         {
-            var allowed = char.IsLetterOrDigit(c) || c == '-' || c == '_' || c == '.' || c == '/';
-            if (!allowed)
+            if (c < 32 || c == 127)
+            {
+                return false;
+            }
+
+            if (c == ' ' || c == '~' || c == '^' || c == ':' || c == '?' || c == '*' || c == '[' || c == '\\')
             {
                 return false;
             }

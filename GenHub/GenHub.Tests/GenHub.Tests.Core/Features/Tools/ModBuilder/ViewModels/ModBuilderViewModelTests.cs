@@ -110,6 +110,16 @@ public class ModBuilderViewModelTests : IDisposable
     }
 
     [Fact]
+    public void BuildGitHubImportDirectory_WithBranch_IncludesSanitizedBranch()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "ModBuilder_" + Guid.NewGuid().ToString("N"));
+
+        var actual = ModBuilderViewModel.BuildGitHubImportDirectory(root, "owner", "repo", "feature/foo");
+
+        Assert.Equal(Path.Combine(root, ModBuilderConstants.GitHubImportsDirName, "owner_repo_feature_foo"), actual);
+    }
+
+    [Fact]
     public void ResolveDefaultModBuilderDirectory_PrefersCustomInstallRoot()
     {
         var customRoot = Path.Combine(Path.GetTempPath(), "GenHubCustomRoot_" + Guid.NewGuid().ToString("N"));
