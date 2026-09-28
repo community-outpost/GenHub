@@ -1327,6 +1327,7 @@ public partial class ConfigEditorViewModel(
         for (var i = 0; i < patterns.Length; i++)
         {
             var rawPattern = patterns[i];
+
             // Relativize so entries corrupted by older saves heal back to portable patterns.
             var pattern = ConfigurationLoaderService.RelativizeToProject(rawPattern.Trim(), projectDir);
             var relTarget = ConfigurationLoaderService.ContainsWildcard(pattern)
