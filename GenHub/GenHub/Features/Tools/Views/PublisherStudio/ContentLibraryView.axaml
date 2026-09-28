@@ -1027,7 +1027,7 @@
                                                             <TextBlock Text="{Binding Changelog}" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondary}" FontSize="13"
                                                                        IsVisible="{Binding Changelog, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                                                             <!-- Artifacts -->
-                                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.Artifacts}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" Margin="0,4,0,0"/>
+                                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.Artifacts}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" Margin="0,4,0,0"/>
                                                             <ItemsControl ItemsSource="{Binding Artifacts}">
                                                                 <ItemsControl.ItemTemplate>
                                                                     <DataTemplate>
@@ -1044,7 +1044,7 @@
 
                                                             <!-- Dependencies -->
                                                             <StackPanel Spacing="4" Margin="0,6,0,0" IsVisible="{Binding Dependencies.Count}">
-                                                                <TextBlock Text="{localization:Localize Downloads.ContentDetail.Dependencies}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
+                                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.Dependencies}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
                                                                 <ItemsControl ItemsSource="{Binding Dependencies}">
                                                                     <ItemsControl.ItemTemplate>
                                                                         <DataTemplate>
