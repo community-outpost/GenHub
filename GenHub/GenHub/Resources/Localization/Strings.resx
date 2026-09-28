@@ -14774,4 +14774,7 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="Tools.ModBuilder.Notification.GitHubImportInProgress.Title" xml:space="preserve">
     <value>Importing GitHub Repository</value>
   </data>
+  <data name="Tools.ModBuilder.Notification.GitHubImportInProgress.Message" xml:space="preserve">
+    <value>Importing {0}@{1}...</value>
+  </data>
 </root>

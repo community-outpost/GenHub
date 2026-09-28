@@ -2264,7 +2264,7 @@ public sealed class BuildEngineService(
         return new ManifestPlanEntry(
             name,
             version,
-            null,
+            ResolveManifestPublisher(null, project.Publisher, project.Author),
             ResolveProjectContentType(project.ContentType),
             ResolveProjectTargetGame(project.TargetGame),
             packs);

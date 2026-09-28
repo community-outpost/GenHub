@@ -1325,11 +1325,12 @@ public partial class ModBuilderViewModel(
                 return;
             }
 
-            var importTitle = localizationService.GetString("Tools.ModBuilder.Notification.GitHubImportInProgress.Title") ?? "Importing GitHub Repository";
+            var importTitle = localizationService.GetString("Tools.ModBuilder.Notification.GitHubImportInProgress.Title");
+            var importMessage = localizationService.GetString("Tools.ModBuilder.Notification.GitHubImportInProgress.Message", reference.FullName, reference.Branch);
             var importNotification = new NotificationMessage(
                 NotificationType.Info,
                 importTitle,
-                $"Importing {reference.FullName}@{reference.Branch}...",
+                importMessage,
                 autoDismissMilliseconds: null);
             var importNotificationId = importNotification.Id;
             notificationService.Show(importNotification);

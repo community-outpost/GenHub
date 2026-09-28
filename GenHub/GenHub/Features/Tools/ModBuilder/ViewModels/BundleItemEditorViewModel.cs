@@ -37,11 +37,19 @@ public partial class BundleItemEditorViewModel(ILocalizationService localization
     [NotifyPropertyChangedFor(nameof(DisplayName))]
     private string _name = string.Empty;
 
+    private string _lastLinkedName = string.Empty;
+
     partial void OnNameChanged(string? oldValue, string newValue)
     {
-        if (!string.IsNullOrEmpty(oldValue) && !string.Equals(oldValue, newValue, StringComparison.Ordinal))
+        var effectiveOld = !string.IsNullOrWhiteSpace(_lastLinkedName) ? _lastLinkedName : oldValue;
+        if (!string.IsNullOrWhiteSpace(newValue))
         {
-            NameRenamed?.Invoke(oldValue, newValue);
+            if (!string.IsNullOrWhiteSpace(effectiveOld) && !string.Equals(effectiveOld, newValue, StringComparison.Ordinal))
+            {
+                NameRenamed?.Invoke(effectiveOld, newValue);
+            }
+
+            _lastLinkedName = newValue;
         }
     }
 

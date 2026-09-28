@@ -373,10 +373,12 @@ public partial class ConfigEditorViewModel(
 
     private static void RemovePackItem(IList<string> itemNames, string itemName)
     {
-        var existing = itemNames.FirstOrDefault(n => string.Equals(n, itemName, StringComparison.OrdinalIgnoreCase));
-        if (existing != null)
+        for (var i = itemNames.Count - 1; i >= 0; i--)
         {
-            itemNames.Remove(existing);
+            if (string.Equals(itemNames[i], itemName, StringComparison.OrdinalIgnoreCase))
+            {
+                itemNames.RemoveAt(i);
+            }
         }
     }
 
@@ -660,7 +662,7 @@ public partial class ConfigEditorViewModel(
         {
             Name = ResolveDefaultManifestName(),
             Version = ResolveProjectVersion(CurrentProject),
-            Publisher = CurrentProject?.Publisher ?? CurrentProject?.Author ?? string.Empty,
+            Publisher = !string.IsNullOrWhiteSpace(CurrentProject?.Publisher) ? CurrentProject.Publisher : (!string.IsNullOrWhiteSpace(CurrentProject?.Author) ? CurrentProject.Author : string.Empty),
             Description = CurrentProject?.Description ?? string.Empty,
             ContentType = ResolveEditorContentType(null, CurrentProject),
             TargetGame = ResolveEditorTargetGame(null, CurrentProject),
@@ -1080,7 +1082,7 @@ public partial class ConfigEditorViewModel(
         {
             Name = $"NewManifest{BundleManifests.Count + 1}",
             Version = ResolveProjectVersion(CurrentProject),
-            Publisher = CurrentProject?.Publisher ?? CurrentProject?.Author ?? string.Empty,
+            Publisher = !string.IsNullOrWhiteSpace(CurrentProject?.Publisher) ? CurrentProject.Publisher : (!string.IsNullOrWhiteSpace(CurrentProject?.Author) ? CurrentProject.Author : string.Empty),
             Description = string.Empty,
             ContentType = ResolveEditorContentType(null, CurrentProject),
             TargetGame = ResolveEditorTargetGame(null, CurrentProject),

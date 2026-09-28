@@ -2745,6 +2745,11 @@ public sealed partial class DownloadsBrowserViewModel(
             {
                 targetItem.SelectedVariant = updateVariant;
             }
+            else
+            {
+                logger.LogWarning("No eligible update variant found for {Item}", item.SearchResult?.Name ?? "Item");
+                return false;
+            }
         }
 
         var downloadSuccess = await DownloadContentAsync(targetItem, ct);
