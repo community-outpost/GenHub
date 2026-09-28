@@ -298,7 +298,7 @@ public class MainViewModelTests
     public async Task InitializeAsync_GettingStarted_DeferredWhenLinkArrivesBeforeLaunchFinishesAsync()
     {
         var dialogService = CreateGettingStartedDialogService();
-        using var tracker = new LinkActivationTracker();
+        using var tracker = new LinkActivationTracker(launchFinished: false);
         var vm = CreateMainViewModel(dialogService: dialogService, linkActivationTracker: tracker);
 
         await vm.InitializeAsync();
@@ -318,7 +318,7 @@ public class MainViewModelTests
     public async Task InitializeAsync_GettingStarted_ShownWhenLaunchFinishesWithoutLinkAsync()
     {
         var dialogService = CreateGettingStartedDialogService();
-        using var tracker = new LinkActivationTracker();
+        using var tracker = new LinkActivationTracker(launchFinished: false);
         var vm = CreateMainViewModel(dialogService: dialogService, linkActivationTracker: tracker);
 
         await vm.InitializeAsync();

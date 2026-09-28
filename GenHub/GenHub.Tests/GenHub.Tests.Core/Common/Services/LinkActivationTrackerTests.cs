@@ -46,8 +46,9 @@ public class LinkActivationTrackerTests
     [Fact]
     public async Task MarkLaunchFinished_ReleasesWaitersAsync()
     {
-        using var tracker = new LinkActivationTracker();
+        using var tracker = new LinkActivationTracker(launchFinished: false);
         var waiting = tracker.WaitForLaunchFinishedAsync(CancellationToken.None);
+        Assert.False(waiting.IsCompleted);
 
         tracker.MarkLaunchFinished();
 

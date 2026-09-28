@@ -22,8 +22,17 @@ public sealed class LinkActivationTracker : ILinkActivationTracker, IDisposable
     /// Initializes a new instance of the <see cref="LinkActivationTracker"/> class.
     /// </summary>
     public LinkActivationTracker()
+        : this(launchFinished: !OperatingSystem.IsMacOS())
     {
-        if (!OperatingSystem.IsMacOS())
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="LinkActivationTracker"/> class.
+    /// </summary>
+    /// <param name="launchFinished">Whether the launch already counts as finished.</param>
+    internal LinkActivationTracker(bool launchFinished)
+    {
+        if (launchFinished)
         {
             MarkLaunchFinished();
         }
