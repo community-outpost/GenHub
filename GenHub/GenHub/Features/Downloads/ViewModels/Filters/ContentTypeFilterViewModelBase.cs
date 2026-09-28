@@ -7,6 +7,7 @@ using GenHub.Core.Models.Enums;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 
 namespace GenHub.Features.Downloads.ViewModels.Filters;
 

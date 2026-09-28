@@ -274,7 +274,7 @@ public abstract class PublisherProfileReconcilerBase(
         IReadOnlyList<ContentManifest> newManifests) =>
         newManifests.FirstOrDefault(n =>
             n.ContentType == oldManifest.ContentType &&
-            (oldManifest.TargetGame == GameType.UnknownGame || n.TargetGame == GameType.UnknownGame || n.TargetGame == oldManifest.TargetGame));
+            (oldManifest.TargetGame == GameType.Unknown || n.TargetGame == GameType.Unknown || n.TargetGame == oldManifest.TargetGame));
 
     private Dictionary<string, string> BuildManifestMapping(
         IReadOnlyList<ContentManifest> oldManifests,

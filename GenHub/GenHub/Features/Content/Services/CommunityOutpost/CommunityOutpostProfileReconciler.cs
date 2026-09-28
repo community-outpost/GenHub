@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
@@ -14,6 +11,9 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Features.Content.Services.Reconciliation;
 using GenHub.Features.GameProfiles.Services;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace GenHub.Features.Content.Services.CommunityOutpost;
 
@@ -54,7 +54,7 @@ public class CommunityOutpostProfileReconciler(
         return newManifests
             .Where(n =>
                 n.ContentType == oldManifest.ContentType &&
-                (oldManifest.TargetGame == GameType.UnknownGame || n.TargetGame == GameType.UnknownGame || n.TargetGame == oldManifest.TargetGame) &&
+                (oldManifest.TargetGame == GameType.Unknown || n.TargetGame == GameType.Unknown || n.TargetGame == oldManifest.TargetGame) &&
                 IsNonRetail(n) == oldIsNonRetail &&
                 (string.IsNullOrEmpty(oldCode) || string.Equals(CommunityOutpostDependencyIdentity.GetCommunityOutpostContentCode(n), oldCode, StringComparison.OrdinalIgnoreCase)))
             .OrderByDescending(n => GameVersionHelper.ParseVersionToInt(n.Version))
