@@ -28,14 +28,11 @@ public class CNCLabsContentProvider(
     IInstallationInstructionsService installationInstructionsService)
     : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
-    private readonly IContentDiscoverer _cncLabsDiscoverer = discoverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.CNCLabsDiscoverer, StringComparison.OrdinalIgnoreCase) == true)
-        ?? throw new ArgumentException("CNC Labs discoverer not found", nameof(discoverers));
+    private readonly IContentDiscoverer _cncLabsDiscoverer = ResolveDiscoverer(discoverers, ContentSourceNames.CNCLabsDiscoverer);
 
-    private readonly IContentResolver _cncLabsResolver = resolvers.FirstOrDefault(r => r.ResolverId?.Equals(ContentSourceNames.CNCLabsResolverId, StringComparison.OrdinalIgnoreCase) == true)
-        ?? throw new ArgumentException("CNC Labs resolver not found", nameof(resolvers));
+    private readonly IContentResolver _cncLabsResolver = ResolveResolver(resolvers, ContentSourceNames.CNCLabsResolverId);
 
-    private readonly IContentDeliverer _httpDeliverer = deliverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.HttpDeliverer, StringComparison.OrdinalIgnoreCase) == true)
-        ?? throw new ArgumentException("HTTP deliverer not found", nameof(deliverers));
+    private readonly IContentDeliverer _httpDeliverer = ResolveDeliverer(deliverers, ContentSourceNames.HttpDeliverer);
 
     /// <inheritdoc />
     /// <remarks>
@@ -59,26 +56,7 @@ public class CNCLabsContentProvider(
     public override async Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
         string contentId, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(contentId))
-        {
-            return OperationResult<ContentManifest>.CreateFailure("Content ID cannot be null or empty");
-        }
-
-        var query = new ContentSearchQuery { SearchTerm = contentId, Take = ContentConstants.SingleResultQueryLimit };
-        var searchResult = await SearchAsync(query, cancellationToken);
-
-        if (!searchResult.Success || !searchResult.Data.Any())
-        {
-            return OperationResult<ContentManifest>.CreateFailure(
-                $"Content not found for ID '{contentId}': {searchResult.FirstError ?? "No matching results"}");
-        }
-
-        var result = searchResult.Data.First();
-        var manifest = result.GetData<ContentManifest>();
-
-        return manifest != null
-            ? OperationResult<ContentManifest>.CreateSuccess(manifest)
-            : OperationResult<ContentManifest>.CreateFailure($"Invalid manifest data for content ID '{contentId}'");
+        return await SearchManifestByIdAsync(contentId, requireExactIdMatch: false, cancellationToken);
     }
 
     /// <inheritdoc />

@@ -1,9 +1,9 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
-using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Dialogs;
@@ -33,11 +33,11 @@ namespace GenHub.Features.Content.Services.Catalog;
 public class GenericCatalogProfileReconciler(
     ILogger<GenericCatalogProfileReconciler> logger,
     IGameProfileManager profileManager,
-    IPublisherSubscriptionStore subscriptionStore,
     GenericCatalogContentServices contentServices,
     INotificationService notificationService,
     IDialogService dialogService,
-    IUserSettingsService userSettingsService) : IGenericCatalogProfileReconciler
+    IUserSettingsService userSettingsService,
+    ILocalizationService? localizationService = null) : IGenericCatalogProfileReconciler
 {
     /// <inheritdoc />
     public string PublisherType => CatalogConstants.GenericPublisherType;
@@ -55,7 +55,7 @@ public class GenericCatalogProfileReconciler(
                 return OperationResult<PublisherReconciliationResult>.CreateSuccess(PublisherReconciliationResult.None);
             }
 
-            var subResult = await subscriptionStore.GetSubscriptionsAsync(cancellationToken);
+            var subResult = await contentServices.SubscriptionStore.GetSubscriptionsAsync(cancellationToken);
             if (!subResult.Success || subResult.Data == null || subResult.Data.Count == 0)
             {
                 return OperationResult<PublisherReconciliationResult>.CreateSuccess(PublisherReconciliationResult.None);
@@ -239,11 +239,15 @@ public class GenericCatalogProfileReconciler(
         var strategy = promptResult.Strategy;
         var shouldDeleteOldVersions = promptResult.DeleteOldVersions;
 
-        notificationService.ShowInfo("Downloading Update", $"Downloading {item.Name} v{itemVersion}...");
+        notificationService.ShowInfo(
+            localizationService.GetLocalizedString("Content.Notification.DownloadingUpdate.Title", "Downloading Update"),
+            localizationService.GetLocalizedString("Content.Notification.DownloadingUpdate.Message", $"Downloading {item.Name} v{itemVersion}...", item.Name, itemVersion));
         var downloadResult = await contentServices.DownloadCoordinator.DownloadContentAsync(item, null, cancellationToken);
         if (!downloadResult.Success || downloadResult.Data == null)
         {
-            notificationService.ShowError("Update Failed", $"Failed to download {item.Name}: {downloadResult.FirstError}");
+            notificationService.ShowError(
+                localizationService.GetLocalizedString("Content.Notification.UpdateFailed.Title", "Update Failed"),
+                localizationService.GetLocalizedString("Content.Notification.UpdateFailed.DownloadMessage", $"Failed to download {item.Name}: {downloadResult.FirstError}", item.Name, downloadResult.FirstError));
             contentServices.TelemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.PublisherId] = subscription.PublisherId,
@@ -282,7 +286,8 @@ public class GenericCatalogProfileReconciler(
                 notificationService,
                 logger,
                 subscription.PublisherName ?? subscription.PublisherId,
-                "[Catalog Reconciler]"),
+                "[Catalog Reconciler]",
+                localizationService),
             cancellationToken);
 
         if (!updateOutcome.Proceed)
@@ -320,8 +325,8 @@ public class GenericCatalogProfileReconciler(
         });
 
         notificationService.ShowSuccess(
-            "Update Completed",
-            $"Updated {item.Name} to version {itemVersion}.",
+            localizationService.GetLocalizedString("Content.Notification.UpdateCompleted.Title", "Update Completed"),
+            localizationService.GetLocalizedString("Content.Notification.UpdateCompleted.Message", $"Updated {item.Name} to version {itemVersion}.", item.Name, itemVersion),
             NotificationDurations.Medium);
 
         return OperationResult<PublisherReconciliationResult>.CreateSuccess(

@@ -3,6 +3,7 @@ using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
+using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 using System;
@@ -14,7 +15,7 @@ namespace GenHub.Windows.GameInstallations;
 /// <summary>
 /// EaApp installation detector and manager.
 /// </summary>
-public class EaAppInstallation(ILogger<EaAppInstallation>? logger) : IGameInstallation
+public class EaAppInstallation(ILogger<EaAppInstallation>? logger) : GameInstallationBase
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="EaAppInstallation"/> class, optionally fetching installation details.
@@ -31,28 +32,10 @@ public class EaAppInstallation(ILogger<EaAppInstallation>? logger) : IGameInstal
     }
 
     /// <inheritdoc/>
-    public string Id => "EaApp";
+    public override string Id => "EaApp";
 
     /// <inheritdoc/>
-    public GameInstallationType InstallationType => GameInstallationType.EaApp;
-
-    /// <inheritdoc/>
-    public string InstallationPath { get; private set; } = string.Empty;
-
-    /// <inheritdoc/>
-    public bool HasGenerals { get; private set; }
-
-    /// <inheritdoc/>
-    public string GeneralsPath { get; private set; } = string.Empty;
-
-    /// <inheritdoc/>
-    public bool HasZeroHour { get; private set; }
-
-    /// <inheritdoc/>
-    public string ZeroHourPath { get; private set; } = string.Empty;
-
-    /// <inheritdoc/>
-    public List<GameClient> AvailableGameClients { get; } = [];
+    public override GameInstallationType InstallationType => GameInstallationType.EaApp;
 
     /// <summary>
     /// Gets a value indicating whether the EA App is installed successfully.
@@ -60,29 +43,7 @@ public class EaAppInstallation(ILogger<EaAppInstallation>? logger) : IGameInstal
     public bool IsEaAppInstalled { get; private set; }
 
     /// <inheritdoc/>
-    public void SetPaths(string? generalsPath, string? zeroHourPath)
-    {
-        if (!string.IsNullOrEmpty(generalsPath))
-        {
-            HasGenerals = true;
-            GeneralsPath = generalsPath;
-        }
-
-        if (!string.IsNullOrEmpty(zeroHourPath))
-        {
-            HasZeroHour = true;
-            ZeroHourPath = zeroHourPath;
-        }
-    }
-
-    /// <inheritdoc/>
-    public void PopulateGameClients(IEnumerable<GameClient> clients)
-    {
-        AvailableGameClients.AddRange(clients);
-    }
-
-    /// <inheritdoc/>
-    public void Fetch()
+    public override sealed void Fetch()
     {
         logger?.LogInformation("Starting EA App installation detection");
 

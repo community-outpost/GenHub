@@ -39,7 +39,8 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// </summary>
 public partial class GameProfileSettingsViewModel : ViewModelBase,
     IRecipient<Core.Models.Content.ContentAcquiredMessage>,
-    IRecipient<ManifestReplacedMessage>
+    IRecipient<ManifestReplacedMessage>,
+    IRequestCloseViewModel
 {
     /// <summary>
     /// Information about a content filter type.
@@ -243,7 +244,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// <summary>
     /// Event triggered when the view model requests to close.
     /// </summary>
-    public event EventHandler? CloseRequested;
+    public event EventHandler? RequestClose;
 
     /// <inheritdoc/>
     public void Receive(Core.Models.Content.ContentAcquiredMessage message)
@@ -1382,7 +1383,9 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         {
             StatusMessage = ContentLockedMessage;
             _logger?.LogWarning("EnableContent: Cannot enable locked item {DisplayName}", contentItem.DisplayName);
-            _localNotificationService.ShowWarning(ContentLockedTitle, $"'{contentItem.DisplayName}' is locked and cannot be modified while the game is running.");
+            _localNotificationService.ShowWarning(
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.ContentLocked.Title", ContentLockedTitle),
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.ContentLocked.Message", $"'{contentItem.DisplayName}' is locked and cannot be modified while the game is running.", contentItem.DisplayName));
             return false;
         }
 
@@ -1519,14 +1522,14 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         if (autoResolved.Count > 0)
         {
             _localNotificationService.ShowSuccess(
-                "Content Enabled",
-                $"Enabled '{contentItem.DisplayName}' and auto-resolved: {string.Join(", ", autoResolved)}");
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.ContentEnabled.Title", "Content Enabled"),
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.ContentEnabledAutoResolved.Message", $"Enabled '{contentItem.DisplayName}' and auto-resolved: {string.Join(", ", autoResolved)}", contentItem.DisplayName, string.Join(", ", autoResolved)));
         }
         else
         {
             _localNotificationService.ShowSuccess(
-                "Content Enabled",
-                $"Enabled '{contentItem.DisplayName}'");
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.ContentEnabled.Title", "Content Enabled"),
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.ContentEnabled.Message", $"Enabled '{contentItem.DisplayName}'", contentItem.DisplayName));
         }
 
         await ValidateEnabledContentDependenciesAsync(contentItem.DisplayName, cancellationToken);
@@ -1844,7 +1847,9 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             _logger?.LogWarning("Auto-resolve skipped: Installation {DisplayName} is locked or cannot toggle", compatibleInstallation.DisplayName);
             if (compatibleInstallation.IsLocked && warnedLockedNames.Add(compatibleInstallation.DisplayName))
             {
-                _localNotificationService.ShowWarning(ContentLockedTitle, $"Required dependency '{compatibleInstallation.DisplayName}' is locked and cannot be automatically enabled while the game is running.");
+                _localNotificationService.ShowWarning(
+                    _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.ContentLocked.Title", ContentLockedTitle),
+                    _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.DependencyLocked.Message", $"Required dependency '{compatibleInstallation.DisplayName}' is locked and cannot be automatically enabled while the game is running.", compatibleInstallation.DisplayName));
             }
         }
     }
@@ -1923,7 +1928,9 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             _logger?.LogWarning("Auto-resolve skipped: Content {DisplayName} is locked or cannot toggle", viewModelItem.DisplayName);
             if (viewModelItem.IsLocked && warnedLockedNames.Add(viewModelItem.DisplayName))
             {
-                _localNotificationService.ShowWarning(ContentLockedTitle, $"Required dependency '{viewModelItem.DisplayName}' is locked and cannot be automatically enabled while the game is running.");
+                _localNotificationService.ShowWarning(
+                    _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.ContentLocked.Title", ContentLockedTitle),
+                    _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.DependencyLocked.Message", $"Required dependency '{viewModelItem.DisplayName}' is locked and cannot be automatically enabled while the game is running.", viewModelItem.DisplayName));
             }
         }
     }
@@ -1959,7 +1966,10 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
             if (warnings.Count > 0)
             {
-                _localNotificationService.ShowWarning("Dependency Warning", $"After enabling '{justEnabledContentName}':\n• {string.Join("\n• ", warnings)}", 15000);
+                _localNotificationService.ShowWarning(
+                    _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.DependencyWarning.Title", "Dependency Warning"),
+                    _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.DependencyWarning.Message", $"After enabling '{justEnabledContentName}':\n• {string.Join("\n• ", warnings)}", justEnabledContentName, string.Join("\n• ", warnings)),
+                    NotificationDurations.Critical);
             }
         }
         catch (Exception ex)

@@ -76,19 +76,19 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
 
             if (totalCreated == 0)
             {
-                details.Add("⚠ No game executables found to create shortcuts for.");
+                details.Add("Warning: No game executables found to create shortcuts for.");
                 return new ActionSetResult(false, "No game executables found to create shortcuts.", details);
             }
 
             details.Add(string.Empty);
-            details.Add($"✓ Start Menu shortcuts created successfully ({totalCreated} shortcuts)");
+            details.Add($"OK: Start Menu shortcuts created successfully ({totalCreated} shortcuts)");
 
             return new ActionSetResult(true, null, details);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error applying start menu shortcuts fix");
-            details.Add($"✗ Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return new ActionSetResult(false, ex.Message, details);
         }
     }
@@ -108,7 +108,7 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
                 if (File.Exists(lnk))
                 {
                     File.Delete(lnk);
-                    details.Add("✓ Removed Generals windowed shortcut");
+                    details.Add("OK: Removed Generals windowed shortcut");
                 }
 
                 if (Directory.Exists(folder) && !Directory.EnumerateFileSystemEntries(folder).Any())
@@ -125,13 +125,13 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
                 if (File.Exists(lnk1))
                 {
                     File.Delete(lnk1);
-                    details.Add("✓ Removed Zero Hour windowed shortcut");
+                    details.Add("OK: Removed Zero Hour windowed shortcut");
                 }
 
                 if (File.Exists(lnk2))
                 {
                     File.Delete(lnk2);
-                    details.Add("✓ Removed EdgeScroller shortcut");
+                    details.Add("OK: Removed EdgeScroller shortcut");
                 }
 
                 if (Directory.Exists(folder) && !Directory.EnumerateFileSystemEntries(folder).Any())
@@ -263,11 +263,11 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
         var result = await shortcutService.CreateShortcutAsync(shortcutPath, exePath, arguments, workingDir, description);
         if (result.Success)
         {
-            details.Add($"✓ Created: {Path.GetFileName(shortcutPath)}");
+            details.Add($"OK: Created: {Path.GetFileName(shortcutPath)}");
             return (true, false);
         }
 
-        details.Add($"✗ Failed to create {Path.GetFileName(shortcutPath)}: {result.Errors.FirstOrDefault()}");
+        details.Add($"Error: Failed to create {Path.GetFileName(shortcutPath)}: {result.Errors.FirstOrDefault()}");
         return (false, true);
     }
 }

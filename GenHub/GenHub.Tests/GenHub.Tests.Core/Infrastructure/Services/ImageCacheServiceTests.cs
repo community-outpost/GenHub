@@ -88,6 +88,7 @@ public class ImageCacheServiceTests
     [InlineData("localhost")]
     [InlineData("myhost.local")]
     [InlineData("service.internal")]
+    [InlineData("cache.localhost")]
     public void IsSafeRemoteUrl_InternalHostnames_ReturnsFalse(string host)
     {
         var url = $"http://{host}/test.png";

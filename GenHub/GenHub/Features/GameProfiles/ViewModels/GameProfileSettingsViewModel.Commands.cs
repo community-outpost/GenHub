@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Enums;
@@ -409,7 +410,9 @@ public partial class GameProfileSettingsViewModel
         {
             StatusMessage = ContentLockedMessage;
             _logger?.LogWarning("DisableContent: Cannot disable locked item {DisplayName}", contentItem.DisplayName);
-            _localNotificationService.ShowWarning(ContentLockedTitle, $"'{contentItem.DisplayName}' is locked and cannot be modified while the game is running.");
+            _localNotificationService.ShowWarning(
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.ContentLocked.Title", ContentLockedTitle),
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.ContentLocked.Message", $"'{contentItem.DisplayName}' is locked and cannot be modified while the game is running.", contentItem.DisplayName));
             return;
         }
 
@@ -417,7 +420,9 @@ public partial class GameProfileSettingsViewModel
         {
             StatusMessage = "This content item cannot be toggled";
             _logger?.LogWarning("DisableContent: Cannot disable non-toggleable item {DisplayName}", contentItem.DisplayName);
-            _localNotificationService.ShowWarning(ProfileValidationConstants.CannotModifyContentTitle, $"'{contentItem.DisplayName}' cannot be modified in this mode.");
+            _localNotificationService.ShowWarning(
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.CannotModifyContent.Title", ProfileValidationConstants.CannotModifyContentTitle),
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.CannotModifyContent.Message", $"'{contentItem.DisplayName}' cannot be modified in this mode.", contentItem.DisplayName));
             return;
         }
 
@@ -529,8 +534,8 @@ public partial class GameProfileSettingsViewModel
             if (_localContentService == null || _contentStorageService == null)
             {
                 _localNotificationService.ShowError(
-                    "Service Unavailable",
-                    "Content deletion service is not available.");
+                    _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.ServiceUnavailable.Title", "Service Unavailable"),
+                    _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.ServiceUnavailable.Message", "Content deletion service is not available."));
                 return;
             }
 
@@ -554,16 +559,16 @@ public partial class GameProfileSettingsViewModel
 
                 StatusMessage = $"Deleted {contentItem.DisplayName}";
                 _localNotificationService.ShowSuccess(
-                    "Content Deleted",
-                    $"'{contentItem.DisplayName}' has been permanently deleted.");
+                    _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.ContentDeleted.Title", "Content Deleted"),
+                    _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.ContentDeleted.Message", $"'{contentItem.DisplayName}' has been permanently deleted.", contentItem.DisplayName));
                 _logger?.LogInformation("Successfully deleted content: {ContentName}", contentItem.DisplayName);
             }
             else
             {
                 StatusMessage = $"Failed to delete {contentItem.DisplayName}";
                 _localNotificationService.ShowError(
-                    "Delete Failed",
-                    $"Failed to delete '{contentItem.DisplayName}': {string.Join(", ", result.Errors)}");
+                    _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.ContentDeleteFailed.Title", "Delete Failed"),
+                    _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.ContentDeleteFailed.Message", $"Failed to delete '{contentItem.DisplayName}': {string.Join(", ", result.Errors)}", contentItem.DisplayName, string.Join(", ", result.Errors)));
                 _logger?.LogWarning(
                     "Failed to delete content {ContentName}: {Errors}",
                     contentItem.DisplayName,
@@ -575,8 +580,8 @@ public partial class GameProfileSettingsViewModel
             _logger?.LogError(ex, "Error deleting content {ContentName}", contentItem.DisplayName);
             StatusMessage = "Error deleting content";
             _localNotificationService.ShowError(
-                "Delete Error",
-                $"An error occurred while deleting '{contentItem.DisplayName}'.");
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.ContentDeleteError.Title", "Delete Error"),
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.ContentDeleteError.Message", $"An error occurred while deleting '{contentItem.DisplayName}'.", contentItem.DisplayName));
         }
     }
 
@@ -642,8 +647,8 @@ public partial class GameProfileSettingsViewModel
             {
                 StatusMessage = "Error: A Game, Executable, or Tool must be enabled.";
                 _localNotificationService.ShowError(
-                    "Missing Launchable Content",
-                    "Please enable a Game, Executable, or Tool before saving.");
+                    _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingLaunchableContent.Title", "Missing Launchable Content"),
+                    _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingLaunchableContent.Message", "Please enable a Game, Executable, or Tool before saving."));
                 _logger?.LogWarning("Profile save blocked: No launchable content enabled");
                 return;
             }
@@ -658,8 +663,8 @@ public partial class GameProfileSettingsViewModel
                     var errorMessage = string.Join("\n", validationErrors);
                     StatusMessage = "Error: Missing required dependencies";
                     _localNotificationService.ShowError(
-                        "Missing Dependencies",
-                        $"Cannot save profile with missing dependencies:\n\n{errorMessage}");
+                        _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingDependencies.Title", "Missing Dependencies"),
+                        _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingDependencies.Message", $"Cannot save profile with missing dependencies:\n\n{errorMessage}", errorMessage));
                     _logger?.LogWarning("Profile save blocked: {Errors}", errorMessage);
                     return;
                 }
@@ -788,8 +793,8 @@ public partial class GameProfileSettingsViewModel
     {
         StatusMessage = "Game session started; non-hotswappable settings are now locked";
         _localNotificationService.ShowWarning(
-            "Hotswap Mode Enabled",
-            "The game was started while editing this profile. Non-hotswappable settings have been locked. Please review your changes and save again.");
+            _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.HotswapModeEnabled.Title", "Hotswap Mode Enabled"),
+            _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.HotswapModeEnabled.Message", "The game was started while editing this profile. Non-hotswappable settings have been locked. Please review your changes and save again."));
     }
 
     private async Task<bool> TryExecutePreSaveLiveSyncAsync(
@@ -842,8 +847,8 @@ public partial class GameProfileSettingsViewModel
             _logger?.LogError("Cannot roll back profile {ProfileId} after live sync failure: original profile snapshot or required manager is null", CurrentProfileId);
             StatusMessage = "Live synchronization failed and profile snapshot was missing for rollback";
             _localNotificationService.ShowError(
-                LiveSyncFailedTitle,
-                "A game session was started during save, and live synchronization failed. Profile snapshot was missing so rollback could not be performed.");
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveSyncFailed.Title", LiveSyncFailedTitle),
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveSyncNoSnapshot.Message", "A game session was started during save, and live synchronization failed. Profile snapshot was missing so rollback could not be performed."));
             return;
         }
 
@@ -860,8 +865,8 @@ public partial class GameProfileSettingsViewModel
             _logger?.LogError("Failed to roll back profile {ProfileId} after live sync failure: {Error}", CurrentProfileId, rollbackResult.FirstError);
             StatusMessage = "Live synchronization failed and profile rollback could not be persisted";
             _localNotificationService.ShowError(
-                "Live Sync & Rollback Failed",
-                $"A game session was started during save, and live synchronization failed. Furthermore, rolling back persisted profile changes failed: {rollbackResult.FirstError}. Profile and running game may be out of sync.");
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveSyncRollbackFailed.Title", "Live Sync & Rollback Failed"),
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveSyncRollbackFailed.Message", $"A game session was started during save, and live synchronization failed. Furthermore, rolling back persisted profile changes failed: {rollbackResult.FirstError}. Profile and running game may be out of sync.", rollbackResult.FirstError));
         }
     }
 
@@ -911,15 +916,15 @@ public partial class GameProfileSettingsViewModel
         {
             StatusMessage = "Live synchronization failed; profile changes were rolled back";
             _localNotificationService.ShowWarning(
-                LiveSyncFailedTitle,
-                "A game session was started during save, but live synchronization failed. Profile changes were rolled back to match the running game.");
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveSyncFailed.Title", LiveSyncFailedTitle),
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveSyncRolledBack.Message", "A game session was started during save, but live synchronization failed. Profile changes were rolled back to match the running game."));
         }
         else
         {
             StatusMessage = "Live synchronization failed; profile was rolled back but live user data could not be restored";
             _localNotificationService.ShowWarning(
-                LiveSyncFailedTitle,
-                "A game session was started during save, and live synchronization failed. Profile changes were rolled back, but live user data could not be fully restored to match the running game.");
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveSyncFailed.Title", LiveSyncFailedTitle),
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveSyncUserDataNotRestored.Message", "A game session was started during save, and live synchronization failed. Profile changes were rolled back, but live user data could not be fully restored to match the running game."));
         }
     }
 
@@ -999,8 +1004,8 @@ public partial class GameProfileSettingsViewModel
         if (isProfileRunning)
         {
             _localNotificationService.ShowSuccess(
-                "Live Update Complete",
-                "Content changes have been applied to the active game session.");
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveUpdateComplete.Title", "Live Update Complete"),
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveUpdateComplete.Message", "Content changes have been applied to the active game session."));
         }
 
         StatusMessage = "Profile updated successfully";
@@ -1064,9 +1069,11 @@ public partial class GameProfileSettingsViewModel
 
         if (missingManifestIds.Count > 0)
         {
-            var error = $"Cannot live-sync active session: failed to resolve manifests for {string.Join(", ", missingManifestIds)}";
+            var error = _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveUpdateMissingManifests.Message", $"Cannot live-sync active session: failed to resolve manifests for {string.Join(", ", missingManifestIds)}", string.Join(", ", missingManifestIds));
             StatusMessage = error;
-            _localNotificationService.ShowWarning("Live Update Warning", error);
+            _localNotificationService.ShowWarning(
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveUpdateWarning.Title", "Live Update Warning"),
+                error);
             _logger?.LogWarning("Profile {ProfileId} live sync aborted due to missing manifests: {Ids}", CurrentProfileId, string.Join(", ", missingManifestIds));
             return false;
         }
@@ -1081,8 +1088,8 @@ public partial class GameProfileSettingsViewModel
         {
             StatusMessage = $"Live sync failed: {liveUpdateResult.FirstError}";
             _localNotificationService.ShowWarning(
-                "Live Update Failed",
-                $"Live content synchronization failed: {liveUpdateResult.FirstError}. Profile changes were not saved.");
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveUpdateFailed.Title", "Live Update Failed"),
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveUpdateFailed.Message", $"Live content synchronization failed: {liveUpdateResult.FirstError}. Profile changes were not saved.", liveUpdateResult.FirstError));
             _logger?.LogWarning("Profile {ProfileId} live sync failed: {Error}", CurrentProfileId, liveUpdateResult.FirstError);
             return false;
         }
@@ -1112,8 +1119,8 @@ public partial class GameProfileSettingsViewModel
         {
             _logger?.LogError("Live sync rollback for profile {ProfileId} had missing original manifests: {Ids}", CurrentProfileId, string.Join(", ", missingOriginalIds));
             _localNotificationService.ShowError(
-                "Live Rollback Warning",
-                $"Profile save failed ({string.Join(", ", result.Errors)}), and original content could not be fully resolved for rollback: {string.Join(", ", missingOriginalIds)}. Live content was left as synchronized and may not match the saved profile.");
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveRollbackWarning.Title", "Live Rollback Warning"),
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveRollbackWarning.Message", $"Profile save failed ({string.Join(", ", result.Errors)}), and original content could not be fully resolved for rollback: {string.Join(", ", missingOriginalIds)}. Live content was left as synchronized and may not match the saved profile.", string.Join(", ", result.Errors), string.Join(", ", missingOriginalIds)));
             StatusMessage = $"Failed to update profile: {string.Join(", ", result.Errors)}. Live rollback skipped: unresolved original manifests.";
             _logger?.LogWarning("Failed to update profile {ProfileId}: {Errors}", CurrentProfileId, string.Join(", ", result.Errors));
             return;
@@ -1175,8 +1182,8 @@ public partial class GameProfileSettingsViewModel
         {
             _logger?.LogError("Failed to roll back live user data sync for profile {ProfileId}: {Error}", CurrentProfileId, rollbackResult.FirstError);
             _localNotificationService.ShowError(
-                "Live Rollback Failed",
-                $"Profile save failed ({string.Join(", ", result.Errors)}), and live content rollback reported: {rollbackResult.FirstError}");
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveRollbackFailed.Title", "Live Rollback Failed"),
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveRollbackFailed.Message", $"Profile save failed ({string.Join(", ", result.Errors)}), and live content rollback reported: {rollbackResult.FirstError}", string.Join(", ", result.Errors), rollbackResult.FirstError));
             StatusMessage = $"Failed to update profile: {string.Join(", ", result.Errors)}. Live rollback failed: {rollbackResult.FirstError}";
         }
         else
@@ -1446,7 +1453,7 @@ public partial class GameProfileSettingsViewModel
     private void ExecuteCancel()
     {
         StatusMessage = "Cancelled";
-        CloseRequested?.Invoke(this, EventArgs.Empty);
+        RequestClose?.Invoke(this, EventArgs.Empty);
     }
 
     [RelayCommand]
@@ -1553,7 +1560,9 @@ public partial class GameProfileSettingsViewModel
 
                 _logger?.LogInformation("Edited local content: {Name} (ID: {OldId} -> {NewId})", contentItem.DisplayName, oldId, newId);
                 StatusMessage = "Content updated";
-                _localNotificationService?.ShowSuccess("Content Updated", $"'{contentItem.DisplayName}' has been updated.");
+                _localNotificationService?.ShowSuccess(
+                    _localizationService.GetLocalizedString("Common.Notification.ContentUpdated.Title", "Content Updated"),
+                    _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.ContentUpdated.Message", $"'{contentItem.DisplayName}' has been updated.", contentItem.DisplayName));
 
                 // Architecture: Synchronize our internal collections IMMEDIATELY to avoid duplication/flicker.
                 // If it was in EnabledContent, replace it with the new item (maintaining enabled state).
@@ -1606,13 +1615,17 @@ public partial class GameProfileSettingsViewModel
     {
         if (string.IsNullOrWhiteSpace(LocalContentName))
         {
-            _localNotificationService.ShowWarning("Validation Error", "Please enter a name for the content.");
+            _localNotificationService.ShowWarning(
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.ValidationError.Title", "Validation Error"),
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.ValidationNameRequired.Message", "Please enter a name for the content."));
             return;
         }
 
         if (string.IsNullOrWhiteSpace(LocalContentDirectoryPath))
         {
-            _localNotificationService.ShowWarning("Validation Error", "Please select a folder for the content.");
+            _localNotificationService.ShowWarning(
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.ValidationError.Title", "Validation Error"),
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.ValidationFolderRequired.Message", "Please select a folder for the content."));
             return;
         }
 

@@ -10,8 +10,7 @@ using Xunit;
 namespace GenHub.Tests.Core.Infrastructure.Converters;
 
 /// <summary>
-/// Unit tests for <see cref="ContentStateToBrushConverter"/>, <see cref="ContentStateToPathDataConverter"/>,
-/// and <see cref="ContentStateToTextConverter"/>.
+/// Unit tests for <see cref="ContentStateToBrushConverter"/> and <see cref="ContentStateToPathDataConverter"/>.
 /// </summary>
 public class ContentStateConverterTests
 {
@@ -52,25 +51,6 @@ public class ContentStateConverterTests
         var result = converter.Convert(state, typeof(string), null, _culture);
 
         Assert.Equal(expectedPath, result);
-        Assert.Throws<NotSupportedException>(() => converter.ConvertBack(result, typeof(ContentState), null, _culture));
-    }
-
-    /// <summary>
-    /// Verifies that <see cref="ContentStateToTextConverter"/> returns the expected text indicator for each content state.
-    /// </summary>
-    /// <param name="input">The input value.</param>
-    /// <param name="expected">The expected text indicator.</param>
-    [Theory]
-    [InlineData(ContentState.Downloaded, "✅")]
-    [InlineData(ContentState.UpdateAvailable, "🔄")]
-    [InlineData(ContentState.NotDownloaded, "⇩")]
-    [InlineData(null, "⇩")]
-    public void ContentStateToTextConverter_ReturnsExpectedIndicator(object? input, string expected)
-    {
-        var converter = new ContentStateToTextConverter();
-        var result = converter.Convert(input, typeof(string), null, _culture);
-
-        Assert.Equal(expected, result);
         Assert.Throws<NotSupportedException>(() => converter.ConvertBack(result, typeof(ContentState), null, _culture));
     }
 }

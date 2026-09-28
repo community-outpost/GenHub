@@ -52,54 +52,17 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
 
             var name = SanitizeMappedName(string.IsNullOrWhiteSpace(mappedName) ? Path.GetFileNameWithoutExtension(sourceFilePath) : mappedName);
             var targetExtension = ResolveTargetExtension(extension);
-            var textureFileName = string.Concat(name, targetExtension);
-            var definitionsPath = Path.Combine(
+
+            return await ImportTextureCoreAsync(
                 projectDirectory,
-                WndConstants.AssetImport.MappedImagesRelativeDirectory,
-                WndConstants.AssetImport.ImportsFileName);
-
-            await _upsertLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-            var textureWritten = false;
-            string? texturePath = null;
-            try
-            {
-                var (textureDirectory, resolvedPath) = await Task.Run(
-                    () => ResolveTextureDestination(projectDirectory, textureFileName),
-                    cancellationToken).ConfigureAwait(false);
-                texturePath = resolvedPath;
-
-                var (imageWidth, imageHeight, potWidth, potHeight) = await Task.Run(
-                    () => WriteTexture(sourceFilePath, textureDirectory, texturePath, targetExtension, logger, cancellationToken),
-                    cancellationToken).ConfigureAwait(false);
-                textureWritten = true;
-
-                UpsertDefinition(definitionsPath, name, textureFileName, imageWidth, imageHeight, potWidth, potHeight);
-
-                logger.LogInformation("Imported texture {Name} ({Width}x{Height}, POT {PotW}x{PotH}) to {Path}", name, imageWidth, imageHeight, potWidth, potHeight, texturePath);
-                return OperationResult<WndTextureImportResult>.CreateSuccess(
-                    new WndTextureImportResult(name, textureFileName, imageWidth, imageHeight, texturePath, definitionsPath),
-                    stopwatch.Elapsed);
-            }
-            catch
-            {
-                if (textureWritten && texturePath != null && File.Exists(texturePath) && !string.Equals(Path.GetFullPath(sourceFilePath), Path.GetFullPath(texturePath), StringComparison.OrdinalIgnoreCase))
-                {
-                    try
-                    {
-                        File.Delete(texturePath);
-                    }
-                    catch (Exception cleanupEx)
-                    {
-                        logger.LogDebug(cleanupEx, "Failed to clean up texture file {Path} after failed import", texturePath);
-                    }
-                }
-
-                throw;
-            }
-            finally
-            {
-                _upsertLock.Release();
-            }
+                name,
+                targetExtension,
+                sourceFilePath,
+                (textureDirectory, texturePath, ct) => Task.Run(
+                    () => WriteTexture(sourceFilePath, textureDirectory, texturePath, targetExtension, logger, ct),
+                    ct),
+                stopwatch,
+                cancellationToken).ConfigureAwait(false);
         }
         catch (IOException ex)
         {
@@ -153,54 +116,17 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
 
             var name = SanitizeMappedName(mappedName);
             var targetExtension = WndConstants.MappedImages.TextureExtensionTga;
-            var textureFileName = string.Concat(name, targetExtension);
-            var definitionsPath = Path.Combine(
+
+            return await ImportTextureCoreAsync(
                 projectDirectory,
-                WndConstants.AssetImport.MappedImagesRelativeDirectory,
-                WndConstants.AssetImport.ImportsFileName);
-
-            await _upsertLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-            var textureWritten = false;
-            string? texturePath = null;
-            try
-            {
-                var (textureDirectory, resolvedPath) = await Task.Run(
-                    () => ResolveTextureDestination(projectDirectory, textureFileName),
-                    cancellationToken).ConfigureAwait(false);
-                texturePath = resolvedPath;
-
-                var (imageWidth, imageHeight, potWidth, potHeight) = await Task.Run(
-                    () => WriteTextureBytes(imageBytes, textureDirectory, texturePath, logger, cancellationToken),
-                    cancellationToken).ConfigureAwait(false);
-                textureWritten = true;
-
-                UpsertDefinition(definitionsPath, name, textureFileName, imageWidth, imageHeight, potWidth, potHeight);
-
-                logger.LogInformation("Imported clipboard texture {Name} ({Width}x{Height}, POT {PotW}x{PotH}) to {Path}", name, imageWidth, imageHeight, potWidth, potHeight, texturePath);
-                return OperationResult<WndTextureImportResult>.CreateSuccess(
-                    new WndTextureImportResult(name, textureFileName, imageWidth, imageHeight, texturePath, definitionsPath),
-                    stopwatch.Elapsed);
-            }
-            catch
-            {
-                if (textureWritten && texturePath != null && File.Exists(texturePath))
-                {
-                    try
-                    {
-                        File.Delete(texturePath);
-                    }
-                    catch (Exception cleanupEx)
-                    {
-                        logger.LogDebug(cleanupEx, "Failed to clean up texture file {Path} after failed import", texturePath);
-                    }
-                }
-
-                throw;
-            }
-            finally
-            {
-                _upsertLock.Release();
-            }
+                name,
+                targetExtension,
+                protectSourcePath: null,
+                (textureDirectory, texturePath, ct) => Task.Run(
+                    () => WriteTextureBytes(imageBytes, textureDirectory, texturePath, logger, ct),
+                    ct),
+                stopwatch,
+                cancellationToken).ConfigureAwait(false);
         }
         catch (IOException ex)
         {
@@ -721,5 +647,66 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
         }
 
         return string.Equals(trimmed[tag.Length..].Trim(), mappedName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task<OperationResult<WndTextureImportResult>> ImportTextureCoreAsync(
+        string projectDirectory,
+        string name,
+        string targetExtension,
+        string? protectSourcePath,
+        Func<string, string, CancellationToken, Task<(int ImageWidth, int ImageHeight, int TextureWidth, int TextureHeight)>> writeTexture,
+        Stopwatch stopwatch,
+        CancellationToken cancellationToken)
+    {
+        var textureFileName = string.Concat(name, targetExtension);
+        var textureKind = protectSourcePath is null ? "clipboard texture" : "texture";
+        var definitionsPath = Path.Combine(
+            projectDirectory,
+            WndConstants.AssetImport.MappedImagesRelativeDirectory,
+            WndConstants.AssetImport.ImportsFileName);
+
+        await _upsertLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var textureWritten = false;
+        string? texturePath = null;
+        try
+        {
+            var (textureDirectory, resolvedPath) = await Task.Run(
+                () => ResolveTextureDestination(projectDirectory, textureFileName),
+                cancellationToken).ConfigureAwait(false);
+            texturePath = resolvedPath;
+
+            var (imageWidth, imageHeight, potWidth, potHeight) = await writeTexture(textureDirectory, texturePath, cancellationToken).ConfigureAwait(false);
+            textureWritten = true;
+
+            UpsertDefinition(definitionsPath, name, textureFileName, imageWidth, imageHeight, potWidth, potHeight);
+
+            logger.LogInformation("Imported {TextureKind} {Name} ({Width}x{Height}, POT {PotW}x{PotH}) to {Path}", textureKind, name, imageWidth, imageHeight, potWidth, potHeight, texturePath);
+            return OperationResult<WndTextureImportResult>.CreateSuccess(
+                new WndTextureImportResult(name, textureFileName, imageWidth, imageHeight, texturePath, definitionsPath),
+                stopwatch.Elapsed);
+        }
+        catch
+        {
+            var isProtectedSource = protectSourcePath != null
+                && texturePath != null
+                && string.Equals(Path.GetFullPath(protectSourcePath), Path.GetFullPath(texturePath), StringComparison.OrdinalIgnoreCase);
+            if (textureWritten && texturePath != null && File.Exists(texturePath) && !isProtectedSource)
+            {
+                try
+                {
+                    File.Delete(texturePath);
+                }
+                catch (Exception cleanupEx)
+                {
+                    logger.LogDebug(cleanupEx, "Failed to clean up texture file {Path} after failed import", texturePath);
+                }
+            }
+
+            throw;
+        }
+        finally
+        {
+            _upsertLock.Release();
+        }
     }
 }

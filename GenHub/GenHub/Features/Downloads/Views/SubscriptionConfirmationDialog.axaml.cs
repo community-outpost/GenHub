@@ -1,8 +1,5 @@
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Input;
 using Avalonia.Interactivity;
-using GenHub.Common.Helpers;
+using GenHub.Common.Controls;
 using GenHub.Features.Content.ViewModels.Catalog;
 using System;
 using System.Threading;
@@ -12,7 +9,7 @@ namespace GenHub.Features.Downloads.Views;
 /// <summary>
 /// interaction logic for SubscriptionConfirmationDialog.axaml.
 /// </summary>
-public partial class SubscriptionConfirmationDialog : Window
+public partial class SubscriptionConfirmationDialog : GenHubWindow
 {
     private readonly CancellationTokenSource _dialogCts = new();
 
@@ -22,7 +19,6 @@ public partial class SubscriptionConfirmationDialog : Window
     public SubscriptionConfirmationDialog()
     {
         InitializeComponent();
-        WindowChromeHelper.ApplyPlatformDecorations(this);
         Closed += (_, _) =>
         {
             _dialogCts.Cancel();
@@ -77,26 +73,13 @@ public partial class SubscriptionConfirmationDialog : Window
     }
 
     /// <inheritdoc/>
-    /// <param name="e">The key event arguments.</param>
-    protected override void OnKeyDown(KeyEventArgs e)
-    {
-        base.OnKeyDown(e);
-        if (e.Key == Key.Escape && !e.Handled)
-        {
-            e.Handled = true;
-            CloseDialog(false);
-        }
-    }
+    protected override void OnEscapePressed() => CloseDialog(false);
 
-    private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (e.GetCurrentPoint(sender as Visual).Properties.IsLeftButtonPressed)
-        {
-            BeginMoveDrag(e);
-        }
-    }
+    /// <inheritdoc/>
+    protected override bool TitleBarDoubleClickMaximizes => false;
 
-    private void CloseButton_Click(object? sender, RoutedEventArgs e)
+    /// <inheritdoc/>
+    protected override void CloseButton_Click(object? sender, RoutedEventArgs e)
     {
         DialogResult = false;
         Close(false);

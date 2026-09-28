@@ -1,8 +1,8 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
@@ -33,11 +33,11 @@ namespace GenHub.Features.GameProfiles.Services;
 public sealed class ProfileContentService(
     IGameProfileManager profileManager,
     IContentManifestPool manifestPool,
-    IDependencyResolver dependencyResolver,
-    IGameInstallationService installationService,
+    ProfileContentResolutionServices resolutionServices,
     IContentOrchestrator contentOrchestrator,
     INotificationService notificationService,
-    ILogger<ProfileContentService> logger) : IProfileContentService
+    ILogger<ProfileContentService> logger,
+    ILocalizationService? localizationService = null) : IProfileContentService
 {
     /// <summary>
     /// Content types that are exclusive (only one can be enabled at a time per profile).
@@ -316,8 +316,8 @@ public sealed class ProfileContentService(
                 }
 
                 notificationService.ShowSuccess(
-                    "Profile Created",
-                    $"Created profile '{profileName}' with {manifest.Name}");
+                    localizationService.GetLocalizedString("GameProfiles.Notification.ProfileCreated.Title", "Profile Created"),
+                    localizationService.GetLocalizedString("GameProfiles.Notification.ProfileCreated.Message", $"Created profile '{profileName}' with {manifest.Name}", profileName, manifest.Name));
 
                 logger.LogInformation(
                     "Successfully created profile {ProfileId} with content {ManifestId}",
@@ -337,7 +337,7 @@ public sealed class ProfileContentService(
             List<string> enabledContentIds = resolution.Data.EnabledContentIds;
 
             // Find a suitable game installation
-            var installationsResult = await installationService.GetAllInstallationsAsync(cancellationToken);
+            var installationsResult = await resolutionServices.InstallationService.GetAllInstallationsAsync(cancellationToken);
             if (installationsResult.Failed || installationsResult.Data == null || installationsResult.Data.Count == 0)
             {
                 return ProfileOperationResult<GameProfile>.CreateFailure("No game installations found. Please configure a game installation first.");
@@ -382,8 +382,8 @@ public sealed class ProfileContentService(
             }
 
             notificationService.ShowSuccess(
-                "Profile Created",
-                $"Created profile '{profileName}' with {manifest.Name}");
+                localizationService.GetLocalizedString("GameProfiles.Notification.ProfileCreated.Title", "Profile Created"),
+                localizationService.GetLocalizedString("GameProfiles.Notification.ProfileCreated.Message", $"Created profile '{profileName}' with {manifest.Name}", profileName, manifest.Name));
 
             logger.LogInformation(
                 "Successfully created profile {ProfileId} with content {ManifestId}",
@@ -863,8 +863,8 @@ public sealed class ProfileContentService(
         if (!string.IsNullOrEmpty(swapResult.SwappedContentId))
         {
             notificationService.ShowInfo(
-                "Content Replaced",
-                $"Replaced '{swapResult.SwappedContentName ?? swapResult.SwappedContentId}' with '{contentName}'");
+                localizationService.GetLocalizedString("GameProfiles.Notification.ContentReplaced.Title", "Content Replaced"),
+                localizationService.GetLocalizedString("GameProfiles.Notification.ContentReplaced.Message", $"Replaced '{swapResult.SwappedContentName ?? swapResult.SwappedContentId}' with '{contentName}'", swapResult.SwappedContentName ?? swapResult.SwappedContentId, contentName));
 
             logger.LogInformation(
                 "Content swap complete: {OldContent} → {NewContent} in profile {ProfileId}",
@@ -942,8 +942,8 @@ public sealed class ProfileContentService(
                 var dependencyNames = await GetDependencyNamesAsync(newlyAdded, cancellationToken);
                 logger.LogInformation("Resolved {Count} dependencies for {ManifestId}", newlyAdded.Count, primaryManifestId);
                 notificationService.ShowInfo(
-                    "Dependencies Added",
-                    $"Added required dependencies for '{contentName}': {string.Join(", ", dependencyNames)}");
+                    localizationService.GetLocalizedString("GameProfiles.Notification.DependenciesAdded.Title", "Dependencies Added"),
+                    localizationService.GetLocalizedString("GameProfiles.Notification.DependenciesAdded.Message", $"Added required dependencies for '{contentName}': {string.Join(", ", dependencyNames)}", contentName, string.Join(", ", dependencyNames)));
             }
             catch (OperationCanceledException)
             {
@@ -1053,7 +1053,7 @@ public sealed class ProfileContentService(
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            var completeResolution = await dependencyResolver.ResolveDependenciesWithManifestsAsync(
+            var completeResolution = await resolutionServices.DependencyResolver.ResolveDependenciesWithManifestsAsync(
                 contentIdsWithAcquiredDependencies,
                 cancellationToken);
             if (completeResolution.Failed)
@@ -1064,7 +1064,7 @@ public sealed class ProfileContentService(
 
             // Resolve the selected item's closure independently. Existing profile content must
             // not decide the new foundation; only the selected item and its dependencies do.
-            var requestedResolution = await dependencyResolver.ResolveDependenciesWithManifestsAsync(
+            var requestedResolution = await resolutionServices.DependencyResolver.ResolveDependenciesWithManifestsAsync(
                 acquisition.Data,
                 cancellationToken);
             if (requestedResolution.Failed)
@@ -1196,7 +1196,7 @@ public sealed class ProfileContentService(
         GameType requiredGameType,
         CancellationToken cancellationToken)
     {
-        var installationsResult = await installationService.GetAllInstallationsAsync(cancellationToken);
+        var installationsResult = await resolutionServices.InstallationService.GetAllInstallationsAsync(cancellationToken);
         var installations = installationsResult.Success && installationsResult.Data != null
             ? installationsResult.Data
             : [];

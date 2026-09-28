@@ -71,13 +71,13 @@ public class NahimicFix(ILogger<NahimicFix> logger) : BaseActionSet(logger)
 
             if (!nahimicInstalled)
             {
-                details.Add("✓ Nahimic audio driver is not installed");
+                details.Add("OK: Nahimic audio driver is not installed");
                 details.Add("  No action needed");
                 logger.LogInformation("Nahimic audio driver is not installed. No action needed.");
                 return Task.FromResult(new ActionSetResult(true, null, details));
             }
 
-            details.Add("⚠ Nahimic audio driver detected");
+            details.Add("Warning: Nahimic audio driver detected");
             details.Add("  This may cause audio issues with Generals/Zero Hour");
             details.Add(string.Empty);
             details.Add("To disable Nahimic audio effects:");
@@ -98,7 +98,7 @@ public class NahimicFix(ILogger<NahimicFix> logger) : BaseActionSet(logger)
         catch (Exception ex)
         {
             logger.LogError(ex, "Error applying Nahimic compatibility fix");
-            details.Add($"✗ Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
     }

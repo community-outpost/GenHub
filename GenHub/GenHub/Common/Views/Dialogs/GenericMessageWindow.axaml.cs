@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
+using GenHub.Common.Controls;
 using GenHub.Common.ViewModels.Dialogs;
 using System;
 #if DEBUG
@@ -13,7 +14,7 @@ namespace GenHub.Common.Views.Dialogs;
 /// <summary>
 /// Interaction logic for GenericMessageWindow.axaml.
 /// </summary>
-public partial class GenericMessageWindow : Window
+public partial class GenericMessageWindow : GenHubWindow
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="GenericMessageWindow"/> class.
@@ -40,18 +41,6 @@ public partial class GenericMessageWindow : Window
 
         // Allow dragging the window from anywhere essentially
         BeginMoveDrag(e);
-    }
-
-    /// <inheritdoc/>
-    /// <param name="e">The key event arguments.</param>
-    protected override void OnKeyDown(KeyEventArgs e)
-    {
-        base.OnKeyDown(e);
-        if (e.Key == Key.Escape && !e.Handled)
-        {
-            e.Handled = true;
-            Close();
-        }
     }
 
     private void InitializeComponent()

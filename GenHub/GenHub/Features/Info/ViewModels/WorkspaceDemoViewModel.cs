@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Notifications;
@@ -91,6 +92,6 @@ public partial class WorkspaceDemoViewModel : ObservableObject
             NotificationType.Success,
             "Demo",
             "Workspace simulation complete! Notice how most files use 'Hardlinks' which take zero extra disk space.",
-            5000));
+            NotificationDurations.Medium));
     }
 }

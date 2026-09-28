@@ -1,5 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
+<controls:GenHubWindow xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:GenHub.Common.Controls"
         x:Class="GenHub.Features.Tools.Views.Dialogs.ToolDialogWindow"
         Title="ToolDialogWindow"
         WindowStartupLocation="CenterOwner"
@@ -16,6 +17,6 @@
         <ContentControl Name="MainContent"/>
 
         <!-- Window Drag Region (excludes top-right corner so close button clicks are never intercepted) -->
-        <Panel Height="30" VerticalAlignment="Top" Margin="0,0,120,0" Background="Transparent" PointerPressed="OnDragRegionPointerPressed"/>
+        <Panel Height="30" VerticalAlignment="Top" Margin="0,0,120,0" Background="Transparent" PointerPressed="OnTitleBarPointerPressed"/>
     </Panel>
-</Window>
+</controls:GenHubWindow>

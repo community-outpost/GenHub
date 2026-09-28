@@ -28,19 +28,16 @@ public class LocalFileSystemContentProvider(
     IConfigurationProviderService configurationProvider)
     : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
-    private readonly IContentDiscoverer _fileSystemDiscoverer = discoverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.FileSystemDiscoverer, StringComparison.OrdinalIgnoreCase) == true)
-        ?? throw new InvalidOperationException("No FileSystem discoverer found");
+    private readonly IContentDiscoverer _fileSystemDiscoverer = ResolveDiscoverer(discoverers, ContentSourceNames.FileSystemDiscoverer);
 
-    private readonly IContentResolver _localResolver = resolvers.FirstOrDefault(r => r.ResolverId?.Equals(ContentSourceNames.LocalResolverId, StringComparison.OrdinalIgnoreCase) == true)
-        ?? throw new InvalidOperationException("No Local resolver found");
+    private readonly IContentResolver _localResolver = ResolveResolver(resolvers, ContentSourceNames.LocalResolverId);
 
-    private readonly IContentDeliverer _fileSystemDeliverer = deliverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.FileSystemDeliverer, StringComparison.OrdinalIgnoreCase) == true)
-        ?? throw new InvalidOperationException("No FileSystem deliverer found");
+    private readonly IContentDeliverer _fileSystemDeliverer = ResolveDeliverer(deliverers, ContentSourceNames.FileSystemDeliverer);
 
     private readonly IConfigurationProviderService _configurationProvider = configurationProvider;
 
     /// <inheritdoc />
-    public override string SourceName => "LocalFileSystem";
+    public override string SourceName => ContentSourceNames.LocalFileSystemProvider;
 
     /// <inheritdoc />
     public override string Description => "Local file system content provider";
@@ -66,20 +63,7 @@ public class LocalFileSystemContentProvider(
     public override async Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
         string contentId, CancellationToken cancellationToken = default)
     {
-        var query = new ContentSearchQuery { SearchTerm = contentId, Take = ContentConstants.SingleResultQueryLimit };
-        var searchResult = await SearchAsync(query, cancellationToken);
-
-        if (!searchResult.Success || !searchResult.Data!.Any())
-        {
-            return OperationResult<ContentManifest>.CreateFailure($"Content not found: {contentId}");
-        }
-
-        var result = searchResult.Data!.First();
-        var manifest = result.GetData<ContentManifest>();
-
-        return manifest != null
-            ? OperationResult<ContentManifest>.CreateSuccess(manifest)
-            : OperationResult<ContentManifest>.CreateFailure("Manifest not available in search result");
+        return await SearchManifestByIdAsync(contentId, requireExactIdMatch: false, cancellationToken);
     }
 
     /// <inheritdoc />

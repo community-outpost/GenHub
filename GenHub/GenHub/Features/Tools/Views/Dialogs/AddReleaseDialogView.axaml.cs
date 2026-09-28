@@ -1,7 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.VisualTree;
+using GenHub.Common.Controls;
 using GenHub.Features.Tools.ViewModels.Dialogs;
 using System;
 using System.Diagnostics;
@@ -21,37 +21,7 @@ public partial class AddReleaseDialogView : UserControl
     public AddReleaseDialogView()
     {
         InitializeComponent();
-        DragDrop.SetAllowDrop(this, true);
-        AddHandler(DragDrop.DragOverEvent, OnDragOver, handledEventsToo: true);
-        AddHandler(DragDrop.DropEvent, OnDrop, handledEventsToo: true);
-    }
-
-    private static void OnDragOver(object? sender, DragEventArgs e)
-    {
-        if (e.Data.Contains(DataFormats.Files))
-        {
-            e.DragEffects = DragDropEffects.Copy;
-            e.Handled = true;
-        }
-        else
-        {
-            e.DragEffects = DragDropEffects.None;
-        }
-    }
-
-    private static bool IsInSubtree(Visual? visual, string name)
-    {
-        while (visual != null)
-        {
-            if (visual is Control control && control.Name == name)
-            {
-                return true;
-            }
-
-            visual = visual.GetVisualParent();
-        }
-
-        return false;
+        ViewDropHelper.EnableFileDrop(this, OnDrop);
     }
 
     private async void OnDrop(object? sender, DragEventArgs e)
@@ -63,18 +33,7 @@ public partial class AddReleaseDialogView : UserControl
 
         try
         {
-            var files = e.Data.GetFiles();
-            if (files == null)
-            {
-                return;
-            }
-
-            var paths = files
-                .Select(f => f.Path?.LocalPath)
-                .Where(p => !string.IsNullOrWhiteSpace(p))
-                .Cast<string>()
-                .ToList();
-
+            var paths = ViewDropHelper.ExtractDroppedPaths(e);
             if (paths.Count == 0)
             {
                 return;
@@ -83,7 +42,7 @@ public partial class AddReleaseDialogView : UserControl
             var sourceVisual = e.Source as Visual;
 
             // Specific drop on ImagesZone
-            if (IsInSubtree(sourceVisual, "ImagesDropZone"))
+            if (ViewDropHelper.IsInSubtree(sourceVisual, "ImagesDropZone"))
             {
                 e.Handled = true;
                 await vm.AddImagesFromPathsAsync(paths);
@@ -91,7 +50,7 @@ public partial class AddReleaseDialogView : UserControl
             }
 
             // Specific drop on ArtifactsZone
-            if (IsInSubtree(sourceVisual, "ArtifactsDropZone"))
+            if (ViewDropHelper.IsInSubtree(sourceVisual, "ArtifactsDropZone"))
             {
                 e.Handled = true;
                 await vm.AddArtifactsFromPathsAsync(paths);

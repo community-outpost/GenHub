@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
+using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 
@@ -70,7 +71,7 @@ public abstract class BaseDependencyBuilder
         {
             // Use 'any' publisher since any platform's Generals installation satisfies this
             Id = ManifestId.Create($"{SchemaVersion}.108.{AnyPublisher}.gameinstallation.generals"),
-            Name = "Generals 1.08 (Required)",
+            Name = GameClientConstants.Generals108InstallationDependencyName,
             DependencyType = ContentType.GameInstallation,
             MinVersion = ManifestConstants.GeneralsManifestVersion, // "1.08"
             InstallBehavior = DependencyInstallBehavior.RequireExisting,
@@ -175,6 +176,40 @@ public abstract class BaseDependencyBuilder
             MinVersion = minVersion,
             MaxVersion = maxVersion,
         };
+    }
+
+    /// <summary>
+    /// Adds game installation dependencies based on target game.
+    /// </summary>
+    /// <param name="builder">The manifest builder.</param>
+    /// <param name="targetGame">The target game type.</param>
+    /// <returns>The updated manifest builder.</returns>
+    public static IContentManifestBuilder AddGameDependencies(IContentManifestBuilder builder, GameType targetGame)
+    {
+        // Add dependency on the appropriate game installation
+        // Note: Using RequireExisting since game installations must already exist
+        if (targetGame == GameType.ZeroHour)
+        {
+            // Type-only constraint: any platform's ZH installation satisfies this.
+            builder.AddDependency(
+                id: ManifestId.Create(ManifestConstants.ZeroHourGameInstallationManifestId),
+                name: ManifestConstants.ZeroHourInstallationName,
+                dependencyType: ContentType.GameInstallation,
+                installBehavior: DependencyInstallBehavior.RequireExisting,
+                minVersion: ManifestConstants.ZeroHourManifestVersion);
+        }
+        else if (targetGame == GameType.Generals)
+        {
+            // Type-only constraint: any platform's Generals installation satisfies this.
+            builder.AddDependency(
+                id: ManifestId.Create(ManifestConstants.GeneralsGameInstallationManifestId),
+                name: ManifestConstants.GeneralsInstallationName,
+                dependencyType: ContentType.GameInstallation,
+                installBehavior: DependencyInstallBehavior.RequireExisting,
+                minVersion: ManifestConstants.GeneralsManifestVersion);
+        }
+
+        return builder;
     }
 
     /// <summary>

@@ -30,13 +30,9 @@ public class CsvContentProvider(
         ?? discoverers.FirstOrDefault(d => string.Equals(d.SourceName, CsvConstants.SourceName, StringComparison.OrdinalIgnoreCase))
         ?? throw new InvalidOperationException("CSV discoverer not found");
 
-    private readonly IContentResolver _resolver = resolvers.FirstOrDefault(r =>
-        string.Equals(r.ResolverId, CsvConstants.ResolverId, StringComparison.OrdinalIgnoreCase))
-        ?? throw new InvalidOperationException("CSV resolver not found");
+    private readonly IContentResolver _resolver = ResolveResolver(resolvers, CsvConstants.ResolverId);
 
-    private readonly IContentDeliverer _deliverer = deliverers.FirstOrDefault(d =>
-        string.Equals(d.SourceName, ContentSourceNames.HttpDeliverer, StringComparison.OrdinalIgnoreCase))
-        ?? throw new InvalidOperationException("HTTP deliverer not found");
+    private readonly IContentDeliverer _deliverer = ResolveDeliverer(deliverers, ContentSourceNames.HttpDeliverer);
 
     /// <inheritdoc />
     public override string SourceName => PublisherTypeConstants.CsvRegistry;
@@ -58,32 +54,7 @@ public class CsvContentProvider(
         string contentId,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(contentId))
-        {
-            return OperationResult<ContentManifest>.CreateFailure("Content ID cannot be null or empty.");
-        }
-
-        var query = new ContentSearchQuery { SearchTerm = contentId, Take = ContentConstants.SingleResultQueryLimit };
-        var searchResult = await SearchAsync(query, cancellationToken);
-
-        if (!searchResult.Success || searchResult.Data == null || !searchResult.Data.Any())
-        {
-            return OperationResult<ContentManifest>.CreateFailure(
-                $"Content not found for ID '{contentId}': {searchResult.FirstError ?? "No matching results"}");
-        }
-
-        var result = searchResult.Data.FirstOrDefault(r => string.Equals(r.Id, contentId, StringComparison.OrdinalIgnoreCase));
-        if (result == null)
-        {
-            return OperationResult<ContentManifest>.CreateFailure(
-                $"Content not found for ID '{contentId}'.");
-        }
-
-        var manifest = result.GetData<ContentManifest>();
-
-        return manifest != null
-            ? OperationResult<ContentManifest>.CreateSuccess(manifest)
-            : OperationResult<ContentManifest>.CreateFailure($"Invalid manifest data for content ID '{contentId}'");
+        return await SearchManifestByIdAsync(contentId, requireExactIdMatch: true, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -95,24 +66,11 @@ public class CsvContentProvider(
     {
         Logger.LogDebug("Preparing CSV catalog content for manifest {ManifestId}", manifest.Id);
 
-        if (!Deliverer.CanDeliver(manifest))
-        {
-            return OperationResult<ContentManifest>.CreateFailure(
-                $"Cannot deliver content for manifest {manifest.Id}");
-        }
-
-        var deliveryResult = await Deliverer.DeliverContentAsync(
+        return await DeliverContentOnlyAsync(
+            Deliverer,
             manifest,
             workingDirectory,
             progress,
             cancellationToken);
-
-        if (!deliveryResult.Success)
-        {
-            return OperationResult<ContentManifest>.CreateFailure(
-                $"Content delivery failed: {deliveryResult.FirstError}");
-        }
-
-        return OperationResult<ContentManifest>.CreateSuccess(deliveryResult.Data ?? manifest);
     }
 }

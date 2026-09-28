@@ -75,7 +75,7 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
         {
             if (IsFirewallRuleExists(PortRuleUdp16000))
             {
-                details.Add("✓ Firewall rules already applied (found GP Open UDP Port 16000)");
+                details.Add("OK: Firewall rules already applied (found GP Open UDP Port 16000)");
                 logger.LogInformation("Firewall rules already applied");
                 return new ActionSetResult(true, null, details);
             }
@@ -102,7 +102,7 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
         catch (Exception ex)
         {
             logger.LogError(ex, "Error applying firewall exception fix");
-            details.Add($"✗ Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return new ActionSetResult(false, ex.Message, details);
         }
     }
@@ -131,7 +131,7 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
         catch (Exception ex)
         {
             logger.LogError(ex, "Error undoing firewall exception fix");
-            details.Add($"✗ Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return new ActionSetResult(false, ex.Message, details);
         }
     }
@@ -169,12 +169,12 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
         if (AddPortRule(ruleName, protocol, port))
         {
             rulesAdded++;
-            details.Add($"✓ Added port rule: {ruleName} ({protocol.ToUpperInvariant()} {port})");
+            details.Add($"OK: Added port rule: {ruleName} ({protocol.ToUpperInvariant()} {port})");
         }
         else
         {
             rulesFailed++;
-            details.Add($"⚠ Failed: {ruleName}");
+            details.Add($"Warning: Failed: {ruleName}");
         }
     }
 
@@ -188,12 +188,12 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
         if (AddProgramRule(ruleName, path))
         {
             rulesAdded++;
-            details.Add($"✓ Added rule: {ruleName}");
+            details.Add($"OK: Added rule: {ruleName}");
         }
         else
         {
             rulesFailed++;
-            details.Add($"⚠ Failed: {ruleName}");
+            details.Add($"Warning: Failed: {ruleName}");
         }
     }
 
@@ -218,12 +218,12 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
             if (RemoveFirewallRule(rule))
             {
                 removed++;
-                details.Add($"✓ Removed rule: {rule}");
+                details.Add($"OK: Removed rule: {rule}");
             }
             else
             {
                 failed++;
-                details.Add($"⚠ Failed to remove rule: {rule}");
+                details.Add($"Warning: Failed to remove rule: {rule}");
             }
         }
 

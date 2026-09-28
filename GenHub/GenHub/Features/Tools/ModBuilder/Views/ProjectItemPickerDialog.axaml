@@ -1,10 +1,11 @@
-<Window xmlns="https://github.com/avaloniaui"
+<controls:GenHubWindow xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:GenHub.Features.Tools.ModBuilder.ViewModels"
         xmlns:models="using:GenHub.Features.Tools.ModBuilder.Models"
         xmlns:localization="clr-namespace:GenHub.Common.Markup"
+        xmlns:controls="clr-namespace:GenHub.Common.Controls"
         mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="700"
         x:Class="GenHub.Features.Tools.ModBuilder.Views.ProjectItemPickerDialog"
         x:DataType="vm:ProjectItemPickerViewModel"
@@ -134,4 +135,4 @@
               Padding="16,8" CornerRadius="8" Cursor="Hand"/>
     </Grid>
   </Grid>
-</Window>
+</controls:GenHubWindow>

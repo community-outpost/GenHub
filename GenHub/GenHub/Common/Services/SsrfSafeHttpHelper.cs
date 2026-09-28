@@ -24,6 +24,7 @@ public static class SsrfSafeHttpHelper
     /// <param name="maxRedirects">The maximum redirect hops to follow.</param>
     /// <param name="urlValidator">Validates each hop before connecting.</param>
     /// <param name="cancellationToken">Token to monitor for cancellation requests.</param>
+    /// <param name="blockHttpsDowngrade">Whether to refuse redirects that downgrade from HTTPS to HTTP.</param>
     /// <returns>The final response (the caller owns disposal) and the URI it was fetched from.</returns>
     /// <exception cref="HttpRequestException">Thrown when a hop is unsafe, a redirect is malformed, or the hop limit is exceeded.</exception>
     /// <exception cref="InvalidOperationException">Thrown when the client followed a redirect automatically.</exception>
@@ -33,7 +34,8 @@ public static class SsrfSafeHttpHelper
         Uri initialUri,
         int maxRedirects,
         IDownloadUrlValidator urlValidator,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool blockHttpsDowngrade = false)
     {
         ArgumentNullException.ThrowIfNull(httpClient);
         ArgumentNullException.ThrowIfNull(requestFactory);
@@ -61,11 +63,11 @@ public static class SsrfSafeHttpHelper
 
             var location = response.Headers.Location;
             response.Dispose();
-            currentUri = ResolveRedirectTarget(location, currentUri, maxRedirects, ref redirectCount);
+            currentUri = ResolveRedirectTarget(location, currentUri, maxRedirects, blockHttpsDowngrade, ref redirectCount);
         }
     }
 
-    private static Uri ResolveRedirectTarget(Uri? location, Uri currentUri, int maxRedirects, ref int redirectCount)
+    private static Uri ResolveRedirectTarget(Uri? location, Uri currentUri, int maxRedirects, bool blockHttpsDowngrade, ref int redirectCount)
     {
         if (++redirectCount > maxRedirects)
         {
@@ -81,6 +83,11 @@ public static class SsrfSafeHttpHelper
         if (nextUri.Scheme != Uri.UriSchemeHttp && nextUri.Scheme != Uri.UriSchemeHttps)
         {
             throw new HttpRequestException($"Refusing to follow redirect to '{nextUri.Scheme}' URI: only HTTP and HTTPS targets are allowed.");
+        }
+
+        if (blockHttpsDowngrade && currentUri.Scheme == Uri.UriSchemeHttps && nextUri.Scheme == Uri.UriSchemeHttp)
+        {
+            throw new HttpRequestException("Refusing to follow redirect that downgrades from HTTPS to HTTP.");
         }
 
         return nextUri;

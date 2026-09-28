@@ -102,7 +102,7 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
             await Task.Run(() => ZipFile.ExtractToDirectory(tempPath, extractPath), ct);
 
             var extractedFiles = Directory.GetFiles(extractPath, "*.*", SearchOption.AllDirectories);
-            details.Add($"✓ Extracted {extractedFiles.Length} files");
+            details.Add($"OK: Extracted {extractedFiles.Length} files");
 
             var backupBase = Path.Combine(installation.GeneralsPath, BackupDirectoryName);
             currentBackupDir = Path.Combine(backupBase, $"Backup_{DateTime.UtcNow:yyyyMMdd_HHmmss}");
@@ -118,8 +118,8 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
                 copiedFiles,
                 ct);
 
-            details.Add($"✓ Installed {copiedCount} files with backup");
-            details.Add("✓ Generals 1.08 patch installed successfully");
+            details.Add($"OK: Installed {copiedCount} files with backup");
+            details.Add("OK: Generals 1.08 patch installed successfully");
 
             logger.LogInformation("Generals 1.08 patch installed successfully with {Count} actions", details.Count);
             return new ActionSetResult(true, null, details);
@@ -127,7 +127,7 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to install Generals 1.08 patch. Rolling back modifications.");
-            details.Add($"✗ Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             RollbackFiles(currentBackupDir, Path.GetFullPath(installation.GeneralsPath), copiedFiles, details);
             return new ActionSetResult(false, ex.Message, details);
         }
@@ -179,7 +179,7 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
                 restoredCount++;
             }
 
-            details.Add($"✓ Restored {restoredCount} files from backup");
+            details.Add($"OK: Restored {restoredCount} files from backup");
             return Task.FromResult(new ActionSetResult(true, null, details));
         }
         catch (Exception ex)
@@ -250,7 +250,7 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
             return new ActionSetResult(false, $"Downloaded Generals 1.08 patch archive is corrupted: {ex.Message}", details);
         }
 
-        details.Add($"✓ Downloaded and verified SHA-256 ({fileSize / 1024.0 / 1024.0:F2} MB)");
+        details.Add($"OK: Downloaded and verified SHA-256 ({fileSize / 1024.0 / 1024.0:F2} MB)");
         return new ActionSetResult(true, null, details);
     }
 
@@ -332,12 +332,12 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
                 }
             }
 
-            details.Add("✓ Rollback completed");
+            details.Add("OK: Rollback completed");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed during rollback of patch files");
-            details.Add($"✗ Rollback warning: {ex.Message}");
+            details.Add($"Error: Rollback warning: {ex.Message}");
         }
     }
 }

@@ -103,13 +103,13 @@ public class SerialKeyFix(
                 return Task.FromResult(new ActionSetResult(false, "Failed to apply one or more serial keys.", details));
             }
 
-            details.Add("✓ Serial key fix completed successfully");
+            details.Add("OK: Serial key fix completed successfully");
             return Task.FromResult(new ActionSetResult(true, null, details));
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error applying serial key fix");
-            details.Add($"✗ Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
     }
@@ -149,7 +149,7 @@ public class SerialKeyFix(
         var serial = registryService.GetStringValue(ergcKeyPath, string.Empty);
         if (!IsPlaceholder(serial))
         {
-            details.Add($"  ✓ {gameName} serial is already valid");
+            details.Add($"  OK: {gameName} serial is already valid");
             return true;
         }
 
@@ -157,11 +157,11 @@ public class SerialKeyFix(
         details.Add($"  Found placeholder serial for {gameName}. Generating new one...");
         if (registryService.SetStringValue(ergcKeyPath, string.Empty, newSerial))
         {
-            details.Add($"  ✓ Applied new serial to {ergcKeyPath}");
+            details.Add($"  OK: Applied new serial to {ergcKeyPath}");
             return true;
         }
 
-        details.Add($"  ✗ Failed to apply new serial for {gameName} (permissions?)");
+        details.Add($"  Error: Failed to apply new serial for {gameName} (permissions?)");
         return false;
     }
 }

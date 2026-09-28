@@ -1757,6 +1757,9 @@
   <data name="Settings.DangerZone.DeleteAllData.SuccessMessage" xml:space="preserve">
     <value>Профили, рабочие области, манифесты, данные пользователя и несвязанные объекты CAS были удалены.</value>
   </data>
+  <data name="Settings.DangerZone.DeleteAllData.SuccessTitle" xml:space="preserve">
+    <value>Данные удалены</value>
+  </data>
   <data name="Settings.DangerZone.DeleteCasStorage" xml:space="preserve">
     <value>Удалить хранилище CAS</value>
   </data>
@@ -4254,6 +4257,21 @@
   </data>
   <data name="Profiles.AddLocalContent.BrowseFolder" xml:space="preserve">
     <value>Обзор папки</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Picker.SelectFolderTitle" xml:space="preserve">
+    <value>Выберите папку с контентом</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Picker.SelectFilesTitle" xml:space="preserve">
+    <value>Выберите файлы</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Picker.SupportedFilesFilter" xml:space="preserve">
+    <value>Поддерживаемые файлы контента (*.zip, *.7z, *.rar, *.tar, *.gz, *.big)</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Picker.ZipArchivesFilter" xml:space="preserve">
+    <value>Zip-архивы (*.zip)</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Picker.BigFilesFilter" xml:space="preserve">
+    <value>BIG-файлы (*.big)</value>
   </data>
   <data name="Profiles.AddLocalContent.ContentPreview" xml:space="preserve">
     <value>ПРЕДПРОСМОТР КОНТЕНТА</value>
@@ -7559,102 +7577,6 @@ GenHub связывает запуск модификаций со Steam, отк
   </data>
   <data name="Tools.ModBuilder.Dashboard.TipWorkflowDesc" xml:space="preserve">
     <value>Разместите исходные файлы в папке 'GameFilesEdited', настройте архивы в 'config/ModBundlePacks.json' и нажмите 'Выполнить сборку' для автоматического создания архивов .big и .zip.</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.Title" xml:space="preserve">
-    <value>Настройки ModBuilder</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.Subtitle" xml:space="preserve">
-    <value>Настройка производительности сборки, кэша и интерфейса</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.TooltipResetDefaults" xml:space="preserve">
-    <value>Сбросить все настройки по умолчанию</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.ButtonResetDefaults" xml:space="preserve">
-    <value>По умолчанию</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.CacheManagementHeader" xml:space="preserve">
-    <value>Управление кэшем</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.LabelCacheSize" xml:space="preserve">
-    <value>Размер кэша:</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.LabelCachedFiles" xml:space="preserve">
-    <value>Файлов в кэше:</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.LabelStatus" xml:space="preserve">
-    <value>Статус:</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.TooltipClearCache" xml:space="preserve">
-    <value>Очистить все кэшированные файлы сборки</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.ButtonClearCache" xml:space="preserve">
-    <value>Очистить кэш</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.TooltipRebuildIndex" xml:space="preserve">
-    <value>Перестроить индекс кэша</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.ButtonRebuildIndex" xml:space="preserve">
-    <value>Перестроить индекс</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.NoticeClearCache" xml:space="preserve">
-    <value>Очистка кэша удалит все промежуточные файлы сборки. Они будут созданы заново при следующей сборке.</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.PerformanceHeader" xml:space="preserve">
-    <value>Настройки производительности</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.LabelCompressionLevel" xml:space="preserve">
-    <value>Уровень сжатия по умолчанию</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.TooltipCompressionLevel" xml:space="preserve">
-    <value>Уровень сжатия архивов по умолчанию</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.NoticeCompression" xml:space="preserve">
-    <value>Выше сжатие = меньше размер файлов, но дольше сборка</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.LabelThreadCount" xml:space="preserve">
-    <value>Количество потоков</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.TooltipThreadCount" xml:space="preserve">
-    <value>Количество параллельных потоков для сборки</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.NoticeThreadCount" xml:space="preserve">
-    <value>Больше потоков = быстрее сборка, но выше нагрузка на процессор</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.LabelIoBufferSize" xml:space="preserve">
-    <value>Размер буфера ввода-вывода (КБ)</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.TooltipIoBufferSize" xml:space="preserve">
-    <value>Размер буфера для операций ввода-вывода файлов</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.NoticeIoBufferSize" xml:space="preserve">
-    <value>Больший буфер = выше производительность для больших файлов</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.UiPreferencesHeader" xml:space="preserve">
-    <value>Настройки интерфейса</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.LabelFontSize" xml:space="preserve">
-    <value>Размер шрифта вывода сборки</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.TooltipFontSize" xml:space="preserve">
-    <value>Размер шрифта для консоли вывода сборки</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.CheckEnableAnimations" xml:space="preserve">
-    <value>Включить анимации</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.TooltipEnableAnimations" xml:space="preserve">
-    <value>Включить плавные переходы и анимацию</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.CheckAutoScroll" xml:space="preserve">
-    <value>Автопрокрутка вывода сборки</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.TooltipAutoScroll" xml:space="preserve">
-    <value>Автоматически прокручивать к последнему выводу сборки</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.CheckSyntaxHighlighting" xml:space="preserve">
-    <value>Включить подсветку синтаксиса</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.TooltipSyntaxHighlighting" xml:space="preserve">
-    <value>Цветовая разметка вывода сборки по уровням логов</value>
   </data>
   <data name="Tools.ModBuilder.ConfigEditor.Title" xml:space="preserve">
     <value>Редактор конфигурации</value>
@@ -14711,6 +14633,1097 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   </data>
   <data name="Info.Card.tools.demo-wnd.Title" xml:space="preserve">
     <value>Демо редактора WND</value>
+  </data>
+  <data name="Common.Dismiss" xml:space="preserve">
+    <value>Скрыть</value>
+  </data>
+  <data name="Downloads.Subscription.SubscribedNotificationBody" xml:space="preserve">
+    <value>Подписка на каталог успешно добавлена.</value>
+  </data>
+  <data name="Tools.ModBuilder.BundlePack.PickerTitle" xml:space="preserve">
+    <value>Добавить файлы в сборку</value>
+  </data>
+  <data name="Tools.ModBuilder.Filter.AllFiles" xml:space="preserve">
+    <value>Все файлы</value>
+  </data>
+  <data name="Tools.ModBuilder.Filter.ImageFiles" xml:space="preserve">
+    <value>Файлы изображений</value>
+  </data>
+  <data name="Tools.ModBuilder.Filter.TextFiles" xml:space="preserve">
+    <value>Текстовые файлы</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.AddFilesFailed.Title" xml:space="preserve">
+    <value>Не удалось добавить файлы</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.AddFilesFailed.Message" xml:space="preserve">
+    <value>Не удалось добавить файлы: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.BundlePackSaved.Title" xml:space="preserve">
+    <value>Пакет сборок сохранен</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.BundlePackSaved.Message" xml:space="preserve">
+    <value>Изменения в '{0}' сохранены</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ConversionQueued.Title" xml:space="preserve">
+    <value>Преобразование поставлено в очередь</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ConversionQueued.Message" xml:space="preserve">
+    <value>{0} файлов TGA будет преобразовано в DDS при сборке</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.NoTgaFiles.Title" xml:space="preserve">
+    <value>Нет файлов TGA</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.NoTgaFiles.Message" xml:space="preserve">
+    <value>Файлы TGA для преобразования не найдены</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ImportCancelled" xml:space="preserve">
+    <value>Импорт отменен.</value>
+  </data>
+  <data name="Common.Notification.Copied.Title" xml:space="preserve">
+    <value>Скопировано</value>
+  </data>
+  <data name="App.Notification.VersionCopied.Message" xml:space="preserve">
+    <value>Версия скопирована в буфер обмена.</value>
+  </data>
+  <data name="Common.Notification.ClipboardUnavailable.Message" xml:space="preserve">
+    <value>Буфер обмена недоступен.</value>
+  </data>
+  <data name="App.Notification.CopyVersionFailed.Message" xml:space="preserve">
+    <value>Не удалось скопировать версию в буфер обмена.</value>
+  </data>
+  <data name="Content.Notification.InstallationStepRunning.Title" xml:space="preserve">
+    <value>Выполнение шага установки</value>
+  </data>
+  <data name="Content.Notification.InstallationStepFailed.Title" xml:space="preserve">
+    <value>Шаг установки не выполнен</value>
+  </data>
+  <data name="Content.Notification.InstallationStepFailed.StartMessage" xml:space="preserve">
+    <value>Не удалось запустить установщик «{0}».</value>
+  </data>
+  <data name="Content.Notification.InstallationStepFailed.TimeoutMessage" xml:space="preserve">
+    <value>Время ожидания шага «{0}» истекло.</value>
+  </data>
+  <data name="Content.Notification.InstallationStepFailed.ExitCodeMessage" xml:space="preserve">
+    <value>Шаг «{0}» завершился с кодом выхода {1}.</value>
+  </data>
+  <data name="Content.Notification.InstallationStepCompleted.Title" xml:space="preserve">
+    <value>Шаг установки завершён</value>
+  </data>
+  <data name="Content.Notification.InstallationStepCompleted.Message" xml:space="preserve">
+    <value>«{0}» успешно завершено.</value>
+  </data>
+  <data name="Content.Notification.InstallationStepError.Title" xml:space="preserve">
+    <value>Ошибка шага установки</value>
+  </data>
+  <data name="Content.Notification.InstallationStepError.Message" xml:space="preserve">
+    <value>Ошибка выполнения «{0}»: {1}</value>
+  </data>
+  <data name="Content.Notification.DownloadingUpdate.Title" xml:space="preserve">
+    <value>Загрузка обновления</value>
+  </data>
+  <data name="Content.Notification.DownloadingUpdate.Message" xml:space="preserve">
+    <value>Загрузка {0} версии {1}...</value>
+  </data>
+  <data name="Content.Notification.UpdateFailed.Title" xml:space="preserve">
+    <value>Обновление не удалось</value>
+  </data>
+  <data name="Content.Notification.UpdateFailed.DownloadMessage" xml:space="preserve">
+    <value>Не удалось загрузить {0}: {1}</value>
+  </data>
+  <data name="Content.Notification.UpdateCompleted.Title" xml:space="preserve">
+    <value>Обновление завершено</value>
+  </data>
+  <data name="Content.Notification.UpdateCompleted.Message" xml:space="preserve">
+    <value>{0} обновлено до версии {1}.</value>
+  </data>
+  <data name="Content.Notification.PublisherUpdatePartial.Title" xml:space="preserve">
+    <value>Частичное обновление {0}</value>
+  </data>
+  <data name="Content.Notification.PublisherUpdatePartial.CreateFailedMessage" xml:space="preserve">
+    <value>Не удалось создать некоторые новые профили: {0}</value>
+  </data>
+  <data name="Content.Notification.PublisherUpdatePartial.ProfilesFailedMessage" xml:space="preserve">
+    <value>Не удалось обновить профили: {0}.</value>
+  </data>
+  <data name="Content.Notification.PublisherUpdatePartial.UpdateFailedMessage" xml:space="preserve">
+    <value>Некоторые профили не удалось обновить: {0}</value>
+  </data>
+  <data name="Content.Notification.CommunityPatchUpdateFailed.Title" xml:space="preserve">
+    <value>Не удалось обновить Community Patch</value>
+  </data>
+  <data name="Content.Notification.DownloadUpdateFailed.Message" xml:space="preserve">
+    <value>Не удалось загрузить обновление: {0}</value>
+  </data>
+  <data name="Content.Notification.ManifestLoadFailed.Message" xml:space="preserve">
+    <value>Не удалось загрузить установленные манифесты {0}: {1}</value>
+  </data>
+  <data name="Content.Notification.ApplyingUpdate.Message" xml:space="preserve">
+    <value>Применение обновления к профилям...</value>
+  </data>
+  <data name="Content.Notification.CommunityPatchUpdate.Title" xml:space="preserve">
+    <value>Обновление Community Patch</value>
+  </data>
+  <data name="Content.Notification.CommunityPatchUpdate.Message" xml:space="preserve">
+    <value>Установка {0} {1}. Пожалуйста, подождите...</value>
+  </data>
+  <data name="Content.Notification.CommunityPatchUpdated.Title" xml:space="preserve">
+    <value>Community Patch обновлён</value>
+  </data>
+  <data name="Content.Notification.CommunityPatchUpdatedPartial.Title" xml:space="preserve">
+    <value>Community Patch обновлён (частично)</value>
+  </data>
+  <data name="Content.Notification.ProfilesCreated.Word" xml:space="preserve">
+    <value>создано</value>
+  </data>
+  <data name="Content.Notification.ProfilesUpdated.Word" xml:space="preserve">
+    <value>обновлено</value>
+  </data>
+  <data name="Content.Notification.CommunityPatchUpdateError.Title" xml:space="preserve">
+    <value>Ошибка обновления Community Patch</value>
+  </data>
+  <data name="Content.Notification.UpdateError.Message" xml:space="preserve">
+    <value>Во время обновления произошла ошибка: {0}</value>
+  </data>
+  <data name="Content.Notification.SuperHackersUpdateFailed.Title" xml:space="preserve">
+    <value>Не удалось обновить SuperHackers</value>
+  </data>
+  <data name="Content.Notification.SuperHackersUpdate.Title" xml:space="preserve">
+    <value>Обновление SuperHackers</value>
+  </data>
+  <data name="Content.Notification.SuperHackersUpdate.Message" xml:space="preserve">
+    <value>Установка {0} {1}. Пожалуйста, подождите...</value>
+  </data>
+  <data name="Content.Notification.SuperHackersUpdated.Title" xml:space="preserve">
+    <value>SuperHackers обновлён</value>
+  </data>
+  <data name="Content.Notification.SuperHackersUpdatedPartial.Title" xml:space="preserve">
+    <value>SuperHackers обновлён (частично)</value>
+  </data>
+  <data name="Content.Notification.PublisherUpdated.Message" xml:space="preserve">
+    <value>Успешно обновлено до версии {0}. Профилей {2}: {1}.</value>
+  </data>
+  <data name="Content.Notification.PublisherUpdatedPartial.Message" xml:space="preserve">
+    <value>Обновлено до {0}, но в некоторых профилях или компонентах возникли проблемы.</value>
+  </data>
+  <data name="Content.Notification.SuperHackersUpdateError.Title" xml:space="preserve">
+    <value>Ошибка обновления SuperHackers</value>
+  </data>
+  <data name="Content.Notification.GeneralsOnlineUpdateFailed.Title" xml:space="preserve">
+    <value>Не удалось обновить GeneralsOnline</value>
+  </data>
+  <data name="Content.Notification.GeneralsOnlineUpdate.Title" xml:space="preserve">
+    <value>Обновление GeneralsOnline</value>
+  </data>
+  <data name="Content.Notification.GeneralsOnlineUpdatedPartial.Title" xml:space="preserve">
+    <value>Generals Online обновлён (частично)</value>
+  </data>
+  <data name="Content.Notification.GeneralsOnlineUpdatedPartial.Message" xml:space="preserve">
+    <value>Обновлено до {0}, но в некоторых профилях или компонентах возникли проблемы.</value>
+  </data>
+  <data name="Content.Notification.GeneralsOnlineUpdated.Title" xml:space="preserve">
+    <value>Generals Online обновлён</value>
+  </data>
+  <data name="Content.Notification.GeneralsOnlineUpdated.Message" xml:space="preserve">
+    <value>Успешно обновлено профилей ({0}) до Generals Online {1}.</value>
+  </data>
+  <data name="Content.Notification.ProfilesUpdated.Title" xml:space="preserve">
+    <value>Профили обновлены</value>
+  </data>
+  <data name="Content.Notification.ProfilesUpdated.RenamedContentMessage" xml:space="preserve">
+    <value>Обновлено профилей ({0}) для использования переименованного содержимого.</value>
+  </data>
+  <data name="GameProfiles.Notification.ProfileCreated.Title" xml:space="preserve">
+    <value>Профиль создан</value>
+  </data>
+  <data name="GameProfiles.Notification.ProfileCreated.Message" xml:space="preserve">
+    <value>Создан профиль «{0}» с {1}</value>
+  </data>
+  <data name="GameProfiles.Notification.ContentReplaced.Title" xml:space="preserve">
+    <value>Содержимое заменено</value>
+  </data>
+  <data name="GameProfiles.Notification.ContentReplaced.Message" xml:space="preserve">
+    <value>«{0}» заменено на «{1}»</value>
+  </data>
+  <data name="GameProfiles.Notification.DependenciesAdded.Title" xml:space="preserve">
+    <value>Зависимости добавлены</value>
+  </data>
+  <data name="GameProfiles.Notification.DependenciesAdded.Message" xml:space="preserve">
+    <value>Добавлены необходимые зависимости для «{0}»: {1}</value>
+  </data>
+  <data name="GameProfiles.Notification.ToolLaunchFailed.Title" xml:space="preserve">
+    <value>Не удалось запустить инструмент</value>
+  </data>
+  <data name="GameProfiles.Notification.ToolLaunchFailed.Message" xml:space="preserve">
+    <value>Не удалось запустить «{0}»: {1}</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchingProfile.Title" xml:space="preserve">
+    <value>Запуск профиля</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchingProfile.Message" xml:space="preserve">
+    <value>Запуск «{0}» со стратегией рабочей области {1}...</value>
+  </data>
+  <data name="GameProfiles.Notification.WorkspaceStrategyChanged.Title" xml:space="preserve">
+    <value>Стратегия рабочей области изменена</value>
+  </data>
+  <data name="GameProfiles.Notification.WorkspaceStrategyChanged.Message" xml:space="preserve">
+    <value>«{0}» не может использовать {1} здесь, так как символические ссылки недоступны. Переключение на HardLink.</value>
+  </data>
+  <data name="GameProfiles.Notification.PublisherProfilesCreated.Title" xml:space="preserve">
+    <value>Профили {0} созданы</value>
+  </data>
+  <data name="GameProfiles.Notification.PublisherProfilesCreated.Message" xml:space="preserve">
+    <value>Создано профилей ({0}) для {1}.</value>
+  </data>
+  <data name="GameProfiles.Notification.PublisherContentNotFound.Title" xml:space="preserve">
+    <value>{0} не найден</value>
+  </data>
+  <data name="GameProfiles.Notification.PublisherContentNotFound.Message" xml:space="preserve">
+    <value>Не удалось найти содержимое {0} для загрузки.</value>
+  </data>
+  <data name="Manifest.Notification.Verification.DifferingMessage" xml:space="preserve">
+    <value> ({0} отличается от каталога)</value>
+  </data>
+  <data name="Manifest.Notification.Indexed.Title" xml:space="preserve">
+    <value>Файлы игры проиндексированы</value>
+  </data>
+  <data name="Manifest.Notification.VerificationComplete.Message" xml:space="preserve">
+    <value>Проверка для {0} завершена (проверено файлов: {1}/{2}{3}).</value>
+  </data>
+  <data name="Manifest.Notification.ScanComplete.Message" xml:space="preserve">
+    <value>Сканирование файлов для {0} завершено (отсканировано файлов: {1}).</value>
+  </data>
+  <data name="Manifest.Notification.DirectoryScanWarning.Title" xml:space="preserve">
+    <value>Предупреждение сканирования каталога</value>
+  </data>
+  <data name="Manifest.Notification.DirectoryScanWarning.Message" xml:space="preserve">
+    <value>Не удалось завершить сканирование каталога для {0}.</value>
+  </data>
+  <data name="Downloads.Notification.DiscoveryConnectionHint" xml:space="preserve">
+    <value>Проверьте соединение и повторите попытку.</value>
+  </data>
+  <data name="Downloads.Notification.DiscoveryFailed.Title" xml:space="preserve">
+    <value>Обнаружение не удалось</value>
+  </data>
+  <data name="Downloads.Notification.DiscoveryFailed.Message" xml:space="preserve">
+    <value>Обнаружение {0} не удалось: {1}</value>
+  </data>
+  <data name="Downloads.Notification.NoContentLoaded.Title" xml:space="preserve">
+    <value>Содержимое не загружено</value>
+  </data>
+  <data name="Downloads.Notification.NoContentLoaded.Message" xml:space="preserve">
+    <value>{0} не вернул содержимого.</value>
+  </data>
+  <data name="Downloads.Notification.LoadMoreFailed.Title" xml:space="preserve">
+    <value>Не удалось загрузить ещё</value>
+  </data>
+  <data name="Downloads.Notification.LoadMoreFailed.Message" xml:space="preserve">
+    <value>Не удалось загрузить дополнительное содержимое для {0}: {1}</value>
+  </data>
+  <data name="Downloads.Notification.ItemUpdated.Message" xml:space="preserve">
+    <value>{0} обновлено до последней версии.</value>
+  </data>
+  <data name="Downloads.Notification.CannotAddToProfile.Title" xml:space="preserve">
+    <value>Не удаётся добавить в профиль</value>
+  </data>
+  <data name="Downloads.Notification.CannotAddToProfile.DownloadFirstMessage" xml:space="preserve">
+    <value>Сначала загрузите содержимое, прежде чем добавлять его в профиль.</value>
+  </data>
+  <data name="Downloads.Notification.CannotAddToProfile.BundleMessage" xml:space="preserve">
+    <value>Загрузите каждый выбранный элемент набора (включая выбранные варианты), прежде чем добавлять их в профиль.</value>
+  </data>
+  <data name="Downloads.Notification.AddToProfileError.Title" xml:space="preserve">
+    <value>Ошибка добавления в профиль</value>
+  </data>
+  <data name="Downloads.Notification.AddToProfileError.Message" xml:space="preserve">
+    <value>Произошла непредвиденная ошибка: {0}</value>
+  </data>
+  <data name="Downloads.Notification.AddToProfileFailed.Message" xml:space="preserve">
+    <value>Не удалось добавить содержимое в профиль</value>
+  </data>
+  <data name="Downloads.Notification.AddToProfileFailed.Title" xml:space="preserve">
+    <value>Не удалось добавить в профиль</value>
+  </data>
+  <data name="Common.Notification.UnexpectedError.Message" xml:space="preserve">
+    <value>Произошла ошибка: {0}</value>
+  </data>
+  <data name="Downloads.Notification.ProfileCreationFailed.Title" xml:space="preserve">
+    <value>Не удалось создать профиль</value>
+  </data>
+  <data name="Common.Notification.ContentUpdated.Title" xml:space="preserve">
+    <value>Содержимое обновлено</value>
+  </data>
+  <data name="Downloads.Notification.ContentSwapped.Message" xml:space="preserve">
+    <value>«{0}» заменено на «{1}» в профиле «{2}».</value>
+  </data>
+  <data name="Downloads.Notification.ContentUpdatedInProfile.Message" xml:space="preserve">
+    <value>«{0}» обновлено в профиле «{1}».</value>
+  </data>
+  <data name="Downloads.Notification.AddedToProfile.Title" xml:space="preserve">
+    <value>Добавлено в профиль</value>
+  </data>
+  <data name="Downloads.Notification.AddedToProfile.Message" xml:space="preserve">
+    <value>«{0}» добавлено в профиль «{1}».</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentLocked.Title" xml:space="preserve">
+    <value>Содержимое заблокировано</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentLocked.Message" xml:space="preserve">
+    <value>«{0}» заблокировано и не может быть изменено во время работы игры.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.CannotModifyContent.Title" xml:space="preserve">
+    <value>Изменение содержимого невозможно</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.CannotModifyContent.Message" xml:space="preserve">
+    <value>«{0}» нельзя изменить в этом режиме.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ServiceUnavailable.Title" xml:space="preserve">
+    <value>Служба недоступна</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ServiceUnavailable.Message" xml:space="preserve">
+    <value>Служба удаления содержимого недоступна.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentDeleted.Title" xml:space="preserve">
+    <value>Содержимое удалено</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentDeleted.Message" xml:space="preserve">
+    <value>«{0}» удалено безвозвратно.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentDeleteFailed.Title" xml:space="preserve">
+    <value>Удаление не удалось</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentDeleteFailed.Message" xml:space="preserve">
+    <value>Не удалось удалить «{0}»: {1}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentDeleteError.Title" xml:space="preserve">
+    <value>Ошибка удаления</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentDeleteError.Message" xml:space="preserve">
+    <value>При удалении «{0}» произошла ошибка.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.MissingLaunchableContent.Title" xml:space="preserve">
+    <value>Нет запускаемого содержимого</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.MissingLaunchableContent.Message" xml:space="preserve">
+    <value>Перед сохранением включите игру, исполняемый файл или инструмент.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.MissingDependencies.Title" xml:space="preserve">
+    <value>Отсутствующие зависимости</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.MissingDependencies.Message" xml:space="preserve">
+    <value>Не удаётся сохранить профиль с отсутствующими зависимостями:
+
+{0}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.HotswapModeEnabled.Title" xml:space="preserve">
+    <value>Режим горячей замены включён</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.HotswapModeEnabled.Message" xml:space="preserve">
+    <value>Игра была запущена во время редактирования этого профиля. Настройки без поддержки горячей замены заблокированы. Проверьте изменения и сохраните снова.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveSyncFailed.Title" xml:space="preserve">
+    <value>Живая синхронизация не удалась</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveSyncNoSnapshot.Message" xml:space="preserve">
+    <value>Во время сохранения был запущен игровой сеанс, и живая синхронизация не удалась. Снимок профиля отсутствовал, поэтому откат выполнить не удалось.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveSyncRollbackFailed.Title" xml:space="preserve">
+    <value>Живая синхронизация и откат не удались</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveSyncRollbackFailed.Message" xml:space="preserve">
+    <value>Во время сохранения был запущен игровой сеанс, и живая синхронизация не удалась. Кроме того, не удалось откатить сохранённые изменения профиля: {0}. Профиль и запущенная игра могут быть рассинхронизированы.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveSyncRolledBack.Message" xml:space="preserve">
+    <value>Во время сохранения был запущен игровой сеанс, но живая синхронизация не удалась. Изменения профиля откачены в соответствии с запущенной игрой.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveSyncUserDataNotRestored.Message" xml:space="preserve">
+    <value>Во время сохранения был запущен игровой сеанс, и живая синхронизация не удалась. Изменения профиля были откачены, но живые данные пользователя не удалось полностью восстановить в соответствии с запущенной игрой.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveUpdateComplete.Title" xml:space="preserve">
+    <value>Живое обновление завершено</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveUpdateComplete.Message" xml:space="preserve">
+    <value>Изменения содержимого применены к активному игровому сеансу.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveUpdateMissingManifests.Message" xml:space="preserve">
+    <value>Не удаётся синхронизировать активный сеанс: не удалось разрешить манифесты для {0}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveUpdateWarning.Title" xml:space="preserve">
+    <value>Предупреждение живого обновления</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveUpdateFailed.Title" xml:space="preserve">
+    <value>Живое обновление не удалось</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveUpdateFailed.Message" xml:space="preserve">
+    <value>Живая синхронизация содержимого не удалась: {0}. Изменения профиля не сохранены.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveRollbackWarning.Title" xml:space="preserve">
+    <value>Предупреждение живого отката</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveRollbackWarning.Message" xml:space="preserve">
+    <value>Не удалось сохранить профиль ({0}), и исходное содержимое не удалось полностью разрешить для отката: {1}. Живое содержимое оставлено как синхронизировано и может не соответствовать сохранённому профилю.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveRollbackFailed.Title" xml:space="preserve">
+    <value>Живой откат не удался</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LiveRollbackFailed.Message" xml:space="preserve">
+    <value>Не удалось сохранить профиль ({0}), а откат живого содержимого сообщил: {1}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentUpdated.Message" xml:space="preserve">
+    <value>«{0}» обновлено.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ValidationError.Title" xml:space="preserve">
+    <value>Ошибка проверки</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ValidationNameRequired.Message" xml:space="preserve">
+    <value>Введите имя содержимого.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ValidationFolderRequired.Message" xml:space="preserve">
+    <value>Выберите папку для содержимого.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentEnabled.Title" xml:space="preserve">
+    <value>Содержимое включено</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentEnabledAutoResolved.Message" xml:space="preserve">
+    <value>Включено «{0}», автоматически разрешено: {1}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ContentEnabled.Message" xml:space="preserve">
+    <value>Включено «{0}»</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.DependencyLocked.Message" xml:space="preserve">
+    <value>Требуемая зависимость «{0}» заблокирована и не может быть автоматически включена во время работы игры.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.DependencyWarning.Title" xml:space="preserve">
+    <value>Предупреждение зависимости</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.DependencyWarning.Message" xml:space="preserve">
+    <value>После включения «{0}»:
+• {1}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LoadingResources.Title" xml:space="preserve">
+    <value>Загрузка ресурсов</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LoadingResources.Message" xml:space="preserve">
+    <value>Первичная инициализация кэша игрового содержимого...</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyCleared.Message" xml:space="preserve">
+    <value>Горячая клавиша для «{0}» очищена.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyCleared.Title" xml:space="preserve">
+    <value>Горячая клавиша очищена</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.NoHotkeyValue" xml:space="preserve">
+    <value>Нет</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyReset.Message" xml:space="preserve">
+    <value>«{0}» сброшено к горячей клавише по умолчанию ({1}).</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyReset.Title" xml:space="preserve">
+    <value>Горячая клавиша сброшена</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyAppliedToAll.Message" xml:space="preserve">
+    <value>Горячая клавиша «{0}» применена к {1} действий «{2}»{3}.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyAppliedToAll.Title" xml:space="preserve">
+    <value>Горячая клавиша применена ко всем</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileExists.Message" xml:space="preserve">
+    <value>Профиль с именем «{0}» уже существует.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileExists.Title" xml:space="preserve">
+    <value>Профиль существует</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileCreated.Message" xml:space="preserve">
+    <value>Создан профиль «{0}».</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileCreated.Title" xml:space="preserve">
+    <value>Профиль создан</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileNameEmpty.Message" xml:space="preserve">
+    <value>Имя профиля не может быть пустым.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileError.Title" xml:space="preserve">
+    <value>Ошибка профиля</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileRenamed.Message" xml:space="preserve">
+    <value>Профиль «{0}» переименован в «{1}».</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileRenamed.Title" xml:space="preserve">
+    <value>Профиль переименован</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.OnlyProfileDelete.Message" xml:space="preserve">
+    <value>Нельзя удалить единственный оставшийся профиль.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileDeleted.Message" xml:space="preserve">
+    <value>Профиль «{0}» удалён.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileDeleted.Title" xml:space="preserve">
+    <value>Профиль удалён</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileSelectionError.Title" xml:space="preserve">
+    <value>Ошибка выбора профиля</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.ProfileSelectionError.Message" xml:space="preserve">
+    <value>Не удалось открыть выбор профиля: {0}</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.PresetAppliedCustom.Message" xml:space="preserve">
+    <value>Применены горячие клавиши пресета «{0}».</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.PresetAppliedVanilla.Message" xml:space="preserve">
+    <value>Применены стандартные горячие клавиши retail-версии.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.PresetApplied.Message" xml:space="preserve">
+    <value>Применены горячие клавиши пресета {0}.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.PresetSaveFailed.Message" xml:space="preserve">
+    <value>Не удалось сохранить профиль после применения пресета {0}.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.PresetApplied.Title" xml:space="preserve">
+    <value>Пресет применён</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.PresetError.Title" xml:space="preserve">
+    <value>Ошибка пресета</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.AddFilesFailed.ProjectMessage" xml:space="preserve">
+    <value>Не удалось добавить файлы в проект</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.OperationFailed.Title" xml:space="preserve">
+    <value>Операция не удалась</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.OperationFailed.RemoveFilesMessage" xml:space="preserve">
+    <value>Не удалось удалить некоторые файлы из проекта</value>
+  </data>
+  <data name="Common.Notification.NoFilesImported.Message" xml:space="preserve">
+    <value>Файлы не были импортированы.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.LoadError.Title" xml:space="preserve">
+    <value>Ошибка загрузки</value>
+  </data>
+  <data name="Tools.MapManager.Notification.LoadError.Message" xml:space="preserve">
+    <value>Не удалось загрузить карты.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ImportMaps.Title" xml:space="preserve">
+    <value>Импорт карт</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ImportMaps.Message" xml:space="preserve">
+    <value>Импортирует файлы карт по ссылкам URL или путём перетаскивания файлов в каталог карт вашей игры.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ImportComplete.Title" xml:space="preserve">
+    <value>Импорт завершён</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ImportComplete.Message" xml:space="preserve">
+    <value>Импортировано файлов: {0}.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ImportFailed.Title" xml:space="preserve">
+    <value>Импорт не удался</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ImportError.Title" xml:space="preserve">
+    <value>Ошибка импорта</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ImportFromUrl.Title" xml:space="preserve">
+    <value>Импорт по URL</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ImportFromUrl.Message" xml:space="preserve">
+    <value>Загружает карты по указанному URL и автоматически импортирует их в каталог карт вашей игры. Поддерживает прямые загрузки файлов карт и zip-архивы.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ImportComplete.FromUrlMessage" xml:space="preserve">
+    <value>Импортировано файлов ({0}) по URL.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.BrowseImport.Title" xml:space="preserve">
+    <value>Обзор и импорт</value>
+  </data>
+  <data name="Tools.MapManager.Notification.BrowseImport.Message" xml:space="preserve">
+    <value>Открывает диалог выбора файлов, позволяющий выбрать файлы карт (.map) или zip-архивы на вашем компьютере для импорта в игру.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteMaps.Title" xml:space="preserve">
+    <value>Удаление карт</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteMaps.Message" xml:space="preserve">
+    <value>Безвозвратно удаляет выбранные карты из каталога карт вашей игры. Это действие нельзя отменить.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapsDeleted.Message" xml:space="preserve">
+    <value>Удалено карт: {0}.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteFailed.Title" xml:space="preserve">
+    <value>Удаление не удалось</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteMapsFailed.Message" xml:space="preserve">
+    <value>Не удалось удалить выбранные карты.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ExportZip.Title" xml:space="preserve">
+    <value>Экспорт в ZIP</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ExportZip.Message" xml:space="preserve">
+    <value>Создаёт ZIP-архив, содержащий выбранные карты, и сохраняет его в каталог карт. Затем вы можете поделиться ZIP-файлом с другими или использовать его для резервного копирования.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ZipCreated.Title" xml:space="preserve">
+    <value>ZIP создан</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ZipCreated.Message" xml:space="preserve">
+    <value>Создан {0} в папке карт.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ZipFailed.Title" xml:space="preserve">
+    <value>Не удалось создать ZIP</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ZipFailed.Message" xml:space="preserve">
+    <value>Не удалось создать ZIP-архив.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ExportError.Title" xml:space="preserve">
+    <value>Ошибка экспорта</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadFailed.Title" xml:space="preserve">
+    <value>Загрузка не удалась</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadError.Title" xml:space="preserve">
+    <value>Ошибка загрузки</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadError.Message" xml:space="preserve">
+    <value>Не удалось завершить загрузку.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadShare.Title" xml:space="preserve">
+    <value>Загрузить и поделиться</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadShare.Message" xml:space="preserve">
+    <value>Загружает выбранные карты в облачную службу UploadThing (макс. 10 МБ) и копирует ссылку в буфер обмена. Затем вы можете поделиться ссылкой с другими для загрузки карт.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.FileTooLarge.Title" xml:space="preserve">
+    <value>Файл слишком большой</value>
+  </data>
+  <data name="Tools.MapManager.Notification.FileTooLarge.Message" xml:space="preserve">
+    <value>Файл слишком большой. Максимальный размер загрузки — 10 МБ.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.RateLimitExceeded.Title" xml:space="preserve">
+    <value>Превышен лимит скорости</value>
+  </data>
+  <data name="Tools.MapManager.Notification.RateLimitExceeded.Message" xml:space="preserve">
+    <value>Превышен лимит загрузок на текущий 3-дневный период. Удалите элементы из истории загрузок, чтобы немедленно освободить квоту.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadComplete.Title" xml:space="preserve">
+    <value>Загрузка завершена</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadComplete.ExistingLinkMessage" xml:space="preserve">
+    <value>Существующая ссылка скопирована в буфер обмена!</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadComplete.LinkCopiedMessage" xml:space="preserve">
+    <value>Ссылка скопирована в буфер обмена!</value>
+  </data>
+  <data name="Tools.MapManager.Notification.OpenMapFolder.Title" xml:space="preserve">
+    <value>Открыть папку карт</value>
+  </data>
+  <data name="Tools.MapManager.Notification.OpenMapFolder.Message" xml:space="preserve">
+    <value>Открывает каталог карт вашей игры в проводнике Windows, позволяя управлять файлами карт напрямую.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.RevealMapFile.Title" xml:space="preserve">
+    <value>Показать файл карты</value>
+  </data>
+  <data name="Tools.MapManager.Notification.RevealMapFile.Message" xml:space="preserve">
+    <value>Открывает проводник Windows и выделяет выбранный файл карты, облегчая его поиск и управление.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UncompressZip.Title" xml:space="preserve">
+    <value>Распаковка ZIP</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UncompressZip.Message" xml:space="preserve">
+    <value>Извлекает содержимое выбранных ZIP-архивов и импортирует все содержащиеся карты в каталог карт вашей игры.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UncompressComplete.Title" xml:space="preserve">
+    <value>Распаковка завершена</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UncompressComplete.Message" xml:space="preserve">
+    <value>Извлечено карт ({0}) из выбранных ZIP-архивов.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UncompressWarning.Title" xml:space="preserve">
+    <value>Предупреждение распаковки</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UncompressError.Title" xml:space="preserve">
+    <value>Ошибка распаковки</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPacks.Title" xml:space="preserve">
+    <value>Наборы карт</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPacks.Message" xml:space="preserve">
+    <value>Создавайте наборы карт (MapPack) и управляйте ими, чтобы легко переключаться между различными наборами карт для ваших игровых профилей.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.CreateMapPack.Title" xml:space="preserve">
+    <value>Создать набор карт</value>
+  </data>
+  <data name="Tools.MapManager.Notification.CreateMapPack.HelpMessage" xml:space="preserve">
+    <value>Создаёт набор карт из выбранных карт с использованием системы CAS (адресуемое по содержимому хранилище). Наборы карт можно включать в ваших игровых профилях для загрузки пользовательских карт.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPackCreated.Title" xml:space="preserve">
+    <value>Набор карт создан</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPackCreated.Message" xml:space="preserve">
+    <value>Создан «{0}». Включите его в вашем профиле.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.LoadMapPack.Title" xml:space="preserve">
+    <value>Загрузить набор карт</value>
+  </data>
+  <data name="Tools.MapManager.Notification.LoadMapPack.Message" xml:space="preserve">
+    <value>Включает выбранный набор карт, делая его карты доступными при запуске игры с соответствующим профилем. Карты будут доступны при следующем запуске профиля.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPackLoaded.Title" xml:space="preserve">
+    <value>Набор карт загружен</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPackLoaded.Message" xml:space="preserve">
+    <value>Загружен «{0}». Карты будут доступны при следующем запуске профиля.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.LoadFailed.Title" xml:space="preserve">
+    <value>Загрузка не удалась</value>
+  </data>
+  <data name="Tools.MapManager.Notification.LoadFailed.MapPackMessage" xml:space="preserve">
+    <value>Не удалось загрузить набор карт.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UnloadMapPack.Title" xml:space="preserve">
+    <value>Выгрузить набор карт</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UnloadMapPack.Message" xml:space="preserve">
+    <value>Отключает выбранный набор карт, удаляя его карты из доступных при запуске игры с соответствующим профилем.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPackUnloaded.Title" xml:space="preserve">
+    <value>Набор карт выгружен</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPackUnloaded.Message" xml:space="preserve">
+    <value>Выгружен «{0}».</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UnloadFailed.Title" xml:space="preserve">
+    <value>Выгрузка не удалась</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UnloadFailed.Message" xml:space="preserve">
+    <value>Не удалось выгрузить набор карт.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteMapPack.Title" xml:space="preserve">
+    <value>Удалить набор карт</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteMapPack.Message" xml:space="preserve">
+    <value>Безвозвратно удаляет выбранный набор карт из хранилища CAS. Это действие нельзя отменить.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPackDeleted.Title" xml:space="preserve">
+    <value>Набор карт удалён</value>
+  </data>
+  <data name="Tools.MapManager.Notification.MapPackDeleted.Message" xml:space="preserve">
+    <value>Удалён «{0}».</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteMapPackFailed.Message" xml:space="preserve">
+    <value>Не удалось удалить набор карт.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadHistory.Title" xml:space="preserve">
+    <value>История загрузок</value>
+  </data>
+  <data name="Tools.MapManager.Notification.UploadHistory.Message" xml:space="preserve">
+    <value>Показывает список ранее загруженных вами карт, позволяя управлять ими и копировать ссылки для загрузки.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.CopyLink.Title" xml:space="preserve">
+    <value>Копировать ссылку</value>
+  </data>
+  <data name="Tools.MapManager.Notification.CopyLink.Message" xml:space="preserve">
+    <value>Копирует ссылку для загрузки загруженного файла в буфер обмена.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.LinkCopied.Message" xml:space="preserve">
+    <value>Ссылка скопирована в буфер обмена.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteUpload.Title" xml:space="preserve">
+    <value>Удалить загрузку</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteUpload.Message" xml:space="preserve">
+    <value>Безвозвратно удаляет загруженный файл из облачного хранилища и удаляет его из истории.</value>
+  </data>
+  <data name="Tools.UploadHistory.Notification.FileDeleted.Title" xml:space="preserve">
+    <value>Удалено</value>
+  </data>
+  <data name="Tools.UploadHistory.Notification.FileDeleted.Message" xml:space="preserve">
+    <value>Файл удалён из облачного хранилища и истории загрузок.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteCloudFileFailed.Message" xml:space="preserve">
+    <value>Не удалось удалить файл из облачного хранилища.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.DeleteHistoryItemFailed.Message" xml:space="preserve">
+    <value>Не удалось удалить элемент истории.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ClearHistory.Title" xml:space="preserve">
+    <value>Очистить историю</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ClearHistory.Message" xml:space="preserve">
+    <value>Безвозвратно удаляет все загруженные файлы из облачного хранилища и очищает историю загрузок.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.HistoryCleared.Title" xml:space="preserve">
+    <value>Очищено</value>
+  </data>
+  <data name="Tools.MapManager.Notification.HistoryCleared.Message" xml:space="preserve">
+    <value>Все загруженные файлы ({0}) удалены из облачного хранилища, история очищена.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.HistoryPartiallyCleared.Title" xml:space="preserve">
+    <value>Частично очищено</value>
+  </data>
+  <data name="Tools.MapManager.Notification.HistoryPartiallyCleared.Message" xml:space="preserve">
+    <value>Очищено элементов истории: {0}. Не удалось удалить из облачного хранилища: {1}.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ClearFailed.Title" xml:space="preserve">
+    <value>Очистка не удалась</value>
+  </data>
+  <data name="Tools.MapManager.Notification.ClearFailed.Message" xml:space="preserve">
+    <value>Не удалось очистить историю.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.SelectionRequired.Title" xml:space="preserve">
+    <value>Требуется выбор</value>
+  </data>
+  <data name="Tools.MapManager.Notification.SelectionRequired.Message" xml:space="preserve">
+    <value>Выберите хотя бы одну карту.</value>
+  </data>
+  <data name="Tools.MapManager.Notification.CreateMapPack.PanelMessage" xml:space="preserve">
+    <value>Введите имя и описание на панели, затем нажмите «Создать».</value>
+  </data>
+  <data name="Settings.Notification.SettingsNotSaved.Title" xml:space="preserve">
+    <value>Настройки не сохранены</value>
+  </data>
+  <data name="Settings.Notification.CustomInstallationAdded.Title" xml:space="preserve">
+    <value>Пользовательская установка добавлена</value>
+  </data>
+  <data name="Settings.Notification.CustomInstallationAdded.Message" xml:space="preserve">
+    <value>Успешно зарегистрировано: «{0}».</value>
+  </data>
+  <data name="Settings.Notification.CustomInstallation.DisplayName" xml:space="preserve">
+    <value>Пользовательская установка</value>
+  </data>
+  <data name="Settings.Notification.RegistrationFailed.Title" xml:space="preserve">
+    <value>Регистрация не удалась</value>
+  </data>
+  <data name="Settings.Notification.AddInstallationFailed.Message" xml:space="preserve">
+    <value>Не удалось добавить пользовательскую установку: {0}</value>
+  </data>
+  <data name="Settings.Notification.InstallationRemoved.Title" xml:space="preserve">
+    <value>Установка удалена</value>
+  </data>
+  <data name="Settings.Notification.InstallationRemoved.Message" xml:space="preserve">
+    <value>Пользовательская установка «{0}» была удалена.</value>
+  </data>
+  <data name="Settings.Notification.RemovalFailed.Title" xml:space="preserve">
+    <value>Удаление не удалось</value>
+  </data>
+  <data name="Settings.Notification.RemoveInstallationFailed.Message" xml:space="preserve">
+    <value>Не удалось удалить пользовательскую установку: {0}</value>
+  </data>
+  <data name="Settings.Notification.MigrationTargetRequired.Title" xml:space="preserve">
+    <value>Требуется целевой каталог миграции</value>
+  </data>
+  <data name="Settings.Notification.MigrationTargetRequired.Message" xml:space="preserve">
+    <value>Выберите целевой каталог для миграции.</value>
+  </data>
+  <data name="Settings.Notification.MigrationPreflightFailed.Title" xml:space="preserve">
+    <value>Предварительная проверка миграции не удалась</value>
+  </data>
+  <data name="Settings.Notification.MigrationFailed.Title" xml:space="preserve">
+    <value>Миграция не удалась</value>
+  </data>
+  <data name="Settings.Notification.MigrationError.Title" xml:space="preserve">
+    <value>Ошибка миграции</value>
+  </data>
+  <data name="Settings.Notification.DataPartiallyDeleted.Title" xml:space="preserve">
+    <value>Данные частично удалены</value>
+  </data>
+  <data name="Settings.Notification.DataPartiallyDeleted.Message" xml:space="preserve">
+    <value>Профили, рабочие области и манифесты были удалены, но {0}.</value>
+  </data>
+  <data name="Settings.Notification.DeletionFailed.Title" xml:space="preserve">
+    <value>Удаление не удалось</value>
+  </data>
+  <data name="Settings.Notification.DeleteAppDataFailed.Message" xml:space="preserve">
+    <value>Не удалось удалить все данные приложения: {0}</value>
+  </data>
+  <data name="Settings.Notification.CollectCasStorageFailed.Message" xml:space="preserve">
+    <value>Не удалось собрать хранилище CAS</value>
+  </data>
+  <data name="Settings.Notification.CasCleared.Title" xml:space="preserve">
+    <value>CAS очищен</value>
+  </data>
+  <data name="Settings.Notification.CasCleared.Message" xml:space="preserve">
+    <value>Удалено объектов: {0}, освобождено {1:F2} ГБ.</value>
+  </data>
+  <data name="Settings.Notification.ManifestsDeleted.Title" xml:space="preserve">
+    <value>Манифесты удалены</value>
+  </data>
+  <data name="Settings.Notification.ManifestsDeleted.Message" xml:space="preserve">
+    <value>Успешно удалено манифестов: {0}.</value>
+  </data>
+  <data name="Settings.Notification.DeleteManifestsFailed.Message" xml:space="preserve">
+    <value>Не удалось удалить манифесты: {0}</value>
+  </data>
+  <data name="Settings.Notification.WorkspacesDeleted.Title" xml:space="preserve">
+    <value>Рабочие области удалены</value>
+  </data>
+  <data name="Settings.Notification.WorkspacesDeleted.Message" xml:space="preserve">
+    <value>Успешно удалено рабочих областей: {0}.</value>
+  </data>
+  <data name="Settings.Notification.WorkspacesClean.Title" xml:space="preserve">
+    <value>Рабочие области чисты</value>
+  </data>
+  <data name="Settings.Notification.WorkspacesClean.Message" xml:space="preserve">
+    <value>Рабочих областей для удаления не найдено.</value>
+  </data>
+  <data name="Settings.Notification.DeleteWorkspacesFailed.Message" xml:space="preserve">
+    <value>Не удалось удалить рабочие области: {0}</value>
+  </data>
+  <data name="Settings.Notification.UserDataDeleted.Title" xml:space="preserve">
+    <value>Данные пользователя удалены</value>
+  </data>
+  <data name="Settings.Notification.UserDataDeleted.Message" xml:space="preserve">
+    <value>Все данные пользователя успешно удалены.</value>
+  </data>
+  <data name="Settings.Notification.UserDataPartiallyDeleted.Title" xml:space="preserve">
+    <value>Данные пользователя частично удалены</value>
+  </data>
+  <data name="Settings.Notification.UserDataPartiallyDeleted.Message" xml:space="preserve">
+    <value>Некоторые отслеживаемые данные пользователя не удалось удалить.</value>
+  </data>
+  <data name="Settings.Notification.DeleteUserDataFailed.Message" xml:space="preserve">
+    <value>Не удалось удалить данные пользователя: {0}</value>
+  </data>
+  <data name="Settings.Notification.DeleteProfilesFailed.Message" xml:space="preserve">
+    <value>Не удалось удалить профили: {0}</value>
+  </data>
+  <data name="Settings.Notification.OpenLogsDirectoryFailed.Message" xml:space="preserve">
+    <value>Не удалось открыть каталог журналов: {0}</value>
+  </data>
+  <data name="Settings.Notification.OpenAppDataDirectoryFailed.Message" xml:space="preserve">
+    <value>Не удалось открыть каталог AppData: {0}</value>
+  </data>
+  <data name="Settings.Notification.OpenProfilesDirectoryFailed.Message" xml:space="preserve">
+    <value>Не удалось открыть каталог профилей: {0}</value>
+  </data>
+  <data name="Settings.Notification.OpenManifestsDirectoryFailed.Message" xml:space="preserve">
+    <value>Не удалось открыть каталог манифестов: {0}</value>
+  </data>
+  <data name="Settings.Notification.OpenWorkspacesDirectoryFailed.Message" xml:space="preserve">
+    <value>Не удалось открыть каталог рабочих областей: {0}</value>
+  </data>
+  <data name="Settings.Notification.OpenCasPoolDirectoryFailed.Message" xml:space="preserve">
+    <value>Не удалось открыть каталог пула CAS: {0}</value>
+  </data>
+  <data name="Settings.Notification.LogsDirectoryNotFound.Message" xml:space="preserve">
+    <value>Каталог журналов не найден.</value>
+  </data>
+  <data name="Settings.Notification.NoLogFiles.Message" xml:space="preserve">
+    <value>Файлы журналов не найдены.</value>
+  </data>
+  <data name="Settings.Notification.OpenLatestLogFailed.Message" xml:space="preserve">
+    <value>Не удалось открыть последний файл журнала: {0}</value>
+  </data>
+  <data name="Settings.Notification.LogCopied.Message" xml:space="preserve">
+    <value>Содержимое последнего журнала скопировано в буфер обмена.</value>
+  </data>
+  <data name="Settings.Notification.ReadLogFailed.Message" xml:space="preserve">
+    <value>Не удалось прочитать файл журнала (возможно, он используется).</value>
+  </data>
+  <data name="Settings.Notification.CopyLogFailed.Message" xml:space="preserve">
+    <value>Не удалось скопировать последний журнал.</value>
+  </data>
+  <data name="Settings.Notification.LogsEmpty.Title" xml:space="preserve">
+    <value>Журналы пусты</value>
+  </data>
+  <data name="Settings.Notification.LogsEmpty.NoDirectoryMessage" xml:space="preserve">
+    <value>Каталог журналов не найден.</value>
+  </data>
+  <data name="Settings.Notification.ClearLogsFailed.Message" xml:space="preserve">
+    <value>Не удалось очистить журналы: {0}</value>
+  </data>
+  <data name="Settings.Notification.LogsEmpty.NoFilesMessage" xml:space="preserve">
+    <value>Нет файлов журналов для очистки.</value>
+  </data>
+  <data name="Settings.Notification.ClearActiveLogsFailed.Message" xml:space="preserve">
+    <value>Не удалось очистить активные файлы журналов (используются).</value>
+  </data>
+  <data name="Settings.Notification.LogsCleared.SizeFreedFragment" xml:space="preserve">
+    <value> (освобождено {0:F1} МБ)</value>
+  </data>
+  <data name="Settings.Notification.LogsCleared.SkippedFragment" xml:space="preserve">
+    <value>, пропущено файлов ({0}, используются)</value>
+  </data>
+  <data name="Settings.Notification.LogsCleared.Title" xml:space="preserve">
+    <value>Журналы очищены</value>
+  </data>
+  <data name="Settings.Notification.LogsCleared.Message" xml:space="preserve">
+    <value>Успешно очищено файлов журналов: {0}{1}{2}.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.Cancelling.Title" xml:space="preserve">
+    <value>Отмена</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.Cancelling.Message" xml:space="preserve">
+    <value>Отмена применения {0}...</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.ApplyCancelled.Title" xml:space="preserve">
+    <value>Применение отменено</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.ApplyCancelled.Message" xml:space="preserve">
+    <value>Применение {0} было отменено.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.ApplyFixFailed.ForceTitle" xml:space="preserve">
+    <value>Не удалось принудительно применить исправление</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.ApplyFixFailed.Title" xml:space="preserve">
+    <value>Не удалось применить исправление</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.ApplyFixFailed.Message" xml:space="preserve">
+    <value>Не удалось применить {0}: {1}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.FixForceApplied.Title" xml:space="preserve">
+    <value>Исправление принудительно применено: {0}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.FixApplied.Title" xml:space="preserve">
+    <value>Исправление применено: {0}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.ApplyFailed.UnknownError" xml:space="preserve">
+    <value>Произошла неизвестная ошибка.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.FixFailed.Title" xml:space="preserve">
+    <value>Исправление не удалось: {0}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.AdminRightsRequired.Title" xml:space="preserve">
+    <value>Требуются права администратора</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.AdminRightsRequired.Message" xml:space="preserve">
+    <value>Для «Apply Recommended» требуются права администратора. Перезапустите GenHub от имени администратора.</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.BatchSuccess.Title" xml:space="preserve">
+    <value>Все исправления успешно применены</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.BatchSuccess.Message" xml:space="preserve">
+    <value>OK: все исправления ({0}) успешно применены к {1} ({2}).
+
+Ваша установка игры оптимизирована!</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.BatchPartialSummary.Message" xml:space="preserve">
+    <value>Цель: {0} ({1})
+OK: успешно применено: {2}
+Error: не удалось: {3}
+Warning: пропущено: {4}
+
+Ошибки:
+{5}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.BatchErrorSummary.Message" xml:space="preserve">
+    <value>Цель: {0} ({1})
+OK: успешно применено: {2}
+Error: не удалось: {3}
+
+Ошибки:
+{4}</value>
+  </data>
+  <data name="Tools.GenPatcher.Notification.BatchCompletedWithErrors.Title" xml:space="preserve">
+    <value>Исправления завершены с ошибками (успешно: {0}/{1})</value>
+  </data>
+  <data name="Content.Prompt.CommunityPatchUpdateAvailable.Title" xml:space="preserve">
+    <value>Доступно обновление Community Patch</value>
+  </data>
+  <data name="Content.Prompt.CommunityPatchUpdateAvailable.Message" xml:space="preserve">
+    <value>Доступна новая версия **Community Patch** ({0}).
+
+Как вы хотите применить это обновление?</value>
+  </data>
+  <data name="Content.Prompt.SuperHackersUpdateAvailable.Title" xml:space="preserve">
+    <value>Доступно обновление SuperHackers</value>
+  </data>
+  <data name="Content.Prompt.SuperHackersUpdateAvailable.Message" xml:space="preserve">
+    <value>Доступна новая версия **The Super Hackers** ({0}).
+
+Как вы хотите применить это обновление?</value>
   </data>
   <data name="Tools.ModBuilder.Notification.GitHubImportInProgress.Title" xml:space="preserve">
     <value>Импорт репозитория GitHub</value>

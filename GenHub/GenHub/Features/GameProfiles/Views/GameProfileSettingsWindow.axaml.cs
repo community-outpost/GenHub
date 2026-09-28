@@ -3,7 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
-using GenHub.Common.Helpers;
+using GenHub.Common.Controls;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Features.GameProfiles.ViewModels;
@@ -15,7 +15,7 @@ namespace GenHub.Features.GameProfiles.Views;
 /// <summary>
 /// Window for managing game profile settings.
 /// </summary>
-public partial class GameProfileSettingsWindow : Window
+public partial class GameProfileSettingsWindow : GenHubWindow
 {
     private static double? _savedWidth;
     private static double? _savedHeight;
@@ -53,10 +53,6 @@ public partial class GameProfileSettingsWindow : Window
     public GameProfileSettingsWindow()
     {
         InitializeComponent();
-        WindowChromeHelper.ApplyPlatformDecorations(this);
-
-        // Subscribe to DataContext changes to handle commands
-        DataContextChanged += OnDataContextChanged;
 
         // Restore saved window size
         RestoreWindowSize();
@@ -66,16 +62,13 @@ public partial class GameProfileSettingsWindow : Window
 
         // Subscribe to window events
         Activated += OnWindowActivated;
-
-        KeyDown += (_, e) =>
-        {
-            if (e.Key == Avalonia.Input.Key.Escape && !e.Handled)
-            {
-                e.Handled = true;
-                Close();
-            }
-        };
     }
+
+    /// <summary>
+    /// Gets a value indicating whether the window is fitted to the working area on open.
+    /// Disabled because this window owns persisted placement logic that clamping would corrupt.
+    /// </summary>
+    protected override bool FitToScreenOnOpen => false;
 
     /// <summary>
     /// Gets the saved sidebar width for the specified tab.
@@ -259,11 +252,6 @@ public partial class GameProfileSettingsWindow : Window
     {
         Activated -= OnWindowActivated;
 
-        if (DataContext is GameProfileSettingsViewModel viewModel)
-        {
-            viewModel.CloseRequested -= OnCloseRequested;
-        }
-
         base.OnClosed(e);
     }
 
@@ -321,34 +309,6 @@ public partial class GameProfileSettingsWindow : Window
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
-    }
-
-    /// <summary>
-    /// Handles DataContext changes to wire up commands.
-    /// </summary>
-    /// <param name="sender">The sender.</param>
-    /// <param name="e">The event arguments.</param>
-    private void OnDataContextChanged(object? sender, EventArgs e)
-    {
-        if (DataContext is GameProfileSettingsViewModel viewModel)
-        {
-            // Subscribe to the close request from the view model
-            viewModel.CloseRequested += OnCloseRequested;
-
-            // Note: GameSettings will be initialized in InitializeForProfileAsync if editing,
-            // or via InitializeForNewProfileAsync if creating new.
-            // No need to call InitializeAsync here as it would load default settings.
-        }
-    }
-
-    /// <summary>
-    /// Handles the close request from the view model.
-    /// </summary>
-    /// <param name="sender">The sender.</param>
-    /// <param name="e">The event arguments.</param>
-    private void OnCloseRequested(object? sender, EventArgs e)
-    {
-        Close();
     }
 
     /// <summary>

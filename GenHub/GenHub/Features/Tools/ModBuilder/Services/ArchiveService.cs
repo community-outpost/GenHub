@@ -440,118 +440,32 @@ public sealed class ArchiveService(
     }
 
     /// <inheritdoc/>
-    public async Task<OperationResult<bool>> CreateTarArchiveAsync(
+    public Task<OperationResult<bool>> CreateTarArchiveAsync(
         string sourceDirectory,
         string targetTarPath,
         IProgress<double>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            if (!Directory.Exists(sourceDirectory))
-            {
-                logger.LogError(SourceDirectoryNotFoundMessage, sourceDirectory);
-                return OperationResult<bool>.CreateFailure($"Source directory not found: {sourceDirectory}");
-            }
-
-            logger.LogInformation("Creating TAR archive: {Source} -> {Target}", sourceDirectory, targetTarPath);
-
-            // ensure target directory exists
-            var targetDir = Path.GetDirectoryName(targetTarPath);
-            if (!string.IsNullOrEmpty(targetDir) && !Directory.Exists(targetDir))
-            {
-                Directory.CreateDirectory(targetDir);
-            }
-
-            var tempTarPath = targetTarPath + "." + Guid.NewGuid().ToString("N")[..8] + ".tmp";
-            var targetFullPath = Path.GetFullPath(targetTarPath);
-
-            var files = Directory.GetFiles(sourceDirectory, "*", SearchOption.AllDirectories)
-                .Where(file => !string.Equals(Path.GetFullPath(file), targetFullPath, StringComparison.OrdinalIgnoreCase))
-                .ToArray();
-
-            var totalFiles = files.Length;
-            var processedFiles = 0;
-
-            try
-            {
-                await using (var stream = new FileStream(
-                    tempTarPath,
-                    FileMode.Create,
-                    FileAccess.Write,
-                    FileShare.None,
-                    ModBuilderConstants.BuildFileBufferSize,
-                    useAsync: true))
-                {
-                    using var writer = new TarWriter(stream, new TarWriterOptions(CompressionType.None, true));
-
-                    foreach (var filePath in files)
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-
-                        var fileInfo = new FileInfo(filePath);
-                        var relativePath = Path.GetRelativePath(sourceDirectory, fileInfo.FullName).Replace('\\', '/');
-
-                        await using (var sourceStream = new FileStream(
-                            fileInfo.FullName,
-                            FileMode.Open,
-                            FileAccess.Read,
-                            FileShare.Read,
-                            ModBuilderConstants.BuildFileBufferSize,
-                            useAsync: true))
-                        {
-                            writer.Write(relativePath, sourceStream, fileInfo.LastWriteTimeUtc);
-                        }
-
-                        processedFiles++;
-                        progress?.Report((double)processedFiles / totalFiles);
-                    }
-                }
-
-                if (!File.Exists(tempTarPath))
-                {
-                    logger.LogError("TAR archive creation completed but temporary file was not created: {Path}", tempTarPath);
-                    return OperationResult<bool>.CreateFailure("TAR archive creation failed: temporary file was not created");
-                }
-
-                File.Move(tempTarPath, targetTarPath, overwrite: true);
-            }
-            finally
-            {
-                if (File.Exists(tempTarPath))
-                {
-                    try
-                    {
-                        File.Delete(tempTarPath);
-                    }
-                    catch
-                    {
-                        // Ignore cleanup errors
-                    }
-                }
-            }
-
-            progress?.Report(1.0);
-            logger.LogInformation("Successfully created TAR archive: {Target}", targetTarPath);
-            return OperationResult<bool>.CreateSuccess(true);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error creating TAR archive: {Source} -> {Target}", sourceDirectory, targetTarPath);
-            return OperationResult<bool>.CreateFailure($"Error creating TAR archive: {ex.Message}");
-        }
+        return CreateTarArchiveInternalAsync(sourceDirectory, targetTarPath, CompressionType.None, "TAR", progress, cancellationToken);
     }
 
     /// <inheritdoc/>
-    public async Task<OperationResult<bool>> CreateTarGzArchiveAsync(
+    public Task<OperationResult<bool>> CreateTarGzArchiveAsync(
         string sourceDirectory,
         string targetTarGzPath,
         IProgress<double>? progress = null,
         CancellationToken cancellationToken = default)
+    {
+        return CreateTarArchiveInternalAsync(sourceDirectory, targetTarGzPath, CompressionType.GZip, "TAR.GZ", progress, cancellationToken);
+    }
+
+    private async Task<OperationResult<bool>> CreateTarArchiveInternalAsync(
+        string sourceDirectory,
+        string targetPath,
+        CompressionType compressionType,
+        string archiveLabel,
+        IProgress<double>? progress,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -561,17 +475,17 @@ public sealed class ArchiveService(
                 return OperationResult<bool>.CreateFailure($"Source directory not found: {sourceDirectory}");
             }
 
-            logger.LogInformation("Creating TAR.GZ archive: {Source} -> {Target}", sourceDirectory, targetTarGzPath);
+            logger.LogInformation("Creating {ArchiveLabel} archive: {Source} -> {Target}", archiveLabel, sourceDirectory, targetPath);
 
             // ensure target directory exists
-            var targetDir = Path.GetDirectoryName(targetTarGzPath);
+            var targetDir = Path.GetDirectoryName(targetPath);
             if (!string.IsNullOrEmpty(targetDir) && !Directory.Exists(targetDir))
             {
                 Directory.CreateDirectory(targetDir);
             }
 
-            var tempTarGzPath = targetTarGzPath + "." + Guid.NewGuid().ToString("N")[..8] + ".tmp";
-            var targetFullPath = Path.GetFullPath(targetTarGzPath);
+            var tempPath = targetPath + "." + Guid.NewGuid().ToString("N")[..8] + ".tmp";
+            var targetFullPath = Path.GetFullPath(targetPath);
 
             var files = Directory.GetFiles(sourceDirectory, "*", SearchOption.AllDirectories)
                 .Where(file => !string.Equals(Path.GetFullPath(file), targetFullPath, StringComparison.OrdinalIgnoreCase))
@@ -583,14 +497,14 @@ public sealed class ArchiveService(
             try
             {
                 await using (var stream = new FileStream(
-                    tempTarGzPath,
+                    tempPath,
                     FileMode.Create,
                     FileAccess.Write,
                     FileShare.None,
                     ModBuilderConstants.BuildFileBufferSize,
                     useAsync: true))
                 {
-                    using var writer = new TarWriter(stream, new TarWriterOptions(CompressionType.GZip, true));
+                    using var writer = new TarWriter(stream, new TarWriterOptions(compressionType, true));
 
                     foreach (var filePath in files)
                     {
@@ -615,21 +529,21 @@ public sealed class ArchiveService(
                     }
                 }
 
-                if (!File.Exists(tempTarGzPath))
+                if (!File.Exists(tempPath))
                 {
-                    logger.LogError("TAR.GZ archive creation completed but temporary file was not created: {Path}", tempTarGzPath);
-                    return OperationResult<bool>.CreateFailure("TAR.GZ archive creation failed: temporary file was not created");
+                    logger.LogError("{ArchiveLabel} archive creation completed but temporary file was not created: {Path}", archiveLabel, tempPath);
+                    return OperationResult<bool>.CreateFailure($"{archiveLabel} archive creation failed: temporary file was not created");
                 }
 
-                File.Move(tempTarGzPath, targetTarGzPath, overwrite: true);
+                File.Move(tempPath, targetPath, overwrite: true);
             }
             finally
             {
-                if (File.Exists(tempTarGzPath))
+                if (File.Exists(tempPath))
                 {
                     try
                     {
-                        File.Delete(tempTarGzPath);
+                        File.Delete(tempPath);
                     }
                     catch
                     {
@@ -639,7 +553,7 @@ public sealed class ArchiveService(
             }
 
             progress?.Report(1.0);
-            logger.LogInformation("Successfully created TAR.GZ archive: {Target}", targetTarGzPath);
+            logger.LogInformation("Successfully created {ArchiveLabel} archive: {Target}", archiveLabel, targetPath);
             return OperationResult<bool>.CreateSuccess(true);
         }
         catch (OperationCanceledException)
@@ -648,8 +562,8 @@ public sealed class ArchiveService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error creating TAR.GZ archive: {Source} -> {Target}", sourceDirectory, targetTarGzPath);
-            return OperationResult<bool>.CreateFailure($"Error creating TAR.GZ archive: {ex.Message}");
+            logger.LogError(ex, "Error creating {ArchiveLabel} archive: {Source} -> {Target}", archiveLabel, sourceDirectory, targetPath);
+            return OperationResult<bool>.CreateFailure($"Error creating {archiveLabel} archive: {ex.Message}");
         }
     }
 }

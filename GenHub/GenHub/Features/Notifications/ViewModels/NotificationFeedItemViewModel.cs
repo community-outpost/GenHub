@@ -68,32 +68,12 @@ public partial class NotificationFeedItemViewModel : ViewModelBase, IDisposable
     /// <summary>
     /// Gets the icon path data based on the notification type.
     /// </summary>
-    public string IconPath => Type switch
-    {
-        NotificationType.Info => NotificationConstants.InfoIconPath,
-        NotificationType.Success => NotificationConstants.SuccessIconPath,
-        NotificationType.Warning => NotificationConstants.WarningIconPath,
-        NotificationType.Error => NotificationConstants.ErrorIconPath,
-        _ => string.Empty,
-    };
-
-    private static readonly IBrush InfoBrush = new SolidColorBrush(Color.Parse(NotificationConstants.InfoColor));
-    private static readonly IBrush SuccessBrush = new SolidColorBrush(Color.Parse(NotificationConstants.SuccessColor));
-    private static readonly IBrush WarningBrush = new SolidColorBrush(Color.Parse(NotificationConstants.WarningColor));
-    private static readonly IBrush ErrorBrush = new SolidColorBrush(Color.Parse(NotificationConstants.ErrorColor));
-    private static readonly IBrush DefaultBrush = new SolidColorBrush(Colors.Gray);
+    public string IconPath => NotificationBrushes.GetIconPath(Type);
 
     /// <summary>
     /// Gets the background brush for the notification based on its type.
     /// </summary>
-    public IBrush BackgroundBrush => Type switch
-    {
-        NotificationType.Info => InfoBrush,
-        NotificationType.Success => SuccessBrush,
-        NotificationType.Warning => WarningBrush,
-        NotificationType.Error => ErrorBrush,
-        _ => DefaultBrush,
-    };
+    public IBrush BackgroundBrush => NotificationBrushes.GetBackgroundBrush(Type);
 
     /// <summary>
     /// Gets the command to dismiss this notification.

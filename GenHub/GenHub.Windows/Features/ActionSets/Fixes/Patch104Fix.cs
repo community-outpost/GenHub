@@ -103,13 +103,13 @@ public class Patch104Fix(ILogger<Patch104Fix> logger, IHttpClientFactory httpCli
                 ExtractAndCopyPatchFiles(downloadPath, extractPath, installation.ZeroHourPath, details);
             }
 
-            details.Add("✓ Zero Hour 1.04 patch installed successfully");
+            details.Add("OK: Zero Hour 1.04 patch installed successfully");
             return new ActionSetResult(true, null, details);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to install Zero Hour 1.04 patch");
-            details.Add($"✗ Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return new ActionSetResult(false, ex.Message, details);
         }
         finally
@@ -181,7 +181,7 @@ public class Patch104Fix(ILogger<Patch104Fix> logger, IHttpClientFactory httpCli
                 return (false, downloadPath, isExe);
             }
 
-            details.Add($"✓ Downloaded {downloadedFileInfo.Length / 1024.0 / 1024.0:F2} MB from {uri.Host}");
+            details.Add($"OK: Downloaded {downloadedFileInfo.Length / 1024.0 / 1024.0:F2} MB from {uri.Host}");
 
             if (!isExe)
             {
@@ -253,7 +253,7 @@ public class Patch104Fix(ILogger<Patch104Fix> logger, IHttpClientFactory httpCli
             return new ActionSetResult(false, "Failed to start patch installer process.", details);
         }
 
-        details.Add("⚠ Please complete the installation wizard on screen.");
+        details.Add("Warning: Please complete the installation wizard on screen.");
         await process.WaitForExitAsync(ct);
 
         if (process.ExitCode != ProcessConstants.ExitCodeSuccess && process.ExitCode != ProcessConstants.ExitCodeRebootRequired)
@@ -302,6 +302,6 @@ public class Patch104Fix(ILogger<Patch104Fix> logger, IHttpClientFactory httpCli
             copiedCount++;
         }
 
-        details.Add($"✓ Installed {copiedCount} files");
+        details.Add($"OK: Installed {copiedCount} files");
     }
 }

@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Results.Content;
@@ -8,9 +9,6 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
-using System.Net.Http.Json;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -22,11 +20,9 @@ namespace GenHub.Features.Content.Services.SuperHackers;
 public class SuperHackersUpdateService(
     ILogger<SuperHackersUpdateService> logger,
     IContentManifestPool manifestPool,
-    IHttpClientFactory httpClientFactory,
+    IGitHubApiClient gitHubApiClient,
     IContentVersionComparer versionComparer) : ContentUpdateServiceBase(logger), ISuperHackersUpdateService
 {
-    // HttpClient is created per request via factory, so no need for Dispose or cached instance.
-
     /// <inheritdoc />
     protected override string ServiceName => SuperHackersConstants.ServiceName;
 
@@ -67,10 +63,14 @@ public class SuperHackersUpdateService(
                 currentVersion: currentVersion,
                 latestVersion: latestVersion);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to check for SuperHackers updates");
-            throw; // Base class handles rescheduling/logging
+            return ContentUpdateCheckResult.CreateFailure(ex.Message);
         }
     }
 
@@ -120,34 +120,10 @@ public class SuperHackersUpdateService(
     {
         try
         {
-            // Construct GitHub API URL
-            var url = string.Format(ApiConstants.GitHubApiReleasesFormat, SuperHackersConstants.GeneralsGameCodeOwner, SuperHackersConstants.GeneralsGameCodeRepo) + "/latest";
-
-            using var httpClient = httpClientFactory.CreateClient(PublisherTypeConstants.TheSuperHackers);
-
-            // Allow override via HttpClient configuration if needed, but default to direct API
-            if (httpClient.BaseAddress != null && !httpClient.BaseAddress.ToString().Contains("api.github.com"))
-            {
-                // This handles if client is pre-configured with a base URL
-            }
-            else
-            {
-                // Ensure User-Agent is set globally or here (GitHub requires it)
-                if (httpClient.DefaultRequestHeaders.UserAgent.Count == 0)
-                {
-                    httpClient.DefaultRequestHeaders.Add("User-Agent", "GenHub-Agent");
-                }
-            }
-
-            var response = await httpClient.GetAsync(url, cancellationToken);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                logger.LogWarning("GitHub API returned {StatusCode}", response.StatusCode);
-                return null;
-            }
-
-            var release = await response.Content.ReadFromJsonAsync<GitHubRelease>(cancellationToken: cancellationToken);
+            var release = await gitHubApiClient.GetLatestReleaseAsync(
+                SuperHackersConstants.GeneralsGameCodeOwner,
+                SuperHackersConstants.GeneralsGameCodeRepo,
+                cancellationToken);
 
             // Prefer TagName as version
             var version = release?.TagName;
@@ -166,15 +142,5 @@ public class SuperHackersUpdateService(
             logger.LogWarning(ex, "Failed to get latest version from GitHub");
             return null;
         }
-    }
-
-    // Minimal DTO for GitHub Release
-    private class GitHubRelease
-    {
-        [JsonPropertyName("tag_name")]
-        public string? TagName { get; set; }
-
-        [JsonPropertyName("name")]
-        public string? Name { get; set; }
     }
 }

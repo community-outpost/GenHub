@@ -1,6 +1,4 @@
-using Avalonia.Controls;
-using Avalonia.Input;
-using Avalonia.Interactivity;
+using GenHub.Common.Controls;
 using GenHub.Features.Tools.ModBuilder.ViewModels;
 
 namespace GenHub.Features.Tools.ModBuilder.Views;
@@ -8,7 +6,7 @@ namespace GenHub.Features.Tools.ModBuilder.Views;
 /// <summary>
 /// Dialog window for the ModBuilder Game Asset and File Manager.
 /// </summary>
-public partial class FileManagerDialog : Window
+public partial class FileManagerDialog : GenHubWindow
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="FileManagerDialog"/> class.
@@ -26,51 +24,6 @@ public partial class FileManagerDialog : Window
         : this()
     {
         DataContext = viewModel;
-    }
-
-    /// <inheritdoc/>
-    /// <param name="e">The key event arguments.</param>
-    protected override void OnKeyDown(KeyEventArgs e)
-    {
-        base.OnKeyDown(e);
-        if (e.Key == Key.Escape && !e.Handled)
-        {
-            e.Handled = true;
-            Close();
-        }
-    }
-
-    /// <summary>
-    /// Handles pointer pressed events on the title bar for dragging and maximizing.
-    /// </summary>
-    private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
-        {
-            if (e.ClickCount == 2 && CanResize)
-            {
-                WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-            }
-            else
-            {
-                BeginMoveDrag(e);
-            }
-        }
-    }
-
-    private void MinimizeButton_Click(object? sender, RoutedEventArgs e)
-    {
-        WindowState = WindowState.Minimized;
-    }
-
-    private void MaximizeButton_Click(object? sender, RoutedEventArgs e)
-    {
-        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-    }
-
-    private void CloseButton_Click(object? sender, RoutedEventArgs e)
-    {
-        Close();
     }
 }
 

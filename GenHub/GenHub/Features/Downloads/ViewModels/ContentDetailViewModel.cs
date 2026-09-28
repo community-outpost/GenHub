@@ -6559,7 +6559,8 @@ public partial class ContentDetailViewModel(
                 profileManager,
                 profileContentService,
                 manifestPool,
-                notificationService);
+                notificationService,
+                localizationService);
 
             // Load profiles into the view model
             await profileSelectionViewModel.LoadProfilesAsync(

@@ -14,7 +14,7 @@ namespace GenHub.MacOS.Features.Shortcuts;
 /// <summary>
 /// Provides an explicit placeholder for macOS shortcut support.
 /// </summary>
-public sealed class MacOSShortcutService(ILogger<MacOSShortcutService> logger) : IShortcutService
+public sealed class MacOSShortcutService(ILogger<MacOSShortcutService> logger, Func<string>? desktopDirectoryProvider = null) : IShortcutService
 {
     private const string ShortcutExtension = ".command";
 
@@ -39,23 +39,7 @@ public sealed class MacOSShortcutService(ILogger<MacOSShortcutService> logger) :
     {
         ArgumentNullException.ThrowIfNull(profile);
 
-        try
-        {
-            var shortcutPath = GetShortcutPath(profile);
-            if (!File.Exists(shortcutPath))
-            {
-                return Task.FromResult(OperationResult<bool>.CreateSuccess(false));
-            }
-
-            File.Delete(shortcutPath);
-            return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to remove macOS shortcut for profile {ProfileName}", profile.Name);
-            return Task.FromResult(
-                OperationResult<bool>.CreateFailure($"Failed to remove shortcut: {ex.Message}"));
-        }
+        return ShortcutFileHelper.RemoveShortcutFileAsync(GetShortcutPath(profile), profile.Name, logger);
     }
 
     /// <inheritdoc />
@@ -70,7 +54,12 @@ public sealed class MacOSShortcutService(ILogger<MacOSShortcutService> logger) :
     {
         ArgumentNullException.ThrowIfNull(profile);
 
-        var desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+        var desktopPath = desktopDirectoryProvider?.Invoke();
+        if (string.IsNullOrWhiteSpace(desktopPath))
+        {
+            desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+        }
+
         if (string.IsNullOrWhiteSpace(desktopPath))
         {
             desktopPath = Path.Combine(

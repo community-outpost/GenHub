@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
@@ -7,8 +8,9 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Services.Dependencies;
+using GenHub.Features.Content.Services.Common;
 using Microsoft.Extensions.Logging;
-using Slugify;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -82,12 +84,15 @@ public partial class AODMapsManifestFactory(
         {
             var extractPath = Path.Combine(extractedDirectory, Path.GetFileNameWithoutExtension(zipPath));
             Directory.CreateDirectory(extractPath);
-            var extractResult = ExtractZipSafely(zipPath, extractPath);
-            if (!extractResult.Success)
+            try
             {
-                logger.LogWarning("Failed to safely extract ZIP {ZipPath}: {Error}", zipPath, extractResult.FirstError);
+                await Task.Run(() => ZipArchiveGuard.ExtractToDirectory(zipPath, extractPath, cancellationToken), cancellationToken);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+            {
+                logger.LogWarning(ex, "Failed to safely extract ZIP {ZipPath}", zipPath);
                 return OperationResult<List<ContentManifest>>.CreateFailure(
-                    extractResult.FirstError ?? $"Failed to safely extract ZIP: {zipPath}");
+                    $"Failed to safely extract ZIP: {ex.Message}");
             }
 
             File.Delete(zipPath);
@@ -118,25 +123,9 @@ public partial class AODMapsManifestFactory(
 
         return OperationResult<List<ContentManifest>>.CreateSuccess(
         [
-            new ContentManifest
+            new ContentManifest(originalManifest)
             {
-                SchemaVersion = originalManifest.SchemaVersion,
-                Id = originalManifest.Id,
-                Name = originalManifest.Name,
-                Version = originalManifest.Version,
-                ContentType = originalManifest.ContentType,
-                TargetGame = originalManifest.TargetGame,
-                Publisher = originalManifest.Publisher,
-                Metadata = originalManifest.Metadata,
-                OriginalProviderName = originalManifest.OriginalProviderName,
-                OriginalContentId = originalManifest.OriginalContentId,
-                SourcePath = originalManifest.SourcePath,
-                Dependencies = originalManifest.Dependencies,
-                ContentReferences = originalManifest.ContentReferences,
-                KnownAddons = originalManifest.KnownAddons,
                 Files = files,
-                RequiredDirectories = originalManifest.RequiredDirectories,
-                InstallationInstructions = originalManifest.InstallationInstructions,
             },
         ]);
     }
@@ -169,7 +158,7 @@ public partial class AODMapsManifestFactory(
         var publisherId = AODMapsConstants.PublisherType;
 
         // 2. Slugify content name
-        var contentName = SlugifyTitle(details.Name);
+        var contentName = ManifestTagHelper.SlugifyTitle(details.Name, AODMapsConstants.DefaultContentName);
 
         // 3. Format release date for display (YYYYMMDD). If no real date was available,
         //    use a fixed epoch string so the display version is stable rather than changing daily.
@@ -220,17 +209,9 @@ public partial class AODMapsManifestFactory(
             ContentSourceType.RemoteDownload);
 
         // 7. Add dependencies
-        manifest = AddGameDependencies(manifest, details.TargetGame);
+        manifest = BaseDependencyBuilder.AddGameDependencies(manifest, details.TargetGame);
 
         return manifest.Build();
-    }
-
-    private static string SlugifyTitle(string title)
-    {
-        if (string.IsNullOrWhiteSpace(title)) return "content";
-        var slugHelper = new SlugHelper();
-        var slug = slugHelper.GenerateSlug(title);
-        return string.IsNullOrEmpty(slug) ? "content" : slug;
     }
 
     private static List<string> GetTags(ParsedContentDetails details)
@@ -245,55 +226,5 @@ public partial class AODMapsManifestFactory(
         }
 
         return tags;
-    }
-
-    private static IContentManifestBuilder AddGameDependencies(IContentManifestBuilder builder, GameType targetGame)
-    {
-        if (targetGame == GameType.ZeroHour)
-        {
-            // Type-only constraint: any platform's ZH installation satisfies this.
-            builder.AddDependency(
-                id: ManifestId.Create(ManifestConstants.ZeroHourGameInstallationManifestId),
-                name: ManifestConstants.ZeroHourInstallationName,
-                dependencyType: ContentType.GameInstallation,
-                installBehavior: DependencyInstallBehavior.RequireExisting,
-                minVersion: ManifestConstants.ZeroHourManifestVersion);
-        }
-        else if (targetGame == GameType.Generals)
-        {
-            // Type-only constraint: any platform's Generals installation satisfies this.
-            builder.AddDependency(
-                id: ManifestId.Create(ManifestConstants.GeneralsGameInstallationManifestId),
-                name: ManifestConstants.GeneralsInstallationName,
-                dependencyType: ContentType.GameInstallation,
-                installBehavior: DependencyInstallBehavior.RequireExisting,
-                minVersion: ManifestConstants.GeneralsManifestVersion);
-        }
-
-        return builder;
-    }
-
-    private static OperationResult ExtractZipSafely(string zipPath, string extractPath)
-    {
-        using var archive = ZipFile.OpenRead(zipPath);
-        var rootPath = Path.GetFullPath(extractPath) + Path.DirectorySeparatorChar;
-        foreach (var entry in archive.Entries.Where(entry => !string.IsNullOrEmpty(entry.Name)))
-        {
-            var destinationPath = Path.GetFullPath(Path.Combine(extractPath, entry.FullName));
-            if (!destinationPath.StartsWith(rootPath, StringComparison.OrdinalIgnoreCase))
-            {
-                return OperationResult.CreateFailure($"ZIP entry has an unsafe path: {entry.FullName}");
-            }
-
-            var dir = Path.GetDirectoryName(destinationPath);
-            if (!string.IsNullOrEmpty(dir))
-            {
-                Directory.CreateDirectory(dir);
-            }
-
-            entry.ExtractToFile(destinationPath, overwrite: true);
-        }
-
-        return OperationResult.CreateSuccess();
     }
 }

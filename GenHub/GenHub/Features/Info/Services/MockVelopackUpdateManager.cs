@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Enums;
@@ -56,7 +57,7 @@ public class MockVelopackUpdateManager(INotificationService? notificationService
             NotificationType.Success,
             "Demo Update",
             "In a real installation, the app would restart now to apply the update!",
-            5000));
+            NotificationDurations.Medium));
         return Task.CompletedTask;
     }
 
@@ -142,7 +143,7 @@ public class MockVelopackUpdateManager(INotificationService? notificationService
             NotificationType.Success,
             "Demo Deployment",
             $"Artifact {artifactInfo.Version} would be installed and the app restarted.",
-            5000));
+            NotificationDurations.Medium));
     }
 
     /// <inheritdoc/>

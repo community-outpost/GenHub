@@ -96,7 +96,7 @@ public class OptionsIniFix(IGameSettingsService gameSettingsService, ILogger<Opt
 
             if (gamesToProcess.Count == 0)
             {
-                details.Add("✗ No game installation found");
+                details.Add("Error: No game installation found");
                 return new ActionSetResult(false, "No game installation found", details);
             }
 
@@ -109,14 +109,14 @@ public class OptionsIniFix(IGameSettingsService gameSettingsService, ILogger<Opt
                 }
             }
 
-            details.Add("✓ Options.ini crash-prevention optimization completed successfully");
+            details.Add("OK: Options.ini crash-prevention optimization completed successfully");
             logger.LogInformation("Options.ini fix applied successfully for {Count} games with {DetailsCount} actions", gamesToProcess.Count, details.Count);
             return new ActionSetResult(true, null, details);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error applying Options.ini fix");
-            details.Add($"✗ Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return new ActionSetResult(false, ex.Message, details);
         }
     }
@@ -140,17 +140,17 @@ public class OptionsIniFix(IGameSettingsService gameSettingsService, ILogger<Opt
                 {
                     File.Copy(backupPath, optionsPath, overwrite: true);
                     File.Delete(backupPath);
-                    details.Add($"✓ Restored original Options.ini from backup for {gameType}");
+                    details.Add($"OK: Restored original Options.ini from backup for {gameType}");
                 }
                 catch (IOException ex)
                 {
                     logger.LogWarning(ex, "Failed to restore Options.ini from backup for {GameType}", gameType);
-                    details.Add($"⚠ Failed to restore backup for {gameType}: {ex.Message}");
+                    details.Add($"Warning: Failed to restore backup for {gameType}: {ex.Message}");
                 }
                 catch (UnauthorizedAccessException ex)
                 {
                     logger.LogWarning(ex, "Access denied restoring Options.ini backup for {GameType}", gameType);
-                    details.Add($"⚠ Access denied restoring backup for {gameType}");
+                    details.Add($"Warning: Access denied restoring backup for {gameType}");
                 }
             }
             else
@@ -186,7 +186,7 @@ public class OptionsIniFix(IGameSettingsService gameSettingsService, ILogger<Opt
     {
         // 1. Critical crash fix: disable 3D shadow volumes (fatal on modern DirectX)
         options.Video.UseShadowVolumes = false;
-        details.Add("✓ Disabled crash-prone 3D shadow volumes (UseShadowVolumes = no)");
+        details.Add("OK: Disabled crash-prone 3D shadow volumes (UseShadowVolumes = no)");
 
         // 2. Safe video defaults
         options.Video.UseShadowDecals = true;
@@ -203,7 +203,7 @@ public class OptionsIniFix(IGameSettingsService gameSettingsService, ILogger<Opt
             var oldRes = $"{options.Video.ResolutionWidth}x{options.Video.ResolutionHeight}";
             options.Video.ResolutionWidth = GameSettingsConstants.OptimalSettings.DefaultResolutionWidth;
             options.Video.ResolutionHeight = GameSettingsConstants.OptimalSettings.DefaultResolutionHeight;
-            details.Add($"✓ Fixed invalid resolution {oldRes} -> {GameSettingsConstants.OptimalSettings.DefaultResolutionWidth}x{GameSettingsConstants.OptimalSettings.DefaultResolutionHeight}");
+            details.Add($"OK: Fixed invalid resolution {oldRes} -> {GameSettingsConstants.OptimalSettings.DefaultResolutionWidth}x{GameSettingsConstants.OptimalSettings.DefaultResolutionHeight}");
         }
 
         // 4. Default audio only if uninitialized
@@ -251,7 +251,7 @@ public class OptionsIniFix(IGameSettingsService gameSettingsService, ILogger<Opt
         tsh.TryAdd("UseDoubleClickAttackMove", GameSettingsConstants.OptimalSettings.UseDoubleClickAttackMove);
         tsh.TryAdd("Retaliation", GameSettingsConstants.OptimalSettings.Retaliation);
 
-        details.Add("✓ Applied community engine stability settings (preserved user preferences)");
+        details.Add("OK: Applied community engine stability settings (preserved user preferences)");
     }
 
     private static bool IsBadResolution(int width, int height)
@@ -275,11 +275,11 @@ public class OptionsIniFix(IGameSettingsService gameSettingsService, ILogger<Opt
         var loadResult = await gameSettingsService.LoadOptionsAsync(gameType);
         if (!loadResult.Success || loadResult.Data == null)
         {
-            details.Add($"✗ Failed to load Options.ini for {gameType}");
+            details.Add($"Error: Failed to load Options.ini for {gameType}");
             return new ActionSetResult(false, $"Failed to load Options.ini for {gameType}: {string.Join(", ", loadResult.Errors ?? [])}", details);
         }
 
-        details.Add($"✓ Options.ini loaded successfully for {gameType}");
+        details.Add($"OK: Options.ini loaded successfully for {gameType}");
         var options = loadResult.Data;
 
         // Apply stability and crash fixes while preserving user preferences
@@ -289,11 +289,11 @@ public class OptionsIniFix(IGameSettingsService gameSettingsService, ILogger<Opt
         var saveResult = await gameSettingsService.SaveOptionsAsync(gameType, options);
         if (!saveResult.Success)
         {
-            details.Add($"✗ Failed to save Options.ini for {gameType}");
+            details.Add($"Error: Failed to save Options.ini for {gameType}");
             return new ActionSetResult(false, $"Failed to save Options.ini for {gameType}: {string.Join(", ", saveResult.Errors ?? [])}", details);
         }
 
-        details.Add($"✓ Saved to: {optionsPath}");
+        details.Add($"OK: Saved to: {optionsPath}");
         return new ActionSetResult(true, null, details);
     }
 
@@ -307,7 +307,7 @@ public class OptionsIniFix(IGameSettingsService gameSettingsService, ILogger<Opt
                 try
                 {
                     File.Copy(optionsPath, backupPath, overwrite: false);
-                    details.Add($"✓ Created backup of existing Options.ini at {Path.GetFileName(backupPath)}");
+                    details.Add($"OK: Created backup of existing Options.ini at {Path.GetFileName(backupPath)}");
                 }
                 catch (IOException ex)
                 {

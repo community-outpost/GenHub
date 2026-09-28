@@ -381,10 +381,10 @@ public partial class GenHotkeysViewModel(
         ApplyProfileMappingsToViewModels();
         _ = SaveCurrentProfileAsync(CancellationToken.None);
         ValidateConflicts();
-        var message = $"Cleared hotkey for '{actionName}'.";
+        var message = GetLocalizedString("Tools.GenHotkeys.Notification.HotkeyCleared.Message", $"Cleared hotkey for '{actionName}'.", actionName);
         StatusMessage = message;
         notificationService?.ShowInfo(
-            "Hotkey Cleared",
+            GetLocalizedString("Tools.GenHotkeys.Notification.HotkeyCleared.Title", "Hotkey Cleared"),
             message,
             NotificationDurations.Short);
     }
@@ -428,11 +428,11 @@ public partial class GenHotkeysViewModel(
         ApplyProfileMappingsToViewModels();
         _ = SaveCurrentProfileAsync(CancellationToken.None);
         ValidateConflicts();
-        var keyDisplay = SelectedAction.DefaultHotkey.HasValue ? SelectedAction.DefaultHotkey.Value.ToString() : "None";
-        var message = $"Reset '{SelectedAction.DisplayName}' to default hotkey ({keyDisplay}).";
+        var keyDisplay = SelectedAction.DefaultHotkey.HasValue ? SelectedAction.DefaultHotkey.Value.ToString() : GetLocalizedString("Tools.GenHotkeys.Status.NoHotkeyValue", "None");
+        var message = GetLocalizedString("Tools.GenHotkeys.Notification.HotkeyReset.Message", $"Reset '{SelectedAction.DisplayName}' to default hotkey ({keyDisplay}).", SelectedAction.DisplayName, keyDisplay);
         StatusMessage = message;
         notificationService?.ShowInfo(
-            "Hotkey Reset",
+            GetLocalizedString("Tools.GenHotkeys.Notification.HotkeyReset.Title", "Hotkey Reset"),
             message,
             NotificationDurations.Short);
     }
@@ -494,11 +494,11 @@ public partial class GenHotkeysViewModel(
         await SaveCurrentProfileAsync(cancellationToken);
         ValidateConflicts();
 
-        var keyDisplay = targetKey.HasValue ? targetKey.Value.ToString() : "None";
-        var message = $"Applied hotkey '{keyDisplay}' to {matchingCount} '{targetName}' action{(matchingCount == 1 ? string.Empty : "s")}.";
+        var keyDisplay = targetKey.HasValue ? targetKey.Value.ToString() : GetLocalizedString("Tools.GenHotkeys.Status.NoHotkeyValue", "None");
+        var message = GetLocalizedString("Tools.GenHotkeys.Notification.HotkeyAppliedToAll.Message", $"Applied hotkey '{keyDisplay}' to {matchingCount} '{targetName}' action{(matchingCount == 1 ? string.Empty : "s")}.", keyDisplay, matchingCount, targetName, matchingCount == 1 ? string.Empty : "s");
         StatusMessage = message;
         notificationService?.ShowSuccess(
-            "Hotkey Applied to All",
+            GetLocalizedString("Tools.GenHotkeys.Notification.HotkeyAppliedToAll.Title", "Hotkey Applied to All"),
             message,
             NotificationDurations.Short);
     }
@@ -514,9 +514,9 @@ public partial class GenHotkeysViewModel(
         var name = string.IsNullOrWhiteSpace(NewProfileName) ? $"Profile {Profiles.Count + 1}" : NewProfileName.Trim();
         if (Profiles.Any(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)))
         {
-            var msg = $"A profile named '{name}' already exists.";
+            var msg = GetLocalizedString("Tools.GenHotkeys.Notification.ProfileExists.Message", $"A profile named '{name}' already exists.", name);
             StatusMessage = msg;
-            notificationService?.ShowWarning("Profile Exists", msg, NotificationDurations.Medium);
+            notificationService?.ShowWarning(GetLocalizedString("Tools.GenHotkeys.Notification.ProfileExists.Title", "Profile Exists"), msg, NotificationDurations.Medium);
             return;
         }
 
@@ -542,9 +542,9 @@ public partial class GenHotkeysViewModel(
 
             SortProfilesByName(savedProfile);
             NewProfileName = string.Empty;
-            var successMsg = $"Created profile '{name}'.";
+            var successMsg = GetLocalizedString("Tools.GenHotkeys.Notification.ProfileCreated.Message", $"Created profile '{name}'.", name);
             StatusMessage = successMsg;
-            notificationService?.ShowSuccess("Profile Created", successMsg, NotificationDurations.Short);
+            notificationService?.ShowSuccess(GetLocalizedString("Tools.GenHotkeys.Notification.ProfileCreated.Title", "Profile Created"), successMsg, NotificationDurations.Short);
         }
         catch (OperationCanceledException)
         {
@@ -573,8 +573,8 @@ public partial class GenHotkeysViewModel(
         var newName = RenameProfileText?.Trim();
         if (string.IsNullOrWhiteSpace(newName))
         {
-            StatusMessage = "Profile name cannot be empty.";
-            notificationService?.ShowWarning("Profile Error", "Profile name cannot be empty.", NotificationDurations.Short);
+            StatusMessage = GetLocalizedString("Tools.GenHotkeys.Notification.ProfileNameEmpty.Message", "Profile name cannot be empty.");
+            notificationService?.ShowWarning(GetLocalizedString("Tools.GenHotkeys.Notification.ProfileError.Title", "Profile Error"), StatusMessage, NotificationDurations.Short);
             return;
         }
 
@@ -586,9 +586,9 @@ public partial class GenHotkeysViewModel(
         var currentProfile = SelectedProfile;
         if (Profiles.Any(p => !ReferenceEquals(p, currentProfile) && string.Equals(p.Name, newName, StringComparison.OrdinalIgnoreCase)))
         {
-            var msg = $"A profile named '{newName}' already exists.";
+            var msg = GetLocalizedString("Tools.GenHotkeys.Notification.ProfileExists.Message", $"A profile named '{newName}' already exists.", newName);
             StatusMessage = msg;
-            notificationService?.ShowWarning("Profile Exists", msg, NotificationDurations.Medium);
+            notificationService?.ShowWarning(GetLocalizedString("Tools.GenHotkeys.Notification.ProfileExists.Title", "Profile Exists"), msg, NotificationDurations.Medium);
             return;
         }
 
@@ -606,9 +606,9 @@ public partial class GenHotkeysViewModel(
         SortProfilesByName(targetToReselect);
 
         await CheckExistingAddonAsync(cancellationToken);
-        var successMsg = $"Renamed profile '{oldName}' to '{newName}'.";
+        var successMsg = GetLocalizedString("Tools.GenHotkeys.Notification.ProfileRenamed.Message", $"Renamed profile '{oldName}' to '{newName}'.", oldName, newName);
         StatusMessage = successMsg;
-        notificationService?.ShowSuccess("Profile Renamed", successMsg, NotificationDurations.Short);
+        notificationService?.ShowSuccess(GetLocalizedString("Tools.GenHotkeys.Notification.ProfileRenamed.Title", "Profile Renamed"), successMsg, NotificationDurations.Short);
     }
 
     /// <summary>
@@ -621,8 +621,8 @@ public partial class GenHotkeysViewModel(
     {
         if (SelectedProfile == null || Profiles.Count <= 1)
         {
-            StatusMessage = "Cannot delete the only remaining profile.";
-            notificationService?.ShowWarning("Profile Error", "Cannot delete the only remaining profile.", NotificationDurations.Medium);
+            StatusMessage = GetLocalizedString("Tools.GenHotkeys.Notification.OnlyProfileDelete.Message", "Cannot delete the only remaining profile.");
+            notificationService?.ShowWarning(GetLocalizedString("Tools.GenHotkeys.Notification.ProfileError.Title", "Profile Error"), StatusMessage, NotificationDurations.Medium);
             return;
         }
 
@@ -658,9 +658,9 @@ public partial class GenHotkeysViewModel(
             Profiles.Remove(toDelete);
             SelectedProfile = Profiles.FirstOrDefault();
 
-            var successMsg = $"Deleted profile '{toDelete.Name}'.";
+            var successMsg = GetLocalizedString("Tools.GenHotkeys.Notification.ProfileDeleted.Message", $"Deleted profile '{toDelete.Name}'.", toDelete.Name);
             StatusMessage = successMsg;
-            notificationService?.ShowSuccess("Profile Deleted", successMsg, NotificationDurations.Short);
+            notificationService?.ShowSuccess(GetLocalizedString("Tools.GenHotkeys.Notification.ProfileDeleted.Title", "Profile Deleted"), successMsg, NotificationDurations.Short);
         }
         catch (OperationCanceledException)
         {
@@ -779,7 +779,8 @@ public partial class GenHotkeysViewModel(
                 profileManager,
                 profileContentService,
                 manifestPool,
-                notificationService);
+                notificationService,
+                localizationService);
 
             await profileSelectionVm.LoadProfilesAsync(
                 targetManifest.TargetGame,
@@ -806,7 +807,9 @@ public partial class GenHotkeysViewModel(
         catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
         {
             logger.LogError(ex, "Failed to open profile selection dialog");
-            notificationService.ShowError("Profile Selection Error", $"Failed to open profile selection: {ex.Message}");
+            notificationService.ShowError(
+                GetLocalizedString("Tools.GenHotkeys.Notification.ProfileSelectionError.Title", "Profile Selection Error"),
+                GetLocalizedString("Tools.GenHotkeys.Notification.ProfileSelectionError.Message", $"Failed to open profile selection: {ex.Message}", ex.Message));
         }
     }
 
@@ -1693,15 +1696,15 @@ public partial class GenHotkeysViewModel(
 
         var message = savedProfile != null
             ? successMessage
-            : $"Failed to save profile after applying {presetName} preset.";
+            : GetLocalizedString("Tools.GenHotkeys.Notification.PresetSaveFailed.Message", $"Failed to save profile after applying {presetName} preset.", presetName);
         StatusMessage = message;
         if (savedProfile != null)
         {
-            notificationService?.ShowSuccess("Preset Applied", message, NotificationDurations.Short);
+            notificationService?.ShowSuccess(GetLocalizedString("Tools.GenHotkeys.Notification.PresetApplied.Title", "Preset Applied"), message, NotificationDurations.Short);
         }
         else
         {
-            notificationService?.ShowError("Preset Error", message, NotificationDurations.Medium);
+            notificationService?.ShowError(GetLocalizedString("Tools.GenHotkeys.Notification.PresetError.Title", "Preset Error"), message, NotificationDurations.Medium);
         }
     }
 
@@ -1711,7 +1714,7 @@ public partial class GenHotkeysViewModel(
         targetProfile.KeyMappings.Clear();
         targetProfile.ClearedKeys.Clear();
 
-        await SavePresetAndNotifyAsync(targetProfile, presetName, $"Applied '{presetName}' preset hotkeys.", cancellationToken);
+        await SavePresetAndNotifyAsync(targetProfile, presetName, GetLocalizedString("Tools.GenHotkeys.Notification.PresetAppliedCustom.Message", $"Applied '{presetName}' preset hotkeys.", presetName), cancellationToken);
     }
 
     private async Task ApplyVanillaPresetAsync(HotkeyProfile targetProfile, CancellationToken cancellationToken)
@@ -1722,7 +1725,7 @@ public partial class GenHotkeysViewModel(
             targetProfile.KeyMappings.Clear();
             targetProfile.ClearedKeys.Clear();
 
-            await SavePresetAndNotifyAsync(targetProfile, "Vanilla", "Applied default vanilla retail hotkeys.", cancellationToken);
+            await SavePresetAndNotifyAsync(targetProfile, "Vanilla", GetLocalizedString("Tools.GenHotkeys.Notification.PresetAppliedVanilla.Message", "Applied default vanilla retail hotkeys."), cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -1765,7 +1768,7 @@ public partial class GenHotkeysViewModel(
             }
 
             PopulateProfileMappings(targetProfile, presetName, extractedMappings);
-            await SavePresetAndNotifyAsync(targetProfile, presetName, $"Applied {presetName} preset hotkeys.", cancellationToken);
+            await SavePresetAndNotifyAsync(targetProfile, presetName, GetLocalizedString("Tools.GenHotkeys.Notification.PresetApplied.Message", $"Applied {presetName} preset hotkeys.", presetName), cancellationToken);
         }
         catch (OperationCanceledException)
         {

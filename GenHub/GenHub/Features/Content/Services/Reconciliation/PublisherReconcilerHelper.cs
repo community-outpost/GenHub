@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
@@ -111,8 +112,8 @@ public static class PublisherReconcilerHelper
             {
                 anyFailure = true;
                 context.NotificationService.ShowWarning(
-                    $"{context.PublisherDisplayName} Update Partial",
-                    $"Failed to create some new profiles: {createResult.FirstError}");
+                    context.LocalizationService.GetLocalizedString("Content.Notification.PublisherUpdatePartial.Title", $"{context.PublisherDisplayName} Update Partial", context.PublisherDisplayName),
+                    context.LocalizationService.GetLocalizedString("Content.Notification.PublisherUpdatePartial.CreateFailedMessage", $"Failed to create some new profiles: {createResult.FirstError}", createResult.FirstError));
             }
 
             return (true, null, profilesUpdated, anyFailure, shouldDeleteOld, targetProfileId);
@@ -135,8 +136,8 @@ public static class PublisherReconcilerHelper
             {
                 anyFailure = true;
                 context.NotificationService.ShowWarning(
-                    $"{context.PublisherDisplayName} Update Partial",
-                    $"{bulkUpdateResult.Data.FailedProfilesCount} profiles could not be updated.",
+                    context.LocalizationService.GetLocalizedString("Content.Notification.PublisherUpdatePartial.Title", $"{context.PublisherDisplayName} Update Partial", context.PublisherDisplayName),
+                    context.LocalizationService.GetLocalizedString("Content.Notification.PublisherUpdatePartial.ProfilesFailedMessage", $"{bulkUpdateResult.Data.FailedProfilesCount} profiles could not be updated.", bulkUpdateResult.Data.FailedProfilesCount),
                     NotificationDurations.VeryLong);
             }
 
@@ -145,8 +146,8 @@ public static class PublisherReconcilerHelper
 
         anyFailure = true;
         context.NotificationService.ShowWarning(
-            $"{context.PublisherDisplayName} Update Partial",
-            $"Some profiles could not be updated: {bulkUpdateResult.FirstError}",
+            context.LocalizationService.GetLocalizedString("Content.Notification.PublisherUpdatePartial.Title", $"{context.PublisherDisplayName} Update Partial", context.PublisherDisplayName),
+            context.LocalizationService.GetLocalizedString("Content.Notification.PublisherUpdatePartial.UpdateFailedMessage", $"Some profiles could not be updated: {bulkUpdateResult.FirstError}", bulkUpdateResult.FirstError),
             NotificationDurations.VeryLong);
 
         return (false, $"Bulk update failed: {bulkUpdateResult.FirstError}", profilesUpdated, anyFailure, shouldDeleteOld, targetProfileId);

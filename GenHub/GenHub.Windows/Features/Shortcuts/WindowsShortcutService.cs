@@ -19,7 +19,7 @@ namespace GenHub.Windows.Features.Shortcuts;
 /// <summary>
 /// Windows implementation of <see cref="IShortcutService"/> that creates .lnk shortcuts.
 /// </summary>
-public class WindowsShortcutService(ILogger<WindowsShortcutService> logger) : IShortcutService
+public class WindowsShortcutService(ILogger<WindowsShortcutService> logger, Func<string>? desktopDirectoryProvider = null) : IShortcutService
 {
     /// <summary>
     /// COM class for creating shell links.
@@ -175,29 +175,7 @@ public class WindowsShortcutService(ILogger<WindowsShortcutService> logger) : IS
     {
         ArgumentNullException.ThrowIfNull(profile);
 
-        try
-        {
-            var shortcutPath = GetShortcutPath(profile);
-
-            if (File.Exists(shortcutPath))
-            {
-                File.Delete(shortcutPath);
-                logger.LogInformation(
-                    "Removed desktop shortcut for profile {ProfileName} at {ShortcutPath}",
-                    profile.Name,
-                    shortcutPath);
-
-                return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
-            }
-
-            logger.LogWarning("Shortcut not found at {ShortcutPath}", shortcutPath);
-            return Task.FromResult(OperationResult<bool>.CreateSuccess(false));
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to remove desktop shortcut for profile {ProfileName}", profile.Name);
-            return Task.FromResult(OperationResult<bool>.CreateFailure($"Failed to remove shortcut: {ex.Message}"));
-        }
+        return ShortcutFileHelper.RemoveShortcutFileAsync(GetShortcutPath(profile), profile.Name, logger);
     }
 
     /// <inheritdoc />
@@ -214,7 +192,7 @@ public class WindowsShortcutService(ILogger<WindowsShortcutService> logger) : IS
     {
         ArgumentNullException.ThrowIfNull(profile);
 
-        var desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+        var desktopPath = desktopDirectoryProvider?.Invoke() ?? Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
         var name = SanitizeFileName(shortcutName ?? profile.Name);
         return Path.Combine(desktopPath, $"{AppConstants.AppName}-{name}.lnk");
     }

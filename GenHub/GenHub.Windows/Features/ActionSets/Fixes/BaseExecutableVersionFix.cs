@@ -99,7 +99,7 @@ public abstract class BaseExecutableVersionFix(ILogger logger) : BaseActionSet(l
         {
             if (!HasGame(installation))
             {
-                details.Add($"✗ {GameDisplayName} is not installed");
+                details.Add($"Error: {GameDisplayName} is not installed");
                 return Task.FromResult(new ActionSetResult(false, $"{GameDisplayName} is not installed in this installation.", details));
             }
 
@@ -121,22 +121,22 @@ public abstract class BaseExecutableVersionFix(ILogger logger) : BaseActionSet(l
 
                 if (version != null && VersionPrefixes.Any(p => version.StartsWith(p, StringComparison.OrdinalIgnoreCase)))
                 {
-                    details.Add($"✓ {GameDisplayName} {TargetVersionDisplay} patch is already applied");
+                    details.Add($"OK: {GameDisplayName} {TargetVersionDisplay} patch is already applied");
                     return Task.FromResult(new ActionSetResult(true, null, details));
                 }
 
-                details.Add($"⚠ {GameDisplayName} {TargetVersionDisplay} patch needs to be applied");
+                details.Add($"Warning: {GameDisplayName} {TargetVersionDisplay} patch needs to be applied");
                 details.Add("  Please use the appropriate patch in GenHub to update your game client.");
                 return Task.FromResult(new ActionSetResult(false, $"{GameDisplayName} executable is not version {TargetVersionDisplay}.", details));
             }
 
-            details.Add($"⚠ {GameDisplayName} executable not found in: {gamePath}");
+            details.Add($"Warning: {GameDisplayName} executable not found in: {gamePath}");
             return Task.FromResult(new ActionSetResult(false, $"{GameDisplayName} executable not found in {gamePath}", details));
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error checking {Game} executable version", GameDisplayName);
-            details.Add($"✗ Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
     }

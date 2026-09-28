@@ -294,8 +294,9 @@ public sealed class SuperHackersBundleIntegrationTests
         var profileContentService = new ProfileContentService(
             profileManagerMock.Object,
             manifestPoolMock.Object,
-            dependencyResolver,
-            installationServiceMock.Object,
+            new ProfileContentResolutionServices(
+                dependencyResolver,
+                installationServiceMock.Object),
             Mock.Of<IContentOrchestrator>(),
             Mock.Of<INotificationService>(),
             NullLogger<ProfileContentService>.Instance);
@@ -479,8 +480,9 @@ public sealed class SuperHackersBundleIntegrationTests
         var profileContentService = new ProfileContentService(
             profileManagerMock.Object,
             manifestPoolMock.Object,
-            dependencyResolver,
-            installationServiceMock.Object,
+            new ProfileContentResolutionServices(
+                dependencyResolver,
+                installationServiceMock.Object),
             Mock.Of<IContentOrchestrator>(),
             Mock.Of<INotificationService>(),
             NullLogger<ProfileContentService>.Instance);

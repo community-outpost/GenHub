@@ -1803,7 +1803,7 @@ public class GameProfileLauncherViewModelTests
     private static SuperHackersProvider CreateSuperHackersProvider()
     {
         var discovererMock = new Mock<IContentDiscoverer>();
-        discovererMock.Setup(x => x.SourceName).Returns("GitHubReleasesDiscoverer");
+        discovererMock.Setup(x => x.SourceName).Returns(GenHub.Core.Constants.PublisherTypeConstants.TheSuperHackers);
 
         var resolverMock = new Mock<IContentResolver>();
         resolverMock.Setup(x => x.ResolverId).Returns(GenHub.Core.Constants.SuperHackersConstants.ResolverId);
@@ -1811,13 +1811,11 @@ public class GameProfileLauncherViewModelTests
         var delivererMock = new Mock<IContentDeliverer>();
         delivererMock.Setup(x => x.SourceName).Returns(GenHub.Core.Constants.ContentSourceNames.GitHubDeliverer);
 
-        var gitHubApiClientMock = new Mock<IGitHubApiClient>();
-
         var loaderMock = new Mock<IProviderDefinitionLoader>();
 
         return new SuperHackersProvider(
             loaderMock.Object,
-            gitHubApiClientMock.Object,
+            [discovererMock.Object],
             [resolverMock.Object],
             [delivererMock.Object],
             new Mock<GenHub.Core.Interfaces.Content.IContentValidator>().Object,

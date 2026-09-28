@@ -1,4 +1,6 @@
+using GenHub.Common.Services;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Infrastructure.Services;
 using Markdown.Avalonia.Utils;
 using System;
@@ -23,6 +25,7 @@ public sealed class SafeMarkdownPathResolver : IPathResolver
     private static readonly HttpClient SharedHttpClient = CreateSharedHttpClient();
 
     private readonly HttpClient httpClient;
+    private readonly IDownloadUrlValidator downloadUrlValidator;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SafeMarkdownPathResolver"/> class
@@ -38,9 +41,11 @@ public sealed class SafeMarkdownPathResolver : IPathResolver
     /// Internal constructor for test isolation.
     /// </summary>
     /// <param name="client">The <see cref="HttpClient"/> used to fetch remote images.</param>
-    internal SafeMarkdownPathResolver(HttpClient client)
+    /// <param name="urlValidator">Validates each redirect hop; defaults to a new <see cref="DownloadUrlValidator"/>.</param>
+    internal SafeMarkdownPathResolver(HttpClient client, IDownloadUrlValidator? urlValidator = null)
     {
         httpClient = client ?? throw new ArgumentNullException(nameof(client));
+        downloadUrlValidator = urlValidator ?? new DownloadUrlValidator();
     }
 
     /// <inheritdoc/>
@@ -98,65 +103,6 @@ public sealed class SafeMarkdownPathResolver : IPathResolver
         };
     }
 
-    private static bool TryGetRedirectTarget(
-        HttpResponseMessage response,
-        Uri currentUri,
-        out Uri? nextUri,
-        out bool isBlocked)
-    {
-        nextUri = null;
-        isBlocked = false;
-
-        if ((int)response.StatusCode is not (>= 300 and <= 399) || response.Headers.Location == null)
-        {
-            return false;
-        }
-
-        var location = response.Headers.Location;
-        try
-        {
-            nextUri = location.IsAbsoluteUri ? location : new Uri(currentUri, location);
-        }
-        catch (UriFormatException)
-        {
-            isBlocked = true;
-            return false;
-        }
-
-        if (currentUri.Scheme == Uri.UriSchemeHttps && nextUri.Scheme == Uri.UriSchemeHttp)
-        {
-            nextUri = null;
-            isBlocked = true;
-            return false;
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// Detects a redirect that the HTTP handler followed transparently, bypassing the
-    /// per-hop validation because no 3xx was ever surfaced. The final destination is
-    /// exposed via <see cref="HttpResponseMessage.RequestMessage"/>.
-    /// </summary>
-    /// <param name="response">The received response.</param>
-    /// <param name="requestUri">The URI that was requested.</param>
-    /// <returns><c>true</c> when the handler landed on an unsafe or downgraded URI.</returns>
-    private static bool IsTransparentRedirectToUnsafeTarget(HttpResponseMessage response, Uri requestUri)
-    {
-        var finalUri = response.RequestMessage?.RequestUri;
-        if (finalUri == null || finalUri.AbsoluteUri == requestUri.AbsoluteUri)
-        {
-            return false;
-        }
-
-        if (!ImageCacheService.IsSafeRemoteUrl(finalUri.AbsoluteUri, out _))
-        {
-            return true;
-        }
-
-        return requestUri.Scheme == Uri.UriSchemeHttps && finalUri.Scheme == Uri.UriSchemeHttp;
-    }
-
     private static async Task<MemoryStream?> ReadCappedStreamAsync(Stream stream, CancellationToken cancellationToken)
     {
         var memoryStream = new MemoryStream();
@@ -189,38 +135,25 @@ public sealed class SafeMarkdownPathResolver : IPathResolver
 
     private async Task<HttpResponseMessage?> SendWithRedirectsAsync(Uri initialUri, CancellationToken cancellationToken)
     {
-        var currentUri = initialUri;
-        for (var hop = 0; hop <= ImageCacheConstants.MaxRedirects; hop++)
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (!ImageCacheService.IsSafeRemoteUrl(currentUri.AbsoluteUri, out var safeUri))
-            {
-                return null;
-            }
-
-            using var request = new HttpRequestMessage(HttpMethod.Get, safeUri);
-            var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-            if (!TryGetRedirectTarget(response, safeUri, out var nextUri, out var isBlocked))
-            {
-                if (IsTransparentRedirectToUnsafeTarget(response, safeUri))
-                {
-                    response.Dispose();
-                    return null;
-                }
-
-                return response;
-            }
-
-            response.Dispose();
-            if (isBlocked || nextUri == null)
-            {
-                return null;
-            }
-
-            currentUri = nextUri;
+            var validated = await SsrfSafeHttpHelper.SendWithValidatedRedirectsAsync(
+                httpClient,
+                static uri => new HttpRequestMessage(HttpMethod.Get, uri),
+                initialUri,
+                ImageCacheConstants.MaxRedirects,
+                downloadUrlValidator,
+                cancellationToken,
+                blockHttpsDowngrade: true).ConfigureAwait(false);
+            return validated.Response;
         }
-
-        return null;
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
     }
 }

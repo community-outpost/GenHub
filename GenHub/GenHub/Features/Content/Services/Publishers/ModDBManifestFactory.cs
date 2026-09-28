@@ -9,10 +9,11 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.ModDB;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Services.Dependencies;
 using GenHub.Core.Utilities;
+using GenHub.Features.Content.Services.Common;
 using Microsoft.Extensions.Logging;
 using SharpCompress.Archives;
-using Slugify;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -179,27 +180,9 @@ public class ModDBManifestFactory(
 
         return OperationResult<List<ContentManifest>>.CreateSuccess(
         [
-            new ContentManifest
+            new ContentManifest(originalManifest)
             {
-                SchemaVersion = originalManifest.SchemaVersion,
-                Id = originalManifest.Id,
-                Name = originalManifest.Name,
-                Version = originalManifest.Version,
-                ContentType = originalManifest.ContentType,
-                TargetGame = originalManifest.TargetGame,
-                Publisher = originalManifest.Publisher,
-                Metadata = originalManifest.Metadata,
-                OriginalProviderName = originalManifest.OriginalProviderName,
-                OriginalContentId = originalManifest.OriginalContentId,
-                SourcePath = originalManifest.SourcePath,
-                Dependencies = originalManifest.Dependencies,
-                ContentReferences = originalManifest.ContentReferences,
-                KnownAddons = originalManifest.KnownAddons,
                 Files = files,
-                Variants = originalManifest.Variants,
-                EntryPoint = originalManifest.EntryPoint,
-                RequiredDirectories = originalManifest.RequiredDirectories,
-                InstallationInstructions = originalManifest.InstallationInstructions,
             },
         ]);
     }
@@ -238,7 +221,7 @@ public class ModDBManifestFactory(
         var publisherId = $"{ModDBConstants.PublisherPrefix}-{normalizedAuthor}";
 
         // 2. Slugify content name
-        var contentName = SlugifyTitle(details.Name);
+        var contentName = ManifestTagHelper.SlugifyTitle(details.Name, ModDBConstants.DefaultContentName);
 
         // 3. Use release date for manifest ID generation
         // Format: 1.YYYYMMDD.moddb.{contentType}.{contentName}
@@ -282,10 +265,7 @@ public class ModDBManifestFactory(
                 iconUrl: details.PreviewImage,
                 screenshotUrls: details.Screenshots ?? []);
 
-        // 6. Add custom metadata
-        manifest = AddCustomMetadata(manifest);
-
-        // 7. Describe the remote archives. Delivery is intentionally deferred to Stage 2,
+        // 6. Describe the remote archives. Delivery is intentionally deferred to Stage 2,
         // where the shared HTTP deliverer can place the downloaded file in staging and the
         // factory can extract it before validation and CAS storage.
         var addedUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -302,7 +282,7 @@ public class ModDBManifestFactory(
                 if (string.IsNullOrEmpty(file.DownloadUrl) || addedUrls.Contains(file.DownloadUrl))
                     continue;
 
-                var fileName = SanitizeFileName(file.Name ?? ModDBConstants.DefaultDownloadFilename);
+                var fileName = ManifestTagHelper.SanitizeFileName(file.Name, ModDBConstants.DefaultDownloadFilename);
                 await manifest.AddRemoteFileAsync(fileName, file.DownloadUrl, ContentSourceType.RemoteDownload);
                 addedUrls.Add(file.DownloadUrl);
             }
@@ -310,10 +290,10 @@ public class ModDBManifestFactory(
 
         logger.LogInformation("{Count} remote file(s) added to the ModDB manifest for staged delivery", addedUrls.Count);
 
-        // 8. Add dependencies based on target game (unless standalone)
+        // 7. Add dependencies based on target game (unless standalone)
         if (!details.ContentType.IsStandalone())
         {
-            manifest = AddGameDependencies(manifest, details.TargetGame);
+            manifest = BaseDependencyBuilder.AddGameDependencies(manifest, details.TargetGame);
         }
 
         var builtManifest = manifest.Build();
@@ -342,36 +322,10 @@ public class ModDBManifestFactory(
 
         // Remove all non-alphanumeric characters and convert to lowercase
         // Using Slugify to normalize the author name
-        var slugHelper = new SlugHelper();
-        var normalized = slugHelper.GenerateSlug(author).Replace("-", string.Empty);
+        var normalized = ManifestTagHelper.SlugifyTitle(author, ModDBConstants.DefaultAuthor).Replace("-", string.Empty);
 
         // If the result is empty after normalization, use default
         return string.IsNullOrEmpty(normalized) ? ModDBConstants.DefaultAuthor : normalized;
-    }
-
-    /// <summary>
-    /// Converts a title into a URL-friendly slug.
-    /// </summary>
-    /// <param name="title">The content title.</param>
-    /// <returns>A slugified version of the title.</returns>
-    private static string SlugifyTitle(string title)
-    {
-        if (string.IsNullOrWhiteSpace(title))
-        {
-            return ModDBConstants.DefaultContentName;
-        }
-
-        try
-        {
-            var slugHelper = new SlugHelper();
-            var slug = slugHelper.GenerateSlug(title);
-            return string.IsNullOrEmpty(slug) ? ModDBConstants.DefaultContentName : slug;
-        }
-        catch
-        {
-            // Fallback to default if slugification fails
-            return ModDBConstants.DefaultContentName;
-        }
     }
 
     /// <summary>
@@ -382,24 +336,7 @@ public class ModDBManifestFactory(
     private static List<string> GetTags(MapDetails details)
     {
         List<string> tags = [.. ModDBConstants.Tags];
-
-        // Add game-specific tag
-        tags.Add(details.TargetGame == GameType.Generals ? GameClientConstants.GeneralsShortName : GameClientConstants.ZeroHourShortName);
-
-        // Add content type tag
-        tags.Add(details.ContentType switch
-        {
-            ContentType.Mod => ManifestConstants.ModTag,
-            ContentType.Patch => ManifestConstants.PatchTag,
-            ContentType.Map => ManifestConstants.MapTag,
-            ContentType.MapPack => ManifestConstants.MapPackTag,
-            ContentType.Skin => ManifestConstants.SkinTag,
-            ContentType.Video => ManifestConstants.VideoTag,
-            ContentType.ModdingTool => ManifestConstants.ModdingToolTag,
-            ContentType.LanguagePack => ManifestConstants.LanguagePackTag,
-            ContentType.Addon => ManifestConstants.AddonTag,
-            _ => ManifestConstants.OtherTag,
-        });
+        ManifestTagHelper.AddGameAndContentTypeTags(tags, details.TargetGame, details.ContentType);
 
         // Add author tag
         if (!string.IsNullOrWhiteSpace(details.Author) && details.Author != ModDBConstants.DefaultAuthor)
@@ -411,73 +348,6 @@ public class ModDBManifestFactory(
     }
 
     /// <summary>
-    /// Adds custom metadata fields specific to ModDB content.
-    /// </summary>
-    /// <param name="builder">The manifest builder.</param>
-    /// <returns>The updated manifest builder.</returns>
-    private static IContentManifestBuilder AddCustomMetadata(IContentManifestBuilder builder)
-    {
-        // Store ModDB-specific metadata in the manifest's custom metadata collection
-        // This can be accessed later for display in UI or for special handling
-
-        // Note: ContentManifest doesn't have a CustomMetadata dictionary exposed
-        // If needed, this can store information in the description or tags
-        // For now, this is a placeholder for future enhancement.
-        return builder;
-    }
-
-    /// <summary>
-    /// Adds game installation dependencies based on target game.
-    /// </summary>
-    /// <param name="builder">The manifest builder.</param>
-    /// <param name="targetGame">The target game type.</param>
-    /// <returns>The updated manifest builder.</returns>
-    private static IContentManifestBuilder AddGameDependencies(IContentManifestBuilder builder, GameType targetGame)
-    {
-        // Add dependency on the appropriate game installation
-        // Note: Using RequireExisting since game installations must already exist
-        if (targetGame == GameType.ZeroHour)
-        {
-            // Type-only constraint: any platform's ZH installation satisfies this.
-            builder.AddDependency(
-                id: ManifestId.Create(ManifestConstants.ZeroHourGameInstallationManifestId),
-                name: ManifestConstants.ZeroHourInstallationName,
-                dependencyType: ContentType.GameInstallation,
-                installBehavior: DependencyInstallBehavior.RequireExisting,
-                minVersion: ManifestConstants.ZeroHourManifestVersion);
-        }
-        else if (targetGame == GameType.Generals)
-        {
-            // Type-only constraint: any platform's Generals installation satisfies this.
-            builder.AddDependency(
-                id: ManifestId.Create(ManifestConstants.GeneralsGameInstallationManifestId),
-                name: ManifestConstants.GeneralsInstallationName,
-                dependencyType: ContentType.GameInstallation,
-                installBehavior: DependencyInstallBehavior.RequireExisting,
-                minVersion: ManifestConstants.GeneralsManifestVersion);
-        }
-
-        return builder;
-    }
-
-    /// <summary>
-    /// Sanitizes a filename by removing invalid characters.
-    /// </summary>
-    /// <param name="fileName">The filename to sanitize.</param>
-    /// <returns>A sanitized filename.</returns>
-    private static string SanitizeFileName(string fileName)
-    {
-        if (string.IsNullOrWhiteSpace(fileName))
-        {
-            return ModDBConstants.DefaultDownloadFilename;
-        }
-
-        // Remove invalid path characters
-        var invalidChars = Path.GetInvalidFileNameChars();
-        return string.Join("_", fileName.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries));
-    }
-
-    /// <summary>
     /// Builds the primary archive filename for a ModDB download, normalizing the parsed file type
     /// into a conventional extension before it reaches staging.
     /// </summary>
@@ -485,7 +355,7 @@ public class ModDBManifestFactory(
     /// <returns>The sanitized filename with a restricted extension.</returns>
     private static string BuildPrimaryFileName(MapDetails details)
     {
-        var fileName = SanitizeFileName(details.Name);
+        var fileName = ManifestTagHelper.SanitizeFileName(details.Name, ModDBConstants.DefaultDownloadFilename);
         var extension = details.FileType?.Trim() ?? string.Empty;
         if (extension.Length == 0)
         {

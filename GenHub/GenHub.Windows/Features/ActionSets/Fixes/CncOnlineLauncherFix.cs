@@ -123,14 +123,14 @@ public class CncOnlineLauncherFix(
                 return Task.FromResult(new ActionSetResult(false, "Failed to write one or more C&C Online registry entries.", details));
             }
 
-            details.Add("✓ C&C Online registry configuration completed successfully");
+            details.Add("OK: C&C Online registry configuration completed successfully");
             logger.LogInformation("C&C Online registry fix applied with {DetailCount} actions", details.Count);
             return Task.FromResult(new ActionSetResult(true, null, details));
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error applying C&C Online registry fix");
-            details.Add($"✗ Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
     }
@@ -148,19 +148,19 @@ public class CncOnlineLauncherFix(
             {
                 registryService.DeleteValue(RegistryConstants.CncOnlineGeneralsKeyPath, RegistryConstants.InstallPathValueName, true, Microsoft.Win32.RegistryHive.CurrentUser);
                 registryService.DeleteValue(RegistryConstants.CncOnlineGeneralsKeyPath, RegistryConstants.VersionValueName, true, Microsoft.Win32.RegistryHive.CurrentUser);
-                details.Add($"✓ Removed registry entries for HKCU\\{RegistryConstants.CncOnlineGeneralsKeyPath}");
+                details.Add($"OK: Removed registry entries for HKCU\\{RegistryConstants.CncOnlineGeneralsKeyPath}");
             }
 
             if (installation.HasZeroHour)
             {
                 registryService.DeleteValue(RegistryConstants.CncOnlineZeroHourKeyPath, RegistryConstants.InstallPathValueName, true, Microsoft.Win32.RegistryHive.CurrentUser);
                 registryService.DeleteValue(RegistryConstants.CncOnlineZeroHourKeyPath, RegistryConstants.VersionValueName, true, Microsoft.Win32.RegistryHive.CurrentUser);
-                details.Add($"✓ Removed registry entries for HKCU\\{RegistryConstants.CncOnlineZeroHourKeyPath}");
+                details.Add($"OK: Removed registry entries for HKCU\\{RegistryConstants.CncOnlineZeroHourKeyPath}");
             }
 
             registryService.DeleteValue(RegistryConstants.CncOnlineKeyPath, RegistryConstants.InstallPathValueName, true, Microsoft.Win32.RegistryHive.CurrentUser);
             registryService.DeleteValue(RegistryConstants.CncOnlineKeyPath, RegistryConstants.VersionValueName, true, Microsoft.Win32.RegistryHive.CurrentUser);
-            details.Add($"✓ Removed registry entries for HKCU\\{RegistryConstants.CncOnlineKeyPath}");
+            details.Add($"OK: Removed registry entries for HKCU\\{RegistryConstants.CncOnlineKeyPath}");
 
             return Task.FromResult(new ActionSetResult(true, null, details));
         }
@@ -196,14 +196,14 @@ public class CncOnlineLauncherFix(
 
         if (ok1 && ok2)
         {
-            details.Add($"✓ Created: HKCU\\{keyPath}");
+            details.Add($"OK: Created: HKCU\\{keyPath}");
             details.Add($"  • InstallPath = {installPath}");
             details.Add($"  • Version = {version}");
             logger.LogInformation("Created C&C Online registry entries for {GameName}", gameName);
             return true;
         }
 
-        details.Add($"✗ Failed to write C&C Online registry entries for {gameName}");
+        details.Add($"Error: Failed to write C&C Online registry entries for {gameName}");
         return false;
     }
 
@@ -227,13 +227,13 @@ public class CncOnlineLauncherFix(
 
         if (ok1 && ok2)
         {
-            details.Add($"✓ Created: HKCU\\{RegistryConstants.CncOnlineKeyPath}");
+            details.Add($"OK: Created: HKCU\\{RegistryConstants.CncOnlineKeyPath}");
             details.Add($"  • InstallPath = {basePath}");
             details.Add($"  • Version = {RegistryConstants.CncOnlineVersion}");
             return true;
         }
 
-        details.Add("✗ Failed to write main C&C Online registry entries");
+        details.Add("Error: Failed to write main C&C Online registry entries");
         return false;
     }
 }

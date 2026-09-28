@@ -1,5 +1,6 @@
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Telemetry;
 
 namespace GenHub.Features.Content.Services.Catalog;
@@ -13,6 +14,7 @@ public sealed class GenericCatalogContentServices(
     IContentStateService contentStateService,
     IContentDownloadCoordinator downloadCoordinator,
     IContentReconciliationService reconciliationService,
+    IPublisherSubscriptionStore subscriptionStore,
     ITelemetryService? telemetryService = null)
 {
     /// <summary>
@@ -39,6 +41,11 @@ public sealed class GenericCatalogContentServices(
     /// Gets the content reconciliation service.
     /// </summary>
     public IContentReconciliationService ReconciliationService { get; } = reconciliationService;
+
+    /// <summary>
+    /// Gets the publisher subscription store.
+    /// </summary>
+    public IPublisherSubscriptionStore SubscriptionStore { get; } = subscriptionStore;
 
     /// <summary>
     /// Gets the optional telemetry service.

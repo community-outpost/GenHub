@@ -274,7 +274,7 @@ public abstract class BasePackageDeploymentFix(
                 return new ActionSetResult(false, $"Package failed security verification: {errorSummary}", details);
             }
 
-            details.Add("✓ Package integrity verified via SHA-256 checksum.");
+            details.Add("OK: Package integrity verified via SHA-256 checksum.");
             details.Add($"Extracting {PackageDisplayName} assets...");
             Directory.CreateDirectory(tempExtractDir);
 
@@ -289,11 +289,11 @@ public abstract class BasePackageDeploymentFix(
                 deployedFiles.AddRange(deployed);
             }
 
-            details.Add($"✓ Extracted and deployed {extractedCount} assets to game folders.");
+            details.Add($"OK: Extracted and deployed {extractedCount} assets to game folders.");
 
             if (!RecordDeploymentMarker(targetMarkerPath, backupEntries))
             {
-                details.Add("✗ Failed to record the deployment marker. Rolling back deployed files.");
+                details.Add("Error: Failed to record the deployment marker. Rolling back deployed files.");
                 RollbackDeployment(backupEntries, persistentBackupDir, details);
                 return new ActionSetResult(false, $"Failed to record the deployment marker for {Id}.", details);
             }
@@ -309,7 +309,7 @@ public abstract class BasePackageDeploymentFix(
         {
             RollbackDeployment(backupEntries, persistentBackupDir, details);
             Logger.LogError(ex, "Error applying {Name} fix", PackageDisplayName);
-            details.Add($"✗ Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return new ActionSetResult(false, ex.Message, details);
         }
         finally
@@ -332,7 +332,7 @@ public abstract class BasePackageDeploymentFix(
             {
                 if (AreAssetsPresent(installation))
                 {
-                    details.Add($"⚠ No deployment marker found. Custom {PackageDisplayName} files may have been installed manually; please remove them manually if desired.");
+                    details.Add($"Warning: No deployment marker found. Custom {PackageDisplayName} files may have been installed manually; please remove them manually if desired.");
                     return Task.FromResult(new ActionSetResult(false, "No deployment marker found to undo.", details));
                 }
 
@@ -343,7 +343,7 @@ public abstract class BasePackageDeploymentFix(
             if (lines == null)
             {
                 Logger.LogWarning("Failed to read installed file paths from marker {MarkerPath}", targetMarkerPath);
-                return Task.FromResult(new ActionSetResult(false, "Failed to read deployment marker", ["✗ Could not read deployment marker."]));
+                return Task.FromResult(new ActionSetResult(false, "Failed to read deployment marker", ["Error: Could not read deployment marker."]));
             }
 
             if (lines.Length == 0)
@@ -363,7 +363,7 @@ public abstract class BasePackageDeploymentFix(
             var markerUpdated = UpdateMarkerAfterUndo(targetMarkerPath, remainingRecords);
             if (!markerUpdated)
             {
-                details.Add("✗ Failed to update deployment marker after undo. Backups have been retained.");
+                details.Add("Error: Failed to update deployment marker after undo. Backups have been retained.");
                 return Task.FromResult(new ActionSetResult(false, "Failed to update deployment marker after undo.", details));
             }
 
@@ -388,7 +388,7 @@ public abstract class BasePackageDeploymentFix(
                 return Task.FromResult(new ActionSetResult(true, null, details));
             }
 
-            details.Add($"⚠ Partial undo: {removedCount} files removed, {restoredCount} restored, {remainingRecords.Count} files could not be processed.");
+            details.Add($"Warning: Partial undo: {removedCount} files removed, {restoredCount} restored, {remainingRecords.Count} files could not be processed.");
             return Task.FromResult(new ActionSetResult(false, $"Failed to remove/restore {remainingRecords.Count} files during undo.", details));
         }
         catch (IOException ex)
@@ -468,7 +468,7 @@ public abstract class BasePackageDeploymentFix(
                     continue;
                 }
 
-                details.Add($"✓ {PackageDisplayName} package downloaded successfully.");
+                details.Add($"OK: {PackageDisplayName} package downloaded successfully.");
                 return true;
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -508,11 +508,11 @@ public abstract class BasePackageDeploymentFix(
         if (!hasRollbackError)
         {
             CleanupEmptyBackupDirectory(backupDir);
-            details.Add("✓ Rollback completed.");
+            details.Add("OK: Rollback completed.");
         }
         else
         {
-            details.Add("⚠ Rollback completed with some file warnings. Backups have been retained for recovery.");
+            details.Add("Warning: Rollback completed with some file warnings. Backups have been retained for recovery.");
         }
     }
 

@@ -4149,7 +4149,7 @@ public partial class PublishShareViewModel(
             if (clipboard != null)
             {
                 await clipboard.SetTextAsync(text);
-                notificationService?.ShowSuccess(successTitle, successMessage, autoDismissMs: 3000);
+                notificationService?.ShowSuccess(successTitle, successMessage, autoDismissMs: NotificationDurations.Short);
                 logger.LogInformation("Copied text to clipboard");
             }
             else

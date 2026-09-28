@@ -175,9 +175,9 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
                 }
             }
 
-            details.Add($"✓ Processed {totalFilesProcessed} files and {totalDirsProcessed} directories");
-            details.Add("✓ Read-only attributes removed successfully");
-            details.Add("✓ OneDrive pin attributes applied");
+            details.Add($"OK: Processed {totalFilesProcessed} files and {totalDirsProcessed} directories");
+            details.Add("OK: Read-only attributes removed successfully");
+            details.Add("OK: OneDrive pin attributes applied");
 
             logger.LogInformation("RemoveReadOnlyFix completed: {Files} files, {Dirs} directories", totalFilesProcessed, totalDirsProcessed);
             return new ActionSetResult(true, null, details);
@@ -185,7 +185,7 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to remove read-only attributes");
-            details.Add($"✗ Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return new ActionSetResult(false, ex.Message, details);
         }
     }
@@ -230,12 +230,12 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
             filesProcessed += f;
             dirsProcessed += d;
 
-            details.Add($"  ✓ Removed read-only from {f} files, {d} directories");
+            details.Add($"  OK: Removed read-only from {f} files, {d} directories");
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Error removing read-only attributes for {Path}", path);
-            details.Add($"  ⚠ Warning: {ex.Message}");
+            AddFailureDetail(details, ex, isWarning: true, indent: "  ");
         }
 
         // 2. Apply Pin attribute (+P -U) using PowerShell for OneDrive compatibility
@@ -243,12 +243,12 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
         try
         {
             await ApplyPinAttributeAsync(path, ct);
-            details.Add("  ✓ Applied OneDrive pin attributes");
+            details.Add("  OK: Applied OneDrive pin attributes");
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to apply pin attributes to {Path}", path);
-            details.Add($"  ⚠ Could not apply pin attributes: {ex.Message}");
+            details.Add($"  Warning: Could not apply pin attributes: {ex.Message}");
         }
 
         return (filesProcessed, dirsProcessed);

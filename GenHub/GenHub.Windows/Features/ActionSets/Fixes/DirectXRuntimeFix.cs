@@ -126,7 +126,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
         catch (Exception ex)
         {
             logger.LogError(ex, "Error implementing DirectX Runtime Fix");
-            details.Add($"✗ Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return new ActionSetResult(false, ex.Message, details);
         }
         finally
@@ -207,7 +207,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
                 return OperationResult<(bool IsExe, string DownloadPath)>.CreateFailure($"Downloaded file from {uri.Host} was incomplete or corrupted.");
             }
 
-            details.Add($"✓ Downloaded {downloadedFileInfo.Length / 1024.0 / 1024.0:F2} MB from {uri.Host}");
+            details.Add($"OK: Downloaded {downloadedFileInfo.Length / 1024.0 / 1024.0:F2} MB from {uri.Host}");
 
             if (!isExe)
             {
@@ -269,12 +269,12 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
         ZipFile.ExtractToDirectory(zipFile, extractPath);
 
         var extractedFiles = Directory.GetFiles(extractPath, "*.*", SearchOption.AllDirectories);
-        details.Add($"✓ Extracted {extractedFiles.Length} files");
+        details.Add($"OK: Extracted {extractedFiles.Length} files");
 
         var setupExe = Path.Combine(extractPath, ActionSetConstants.FileNames.DxSetupExe);
         if (!File.Exists(setupExe))
         {
-            details.Add($"✗ {ActionSetConstants.FileNames.DxSetupExe} not found in package");
+            details.Add($"Error: {ActionSetConstants.FileNames.DxSetupExe} not found in package");
             return OperationResult<string>.CreateFailure($"{ActionSetConstants.FileNames.DxSetupExe} not found in downloaded package.");
         }
 
@@ -288,7 +288,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
         CancellationToken ct)
     {
         details.Add("Running DirectX Setup (silent mode)...");
-        details.Add("  ⚠ This may require administrator privileges");
+        details.Add("  Warning: This may require administrator privileges");
         logger.LogInformation("Running DirectX Setup (Silent)...");
 
         using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
@@ -301,7 +301,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
 
         if (process == null)
         {
-            details.Add("✗ Failed to start DirectX setup process");
+            details.Add("Error: Failed to start DirectX setup process");
             return new ActionSetResult(false, "Failed to start DirectX setup process.", details);
         }
 
@@ -310,20 +310,20 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
         if (process.ExitCode != ProcessConstants.ExitCodeSuccess && process.ExitCode != ProcessConstants.ExitCodeRebootRequired)
         {
             logger.LogError("DirectX setup failed with exit code {ExitCode}", process.ExitCode);
-            details.Add($"✗ DirectX setup failed with exit code {process.ExitCode}");
+            details.Add($"Error: DirectX setup failed with exit code {process.ExitCode}");
             return new ActionSetResult(false, $"DirectX setup exited with code {process.ExitCode}", details);
         }
 
         if (process.ExitCode == ProcessConstants.ExitCodeRebootRequired)
         {
-            details.Add("✓ DirectX setup completed successfully (reboot required)");
+            details.Add("OK: DirectX setup completed successfully (reboot required)");
         }
         else
         {
-            details.Add("✓ DirectX setup completed successfully");
+            details.Add("OK: DirectX setup completed successfully");
         }
 
-        details.Add("✓ DirectX Runtime installation completed");
+        details.Add("OK: DirectX Runtime installation completed");
         return new ActionSetResult(true, null, details);
     }
 }

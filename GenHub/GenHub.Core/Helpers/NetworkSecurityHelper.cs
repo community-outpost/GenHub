@@ -1,5 +1,6 @@
 namespace GenHub.Core.Helpers;
 
+using GenHub.Core.Constants;
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -186,6 +187,26 @@ public static class NetworkSecurityHelper
         return IsEmbeddedIpv4Safe(b);
     }
 
+    /// <summary>
+    /// Validates whether a host name targets a blocked local scope (localhost,
+    /// <c>.localhost</c>, <c>.local</c>, or <c>.internal</c>).
+    /// </summary>
+    /// <param name="host">The host name to validate.</param>
+    /// <returns><c>true</c> if the host is blocked; otherwise, <c>false</c>.</returns>
+    public static bool IsBlockedHostName(string host) =>
+        host.Equals(NetworkSecurityConstants.BlockedLocalhostName, StringComparison.OrdinalIgnoreCase) ||
+        host.EndsWith(NetworkSecurityConstants.BlockedLocalhostSuffix, StringComparison.OrdinalIgnoreCase) ||
+        host.EndsWith(NetworkSecurityConstants.BlockedLocalSuffix, StringComparison.OrdinalIgnoreCase) ||
+        host.EndsWith(NetworkSecurityConstants.BlockedInternalSuffix, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Validates whether a URI targets a blocked loopback or local hostname scope.
+    /// </summary>
+    /// <param name="uri">The URI to validate.</param>
+    /// <returns><c>true</c> if the URI host is blocked; otherwise, <c>false</c>.</returns>
+    public static bool IsBlockedHostName(Uri uri) =>
+        uri.IsLoopback || IsBlockedHostName(uri.Host);
+
     private static bool TryGetCandidateUri(string? url, [NotNullWhen(true)] out Uri? uri, out string? failureReason)
     {
         uri = null;
@@ -201,13 +222,6 @@ public static class NetworkSecurityHelper
 
         return true;
     }
-
-    private static bool IsBlockedHostName(Uri uri) =>
-        uri.IsLoopback ||
-        uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
-        uri.Host.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase) ||
-        uri.Host.EndsWith(".local", StringComparison.OrdinalIgnoreCase) ||
-        uri.Host.EndsWith(".internal", StringComparison.OrdinalIgnoreCase);
 
     private static bool TryGetLiteralAddress(Uri uri, [NotNullWhen(true)] out IPAddress? address)
     {

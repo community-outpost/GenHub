@@ -17,6 +17,9 @@ namespace GenHub.Core.Models.Manifest;
 /// - Schema versioning support for future format evolution
 /// - Human-readable format for debugging and logging
 /// Examples: "1.0.ea.gameinstallation.generals", "1.108.steam.mod.communitymaps".
+/// This static core is the single ID-format implementation; ManifestIdService is a
+/// Result-wrapping facade over it. Prefer the injected service in DI-constructed
+/// components; call this static core directly from static contexts.
 /// </summary>
 public static partial class ManifestIdGenerator
 {

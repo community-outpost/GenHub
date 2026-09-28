@@ -1,5 +1,6 @@
 using Avalonia.Data.Converters;
 using Avalonia.Media;
+using GenHub.Core.Constants;
 using System;
 using System.Globalization;
 
@@ -16,7 +17,7 @@ public class ProfileColorToOpacityConverter : IValueConverter
     /// <inheritdoc/>
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        string colorString = value as string ?? "#2A2A2A";
+        string colorString = value as string ?? UiConstants.ProfileDefaultColor;
         double opacity = 1.0;
         if (parameter is string paramStr && double.TryParse(paramStr, out var parsedOpacity))
         {

@@ -2878,6 +2878,13 @@ public class ProfileSharingServiceTests
     [InlineData("https://192.168.1.50/profile.ghprofile", false)]
     [InlineData("https://10.0.0.1/profile.ghprofile", false)]
     [InlineData("https://169.254.169.254/profile.ghprofile", false)]
+    [InlineData("https://[::ffff:10.0.0.1]/profile.ghprofile", false)]
+    [InlineData("https://[2002:0a00:0001::1]/profile.ghprofile", false)]
+    [InlineData("https://[64:ff9b::0a00:0001]/profile.ghprofile", false)]
+    [InlineData("https://[2001:0000:4136:e378:8000:63bf:f5ff:fffe]/profile.ghprofile", false)]
+    [InlineData("https://localhost/profile.ghprofile", false)]
+    [InlineData("https://app.local/profile.ghprofile", false)]
+    [InlineData("https://app.internal/profile.ghprofile", false)]
     [InlineData("https://93.184.216.34/profile.ghprofile", true)]
     [InlineData("https://8.8.8.8/profile.ghprofile", true)]
     public async Task IsSafeRemoteUriAsync_Should_ValidateIpLiteralsCorrectly(string url, bool expectedSafe)

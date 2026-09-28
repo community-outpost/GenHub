@@ -164,19 +164,19 @@ public abstract class BaseVCRedistFix(
             await lockedStream.DisposeAsync();
             lockedStream = null;
 
-            details.Add($"✓ Downloaded and verified {fileSize / 1024.0 / 1024.0:F2} MB");
+            details.Add($"OK: Downloaded and verified {fileSize / 1024.0 / 1024.0:F2} MB");
             details.Add($"Installing {RedistDisplayName} (silent mode)...");
-            details.Add("  ⚠ This may require administrator privileges");
+            details.Add("  Warning: This may require administrator privileges");
             Logger.LogInformation("Installing {Name}...", RedistDisplayName);
 
             var (success, exitCode, errorMsg) = await RunInstallerProcessAsync(tempFile, InstallerArguments, ct);
             if (success)
             {
-                details.Add($"✓ {RedistDisplayName} installed successfully (exit code: {exitCode})");
+                details.Add($"OK: {RedistDisplayName} installed successfully (exit code: {exitCode})");
                 return new ActionSetResult(true, null, details);
             }
 
-            details.Add($"✗ Installation failed with exit code: {exitCode}");
+            details.Add($"Error: Installation failed with exit code: {exitCode}");
             return new ActionSetResult(false, errorMsg ?? $"Installation failed with exit code {exitCode}", details);
         }
         catch (OperationCanceledException)
@@ -186,7 +186,7 @@ public abstract class BaseVCRedistFix(
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error installing {Name}", RedistDisplayName);
-            details.Add($"✗ Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return new ActionSetResult(false, ex.Message, details);
         }
         finally

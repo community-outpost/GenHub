@@ -79,13 +79,13 @@ public class TheFirstDecadeRegistryFix(
             var tfdPath = FindTFDPath(basePath);
             if (string.IsNullOrEmpty(tfdPath))
             {
-                details.Add("✗ Could not determine TFD installation path");
+                details.Add("Error: Could not determine TFD installation path");
                 details.Add("  Game may not be installed as part of The First Decade");
                 logger.LogWarning("Could not determine TFD installation path");
                 return Task.FromResult(new ActionSetResult(false, "Could not determine TFD installation path", details));
             }
 
-            details.Add($"✓ Detected TFD path: {tfdPath}");
+            details.Add($"OK: Detected TFD path: {tfdPath}");
             details.Add("Creating TFD registry entries...");
 
             // Create TFD registry entries
@@ -101,14 +101,14 @@ public class TheFirstDecadeRegistryFix(
 
             if (!s1 || !s2)
             {
-                details.Add("✗ Failed to write The First Decade registry entries (permissions?)");
+                details.Add("Error: Failed to write The First Decade registry entries (permissions?)");
                 return Task.FromResult(new ActionSetResult(false, "Failed to write The First Decade registry entries", details));
             }
 
-            details.Add($"✓ Created: HKLM\\{RegistryConstants.TheFirstDecadeKeyPath}");
+            details.Add($"OK: Created: HKLM\\{RegistryConstants.TheFirstDecadeKeyPath}");
             details.Add($"  • InstallPath = {tfdPath}");
             details.Add($"  • Version = {RegistryConstants.TfdVersionData}");
-            details.Add("✓ The First Decade registry configuration completed successfully");
+            details.Add("OK: The First Decade registry configuration completed successfully");
 
             logger.LogInformation("Successfully created TFD registry entries at {Path} with {Count} actions", tfdPath, details.Count);
 
@@ -117,7 +117,7 @@ public class TheFirstDecadeRegistryFix(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error applying TFD registry fix");
-            details.Add($"✗ Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
     }
@@ -132,7 +132,7 @@ public class TheFirstDecadeRegistryFix(
             details.Add("Removing The First Decade registry entries...");
             registryService.DeleteValue(RegistryConstants.TheFirstDecadeKeyPath, RegistryConstants.InstallPathValueName);
             registryService.DeleteValue(RegistryConstants.TheFirstDecadeKeyPath, RegistryConstants.VersionValueName);
-            details.Add($"✓ Removed registry entries for HKLM\\{RegistryConstants.TheFirstDecadeKeyPath}");
+            details.Add($"OK: Removed registry entries for HKLM\\{RegistryConstants.TheFirstDecadeKeyPath}");
 
             return Task.FromResult(new ActionSetResult(true, null, details));
         }

@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using System;
 using System.Globalization;
@@ -17,9 +18,9 @@ public class TrustLevelToColorConverter : IValueConverter
     /// </summary>
     public static readonly TrustLevelToColorConverter Instance = new();
 
-    private static readonly SolidColorBrush FallbackTrustedBrush = new(Color.Parse("#10B981"));
-    private static readonly SolidColorBrush FallbackVerifiedBrush = new(Color.Parse("#06B6D4"));
-    private static readonly SolidColorBrush FallbackUntrustedBrush = new(Color.Parse("#9A9AB0"));
+    private static readonly SolidColorBrush FallbackTrustedBrush = new(Color.Parse(UiConstants.TrustLevelTrustedColor));
+    private static readonly SolidColorBrush FallbackVerifiedBrush = new(Color.Parse(UiConstants.TrustLevelVerifiedColor));
+    private static readonly SolidColorBrush FallbackUntrustedBrush = new(Color.Parse(UiConstants.TrustLevelUntrustedColor));
 
     /// <summary>
     /// Converts a TrustLevel to a representative brush resolving active theme tokens.

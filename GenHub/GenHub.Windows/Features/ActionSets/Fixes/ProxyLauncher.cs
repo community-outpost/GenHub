@@ -101,19 +101,19 @@ public class ProxyLauncher(ILogger<ProxyLauncher> logger) : BaseActionSet(logger
 
             if (targetDirs.Count == 0)
             {
-                details.Add("✗ No valid Generals or Zero Hour installation directory found.");
+                details.Add("Error: No valid Generals or Zero Hour installation directory found.");
                 return Task.FromResult(new ActionSetResult(false, "No valid game installation directory found.", details));
             }
 
             if (File.Exists(proxySourcePath))
             {
-                details.Add($"✓ Located GenHub.ProxyLauncher binary at: {Path.GetFileName(proxySourcePath)}");
+                details.Add($"OK: Located GenHub.ProxyLauncher binary at: {Path.GetFileName(proxySourcePath)}");
 
                 foreach (var dir in targetDirs)
                 {
                     var destExe = Path.Combine(dir, ProxyLauncherFileName);
                     File.Copy(proxySourcePath, destExe, overwrite: true);
-                    details.Add($"✓ Deployed {ProxyLauncherFileName} to: {dir}");
+                    details.Add($"OK: Deployed {ProxyLauncherFileName} to: {dir}");
 
                     // Also deploy runtimeconfig if present
                     var runtimeConfig = Path.ChangeExtension(proxySourcePath, ".runtimeconfig.json");
@@ -126,24 +126,24 @@ public class ProxyLauncher(ILogger<ProxyLauncher> logger) : BaseActionSet(logger
             }
             else
             {
-                details.Add("⚠ Proxy Launcher binary not yet built; proxy configuration marked for build pipeline deployment.");
+                details.Add("Warning: Proxy Launcher binary not yet built; proxy configuration marked for build pipeline deployment.");
             }
 
             WriteMarkerFile(_markerPath);
 
-            details.Add("✓ Steam proxy launcher subsystem successfully configured.");
+            details.Add("OK: Steam proxy launcher subsystem successfully configured.");
             return Task.FromResult(new ActionSetResult(true, null, details));
         }
         catch (IOException ex)
         {
             logger.LogError(ex, "I/O error applying proxy launcher fix");
-            details.Add($"✗ Disk error: {ex.Message}");
+            details.Add($"Error: Disk error: {ex.Message}");
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
         catch (UnauthorizedAccessException ex)
         {
             logger.LogError(ex, "Permission error applying proxy launcher fix");
-            details.Add($"✗ Access denied: {ex.Message}");
+            details.Add($"Error: Access denied: {ex.Message}");
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
     }

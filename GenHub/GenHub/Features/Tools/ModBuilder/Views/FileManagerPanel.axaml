@@ -158,15 +158,16 @@
 
                     <Grid ColumnDefinitions="Auto,Auto,*,Auto">
                       <!-- Icon -->
-                      <TextBlock Grid.Column="0" Margin="0,0,6,0"
-                                 FontSize="14" VerticalAlignment="Center">
-                        <TextBlock.Text>
+                      <Path Grid.Column="0" Margin="0,0,6,0"
+                            Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center"
+                            Fill="{DynamicResource TextSecondary}">
+                        <Path.Data>
                           <MultiBinding Converter="{StaticResource FileIconConverter}">
                             <Binding Path="IsDirectory"/>
                             <Binding Path="Extension"/>
                           </MultiBinding>
-                        </TextBlock.Text>
-                      </TextBlock>
+                        </Path.Data>
+                      </Path>
 
                       <!-- Name -->
                       <TextBlock Grid.Column="2" Text="{Binding Name}"
@@ -285,15 +286,16 @@
 
                     <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
                       <!-- Icon -->
-                      <TextBlock Grid.Column="0" Margin="0,0,6,0"
-                                 FontSize="14" VerticalAlignment="Center">
-                        <TextBlock.Text>
+                      <Path Grid.Column="0" Margin="0,0,6,0"
+                            Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center"
+                            Fill="{DynamicResource TextSecondary}">
+                        <Path.Data>
                           <MultiBinding Converter="{StaticResource FileIconConverter}">
                             <Binding Path="IsDirectory"/>
                             <Binding Path="Extension"/>
                           </MultiBinding>
-                        </TextBlock.Text>
-                      </TextBlock>
+                        </Path.Data>
+                      </Path>
 
                       <!-- Name -->
                       <TextBlock Grid.Column="2" Text="{Binding Name}"

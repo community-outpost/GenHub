@@ -1,5 +1,6 @@
 using Avalonia.Data.Converters;
 using Avalonia.Media;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using System;
 using System.Globalization;
@@ -16,8 +17,8 @@ public class GameTypeToBrushConverter : IValueConverter
     /// </summary>
     public static readonly GameTypeToBrushConverter Instance = new();
 
-    private static readonly SolidColorBrush GeneralsBrush = new(Color.Parse("#BD5A0F")); // Orange for Generals
-    private static readonly SolidColorBrush ZeroHourBrush = new(Color.Parse("#2D4963")); // Teal for Zero Hour
+    private static readonly SolidColorBrush GeneralsBrush = new(Color.Parse(UiConstants.GameTypeGeneralsBrushColor)); // Orange for Generals
+    private static readonly SolidColorBrush ZeroHourBrush = new(Color.Parse(UiConstants.GameTypeZeroHourBrushColor)); // Teal for Zero Hour
     private static readonly SolidColorBrush GrayBrush = new(Colors.Gray);
 
     /// <summary>

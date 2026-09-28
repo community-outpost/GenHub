@@ -2,6 +2,8 @@ using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -49,9 +51,54 @@ public class BaseActionSetTests
             Times.AtLeastOnce);
     }
 
+    /// <summary>
+    /// Verifies that failure details carry exactly one error prefix.
+    /// </summary>
+    [Fact]
+    public void AddFailureDetail_Error_AddsSinglePrefix()
+    {
+        var details = new List<string>();
+
+        TestActionSet.AddDetail(details, new InvalidOperationException("boom"));
+
+        Assert.Single(details);
+        Assert.Equal("Error: boom", details[0]);
+    }
+
+    /// <summary>
+    /// Verifies that failure details include the action description.
+    /// </summary>
+    [Fact]
+    public void AddFailureDetail_WithAction_IncludesAction()
+    {
+        var details = new List<string>();
+
+        TestActionSet.AddDetail(details, new InvalidOperationException("boom"), "restoring files", indent: "  ");
+
+        Assert.Single(details);
+        Assert.Equal("  Error: restoring files: boom", details[0]);
+    }
+
+    /// <summary>
+    /// Verifies that warning details carry exactly one warning prefix.
+    /// </summary>
+    [Fact]
+    public void AddFailureDetail_Warning_AddsSinglePrefix()
+    {
+        var details = new List<string>();
+
+        TestActionSet.AddDetail(details, new InvalidOperationException("boom"), isWarning: true);
+
+        Assert.Single(details);
+        Assert.Equal("Warning: boom", details[0]);
+    }
+
     private class TestActionSet : BaseActionSet
     {
         public bool ApplyCalled { get; private set; }
+
+        public static void AddDetail(List<string> details, Exception ex, string? action = null, bool isWarning = false, string indent = "") =>
+            AddFailureDetail(details, ex, action, isWarning, indent);
 
         public TestActionSet(ILogger logger)
             : base(logger)

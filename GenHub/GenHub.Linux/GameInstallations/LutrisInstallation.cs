@@ -20,7 +20,7 @@ namespace GenHub.Linux.GameInstallations;
 /// <summary>
 /// Lutris installation detector and manager for Linux.
 /// </summary>
-public partial class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IGameInstallation
+public partial class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : GameInstallationBase
 {
     private readonly Func<string, string[], (bool Success, string Output)>? _processRunner;
 
@@ -58,30 +58,12 @@ public partial class LutrisInstallation(ILogger<LutrisInstallation>? logger = nu
     }
 
     /// <inheritdoc/>
-    public string Id => string.IsNullOrWhiteSpace(InstallationPath)
+    public override string Id => string.IsNullOrWhiteSpace(InstallationPath)
         ? "Lutris"
         : GameInstallation.CreateStableId(InstallationType, InstallationPath);
 
     /// <inheritdoc/>
-    public GameInstallationType InstallationType => GameInstallationType.Lutris;
-
-    /// <inheritdoc/>
-    public string InstallationPath { get; private set; } = string.Empty;
-
-    /// <inheritdoc/>
-    public bool HasGenerals { get; private set; }
-
-    /// <inheritdoc/>
-    public string GeneralsPath { get; private set; } = string.Empty;
-
-    /// <inheritdoc/>
-    public bool HasZeroHour { get; private set; }
-
-    /// <inheritdoc/>
-    public string ZeroHourPath { get; private set; } = string.Empty;
-
-    /// <inheritdoc/>
-    public List<GameClient> AvailableGameClients { get; private set; } = [];
+    public override GameInstallationType InstallationType => GameInstallationType.Lutris;
 
     /// <summary>
     /// Gets a value indicating whether Lutris is installed successfully.
@@ -166,31 +148,9 @@ public partial class LutrisInstallation(ILogger<LutrisInstallation>? logger = nu
     }
 
     /// <inheritdoc/>
-    public void Fetch()
+    public override sealed void Fetch()
     {
         Task.Run(() => FetchAsync(CancellationToken.None)).GetAwaiter().GetResult();
-    }
-
-    /// <inheritdoc/>
-    public void SetPaths(string? generalsPath, string? zeroHourPath)
-    {
-        if (!string.IsNullOrEmpty(generalsPath))
-        {
-            GeneralsPath = generalsPath;
-            HasGenerals = true;
-        }
-
-        if (!string.IsNullOrEmpty(zeroHourPath))
-        {
-            ZeroHourPath = zeroHourPath;
-            HasZeroHour = true;
-        }
-    }
-
-    /// <inheritdoc/>
-    public void PopulateGameClients(IEnumerable<GameClient> clients)
-    {
-        AvailableGameClients.AddRange(clients);
     }
 
     private static ProcessStartInfo CreateLutrisStartInfo(string command, string[] extraArgs)

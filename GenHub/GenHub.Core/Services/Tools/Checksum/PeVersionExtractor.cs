@@ -108,9 +108,8 @@ public static class PeVersionExtractor
         return false;
     }
 
-    private static bool MatchMsvc(ReadOnlySpan<byte> data, out int major, out int minor)
+    private static bool ConsumeVersionPrologue(ref ReadOnlySpan<byte> data, out int minor)
     {
-        major = 0;
         minor = 0;
 
         if (!ConsumePush(ref data))
@@ -130,6 +129,18 @@ public static class PeVersionExtractor
 
         minor = data[1];
         data = data[2..];
+        return true;
+    }
+
+    private static bool MatchMsvc(ReadOnlySpan<byte> data, out int major, out int minor)
+    {
+        major = 0;
+        minor = 0;
+
+        if (!ConsumeVersionPrologue(ref data, out minor))
+        {
+            return false;
+        }
 
         if (data.Length < 2 || data[0] != 0x6A)
         {
@@ -182,23 +193,10 @@ public static class PeVersionExtractor
         major = 0;
         minor = 0;
 
-        if (!ConsumePush(ref data))
+        if (!ConsumeVersionPrologue(ref data, out minor))
         {
             return false;
         }
-
-        if (!ConsumePush(ref data))
-        {
-            return false;
-        }
-
-        if (data.Length < 2 || data[0] != 0x6A)
-        {
-            return false;
-        }
-
-        minor = data[1];
-        data = data[2..];
 
         if (data.Length < 17 ||
             data[0] != 0xC6 || data[1] != 0x45 || data[3] != 0 ||

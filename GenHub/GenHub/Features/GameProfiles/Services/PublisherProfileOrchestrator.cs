@@ -1,5 +1,7 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -31,7 +33,8 @@ public class PublisherProfileOrchestrator(
     IGameClientProfileService gameClientProfileService,
     INotificationService notificationService,
     IContentVersionComparer versionComparer,
-    ILogger<PublisherProfileOrchestrator> logger) : IPublisherProfileOrchestrator
+    ILogger<PublisherProfileOrchestrator> logger,
+    ILocalizationService? localizationService = null) : IPublisherProfileOrchestrator
 {
     /// <inheritdoc/>
     public async Task<OperationResult<int>> CreateProfilesForPublisherClientAsync(
@@ -168,8 +171,8 @@ public class PublisherProfileOrchestrator(
                 var displayName = GetPublisherDisplayName(publisherType, isNonRet);
 
                 notificationService.ShowSuccess(
-                    $"{displayName} Profiles Created",
-                    $"Created {profilesCreated} profile(s) for {displayName}.");
+                    localizationService.GetLocalizedString("GameProfiles.Notification.PublisherProfilesCreated.Title", $"{displayName} Profiles Created", displayName),
+                    localizationService.GetLocalizedString("GameProfiles.Notification.PublisherProfilesCreated.Message", $"Created {profilesCreated} profile(s) for {displayName}.", profilesCreated, displayName));
             }
 
             logger.LogInformation(
@@ -323,8 +326,8 @@ public class PublisherProfileOrchestrator(
             {
                 logger.LogWarning("No content discovered from {PublisherType} provider for acquisition", publisherType);
                 notificationService.ShowWarning(
-                    $"{publisherDisplayName} Not Found",
-                    $"Could not find {publisherDisplayName} content to download.");
+                    localizationService.GetLocalizedString("GameProfiles.Notification.PublisherContentNotFound.Title", $"{publisherDisplayName} Not Found", publisherDisplayName),
+                    localizationService.GetLocalizedString("GameProfiles.Notification.PublisherContentNotFound.Message", $"Could not find {publisherDisplayName} content to download.", publisherDisplayName));
                 return;
             }
 
@@ -337,8 +340,8 @@ public class PublisherProfileOrchestrator(
                     variant,
                     publisherType);
                 notificationService.ShowWarning(
-                    $"{publisherDisplayName} Not Found",
-                    $"Could not find {publisherDisplayName} content to download.");
+                    localizationService.GetLocalizedString("GameProfiles.Notification.PublisherContentNotFound.Title", $"{publisherDisplayName} Not Found", publisherDisplayName),
+                    localizationService.GetLocalizedString("GameProfiles.Notification.PublisherContentNotFound.Message", $"Could not find {publisherDisplayName} content to download.", publisherDisplayName));
                 return;
             }
 

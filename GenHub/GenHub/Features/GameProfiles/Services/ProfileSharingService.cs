@@ -411,52 +411,11 @@ public class ProfileSharingService(
 
     private static bool IsPublicIpAddress(IPAddress ip)
     {
-        if (ip.IsIPv4MappedToIPv6)
-        {
-            ip = ip.MapToIPv4();
-        }
-
-        if (IPAddress.IsLoopback(ip))
-        {
-            return false;
-        }
-
-        if (ip.AddressFamily == AddressFamily.InterNetworkV6)
-        {
-            return !ip.IsIPv6LinkLocal &&
-                   !ip.IsIPv6SiteLocal &&
-                   !ip.IsIPv6Multicast &&
-                   !ip.IsIPv6UniqueLocal;
-        }
-
-        if (ip.AddressFamily != AddressFamily.InterNetwork)
-        {
-            return false;
-        }
-
-        byte[] bytes = ip.GetAddressBytes();
-        return !IsPrivateOrReservedIpv4(bytes);
-    }
-
-    private static bool IsPrivateOrReservedIpv4(byte[] bytes)
-    {
-        return bytes switch
-        {
-            [0, ..] => true,
-            [10, ..] => true,
-            [100, >= 64 and <= 127, ..] => true,
-            [127, ..] => true,
-            [169, 254, ..] => true,
-            [172, >= 16 and <= 31, ..] => true,
-            [192, 168, ..] => true,
-            [192, 0, 0, ..] => true,
-            [192, 0, 2, ..] => true,
-            [198, 18 or 19, ..] => true,
-            [198, 51, 100, ..] => true,
-            [203, 0, 113, ..] => true,
-            [>= 224, ..] => true,
-            _ => false,
-        };
+        // Delegate to the canonical SSRF guard so IPv6 transition embeddings
+        // (IPv4-mapped, 6to4, NAT64, Teredo) are decoded and blocked consistently.
+        // DNS-rebinding pinning is preserved by the callers via StoreValidatedHost
+        // and ConnectToValidatedAddressAsync.
+        return NetworkSecurityHelper.IsSafeIpAddress(ip);
     }
 
     private static async ValueTask<Stream> ConnectToValidatedAddressAsync(
@@ -796,6 +755,11 @@ public class ProfileSharingService(
     private static async Task<bool> IsSafeRemoteUriAsync(Uri uri, CancellationToken cancellationToken)
     {
         if (uri.Scheme != Uri.UriSchemeHttps || string.IsNullOrEmpty(uri.DnsSafeHost))
+        {
+            return false;
+        }
+
+        if (NetworkSecurityHelper.IsBlockedHostName(uri.DnsSafeHost))
         {
             return false;
         }

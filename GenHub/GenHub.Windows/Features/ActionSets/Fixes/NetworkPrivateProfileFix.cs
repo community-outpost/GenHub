@@ -76,7 +76,7 @@ public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) 
 
             if (profiles.Count > 0 && profiles.All(p => p.Equals("Private", StringComparison.OrdinalIgnoreCase)))
             {
-                details.Add("✓ All network profiles are already set to Private.");
+                details.Add("OK: All network profiles are already set to Private.");
                 logger.LogInformation("Network profile is already set to Private. No action needed.");
                 return new ActionSetResult(true, null, details);
             }
@@ -88,18 +88,18 @@ public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) 
 
             if (success)
             {
-                details.Add("✓ Network profile successfully set to Private (Home).");
+                details.Add("OK: Network profile successfully set to Private (Home).");
                 logger.LogInformation("Network profile successfully set to Private (Home).");
                 return new ActionSetResult(true, null, details);
             }
 
-            details.Add("✗ Failed to set network profile.");
+            details.Add("Error: Failed to set network profile.");
             logger.LogError("Failed to set network profile");
             return new ActionSetResult(false, "Failed to set network profile", details);
         }
         catch (Exception ex)
         {
-            details.Add($"✗ Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             logger.LogError(ex, "Error applying network private profile fix");
             return new ActionSetResult(false, ex.Message, details);
         }
@@ -118,11 +118,11 @@ public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) 
 
             if (success)
             {
-                details.Add("✓ Network connection profile reverted to Public");
+                details.Add("OK: Network connection profile reverted to Public");
                 return new ActionSetResult(true, null, details);
             }
 
-            details.Add("✗ Failed to revert network connection profile");
+            details.Add("Error: Failed to revert network connection profile");
             return new ActionSetResult(false, "Failed to revert network connection profile", details);
         }
         catch (Exception ex)

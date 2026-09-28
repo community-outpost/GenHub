@@ -1,5 +1,5 @@
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
-using GenHub.Infrastructure.Services;
 using System;
 using System.Linq;
 using System.Net;
@@ -26,15 +26,20 @@ public sealed class DownloadUrlValidator : IDownloadUrlValidator
             return false;
         }
 
+        if (NetworkSecurityHelper.IsBlockedHostName(uri))
+        {
+            return false;
+        }
+
         if (IPAddress.TryParse(uri.Host, out var literal))
         {
-            return ImageCacheService.IsSafeIpAddress(literal);
+            return NetworkSecurityHelper.IsSafeIpAddress(literal);
         }
 
         try
         {
             var addresses = await Dns.GetHostAddressesAsync(uri.Host, cancellationToken).ConfigureAwait(false);
-            return addresses.Length > 0 && addresses.All(ImageCacheService.IsSafeIpAddress);
+            return addresses.Length > 0 && addresses.All(NetworkSecurityHelper.IsSafeIpAddress);
         }
         catch (SocketException)
         {

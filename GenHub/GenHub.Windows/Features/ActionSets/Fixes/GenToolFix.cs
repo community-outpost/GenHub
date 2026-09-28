@@ -128,7 +128,7 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
         {
             var dest = Path.Combine(installation.GeneralsPath, D3D8Dll);
             File.Copy(extractedDllPath, dest, overwrite: true);
-            details.Add($"✓ Installed GenTool to Generals: {dest}");
+            details.Add($"OK: Installed GenTool to Generals: {dest}");
             deployedCount++;
         }
 
@@ -136,7 +136,7 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
         {
             var dest = Path.Combine(installation.ZeroHourPath, D3D8Dll);
             File.Copy(extractedDllPath, dest, overwrite: true);
-            details.Add($"✓ Installed GenTool to Zero Hour: {dest}");
+            details.Add($"OK: Installed GenTool to Zero Hour: {dest}");
             deployedCount++;
         }
 
@@ -192,7 +192,7 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
                     continue;
                 }
 
-                details.Add($"✓ Downloaded and authenticated from {new Uri(url).Host}");
+                details.Add($"OK: Downloaded and authenticated from {new Uri(url).Host}");
                 return true;
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)

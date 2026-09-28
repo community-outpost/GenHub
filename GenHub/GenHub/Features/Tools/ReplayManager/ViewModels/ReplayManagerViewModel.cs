@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -760,8 +761,8 @@ public partial class ReplayManagerViewModel(
             if (success)
             {
                 notificationService.ShowSuccess(
-                    "Deleted",
-                    "File deleted from cloud storage and upload history.");
+                    LocalizationService.GetLocalizedString("Tools.UploadHistory.Notification.FileDeleted.Title", "Deleted"),
+                    LocalizationService.GetLocalizedString("Tools.UploadHistory.Notification.FileDeleted.Message", "File deleted from cloud storage and upload history."));
             }
             else
             {

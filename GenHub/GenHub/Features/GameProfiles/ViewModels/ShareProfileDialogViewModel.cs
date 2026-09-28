@@ -34,7 +34,7 @@ public partial class ShareProfileDialogViewModel(
     IUploadHistoryService? uploadHistoryService,
     string? initialShareUri,
     INotificationService? notificationService,
-    ILocalizationService? localizationService = null) : ViewModelBase, IDisposable
+    ILocalizationService? localizationService = null) : ViewModelBase, IDisposable, IRequestCloseViewModel
 {
     private readonly bool _guardsChecked = ValidateArguments(profileId, profile, profileSharingService, logger);
     private readonly System.Threading.CancellationTokenSource _cts = new();
@@ -158,7 +158,7 @@ public partial class ShareProfileDialogViewModel(
     /// <summary>
     /// Event raised when the dialog should be closed.
     /// </summary>
-    public event EventHandler? CloseRequested;
+    public event EventHandler? RequestClose;
 
     /// <inheritdoc/>
     public void Dispose()
@@ -416,7 +416,7 @@ public partial class ShareProfileDialogViewModel(
     [RelayCommand]
     private void Close()
     {
-        CloseRequested?.Invoke(this, EventArgs.Empty);
+        RequestClose?.Invoke(this, EventArgs.Empty);
     }
 
     private void ShowNotification(string message, bool isError = false)

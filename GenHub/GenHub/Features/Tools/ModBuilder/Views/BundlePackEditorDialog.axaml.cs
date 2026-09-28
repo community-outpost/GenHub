@@ -1,12 +1,11 @@
-using Avalonia.Controls;
-using Avalonia.Input;
+using GenHub.Common.Controls;
 
 namespace GenHub.Features.Tools.ModBuilder.Views;
 
 /// <summary>
 /// Bundle pack editor dialog for managing bundle pack contents.
 /// </summary>
-public partial class BundlePackEditorDialog : Window
+public partial class BundlePackEditorDialog : GenHubWindow
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="BundlePackEditorDialog"/> class.
@@ -14,36 +13,6 @@ public partial class BundlePackEditorDialog : Window
     public BundlePackEditorDialog()
     {
         InitializeComponent();
-    }
-
-    /// <inheritdoc/>
-    /// <param name="e">The key event arguments.</param>
-    protected override void OnKeyDown(KeyEventArgs e)
-    {
-        base.OnKeyDown(e);
-        if (e.Key == Key.Escape && !e.Handled)
-        {
-            e.Handled = true;
-            Close();
-        }
-    }
-
-    /// <summary>
-    /// Handles pointer pressed events on the title bar for dragging and maximizing.
-    /// </summary>
-    private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
-        {
-            if (e.ClickCount == 2 && CanResize)
-            {
-                WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-            }
-            else
-            {
-                BeginMoveDrag(e);
-            }
-        }
     }
 }
 

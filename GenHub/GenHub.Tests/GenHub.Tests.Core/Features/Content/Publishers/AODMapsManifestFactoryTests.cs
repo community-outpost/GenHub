@@ -103,7 +103,7 @@ public sealed class AODMapsManifestFactoryTests : IDisposable
 
         // Assert
         Assert.False(result.Success);
-        Assert.Contains("ZIP entry has an unsafe path", result.FirstError);
+        Assert.Contains("escapes destination directory", result.FirstError);
     }
 
     /// <summary>

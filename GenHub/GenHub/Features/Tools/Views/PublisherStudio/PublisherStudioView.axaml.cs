@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using GenHub.Common.Controls;
 using GenHub.Features.Tools.ViewModels;
 using System;
 using System.Diagnostics;
@@ -18,22 +19,7 @@ public partial class PublisherStudioView : UserControl
     public PublisherStudioView()
     {
         InitializeComponent();
-        DragDrop.SetAllowDrop(this, true);
-        AddHandler(DragDrop.DragOverEvent, OnDragOver, handledEventsToo: true);
-        AddHandler(DragDrop.DropEvent, OnDrop, handledEventsToo: true);
-    }
-
-    private static void OnDragOver(object? sender, DragEventArgs e)
-    {
-        if (e.Data.Contains(DataFormats.Files))
-        {
-            e.DragEffects = DragDropEffects.Copy;
-            e.Handled = true;
-        }
-        else
-        {
-            e.DragEffects = DragDropEffects.None;
-        }
+        ViewDropHelper.EnableFileDrop(this, OnDrop);
     }
 
     private async void OnDrop(object? sender, DragEventArgs e)

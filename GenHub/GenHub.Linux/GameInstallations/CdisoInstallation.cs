@@ -3,6 +3,7 @@ using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
+using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -15,7 +16,7 @@ namespace GenHub.Linux.GameInstallations;
 /// CD/ISO installation detector for games installed from CD/ISO media on Linux via Wine.
 /// Uses Wine registry lookup as a fallback when Steam, Lutris, and Wine installations are not found.
 /// </summary>
-public class CdisoInstallation(ILogger<CdisoInstallation>? logger = null) : IGameInstallation
+public class CdisoInstallation(ILogger<CdisoInstallation>? logger = null) : GameInstallationBase
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="CdisoInstallation"/> class, optionally fetching installation details.
@@ -32,28 +33,10 @@ public class CdisoInstallation(ILogger<CdisoInstallation>? logger = null) : IGam
     }
 
     /// <inheritdoc/>
-    public string Id => "CDISO";
+    public override string Id => "CDISO";
 
     /// <inheritdoc/>
-    public GameInstallationType InstallationType => GameInstallationType.CDISO;
-
-    /// <inheritdoc/>
-    public string InstallationPath { get; private set; } = string.Empty;
-
-    /// <inheritdoc/>
-    public bool HasGenerals { get; private set; }
-
-    /// <inheritdoc/>
-    public string GeneralsPath { get; private set; } = string.Empty;
-
-    /// <inheritdoc/>
-    public bool HasZeroHour { get; private set; }
-
-    /// <inheritdoc/>
-    public string ZeroHourPath { get; private set; } = string.Empty;
-
-    /// <inheritdoc/>
-    public List<GameClient> AvailableGameClients { get; } = [];
+    public override GameInstallationType InstallationType => GameInstallationType.CDISO;
 
     /// <summary>
     /// Gets a value indicating whether a CD/ISO installation was found via Wine registry.
@@ -61,35 +44,13 @@ public class CdisoInstallation(ILogger<CdisoInstallation>? logger = null) : IGam
     public bool IsCdisoInstalled { get; private set; }
 
     /// <inheritdoc/>
-    public void SetPaths(string? generalsPath, string? zeroHourPath)
-    {
-        if (!string.IsNullOrEmpty(generalsPath))
-        {
-            HasGenerals = true;
-            GeneralsPath = generalsPath;
-        }
-
-        if (!string.IsNullOrEmpty(zeroHourPath))
-        {
-            HasZeroHour = true;
-            ZeroHourPath = zeroHourPath;
-        }
-    }
-
-    /// <inheritdoc/>
-    public void PopulateGameClients(IEnumerable<GameClient> clients)
-    {
-        AvailableGameClients.AddRange(clients);
-    }
-
-    /// <inheritdoc/>
-    public void Fetch()
+    public override sealed void Fetch()
     {
         logger?.LogInformation("Starting CD/ISO installation detection on Linux");
 
         try
         {
-            var winePrefixes = GetWinePrefixes();
+            var winePrefixes = WinePrefixHelper.GetWinePrefixes(logger);
             if (winePrefixes.Count == 0)
             {
                 logger?.LogDebug("No Wine prefixes found for CD/ISO detection");
@@ -102,69 +63,10 @@ public class CdisoInstallation(ILogger<CdisoInstallation>? logger = null) : IGam
             {
                 logger?.LogDebug("Checking Wine prefix for CD/ISO installation: {WinePrefix}", winePrefix);
 
-                // Try to read Wine registry for EA Games installation path
-                if (TryGetCdisoPathFromWineRegistry(winePrefix, out var installPath))
+                // If we found at least one game, we can stop searching
+                if (DetectGamesInPrefix(winePrefix))
                 {
-                    logger?.LogDebug("CD/ISO installation path found in Wine registry: {InstallPath}", installPath);
-                    InstallationPath = installPath!;
-                    IsCdisoInstalled = true;
-
-                    // Check for Generals
-                    if (!HasGenerals)
-                    {
-                        var generalsPath = Path.Combine(installPath!, GameClientConstants.GeneralsDirectoryName);
-                        if (Directory.Exists(generalsPath))
-                        {
-                            string[] generalsExecutables =
-                            [
-                                GameClientConstants.GeneralsExecutable,
-                                GameClientConstants.SuperHackersGeneralsExecutable,
-                            ];
-
-                            if (HasAnyExecutable(generalsPath, generalsExecutables))
-                            {
-                                HasGenerals = true;
-                                GeneralsPath = generalsPath;
-                                logger?.LogInformation("Found CD/ISO Generals installation: {GeneralsPath}", GeneralsPath);
-                            }
-                        }
-                    }
-
-                    // Check for Zero Hour
-                    if (!HasZeroHour)
-                    {
-                        var zeroHourExecutables = new[]
-                        {
-                            GameClientConstants.ZeroHourExecutable,
-                            GameClientConstants.GeneralsExecutable,
-                            GameClientConstants.SuperHackersZeroHourExecutable,
-                        };
-
-                        // First, check if the base path itself is Zero Hour
-                        if (HasAnyExecutable(installPath!, zeroHourExecutables))
-                        {
-                            HasZeroHour = true;
-                            ZeroHourPath = installPath!;
-                            logger?.LogInformation("Found CD/ISO Zero Hour installation at base path: {ZeroHourPath}", ZeroHourPath);
-                        }
-                        else
-                        {
-                            // Otherwise, check for Zero Hour as a subdirectory
-                            var zeroHourPath = Path.Combine(installPath!, GameClientConstants.ZeroHourDirectoryName);
-                            if (Directory.Exists(zeroHourPath) && HasAnyExecutable(zeroHourPath, zeroHourExecutables))
-                            {
-                                HasZeroHour = true;
-                                ZeroHourPath = zeroHourPath;
-                                logger?.LogInformation("Found CD/ISO Zero Hour installation: {ZeroHourPath}", ZeroHourPath);
-                            }
-                        }
-                    }
-
-                    // If we found at least one game, we can stop searching
-                    if (HasGenerals || HasZeroHour)
-                    {
-                        break;
-                    }
+                    break;
                 }
             }
 
@@ -176,25 +78,6 @@ public class CdisoInstallation(ILogger<CdisoInstallation>? logger = null) : IGam
         catch (Exception ex)
         {
             logger?.LogError(ex, "Error occurred during CD/ISO installation detection on Linux");
-        }
-    }
-
-    /// <summary>
-    /// Validates if a directory is a valid Wine prefix.
-    /// </summary>
-    /// <param name="path">Path to check.</param>
-    /// <returns>True if valid Wine prefix.</returns>
-    private static bool IsValidWinePrefix(string path)
-    {
-        try
-        {
-            var driveCPath = Path.Combine(path, "drive_c");
-            var systemPath = Path.Combine(driveCPath, "windows", "system32");
-            return Directory.Exists(driveCPath) && Directory.Exists(systemPath);
-        }
-        catch
-        {
-            return false;
         }
     }
 
@@ -218,61 +101,82 @@ public class CdisoInstallation(ILogger<CdisoInstallation>? logger = null) : IGam
         return false;
     }
 
-    /// <summary>
-    /// Gets Wine prefix directories.
-    /// </summary>
-    /// <returns>Collection of Wine prefix paths.</returns>
-    private List<string> GetWinePrefixes()
+    private bool DetectGamesInPrefix(string winePrefix)
     {
-        var winePrefixes = new List<string>();
-
-        try
+        // Try to read Wine registry for EA Games installation path
+        if (!TryGetCdisoPathFromWineRegistry(winePrefix, out var installPath))
         {
-            var homeDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-
-            // Common Wine prefix locations
-            var commonWinePaths = new[]
-            {
-                Path.Combine(homeDirectory, ".wine"),
-                Path.Combine(homeDirectory, ".local", "share", "wineprefixes"),
-                Path.Combine(homeDirectory, ".PlayOnLinux", "wineprefix"),
-                Path.Combine(homeDirectory, ".var", "app", "com.usebottles.bottles", "data", "bottles", "bottles"),
-                "/opt/wine",
-            };
-
-            foreach (var winePath in commonWinePaths.Where(Directory.Exists))
-            {
-                if (IsValidWinePrefix(winePath))
-                {
-                    winePrefixes.Add(winePath);
-                    logger?.LogDebug("Found Wine prefix: {WinePrefix}", winePath);
-                }
-
-                // Check subdirectories for additional prefixes
-                try
-                {
-                    var subdirectories = Directory.GetDirectories(winePath);
-                    foreach (var subdir in subdirectories)
-                    {
-                        if (IsValidWinePrefix(subdir))
-                        {
-                            winePrefixes.Add(subdir);
-                            logger?.LogDebug("Found Wine prefix: {WinePrefix}", subdir);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger?.LogDebug(ex, "Failed to enumerate subdirectories in {WinePath}", winePath);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            logger?.LogWarning(ex, "Failed to enumerate Wine prefixes");
+            return false;
         }
 
-        return winePrefixes;
+        logger?.LogDebug("CD/ISO installation path found in Wine registry: {InstallPath}", installPath);
+        InstallationPath = installPath!;
+        IsCdisoInstalled = true;
+
+        DetectGeneralsAtInstallPath(installPath!);
+        DetectZeroHourAtInstallPath(installPath!);
+
+        return HasGenerals || HasZeroHour;
+    }
+
+    private void DetectGeneralsAtInstallPath(string installPath)
+    {
+        if (HasGenerals)
+        {
+            return;
+        }
+
+        var generalsPath = Path.Combine(installPath, GameClientConstants.GeneralsDirectoryName);
+        if (!Directory.Exists(generalsPath))
+        {
+            return;
+        }
+
+        string[] generalsExecutables =
+        [
+            GameClientConstants.GeneralsExecutable,
+            GameClientConstants.SuperHackersGeneralsExecutable,
+        ];
+
+        if (HasAnyExecutable(generalsPath, generalsExecutables))
+        {
+            HasGenerals = true;
+            GeneralsPath = generalsPath;
+            logger?.LogInformation("Found CD/ISO Generals installation: {GeneralsPath}", GeneralsPath);
+        }
+    }
+
+    private void DetectZeroHourAtInstallPath(string installPath)
+    {
+        if (HasZeroHour)
+        {
+            return;
+        }
+
+        var zeroHourExecutables = new[]
+        {
+            GameClientConstants.ZeroHourExecutable,
+            GameClientConstants.GeneralsExecutable,
+            GameClientConstants.SuperHackersZeroHourExecutable,
+        };
+
+        // First, check if the base path itself is Zero Hour
+        if (HasAnyExecutable(installPath, zeroHourExecutables))
+        {
+            HasZeroHour = true;
+            ZeroHourPath = installPath;
+            logger?.LogInformation("Found CD/ISO Zero Hour installation at base path: {ZeroHourPath}", ZeroHourPath);
+            return;
+        }
+
+        // Otherwise, check for Zero Hour as a subdirectory
+        var zeroHourPath = Path.Combine(installPath, GameClientConstants.ZeroHourDirectoryName);
+        if (Directory.Exists(zeroHourPath) && HasAnyExecutable(zeroHourPath, zeroHourExecutables))
+        {
+            HasZeroHour = true;
+            ZeroHourPath = zeroHourPath;
+            logger?.LogInformation("Found CD/ISO Zero Hour installation: {ZeroHourPath}", ZeroHourPath);
+        }
     }
 
     /// <summary>

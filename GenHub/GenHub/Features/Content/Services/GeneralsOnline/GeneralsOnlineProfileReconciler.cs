@@ -49,7 +49,8 @@ public partial class GeneralsOnlineProfileReconciler(
     IGameProfileManager profileManager,
     IContentVersionComparer versionComparer,
     IGameInstallationService? installationService = null,
-    ITelemetryService? telemetryService = null)
+    ITelemetryService? telemetryService = null,
+    ILocalizationService? localizationService = null)
     : IGeneralsOnlineProfileReconciler, IPublisherReconciler
 {
     private readonly SemaphoreSlim _reconcileLock = new(1, 1);
@@ -121,8 +122,8 @@ public partial class GeneralsOnlineProfileReconciler(
                     });
 
                     notificationService.ShowError(
-                        "GeneralsOnline Update Failed",
-                        $"Failed to download update: {acquireResult.FirstError}",
+                        localizationService.GetLocalizedString("Content.Notification.GeneralsOnlineUpdateFailed.Title", "GeneralsOnline Update Failed"),
+                        localizationService.GetLocalizedString("Content.Notification.DownloadUpdateFailed.Message", $"Failed to download update: {acquireResult.FirstError}", acquireResult.FirstError),
                         NotificationDurations.Critical);
 
                     return OperationResult<PublisherReconciliationResult>.CreateFailure(
@@ -134,8 +135,8 @@ public partial class GeneralsOnlineProfileReconciler(
 
                 notificationService.Update(
                     progressNotificationId,
-                    "Applying update to profiles...",
-                    "GeneralsOnline Update");
+                    localizationService.GetLocalizedString("Content.Notification.ApplyingUpdate.Message", "Applying update to profiles..."),
+                    localizationService.GetLocalizedString("Content.Notification.GeneralsOnlineUpdate.Title", "GeneralsOnline Update"));
 
                 var updateResultData = await ApplyUpdateStrategyAsync(strategy, oldManifests, newManifests, updateResult.LatestVersion ?? "Unknown", triggeringProfileId, cancellationToken);
                 if (!updateResultData.Success)
@@ -183,15 +184,15 @@ public partial class GeneralsOnlineProfileReconciler(
                 if (anyFailure)
                 {
                     notificationService.ShowWarning(
-                        "Generals Online Updated (Partial)",
-                        $"Updated to {updateResult.LatestVersion}, but some profiles or components had issues.",
+                        localizationService.GetLocalizedString("Content.Notification.GeneralsOnlineUpdatedPartial.Title", "Generals Online Updated (Partial)"),
+                        localizationService.GetLocalizedString("Content.Notification.GeneralsOnlineUpdatedPartial.Message", $"Updated to {updateResult.LatestVersion}, but some profiles or components had issues.", updateResult.LatestVersion),
                         NotificationDurations.VeryLong);
                 }
                 else
                 {
                     notificationService.ShowSuccess(
-                        "Generals Online Updated",
-                        $"Successfully updated {profilesUpdated} profile(s) to Generals Online {updateResult.LatestVersion}.",
+                        localizationService.GetLocalizedString("Content.Notification.GeneralsOnlineUpdated.Title", "Generals Online Updated"),
+                        localizationService.GetLocalizedString("Content.Notification.GeneralsOnlineUpdated.Message", $"Successfully updated {profilesUpdated} profile(s) to Generals Online {updateResult.LatestVersion}.", profilesUpdated, updateResult.LatestVersion),
                         NotificationDurations.Long);
                 }
 
@@ -811,7 +812,10 @@ public partial class GeneralsOnlineProfileReconciler(
                 return OperationResult<(int, bool, Dictionary<string, string>?, string?)>.CreateSuccess((createResult.Data.CreatedCount, false, null, createResult.Data.TargetProfileId));
             }
 
-            notificationService.ShowWarning("GeneralsOnline Update Partial", $"Failed to create some new profiles: {createResult.FirstError}", NotificationDurations.VeryLong);
+            notificationService.ShowWarning(
+                localizationService.GetLocalizedString("Content.Notification.PublisherUpdatePartial.Title", "GeneralsOnline Update Partial", "GeneralsOnline"),
+                localizationService.GetLocalizedString("Content.Notification.PublisherUpdatePartial.CreateFailedMessage", $"Failed to create some new profiles: {createResult.FirstError}", createResult.FirstError),
+                NotificationDurations.VeryLong);
             return OperationResult<(int, bool, Dictionary<string, string>?, string?)>.CreateSuccess((0, true, null, null));
         }
 
@@ -820,7 +824,10 @@ public partial class GeneralsOnlineProfileReconciler(
 
         if (!bulkUpdateResult.Success)
         {
-            notificationService.ShowWarning("GeneralsOnline Update Partial", $"Some profiles could not be updated: {bulkUpdateResult.FirstError}", NotificationDurations.VeryLong);
+            notificationService.ShowWarning(
+                localizationService.GetLocalizedString("Content.Notification.PublisherUpdatePartial.Title", "GeneralsOnline Update Partial", "GeneralsOnline"),
+                localizationService.GetLocalizedString("Content.Notification.PublisherUpdatePartial.UpdateFailedMessage", $"Some profiles could not be updated: {bulkUpdateResult.FirstError}", bulkUpdateResult.FirstError),
+                NotificationDurations.VeryLong);
             return OperationResult<(int, bool, Dictionary<string, string>?, string?)>.CreateFailure($"Bulk update failed: {bulkUpdateResult.FirstError}");
         }
 
@@ -850,7 +857,10 @@ public partial class GeneralsOnlineProfileReconciler(
         bool anyFailure = (bulkUpdateResult.Data?.FailedProfilesCount ?? 0) > 0;
         if (anyFailure)
         {
-            notificationService.ShowWarning("Generals Online Update Partial", $"{bulkUpdateResult.Data?.FailedProfilesCount} profiles could not be updated.", NotificationDurations.VeryLong);
+            notificationService.ShowWarning(
+                localizationService.GetLocalizedString("Content.Notification.PublisherUpdatePartial.Title", "GeneralsOnline Update Partial", "GeneralsOnline"),
+                localizationService.GetLocalizedString("Content.Notification.PublisherUpdatePartial.ProfilesFailedMessage", $"{bulkUpdateResult.Data?.FailedProfilesCount} profiles could not be updated.", bulkUpdateResult.Data?.FailedProfilesCount),
+                NotificationDurations.VeryLong);
         }
 
         return OperationResult<(int, bool, Dictionary<string, string>?, string?)>.CreateSuccess((profilesUpdated, anyFailure, manifestMapping, targetProfileId));
@@ -939,7 +949,7 @@ public partial class GeneralsOnlineProfileReconciler(
             notificationService.Update(
                 notificationId,
                 message,
-                "GeneralsOnline Update");
+                localizationService.GetLocalizedString("Content.Notification.GeneralsOnlineUpdate.Title", "GeneralsOnline Update"));
         });
     }
 

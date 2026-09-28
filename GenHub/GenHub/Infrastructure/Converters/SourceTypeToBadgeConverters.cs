@@ -18,10 +18,10 @@ public static class SourceTypeToBadgeConverters
     /// </summary>
     public class SourceTypeToBadgeBackgroundConverter : IValueConverter
     {
-        private static readonly SolidColorBrush GameClientBrush = new(Color.Parse("#FFF9A825")); // amber for CAS
-        private static readonly SolidColorBrush ModBrush = new(Color.Parse("#FF90CAF9"));
-        private static readonly SolidColorBrush LocalBrush = new(Color.Parse("#FFB2FF59"));
-        private static readonly SolidColorBrush DefaultBrush = new(Color.Parse("#FFBDBDBD"));
+        private static readonly SolidColorBrush GameClientBrush = new(Color.Parse(UiConstants.SourceTypeGameClientBadgeColor)); // amber for CAS
+        private static readonly SolidColorBrush ModBrush = new(Color.Parse(UiConstants.SourceTypeModBadgeColor));
+        private static readonly SolidColorBrush LocalBrush = new(Color.Parse(UiConstants.SourceTypeDefaultBadgeColor));
+        private static readonly SolidColorBrush DefaultBrush = new(Color.Parse(UiConstants.SourceTypeFallbackBadgeColor));
 
         /// <summary>
         /// Converts the supplied <see cref="ContentType"/> into a <see cref="SolidColorBrush"/>.

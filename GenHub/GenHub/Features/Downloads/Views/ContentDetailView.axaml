@@ -149,11 +149,11 @@
                             <Image Source="{Binding IconBitmap}"
                                    Stretch="UniformToFill"
                                    IsVisible="{Binding IconBitmap, Converter={x:Static ObjectConverters.IsNotNull}}" />
-                            <TextBlock Text="📦"
-                                       FontSize="32"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center"
-                                       IsVisible="{Binding IconBitmap, Converter={x:Static ObjectConverters.IsNull}}" />
+                            <PathIcon Data="{StaticResource ToolIcon.PackageVariantClosed}"
+                                      Width="32" Height="32"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"
+                                      IsVisible="{Binding IconBitmap, Converter={x:Static ObjectConverters.IsNull}}" />
                             <!-- Accent ring only when the publisher defines an accent color,
                                  so content without one keeps the full icon area. -->
                             <Border CornerRadius="12"
@@ -1289,7 +1289,10 @@
                                                     <StackPanel Spacing="8">
                                                         <Grid ColumnDefinitions="Auto,*,Auto">
                                                             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
-                                                                <TextBlock Text="{Binding Rating, StringFormat='⭐ {0:F1}'}" Foreground="{DynamicResource WarningBrush}" FontWeight="Bold" />
+                                                                <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                                                    <PathIcon Data="{StaticResource ToolIcon.Star}" Width="12" Height="12" Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Center" />
+                                                                    <TextBlock Text="{Binding Rating, StringFormat='{}{0:F1}'}" Foreground="{DynamicResource WarningBrush}" FontWeight="Bold" VerticalAlignment="Center" />
+                                                                </StackPanel>
                                                                 <TextBlock Text="{Binding Author}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
                                                             </StackPanel>
                                                             <TextBlock Grid.Column="2" Text="{Binding Date, StringFormat='{}{0:MMM dd, yyyy}'}" Foreground="{DynamicResource TextMuted}" FontSize="12" />
@@ -1872,9 +1875,6 @@
                                TextTrimming="CharacterEllipsis" />
                     <Button Grid.Column="1"
                             Command="{Binding CloseFullScreenMediaCommand}"
-                            Content="✕"
-                            FontSize="14"
-                            FontWeight="Bold"
                             Foreground="{DynamicResource TextSecondary}"
                             Background="{DynamicResource SurfaceElevatedBrush}"
                             BorderThickness="1"
@@ -1885,6 +1885,7 @@
                             HorizontalContentAlignment="Center"
                             VerticalContentAlignment="Center"
                             Cursor="Hand">
+                        <PathIcon Data="{StaticResource ToolIcon.Close}" Width="12" Height="12" />
                         <Button.Styles>
                             <Style Selector="Button:pointerover">
                                 <Setter Property="Background" Value="{DynamicResource ErrorBrush}" />

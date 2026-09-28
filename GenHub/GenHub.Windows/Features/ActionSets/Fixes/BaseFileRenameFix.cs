@@ -72,7 +72,7 @@ public abstract class BaseFileRenameFix(
                 details.Add($"Processing Generals: {installation.GeneralsPath}");
                 if (!RenameFile(installation.GeneralsPath, details))
                 {
-                    details.Add($"  ⚠ {targetFileName} not found (may already be fixed)");
+                    details.Add($"  Warning: {targetFileName} not found (may already be fixed)");
                 }
             }
 
@@ -81,17 +81,17 @@ public abstract class BaseFileRenameFix(
                 details.Add($"Processing Zero Hour: {installation.ZeroHourPath}");
                 if (!RenameFile(installation.ZeroHourPath, details))
                 {
-                    details.Add($"  ⚠ {targetFileName} not found (may already be fixed)");
+                    details.Add($"  Warning: {targetFileName} not found (may already be fixed)");
                 }
             }
 
-            details.Add($"✓ {Title} completed successfully");
+            details.Add($"OK: {Title} completed successfully");
             return Task.FromResult(new ActionSetResult(true, null, details));
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error applying {Title}", Title);
-            details.Add($"✗ Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
     }
@@ -110,7 +110,7 @@ public abstract class BaseFileRenameFix(
                 details.Add($"Processing Generals: {installation.GeneralsPath}");
                 if (!RestoreFile(installation.GeneralsPath, details))
                 {
-                    details.Add($"  ⚠ {backupFileName} not found (nothing to restore)");
+                    details.Add($"  Warning: {backupFileName} not found (nothing to restore)");
                 }
             }
 
@@ -119,17 +119,17 @@ public abstract class BaseFileRenameFix(
                 details.Add($"Processing Zero Hour: {installation.ZeroHourPath}");
                 if (!RestoreFile(installation.ZeroHourPath, details))
                 {
-                    details.Add($"  ⚠ {backupFileName} not found (nothing to restore)");
+                    details.Add($"  Warning: {backupFileName} not found (nothing to restore)");
                 }
             }
 
-            details.Add($"✓ {targetFileName} restoration completed successfully");
+            details.Add($"OK: {targetFileName} restoration completed successfully");
             return Task.FromResult(new ActionSetResult(true, null, details));
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error restoring {TargetFileName}", targetFileName);
-            details.Add($"✗ Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
     }
@@ -152,14 +152,14 @@ public abstract class BaseFileRenameFix(
             }
 
             File.Move(originalPath, backupPath);
-            details.Add($"  ✓ Renamed: {targetFileName} -> {backupFileName}");
+            details.Add($"  OK: Renamed: {targetFileName} -> {backupFileName}");
             Logger.LogInformation("Renamed {OriginalPath} to {BackupPath}", originalPath, backupPath);
             return true;
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to rename {OriginalPath}", originalPath);
-            details.Add($"  ✗ Error renaming {targetFileName}: {ex.Message}");
+            AddFailureDetail(details, ex, $"renaming {targetFileName}", indent: "  ");
             return false;
         }
     }
@@ -182,14 +182,14 @@ public abstract class BaseFileRenameFix(
             }
 
             File.Move(backupPath, originalPath);
-            details.Add($"  ✓ Restored: {backupFileName} -> {targetFileName}");
+            details.Add($"  OK: Restored: {backupFileName} -> {targetFileName}");
             Logger.LogInformation("Restored {BackupPath} to {OriginalPath}", backupPath, originalPath);
             return true;
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to restore {BackupPath}", backupPath);
-            details.Add($"  ✗ Error restoring {backupFileName}: {ex.Message}");
+            AddFailureDetail(details, ex, $"restoring {backupFileName}", indent: "  ");
             return false;
         }
     }

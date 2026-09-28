@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -602,8 +603,8 @@ public partial class GenPatcherViewModel(
         {
             logger.LogWarning("[GENPATCHER_APPLY_005] Apply batch rejected - not running as administrator");
             notificationService.ShowError(
-                "Administrator Rights Required",
-                "Administrator privileges required for 'Apply Recommended'. Please restart GenHub as Administrator.");
+                localizationService.GetLocalizedString("Tools.GenPatcher.Notification.AdminRightsRequired.Title", "Administrator Rights Required"),
+                localizationService.GetLocalizedString("Tools.GenPatcher.Notification.AdminRightsRequired.Message", "Administrator privileges required for 'Apply Recommended'. Please restart GenHub as Administrator."));
             return;
         }
 
@@ -747,19 +748,19 @@ public partial class GenPatcherViewModel(
                 targetInstallation.InstallationType);
 
             notificationService.ShowSuccess(
-                "All Fixes Applied Successfully",
-                $"✓ Successfully applied all {successCount} fix(es) to {targetInstallation.InstallationType} ({targetInstallation.InstallationPath}).\n\nYour game installation has been optimized!");
+                localizationService.GetLocalizedString("Tools.GenPatcher.Notification.BatchSuccess.Title", "All Fixes Applied Successfully"),
+                localizationService.GetLocalizedString("Tools.GenPatcher.Notification.BatchSuccess.Message", $"OK: Successfully applied all {successCount} fix(es) to {targetInstallation.InstallationType} ({targetInstallation.InstallationPath}).\n\nYour game installation has been optimized!", successCount, targetInstallation.InstallationType, targetInstallation.InstallationPath));
         }
         else
         {
             var errorDetails = string.Join("\n", batchResult.Errors);
             logger.LogWarning("Batch completed with errors: {Errors}", errorDetails);
             var failureSummary = notAttemptedCount > 0
-                ? $"Target: {targetInstallation.InstallationType} ({targetInstallation.InstallationPath})\n✓ Successfully applied: {successCount}\n✗ Failed: {errorCount}\n⚠ Not attempted: {notAttemptedCount}\n\nErrors:\n{errorDetails}"
-                : $"Target: {targetInstallation.InstallationType} ({targetInstallation.InstallationPath})\n✓ Successfully applied: {successCount}\n✗ Failed: {errorCount}\n\nErrors:\n{errorDetails}";
+                ? localizationService.GetLocalizedString("Tools.GenPatcher.Notification.BatchPartialSummary.Message", $"Target: {targetInstallation.InstallationType} ({targetInstallation.InstallationPath})\nOK: Successfully applied: {successCount}\nError: Failed: {errorCount}\nWarning: Not attempted: {notAttemptedCount}\n\nErrors:\n{errorDetails}", targetInstallation.InstallationType, targetInstallation.InstallationPath, successCount, errorCount, notAttemptedCount, errorDetails)
+                : localizationService.GetLocalizedString("Tools.GenPatcher.Notification.BatchErrorSummary.Message", $"Target: {targetInstallation.InstallationType} ({targetInstallation.InstallationPath})\nOK: Successfully applied: {successCount}\nError: Failed: {errorCount}\n\nErrors:\n{errorDetails}", targetInstallation.InstallationType, targetInstallation.InstallationPath, successCount, errorCount, errorDetails);
 
             notificationService.ShowError(
-                $"Fixes Completed with Errors ({successCount}/{totalApplicable} successful)",
+                localizationService.GetLocalizedString("Tools.GenPatcher.Notification.BatchCompletedWithErrors.Title", $"Fixes Completed with Errors ({successCount}/{totalApplicable} successful)", successCount, totalApplicable),
                 failureSummary);
         }
     }

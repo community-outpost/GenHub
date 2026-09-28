@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
@@ -27,12 +28,14 @@ namespace GenHub.Features.Content.Services;
 /// <param name="userSettingsService">The user settings service for tracking executed installation steps across updates.</param>
 /// <param name="preconditions">Optional installation step preconditions for environment detection.</param>
 /// <param name="logger">The logger instance.</param>
+/// <param name="localizationService">The optional localization service for user-facing notifications.</param>
 public class InstallationInstructionsService(
     IFileHashProvider hashProvider,
     INotificationService notificationService,
     IUserSettingsService? userSettingsService,
     IEnumerable<IInstallationStepPrecondition>? preconditions,
-    ILogger<InstallationInstructionsService> logger) : IInstallationInstructionsService
+    ILogger<InstallationInstructionsService> logger,
+    ILocalizationService? localizationService = null) : IInstallationInstructionsService
 {
     private static readonly TimeSpan InstallerStepTimeout = TimeSpan.FromMinutes(10);
     private readonly SemaphoreSlim _executionGate = new(1, 1);
@@ -401,7 +404,7 @@ public class InstallationInstructionsService(
 
     private void NotifyStepStarting(InstallationStep step, IProgress<ContentAcquisitionProgress>? progress)
     {
-        var displayTitle = !string.IsNullOrWhiteSpace(step.Name) ? step.Name : "Running Installation Step";
+        var displayTitle = !string.IsNullOrWhiteSpace(step.Name) ? step.Name : localizationService.GetLocalizedString("Content.Notification.InstallationStepRunning.Title", "Running Installation Step");
         var displayMessage = !string.IsNullOrWhiteSpace(step.StatusMessage)
             ? step.StatusMessage
             : $"Executing verified installer '{step.TargetRelativePath}'";
@@ -463,7 +466,9 @@ public class InstallationInstructionsService(
             if (process == null)
             {
                 logger.LogError("Failed to start process for installer '{Target}'", step.TargetRelativePath);
-                notificationService.ShowError("Installation Step Failed", $"Failed to start installer '{step.Name}'.");
+                notificationService.ShowError(
+                    localizationService.GetLocalizedString("Content.Notification.InstallationStepFailed.Title", "Installation Step Failed"),
+                    localizationService.GetLocalizedString("Content.Notification.InstallationStepFailed.StartMessage", $"Failed to start installer '{step.Name}'.", step.Name));
                 return OperationResult.CreateFailure($"Failed to start installer '{step.TargetRelativePath}'.");
             }
 
@@ -490,7 +495,9 @@ public class InstallationInstructionsService(
                     logger.LogWarning(killEx, "Failed to terminate timed-out installer step '{StepName}'", step.Name);
                 }
 
-                notificationService.ShowError("Installation Step Failed", $"Step '{step.Name}' timed out.");
+                notificationService.ShowError(
+                    localizationService.GetLocalizedString("Content.Notification.InstallationStepFailed.Title", "Installation Step Failed"),
+                    localizationService.GetLocalizedString("Content.Notification.InstallationStepFailed.TimeoutMessage", $"Step '{step.Name}' timed out.", step.Name));
                 return OperationResult.CreateFailure($"Installation step '{step.Name}' timed out.");
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -520,8 +527,8 @@ public class InstallationInstructionsService(
                     process.ExitCode);
 
                 notificationService.ShowError(
-                    "Installation Step Failed",
-                    $"Step '{step.Name}' failed with exit code {process.ExitCode}.");
+                    localizationService.GetLocalizedString("Content.Notification.InstallationStepFailed.Title", "Installation Step Failed"),
+                    localizationService.GetLocalizedString("Content.Notification.InstallationStepFailed.ExitCodeMessage", $"Step '{step.Name}' failed with exit code {process.ExitCode}.", step.Name, process.ExitCode));
 
                 return OperationResult.CreateFailure(
                     $"Installation step '{step.Name}' failed with exit code {process.ExitCode}.");
@@ -529,8 +536,8 @@ public class InstallationInstructionsService(
 
             logger.LogInformation("Successfully completed installer step '{StepName}'", step.Name);
             notificationService.ShowSuccess(
-                "Installation Step Completed",
-                $"Successfully completed '{step.Name}'.");
+                localizationService.GetLocalizedString("Content.Notification.InstallationStepCompleted.Title", "Installation Step Completed"),
+                localizationService.GetLocalizedString("Content.Notification.InstallationStepCompleted.Message", $"Successfully completed '{step.Name}'.", step.Name));
 
             return OperationResult.CreateSuccess();
         }
@@ -543,8 +550,8 @@ public class InstallationInstructionsService(
         {
             logger.LogError(ex, "Failed to execute installer step '{StepName}'", step.Name);
             notificationService.ShowError(
-                "Installation Step Error",
-                $"Error executing '{step.Name}': {ex.Message}");
+                localizationService.GetLocalizedString("Content.Notification.InstallationStepError.Title", "Installation Step Error"),
+                localizationService.GetLocalizedString("Content.Notification.InstallationStepError.Message", $"Error executing '{step.Name}': {ex.Message}", step.Name, ex.Message));
 
             return OperationResult.CreateFailure($"Execution of step '{step.Name}' failed: {ex.Message}");
         }

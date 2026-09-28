@@ -65,14 +65,14 @@ public sealed class GenericCatalogProfileReconcilerTests
             _discovererMock.Object,
             _contentStateServiceMock.Object,
             _downloadCoordinatorMock.Object,
-            _reconciliationServiceMock.Object);
+            _reconciliationServiceMock.Object,
+            _subscriptionStoreMock.Object);
 
         _userSettingsServiceMock.Setup(s => s.Get()).Returns(_userSettings);
 
         _reconciler = new GenericCatalogProfileReconciler(
             NullLogger<GenericCatalogProfileReconciler>.Instance,
             _profileManagerMock.Object,
-            _subscriptionStoreMock.Object,
             _contentServices,
             _notificationServiceMock.Object,
             _dialogServiceMock.Object,
@@ -90,6 +90,7 @@ public sealed class GenericCatalogProfileReconcilerTests
         Assert.Same(_contentStateServiceMock.Object, _contentServices.ContentStateService);
         Assert.Same(_downloadCoordinatorMock.Object, _contentServices.DownloadCoordinator);
         Assert.Same(_reconciliationServiceMock.Object, _contentServices.ReconciliationService);
+        Assert.Same(_subscriptionStoreMock.Object, _contentServices.SubscriptionStore);
     }
 
     /// <summary>

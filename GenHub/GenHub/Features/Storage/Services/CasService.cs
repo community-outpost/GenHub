@@ -86,34 +86,13 @@ public class CasService(
         try
         {
             // Compute hash from stream if not provided
-            string hash;
-            if (!string.IsNullOrEmpty(expectedHash))
+            var hashResult = await ComputeStreamHashAsync(contentStream, expectedHash, cancellationToken);
+            if (!hashResult.Success || hashResult.Data == null)
             {
-                // We need to compute the hash to verify it matches
-                if (!contentStream.CanSeek)
-                {
-                    return OperationResult<string>.CreateFailure("Stream must be seekable when expectedHash is provided");
-                }
-
-                var actualHash = await streamHashProvider.ComputeStreamHashAsync(contentStream, cancellationToken);
-                contentStream.Position = 0;
-                if (!string.Equals(expectedHash, actualHash, StringComparison.OrdinalIgnoreCase))
-                {
-                    return OperationResult<string>.CreateFailure($"Hash mismatch: expected {expectedHash}, but got {actualHash}");
-                }
-
-                hash = expectedHash;
+                return OperationResult<string>.CreateFailure(hashResult.FirstError ?? "Failed to compute content hash");
             }
-            else
-            {
-                if (!contentStream.CanSeek)
-                {
-                    return OperationResult<string>.CreateFailure("Stream must be seekable to compute hash");
-                }
 
-                hash = await streamHashProvider.ComputeStreamHashAsync(contentStream, cancellationToken);
-                contentStream.Position = 0; // Reset stream for storage
-            }
+            var hash = hashResult.Data;
 
             // Check if content already exists in CAS
             if (await storage.ObjectExistsAsync(hash, cancellationToken))
@@ -475,33 +454,13 @@ public class CasService(
             var storage = poolManager.GetStorage(contentType);
 
             // Compute hash from stream
-            string hash;
-            if (!string.IsNullOrEmpty(expectedHash))
+            var hashResult = await ComputeStreamHashAsync(contentStream, expectedHash, cancellationToken);
+            if (!hashResult.Success || hashResult.Data == null)
             {
-                if (!contentStream.CanSeek)
-                {
-                    return OperationResult<string>.CreateFailure("Stream must be seekable when expectedHash is provided");
-                }
-
-                var actualHash = await streamHashProvider.ComputeStreamHashAsync(contentStream, cancellationToken);
-                contentStream.Position = 0;
-                if (!string.Equals(expectedHash, actualHash, StringComparison.OrdinalIgnoreCase))
-                {
-                    return OperationResult<string>.CreateFailure($"Hash mismatch: expected {expectedHash}, but got {actualHash}");
-                }
-
-                hash = expectedHash;
+                return OperationResult<string>.CreateFailure(hashResult.FirstError ?? "Failed to compute content hash");
             }
-            else
-            {
-                if (!contentStream.CanSeek)
-                {
-                    return OperationResult<string>.CreateFailure("Stream must be seekable to compute hash");
-                }
 
-                hash = await streamHashProvider.ComputeStreamHashAsync(contentStream, cancellationToken);
-                contentStream.Position = 0;
-            }
+            var hash = hashResult.Data;
 
             // Check if content already exists
             if (await storage.ObjectExistsAsync(hash, cancellationToken))
@@ -676,6 +635,39 @@ public class CasService(
         }
 
         return 0;
+    }
+
+    private async Task<OperationResult<string>> ComputeStreamHashAsync(
+        Stream contentStream,
+        string? expectedHash,
+        CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrEmpty(expectedHash))
+        {
+            // We need to compute the hash to verify it matches
+            if (!contentStream.CanSeek)
+            {
+                return OperationResult<string>.CreateFailure("Stream must be seekable when expectedHash is provided");
+            }
+
+            var actualHash = await streamHashProvider.ComputeStreamHashAsync(contentStream, cancellationToken);
+            contentStream.Position = 0;
+            if (!string.Equals(expectedHash, actualHash, StringComparison.OrdinalIgnoreCase))
+            {
+                return OperationResult<string>.CreateFailure($"Hash mismatch: expected {expectedHash}, but got {actualHash}");
+            }
+
+            return OperationResult<string>.CreateSuccess(expectedHash);
+        }
+
+        if (!contentStream.CanSeek)
+        {
+            return OperationResult<string>.CreateFailure("Stream must be seekable to compute hash");
+        }
+
+        var hash = await streamHashProvider.ComputeStreamHashAsync(contentStream, cancellationToken);
+        contentStream.Position = 0; // Reset stream for storage
+        return OperationResult<string>.CreateSuccess(hash);
     }
 
     private async Task ValidateObjectAsync(

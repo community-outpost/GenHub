@@ -90,12 +90,12 @@ public class SetupWizardViewModelTests
     /// Verifies that ConfirmCommand sets Confirmed to true and signals close.
     /// </summary>
     [Fact]
-    public void ConfirmCommand_SetsConfirmedAndFiresCloseRequested()
+    public void ConfirmCommand_SetsConfirmedAndFiresRequestClose()
     {
         var item = new SetupWizardItemViewModel { Title = "Item 1", IsSelected = true };
         var vm = new SetupWizardViewModel([item]);
         var closeFired = false;
-        vm.CloseRequested += (_, _) => closeFired = true;
+        vm.RequestClose += (_, _) => closeFired = true;
 
         vm.ConfirmCommand.Execute(null);
 
@@ -107,12 +107,12 @@ public class SetupWizardViewModelTests
     /// Verifies that CancelCommand sets Confirmed to false and signals close.
     /// </summary>
     [Fact]
-    public void CancelCommand_SetsConfirmedFalseAndFiresCloseRequested()
+    public void CancelCommand_SetsConfirmedFalseAndFiresRequestClose()
     {
         var item = new SetupWizardItemViewModel { Title = "Item 1", IsSelected = true };
         var vm = new SetupWizardViewModel([item]);
         var closeFired = false;
-        vm.CloseRequested += (_, _) => closeFired = true;
+        vm.RequestClose += (_, _) => closeFired = true;
 
         vm.CancelCommand.Execute(null);
 

@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Infrastructure.Markdown;
 using System;
 using System.IO;
@@ -29,7 +30,7 @@ public sealed class SafeMarkdownPathResolverTests
         {
             Content = new ByteArrayContent(payload),
         }));
-        var resolver = new SafeMarkdownPathResolver(httpClient);
+        var resolver = new SafeMarkdownPathResolver(httpClient, TestUrlValidator.Instance);
 
         // Act
         using var stream = await resolver.ResolveImageResource("https://example.test/shot.png")!;
@@ -79,7 +80,7 @@ public sealed class SafeMarkdownPathResolverTests
             response.Content.Headers.ContentLength = 20 * 1024 * 1024;
             return response;
         }));
-        var resolver = new SafeMarkdownPathResolver(httpClient);
+        var resolver = new SafeMarkdownPathResolver(httpClient, TestUrlValidator.Instance);
 
         // Act
         var stream = await resolver.ResolveImageResource("https://example.test/huge.png")!;
@@ -111,7 +112,7 @@ public sealed class SafeMarkdownPathResolverTests
             requestCount++;
             return new HttpResponseMessage(HttpStatusCode.OK);
         }));
-        var resolver = new SafeMarkdownPathResolver(httpClient);
+        var resolver = new SafeMarkdownPathResolver(httpClient, TestUrlValidator.Instance);
 
         // Act
         var stream = await resolver.ResolveImageResource(url)!;
@@ -138,7 +139,7 @@ public sealed class SafeMarkdownPathResolverTests
         {
             Headers = { Location = new Uri(redirectTarget, UriKind.Absolute) },
         }));
-        var resolver = new SafeMarkdownPathResolver(httpClient);
+        var resolver = new SafeMarkdownPathResolver(httpClient, TestUrlValidator.Instance);
 
         // Act
         var stream = await resolver.ResolveImageResource(initialUrl)!;
@@ -159,7 +160,7 @@ public sealed class SafeMarkdownPathResolverTests
         {
             Headers = { Location = new Uri("http://example.test/img.png", UriKind.Absolute) },
         }));
-        var resolver = new SafeMarkdownPathResolver(httpClient);
+        var resolver = new SafeMarkdownPathResolver(httpClient, TestUrlValidator.Instance);
 
         // Act
         var stream = await resolver.ResolveImageResource("https://example.test/redirect.png")!;
@@ -187,7 +188,7 @@ public sealed class SafeMarkdownPathResolverTests
             Content = new ByteArrayContent(payload),
             RequestMessage = new HttpRequestMessage(HttpMethod.Get, new Uri(finalUrl, UriKind.Absolute)),
         }));
-        var resolver = new SafeMarkdownPathResolver(httpClient);
+        var resolver = new SafeMarkdownPathResolver(httpClient, TestUrlValidator.Instance);
 
         // Act
         var stream = await resolver.ResolveImageResource("https://example.test/redirect.png")!;
@@ -211,7 +212,7 @@ public sealed class SafeMarkdownPathResolverTests
             Content = new ByteArrayContent(payload),
             RequestMessage = new HttpRequestMessage(HttpMethod.Get, new Uri("http://example.test/img.png", UriKind.Absolute)),
         }));
-        var resolver = new SafeMarkdownPathResolver(httpClient);
+        var resolver = new SafeMarkdownPathResolver(httpClient, TestUrlValidator.Instance);
 
         // Act
         var stream = await resolver.ResolveImageResource("https://example.test/redirect.png")!;
@@ -247,7 +248,7 @@ public sealed class SafeMarkdownPathResolverTests
                 Content = new ByteArrayContent(payload),
             };
         }));
-        var resolver = new SafeMarkdownPathResolver(httpClient);
+        var resolver = new SafeMarkdownPathResolver(httpClient, TestUrlValidator.Instance);
 
         // Act
         using var stream = await resolver.ResolveImageResource("https://example.test/redirect.png")!;
@@ -274,7 +275,7 @@ public sealed class SafeMarkdownPathResolverTests
                 Headers = { Location = new Uri("https://example.test/next.png", UriKind.Absolute) },
             };
         }));
-        var resolver = new SafeMarkdownPathResolver(httpClient);
+        var resolver = new SafeMarkdownPathResolver(httpClient, TestUrlValidator.Instance);
 
         // Act
         var stream = await resolver.ResolveImageResource("https://example.test/redirect.png")!;
@@ -290,5 +291,13 @@ public sealed class SafeMarkdownPathResolverTests
         {
             return Task.FromResult(responder(request));
         }
+    }
+
+    private sealed class TestUrlValidator : IDownloadUrlValidator
+    {
+        public static readonly TestUrlValidator Instance = new();
+
+        public Task<bool> IsSafeAsync(Uri uri, CancellationToken cancellationToken) =>
+            Task.FromResult(uri.Host.EndsWith(".test", StringComparison.OrdinalIgnoreCase));
     }
 }

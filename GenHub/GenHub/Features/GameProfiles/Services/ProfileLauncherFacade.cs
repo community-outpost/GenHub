@@ -648,8 +648,8 @@ public class ProfileLauncherFacade(
         {
             logger.LogError(ex, "[Launch] Unexpected error launching tool for profile {ProfileId}", profileId);
             notificationService.ShowError(
-                ProfileValidationConstants.ToolLaunchFailedTitle,
-                $"Failed to launch '{profile.Name}': {ex.Message}",
+                localizationService.GetLocalizedString("GameProfiles.Notification.ToolLaunchFailed.Title", ProfileValidationConstants.ToolLaunchFailedTitle),
+                localizationService.GetLocalizedString("GameProfiles.Notification.ToolLaunchFailed.Message", $"Failed to launch '{profile.Name}': {ex.Message}", profile.Name, ex.Message),
                 NotificationDurations.VeryLong);
             return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
                 $"Tool launch failed: {ex.Message}");
@@ -954,8 +954,8 @@ public class ProfileLauncherFacade(
                 workspacePath);
 
             notificationService.ShowInfo(
-                "Launching Profile",
-                $"Starting '{profile.Name}' with {effectiveStrategy} workspace strategy...",
+                localizationService.GetLocalizedString("GameProfiles.Notification.LaunchingProfile.Title", "Launching Profile"),
+                localizationService.GetLocalizedString("GameProfiles.Notification.LaunchingProfile.Message", $"Starting '{profile.Name}' with {effectiveStrategy} workspace strategy...", profile.Name, effectiveStrategy),
                 NotificationDurations.Medium);
 
             // Launch the game using the profile
@@ -1209,8 +1209,8 @@ public class ProfileLauncherFacade(
                 originalStrategy);
 
             notificationService.ShowInfo(
-                "Workspace Strategy Changed",
-                $"'{profile.Name}' cannot use {originalStrategy} here because symlinks are unavailable. Switching to HardLink.",
+                localizationService.GetLocalizedString("GameProfiles.Notification.WorkspaceStrategyChanged.Title", "Workspace Strategy Changed"),
+                localizationService.GetLocalizedString("GameProfiles.Notification.WorkspaceStrategyChanged.Message", $"'{profile.Name}' cannot use {originalStrategy} here because symlinks are unavailable. Switching to HardLink.", profile.Name, originalStrategy),
                 NotificationDurations.Long);
 
             if (profile.WorkspaceStrategy.HasValue)

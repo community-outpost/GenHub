@@ -22,51 +22,30 @@ namespace GenHub.Features.Tools.ModBuilder.Services;
 /// Implementation of image conversion service for ModBuilder.
 /// Handles PSD, TGA, TIFF, DDS, and BMP conversions with advanced features.
 /// </summary>
-public class ImageConversionService(ILogger<ImageConversionService> logger) : IImageConversionService
+public class ImageConversionService(ILogger<ImageConversionService> logger)
+    : ImageConversionServiceBase(logger)
 {
-    public async Task<bool> ConvertImageAsync(
+    /// <inheritdoc />
+    protected override async Task<bool> ConvertCoreAsync(
         string sourcePath,
         string targetPath,
-        IDictionary<string, object>? parameters = null,
-        CancellationToken cancellationToken = default)
+        string sourceExt,
+        string targetExt,
+        IDictionary<string, object>? parameters,
+        CancellationToken cancellationToken)
     {
-        try
+        return sourceExt switch
         {
-            if (!File.Exists(sourcePath))
-            {
-                logger.LogError("Source file does not exist: {SourcePath}", sourcePath);
-                return false;
-            }
-
-            var targetDir = Path.GetDirectoryName(targetPath);
-            if (!string.IsNullOrEmpty(targetDir) && !Directory.Exists(targetDir))
-            {
-                Directory.CreateDirectory(targetDir);
-            }
-
-            var ext = Path.GetExtension(sourcePath).ToLowerInvariant();
-
-            return ext switch
-            {
-                ".psd" => await ConvertPsdAsync(sourcePath, targetPath, cancellationToken),
-                ".tga" => await ConvertTgaAsync(sourcePath, targetPath, parameters, cancellationToken),
-                ".tif" or ".tiff" => await ConvertTiffAsync(sourcePath, targetPath, parameters, cancellationToken),
-                ".dds" => await ConvertDdsAsync(sourcePath, targetPath, parameters, cancellationToken),
-                _ => await ConvertGenericAsync(sourcePath, targetPath, parameters, cancellationToken),
-            };
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to convert image from {SourcePath} to {TargetPath}", sourcePath, targetPath);
-            return false;
-        }
+            ".psd" => await ConvertPsdAsync(sourcePath, targetPath, cancellationToken),
+            ".tga" => await ConvertTgaAsync(sourcePath, targetPath, parameters, cancellationToken),
+            ".tif" or ".tiff" => await ConvertTiffAsync(sourcePath, targetPath, parameters, cancellationToken),
+            ".dds" => await ConvertDdsAsync(sourcePath, targetPath, parameters, cancellationToken),
+            _ => await ConvertGenericAsync(sourcePath, targetPath, parameters, cancellationToken),
+        };
     }
 
-    public async Task<bool> HasAlphaChannelAsync(string imagePath, CancellationToken cancellationToken = default)
+    /// <inheritdoc />
+    public override async Task<bool> HasAlphaChannelAsync(string imagePath, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -100,12 +79,6 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
             logger.LogError(ex, "Failed to check alpha channel for: {ImagePath}", imagePath);
             return false;
         }
-    }
-
-    public async Task<string> GetRecommendedDxtFormatAsync(string imagePath, CancellationToken cancellationToken = default)
-    {
-        var hasAlpha = await HasAlphaChannelAsync(imagePath, cancellationToken);
-        return hasAlpha ? ModBuilderConstants.Dxt5Format : ModBuilderConstants.Dxt1Format;
     }
 
     /// <summary>

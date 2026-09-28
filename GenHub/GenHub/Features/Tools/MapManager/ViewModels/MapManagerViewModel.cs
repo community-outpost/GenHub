@@ -6,6 +6,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
@@ -334,7 +335,9 @@ public partial class MapManagerViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to load maps");
-            notificationService.ShowError("Load Error", "Failed to load maps.");
+            notificationService.ShowError(
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.LoadError.Title", "Load Error"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.LoadError.Message", "Failed to load maps."));
             StatusMessage = "Error loading maps.";
         }
         finally
@@ -356,8 +359,8 @@ public partial class MapManagerViewModel(
         {
             // Show notification toast explaining what the button does
             notificationService.ShowInfo(
-                "Import Maps",
-                "Imports map files from URLs or by dragging and dropping files into your game's map directory.");
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.ImportMaps.Title", "Import Maps"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.ImportMaps.Message", "Imports map files from URLs or by dragging and dropping files into your game's map directory."));
             return;
         }
 
@@ -369,13 +372,17 @@ public partial class MapManagerViewModel(
             var result = await importService.ImportFromFilesAsync(filePaths, SelectedTab);
             if (result.Success)
             {
-                notificationService.ShowSuccess("Import Complete", $"Imported {result.FilesImported} file(s).");
+                notificationService.ShowSuccess(
+                    localizationService.GetLocalizedString("Tools.MapManager.Notification.ImportComplete.Title", "Import Complete"),
+                    localizationService.GetLocalizedString("Tools.MapManager.Notification.ImportComplete.Message", $"Imported {result.FilesImported} file(s).", result.FilesImported));
                 StatusMessage = $"Imported {result.FilesImported} file(s).";
             }
             else
             {
-                var errorMsg = result.Errors.Count > 0 ? string.Join("\n", result.Errors) : "No files were imported.";
-                notificationService.ShowError("Import Failed", errorMsg);
+                var errorMsg = result.Errors.Count > 0 ? string.Join("\n", result.Errors) : localizationService.GetLocalizedString("Common.Notification.NoFilesImported.Message", "No files were imported.");
+                notificationService.ShowError(
+                    localizationService.GetLocalizedString("Tools.MapManager.Notification.ImportFailed.Title", "Import Failed"),
+                    errorMsg);
                 StatusMessage = "Import failed.";
             }
 
@@ -384,7 +391,9 @@ public partial class MapManagerViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Import from files failed");
-            notificationService.ShowError("Import Error", ex.Message);
+            notificationService.ShowError(
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.ImportError.Title", "Import Error"),
+                ex.Message);
             StatusMessage = "Import error.";
         }
         finally
@@ -505,8 +514,8 @@ public partial class MapManagerViewModel(
         {
             // Show notification toast explaining what the button does
             notificationService.ShowInfo(
-                "Import from URL",
-                "Downloads maps from a provided URL and automatically imports them into your game's map directory. Supports direct map file downloads and zip archives.");
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.ImportFromUrl.Title", "Import from URL"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.ImportFromUrl.Message", "Downloads maps from a provided URL and automatically imports them into your game's map directory. Supports direct map file downloads and zip archives."));
             return;
         }
 
@@ -536,7 +545,9 @@ public partial class MapManagerViewModel(
             if (result.Success)
             {
                 scope.CompleteSuccess();
-                notificationService.ShowSuccess("Import Complete", $"Imported {result.FilesImported} file(s) from URL.");
+                notificationService.ShowSuccess(
+                    localizationService.GetLocalizedString("Tools.MapManager.Notification.ImportComplete.Title", "Import Complete"),
+                    localizationService.GetLocalizedString("Tools.MapManager.Notification.ImportComplete.FromUrlMessage", $"Imported {result.FilesImported} file(s) from URL.", result.FilesImported));
                 StatusMessage = $"Successfully imported {result.FilesImported} file(s).";
                 ImportUrl = string.Empty;
                 await LoadMapsAsync();
@@ -545,7 +556,9 @@ public partial class MapManagerViewModel(
             {
                 var errorMsg = string.Join(" ", result.Errors);
                 scope.CompleteFailure(errorMsg);
-                notificationService.ShowError("Import Failed", errorMsg);
+                notificationService.ShowError(
+                    localizationService.GetLocalizedString("Tools.MapManager.Notification.ImportFailed.Title", "Import Failed"),
+                    errorMsg);
                 StatusMessage = $"Import failed: {errorMsg}";
             }
         }
@@ -561,7 +574,9 @@ public partial class MapManagerViewModel(
         {
             logger.LogError(ex, "Import failed");
             scope.CompleteFailure(ex.Message);
-            notificationService.ShowError("Import Error", ex.Message);
+            notificationService.ShowError(
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.ImportError.Title", "Import Error"),
+                ex.Message);
             StatusMessage = "Import error.";
         }
         finally
@@ -580,8 +595,8 @@ public partial class MapManagerViewModel(
         {
             // Show notification toast explaining what the button does
             notificationService.ShowInfo(
-                "Browse and Import",
-                "Opens a file picker dialog allowing you to select map files (.map) or zip archives from your computer to import into game.");
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.BrowseImport.Title", "Browse and Import"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.BrowseImport.Message", "Opens a file picker dialog allowing you to select map files (.map) or zip archives from your computer to import into game."));
             return;
         }
 
@@ -622,8 +637,8 @@ public partial class MapManagerViewModel(
         {
             // Show notification toast explaining what the button does
             notificationService.ShowInfo(
-                "Delete Maps",
-                "Permanently deletes selected maps from your game's map directory. This action cannot be undone.");
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.DeleteMaps.Title", "Delete Maps"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.DeleteMaps.Message", "Permanently deletes selected maps from your game's map directory. This action cannot be undone."));
             return;
         }
 
@@ -648,14 +663,18 @@ public partial class MapManagerViewModel(
             ApplyFilter();
             SelectedMaps.Clear();
 
-            notificationService.ShowSuccess("Deleted", $"Deleted {count} maps.");
+            notificationService.ShowSuccess(
+                localizationService.GetLocalizedString("Common.Deleted", "Deleted"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.MapsDeleted.Message", $"Deleted {count} maps.", count));
             StatusMessage = "Deleted successfully.";
         }
         else
         {
             await LoadMapsAsync();
             SelectedMaps.Clear();
-            notificationService.ShowError(MapManagerConstants.DeleteFailedTitle, result.FirstError ?? "Could not delete selected maps.");
+            notificationService.ShowError(
+                localizationService.GetLocalizedString(MapManagerConstants.DeleteFailedTitleKey, MapManagerConstants.DeleteFailedTitle),
+                result.FirstError ?? localizationService.GetLocalizedString("Tools.MapManager.Notification.DeleteMapsFailed.Message", "Could not delete selected maps."));
             StatusMessage = "Deletion error.";
         }
 
@@ -676,8 +695,8 @@ public partial class MapManagerViewModel(
         {
             // Show notification toast explaining what the button does
             notificationService.ShowInfo(
-                "Export to ZIP",
-                "Creates a ZIP archive containing selected maps and saves it to your map directory. You can then share the ZIP file with others or use it for backup purposes.");
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.ExportZip.Title", "Export to ZIP"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.ExportZip.Message", "Creates a ZIP archive containing selected maps and saves it to your map directory. You can then share the ZIP file with others or use it for backup purposes."));
             return;
         }
 
@@ -700,7 +719,9 @@ public partial class MapManagerViewModel(
             var result = await exportService.ExportToZipAsync([.. SelectedMaps], destinationPath, progressHandler);
             if (result != null)
             {
-                notificationService.ShowSuccess("Zip Created", $"Created {Path.GetFileName(result)} in map folder.");
+                notificationService.ShowSuccess(
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.ZipCreated.Title", "Zip Created"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.ZipCreated.Message", $"Created {Path.GetFileName(result)} in map folder.", Path.GetFileName(result)));
                 StatusMessage = "ZIP created successfully.";
 
                 // Reload maps to show the new ZIP
@@ -709,14 +730,18 @@ public partial class MapManagerViewModel(
             }
             else
             {
-                notificationService.ShowError("Zip Failed", "Failed to create ZIP archive.");
+                notificationService.ShowError(
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.ZipFailed.Title", "Zip Failed"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.ZipFailed.Message", "Failed to create ZIP archive."));
                 StatusMessage = "ZIP creation failed.";
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to export ZIP directly");
-            notificationService.ShowError("Export Error", ex.Message);
+            notificationService.ShowError(
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.ExportError.Title", "Export Error"),
+                ex.Message);
             StatusMessage = "Export error.";
         }
         finally
@@ -783,13 +808,17 @@ public partial class MapManagerViewModel(
             {
                 StatusMessage = "Upload failed.";
                 var error = uploadResult.FirstError ?? "Upload failed. Please check your internet connection.";
-                notificationService.ShowError("Upload Failed", error);
+                notificationService.ShowError(
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.UploadFailed.Title", "Upload Failed"),
+                error);
             }
         }
         catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or HttpRequestException or InvalidOperationException) && ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Upload failed");
-            notificationService.ShowError("Upload Error", "Failed to complete upload.");
+            notificationService.ShowError(
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.UploadError.Title", "Upload Error"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.UploadError.Message", "Failed to complete upload."));
             StatusMessage = "Upload error.";
         }
         finally
@@ -805,8 +834,8 @@ public partial class MapManagerViewModel(
         if (demoMaps.Count > 0)
         {
             notificationService.ShowInfo(
-                "Upload and Share",
-                "Uploads selected maps to UploadThing cloud service (max 10MB) and copies the share link to your clipboard. You can then share the link with others to download maps.");
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.UploadShare.Title", "Upload and Share"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.UploadShare.Message", "Uploads selected maps to UploadThing cloud service (max 10MB) and copies the share link to your clipboard. You can then share the link with others to download maps."));
             return true;
         }
 
@@ -818,8 +847,8 @@ public partial class MapManagerViewModel(
         if (totalSizeBytes > MapManagerConstants.MaxMapSizeBytes)
         {
             notificationService.ShowError(
-               "File Too Large",
-               "File too large. Maximum upload size is 10MB.");
+               localizationService.GetLocalizedString("Tools.MapManager.Notification.FileTooLarge.Title", "File Too Large"),
+               localizationService.GetLocalizedString("Tools.MapManager.Notification.FileTooLarge.Message", "File too large. Maximum upload size is 10MB."));
             StatusMessage = "Upload too large (Max 10MB).";
             return false;
         }
@@ -830,8 +859,8 @@ public partial class MapManagerViewModel(
             var usage = await uploadHistoryService.GetUsageInfoAsync(MapManagerConstants.UploadCategory);
             var resetDateLocal = usage.ResetDate.ToLocalTime();
             notificationService.ShowError(
-                "Rate Limit Exceeded",
-                "Upload limit exceeded for the current 3-day period. Please remove items from your Upload History to free up quota immediately.");
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.RateLimitExceeded.Title", "Rate Limit Exceeded"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.RateLimitExceeded.Message", "Upload limit exceeded for the current 3-day period. Please remove items from your Upload History to free up quota immediately."));
             StatusMessage = $"Limit reached. Resets {resetDateLocal:g}.";
             return false;
         }
@@ -858,7 +887,9 @@ public partial class MapManagerViewModel(
             }
 
             StatusMessage = "Reused existing upload! Link copied to clipboard.";
-            notificationService.ShowSuccess("Upload Complete", "Existing link copied to clipboard!");
+            notificationService.ShowSuccess(
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.UploadComplete.Title", "Upload Complete"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.UploadComplete.ExistingLinkMessage", "Existing link copied to clipboard!"));
             return (true, fileHash);
         }
 
@@ -883,7 +914,9 @@ public partial class MapManagerViewModel(
         }
 
         StatusMessage = "Uploaded! Link copied to clipboard.";
-        notificationService.ShowSuccess("Upload Complete", "Link copied to clipboard!");
+        notificationService.ShowSuccess(
+            localizationService.GetLocalizedString("Tools.MapManager.Notification.UploadComplete.Title", "Upload Complete"),
+            localizationService.GetLocalizedString("Tools.MapManager.Notification.UploadComplete.LinkCopiedMessage", "Link copied to clipboard!"));
 
         await ToolSharingDialogHelper.OpenShareDialogAsync(
             uploadResult.PublicUrl,
@@ -903,8 +936,8 @@ public partial class MapManagerViewModel(
         {
             // Show notification toast explaining what the button does
             notificationService.ShowInfo(
-                "Open Map Folder",
-                "Opens your game's map directory in Windows Explorer, allowing you to manage your map files directly.");
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.OpenMapFolder.Title", "Open Map Folder"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.OpenMapFolder.Message", "Opens your game's map directory in Windows Explorer, allowing you to manage your map files directly."));
             return;
         }
 
@@ -919,8 +952,8 @@ public partial class MapManagerViewModel(
         {
             // Show notification toast explaining what the button does
             notificationService.ShowInfo(
-                "Reveal Map File",
-                "Opens Windows Explorer and highlights the selected map file, making it easy to locate and manage.");
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.RevealMapFile.Title", "Reveal Map File"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.RevealMapFile.Message", "Opens Windows Explorer and highlights the selected map file, making it easy to locate and manage."));
             return;
         }
 
@@ -942,8 +975,8 @@ public partial class MapManagerViewModel(
         {
             // Show notification toast explaining what the button does
             notificationService.ShowInfo(
-                "Uncompress ZIP",
-                "Extracts contents of the selected ZIP archives and imports any contained maps into your game's map directory.");
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.UncompressZip.Title", "Uncompress ZIP"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.UncompressZip.Message", "Extracts contents of the selected ZIP archives and imports any contained maps into your game's map directory."));
             return;
         }
 
@@ -970,13 +1003,17 @@ public partial class MapManagerViewModel(
 
             if (totalImported > 0)
             {
-                notificationService.ShowSuccess("Uncompress Complete", $"Extracted {totalImported} maps from selected ZIP(s).");
+                notificationService.ShowSuccess(
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.UncompressComplete.Title", "Uncompress Complete"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.UncompressComplete.Message", $"Extracted {totalImported} maps from selected ZIP(s).", totalImported));
                 StatusMessage = $"Extracted {totalImported} maps from selected ZIP(s).";
             }
 
             if (errorMessages.Count > 0)
             {
-                notificationService.ShowWarning("Uncompress Warning", string.Join("\n", errorMessages.Take(5)));
+                notificationService.ShowWarning(
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.UncompressWarning.Title", "Uncompress Warning"),
+                string.Join("\n", errorMessages.Take(5)));
             }
 
             await LoadMapsAsync();
@@ -984,7 +1021,9 @@ public partial class MapManagerViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to uncompress selected ZIP files");
-            notificationService.ShowError("Uncompress Error", ex.Message);
+            notificationService.ShowError(
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.UncompressError.Title", "Uncompress Error"),
+                ex.Message);
             StatusMessage = "Uncompress error.";
         }
         finally
@@ -1002,8 +1041,8 @@ public partial class MapManagerViewModel(
         if (IsDemoPath(demoPath))
         {
             notificationService.ShowInfo(
-                "MapPacks",
-                "Create and manage collections of maps (MapPacks) to easily switch between different sets of maps for your game profiles.");
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.MapPacks.Title", "MapPacks"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.MapPacks.Message", "Create and manage collections of maps (MapPacks) to easily switch between different sets of maps for your game profiles."));
             return;
         }
 
@@ -1055,8 +1094,8 @@ public partial class MapManagerViewModel(
         {
             // Show notification toast explaining what the button does
             notificationService.ShowInfo(
-                "Create MapPack",
-                "Creates a MapPack from the selected maps using CAS (Content Addressable Storage) system. MapPacks can be enabled in your game profiles to load custom maps.");
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.CreateMapPack.Title", "Create MapPack"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.CreateMapPack.HelpMessage", "Creates a MapPack from the selected maps using CAS (Content Addressable Storage) system. MapPacks can be enabled in your game profiles to load custom maps."));
             return;
         }
 
@@ -1073,7 +1112,9 @@ public partial class MapManagerViewModel(
 
             if (result.Success)
             {
-                notificationService.ShowSuccess("MapPack Created", $"Created '{NewMapPackName}'. Enable it in your Profile.");
+                notificationService.ShowSuccess(
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.MapPackCreated.Title", "MapPack Created"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.MapPackCreated.Message", $"Created '{NewMapPackName}'. Enable it in your Profile.", NewMapPackName));
                 StatusMessage = "MapPack created successfully.";
 
                 await LoadMapPacksAsync();
@@ -1113,8 +1154,8 @@ public partial class MapManagerViewModel(
         {
             // Show notification toast explaining what the button does
             notificationService.ShowInfo(
-                "Load MapPack",
-                "Enables the selected MapPack, making its maps available when launching the game with the associated profile. The maps will be available on next profile launch.");
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.LoadMapPack.Title", "Load MapPack"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.LoadMapPack.Message", "Enables the selected MapPack, making its maps available when launching the game with the associated profile. The maps will be available on next profile launch."));
             return;
         }
 
@@ -1124,13 +1165,17 @@ public partial class MapManagerViewModel(
             if (success)
             {
                 mapPack.IsLoaded = true;
-                notificationService.ShowSuccess("MapPack Loaded", $"Loaded '{mapPack.Name}'. Maps will be available on next profile launch.");
+                notificationService.ShowSuccess(
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.MapPackLoaded.Title", "MapPack Loaded"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.MapPackLoaded.Message", $"Loaded '{mapPack.Name}'. Maps will be available on next profile launch.", mapPack.Name));
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to load MapPack");
-            notificationService.ShowError("Load Failed", "Failed to load MapPack.");
+            notificationService.ShowError(
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.LoadFailed.Title", "Load Failed"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.LoadFailed.MapPackMessage", "Failed to load MapPack."));
         }
     }
 
@@ -1143,8 +1188,8 @@ public partial class MapManagerViewModel(
         {
             // Show notification toast explaining what the button does
             notificationService.ShowInfo(
-                "Unload MapPack",
-                "Disables the selected MapPack, removing its maps from the available maps when launching the game with the associated profile.");
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.UnloadMapPack.Title", "Unload MapPack"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.UnloadMapPack.Message", "Disables the selected MapPack, removing its maps from the available maps when launching the game with the associated profile."));
             return;
         }
 
@@ -1154,13 +1199,17 @@ public partial class MapManagerViewModel(
             if (success)
             {
                 mapPack.IsLoaded = false;
-                notificationService.ShowSuccess("MapPack Unloaded", $"Unloaded '{mapPack.Name}'.");
+                notificationService.ShowSuccess(
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.MapPackUnloaded.Title", "MapPack Unloaded"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.MapPackUnloaded.Message", $"Unloaded '{mapPack.Name}'.", mapPack.Name));
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to unload MapPack");
-            notificationService.ShowError("Unload Failed", "Failed to unload MapPack.");
+            notificationService.ShowError(
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.UnloadFailed.Title", "Unload Failed"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.UnloadFailed.Message", "Failed to unload MapPack."));
         }
     }
 
@@ -1173,8 +1222,8 @@ public partial class MapManagerViewModel(
         {
             // Show notification toast explaining what the button does
             notificationService.ShowInfo(
-                "Delete MapPack",
-                "Permanently deletes the selected MapPack from CAS storage. This action cannot be undone.");
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.DeleteMapPack.Title", "Delete MapPack"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.DeleteMapPack.Message", "Permanently deletes the selected MapPack from CAS storage. This action cannot be undone."));
             return;
         }
 
@@ -1184,13 +1233,17 @@ public partial class MapManagerViewModel(
             if (success)
             {
                 MapPacks.Remove(mapPack);
-                notificationService.ShowSuccess("MapPack Deleted", $"Deleted '{mapPack.Name}'.");
+                notificationService.ShowSuccess(
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.MapPackDeleted.Title", "MapPack Deleted"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.MapPackDeleted.Message", $"Deleted '{mapPack.Name}'.", mapPack.Name));
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to delete MapPack");
-            notificationService.ShowError(MapManagerConstants.DeleteFailedTitle, "Failed to delete MapPack.");
+            notificationService.ShowError(
+                localizationService.GetLocalizedString(MapManagerConstants.DeleteFailedTitleKey, MapManagerConstants.DeleteFailedTitle),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.DeleteMapPackFailed.Message", "Failed to delete MapPack."));
         }
     }
 
@@ -1423,8 +1476,8 @@ public partial class MapManagerViewModel(
         {
             IsHistoryOpen = false;
             notificationService.ShowInfo(
-                "Upload History",
-                "Shows a list of your previously uploaded maps, allowing you to manage them and copy download links.");
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.UploadHistory.Title", "Upload History"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.UploadHistory.Message", "Shows a list of your previously uploaded maps, allowing you to manage them and copy download links."));
             return;
         }
 
@@ -1494,8 +1547,8 @@ public partial class MapManagerViewModel(
         if (IsDemoPath(demoPath))
         {
             notificationService.ShowInfo(
-                "Copy Link",
-                "Copies the download link of the uploaded file to your clipboard.");
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.CopyLink.Title", "Copy Link"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.CopyLink.Message", "Copies the download link of the uploaded file to your clipboard."));
             return;
         }
 
@@ -1506,7 +1559,9 @@ public partial class MapManagerViewModel(
             if (clipboard != null)
             {
                 await clipboard.SetTextAsync(url);
-                notificationService.ShowSuccess("Copied", "Link copied to clipboard.");
+                notificationService.ShowSuccess(
+                localizationService.GetLocalizedString("Common.Notification.Copied.Title", "Copied"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.LinkCopied.Message", "Link copied to clipboard."));
             }
         }
         catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException) && ex is not OperationCanceledException)
@@ -1536,8 +1591,8 @@ public partial class MapManagerViewModel(
         if (IsDemoPath(demoPath))
         {
             notificationService.ShowInfo(
-                "Delete Upload",
-                "Permanently deletes the uploaded file from cloud storage and removes it from history.");
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.DeleteUpload.Title", "Delete Upload"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.DeleteUpload.Message", "Permanently deletes the uploaded file from cloud storage and removes it from history."));
             return;
         }
 
@@ -1561,18 +1616,22 @@ public partial class MapManagerViewModel(
             if (success)
             {
                 notificationService.ShowSuccess(
-                    "Deleted",
-                    "File deleted from cloud storage and upload history.");
+                    localizationService.GetLocalizedString("Tools.UploadHistory.Notification.FileDeleted.Title", "Deleted"),
+                    localizationService.GetLocalizedString("Tools.UploadHistory.Notification.FileDeleted.Message", "File deleted from cloud storage and upload history."));
             }
             else
             {
-                notificationService.ShowError(MapManagerConstants.DeleteFailedTitle, "Failed to delete file from cloud storage.");
+                notificationService.ShowError(
+                localizationService.GetLocalizedString(MapManagerConstants.DeleteFailedTitleKey, MapManagerConstants.DeleteFailedTitle),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.DeleteCloudFileFailed.Message", "Failed to delete file from cloud storage."));
             }
         }
         catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or HttpRequestException or JsonException) && ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to remove history item");
-            notificationService.ShowError(MapManagerConstants.DeleteFailedTitle, "Failed to delete history item.");
+            notificationService.ShowError(
+                localizationService.GetLocalizedString(MapManagerConstants.DeleteFailedTitleKey, MapManagerConstants.DeleteFailedTitle),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.DeleteHistoryItemFailed.Message", "Failed to delete history item."));
         }
     }
 
@@ -1587,8 +1646,8 @@ public partial class MapManagerViewModel(
         if (IsDemoPath(demoPath))
         {
             notificationService.ShowInfo(
-                "Clear History",
-                "Permanently deletes all uploaded files from cloud storage and clears upload history.");
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.ClearHistory.Title", "Clear History"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.ClearHistory.Message", "Permanently deletes all uploaded files from cloud storage and clears upload history."));
             return;
         }
 
@@ -1612,20 +1671,22 @@ public partial class MapManagerViewModel(
             if (failed == 0)
             {
                 notificationService.ShowSuccess(
-                    "Cleared",
-                    $"All {deleted} uploaded files deleted from cloud storage and history cleared.");
+                    localizationService.GetLocalizedString("Tools.MapManager.Notification.HistoryCleared.Title", "Cleared"),
+                    localizationService.GetLocalizedString("Tools.MapManager.Notification.HistoryCleared.Message", $"All {deleted} uploaded files deleted from cloud storage and history cleared.", deleted));
             }
             else
             {
                 notificationService.ShowWarning(
-                    "Partially Cleared",
-                    $"Cleared {deleted} history items. {failed} item(s) could not be deleted from cloud storage.");
+                    localizationService.GetLocalizedString("Tools.MapManager.Notification.HistoryPartiallyCleared.Title", "Partially Cleared"),
+                    localizationService.GetLocalizedString("Tools.MapManager.Notification.HistoryPartiallyCleared.Message", $"Cleared {deleted} history items. {failed} item(s) could not be deleted from cloud storage.", deleted, failed));
             }
         }
         catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or HttpRequestException or JsonException) && ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to clear history");
-            notificationService.ShowError("Clear Failed", "Failed to clear history.");
+            notificationService.ShowError(
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.ClearFailed.Title", "Clear Failed"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.ClearFailed.Message", "Failed to clear history."));
         }
     }
 
@@ -1634,14 +1695,18 @@ public partial class MapManagerViewModel(
     {
         if (!SelectedMaps.Any())
         {
-            notificationService.ShowWarning("Selection Required", "Please select at least one map.");
+            notificationService.ShowWarning(
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.SelectionRequired.Title", "Selection Required"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.SelectionRequired.Message", "Please select at least one map."));
             return;
         }
 
         if (!IsMapPackPanelOpen)
         {
             IsMapPackPanelOpen = true;
-            notificationService.ShowInfo("Create MapPack", "Enter a name and description in the panel, then click Create.");
+            notificationService.ShowInfo(
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.CreateMapPack.Title", "Create MapPack"),
+                localizationService.GetLocalizedString("Tools.MapManager.Notification.CreateMapPack.PanelMessage", "Enter a name and description in the panel, then click Create."));
         }
     }
 

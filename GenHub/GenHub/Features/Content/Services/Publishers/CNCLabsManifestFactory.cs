@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
@@ -6,8 +7,8 @@ using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Features.Content.Services.Common;
 using Microsoft.Extensions.Logging;
-using Slugify;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -30,47 +31,10 @@ public partial class CNCLabsManifestFactory(
     IFileHashProvider hashProvider,
     ILogger<CNCLabsManifestFactory> logger) : IPublisherManifestFactory
 {
-    private static string SlugifyContentName(string title)
-    {
-        if (string.IsNullOrWhiteSpace(title))
-        {
-            return CNCLabsConstants.DefaultContentName;
-        }
-
-        try
-        {
-            var slugHelper = new SlugHelper();
-            var slug = slugHelper.GenerateSlug(title);
-            return string.IsNullOrEmpty(slug) ? CNCLabsConstants.DefaultContentName : slug;
-        }
-        catch
-        {
-            // Fallback to default if slugification fails
-            return CNCLabsConstants.DefaultContentName;
-        }
-    }
-
     private static List<string> GetTags(ParsedContentDetails details)
     {
         List<string> tags = [.. CNCLabsConstants.DefaultTags];
-
-        // Add game-specific tag
-        tags.Add(details.TargetGame == GameType.Generals ? GameClientConstants.GeneralsShortName : GameClientConstants.ZeroHourShortName);
-
-        // Add content type tag
-        tags.Add(details.ContentType switch
-        {
-            ContentType.Map => ManifestConstants.MapTag,
-            ContentType.Mission => ManifestConstants.MissionTag,
-            ContentType.Mod => ManifestConstants.ModTag,
-            ContentType.Patch => ManifestConstants.PatchTag,
-            ContentType.Skin => ManifestConstants.SkinTag,
-            ContentType.Video => ManifestConstants.VideoTag,
-            ContentType.Screensaver => ManifestConstants.ScreensaverTag,
-            ContentType.Replay => ManifestConstants.ReplayTag,
-            ContentType.ModdingTool => ManifestConstants.ModdingToolTag,
-            _ => ManifestConstants.OtherTag,
-        });
+        ManifestTagHelper.AddGameAndContentTypeTags(tags, details.TargetGame, details.ContentType);
 
         return tags;
     }
@@ -175,7 +139,7 @@ public partial class CNCLabsManifestFactory(
 
                 Directory.CreateDirectory(extractPath);
 
-                await Task.Run(() => ZipFile.ExtractToDirectory(zipPath, extractPath), cancellationToken);
+                await Task.Run(() => ZipArchiveGuard.ExtractToDirectory(zipPath, extractPath, cancellationToken), cancellationToken);
                 logger.LogDebug("Extracted ZIP to: {ExtractPath}", extractPath);
 
                 // Scan extracted files
@@ -230,25 +194,9 @@ public partial class CNCLabsManifestFactory(
         }
 
         // Create updated manifest with extracted files
-        var updatedManifest = new ContentManifest
+        var updatedManifest = new ContentManifest(originalManifest)
         {
-            SchemaVersion = originalManifest.SchemaVersion,
-            Id = originalManifest.Id,
-            Name = originalManifest.Name,
-            Version = originalManifest.Version,
-            ContentType = originalManifest.ContentType,
-            TargetGame = originalManifest.TargetGame,
-            Publisher = originalManifest.Publisher,
-            Metadata = originalManifest.Metadata,
-            OriginalProviderName = originalManifest.OriginalProviderName,
-            OriginalContentId = originalManifest.OriginalContentId,
-            SourcePath = originalManifest.SourcePath,
-            Dependencies = originalManifest.Dependencies,
-            ContentReferences = originalManifest.ContentReferences,
-            KnownAddons = originalManifest.KnownAddons,
             Files = extractedFiles,
-            RequiredDirectories = originalManifest.RequiredDirectories,
-            InstallationInstructions = originalManifest.InstallationInstructions,
         };
 
         logger.LogInformation(
@@ -295,7 +243,7 @@ public partial class CNCLabsManifestFactory(
         var detailPageUrl = details.DownloadUrl ?? websiteUrl; // Fallback if source omitted
 
         // 2. Prepare manifest information
-        var contentName = SlugifyContentName(details.Name);
+        var contentName = ManifestTagHelper.SlugifyTitle(details.Name, CNCLabsConstants.DefaultContentName);
         var publisherId = CNCLabsConstants.PublisherId;
 
         // 3. Format submission date as YYYYMMDD for version

@@ -19,7 +19,7 @@ namespace GenHub.Linux.Features.Shortcuts;
 /// Linux implementation of <see cref="IShortcutService"/> that creates .desktop files.
 /// </summary>
 [SupportedOSPlatform("linux")]
-public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShortcutService
+public class LinuxShortcutService(ILogger<LinuxShortcutService> logger, Func<string>? desktopDirectoryProvider = null) : IShortcutService
 {
     private const string DesktopEntryVersion = "1.0";
     private const string DesktopEntryType = "Application";
@@ -89,29 +89,7 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
     {
         ArgumentNullException.ThrowIfNull(profile);
 
-        try
-        {
-            var shortcutPath = GetShortcutPath(profile);
-
-            if (File.Exists(shortcutPath))
-            {
-                File.Delete(shortcutPath);
-                logger.LogInformation(
-                    "Removed desktop shortcut for profile {ProfileName} at {ShortcutPath}",
-                    profile.Name,
-                    shortcutPath);
-
-                return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
-            }
-
-            logger.LogWarning("Shortcut not found at {ShortcutPath}", shortcutPath);
-            return Task.FromResult(OperationResult<bool>.CreateSuccess(false));
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
-        {
-            logger.LogError(ex, "Failed to remove desktop shortcut for profile {ProfileName}", profile.Name);
-            return Task.FromResult(OperationResult<bool>.CreateFailure($"Failed to remove shortcut: {ex.Message}"));
-        }
+        return ShortcutFileHelper.RemoveShortcutFileAsync(GetShortcutPath(profile), profile.Name, logger);
     }
 
     /// <inheritdoc />
@@ -386,11 +364,56 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
         return executablePath;
     }
 
+    private static string? TryResolveFromUserDirs(string configHome, string home)
+    {
+        var userDirsFile = Path.Combine(configHome, "user-dirs.dirs");
+        if (!File.Exists(userDirsFile))
+        {
+            return null;
+        }
+
+        try
+        {
+            foreach (var line in File.ReadAllLines(userDirsFile))
+            {
+                var trimmed = line.Trim();
+                if (!trimmed.StartsWith("XDG_DESKTOP_DIR=", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var value = trimmed["XDG_DESKTOP_DIR=".Length..].Trim('"', '\'', ' ');
+                value = value.Replace("$HOME", home, StringComparison.Ordinal);
+                if (!Path.IsPathRooted(value))
+                {
+                    value = Path.Combine(home, value);
+                }
+
+                if (!string.IsNullOrWhiteSpace(value) && Directory.Exists(value))
+                {
+                    return value;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Best effort XDG resolution
+        }
+
+        return null;
+    }
+
     /// <summary>
     /// Gets the user's desktop path, following XDG standards if available.
     /// </summary>
-    private static string GetDesktopPath()
+    private string GetDesktopPath()
     {
+        var injectedDesktop = desktopDirectoryProvider?.Invoke();
+        if (!string.IsNullOrWhiteSpace(injectedDesktop))
+        {
+            return injectedDesktop;
+        }
+
         var xdgDesktop = Environment.GetEnvironmentVariable("XDG_DESKTOP_DIR");
         if (!string.IsNullOrWhiteSpace(xdgDesktop) && Directory.Exists(xdgDesktop))
         {
@@ -404,38 +427,10 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
             configHome = Path.Combine(home, ".config");
         }
 
-        var userDirsFile = Path.Combine(configHome, "user-dirs.dirs");
-        if (File.Exists(userDirsFile))
+        var userDirsPath = TryResolveFromUserDirs(configHome, home);
+        if (userDirsPath != null)
         {
-            try
-            {
-                foreach (var line in File.ReadAllLines(userDirsFile))
-                {
-                    var trimmed = line.Trim();
-                    if (trimmed.StartsWith("XDG_DESKTOP_DIR=", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var value = trimmed["XDG_DESKTOP_DIR=".Length..].Trim('"', '\'', ' ');
-                        value = value.Replace("$HOME", home, StringComparison.Ordinal);
-                        if (!Path.IsPathRooted(value))
-                        {
-                            value = Path.Combine(home, value);
-                        }
-
-                        if (!string.IsNullOrWhiteSpace(value) && Directory.Exists(value))
-                        {
-                            return value;
-                        }
-                    }
-                }
-            }
-            catch (IOException)
-            {
-                // Best effort XDG resolution
-            }
-            catch (UnauthorizedAccessException)
-            {
-                // Best effort XDG resolution
-            }
+            return userDirsPath;
         }
 
         var desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);

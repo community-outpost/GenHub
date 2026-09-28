@@ -78,7 +78,7 @@ public class PreferIPv4Fix(
 
             if (currentValue == RegistryConstants.PreferIPv4DisabledComponentsValue)
             {
-                details.Add("✓ IPv4 preference is already enabled (IPv6 tunnels disabled)");
+                details.Add("OK: IPv4 preference is already enabled (IPv6 tunnels disabled)");
                 logger.LogInformation("IPv4 preference is already enabled. No action needed.");
                 return Task.FromResult(new ActionSetResult(true, null, details));
             }
@@ -101,7 +101,7 @@ public class PreferIPv4Fix(
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Could not save original DisabledComponents value to backup file");
-                details.Add("✗ Could not back up the current IPv6 configuration");
+                details.Add("Error: Could not back up the current IPv6 configuration");
                 return Task.FromResult(new ActionSetResult(
                     false,
                     "Could not back up the current IPv6 configuration.",
@@ -122,12 +122,12 @@ public class PreferIPv4Fix(
 
             if (!writeSuccess)
             {
-                details.Add("✗ Failed to set DisabledComponents registry key (permissions?)");
+                details.Add("Error: Failed to set DisabledComponents registry key (permissions?)");
                 return Task.FromResult(new ActionSetResult(false, "Failed to write DisabledComponents registry key", details));
             }
 
-            details.Add("✓ IPv4 preference enabled successfully");
-            details.Add("⚠ IMPORTANT: Computer restart required for changes to take effect");
+            details.Add("OK: IPv4 preference enabled successfully");
+            details.Add("Warning: IMPORTANT: Computer restart required for changes to take effect");
             details.Add("  After restart, IPv4 will be preferred for all network connections");
 
             logger.LogInformation("IPv4 preference fix applied with {Count} actions. Restart may be required.", details.Count);
@@ -137,7 +137,7 @@ public class PreferIPv4Fix(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error applying IPv4 preference fix");
-            details.Add($"✗ Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
     }
@@ -157,7 +157,7 @@ public class PreferIPv4Fix(
 
             if (currentValue == null || currentValue == 0)
             {
-                details.Add("✓ IPv4 preference is not set. No undo action needed.");
+                details.Add("OK: IPv4 preference is not set. No undo action needed.");
                 logger.LogInformation("IPv4 preference is not set. No undo action needed.");
                 return Task.FromResult(new ActionSetResult(true, null, details));
             }
@@ -206,12 +206,12 @@ public class PreferIPv4Fix(
 
             if (!restoreSuccess)
             {
-                details.Add("✗ Failed to reset DisabledComponents registry key");
+                details.Add("Error: Failed to reset DisabledComponents registry key");
                 return Task.FromResult(new ActionSetResult(false, "Failed to reset DisabledComponents registry key", details));
             }
 
-            details.Add("✓ IPv4 preference restored successfully");
-            details.Add("⚠ Computer restart required for changes to take effect");
+            details.Add("OK: IPv4 preference restored successfully");
+            details.Add("Warning: Computer restart required for changes to take effect");
 
             logger.LogInformation("IPv4 preference removed successfully. Restart may be required.");
 
@@ -220,7 +220,7 @@ public class PreferIPv4Fix(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error removing IPv4 preference fix");
-            details.Add($"✗ Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
     }

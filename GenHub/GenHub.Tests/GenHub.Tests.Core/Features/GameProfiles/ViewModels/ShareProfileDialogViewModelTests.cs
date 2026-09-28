@@ -53,10 +53,10 @@ public class ShareProfileDialogViewModelTests
     }
 
     /// <summary>
-    /// Verifies that close request triggers CloseRequested event.
+    /// Verifies that close request triggers RequestClose event.
     /// </summary>
     [Fact]
-    public void CloseCommand_Should_RaiseCloseRequestedEvent()
+    public void CloseCommand_Should_RaiseRequestCloseEvent()
     {
         // Arrange
         var profile = new GameProfile { Id = "prof-1", Name = "ZH Ranked" };
@@ -68,7 +68,7 @@ public class ShareProfileDialogViewModelTests
             NullLogger<ShareProfileDialogViewModel>.Instance);
 
         bool closed = false;
-        vm.CloseRequested += (s, e) => closed = true;
+        vm.RequestClose += (s, e) => closed = true;
 
         // Act
         vm.CloseCommand.Execute(null);

@@ -1,8 +1,11 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless.XUnit;
+using Avalonia.VisualTree;
 using GenHub.Common.Helpers;
 using System;
+using System.Linq;
 using Xunit;
 
 namespace GenHub.Tests.Core.Common.Helpers;
@@ -112,5 +115,91 @@ public class WindowChromeHelperTests
 
         WindowChromeHelper.AttachResizeGrips(window, panel);
         Assert.False(panel.IsVisible);
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="WindowChromeHelper.EnsureResizeGrips"/> throws an <see cref="ArgumentNullException"/>
+    /// when passed a null window.
+    /// </summary>
+    [Fact]
+    public void EnsureResizeGrips_ThrowsArgumentNullException_WhenWindowIsNull()
+    {
+        Assert.Throws<ArgumentNullException>(() => WindowChromeHelper.EnsureResizeGrips(null!));
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="WindowChromeHelper.EnsureResizeGrips"/> is a safe no-op for
+    /// non-resizable windows and windows with native decorations.
+    /// </summary>
+    [AvaloniaFact]
+    public void EnsureResizeGrips_NoOp_WhenWindowCannotResizeOrHasDecorations()
+    {
+        var fixedWindow = new Window
+        {
+            CanResize = false,
+        };
+        var decoratedWindow = new Window
+        {
+            CanResize = true,
+            SystemDecorations = SystemDecorations.Full,
+        };
+
+        var fixedException = Record.Exception(() => WindowChromeHelper.EnsureResizeGrips(fixedWindow));
+        var decoratedException = Record.Exception(() => WindowChromeHelper.EnsureResizeGrips(decoratedWindow));
+
+        Assert.Null(fixedException);
+        Assert.Null(decoratedException);
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="WindowChromeHelper.EnsureResizeGrips"/> is a safe no-op when the
+    /// window has no adorner layer, such as an unshown window.
+    /// </summary>
+    [AvaloniaFact]
+    public void EnsureResizeGrips_NoOp_WhenAdornerLayerMissing()
+    {
+        var window = new Window
+        {
+            CanResize = true,
+            SystemDecorations = SystemDecorations.None,
+        };
+
+        var exception = Record.Exception(() => WindowChromeHelper.EnsureResizeGrips(window));
+
+        Assert.Null(exception);
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="WindowChromeHelper.EnsureResizeGrips"/> attaches a resize
+    /// grips overlay to the adorner layer of a shown borderless resizable window on Linux,
+    /// exactly once across repeated calls.
+    /// </summary>
+    [AvaloniaFact]
+    public void EnsureResizeGrips_AttachesOverlay_WhenShownBorderlessOnLinux()
+    {
+        var window = new Window
+        {
+            CanResize = true,
+            SystemDecorations = SystemDecorations.None,
+            Content = new TextBlock { Text = "content" },
+        };
+        window.Show();
+
+        try
+        {
+            WindowChromeHelper.EnsureResizeGrips(window);
+            WindowChromeHelper.EnsureResizeGrips(window);
+
+            if (OperatingSystem.IsLinux())
+            {
+                var adornerLayer = window.GetVisualDescendants().OfType<AdornerLayer>().First();
+                var grips = Assert.Single(adornerLayer.Children.OfType<Grid>(), grid => grid.Children.Count == 8);
+                Assert.All(grips.Children, child => Assert.IsType<Border>(child));
+            }
+        }
+        finally
+        {
+            window.Close();
+        }
     }
 }

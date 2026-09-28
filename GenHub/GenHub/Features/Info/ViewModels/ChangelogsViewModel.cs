@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.GitHub;
@@ -126,24 +127,7 @@ public partial class ChangelogsViewModel(
     [RelayCommand]
     public void OpenReleaseUrl(string? url)
     {
-        if (string.IsNullOrEmpty(url) || !Uri.TryCreate(url, UriKind.Absolute, out var uri) || (uri.Scheme != "http" && uri.Scheme != "https"))
-        {
-            logger.LogWarning("Invalid or unsafe URL: {Url}", url);
-            return;
-        }
-
-        try
-        {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = url,
-                UseShellExecute = true,
-            });
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to open release URL: {Url}", url);
-        }
+        BrowserHelper.TryOpenUrl(url, logger);
     }
 
     private string? GetCacheFilePath()

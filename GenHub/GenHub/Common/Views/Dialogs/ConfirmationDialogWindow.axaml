@@ -1,9 +1,10 @@
-<Window xmlns="https://github.com/avaloniaui"
+<controls:GenHubWindow xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:GenHub.Common.ViewModels.Dialogs"
         xmlns:localization="clr-namespace:GenHub.Common.Markup"
+        xmlns:controls="clr-namespace:GenHub.Common.Controls"
         mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="280"
         x:Class="GenHub.Common.Views.Dialogs.ConfirmationDialogWindow"
         x:DataType="vm:ConfirmationDialogViewModel"
@@ -190,4 +191,4 @@
             </Panel>
         </Border>
     </Grid>
-</Window>
+</controls:GenHubWindow>

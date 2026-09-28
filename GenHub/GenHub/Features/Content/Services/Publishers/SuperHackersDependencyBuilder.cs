@@ -19,19 +19,9 @@ public class SuperHackersDependencyBuilder : BaseDependencyBuilder
     /// <returns>A content dependency for Zero Hour 1.04 installation.</returns>
     public static ContentDependency CreateZeroHourDependencyForSuperHackers()
     {
-        return new ContentDependency
-        {
-            // This is a type-only foundation requirement. The profile service supplies the
-            // concrete installation manifest that matches the user's installed game.
-            Id = ManifestId.Create(ManifestConstants.ZeroHourFoundationDependencyId),
-            Name = GameClientConstants.ZeroHourInstallationDependencyName,
-            DependencyType = ContentType.GameInstallation,
-            MinVersion = ManifestConstants.ZeroHourManifestVersion, // "1.04"
-            InstallBehavior = DependencyInstallBehavior.RequireExisting,
-            IsOptional = false,
-            StrictPublisher = false, // Any publisher's ZH installation will work
-            CompatibleGameTypes = [GameType.ZeroHour],
-        };
+        // This is a type-only foundation requirement. The profile service supplies the
+        // concrete installation manifest that matches the user's installed game.
+        return CreateZeroHour104Dependency();
     }
 
     /// <summary>
@@ -40,19 +30,9 @@ public class SuperHackersDependencyBuilder : BaseDependencyBuilder
     /// <returns>A content dependency for Generals 1.08 installation.</returns>
     public static ContentDependency CreateGeneralsDependencyForSuperHackers()
     {
-        return new ContentDependency
-        {
-            // This is a type-only foundation requirement. The profile service supplies the
-            // concrete installation manifest that matches the user's installed game.
-            Id = ManifestId.Create(ManifestConstants.GeneralsFoundationDependencyId),
-            Name = "Generals 1.08 (Required)",
-            DependencyType = ContentType.GameInstallation,
-            MinVersion = ManifestConstants.GeneralsManifestVersion, // "1.08"
-            InstallBehavior = DependencyInstallBehavior.RequireExisting,
-            IsOptional = false,
-            StrictPublisher = false, // Any publisher's Generals installation will work
-            CompatibleGameTypes = [GameType.Generals],
-        };
+        // This is a type-only foundation requirement. The profile service supplies the
+        // concrete installation manifest that matches the user's installed game.
+        return CreateGenerals108Dependency();
     }
 
     /// <summary>

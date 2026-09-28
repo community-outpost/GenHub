@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -58,6 +59,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     }
 
     private const string ErrorTitle = "Error";
+
+    private const string ErrorTitleKey = "Common.Notification.Error";
+
+    private const string DeletionFailedTitleKey = "Settings.Notification.DeletionFailed.Title";
     private static readonly char[] LineSeparators = ['\r', '\n'];
 
     private string SubscriptionErrorTitle => _localizationService?.GetString("Settings.Subscriptions.ErrorTitle") ?? ErrorTitle;
@@ -1144,7 +1149,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         {
             _logger.LogError(ex, "Failed to save settings");
             _notificationService.ShowError(
-                "Settings Not Saved",
+                _localizationService.GetLocalizedString("Settings.Notification.SettingsNotSaved.Title", "Settings Not Saved"),
                 ex.Message,
                 (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds);
         }
@@ -1236,17 +1241,26 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             if (regResult.Success)
             {
                 await LoadCustomInstallationsAsync();
-                _notificationService.ShowSuccess("Custom Installation Added", $"Successfully registered '{regResult.Data?.DisplayName ?? "Custom Installation"}'.", 3000);
+                _notificationService.ShowSuccess(
+                    _localizationService.GetLocalizedString("Settings.Notification.CustomInstallationAdded.Title", "Custom Installation Added"),
+                    _localizationService.GetLocalizedString("Settings.Notification.CustomInstallationAdded.Message", $"Successfully registered '{regResult.Data?.DisplayName ?? "Custom Installation"}'.", regResult.Data?.DisplayName ?? _localizationService.GetLocalizedString("Settings.Notification.CustomInstallation.DisplayName", "Custom Installation")),
+                    NotificationDurations.Short);
             }
             else
             {
-                _notificationService.ShowError("Registration Failed", regResult.Errors.FirstOrDefault() ?? "Unknown error", 5000);
+                _notificationService.ShowError(
+                    _localizationService.GetLocalizedString("Settings.Notification.RegistrationFailed.Title", "Registration Failed"),
+                    regResult.Errors.FirstOrDefault() ?? _localizationService.GetLocalizedString("Common.UnknownError", "Unknown error"),
+                    NotificationDurations.Medium);
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error adding custom installation");
-            _notificationService.ShowError(ErrorTitle, $"Failed to add custom installation: {ex.Message}", 5000);
+            _notificationService.ShowError(
+                _localizationService.GetLocalizedString(ErrorTitleKey, ErrorTitle),
+                _localizationService.GetLocalizedString("Settings.Notification.AddInstallationFailed.Message", $"Failed to add custom installation: {ex.Message}", ex.Message),
+                NotificationDurations.Medium);
         }
     }
 
@@ -1275,17 +1289,26 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             if (remResult.Success)
             {
                 await LoadCustomInstallationsAsync();
-                _notificationService.ShowSuccess("Installation Removed", $"Custom installation '{installation.DisplayName}' was removed.", 3000);
+                _notificationService.ShowSuccess(
+                    _localizationService.GetLocalizedString("Settings.Notification.InstallationRemoved.Title", "Installation Removed"),
+                    _localizationService.GetLocalizedString("Settings.Notification.InstallationRemoved.Message", $"Custom installation '{installation.DisplayName}' was removed.", installation.DisplayName),
+                    NotificationDurations.Short);
             }
             else
             {
-                _notificationService.ShowError("Removal Failed", remResult.Errors.FirstOrDefault() ?? "Unknown error", 5000);
+                _notificationService.ShowError(
+                    _localizationService.GetLocalizedString("Settings.Notification.RemovalFailed.Title", "Removal Failed"),
+                    remResult.Errors.FirstOrDefault() ?? _localizationService.GetLocalizedString("Common.UnknownError", "Unknown error"),
+                    NotificationDurations.Medium);
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error removing custom installation: {Id}", installation.Id);
-            _notificationService.ShowError(ErrorTitle, $"Failed to remove custom installation: {ex.Message}", 5000);
+            _notificationService.ShowError(
+                _localizationService.GetLocalizedString(ErrorTitleKey, ErrorTitle),
+                _localizationService.GetLocalizedString("Settings.Notification.RemoveInstallationFailed.Message", $"Failed to remove custom installation: {ex.Message}", ex.Message),
+                NotificationDurations.Medium);
         }
     }
 
@@ -1428,7 +1451,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         {
             if (string.IsNullOrWhiteSpace(MigrationTargetPath))
             {
-                _notificationService.ShowWarning("Migration Target Required", "Please select a target directory for migration.", hideDelayMs);
+                _notificationService.ShowWarning(
+                    _localizationService.GetLocalizedString("Settings.Notification.MigrationTargetRequired.Title", "Migration Target Required"),
+                    _localizationService.GetLocalizedString("Settings.Notification.MigrationTargetRequired.Message", "Please select a target directory for migration."),
+                    hideDelayMs);
                 return;
             }
 
@@ -1447,7 +1473,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             {
                 var errorMessage = preflight.Data?.ErrorMessage ?? preflight.FirstError ?? "Pre-flight validation failed.";
                 _logger.LogWarning("Migration pre-flight checks failed: {ErrorMessage}", errorMessage);
-                _notificationService.ShowError("Migration Pre-flight Failed", errorMessage, errorHideDelayMs);
+                _notificationService.ShowError(
+                    _localizationService.GetLocalizedString("Settings.Notification.MigrationPreflightFailed.Title", "Migration Pre-flight Failed"),
+                    errorMessage,
+                    errorHideDelayMs);
                 IsMigrating = false;
                 MigrationStatusText = string.Empty;
                 MigrationProgressPercentage = 0;
@@ -1492,7 +1521,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             {
                 var error = migrationResult.FirstError ?? "Migration operation failed.";
                 _logger.LogError("Installation migration failed: {Error}", error);
-                _notificationService.ShowError("Migration Failed", error, errorHideDelayMs);
+                _notificationService.ShowError(
+                    _localizationService.GetLocalizedString("Settings.Notification.MigrationFailed.Title", "Migration Failed"),
+                    error,
+                    errorHideDelayMs);
                 IsMigrating = false;
                 MigrationStatusText = $"Migration failed: {error}";
                 MigrationProgressPercentage = 0;
@@ -1506,7 +1538,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unexpected error during installation migration");
-            _notificationService.ShowError("Migration Error", ex.Message, errorHideDelayMs);
+            _notificationService.ShowError(
+                _localizationService.GetLocalizedString("Settings.Notification.MigrationError.Title", "Migration Error"),
+                ex.Message,
+                errorHideDelayMs);
             IsMigrating = false;
             MigrationStatusText = string.Empty;
             MigrationProgressPercentage = 0;
@@ -1973,9 +2008,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             if (userDataDeleted && casOutcome == CasCleanupOutcome.Success)
             {
                 _notificationService.ShowSuccess(
-                    "Data Deleted",
+                    _localizationService?.GetString("Settings.DangerZone.DeleteAllData.SuccessTitle") ?? "Data Deleted",
                     _localizationService?.GetString("Settings.DangerZone.DeleteAllData.SuccessMessage") ?? "Profiles, workspaces, manifests, user data, and unreferenced CAS objects were deleted.",
-                    5000);
+                    NotificationDurations.Medium);
             }
             else
             {
@@ -1994,15 +2029,18 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 };
 
                 _notificationService.ShowWarning(
-                    "Data Partially Deleted",
-                    $"Profiles, workspaces, and manifests were deleted, but {partialDetails}.",
-                    5000);
+                    _localizationService.GetLocalizedString("Settings.Notification.DataPartiallyDeleted.Title", "Data Partially Deleted"),
+                    _localizationService.GetLocalizedString("Settings.Notification.DataPartiallyDeleted.Message", $"Profiles, workspaces, and manifests were deleted, but {partialDetails}.", partialDetails),
+                    NotificationDurations.Medium);
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to delete all application data");
-            _notificationService.ShowError("Deletion Failed", $"Failed to delete all application data: {ex.Message}", 5000);
+            _notificationService.ShowError(
+                _localizationService.GetLocalizedString(DeletionFailedTitleKey, ToolConstants.DeleteFailedTitle),
+                _localizationService.GetLocalizedString("Settings.Notification.DeleteAppDataFailed.Message", $"Failed to delete all application data: {ex.Message}", ex.Message),
+                NotificationDurations.Medium);
         }
         finally
         {
@@ -2078,7 +2116,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 _logger.LogWarning("Failed to collect CAS storage: {Error}", result.FirstError);
                 if (showToast)
                 {
-                    _notificationService.ShowError("Deletion Failed", result.FirstError ?? "Failed to collect CAS storage", 5000);
+                    _notificationService.ShowError(
+                        _localizationService.GetLocalizedString(DeletionFailedTitleKey, ToolConstants.DeleteFailedTitle),
+                        result.FirstError ?? _localizationService.GetLocalizedString("Settings.Notification.CollectCasStorageFailed.Message", "Failed to collect CAS storage"),
+                        NotificationDurations.Medium);
                 }
 
                 return CasCleanupOutcome.Failed;
@@ -2101,7 +2142,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             _logger.LogError(ex, "Failed to delete CAS storage");
             if (showToast)
             {
-                _notificationService.ShowError("Deletion Failed", $"An error occurred: {ex.Message}", 5000);
+                _notificationService.ShowError(
+                    _localizationService.GetLocalizedString(DeletionFailedTitleKey, ToolConstants.DeleteFailedTitle),
+                    _localizationService.GetLocalizedString("Common.Notification.UnexpectedError.Message", $"An error occurred: {ex.Message}", ex.Message),
+                    NotificationDurations.Medium);
             }
 
             return CasCleanupOutcome.Failed;
@@ -2122,9 +2166,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         if (result.ObjectsDeleted > 0)
         {
             _notificationService.ShowSuccess(
-                "CAS Cleared",
-                $"Deleted {result.ObjectsDeleted} objects, freed {result.BytesFreed / (double)ConversionConstants.BytesPerGigabyte:F2} GB.",
-                5000);
+                _localizationService.GetLocalizedString("Settings.Notification.CasCleared.Title", "CAS Cleared"),
+                _localizationService.GetLocalizedString("Settings.Notification.CasCleared.Message", $"Deleted {result.ObjectsDeleted} objects, freed {result.BytesFreed / (double)ConversionConstants.BytesPerGigabyte:F2} GB.", result.ObjectsDeleted, result.BytesFreed / (double)ConversionConstants.BytesPerGigabyte),
+                NotificationDurations.Medium);
             return;
         }
 
@@ -2175,7 +2219,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
                 if (showToast)
                 {
-                    _notificationService.ShowSuccess("Manifests Deleted", $"Deleted {count} manifest(s) successfully.", (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds);
+                    _notificationService.ShowSuccess(
+                        _localizationService.GetLocalizedString("Settings.Notification.ManifestsDeleted.Title", "Manifests Deleted"),
+                        _localizationService.GetLocalizedString("Settings.Notification.ManifestsDeleted.Message", $"Deleted {count} manifest(s) successfully.", count),
+                        (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds);
                 }
             }
 
@@ -2193,7 +2240,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             _logger.LogError(ex, "Failed to delete manifests");
             if (showToast)
             {
-                _notificationService.ShowError("Deletion Failed", $"Failed to delete manifests: {ex.Message}", 5000);
+                _notificationService.ShowError(
+                    _localizationService.GetLocalizedString(DeletionFailedTitleKey, ToolConstants.DeleteFailedTitle),
+                    _localizationService.GetLocalizedString("Settings.Notification.DeleteManifestsFailed.Message", $"Failed to delete manifests: {ex.Message}", ex.Message),
+                    NotificationDurations.Medium);
             }
         }
     }
@@ -2365,11 +2415,17 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             {
                 if (totalDeleted > 0)
                 {
-                    _notificationService.ShowSuccess("Workspaces Deleted", $"Deleted {totalDeleted} workspace(s) successfully.", 3000);
+                    _notificationService.ShowSuccess(
+                        _localizationService.GetLocalizedString("Settings.Notification.WorkspacesDeleted.Title", "Workspaces Deleted"),
+                        _localizationService.GetLocalizedString("Settings.Notification.WorkspacesDeleted.Message", $"Deleted {totalDeleted} workspace(s) successfully.", totalDeleted),
+                        NotificationDurations.Short);
                 }
                 else
                 {
-                    _notificationService.ShowInfo("Workspaces Clean", "No workspaces found to delete.", 3000);
+                    _notificationService.ShowInfo(
+                        _localizationService.GetLocalizedString("Settings.Notification.WorkspacesClean.Title", "Workspaces Clean"),
+                        _localizationService.GetLocalizedString("Settings.Notification.WorkspacesClean.Message", "No workspaces found to delete."),
+                        NotificationDurations.Short);
                 }
             }
 
@@ -2383,7 +2439,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             _logger.LogError(ex, "Failed to delete workspaces");
             if (showToast)
             {
-                _notificationService.ShowError("Deletion Failed", $"Failed to delete workspaces: {ex.Message}", 5000);
+                _notificationService.ShowError(
+                    _localizationService.GetLocalizedString(DeletionFailedTitleKey, ToolConstants.DeleteFailedTitle),
+                    _localizationService.GetLocalizedString("Settings.Notification.DeleteWorkspacesFailed.Message", $"Failed to delete workspaces: {ex.Message}", ex.Message),
+                    NotificationDurations.Medium);
             }
         }
     }
@@ -2536,15 +2595,18 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             var result = await _userDataTracker.DeleteAllUserDataAsync();
             if (result.Success)
             {
-                _notificationService.ShowSuccess("User Data Deleted", "All user data deleted successfully.", 3000);
+                _notificationService.ShowSuccess(
+                    _localizationService.GetLocalizedString("Settings.Notification.UserDataDeleted.Title", "User Data Deleted"),
+                    _localizationService.GetLocalizedString("Settings.Notification.UserDataDeleted.Message", "All user data deleted successfully."),
+                    NotificationDurations.Short);
             }
             else
             {
                 _logger.LogWarning("User data deletion kept some data: {Error}", result.FirstError);
                 _notificationService.ShowError(
-                    "User Data Partially Deleted",
-                    result.FirstError ?? "Some tracked user data could not be deleted.",
-                    5000);
+                    _localizationService.GetLocalizedString("Settings.Notification.UserDataPartiallyDeleted.Title", "User Data Partially Deleted"),
+                    result.FirstError ?? _localizationService.GetLocalizedString("Settings.Notification.UserDataPartiallyDeleted.Message", "Some tracked user data could not be deleted."),
+                    NotificationDurations.Medium);
             }
 
             await UpdateDangerZoneDataAsync();
@@ -2553,7 +2615,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to delete user data");
-            _notificationService.ShowError("Deletion Failed", $"Failed to delete user data: {ex.Message}", 5000);
+            _notificationService.ShowError(
+                _localizationService.GetLocalizedString(DeletionFailedTitleKey, ToolConstants.DeleteFailedTitle),
+                _localizationService.GetLocalizedString("Settings.Notification.DeleteUserDataFailed.Message", $"Failed to delete user data: {ex.Message}", ex.Message),
+                NotificationDurations.Medium);
             return false;
         }
     }
@@ -2687,7 +2752,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             _logger.LogError(ex, "Failed to delete profiles");
             if (showToast)
             {
-                _notificationService.ShowError("Deletion Failed", $"Failed to delete profiles: {ex.Message}", 5000);
+                _notificationService.ShowError(
+                    _localizationService.GetLocalizedString(DeletionFailedTitleKey, ToolConstants.DeleteFailedTitle),
+                    _localizationService.GetLocalizedString("Settings.Notification.DeleteProfilesFailed.Message", $"Failed to delete profiles: {ex.Message}", ex.Message),
+                    NotificationDurations.Medium);
             }
         }
         finally
@@ -2758,7 +2826,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to open logs directory");
-            _notificationService.ShowError(ErrorTitle, $"Failed to open logs directory: {ex.Message}", 5000);
+            _notificationService.ShowError(
+                _localizationService.GetLocalizedString(ErrorTitleKey, ErrorTitle),
+                _localizationService.GetLocalizedString("Settings.Notification.OpenLogsDirectoryFailed.Message", $"Failed to open logs directory: {ex.Message}", ex.Message),
+                NotificationDurations.Medium);
         }
     }
 
@@ -2786,7 +2857,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to open AppData directory");
-            _notificationService.ShowError(ErrorTitle, $"Failed to open AppData directory: {ex.Message}", 5000);
+            _notificationService.ShowError(
+                _localizationService.GetLocalizedString(ErrorTitleKey, ErrorTitle),
+                _localizationService.GetLocalizedString("Settings.Notification.OpenAppDataDirectoryFailed.Message", $"Failed to open AppData directory: {ex.Message}", ex.Message),
+                NotificationDurations.Medium);
         }
     }
 
@@ -2814,7 +2888,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to open profiles directory");
-            _notificationService.ShowError(ErrorTitle, $"Failed to open profiles directory: {ex.Message}", 5000);
+            _notificationService.ShowError(
+                _localizationService.GetLocalizedString(ErrorTitleKey, ErrorTitle),
+                _localizationService.GetLocalizedString("Settings.Notification.OpenProfilesDirectoryFailed.Message", $"Failed to open profiles directory: {ex.Message}", ex.Message),
+                NotificationDurations.Medium);
         }
     }
 
@@ -2842,7 +2919,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to open manifests directory");
-            _notificationService.ShowError(ErrorTitle, $"Failed to open manifests directory: {ex.Message}", 5000);
+            _notificationService.ShowError(
+                _localizationService.GetLocalizedString(ErrorTitleKey, ErrorTitle),
+                _localizationService.GetLocalizedString("Settings.Notification.OpenManifestsDirectoryFailed.Message", $"Failed to open manifests directory: {ex.Message}", ex.Message),
+                NotificationDurations.Medium);
         }
     }
 
@@ -2885,7 +2965,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to open workspaces directory");
-            _notificationService.ShowError(ErrorTitle, $"Failed to open workspaces directory: {ex.Message}", 5000);
+            _notificationService.ShowError(
+                _localizationService.GetLocalizedString(ErrorTitleKey, ErrorTitle),
+                _localizationService.GetLocalizedString("Settings.Notification.OpenWorkspacesDirectoryFailed.Message", $"Failed to open workspaces directory: {ex.Message}", ex.Message),
+                NotificationDurations.Medium);
         }
     }
 
@@ -2928,7 +3011,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to open CAS pool directory");
-            _notificationService.ShowError(ErrorTitle, $"Failed to open CAS pool directory: {ex.Message}", 5000);
+            _notificationService.ShowError(
+                _localizationService.GetLocalizedString(ErrorTitleKey, ErrorTitle),
+                _localizationService.GetLocalizedString("Settings.Notification.OpenCasPoolDirectoryFailed.Message", $"Failed to open CAS pool directory: {ex.Message}", ex.Message),
+                NotificationDurations.Medium);
         }
     }
 
@@ -2943,7 +3029,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             if (!Directory.Exists(logsPath))
             {
                 _logger.LogWarning("Logs directory not found at {Path}", logsPath);
-                _notificationService.ShowError(ErrorTitle, "Logs directory not found.", 3000);
+                _notificationService.ShowError(
+                    _localizationService.GetLocalizedString(ErrorTitleKey, ErrorTitle),
+                    _localizationService.GetLocalizedString("Settings.Notification.LogsDirectoryNotFound.Message", "Logs directory not found."),
+                    NotificationDurations.Short);
                 return;
             }
 
@@ -2964,13 +3053,19 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             else
             {
                 _logger.LogInformation("No log files found in {Path}", logsPath);
-                _notificationService.ShowInfo("Info", "No log files found.", 3000);
+                _notificationService.ShowInfo(
+                    _localizationService.GetLocalizedString("Common.Status.Info", "Info"),
+                    _localizationService.GetLocalizedString("Settings.Notification.NoLogFiles.Message", "No log files found."),
+                    NotificationDurations.Short);
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to open latest log file");
-            _notificationService.ShowError(ErrorTitle, $"Failed to open latest log file: {ex.Message}", 5000);
+            _notificationService.ShowError(
+                _localizationService.GetLocalizedString(ErrorTitleKey, ErrorTitle),
+                _localizationService.GetLocalizedString("Settings.Notification.OpenLatestLogFailed.Message", $"Failed to open latest log file: {ex.Message}", ex.Message),
+                NotificationDurations.Medium);
         }
     }
 
@@ -2996,7 +3091,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             }
             else
             {
-                _notificationService.ShowError(ErrorTitle, "Logs directory not found.", 3000);
+                _notificationService.ShowError(
+                    _localizationService.GetLocalizedString(ErrorTitleKey, ErrorTitle),
+                    _localizationService.GetLocalizedString("Settings.Notification.LogsDirectoryNotFound.Message", "Logs directory not found."),
+                    NotificationDurations.Short);
                 return;
             }
 
@@ -3016,28 +3114,43 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                     if (topLevel?.Clipboard != null)
                     {
                         await topLevel.Clipboard.SetTextAsync(logContent);
-                        _notificationService.ShowSuccess("Copied", "Latest log content copied to clipboard.", 3000);
+                        _notificationService.ShowSuccess(
+                            _localizationService.GetLocalizedString("Common.Notification.Copied.Title", "Copied"),
+                            _localizationService.GetLocalizedString("Settings.Notification.LogCopied.Message", "Latest log content copied to clipboard."),
+                            NotificationDurations.Short);
                     }
                     else
                     {
-                        _notificationService.ShowError(ErrorTitle, "Clipboard not available.", 3000);
+                        _notificationService.ShowError(
+                            _localizationService.GetLocalizedString(ErrorTitleKey, ErrorTitle),
+                            _localizationService.GetLocalizedString("Common.Notification.ClipboardUnavailable.Message", "Clipboard not available."),
+                            NotificationDurations.Short);
                     }
                 }
                 catch (IOException ioEx)
                 {
                     _logger.LogWarning(ioEx, "Failed to read log file (file in use?)");
-                    _notificationService.ShowError(ErrorTitle, "Could not read log file (it might be in use).", 3000);
+                    _notificationService.ShowError(
+                        _localizationService.GetLocalizedString(ErrorTitleKey, ErrorTitle),
+                        _localizationService.GetLocalizedString("Settings.Notification.ReadLogFailed.Message", "Could not read log file (it might be in use)."),
+                        NotificationDurations.Short);
                 }
             }
             else
             {
-                _notificationService.ShowInfo("Info", "No log files found.", 3000);
+                _notificationService.ShowInfo(
+                    _localizationService.GetLocalizedString("Common.Status.Info", "Info"),
+                    _localizationService.GetLocalizedString("Settings.Notification.NoLogFiles.Message", "No log files found."),
+                    NotificationDurations.Short);
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to copy latest log file");
-            _notificationService.ShowError(ErrorTitle, "Failed to copy latest log.", 3000);
+            _notificationService.ShowError(
+                _localizationService.GetLocalizedString(ErrorTitleKey, ErrorTitle),
+                _localizationService.GetLocalizedString("Settings.Notification.CopyLogFailed.Message", "Failed to copy latest log."),
+                NotificationDurations.Short);
         }
     }
 
@@ -3256,7 +3369,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             var logsPath = ResolveLogsDirectory();
             if (string.IsNullOrWhiteSpace(logsPath))
             {
-                _notificationService.ShowInfo("Logs Empty", "No logs directory found.", 3000);
+                _notificationService.ShowInfo(
+                    _localizationService.GetLocalizedString("Settings.Notification.LogsEmpty.Title", "Logs Empty"),
+                    _localizationService.GetLocalizedString("Settings.Notification.LogsEmpty.NoDirectoryMessage", "No logs directory found."),
+                    NotificationDurations.Short);
                 return;
             }
 
@@ -3267,7 +3383,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to clear logs");
-            _notificationService.ShowError(ErrorTitle, $"Failed to clear logs: {ex.Message}", 5000);
+            _notificationService.ShowError(
+                _localizationService.GetLocalizedString(ErrorTitleKey, ErrorTitle),
+                _localizationService.GetLocalizedString("Settings.Notification.ClearLogsFailed.Message", $"Failed to clear logs: {ex.Message}", ex.Message),
+                NotificationDurations.Medium);
         }
     }
 
@@ -3292,20 +3411,29 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         if (deletedCount == 0 && lockedCount == 0)
         {
-            _notificationService.ShowInfo("Logs Empty", "No log files found to clear.", 3000);
+            _notificationService.ShowInfo(
+                _localizationService.GetLocalizedString("Settings.Notification.LogsEmpty.Title", "Logs Empty"),
+                _localizationService.GetLocalizedString("Settings.Notification.LogsEmpty.NoFilesMessage", "No log files found to clear."),
+                NotificationDurations.Short);
             return;
         }
 
         if (deletedCount == 0)
         {
-            _notificationService.ShowError(ErrorTitle, "Could not clear active log files (files in use).", 3000);
+            _notificationService.ShowError(
+                _localizationService.GetLocalizedString(ErrorTitleKey, ErrorTitle),
+                _localizationService.GetLocalizedString("Settings.Notification.ClearActiveLogsFailed.Message", "Could not clear active log files (files in use)."),
+                NotificationDurations.Short);
             return;
         }
 
         var freedMb = freedBytes / (double)ConversionConstants.BytesPerMegabyte;
-        var sizeText = freedMb >= 0.1 ? $" ({freedMb:F1} MB freed)" : string.Empty;
-        var skippedText = lockedCount > 0 ? $", {lockedCount} file(s) skipped (in use)" : string.Empty;
-        _notificationService.ShowSuccess("Logs Cleared", $"Successfully cleared {deletedCount} log file(s){sizeText}{skippedText}.", 3000);
+        var sizeText = freedMb >= 0.1 ? _localizationService.GetLocalizedString("Settings.Notification.LogsCleared.SizeFreedFragment", $" ({freedMb:F1} MB freed)", freedMb) : string.Empty;
+        var skippedText = lockedCount > 0 ? _localizationService.GetLocalizedString("Settings.Notification.LogsCleared.SkippedFragment", $", {lockedCount} file(s) skipped (in use)", lockedCount) : string.Empty;
+        _notificationService.ShowSuccess(
+            _localizationService.GetLocalizedString("Settings.Notification.LogsCleared.Title", "Logs Cleared"),
+            _localizationService.GetLocalizedString("Settings.Notification.LogsCleared.Message", $"Successfully cleared {deletedCount} log file(s){sizeText}{skippedText}.", deletedCount, sizeText, skippedText),
+            NotificationDurations.Short);
         _logger.LogInformation("Cleared {Count} log files ({Bytes} bytes freed, {Locked} locked)", deletedCount, freedBytes, lockedCount);
     }
 

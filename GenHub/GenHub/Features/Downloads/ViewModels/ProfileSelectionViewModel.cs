@@ -1,5 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Common.ViewModels;
+using GenHub.Core.Extensions;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
@@ -30,13 +33,15 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <param name="profileContentService">The profile content service.</param>
 /// <param name="manifestPool">The content manifest pool.</param>
 /// <param name="notificationService">The notification service.</param>
+/// <param name="localizationService">The optional localization service for user-facing notifications.</param>
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Properties access CommunityToolkit MVVM generated instance properties.")]
 public sealed partial class ProfileSelectionViewModel(
     ILogger<ProfileSelectionViewModel> logger,
     IGameProfileManager profileManager,
     IProfileContentService profileContentService,
     IContentManifestPool manifestPool,
-    INotificationService notificationService) : ObservableObject, IDisposable
+    INotificationService notificationService,
+    ILocalizationService? localizationService = null) : ObservableObject, IDisposable, IRequestCloseViewModel
 {
     private readonly CancellationTokenSource _cts = new();
     private bool _disposed;
@@ -465,9 +470,9 @@ public sealed partial class ProfileSelectionViewModel(
                     "Failed to add content to profile '{ProfileName}': {Error}",
                     profile.Name,
                     result.FirstError);
-                ErrorMessage = result.FirstError ?? "Failed to add content to profile";
+                ErrorMessage = result.FirstError ?? localizationService.GetLocalizedString("Downloads.Notification.AddToProfileFailed.Message", "Failed to add content to profile");
                 notificationService.ShowError(
-                    "Failed to Add to Profile",
+                    localizationService.GetLocalizedString("Downloads.Notification.AddToProfileFailed.Title", "Failed to Add to Profile"),
                     ErrorMessage);
                 WasSuccessful = false;
             }
@@ -483,8 +488,8 @@ public sealed partial class ProfileSelectionViewModel(
             logger.LogError(ex, "Error adding content to profile '{ProfileName}'", profile.Name);
             ErrorMessage = ex.Message;
             notificationService.ShowError(
-                "Failed to Add to Profile",
-                $"An error occurred: {ex.Message}");
+                localizationService.GetLocalizedString("Downloads.Notification.AddToProfileFailed.Title", "Failed to Add to Profile"),
+                localizationService.GetLocalizedString("Common.Notification.UnexpectedError.Message", $"An error occurred: {ex.Message}", ex.Message));
             WasSuccessful = false;
         }
     }
@@ -549,9 +554,9 @@ public sealed partial class ProfileSelectionViewModel(
                     "Failed to create profile: {Error}",
                     result.FirstError ?? "Unknown error");
 
-                ErrorMessage = result.FirstError ?? "Unknown error";
+                ErrorMessage = result.FirstError ?? localizationService.GetLocalizedString("Common.UnknownError", "Unknown error");
                 notificationService.ShowError(
-                    "Profile Creation Failed",
+                    localizationService.GetLocalizedString("Downloads.Notification.ProfileCreationFailed.Title", "Profile Creation Failed"),
                     ErrorMessage);
                 WasSuccessful = false;
             }
@@ -567,8 +572,8 @@ public sealed partial class ProfileSelectionViewModel(
             logger.LogError(ex, "Exception creating profile with content");
             ErrorMessage = ex.Message;
             notificationService.ShowError(
-                "Profile Creation Failed",
-                $"An error occurred: {ex.Message}");
+                localizationService.GetLocalizedString("Downloads.Notification.ProfileCreationFailed.Title", "Profile Creation Failed"),
+                localizationService.GetLocalizedString("Common.Notification.UnexpectedError.Message", $"An error occurred: {ex.Message}", ex.Message));
             WasSuccessful = false;
         }
     }
@@ -681,11 +686,11 @@ public sealed partial class ProfileSelectionViewModel(
                 profile.Name);
 
             var replacedText = !string.IsNullOrWhiteSpace(result.SwappedContentName)
-                ? $"Replaced '{result.SwappedContentName}' with '{selectedContentName}' in profile '{profile.Name}'."
-                : $"Updated '{selectedContentName}' in profile '{profile.Name}'.";
+                ? localizationService.GetLocalizedString("Downloads.Notification.ContentSwapped.Message", $"Replaced '{result.SwappedContentName}' with '{selectedContentName}' in profile '{profile.Name}'.", result.SwappedContentName, selectedContentName, profile.Name)
+                : localizationService.GetLocalizedString("Downloads.Notification.ContentUpdatedInProfile.Message", $"Updated '{selectedContentName}' in profile '{profile.Name}'.", selectedContentName, profile.Name);
 
             notificationService.ShowSuccess(
-                "Content Updated",
+                localizationService.GetLocalizedString("Common.Notification.ContentUpdated.Title", "Content Updated"),
                 replacedText);
         }
         else
@@ -694,8 +699,8 @@ public sealed partial class ProfileSelectionViewModel(
 
             // Show success notification for new content addition
             notificationService.ShowSuccess(
-                "Added to Profile",
-                $"'{selectedContentName}' has been added to profile '{profile.Name}'.");
+                localizationService.GetLocalizedString("Downloads.Notification.AddedToProfile.Title", "Added to Profile"),
+                localizationService.GetLocalizedString("Downloads.Notification.AddedToProfile.Message", $"'{selectedContentName}' has been added to profile '{profile.Name}'.", selectedContentName, profile.Name));
         }
 
         SelectedProfileName = profile.Name;

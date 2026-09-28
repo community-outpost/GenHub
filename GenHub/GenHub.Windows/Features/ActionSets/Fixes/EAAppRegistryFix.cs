@@ -74,7 +74,7 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
         // Check if running as administrator - required for HKEY_LOCAL_MACHINE writes
         if (!registryService.IsRunningAsAdministrator())
         {
-            details.Add("✗ Administrator privileges required");
+            details.Add("Error: Administrator privileges required");
             details.Add("  Please restart GenHub as Administrator to apply registry fixes.");
             return Task.FromResult(new ActionSetResult(false, "Administrator privileges required to write to HKEY_LOCAL_MACHINE.", details));
         }
@@ -112,13 +112,13 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
                 return Task.FromResult(new ActionSetResult(false, errorSummary, details));
             }
 
-            details.Add("✓ EA App registry configuration completed successfully");
+            details.Add("OK: EA App registry configuration completed successfully");
             return Task.FromResult(new ActionSetResult(true, null, details));
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error applying EA App registry fix");
-            details.Add($"✗ Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
     }
@@ -136,14 +136,14 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
             {
                 registryService.DeleteValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.InstallPathValueName);
                 registryService.DeleteValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.VersionValueName);
-                details.Add($"✓ Removed EA App registry entries for Generals at {RegistryConstants.EAAppGeneralsKeyPath}");
+                details.Add($"OK: Removed EA App registry entries for Generals at {RegistryConstants.EAAppGeneralsKeyPath}");
             }
 
             if (installation.HasZeroHour)
             {
                 registryService.DeleteValue(RegistryConstants.EAAppZeroHourKeyPath, RegistryConstants.InstallPathValueName);
                 registryService.DeleteValue(RegistryConstants.EAAppZeroHourKeyPath, RegistryConstants.VersionValueName);
-                details.Add($"✓ Removed EA App registry entries for Zero Hour at {RegistryConstants.EAAppZeroHourKeyPath}");
+                details.Add($"OK: Removed EA App registry entries for Zero Hour at {RegistryConstants.EAAppZeroHourKeyPath}");
             }
 
             return Task.FromResult(new ActionSetResult(true, null, details));
@@ -172,22 +172,22 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
         {
             succeeded = false;
             failedOperations.Add($"{config.AppKeyPath}\\{RegistryConstants.InstallPathValueName}");
-            details.Add("  ✗ Failed to set InstallPath");
+            details.Add("  Error: Failed to set InstallPath");
         }
         else
         {
-            details.Add($"  ✓ InstallPath = {config.GamePath}");
+            details.Add($"  OK: InstallPath = {config.GamePath}");
         }
 
         if (!registryService.SetIntValue(config.AppKeyPath, RegistryConstants.VersionValueName, config.VersionDWord))
         {
             succeeded = false;
             failedOperations.Add($"{config.AppKeyPath}\\{RegistryConstants.VersionValueName}");
-            details.Add("  ✗ Failed to set Version");
+            details.Add("  Error: Failed to set Version");
         }
         else
         {
-            details.Add($"  ✓ Version = {config.VersionDWord}");
+            details.Add($"  OK: Version = {config.VersionDWord}");
         }
 
         var existingSerial = registryService.GetStringValue(config.ErgcKeyPath, string.Empty);
@@ -197,21 +197,21 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
             {
                 succeeded = false;
                 failedOperations.Add($"{config.ErgcKeyPath}\\(Default)");
-                details.Add("  ✗ Failed to set serial key");
+                details.Add("  Error: Failed to set serial key");
             }
             else
             {
-                details.Add($"  ✓ Serial key created: {config.DefaultSerial}");
+                details.Add($"  OK: Serial key created: {config.DefaultSerial}");
             }
         }
         else
         {
-            details.Add("  ✓ Serial key already exists");
+            details.Add("  OK: Serial key already exists");
         }
 
         if (succeeded)
         {
-            details.Add($"✓ {config.GameName} registry configuration completed");
+            details.Add($"OK: {config.GameName} registry configuration completed");
         }
 
         return succeeded;

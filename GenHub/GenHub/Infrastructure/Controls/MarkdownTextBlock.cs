@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Data.Converters;
 using Avalonia.Input;
 using Avalonia.Media;
+using GenHub.Core.Constants;
 using Markdig;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
@@ -53,7 +54,7 @@ public class MarkdownTextBlock : UserControl
     {
         var border = new Border
         {
-            Background = new SolidColorBrush(Color.Parse("#1E1E1E")),
+            Background = new SolidColorBrush(Color.Parse(UiConstants.MarkdownCodeBlockBackgroundColor)),
             CornerRadius = new CornerRadius(4),
             Padding = new Thickness(12),
         };
@@ -62,7 +63,7 @@ public class MarkdownTextBlock : UserControl
         {
             Text = fenced.Lines.ToString(),
             FontFamily = new FontFamily("Consolas,Courier New,monospace"),
-            Foreground = new SolidColorBrush(Color.Parse("#ABB2BF")),
+            Foreground = new SolidColorBrush(Color.Parse(UiConstants.MarkdownCodeBlockForegroundColor)),
             FontSize = 13,
             TextWrapping = TextWrapping.NoWrap,
         };
@@ -163,7 +164,7 @@ public class MarkdownTextBlock : UserControl
                 case LinkInline link:
                     var linkRun = new Avalonia.Controls.Documents.Run(GetInlineText(link))
                     {
-                        Foreground = new SolidColorBrush(Color.Parse("#61AFEF")),
+                        Foreground = new SolidColorBrush(Color.Parse(UiConstants.MarkdownLinkForegroundColor)),
                         TextDecorations = TextDecorations.Underline,
                     };
 
@@ -224,8 +225,8 @@ public class MarkdownTextBlock : UserControl
                     inlines.Add(new Avalonia.Controls.Documents.Run(code.Content)
                     {
                         FontFamily = new FontFamily("Consolas,Courier New,monospace"),
-                        Background = new SolidColorBrush(Color.Parse("#2A2A2A")),
-                        Foreground = new SolidColorBrush(Color.Parse("#E06C75")),
+                        Background = new SolidColorBrush(Color.Parse(UiConstants.MarkdownInlineCodeBackgroundColor)),
+                        Foreground = new SolidColorBrush(Color.Parse(UiConstants.MarkdownInlineCodeForegroundColor)),
                     });
                     break;
                 case LineBreakInline:
@@ -269,7 +270,7 @@ public class MarkdownTextBlock : UserControl
         var textBlock = new TextBlock
         {
             TextWrapping = TextWrapping.Wrap,
-            Foreground = new SolidColorBrush(Color.Parse("#DDDDDD")),
+            Foreground = new SolidColorBrush(Color.Parse(UiConstants.MarkdownHeadingForegroundColor)),
             FontSize = 14,
             LineHeight = 22,
             Margin = new Thickness(0, 0, 0, 8),
@@ -299,7 +300,7 @@ public class MarkdownTextBlock : UserControl
             var bullet = new TextBlock
             {
                 Text = list.IsOrdered ? $"{index++}." : "•",
-                Foreground = new SolidColorBrush(Color.Parse("#888888")),
+                Foreground = new SolidColorBrush(Color.Parse(UiConstants.MarkdownQuoteForegroundColor)),
                 VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top,
                 Margin = new Thickness(16, 0, 8, 0),
             };

@@ -1,5 +1,6 @@
 using Avalonia.Data.Converters;
 using Avalonia.Media;
+using GenHub.Core.Constants;
 using System;
 using System.Globalization;
 
@@ -10,8 +11,8 @@ namespace GenHub.Infrastructure.Converters;
 /// </summary>
 public class ActiveBorderConverter : IValueConverter
 {
-    private static readonly IBrush ActiveBrush = new SolidColorBrush(Color.Parse("#00D9FF"));
-    private static readonly IBrush InactiveBrush = new SolidColorBrush(Color.Parse("#20FFFFFF"));
+    private static readonly IBrush ActiveBrush = new SolidColorBrush(Color.Parse(UiConstants.ActiveBorderActiveColor));
+    private static readonly IBrush InactiveBrush = new SolidColorBrush(Color.Parse(UiConstants.ActiveBorderInactiveColor));
 
     /// <inheritdoc/>
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)

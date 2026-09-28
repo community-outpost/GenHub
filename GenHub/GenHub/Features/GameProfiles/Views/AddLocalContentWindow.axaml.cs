@@ -2,7 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
-using GenHub.Common.Helpers;
+using GenHub.Common.Controls;
 using GenHub.Features.GameProfiles.ViewModels;
 using System;
 using System.Linq;
@@ -13,7 +13,7 @@ namespace GenHub.Features.GameProfiles.Views;
 /// <summary>
 /// Window for adding local content to game profiles.
 /// </summary>
-public partial class AddLocalContentWindow : Window
+public partial class AddLocalContentWindow : GenHubWindow
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="AddLocalContentWindow"/> class.
@@ -21,9 +21,6 @@ public partial class AddLocalContentWindow : Window
     public AddLocalContentWindow()
     {
         InitializeComponent();
-        WindowChromeHelper.ApplyPlatformDecorations(this);
-        AddHandler(DragDrop.DropEvent, OnDrop);
-        AddHandler(DragDrop.DragOverEvent, OnDragOver);
     }
 
     /// <inheritdoc />
@@ -37,63 +34,29 @@ public partial class AddLocalContentWindow : Window
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
+
+        // The hosted view wires the browse delegates and drag/drop handling, while
+        // the window only closes itself when the view model requests it.
         if (DataContext is AddLocalContentViewModel vm)
         {
-            vm.RequestClose += (s, result) => Close(result);
-
-            // Wire up the browse delegates
-            vm.BrowseFolderAction = async () =>
-            {
-                if (StorageProvider == null)
-                {
-                    return null;
-                }
-
-                var result = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
-                {
-                    Title = "Select Content Folder",
-                    AllowMultiple = false,
-                });
-                return result.Count > 0 ? result[0].Path.LocalPath : null;
-            };
-
-            vm.BrowseFileAction = async () =>
-            {
-                if (StorageProvider == null)
-                {
-                    return null;
-                }
-
-                var result = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-                {
-                    Title = "Select Files",
-                    AllowMultiple = true,
-                    FileTypeFilter =
-                    [
-                        new("Supported Content Files (*.zip, *.7z, *.rar, *.tar, *.gz, *.big)")
-                        {
-                            Patterns = ["*.zip", "*.7z", "*.rar", "*.tar", "*.gz", "*.big"],
-                        },
-                        new("Zip Archives (*.zip)") { Patterns = ["*.zip"] },
-                        new("BIG Files (*.big)") { Patterns = ["*.big"] },
-                        FilePickerFileTypes.All,
-                    ],
-                });
-                return result.Count > 0 ? result.Select(f => f.Path.LocalPath).ToList() : null;
-            };
+            vm.RequestClose += OnViewModelRequestClose;
         }
     }
 
-    /// <inheritdoc/>
-    /// <param name="e">The key event arguments.</param>
-    protected override void OnKeyDown(KeyEventArgs e)
+    /// <inheritdoc />
+    protected override void OnClosed(EventArgs e)
     {
-        base.OnKeyDown(e);
-        if (e.Key == Key.Escape && !e.Handled)
+        base.OnClosed(e);
+
+        if (DataContext is AddLocalContentViewModel vm)
         {
-            e.Handled = true;
-            Close();
+            vm.RequestClose -= OnViewModelRequestClose;
         }
+    }
+
+    private void OnViewModelRequestClose(object? sender, bool result)
+    {
+        Close(result);
     }
 
     private void OnAdminDrop(string[] files)
@@ -124,42 +87,5 @@ public partial class AddLocalContentWindow : Window
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
-    }
-
-    // Drag & Drop handlers
-    private void OnDragOver(object? sender, DragEventArgs e)
-    {
-        e.DragEffects = e.Data.Contains(DataFormats.Files) ? DragDropEffects.Copy : DragDropEffects.None;
-    }
-
-    private async void OnDrop(object? sender, DragEventArgs e)
-    {
-        if (DataContext is not AddLocalContentViewModel vm) return;
-
-        var files = e.Data.GetFiles();
-        if (files != null)
-        {
-            foreach (var file in files)
-            {
-                if (file?.Path?.LocalPath is { } path)
-                {
-                    await vm.ImportContentAsync(path);
-                }
-            }
-        }
-    }
-
-    private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
-        {
-            if (e.ClickCount == 2 && CanResize)
-            {
-                WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-                return;
-            }
-
-            BeginMoveDrag(e);
-        }
     }
 }

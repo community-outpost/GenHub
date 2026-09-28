@@ -94,13 +94,13 @@ public class AppCompatConfigurationsFix(
                 return new ActionSetResult(false, "Failed to apply compatibility flags to one or more executables.", details);
             }
 
-            details.Add("✓ Windows compatibility configuration completed successfully");
+            details.Add("OK: Windows compatibility configuration completed successfully");
             return new ActionSetResult(true, null, details);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to apply AppCompat configurations");
-            details.Add($"✗ Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return new ActionSetResult(false, ex.Message, details);
         }
     }
@@ -120,7 +120,7 @@ public class AppCompatConfigurationsFix(
                     var fullPath = Path.Combine(installation.GeneralsPath, exe);
                     if (registryService.DeleteValue(RegistryConstants.AppCompatLayersKeyPath, fullPath))
                     {
-                        details.Add($"  ✓ Removed compatibility flags for: {exe}");
+                        details.Add($"  OK: Removed compatibility flags for: {exe}");
                     }
                 }
             }
@@ -132,12 +132,12 @@ public class AppCompatConfigurationsFix(
                     var fullPath = Path.Combine(installation.ZeroHourPath, exe);
                     if (registryService.DeleteValue(RegistryConstants.AppCompatLayersKeyPath, fullPath))
                     {
-                        details.Add($"  ✓ Removed compatibility flags for: {exe}");
+                        details.Add($"  OK: Removed compatibility flags for: {exe}");
                     }
                 }
             }
 
-            details.Add("✓ Compatibility flags removed successfully");
+            details.Add("OK: Compatibility flags removed successfully");
             return Task.FromResult(new ActionSetResult(true, null, details));
         }
         catch (Exception ex)
@@ -187,24 +187,24 @@ public class AppCompatConfigurationsFix(
             {
                 if (registryService.SetStringValue(RegistryConstants.AppCompatLayersKeyPath, fullPath, flag))
                 {
-                    details.Add($"  ✓ Set compatibility flags for: {exe}");
+                    details.Add($"  OK: Set compatibility flags for: {exe}");
                     processedCount++;
                 }
                 else
                 {
                     allSucceeded = false;
-                    details.Add($"  ✗ Failed to set flags for: {exe}");
+                    details.Add($"  Error: Failed to set flags for: {exe}");
                 }
             }
             catch (Exception ex)
             {
                 allSucceeded = false;
                 logger.LogWarning(ex, "Failed to set registry flag for {Path}", fullPath);
-                details.Add($"  ✗ Failed to set flags for: {exe}");
+                details.Add($"  Error: Failed to set flags for: {exe}");
             }
         }
 
-        details.Add($"✓ Processed {processedCount} executables");
+        details.Add($"OK: Processed {processedCount} executables");
         return Task.FromResult(allSucceeded);
     }
 }

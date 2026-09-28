@@ -28,17 +28,14 @@ public class ModDBContentProvider(
     IInstallationInstructionsService installationInstructionsService)
     : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
-    private readonly IContentDiscoverer _moddbDiscoverer = discoverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.ModDBDiscoverer, StringComparison.OrdinalIgnoreCase) == true)
-        ?? throw new ArgumentException("ModDB discoverer not found", nameof(discoverers));
+    private readonly IContentDiscoverer _moddbDiscoverer = ResolveDiscoverer(discoverers, ContentSourceNames.ModDBDiscoverer);
 
-    private readonly IContentResolver _moddbResolver = resolvers.FirstOrDefault(r => r.ResolverId?.Equals(ContentSourceNames.ModDBResolverId, StringComparison.OrdinalIgnoreCase) == true)
-        ?? throw new ArgumentException("ModDB resolver not found", nameof(resolvers));
+    private readonly IContentResolver _moddbResolver = ResolveResolver(resolvers, ContentSourceNames.ModDBResolverId);
 
-    private readonly IContentDeliverer _httpDeliverer = deliverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.HttpDeliverer, StringComparison.OrdinalIgnoreCase) == true)
-        ?? throw new ArgumentException("HTTP deliverer not found", nameof(deliverers));
+    private readonly IContentDeliverer _httpDeliverer = ResolveDeliverer(deliverers, ContentSourceNames.HttpDeliverer);
 
     /// <inheritdoc />
-    public override string SourceName => "ModDB";
+    public override string SourceName => ModDBConstants.DiscovererSourceName;
 
     /// <inheritdoc />
     public override string Description => "Provides content from ModDB";
@@ -56,26 +53,7 @@ public class ModDBContentProvider(
     public override async Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
         string contentId, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(contentId))
-        {
-            return OperationResult<ContentManifest>.CreateFailure("Content ID cannot be null or empty");
-        }
-
-        var query = new ContentSearchQuery { SearchTerm = contentId, Take = ContentConstants.SingleResultQueryLimit };
-        var searchResult = await SearchAsync(query, cancellationToken);
-
-        if (!searchResult.Success || !searchResult.Data!.Any())
-        {
-            return OperationResult<ContentManifest>.CreateFailure(
-                $"Content not found for ID '{contentId}': {searchResult.FirstError ?? "No matching results"}");
-        }
-
-        var result = searchResult.Data!.First();
-        var manifest = result.GetData<ContentManifest>();
-
-        return manifest != null
-            ? OperationResult<ContentManifest>.CreateSuccess(manifest)
-            : OperationResult<ContentManifest>.CreateFailure($"Invalid manifest data for content ID '{contentId}'");
+        return await SearchManifestByIdAsync(contentId, requireExactIdMatch: false, cancellationToken);
     }
 
     /// <inheritdoc />

@@ -241,17 +241,14 @@ public sealed class ImageCacheService : IImageCacheService
             return false;
         }
 
-        if (uri.IsLoopback ||
-            uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
-            uri.Host.EndsWith(".local", StringComparison.OrdinalIgnoreCase) ||
-            uri.Host.EndsWith(".internal", StringComparison.OrdinalIgnoreCase))
+        if (NetworkSecurityHelper.IsBlockedHostName(uri))
         {
             return false;
         }
 
         if (IPAddress.TryParse(uri.DnsSafeHost, out var ip) || IPAddress.TryParse(uri.Host, out ip))
         {
-            return IsSafeIpAddress(ip);
+            return NetworkSecurityHelper.IsSafeIpAddress(ip);
         }
 
         return true;
@@ -306,7 +303,7 @@ public sealed class ImageCacheService : IImageCacheService
                 }
 
                 var addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, cancellationToken).ConfigureAwait(false);
-                if (addresses.Length == 0 || !addresses.All(IsSafeIpAddress))
+                if (addresses.Length == 0 || !addresses.All(NetworkSecurityHelper.IsSafeIpAddress))
                 {
                     throw new HttpRequestException($"Host '{context.DnsEndPoint.Host}' resolved to an unsafe or invalid IP address.");
                 }
@@ -325,13 +322,6 @@ public sealed class ImageCacheService : IImageCacheService
             },
         };
     }
-
-    /// <summary>
-    /// Determines whether an IP address is considered safe from SSRF attack vectors.
-    /// </summary>
-    /// <param name="address">The IP address to validate.</param>
-    /// <returns><c>true</c> if the IP address is safe; otherwise, <c>false</c>.</returns>
-    internal static bool IsSafeIpAddress(IPAddress address) => NetworkSecurityHelper.IsSafeIpAddress(address);
 
     private static HttpClient CreateDefaultHttpClient()
     {

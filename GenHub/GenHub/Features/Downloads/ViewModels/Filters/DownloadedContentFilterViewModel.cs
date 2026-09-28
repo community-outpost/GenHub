@@ -105,12 +105,12 @@ public sealed partial class DownloadedContentFilterViewModel(ILocalizationServic
         EnsureInitialized();
         if (SelectedContentType.HasValue)
         {
-            yield return $"{ResolveLabel("Downloads.Filter.ContentType", "Content Type")}: {ResolveContentTypeName(SelectedContentType.Value)}";
+            yield return $"{localizationService.GetLocalizedString("Downloads.Filter.ContentType", "Content Type")}: {ResolveContentTypeName(SelectedContentType.Value)}";
         }
 
         if (SelectedGame.HasValue)
         {
-            yield return $"{ResolveLabel("Downloads.Filter.Game", "Game")}: {ResolveGameName(SelectedGame.Value)}";
+            yield return $"{localizationService.GetLocalizedString("Downloads.Filter.Game", "Game")}: {ResolveGameName(SelectedGame.Value)}";
         }
     }
 
@@ -193,16 +193,6 @@ public sealed partial class DownloadedContentFilterViewModel(ILocalizationServic
         }
 
         return game.ToString();
-    }
-
-    private string ResolveLabel(string key, string fallback)
-    {
-        if (localizationService != null && localizationService.TryGetString(key, out var localized))
-        {
-            return localized;
-        }
-
-        return fallback;
     }
 
     private void OnLocalizationChanged(object? sender, PropertyChangedEventArgs e)

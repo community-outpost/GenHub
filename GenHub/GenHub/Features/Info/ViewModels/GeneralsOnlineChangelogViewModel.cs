@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Info;
 using GenHub.Features.Info.Services;
 using Microsoft.Extensions.Logging;
@@ -101,23 +102,6 @@ public partial class GeneralsOnlineChangelogViewModel(IGeneralsOnlinePatchNotesS
     [RelayCommand]
     public void OpenReleaseUrl(string? url)
     {
-        if (string.IsNullOrEmpty(url) || !Uri.TryCreate(url, UriKind.Absolute, out var uri) || (uri.Scheme != "http" && uri.Scheme != "https"))
-        {
-            logger.LogWarning("Invalid or unsafe URL: {Url}", url);
-            return;
-        }
-
-        try
-        {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = url,
-                UseShellExecute = true,
-            });
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to open release URL: {Url}", url);
-        }
+        BrowserHelper.TryOpenUrl(url, logger);
     }
 }

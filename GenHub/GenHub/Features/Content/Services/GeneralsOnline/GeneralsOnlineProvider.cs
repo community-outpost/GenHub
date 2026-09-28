@@ -35,7 +35,6 @@ public class GeneralsOnlineProvider(
     : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
     private readonly ConcurrentDictionary<string, HashSet<string>> _preExistingManifestIdsByManifest = new(StringComparer.OrdinalIgnoreCase);
-    private ProviderDefinition? _cachedProviderDefinition;
 
     /// <inheritdoc />
     public override string SourceName => GeneralsOnlineConstants.PublisherType;
@@ -102,34 +101,14 @@ public class GeneralsOnlineProvider(
             }
 
             // Not found - resolve new manifest
-            var searchResultObj = new ContentSearchResult
-            {
-                Id = contentId,
-                Name = GeneralsOnlineConstants.ContentName,
-                Version = version, // Use parsed version, not full contentId
-                ProviderName = SourceName,
-                RequiresResolution = true,
-                ResolverId = GeneralsOnlineConstants.ResolverId,
-            };
+            // Use parsed version, not full contentId
+            var searchResultObj = CreateResolutionRequest(
+                contentId,
+                GeneralsOnlineConstants.ContentName,
+                version,
+                GeneralsOnlineConstants.ResolverId);
 
-            var manifestResult = await Resolver.ResolveAsync(searchResultObj, cancellationToken);
-            if (!manifestResult.Success || manifestResult.Data == null)
-            {
-                return OperationResult<ContentManifest>.CreateFailure(
-                    $"Failed to resolve manifest: {manifestResult.FirstError}");
-            }
-
-            var validationResult = await ContentValidator.ValidateManifestAsync(
-                manifestResult.Data,
-                cancellationToken);
-
-            if (!validationResult.IsValid)
-            {
-                var errors = validationResult.Issues.Select(i => $"Validation failed: {i.Message}");
-                return OperationResult<ContentManifest>.CreateFailure(errors);
-            }
-
-            return manifestResult;
+            return await ResolveAndValidateAsync(searchResultObj, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -141,24 +120,15 @@ public class GeneralsOnlineProvider(
 
     /// <inheritdoc />
     protected override IContentDiscoverer Discoverer =>
-        discoverers.First(d =>
-            d.SourceName.Equals(
-                GeneralsOnlineConstants.DiscovererSourceName,
-                StringComparison.OrdinalIgnoreCase));
+        ResolveDiscoverer(discoverers, GeneralsOnlineConstants.DiscovererSourceName);
 
     /// <inheritdoc />
     protected override IContentResolver Resolver =>
-        resolvers.First(r =>
-            r.ResolverId.Equals(
-                GeneralsOnlineConstants.ResolverId,
-                StringComparison.OrdinalIgnoreCase));
+        ResolveResolver(resolvers, GeneralsOnlineConstants.ResolverId);
 
     /// <inheritdoc />
     protected override IContentDeliverer Deliverer =>
-        deliverers.First(d =>
-            d.SourceName.Equals(
-                GeneralsOnlineConstants.DelivererSourceName,
-                StringComparison.OrdinalIgnoreCase));
+        ResolveDeliverer(deliverers, GeneralsOnlineConstants.DelivererSourceName);
 
     /// <inheritdoc/>
     /// <remarks>
@@ -168,29 +138,7 @@ public class GeneralsOnlineProvider(
     /// </remarks>
     protected override ProviderDefinition? GetProviderDefinition()
     {
-        // Use cached definition if available
-        if (_cachedProviderDefinition != null)
-        {
-            return _cachedProviderDefinition;
-        }
-
-        // Try to get from the loader (it should already be loaded at startup)
-        _cachedProviderDefinition = providerDefinitionLoader.GetProvider(GeneralsOnlineConstants.PublisherType);
-
-        if (_cachedProviderDefinition == null)
-        {
-            Logger.LogWarning(
-                "No provider definition found for {ProviderId}, using hardcoded constants",
-                GeneralsOnlineConstants.PublisherType);
-        }
-        else
-        {
-            Logger.LogInformation(
-                "Using provider definition for {ProviderId} from JSON configuration",
-                GeneralsOnlineConstants.PublisherType);
-        }
-
-        return _cachedProviderDefinition;
+        return GetCachedProviderDefinition(providerDefinitionLoader, GeneralsOnlineConstants.PublisherType);
     }
 
     /// <inheritdoc />

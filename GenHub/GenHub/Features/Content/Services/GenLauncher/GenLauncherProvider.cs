@@ -38,19 +38,11 @@ public class GenLauncherProvider(
     ILogger<GenLauncherProvider> logger)
     : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
-    private readonly IContentDiscoverer _discoverer = discoverers.FirstOrDefault(d =>
-        d.SourceName.Equals(PublisherTypeConstants.GenLauncher, StringComparison.OrdinalIgnoreCase))
-        ?? throw new InvalidOperationException("No GenLauncher discoverer found");
+    private readonly IContentDiscoverer _discoverer = ResolveDiscoverer(discoverers, PublisherTypeConstants.GenLauncher);
 
-    private readonly IContentResolver _resolver = resolvers.FirstOrDefault(r =>
-        r.ResolverId.Equals(GenLauncherConstants.PublisherId, StringComparison.OrdinalIgnoreCase))
-        ?? throw new InvalidOperationException($"No GenLauncher resolver found with ResolverId '{GenLauncherConstants.PublisherId}'");
+    private readonly IContentResolver _resolver = ResolveResolver(resolvers, GenLauncherConstants.PublisherId);
 
-    private readonly IContentDeliverer _deliverer = deliverers.FirstOrDefault(d =>
-        d.SourceName.Equals(PublisherTypeConstants.GenLauncher, StringComparison.OrdinalIgnoreCase))
-        ?? throw new InvalidOperationException("No GenLauncher deliverer found");
-
-    private ProviderDefinition? _cachedProviderDefinition;
+    private readonly IContentDeliverer _deliverer = ResolveDeliverer(deliverers, PublisherTypeConstants.GenLauncher);
 
     /// <inheritdoc/>
     public override string SourceName => PublisherTypeConstants.GenLauncher;
@@ -94,19 +86,7 @@ public class GenLauncherProvider(
             return OperationResult<ContentManifest>.CreateFailure($"Content '{contentId}' was not found in GenLauncher catalog");
         }
 
-        var resolved = await Resolver.ResolveAsync(item, cancellationToken).ConfigureAwait(false);
-        if (!resolved.Success || resolved.Data == null)
-        {
-            return OperationResult<ContentManifest>.CreateFailure($"Failed to resolve manifest for '{contentId}': {resolved.FirstError}");
-        }
-
-        var validation = await ContentValidator.ValidateManifestAsync(resolved.Data, cancellationToken).ConfigureAwait(false);
-        if (!validation.IsValid)
-        {
-            return OperationResult<ContentManifest>.CreateFailure(validation.Issues.Select(i => i.Message));
-        }
-
-        return resolved;
+        return await ResolveAndValidateAsync(item, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
@@ -121,13 +101,7 @@ public class GenLauncherProvider(
     /// <inheritdoc/>
     protected override ProviderDefinition? GetProviderDefinition()
     {
-        if (_cachedProviderDefinition != null)
-        {
-            return _cachedProviderDefinition;
-        }
-
-        _cachedProviderDefinition = providerDefinitionLoader.GetProvider(GenLauncherConstants.PublisherId);
-        return _cachedProviderDefinition;
+        return GetCachedProviderDefinition(providerDefinitionLoader, GenLauncherConstants.PublisherId);
     }
 
     /// <inheritdoc/>

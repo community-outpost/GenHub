@@ -1,3 +1,5 @@
+using GenHub.Core.Extensions;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Results;
@@ -15,7 +17,8 @@ namespace GenHub.Features.Content.Services.LocalContent;
 public class LocalContentProfileReconciler(
     IContentReconciliationService reconciliationService,
     INotificationService notificationService,
-    ILogger<LocalContentProfileReconciler> logger)
+    ILogger<LocalContentProfileReconciler> logger,
+    ILocalizationService? localizationService = null)
     : ILocalContentProfileReconciler
 {
     /// <inheritdoc />
@@ -59,8 +62,8 @@ public class LocalContentProfileReconciler(
             if (profilesUpdated > 0)
             {
                 notificationService.ShowInfo(
-                    "Profiles Updated",
-                    $"Updated {profilesUpdated} profile(s) to use the renamed content.",
+                    localizationService.GetLocalizedString("Content.Notification.ProfilesUpdated.Title", "Profiles Updated"),
+                    localizationService.GetLocalizedString("Content.Notification.ProfilesUpdated.RenamedContentMessage", $"Updated {profilesUpdated} profile(s) to use the renamed content.", profilesUpdated),
                     4000);
             }
 

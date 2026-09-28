@@ -22,52 +22,28 @@ namespace GenHub.Features.Tools.ModBuilder.Services;
 /// </summary>
 public class CrunchImageConversionService(
     IExternalToolService externalToolService,
-    ILogger<CrunchImageConversionService> logger) : IImageConversionService
+    ILogger<CrunchImageConversionService> logger)
+    : ImageConversionServiceBase(logger)
 {
     /// <inheritdoc />
-    public async Task<bool> ConvertImageAsync(
+    protected override async Task<bool> ConvertCoreAsync(
         string sourcePath,
         string targetPath,
-        IDictionary<string, object>? parameters = null,
-        CancellationToken cancellationToken = default)
+        string sourceExt,
+        string targetExt,
+        IDictionary<string, object>? parameters,
+        CancellationToken cancellationToken)
     {
-        try
+        if (targetExt == ".dds")
         {
-            if (!File.Exists(sourcePath))
-            {
-                logger.LogError("Source file does not exist: {SourcePath}", sourcePath);
-                return false;
-            }
-
-            var targetDir = Path.GetDirectoryName(targetPath);
-            if (!string.IsNullOrEmpty(targetDir) && !Directory.Exists(targetDir))
-            {
-                Directory.CreateDirectory(targetDir);
-            }
-
-            var targetExt = Path.GetExtension(targetPath).ToLowerInvariant();
-            var sourceExt = Path.GetExtension(sourcePath).ToLowerInvariant();
-
-            if (targetExt == ".dds")
-            {
-                return await ConvertToDdsViaCrunchAsync(sourcePath, targetPath, sourceExt, parameters, cancellationToken).ConfigureAwait(false);
-            }
-
-            return await ConvertToStandardImageAsync(sourcePath, targetPath, sourceExt, targetExt, parameters, cancellationToken).ConfigureAwait(false);
+            return await ConvertToDdsViaCrunchAsync(sourcePath, targetPath, sourceExt, parameters, cancellationToken).ConfigureAwait(false);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to convert image from {SourcePath} to {TargetPath}", sourcePath, targetPath);
-            return false;
-        }
+
+        return await ConvertToStandardImageAsync(sourcePath, targetPath, sourceExt, targetExt, parameters, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public async Task<bool> HasAlphaChannelAsync(string imagePath, CancellationToken cancellationToken = default)
+    public override async Task<bool> HasAlphaChannelAsync(string imagePath, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -102,13 +78,6 @@ public class CrunchImageConversionService(
             logger.LogError(ex, "Failed to detect alpha channel in {ImagePath}", imagePath);
             return false;
         }
-    }
-
-    /// <inheritdoc />
-    public async Task<string> GetRecommendedDxtFormatAsync(string imagePath, CancellationToken cancellationToken = default)
-    {
-        var hasAlpha = await HasAlphaChannelAsync(imagePath, cancellationToken).ConfigureAwait(false);
-        return hasAlpha ? ModBuilderConstants.Dxt5Format : ModBuilderConstants.Dxt1Format;
     }
 
     /// <summary>

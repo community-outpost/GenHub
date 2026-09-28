@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Common.ViewModels;
 using GenHub.Core.Models.Results;
 using System;
 using System.Collections.ObjectModel;
@@ -9,7 +10,7 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <summary>
 /// ViewModel for the dependency preview dialog that shows dependencies before adding content to a profile.
 /// </summary>
-public partial class DependencyPreviewViewModel : ObservableObject
+public partial class DependencyPreviewViewModel : ObservableObject, IRequestCloseViewModel
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="DependencyPreviewViewModel"/> class.

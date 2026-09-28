@@ -101,8 +101,8 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
             }
 
             details.Add(string.Empty);
-            details.Add($"✓ Processed {foldersProcessed} folders for OneDrive compatibility with full safety backup");
-            details.Add("✓ OneDrive relocation completed successfully");
+            details.Add($"OK: Processed {foldersProcessed} folders for OneDrive compatibility with full safety backup");
+            details.Add("OK: OneDrive relocation completed successfully");
 
             return new ActionSetResult(true, null, details);
         }
@@ -113,7 +113,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
         catch (Exception ex)
         {
             logger.LogError(ex, "Error applying OneDrive protection");
-            details.Add($"✗ Error: {ex.Message}");
+            AddFailureDetail(details, ex);
             return new ActionSetResult(false, ex.Message, details);
         }
     }
@@ -139,13 +139,13 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
                     try
                     {
                         Directory.Delete(cloudPath);
-                        details.Add($"✓ Removed symbolic link/junction for '{folderName}' in OneDrive");
+                        details.Add($"OK: Removed symbolic link/junction for '{folderName}' in OneDrive");
 
                         if (Directory.Exists(localPath))
                         {
                             Directory.CreateDirectory(cloudPath);
                             CopyDirectoryRecursive(localPath, cloudPath);
-                            details.Add($"✓ Restored original files for '{folderName}' into OneDrive");
+                            details.Add($"OK: Restored original files for '{folderName}' into OneDrive");
                         }
 
                         restoredCount++;
@@ -153,12 +153,12 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
                     catch (IOException ex)
                     {
                         logger.LogWarning(ex, "Failed to restore OneDrive folder {Folder}", folderName);
-                        details.Add($"⚠ Warning restoring '{folderName}': {ex.Message}");
+                        AddFailureDetail(details, ex, $"restoring '{folderName}'", isWarning: true);
                     }
                     catch (UnauthorizedAccessException ex)
                     {
                         logger.LogWarning(ex, "Access denied restoring OneDrive folder {Folder}", folderName);
-                        details.Add($"⚠ Access denied restoring '{folderName}'");
+                        details.Add($"Warning: Access denied restoring '{folderName}'");
                     }
                 }
             }
@@ -177,20 +177,35 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
         }
     }
 
-    private static void CopyDirectoryRecursive(string source, string target)
+    private static void CreateTargetDirectories(string source, string target)
     {
         foreach (var dirPath in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
         {
             var relative = Path.GetRelativePath(source, dirPath);
             Directory.CreateDirectory(Path.Combine(target, relative));
         }
+    }
+
+    private static string PrepareTargetFile(string source, string target, string filePath)
+    {
+        var relative = Path.GetRelativePath(source, filePath);
+        var targetFile = Path.Combine(target, relative);
+        var targetDir = Path.GetDirectoryName(targetFile);
+        if (!string.IsNullOrEmpty(targetDir))
+        {
+            Directory.CreateDirectory(targetDir);
+        }
+
+        return targetFile;
+    }
+
+    private static void CopyDirectoryRecursive(string source, string target)
+    {
+        CreateTargetDirectories(source, target);
 
         foreach (var filePath in Directory.GetFiles(source, "*.*", SearchOption.AllDirectories))
         {
-            var relative = Path.GetRelativePath(source, filePath);
-            var targetFile = Path.Combine(target, relative);
-            var targetDir = Path.GetDirectoryName(targetFile);
-            if (!string.IsNullOrEmpty(targetDir)) Directory.CreateDirectory(targetDir);
+            var targetFile = PrepareTargetFile(source, target, filePath);
             File.Copy(filePath, targetFile, overwrite: true);
         }
     }
@@ -200,18 +215,12 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
         int count = 0;
         long bytes = 0;
 
-        foreach (var dirPath in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
-        {
-            var relative = Path.GetRelativePath(source, dirPath);
-            Directory.CreateDirectory(Path.Combine(target, relative));
-        }
+        CreateTargetDirectories(source, target);
 
         foreach (var filePath in Directory.GetFiles(source, "*.*", SearchOption.AllDirectories))
         {
             var relative = Path.GetRelativePath(source, filePath);
-            var targetFile = Path.Combine(target, relative);
-            var targetDir = Path.GetDirectoryName(targetFile);
-            if (!string.IsNullOrEmpty(targetDir)) Directory.CreateDirectory(targetDir);
+            var targetFile = PrepareTargetFile(source, target, filePath);
 
             var srcInfo = new FileInfo(filePath);
             if (!File.Exists(targetFile) || srcInfo.LastWriteTimeUtc > new FileInfo(targetFile).LastWriteTimeUtc)
@@ -317,7 +326,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
         Directory.CreateDirectory(backupFolder);
 
         CopyDirectoryRecursive(cloudPath, backupFolder);
-        details.Add($"  ✓ Backup created ({CountFiles(backupFolder)} files)");
+        details.Add($"  OK: Backup created ({CountFiles(backupFolder)} files)");
 
         if (!Directory.Exists(localPath))
         {
@@ -326,7 +335,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
 
         details.Add($"  Copying and verifying files into '{localPath}'...");
         var (copied, totalBytes) = CopyDirectoryWithVerification(cloudPath, localPath);
-        details.Add($"  ✓ Copied and verified {copied} files ({totalBytes / 1024.0 / 1024.0:F2} MB)");
+        details.Add($"  OK: Copied and verified {copied} files ({totalBytes / 1024.0 / 1024.0:F2} MB)");
 
         if (!VerifyDirectoryIntegrity(cloudPath, localPath))
         {
@@ -335,7 +344,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
 
         var cloudArchive = cloudPath + ".archived_" + DateTime.UtcNow.Ticks;
         Directory.Move(cloudPath, cloudArchive);
-        details.Add($"  ✓ Original cloud folder archived to {Path.GetFileName(cloudArchive)}");
+        details.Add($"  OK: Original cloud folder archived to {Path.GetFileName(cloudArchive)}");
         return cloudArchive;
     }
 
@@ -358,7 +367,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
 
         if (IsFolderCorrectlySymlinked(folderName))
         {
-            details.Add($"✓ Folder '{folderName}' is already correctly symlinked.");
+            details.Add($"OK: Folder '{folderName}' is already correctly symlinked.");
             return false;
         }
 
@@ -383,21 +392,21 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
         catch (IOException ex)
         {
             logger.LogWarning(ex, "I/O error processing folder {LocalPath}", localPath);
-            details.Add($"✗ Failed to process '{folderName}': {ex.Message}");
+            details.Add($"Error: Failed to process '{folderName}': {ex.Message}");
             TryRestoreArchive(currentCloudArchive, cloudPath, details);
             return false;
         }
         catch (UnauthorizedAccessException ex)
         {
             logger.LogWarning(ex, "Access denied processing folder {LocalPath}", localPath);
-            details.Add($"✗ Access denied processing '{folderName}'");
+            details.Add($"Error: Access denied processing '{folderName}'");
             TryRestoreArchive(currentCloudArchive, cloudPath, details);
             return false;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogWarning(ex, "Unexpected error processing folder {LocalPath}", localPath);
-            details.Add($"✗ Error processing '{folderName}': {ex.Message}");
+            AddFailureDetail(details, ex, $"processing '{folderName}'");
             TryRestoreArchive(currentCloudArchive, cloudPath, details);
             return false;
         }
@@ -413,7 +422,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
         try
         {
             Directory.Move(currentCloudArchive, cloudPath);
-            details.Add("  ✓ Restored original cloud folder from archive");
+            details.Add("  OK: Restored original cloud folder from archive");
         }
         catch (IOException rollbackEx)
         {
@@ -430,7 +439,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
         try
         {
             Directory.CreateSymbolicLink(linkPath, targetPath);
-            details.Add($"  ✓ Symlink created: {linkPath} -> {targetPath}");
+            details.Add($"  OK: Symlink created: {linkPath} -> {targetPath}");
             return true;
         }
         catch (Exception ex)
@@ -449,7 +458,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
                 p?.WaitForExit();
                 if (p?.ExitCode == ProcessConstants.ExitCodeSuccess)
                 {
-                    details.Add($"  ✓ Junction created: {linkPath} -> {targetPath}");
+                    details.Add($"  OK: Junction created: {linkPath} -> {targetPath}");
                     return true;
                 }
             }
@@ -458,7 +467,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
                 logger.LogWarning(juncEx, "Junction creation failed for {Path}", linkPath);
             }
 
-            details.Add($"  ✗ Failed to create link: {linkPath}");
+            details.Add($"  Error: Failed to create link: {linkPath}");
             return false;
         }
     }

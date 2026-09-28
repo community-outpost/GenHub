@@ -1,15 +1,12 @@
-using Avalonia;
-using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
-using GenHub.Features.GameProfiles.ViewModels.Wizard;
-using System;
+using GenHub.Common.Controls;
 
 namespace GenHub.Features.GameProfiles.Views.Wizard;
 
 /// <summary>
 /// Interaction logic for the Setup Wizard dialog.
 /// </summary>
-public partial class SetupWizardView : Window
+public partial class SetupWizardView : GenHubWindow
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="SetupWizardView"/> class.
@@ -17,37 +14,10 @@ public partial class SetupWizardView : Window
     public SetupWizardView()
     {
         InitializeComponent();
-        KeyDown += (_, e) =>
-        {
-            if (e.Key == Avalonia.Input.Key.Escape && !e.Handled)
-            {
-                e.Handled = true;
-                Close();
-            }
-        };
-    }
-
-    /// <summary>
-    /// Handles the DataContextChanged event to wire up view model events.
-    /// </summary>
-    /// <param name="e">The event arguments.</param>
-    protected override void OnDataContextChanged(EventArgs e)
-    {
-        base.OnDataContextChanged(e);
-        if (DataContext is SetupWizardViewModel vm)
-        {
-            vm.CloseRequested -= OnCloseRequested;
-            vm.CloseRequested += OnCloseRequested;
-        }
     }
 
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
-    }
-
-    private void OnCloseRequested(object? sender, EventArgs e)
-    {
-        Close();
     }
 }

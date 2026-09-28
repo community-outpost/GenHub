@@ -198,6 +198,39 @@ public class SuperHackersProfileReconcilerTests
     }
 
     /// <summary>
+    /// Returns failure without acquiring content when the manifest pool cannot be read.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckAndReconcileIfNeededAsync_ManifestPoolFails_ReturnsFailureAsync()
+    {
+        const string latestVersion = "2.0.0";
+
+        _updateServiceMock
+            .Setup(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentUpdateCheckResult.CreateUpdateAvailable(latestVersion, "1.0.0"));
+
+        var settings = new UserSettings();
+        settings.SetAutoUpdatePreference(PublisherTypeConstants.TheSuperHackers, true);
+        _userSettingsServiceMock.Setup(x => x.Get()).Returns(settings);
+
+        _manifestPoolMock
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateFailure("pool unavailable"));
+
+        var result = await _reconciler.CheckAndReconcileIfNeededAsync("profile1");
+
+        Assert.False(result.Success);
+        Assert.Contains("pool unavailable", result.FirstError, StringComparison.OrdinalIgnoreCase);
+        _contentOrchestratorMock.Verify(
+            x => x.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        _reconciliationServiceMock.Verify(
+            x => x.ScheduleGarbageCollectionAsync(It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
     /// Propagates cancellation from acquisition instead of surfacing it as a generic download failure.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

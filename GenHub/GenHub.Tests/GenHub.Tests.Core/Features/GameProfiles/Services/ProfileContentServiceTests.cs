@@ -216,10 +216,11 @@ public sealed class ProfileContentServiceTests
         var service = new ProfileContentService(
             profileManager.Object,
             manifestPool.Object,
-            new DependencyResolver(
-                manifestPool.Object,
-                NullLogger<DependencyResolver>.Instance),
-            installationService.Object,
+            new ProfileContentResolutionServices(
+                new DependencyResolver(
+                    manifestPool.Object,
+                    NullLogger<DependencyResolver>.Instance),
+                installationService.Object),
             contentOrchestrator.Object,
             notifications.Object,
             NullLogger<ProfileContentService>.Instance);
@@ -345,10 +346,11 @@ public sealed class ProfileContentServiceTests
         var service = new ProfileContentService(
             profileManager.Object,
             manifestPool.Object,
-            new DependencyResolver(
-                manifestPool.Object,
-                NullLogger<DependencyResolver>.Instance),
-            installationService.Object,
+            new ProfileContentResolutionServices(
+                new DependencyResolver(
+                    manifestPool.Object,
+                    NullLogger<DependencyResolver>.Instance),
+                installationService.Object),
             contentOrchestrator.Object,
             notifications.Object,
             NullLogger<ProfileContentService>.Instance);
@@ -459,10 +461,11 @@ public sealed class ProfileContentServiceTests
         var service = new ProfileContentService(
             profileManager.Object,
             manifestPool.Object,
-            new DependencyResolver(
-                manifestPool.Object,
-                NullLogger<DependencyResolver>.Instance),
-            installationService.Object,
+            new ProfileContentResolutionServices(
+                new DependencyResolver(
+                    manifestPool.Object,
+                    NullLogger<DependencyResolver>.Instance),
+                installationService.Object),
             contentOrchestrator.Object,
             notifications.Object,
             NullLogger<ProfileContentService>.Instance);

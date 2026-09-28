@@ -1,8 +1,11 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Media;
+using Avalonia.VisualTree;
 using System;
+using System.Linq;
 
 namespace GenHub.Common.Helpers;
 
@@ -20,6 +23,16 @@ public static class WindowChromeHelper
             "AdaptForPlatform",
             typeof(WindowChromeHelper),
             defaultValue: false);
+
+    /// <summary>
+    /// Tag marker identifying the auto-generated resize grips overlay.
+    /// </summary>
+    private const string ResizeGripsMarker = "GenHubResizeGrips";
+
+    /// <summary>
+    /// Thickness of the auto-generated resize grip edges, matching the main window grip grid.
+    /// </summary>
+    private const int ResizeGripThickness = 6;
 
     static WindowChromeHelper()
     {
@@ -126,12 +139,95 @@ public static class WindowChromeHelper
         }
     }
 
+    /// <summary>
+    /// Ensures a borderless resizable window has resize grips on Linux by overlaying a
+    /// 6px edge grid on the window adorner layer. No-op on other platforms, for
+    /// non-resizable windows, for windows with native decorations, and when no adorner
+    /// layer is available. Safe to call multiple times.
+    /// </summary>
+    /// <param name="window">The window to equip with resize grips.</param>
+    public static void EnsureResizeGrips(Window window)
+    {
+        ArgumentNullException.ThrowIfNull(window);
+
+        if (!OperatingSystem.IsLinux() || !window.CanResize || window.SystemDecorations != SystemDecorations.None)
+        {
+            return;
+        }
+
+        var adornerLayer = FindAdornerLayer(window);
+        if (adornerLayer?.Children is null)
+        {
+            return;
+        }
+
+        foreach (var child in adornerLayer.Children)
+        {
+            if (child is Control control && Equals(control.Tag, ResizeGripsMarker))
+            {
+                return;
+            }
+        }
+
+        var grips = new Grid
+        {
+            Tag = ResizeGripsMarker,
+            ColumnDefinitions = new ColumnDefinitions($"{ResizeGripThickness},*,{ResizeGripThickness}"),
+            RowDefinitions = new RowDefinitions($"{ResizeGripThickness},*,{ResizeGripThickness}"),
+            ZIndex = 99999,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Stretch,
+        };
+
+        AddGrip(grips, WindowEdge.NorthWest, 0, 0);
+        AddGrip(grips, WindowEdge.North, 0, 1);
+        AddGrip(grips, WindowEdge.NorthEast, 0, 2);
+        AddGrip(grips, WindowEdge.West, 1, 0);
+        AddGrip(grips, WindowEdge.East, 1, 2);
+        AddGrip(grips, WindowEdge.SouthWest, 2, 0);
+        AddGrip(grips, WindowEdge.South, 2, 1);
+        AddGrip(grips, WindowEdge.SouthEast, 2, 2);
+
+        adornerLayer.Children.Add(grips);
+        AttachResizeGrips(window, grips);
+    }
+
+    /// <summary>
+    /// Resolves the adorner layer hosting the window content.
+    /// <see cref="AdornerLayer.GetAdornerLayer"/> walks visual ancestors, so it
+    /// always returns null for a <see cref="Window"/> (the visual root); the layer
+    /// lives inside the window template below the root instead.
+    /// </summary>
+    /// <param name="window">The window whose adorner layer to resolve.</param>
+    /// <returns>The adorner layer, or null when the window is not shown yet.</returns>
+    private static AdornerLayer? FindAdornerLayer(Window window)
+    {
+        if ((window.Content as Visual) is { } content)
+        {
+            var fromContent = AdornerLayer.GetAdornerLayer(content);
+            if (fromContent is not null)
+            {
+                return fromContent;
+            }
+        }
+
+        return window.GetVisualDescendants().OfType<AdornerLayer>().FirstOrDefault();
+    }
+
     private static void OnAdaptForPlatformChanged(Window window, AvaloniaPropertyChangedEventArgs args)
     {
         if (args.NewValue is true)
         {
             ApplyPlatformDecorations(window);
         }
+    }
+
+    private static void AddGrip(Grid grips, WindowEdge edge, int row, int column)
+    {
+        var border = new Border { Tag = edge };
+        Grid.SetRow(border, row);
+        Grid.SetColumn(border, column);
+        grips.Children.Add(border);
     }
 
     private static Cursor GetCursorForEdge(WindowEdge edge) => edge switch

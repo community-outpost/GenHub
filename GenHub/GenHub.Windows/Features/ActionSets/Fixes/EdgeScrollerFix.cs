@@ -139,7 +139,7 @@ public class EdgeScrollerFix(ILogger<EdgeScrollerFix> logger, IGameSettingsServi
                     tshSection.Remove(ActionSetConstants.IniFiles.ScrollEdgeSpeedKey);
                     tshSection.Remove(ActionSetConstants.IniFiles.ScrollEdgeAccelerationKey);
                     await gameSettingsService.SaveOptionsAsync(gameType, options);
-                    details.Add($"✓ Removed edge scrolling settings from Options.ini for {gameType}");
+                    details.Add($"OK: Removed edge scrolling settings from Options.ini for {gameType}");
                 }
             }
         }
@@ -172,7 +172,7 @@ public class EdgeScrollerFix(ILogger<EdgeScrollerFix> logger, IGameSettingsServi
             var result = await gameSettingsService.LoadOptionsAsync(gameType);
             if (!result.Success || result.Data == null)
             {
-                var msg = $"⚠ Could not load Options.ini for {gameType}";
+                var msg = $"Warning: Could not load Options.ini for {gameType}";
                 details.Add(msg);
                 logger.LogWarning("Could not load settings for {GameType}", gameType);
                 return (details, false);
@@ -186,7 +186,7 @@ public class EdgeScrollerFix(ILogger<EdgeScrollerFix> logger, IGameSettingsServi
             {
                 tshSection = [];
                 options.AdditionalSections[ActionSetConstants.IniFiles.TheSuperHackersSection] = tshSection;
-                details.Add($"✓ Created [{ActionSetConstants.IniFiles.TheSuperHackersSection}] section in Options.ini for {gameType}");
+                details.Add($"OK: Created [{ActionSetConstants.IniFiles.TheSuperHackersSection}] section in Options.ini for {gameType}");
             }
 
             // Apply scroll settings
@@ -198,27 +198,27 @@ public class EdgeScrollerFix(ILogger<EdgeScrollerFix> logger, IGameSettingsServi
             if (tshSection.ContainsKey(ActionSetConstants.IniFiles.ScrollFactorKey))
             {
                 tshSection[ActionSetConstants.IniFiles.ScrollFactorKey] = GameSettingsConstants.OptimalSettings.ScrollFactor;
-                details.Add($"✓ Set {ActionSetConstants.IniFiles.ScrollFactorKey}={GameSettingsConstants.OptimalSettings.ScrollFactor} for {gameType}");
+                details.Add($"OK: Set {ActionSetConstants.IniFiles.ScrollFactorKey}={GameSettingsConstants.OptimalSettings.ScrollFactor} for {gameType}");
             }
 
-            details.Add($"✓ Set {ActionSetConstants.IniFiles.ScrollEdgeZoneKey}={GameSettingsConstants.OptimalSettings.ScrollEdgeZone} for {gameType}");
-            details.Add($"✓ Set {ActionSetConstants.IniFiles.ScrollEdgeSpeedKey}={GameSettingsConstants.OptimalSettings.ScrollEdgeSpeed} for {gameType}");
-            details.Add($"✓ Set {ActionSetConstants.IniFiles.ScrollEdgeAccelerationKey}={GameSettingsConstants.OptimalSettings.ScrollEdgeAcceleration} for {gameType}");
+            details.Add($"OK: Set {ActionSetConstants.IniFiles.ScrollEdgeZoneKey}={GameSettingsConstants.OptimalSettings.ScrollEdgeZone} for {gameType}");
+            details.Add($"OK: Set {ActionSetConstants.IniFiles.ScrollEdgeSpeedKey}={GameSettingsConstants.OptimalSettings.ScrollEdgeSpeed} for {gameType}");
+            details.Add($"OK: Set {ActionSetConstants.IniFiles.ScrollEdgeAccelerationKey}={GameSettingsConstants.OptimalSettings.ScrollEdgeAcceleration} for {gameType}");
 
             var saveResult = await gameSettingsService.SaveOptionsAsync(gameType, options);
             if (!saveResult.Success)
             {
-                details.Add($"✗ Failed to save Options.ini for {gameType}");
+                details.Add($"Error: Failed to save Options.ini for {gameType}");
                 return (details, false);
             }
 
-            details.Add($"✓ Saved Options.ini: {optionsPath}");
+            details.Add($"OK: Saved Options.ini: {optionsPath}");
             logger.LogInformation("Successfully applied edge scrolling fix for {GameType}", gameType);
             return (details, true);
         }
         catch (Exception ex)
         {
-            details.Add($"✗ Error applying edge scrolling for {gameType}: {ex.Message}");
+            AddFailureDetail(details, ex, $"applying edge scrolling for {gameType}");
             logger.LogError(ex, "Error applying edge scrolling fix for {GameType}", gameType);
             return (details, false);
         }

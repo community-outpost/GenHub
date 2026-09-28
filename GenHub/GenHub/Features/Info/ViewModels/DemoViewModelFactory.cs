@@ -84,7 +84,7 @@ public static class DemoViewModelFactory
                     NotificationType.Success,
                     "Demo",
                     "Zero Hour launched successfully! (Simulated)",
-                    3000));
+                    NotificationDurations.Short));
             },
 
             EditProfileAction = async _ =>
@@ -93,7 +93,7 @@ public static class DemoViewModelFactory
                     NotificationType.Info,
                     "Demo",
                     "Opening the Profile Editor... (Simulated)",
-                    3000));
+                    NotificationDurations.Short));
                 await Task.CompletedTask;
             },
 
@@ -103,7 +103,7 @@ public static class DemoViewModelFactory
                     NotificationType.Warning,
                     "Demo",
                     "Deleting profiles is restricted in this interactive guide.",
-                    3000));
+                    NotificationDurations.Short));
                 await Task.CompletedTask;
             },
 
@@ -123,7 +123,7 @@ public static class DemoViewModelFactory
                     NotificationType.Info,
                     "Demo",
                     "Sharing profiles is simulated in this interactive guide.",
-                    3000));
+                    NotificationDurations.Short));
                 await Task.CompletedTask;
             },
 
@@ -140,7 +140,7 @@ public static class DemoViewModelFactory
                 NotificationType.Success,
                 "Demo",
                 vm.UseSteamLaunch ? "Steam Integration Enabled: Track hours and use the Overlay." : "Steam Integration Disabled.",
-                3000));
+                NotificationDurations.Short));
             await Task.CompletedTask;
         };
 
