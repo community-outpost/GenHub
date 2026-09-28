@@ -1372,8 +1372,8 @@ public class GameLauncher(
             var (installation, gameClient, actualInstallationPath, dynamicWorkspacePath, isSteamLaunch) = installResult.Data;
 
             var receiptDriftWarnings = new List<string>();
-            (manifests, manifestSourcePaths) = await RefreshManifestsIfInstallationDriftedAsync(
-                installation, manifests, manifestSourcePaths, profile, receiptDriftWarnings, cancellationToken);
+            manifests = await RefreshManifestsIfInstallationDriftedAsync(
+                installation, manifests, receiptDriftWarnings, cancellationToken);
 
             var candidateExecutable = TryResolveManifestExecutablePath(manifests) ?? gameClient.ExecutablePath;
             isSteamLaunch = AdjustSteamLaunchForExecutable(isSteamLaunch, profile.Id, candidateExecutable);
@@ -2276,28 +2276,23 @@ public class GameLauncher(
     }
 
     /// <summary>
-    /// Refreshes launch manifests when the installation folder drifted since detection,
-    /// recomputing source paths so the workspace reflects regenerated manifests.
+    /// Refreshes launch manifests when the installation folder drifted since detection.
     /// </summary>
     /// <param name="installation">The resolved retail installation.</param>
     /// <param name="manifests">The manifests resolved for this launch.</param>
-    /// <param name="manifestSourcePaths">The resolved manifest source paths.</param>
-    /// <param name="profile">The game profile being launched.</param>
     /// <param name="driftWarnings">Collects the drifted fields for the launch result.</param>
     /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
-    /// <returns>The manifests and source paths to launch with.</returns>
-    private async Task<(List<ContentManifest> Manifests, Dictionary<string, string> ManifestSourcePaths)> RefreshManifestsIfInstallationDriftedAsync(
+    /// <returns>The manifests to launch with.</returns>
+    private async Task<List<ContentManifest>> RefreshManifestsIfInstallationDriftedAsync(
         GameInstallation installation,
         List<ContentManifest> manifests,
-        Dictionary<string, string> manifestSourcePaths,
-        GameProfile profile,
         List<string> driftWarnings,
         CancellationToken cancellationToken)
     {
         var refreshOutcome = await TryRefreshStaleInstallationManifestsAsync(
             installation, manifests, driftWarnings, cancellationToken);
 
-        return (refreshOutcome.Manifests, manifestSourcePaths);
+        return refreshOutcome.Manifests;
     }
 
     /// <summary>

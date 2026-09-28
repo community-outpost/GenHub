@@ -21,7 +21,7 @@ public partial class GitHubImportViewModel(ILocalizationService localizationServ
     /// Gets or sets the branch to import.
     /// </summary>
     [ObservableProperty]
-    private string _branchText = ModBuilderConstants.GitHubDefaultBranch;
+    private string _branchText = string.Empty;
 
     /// <summary>
     /// Gets or sets the validation error message, if any.
@@ -41,7 +41,7 @@ public partial class GitHubImportViewModel(ILocalizationService localizationServ
     /// <returns>The parsed repository reference, or null when invalid.</returns>
     public GitHubRepositoryReference? Validate()
     {
-        var branch = string.IsNullOrWhiteSpace(BranchText) ? ModBuilderConstants.GitHubDefaultBranch : BranchText.Trim();
+        var branch = string.IsNullOrWhiteSpace(BranchText) ? null : BranchText.Trim();
         var reference = GitHubRepositoryReference.TryParse(RepositoryText, branch);
         if (reference == null)
         {

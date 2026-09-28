@@ -73,4 +73,21 @@ public sealed class GitHubImportViewModelTests
 
         Assert.False(viewModel.HasError);
     }
+
+    /// <summary>
+    /// Pasting a tree URL preserves the embedded branch even when BranchText is untouched.
+    /// </summary>
+    [Fact]
+    public void Validate_WithTreeUrlAndUntouchedBranchText_PreservesEmbeddedBranch()
+    {
+        var viewModel = new GitHubImportViewModel(Mock.Of<ILocalizationService>())
+        {
+            RepositoryText = "https://github.com/owner/repo/tree/develop",
+        };
+
+        var reference = viewModel.Validate();
+
+        Assert.NotNull(reference);
+        Assert.Equal("develop", reference.Branch);
+    }
 }

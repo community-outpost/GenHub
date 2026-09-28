@@ -56,6 +56,22 @@ public sealed class GitHubRepositoryReferenceTests
     }
 
     /// <summary>
+    /// An embedded branch in the input takes precedence over default branch parameter.
+    /// </summary>
+    /// <param name="input">The raw repository input with embedded branch.</param>
+    /// <param name="expectedBranch">The expected branch.</param>
+    [Theory]
+    [InlineData("https://github.com/owner/repo/tree/develop", "develop")]
+    [InlineData("owner/repo@feature/foo", "feature/foo")]
+    public void TryParse_WithEmbeddedBranch_OverridesDefaultBranch(string input, string expectedBranch)
+    {
+        var reference = GitHubRepositoryReference.TryParse(input, "main");
+
+        Assert.NotNull(reference);
+        Assert.Equal(expectedBranch, reference.Branch);
+    }
+
+    /// <summary>
     /// Invalid inputs return null.
     /// </summary>
     /// <param name="input">The raw input.</param>

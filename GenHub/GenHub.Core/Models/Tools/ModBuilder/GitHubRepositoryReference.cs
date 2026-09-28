@@ -79,9 +79,11 @@ public sealed record GitHubRepositoryReference(string Owner, string Repo, string
             embeddedBranch ??= treeBranch;
         }
 
-        var effectiveBranch = !string.IsNullOrWhiteSpace(defaultBranch)
-            ? defaultBranch.Trim()
-            : embeddedBranch ?? ModBuilderConstants.GitHubDefaultBranch;
+        var effectiveBranch = !string.IsNullOrWhiteSpace(embeddedBranch)
+            ? embeddedBranch.Trim()
+            : (!string.IsNullOrWhiteSpace(defaultBranch)
+                ? defaultBranch.Trim()
+                : ModBuilderConstants.GitHubDefaultBranch);
 
         if (!IsValidBranch(effectiveBranch))
         {
