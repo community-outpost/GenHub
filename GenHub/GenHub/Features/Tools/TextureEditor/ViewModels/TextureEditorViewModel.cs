@@ -57,6 +57,8 @@ public sealed partial class TextureEditorViewModel(
     private const string ExportInvalidTitleFallback = "Cannot export slices";
     private const string OpenFailedTitleKey = "TextureEditor.Notify.OpenFailed.Title";
     private const string OpenFailedTitleFallback = "Failed to open atlas";
+    private const string WindowFolder = "Window";
+    private const string TextureFolder = "Texture";
 
     private readonly ConcurrentDictionary<string, Dictionary<string, BigArchiveEntry>> _archiveIndexCache = new(StringComparer.OrdinalIgnoreCase);
 
@@ -795,8 +797,8 @@ public sealed partial class TextureEditorViewModel(
             return aIsZh ? -1 : 1;
         }
 
-        bool aIsTextureOrWindow = a.Contains("Window", StringComparison.OrdinalIgnoreCase) || a.Contains("Texture", StringComparison.OrdinalIgnoreCase);
-        bool bIsTextureOrWindow = b.Contains("Window", StringComparison.OrdinalIgnoreCase) || b.Contains("Texture", StringComparison.OrdinalIgnoreCase);
+        bool aIsTextureOrWindow = a.Contains(WindowFolder, StringComparison.OrdinalIgnoreCase) || a.Contains(TextureFolder, StringComparison.OrdinalIgnoreCase);
+        bool bIsTextureOrWindow = b.Contains(WindowFolder, StringComparison.OrdinalIgnoreCase) || b.Contains(TextureFolder, StringComparison.OrdinalIgnoreCase);
         if (aIsTextureOrWindow != bIsTextureOrWindow)
         {
             return aIsTextureOrWindow ? -1 : 1;
@@ -2001,7 +2003,7 @@ public sealed partial class TextureEditorViewModel(
                     return texturesDir;
                 }
 
-                string windowDir = Path.Combine(directory, "Window", candidate);
+                string windowDir = Path.Combine(directory, WindowFolder, candidate);
                 if (File.Exists(windowDir))
                 {
                     return windowDir;
@@ -2060,13 +2062,13 @@ public sealed partial class TextureEditorViewModel(
                     return artTextures;
                 }
 
-                string windowDir = Path.Combine(gameDir, "Window", candidate);
+                string windowDir = Path.Combine(gameDir, WindowFolder, candidate);
                 if (File.Exists(windowDir))
                 {
                     return windowDir;
                 }
 
-                string windowMenusDir = Path.Combine(gameDir, "Window", "Menus", candidate);
+                string windowMenusDir = Path.Combine(gameDir, WindowFolder, "Menus", candidate);
                 if (File.Exists(windowMenusDir))
                 {
                     return windowMenusDir;
@@ -2085,13 +2087,7 @@ public sealed partial class TextureEditorViewModel(
 
     private IReadOnlyList<string> GetGameInstallationDirectories()
     {
-        if (gameInstallationService is null)
-        {
-            return [];
-        }
-
-        var installations = gameInstallationService.CachedInstallations;
-        if (installations is null || installations.Count == 0)
+        if (gameInstallationService?.CachedInstallations is not { Count: > 0 } installations)
         {
             return [];
         }
@@ -2099,28 +2095,20 @@ public sealed partial class TextureEditorViewModel(
         var directories = new List<string>();
         foreach (var inst in installations)
         {
-            if (inst.HasZeroHour && !string.IsNullOrEmpty(inst.ZeroHourPath) && Directory.Exists(inst.ZeroHourPath))
-            {
-                directories.Add(inst.ZeroHourPath);
-            }
+            string?[] candidates =
+            [
+                inst.HasZeroHour ? inst.ZeroHourPath : null,
+                inst.BundledGeneralsPath,
+                !string.IsNullOrEmpty(inst.EffectiveGeneralsArchivePath) ? inst.EffectiveGeneralsArchivePath : (inst.HasGenerals ? inst.GeneralsPath : null),
+                inst.InstallationPath,
+            ];
 
-            if (!string.IsNullOrEmpty(inst.BundledGeneralsPath) && Directory.Exists(inst.BundledGeneralsPath))
+            foreach (var candidate in candidates)
             {
-                directories.Add(inst.BundledGeneralsPath);
-            }
-
-            if (!string.IsNullOrEmpty(inst.EffectiveGeneralsArchivePath) && Directory.Exists(inst.EffectiveGeneralsArchivePath))
-            {
-                directories.Add(inst.EffectiveGeneralsArchivePath);
-            }
-            else if (inst.HasGenerals && !string.IsNullOrEmpty(inst.GeneralsPath) && Directory.Exists(inst.GeneralsPath))
-            {
-                directories.Add(inst.GeneralsPath);
-            }
-
-            if (!string.IsNullOrEmpty(inst.InstallationPath) && Directory.Exists(inst.InstallationPath))
-            {
-                directories.Add(inst.InstallationPath);
+                if (!string.IsNullOrEmpty(candidate) && Directory.Exists(candidate))
+                {
+                    directories.Add(candidate);
+                }
             }
         }
 
@@ -2293,6 +2281,30 @@ public sealed partial class TextureEditorViewModel(
 
     private async Task<bool> TryWriteMappedImagesAsync(string path, CancellationToken cancellationToken)
     {
+        if (!ValidateSlicesForExport())
+        {
+            return false;
+        }
+
+        var definitions = Slices.Select(slice => slice.ToDefinition()).ToList();
+        var (success, preserved) = await TryGetPreservedDefinitionsAsync(path, definitions, cancellationToken).ConfigureAwait(true);
+        if (!success)
+        {
+            return false;
+        }
+
+        if (definitions.Count == 0 && !await ConfirmEmptyOverwriteAsync(path, cancellationToken).ConfigureAwait(true))
+        {
+            return false;
+        }
+
+        string content = parser.Serialize(preserved.Concat(definitions), $"Generated by GenHub {TextureEditorConstants.ToolName} from {AtlasFileName}");
+        await AtomicFile.WriteAllTextAsync(path, content, cancellationToken).ConfigureAwait(true);
+        return true;
+    }
+
+    private bool ValidateSlicesForExport()
+    {
         var invalid = Slices.FirstOrDefault(slice => !slice.IsWithinTexture);
         if (invalid is not null)
         {
@@ -2304,9 +2316,6 @@ public sealed partial class TextureEditorViewModel(
             return false;
         }
 
-        // The inspector edits names freely, but the INI format cannot round-trip
-        // blank or duplicated names: blank names fail to reload and duplicates
-        // collapse to the last entry, silently losing slices.
         if (Slices.Any(slice => string.IsNullOrWhiteSpace(slice.Name)))
         {
             logger.LogWarning("INI save aborted: a slice has an empty name");
@@ -2331,42 +2340,44 @@ public sealed partial class TextureEditorViewModel(
             return false;
         }
 
-        var definitions = Slices.Select(slice => slice.ToDefinition()).ToList();
-        var preserved = new List<MappedImageDefinition>();
-        if (File.Exists(path))
-        {
-            var existing = await parser.ParseFileAsync(path, cancellationToken).ConfigureAwait(true);
-            if (existing.Failed || existing.Data is null)
-            {
-                Notifications.ShowError(
-                    Localize(ExportInvalidTitleKey, ExportInvalidTitleFallback),
-                    Localize("TextureEditor.Notify.ExportInspectFailed.Message", "Could not inspect '{0}'. The export was cancelled to protect its contents.", Path.GetFileName(path)),
-                    NotificationDurations.Long);
-                return false;
-            }
-
-            preserved.AddRange(existing.Data.Where(image => !MappedImageTextureMatcher.Matches(image.TextureFileName, AtlasFileName)));
-
-            var colliding = definitions.FirstOrDefault(d => preserved.Any(p => string.Equals(p.Name, d.Name, StringComparison.OrdinalIgnoreCase)));
-            if (colliding is not null)
-            {
-                logger.LogWarning("INI save aborted: slice name {Slice} collides with preserved entry in existing INI", colliding.Name);
-                Notifications.ShowError(
-                    Localize(ExportInvalidTitleKey, ExportInvalidTitleFallback),
-                    Localize("TextureEditor.Notify.ExportInvalidDuplicateName.Message", "Slice name '{0}' is duplicated. Slice names must be unique.", colliding.Name),
-                    NotificationDurations.Long);
-                return false;
-            }
-        }
-
-        if (definitions.Count == 0 && !await ConfirmEmptyOverwriteAsync(path, cancellationToken).ConfigureAwait(true))
-        {
-            return false;
-        }
-
-        string content = parser.Serialize(preserved.Concat(definitions), $"Generated by GenHub {TextureEditorConstants.ToolName} from {AtlasFileName}");
-        await AtomicFile.WriteAllTextAsync(path, content, cancellationToken).ConfigureAwait(true);
         return true;
+    }
+
+    private async Task<(bool Success, List<MappedImageDefinition> Preserved)> TryGetPreservedDefinitionsAsync(
+        string path,
+        IReadOnlyList<MappedImageDefinition> definitions,
+        CancellationToken cancellationToken)
+    {
+        var preserved = new List<MappedImageDefinition>();
+        if (!File.Exists(path))
+        {
+            return (true, preserved);
+        }
+
+        var existing = await parser.ParseFileAsync(path, cancellationToken).ConfigureAwait(true);
+        if (existing.Failed || existing.Data is null)
+        {
+            Notifications.ShowError(
+                Localize(ExportInvalidTitleKey, ExportInvalidTitleFallback),
+                Localize("TextureEditor.Notify.ExportInspectFailed.Message", "Could not inspect '{0}'. The export was cancelled to protect its contents.", Path.GetFileName(path)),
+                NotificationDurations.Long);
+            return (false, preserved);
+        }
+
+        preserved.AddRange(existing.Data.Where(image => !MappedImageTextureMatcher.Matches(image.TextureFileName, AtlasFileName)));
+
+        var colliding = definitions.FirstOrDefault(d => preserved.Any(p => string.Equals(p.Name, d.Name, StringComparison.OrdinalIgnoreCase)));
+        if (colliding is not null)
+        {
+            logger.LogWarning("INI save aborted: slice name {Slice} collides with preserved entry in existing INI", colliding.Name);
+            Notifications.ShowError(
+                Localize(ExportInvalidTitleKey, ExportInvalidTitleFallback),
+                Localize("TextureEditor.Notify.ExportInvalidDuplicateName.Message", "Slice name '{0}' is duplicated. Slice names must be unique.", colliding.Name),
+                NotificationDurations.Long);
+            return (false, preserved);
+        }
+
+        return (true, preserved);
     }
 
     private async Task<bool> ConfirmEmptyOverwriteAsync(string path, CancellationToken cancellationToken)

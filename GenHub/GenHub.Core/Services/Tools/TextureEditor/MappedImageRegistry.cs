@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -29,6 +30,7 @@ public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<M
     private int _scanGeneration;
 
     /// <inheritdoc />
+    [SuppressMessage("Major Code Smell", "S2365:Properties should not copy collections", Justification = "Interface contract specifies property returning a snapshot list.")]
     public IReadOnlyList<MappedImageDefinition> All
     {
         get

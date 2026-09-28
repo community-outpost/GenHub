@@ -278,6 +278,37 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
         return false;
     }
 
+    private static string CreateTempPath(string path)
+    {
+        string fileName = Path.GetFileName(path) + "." + Path.GetRandomFileName() + ".tmp";
+        string? directory = Path.GetDirectoryName(path);
+        return string.IsNullOrEmpty(directory) ? fileName : Path.Combine(directory, fileName);
+    }
+
+    private static void ReplaceDestination(string tempPath, string path) =>
+        File.Move(tempPath, path, overwrite: true);
+
+    private static void DeleteQuietly(string? tempPath)
+    {
+        if (tempPath is null)
+        {
+            return;
+        }
+
+        try
+        {
+            File.Delete(tempPath);
+        }
+        catch (IOException)
+        {
+            // Best effort cleanup of the temp file; the export result is already decided.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Best effort cleanup of the temp file; the export result is already decided.
+        }
+    }
+
     private async Task<OperationResult<DecodedTexture>> LoadDecodedFromArchiveAsync(
         string archivePath,
         string entryRelativePath,
@@ -379,34 +410,4 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
         }
     }
 
-    private static string CreateTempPath(string path)
-    {
-        string fileName = Path.GetFileName(path) + "." + Path.GetRandomFileName() + ".tmp";
-        string? directory = Path.GetDirectoryName(path);
-        return string.IsNullOrEmpty(directory) ? fileName : Path.Combine(directory, fileName);
-    }
-
-    private static void ReplaceDestination(string tempPath, string path) =>
-        File.Move(tempPath, path, overwrite: true);
-
-    private static void DeleteQuietly(string? tempPath)
-    {
-        if (tempPath is null)
-        {
-            return;
-        }
-
-        try
-        {
-            File.Delete(tempPath);
-        }
-        catch (IOException)
-        {
-            // Best effort cleanup of the temp file; the export result is already decided.
-        }
-        catch (UnauthorizedAccessException)
-        {
-            // Best effort cleanup of the temp file; the export result is already decided.
-        }
-    }
 }
