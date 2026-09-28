@@ -445,6 +445,87 @@ public class CommunityOutpostProfileReconcilerTests
         Assert.Equal(newNonRetail.Id, matchedNonRetail.Id);
     }
 
+    /// <summary>
+    /// Verifies that FindReplacementManifest does not match candidates with different content types, target games, or content codes.
+    /// </summary>
+    [Fact]
+    public void FindReplacementManifest_RequiresMatchingContentType_TargetGame_AndContentCode()
+    {
+        var testReconciler = new TestableCommunityOutpostProfileReconciler(
+            NullLogger<CommunityOutpostProfileReconciler>.Instance,
+            _updateServiceMock.Object,
+            _manifestPoolMock.Object,
+            _contentOrchestratorMock.Object,
+            _reconciliationServiceMock.Object,
+            _notificationServiceMock.Object,
+            _dialogServiceMock.Object,
+            _userSettingsServiceMock.Object,
+            _profileManagerMock.Object);
+
+        var oldManifest = new ContentManifest
+        {
+            Id = new ManifestId("community.outpost.GameClient.community-patch.1.0"),
+            Name = "Community Patch 1.0",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Version = "1.0.0",
+            Metadata = new ContentMetadata { Tags = ["contentcode:community-patch"] },
+        };
+
+        var differentContentType = new ContentManifest
+        {
+            Id = new ManifestId("community.outpost.Map.community-patch.2.0"),
+            Name = "Community Map 2.0",
+            ContentType = ContentType.Map,
+            TargetGame = GameType.ZeroHour,
+            Version = "2.0.0",
+            Metadata = new ContentMetadata { Tags = ["contentcode:community-patch"] },
+        };
+
+        var differentTargetGame = new ContentManifest
+        {
+            Id = new ManifestId("community.outpost.GameClient.generals.2.0"),
+            Name = "Community Patch Generals 2.0",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.Generals,
+            Version = "2.0.0",
+            Metadata = new ContentMetadata { Tags = ["contentcode:community-patch"] },
+        };
+
+        var differentContentCode = new ContentManifest
+        {
+            Id = new ManifestId("community.outpost.GameClient.other-mod.2.0"),
+            Name = "Other Mod 2.0",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Version = "2.0.0",
+            Metadata = new ContentMetadata { Tags = ["contentcode:other-mod"] },
+        };
+
+        var validReplacement = new ContentManifest
+        {
+            Id = new ManifestId("community.outpost.GameClient.community-patch.1.1"),
+            Name = "Community Patch 1.1",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Version = "1.1.0",
+            Metadata = new ContentMetadata { Tags = ["contentcode:community-patch"] },
+        };
+
+        var candidatePool = new List<ContentManifest>
+        {
+            differentContentType,
+            differentTargetGame,
+            differentContentCode,
+            validReplacement,
+        };
+
+        var matched = testReconciler.InvokeFindReplacementManifest(oldManifest, candidatePool);
+
+        Assert.NotNull(matched);
+        Assert.Equal(validReplacement.Id, matched.Id);
+    }
+
     private sealed class TestableCommunityOutpostProfileReconciler : CommunityOutpostProfileReconciler
     {
         public TestableCommunityOutpostProfileReconciler(
