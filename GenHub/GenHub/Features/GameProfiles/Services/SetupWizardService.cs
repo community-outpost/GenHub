@@ -110,10 +110,14 @@ public class SetupWizardService(
             // A native client on macOS or Linux is profiled as it is: the publisher package is a
             // Windows build, so there is nothing to download or update for it. This runs before the
             // up-to-date checks, which look at Windows packages and would otherwise hide it.
+            // Every native build of the publisher counts, not only the client selected per installation,
+            // so a profiled Zero Hour build does not hide an unprofiled Generals build beside it.
             var nativeClients = componentGlobal
-                .Select(x => x.Client as GameClient)
-                .OfType<GameClient>()
-                .Where(PublisherProfileOrchestrator.IsHostNativeClient)
+                .Select(x => x.Inst as GameInstallation)
+                .OfType<GameInstallation>()
+                .SelectMany(inst => inst.AvailableGameClients)
+                .Where(c => string.Equals(c.PublisherType, config.PublisherType, StringComparison.OrdinalIgnoreCase) &&
+                            PublisherProfileOrchestrator.IsHostNativeClient(c))
                 .ToList();
             if (nativeClients.Count > 0)
             {
