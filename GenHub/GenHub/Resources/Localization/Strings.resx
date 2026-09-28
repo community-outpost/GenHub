@@ -7591,6 +7591,45 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Tools.ModBuilder.Dashboard.CardSampleProjectsAction" xml:space="preserve">
     <value>Open Samples →</value>
   </data>
+  <data name="Tools.ModBuilder.Dashboard.CardGitHubImportTitle" xml:space="preserve">
+    <value>Import from GitHub</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardGitHubImportSubtitle" xml:space="preserve">
+    <value>Work from source</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardGitHubImportDesc" xml:space="preserve">
+    <value>Download any repository branch and open it as a ModBuilder project, just like the sample projects.</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardGitHubImportAction" xml:space="preserve">
+    <value>Import Repository →</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.Title" xml:space="preserve">
+    <value>Import from GitHub</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.Header" xml:space="preserve">
+    <value>Import GitHub Repository</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.Subtitle" xml:space="preserve">
+    <value>Enter a repository and branch. The branch source is downloaded and opened as a ModBuilder project.</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.LabelRepository" xml:space="preserve">
+    <value>Repository</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.WatermarkRepository" xml:space="preserve">
+    <value>owner/repo or https://github.com/owner/repo</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.LabelBranch" xml:space="preserve">
+    <value>Branch</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.WatermarkBranch" xml:space="preserve">
+    <value>main</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.ButtonImport" xml:space="preserve">
+    <value>Import</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.Validation.InvalidReference" xml:space="preserve">
+    <value>Enter a valid repository as owner/repo or a GitHub URL.</value>
+  </data>
   <data name="Tools.ModBuilder.Dashboard.FeaturedTemplatesTitle" xml:space="preserve">
     <value>Featured Community Templates</value>
   </data>
@@ -8453,6 +8492,9 @@ Recovery Engine: Profile '{0}' supports checkpoint saves, replay resumption, and
   </data>
   <data name="Maps.Error.FolderNotWritable" xml:space="preserve">
     <value>GenHub could not make the map folder "{0}" writable. Check that your account owns the folder and that it is not locked, then try again.</value>
+  </data>
+  <data name="Maps.Error.FolderAccessDenied" xml:space="preserve">
+    <value>GenHub is not allowed to change the contents of "{0}". Check that your account can write to the folder and that it is not locked, then try again.</value>
   </data>
   <data name="Maps.Error.DeleteFailed" xml:space="preserve">
     <value>Could not delete "{0}".</value>
@@ -9520,6 +9562,9 @@ Install location:
   </data>
   <data name="Tools.ModBuilder.Project.Error.NoBigFilesForProject" xml:space="preserve">
     <value>No BIG files specified to create project from</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.NoSourceFiles" xml:space="preserve">
+    <value>Source directory contains no importable files: {0}</value>
   </data>
   <data name="Tools.ModBuilder.Project.Error.PathEmpty" xml:space="preserve">
     <value>Project path cannot be empty</value>
@@ -11778,6 +11823,27 @@ Check that:
   <data name="Tools.ModBuilder.Notification.Busy.OpenSample" xml:space="preserve">
     <value>Cannot open sample project while another operation is running.</value>
   </data>
+  <data name="Tools.ModBuilder.Notification.Busy.ImportGitHub" xml:space="preserve">
+    <value>Cannot import GitHub repository while another operation is running.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.GitHubImportSuccess.Title" xml:space="preserve">
+    <value>Repository Imported</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.GitHubImportSuccess.Message" xml:space="preserve">
+    <value>Successfully imported '{0}'.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.GitHubImportFailed.Title" xml:space="preserve">
+    <value>Import Failed</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.GitHubImportFailed.Message" xml:space="preserve">
+    <value>GitHub import failed: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.GitHubAlreadyImported.Title" xml:space="preserve">
+    <value>Already Imported</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.GitHubAlreadyImported.Message" xml:space="preserve">
+    <value>'{0}' is already imported. Opening the existing project.</value>
+  </data>
   <data name="Tools.ModBuilder.Notification.Busy.StartBuild" xml:space="preserve">
     <value>Cannot start build while another operation is running.</value>
   </data>
@@ -12216,6 +12282,9 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   </data>
   <data name="GameProfiles.Notification.LaunchChanged.VariantsRemoved" xml:space="preserve">
     <value>The game client no longer declares platform variants.</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchChanged.InstallationRefreshed" xml:space="preserve">
+    <value>The game folder changed since detection, so the installation files were re-indexed for this launch.</value>
   </data>
   <data name="Tools.WndEditor.Assets.LinkMenu" xml:space="preserve">
     <value>Link Assets</value>
@@ -17199,6 +17268,18 @@ How do you want to apply this update?</value>
     <value>A new version of **The Super Hackers** is available ({0}).
 
 How do you want to apply this update?</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.GitHubImportInProgress.Title" xml:space="preserve">
+    <value>Importing GitHub Repository</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.GitHubImportInProgress.Message" xml:space="preserve">
+    <value>Importing {0}@{1}...</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ManifestsHeader" xml:space="preserve">
+    <value>Manifests</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipEditManifests" xml:space="preserve">
+    <value>Edit bundle manifests in Configuration Editor</value>
   </data>
   <data name="Info.Card.tools.publisher-studio-authoring.Action.NAV_Tools" xml:space="preserve">
     <value>Open Publisher Studio</value>

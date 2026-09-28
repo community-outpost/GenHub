@@ -147,4 +147,48 @@ public sealed class WriteAccessHelperTests : IDisposable
         Assert.True(exception is UnauthorizedAccessException or IOException, exception?.ToString());
         Assert.True(ReadOnlyFolderFixtures.IsReadOnly(folder));
     }
+
+    /// <summary>
+    /// Verifies that the recorded changes put back the read-only state of every entry that was changed.
+    /// </summary>
+    [Fact]
+    public void RestoreWriteAccess_AfterEnsureDirectoryWritable_PutsBackReadOnlyState()
+    {
+        var folder = Path.Combine(_tempDirectory, "Map");
+        Directory.CreateDirectory(folder);
+        var readOnlyFile = Path.Combine(folder, "Map.map");
+        File.WriteAllText(readOnlyFile, "map");
+        ReadOnlyFolderFixtures.MakeReadOnly(folder);
+
+        var changes = WriteAccessHelper.EnsureDirectoryWritable(folder);
+        WriteAccessHelper.RestoreWriteAccess(changes);
+
+        Assert.True(ReadOnlyFolderFixtures.IsReadOnly(folder));
+        Assert.True(ReadOnlyFolderFixtures.IsReadOnly(readOnlyFile));
+    }
+
+    /// <summary>
+    /// Verifies that when one entry cannot be made writable, the entries already changed are put back.
+    /// </summary>
+    [Fact]
+    public void EnsureDirectoryWritable_WhenChildIsLocked_PutsBackEarlierChanges()
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        var folder = Path.Combine(_tempDirectory, "Map");
+        Directory.CreateDirectory(folder);
+        var lockedFile = Path.Combine(folder, "Map.map");
+        File.WriteAllText(lockedFile, "map");
+        ReadOnlyFolderFixtures.MakeReadOnly(folder);
+        ReadOnlyFolderFixtures.LockImmutable(lockedFile);
+
+        var exception = Record.Exception(() => WriteAccessHelper.EnsureDirectoryWritable(folder));
+
+        Assert.True(exception is UnauthorizedAccessException or IOException, exception?.ToString());
+        Assert.True(ReadOnlyFolderFixtures.IsReadOnly(folder));
+        Assert.True(ReadOnlyFolderFixtures.IsReadOnly(lockedFile));
+    }
 }

@@ -7533,6 +7533,45 @@
   <data name="Tools.ModBuilder.Dashboard.CardSampleProjectsAction" xml:space="preserve">
     <value>فتح النماذج ←</value>
   </data>
+  <data name="Tools.ModBuilder.Dashboard.CardGitHubImportTitle" xml:space="preserve">
+    <value>استيراد من GitHub</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardGitHubImportSubtitle" xml:space="preserve">
+    <value>اعمل من المصدر</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardGitHubImportDesc" xml:space="preserve">
+    <value>نزّل أي فرع مستودع وافتحه كمشروع ModBuilder، تمامًا مثل المشاريع النموذجية.</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardGitHubImportAction" xml:space="preserve">
+    <value>استيراد المستودع ←</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.Title" xml:space="preserve">
+    <value>استيراد من GitHub</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.Header" xml:space="preserve">
+    <value>استيراد مستودع GitHub</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.Subtitle" xml:space="preserve">
+    <value>أدخل المستودع والفرع. سيتم تنزيل مصدر الفرع وفتحه كمشروع ModBuilder.</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.LabelRepository" xml:space="preserve">
+    <value>المستودع</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.WatermarkRepository" xml:space="preserve">
+    <value>owner/repo أو https://github.com/owner/repo</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.LabelBranch" xml:space="preserve">
+    <value>الفرع</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.WatermarkBranch" xml:space="preserve">
+    <value>main</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.ButtonImport" xml:space="preserve">
+    <value>استيراد</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.Validation.InvalidReference" xml:space="preserve">
+    <value>أدخل مستودعًا صالحًا بصيغة owner/repo أو رابط GitHub.</value>
+  </data>
   <data name="Tools.ModBuilder.Dashboard.FeaturedTemplatesTitle" xml:space="preserve">
     <value>قوالب المجتمع المميزة</value>
   </data>
@@ -8395,6 +8434,9 @@
   </data>
   <data name="Maps.Error.FolderNotWritable" xml:space="preserve">
     <value>تعذر على GenHub جعل مجلد الخريطة "{0}" قابلاً للكتابة. تأكد من أن حسابك يملك المجلد وأنه غير مقفل، ثم حاول مرة أخرى.</value>
+  </data>
+  <data name="Maps.Error.FolderAccessDenied" xml:space="preserve">
+    <value>لا يُسمح لـ GenHub بتغيير محتويات "{0}". تحقق من أن حسابك يملك صلاحية الكتابة في المجلد وأنه غير مقفل، ثم حاول مرة أخرى.</value>
   </data>
   <data name="Maps.Error.DeleteFailed" xml:space="preserve">
     <value>تعذر حذف "{0}".</value>
@@ -9447,6 +9489,9 @@
   </data>
   <data name="Tools.ModBuilder.Project.Error.NoBigFilesForProject" xml:space="preserve">
     <value>لم يتم تحديد ملفات BIG لإنشاء المشروع منها</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.NoSourceFiles" xml:space="preserve">
+    <value>مجلد المصدر لا يحتوي على ملفات قابلة للاستيراد: {0}</value>
   </data>
   <data name="Tools.ModBuilder.Project.Error.PathEmpty" xml:space="preserve">
     <value>لا يمكن أن يكون مسار المشروع فارغًا</value>
@@ -11720,6 +11765,27 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.ModBuilder.Notification.Busy.OpenSample" xml:space="preserve">
     <value>لا يمكن فتح المشروع النموذجي أثناء تشغيل عملية أخرى.</value>
   </data>
+  <data name="Tools.ModBuilder.Notification.Busy.ImportGitHub" xml:space="preserve">
+    <value>تعذّر استيراد مستودع GitHub أثناء تشغيل عملية أخرى.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.GitHubImportSuccess.Title" xml:space="preserve">
+    <value>تم استيراد المستودع</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.GitHubImportSuccess.Message" xml:space="preserve">
+    <value>تم استيراد '{0}' بنجاح.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.GitHubImportFailed.Title" xml:space="preserve">
+    <value>فشل الاستيراد</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.GitHubImportFailed.Message" xml:space="preserve">
+    <value>فشل استيراد GitHub: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.GitHubAlreadyImported.Title" xml:space="preserve">
+    <value>مستورد مسبقًا</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.GitHubAlreadyImported.Message" xml:space="preserve">
+    <value>'{0}' مستورد مسبقًا. يتم فتح المشروع الحالي.</value>
+  </data>
   <data name="Tools.ModBuilder.Notification.Busy.StartBuild" xml:space="preserve">
     <value>لا يمكن بدء البناء أثناء تشغيل عملية أخرى.</value>
   </data>
@@ -12158,6 +12224,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="GameProfiles.Notification.LaunchChanged.VariantsRemoved" xml:space="preserve">
     <value>لم يعد عميل اللعبة يحدد نسخًا مخصصة للمنصات.</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchChanged.InstallationRefreshed" xml:space="preserve">
+    <value>تغيّر مجلد اللعبة منذ الاكتشاف، لذلك أُعيدت فهرسة ملفات التثبيت لهذا التشغيل.</value>
   </data>
   <data name="Tools.WndEditor.Assets.LinkMenu" xml:space="preserve">
     <value>ربط الموارد</value>
@@ -17140,6 +17209,18 @@ Error: فشل: {3}
     <value>يتوفر إصدار جديد من **The Super Hackers** ({0}).
 
 كيف تريد تطبيق هذا التحديث؟</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.GitHubImportInProgress.Title" xml:space="preserve">
+    <value>استيراد مستودع GitHub</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.GitHubImportInProgress.Message" xml:space="preserve">
+    <value>جارٍ استيراد {0}@{1}...</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ManifestsHeader" xml:space="preserve">
+    <value>ملفات البيان</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipEditManifests" xml:space="preserve">
+    <value>تعديل بيانات الحزمة في محرر التكوين</value>
   </data>
   <data name="Info.Card.tools.publisher-studio-authoring.Action.NAV_Tools" xml:space="preserve">
     <value>فتح استوديو الناشر</value>

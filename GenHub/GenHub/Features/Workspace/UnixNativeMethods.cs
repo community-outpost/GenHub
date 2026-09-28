@@ -63,6 +63,21 @@ internal static partial class UnixNativeMethods
     }
 
     /// <summary>
+    /// Checks whether the effective process identity may write to a file, or create, rename and remove
+    /// entries in a directory. An immutable entry on macOS reports no write access.
+    /// </summary>
+    /// <param name="path">The file or directory to inspect.</param>
+    /// <returns><c>true</c> when the current effective identity may write to the entry.</returns>
+    internal static bool CanWrite(string path)
+    {
+        const int writeMode = 2;
+        var currentWorkingDirectory = OperatingSystem.IsMacOS() ? -2 : -100;
+        var effectiveIdentity = OperatingSystem.IsMacOS() ? 0x10 : 0x200;
+
+        return FileAccessAt(currentWorkingDirectory, path, writeMode, effectiveIdentity) == 0;
+    }
+
+    /// <summary>
     /// Returns the effective user ID, POSIX <c>geteuid(2)</c>.
     /// <para>
     /// Used instead of comparing <c>Environment.UserName</c> to the literal "root",

@@ -234,6 +234,12 @@ public static class MapManagerConstants
     /// <summary>Message used when no localization service is supplied. Takes the folder path.</summary>
     public const string FolderNotWritableFallbackMessage = "GenHub could not make the map folder \"{0}\" writable. Check that your account owns the folder and that it is not locked, then try again.";
 
+    /// <summary>Localization key for a folder that does not allow GenHub to change its entries. Takes the folder path.</summary>
+    public const string FolderAccessDeniedMessageKey = "Maps.Error.FolderAccessDenied";
+
+    /// <summary>Message used when no localization service is supplied. Takes the folder path.</summary>
+    public const string FolderAccessDeniedFallbackMessage = "GenHub is not allowed to change the contents of \"{0}\". Check that your account can write to the folder and that it is not locked, then try again.";
+
     /// <summary>Localization key for a map that could not be deleted. Takes the map name.</summary>
     public const string DeleteFailedMessageKey = "Maps.Error.DeleteFailed";
 

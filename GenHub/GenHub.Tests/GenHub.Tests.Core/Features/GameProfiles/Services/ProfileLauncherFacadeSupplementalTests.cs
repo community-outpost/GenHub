@@ -134,7 +134,7 @@ public sealed class ProfileLauncherFacadeSupplementalTests
             .Setup(s => s.GetInstallationAsync("inst-1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(installation));
         _installationServiceMock
-            .Setup(s => s.CreateAndRegisterInstallationManifestsAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.CreateAndRegisterInstallationManifestsAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>(), It.IsAny<bool>()))
             .Returns(Task.CompletedTask);
         _dependencyResolverMock
             .Setup(d => d.ResolveDependenciesWithManifestsAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))

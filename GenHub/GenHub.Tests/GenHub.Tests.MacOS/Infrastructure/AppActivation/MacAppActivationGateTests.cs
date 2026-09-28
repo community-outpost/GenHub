@@ -29,6 +29,18 @@ public class MacAppActivationGateTests
         Assert.Equal(expected, MacAppActivationGate.ShouldAllowActivation(isAppActive, isRecentUserInput, isUserRequestInProgress));
     }
 
+    /// <summary>Only activations of GenHub itself pass through the gate; Avalonia also activates the Dock at launch.</summary>
+    /// <param name="targetProcessId">The process identifier of the application being activated.</param>
+    /// <param name="expected">Whether the activation targets GenHub.</param>
+    [Theory]
+    [InlineData(4242, true)]
+    [InlineData(1, false)]
+    [InlineData(-1, false)]
+    public void IsSelfActivation_OnlyMatchesCurrentProcess(int targetProcessId, bool expected)
+    {
+        Assert.Equal(expected, MacAppActivationGate.IsSelfActivation(targetProcessId, 4242));
+    }
+
     /// <summary>Only fresh mouse and key events count as the user reaching for GenHub.</summary>
     /// <param name="eventType">The AppKit event type.</param>
     /// <param name="ageSeconds">How long ago the event was sent.</param>

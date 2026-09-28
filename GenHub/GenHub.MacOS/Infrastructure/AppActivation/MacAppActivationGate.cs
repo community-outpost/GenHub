@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using static GenHub.MacOS.Infrastructure.AppActivation.ObjCRuntime;
 
 namespace GenHub.MacOS.Infrastructure.AppActivation;
 
@@ -10,7 +11,8 @@ namespace GenHub.MacOS.Infrastructure.AppActivation;
 /// Stops Avalonia from forcing GenHub to the front on macOS.
 /// </summary>
 /// <remarks>
-/// Avalonia.Native activates the app when launching finishes, when any window is shown,
+/// Avalonia.Native activates the app when launching finishes (through
+/// <c>-[NSRunningApplication activateWithOptions:]</c>), when any window is shown,
 /// and when a modal dialog closes. That pulls a background launch (<c>open -g</c>) or a
 /// dialog opened while the user works elsewhere in front of the user's current app.
 /// For a bundled app this gate lets LaunchServices decide launch activation and only
@@ -20,7 +22,6 @@ namespace GenHub.MacOS.Infrastructure.AppActivation;
 [SupportedOSPlatform("macos")]
 internal static class MacAppActivationGate
 {
-    private const string ObjCLibrary = "/usr/lib/libobjc.A.dylib";
     private const string AppBundleExecutableMarker = ".app/Contents/MacOS/";
     private const double RecentInputWindowSeconds = 1.0;
 
@@ -33,12 +34,23 @@ internal static class MacAppActivationGate
     private const ulong OtherMouseDown = 25;
     private const ulong OtherMouseUp = 26;
 
-    private static ActivateIgnoringOtherAppsHandler? _originalActivate;
-    private static ActivateIgnoringOtherAppsHandler? _activateHook;
+    private static ActivateIgnoringOtherAppsHandler? _originalActivateIgnoringOtherApps;
+    private static ActivateIgnoringOtherAppsHandler? _activateIgnoringOtherAppsHook;
+    private static ActivateHandler? _originalActivate;
+    private static ActivateHandler? _activateHook;
+    private static ActivateWithOptionsHandler? _originalActivateWithOptions;
+    private static ActivateWithOptionsHandler? _activateWithOptionsHook;
+    private static IntPtr _application;
     private static ILogger? _logger;
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void ActivateIgnoringOtherAppsHandler(IntPtr self, IntPtr selector, byte ignoringOtherApps);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void ActivateHandler(IntPtr self, IntPtr selector);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate byte ActivateWithOptionsHandler(IntPtr self, IntPtr selector, nuint options);
 
     /// <summary>
     /// Installs the gate when GenHub runs from an app bundle. Unbundled development runs keep
@@ -49,7 +61,7 @@ internal static class MacAppActivationGate
     /// <returns><see langword="true"/> when the gate was installed.</returns>
     internal static bool Install(string? processPath, ILogger? logger)
     {
-        if (_activateHook != null || !IsRunningFromAppBundle(processPath))
+        if (_activateIgnoringOtherAppsHook != null || !IsRunningFromAppBundle(processPath))
         {
             return false;
         }
@@ -58,23 +70,51 @@ internal static class MacAppActivationGate
         try
         {
             var application = GetSharedApplication();
-            var activateSelector = RegisterSelector("activateIgnoringOtherApps:");
+            var activateIgnoringOtherAppsSelector = RegisterSelector("activateIgnoringOtherApps:");
             var applicationClass = GetObjectClass(application);
-            var activateMethod = GetInstanceMethod(applicationClass, activateSelector);
-            if (application == IntPtr.Zero || activateMethod == IntPtr.Zero)
+            var activateIgnoringOtherAppsMethod = GetInstanceMethod(applicationClass, activateIgnoringOtherAppsSelector);
+            var runningApplicationClass = GetClass("NSRunningApplication");
+            var activateWithOptionsSelector = RegisterSelector("activateWithOptions:");
+            var activateWithOptionsMethod = GetInstanceMethod(runningApplicationClass, activateWithOptionsSelector);
+            if (application == IntPtr.Zero || activateIgnoringOtherAppsMethod == IntPtr.Zero || activateWithOptionsMethod == IntPtr.Zero)
             {
                 logger?.LogWarning("Could not locate the Avalonia activation methods; app activation is not gated");
                 return false;
             }
 
-            _originalActivate = Marshal.GetDelegateForFunctionPointer<ActivateIgnoringOtherAppsHandler>(GetMethodImplementation(activateMethod));
-            _activateHook = OnActivateIgnoringOtherApps;
+            _application = application;
+            _originalActivateIgnoringOtherApps = Marshal.GetDelegateForFunctionPointer<ActivateIgnoringOtherAppsHandler>(GetMethodImplementation(activateIgnoringOtherAppsMethod));
+            _activateIgnoringOtherAppsHook = OnActivateIgnoringOtherApps;
+            _originalActivateWithOptions = Marshal.GetDelegateForFunctionPointer<ActivateWithOptionsHandler>(GetMethodImplementation(activateWithOptionsMethod));
+            _activateWithOptionsHook = OnActivateWithOptions;
+
+            // macOS 14 added -[NSApplication activate]; older systems do not have it.
+            var activateSelector = RegisterSelector("activate");
+            var activateMethod = GetInstanceMethod(applicationClass, activateSelector);
+            if (activateMethod != IntPtr.Zero)
+            {
+                _originalActivate = Marshal.GetDelegateForFunctionPointer<ActivateHandler>(GetMethodImplementation(activateMethod));
+                _activateHook = OnActivate;
+            }
 
             ReplaceMethod(
                 applicationClass,
-                activateSelector,
-                Marshal.GetFunctionPointerForDelegate(_activateHook),
-                GetMethodTypeEncoding(activateMethod));
+                activateIgnoringOtherAppsSelector,
+                Marshal.GetFunctionPointerForDelegate(_activateIgnoringOtherAppsHook),
+                GetMethodTypeEncoding(activateIgnoringOtherAppsMethod));
+            ReplaceMethod(
+                runningApplicationClass,
+                activateWithOptionsSelector,
+                Marshal.GetFunctionPointerForDelegate(_activateWithOptionsHook),
+                GetMethodTypeEncoding(activateWithOptionsMethod));
+            if (_activateHook != null)
+            {
+                ReplaceMethod(
+                    applicationClass,
+                    activateSelector,
+                    Marshal.GetFunctionPointerForDelegate(_activateHook),
+                    GetMethodTypeEncoding(activateMethod));
+            }
 
             logger?.LogInformation("Installed the macOS app activation gate");
             return true;
@@ -96,6 +136,15 @@ internal static class MacAppActivationGate
     /// <returns><see langword="true"/> when the activation may proceed.</returns>
     internal static bool ShouldAllowActivation(bool isAppActive, bool isRecentUserInput, bool isUserRequestInProgress) =>
         isAppActive || isRecentUserInput || isUserRequestInProgress;
+
+    /// <summary>
+    /// Determines whether an <c>NSRunningApplication</c> activation targets GenHub and so must pass the gate.
+    /// </summary>
+    /// <param name="targetProcessId">The process identifier of the application being activated.</param>
+    /// <param name="currentProcessId">The process identifier of GenHub.</param>
+    /// <returns><see langword="true"/> when the request activates GenHub itself.</returns>
+    internal static bool IsSelfActivation(int targetProcessId, int currentProcessId) =>
+        targetProcessId == currentProcessId;
 
     /// <summary>
     /// Determines whether an event is mouse or keyboard input sent within the last second.
@@ -122,12 +171,51 @@ internal static class MacAppActivationGate
 
     private static void OnActivateIgnoringOtherApps(IntPtr self, IntPtr selector, byte ignoringOtherApps)
     {
+        if (IsActivationAllowed(self))
+        {
+            _originalActivateIgnoringOtherApps?.Invoke(self, selector, ignoringOtherApps);
+        }
+    }
+
+    private static void OnActivate(IntPtr self, IntPtr selector)
+    {
+        if (IsActivationAllowed(self))
+        {
+            _originalActivate?.Invoke(self, selector);
+        }
+    }
+
+    private static byte OnActivateWithOptions(IntPtr self, IntPtr selector, nuint options)
+    {
+        if (TargetsCurrentProcess(self) && !IsActivationAllowed(_application))
+        {
+            return 0;
+        }
+
+        return _originalActivateWithOptions?.Invoke(self, selector, options) ?? 0;
+    }
+
+    private static bool TargetsCurrentProcess(IntPtr runningApplication)
+    {
         try
         {
-            if (!ShouldAllowActivation(IsAppActive(self), HasRecentUserInput(self), WindowActivation.IsUserRequestInProgress))
+            return IsSelfActivation(SendInt32(runningApplication, RegisterSelector("processIdentifier")), Environment.ProcessId);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "App activation target check failed; allowing activation");
+            return false;
+        }
+    }
+
+    private static bool IsActivationAllowed(IntPtr application)
+    {
+        try
+        {
+            if (!ShouldAllowActivation(IsAppActive(application), HasRecentUserInput(application), WindowActivation.IsUserRequestInProgress))
             {
                 _logger?.LogDebug("Blocked an app activation that GenHub did not request");
-                return;
+                return false;
             }
         }
         catch (Exception ex)
@@ -135,7 +223,7 @@ internal static class MacAppActivationGate
             _logger?.LogDebug(ex, "App activation check failed; allowing activation");
         }
 
-        _originalActivate?.Invoke(self, selector, ignoringOtherApps);
+        return true;
     }
 
     private static bool IsAppActive(IntPtr application) =>
@@ -155,41 +243,4 @@ internal static class MacAppActivationGate
             SendDouble(currentEvent, RegisterSelector("timestamp")),
             SendDouble(processInfo, RegisterSelector("systemUptime")));
     }
-
-    private static IntPtr GetSharedApplication() =>
-        SendIntPtr(GetClass("NSApplication"), RegisterSelector("sharedApplication"));
-
-    [DllImport(ObjCLibrary, EntryPoint = "objc_getClass")]
-    private static extern IntPtr GetClass(string name);
-
-    [DllImport(ObjCLibrary, EntryPoint = "sel_registerName")]
-    private static extern IntPtr RegisterSelector(string name);
-
-    [DllImport(ObjCLibrary, EntryPoint = "object_getClass")]
-    private static extern IntPtr GetObjectClass(IntPtr obj);
-
-    [DllImport(ObjCLibrary, EntryPoint = "class_getInstanceMethod")]
-    private static extern IntPtr GetInstanceMethod(IntPtr cls, IntPtr selector);
-
-    [DllImport(ObjCLibrary, EntryPoint = "method_getImplementation")]
-    private static extern IntPtr GetMethodImplementation(IntPtr method);
-
-    [DllImport(ObjCLibrary, EntryPoint = "method_getTypeEncoding")]
-    private static extern IntPtr GetMethodTypeEncoding(IntPtr method);
-
-    [DllImport(ObjCLibrary, EntryPoint = "class_replaceMethod")]
-    private static extern IntPtr ReplaceMethod(IntPtr cls, IntPtr selector, IntPtr implementation, IntPtr types);
-
-    [DllImport(ObjCLibrary, EntryPoint = "objc_msgSend")]
-    private static extern IntPtr SendIntPtr(IntPtr receiver, IntPtr selector);
-
-    [DllImport(ObjCLibrary, EntryPoint = "objc_msgSend")]
-    [return: MarshalAs(UnmanagedType.I1)]
-    private static extern bool SendBool(IntPtr receiver, IntPtr selector);
-
-    [DllImport(ObjCLibrary, EntryPoint = "objc_msgSend")]
-    private static extern ulong SendUInt64(IntPtr receiver, IntPtr selector);
-
-    [DllImport(ObjCLibrary, EntryPoint = "objc_msgSend")]
-    private static extern double SendDouble(IntPtr receiver, IntPtr selector);
 }

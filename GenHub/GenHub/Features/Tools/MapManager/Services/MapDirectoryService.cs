@@ -1,3 +1,4 @@
+using GenHub.Common.Helpers;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
@@ -6,6 +7,7 @@ using GenHub.Core.Interfaces.Tools.MapManager;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.MapManager;
+using GenHub.Features.Workspace;
 using GenHub.Infrastructure.Imaging;
 using Microsoft.Extensions.Logging;
 using System;
@@ -339,16 +341,17 @@ public sealed class MapDirectoryService(
     /// <param name="executedMoves">The executed moves to roll back.</param>
     private static void RollbackExecutedMoves(List<(string Source, string Target)> executedMoves)
     {
-        foreach (var (src, dst) in executedMoves)
+        for (var i = executedMoves.Count - 1; i >= 0; i--)
         {
+            var (src, dst) = executedMoves[i];
             try
             {
                 if (File.Exists(dst) && !File.Exists(src))
                 {
-                    File.Move(dst, src);
+                    FileMoveHelper.MoveWithoutResidue(dst, src);
                 }
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // Ignore rollback failures
             }
@@ -388,6 +391,9 @@ public sealed class MapDirectoryService(
         return anyTga?.FullName;
     }
 
+    private static string GetContainingFolder(MapFile map) =>
+        Path.GetDirectoryName(map.FullPath) ?? map.FullPath;
+
     private static string GetMapName(MapFile map) =>
         string.IsNullOrEmpty(map.DirectoryName) ? map.FileName : map.DirectoryName;
 
@@ -424,18 +430,36 @@ public sealed class MapDirectoryService(
             return renameFailed;
         }
 
-        if (EnsureMapFolderWritable(currentDirPath) is { } accessFailure)
+        if (EnsureFolderAllowsChanges(parentPath) is { } parentFailure)
+        {
+            return parentFailure;
+        }
+
+        if (EnsureMapFolderWritable(currentDirPath, out var accessChanges) is { } accessFailure)
         {
             return accessFailure;
         }
 
-        var plannedMoves = PlanDirectoryRenameMoves(map, currentDirPath, newName);
-        if (plannedMoves == null)
+        var renamed = false;
+        try
         {
-            return renameFailed;
-        }
+            var plannedMoves = PlanDirectoryRenameMoves(map, currentDirPath, newName);
+            if (plannedMoves == null)
+            {
+                return renameFailed;
+            }
 
-        return ExecuteDirectoryRename(plannedMoves, currentDirPath, newDirPath, map, newName);
+            var result = ExecuteDirectoryRename(plannedMoves, currentDirPath, newDirPath, map, newName);
+            renamed = result.Success;
+            return result;
+        }
+        finally
+        {
+            if (!renamed)
+            {
+                WriteAccessHelper.RestoreWriteAccess(accessChanges);
+            }
+        }
     }
 
     /// <summary>
@@ -483,6 +507,7 @@ public sealed class MapDirectoryService(
 
     /// <summary>
     /// Executes planned file moves and the directory rename, rolling back file moves on failure.
+    /// A failed move leaves no copy under the new name.
     /// </summary>
     /// <param name="plannedMoves">The planned file moves.</param>
     /// <param name="currentDirPath">The current directory path.</param>
@@ -493,19 +518,27 @@ public sealed class MapDirectoryService(
     private OperationResult ExecuteDirectoryRename(List<(string Source, string Target)> plannedMoves, string currentDirPath, string newDirPath, MapFile map, string newName)
     {
         var executedMoves = new List<(string Source, string Target)>();
+        var blockedFolder = currentDirPath;
         try
         {
             foreach (var (src, dst) in plannedMoves)
             {
-                File.Move(src, dst);
+                FileMoveHelper.MoveWithoutResidue(src, dst);
                 executedMoves.Add((src, dst));
                 logger.LogDebug("Renamed companion asset {Old} to {New}", src, dst);
             }
 
             // Then rename the directory
+            blockedFolder = Path.GetDirectoryName(newDirPath) ?? currentDirPath;
             Directory.Move(currentDirPath, newDirPath);
             logger.LogInformation("Renamed map directory from {OldName} to {NewName}", map.DirectoryName, newName);
             return OperationResult.CreateSuccess();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            RollbackExecutedMoves(executedMoves);
+            logger.LogError(ex, "Access denied while renaming map directory: {DirectoryName}", map.DirectoryName);
+            return FolderAccessDenied(blockedFolder);
         }
         catch
         {
@@ -538,7 +571,21 @@ public sealed class MapDirectoryService(
             return renameFailed;
         }
 
-        File.Move(map.FullPath, newFilePath);
+        if (EnsureFolderAllowsChanges(directory) is { } folderFailure)
+        {
+            return folderFailure;
+        }
+
+        try
+        {
+            FileMoveHelper.MoveWithoutResidue(map.FullPath, newFilePath);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogError(ex, "Access denied while renaming map: {FileName}", map.FileName);
+            return FolderAccessDenied(directory);
+        }
+
         logger.LogInformation("Renamed map from {OldName} to {NewName}", map.FileName, newFileName);
         return OperationResult.CreateSuccess();
     }
@@ -559,12 +606,15 @@ public sealed class MapDirectoryService(
 
             if (File.Exists(map.FullPath))
             {
-                WriteAccessHelper.EnsureFileWritable(map.FullPath);
-                File.Delete(map.FullPath);
-                logger.LogInformation("Deleted map: {FileName}", map.FileName);
+                return DeleteStandaloneMap(map);
             }
 
             return null;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogError(ex, "Access denied while deleting map: {FileName}", map.FileName);
+            return FolderAccessDenied(GetContainingFolder(map));
         }
         catch (Exception ex)
         {
@@ -587,25 +637,89 @@ public sealed class MapDirectoryService(
             return null;
         }
 
-        if (EnsureMapFolderWritable(dirPath) is { } accessFailure)
+        if (Path.GetDirectoryName(dirPath) is { Length: > 0 } parentPath &&
+            EnsureFolderAllowsChanges(parentPath) is { } parentFailure)
+        {
+            return parentFailure;
+        }
+
+        if (EnsureMapFolderWritable(dirPath, out var accessChanges) is { } accessFailure)
         {
             return accessFailure;
         }
 
-        Directory.Delete(dirPath, true);
+        try
+        {
+            Directory.Delete(dirPath, true);
+        }
+        catch
+        {
+            WriteAccessHelper.RestoreWriteAccess(accessChanges);
+            throw;
+        }
+
         logger.LogInformation("Deleted map directory: {DirectoryName}", map.DirectoryName);
         return null;
     }
 
-    private OperationResult? EnsureMapFolderWritable(string folderPath)
+    /// <summary>
+    /// Deletes a standalone map file, putting back its read-only state when the delete fails.
+    /// </summary>
+    /// <param name="map">The map file to delete.</param>
+    /// <returns>The failure result, or null when deletion succeeded.</returns>
+    private OperationResult? DeleteStandaloneMap(MapFile map)
+    {
+        if (EnsureFolderAllowsChanges(GetContainingFolder(map)) is { } folderFailure)
+        {
+            return folderFailure;
+        }
+
+        var accessChanges = WriteAccessHelper.EnsureFileWritable(map.FullPath);
+        try
+        {
+            File.Delete(map.FullPath);
+        }
+        catch
+        {
+            WriteAccessHelper.RestoreWriteAccess(accessChanges);
+            throw;
+        }
+
+        logger.LogInformation("Deleted map: {FileName}", map.FileName);
+        return null;
+    }
+
+    /// <summary>
+    /// Checks, before anything is changed, that entries in a folder may be renamed or removed.
+    /// Only Unix can answer this up front; on Windows the operation itself reports the denial.
+    /// </summary>
+    /// <param name="folderPath">The folder whose entries will change.</param>
+    /// <returns>The failure result, or null when the folder allows changes.</returns>
+    private OperationResult? EnsureFolderAllowsChanges(string folderPath)
+    {
+        if (OperatingSystem.IsWindows() || UnixNativeMethods.CanWrite(folderPath))
+        {
+            return null;
+        }
+
+        logger.LogWarning("Folder does not allow changes: {Folder}", folderPath);
+        return FolderAccessDenied(folderPath);
+    }
+
+    private OperationResult FolderAccessDenied(string folderPath) =>
+        OperationResult.CreateFailure(
+            Localize(MapManagerConstants.FolderAccessDeniedMessageKey, MapManagerConstants.FolderAccessDeniedFallbackMessage, folderPath));
+
+    private OperationResult? EnsureMapFolderWritable(string folderPath, out IReadOnlyList<WriteAccessChange> changes)
     {
         try
         {
-            WriteAccessHelper.EnsureDirectoryWritable(folderPath);
+            changes = WriteAccessHelper.EnsureDirectoryWritable(folderPath);
             return null;
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
         {
+            changes = [];
             logger.LogError(ex, "Failed to make map folder writable: {Folder}", folderPath);
             return OperationResult.CreateFailure(
                 Localize(MapManagerConstants.FolderNotWritableMessageKey, MapManagerConstants.FolderNotWritableFallbackMessage, folderPath));

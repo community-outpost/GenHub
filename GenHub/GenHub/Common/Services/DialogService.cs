@@ -1,10 +1,13 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Threading;
 using GenHub.Common.ViewModels.Dialogs;
 using GenHub.Common.Views.Dialogs;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Dialogs;
+using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Common.Services;
@@ -68,8 +71,11 @@ public class DialogService(ISessionPreferenceService sessionPreferenceService) :
         string title,
         string content,
         System.Collections.Generic.IEnumerable<DialogAction> actions,
-        bool showDoNotAskAgain = false)
+        bool showDoNotAskAgain = false,
+        CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var viewModel = new GenericMessageViewModel
         {
             Title = title,
@@ -87,6 +93,16 @@ public class DialogService(ISessionPreferenceService sessionPreferenceService) :
             DataContext = viewModel,
         };
 
+        var closedByCancellation = false;
+        await using var cancellationRegistration = cancellationToken.Register(() => Dispatcher.UIThread.Post(() =>
+        {
+            if (window.IsVisible)
+            {
+                closedByCancellation = true;
+                window.Close();
+            }
+        }));
+
         var mainWindow = GetMainWindow();
         if (mainWindow != null)
         {
@@ -98,6 +114,11 @@ public class DialogService(ISessionPreferenceService sessionPreferenceService) :
             window.Closed += (s, e) => tcs.SetResult();
             window.Show();
             await tcs.Task;
+        }
+
+        if (closedByCancellation)
+        {
+            throw new OperationCanceledException(cancellationToken);
         }
 
         return (viewModel.Result, viewModel.DoNotAskAgain);

@@ -82,36 +82,6 @@ public class ManifestGenerationService(
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    private static readonly HashSet<string> FallbackFileExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".016",
-        ".256",
-        ".ani",
-        ".asi",
-        ".big",
-        ".bik",
-        ".bmp",
-        ".cfg",
-        ".csf",
-        ".dat",
-        ".dll",
-        ".exe",
-        ".flt",
-        ".ico",
-        ".ini",
-        ".lcf",
-        ".m3d",
-        ".map",
-        ".scb",
-        ".str",
-        ".sys",
-        ".tga",
-        ".txt",
-        ".vp6",
-        ".w3d",
-        ".wav",
-    };
-
     private readonly ILanguageDetector _languageDetector = languageDetector ?? new LanguageDetector();
     private readonly object _progressLock = new();
 
@@ -753,38 +723,6 @@ public class ManifestGenerationService(
         return ManifestIdGenerator.ExtractVersionFromTag(manifestVersion).ToString(CultureInfo.InvariantCulture);
     }
 
-    /// <summary>
-    /// Determines if a file should be skipped during manifest generation.
-    /// </summary>
-    private static bool ShouldSkipFile(string relativePath)
-    {
-        var normalized = relativePath.Replace('\\', '/');
-        return normalized.StartsWith(SteamConstants.BackupDirName + "/", StringComparison.OrdinalIgnoreCase) ||
-               normalized.StartsWith(FileTypes.GitDirectoryName + "/", StringComparison.OrdinalIgnoreCase) ||
-               normalized.EndsWith(SteamConstants.BackupExtension, StringComparison.OrdinalIgnoreCase) ||
-               normalized.EndsWith(FileTypes.LegacyBackupExtension, StringComparison.OrdinalIgnoreCase) ||
-               normalized.EndsWith(SteamConstants.ProxyLauncherFileName, StringComparison.OrdinalIgnoreCase) ||
-               normalized.EndsWith(SteamConstants.TrackingFileName, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool TryGetCatalogInfo(GameType gameType, string version, out (string FileName, string Sha256) info)
-    {
-        if (gameType == GameType.Generals && version is "1.08" or "1.8")
-        {
-            info = (CsvConstants.GeneralsCsvFileName, CsvConstants.Generals108Sha256);
-            return true;
-        }
-
-        if (gameType == GameType.ZeroHour && version is "1.04" or "1.4")
-        {
-            info = (CsvConstants.ZeroHourCsvFileName, CsvConstants.ZeroHour104Sha256);
-            return true;
-        }
-
-        info = default;
-        return false;
-    }
-
     private static List<CsvCatalogEntry> FilterEntriesByGameAndLanguage(
         IEnumerable<CsvCatalogEntry> records,
         string targetGame,
@@ -874,7 +812,7 @@ public class ManifestGenerationService(
             var match = Directory.EnumerateDirectories(currentDir, "*", options)
                 .FirstOrDefault(d => string.Equals(Path.GetFileName(d), segment, StringComparison.OrdinalIgnoreCase));
 
-            return (match != null && !IsReparsePoint(match)) ? match : null;
+            return (match != null && !GameInstallationScanRules.IsReparsePoint(match)) ? match : null;
         }
         catch (IOException)
         {
@@ -896,7 +834,7 @@ public class ManifestGenerationService(
             var match = Directory.EnumerateFiles(currentDir, "*", options)
                 .FirstOrDefault(f => string.Equals(Path.GetFileName(f), fileName, StringComparison.OrdinalIgnoreCase));
 
-            return (match != null && !IsReparsePoint(match)) ? match : null;
+            return (match != null && !GameInstallationScanRules.IsReparsePoint(match)) ? match : null;
         }
         catch (IOException)
         {
@@ -914,7 +852,7 @@ public class ManifestGenerationService(
     private static bool IsInvalidIntermediateDirectory(string currentDir, string fullInstallationPath)
     {
         return !Directory.Exists(currentDir) ||
-               (!string.Equals(currentDir, fullInstallationPath, StringComparison.OrdinalIgnoreCase) && IsReparsePoint(currentDir));
+               (!string.Equals(currentDir, fullInstallationPath, StringComparison.OrdinalIgnoreCase) && GameInstallationScanRules.IsReparsePoint(currentDir));
     }
 
     /// <summary>
@@ -1019,7 +957,7 @@ public class ManifestGenerationService(
             return cachedIsReparse;
         }
 
-        var isReparsePoint = (File.Exists(currentPath) || Directory.Exists(currentPath)) && IsReparsePoint(currentPath);
+        var isReparsePoint = (File.Exists(currentPath) || Directory.Exists(currentPath)) && GameInstallationScanRules.IsReparsePoint(currentPath);
         cache?.TryAdd(currentPath, isReparsePoint);
         return isReparsePoint;
     }
@@ -1034,25 +972,6 @@ public class ManifestGenerationService(
         return gameType == GameType.Generals
             ? ManifestConstants.GeneralsManifestVersion
             : ManifestConstants.ZeroHourManifestVersion;
-    }
-
-    /// <summary>
-    /// Determines whether the specified file path is a symbolic link or reparse point.
-    /// </summary>
-    private static bool IsReparsePoint(string path)
-    {
-        try
-        {
-            return File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint);
-        }
-        catch (IOException)
-        {
-            return true;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return true;
-        }
     }
 
     /// <summary>
@@ -1566,7 +1485,7 @@ public class ManifestGenerationService(
     {
         var relativePath = Path.GetRelativePath(installationPath, file).Replace('\\', '/');
 
-        if (ShouldSkipFile(relativePath))
+        if (GameInstallationScanRules.ShouldSkipFile(relativePath))
         {
             return;
         }
@@ -1577,7 +1496,7 @@ public class ManifestGenerationService(
         }
 
         var extension = Path.GetExtension(file);
-        if (!FallbackFileExtensions.Contains(extension))
+        if (!GameInstallationScanRules.FallbackFileExtensions.Contains(extension))
         {
             return;
         }
@@ -1648,7 +1567,7 @@ public class ManifestGenerationService(
             }
 
             var sourcePath = ResolveSourcePathWithBackup(resolvedFilePath, entry.RelativePath);
-            if (IsReparsePoint(sourcePath))
+            if (GameInstallationScanRules.IsReparsePoint(sourcePath))
             {
                 logger.LogWarning(
                     "Source path {SourcePath} for {RelativePath} is a reparse point or symbolic link and will be skipped",
@@ -2047,7 +1966,7 @@ public class ManifestGenerationService(
         string language,
         CancellationToken cancellationToken = default)
     {
-        if (!TryGetCatalogInfo(gameType, version, out var catalogInfo))
+        if (!GameInstallationScanRules.TryGetCatalogInfo(gameType, version, out var catalogInfo))
         {
             logger.LogWarning("No authoritative CSV catalog configured for {GameType} version {Version}", gameType, version);
             return [];
@@ -2268,30 +2187,12 @@ public class ManifestGenerationService(
     /// </summary>
     private string ResolveSourcePathWithBackup(string filePath, string manifestFileName)
     {
-        var backupPath = filePath + SteamConstants.BackupExtension;
-        if (File.Exists(backupPath))
+        var resolved = GameInstallationScanRules.ResolveSourcePathWithBackup(filePath);
+        if (!resolved.Equals(filePath, StringComparison.Ordinal))
         {
-            if (!IsReparsePoint(backupPath))
-            {
-                logger.LogInformation("Using backup file {Backup} as source for {File} in manifest", Path.GetFileName(backupPath), manifestFileName);
-                return backupPath;
-            }
-
-            logger.LogWarning("Backup source {Backup} for {File} is a reparse point or symbolic link and will be skipped", Path.GetFileName(backupPath), manifestFileName);
+            logger.LogInformation("Using backup file {Backup} as source for {File} in manifest", Path.GetFileName(resolved), manifestFileName);
         }
 
-        var legacyBackupPath = filePath + FileTypes.LegacyBackupExtension;
-        if (File.Exists(legacyBackupPath))
-        {
-            if (!IsReparsePoint(legacyBackupPath))
-            {
-                logger.LogInformation("Using backup file {Backup} as source for {File} in manifest", Path.GetFileName(legacyBackupPath), manifestFileName);
-                return legacyBackupPath;
-            }
-
-            logger.LogWarning("Backup source {Backup} for {File} is a reparse point or symbolic link and will be skipped", Path.GetFileName(legacyBackupPath), manifestFileName);
-        }
-
-        return filePath;
+        return resolved;
     }
 }

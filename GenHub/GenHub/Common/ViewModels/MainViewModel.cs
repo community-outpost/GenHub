@@ -268,59 +268,105 @@ public partial class MainViewModel(
         var settings = userSettingsService.Get();
         if (!settings.HasSeenQuickStart)
         {
+            var cancellationToken = _initializationCts.Token;
             Dispatcher.UIThread.Post(async () =>
             {
-                if (linkActivationTracker?.HasReceivedLink == true)
+                if (await IsLaunchForLinkAsync(cancellationToken))
                 {
-                    logger?.LogInformation("Deferring the Getting Started dialog because this session was opened to handle a link");
                     return;
                 }
 
-                var actions = new[]
-                {
-                    new DialogAction
-                    {
-                        Text = localizationService?.GetString("GettingStarted.Action.OpenQuickstart") ?? "Open Quickstart",
-                        Style = NotificationActionStyle.Primary,
-                        Action = () =>
-                        {
-                            SelectTab(NavigationTab.Info);
-
-                            // Programmatic navigation to the quickstart section
-                            InfoViewModel.OpenSection("quickstart");
-                        },
-                    },
-                    new DialogAction
-                    {
-                        Text = localizationService?.GetString("Common.Button.Close") ?? "Close",
-                        Style = NotificationActionStyle.Secondary,
-                    },
-                };
-
-                var content = localizationService?.GetString("GettingStarted.Content") ?? """
-                **Welcome to GenHub!**
-
-                Your modern, community-focused command center for **C&C: Generals & Zero Hour** is ready. The **Quickstart Guide** will help you get started with:
-
-                *   Managing profiles
-                *   Setting up downloads
-                *   Adding your own mods and content
-                """;
-
-                var title = localizationService?.GetString("GettingStarted.Title") ?? "Getting Started";
-
-                var result = await dialogService.ShowMessageAsync(
-                    title,
-                    content,
-                    actions,
-                    showDoNotAskAgain: true);
-
-                if (result.DoNotAskAgain)
-                {
-                    userSettingsService.Update(s => s.HasSeenQuickStart = true);
-                    _ = userSettingsService.SaveAsync(_initializationCts.Token);
-                }
+                await ShowGettingStartedAsync(cancellationToken);
             });
+        }
+    }
+
+    private async Task<bool> IsLaunchForLinkAsync(CancellationToken cancellationToken)
+    {
+        if (linkActivationTracker == null)
+        {
+            return false;
+        }
+
+        try
+        {
+            await linkActivationTracker.WaitForLaunchFinishedAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            return true;
+        }
+
+        if (linkActivationTracker.HasReceivedLink)
+        {
+            logger?.LogInformation("Deferring the Getting Started dialog because this session was opened to handle a link");
+            return true;
+        }
+
+        return false;
+    }
+
+    private async Task ShowGettingStartedAsync(CancellationToken cancellationToken)
+    {
+        var actions = new[]
+        {
+            new DialogAction
+            {
+                Text = localizationService?.GetString("GettingStarted.Action.OpenQuickstart") ?? "Open Quickstart",
+                Style = NotificationActionStyle.Primary,
+                Action = () =>
+                {
+                    SelectTab(NavigationTab.Info);
+
+                    // Programmatic navigation to the quickstart section
+                    InfoViewModel.OpenSection("quickstart");
+                },
+            },
+            new DialogAction
+            {
+                Text = localizationService?.GetString("Common.Button.Close") ?? "Close",
+                Style = NotificationActionStyle.Secondary,
+            },
+        };
+
+        var content = localizationService?.GetString("GettingStarted.Content") ?? """
+        **Welcome to GenHub!**
+
+        Your modern, community-focused command center for **C&C: Generals & Zero Hour** is ready. The **Quickstart Guide** will help you get started with:
+
+        *   Managing profiles
+        *   Setting up downloads
+        *   Adding your own mods and content
+        """;
+
+        var title = localizationService?.GetString("GettingStarted.Title") ?? "Getting Started";
+
+        var linkReceived = linkActivationTracker?.LinkReceivedToken ?? CancellationToken.None;
+        using var dialogCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, linkReceived);
+        (DialogAction? Action, bool DoNotAskAgain) result;
+        try
+        {
+            result = await dialogService.ShowMessageAsync(
+                title,
+                content,
+                actions,
+                showDoNotAskAgain: true,
+                dialogCts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            if (linkReceived.IsCancellationRequested)
+            {
+                logger?.LogInformation("Closed the Getting Started dialog because a link arrived");
+            }
+
+            return;
+        }
+
+        if (result.DoNotAskAgain)
+        {
+            userSettingsService.Update(s => s.HasSeenQuickStart = true);
+            _ = userSettingsService.SaveAsync(_initializationCts.Token);
         }
     }
 

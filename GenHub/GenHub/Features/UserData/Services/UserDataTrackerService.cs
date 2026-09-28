@@ -1,3 +1,4 @@
+using GenHub.Common.Helpers;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions.Enums;
 using GenHub.Core.Helpers;
@@ -1092,7 +1093,7 @@ public class UserDataTrackerService(
             attempt++;
         }
 
-        File.Move(filePath, preservedPath);
+        FileMoveHelper.MoveWithoutResidue(filePath, preservedPath);
         return preservedPath;
     }
 

@@ -5,12 +5,15 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Notifications;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.ModBuilder;
 using GenHub.Features.Tools.ModBuilder.Models;
 using GenHub.Features.Tools.ModBuilder.Services;
@@ -48,6 +51,7 @@ namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 /// <param name="logger">The logger.</param>
 /// <param name="dialogService">Optional dialog service for user confirmations.</param>
 /// <param name="sampleProjectService">Optional sample project service for asset acquisition.</param>
+/// <param name="gitHubImportService">Optional GitHub import service for repository projects.</param>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("SonarCloud", "S107:Methods should not have too many parameters", Justification = "ViewModel requires multiple injected services")]
 [System.Diagnostics.CodeAnalysis.SuppressMessage("SonarCloud", "S2325:Methods and properties that don't access instance data should be static", Justification = "RelayCommand and XAML bindings require instance members")]
 public partial class ModBuilderViewModel(
@@ -61,7 +65,8 @@ public partial class ModBuilderViewModel(
     ILoggerFactory loggerFactory,
     ILogger<ModBuilderViewModel> logger,
     IDialogService? dialogService = null,
-    ISampleProjectService? sampleProjectService = null) : ObservableObject, IDisposable
+    ISampleProjectService? sampleProjectService = null,
+    IGitHubProjectImportService? gitHubImportService = null) : ObservableObject, IDisposable
 {
     private const string UnknownErrorKey = "Common.UnknownError";
     private const string OperationInProgressTitleKey = "Tools.ModBuilder.Notification.OperationInProgress.Title";
@@ -246,6 +251,11 @@ public partial class ModBuilderViewModel(
     public ObservableCollection<BundleItemViewModel> BundlePacks => Bundles;
 
     /// <summary>
+    /// Gets the manifest cards displayed on the dashboard sidebar.
+    /// </summary>
+    public ObservableCollection<ManifestCardViewModel> ProjectManifests { get; } = [];
+
+    /// <summary>
     /// Gets or sets the selected bundle.
     /// </summary>
     [ObservableProperty]
@@ -414,49 +424,6 @@ public partial class ModBuilderViewModel(
         }
 
         await LoadRecentProjectsAsync().ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Loads a newly created project into the studio. Also used by the interactive guide demo.
-    /// </summary>
-    /// <param name="projectPath">The project file path.</param>
-    /// <param name="projectName">The project display name.</param>
-    /// <param name="project">The project to load.</param>
-    /// <param name="announceCreation">Whether to show the project-created toast. Disabled for background demo seeding.</param>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    public async Task HandleNewProjectCreatedAsync(string projectPath, string projectName, ModBuilderProject project, bool announceCreation = true)
-    {
-        CurrentProject = project;
-        ProjectPath = projectPath;
-        ProjectName = projectName;
-        SelectedContentType = project.ContentType;
-        IsProjectLoaded = true;
-
-        // Generate complete project structure
-        await projectStructureGenerator.GenerateProjectStructureAsync(
-            projectPath,
-            CancellationToken.None).ConfigureAwait(false);
-
-        var newProjectDir = Path.GetDirectoryName(projectPath);
-        if (!string.IsNullOrEmpty(newProjectDir))
-        {
-            await EnsureSampleAssetsIfRequiredAsync(projectPath, newProjectDir, projectName, CancellationToken.None).ConfigureAwait(false);
-        }
-
-        await LoadProjectDataAsync().ConfigureAwait(false);
-        await projectConfigService.AddToRecentProjectsAsync(projectPath, CancellationToken.None).ConfigureAwait(false);
-        await LoadRecentProjectsAsync().ConfigureAwait(false);
-
-        if (announceCreation)
-        {
-            notificationService.ShowSuccess(
-                localizationService.GetString("Tools.ModBuilder.Notification.ProjectCreated.Title"),
-                localizationService.GetString("Tools.ModBuilder.Notification.ProjectCreated.Message", projectName));
-        }
-
-        AppendBuildLog($"Created new project: {projectPath}");
-        AppendBuildLog("Generated project structure with folders and config files");
-        logger.LogInformation("Project created successfully at {ProjectPath}", projectPath);
     }
 
     private void OnLocalizationPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -1291,6 +1258,154 @@ public partial class ModBuilderViewModel(
     }
 
     /// <summary>
+    /// Imports a GitHub repository branch as a ModBuilder project.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [RelayCommand]
+    private async Task ImportGitHubProjectAsync()
+    {
+        logger.LogInformation("ImportGitHubProjectAsync requested");
+
+        if (gitHubImportService == null)
+        {
+            logger.LogWarning("Cannot import GitHub repository: import service unavailable");
+            notificationService.ShowError(localizationService.GetString("Common.Status.Error"), localizationService.GetString("Tools.ModBuilder.Notification.DialogUnavailable.Message"));
+            return;
+        }
+
+        if (!await TryClaimBuildSlotAsync().ConfigureAwait(false))
+        {
+            notificationService.ShowWarning(
+                localizationService.GetString(OperationInProgressTitleKey),
+                localizationService.GetString("Tools.ModBuilder.Notification.Busy.ImportGitHub"));
+            return;
+        }
+
+        await CancelStaleImportTokenSourceAsync().ConfigureAwait(false);
+
+        var cts = new CancellationTokenSource();
+        _importCancellationTokenSource = cts;
+        try
+        {
+            var (reference, ownerMissing) = await InvokeOnUIThreadAsync(async () =>
+            {
+                var owner = GetOwnerWindow();
+                if (owner == null)
+                {
+                    return ((GitHubRepositoryReference?)null, true);
+                }
+
+                var dialog = new Views.GitHubImportDialog(new GitHubImportViewModel(localizationService));
+                var confirmed = await dialog.ShowDialog<bool>(owner).ConfigureAwait(false);
+                return (confirmed ? dialog.ResultReference : null, false);
+            }).ConfigureAwait(false);
+
+            if (ownerMissing)
+            {
+                notificationService.ShowError(localizationService.GetString("Common.Status.Error"), localizationService.GetString("Tools.ModBuilder.Notification.DialogUnavailable.Message"));
+                return;
+            }
+
+            if (reference == null)
+            {
+                return;
+            }
+
+            var targetDir = BuildGitHubImportDirectory(GetUserModBuilderDirectory(), reference.Owner, reference.Repo, reference.Branch);
+            if (IsPathInsideAppDirectory(targetDir))
+            {
+                notificationService.ShowError(
+                    localizationService.GetString(FolderRestrictedTitleKey),
+                    localizationService.GetString("Tools.ModBuilder.Notification.FolderRestricted.AppDir"));
+                return;
+            }
+
+            var existingProject = GitHubProjectImportService.FindProjectFile(targetDir);
+            if (existingProject != null)
+            {
+                notificationService.ShowInfo(
+                    localizationService.GetString("Tools.ModBuilder.Notification.GitHubAlreadyImported.Title"),
+                    localizationService.GetString("Tools.ModBuilder.Notification.GitHubAlreadyImported.Message", reference.FullName));
+                await LoadProjectFromPathCoreAsync(existingProject).ConfigureAwait(false);
+                return;
+            }
+
+            var importTitle = localizationService.GetString("Tools.ModBuilder.Notification.GitHubImportInProgress.Title");
+            var importMessage = localizationService.GetString("Tools.ModBuilder.Notification.GitHubImportInProgress.Message", reference.FullName, reference.Branch);
+            var importNotification = new NotificationMessage(
+                NotificationType.Info,
+                importTitle,
+                importMessage,
+                autoDismissMilliseconds: null);
+            var importNotificationId = importNotification.Id;
+            notificationService.Show(importNotification);
+
+            AppendBuildLog($"Importing GitHub repository {reference.FullName}@{reference.Branch}...");
+            var progress = new Progress<string>(msg =>
+            {
+                AppendBuildLog(msg);
+                notificationService.Update(importNotificationId, msg, importTitle);
+            });
+
+            OperationResult<string> importResult;
+            try
+            {
+                importResult = await gitHubImportService.ImportRepositoryAsync(reference, targetDir, progress, cts.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                notificationService.Dismiss(importNotificationId);
+            }
+
+            if (!importResult.Success || string.IsNullOrEmpty(importResult.Data))
+            {
+                notificationService.ShowError(
+                    localizationService.GetString("Tools.ModBuilder.Notification.GitHubImportFailed.Title"),
+                    localizationService.GetString("Tools.ModBuilder.Notification.GitHubImportFailed.Message", importResult.FirstError ?? localizationService.GetString(UnknownErrorKey)));
+                AppendBuildLog($"GitHub import failed: {importResult.FirstError}");
+                return;
+            }
+
+            notificationService.ShowSuccess(
+                localizationService.GetString("Tools.ModBuilder.Notification.GitHubImportSuccess.Title"),
+                localizationService.GetString("Tools.ModBuilder.Notification.GitHubImportSuccess.Message", reference.FullName));
+            await LoadProjectFromPathCoreAsync(importResult.Data).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException ex)
+        {
+            logger.LogInformation(ex, "ImportGitHubProjectAsync cancelled");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to import GitHub repository");
+            notificationService.ShowError(localizationService.GetString(ImportFailedTitleKey), localizationService.GetString("Tools.ModBuilder.Notification.GitHubImportFailed.Message", ex.Message));
+        }
+        finally
+        {
+            if (_importCancellationTokenSource == cts)
+            {
+                _importCancellationTokenSource = null;
+            }
+
+            cts.Dispose();
+            await InvokeOnUIThreadAsync(() => IsBuildRunning = false);
+        }
+    }
+
+    internal static string BuildGitHubImportDirectory(string modBuilderRoot, string owner, string repo, string? branch = null)
+    {
+        if (string.IsNullOrWhiteSpace(branch))
+        {
+            return Path.Combine(modBuilderRoot, ModBuilderConstants.GitHubImportsDirName, $"{owner}_{repo}");
+        }
+
+        var sanitizedBranch = PathHelper.SanitizeFileName(branch, replaceSpaces: true)
+            .Replace('/', '_')
+            .Replace('\\', '_');
+        return Path.Combine(modBuilderRoot, ModBuilderConstants.GitHubImportsDirName, $"{owner}_{repo}_{sanitizedBranch}");
+    }
+
+    /// <summary>
     /// Loads or provisions a specific publisher sample project by its showcase item.
     /// </summary>
     [RelayCommand]
@@ -2043,19 +2158,58 @@ public partial class ModBuilderViewModel(
 
     private static string GetUserModBuilderDirectory()
     {
-        var docs = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-        if (!string.IsNullOrWhiteSpace(docs) && Directory.Exists(docs))
+        string? customRoot = null;
+        if (StorageMigrationService.IsCustomInstallRoot())
         {
-            return Path.Combine(docs, ModBuilderConstants.ModBuilderDirName);
+            var candidate = Path.Combine(
+                StorageMigrationService.GetSourceRootDirectory(),
+                ModBuilderConstants.ModBuilderDirName);
+            if (!IsPathInsideAppDirectory(candidate))
+            {
+                customRoot = StorageMigrationService.GetSourceRootDirectory();
+            }
         }
 
-        var localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        if (!string.IsNullOrWhiteSpace(localApp))
+        return ResolveDefaultModBuilderDirectory(
+            customRoot,
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            Path.GetTempPath());
+    }
+
+    /// <summary>
+    /// Resolves the default ModBuilder projects directory. Portable/custom GenHub
+    /// installations keep projects next to their data root (which already hosts
+    /// settings, profiles, and CAS storage) so large sample checkouts do not fill
+    /// the system drive; otherwise the documents folder stays the default.
+    /// </summary>
+    /// <param name="customInstallRoot">The GenHub install/data root when running portable, otherwise null.</param>
+    /// <param name="documentsPath">The user documents folder path.</param>
+    /// <param name="localAppDataPath">The local application data folder path.</param>
+    /// <param name="tempPath">The temporary files folder path.</param>
+    /// <returns>The resolved default ModBuilder directory.</returns>
+    internal static string ResolveDefaultModBuilderDirectory(
+        string? customInstallRoot,
+        string documentsPath,
+        string localAppDataPath,
+        string tempPath)
+    {
+        if (!string.IsNullOrWhiteSpace(customInstallRoot) && Path.IsPathRooted(customInstallRoot))
         {
-            return Path.Combine(localApp, AppConstants.AppName, ModBuilderConstants.ModBuilderDirName);
+            return Path.Combine(customInstallRoot, ModBuilderConstants.ModBuilderDirName);
         }
 
-        return Path.Combine(Path.GetTempPath(), AppConstants.AppName, ModBuilderConstants.ModBuilderDirName);
+        if (!string.IsNullOrWhiteSpace(documentsPath) && Directory.Exists(documentsPath))
+        {
+            return Path.Combine(documentsPath, ModBuilderConstants.ModBuilderDirName);
+        }
+
+        if (!string.IsNullOrWhiteSpace(localAppDataPath))
+        {
+            return Path.Combine(localAppDataPath, AppConstants.AppName, ModBuilderConstants.ModBuilderDirName);
+        }
+
+        return Path.Combine(tempPath, AppConstants.AppName, ModBuilderConstants.ModBuilderDirName);
     }
 
     private string EnsureDefaultModBuilderDirectory()
@@ -2287,6 +2441,49 @@ public partial class ModBuilderViewModel(
 
     private bool CanOpenFileManager() => CurrentProject != null && !IsBuildRunning;
 
+    /// <summary>
+    /// Loads a newly created project into the studio. Also used by the interactive guide demo.
+    /// </summary>
+    /// <param name="projectPath">The project file path.</param>
+    /// <param name="projectName">The project display name.</param>
+    /// <param name="project">The project to load.</param>
+    /// <param name="announceCreation">Whether to show the project-created toast. Disabled for background demo seeding.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public async Task HandleNewProjectCreatedAsync(string projectPath, string projectName, ModBuilderProject project, bool announceCreation = true)
+    {
+        CurrentProject = project;
+        ProjectPath = projectPath;
+        ProjectName = projectName;
+        SelectedContentType = project.ContentType;
+        IsProjectLoaded = true;
+
+        // Generate complete project structure
+        await projectStructureGenerator.GenerateProjectStructureAsync(
+            projectPath,
+            CancellationToken.None).ConfigureAwait(false);
+
+        var newProjectDir = Path.GetDirectoryName(projectPath);
+        if (!string.IsNullOrEmpty(newProjectDir))
+        {
+            await EnsureSampleAssetsIfRequiredAsync(projectPath, newProjectDir, projectName, CancellationToken.None).ConfigureAwait(false);
+        }
+
+        await LoadProjectDataAsync().ConfigureAwait(false);
+        await projectConfigService.AddToRecentProjectsAsync(projectPath, CancellationToken.None).ConfigureAwait(false);
+        await LoadRecentProjectsAsync().ConfigureAwait(false);
+
+        if (announceCreation)
+        {
+            notificationService.ShowSuccess(
+                localizationService.GetString("Tools.ModBuilder.Notification.ProjectCreated.Title"),
+                localizationService.GetString("Tools.ModBuilder.Notification.ProjectCreated.Message", projectName));
+        }
+
+        AppendBuildLog($"Created new project: {projectPath}");
+        AppendBuildLog("Generated project structure with folders and config files");
+        logger.LogInformation("Project created successfully at {ProjectPath}", projectPath);
+    }
+
     private async Task EnsureSampleAssetsIfRequiredAsync(
         string projectPath,
         string projectDir,
@@ -2437,8 +2634,16 @@ public partial class ModBuilderViewModel(
 
         try
         {
-            CurrentProject.TargetGame = SelectedTargetGame;
-            CurrentProject.ContentType = SelectedContentType;
+            var primaryManifest = CurrentProject.Configuration?.Manifests?.FirstOrDefault(m => !string.IsNullOrWhiteSpace(m.Name));
+            if (primaryManifest != null)
+            {
+                ApplyPrimaryManifestMetadataToProject(CurrentProject, primaryManifest);
+            }
+            else
+            {
+                CurrentProject.TargetGame = SelectedTargetGame;
+                CurrentProject.ContentType = SelectedContentType;
+            }
 
             // Update compression level in configuration
             if (CurrentProject.Configuration != null)
@@ -2524,6 +2729,14 @@ public partial class ModBuilderViewModel(
 
                 await initializeTask.ConfigureAwait(false);
                 await LoadBundlesAsync().ConfigureAwait(false);
+                if (CurrentProject != null && !string.IsNullOrEmpty(ProjectPath))
+                {
+                    var saveResult = await projectConfigService.SaveProjectAsync(ProjectPath, CurrentProject, CancellationToken.None).ConfigureAwait(false);
+                    if (!saveResult.Success)
+                    {
+                        logger.LogWarning("Failed to save project after configuration editor closed: {Error}", saveResult.FirstError);
+                    }
+                }
             });
         }
         catch (Exception ex)
@@ -2580,6 +2793,7 @@ public partial class ModBuilderViewModel(
             ProjectName = string.Empty;
             IsProjectLoaded = false;
             Bundles.Clear();
+            ProjectManifests.Clear();
             BuildLog.Clear();
         }).ConfigureAwait(false);
 
@@ -3414,6 +3628,41 @@ public partial class ModBuilderViewModel(
 
     private void PopulateProjectBundlesAndProperties(BuildConfiguration? config)
     {
+        PopulateBundlesFromConfig(config);
+
+        if (CurrentProject != null)
+        {
+            GameDirectory = CurrentProject.GameDir;
+            OutputDirectory = CurrentProject.Directories?.Build ?? ModBuilderConstants.DefaultBuildDir;
+        }
+
+        if (config != null)
+        {
+            SelectedCompressionLevel = config.ZipCompressionLevel;
+        }
+
+        FileCount = Bundles.Sum(b => b.FileCount);
+        FilesToBuildCount = FileCount;
+
+        var primaryManifest = config?.Manifests?.FirstOrDefault(m => !string.IsNullOrWhiteSpace(m.Name));
+        if (primaryManifest != null && CurrentProject != null)
+        {
+            ApplyPrimaryManifestMetadataToProject(CurrentProject, primaryManifest);
+            if (primaryManifest.ContentType.HasValue)
+            {
+                SelectedContentType = primaryManifest.ContentType.Value;
+            }
+            if (primaryManifest.TargetGame.HasValue)
+            {
+                SelectedTargetGame = primaryManifest.TargetGame.Value;
+            }
+        }
+
+        PopulateProjectManifestsFromConfig(config);
+    }
+
+    private void PopulateBundlesFromConfig(BuildConfiguration? config)
+    {
         Bundles.Clear();
 
         if (config?.Packs != null && config.Packs.Count > 0)
@@ -3442,20 +3691,41 @@ public partial class ModBuilderViewModel(
                 });
             }
         }
+    }
 
-        if (CurrentProject != null)
+    private void PopulateProjectManifestsFromConfig(BuildConfiguration? config)
+    {
+        ProjectManifests.Clear();
+
+        if (config?.Manifests != null && config.Manifests.Count > 0)
         {
-            GameDirectory = CurrentProject.GameDir;
-            OutputDirectory = CurrentProject.Directories?.Build ?? ModBuilderConstants.DefaultBuildDir;
+            foreach (var manifest in config.Manifests.Where(m => !string.IsNullOrWhiteSpace(m.Name)))
+            {
+                ProjectManifests.Add(new ManifestCardViewModel
+                {
+                    Name = manifest.Name,
+                    Version = string.IsNullOrWhiteSpace(manifest.Version) ? (CurrentProject?.Version ?? ModBuilderConstants.DefaultManifestVersion) : manifest.Version,
+                    Publisher = string.IsNullOrWhiteSpace(manifest.Publisher) ? (CurrentProject?.ResolvePublisher() ?? string.Empty) : manifest.Publisher,
+                    Description = manifest.Description ?? string.Empty,
+                    TargetGame = manifest.TargetGame,
+                    ContentType = manifest.ContentType,
+                    PackNames = manifest.PackNames?.ToList() ?? [],
+                });
+            }
         }
-
-        if (config != null)
+        else if (CurrentProject != null)
         {
-            SelectedCompressionLevel = config.ZipCompressionLevel;
+            ProjectManifests.Add(new ManifestCardViewModel
+            {
+                Name = CurrentProject.Name,
+                Version = CurrentProject.Version,
+                Publisher = CurrentProject.ResolvePublisher(),
+                Description = string.Empty,
+                TargetGame = CurrentProject.TargetGame,
+                ContentType = CurrentProject.ContentType,
+                PackNames = Bundles.Where(b => b.IsSelected).Select(b => b.Name).ToList(),
+            });
         }
-
-        FileCount = Bundles.Sum(b => b.FileCount);
-        FilesToBuildCount = FileCount;
     }
 
     private async Task InitializeFileManagerAndGameDirectoryAsync(string projectDir)
@@ -3624,11 +3894,10 @@ public partial class ModBuilderViewModel(
 
         if (value != null)
         {
-            if (value.Name.Equals(ModBuilderConstants.GeneralsGamePatch2SampleName, StringComparison.OrdinalIgnoreCase) &&
-                value.TargetGame == GameType.Generals)
-            {
-                value.TargetGame = GameType.ZeroHour;
-            }
+            NormalizeSampleProjectTargetGame(value);
+
+            var primaryManifest = value.Configuration?.Manifests?.FirstOrDefault(m => !string.IsNullOrWhiteSpace(m.Name));
+            ApplyPrimaryManifestMetadataToProject(value, primaryManifest);
 
             SelectedTargetGame = value.TargetGame;
             SelectedContentType = value.ContentType != ContentType.UnknownContentType
@@ -3651,6 +3920,43 @@ public partial class ModBuilderViewModel(
             OnPropertyChanged(nameof(CurrentProjectPath));
             OnPropertyChanged(nameof(IsProjectLoaded));
         });
+    }
+
+    private static void NormalizeSampleProjectTargetGame(ModBuilderProject project)
+    {
+        if (project.Name.Equals(ModBuilderConstants.GeneralsGamePatch2SampleName, StringComparison.OrdinalIgnoreCase) &&
+            project.TargetGame == GameType.Generals)
+        {
+            project.TargetGame = GameType.ZeroHour;
+        }
+    }
+
+    private static void ApplyPrimaryManifestMetadataToProject(ModBuilderProject project, BundleManifest? primaryManifest)
+    {
+        if (primaryManifest == null)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(primaryManifest.Version))
+        {
+            project.Version = primaryManifest.Version;
+        }
+
+        if (primaryManifest.ContentType.HasValue)
+        {
+            project.ContentType = primaryManifest.ContentType.Value;
+        }
+
+        if (primaryManifest.TargetGame.HasValue)
+        {
+            project.TargetGame = primaryManifest.TargetGame.Value;
+        }
+
+        if (!string.IsNullOrWhiteSpace(primaryManifest.Publisher))
+        {
+            project.Publisher = primaryManifest.Publisher;
+        }
     }
 
     partial void OnSelectedBundleChanged(BundleItemViewModel? value)
@@ -3696,6 +4002,18 @@ public partial class ModBuilderViewModel(
         else
         {
             await Dispatcher.UIThread.InvokeAsync(action).ConfigureAwait(false);
+        }
+    }
+
+    private static async Task<T?> InvokeOnUIThreadAsync<T>(Func<Task<T?>> function)
+    {
+        if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            return await function().ConfigureAwait(false);
+        }
+        else
+        {
+            return await Dispatcher.UIThread.InvokeAsync(function).ConfigureAwait(false);
         }
     }
 

@@ -178,12 +178,10 @@
       </Grid>
 
       <!-- ==================== QUICK START / ACTION CARDS ==================== -->
-      <Grid ColumnDefinitions="*,*,*" Margin="0,0,0,4">
+      <Grid ColumnDefinitions="*,12,*,12,*,12,*" Margin="0,0,0,16">
 
         <!-- Card 1: New Project -->
-        <Border Grid.Column="0"
-                Classes="action-card"
-                Margin="0,0,8,0">
+        <Border Grid.Column="0" Classes="action-card">
           <Button Command="{Binding NewProjectCommand}"
                   Classes="card-action-btn"
                   HorizontalContentAlignment="Stretch"
@@ -227,9 +225,7 @@
         </Border>
 
         <!-- Card 2: Open Existing -->
-        <Border Grid.Column="1"
-                Classes="action-card"
-                Margin="4,0,4,0">
+        <Border Grid.Column="2" Classes="action-card">
           <Button Command="{Binding OpenProjectCommand}"
                   Classes="card-action-btn"
                   HorizontalContentAlignment="Stretch"
@@ -273,9 +269,7 @@
         </Border>
 
         <!-- Card 3: Sample Projects -->
-        <Border Grid.Column="2"
-                Classes="action-card"
-                Margin="8,0,0,0">
+        <Border Grid.Column="4" Classes="action-card">
           <Button Command="{Binding LoadSampleProjectCommand}"
                   Classes="card-action-btn"
                   HorizontalContentAlignment="Stretch"
@@ -314,6 +308,50 @@
                          FontSize="12"
                          FontWeight="SemiBold"
                          Foreground="{DynamicResource AccentSecondaryBrush}"/>
+            </Grid>
+          </Button>
+        </Border>
+
+        <!-- Card 4: Import from GitHub -->
+        <Border Grid.Column="6" Classes="action-card">
+          <Button Command="{Binding ImportGitHubProjectCommand}"
+                  Classes="card-action-btn"
+                  HorizontalContentAlignment="Stretch"
+                  VerticalContentAlignment="Stretch">
+            <Grid RowDefinitions="Auto,*,Auto">
+              <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12">
+                <Border Width="40" Height="40"
+                        CornerRadius="8"
+                        Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                        HorizontalAlignment="Left">
+                  <Path Width="18" Height="18"
+                        Fill="{DynamicResource AccentPrimary}"
+                        Data="{StaticResource IconArchive}"
+                        Stretch="Uniform"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.CardGitHubImportTitle}"
+                             FontSize="15"
+                             FontWeight="SemiBold"
+                             Foreground="{DynamicResource TextPrimary}"/>
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.CardGitHubImportSubtitle}"
+                             FontSize="12"
+                             Foreground="{DynamicResource TextSecondary}"/>
+                </StackPanel>
+              </StackPanel>
+              <TextBlock Grid.Row="1"
+                         Text="{localization:Localize Tools.ModBuilder.Dashboard.CardGitHubImportDesc}"
+                         FontSize="12"
+                         Foreground="{DynamicResource TextSecondary}"
+                         TextWrapping="Wrap"
+                         Margin="0,12,0,12"/>
+              <TextBlock Grid.Row="2"
+                         Text="{localization:Localize Tools.ModBuilder.Dashboard.CardGitHubImportAction}"
+                         FontSize="12"
+                         FontWeight="SemiBold"
+                         Foreground="{DynamicResource AccentPrimary}"/>
             </Grid>
           </Button>
         </Border>

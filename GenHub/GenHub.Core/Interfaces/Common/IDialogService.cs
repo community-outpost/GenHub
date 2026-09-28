@@ -1,4 +1,6 @@
 using GenHub.Core.Models.Dialogs;
+using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Core.Interfaces.Common;
@@ -31,12 +33,15 @@ public interface IDialogService
     /// <param name="content">The dialog content (Markdown supported).</param>
     /// <param name="actions">The list of actions (buttons) to display.</param>
     /// <param name="showDoNotAskAgain">Whether to show the "Do not show again" checkbox.</param>
+    /// <param name="cancellationToken">A token that closes the dialog without a result.</param>
     /// <returns>The result of the dialog interaction.</returns>
+    /// <exception cref="OperationCanceledException">The dialog was closed through <paramref name="cancellationToken"/>.</exception>
     Task<(DialogAction? Action, bool DoNotAskAgain)> ShowMessageAsync(
         string title,
         string content,
         IEnumerable<DialogAction> actions,
-        bool showDoNotAskAgain = false);
+        bool showDoNotAskAgain = false,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Shows a custom update option dialog.

@@ -184,6 +184,72 @@ public partial class ConfigEditorViewModel(
         RemoveBundleManifestCommand.NotifyCanExecuteChanged();
     }
 
+    private void SubscribeBundleItem(BundleItemEditorViewModel item)
+    {
+        item.NameRenamed += OnBundleItemRenamed;
+    }
+
+    private void UnsubscribeBundleItem(BundleItemEditorViewModel item)
+    {
+        item.NameRenamed -= OnBundleItemRenamed;
+    }
+
+    private void OnBundleItemRenamed(string oldName, string newName)
+    {
+        if (string.IsNullOrWhiteSpace(oldName))
+        {
+            return;
+        }
+
+        foreach (var itemNames in BundlePacks.Select(pack => pack.ItemNames))
+        {
+            for (var i = itemNames.Count - 1; i >= 0; i--)
+            {
+                if (string.Equals(itemNames[i], oldName, StringComparison.OrdinalIgnoreCase))
+                {
+                    itemNames[i] = newName;
+                }
+            }
+        }
+
+        HasChanges = true;
+        UpdatePackItemSelections();
+        UpdateBundleItemPackLinks();
+    }
+
+    private void SubscribeBundlePack(BundlePackConfigViewModel pack)
+    {
+        pack.NameRenamed += OnBundlePackRenamed;
+    }
+
+    private void UnsubscribeBundlePack(BundlePackConfigViewModel pack)
+    {
+        pack.NameRenamed -= OnBundlePackRenamed;
+    }
+
+    private void OnBundlePackRenamed(string oldName, string newName)
+    {
+        if (string.IsNullOrWhiteSpace(oldName))
+        {
+            return;
+        }
+
+        foreach (var packNames in BundleManifests.Select(manifest => manifest.PackNames))
+        {
+            for (var i = packNames.Count - 1; i >= 0; i--)
+            {
+                if (string.Equals(packNames[i], oldName, StringComparison.OrdinalIgnoreCase))
+                {
+                    packNames[i] = newName;
+                }
+            }
+        }
+
+        HasChanges = true;
+        UpdateBundleItemPackLinks();
+        UpdateManifestPackSelections();
+    }
+
     private void UpdatePackItemSelections()
     {
         if (SelectedBundlePack == null)
@@ -291,10 +357,12 @@ public partial class ConfigEditorViewModel(
 
     private static void RemovePackItem(IList<string> itemNames, string itemName)
     {
-        var existing = itemNames.FirstOrDefault(n => string.Equals(n, itemName, StringComparison.OrdinalIgnoreCase));
-        if (existing != null)
+        for (var i = itemNames.Count - 1; i >= 0; i--)
         {
-            itemNames.Remove(existing);
+            if (string.Equals(itemNames[i], itemName, StringComparison.OrdinalIgnoreCase))
+            {
+                itemNames.RemoveAt(i);
+            }
         }
     }
 
@@ -461,12 +529,23 @@ public partial class ConfigEditorViewModel(
 
         void LoadData()
         {
+            foreach (var item in BundleItems)
+            {
+                UnsubscribeBundleItem(item);
+            }
+
+            foreach (var pack in BundlePacks)
+            {
+                UnsubscribeBundlePack(pack);
+            }
+
             BundleItems.Clear();
             BundlePacks.Clear();
             BundleManifests.Clear();
 
             foreach (var itemVm in precalculatedItems)
             {
+                SubscribeBundleItem(itemVm);
                 BundleItems.Add(itemVm);
             }
 
@@ -496,7 +575,9 @@ public partial class ConfigEditorViewModel(
     {
         foreach (var item in configuration.Items)
         {
-            BundleItems.Add(CreateBundleItemEditorViewModel(item, CurrentProject?.ProjectDir, _fileSnapshot, localizationService));
+            var itemVm = CreateBundleItemEditorViewModel(item, CurrentProject?.ProjectDir, _fileSnapshot, localizationService);
+            SubscribeBundleItem(itemVm);
+            BundleItems.Add(itemVm);
         }
     }
 
@@ -522,6 +603,7 @@ public partial class ConfigEditorViewModel(
                 viewModel.ItemNames.Add(itemName);
             }
 
+            SubscribeBundlePack(viewModel);
             BundlePacks.Add(viewModel);
         }
     }
@@ -564,7 +646,7 @@ public partial class ConfigEditorViewModel(
         {
             Name = ResolveDefaultManifestName(),
             Version = ResolveProjectVersion(CurrentProject),
-            Publisher = string.Empty,
+            Publisher = CurrentProject?.ResolvePublisher() ?? string.Empty,
             Description = CurrentProject?.Description ?? string.Empty,
             ContentType = ResolveEditorContentType(null, CurrentProject),
             TargetGame = ResolveEditorTargetGame(null, CurrentProject),
@@ -873,6 +955,7 @@ public partial class ConfigEditorViewModel(
         };
 
         newItem.RecalculateMatches(CurrentProject?.ProjectDir, _fileSnapshot);
+        SubscribeBundleItem(newItem);
         BundleItems.Add(newItem);
         SelectedBundleItem = newItem;
         HasChanges = true;
@@ -891,10 +974,19 @@ public partial class ConfigEditorViewModel(
             return;
         }
 
-        BundleItems.Remove(SelectedBundleItem);
+        var removed = SelectedBundleItem;
+        UnsubscribeBundleItem(removed);
+        BundleItems.Remove(removed);
+
+        foreach (var pack in BundlePacks)
+        {
+            RemovePackItem(pack.ItemNames, removed.Name);
+        }
+
         SelectedBundleItem = null;
         HasChanges = true;
         UpdatePackItemSelections();
+        UpdateBundleItemPackLinks();
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "RelayCommand CanExecute callback")]
@@ -923,6 +1015,7 @@ public partial class ConfigEditorViewModel(
             newPack.ItemNames.Add(item.Name);
         }
 
+        SubscribeBundlePack(newPack);
         BundlePacks.Add(newPack);
         SelectedBundlePack = newPack;
         HasChanges = true;
@@ -941,7 +1034,15 @@ public partial class ConfigEditorViewModel(
             return;
         }
 
-        BundlePacks.Remove(SelectedBundlePack);
+        var removed = SelectedBundlePack;
+        UnsubscribeBundlePack(removed);
+        BundlePacks.Remove(removed);
+
+        foreach (var manifest in BundleManifests)
+        {
+            RemovePackItem(manifest.PackNames, removed.Name);
+        }
+
         SelectedBundlePack = null;
         HasChanges = true;
         UpdateBundleItemPackLinks();
@@ -965,7 +1066,7 @@ public partial class ConfigEditorViewModel(
         {
             Name = $"NewManifest{BundleManifests.Count + 1}",
             Version = ResolveProjectVersion(CurrentProject),
-            Publisher = string.Empty,
+            Publisher = CurrentProject?.ResolvePublisher() ?? string.Empty,
             Description = string.Empty,
             ContentType = ResolveEditorContentType(null, CurrentProject),
             TargetGame = ResolveEditorTargetGame(null, CurrentProject),
@@ -1015,79 +1116,22 @@ public partial class ConfigEditorViewModel(
         try
         {
             var projectDir = CurrentProject.ProjectDir;
-            var existingItems = Configuration.Items
-                .Where(i => !string.IsNullOrEmpty(i.Name))
-                .GroupBy(i => i.Name, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+            var stagedItems = BuildSyncedItems(projectDir);
+            var stagedPacks = BuildSyncedPacks();
+            var stagedManifests = BuildSyncedManifests();
+
+            if (!string.IsNullOrWhiteSpace(projectDir))
+            {
+                await PersistConfigurationToDiskAsync(projectDir, stagedItems, stagedPacks, stagedManifests, cancellationToken).ConfigureAwait(false);
+            }
 
             Configuration.Items.Clear();
-            var uniqueBundleItems = BundleItems
-                .Where(vm => !string.IsNullOrWhiteSpace(vm.Name))
-                .GroupBy(vm => vm.Name.Trim(), StringComparer.OrdinalIgnoreCase)
-                .Select(g => g.First());
-
-            foreach (var itemVm in uniqueBundleItems)
-            {
-                existingItems.TryGetValue(itemVm.Name, out var existingItem);
-                var parsedFiles = ParseItemFiles(itemVm, existingItem, projectDir);
-                Configuration.Items.Add(new BundleItem
-                {
-                    Name = itemVm.Name,
-                    NamePrefix = itemVm.NamePrefix,
-                    NameSuffix = itemVm.NameSuffix,
-                    IsBig = itemVm.IsBig,
-                    BigSuffix = itemVm.BigSuffix,
-                    SetGameLanguageOnInstall = itemVm.SetGameLanguageOnInstall,
-                    ManifestFile = itemVm.ManifestFile,
-                    Description = itemVm.Description,
-                    TargetDir = itemVm.TargetDir,
-                    BaseDir = itemVm.BaseDir,
-                    SourcePatterns = parsedFiles.Select(f => f.AbsSourceFile).ToList(),
-                    Files = parsedFiles,
-                    Events = existingItem?.Events != null ? new Dictionary<BundleEventType, BundleEvent>(existingItem.Events) : [],
-                });
-            }
-
+            Configuration.Items.AddRange(stagedItems);
             Configuration.Packs.Clear();
-            var uniqueBundlePacks = BundlePacks
-                .Where(vm => !string.IsNullOrWhiteSpace(vm.Name))
-                .GroupBy(vm => vm.Name.Trim(), StringComparer.OrdinalIgnoreCase)
-                .Select(g => g.First());
-
-            foreach (var packVm in uniqueBundlePacks)
-            {
-                Configuration.Packs.Add(new BundlePack
-                {
-                    Name = packVm.Name,
-                    NamePrefix = packVm.NamePrefix,
-                    NameSuffix = packVm.NameSuffix,
-                    AllowBuild = packVm.AllowBuild,
-                    AllowInstall = packVm.AllowInstall,
-                    Big = packVm.Big,
-                    OutputFile = packVm.OutputFile,
-                    SetGameLanguageOnInstall = packVm.SetGameLanguageOnInstall,
-                    ManifestFile = packVm.ManifestFile,
-                    Description = packVm.Description,
-                    ItemNames = packVm.ItemNames.ToList(),
-                });
-            }
-
+            Configuration.Packs.AddRange(stagedPacks);
             Configuration.Manifests.Clear();
-            foreach (var manifestVm in BundleManifests.Where(m => !string.IsNullOrWhiteSpace(m.Name)))
-            {
-                Configuration.Manifests.Add(new BundleManifest
-                {
-                    Name = manifestVm.Name.Trim(),
-                    Version = string.IsNullOrWhiteSpace(manifestVm.Version) ? ModBuilderConstants.DefaultManifestVersion : manifestVm.Version.Trim(),
-                    Publisher = manifestVm.Publisher.Trim(),
-                    Description = manifestVm.Description.Trim(),
-                    ContentType = manifestVm.ContentType,
-                    TargetGame = manifestVm.TargetGame,
-                    PackNames = manifestVm.PackNames.Where(p => !string.IsNullOrWhiteSpace(p)).ToList(),
-                });
-            }
-
-            await PersistConfigurationToDiskAsync(CurrentProject.ProjectDir, cancellationToken).ConfigureAwait(false);
+            Configuration.Manifests.AddRange(stagedManifests);
+            SyncCurrentProjectFromPrimaryManifest(CurrentProject, Configuration);
 
             HasChanges = false;
             notificationService.ShowSuccess(
@@ -1117,6 +1161,144 @@ public partial class ConfigEditorViewModel(
         }
     }
 
+    private List<BundleItem> BuildSyncedItems(string projectDir)
+    {
+        if (Configuration == null)
+        {
+            return [];
+        }
+
+        var existingItems = Configuration.Items
+            .Where(i => !string.IsNullOrEmpty(i.Name))
+            .GroupBy(i => i.Name.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        var uniqueBundleItems = BundleItems
+            .Where(vm => !string.IsNullOrWhiteSpace(vm.Name))
+            .GroupBy(vm => vm.Name.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First());
+
+        var items = new List<BundleItem>();
+        foreach (var itemVm in uniqueBundleItems)
+        {
+            var itemName = itemVm.Name.Trim();
+            existingItems.TryGetValue(itemName, out var existingItem);
+            var parsedFiles = ParseItemFiles(itemVm, existingItem, projectDir);
+            items.Add(new BundleItem
+            {
+                Name = itemName,
+                NamePrefix = itemVm.NamePrefix,
+                NameSuffix = itemVm.NameSuffix,
+                IsBig = itemVm.IsBig,
+                BigSuffix = itemVm.BigSuffix,
+                SetGameLanguageOnInstall = itemVm.SetGameLanguageOnInstall,
+                ManifestFile = itemVm.ManifestFile,
+                Description = itemVm.Description,
+                TargetDir = itemVm.TargetDir,
+                BaseDir = itemVm.BaseDir,
+                SourcePatterns = parsedFiles.Select(f => f.AbsSourceFile).ToList(),
+                Files = parsedFiles,
+                Events = existingItem?.Events != null ? new Dictionary<BundleEventType, BundleEvent>(existingItem.Events) : [],
+            });
+        }
+
+        return items;
+    }
+
+    private List<BundlePack> BuildSyncedPacks()
+    {
+        if (Configuration == null)
+        {
+            return [];
+        }
+
+        var uniqueBundlePacks = BundlePacks
+            .Where(vm => !string.IsNullOrWhiteSpace(vm.Name))
+            .GroupBy(vm => vm.Name.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First());
+
+        var packs = new List<BundlePack>();
+        foreach (var packVm in uniqueBundlePacks)
+        {
+            var packName = packVm.Name.Trim();
+            packs.Add(new BundlePack
+            {
+                Name = packName,
+                NamePrefix = packVm.NamePrefix,
+                NameSuffix = packVm.NameSuffix,
+                AllowBuild = packVm.AllowBuild,
+                AllowInstall = packVm.AllowInstall,
+                Big = packVm.Big,
+                OutputFile = packVm.OutputFile,
+                SetGameLanguageOnInstall = packVm.SetGameLanguageOnInstall,
+                ManifestFile = packVm.ManifestFile,
+                Description = packVm.Description,
+                ItemNames = packVm.ItemNames.Where(i => !string.IsNullOrWhiteSpace(i)).Select(i => i.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+            });
+        }
+
+        return packs;
+    }
+
+    private List<BundleManifest> BuildSyncedManifests()
+    {
+        if (Configuration == null)
+        {
+            return [];
+        }
+
+        var manifests = new List<BundleManifest>();
+        foreach (var manifestVm in BundleManifests.Where(m => !string.IsNullOrWhiteSpace(m.Name)))
+        {
+            manifests.Add(new BundleManifest
+            {
+                Name = manifestVm.Name.Trim(),
+                Version = string.IsNullOrWhiteSpace(manifestVm.Version) ? ModBuilderConstants.DefaultManifestVersion : manifestVm.Version.Trim(),
+                Publisher = manifestVm.Publisher.Trim(),
+                Description = manifestVm.Description.Trim(),
+                ContentType = manifestVm.ContentType,
+                TargetGame = manifestVm.TargetGame,
+                PackNames = manifestVm.PackNames.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+            });
+        }
+
+        return manifests;
+    }
+
+    private static void SyncCurrentProjectFromPrimaryManifest(ModBuilderProject? project, BuildConfiguration? configuration)
+    {
+        if (project == null || configuration == null)
+        {
+            return;
+        }
+
+        var primaryManifest = configuration.Manifests.FirstOrDefault();
+        if (primaryManifest == null)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(primaryManifest.Version))
+        {
+            project.Version = primaryManifest.Version;
+        }
+
+        if (primaryManifest.ContentType.HasValue)
+        {
+            project.ContentType = primaryManifest.ContentType.Value;
+        }
+
+        if (primaryManifest.TargetGame.HasValue)
+        {
+            project.TargetGame = primaryManifest.TargetGame.Value;
+        }
+
+        if (!string.IsNullOrWhiteSpace(primaryManifest.Publisher))
+        {
+            project.Publisher = primaryManifest.Publisher;
+        }
+    }
+
     private static List<BundleFile> ParseItemFiles(BundleItemEditorViewModel itemVm, BundleItem? existingItem, string projectDir)
     {
         // Always store unresolved patterns: persisting resolved absolute paths
@@ -1137,16 +1319,77 @@ public partial class ConfigEditorViewModel(
             var relTarget = ConfigurationLoaderService.ContainsWildcard(pattern)
                 ? configuredTarget
                 : ConfigurationLoaderService.StripGameFilesEditedPrefix(pattern.Replace('\\', '/'));
+
+            var existingFile = FindMatchingExistingFile(existingItem, pattern, rawPattern.Trim(), projectDir);
+
             files.Add(new BundleFile
             {
                 AbsSourceParent = projectDir,
                 AbsSourceFile = pattern,
                 RelTargetFile = relTarget,
-                Params = fileParams,
+                Params = MergeFileParameters(existingFile?.Params, fileParams),
+                ExcludeMarkersList = CloneExcludeMarkers(existingFile?.ExcludeMarkersList),
+                RegistryDef = CloneRegistryDefinition(existingFile?.RegistryDef),
             });
         }
 
         return files;
+    }
+
+    private static Dictionary<string, object>? MergeFileParameters(
+        IReadOnlyDictionary<string, object>? existingParams,
+        Dictionary<string, object>? fileParams)
+    {
+        if (existingParams == null)
+        {
+            return fileParams;
+        }
+
+        var merged = new Dictionary<string, object>(existingParams, StringComparer.OrdinalIgnoreCase);
+        merged.Remove(ModBuilderConstants.BundleParams.NoConvert);
+        merged.Remove(ModBuilderConstants.BundleParams.OutputFormat);
+
+        if (fileParams != null)
+        {
+            foreach (var kvp in fileParams)
+            {
+                merged[kvp.Key] = kvp.Value;
+            }
+        }
+
+        return merged.Count > 0 ? merged : null;
+    }
+
+    private static List<List<string>>? CloneExcludeMarkers(List<List<string>>? markers)
+    {
+        return markers?.Select(m => new List<string>(m)).ToList();
+    }
+
+    private static BundleRegistryDefinition? CloneRegistryDefinition(BundleRegistryDefinition? registryDef)
+    {
+        if (registryDef == null)
+        {
+            return null;
+        }
+
+        return new BundleRegistryDefinition
+        {
+            Paths = new List<string>(registryDef.Paths),
+            Crc32 = registryDef.Crc32,
+        };
+    }
+
+    private static BundleFile? FindMatchingExistingFile(BundleItem? existingItem, string pattern, string rawPattern, string projectDir)
+    {
+        if (existingItem?.Files == null || existingItem.Files.Count == 0)
+        {
+            return null;
+        }
+
+        return existingItem.Files.FirstOrDefault(f =>
+            string.Equals(f.AbsSourceFile, pattern, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(f.AbsSourceFile, rawPattern, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(ConfigurationLoaderService.RelativizeToProject(f.AbsSourceFile, projectDir), pattern, StringComparison.OrdinalIgnoreCase));
     }
 
     private static string[] ResolveSavePatterns(BundleItemEditorViewModel itemVm, BundleItem? existingItem)
@@ -1225,9 +1468,14 @@ public partial class ConfigEditorViewModel(
             }).ToArray(),
         };
 
-    private async Task PersistConfigurationToDiskAsync(string projectDir, CancellationToken cancellationToken)
+    private async Task PersistConfigurationToDiskAsync(
+        string projectDir,
+        IReadOnlyList<BundleItem> items,
+        IReadOnlyList<BundlePack> packs,
+        IReadOnlyList<BundleManifest> manifests,
+        CancellationToken cancellationToken)
     {
-        if (Configuration == null)
+        if (string.IsNullOrWhiteSpace(projectDir))
         {
             return;
         }
@@ -1245,21 +1493,125 @@ public partial class ConfigEditorViewModel(
             DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
         };
 
-        // Atomic temp-file writes so a crash mid-save never leaves truncated
-        // JSON behind (truncated files parse as empty on next import).
-        await ProjectConfigService.AtomicWriteJsonFileAsync(itemsPath, CreateItemsDto(Configuration.Items), serializerOptions, logger, cancellationToken).ConfigureAwait(false);
-        await ProjectConfigService.AtomicWriteJsonFileAsync(packsPath, CreatePacksDto(Configuration.Packs), serializerOptions, logger, cancellationToken).ConfigureAwait(false);
+        // Write all files to temporary files first so a failure mid-save never leaves partial state on disk.
+        var tempItemsPath = $"{itemsPath}.{Guid.NewGuid():N}.save.tmp";
+        var tempPacksPath = $"{packsPath}.{Guid.NewGuid():N}.save.tmp";
+        var tempManifestsPath = $"{manifestsPath}.{Guid.NewGuid():N}.save.tmp";
+        var tempFilesCreated = new List<string>();
+        var backups = new List<(string TargetPath, string? BackupPath)>();
 
-        if (Configuration.Manifests.Count > 0)
+        try
         {
-            await ProjectConfigService.AtomicWriteJsonFileAsync(manifestsPath, CreateManifestsDto(Configuration.Manifests), serializerOptions, logger, cancellationToken).ConfigureAwait(false);
-        }
-        else if (File.Exists(manifestsPath))
-        {
-            File.Delete(manifestsPath);
-        }
+            await ProjectConfigService.AtomicWriteJsonFileAsync(tempItemsPath, CreateItemsDto(items), serializerOptions, logger, cancellationToken).ConfigureAwait(false);
+            tempFilesCreated.Add(tempItemsPath);
 
-        logger.LogInformation("Saved bundle configuration to {ItemsPath} and {PacksPath}", itemsPath, packsPath);
+            await ProjectConfigService.AtomicWriteJsonFileAsync(tempPacksPath, CreatePacksDto(packs), serializerOptions, logger, cancellationToken).ConfigureAwait(false);
+            tempFilesCreated.Add(tempPacksPath);
+
+            if (manifests.Count > 0)
+            {
+                await ProjectConfigService.AtomicWriteJsonFileAsync(tempManifestsPath, CreateManifestsDto(manifests), serializerOptions, logger, cancellationToken).ConfigureAwait(false);
+                tempFilesCreated.Add(tempManifestsPath);
+            }
+
+            CreateFileBackup(itemsPath, backups);
+            CreateFileBackup(packsPath, backups);
+            CreateFileBackup(manifestsPath, backups);
+
+            try
+            {
+                ApplyFileReplacement(tempItemsPath, itemsPath, tempFilesCreated);
+                ApplyFileReplacement(tempPacksPath, packsPath, tempFilesCreated);
+
+                if (manifests.Count > 0)
+                {
+                    ApplyFileReplacement(tempManifestsPath, manifestsPath, tempFilesCreated);
+                }
+                else if (File.Exists(manifestsPath))
+                {
+                    File.Delete(manifestsPath);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                RollbackFileBackups(backups, logger);
+                throw;
+            }
+
+            logger.LogInformation("Saved bundle configuration to {ItemsPath} and {PacksPath}", itemsPath, packsPath);
+        }
+        finally
+        {
+            DeleteFilesSafely(tempFilesCreated);
+            DeleteFilesSafely(backups.Where(b => b.BackupPath != null).Select(b => b.BackupPath!));
+        }
+    }
+
+    private static void CreateFileBackup(string filePath, List<(string TargetPath, string? BackupPath)> backups)
+    {
+        if (File.Exists(filePath))
+        {
+            var backup = $"{filePath}.{Guid.NewGuid():N}.save.bak";
+            File.Copy(filePath, backup, overwrite: true);
+            backups.Add((filePath, backup));
+        }
+        else
+        {
+            backups.Add((filePath, null));
+        }
+    }
+
+    private static void ApplyFileReplacement(string tempPath, string targetPath, List<string> tempFilesCreated)
+    {
+        File.Move(tempPath, targetPath, overwrite: true);
+        tempFilesCreated.Remove(tempPath);
+    }
+
+    private static void RollbackFileBackups(List<(string TargetPath, string? BackupPath)> backups, ILogger logger)
+    {
+        foreach (var (targetPath, backupPath) in backups)
+        {
+            try
+            {
+                if (backupPath != null && File.Exists(backupPath))
+                {
+                    File.Copy(backupPath, targetPath, overwrite: true);
+                }
+                else if (backupPath == null && File.Exists(targetPath))
+                {
+                    File.Delete(targetPath);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                if (backupPath != null)
+                {
+                    logger.LogWarning(ex, "Failed to restore backup {BackupPath} to {TargetPath}", backupPath, targetPath);
+                }
+                else
+                {
+                    logger.LogWarning(ex, "Failed to delete file created by failed save {TargetPath}", targetPath);
+                }
+            }
+        }
+    }
+
+    private static void DeleteFilesSafely(IEnumerable<string> filePaths)
+    {
+        foreach (var file in filePaths)
+        {
+            try
+            {
+                if (File.Exists(file))
+                {
+                    File.Delete(file);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Ignore cleanup errors
+            }
+        }
     }
 
     /// <summary>

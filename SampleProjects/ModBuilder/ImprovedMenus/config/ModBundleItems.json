@@ -2,6 +2,7 @@
   "BundleItems": [
     {
       "Name": "MenuWindows",
+      "NamePrefix": "0_",
       "SourceFiles": [
         "GameFilesEdited/window/Menus/**/*.wnd"
       ],
@@ -10,6 +11,7 @@
     },
     {
       "Name": "MenuMappedImages",
+      "NamePrefix": "0_",
       "SourceFiles": [
         "GameFilesEdited/Data/INI/MappedImages/**/*.ini"
       ],
@@ -18,6 +20,7 @@
     },
     {
       "Name": "MenuTexturesEnglish",
+      "NamePrefix": "0_",
       "SourceFiles": [
         "GameFilesEdited/Data/English/Art/Textures/**/*.tga",
         "GameFilesEdited/Data/English/Art/Textures/**/*.dds",
@@ -30,6 +33,7 @@
     },
     {
       "Name": "MenuTexturesRussian",
+      "NamePrefix": "0_",
       "SourceFiles": [
         "GameFilesEdited/Data/Russian/Art/Textures/**/*.tga",
         "GameFilesEdited/Data/Russian/Art/Textures/**/*.dds",
@@ -42,6 +46,7 @@
     },
     {
       "Name": "MenuTexturesSpanish",
+      "NamePrefix": "0_",
       "SourceFiles": [
         "GameFilesEdited/Data/Spanish/Art/Textures/**/*.tga",
         "GameFilesEdited/Data/Spanish/Art/Textures/**/*.dds",

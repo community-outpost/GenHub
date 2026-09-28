@@ -161,12 +161,54 @@ public class ConfigEditorViewModelTests
         viewModel.BundleItems[0].NameSuffix = "_v1";
 
         // Save
-        viewModel.SaveCommand.Execute(null);
+        await viewModel.SaveCommand.ExecuteAsync(null);
 
         Assert.Single(project.Configuration.Items);
         var savedItem = project.Configuration.Items[0];
         Assert.Equal("CoreData", savedItem.Name);
         Assert.Equal("_v1", savedItem.NameSuffix);
+        Assert.Single(savedItem.Files);
+        Assert.Equal(existingFile.AbsSourceFile, savedItem.Files[0].AbsSourceFile);
+        Assert.True(savedItem.Events.ContainsKey(BundleEventType.OnPreBuild));
+        Assert.False(viewModel.HasChanges);
+    }
+
+    [Fact]
+    public async Task SaveAsync_PreservesExistingFilesAndEventsWithSurroundingWhitespaceAsync()
+    {
+        var existingFile = new BundleFile { AbsSourceFile = "/data/GameData.ini", RelTargetFile = "Data/INI/GameData.ini" };
+        var existingEvent = new BundleEvent { Type = BundleEventType.OnPreBuild, AbsScript = "tools/patch.py" };
+
+        var project = new ModBuilderProject
+        {
+            Name = "TestMod",
+            Configuration = new BuildConfiguration
+            {
+                Items =
+                [
+                    new BundleItem
+                    {
+                        Name = "  CoreData  ",
+                        IsBig = true,
+                        Files = [existingFile],
+                        Events = new Dictionary<BundleEventType, BundleEvent>
+                        {
+                            { BundleEventType.OnPreBuild, existingEvent },
+                        },
+                    },
+                ],
+            },
+        };
+
+        var viewModel = CreateViewModel();
+
+        await viewModel.InitializeAsync(project);
+
+        await viewModel.SaveCommand.ExecuteAsync(null);
+
+        Assert.Single(project.Configuration.Items);
+        var savedItem = project.Configuration.Items[0];
+        Assert.Equal("CoreData", savedItem.Name);
         Assert.Single(savedItem.Files);
         Assert.Equal(existingFile.AbsSourceFile, savedItem.Files[0].AbsSourceFile);
         Assert.True(savedItem.Events.ContainsKey(BundleEventType.OnPreBuild));
@@ -415,6 +457,61 @@ public class ConfigEditorViewModelTests
 
             Assert.Single(project.Configuration.Items);
             Assert.Single(project.Configuration.Packs);
+        }
+        finally
+        {
+            Directory.Delete(projectDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task SaveAsync_TrimsAndDeduplicatesPackItemNamesAndManifestPackNamesAsync()
+    {
+        var projectDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(projectDir);
+        try
+        {
+            var project = new ModBuilderProject
+            {
+                Name = "TrimDedupTest",
+                ProjectDir = projectDir,
+                Configuration = new BuildConfiguration
+                {
+                    Items =
+                    [
+                        new BundleItem { Name = "ItemA" },
+                    ],
+                    Packs =
+                    [
+                        new BundlePack
+                        {
+                            Name = "PackA",
+                            ItemNames = ["ItemA", " ItemA ", "itema", string.Empty],
+                        },
+                    ],
+                    Manifests =
+                    [
+                        new BundleManifest
+                        {
+                            Name = "ManifestA",
+                            PackNames = ["PackA", " PackA ", "packa", string.Empty],
+                        },
+                    ],
+                },
+            };
+
+            var viewModel = CreateViewModel();
+            await viewModel.InitializeAsync(project);
+
+            await viewModel.SaveCommand.ExecuteAsync(null);
+
+            var savedPack = Assert.Single(project.Configuration.Packs);
+            var savedItemName = Assert.Single(savedPack.ItemNames);
+            Assert.Equal("ItemA", savedItemName);
+
+            var savedManifest = Assert.Single(project.Configuration.Manifests);
+            var savedPackName = Assert.Single(savedManifest.PackNames);
+            Assert.Equal("PackA", savedPackName);
         }
         finally
         {

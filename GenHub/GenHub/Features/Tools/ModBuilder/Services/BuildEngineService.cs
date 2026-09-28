@@ -2264,7 +2264,7 @@ public sealed class BuildEngineService(
         return new ManifestPlanEntry(
             name,
             version,
-            null,
+            ResolveManifestPublisher(null, project.Publisher, project.Author),
             ResolveProjectContentType(project.ContentType),
             ResolveProjectTargetGame(project.TargetGame),
             packs);
@@ -2305,7 +2305,7 @@ public sealed class BuildEngineService(
             }
 
             var version = ResolveManifestVersion(definition.Version, project.Version);
-            var publisher = string.IsNullOrWhiteSpace(definition.Publisher) ? null : definition.Publisher;
+            var publisher = ResolveManifestPublisher(definition.Publisher, project.Publisher, project.Author);
             var contentType = ResolveManifestContentType(definition.ContentType, project.ContentType);
             var targetGame = ResolveManifestTargetGame(definition.TargetGame, project.TargetGame);
             entries.Add(new ManifestPlanEntry(definition.Name, version, publisher, contentType, targetGame, packs));
@@ -2318,6 +2318,26 @@ public sealed class BuildEngineService(
         }
 
         return OperationResult<IReadOnlyList<ManifestPlanEntry>>.CreateSuccess(entries);
+    }
+
+    private static string? ResolveManifestPublisher(string? definitionPublisher, string? projectPublisher, string? projectAuthor)
+    {
+        if (!string.IsNullOrWhiteSpace(definitionPublisher))
+        {
+            return definitionPublisher;
+        }
+
+        if (!string.IsNullOrWhiteSpace(projectPublisher))
+        {
+            return projectPublisher;
+        }
+
+        if (!string.IsNullOrWhiteSpace(projectAuthor))
+        {
+            return projectAuthor;
+        }
+
+        return null;
     }
 
     private static ContentType ResolveManifestContentType(ContentType? definitionValue, ContentType projectValue)
@@ -2479,6 +2499,8 @@ public sealed class BuildEngineService(
                 ? null
                 : CreateManifestStorageProgress(progress, projectName);
 
+            var publisherId = ResolveManifestPublisher(null, buildStructure.Project.Publisher, buildStructure.Project.Author);
+
             var manifestResult = await localContentService.CreateLocalContentManifestAsync(
                 manifestContentDir,
                 projectName,
@@ -2486,7 +2508,8 @@ public sealed class BuildEngineService(
                 targetGame,
                 sourcePath: bundlesDir,
                 progress: storageProgress,
-                cancellationToken: cancellationToken).ConfigureAwait(false);
+                cancellationToken: cancellationToken,
+                publisherId: publisherId).ConfigureAwait(false);
 
             if (!manifestResult.Success)
             {

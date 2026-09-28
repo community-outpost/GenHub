@@ -3,6 +3,7 @@ using GenHub.Core.Models.Results.ModBuilder;
 using GenHub.Core.Models.Tools.ModBuilder;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -21,14 +22,19 @@ public interface IProjectConfigService
     /// <param name="gameInstallationId">Optional game installation ID to associate with the project.</param>
     /// <param name="template">Optional project template to use.</param>
     /// <param name="contentType">The content type (Mod, Patch, Addon, etc.). Defaults to Mod.</param>
+    /// <param name="author">Optional project author.</param>
+    /// <param name="publisher">Optional project publisher.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A result containing the created project.</returns>
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Project creation accepts comprehensive optional project metadata while maintaining backwards compatibility.")]
     Task<ProjectOperationResult<ModBuilderProject>> CreateProjectAsync(
         string projectPath,
         string projectName,
         string? gameInstallationId = null,
         ProjectTemplate? template = null,
         ContentType contentType = ContentType.Mod,
+        string? author = null,
+        string? publisher = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -153,6 +159,33 @@ public interface IProjectConfigService
         IEnumerable<string> bigFilePaths,
         string? gameInstallationId = null,
         ContentType contentType = ContentType.Mod,
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Creates a new ModBuilder project pre-populated from a directory of loose files,
+    /// such as a downloaded repository snapshot. Existing project configs are adopted
+    /// when present; otherwise bundle items and packs are generated for the contents.
+    /// </summary>
+    /// <param name="projectPath">The full path where the .mbproj file will be created.</param>
+    /// <param name="projectName">The name of the project.</param>
+    /// <param name="sourceDirectory">The directory whose contents populate the project.</param>
+    /// <param name="gameInstallationId">Optional game installation ID.</param>
+    /// <param name="contentType">The content type (Mod, Patch, Addon, etc.). Defaults to Mod.</param>
+    /// <param name="author">Optional project author.</param>
+    /// <param name="publisher">Optional project publisher.</param>
+    /// <param name="progress">Optional progress reporter (0.0 to 1.0).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A result containing the created project.</returns>
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Directory-based project creation accepts comprehensive configuration and reporting options.")]
+    Task<ProjectOperationResult<ModBuilderProject>> CreateProjectFromDirectoryAsync(
+        string projectPath,
+        string projectName,
+        string sourceDirectory,
+        string? gameInstallationId = null,
+        ContentType contentType = ContentType.Mod,
+        string? author = null,
+        string? publisher = null,
         IProgress<double>? progress = null,
         CancellationToken cancellationToken = default);
 }

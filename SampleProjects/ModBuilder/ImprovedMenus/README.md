@@ -134,15 +134,20 @@ END
 3. Verify that the bundles are loaded:
    - `MenuWindows`: Gathers all `.wnd` layout files from `window/Menus/`.
    - `MenuMappedImages`: Gathers `MappedImages/*.ini`.
-   - `MenuTextures`: Converts UI background and button textures without mipmaps (keeping UI crisp).
+   - `MenuTexturesEnglish` / `MenuTexturesRussian` / `MenuTexturesSpanish`: Gathers UI background and button textures per language without mipmaps (keeping UI crisp).
 4. In Build Options, check **Build** and **Release**.
 5. Click **Execute Build**.
-6. The compiled mod will be generated at `.Release/!ImprovedMenus.big`.
+6. The compiled mod will be generated at:
+   - `.Release/0_ImprovedMenusEnglish.big`
+   - `.Release/0_ImprovedMenusRussian.big`
+   - `.Release/0_ImprovedMenusSpanish.big`
+
+> The `0_` prefix is required, not cosmetic. The SAGE engine loads `.big` archives alphabetically and the first match wins, so mod archives must sort before vanilla archives (`INIZH.big`, `TexturesZH.big`, `WindowZH.big`, ...). Without the prefix, vanilla files win and menu textures or layouts silently fail to apply. Every bundle item in this sample sets `"NamePrefix": "0_"` so intermediate `.Build/bundles/0_*.big` archives also override vanilla when copied to a game folder for quick testing.
 
 ---
 
 ## Testing in Zero Hour
 
-1. Copy `.Release/!ImprovedMenus.big` into your Zero Hour root installation directory.
+1. Copy the `.Release/0_ImprovedMenus<Language>.big` file matching your game language into your Zero Hour root installation directory.
 2. Launch Zero Hour at your display's native resolution (e.g., $1920\times1080$, $2560\times1440$, or $3840\times2160$ via GenPatcher / Options.ini).
 3. Experience your custom, modern menu layout!

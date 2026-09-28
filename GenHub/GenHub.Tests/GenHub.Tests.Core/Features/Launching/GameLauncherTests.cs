@@ -260,6 +260,122 @@ public class GameLauncherTests : IDisposable
     }
 
     /// <summary>
+    /// A loose archive added to the game root after detection refreshes the installation manifest before launch.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WhenInstallationFolderDrifted_RefreshesInstallationManifestAsync()
+    {
+        // Arrange
+        var profile = CreateTestProfile();
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = profile.Id,
+            WorkspacePath = @"C:\workspace",
+            ExecutablePath = @"C:\workspace\generals.exe",
+        };
+        var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "generals.exe" };
+        var installManifest = new ContentManifest
+        {
+            Id = "1.0.genhub.mod.test",
+            Name = "Test Installation",
+            ContentType = GenHub.Core.Models.Enums.ContentType.GameInstallation,
+            TargetGame = GameType.Generals,
+            Version = "1.05",
+            Files = [],
+        };
+
+        _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        _manifestPoolMock.Setup(x => x.GetManifestAsync("1.0.genhub.mod.test", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(installManifest));
+
+        _dependencyResolverMock.Setup(x => x.ResolveDependenciesWithManifestsAsync(
+                It.Is<IEnumerable<string>>(ids => ids.SequenceEqual(TestContentIds)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DependencyResolutionResult.CreateSuccess(
+                TestContentIds,
+                [installManifest],
+                []));
+
+        _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
+
+        _processManagerMock.Setup(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile.Id);
+
+        // Assert: the retail root holds Generals.big, which is missing from the stored
+        // manifest, so the launcher regenerates installation manifests and notes it.
+        Assert.True(result.Success, result.FirstError);
+        _gameInstallationServiceMock.Verify(
+            x => x.CreateAndRegisterInstallationManifestsAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>(), It.IsAny<bool>()),
+            Times.Once);
+        Assert.Contains(LaunchReceiptConstants.InstallationManifestRefreshedWarningKey, result.Data!.ReceiptDriftWarnings);
+    }
+
+    /// <summary>
+    /// An installation folder matching its manifest launches without regenerating manifests.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WhenInstallationFolderMatchesManifest_SkipsRefreshAsync()
+    {
+        // Arrange
+        var profile = CreateTestProfile();
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = profile.Id,
+            WorkspacePath = @"C:\workspace",
+            ExecutablePath = @"C:\workspace\generals.exe",
+        };
+        var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "generals.exe" };
+        var archiveSize = new FileInfo(Path.Combine(_retailRoot, "Generals.big")).Length;
+        var installManifest = new ContentManifest
+        {
+            Id = "1.0.genhub.mod.test",
+            Name = "Test Installation",
+            ContentType = GenHub.Core.Models.Enums.ContentType.GameInstallation,
+            TargetGame = GameType.Generals,
+            Version = "1.08",
+            Files = [new ManifestFile { RelativePath = "Generals.big", Size = archiveSize }],
+        };
+
+        _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        _manifestPoolMock.Setup(x => x.GetManifestAsync("1.0.genhub.mod.test", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(installManifest));
+
+        _dependencyResolverMock.Setup(x => x.ResolveDependenciesWithManifestsAsync(
+                It.Is<IEnumerable<string>>(ids => ids.SequenceEqual(TestContentIds)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DependencyResolutionResult.CreateSuccess(
+                TestContentIds,
+                [installManifest],
+                []));
+
+        _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
+
+        _processManagerMock.Setup(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile.Id);
+
+        // Assert
+        Assert.True(result.Success, result.FirstError);
+        _gameInstallationServiceMock.Verify(
+            x => x.CreateAndRegisterInstallationManifestsAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>(), It.IsAny<bool>()),
+            Times.Never);
+        Assert.DoesNotContain(LaunchReceiptConstants.InstallationManifestRefreshedWarningKey, result.Data!.ReceiptDriftWarnings);
+    }
+
+    /// <summary>
     /// An exit applied during registration must fail the launch before success is reported.
     /// </summary>
     /// <returns>The async task.</returns>

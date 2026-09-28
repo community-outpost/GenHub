@@ -266,7 +266,7 @@ public class MainViewModelTests
     /// <summary>
     /// Verifies that a session opened to handle a link defers the Getting Started dialog so the two modals never stack.
     /// </summary>
-    /// <param name="linkReceived">Whether the session received a link before startup finished.</param>
+    /// <param name="linkReceived">Whether the session received a link before launching finished.</param>
     /// <param name="expectedDialogs">How many Getting Started dialogs should open.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [AvaloniaTheory]
@@ -274,11 +274,9 @@ public class MainViewModelTests
     [InlineData(true, 0)]
     public async Task InitializeAsync_GettingStarted_DeferredWhenSessionOpenedForLinkAsync(bool linkReceived, int expectedDialogs)
     {
-        var dialogService = new Mock<IDialogService>();
-        dialogService
-            .Setup(x => x.ShowMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<DialogAction>>(), It.IsAny<bool>()))
-            .ReturnsAsync((null, false));
-        var tracker = new LinkActivationTracker();
+        var dialogService = CreateGettingStartedDialogService();
+        using var tracker = new LinkActivationTracker();
+        tracker.MarkLaunchFinished();
         if (linkReceived)
         {
             tracker.RecordLink();
@@ -289,9 +287,112 @@ public class MainViewModelTests
         await vm.InitializeAsync();
         Dispatcher.UIThread.RunJobs();
 
+        VerifyGettingStartedShown(dialogService, Times.Exactly(expectedDialogs));
+    }
+
+    /// <summary>
+    /// Verifies that Getting Started waits for the launch to finish, because macOS delivers a launch link just before that.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task InitializeAsync_GettingStarted_DeferredWhenLinkArrivesBeforeLaunchFinishesAsync()
+    {
+        var dialogService = CreateGettingStartedDialogService();
+        using var tracker = new LinkActivationTracker(launchFinished: false);
+        var vm = CreateMainViewModel(dialogService: dialogService, linkActivationTracker: tracker);
+
+        await vm.InitializeAsync();
+        Dispatcher.UIThread.RunJobs();
+        tracker.RecordLink();
+        tracker.MarkLaunchFinished();
+        await PumpDispatcherAsync();
+
+        VerifyGettingStartedShown(dialogService, Times.Never());
+    }
+
+    /// <summary>
+    /// Verifies that Getting Started opens as soon as a launch without a link finishes.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task InitializeAsync_GettingStarted_ShownWhenLaunchFinishesWithoutLinkAsync()
+    {
+        var dialogService = CreateGettingStartedDialogService();
+        using var tracker = new LinkActivationTracker(launchFinished: false);
+        var vm = CreateMainViewModel(dialogService: dialogService, linkActivationTracker: tracker);
+
+        await vm.InitializeAsync();
+        Dispatcher.UIThread.RunJobs();
+        VerifyGettingStartedShown(dialogService, Times.Never());
+
+        tracker.MarkLaunchFinished();
+        await PumpDispatcherAsync();
+
+        VerifyGettingStartedShown(dialogService, Times.Once());
+    }
+
+    /// <summary>
+    /// Verifies that a link arriving while Getting Started is open closes it without marking it as seen.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task InitializeAsync_GettingStarted_ClosedWithoutMarkingSeenWhenLinkArrivesAsync()
+    {
+        CancellationToken dialogToken = default;
+        var dialogResult = new TaskCompletionSource<(DialogAction? Action, bool DoNotAskAgain)>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var dialogService = new Mock<IDialogService>();
+        dialogService
+            .Setup(x => x.ShowMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<DialogAction>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .Returns((string _, string _, IEnumerable<DialogAction> _, bool _, CancellationToken token) =>
+            {
+                dialogToken = token;
+                token.Register(() => dialogResult.TrySetCanceled(token));
+                return dialogResult.Task;
+            });
+        var settings = new UserSettings();
+        var userSettings = new Mock<IUserSettingsService>();
+        userSettings.Setup(x => x.Get()).Returns(settings);
+        userSettings.Setup(x => x.Update(It.IsAny<Action<UserSettings>>()))
+            .Callback<Action<UserSettings>>(action => action(settings));
+        using var tracker = new LinkActivationTracker();
+        tracker.MarkLaunchFinished();
+        var vm = CreateMainViewModel(mockUserSettings: userSettings, dialogService: dialogService, linkActivationTracker: tracker);
+
+        await vm.InitializeAsync();
+        await PumpDispatcherAsync();
+        Assert.True(dialogToken.CanBeCanceled);
+        Assert.False(dialogToken.IsCancellationRequested);
+
+        tracker.RecordLink();
+        await PumpDispatcherAsync();
+
+        Assert.True(dialogToken.IsCancellationRequested);
+        Assert.False(settings.HasSeenQuickStart);
+    }
+
+    private static Mock<IDialogService> CreateGettingStartedDialogService()
+    {
+        var dialogService = new Mock<IDialogService>();
+        dialogService
+            .Setup(x => x.ShowMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<DialogAction>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((null, false));
+        return dialogService;
+    }
+
+    private static void VerifyGettingStartedShown(Mock<IDialogService> dialogService, Times times) =>
         dialogService.Verify(
-            x => x.ShowMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<DialogAction>>(), true),
-            Times.Exactly(expectedDialogs));
+            x => x.ShowMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<DialogAction>>(), true, It.IsAny<CancellationToken>()),
+            times);
+
+    private static async Task PumpDispatcherAsync()
+    {
+        for (var i = 0; i < 20; i++)
+        {
+            Dispatcher.UIThread.RunJobs();
+            await Task.Yield();
+        }
+
+        Dispatcher.UIThread.RunJobs();
     }
 
     private static MainViewModel CreateMainViewModel(

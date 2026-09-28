@@ -84,7 +84,7 @@ public sealed class MockDialogService : IDialogService
     public Task<bool> ShowConfirmationAsync(string title, string message, string confirmText = "Confirm", string cancelText = "Cancel", string? sessionKey = null) => Task.FromResult(false);
 
     /// <inheritdoc/>
-    public Task<(DialogAction? Action, bool DoNotAskAgain)> ShowMessageAsync(string title, string content, IEnumerable<DialogAction> actions, bool showDoNotAskAgain = false) => Task.FromResult<(DialogAction? Action, bool DoNotAskAgain)>((null, false));
+    public Task<(DialogAction? Action, bool DoNotAskAgain)> ShowMessageAsync(string title, string content, IEnumerable<DialogAction> actions, bool showDoNotAskAgain = false, CancellationToken cancellationToken = default) => Task.FromResult<(DialogAction? Action, bool DoNotAskAgain)>((null, false));
 
     /// <inheritdoc/>
     public Task<UpdateDialogResult?> ShowUpdateOptionDialogAsync(string title, string message, bool initialDeleteOldVersions) => Task.FromResult<UpdateDialogResult?>(null);
@@ -113,7 +113,7 @@ public sealed class MockGameInstallationService : IGameInstallationService
     public Task<OperationResult<bool>> AddInstallationToCacheAsync(GameInstallation installation, CancellationToken cancellationToken = default) => Task.FromResult(OperationResult<bool>.CreateSuccess(true));
 
     /// <inheritdoc/>
-    public Task CreateAndRegisterInstallationManifestsAsync(GameInstallation installation, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    public Task CreateAndRegisterInstallationManifestsAsync(GameInstallation installation, CancellationToken cancellationToken = default, bool forceRegeneration = false) => Task.CompletedTask;
 
     /// <inheritdoc/>
     public Task<OperationResult<GameInstallation>> RegisterCustomInstallationAsync(string directoryPath, CancellationToken cancellationToken = default) => Task.FromResult(OperationResult<GameInstallation>.CreateFailure("Custom installations are disabled in demo mode."));
@@ -234,7 +234,7 @@ public sealed class MockWndGameInstallationService : IGameInstallationService
     public Task<OperationResult<bool>> AddInstallationToCacheAsync(GameInstallation installation, CancellationToken cancellationToken = default) => Task.FromResult(OperationResult<bool>.CreateSuccess(true));
 
     /// <inheritdoc/>
-    public Task CreateAndRegisterInstallationManifestsAsync(GameInstallation installation, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    public Task CreateAndRegisterInstallationManifestsAsync(GameInstallation installation, CancellationToken cancellationToken = default, bool forceRegeneration = false) => Task.CompletedTask;
 
     /// <inheritdoc/>
     public Task<OperationResult<GameInstallation>> RegisterCustomInstallationAsync(string directoryPath, CancellationToken cancellationToken = default) => Task.FromResult(OperationResult<GameInstallation>.CreateFailure("Custom installations are disabled in demo mode."));
@@ -456,13 +456,48 @@ public sealed class MockProjectConfigService : IProjectConfigService
     private readonly List<string> _recent = [];
 
     /// <inheritdoc/>
-    public Task<ProjectOperationResult<ModBuilderProject>> CreateProjectAsync(string projectPath, string projectName, string? gameInstallationId = null, ProjectTemplate? template = null, ContentType contentType = ContentType.Mod, CancellationToken cancellationToken = default)
+    public Task<ProjectOperationResult<ModBuilderProject>> CreateProjectFromDirectoryAsync(
+        string projectPath,
+        string projectName,
+        string sourceDirectory,
+        string? gameInstallationId = null,
+        ContentType contentType = ContentType.Mod,
+        string? author = null,
+        string? publisher = null,
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default)
     {
         var project = new ModBuilderProject
         {
             Name = projectName,
             ProjectDir = Path.GetDirectoryName(projectPath) ?? string.Empty,
             ContentType = contentType,
+            Author = author ?? string.Empty,
+            Publisher = publisher ?? author ?? string.Empty,
+        };
+        _projects[projectPath] = project;
+        TrackRecent(projectPath);
+        return Task.FromResult(ProjectOperationResult<ModBuilderProject>.CreateSuccess(project));
+    }
+
+    /// <inheritdoc/>
+    public Task<ProjectOperationResult<ModBuilderProject>> CreateProjectAsync(
+        string projectPath,
+        string projectName,
+        string? gameInstallationId = null,
+        ProjectTemplate? template = null,
+        ContentType contentType = ContentType.Mod,
+        string? author = null,
+        string? publisher = null,
+        CancellationToken cancellationToken = default)
+    {
+        var project = new ModBuilderProject
+        {
+            Name = projectName,
+            ProjectDir = Path.GetDirectoryName(projectPath) ?? string.Empty,
+            ContentType = contentType,
+            Author = author ?? string.Empty,
+            Publisher = publisher ?? author ?? string.Empty,
         };
         _projects[projectPath] = project;
         TrackRecent(projectPath);
@@ -514,7 +549,7 @@ public sealed class MockProjectConfigService : IProjectConfigService
     public Task<ProjectOperationResult<int>> ImportBigFilesAsync(string projectPath, IEnumerable<string> bigFilePaths, bool createBundlePackForBig = true, IProgress<double>? progress = null, CancellationToken cancellationToken = default) => Task.FromResult(ProjectOperationResult<int>.CreateSuccess(0));
 
     /// <inheritdoc/>
-    public Task<ProjectOperationResult<ModBuilderProject>> CreateProjectFromBigFilesAsync(string projectPath, string projectName, IEnumerable<string> bigFilePaths, string? gameInstallationId = null, ContentType contentType = ContentType.Mod, IProgress<double>? progress = null, CancellationToken cancellationToken = default) => CreateProjectAsync(projectPath, projectName, gameInstallationId, null, contentType, cancellationToken);
+    public Task<ProjectOperationResult<ModBuilderProject>> CreateProjectFromBigFilesAsync(string projectPath, string projectName, IEnumerable<string> bigFilePaths, string? gameInstallationId = null, ContentType contentType = ContentType.Mod, IProgress<double>? progress = null, CancellationToken cancellationToken = default) => CreateProjectAsync(projectPath, projectName, gameInstallationId, null, contentType, cancellationToken: cancellationToken);
 
     private void TrackRecent(string projectPath)
     {

@@ -518,6 +518,164 @@ public sealed class MapDirectoryServiceTests : IDisposable
         Assert.True(File.Exists(second.FullPath));
     }
 
+    /// <summary>
+    /// Verifies that a rename whose file move copies a locked file and then cannot remove the source
+    /// leaves the map folder exactly as it was, without a duplicate under the new name.
+    /// </summary>
+    /// <param name="lockedExtension">The extension of the file that is locked.</param>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Theory]
+    [InlineData(".map")]
+    [InlineData(".tga")]
+    [InlineData(".ini")]
+    public async Task RenameMapAsync_WhenFileInMapFolderIsLocked_LeavesOriginalFilesOnlyAsync(string lockedExtension)
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        var (service, mapsDir) = CreateServiceWithMapsDirectory("TestRenameLockedFile");
+        var map = await CreateDirectoryMapAsync(mapsDir, "LockedMap");
+        var mapDir = Path.Combine(mapsDir, "LockedMap");
+        ReadOnlyFolderFixtures.LockImmutable(Path.Combine(mapDir, "LockedMap" + lockedExtension));
+
+        var result = await service.RenameMapAsync(map, "OpenMap");
+
+        Assert.False(result.Success);
+        Assert.Equal(
+            ["LockedMap.ini", "LockedMap.map", "LockedMap.tga"],
+            Directory.GetFiles(mapDir).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+        Assert.False(Directory.Exists(Path.Combine(mapsDir, "OpenMap")));
+    }
+
+    /// <summary>
+    /// Verifies that renaming a locked standalone map fails without leaving a copy under the new name.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task RenameMapAsync_WhenStandaloneMapIsLocked_LeavesOriginalFileOnlyAsync()
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        var (service, mapsDir) = CreateServiceWithMapsDirectory("TestRenameLockedStandalone");
+        var mapPath = Path.Combine(mapsDir, "Solo.map");
+        await File.WriteAllTextAsync(mapPath, "map content");
+        ReadOnlyFolderFixtures.LockImmutable(mapPath);
+        var map = new MapFile
+        {
+            FileName = "Solo.map",
+            FullPath = mapPath,
+            IsDirectory = false,
+            GameType = GameType.ZeroHour,
+            SizeBytes = 11,
+            LastModified = DateTime.UtcNow,
+        };
+
+        var result = await service.RenameMapAsync(map, "Duo");
+
+        Assert.False(result.Success);
+        Assert.Equal(["Solo.map"], Directory.GetFiles(mapsDir).Select(Path.GetFileName));
+    }
+
+    /// <summary>
+    /// Verifies that a rename blocked by a read-only Maps folder names that folder, leaves the map untouched
+    /// and puts back the read-only permissions of the map folder.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task RenameMapAsync_WhenMapsFolderIsReadOnly_ReportsFolderAndRestoresPermissionsAsync()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var (service, mapsDir) = CreateServiceWithMapsDirectory("TestRenameReadOnlyParent");
+        var map = await CreateDirectoryMapAsync(mapsDir, "LockedMap");
+        var mapDir = Path.Combine(mapsDir, "LockedMap");
+        ReadOnlyFolderFixtures.MakeReadOnly(mapDir);
+        ReadOnlyFolderFixtures.MakeReadOnly(mapsDir);
+
+        var result = await service.RenameMapAsync(map, "OpenMap");
+
+        Assert.False(result.Success);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, MapManagerConstants.FolderAccessDeniedFallbackMessage, mapsDir), result.FirstError);
+        Assert.Equal(
+            ["LockedMap.ini", "LockedMap.map", "LockedMap.tga"],
+            Directory.GetFiles(mapDir).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+        Assert.True(ReadOnlyFolderFixtures.IsReadOnly(mapDir));
+        Assert.True(ReadOnlyFolderFixtures.IsReadOnly(map.FullPath));
+    }
+
+    /// <summary>
+    /// Verifies that a delete blocked by a read-only Maps folder names that folder, keeps every file of the map
+    /// and puts back the read-only permissions of the map folder.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteMapsAsync_WhenMapsFolderIsReadOnly_ReportsFolderAndKeepsMapAsync()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var (service, mapsDir) = CreateServiceWithMapsDirectory("TestDeleteReadOnlyParent");
+        var map = await CreateDirectoryMapAsync(mapsDir, "LockedMap");
+        var mapDir = Path.Combine(mapsDir, "LockedMap");
+        ReadOnlyFolderFixtures.MakeReadOnly(mapDir);
+        ReadOnlyFolderFixtures.MakeReadOnly(mapsDir);
+
+        var result = await service.DeleteMapsAsync([map]);
+
+        Assert.False(result.Success);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, MapManagerConstants.FolderAccessDeniedFallbackMessage, mapsDir), result.FirstError);
+        Assert.Equal(
+            ["LockedMap.ini", "LockedMap.map", "LockedMap.tga"],
+            Directory.GetFiles(mapDir).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+        Assert.True(ReadOnlyFolderFixtures.IsReadOnly(mapDir));
+        Assert.True(ReadOnlyFolderFixtures.IsReadOnly(map.FullPath));
+    }
+
+    /// <summary>
+    /// Verifies that deleting a read-only standalone map from a read-only Maps folder names the folder
+    /// and leaves the file read-only.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteMapsAsync_WhenStandaloneMapInReadOnlyMapsFolder_ReportsFolderAndRestoresPermissionsAsync()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var (service, mapsDir) = CreateServiceWithMapsDirectory("TestDeleteStandaloneReadOnlyParent");
+        var mapPath = Path.Combine(mapsDir, "Solo.map");
+        await File.WriteAllTextAsync(mapPath, "map content");
+        ReadOnlyFolderFixtures.MakeReadOnly(mapsDir);
+        var map = new MapFile
+        {
+            FileName = "Solo.map",
+            FullPath = mapPath,
+            IsDirectory = false,
+            GameType = GameType.ZeroHour,
+            SizeBytes = 11,
+            LastModified = DateTime.UtcNow,
+        };
+
+        var result = await service.DeleteMapsAsync([map]);
+
+        Assert.False(result.Success);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, MapManagerConstants.FolderAccessDeniedFallbackMessage, mapsDir), result.FirstError);
+        Assert.True(File.Exists(mapPath));
+        Assert.True(ReadOnlyFolderFixtures.IsReadOnly(mapPath));
+    }
+
     private static async Task<MapFile> CreateDirectoryMapAsync(string mapsDir, string name)
     {
         var mapDir = Path.Combine(mapsDir, name);

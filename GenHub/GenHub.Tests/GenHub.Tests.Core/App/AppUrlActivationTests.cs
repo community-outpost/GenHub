@@ -210,7 +210,7 @@ public sealed class AppUrlActivationTests
     [AvaloniaFact]
     public async Task HandleUrlActivationAsync_RecordsLinkBeforeWindowReadyAsync()
     {
-        var tracker = new LinkActivationTracker();
+        using var tracker = new LinkActivationTracker();
         var app = CreateApp(linkActivationTracker: tracker);
         RecordDialogs(app);
         var link = new Uri($"genhub://subscribe?url={Uri.EscapeDataString(LocalCatalogUrl)}");
@@ -231,7 +231,7 @@ public sealed class AppUrlActivationTests
     [InlineData("--verbose", false)]
     public async Task CompleteWindowStartupAsync_RecordsLinkArgumentsAsync(string argument, bool expected)
     {
-        var tracker = new LinkActivationTracker();
+        using var tracker = new LinkActivationTracker();
         var app = CreateApp(linkActivationTracker: tracker);
         RecordDialogs(app);
 
@@ -262,7 +262,7 @@ public sealed class AppUrlActivationTests
     [AvaloniaFact]
     public async Task HandleUrlActivationAsync_UnknownTarget_DoesNotRecordLinkAsync()
     {
-        var tracker = new LinkActivationTracker();
+        using var tracker = new LinkActivationTracker();
         var app = CreateApp(linkActivationTracker: tracker);
 
         await app.HandleUrlActivationAsync(new ProtocolActivatedEventArgs(new Uri("genhub://unknown")))
