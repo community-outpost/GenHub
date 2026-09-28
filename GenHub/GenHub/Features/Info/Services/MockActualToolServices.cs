@@ -84,7 +84,7 @@ public sealed class MockDialogService : IDialogService
     public Task<bool> ShowConfirmationAsync(string title, string message, string confirmText = "Confirm", string cancelText = "Cancel", string? sessionKey = null) => Task.FromResult(false);
 
     /// <inheritdoc/>
-    public Task<(DialogAction? Action, bool DoNotAskAgain)> ShowMessageAsync(string title, string content, IEnumerable<DialogAction> actions, bool showDoNotAskAgain = false) => Task.FromResult<(DialogAction? Action, bool DoNotAskAgain)>((null, false));
+    public Task<(DialogAction? Action, bool DoNotAskAgain)> ShowMessageAsync(string title, string content, IEnumerable<DialogAction> actions, bool showDoNotAskAgain = false, CancellationToken cancellationToken = default) => Task.FromResult<(DialogAction? Action, bool DoNotAskAgain)>((null, false));
 
     /// <inheritdoc/>
     public Task<UpdateDialogResult?> ShowUpdateOptionDialogAsync(string title, string message, bool initialDeleteOldVersions) => Task.FromResult<UpdateDialogResult?>(null);
