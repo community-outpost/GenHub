@@ -271,7 +271,10 @@ public sealed partial class TextureEditorViewModel(
         bool textureMatches = MappedImageTextureMatcher.Matches(definition.TextureFileName, AtlasFileName);
         bool sameDirectory = definition.SourcePath is null
             || IsSameDirectory(definition.SourcePath, AtlasPath)
-            || (!string.IsNullOrEmpty(FileExplorer.Directory) && IsUnderDirectory(definition.SourcePath, FileExplorer.Directory));
+            || (!string.IsNullOrEmpty(FileExplorer.Directory)
+                && IsUnderDirectory(definition.SourcePath, FileExplorer.Directory)
+                && !string.IsNullOrEmpty(AtlasPath)
+                && IsUnderDirectory(AtlasPath, FileExplorer.Directory));
         if (textureMatches && (sameDirectory || explicitOpen))
         {
             if (Slices.Count == 0)
@@ -292,10 +295,10 @@ public sealed partial class TextureEditorViewModel(
             return;
         }
 
-        if (resolved is not null)
+        if (resolved is not null && sameDirectory)
         {
             // The matching texture is already open but the entry was authored
-            // elsewhere: this explicit click adopts it.
+            // elsewhere: this explicit click adopts it only when directories align.
             AdoptRegistryEntry(definition);
             return;
         }
@@ -1389,7 +1392,13 @@ public sealed partial class TextureEditorViewModel(
                     .OrderByDescending(group => group.Count())
                     .ToList();
 
-                var currentMatchGroup = AtlasBitmap is not null
+                bool isSourceCompatible = !string.IsNullOrEmpty(AtlasPath) &&
+                    (IsSameDirectory(path, AtlasPath) ||
+                     (!string.IsNullOrEmpty(FileExplorer.Directory) &&
+                      IsUnderDirectory(path, FileExplorer.Directory) &&
+                      IsUnderDirectory(AtlasPath, FileExplorer.Directory)));
+
+                var currentMatchGroup = (AtlasBitmap is not null && isSourceCompatible)
                     ? groups.FirstOrDefault(group => MappedImageTextureMatcher.Matches(group.Key, AtlasFileName))
                     : null;
 
@@ -1563,7 +1572,7 @@ public sealed partial class TextureEditorViewModel(
                 .Where(image => image.SourcePath is not null &&
                                 ((image.SourcePath.Contains('#') && string.Equals(StripArchiveFragment(image.SourcePath), cleanAtlas, StringComparison.OrdinalIgnoreCase)) ||
                                  (!image.SourcePath.Contains('#') && (IsSameDirectory(image.SourcePath, cleanAtlas) ||
-                                  (!string.IsNullOrEmpty(FileExplorer.Directory) && IsUnderDirectory(image.SourcePath, FileExplorer.Directory))))))
+                                  (!string.IsNullOrEmpty(FileExplorer.Directory) && IsUnderDirectory(image.SourcePath, FileExplorer.Directory) && IsUnderDirectory(cleanAtlas, FileExplorer.Directory))))))
                 .ToList();
             if (archiveMatches.Count > 0)
             {
@@ -1761,7 +1770,12 @@ public sealed partial class TextureEditorViewModel(
             atlasDirectory = Path.GetDirectoryName(cleanAtlas);
         }
 
-        if (!string.IsNullOrEmpty(atlasDirectory))
+        if (!string.IsNullOrEmpty(atlasDirectory) &&
+            (string.IsNullOrEmpty(sourcePath) ||
+             IsSameDirectory(sourcePath, AtlasPath) ||
+             (!string.IsNullOrEmpty(FileExplorer.Directory) &&
+              IsUnderDirectory(sourcePath, FileExplorer.Directory) &&
+              IsUnderDirectory(AtlasPath, FileExplorer.Directory))))
         {
             probeDirectories.Add(atlasDirectory);
         }

@@ -518,6 +518,7 @@ public sealed class SageTextureCodecTests
         data[2] = (byte)'S';
         data[3] = (byte)' ';
         WriteInt32(data, 4, 124);
+        WriteInt32(data, 4 + 4, 0x1007 | (pitch > 0 ? 0x8 : 0));
         WriteInt32(data, 4 + 8, height);
         WriteInt32(data, 4 + 12, width);
         WriteInt32(data, 4 + 16, pitch);

@@ -519,6 +519,7 @@ public sealed class TextureEditorViewModelTests
 
             var notifications = new Mock<INotificationService>();
             var viewModel = CreateViewModelWithRegistry(notifications);
+            viewModel.FileExplorer.Directory = root;
             viewModel.FileExplorer.OpenFileCommand.Execute(new EditorFileTreeNodeViewModel("icons.png", Path.Combine(first, "icons.png"), false));
             await WaitForAtlasAsync(viewModel, Path.Combine(first, "icons.png"));
             Assert.Single(viewModel.Slices);

@@ -117,6 +117,7 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
                 {
                     try
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
                         byte[] bytes = BigArchiveReader.ReadEntryData(entry);
                         string ext = Path.GetExtension(entryRelativePath);
                         if (codec.SupportsExtension(ext))
@@ -130,6 +131,10 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
                         image.CopyPixelDataTo(pixels);
                         var texture = new DecodedTexture(image.Width, image.Height, pixels);
                         return OperationResult<DecodedTexture>.CreateSuccess(texture, Stopwatch.GetElapsedTime(started));
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
                     }
                     catch (Exception ex)
                     {

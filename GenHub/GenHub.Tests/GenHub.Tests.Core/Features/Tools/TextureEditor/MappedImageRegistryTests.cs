@@ -466,6 +466,41 @@ public sealed class MappedImageRegistryTests
     }
 
     /// <summary>
+    /// Verifies that .BIG archives in nested subdirectories are discovered and parsed.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ScanDirectoryAsync_NestedBigArchive_IndexesMappedImagesFromNestedBigArchiveAsync()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string nestedDir = Path.Combine(directory, "SubFolder", "Archives");
+        Directory.CreateDirectory(nestedDir);
+
+        try
+        {
+            string bigPath = Path.Combine(nestedDir, "NestedINI.big");
+            string entryContent = Block("NestedHero", "nested_textures.tga");
+            CreateTestBigArchive(bigPath, new Dictionary<string, byte[]>
+            {
+                [@"Data\INI\MappedImages\Nested.ini"] = System.Text.Encoding.Latin1.GetBytes(entryContent),
+            });
+
+            var result = await _registry.ScanDirectoryAsync(directory);
+
+            Assert.True(result.Success);
+            Assert.Equal(1, _registry.Count);
+            var hero = _registry.GetByName("NestedHero");
+            Assert.NotNull(hero);
+            Assert.Equal("nested_textures.tga", hero.TextureFileName);
+            Assert.StartsWith(bigPath, hero.SourcePath, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that loose files override entries from .BIG archives.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>

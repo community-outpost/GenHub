@@ -76,7 +76,7 @@ public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<M
         try
         {
             bigFiles = Directory
-                .GetFiles(directory, "*", SearchOption.TopDirectoryOnly)
+                .GetFiles(directory, "*", SearchOption.AllDirectories)
                 .Where(file => string.Equals(Path.GetExtension(file), ".big", StringComparison.OrdinalIgnoreCase))
                 .ToArray();
         }
