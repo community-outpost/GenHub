@@ -279,7 +279,7 @@ public sealed class WndEditorViewModelTests : IDisposable
         _viewModel.SelectedNode.Should().Be(_viewModel.RootNodes[0].Children[1]);
 
         // Act
-        _viewModel.DeleteSelectedWindowCommand.Execute(null);
+        _viewModel.DeleteCommand.Execute(null);
 
         // Assert
         _viewModel.RootNodes[0].Children.Should().ContainSingle();
@@ -289,6 +289,94 @@ public sealed class WndEditorViewModelTests : IDisposable
 
         // Assert
         _viewModel.RootNodes[0].Children.Should().HaveCount(2);
+    }
+
+    /// <summary>
+    /// Tests that duplicating a window inserts an offset clone supporting undo.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task Duplicate_SelectedWindow_InsertsOffsetCloneWithUndo()
+    {
+        // Arrange
+        await _viewModel.LoadFromTextAsync(SampleDocument, null);
+        _viewModel.SelectedNode = _viewModel.RootNodes[0].Children[0];
+
+        // Act
+        _viewModel.DuplicateCommand.Execute(null);
+
+        // Assert
+        _viewModel.RootNodes[0].Children.Should().HaveCount(2);
+        var clone = _viewModel.RootNodes[0].Children[1].Window;
+        clone.TryGetScreenRect(out var rect).Should().BeTrue();
+        rect.Should().NotBeNull();
+        rect!.UpperLeftX.Should().Be(10 + WndConstants.Editor.DuplicateOffset);
+        rect.UpperLeftY.Should().Be(20 + WndConstants.Editor.DuplicateOffset);
+        _viewModel.SelectedNode!.Window.Should().BeSameAs(clone);
+
+        // Act
+        _viewModel.UndoCommand.Execute(null);
+
+        // Assert
+        _viewModel.RootNodes[0].Children.Should().ContainSingle();
+    }
+
+    /// <summary>
+    /// Tests that copying and pasting a window round-trips the subtree.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CopyPaste_SelectedWindow_RoundTripsSubtree()
+    {
+        // Arrange
+        await _viewModel.LoadFromTextAsync(SampleDocument, null);
+        _viewModel.SelectedNode = _viewModel.RootNodes[0].Children[0];
+
+        // Act
+        _viewModel.CopyCommand.Execute(null);
+        _viewModel.SelectedNode = _viewModel.RootNodes[0];
+        await _viewModel.PasteCommand.ExecuteAsync(null);
+
+        // Assert
+        _viewModel.RootNodes[0].Children.Should().HaveCount(2);
+        _viewModel.RootNodes[0].Children[1].Window.ControlTypeName.Should().Be("PUSHBUTTON");
+
+        // Act
+        _viewModel.UndoCommand.Execute(null);
+
+        // Assert
+        _viewModel.RootNodes[0].Children.Should().ContainSingle();
+    }
+
+    /// <summary>
+    /// Tests that cutting a window removes it and pastes exactly once.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task Cut_SelectedWindow_RemovesAndPastesOnce()
+    {
+        // Arrange
+        await _viewModel.LoadFromTextAsync(SampleDocument, null);
+        _viewModel.SelectedNode = _viewModel.RootNodes[0].Children[0];
+
+        // Act
+        _viewModel.CutCommand.Execute(null);
+
+        // Assert
+        _viewModel.RootNodes[0].Children.Should().BeEmpty();
+
+        // Act
+        _viewModel.SelectedNode = _viewModel.RootNodes[0];
+        await _viewModel.PasteCommand.ExecuteAsync(null);
+
+        // Assert
+        _viewModel.RootNodes[0].Children.Should().ContainSingle();
+
+        // Act: the cut stash clears after one paste, so a second paste is a no-op.
+        await _viewModel.PasteCommand.ExecuteAsync(null);
+
+        // Assert
+        _viewModel.RootNodes[0].Children.Should().ContainSingle();
     }
 
     /// <summary>
@@ -449,7 +537,7 @@ public sealed class WndEditorViewModelTests : IDisposable
         _viewModel.SelectedProperties!.SelectedWindowType = "STATICTEXT";
 
         // Act
-        await _viewModel.SaveFileCommand.ExecuteAsync(null);
+        await _viewModel.SaveCommand.ExecuteAsync(null);
 
         // Assert
         var saved = await File.ReadAllTextAsync(path);
@@ -1765,7 +1853,7 @@ public sealed class WndEditorViewModelTests : IDisposable
     /// Tests that refreshing files loads the directory tree recursively, skips empty directories, and strips extensions.
     /// </summary>
     [Fact]
-    public void RefreshFiles_LoadsTreeRecursively_SkipsEmptyDirectories_StripsExtension()
+    public void FileExplorer_LoadsTreeRecursively_SkipsEmptyDirectories_StripsExtension()
     {
         // Arrange
         var rootDir = Path.Combine(_tempDirectory, "GameFilesEdited");
@@ -1786,7 +1874,7 @@ public sealed class WndEditorViewModelTests : IDisposable
         _viewModel.FilesDirectory = rootDir;
 
         // Assert
-        _viewModel.FilesDirectoryName.Should().Be("GameFilesEdited");
+        _viewModel.FileExplorer.DirectoryName.Should().Be("GameFilesEdited");
         _viewModel.Files.Should().HaveCount(1);
 
         var rootNode = _viewModel.Files[0];
@@ -2201,10 +2289,10 @@ public sealed class WndEditorViewModelTests : IDisposable
     }
 
     /// <summary>
-    /// Tests that BuildDirectoryNode skips .Build, .Release, and hidden/dot directories.
+    /// Tests that the explorer skips .Build, .Release, and hidden/dot directories.
     /// </summary>
     [Fact]
-    public void RefreshFiles_SkipsDotAndBuildDirectories()
+    public void FileExplorer_SkipsDotAndBuildDirectories()
     {
         // Arrange
         var rootDir = Path.Combine(_tempDirectory, "ModProject");
@@ -2261,7 +2349,7 @@ public sealed class WndEditorViewModelTests : IDisposable
         _viewModel.SelectedProperties!.UpperLeftX = 99;
 
         // Act
-        await _viewModel.SaveFileCommand.ExecuteAsync(null);
+        await _viewModel.SaveCommand.ExecuteAsync(null);
 
         // Assert
         var savedSource = await File.ReadAllTextAsync(sourcePath);
@@ -2494,7 +2582,7 @@ public sealed class WndEditorViewModelTests : IDisposable
         _viewModel.IsModified.Should().BeTrue();
 
         // Save after first edit so the saved history version matches Edit1
-        await _viewModel.SaveFileCommand.ExecuteAsync(null);
+        await _viewModel.SaveCommand.ExecuteAsync(null);
         _viewModel.IsModified.Should().BeFalse();
 
         // Undo back to original state

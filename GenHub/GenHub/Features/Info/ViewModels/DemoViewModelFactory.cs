@@ -15,6 +15,7 @@ using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Info.Services;
 using GenHub.Features.Tools.GenHotkeys.Services;
 using GenHub.Features.Tools.GenHotkeys.ViewModels;
+using GenHub.Features.Tools.IniEditor.Services;
 using GenHub.Features.Tools.MapManager.ViewModels;
 using GenHub.Features.Tools.ModBuilder.ViewModels;
 using GenHub.Features.Tools.ReplayManager.ViewModels;
@@ -364,6 +365,7 @@ public static class DemoViewModelFactory
             new MockGameInstallationService(),
             notify,
             new WndDocumentService(new MockLogger<WndDocumentService>()),
+            new IniDocumentService(new MockLogger<IniDocumentService>()),
             loc,
             new MockLogger<FileManagerViewModel>());
 

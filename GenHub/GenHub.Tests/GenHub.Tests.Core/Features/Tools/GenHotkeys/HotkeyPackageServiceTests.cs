@@ -7,9 +7,11 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.GenHotkeys;
 using GenHub.Core.Services.Tools.GenHotkeys;
+using GenHub.Core.Services.Tools.TextureEditor;
 using GenHub.Features.Tools.GenHotkeys.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -58,6 +60,7 @@ public class HotkeyPackageServiceTests
             _mockTechTree.Object,
             _mockOverlay.Object,
             _mockScopeFactory.Object,
+            new SageMappedImageParser(NullLogger<SageMappedImageParser>.Instance),
             _mockLogger.Object);
     }
 

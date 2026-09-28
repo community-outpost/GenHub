@@ -14591,6 +14591,1420 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="Info.Card.tools.demo-wnd.Title" xml:space="preserve">
     <value>Демо редактора WND</value>
   </data>
+<data name="Tools.Plugin.texture-editor.Name" xml:space="preserve">
+    <value>Редактор текстур</value>
+  </data>
+  <data name="Tools.Plugin.texture-editor.Description" xml:space="preserve">
+    <value>Нарезайте атласы текстур, визуально правьте MappedImages и упаковывайте иконки в листы SAGE.</value>
+  </data>
+  <data name="TextureEditor.Header.NoAtlas" xml:space="preserve">
+    <value>Атлас не открыт</value>
+  </data>
+  <data name="TextureEditor.Tooltip.ZoomOut" xml:space="preserve">
+    <value>Уменьшить</value>
+  </data>
+  <data name="TextureEditor.Tooltip.ZoomIn" xml:space="preserve">
+    <value>Увеличить</value>
+  </data>
+  <data name="TextureEditor.Tooltip.ResetZoom" xml:space="preserve">
+    <value>Сбросить масштаб до 100%</value>
+  </data>
+  <data name="TextureEditor.Tooltip.OpenAtlas" xml:space="preserve">
+    <value>Открыть атлас текстур (TGA, DDS, PNG)</value>
+  </data>
+  <data name="TextureEditor.Tooltip.ScanRegistry" xml:space="preserve">
+    <value>Сканировать папку с INI-файлами MappedImages</value>
+  </data>
+  <data name="TextureEditor.Tooltip.AutoPack" xml:space="preserve">
+    <value>Упаковать папку изображений в новый атлас</value>
+  </data>
+  <data name="TextureEditor.Tooltip.ExportIni" xml:space="preserve">
+    <value>Экспортировать срезы в INI-файл MappedImages</value>
+  </data>
+  <data name="TextureEditor.Tooltip.ExportSheet" xml:space="preserve">
+    <value>Экспортировать лист текстур (TGA или PNG)</value>
+  </data>
+  <data name="TextureEditor.Tooltip.AddSlice" xml:space="preserve">
+    <value>Добавить срез в центре атласа</value>
+  </data>
+  <data name="TextureEditor.Tooltip.DeleteSlice" xml:space="preserve">
+    <value>Удалить выбранный срез</value>
+  </data>
+  <data name="TextureEditor.Tooltip.PresetLarge" xml:space="preserve">
+    <value>Размер среза: большое камео 64x64</value>
+  </data>
+  <data name="TextureEditor.Tooltip.PresetSmall" xml:space="preserve">
+    <value>Размер среза: малое камео 60x48</value>
+  </data>
+  <data name="TextureEditor.Tooltip.PresetHud" xml:space="preserve">
+    <value>Размер среза: кнопка HUD 32x32</value>
+  </data>
+  <data name="TextureEditor.Button.Open" xml:space="preserve">
+    <value>Открыть</value>
+  </data>
+  <data name="TextureEditor.Button.Scan" xml:space="preserve">
+    <value>Сканировать</value>
+  </data>
+  <data name="TextureEditor.Button.AutoPack" xml:space="preserve">
+    <value>Автоупаковка</value>
+  </data>
+  <data name="TextureEditor.Button.ExportIni" xml:space="preserve">
+    <value>Экспорт INI</value>
+  </data>
+  <data name="TextureEditor.Button.ExportSheet" xml:space="preserve">
+    <value>Лист</value>
+  </data>
+  <data name="TextureEditor.Button.Add" xml:space="preserve">
+    <value>Добавить</value>
+  </data>
+  <data name="TextureEditor.Button.OpenAtlas" xml:space="preserve">
+    <value>Открыть атлас</value>
+  </data>
+  <data name="TextureEditor.Label.Slices" xml:space="preserve">
+    <value>Срезы</value>
+  </data>
+  <data name="TextureEditor.Label.Inspector" xml:space="preserve">
+    <value>Выбранный срез</value>
+  </data>
+  <data name="TextureEditor.Label.Name" xml:space="preserve">
+    <value>Имя</value>
+  </data>
+  <data name="TextureEditor.Label.Left" xml:space="preserve">
+    <value>Слева</value>
+  </data>
+  <data name="TextureEditor.Label.Top" xml:space="preserve">
+    <value>Сверху</value>
+  </data>
+  <data name="TextureEditor.Label.Right" xml:space="preserve">
+    <value>Справа</value>
+  </data>
+  <data name="TextureEditor.Label.Bottom" xml:space="preserve">
+    <value>Снизу</value>
+  </data>
+  <data name="TextureEditor.Label.Size" xml:space="preserve">
+    <value>Размер</value>
+  </data>
+  <data name="TextureEditor.Label.WithinBounds" xml:space="preserve">
+    <value>Координаты в пределах текстуры</value>
+  </data>
+  <data name="TextureEditor.Label.OutOfBounds" xml:space="preserve">
+    <value>Координаты вне пределов текстуры</value>
+  </data>
+  <data name="TextureEditor.Label.GuardOk" xml:space="preserve">
+    <value>Защитный alpha-бордюр 1px в порядке</value>
+  </data>
+  <data name="TextureEditor.Label.Presets" xml:space="preserve">
+    <value>Готовые размеры</value>
+  </data>
+  <data name="TextureEditor.Label.Working" xml:space="preserve">
+    <value>Обработка...</value>
+  </data>
+  <data name="TextureEditor.Tab.Slices" xml:space="preserve">
+    <value>Срезы</value>
+  </data>
+  <data name="TextureEditor.Tab.Library" xml:space="preserve">
+    <value>Библиотека</value>
+  </data>
+  <data name="TextureEditor.Empty.Title" xml:space="preserve">
+    <value>Атлас текстур не открыт</value>
+  </data>
+  <data name="TextureEditor.Empty.Description" xml:space="preserve">
+    <value>Откройте атлас TGA, DDS или PNG для нарезки MappedImages либо упакуйте папку иконок.</value>
+  </data>
+  <data name="TextureEditor.Preset.Large" xml:space="preserve">
+    <value>Большое камео 64x64</value>
+  </data>
+  <data name="TextureEditor.Preset.Small" xml:space="preserve">
+    <value>Малое камео 60x48</value>
+  </data>
+  <data name="TextureEditor.Preset.Hud" xml:space="preserve">
+    <value>Кнопка HUD 32x32</value>
+  </data>
+  <data name="TextureEditor.Inspector.Empty" xml:space="preserve">
+    <value>Выберите срез на холсте или в списке, чтобы изменить координаты.</value>
+  </data>
+  <data name="TextureEditor.Dialog.OpenAtlas" xml:space="preserve">
+    <value>Открыть атлас текстур</value>
+  </data>
+  <data name="TextureEditor.Dialog.TextureFiles" xml:space="preserve">
+    <value>Файлы текстур</value>
+  </data>
+  <data name="TextureEditor.Dialog.ScanFolder" xml:space="preserve">
+    <value>Выбрать папку MappedImages</value>
+  </data>
+  <data name="TextureEditor.Dialog.ExportIni" xml:space="preserve">
+    <value>Экспорт INI MappedImages</value>
+  </data>
+  <data name="TextureEditor.Dialog.IniFiles" xml:space="preserve">
+    <value>INI-файлы</value>
+  </data>
+  <data name="TextureEditor.Dialog.ExportSheet" xml:space="preserve">
+    <value>Экспорт листа текстур</value>
+  </data>
+  <data name="TextureEditor.Dialog.PackFolder" xml:space="preserve">
+    <value>Выбрать папку изображений</value>
+  </data>
+  <data name="TextureEditor.Notify.NoAtlas.Title" xml:space="preserve">
+    <value>Атлас не открыт</value>
+  </data>
+  <data name="TextureEditor.Notify.NoAtlas.Message" xml:space="preserve">
+    <value>Откройте атлас текстур перед добавлением срезов.</value>
+  </data>
+  <data name="TextureEditor.Notify.ScanComplete.Title" xml:space="preserve">
+    <value>Сканирование завершено</value>
+  </data>
+  <data name="TextureEditor.Notify.ScanComplete.Message" xml:space="preserve">
+    <value>Связанных изображений: {0}. Файлов: {1}.</value>
+  </data>
+  <data name="TextureEditor.Notify.ScanFailed.Title" xml:space="preserve">
+    <value>Ошибка сканирования</value>
+  </data>
+  <data name="TextureEditor.Notify.ScanFailed.Message" xml:space="preserve">
+    <value>Не удалось сканировать папку MappedImages.</value>
+  </data>
+  <data name="TextureEditor.Notify.ExportComplete.Title" xml:space="preserve">
+    <value>Экспорт завершён</value>
+  </data>
+  <data name="TextureEditor.Notify.ExportComplete.Message" xml:space="preserve">
+    <value>Сохранено: {0}.</value>
+  </data>
+  <data name="TextureEditor.Notify.ExportFailed.Title" xml:space="preserve">
+    <value>Ошибка экспорта</value>
+  </data>
+  <data name="TextureEditor.Notify.ExportInvalid.Title" xml:space="preserve">
+    <value>Не удалось экспортировать срезы</value>
+  </data>
+  <data name="TextureEditor.Notify.ExportInvalid.Message" xml:space="preserve">
+    <value>Срез «{0}» выходит за пределы текстуры.</value>
+  </data>
+  <data name="TextureEditor.Notify.InvalidName.Message" xml:space="preserve">
+    <value>Имя фрагмента '{0}' пустое или дублируется.</value>
+  </data>
+  <data name="TextureEditor.Notify.PackComplete.Title" xml:space="preserve">
+    <value>Атлас упакован</value>
+  </data>
+  <data name="TextureEditor.Notify.PackComplete.Message" xml:space="preserve">
+    <value>Упаковано спрайтов: {0} в лист {1}x{2}.</value>
+  </data>
+  <data name="TextureEditor.Notify.PackFailed.Title" xml:space="preserve">
+    <value>Ошибка автоупаковки</value>
+  </data>
+  <data name="TextureEditor.Notify.OpenFailed.Title" xml:space="preserve">
+    <value>Не удалось открыть атлас</value>
+  </data>
+  <data name="TextureEditor.Picker.Watermark.Search" xml:space="preserve">
+    <value>Поиск по имени или текстуре...</value>
+  </data>
+  <data name="TextureEditor.Picker.Empty.Title" xml:space="preserve">
+    <value>Нет изображений</value>
+  </data>
+  <data name="TextureEditor.Picker.Empty.Description" xml:space="preserve">
+    <value>Просканируйте папку MappedImages для просмотра записей.</value>
+  </data>
+  <data name="TextureEditor.Picker.Tooltip.EditInTextureEditor" xml:space="preserve">
+    <value>Загрузить запись срезом в редактор текстур</value>
+  </data>
+  <data name="TextureEditor.Picker.Button.EditInTextureEditor" xml:space="preserve">
+    <value>Править в редакторе текстур</value>
+  </data>
+  <data name="Common.Editors.Files.Browse" xml:space="preserve">
+    <value>Обзор</value>
+  </data>
+  <data name="Common.Editors.Files.Refresh" xml:space="preserve">
+    <value>Обновить</value>
+  </data>
+  <data name="Common.Editors.Files.ExpandAll" xml:space="preserve">
+    <value>Развернуть всё</value>
+  </data>
+  <data name="Common.Editors.Files.CollapseAll" xml:space="preserve">
+    <value>Свернуть всё</value>
+  </data>
+  <data name="Common.Editors.Files.OpenBadge" xml:space="preserve">
+    <value>Открыт</value>
+  </data>
+  <data name="Common.Editors.UnsavedChanges.Title" xml:space="preserve">
+    <value>Несохранённые изменения</value>
+  </data>
+  <data name="Common.Editors.UnsavedChanges.Message" xml:space="preserve">
+    <value>Отменить несохранённые изменения?</value>
+  </data>
+  <data name="Common.Editors.UnsavedChanges.Discard" xml:space="preserve">
+    <value>Отменить</value>
+  </data>
+  <data name="Common.Editors.UnsavedChanges.Cancel" xml:space="preserve">
+    <value>Отмена</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Copy" xml:space="preserve">
+    <value>Копировать</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Cut" xml:space="preserve">
+    <value>Вырезать</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Duplicate" xml:space="preserve">
+    <value>Дублировать</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Delete" xml:space="preserve">
+    <value>Удалить</value>
+  </data>
+  <data name="Tools.WndEditor.Tree.Duplicate" xml:space="preserve">
+    <value>Дублировать</value>
+  </data>
+  <data name="Tools.WndEditor.History.DuplicateWindow" xml:space="preserve">
+    <value>Дублировать окно</value>
+  </data>
+  <data name="Tools.WndEditor.History.PasteWindow" xml:space="preserve">
+    <value>Вставить окно</value>
+  </data>
+  <data name="Tools.WndEditor.History.CutWindow" xml:space="preserve">
+    <value>Вырезать окно</value>
+  </data>
+  <data name="TextureEditor.Tab.Files" xml:space="preserve">
+    <value>Файлы</value>
+  </data>
+  <data name="TextureEditor.Button.Save" xml:space="preserve">
+    <value>Сохранить</value>
+  </data>
+  <data name="TextureEditor.Button.SaveAs" xml:space="preserve">
+    <value>Сохранить как</value>
+  </data>
+  <data name="TextureEditor.Button.Duplicate" xml:space="preserve">
+    <value>Дублировать</value>
+  </data>
+  <data name="TextureEditor.Tooltip.Save" xml:space="preserve">
+    <value>Сохранить срезы (Ctrl+S)</value>
+  </data>
+  <data name="TextureEditor.Tooltip.SaveAs" xml:space="preserve">
+    <value>Сохранить срезы в новый файл</value>
+  </data>
+  <data name="TextureEditor.Tooltip.DuplicateSlice" xml:space="preserve">
+    <value>Дублировать выбранный срез</value>
+  </data>
+  <data name="TextureEditor.Dialog.SaveIni" xml:space="preserve">
+    <value>Сохранить MappedImages INI</value>
+  </data>
+  <data name="TextureEditor.Dialog.ExplorerFolder" xml:space="preserve">
+    <value>Выбрать папку проекта</value>
+  </data>
+  <data name="TextureEditor.Dialog.UnsavedChanges.Title" xml:space="preserve">
+    <value>Несохранённые изменения</value>
+  </data>
+  <data name="TextureEditor.Dialog.UnsavedChanges.Message" xml:space="preserve">
+    <value>Отменить несохранённые изменения срезов?</value>
+  </data>
+  <data name="TextureEditor.Dialog.UnsavedChanges.Discard" xml:space="preserve">
+    <value>Отменить</value>
+  </data>
+  <data name="TextureEditor.Dialog.UnsavedChanges.Cancel" xml:space="preserve">
+    <value>Отмена</value>
+  </data>
+  <data name="TextureEditor.Dialog.Overwrite.Title" xml:space="preserve">
+    <value>Перезаписать упакованный атлас?</value>
+  </data>
+  <data name="TextureEditor.Dialog.Overwrite.Message" xml:space="preserve">
+    <value>{0} уже существуют. Перезаписать?</value>
+  </data>
+  <data name="TextureEditor.Dialog.Overwrite.Confirm" xml:space="preserve">
+    <value>Перезаписать</value>
+  </data>
+  <data name="TextureEditor.Dialog.Overwrite.Cancel" xml:space="preserve">
+    <value>Отмена</value>
+  </data>
+  <data name="TextureEditor.Notify.SaveComplete.Title" xml:space="preserve">
+    <value>Срезы сохранены</value>
+  </data>
+  <data name="TextureEditor.Notify.SaveComplete.Message" xml:space="preserve">
+    <value>Сохранено: {0}.</value>
+  </data>
+  <data name="TextureEditor.Notify.SaveFailed.Title" xml:space="preserve">
+    <value>Ошибка сохранения</value>
+  </data>
+  <data name="TextureEditor.Notify.ImportComplete.Title" xml:space="preserve">
+    <value>Импорт завершён</value>
+  </data>
+  <data name="TextureEditor.Notify.ImportComplete.Message" xml:space="preserve">
+    <value>Импортировано изображений: {0} из {1}.</value>
+  </data>
+  <data name="TextureEditor.Notify.ImportFailed.Title" xml:space="preserve">
+    <value>Ошибка импорта</value>
+  </data>
+  <data name="TextureEditor.Notify.ImportFailed.Message" xml:space="preserve">
+    <value>Связанные изображения не найдены.</value>
+  </data>
+  <data name="TextureEditor.Notify.RegistryMismatch.Title" xml:space="preserve">
+    <value>Другая текстура</value>
+  </data>
+  <data name="TextureEditor.Notify.RegistryMismatch.Message" xml:space="preserve">
+    <value>'{0}' относится к {1}, а не к открытому атласу.</value>
+  </data>
+  <data name="TextureEditor.Dialog.ClearSlices.Title" xml:space="preserve">
+    <value>Заменить срезы пустым набором?</value>
+  </data>
+  <data name="TextureEditor.Dialog.ClearSlices.Message" xml:space="preserve">
+    <value>{0} уже содержит связанные изображения. Всё равно сохранить ноль срезов?</value>
+  </data>
+  <data name="TextureEditor.Dialog.ClearSlices.Confirm" xml:space="preserve">
+    <value>Сохранить пустым</value>
+  </data>
+  <data name="TextureEditor.Dialog.ClearSlices.Cancel" xml:space="preserve">
+    <value>Отмена</value>
+  </data>
+  <data name="Tools.Plugin.genhub.tools.inieditor.Name" xml:space="preserve">
+    <value>Редактор INI</value>
+  </data>
+  <data name="Tools.Plugin.genhub.tools.inieditor.Description" xml:space="preserve">
+    <value>Визуальный редактор INI-файлов данных Generals и Zero Hour. Просмотр объектов, редактирование улучшений, урона, брони и наборов команд с подсказками схемы.</value>
+  </data>
+  <data name="Tools.IniEditor.Toolbar.New" xml:space="preserve">
+    <value>Создать</value>
+  </data>
+  <data name="Tools.IniEditor.Toolbar.OpenFolder" xml:space="preserve">
+    <value>Открыть папку</value>
+  </data>
+  <data name="Tools.IniEditor.Toolbar.OpenFile" xml:space="preserve">
+    <value>Открыть файл</value>
+  </data>
+  <data name="Tools.IniEditor.Toolbar.Save" xml:space="preserve">
+    <value>Сохранить</value>
+  </data>
+  <data name="Tools.IniEditor.Toolbar.SaveAs" xml:space="preserve">
+    <value>Сохранить как</value>
+  </data>
+  <data name="Tools.IniEditor.Toolbar.Undo" xml:space="preserve">
+    <value>Отменить</value>
+  </data>
+  <data name="Tools.IniEditor.Toolbar.Redo" xml:space="preserve">
+    <value>Повторить</value>
+  </data>
+  <data name="Tools.IniEditor.Toolbar.Validate" xml:space="preserve">
+    <value>Проверить</value>
+  </data>
+  <data name="Tools.IniEditor.Toolbar.Copy" xml:space="preserve">
+    <value>Копировать</value>
+  </data>
+  <data name="Tools.IniEditor.Toolbar.Cut" xml:space="preserve">
+    <value>Вырезать</value>
+  </data>
+  <data name="Tools.IniEditor.Toolbar.Paste" xml:space="preserve">
+    <value>Вставить</value>
+  </data>
+  <data name="Tools.IniEditor.Toolbar.Delete" xml:space="preserve">
+    <value>Удалить</value>
+  </data>
+  <data name="Tools.IniEditor.Toolbar.Duplicate" xml:space="preserve">
+    <value>Дублировать</value>
+  </data>
+  <data name="Tools.IniEditor.Toolbar.Format" xml:space="preserve">
+    <value>Форматировать</value>
+  </data>
+  <data name="Tools.IniEditor.Toolbar.MenuTooltip" xml:space="preserve">
+    <value>Действия с файлом и правкой</value>
+  </data>
+  <data name="Tools.IniEditor.Toolbar.AddUpgrade" xml:space="preserve">
+    <value>Добавить улучшение</value>
+  </data>
+  <data name="Tools.IniEditor.Toolbar.AddUpgradeTooltip" xml:space="preserve">
+    <value>Добавить связь улучшения к выбранному блоку Object</value>
+  </data>
+  <data name="Tools.IniEditor.Toolbar.AddDamage" xml:space="preserve">
+    <value>Добавить урон</value>
+  </data>
+  <data name="Tools.IniEditor.Toolbar.AddDamageTooltip" xml:space="preserve">
+    <value>Добавить профиль урона к выбранному блоку Weapon</value>
+  </data>
+  <data name="Tools.IniEditor.Tabs.Blocks" xml:space="preserve">
+    <value>Блоки</value>
+  </data>
+  <data name="Tools.IniEditor.Tabs.Files" xml:space="preserve">
+    <value>Файлы</value>
+  </data>
+  <data name="Tools.IniEditor.Tree.FilterWatermark" xml:space="preserve">
+    <value>Фильтр блоков...</value>
+  </data>
+  <data name="Tools.IniEditor.Tree.Hint" xml:space="preserve">
+    <value>Блоки сгруппированы по типу. Выберите блок для редактирования полей.</value>
+  </data>
+  <data name="Tools.IniEditor.Tree.NewBlockWatermark" xml:space="preserve">
+    <value>Имя нового блока...</value>
+  </data>
+  <data name="Tools.IniEditor.Tree.AddBlock" xml:space="preserve">
+    <value>Добавить блок</value>
+  </data>
+  <data name="Tools.IniEditor.Tree.Delete" xml:space="preserve">
+    <value>Удалить</value>
+  </data>
+  <data name="Tools.IniEditor.Files.Browse" xml:space="preserve">
+    <value>Обзор...</value>
+  </data>
+  <data name="Tools.IniEditor.Files.Refresh" xml:space="preserve">
+    <value>Обновить</value>
+  </data>
+  <data name="Tools.IniEditor.Files.NoIniFilesTitle" xml:space="preserve">
+    <value>Нет INI-файлов</value>
+  </data>
+  <data name="Tools.IniEditor.Files.NoIniFilesMessage" xml:space="preserve">
+    <value>В выбранной папке не найдены INI-файлы (.ini).</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.Title" xml:space="preserve">
+    <value>Холст объекта</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.Subtitle" xml:space="preserve">
+    <value>Ключевые характеристики, улучшения, урон и связанные наборы выбранного блока.</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.BlockType" xml:space="preserve">
+    <value>Тип блока</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.AssembledTitle" xml:space="preserve">
+    <value>Собранный вид</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.BlockName" xml:space="preserve">
+    <value>Имя</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.Schema" xml:space="preserve">
+    <value>Схема</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.LinkedWeapon" xml:space="preserve">
+    <value>Связанный набор оружия</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.LinkedCommandSet" xml:space="preserve">
+    <value>Набор команд</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.Upgrades" xml:space="preserve">
+    <value>Улучшения</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.Damage" xml:space="preserve">
+    <value>Урон</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.EmptySelection" xml:space="preserve">
+    <value>Выберите блок слева, чтобы просмотреть характеристики, улучшения и урон.</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.RawPreview" xml:space="preserve">
+    <value>Исходный текст</value>
+  </data>
+  <data name="Tools.IniEditor.Properties.Title" xml:space="preserve">
+    <value>Поля</value>
+  </data>
+  <data name="Tools.IniEditor.FileSettings.Title" xml:space="preserve">
+    <value>Настройки файла</value>
+  </data>
+  <data name="Tools.IniEditor.Properties.DeleteFieldTooltip" xml:space="preserve">
+    <value>Удалить это поле</value>
+  </data>
+  <data name="Tools.IniEditor.Properties.GoToDefinitionTooltip" xml:space="preserve">
+    <value>Перейти к определению</value>
+  </data>
+  <data name="Tools.IniEditor.Properties.NewKeyWatermark" xml:space="preserve">
+    <value>Новый ключ поля...</value>
+  </data>
+  <data name="Tools.IniEditor.Properties.NewValueWatermark" xml:space="preserve">
+    <value>Новое значение поля...</value>
+  </data>
+  <data name="Tools.IniEditor.Properties.AddField" xml:space="preserve">
+    <value>Добавить поле</value>
+  </data>
+  <data name="Tools.IniEditor.Empty.Title" xml:space="preserve">
+    <value>Документ не открыт</value>
+  </data>
+  <data name="Tools.IniEditor.Empty.Message" xml:space="preserve">
+    <value>Откройте .ini-файл или создайте документ для начала редактирования.</value>
+  </data>
+  <data name="Tools.IniEditor.Empty.OpenFile" xml:space="preserve">
+    <value>Открыть файл</value>
+  </data>
+  <data name="Tools.IniEditor.Empty.OpenFolder" xml:space="preserve">
+    <value>Открыть папку</value>
+  </data>
+  <data name="Tools.IniEditor.Open.FailureTitle" xml:space="preserve">
+    <value>Не удалось открыть INI-файл</value>
+  </data>
+  <data name="Tools.IniEditor.Open.FailureMessage" xml:space="preserve">
+    <value>Не удалось открыть INI-файл: {0}</value>
+  </data>
+  <data name="Tools.IniEditor.FileDialog.OpenTitle" xml:space="preserve">
+    <value>Открыть INI-файл данных</value>
+  </data>
+  <data name="Tools.IniEditor.FileDialog.FilterName" xml:space="preserve">
+    <value>INI-файлы данных</value>
+  </data>
+  <data name="Tools.IniEditor.FileDialog.FolderTitle" xml:space="preserve">
+    <value>Выберите папку INI-данных</value>
+  </data>
+  <data name="Tools.IniEditor.FileDialog.SaveTitle" xml:space="preserve">
+    <value>Сохранить INI-файл данных</value>
+  </data>
+  <data name="Tools.IniEditor.Save.SuccessTitle" xml:space="preserve">
+    <value>INI-файл сохранён</value>
+  </data>
+  <data name="Tools.IniEditor.Save.SuccessMessage" xml:space="preserve">
+    <value>Сохранено: {0}.</value>
+  </data>
+  <data name="Tools.IniEditor.Preview.TruncatedMessage" xml:space="preserve">
+    <value>
+... (сокращено, полный текст в файле).</value>
+  </data>
+  <data name="Tools.IniEditor.Save.FailureTitle" xml:space="preserve">
+    <value>Не удалось сохранить INI-файл</value>
+  </data>
+  <data name="Tools.IniEditor.Reference.Insert" xml:space="preserve">
+    <value>Вставить в документ</value>
+  </data>
+  <data name="Tools.IniEditor.Reference.InstallationLabel" xml:space="preserve">
+    <value>Установка игры</value>
+  </data>
+  <data name="Tools.IniEditor.Reference.SearchWatermark" xml:space="preserve">
+    <value>Поиск по игровым данным...</value>
+  </data>
+  <data name="Tools.IniEditor.Reference.TypeLabel" xml:space="preserve">
+    <value>Тип блока</value>
+  </data>
+  <data name="Tools.IniEditor.Reference.ClearTypeTooltip" xml:space="preserve">
+    <value>Очистить фильтр типов</value>
+  </data>
+  <data name="Tools.IniEditor.Save.FailureMessage" xml:space="preserve">
+    <value>Не удалось сохранить INI-файл: {0}</value>
+  </data>
+  <data name="Tools.IniEditor.Validate.NoDocumentTitle" xml:space="preserve">
+    <value>Документ не открыт</value>
+  </data>
+  <data name="Tools.IniEditor.Validate.NoDocumentMessage" xml:space="preserve">
+    <value>Откройте INI-файл перед проверкой.</value>
+  </data>
+  <data name="Tools.IniEditor.Validate.SuccessTitle" xml:space="preserve">
+    <value>Проверка INI пройдена</value>
+  </data>
+  <data name="Tools.IniEditor.Validate.SuccessMessage" xml:space="preserve">
+    <value>Блоков без ошибок: {0}.</value>
+  </data>
+  <data name="Tools.IniEditor.Validate.IssuesTitle" xml:space="preserve">
+    <value>В INI найдены проблемы</value>
+  </data>
+  <data name="Tools.IniEditor.Validate.IssuesMessage" xml:space="preserve">
+    <value>Найдено проблем: {0}. Первая: {1}</value>
+  </data>
+  <data name="Tools.IniEditor.Format.NoFileTitle" xml:space="preserve">
+    <value>Нет файла для форматирования</value>
+  </data>
+  <data name="Tools.IniEditor.Format.NoFileMessage" xml:space="preserve">
+    <value>Сохраните документ в файл перед форматированием.</value>
+  </data>
+  <data name="Tools.IniEditor.History.AddBlock" xml:space="preserve">
+    <value>Добавление блока</value>
+  </data>
+  <data name="Tools.IniEditor.History.DeleteBlock" xml:space="preserve">
+    <value>Удаление блока</value>
+  </data>
+  <data name="Tools.IniEditor.History.AddField" xml:space="preserve">
+    <value>Добавление поля</value>
+  </data>
+  <data name="Tools.IniEditor.History.AddUpgrade" xml:space="preserve">
+    <value>Добавление связи улучшения</value>
+  </data>
+  <data name="Tools.IniEditor.History.AddDamage" xml:space="preserve">
+    <value>Добавление профиля урона</value>
+  </data>
+  <data name="Tools.IniEditor.Upgrade.ObjectOnlyTitle" xml:space="preserve">
+    <value>Только блоки Object</value>
+  </data>
+  <data name="Tools.IniEditor.Upgrade.ObjectOnlyMessage" xml:space="preserve">
+    <value>Связи улучшений можно добавлять только в блоки Object.</value>
+  </data>
+  <data name="Tools.IniEditor.Damage.WeaponOnlyTitle" xml:space="preserve">
+    <value>Только блоки Weapon</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.ZoomInTooltip" xml:space="preserve">
+    <value>Приблизить</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.ZoomOutTooltip" xml:space="preserve">
+    <value>Отдалить</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.ZoomResetTooltip" xml:space="preserve">
+    <value>Сбросить масштаб</value>
+  </data>
+  <data name="Tools.IniEditor.Damage.WeaponOnlyMessage" xml:space="preserve">
+    <value>Профили урона можно добавлять только в блоки Weapon.</value>
+  </data>
+  <data name="Tools.IniEditor.UnsavedChanges.Title" xml:space="preserve">
+    <value>Несохранённые изменения</value>
+  </data>
+  <data name="Tools.IniEditor.UnsavedChanges.Message" xml:space="preserve">
+    <value>Текущий документ содержит несохранённые изменения. Отменить их?</value>
+  </data>
+  <data name="Tools.IniEditor.UnsavedChanges.Discard" xml:space="preserve">
+    <value>Отменить</value>
+  </data>
+  <data name="Tools.IniEditor.UnsavedChanges.Cancel" xml:space="preserve">
+    <value>Отмена</value>
+  </data>
+  <data name="Tools.IniEditor.Document.Untitled" xml:space="preserve">
+    <value>Без названия</value>
+  </data>
+  <data name="Tools.ModBuilder.Ini.NoSelectionTitle" xml:space="preserve">
+    <value>INI-файлы не выбраны</value>
+  </data>
+  <data name="Tools.ModBuilder.Ini.NoSelectionMessage" xml:space="preserve">
+    <value>Выберите один или несколько .ini-файлов в дереве проекта.</value>
+  </data>
+  <data name="Tools.ModBuilder.Ini.ValidateSuccessTitle" xml:space="preserve">
+    <value>Проверка INI пройдена</value>
+  </data>
+  <data name="Tools.ModBuilder.Ini.ValidateSuccessMessage" xml:space="preserve">
+    <value>Допустимых файлов: {0} из {1}.</value>
+  </data>
+  <data name="Tools.ModBuilder.Ini.ValidateIssuesTitle" xml:space="preserve">
+    <value>В INI найдены проблемы</value>
+  </data>
+  <data name="Tools.ModBuilder.Ini.ValidateIssuesMessage" xml:space="preserve">
+    <value>Допустимых файлов: {0} из {1}. Первая проблема: {2}</value>
+  </data>
+  <data name="Tools.ModBuilder.Ini.FormatSuccessTitle" xml:space="preserve">
+    <value>INI-файлы отформатированы</value>
+  </data>
+  <data name="Tools.ModBuilder.Ini.FormatSuccessMessage" xml:space="preserve">
+    <value>Отформатировано файлов: {0} из {1}.</value>
+  </data>
+  <data name="Tools.ModBuilder.Ini.FormatIssuesTitle" xml:space="preserve">
+    <value>Форматирование INI не завершено</value>
+  </data>
+  <data name="Tools.ModBuilder.Ini.FormatIssuesMessage" xml:space="preserve">
+    <value>Отформатировано файлов: {0} из {1}. Первая ошибка: {2}</value>
+  </data>
+  <data name="Tools.ModBuilder.Ini.OperationCancelled" xml:space="preserve">
+    <value>Операция отменена.</value>
+  </data>
+  <data name="Tools.ModBuilder.Ini.ProgressValidating" xml:space="preserve">
+    <value>Проверка ({0}/{1}): {2}</value>
+  </data>
+  <data name="Tools.ModBuilder.Ini.ProgressFormatting" xml:space="preserve">
+    <value>Форматирование ({0}/{1}): {2}</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonValidateIni" xml:space="preserve">
+    <value>Проверить INI</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipValidateIni" xml:space="preserve">
+    <value>Проверить выбранные .ini-файлы</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonFormatIni" xml:space="preserve">
+    <value>Форматировать INI</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipFormatIni" xml:space="preserve">
+    <value>Форматировать выбранные .ini-файлы в каноническом виде</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonEditIni" xml:space="preserve">
+    <value>Открыть в редакторе INI</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipEditIni" xml:space="preserve">
+    <value>Открыть первый выбранный .ini-файл в редакторе INI</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Blocks.Object" xml:space="preserve">
+    <value>Playable or static game object: health, cost, armor, weapons, upgrades, and art.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.DisplayName" xml:space="preserve">
+    <value>String table label shown in the UI.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.Side" xml:space="preserve">
+    <value>Faction side for the object.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.EditorSorting" xml:space="preserve">
+    <value>Object editor category and sort key.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.BuildCost" xml:space="preserve">
+    <value>Command center build cost.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.BuildTime" xml:space="preserve">
+    <value>Build time in seconds.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.Health" xml:space="preserve">
+    <value>Hit points.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.MaxHealth" xml:space="preserve">
+    <value>Maximum hit points.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.ArmorSet" xml:space="preserve">
+    <value>Armor set condition reference.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.WeaponSet" xml:space="preserve">
+    <value>Weapon set condition reference.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.CommandSet" xml:space="preserve">
+    <value>Command set shown on the command bar.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.Upgrades" xml:space="preserve">
+    <value>Required or granted upgrades.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.Prerequisites" xml:space="preserve">
+    <value>Required objects or science.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.Science" xml:space="preserve">
+    <value>Required science.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.TransportSlotCount" xml:space="preserve">
+    <value>Passenger slots.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.VisionRange" xml:space="preserve">
+    <value>Sight range.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.ShroudClearingRange" xml:space="preserve">
+    <value>Shroud clearing range.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.MaxSimultaneousOfType" xml:space="preserve">
+    <value>Build limit.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.Scale" xml:space="preserve">
+    <value>Model scale.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.Speed" xml:space="preserve">
+    <value>Locomotor speed override.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.TurnRate" xml:space="preserve">
+    <value>Turn rate.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.CrusherLevel" xml:space="preserve">
+    <value>Crush level versus infantry.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.CrushableLevel" xml:space="preserve">
+    <value>Crushability of this object.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.KindOf" xml:space="preserve">
+    <value>Object kind flags.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.Body" xml:space="preserve">
+    <value>Body module reference.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.Behavior" xml:space="preserve">
+    <value>Behavior module declaration.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.Draw" xml:space="preserve">
+    <value>Draw module declaration.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.ClientUpdate" xml:space="preserve">
+    <value>Client update module declaration.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.Geometry" xml:space="preserve">
+    <value>Geometry and shadow settings.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.GeometryMajorRadius" xml:space="preserve">
+    <value>Selection geometry radius.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.VoiceSelect" xml:space="preserve">
+    <value>Selection voice.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.VoiceMove" xml:space="preserve">
+    <value>Move order voice.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.VoiceAttack" xml:space="preserve">
+    <value>Attack order voice.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.UnitSpecificSounds" xml:space="preserve">
+    <value>Unit sound set.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.Armor" xml:space="preserve">
+    <value>Inline armor table reference.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.Icon" xml:space="preserve">
+    <value>Command bar icon reference.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.ButtonImage" xml:space="preserve">
+    <value>Command button image.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.UpgradeCameo1" xml:space="preserve">
+    <value>Upgrade cameo icons.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.UpgradeCameo2" xml:space="preserve">
+    <value>Upgrade cameo icons.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.UpgradeCameo3" xml:space="preserve">
+    <value>Upgrade cameo icons.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.UpgradeCameo4" xml:space="preserve">
+    <value>Upgrade cameo icons.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.UpgradeCameo5" xml:space="preserve">
+    <value>Upgrade cameo icons.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Blocks.Weapon" xml:space="preserve">
+    <value>Weapon definition: damage, range, rate of fire, and effects.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.PrimaryDamage" xml:space="preserve">
+    <value>Base damage per hit.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.PrimaryDamageRadius" xml:space="preserve">
+    <value>Splash radius.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.SecondaryDamage" xml:space="preserve">
+    <value>Secondary damage.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.SecondaryDamageRadius" xml:space="preserve">
+    <value>Secondary splash radius.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.AttackRange" xml:space="preserve">
+    <value>Maximum range.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.MinimumAttackRange" xml:space="preserve">
+    <value>Minimum range.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.DelayBetweenShots" xml:space="preserve">
+    <value>Delay between shots in milliseconds.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.ClipSize" xml:space="preserve">
+    <value>Shots per clip.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.ClipReloadTime" xml:space="preserve">
+    <value>Clip reload time in milliseconds.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.AutoReloadsClip" xml:space="preserve">
+    <value>Automatic clip reload behavior.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.DamageType" xml:space="preserve">
+    <value>Damage type applied on hit.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.DeathType" xml:space="preserve">
+    <value>Death type applied on kill.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.WeaponSpeed" xml:space="preserve">
+    <value>Projectile speed.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.RadiusDamageAffects" xml:space="preserve">
+    <value>Which objects splash affects.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.DamageScalar" xml:space="preserve">
+    <value>Damage scalar versus armor.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.AntiAirborneVehicle" xml:space="preserve">
+    <value>Anti-air tuning.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.AntiAirborneInfantry" xml:space="preserve">
+    <value>Anti-air versus infantry.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.AntiGround" xml:space="preserve">
+    <value>Anti-ground tuning.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.ProjectileObject" xml:space="preserve">
+    <value>Projectile object fired.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.FireFX" xml:space="preserve">
+    <value>Muzzle effect.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.HitGroundFX" xml:space="preserve">
+    <value>Ground hit effect.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.HitObjectFX" xml:space="preserve">
+    <value>Object hit effect.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.LaserName" xml:space="preserve">
+    <value>Laser effect.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.WeaponBonus" xml:space="preserve">
+    <value>Weapon bonus versus target type.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.HistoricBonusTime" xml:space="preserve">
+    <value>Veterancy bonus window.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.HistoricBonusCount" xml:space="preserve">
+    <value>Veterancy bonus kills.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.HistoricBonusMultiplier" xml:space="preserve">
+    <value>Veterancy bonus multiplier.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.ScatterRadius" xml:space="preserve">
+    <value>Scatter radius.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Weapon.AcceptableAimDelta" xml:space="preserve">
+    <value>Aim tolerance.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Blocks.Armor" xml:space="preserve">
+    <value>Armor table: damage multiplier per damage type.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Armor.Armor" xml:space="preserve">
+    <value>Коэффициент брони: тип урона и процент.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Blocks.ArmorSet" xml:space="preserve">
+    <value>Armor set: selects an Armor table when conditions hold.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ArmorSet.Conditions" xml:space="preserve">
+    <value>Veterancy and upgrade conditions.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ArmorSet.Armor" xml:space="preserve">
+    <value>Armor table used when conditions hold.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ArmorSet.DamageFX" xml:space="preserve">
+    <value>Damage effect set.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Blocks.WeaponSet" xml:space="preserve">
+    <value>Weapon set: selects weapon slots when conditions hold.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.WeaponSet.Conditions" xml:space="preserve">
+    <value>Veterancy and upgrade conditions.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.WeaponSet.Weapon" xml:space="preserve">
+    <value>Weapon selected when conditions hold.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.WeaponSet.AutoChooseSources" xml:space="preserve">
+    <value>Automatic weapon source selection.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.WeaponSet.PreferredAgainst" xml:space="preserve">
+    <value>Preferred target category for this set.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.WeaponSet.ShareWeaponReloadTime" xml:space="preserve">
+    <value>Reload timing shared across weapon sets.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.WeaponSet.WeaponLockSharedAcrossSets" xml:space="preserve">
+    <value>Weapon lock shared across weapon sets.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Blocks.CommandButton" xml:space="preserve">
+    <value>Command bar button: icon, label, and triggered action.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandButton.Command" xml:space="preserve">
+    <value>Button action.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandButton.Object" xml:space="preserve">
+    <value>Object created or targeted.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandButton.Upgrade" xml:space="preserve">
+    <value>Upgrade researched or required.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandButton.Science" xml:space="preserve">
+    <value>Science researched or required.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandButton.SpecialPower" xml:space="preserve">
+    <value>Special power triggered.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandButton.TextLabel" xml:space="preserve">
+    <value>String table label.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandButton.ButtonImage" xml:space="preserve">
+    <value>Button icon texture.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandButton.ButtonBorderType" xml:space="preserve">
+    <value>Button border art.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandButton.DescriptLabel" xml:space="preserve">
+    <value>Description string table label.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandButton.Radial" xml:space="preserve">
+    <value>Radial button behavior.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandButton.InPalantir" xml:space="preserve">
+    <value>Palantir visibility.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandButton.NeedUpgrade" xml:space="preserve">
+    <value>Required upgrade.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandButton.NeedScience" xml:space="preserve">
+    <value>Required science.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandButton.Options" xml:space="preserve">
+    <value>Button options.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandButton.CursorName" xml:space="preserve">
+    <value>Курсор, отображаемый при наведении.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandButton.InvalidCursorName" xml:space="preserve">
+    <value>Курсор для недопустимых целей.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandButton.LacksPrerequisiteLabel" xml:space="preserve">
+    <value>Missing prerequisite label.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Blocks.CommandSet" xml:space="preserve">
+    <value>Command set: ordered command bar buttons.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandSet.1" xml:space="preserve">
+    <value>Command bar slot 1.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandSet.2" xml:space="preserve">
+    <value>Command bar slot 2.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandSet.3" xml:space="preserve">
+    <value>Command bar slot 3.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandSet.4" xml:space="preserve">
+    <value>Command bar slot 4.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandSet.5" xml:space="preserve">
+    <value>Command bar slot 5.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandSet.6" xml:space="preserve">
+    <value>Command bar slot 6.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandSet.7" xml:space="preserve">
+    <value>Command bar slot 7.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandSet.8" xml:space="preserve">
+    <value>Command bar slot 8.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandSet.9" xml:space="preserve">
+    <value>Command bar slot 9.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandSet.10" xml:space="preserve">
+    <value>Command bar slot 10.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandSet.11" xml:space="preserve">
+    <value>Command bar slot 11.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandSet.12" xml:space="preserve">
+    <value>Command bar slot 12.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandSet.13" xml:space="preserve">
+    <value>Command bar slot 13.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.CommandSet.14" xml:space="preserve">
+    <value>Command bar slot 14.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Blocks.Upgrade" xml:space="preserve">
+    <value>Upgrade: researchable technology gating objects and weapons.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Upgrade.Type" xml:space="preserve">
+    <value>Upgrade scope.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Upgrade.BuildCost" xml:space="preserve">
+    <value>Research cost.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Upgrade.BuildTime" xml:space="preserve">
+    <value>Research time in seconds.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Upgrade.DisplayName" xml:space="preserve">
+    <value>String table label.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Upgrade.ButtonImage" xml:space="preserve">
+    <value>Research button icon.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Upgrade.UpgradeCameo1" xml:space="preserve">
+    <value>Cameo icons.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Upgrade.UpgradeCameo2" xml:space="preserve">
+    <value>Cameo icons.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Upgrade.UpgradeCameo3" xml:space="preserve">
+    <value>Cameo icons.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Upgrade.ResearchSound" xml:space="preserve">
+    <value>Research sound.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Upgrade.UnitSpecificSounds" xml:space="preserve">
+    <value>Unit sound set.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Upgrade.SkirmishAIHeuristic" xml:space="preserve">
+    <value>AI research weight.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Upgrade.PersistsInCampaign" xml:space="preserve">
+    <value>Campaign persistence.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Blocks.Science" xml:space="preserve">
+    <value>Science: faction technology prerequisite.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Science.DisplayName" xml:space="preserve">
+    <value>String table label.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Science.Description" xml:space="preserve">
+    <value>String table description.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Science.PrerequisiteSciences" xml:space="preserve">
+    <value>Required sciences.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Science.SciencePurchasePointCost" xml:space="preserve">
+    <value>Science point cost.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Science.IsGrantable" xml:space="preserve">
+    <value>Grantable to other players.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Science.ButtonImage" xml:space="preserve">
+    <value>Science button icon.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Blocks.SpecialPower" xml:space="preserve">
+    <value>Special power: targeted superweapon or support ability.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.SpecialPower.ReloadTime" xml:space="preserve">
+    <value>Recharge time in milliseconds.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.SpecialPower.Enum" xml:space="preserve">
+    <value>Идентификатор типа особой способности.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.SpecialPower.RequiredScience" xml:space="preserve">
+    <value>Необходимая наука.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.SpecialPower.InitiateSound" xml:space="preserve">
+    <value>Звук при активации.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.SpecialPower.RadiusCursorRadius" xml:space="preserve">
+    <value>Размер курсора радиуса.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.SpecialPower.ViewObjectDuration" xml:space="preserve">
+    <value>Длительность обзора объекта.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.SpecialPower.ViewObjectRange" xml:space="preserve">
+    <value>Дальность обзора объекта.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.SpecialPower.DisplayName" xml:space="preserve">
+    <value>String table label.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.SpecialPower.ButtonImage" xml:space="preserve">
+    <value>Button icon.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.SpecialPower.OCL" xml:space="preserve">
+    <value>Object creation list.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.SpecialPower.ChangeWeapon" xml:space="preserve">
+    <value>Weapon swap while active.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.SpecialPower.PublicTimer" xml:space="preserve">
+    <value>Shared timer behavior.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.SpecialPower.SharedSyncedTimer" xml:space="preserve">
+    <value>Synced timer behavior.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.SpecialPower.ShortcutPower" xml:space="preserve">
+    <value>Shortcut power.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Blocks.Locomotor" xml:space="preserve">
+    <value>Locomotor: movement speeds and terrain handling.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Locomotor.Speed" xml:space="preserve">
+    <value>Top speed.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Locomotor.MinSpeed" xml:space="preserve">
+    <value>Minimum speed.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Locomotor.MinTurnSpeed" xml:space="preserve">
+    <value>Минимальная скорость поворота.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Locomotor.TurnRateDamaged" xml:space="preserve">
+    <value>Скорость поворота при повреждении.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Locomotor.SpeedDamaged" xml:space="preserve">
+    <value>Скорость при повреждении.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Locomotor.Acceleration" xml:space="preserve">
+    <value>Acceleration.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Locomotor.Braking" xml:space="preserve">
+    <value>Braking rate.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Locomotor.TurnRate" xml:space="preserve">
+    <value>Turn rate.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Locomotor.Lift" xml:space="preserve">
+    <value>Hover lift.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Locomotor.HoverHeight" xml:space="preserve">
+    <value>Hover height.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Locomotor.CrusherLevel" xml:space="preserve">
+    <value>Crush level.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Locomotor.CrushableLevel" xml:space="preserve">
+    <value>Crushability.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Locomotor.Appearance" xml:space="preserve">
+    <value>Movement appearance.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Locomotor.AccelerationPitch" xml:space="preserve">
+    <value>Pitch under acceleration.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Locomotor.AllowAirborne" xml:space="preserve">
+    <value>Airborne movement.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Locomotor.Surfaces" xml:space="preserve">
+    <value>Allowed surfaces.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Locomotor.GroupMovement" xml:space="preserve">
+    <value>Group movement behavior.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Locomotor.StickToGround" xml:space="preserve">
+    <value>Ground sticking.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Blocks.ObjectCreationList" xml:space="preserve">
+    <value>Object creation list: nuggets spawning objects and effects.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ObjectCreationList.CreateObject" xml:space="preserve">
+    <value>Object spawned by the list.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ObjectCreationList.Disposition" xml:space="preserve">
+    <value>Spawn disposition.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ObjectCreationList.Count" xml:space="preserve">
+    <value>Spawn count.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ObjectCreationList.IgnorePrimaryObstacle" xml:space="preserve">
+    <value>Игнорирует основное препятствие.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ObjectCreationList.SpreadFormation" xml:space="preserve">
+    <value>Formation spread.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ObjectCreationList.MinDistanceA" xml:space="preserve">
+    <value>Minimum distance.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ObjectCreationList.MaxDistanceA" xml:space="preserve">
+    <value>Maximum distance.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ObjectCreationList.MinDistanceB" xml:space="preserve">
+    <value>Secondary minimum distance.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ObjectCreationList.MaxDistanceB" xml:space="preserve">
+    <value>Secondary maximum distance.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ObjectCreationList.Offset" xml:space="preserve">
+    <value>Смещение появления (x y z).</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ObjectCreationList.IgnoreSecondaryObstacles" xml:space="preserve">
+    <value>Secondary obstacle handling.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ObjectCreationList.StartingWeapon" xml:space="preserve">
+    <value>Starting weapon override.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ObjectCreationList.InheritVeterancy" xml:space="preserve">
+    <value>Veterancy inheritance.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ObjectCreationList.DeliverPayload" xml:space="preserve">
+    <value>Payload delivery.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Blocks.DamageFX" xml:space="preserve">
+    <value>Damage effects: throb, particles, and detail for damage states.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.DamageFX.Throb" xml:space="preserve">
+    <value>Throb behavior.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.DamageFX.ThrobRate" xml:space="preserve">
+    <value>Throb rate.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.DamageFX.ThrobIntensity" xml:space="preserve">
+    <value>Throb intensity.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.DamageFX.Particle" xml:space="preserve">
+    <value>Damage particle.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.DamageFX.DamageParticle" xml:space="preserve">
+    <value>Damage particle system.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.DamageFX.Fire" xml:space="preserve">
+    <value>Fire effect.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.DamageFX.Smoke" xml:space="preserve">
+    <value>Smoke effect.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.DamageFX.Sparks" xml:space="preserve">
+    <value>Spark effect.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.DamageFX.DamageTypes" xml:space="preserve">
+    <value>Damage types covered.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.DamageFX.Veterancy" xml:space="preserve">
+    <value>Veterancy level.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Blocks.PlayerTemplate" xml:space="preserve">
+    <value>Player template: starting units, money, and faction defaults.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.PlayerTemplate.Side" xml:space="preserve">
+    <value>Faction side.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.PlayerTemplate.PlayableSide" xml:space="preserve">
+    <value>Playable side flag.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.PlayerTemplate.StartMoney" xml:space="preserve">
+    <value>Starting money.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.PlayerTemplate.PreferredColor" xml:space="preserve">
+    <value>Preferred color.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.PlayerTemplate.StartingBuilding" xml:space="preserve">
+    <value>Starting building.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.PlayerTemplate.StartingUnit0" xml:space="preserve">
+    <value>Starting units.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.PlayerTemplate.StartingUnit1" xml:space="preserve">
+    <value>Starting units.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.PlayerTemplate.StartingUnit2" xml:space="preserve">
+    <value>Starting units.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.PlayerTemplate.StartingUnitTanks" xml:space="preserve">
+    <value>Starting tanks.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.PlayerTemplate.StartingUnitAir" xml:space="preserve">
+    <value>Starting aircraft.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.PlayerTemplate.SciencePurchasePoints" xml:space="preserve">
+    <value>Science points.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.PlayerTemplate.DisplayName" xml:space="preserve">
+    <value>String table label.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.PlayerTemplate.StartingTaunt" xml:space="preserve">
+    <value>Starting taunt.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Blocks.ExperienceLevels" xml:space="preserve">
+    <value>Experience levels: veterancy thresholds and multipliers.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ExperienceLevels.Level1" xml:space="preserve">
+    <value>Experience threshold for level 1.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ExperienceLevels.Level2" xml:space="preserve">
+    <value>Experience threshold for level 2.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ExperienceLevels.Level3" xml:space="preserve">
+    <value>Experience threshold for level 3.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ExperienceLevels.Level4" xml:space="preserve">
+    <value>Experience threshold for level 4.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ExperienceLevels.Level5" xml:space="preserve">
+    <value>Experience threshold for level 5.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ExperienceLevels.Level6" xml:space="preserve">
+    <value>Experience threshold for level 6.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ExperienceLevels.Level7" xml:space="preserve">
+    <value>Experience threshold for level 7.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ExperienceLevels.Level8" xml:space="preserve">
+    <value>Experience threshold for level 8.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ExperienceLevels.ExperienceScalar" xml:space="preserve">
+    <value>Experience scalar.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ExperienceLevels.InformSecondLevel" xml:space="preserve">
+    <value>Second level notification.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Blocks.Veterancy" xml:space="preserve">
+    <value>Veterancy multipliers for a damage or armor context.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Veterancy.VETERAN" xml:space="preserve">
+    <value>Veteran multipliers.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Veterancy.ELITE" xml:space="preserve">
+    <value>Elite multipliers.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Veterancy.HEROIC" xml:space="preserve">
+    <value>Heroic multipliers.</value>
+  </data>
+  <data name="Tools.IniEditor.AddBlock.EmptyNameTitle" xml:space="preserve">
+    <value>Требуется имя</value>
+  </data>
+  <data name="Tools.IniEditor.AddBlock.EmptyNameMessage" xml:space="preserve">
+    <value>Введите имя для нового блока {0}.</value>
+  </data>
+  <data name="Tools.IniEditor.AddBlock.DuplicateTitle" xml:space="preserve">
+    <value>Дублирующийся блок</value>
+  </data>
+  <data name="Tools.IniEditor.AddBlock.DuplicateMessage" xml:space="preserve">
+    <value>Блок {0} с именем '{1}' уже существует.</value>
+  </data>
+  <data name="Tools.IniEditor.Template.SkippedTitle" xml:space="preserve">
+    <value>Шаблон уже применен</value>
+  </data>
+  <data name="Tools.IniEditor.Tabs.Reference" xml:space="preserve">
+    <value>Справочник</value>
+  </data>
+  <data name="Tools.IniEditor.Tabs.Textures" xml:space="preserve">
+    <value>Текстуры</value>
+  </data>
+  <data name="Tools.IniEditor.Template.SkippedMessage" xml:space="preserve">
+    <value>Выбранный блок уже определяет эти поля.</value>
+  </data>
+  <data name="Tools.IniEditor.Plugin.LoadError" xml:space="preserve">
+    <value>Ошибка загрузки редактора INI</value>
+  </data>
+  <data name="Tools.IniEditor.History.EditField" xml:space="preserve">
+    <value>Изменить поле</value>
+  </data>
   <data name="Common.Dismiss" xml:space="preserve">
     <value>Скрыть</value>
   </data>
@@ -15741,6 +17155,122 @@ Error: не удалось: {3}
   </data>
   <data name="Info.Demo.SizeExpanded" xml:space="preserve">
     <value>Расширенный (980x680)</value>
+  </data>
+  <data name="Tools.IniEditor.Assembled.ArmorLabel" xml:space="preserve">
+    <value>Набор брони</value>
+  </data>
+  <data name="Tools.IniEditor.Assembled.ArmorTooltip" xml:space="preserve">
+    <value>Броня: {0} -> {1} ({2} коэффициентов)</value>
+  </data>
+  <data name="Tools.IniEditor.Assembled.CommandSetLabel" xml:space="preserve">
+    <value>Набор команд</value>
+  </data>
+  <data name="Tools.IniEditor.Assembled.CommandSlotLabel" xml:space="preserve">
+    <value>Слот {0}</value>
+  </data>
+  <data name="Tools.IniEditor.Assembled.CommandSlotTooltip" xml:space="preserve">
+    <value>Кнопка: {0}, команда: {1}, цель: {2}</value>
+  </data>
+  <data name="Tools.IniEditor.Assembled.DamageLabel" xml:space="preserve">
+    <value>Урон</value>
+  </data>
+  <data name="Tools.IniEditor.Assembled.DamageTooltip" xml:space="preserve">
+    <value>Урон: {0} ({1}), дальность: {2}</value>
+  </data>
+  <data name="Tools.IniEditor.Assembled.LocalDetail" xml:space="preserve">
+    <value>Локальный блок документа</value>
+  </data>
+  <data name="Tools.IniEditor.Assembled.LocalTooltip" xml:space="preserve">
+    <value>Локальный блок {0}: {1}</value>
+  </data>
+  <data name="Tools.IniEditor.Assembled.ModuleDetail" xml:space="preserve">
+    <value>{0} полей, {1} подблоков</value>
+  </data>
+  <data name="Tools.IniEditor.Assembled.ModuleLabel" xml:space="preserve">
+    <value>Модуль: {0}</value>
+  </data>
+  <data name="Tools.IniEditor.Assembled.ModuleTooltip" xml:space="preserve">
+    <value>{0}
+Поля: {1}, Подблоки: {2}
+{3}</value>
+  </data>
+  <data name="Tools.IniEditor.Assembled.ProjectileLabel" xml:space="preserve">
+    <value>Снаряд</value>
+  </data>
+  <data name="Tools.IniEditor.Assembled.RangeDetail" xml:space="preserve">
+    <value>Дальность: {0}</value>
+  </data>
+  <data name="Tools.IniEditor.Assembled.ReferenceTooltip" xml:space="preserve">
+    <value>Ссылка {0}: {1} ({2} из {3})</value>
+  </data>
+  <data name="Tools.IniEditor.Assembled.TextureDetail" xml:space="preserve">
+    <value>Текстура карты изображения</value>
+  </data>
+  <data name="Tools.IniEditor.Assembled.TextureTooltip" xml:space="preserve">
+    <value>Ссылка на текстуру карты изображения: {0}</value>
+  </data>
+  <data name="Tools.IniEditor.Assembled.UnresolvedDetail" xml:space="preserve">
+    <value>Неразрешенная ссылка</value>
+  </data>
+  <data name="Tools.IniEditor.Assembled.UnresolvedTooltip" xml:space="preserve">
+    <value>Не удалось разрешить ссылку {0} '{1}' в справочных данных.</value>
+  </data>
+  <data name="Tools.IniEditor.Assembled.UpgradeLabel" xml:space="preserve">
+    <value>Улучшение</value>
+  </data>
+  <data name="Tools.IniEditor.Assembled.WeaponSetLabel" xml:space="preserve">
+    <value>Набор оружия</value>
+  </data>
+  <data name="Tools.IniEditor.Assembled.WeaponSlotLabel" xml:space="preserve">
+    <value>Оружие ({0})</value>
+  </data>
+  <data name="Tools.IniEditor.Assembled.WeaponSlotTooltip" xml:space="preserve">
+    <value>Оружие: {0} (Урон: {1} {2})</value>
+  </data>
+  <data name="Tools.IniEditor.Fields.CustomTooltip" xml:space="preserve">
+    <value>Пользовательское поле: {0}</value>
+  </data>
+  <data name="Tools.IniEditor.Fields.OptionsTooltip" xml:space="preserve">
+    <value>{0}
+Допустимые значения: {1} вариантов</value>
+  </data>
+  <data name="Tools.IniEditor.Fields.ReferenceTooltip" xml:space="preserve">
+    <value>{0}
+Ссылки: {1}</value>
+  </data>
+  <data name="Tools.IniEditor.Fields.TextureTooltip" xml:space="preserve">
+    <value>{0}
+Ссылка на текстуру карты изображения</value>
+  </data>
+  <data name="Tools.IniEditor.History.DeleteField" xml:space="preserve">
+    <value>Удалить поле</value>
+  </data>
+  <data name="Tools.IniEditor.History.DuplicateBlock" xml:space="preserve">
+    <value>Дублировать блок</value>
+  </data>
+  <data name="Tools.IniEditor.History.InsertReference" xml:space="preserve">
+    <value>Вставить ссылку</value>
+  </data>
+  <data name="Tools.IniEditor.History.PasteBlocks" xml:space="preserve">
+    <value>Вставить блоки</value>
+  </data>
+  <data name="Tools.IniEditor.Paste.NoBlocksMessage" xml:space="preserve">
+    <value>Буфер обмена не содержит допустимых блоков INI.</value>
+  </data>
+  <data name="Tools.IniEditor.Paste.NoBlocksTitle" xml:space="preserve">
+    <value>Нет блоков для вставки</value>
+  </data>
+  <data name="Tools.IniEditor.Reference.CloneFailureMessage" xml:space="preserve">
+    <value>Не удалось клонировать указанный блок: {0}</value>
+  </data>
+  <data name="Tools.IniEditor.Reference.CloneFailureTitle" xml:space="preserve">
+    <value>Не удалось клонировать ссылку</value>
+  </data>
+  <data name="Tools.IniEditor.Reference.NotFoundMessage" xml:space="preserve">
+    <value>Не удалось найти определение для '{0}' в справочных данных.</value>
+  </data>
+  <data name="Tools.IniEditor.Reference.NotFoundTitle" xml:space="preserve">
+    <value>Определение не найдено</value>
   </data>
   <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
     <value>Резервные выпуски вручную (переопределения)</value>

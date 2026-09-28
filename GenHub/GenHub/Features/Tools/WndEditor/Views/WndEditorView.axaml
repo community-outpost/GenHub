@@ -7,6 +7,7 @@
              xmlns:mbModels="clr-namespace:GenHub.Features.Tools.ModBuilder.Models"
              xmlns:views="clr-namespace:GenHub.Features.Tools.WndEditor.Views"
              xmlns:vm="clr-namespace:GenHub.Features.Tools.WndEditor.ViewModels"
+             xmlns:editors="clr-namespace:GenHub.Common.Editors"
              x:Class="GenHub.Features.Tools.WndEditor.Views.WndEditorView"
              x:DataType="vm:WndEditorViewModel">
   <UserControl.KeyBindings>
@@ -16,14 +17,18 @@
     <KeyBinding Gesture="Ctrl+OemMinus" Command="{Binding ZoomOutCommand}"/>
     <KeyBinding Gesture="Ctrl+D0" Command="{Binding ResetZoomCommand}"/>
     <KeyBinding Gesture="Ctrl+N" Command="{Binding NewDocumentCommand}"/>
-    <KeyBinding Gesture="Ctrl+O" Command="{Binding OpenFolderWithDialogCommand}"/>
-    <KeyBinding Gesture="Ctrl+Shift+O" Command="{Binding OpenFileWithDialogCommand}"/>
-    <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveFileCommand}"/>
-    <KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding SaveFileAsWithDialogCommand}"/>
+    <KeyBinding Gesture="Ctrl+O" Command="{Binding OpenFolderCommand}"/>
+    <KeyBinding Gesture="Ctrl+Shift+O" Command="{Binding OpenFileCommand}"/>
+    <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveCommand}"/>
+    <KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding SaveAsCommand}"/>
     <KeyBinding Gesture="Ctrl+Z" Command="{Binding UndoCommand}"/>
     <KeyBinding Gesture="Ctrl+Y" Command="{Binding RedoCommand}"/>
     <KeyBinding Gesture="Ctrl+Shift+Z" Command="{Binding RedoCommand}"/>
-    <KeyBinding Gesture="Ctrl+V" Command="{Binding PasteAssetFromClipboardCommand}"/>
+    <KeyBinding Gesture="Ctrl+C" Command="{Binding CopyCommand}"/>
+    <KeyBinding Gesture="Ctrl+X" Command="{Binding CutCommand}"/>
+    <KeyBinding Gesture="Ctrl+V" Command="{Binding PasteCommand}"/>
+    <KeyBinding Gesture="Ctrl+D" Command="{Binding DuplicateCommand}"/>
+    <KeyBinding Gesture="Delete" Command="{Binding DeleteCommand}"/>
   </UserControl.KeyBindings>
   <UserControl.Styles>
     <Style Selector="TabControl.compact-tabs TabItem">
@@ -73,27 +78,27 @@
                   </MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Header="{localization:Localize Tools.WndEditor.Toolbar.OpenFolder}"
-                          Command="{Binding OpenFolderWithDialogCommand}">
+                          Command="{Binding OpenFolderCommand}">
                   <MenuItem.Icon>
                     <material:MaterialIcon Kind="FolderOpen" Width="14" Height="14"/>
                   </MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Header="{localization:Localize Tools.WndEditor.Toolbar.OpenFile}"
-                          Command="{Binding OpenFileWithDialogCommand}">
+                          Command="{Binding OpenFileCommand}">
                   <MenuItem.Icon>
                     <material:MaterialIcon Kind="FileOutline" Width="14" Height="14"/>
                   </MenuItem.Icon>
                 </MenuItem>
                 <Separator/>
                 <MenuItem Header="{localization:Localize Tools.WndEditor.Toolbar.Save}"
-                          Command="{Binding SaveFileCommand}"
+                          Command="{Binding SaveCommand}"
                           IsEnabled="{Binding HasDocument}">
                   <MenuItem.Icon>
                     <material:MaterialIcon Kind="ContentSave" Width="14" Height="14"/>
                   </MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Header="{localization:Localize Tools.WndEditor.Toolbar.SaveAs}"
-                          Command="{Binding SaveFileAsWithDialogCommand}"
+                          Command="{Binding SaveAsCommand}"
                           IsEnabled="{Binding HasDocument}">
                   <MenuItem.Icon>
                     <material:MaterialIcon Kind="ContentSaveAll" Width="14" Height="14"/>
@@ -114,11 +119,43 @@
                     <material:MaterialIcon Kind="Redo" Width="14" Height="14"/>
                   </MenuItem.Icon>
                 </MenuItem>
+                <MenuItem Header="{localization:Localize Tools.WndEditor.Toolbar.Copy}"
+                          Command="{Binding CopyCommand}"
+                          IsEnabled="{Binding CanCopy}"
+                          InputGesture="Ctrl+C">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="ContentCopy" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="{localization:Localize Tools.WndEditor.Toolbar.Cut}"
+                          Command="{Binding CutCommand}"
+                          IsEnabled="{Binding CanCut}"
+                          InputGesture="Ctrl+X">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="ContentCut" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
                 <MenuItem Header="{localization:Localize Tools.WndEditor.Toolbar.Paste}"
-                          Command="{Binding PasteAssetFromClipboardCommand}"
+                          Command="{Binding PasteCommand}"
                           InputGesture="Ctrl+V">
                   <MenuItem.Icon>
                     <material:MaterialIcon Kind="ContentPaste" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="{localization:Localize Tools.WndEditor.Toolbar.Duplicate}"
+                          Command="{Binding DuplicateCommand}"
+                          IsEnabled="{Binding CanDuplicate}"
+                          InputGesture="Ctrl+D">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="ContentDuplicate" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="{localization:Localize Tools.WndEditor.Toolbar.Delete}"
+                          Command="{Binding DeleteCommand}"
+                          IsEnabled="{Binding CanDelete}"
+                          InputGesture="Delete">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="DeleteOutline" Width="14" Height="14"/>
                   </MenuItem.Icon>
                 </MenuItem>
                 <Separator/>
@@ -371,7 +408,15 @@
                           BorderThickness="1" CornerRadius="6"
                           Content="{localization:Localize Tools.WndEditor.Tree.AddChild}"
                           FontSize="11" FontWeight="SemiBold"/>
-                  <Button Command="{Binding DeleteSelectedWindowCommand}"
+                  <Button Command="{Binding DuplicateCommand}"
+                          IsEnabled="{Binding CanDuplicate}"
+                          Padding="8,4"
+                          Background="{DynamicResource SurfaceElevatedBrush}"
+                          BorderBrush="{DynamicResource BorderBrush}"
+                          BorderThickness="1" CornerRadius="6"
+                          Content="{localization:Localize Tools.WndEditor.Tree.Duplicate}"
+                          FontSize="11" FontWeight="SemiBold"/>
+                  <Button Command="{Binding DeleteCommand}"
                           IsEnabled="{Binding SelectedNode, Converter={x:Static ObjectConverters.IsNotNull}}"
                           Padding="8,4"
                           Background="{DynamicResource ErrorBadgeBackgroundBrush}"
@@ -384,198 +429,7 @@
               </Grid>
             </TabItem>
             <TabItem Header="{localization:Localize Tools.WndEditor.Tabs.Files}">
-              <Grid RowDefinitions="Auto,Auto,*">
-                <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto,Auto" Margin="0,4,0,4">
-                  <Button Grid.Column="0"
-                          Command="{Binding BrowseFilesDirectoryCommand}"
-                          Padding="8,4"
-                          Background="{DynamicResource SurfaceElevatedBrush}"
-                          BorderBrush="{DynamicResource BorderBrush}"
-                          BorderThickness="1" CornerRadius="6"
-                          Content="{localization:Localize Tools.WndEditor.Files.Browse}"
-                          FontSize="11" FontWeight="SemiBold"/>
-                  <Button Grid.Column="1"
-                          Command="{Binding RefreshFilesCommand}"
-                          Padding="8,4" Margin="6,0,0,0"
-                          Background="Transparent"
-                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                          CornerRadius="6"
-                          Content="{localization:Localize Tools.WndEditor.Files.Refresh}"
-                          FontSize="11"/>
-                  <Button Grid.Column="3"
-                          Command="{Binding ExpandAllFilesCommand}"
-                          Padding="5,4" Margin="4,0,0,0"
-                          Background="Transparent"
-                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                          CornerRadius="6"
-                          AutomationProperties.Name="{localization:Localize Tools.WndEditor.Tree.ExpandAll}"
-                          ToolTip.Tip="{localization:Localize Tools.WndEditor.Tree.ExpandAll}">
-                    <material:MaterialIcon Kind="ArrowExpandAll" Width="13" Height="13" Foreground="{DynamicResource TextSecondary}"/>
-                  </Button>
-                  <Button Grid.Column="4"
-                          Command="{Binding CollapseAllFilesCommand}"
-                          Padding="5,4" Margin="4,0,0,0"
-                          Background="Transparent"
-                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                          CornerRadius="6"
-                          AutomationProperties.Name="{localization:Localize Tools.WndEditor.Tree.CollapseAll}"
-                          ToolTip.Tip="{localization:Localize Tools.WndEditor.Tree.CollapseAll}">
-                    <material:MaterialIcon Kind="ArrowCollapseAll" Width="13" Height="13" Foreground="{DynamicResource TextSecondary}"/>
-                  </Button>
-                </Grid>
-                <Border Grid.Row="1"
-                        IsVisible="{Binding FilesDirectoryName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                        Background="{DynamicResource SurfaceHoverBrush}"
-                        BorderBrush="{DynamicResource BorderBrush}"
-                        BorderThickness="1" CornerRadius="6"
-                        Padding="6,3" Margin="0,0,0,4"
-                        ToolTip.Tip="{Binding FilesDirectory}">
-                  <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
-                    <material:MaterialIcon Grid.Column="0" Kind="Folder" Width="13" Height="13"
-                                           Foreground="{DynamicResource AccentBrush}"
-                                           VerticalAlignment="Center" Margin="0,0,5,0"/>
-                    <TextBlock Grid.Column="1"
-                               Text="{Binding FilesDirectoryName}"
-                               FontSize="11" FontWeight="SemiBold"
-                               Foreground="{DynamicResource TextPrimary}"
-                               VerticalAlignment="Center"
-                               TextTrimming="CharacterEllipsis"/>
-                  </Grid>
-                </Border>
-                <Border Grid.Row="2"
-                        BorderBrush="{DynamicResource BorderBrush}"
-                        BorderThickness="1" CornerRadius="8"
-                        Background="{DynamicResource SurfaceElevatedBrush}">
-                  <TreeView ItemsSource="{Binding Files}"
-                            BorderThickness="0" Background="Transparent"
-                            ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                    <TreeView.Styles>
-                      <Style Selector="TreeViewItem" x:DataType="vm:WndFileTreeNodeViewModel">
-                        <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
-                        <Setter Property="HorizontalAlignment" Value="Stretch"/>
-                        <Setter Property="Padding" Value="0"/>
-                        <Setter Property="MinHeight" Value="0"/>
-                        <Setter Property="Focusable" Value="False"/>
-                      </Style>
-                      <Style Selector="TreeViewItem /template/ Border#PART_LayoutRoot">
-                        <Setter Property="Focusable" Value="False"/>
-                        <Setter Property="Background" Value="Transparent"/>
-                        <Setter Property="BorderBrush" Value="Transparent"/>
-                      </Style>
-                      <Style Selector="TreeViewItem:selected /template/ Border#PART_LayoutRoot">
-                        <Setter Property="Background" Value="Transparent"/>
-                        <Setter Property="BorderBrush" Value="Transparent"/>
-                      </Style>
-                      <Style Selector="TreeViewItem:selected:pointerover /template/ Border#PART_LayoutRoot">
-                        <Setter Property="Background" Value="Transparent"/>
-                        <Setter Property="BorderBrush" Value="Transparent"/>
-                      </Style>
-                      <Style Selector="TreeViewItem:selected:focus /template/ Border#PART_LayoutRoot">
-                        <Setter Property="Background" Value="Transparent"/>
-                        <Setter Property="BorderBrush" Value="Transparent"/>
-                      </Style>
-                      <Style Selector="TreeViewItem:pressed:selected /template/ Border#PART_LayoutRoot">
-                        <Setter Property="Background" Value="Transparent"/>
-                        <Setter Property="BorderBrush" Value="Transparent"/>
-                      </Style>
-                      <Style Selector="TreeViewItem:disabled:selected /template/ Border#PART_LayoutRoot">
-                        <Setter Property="Background" Value="Transparent"/>
-                        <Setter Property="BorderBrush" Value="Transparent"/>
-                      </Style>
-                      <Style Selector="TreeViewItem:selected /template/ Border#PART_LayoutRoot > ContentPresenter#PART_HeaderPresenter">
-                        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-                      </Style>
-                      <Style Selector="TreeViewItem /template/ Panel#PART_ExpandCollapseChevronContainer">
-                        <Setter Property="Margin" Value="0,0,1,0"/>
-                      </Style>
-                      <Style Selector="TreeViewItem /template/ ToggleButton#PART_ExpandCollapseChevron">
-                        <Setter Property="Width" Value="10"/>
-                        <Setter Property="Height" Value="10"/>
-                        <Setter Property="Margin" Value="0"/>
-                        <Setter Property="Padding" Value="0"/>
-                      </Style>
-                      <Style Selector="TreeViewItem /template/ ToggleButton#PART_ExpandCollapseChevron PathIcon">
-                        <Setter Property="Width" Value="8"/>
-                        <Setter Property="Height" Value="8"/>
-                      </Style>
-                      <Style Selector="TreeViewItem:empty /template/ Panel#PART_ExpandCollapseChevronContainer">
-                        <Setter Property="Width" Value="10"/>
-                        <Setter Property="Margin" Value="0,0,1,0"/>
-                      </Style>
-                      <Style Selector="TreeViewItem Button">
-                        <Setter Property="Background" Value="Transparent"/>
-                        <Setter Property="BorderThickness" Value="0"/>
-                      </Style>
-                      <Style Selector="TreeViewItem Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-                        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
-                      </Style>
-                      <Style Selector="TreeViewItem Button:pressed /template/ ContentPresenter#PART_ContentPresenter">
-                        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}"/>
-                      </Style>
-                    </TreeView.Styles>
-                    <TreeView.ItemTemplate>
-                      <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="vm:WndFileTreeNodeViewModel">
-                        <Panel>
-                          <!-- Directory item -->
-                          <Button IsVisible="{Binding IsDirectory}" x:CompileBindings="False"
-                                  Command="{Binding ElementName=Root, Path=DataContext.ToggleFileDirectoryCommand}"
-                                  CommandParameter="{Binding}"
-                                  Background="Transparent" BorderThickness="0"
-                                  Padding="0" Margin="0"
-                                  HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
-                            <Border Padding="1,2" CornerRadius="4" Background="Transparent">
-                              <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
-                                <material:MaterialIcon Grid.Column="0" Kind="FolderOutline" Width="13" Height="13"
-                                                       Foreground="{DynamicResource AccentBrush}"
-                                                       Margin="0,0,3,0" VerticalAlignment="Center"/>
-                                <TextBlock Grid.Column="1"
-                                           Text="{Binding Name}"
-                                           FontSize="11" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource TextSecondary}"
-                                           VerticalAlignment="Center"
-                                           TextTrimming="CharacterEllipsis"
-                                           ToolTip.Tip="{Binding FullPath}"/>
-                              </Grid>
-                            </Border>
-                          </Button>
-
-                          <!-- File item -->
-                          <Button IsVisible="{Binding IsFile}" x:CompileBindings="False"
-                                  Command="{Binding ElementName=Root, Path=DataContext.OpenExplorerFileCommand}"
-                                  CommandParameter="{Binding}"
-                                  Background="Transparent" BorderThickness="0"
-                                  Padding="0" Margin="0"
-                                  HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
-                            <Border Padding="1,2" CornerRadius="4" Background="Transparent">
-                              <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
-                                <material:MaterialIcon Grid.Column="0" Kind="FileCodeOutline" Width="13" Height="13"
-                                                       Foreground="{DynamicResource TextMuted}"
-                                                       Margin="0,0,3,0" VerticalAlignment="Center"/>
-                                <TextBlock Grid.Column="1"
-                                           Text="{Binding Name}"
-                                           FontSize="11"
-                                           Foreground="{DynamicResource TextPrimary}"
-                                           VerticalAlignment="Center"
-                                           TextTrimming="CharacterEllipsis"
-                                           ToolTip.Tip="{Binding FullPath}"/>
-                                <Border Grid.Column="2"
-                                        IsVisible="{Binding IsCurrent}"
-                                        Background="{DynamicResource AccentTintBackgroundBrush}"
-                                        BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
-                                        CornerRadius="4" Padding="3,1" Margin="4,0,0,0">
-                                  <TextBlock Text="{localization:Localize Tools.WndEditor.Files.OpenBadge}"
-                                             FontSize="9" FontWeight="SemiBold"
-                                             Foreground="{DynamicResource AccentBrush}"/>
-                                </Border>
-                              </Grid>
-                            </Border>
-                          </Button>
-                        </Panel>
-                      </TreeDataTemplate>
-                    </TreeView.ItemTemplate>
-                  </TreeView>
-                </Border>
-              </Grid>
+              <editors:EditorFileExplorerControl DataContext="{Binding FileExplorer}"/>
             </TabItem>
             <TabItem Header="{localization:Localize Tools.WndEditor.Tabs.Assets}">
               <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" Margin="0,4,0,0">
@@ -984,14 +838,14 @@
                      Foreground="{DynamicResource TextSecondary}"
                      HorizontalAlignment="Center"/>
           <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-            <Button Command="{Binding OpenFolderWithDialogCommand}"
+            <Button Command="{Binding OpenFolderCommand}"
                     Padding="12,6"
                     Background="{DynamicResource SurfaceElevatedBrush}"
                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                     CornerRadius="6"
                     Content="{localization:Localize Tools.WndEditor.Empty.OpenFolderButton}"
                     FontSize="11" FontWeight="SemiBold"/>
-            <Button Command="{Binding OpenFileWithDialogCommand}"
+            <Button Command="{Binding OpenFileCommand}"
                     Padding="12,6"
                     Background="{DynamicResource SurfaceElevatedBrush}"
                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"

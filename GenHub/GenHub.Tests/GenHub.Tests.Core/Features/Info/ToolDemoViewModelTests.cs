@@ -29,6 +29,15 @@ namespace GenHub.Tests.Core.Features.Info;
 /// </summary>
 public class ToolDemoViewModelTests
 {
+    /// <summary>
+    /// Synchronously forwards progress reports on the caller's thread for deterministic assertions.
+    /// </summary>
+    private sealed class SynchronousProgress<T>(Action<T> action) : IProgress<T>
+    {
+        /// <inheritdoc/>
+        public void Report(T value) => action(value);
+    }
+
     private const string SampleWndText =
         "FILE_VERSION = 2;\n" +
         "WINDOW\n" +
@@ -204,7 +213,7 @@ public class ToolDemoViewModelTests
     /// Verifies that uploads through the demo hosting provider succeed end to end with progress.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
-    [AvaloniaFact]
+    [Fact]
     public async Task CreateDemoPublisherStudio_MockUploadSucceedsWithProgress()
     {
         var viewModel = DemoViewModelFactory.CreateDemoPublisherStudio();
@@ -214,20 +223,14 @@ public class ToolDemoViewModelTests
         var provider = viewModel.PublishShareViewModel!.SelectedHostingProvider!;
         using var payload = new MemoryStream(Encoding.UTF8.GetBytes("{\"demo\":true}"));
         var progress = new List<int>();
-        var result = await provider.UploadFileAsync(payload, "catalog-demo.json", progress: new Progress<int>(progress.Add));
+        var progressReporter = new SynchronousProgress<int>(progress.Add);
+        var result = await provider.UploadFileAsync(payload, "catalog-demo.json", progress: progressReporter);
 
         result.Success.Should().BeTrue();
         result.Data.Should().NotBeNull();
         result.Data!.PublicUrl.Should().StartWith("https://demo.genhub.local/");
         result.Data.FileSize.Should().BeGreaterThan(0);
         result.Data.Sha256Hash.Should().NotBeNullOrWhiteSpace();
-
-        var progressDeadline = DateTime.UtcNow.AddSeconds(5);
-        while (progress.Count < 2 && DateTime.UtcNow < progressDeadline)
-        {
-            await Task.Delay(50);
-            Dispatcher.UIThread.RunJobs();
-        }
 
         progress.Should().Contain([0, 100]);
     }
@@ -384,7 +387,13 @@ public class ToolDemoViewModelTests
         while (viewModel.PublishShareViewModel == null && DateTime.UtcNow < deadline)
         {
             await Task.Delay(50);
-            Dispatcher.UIThread.RunJobs();
+
+            // Only pump jobs when executing on the UI thread ([AvaloniaFact]).
+            // Avoids cross-thread dispatcher pumping that throws PlatformNotSupportedException on headless Linux.
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                Dispatcher.UIThread.RunJobs();
+            }
         }
     }
 }

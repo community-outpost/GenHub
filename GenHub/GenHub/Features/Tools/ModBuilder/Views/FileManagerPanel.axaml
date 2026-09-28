@@ -212,14 +212,14 @@
               BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
               CornerRadius="10" Padding="14" ClipToBounds="True">
         <Grid RowDefinitions="Auto,*,Auto">
-          <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,10">
-            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.ModBuilder.FileManager.ProjectFilesHeader}"
+          <Grid Grid.Row="0" RowDefinitions="Auto,Auto" Margin="0,0,0,10">
+            <TextBlock Grid.Row="0" Text="{localization:Localize Tools.ModBuilder.FileManager.ProjectFilesHeader}"
                        FontWeight="Bold" FontSize="14"
                        Foreground="{DynamicResource TextPrimary}"
                        VerticalAlignment="Center"/>
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <WrapPanel Grid.Row="1" Orientation="Horizontal" Margin="0,8,0,0">
               <Button Command="{Binding ValidateWndFilesCommand}"
-                      Padding="8,4"
+                      Padding="8,4" Margin="0,0,6,6"
                       Background="{DynamicResource SurfaceElevatedBrush}"
                       BorderBrush="{DynamicResource BorderBrush}"
                       BorderThickness="1" CornerRadius="6"
@@ -231,7 +231,7 @@
                 </StackPanel>
               </Button>
               <Button Command="{Binding FormatWndFilesCommand}"
-                      Padding="8,4"
+                      Padding="8,4" Margin="0,0,6,6"
                       Background="{DynamicResource SurfaceElevatedBrush}"
                       BorderBrush="{DynamicResource BorderBrush}"
                       BorderThickness="1" CornerRadius="6"
@@ -243,7 +243,7 @@
                 </StackPanel>
               </Button>
               <Button Command="{Binding EditWndFileCommand}"
-                      Padding="8,4"
+                      Padding="8,4" Margin="0,0,6,6"
                       Background="{DynamicResource SurfaceElevatedBrush}"
                       BorderBrush="{DynamicResource BorderBrush}"
                       BorderThickness="1" CornerRadius="6"
@@ -253,8 +253,44 @@
                   <TextBlock Text="{localization:Localize Tools.ModBuilder.FileManager.ButtonEditWnd}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
+              <Button Command="{Binding ValidateIniFilesCommand}"
+                      Padding="8,4" Margin="0,0,6,6"
+                      Background="{DynamicResource SurfaceElevatedBrush}"
+                      BorderBrush="{DynamicResource BorderBrush}"
+                      BorderThickness="1" CornerRadius="6"
+                      VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                      ToolTip.Tip="{localization:Localize Tools.ModBuilder.FileManager.TooltipValidateIni}">
+                <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                  <Path Width="12" Height="12" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconCheckmark}" Stretch="Uniform" VerticalAlignment="Center"/>
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.FileManager.ButtonValidateIni}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+              <Button Command="{Binding FormatIniFilesCommand}"
+                      Padding="8,4" Margin="0,0,6,6"
+                      Background="{DynamicResource SurfaceElevatedBrush}"
+                      BorderBrush="{DynamicResource BorderBrush}"
+                      BorderThickness="1" CornerRadius="6"
+                      VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                      ToolTip.Tip="{localization:Localize Tools.ModBuilder.FileManager.TooltipFormatIni}">
+                <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                  <Path Width="12" Height="12" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconEdit}" Stretch="Uniform" VerticalAlignment="Center"/>
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.FileManager.ButtonFormatIni}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+              <Button Command="{Binding EditIniFileCommand}"
+                      Padding="8,4" Margin="0,0,6,6"
+                      Background="{DynamicResource SurfaceElevatedBrush}"
+                      BorderBrush="{DynamicResource BorderBrush}"
+                      BorderThickness="1" CornerRadius="6"
+                      VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                      ToolTip.Tip="{localization:Localize Tools.ModBuilder.FileManager.TooltipEditIni}">
+                <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                  <Path Width="12" Height="12" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconEdit}" Stretch="Uniform" VerticalAlignment="Center"/>
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.FileManager.ButtonEditIni}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
               <Button Command="{Binding ImportBigFilesCommand}"
-                      Padding="8,4"
+                      Padding="8,4" Margin="0,0,6,6"
                       Background="{DynamicResource SurfaceElevatedBrush}"
                       BorderBrush="{DynamicResource BorderBrush}"
                       BorderThickness="1" CornerRadius="6"
@@ -265,7 +301,7 @@
                   <TextBlock Text="{localization:Localize Tools.ModBuilder.FileManager.ButtonImportBigProject}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
-            </StackPanel>
+            </WrapPanel>
           </Grid>
 
           <Border Grid.Row="1" BorderBrush="{DynamicResource BorderBrush}"

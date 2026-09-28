@@ -9,6 +9,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Common.Editors;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Helpers;
@@ -51,18 +52,11 @@ public sealed partial class WndEditorViewModel(
     IWndTextureImportService textureImportService,
     IChallengeMedalService medalService,
     ILogger<WndEditorViewModel> logger,
-    ITelemetryService? telemetryService = null) : ObservableObject, IDisposable
+    ITelemetryService? telemetryService = null) : EditorToolViewModelBase(notificationService, localizationService, dialogService)
 {
     private const int MaxUndoHistory = 200;
     private const string NoSelectionTitleKey = "Tools.WndEditor.Apply.NoSelectionTitle";
     private const string NoSelectionMessageKey = "Tools.WndEditor.Apply.NoSelectionMessage";
-
-    private static readonly EnumerationOptions SafeDirectoryEnumerationOptions = new()
-    {
-        AttributesToSkip = FileAttributes.Hidden | FileAttributes.ReparsePoint | FileAttributes.System,
-        IgnoreInaccessible = true,
-        RecurseSubdirectories = false,
-    };
 
     private static Cursor? _handCursor;
 
@@ -76,6 +70,9 @@ public sealed partial class WndEditorViewModel(
     private readonly object _previewSync = new();
     private readonly object _linkedAssetsSync = new();
     private readonly object _thumbnailSync = new();
+    private FileExplorerViewModel? _fileExplorer;
+    private WndWindow? _copiedWindow;
+    private bool _isCutOperation;
     private int _historyVersion;
     private int _savedHistoryVersion;
     private WndDocument? _document;
@@ -104,27 +101,22 @@ public sealed partial class WndEditorViewModel(
     public ObservableCollection<WndTreeNodeViewModel> RootNodes { get; } = [];
 
     /// <summary>
-    /// Gets the window definition files listed in the explorer.
+    /// Gets the shared file explorer listing window definition files.
     /// </summary>
-    public ObservableCollection<WndFileTreeNodeViewModel> Files { get; } = [];
+    public FileExplorerViewModel FileExplorer => _fileExplorer ??= CreateFileExplorer();
 
     /// <summary>
-    /// Gets the directory name for display in the explorer.
+    /// Gets the window definition files listed in the explorer.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Observable property dependent on FilesDirectory")]
-    public string? FilesDirectoryName
-    {
-        get
-        {
-            if (string.IsNullOrEmpty(FilesDirectory))
-            {
-                return null;
-            }
+    public ObservableCollection<EditorFileTreeNodeViewModel> Files => FileExplorer.Nodes;
 
-            var trimmed = FilesDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            var fileName = Path.GetFileName(trimmed);
-            return string.IsNullOrEmpty(fileName) ? FilesDirectory : fileName;
-        }
+    /// <summary>
+    /// Gets or sets the directory listed in the file explorer.
+    /// </summary>
+    public string? FilesDirectory
+    {
+        get => FileExplorer.Directory;
+        set => FileExplorer.Directory = value;
     }
 
     /// <summary>
@@ -140,12 +132,12 @@ public sealed partial class WndEditorViewModel(
     /// <summary>
     /// Gets the document title with a modification marker.
     /// </summary>
-    public string DocumentTitle
+    public override string DocumentTitle
     {
         get
         {
             var name = FilePath == null
-                ? localizationService.GetString("Tools.WndEditor.Document.Untitled")
+                ? Localization.GetString("Tools.WndEditor.Document.Untitled")
                 : Path.GetFileName(FilePath);
             return IsModified ? $"*{name}" : name;
         }
@@ -160,12 +152,6 @@ public sealed partial class WndEditorViewModel(
     /// Gets the canvas height in device-independent pixels.
     /// </summary>
     public double CanvasHeight => _canvasBaseHeight * Zoom;
-
-    /// <summary>
-    /// Gets the zoom factor as a display percentage.
-    /// </summary>
-    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
-    public string ZoomDisplayText => $"{Zoom:P0}";
 
     /// <summary>
     /// Gets the canvas cursor, showing a hand while the pan tool is active.
@@ -204,20 +190,6 @@ public sealed partial class WndEditorViewModel(
     /// </summary>
     [ObservableProperty]
     private WndTreeNodeViewModel? _selectedNode;
-
-    /// <summary>
-    /// Gets or sets the canvas zoom factor.
-    /// </summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanvasWidth))]
-    [NotifyPropertyChangedFor(nameof(CanvasHeight))]
-    [NotifyPropertyChangedFor(nameof(CanvasContentOffset))]
-    [NotifyPropertyChangedFor(nameof(ZoomDisplayText))]
-    [NotifyPropertyChangedFor(nameof(ScreenGuideX))]
-    [NotifyPropertyChangedFor(nameof(ScreenGuideY))]
-    [NotifyPropertyChangedFor(nameof(ScreenGuideWidth))]
-    [NotifyPropertyChangedFor(nameof(ScreenGuideHeight))]
-    private double _zoom = WndConstants.Editor.DefaultZoom;
 
     /// <summary>
     /// Gets or sets the virtual game screen width in game coordinates.
@@ -302,16 +274,6 @@ public sealed partial class WndEditorViewModel(
     [ObservableProperty]
     private int _leftSidebarTabIndex;
 
-    /// <summary>
-    /// Gets or sets the directory listed in the file explorer.
-    /// </summary>
-    [ObservableProperty]
-    private string? _filesDirectory;
-
-    /// <summary>
-    /// Gets or sets whether a document is open.
-    /// </summary>
-    [ObservableProperty]
     private bool _hasDocument;
 
     /// <summary>
@@ -415,14 +377,58 @@ public sealed partial class WndEditorViewModel(
     private string? _assetRootDisplayTooltip;
 
     /// <summary>
+    /// Gets or sets a value indicating whether a document is open.
+    /// </summary>
+    public override bool HasDocument
+    {
+        get => _hasDocument;
+        protected set => SetProperty(ref _hasDocument, value);
+    }
+
+    /// <summary>
     /// Gets a value indicating whether undo is available.
     /// </summary>
-    public bool CanUndo => _undoStack.Count > 0;
+    public override bool CanUndo => _undoStack.Count > 0;
 
     /// <summary>
     /// Gets a value indicating whether redo is available.
     /// </summary>
-    public bool CanRedo => _redoStack.Count > 0;
+    public override bool CanRedo => _redoStack.Count > 0;
+
+    /// <summary>
+    /// Gets a value indicating whether the selected window can be copied.
+    /// </summary>
+    public override bool CanCopy => _document is not null && SelectedNode is not null;
+
+    /// <summary>
+    /// Gets a value indicating whether the selected window can be cut.
+    /// </summary>
+    public override bool CanCut => _document is not null && SelectedNode is not null;
+
+    /// <summary>
+    /// Gets a value indicating whether the clipboard can be pasted.
+    /// </summary>
+    public override bool CanPaste => true;
+
+    /// <summary>
+    /// Gets a value indicating whether the selected window can be duplicated.
+    /// </summary>
+    public override bool CanDuplicate => _document is not null && SelectedNode is not null;
+
+    /// <summary>
+    /// Gets a value indicating whether the selected window can be deleted.
+    /// </summary>
+    public override bool CanDelete => _document is not null && SelectedNode is not null;
+
+    /// <summary>
+    /// Gets a value indicating whether the document can be saved.
+    /// </summary>
+    public override bool CanSave => HasDocument;
+
+    /// <summary>
+    /// Gets a value indicating whether the document can be saved under a new path.
+    /// </summary>
+    public override bool CanSaveAs => HasDocument;
 
     /// <summary>
     /// Opens a window definition file, asking to discard unsaved changes first.
@@ -442,9 +448,9 @@ public sealed partial class WndEditorViewModel(
         var result = await wndDocumentService.ParseFileAsync(filePath, cancellationToken);
         if (!result.Success || result.Data == null)
         {
-            notificationService.ShowError(
-                localizationService.GetString("Tools.WndEditor.Open.FailureTitle"),
-                localizationService.GetString("Tools.WndEditor.Open.FailureMessage", result.FirstError ?? filePath),
+            Notifications.ShowError(
+                Localization.GetString("Tools.WndEditor.Open.FailureTitle"),
+                Localization.GetString("Tools.WndEditor.Open.FailureMessage", result.FirstError ?? filePath),
                 NotificationDurations.Long);
             return false;
         }
@@ -485,19 +491,19 @@ public sealed partial class WndEditorViewModel(
 
         if (HasDocument && !string.IsNullOrEmpty(FilePath) && IsSubPathOf(FilePath, folderPath))
         {
-            UpdateCurrentFileNode(FilePath);
+            FileExplorer.CurrentPath = FilePath;
             return true;
         }
 
-        var firstWnd = FindFirstWndFilePath(Files);
+        var firstWnd = FileExplorer.FindFirstFile();
         if (!string.IsNullOrEmpty(firstWnd))
         {
             return await OpenFileAsync(firstWnd, cancellationToken).ConfigureAwait(false);
         }
 
-        notificationService.ShowInfo(
-            localizationService.GetString("Tools.WndEditor.Files.NoWndFilesTitle"),
-            localizationService.GetString("Tools.WndEditor.Files.NoWndFilesMessage"),
+        Notifications.ShowInfo(
+            Localization.GetString("Tools.WndEditor.Files.NoWndFilesTitle"),
+            Localization.GetString("Tools.WndEditor.Files.NoWndFilesMessage"),
             NotificationDurations.Medium);
 
         return true;
@@ -521,9 +527,9 @@ public sealed partial class WndEditorViewModel(
         var result = wndDocumentService.ParseText(content, filePath);
         if (!result.Success || result.Data == null)
         {
-            notificationService.ShowError(
-                localizationService.GetString("Tools.WndEditor.Open.FailureTitle"),
-                localizationService.GetString("Tools.WndEditor.Open.FailureMessage", result.FirstError ?? string.Empty),
+            Notifications.ShowError(
+                Localization.GetString("Tools.WndEditor.Open.FailureTitle"),
+                Localization.GetString("Tools.WndEditor.Open.FailureMessage", result.FirstError ?? string.Empty),
                 NotificationDurations.Long);
             return false;
         }
@@ -555,9 +561,9 @@ public sealed partial class WndEditorViewModel(
         var targetWindow = ResolveTargetWindowAt(canvasPosition) ?? SelectedNode?.Window;
         if (targetWindow == null)
         {
-            notificationService.ShowWarning(
-                localizationService.GetString(NoSelectionTitleKey),
-                localizationService.GetString(NoSelectionMessageKey),
+            Notifications.ShowWarning(
+                Localization.GetString(NoSelectionTitleKey),
+                Localization.GetString(NoSelectionMessageKey),
                 NotificationDurations.Medium);
             return false;
         }
@@ -608,9 +614,9 @@ public sealed partial class WndEditorViewModel(
         var targetWindow = ResolveTargetWindowAt(canvasPosition) ?? SelectedNode?.Window;
         if (targetWindow == null)
         {
-            notificationService.ShowWarning(
-                localizationService.GetString(NoSelectionTitleKey),
-                localizationService.GetString(NoSelectionMessageKey),
+            Notifications.ShowWarning(
+                Localization.GetString(NoSelectionTitleKey),
+                Localization.GetString(NoSelectionMessageKey),
                 NotificationDurations.Medium);
             return;
         }
@@ -630,11 +636,11 @@ public sealed partial class WndEditorViewModel(
             logger.LogError(exception, "Failed to process dropped item in WND editor");
         }
 
-        var title = localizationService.GetString("Tools.WndEditor.Drop.ErrorTitle");
+        var title = Localization.GetString("Tools.WndEditor.Drop.ErrorTitle");
         var message = exception?.Message is { Length: > 0 } msg
-            ? localizationService.GetString("Tools.WndEditor.Drop.ErrorMessage", msg)
-            : localizationService.GetString("Tools.WndEditor.Drop.ErrorMessage", string.Empty);
-        notificationService.ShowError(title, message);
+            ? Localization.GetString("Tools.WndEditor.Drop.ErrorMessage", msg)
+            : Localization.GetString("Tools.WndEditor.Drop.ErrorMessage", string.Empty);
+        Notifications.ShowError(title, message);
     }
 
     /// <summary>
@@ -651,25 +657,25 @@ public sealed partial class WndEditorViewModel(
         var targetWindow = SelectedNode?.Window;
         if (targetWindow == null)
         {
-            notificationService.ShowWarning(
-                localizationService.GetString(NoSelectionTitleKey),
-                localizationService.GetString(NoSelectionMessageKey),
+            Notifications.ShowWarning(
+                Localization.GetString(NoSelectionTitleKey),
+                Localization.GetString(NoSelectionMessageKey),
                 NotificationDurations.Medium);
             return false;
         }
 
-        var topLevel = GetTopLevel();
-        if (topLevel?.FocusManager?.GetFocusedElement() is TextBox)
+        if (IsTextInputFocused())
         {
             return false;
         }
 
+        var topLevel = GetTopLevel();
         clipboard ??= topLevel?.Clipboard;
         if (clipboard == null)
         {
-            notificationService.ShowWarning(
-                localizationService.GetString("Tools.WndEditor.Paste.UnavailableTitle"),
-                localizationService.GetString("Tools.WndEditor.Paste.UnavailableMessage"),
+            Notifications.ShowWarning(
+                Localization.GetString("Tools.WndEditor.Paste.UnavailableTitle"),
+                Localization.GetString("Tools.WndEditor.Paste.UnavailableMessage"),
                 NotificationDurations.Medium);
             return false;
         }
@@ -705,9 +711,9 @@ public sealed partial class WndEditorViewModel(
             }
         }
 
-        notificationService.ShowInfo(
-            localizationService.GetString("Tools.WndEditor.Paste.EmptyTitle"),
-            localizationService.GetString("Tools.WndEditor.Paste.EmptyMessage"),
+        Notifications.ShowInfo(
+            Localization.GetString("Tools.WndEditor.Paste.EmptyTitle"),
+            Localization.GetString("Tools.WndEditor.Paste.EmptyMessage"),
             NotificationDurations.Medium);
         return false;
     }
@@ -828,8 +834,8 @@ public sealed partial class WndEditorViewModel(
 
         var finalRect = changed;
         var actionName = wasResizing
-            ? localizationService.GetString("Tools.WndEditor.History.ResizeWindow")
-            : localizationService.GetString("Tools.WndEditor.History.MoveWindow");
+            ? Localization.GetString("Tools.WndEditor.History.ResizeWindow")
+            : Localization.GetString("Tools.WndEditor.History.MoveWindow");
 
         PushUndo(new WndEditAction(
             actionName,
@@ -844,37 +850,6 @@ public sealed partial class WndEditorViewModel(
                 SyncAfterEdit(item.Window);
             }));
         SyncAfterEdit(item.Window);
-    }
-
-    /// <inheritdoc />
-    public void Dispose()
-    {
-        lock (_previewSync)
-        {
-            CancelAndDisposeCts(_previewCts);
-            _previewCts = null;
-        }
-
-        lock (_thumbnailSync)
-        {
-            CancelAndDisposeCts(_thumbnailCts);
-            _thumbnailCts = null;
-        }
-
-        ClearComposedBitmaps();
-        foreach (var bitmap in _previewBitmaps.Values)
-        {
-            bitmap.Dispose();
-        }
-
-        _previewBitmaps.Clear();
-
-        foreach (var bitmap in _thumbnailBitmaps.Values)
-        {
-            bitmap.Dispose();
-        }
-
-        _thumbnailBitmaps.Clear();
     }
 
     /// <summary>
@@ -1007,6 +982,354 @@ public sealed partial class WndEditorViewModel(
         return new WndRuntimeArt(medalImages, hidden);
     }
 
+    /// <inheritdoc />
+    protected override void Dispose(bool disposing)
+    {
+        if (!disposing)
+        {
+            return;
+        }
+
+        lock (_previewSync)
+        {
+            CancelAndDisposeCts(_previewCts);
+            _previewCts = null;
+        }
+
+        lock (_thumbnailSync)
+        {
+            CancelAndDisposeCts(_thumbnailCts);
+            _thumbnailCts = null;
+        }
+
+        ClearComposedBitmaps();
+        foreach (var bitmap in _previewBitmaps.Values)
+        {
+            bitmap.Dispose();
+        }
+
+        _previewBitmaps.Clear();
+
+        foreach (var bitmap in _thumbnailBitmaps.Values)
+        {
+            bitmap.Dispose();
+        }
+
+        _thumbnailBitmaps.Clear();
+        base.Dispose(disposing);
+    }
+
+    /// <inheritdoc />
+    protected override double ZoomMax => WndConstants.Editor.MaxZoom;
+
+    /// <inheritdoc />
+    protected override bool HasUnsavedChanges => IsModified;
+
+    /// <inheritdoc />
+    protected override string UnsavedChangesTitleKey => "Tools.WndEditor.UnsavedChanges.Title";
+
+    /// <inheritdoc />
+    protected override string UnsavedChangesMessageKey => "Tools.WndEditor.UnsavedChanges.Message";
+
+    /// <inheritdoc />
+    protected override string UnsavedChangesDiscardKey => "Tools.WndEditor.UnsavedChanges.Discard";
+
+    /// <inheritdoc />
+    protected override string UnsavedChangesCancelKey => "Tools.WndEditor.UnsavedChanges.Cancel";
+
+    /// <inheritdoc />
+    protected override void OnZoomChanged()
+    {
+        OnPropertyChanged(nameof(CanvasWidth));
+        OnPropertyChanged(nameof(CanvasHeight));
+        OnPropertyChanged(nameof(CanvasContentOffset));
+        OnPropertyChanged(nameof(ScreenGuideX));
+        OnPropertyChanged(nameof(ScreenGuideY));
+        OnPropertyChanged(nameof(ScreenGuideWidth));
+        OnPropertyChanged(nameof(ScreenGuideHeight));
+        RebuildCanvas();
+    }
+
+    /// <inheritdoc />
+    protected override void OnZoomIn()
+    {
+        Zoom = Math.Min(Zoom * WndConstants.Editor.ZoomStepFactor, WndConstants.Editor.MaxZoom);
+    }
+
+    /// <inheritdoc />
+    protected override void OnZoomOut()
+    {
+        Zoom = Math.Max(Zoom / WndConstants.Editor.ZoomStepFactor, WndConstants.Editor.MinZoom);
+    }
+
+    /// <inheritdoc />
+    protected override void OnResetZoom()
+    {
+        Zoom = WndConstants.Editor.DefaultZoom;
+        CanvasFramingRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <inheritdoc />
+    protected override void OnUndo()
+    {
+        if (_undoStack.Count == 0)
+        {
+            return;
+        }
+
+        var action = _undoStack.Pop();
+        action.Undo();
+        _redoStack.Push(action);
+        _historyVersion--;
+        IsModified = _historyVersion != _savedHistoryVersion;
+        RefreshUndoCommands();
+    }
+
+    /// <inheritdoc />
+    protected override void OnRedo()
+    {
+        if (_redoStack.Count == 0)
+        {
+            return;
+        }
+
+        var action = _redoStack.Pop();
+        action.Redo();
+        PushUndoStack(action);
+        _historyVersion++;
+        IsModified = _historyVersion != _savedHistoryVersion;
+        RefreshUndoCommands();
+    }
+
+    /// <inheritdoc />
+    protected override void OnCopy()
+    {
+        if (IsTextInputFocused() || _document is null || SelectedNode is null)
+        {
+            return;
+        }
+
+        _copiedWindow = CloneWindow(SelectedNode.Window);
+        _isCutOperation = false;
+        RefreshEditorCommands();
+    }
+
+    /// <inheritdoc />
+    protected override void OnCut()
+    {
+        if (IsTextInputFocused() || _document is null || SelectedNode is null)
+        {
+            return;
+        }
+
+        _copiedWindow = CloneWindow(SelectedNode.Window);
+        _isCutOperation = true;
+        RemoveWindowWithUndo(SelectedNode, "Tools.WndEditor.History.CutWindow");
+        RefreshEditorCommands();
+    }
+
+    /// <inheritdoc />
+    protected override async Task OnPasteAsync(CancellationToken cancellationToken)
+    {
+        if (IsTextInputFocused())
+        {
+            return;
+        }
+
+        if (_copiedWindow is not null && _document is not null)
+        {
+            PasteCopiedWindow();
+            return;
+        }
+
+        await PasteAssetFromClipboardAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    protected override void OnDuplicate()
+    {
+        if (IsTextInputFocused() || _document is null || SelectedNode is null)
+        {
+            return;
+        }
+
+        var node = SelectedNode;
+        var siblings = node.Parent is null ? _document.Windows : node.Parent.Window.Children;
+        var index = siblings.IndexOf(node.Window);
+        var clone = CloneWindow(node.Window);
+        OffsetWindowRect(clone);
+        siblings.Insert(Math.Min(index + 1, siblings.Count), clone);
+        PushUndo(new WndEditAction(
+            Localization.GetString("Tools.WndEditor.History.DuplicateWindow"),
+            () =>
+            {
+                siblings.Insert(Math.Min(index + 1, siblings.Count), clone);
+                RebuildAll();
+                SelectWindow(clone);
+            },
+            () =>
+            {
+                siblings.Remove(clone);
+                RebuildAll();
+                SelectWindow(node.Window);
+            }));
+        RebuildAll();
+        SelectWindow(clone);
+        RefreshEditorCommands();
+    }
+
+    /// <inheritdoc />
+    protected override void OnDelete()
+    {
+        if (IsTextInputFocused() || _document is null || SelectedNode is null)
+        {
+            return;
+        }
+
+        RemoveWindowWithUndo(SelectedNode, "Tools.WndEditor.History.DeleteWindow");
+        RefreshEditorCommands();
+    }
+
+    /// <inheritdoc />
+    protected override async Task OnNewDocumentAsync(CancellationToken cancellationToken)
+    {
+        if (!await ConfirmDiscardUnsavedAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return;
+        }
+
+        var document = new WndDocument();
+        document.Windows.Add(CreateDefaultWindow());
+        await InvokeOnUIThreadAsync(() =>
+        {
+            AdoptDocument(document, null);
+            IsModified = true;
+        }).ConfigureAwait(false);
+        await EnsureInstallationsLoadedAsync(cancellationToken).ConfigureAwait(false);
+        RefreshAssetPreviews();
+        logger.LogInformation("Created new window definition document");
+    }
+
+    /// <inheritdoc />
+    protected override async Task OnOpenFolderAsync(CancellationToken cancellationToken)
+    {
+        var localPath = await PickFolderAsync(cancellationToken);
+        if (!string.IsNullOrEmpty(localPath))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await OpenFolderAsync(localPath, cancellationToken);
+        }
+    }
+
+    /// <inheritdoc />
+    protected override async Task OnOpenFileAsync(CancellationToken cancellationToken)
+    {
+        var topLevel = GetTopLevel();
+        if (topLevel is null)
+        {
+            return;
+        }
+
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = Localization.GetString("Tools.WndEditor.FileDialog.OpenTitle"),
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType(Localization.GetString("Tools.WndEditor.FileDialog.FilterName"))
+                {
+                    Patterns = [ModBuilderConstants.FileNames.WndSearchPattern],
+                },
+            ],
+        });
+        if (files.Count > 0)
+        {
+            var localPath = files[0].TryGetLocalPath();
+            if (!string.IsNullOrEmpty(localPath))
+            {
+                await OpenFileAsync(localPath, cancellationToken);
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    protected override async Task OnSaveAsync(CancellationToken cancellationToken)
+    {
+        if (_document is null)
+        {
+            return;
+        }
+
+        SelectedProperties?.FlushPendingEdits();
+
+        if (string.IsNullOrEmpty(FilePath))
+        {
+            await OnSaveAsAsync(cancellationToken);
+            return;
+        }
+
+        var normalizedPath = NormalizeSourceFilePath(FilePath);
+        var oldPath = FilePath;
+        if (!string.Equals(normalizedPath, oldPath, StringComparison.OrdinalIgnoreCase))
+        {
+            FilePath = normalizedPath;
+            SyncFilesDirectory(normalizedPath);
+        }
+
+        var saved = await WriteDocumentToFileAsync(FilePath, cancellationToken);
+        if (saved && !string.Equals(normalizedPath, oldPath, StringComparison.OrdinalIgnoreCase) && File.Exists(oldPath))
+        {
+            try
+            {
+                await WriteDocumentToFileAsync(oldPath, cancellationToken, showFeedback: false);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogDebug(ex, "Failed to mirror saved file to transient build path {Path}", oldPath);
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    protected override async Task OnSaveAsAsync(CancellationToken cancellationToken)
+    {
+        if (_document is null)
+        {
+            return;
+        }
+
+        SelectedProperties?.FlushPendingEdits();
+
+        var topLevel = GetTopLevel();
+        if (topLevel is null)
+        {
+            return;
+        }
+
+        var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = Localization.GetString("Tools.WndEditor.FileDialog.SaveTitle"),
+            SuggestedFileName = FilePath is null ? null : Path.GetFileName(FilePath),
+            FileTypeChoices =
+            [
+                new FilePickerFileType(Localization.GetString("Tools.WndEditor.FileDialog.FilterName"))
+                {
+                    Patterns = [ModBuilderConstants.FileNames.WndSearchPattern],
+                },
+            ],
+        });
+        var localPath = file?.TryGetLocalPath();
+        if (!string.IsNullOrEmpty(localPath))
+        {
+            var saved = await WriteDocumentToFileAsync(localPath, cancellationToken);
+            if (saved)
+            {
+                FilePath = localPath;
+                SyncFilesDirectory(localPath);
+            }
+        }
+    }
+
     private static bool IsMapStartMarker(string shortName)
     {
         return shortName.StartsWith(WndConstants.ShellRuntime.MapStartPositionPrefix, StringComparison.OrdinalIgnoreCase);
@@ -1061,16 +1384,6 @@ public sealed partial class WndEditorViewModel(
             || string.Equals(shortName, WndConstants.ShellRuntime.ButtonGlaLoadGame, StringComparison.OrdinalIgnoreCase)
             || string.Equals(shortName, WndConstants.ShellRuntime.ButtonChinaRecentSave, StringComparison.OrdinalIgnoreCase)
             || string.Equals(shortName, WndConstants.ShellRuntime.ButtonChinaLoadGame, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static TopLevel? GetTopLevel()
-    {
-        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime lifetime)
-        {
-            return null;
-        }
-
-        return TopLevel.GetTopLevel(lifetime.MainWindow);
     }
 
     private void UpdateCanvasResize(Point canvasPoint)
@@ -1476,9 +1789,9 @@ public sealed partial class WndEditorViewModel(
         var projectDirectory = ResolveImportProjectDirectory(LinkedModFolder, roots, FilePath, FilesDirectory);
         if (string.IsNullOrWhiteSpace(projectDirectory))
         {
-            notificationService.ShowWarning(
-                localizationService.GetString("Tools.WndEditor.Paste.NoProjectTitle"),
-                localizationService.GetString("Tools.WndEditor.Paste.NoProjectMessage"),
+            Notifications.ShowWarning(
+                Localization.GetString("Tools.WndEditor.Paste.NoProjectTitle"),
+                Localization.GetString("Tools.WndEditor.Paste.NoProjectMessage"),
                 NotificationDurations.Medium);
             return false;
         }
@@ -1496,9 +1809,9 @@ public sealed partial class WndEditorViewModel(
 
         if (!importResult.Success || importResult.Data == null)
         {
-            notificationService.ShowError(
-                localizationService.GetString("Tools.WndEditor.Paste.UnrecognizedTitle"),
-                importResult.FirstError ?? localizationService.GetString("Tools.WndEditor.Paste.UnrecognizedMessage"),
+            Notifications.ShowError(
+                Localization.GetString("Tools.WndEditor.Paste.UnrecognizedTitle"),
+                importResult.FirstError ?? Localization.GetString("Tools.WndEditor.Paste.UnrecognizedMessage"),
                 NotificationDurations.Long);
             return false;
         }
@@ -1517,93 +1830,6 @@ public sealed partial class WndEditorViewModel(
     }
 
     /// <summary>
-    /// Creates a new untitled document.
-    /// </summary>
-    [RelayCommand]
-    private async Task NewDocumentAsync(CancellationToken cancellationToken = default)
-    {
-        if (!await ConfirmDiscardUnsavedAsync(cancellationToken).ConfigureAwait(false))
-        {
-            return;
-        }
-
-        var document = new WndDocument();
-        document.Windows.Add(CreateDefaultWindow());
-        await InvokeOnUIThreadAsync(() =>
-        {
-            AdoptDocument(document, null);
-            IsModified = true;
-        }).ConfigureAwait(false);
-        await EnsureInstallationsLoadedAsync(cancellationToken).ConfigureAwait(false);
-        RefreshAssetPreviews();
-        logger.LogInformation("Created new window definition document");
-    }
-
-    /// <summary>
-    /// Opens a folder containing window definition files and loads its tree into the file explorer.
-    /// </summary>
-    [RelayCommand]
-    private async Task OpenFolderWithDialogAsync(CancellationToken cancellationToken = default)
-    {
-        var topLevel = GetTopLevel();
-        if (topLevel == null)
-        {
-            return;
-        }
-
-        var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
-        {
-            Title = localizationService.GetString("Tools.WndEditor.FileDialog.FolderTitle"),
-            AllowMultiple = false,
-        });
-        if (folders.Count == 0)
-        {
-            return;
-        }
-
-        var localPath = folders[0].TryGetLocalPath();
-        if (!string.IsNullOrEmpty(localPath))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            await OpenFolderAsync(localPath, cancellationToken);
-        }
-    }
-
-    /// <summary>
-    /// Opens a window definition file chosen with a file dialog.
-    /// </summary>
-    [RelayCommand]
-    private async Task OpenFileWithDialogAsync(CancellationToken cancellationToken = default)
-    {
-        var topLevel = GetTopLevel();
-        if (topLevel == null)
-        {
-            return;
-        }
-
-        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        {
-            Title = localizationService.GetString("Tools.WndEditor.FileDialog.OpenTitle"),
-            AllowMultiple = false,
-            FileTypeFilter =
-            [
-                new FilePickerFileType(localizationService.GetString("Tools.WndEditor.FileDialog.FilterName"))
-                {
-                    Patterns = [ModBuilderConstants.FileNames.WndSearchPattern],
-                },
-            ],
-        });
-        if (files.Count > 0)
-        {
-            var localPath = files[0].TryGetLocalPath();
-            if (!string.IsNullOrEmpty(localPath))
-            {
-                await OpenFileAsync(localPath, cancellationToken);
-            }
-        }
-    }
-
-    /// <summary>
     /// Links a mod root folder to load assets from.
     /// </summary>
     [RelayCommand]
@@ -1617,7 +1843,7 @@ public sealed partial class WndEditorViewModel(
 
         var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
-            Title = localizationService.GetString("Tools.WndEditor.Assets.LinkModFolderTitle"),
+            Title = Localization.GetString("Tools.WndEditor.Assets.LinkModFolderTitle"),
             AllowMultiple = false,
         });
 
@@ -1659,11 +1885,11 @@ public sealed partial class WndEditorViewModel(
 
         var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = localizationService.GetString("Tools.WndEditor.Assets.LinkBigArchiveTitle"),
+            Title = Localization.GetString("Tools.WndEditor.Assets.LinkBigArchiveTitle"),
             AllowMultiple = true,
             FileTypeFilter =
             [
-                new FilePickerFileType(localizationService.GetString("Tools.WndEditor.Assets.BigArchiveFilter"))
+                new FilePickerFileType(Localization.GetString("Tools.WndEditor.Assets.BigArchiveFilter"))
                 {
                     Patterns = ["*.big"],
                 },
@@ -1762,9 +1988,9 @@ public sealed partial class WndEditorViewModel(
         var projectDirectory = ResolveImportProjectDirectory(LinkedModFolder, roots, FilePath, FilesDirectory);
         if (string.IsNullOrEmpty(projectDirectory))
         {
-            notificationService.ShowWarning(
-                localizationService.GetString("Tools.WndEditor.Import.NoProjectTitle"),
-                localizationService.GetString("Tools.WndEditor.Import.NoProjectMessage"),
+            Notifications.ShowWarning(
+                Localization.GetString("Tools.WndEditor.Import.NoProjectTitle"),
+                Localization.GetString("Tools.WndEditor.Import.NoProjectMessage"),
                 NotificationDurations.Medium);
             return;
         }
@@ -1777,11 +2003,11 @@ public sealed partial class WndEditorViewModel(
 
         var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = localizationService.GetString("Tools.WndEditor.Import.DialogTitle"),
+            Title = Localization.GetString("Tools.WndEditor.Import.DialogTitle"),
             AllowMultiple = true,
             FileTypeFilter =
             [
-                new FilePickerFileType(localizationService.GetString("Tools.WndEditor.Import.FilterName"))
+                new FilePickerFileType(Localization.GetString("Tools.WndEditor.Import.FilterName"))
                 {
                     Patterns = WndConstants.AssetImport.SourceExtensions.Select(extension => string.Concat("*", extension)).ToArray(),
                 },
@@ -1811,9 +2037,9 @@ public sealed partial class WndEditorViewModel(
                 }
                 else
                 {
-                    notificationService.ShowError(
-                        localizationService.GetString("Tools.WndEditor.Import.FailureTitle"),
-                        localizationService.GetString("Tools.WndEditor.Import.FailureMessage", Path.GetFileName(localPath), result.FirstError ?? string.Empty),
+                    Notifications.ShowError(
+                        Localization.GetString("Tools.WndEditor.Import.FailureTitle"),
+                        Localization.GetString("Tools.WndEditor.Import.FailureMessage", Path.GetFileName(localPath), result.FirstError ?? string.Empty),
                         NotificationDurations.Long);
                 }
             }
@@ -1832,9 +2058,9 @@ public sealed partial class WndEditorViewModel(
             {
                 [TelemetryConstants.Properties.TextureCount] = imported,
             });
-            notificationService.ShowSuccess(
-                localizationService.GetString("Tools.WndEditor.Import.SuccessTitle"),
-                localizationService.GetString("Tools.WndEditor.Import.SuccessMessage", imported, projectDirectory),
+            Notifications.ShowSuccess(
+                Localization.GetString("Tools.WndEditor.Import.SuccessTitle"),
+                Localization.GetString("Tools.WndEditor.Import.SuccessMessage", imported, projectDirectory),
                 NotificationDurations.Medium);
             assetService.InvalidateCache();
             RefreshAssetPreviews();
@@ -1858,9 +2084,9 @@ public sealed partial class WndEditorViewModel(
         var projectDirectory = ResolveImportProjectDirectory(LinkedModFolder, roots, FilePath, FilesDirectory);
         if (string.IsNullOrEmpty(projectDirectory))
         {
-            notificationService.ShowWarning(
-                localizationService.GetString("Tools.WndEditor.Import.NoProjectTitle"),
-                localizationService.GetString("Tools.WndEditor.Import.NoProjectMessage"),
+            Notifications.ShowWarning(
+                Localization.GetString("Tools.WndEditor.Import.NoProjectTitle"),
+                Localization.GetString("Tools.WndEditor.Import.NoProjectMessage"),
                 NotificationDurations.Medium);
             return;
         }
@@ -1873,11 +2099,11 @@ public sealed partial class WndEditorViewModel(
 
         var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = localizationService.GetString("Tools.WndEditor.Import.DialogTitleFor", mappedName),
+            Title = Localization.GetString("Tools.WndEditor.Import.DialogTitleFor", mappedName),
             AllowMultiple = false,
             FileTypeFilter =
             [
-                new FilePickerFileType(localizationService.GetString("Tools.WndEditor.Import.FilterName"))
+                new FilePickerFileType(Localization.GetString("Tools.WndEditor.Import.FilterName"))
                 {
                     Patterns = WndConstants.AssetImport.SourceExtensions.Select(extension => string.Concat("*", extension)).ToArray(),
                 },
@@ -1899,9 +2125,9 @@ public sealed partial class WndEditorViewModel(
             var result = await textureImportService.ImportTextureAsync(localPath, projectDirectory, mappedName, cancellationToken);
             if (result.Success && result.Data != null)
             {
-                notificationService.ShowSuccess(
-                    localizationService.GetString("Tools.WndEditor.Import.SuccessTitle"),
-                    localizationService.GetString("Tools.WndEditor.Import.SuccessMessage", 1, projectDirectory),
+                Notifications.ShowSuccess(
+                    Localization.GetString("Tools.WndEditor.Import.SuccessTitle"),
+                    Localization.GetString("Tools.WndEditor.Import.SuccessMessage", 1, projectDirectory),
                     NotificationDurations.Medium);
                 MissingImageNames.Remove(result.Data.MappedName);
                 assetService.InvalidateCache();
@@ -1909,9 +2135,9 @@ public sealed partial class WndEditorViewModel(
             }
             else
             {
-                notificationService.ShowError(
-                    localizationService.GetString("Tools.WndEditor.Import.FailureTitle"),
-                    localizationService.GetString("Tools.WndEditor.Import.FailureMessage", Path.GetFileName(localPath), result.FirstError ?? string.Empty),
+                Notifications.ShowError(
+                    Localization.GetString("Tools.WndEditor.Import.FailureTitle"),
+                    Localization.GetString("Tools.WndEditor.Import.FailureMessage", Path.GetFileName(localPath), result.FirstError ?? string.Empty),
                     NotificationDurations.Long);
             }
         }
@@ -1939,9 +2165,9 @@ public sealed partial class WndEditorViewModel(
         var node = SelectedNode;
         if (node == null)
         {
-            notificationService.ShowWarning(
-                localizationService.GetString(NoSelectionTitleKey),
-                localizationService.GetString(NoSelectionMessageKey),
+            Notifications.ShowWarning(
+                Localization.GetString(NoSelectionTitleKey),
+                Localization.GetString(NoSelectionMessageKey),
                 NotificationDurations.Medium);
             return;
         }
@@ -1967,9 +2193,9 @@ public sealed partial class WndEditorViewModel(
         }
 
         CommitPropertyEdit(node.Window, WndConstants.PropertyKeys.EnabledDrawData, updated);
-        notificationService.ShowSuccess(
-            localizationService.GetString("Tools.WndEditor.Apply.SuccessTitle"),
-            localizationService.GetString("Tools.WndEditor.Apply.SuccessMessage", name, node.DisplayName),
+        Notifications.ShowSuccess(
+            Localization.GetString("Tools.WndEditor.Apply.SuccessTitle"),
+            Localization.GetString("Tools.WndEditor.Apply.SuccessMessage", name, node.DisplayName),
             NotificationDurations.Medium);
     }
 
@@ -2046,103 +2272,19 @@ public sealed partial class WndEditorViewModel(
         if (!string.IsNullOrEmpty(modFolder))
         {
             var folderName = Path.GetFileName(modFolder);
-            parts.Add(localizationService.GetString("Tools.WndEditor.Assets.LinkedModSummary", folderName));
-            tooltipLines.Add(localizationService.GetString("Tools.WndEditor.Assets.LinkedTooltipModPrefix", modFolder));
+            parts.Add(Localization.GetString("Tools.WndEditor.Assets.LinkedModSummary", folderName));
+            tooltipLines.Add(Localization.GetString("Tools.WndEditor.Assets.LinkedTooltipModPrefix", modFolder));
         }
 
         if (bigFiles.Count > 0)
         {
-            parts.Add(localizationService.GetString("Tools.WndEditor.Assets.LinkedBigSummary", bigFiles.Count));
-            tooltipLines.AddRange(bigFiles.Select(b => localizationService.GetString("Tools.WndEditor.Assets.LinkedTooltipBigPrefix", b)));
+            parts.Add(Localization.GetString("Tools.WndEditor.Assets.LinkedBigSummary", bigFiles.Count));
+            tooltipLines.AddRange(bigFiles.Select(b => Localization.GetString("Tools.WndEditor.Assets.LinkedTooltipBigPrefix", b)));
         }
 
-        var separator = localizationService.GetString("Tools.WndEditor.Assets.LinkedSummarySeparator");
+        var separator = Localization.GetString("Tools.WndEditor.Assets.LinkedSummarySeparator");
         LinkedAssetsSummary = string.Join(separator, parts);
         LinkedAssetsTooltip = string.Join("\n", tooltipLines);
-    }
-
-    /// <summary>
-    /// Saves the open document to its file, asking for a path when untitled.
-    /// </summary>
-    [RelayCommand]
-    private async Task SaveFileAsync(CancellationToken cancellationToken = default)
-    {
-        if (_document == null)
-        {
-            return;
-        }
-
-        SelectedProperties?.FlushPendingEdits();
-
-        if (string.IsNullOrEmpty(FilePath))
-        {
-            await SaveFileAsWithDialogAsync(cancellationToken);
-            return;
-        }
-
-        var normalizedPath = NormalizeSourceFilePath(FilePath);
-        var oldPath = FilePath;
-        if (!string.Equals(normalizedPath, oldPath, StringComparison.OrdinalIgnoreCase))
-        {
-            FilePath = normalizedPath;
-            SyncFilesDirectory(normalizedPath);
-        }
-
-        var saved = await WriteDocumentToFileAsync(FilePath, cancellationToken);
-        if (saved && !string.Equals(normalizedPath, oldPath, StringComparison.OrdinalIgnoreCase) && File.Exists(oldPath))
-        {
-            try
-            {
-                await WriteDocumentToFileAsync(oldPath, cancellationToken, showFeedback: false);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                logger.LogDebug(ex, "Failed to mirror saved file to transient build path {Path}", oldPath);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Saves the open document to a path chosen with a file dialog.
-    /// </summary>
-    [RelayCommand]
-    private async Task SaveFileAsWithDialogAsync(CancellationToken cancellationToken = default)
-    {
-        if (_document == null)
-        {
-            return;
-        }
-
-        SelectedProperties?.FlushPendingEdits();
-
-        var topLevel = GetTopLevel();
-        if (topLevel == null)
-        {
-            return;
-        }
-
-        var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-        {
-            Title = localizationService.GetString("Tools.WndEditor.FileDialog.SaveTitle"),
-            SuggestedFileName = FilePath == null ? null : Path.GetFileName(FilePath),
-            FileTypeChoices =
-            [
-                new FilePickerFileType(localizationService.GetString("Tools.WndEditor.FileDialog.FilterName"))
-                {
-                    Patterns = [ModBuilderConstants.FileNames.WndSearchPattern],
-                },
-            ],
-        });
-        var localPath = file?.TryGetLocalPath();
-        if (!string.IsNullOrEmpty(localPath))
-        {
-            var saved = await WriteDocumentToFileAsync(localPath, cancellationToken);
-            if (saved)
-            {
-                FilePath = localPath;
-                SyncFilesDirectory(localPath);
-            }
-        }
     }
 
     /// <summary>
@@ -2156,7 +2298,7 @@ public sealed partial class WndEditorViewModel(
             return;
         }
 
-        var target = FilePath ?? localizationService.GetString("Tools.WndEditor.Document.Untitled");
+        var target = FilePath ?? Localization.GetString("Tools.WndEditor.Document.Untitled");
         var result = wndDocumentService.ValidateDocument(_document, target);
         telemetryService?.TrackEvent(TelemetryConstants.Events.WndDocumentValidated, new Dictionary<string, object?>
         {
@@ -2165,85 +2307,19 @@ public sealed partial class WndEditorViewModel(
         });
         if (result.IsValid)
         {
-            notificationService.ShowSuccess(
-                localizationService.GetString("Tools.WndEditor.Validate.SuccessTitle"),
-                localizationService.GetString("Tools.WndEditor.Validate.SuccessMessage"),
+            Notifications.ShowSuccess(
+                Localization.GetString("Tools.WndEditor.Validate.SuccessTitle"),
+                Localization.GetString("Tools.WndEditor.Validate.SuccessMessage"),
                 NotificationDurations.Medium);
         }
         else
         {
             var first = result.Issues.Count > 0 ? result.Issues[0].Message : string.Empty;
-            notificationService.ShowWarning(
-                localizationService.GetString("Tools.WndEditor.Validate.IssuesTitle"),
-                localizationService.GetString("Tools.WndEditor.Validate.IssuesMessage", result.CriticalIssueCount, result.WarningIssueCount, first),
+            Notifications.ShowWarning(
+                Localization.GetString("Tools.WndEditor.Validate.IssuesTitle"),
+                Localization.GetString("Tools.WndEditor.Validate.IssuesMessage", result.CriticalIssueCount, result.WarningIssueCount, first),
                 NotificationDurations.Long);
         }
-    }
-
-    /// <summary>
-    /// Undoes the most recent edit.
-    /// </summary>
-    [RelayCommand(CanExecute = nameof(CanUndo))]
-    private void Undo()
-    {
-        if (_undoStack.Count == 0)
-        {
-            return;
-        }
-
-        var action = _undoStack.Pop();
-        action.Undo();
-        _redoStack.Push(action);
-        _historyVersion--;
-        IsModified = _historyVersion != _savedHistoryVersion;
-        RefreshUndoCommands();
-    }
-
-    /// <summary>
-    /// Redoes the most recently undone edit.
-    /// </summary>
-    [RelayCommand(CanExecute = nameof(CanRedo))]
-    private void Redo()
-    {
-        if (_redoStack.Count == 0)
-        {
-            return;
-        }
-
-        var action = _redoStack.Pop();
-        action.Redo();
-        PushUndoStack(action);
-        _historyVersion++;
-        IsModified = _historyVersion != _savedHistoryVersion;
-        RefreshUndoCommands();
-    }
-
-    /// <summary>
-    /// Zooms the canvas in one step.
-    /// </summary>
-    [RelayCommand]
-    private void ZoomIn()
-    {
-        Zoom = Math.Min(Zoom * WndConstants.Editor.ZoomStepFactor, WndConstants.Editor.MaxZoom);
-    }
-
-    /// <summary>
-    /// Zooms the canvas out one step.
-    /// </summary>
-    [RelayCommand]
-    private void ZoomOut()
-    {
-        Zoom = Math.Max(Zoom / WndConstants.Editor.ZoomStepFactor, WndConstants.Editor.MinZoom);
-    }
-
-    /// <summary>
-    /// Resets the canvas zoom to the default factor.
-    /// </summary>
-    [RelayCommand]
-    private void ResetZoom()
-    {
-        Zoom = WndConstants.Editor.DefaultZoom;
-        CanvasFramingRequested?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
@@ -2262,7 +2338,7 @@ public sealed partial class WndEditorViewModel(
         var siblings = parent == null ? _document.Windows : parent.Window.Children;
         siblings.Add(window);
         PushUndo(new WndEditAction(
-            localizationService.GetString("Tools.WndEditor.History.AddWindow"),
+            Localization.GetString("Tools.WndEditor.History.AddWindow"),
             () =>
             {
                 siblings.Add(window);
@@ -2277,25 +2353,53 @@ public sealed partial class WndEditorViewModel(
             }));
         RebuildAll();
         SelectWindow(window);
+        RefreshEditorCommands();
     }
 
-    /// <summary>
-    /// Deletes the selected window.
-    /// </summary>
-    [RelayCommand]
-    private void DeleteSelectedWindow()
+    private static WndWindow CloneWindow(WndWindow source)
     {
-        if (_document == null || SelectedNode == null)
+        var clone = new WndWindow
+        {
+            ControlTypeName = source.ControlTypeName,
+            FileName = source.FileName,
+            HasEndAllChildren = source.HasEndAllChildren,
+        };
+        clone.Properties.AddRange(source.Properties);
+        foreach (var child in source.Children)
+        {
+            clone.Children.Add(CloneWindow(child));
+        }
+
+        return clone;
+    }
+
+    private static void OffsetWindowRect(WndWindow window)
+    {
+        if (window.TryGetScreenRect(out var rect) && rect is not null)
+        {
+            var shifted = new WndScreenRect(
+                rect.UpperLeftX + WndConstants.Editor.DuplicateOffset,
+                rect.UpperLeftY + WndConstants.Editor.DuplicateOffset,
+                rect.BottomRightX + WndConstants.Editor.DuplicateOffset,
+                rect.BottomRightY + WndConstants.Editor.DuplicateOffset,
+                rect.CreationWidth,
+                rect.CreationHeight);
+            window.SetProperty(WndConstants.PropertyKeys.ScreenRect, shifted.ToString());
+        }
+    }
+
+    private void RemoveWindowWithUndo(WndTreeNodeViewModel node, string historyKey)
+    {
+        if (_document is null)
         {
             return;
         }
 
-        var node = SelectedNode;
-        var siblings = node.Parent == null ? _document.Windows : node.Parent.Window.Children;
+        var siblings = node.Parent is null ? _document.Windows : node.Parent.Window.Children;
         var index = siblings.IndexOf(node.Window);
         siblings.Remove(node.Window);
         PushUndo(new WndEditAction(
-            localizationService.GetString("Tools.WndEditor.History.DeleteWindow"),
+            Localization.GetString(historyKey),
             () =>
             {
                 siblings.Remove(node.Window);
@@ -2312,13 +2416,54 @@ public sealed partial class WndEditorViewModel(
         SelectWindow(node.Parent?.Window);
     }
 
+    private void PasteCopiedWindow()
+    {
+        if (_document is null || _copiedWindow is null)
+        {
+            return;
+        }
+
+        var parent = SelectedNode;
+        var siblings = parent is null ? _document.Windows : parent.Window.Children;
+        var clone = CloneWindow(_copiedWindow);
+        if (!_isCutOperation)
+        {
+            OffsetWindowRect(clone);
+        }
+
+        siblings.Add(clone);
+        PushUndo(new WndEditAction(
+            Localization.GetString("Tools.WndEditor.History.PasteWindow"),
+            () =>
+            {
+                siblings.Add(clone);
+                RebuildAll();
+                SelectWindow(clone);
+            },
+            () =>
+            {
+                siblings.Remove(clone);
+                RebuildAll();
+                SelectWindow(parent?.Window);
+            }));
+        RebuildAll();
+        SelectWindow(clone);
+        if (_isCutOperation)
+        {
+            _copiedWindow = null;
+            _isCutOperation = false;
+        }
+
+        RefreshEditorCommands();
+    }
+
     /// <summary>
     /// Opens a file chosen in the explorer.
     /// </summary>
     /// <param name="file">The file tree node to open.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     [RelayCommand]
-    private async Task OpenExplorerFileAsync(WndFileTreeNodeViewModel? file, CancellationToken cancellationToken = default)
+    private async Task OpenExplorerFileAsync(EditorFileTreeNodeViewModel? file, CancellationToken cancellationToken = default)
     {
         if (file == null || file.IsDirectory)
         {
@@ -2328,204 +2473,67 @@ public sealed partial class WndEditorViewModel(
         await OpenFileAsync(file.FullPath, cancellationToken);
     }
 
-    /// <summary>
-    /// Toggles the expanded state of a directory node.
-    /// </summary>
-    /// <param name="node">The directory node.</param>
-    [RelayCommand]
-    private void ToggleFileDirectory(WndFileTreeNodeViewModel? node)
+    private FileExplorerViewModel CreateFileExplorer()
     {
-        if (node != null && node.IsDirectory)
+        var explorer = new FileExplorerViewModel(logger);
+        explorer.FilePatterns = [ModBuilderConstants.FileNames.WndSearchPattern];
+        explorer.ShowFileExtensions = false;
+        explorer.ExcludedDirectoryNames = [ModBuilderConstants.DefaultBuildDir, ModBuilderConstants.DefaultReleaseDir];
+        explorer.NodeFactory = (name, fullPath, isDirectory, isCurrent, parent) => new WndFileTreeNodeViewModel(name, fullPath, isDirectory, isCurrent, parent);
+        explorer.BrowseFolderAsync = PickFolderAsync;
+        explorer.DirectoryAdoptedAsync = AdoptExplorerDirectoryAsync;
+        explorer.FileActivated += OnExplorerFileActivated;
+        return explorer;
+    }
+
+    private async Task<string?> PickFolderAsync(CancellationToken cancellationToken)
+    {
+        var topLevel = GetTopLevel();
+        if (topLevel == null)
         {
-            node.IsExpanded = !node.IsExpanded;
-        }
-    }
-
-    /// <summary>
-    /// Expands every file tree node.
-    /// </summary>
-    [RelayCommand]
-    private void ExpandAllFiles()
-    {
-        SetFileNodesExpanded(Files, true);
-    }
-
-    /// <summary>
-    /// Collapses every file tree node.
-    /// </summary>
-    [RelayCommand]
-    private void CollapseAllFiles()
-    {
-        SetFileNodesExpanded(Files, false);
-    }
-
-    /// <summary>
-    /// Chooses the directory listed in the file explorer.
-    /// </summary>
-    [RelayCommand]
-    private async Task BrowseFilesDirectoryAsync(CancellationToken cancellationToken = default)
-    {
-        await OpenFolderWithDialogAsync(cancellationToken);
-    }
-
-    private static string? FindFirstWndFilePath(IEnumerable<WndFileTreeNodeViewModel> nodes)
-    {
-        foreach (var node in nodes)
-        {
-            if (node.IsFile)
-            {
-                return node.FullPath;
-            }
-
-            var childFile = FindFirstWndFilePath(node.Children);
-            if (childFile != null)
-            {
-                return childFile;
-            }
+            return null;
         }
 
-        return null;
+        var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = Localization.GetString("Tools.WndEditor.FileDialog.FolderTitle"),
+            AllowMultiple = false,
+        });
+        if (folders.Count == 0)
+        {
+            return null;
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        return folders[0].TryGetLocalPath();
     }
 
-    /// <summary>
-    /// Refreshes the file explorer listing.
-    /// </summary>
-    [RelayCommand]
-    private void RefreshFiles()
+    private async Task AdoptExplorerDirectoryAsync(string folder, CancellationToken cancellationToken)
     {
-        Files.Clear();
-        if (string.IsNullOrEmpty(FilesDirectory) || !Directory.Exists(FilesDirectory))
+        LeftSidebarTabIndex = 1;
+        if (HasDocument && !string.IsNullOrEmpty(FilePath) && IsSubPathOf(FilePath, folder))
         {
+            FileExplorer.CurrentPath = FilePath;
             return;
         }
 
-        try
+        var firstWnd = FileExplorer.FindFirstFile();
+        if (!string.IsNullOrEmpty(firstWnd))
         {
-            var rootDirInfo = new DirectoryInfo(FilesDirectory);
-            var rootNode = BuildDirectoryNode(rootDirInfo, FilePath, null);
-            if (rootNode != null)
-            {
-                Files.Add(rootNode);
-            }
+            await OpenFileAsync(firstWnd, cancellationToken);
+            return;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            logger.LogWarning(ex, "Failed to list window definition files in {Directory}", FilesDirectory);
-        }
+
+        Notifications.ShowInfo(
+            Localization.GetString("Tools.WndEditor.Files.NoWndFilesTitle"),
+            Localization.GetString("Tools.WndEditor.Files.NoWndFilesMessage"),
+            NotificationDurations.Medium);
     }
 
-    /// <summary>
-    /// Recursively builds a file tree node for the given directory, skipping directories with no .wnd files.
-    /// </summary>
-    private WndFileTreeNodeViewModel? BuildDirectoryNode(
-        DirectoryInfo directoryInfo,
-        string? currentPath,
-        WndFileTreeNodeViewModel? parent,
-        int depth = 0)
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Routes to the source-generated OpenExplorerFileCommand instance member.")]
+    private void OnExplorerFileActivated(object? sender, EditorFileTreeNodeViewModel node)
     {
-        if (depth > 20)
-        {
-            return null;
-        }
-
-        if (parent != null &&
-            (directoryInfo.Name.StartsWith('.') ||
-             string.Equals(directoryInfo.Name, ModBuilderConstants.DefaultBuildDir, StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(directoryInfo.Name, ModBuilderConstants.DefaultReleaseDir, StringComparison.OrdinalIgnoreCase)))
-        {
-            return null;
-        }
-
-        var node = new WndFileTreeNodeViewModel(
-            directoryInfo.Name,
-            directoryInfo.FullName,
-            isDirectory: true,
-            isCurrent: false,
-            parent: parent);
-
-        try
-        {
-            var subDirectories = directoryInfo
-                .EnumerateDirectories("*", SafeDirectoryEnumerationOptions)
-                .OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase);
-
-            foreach (var subDir in subDirectories)
-            {
-                var childNode = BuildDirectoryNode(subDir, currentPath, node, depth + 1);
-                if (childNode != null && childNode.Children.Count > 0)
-                {
-                    node.AddChild(childNode);
-                }
-            }
-        }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
-        {
-            logger.LogWarning(ex, "Access denied enumerating subdirectories in {Path}", directoryInfo.FullName);
-        }
-
-        try
-        {
-            var files = directoryInfo
-                .EnumerateFiles(ModBuilderConstants.FileNames.WndSearchPattern)
-                .OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase);
-
-            foreach (var file in files)
-            {
-                var isCurrent = string.Equals(file.FullName, currentPath, StringComparison.OrdinalIgnoreCase);
-                var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(file.Name);
-                var fileNode = new WndFileTreeNodeViewModel(
-                    fileNameWithoutExtension,
-                    file.FullName,
-                    isDirectory: false,
-                    isCurrent: isCurrent,
-                    parent: node);
-
-                node.AddChild(fileNode);
-            }
-        }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
-        {
-            logger.LogWarning(ex, "Access denied enumerating files in {Path}", directoryInfo.FullName);
-        }
-
-        if (node.Children.Count == 0)
-        {
-            return null;
-        }
-
-        return node;
-    }
-
-    private static void SetFileNodesExpanded(IEnumerable<WndFileTreeNodeViewModel> nodes, bool expanded)
-    {
-        foreach (var node in nodes)
-        {
-            if (node.IsDirectory)
-            {
-                node.IsExpanded = expanded;
-                SetFileNodesExpanded(node.Children, expanded);
-            }
-        }
-    }
-
-    private void UpdateCurrentFileNode(string? currentPath)
-    {
-        UpdateNodesCurrentState(Files, currentPath);
-    }
-
-    private static void UpdateNodesCurrentState(IEnumerable<WndFileTreeNodeViewModel> nodes, string? currentPath)
-    {
-        foreach (var node in nodes)
-        {
-            if (node.IsFile)
-            {
-                node.IsCurrent = string.Equals(node.FullPath, currentPath, StringComparison.OrdinalIgnoreCase);
-            }
-            else
-            {
-                UpdateNodesCurrentState(node.Children, currentPath);
-            }
-        }
+        OpenExplorerFileCommand.Execute(node);
     }
 
     private static bool IsSubPathOf(string path, string basePath)
@@ -2570,6 +2578,7 @@ public sealed partial class WndEditorViewModel(
     {
         SyncCanvasSelection();
         RebuildProperties();
+        RefreshEditorCommands();
     }
 
     partial void OnLibraryFilterChanged(string value)
@@ -2588,30 +2597,6 @@ public sealed partial class WndEditorViewModel(
         RebuildTree();
         SelectedNode = selectedId == null ? null : FindNode(selectedId.Value);
         SyncCanvasSelection();
-    }
-
-    partial void OnFilesDirectoryChanged(string? value)
-    {
-        OnPropertyChanged(nameof(FilesDirectoryName));
-        if (!string.IsNullOrEmpty(value))
-        {
-            RefreshFiles();
-        }
-        else
-        {
-            Files.Clear();
-        }
-    }
-
-    partial void OnZoomChanged(double value)
-    {
-        if (value < WndConstants.Editor.MinZoom || value > WndConstants.Editor.MaxZoom)
-        {
-            Zoom = Math.Clamp(value, WndConstants.Editor.MinZoom, WndConstants.Editor.MaxZoom);
-            return;
-        }
-
-        RebuildCanvas();
     }
 
     partial void OnShowHiddenWindowsChanged(bool value)
@@ -2651,21 +2636,6 @@ public sealed partial class WndEditorViewModel(
         AssetRootDisplayTooltip = roots.BaseRoot;
     }
 
-    private async Task<bool> ConfirmDiscardUnsavedAsync(CancellationToken cancellationToken)
-    {
-        if (!IsModified || !HasDocument)
-        {
-            return true;
-        }
-
-        cancellationToken.ThrowIfCancellationRequested();
-        return await dialogService.ShowConfirmationAsync(
-            localizationService.GetString("Tools.WndEditor.UnsavedChanges.Title"),
-            localizationService.GetString("Tools.WndEditor.UnsavedChanges.Message"),
-            localizationService.GetString("Tools.WndEditor.UnsavedChanges.Discard"),
-            localizationService.GetString("Tools.WndEditor.UnsavedChanges.Cancel"));
-    }
-
     private async Task<bool> WriteDocumentToFileAsync(string filePath, CancellationToken cancellationToken, bool showFeedback = true)
     {
         if (_document == null)
@@ -2673,15 +2643,10 @@ public sealed partial class WndEditorViewModel(
             return false;
         }
 
-        string? tempPath = null;
         try
         {
             var text = wndDocumentService.WriteDocument(_document);
-            var directory = Path.GetDirectoryName(filePath);
-            tempPath = Path.Combine(string.IsNullOrEmpty(directory) ? Path.GetTempPath() : directory, Path.GetRandomFileName());
-            await File.WriteAllTextAsync(tempPath, text, cancellationToken).ConfigureAwait(false);
-            File.Move(tempPath, filePath, overwrite: true);
-            tempPath = null;
+            await AtomicFile.WriteAllTextAsync(filePath, text, cancellationToken).ConfigureAwait(false);
             if (showFeedback)
             {
                 _savedHistoryVersion = _historyVersion;
@@ -2692,9 +2657,9 @@ public sealed partial class WndEditorViewModel(
                     [TelemetryConstants.Properties.WindowCount] = _document.Windows.Count,
                     [TelemetryConstants.Properties.HasLinkedAssets] = HasLinkedAssets,
                 });
-                notificationService.ShowSuccess(
-                    localizationService.GetString("Tools.WndEditor.Save.SuccessTitle"),
-                    localizationService.GetString("Tools.WndEditor.Save.SuccessMessage", Path.GetFileName(filePath)),
+                Notifications.ShowSuccess(
+                    Localization.GetString("Tools.WndEditor.Save.SuccessTitle"),
+                    Localization.GetString("Tools.WndEditor.Save.SuccessMessage", Path.GetFileName(filePath)),
                     NotificationDurations.Medium);
             }
 
@@ -2706,9 +2671,9 @@ public sealed partial class WndEditorViewModel(
             logger.LogError(ex, "Failed to save window definition file {Path}", filePath);
             if (showFeedback)
             {
-                notificationService.ShowError(
-                    localizationService.GetString("Tools.WndEditor.Save.FailureTitle"),
-                    localizationService.GetString("Tools.WndEditor.Save.FailureMessage", ex.Message),
+                Notifications.ShowError(
+                    Localization.GetString("Tools.WndEditor.Save.FailureTitle"),
+                    Localization.GetString("Tools.WndEditor.Save.FailureMessage", ex.Message),
                     NotificationDurations.Long);
             }
 
@@ -2719,27 +2684,13 @@ public sealed partial class WndEditorViewModel(
             logger.LogError(ex, "Access denied saving window definition file {Path}", filePath);
             if (showFeedback)
             {
-                notificationService.ShowError(
-                    localizationService.GetString("Tools.WndEditor.Save.FailureTitle"),
-                    localizationService.GetString("Tools.WndEditor.Save.FailureMessage", ex.Message),
+                Notifications.ShowError(
+                    Localization.GetString("Tools.WndEditor.Save.FailureTitle"),
+                    Localization.GetString("Tools.WndEditor.Save.FailureMessage", ex.Message),
                     NotificationDurations.Long);
             }
 
             return false;
-        }
-        finally
-        {
-            if (tempPath != null && File.Exists(tempPath))
-            {
-                try
-                {
-                    File.Delete(tempPath);
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    logger.LogDebug(ex, "Failed to clean up temporary file {Path}", tempPath);
-                }
-            }
         }
     }
 
@@ -2759,6 +2710,8 @@ public sealed partial class WndEditorViewModel(
         _resolvedStrings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         _undoStack.Clear();
         _redoStack.Clear();
+        _copiedWindow = null;
+        _isCutOperation = false;
         RefreshUndoCommands();
         ClearComposedBitmaps();
         SyncFilesDirectory(filePath);
@@ -2766,6 +2719,7 @@ public sealed partial class WndEditorViewModel(
         RebuildAll();
         RefreshAssetStatus();
         LeftSidebarTabIndex = 0;
+        RefreshEditorCommands();
         CanvasFramingRequested?.Invoke(this, EventArgs.Empty);
     }
 
@@ -2778,17 +2732,15 @@ public sealed partial class WndEditorViewModel(
 
         filePath = NormalizeSourceFilePath(filePath);
         var directory = Path.GetDirectoryName(filePath);
-        if (string.IsNullOrEmpty(FilesDirectory) || !Directory.Exists(FilesDirectory))
+        bool needsRoot = string.IsNullOrEmpty(FilesDirectory) || !Directory.Exists(FilesDirectory);
+        if (!needsRoot && IsSubPathOf(filePath, FilesDirectory!))
+        {
+            FileExplorer.CurrentPath = filePath;
+        }
+        else if (needsRoot || !string.IsNullOrEmpty(directory))
         {
             FilesDirectory = directory;
-        }
-        else if (IsSubPathOf(filePath, FilesDirectory))
-        {
-            UpdateCurrentFileNode(filePath);
-        }
-        else if (!string.IsNullOrEmpty(directory))
-        {
-            FilesDirectory = directory;
+            FileExplorer.CurrentPath = filePath;
         }
     }
 
@@ -2827,8 +2779,7 @@ public sealed partial class WndEditorViewModel(
 
     private void RefreshUndoCommands()
     {
-        UndoCommand.NotifyCanExecuteChanged();
-        RedoCommand.NotifyCanExecuteChanged();
+        RefreshEditorCommands();
         OnPropertyChanged(nameof(CanUndo));
         OnPropertyChanged(nameof(CanRedo));
     }
@@ -2988,8 +2939,8 @@ public sealed partial class WndEditorViewModel(
             : new WndWindowPropertiesViewModel(
                 node.Window,
                 wndDocumentService,
-                notificationService,
-                localizationService,
+                Notifications,
+                Localization,
                 (key, value) => CommitPropertyEdit(node.Window, key, value),
                 key => RemovePropertyByKey(node.Window, key),
                 properties => ReplaceSelectedProperties(node.Window, properties));
@@ -3015,7 +2966,7 @@ public sealed partial class WndEditorViewModel(
         window.SetProperty(key, value);
         SyncWindowType(window);
         PushUndo(new WndEditAction(
-            localizationService.GetString("Tools.WndEditor.History.EditProperty", key),
+            Localization.GetString("Tools.WndEditor.History.EditProperty", key),
             () =>
             {
                 window.SetProperty(key, value);
@@ -3057,7 +3008,7 @@ public sealed partial class WndEditorViewModel(
         window.Properties.RemoveAt(index);
         SyncWindowType(window);
         PushUndo(new WndEditAction(
-            localizationService.GetString("Tools.WndEditor.History.DeleteProperty", key),
+            Localization.GetString("Tools.WndEditor.History.DeleteProperty", key),
             () =>
             {
                 window.RemoveProperty(key);
@@ -3083,7 +3034,7 @@ public sealed partial class WndEditorViewModel(
         var previous = window.Properties.ToList();
         ApplyProperties(window, properties);
         PushUndo(new WndEditAction(
-            localizationService.GetString("Tools.WndEditor.History.ApplyRawText"),
+            Localization.GetString("Tools.WndEditor.History.ApplyRawText"),
             () =>
             {
                 ApplyProperties(window, properties);
@@ -3113,9 +3064,9 @@ public sealed partial class WndEditorViewModel(
             return;
         }
 
-        notificationService.ShowInfo(
-            localizationService.GetString("Tools.WndEditor.Hidden.HiddenTitle"),
-            localizationService.GetString("Tools.WndEditor.Hidden.HiddenMessage"),
+        Notifications.ShowInfo(
+            Localization.GetString("Tools.WndEditor.Hidden.HiddenTitle"),
+            Localization.GetString("Tools.WndEditor.Hidden.HiddenMessage"),
             NotificationDurations.Medium);
     }
 
@@ -3526,7 +3477,7 @@ public sealed partial class WndEditorViewModel(
     {
         if (plan.Text == null && IsMapPreviewPlaceholder(window, plan))
         {
-            return localizationService.GetString("Tools.WndEditor.Canvas.MapPreviewPlaceholder");
+            return Localization.GetString("Tools.WndEditor.Canvas.MapPreviewPlaceholder");
         }
 
         if (plan.Text == null || window.ControlType == WndControlType.EntryField)
@@ -3937,7 +3888,7 @@ public sealed partial class WndEditorViewModel(
 
         if (SelectedAssetInstallation == null)
         {
-            AssetStatusText = localizationService.GetString("Tools.WndEditor.Assets.SelectorWatermark");
+            AssetStatusText = Localization.GetString("Tools.WndEditor.Assets.SelectorWatermark");
             AssetStatusTooltip = null;
             SyncMissingImageNames([]);
             return;
@@ -3946,7 +3897,7 @@ public sealed partial class WndEditorViewModel(
         var names = CollectPreviewImageNames(_document, _schemeOverrides, _runtimeArt);
         if (names.Count == 0)
         {
-            AssetStatusText = localizationService.GetString("Tools.WndEditor.Assets.EmptyStatus");
+            AssetStatusText = Localization.GetString("Tools.WndEditor.Assets.EmptyStatus");
             AssetStatusTooltip = null;
             SyncMissingImageNames([]);
             return;
@@ -3954,10 +3905,10 @@ public sealed partial class WndEditorViewModel(
 
         var missing = names.Where(name => !_previewBitmaps.ContainsKey(name)).OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToList();
         SyncMissingImageNames(missing);
-        AssetStatusText = localizationService.GetString("Tools.WndEditor.Assets.ResolvedStatus", names.Count - missing.Count, names.Count);
+        AssetStatusText = Localization.GetString("Tools.WndEditor.Assets.ResolvedStatus", names.Count - missing.Count, names.Count);
         AssetStatusTooltip = missing.Count == 0
             ? null
-            : localizationService.GetString("Tools.WndEditor.Assets.MissingTooltip", FormatMissingNames(missing));
+            : Localization.GetString("Tools.WndEditor.Assets.MissingTooltip", FormatMissingNames(missing));
         if (logMissing && missing.Count > 0)
         {
             logger.LogDebug(
@@ -3983,7 +3934,7 @@ public sealed partial class WndEditorViewModel(
     private void SyncKnownImageNames(IReadOnlyList<string> known)
     {
         KnownImageNames = known;
-        KnownImagesStatusText = localizationService.GetString("Tools.WndEditor.Assets.KnownCount", known.Count);
+        KnownImagesStatusText = Localization.GetString("Tools.WndEditor.Assets.KnownCount", known.Count);
         if (SelectedProperties != null)
         {
             SelectedProperties.ImageNameOptions = known;
@@ -4002,17 +3953,17 @@ public sealed partial class WndEditorViewModel(
             FilteredArtItems = [];
             LibraryStatusText = KnownImageNames.Count == 0
                 ? string.Empty
-                : localizationService.GetString("Tools.WndEditor.Assets.LibraryEmpty");
+                : Localization.GetString("Tools.WndEditor.Assets.LibraryEmpty");
             return;
         }
 
         var selected = matches.Take(WndConstants.Editor.MaxLibraryResults).ToList();
         FilteredKnownImageNames = selected;
         LibraryStatusText = matches.Count > selected.Count
-            ? localizationService.GetString("Tools.WndEditor.Assets.LibraryTruncated", selected.Count, matches.Count)
+            ? Localization.GetString("Tools.WndEditor.Assets.LibraryTruncated", selected.Count, matches.Count)
             : string.Empty;
 
-        var tooltipTemplate = localizationService.GetString("Tools.WndEditor.Assets.ClickToAdd");
+        var tooltipTemplate = Localization.GetString("Tools.WndEditor.Assets.ClickToAdd");
         var items = new List<WndArtItemViewModel>(selected.Count);
         foreach (var name in selected)
         {
@@ -4208,7 +4159,7 @@ public sealed partial class WndEditorViewModel(
         var text = string.Join(", ", shown);
         if (missing.Count > shown.Count)
         {
-            text = string.Concat(text, ", ", localizationService.GetString("Tools.WndEditor.Assets.MissingMore", missing.Count - shown.Count));
+            text = string.Concat(text, ", ", Localization.GetString("Tools.WndEditor.Assets.MissingMore", missing.Count - shown.Count));
         }
 
         return text;

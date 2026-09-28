@@ -4,12 +4,16 @@ GenHub provides a suite of integrated tools designed to enhance your Command & C
 
 ## Available Tools
 
-GenHub currently offers three fully-featured tools with another in development:
+GenHub currently offers seven fully-featured tools with another in development:
 
 1. **Replay Manager** - Manage, import, and share replay files
 2. **Map Manager** - Manage, import, and share custom maps with MapPack support
 3. **Hotkeys Editor** - Customize in-game hotkeys and generate overlay textures
-4. **Publisher Studio** (Future) - Create and distribute custom content catalogs
+4. **ModBuilder** - Build, package, and deploy Generals and Zero Hour mods
+5. **WND Editor** - Edit window definition (.wnd) menu layouts
+6. **Texture Editor** - Slice texture atlases, edit MappedImages, and pack sprite sheets
+7. **INI Editor** - Browse and edit Generals and Zero Hour INI data files with schema assistance
+8. **Publisher Studio** (Future) - Create and distribute custom content catalogs
 
 All tools are accessible from the **TOOLS** tab in the GenHub interface and share common features like cloud uploading, import/export capabilities, and seamless integration with game profiles.
 

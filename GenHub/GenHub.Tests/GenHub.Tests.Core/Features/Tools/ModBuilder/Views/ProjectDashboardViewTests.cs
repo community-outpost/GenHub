@@ -20,6 +20,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
+using GenHub.Core.Interfaces.Tools.IniEditor;
 using GenHub.Core.Interfaces.Tools.WndEditor;
 using GenHub.Core.Models.Results.ModBuilder;
 using GenHub.Features.Tools.ModBuilder.ViewModels;
@@ -90,6 +91,7 @@ public class ProjectDashboardViewTests
             Mock.Of<IGameInstallationService>(),
             mockNotificationService.Object,
             Mock.Of<IWndDocumentService>(),
+            Mock.Of<IIniDocumentService>(),
             CreateLocalizationService(),
             Mock.Of<ILogger<FileManagerViewModel>>());
 

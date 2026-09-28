@@ -209,20 +209,15 @@
       </controls:SidebarLayout.PaneFooter>
 
       <Grid RowDefinitions="Auto,*">
-         <!-- Header / Status Area -->
-         <Grid Grid.Row="0" Margin="20" ColumnDefinitions="Auto,*" IsVisible="{Binding !SelectedTool.Metadata.IsFullScreen}">
-           <TextBlock Text="{Binding SelectedTool, Converter={StaticResource LocalizedToolNameConverter}, FallbackValue='GenHub Tools'}" Classes="header" />
-
-           <!-- Status Messages -->
-           <Border Grid.Column="1"
-                   Classes="status-banner"
-                   Classes.success="{Binding IsStatusSuccess}"
-                   Classes.error="{Binding IsStatusError}"
-                   Classes.info="{Binding IsStatusInfo}"
-                   IsVisible="{Binding IsStatusVisible}">
-              <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimary}" />
-           </Border>
-         </Grid>
+         <!-- Status Area -->
+         <Border Grid.Row="0" Margin="20,20,20,0"
+                 Classes="status-banner"
+                 Classes.success="{Binding IsStatusSuccess}"
+                 Classes.error="{Binding IsStatusError}"
+                 Classes.info="{Binding IsStatusInfo}"
+                 IsVisible="{Binding IsStatusVisible}">
+            <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimary}" />
+         </Border>
 
          <!-- Content Area -->
          <Panel Grid.Row="1" Margin="10">

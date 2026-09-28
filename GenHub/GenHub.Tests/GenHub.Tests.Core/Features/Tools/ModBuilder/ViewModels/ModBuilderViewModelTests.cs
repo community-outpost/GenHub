@@ -62,6 +62,7 @@ public class ModBuilderViewModelTests : IDisposable
             _mockGameInstallService.Object,
             _mockNotificationService.Object,
             _mockWndDocumentService.Object,
+            Mock.Of<GenHub.Core.Interfaces.Tools.IniEditor.IIniDocumentService>(),
             _mockLocalizationService.Object,
             _mockFileManagerLogger.Object);
 

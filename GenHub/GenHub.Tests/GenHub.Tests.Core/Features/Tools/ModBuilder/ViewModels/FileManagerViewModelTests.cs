@@ -14,11 +14,13 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Tools.IniEditor;
 using GenHub.Core.Interfaces.Tools.WndEditor;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Results;
+using GenHub.Features.Tools.IniEditor.Services;
 using GenHub.Features.Tools.ModBuilder.Models;
 using GenHub.Features.Tools.ModBuilder.ViewModels;
 using GenHub.Features.Tools.WndEditor.Services;
@@ -34,6 +36,7 @@ public class FileManagerViewModelTests : IDisposable
     private readonly Mock<IGameInstallationService> _mockGameInstallService;
     private readonly Mock<INotificationService> _mockNotificationService;
     private readonly Mock<IWndDocumentService> _mockWndDocumentService;
+    private readonly Mock<IIniDocumentService> _mockIniDocumentService;
     private readonly Mock<ILocalizationService> _mockLocalizationService;
     private readonly Mock<ILogger<FileManagerViewModel>> _mockLogger;
     private readonly string _tempDir;
@@ -45,6 +48,7 @@ public class FileManagerViewModelTests : IDisposable
         _mockGameInstallService = new Mock<IGameInstallationService>();
         _mockNotificationService = new Mock<INotificationService>();
         _mockWndDocumentService = new Mock<IWndDocumentService>();
+        _mockIniDocumentService = new Mock<IIniDocumentService>();
         _mockLocalizationService = new Mock<ILocalizationService>();
         _mockLogger = new Mock<ILogger<FileManagerViewModel>>();
 
@@ -102,6 +106,7 @@ public class FileManagerViewModelTests : IDisposable
             _mockGameInstallService.Object,
             _mockNotificationService.Object,
             _mockWndDocumentService.Object,
+            _mockIniDocumentService.Object,
             _mockLocalizationService.Object,
             _mockLogger.Object);
 
@@ -122,6 +127,7 @@ public class FileManagerViewModelTests : IDisposable
             _mockGameInstallService.Object,
             _mockNotificationService.Object,
             _mockWndDocumentService.Object,
+            _mockIniDocumentService.Object,
             _mockLocalizationService.Object,
             _mockLogger.Object);
 
@@ -201,6 +207,7 @@ public class FileManagerViewModelTests : IDisposable
             _mockGameInstallService.Object,
             _mockNotificationService.Object,
             wndService,
+            _mockIniDocumentService.Object,
             _mockLocalizationService.Object,
             _mockLogger.Object);
     }
@@ -235,6 +242,129 @@ public class FileManagerViewModelTests : IDisposable
     {
         var viewModel = CreateViewModelWithRealWndService();
         viewModel.EditWndFileCommand.Execute(null);
+
+        _mockNotificationService.Verify(
+            n => n.ShowInfo(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task ValidateIniFilesCommand_WithValidIniFile_ShowsSuccess()
+    {
+        var iniPath = Path.Combine(_projectDir, "GameFilesEdited", "GameData.ini");
+        await File.WriteAllTextAsync(iniPath, "Object TestObject\n  Health = 100.0\nEnd\n");
+
+        var viewModel = CreateViewModelWithRealIniService();
+        viewModel.SelectedProjectFile = new FileTreeNode { Name = "GameData.ini", FullPath = iniPath, IsDirectory = false };
+
+        await viewModel.ValidateIniFilesCommand.ExecuteAsync(null);
+
+        _mockNotificationService.Verify(
+            n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        Assert.False(viewModel.IsLoading);
+    }
+
+    [Fact]
+    public async Task ValidateIniFilesCommand_WithInvalidIniFile_ShowsWarning()
+    {
+        var iniPath = Path.Combine(_projectDir, "GameFilesEdited", "Broken.ini");
+        await File.WriteAllTextAsync(iniPath, "Object Broken\n  Health = 100.0\n");
+
+        var viewModel = CreateViewModelWithRealIniService();
+        viewModel.SelectedProjectFile = new FileTreeNode { Name = "Broken.ini", FullPath = iniPath, IsDirectory = false };
+
+        await viewModel.ValidateIniFilesCommand.ExecuteAsync(null);
+
+        _mockNotificationService.Verify(
+            n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task ValidateIniFilesCommand_WithNoSelection_ShowsInfo()
+    {
+        var viewModel = CreateViewModelWithRealIniService();
+
+        await viewModel.ValidateIniFilesCommand.ExecuteAsync(null);
+
+        _mockNotificationService.Verify(
+            n => n.ShowInfo(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task FormatIniFilesCommand_WithNoSelection_ShowsInfo()
+    {
+        var viewModel = CreateViewModelWithRealIniService();
+
+        await viewModel.FormatIniFilesCommand.ExecuteAsync(null);
+
+        _mockNotificationService.Verify(
+            n => n.ShowInfo(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task FormatIniFilesCommand_WithMessyIniFile_FormatsAndShowsSuccess()
+    {
+        var iniPath = Path.Combine(_projectDir, "GameFilesEdited", "Messy.ini");
+        await File.WriteAllTextAsync(iniPath, "Object   Messy\nHealth=100.0\nEnd\n");
+
+        var viewModel = CreateViewModelWithRealIniService();
+        viewModel.SelectedProjectFile = new FileTreeNode { Name = "Messy.ini", FullPath = iniPath, IsDirectory = false };
+
+        await viewModel.FormatIniFilesCommand.ExecuteAsync(null);
+
+        var formatted = await File.ReadAllTextAsync(iniPath);
+        Assert.Equal("Object Messy\r\n  Health = 100.0\r\nEnd\r\n\r\n", formatted);
+        _mockNotificationService.Verify(
+            n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    private FileManagerViewModel CreateViewModelWithRealIniService()
+    {
+        var iniService = new IniDocumentService(Mock.Of<ILogger<IniDocumentService>>());
+        return new FileManagerViewModel(
+            _mockGameInstallService.Object,
+            _mockNotificationService.Object,
+            _mockWndDocumentService.Object,
+            iniService,
+            _mockLocalizationService.Object,
+            _mockLogger.Object);
+    }
+
+    [Fact]
+    public async Task EditIniFileCommand_WithIniSelected_SendsOpenMessage()
+    {
+        var iniPath = Path.Combine(_projectDir, "GameFilesEdited", "Edit.ini");
+        await File.WriteAllTextAsync(iniPath, "Object Edit\n  Health = 100.0\nEnd\n");
+
+        var recipient = new OpenFileMessageRecipient();
+        try
+        {
+            WeakReferenceMessenger.Default.Register<OpenFileInToolMessage>(recipient);
+
+            var viewModel = CreateViewModelWithRealIniService();
+            viewModel.SelectedProjectFile = new FileTreeNode { Name = "Edit.ini", FullPath = iniPath, IsDirectory = false };
+            viewModel.EditIniFileCommand.Execute(null);
+
+            Assert.Single(recipient.Received);
+            Assert.Equal(ToolConstants.IniEditor.Id, recipient.Received[0].ToolId);
+            Assert.Equal(iniPath, recipient.Received[0].FilePath);
+        }
+        finally
+        {
+            WeakReferenceMessenger.Default.UnregisterAll(recipient);
+        }
+    }
+
+    [Fact]
+    public void EditIniFileCommand_WithNoSelection_ShowsInfo()
+    {
+        var viewModel = CreateViewModelWithRealIniService();
+        viewModel.EditIniFileCommand.Execute(null);
 
         _mockNotificationService.Verify(
             n => n.ShowInfo(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),

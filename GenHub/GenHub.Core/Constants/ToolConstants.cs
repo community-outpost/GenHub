@@ -9,6 +9,16 @@ namespace GenHub.Core.Constants;
 public static class ToolConstants
 {
     /// <summary>
+    /// Default version for bundled tools.
+    /// </summary>
+    public const string DefaultVersion = "1.0.0";
+
+    /// <summary>
+    /// Default author for bundled tools.
+    /// </summary>
+    public const string DefaultAuthor = "GenHub Team";
+
+    /// <summary>
     /// Mock sharing URLs for demo tool services.
     /// </summary>
     public static class MockUrls
@@ -42,12 +52,12 @@ public static class ToolConstants
         /// <summary>
         /// The version of the Replay Manager tool.
         /// </summary>
-        public const string Version = "1.0.0";
+        public const string Version = DefaultVersion;
 
         /// <summary>
         /// The author of the Replay Manager tool.
         /// </summary>
-        public const string Author = "GenHub Team";
+        public const string Author = DefaultAuthor;
 
         /// <summary>
         /// The description of the Replay Manager tool.
@@ -129,12 +139,12 @@ public static class ToolConstants
         /// <summary>
         /// The version of the ModBuilder tool.
         /// </summary>
-        public const string Version = "1.0.0";
+        public const string Version = DefaultVersion;
 
         /// <summary>
         /// The author of the ModBuilder tool.
         /// </summary>
-        public const string Author = "GenHub Team";
+        public const string Author = DefaultAuthor;
 
         /// <summary>
         /// The description of the ModBuilder tool.
@@ -158,6 +168,52 @@ public static class ToolConstants
     }
 
     /// <summary>
+    /// Constants for the INI Editor tool plugin.
+    /// </summary>
+    public static class IniEditor
+    {
+        /// <summary>
+        /// The unique identifier for the INI Editor tool.
+        /// </summary>
+        public const string Id = "genhub.tools.inieditor";
+
+        /// <summary>
+        /// The display name for the INI Editor tool.
+        /// </summary>
+        public const string Name = "INI Editor";
+
+        /// <summary>
+        /// The version of the INI Editor tool.
+        /// </summary>
+        public const string Version = DefaultVersion;
+
+        /// <summary>
+        /// The author of the INI Editor tool.
+        /// </summary>
+        public const string Author = DefaultAuthor;
+
+        /// <summary>
+        /// The description of the INI Editor tool.
+        /// </summary>
+        public const string Description = "Visual editor for Generals and Zero Hour INI data files. Browse objects, edit upgrades, damage, armor, and command sets with schema assistance.";
+
+        /// <summary>
+        /// The icon path for the INI Editor tool. Reuses the bundled ModBuilder icon asset.
+        /// </summary>
+        public const string IconPath = UriConstants.IniEditorIconUri;
+
+        /// <summary>
+        /// Whether the INI Editor tool is bundled with the application.
+        /// </summary>
+        public const bool IsBundled = true;
+
+        /// <summary>
+        /// The tags associated with the INI Editor tool.
+        /// </summary>
+        public static readonly string[] Tags = ["modding", "ini", "data"];
+    }
+
+    /// <summary>
     /// Constants for the WND Editor tool plugin.
     /// </summary>
     public static class WndEditor
@@ -175,12 +231,12 @@ public static class ToolConstants
         /// <summary>
         /// The version of the WND Editor tool.
         /// </summary>
-        public const string Version = "1.0.0";
+        public const string Version = DefaultVersion;
 
         /// <summary>
         /// The author of the WND Editor tool.
         /// </summary>
-        public const string Author = "GenHub Team";
+        public const string Author = DefaultAuthor;
 
         /// <summary>
         /// The description of the WND Editor tool.
