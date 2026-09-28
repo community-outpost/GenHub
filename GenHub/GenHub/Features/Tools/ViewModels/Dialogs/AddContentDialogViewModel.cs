@@ -1758,8 +1758,7 @@ public partial class AddContentDialogViewModel(
                 .Concat(_existingItem?.BundledItems ?? [])
                 .Where(d => !string.IsNullOrWhiteSpace(d.ContentId))
                 .GroupBy(d => d.ContentId, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase)
-                ?? new Dictionary<string, CatalogDependency>(StringComparer.OrdinalIgnoreCase);
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
             contentItem.BundledItems.Clear();
             foreach (var opt in BundleComponentOptions.Where(o => o.IsSelected))
