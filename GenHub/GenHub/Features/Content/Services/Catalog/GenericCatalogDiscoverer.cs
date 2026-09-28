@@ -992,7 +992,7 @@ public class GenericCatalogDiscoverer(
                 continue;
             }
 
-            if (parsed?.Success == true)
+            if (parsed?.Success == true && parsed.Data != null)
             {
                 // Only persist the resolved URL when the preferred (first) candidate
                 // wins. A sibling winning after the selected catalog 404d is a
