@@ -14888,6 +14888,9 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="TextureEditor.Notify.ExportInvalidDuplicateName.Message" xml:space="preserve">
     <value>Slice name '{0}' is duplicated. Slice names must be unique.</value>
   </data>
+  <data name="TextureEditor.Notify.ExportInspectFailed.Message" xml:space="preserve">
+    <value>Could not inspect '{0}'. The export was cancelled to protect its contents.</value>
+  </data>
   <data name="TextureEditor.Notify.InvalidName.Message" xml:space="preserve">
     <value>Slice name '{0}' is empty or duplicated.</value>
   </data>

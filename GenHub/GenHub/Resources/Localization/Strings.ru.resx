@@ -14829,6 +14829,9 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="TextureEditor.Notify.ExportInvalidDuplicateName.Message" xml:space="preserve">
     <value>Имя среза «{0}» дублируется. Имена срезов должны быть уникальными.</value>
   </data>
+  <data name="TextureEditor.Notify.ExportInspectFailed.Message" xml:space="preserve">
+    <value>Не удалось проверить «{0}». Экспорт отменён для защиты содержимого.</value>
+  </data>
   <data name="TextureEditor.Notify.InvalidName.Message" xml:space="preserve">
     <value>Имя фрагмента '{0}' пустое или дублируется.</value>
   </data>

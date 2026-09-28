@@ -1742,6 +1742,10 @@ public sealed partial class TextureEditorViewModel(
             // Fail closed: without a successful content check the save cannot
             // proceed, otherwise an empty export could silently discard mappings.
             logger.LogWarning(ex, "Unable to inspect existing INI {Path} before an empty save.", path);
+            Notifications.ShowWarning(
+                Localize(ExportInvalidTitleKey, ExportInvalidTitleFallback),
+                Localize("TextureEditor.Notify.ExportInspectFailed.Message", "Could not inspect '{0}'. The export was cancelled to protect its contents.", Path.GetFileName(path)),
+                NotificationDurations.Long);
             return false;
         }
 

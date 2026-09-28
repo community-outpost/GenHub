@@ -14829,6 +14829,9 @@ https://example.com/screenshot2.png</value>
   <data name="TextureEditor.Notify.ExportInvalidDuplicateName.Message" xml:space="preserve">
     <value>اسم الشريحة '{0}' مكرر. يجب أن تكون أسماء الشرائح فريدة.</value>
   </data>
+  <data name="TextureEditor.Notify.ExportInspectFailed.Message" xml:space="preserve">
+    <value>تعذر فحص '{0}'. تم إلغاء التصدير لحماية محتوياته.</value>
+  </data>
   <data name="TextureEditor.Notify.InvalidName.Message" xml:space="preserve">
     <value>اسم الشريحة '{0}' فارغ أو مكرر.</value>
   </data>
