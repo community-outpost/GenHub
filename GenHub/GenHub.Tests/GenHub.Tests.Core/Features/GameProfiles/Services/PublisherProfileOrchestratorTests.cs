@@ -479,7 +479,7 @@ public sealed class PublisherProfileOrchestratorTests
         try
         {
             var executablePath = Path.Combine(directory, Path.GetFileNameWithoutExtension(GameClientConstants.SuperHackersZeroHourExecutable));
-            await File.WriteAllBytesAsync(executablePath, [0xCF, 0xFA, 0xED, 0xFE, 0x0C, 0x00, 0x00, 0x01]);
+            await File.WriteAllBytesAsync(executablePath, HostNativeExecutableHeader());
             var client = CreateSuperHackersClient(executablePath);
 
             // Windows keeps the publisher package flow; a Mach-O binary is not a client there.
@@ -534,8 +534,8 @@ public sealed class PublisherProfileOrchestratorTests
         {
             var zeroHourPath = Path.Combine(directory, Path.GetFileNameWithoutExtension(GameClientConstants.SuperHackersZeroHourExecutable));
             var generalsPath = Path.Combine(directory, Path.GetFileNameWithoutExtension(GameClientConstants.SuperHackersGeneralsExecutable));
-            await File.WriteAllBytesAsync(zeroHourPath, [0xCF, 0xFA, 0xED, 0xFE, 0x0C, 0x00, 0x00, 0x01]);
-            await File.WriteAllBytesAsync(generalsPath, [0x7F, 0x45, 0x4C, 0x46, 0x02, 0x01, 0x01, 0x00]);
+            await File.WriteAllBytesAsync(zeroHourPath, HostNativeExecutableHeader());
+            await File.WriteAllBytesAsync(generalsPath, HostNativeExecutableHeader());
             var zeroHour = CreateSuperHackersClient(zeroHourPath);
             var generals = CreateSuperHackersClient(generalsPath);
             generals.Id = "1.108.retail.gameclient.generals";
@@ -656,24 +656,25 @@ public sealed class PublisherProfileOrchestratorTests
     }
 
     /// <summary>
-    /// Verifies which detected clients count as native on this host. Flatpak bundles, app
-    /// bundles and ELF or Mach-O binaries are native on macOS and Linux; Windows binaries,
-    /// non-executables and missing files are not, and nothing is native on Windows.
+    /// Verifies which detected clients count as native on this host. Flatpak bundles, AppImages
+    /// and ELF binaries are native on Linux; app bundles and Mach-O binaries are native on macOS.
+    /// Windows binaries, non-executables and missing files are not, and nothing is native on Windows.
     /// </summary>
     /// <param name="relativePath">The client path under a temporary directory.</param>
     /// <param name="kind">What to create at that path.</param>
-    /// <param name="expectedOnUnix">The expected verdict on macOS and Linux.</param>
+    /// <param name="nativeOn">The host it is native to: "linux", "macos" or "none".</param>
     [Theory]
-    [InlineData("generalszh.flatpak", "text", true)]
-    [InlineData("GeneralsZH.AppImage", "elf", true)]
-    [InlineData("generalszh", "macho", true)]
-    [InlineData("Zero Hour.app", "directory", true)]
-    [InlineData("generalszh.exe", "pe", false)]
-    [InlineData("generalszh", "pe", false)]
-    [InlineData("generalszh", "text", false)]
-    [InlineData("generalszh", "missing", false)]
-    [InlineData("Data", "directory", false)]
-    public void HostPlatformCheck_ClassifiesClientsByPlatform(string relativePath, string kind, bool expectedOnUnix)
+    [InlineData("generalszh.flatpak", "text", "linux")]
+    [InlineData("GeneralsZH.AppImage", "elf", "linux")]
+    [InlineData("generalszh", "elf", "linux")]
+    [InlineData("generalszh", "macho", "macos")]
+    [InlineData("Zero Hour.app", "directory", "macos")]
+    [InlineData("generalszh.exe", "pe", "none")]
+    [InlineData("generalszh", "pe", "none")]
+    [InlineData("generalszh", "text", "none")]
+    [InlineData("generalszh", "missing", "none")]
+    [InlineData("Data", "directory", "none")]
+    public void HostPlatformCheck_ClassifiesClientsByPlatform(string relativePath, string kind, string nativeOn)
     {
         var directory = CreateTemporaryDirectory();
         try
@@ -702,13 +703,23 @@ public sealed class PublisherProfileOrchestratorTests
 
             var client = CreateSuperHackersClient(path);
 
-            Assert.Equal(expectedOnUnix && !OperatingSystem.IsWindows(), PublisherProfileOrchestrator.IsHostNativeClient(client));
+            var expected = nativeOn switch
+            {
+                "linux" => OperatingSystem.IsLinux(),
+                "macos" => OperatingSystem.IsMacOS(),
+                _ => false,
+            };
+            Assert.Equal(expected, PublisherProfileOrchestrator.IsHostNativeClient(client));
         }
         finally
         {
             Directory.Delete(directory, recursive: true);
         }
     }
+
+    private static byte[] HostNativeExecutableHeader() => OperatingSystem.IsLinux()
+        ? [0x7F, 0x45, 0x4C, 0x46, 0x02, 0x01, 0x01, 0x00]
+        : [0xCF, 0xFA, 0xED, 0xFE, 0x0C, 0x00, 0x00, 0x01];
 
     private static GameInstallation CreateInstallation() => new(@"C:\Games\ZeroHour", GameInstallationType.Steam, null);
 

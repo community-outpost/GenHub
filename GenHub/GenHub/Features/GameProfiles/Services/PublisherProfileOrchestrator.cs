@@ -246,7 +246,7 @@ public class PublisherProfileOrchestrator(
 
         var executablePath = gameClient.ExecutablePath;
         return (File.Exists(executablePath) || Directory.Exists(executablePath))
-            && ExecutableFileClassifier.DetectPlatform(executablePath) is ExecutablePlatform.Linux or ExecutablePlatform.MacOS;
+            && ExecutableFileClassifier.IsUnixHostNative(executablePath);
     }
 
     /// <summary>

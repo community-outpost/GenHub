@@ -177,6 +177,21 @@ public static class ExecutableFileClassifier
     }
 
     /// <summary>
+    /// Determines whether <paramref name="path"/> is an executable, package or app bundle built for
+    /// the running Unix host: a macOS build on macOS, a Linux build on Linux. Nothing is native to
+    /// Windows by this test.
+    /// </summary>
+    /// <param name="path">The file or bundle path to inspect.</param>
+    /// <returns><c>true</c> when the detected platform matches the running Unix host.</returns>
+    public static bool IsUnixHostNative(string path)
+    {
+        var platform = DetectPlatform(path);
+        return OperatingSystem.IsMacOS()
+            ? platform == ExecutablePlatform.MacOS
+            : OperatingSystem.IsLinux() && platform == ExecutablePlatform.Linux;
+    }
+
+    /// <summary>
     /// Determines whether the file at <paramref name="absolutePath"/> starts with the
     /// magic bytes of a Unix native executable: ELF (Linux) or Mach-O (macOS), in thin
     /// and universal flavours. Windows PE binaries are excluded; they are matched by

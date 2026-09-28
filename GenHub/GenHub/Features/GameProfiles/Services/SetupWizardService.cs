@@ -57,7 +57,7 @@ public class SetupWizardService(
         var cpRetailGlobal = installationsList.Select(inst => new
         {
             Inst = inst,
-            Client = inst.AvailableGameClients.FirstOrDefault(c =>
+            Client = SelectClient(inst, c =>
                 c.PublisherType == CommunityOutpostConstants.PublisherType &&
                 !CommunityOutpostConstants.IsBaseGameIdentifier(c.Id) &&
                 !CommunityOutpostConstants.IsBaseGameIdentifier(c.Name) &&
@@ -68,7 +68,7 @@ public class SetupWizardService(
         var cpNonRetGlobal = installationsList.Select(inst => new
         {
             Inst = inst,
-            Client = inst.AvailableGameClients.FirstOrDefault(c =>
+            Client = SelectClient(inst, c =>
                 c.PublisherType == CommunityOutpostConstants.PublisherType &&
                 !CommunityOutpostConstants.IsBaseGameIdentifier(c.Id) &&
                 !CommunityOutpostConstants.IsBaseGameIdentifier(c.Name) &&
@@ -79,13 +79,13 @@ public class SetupWizardService(
         var goGlobal = installationsList.Select(inst => new
         {
             Inst = inst,
-            Client = inst.AvailableGameClients.FirstOrDefault(c => c.PublisherType == PublisherTypeConstants.GeneralsOnline),
+            Client = SelectClient(inst, c => c.PublisherType == PublisherTypeConstants.GeneralsOnline),
         }).Where(x => x.Client != null).ToList();
 
         var shGlobal = installationsList.Select(inst => new
         {
             Inst = inst,
-            Client = inst.AvailableGameClients.FirstOrDefault(c => c.PublisherType == PublisherTypeConstants.TheSuperHackers),
+            Client = SelectClient(inst, c => c.PublisherType == PublisherTypeConstants.TheSuperHackers),
         }).Where(x => x.Client != null).ToList();
 
         // 3. Collection Phase: Build Wizard Items
@@ -432,6 +432,16 @@ public class SetupWizardService(
 
         return result;
     }
+
+    /// <summary>
+    /// Selects the installation's client that matches <paramref name="predicate"/>, preferring a
+    /// build native to this host so a Windows build of the same publisher does not hide it.
+    /// </summary>
+    private static GameClient? SelectClient(GameInstallation installation, Func<GameClient, bool> predicate) =>
+        installation.AvailableGameClients
+            .Where(predicate)
+            .OrderBy(c => PublisherProfileOrchestrator.IsHostNativeClient(c) ? 0 : 1)
+            .FirstOrDefault();
 
     private static string FormatCreateProfileDescription(string title, string? version) =>
         string.IsNullOrEmpty(version) || version == GameClientConstants.UnknownVersion

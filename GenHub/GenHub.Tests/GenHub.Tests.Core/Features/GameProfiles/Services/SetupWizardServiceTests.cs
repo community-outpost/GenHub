@@ -525,14 +525,18 @@ public class SetupWizardServiceTests
     /// <summary>
     /// Verifies that only a profile for the native build itself makes it up to date on macOS or Linux.
     /// A profile for a Windows build of the same publisher, such as one run under Wine, still leaves
-    /// the native build to be profiled; neither case offers an Update.
+    /// the native build to be profiled; neither case offers an Update. A Windows build listed before
+    /// the native one in the same installation does not hide it.
     /// </summary>
     /// <param name="nativeBuildHasProfile">Whether the native client has its own profile.</param>
+    /// <param name="windowsBuildListedFirst">Whether a Windows client of the publisher precedes the native one.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task RunSetupWizardAsync_WhenNativeSuperHackersBuildDetected_DecidesOnItsOwnProfileAsync(bool nativeBuildHasProfile)
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    [InlineData(false, true)]
+    public async Task RunSetupWizardAsync_WhenNativeSuperHackersBuildDetected_DecidesOnItsOwnProfileAsync(bool nativeBuildHasProfile, bool windowsBuildListedFirst)
     {
         var directory = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"GenHub.Wizard.{Guid.NewGuid():N}")).FullName;
         try
@@ -575,6 +579,21 @@ public class SetupWizardServiceTests
                     ExecutablePath = executablePath,
                 },
             ];
+            if (windowsBuildListedFirst)
+            {
+                var windowsExecutablePath = Path.Combine(directory, GameClientConstants.SuperHackersZeroHourExecutable);
+                await File.WriteAllBytesAsync(windowsExecutablePath, [0x4D, 0x5A, 0x90, 0x00, 0x03, 0x00, 0x00, 0x00]);
+                installation.AvailableGameClients.Insert(0, new GameClient
+                {
+                    Id = windowsManifestId,
+                    InstallationId = installation.Id,
+                    Name = $"{SuperHackersConstants.PublisherName} - {SuperHackersConstants.ZeroHourDisplayName}",
+                    PublisherType = PublisherTypeConstants.TheSuperHackers,
+                    GameType = GameType.ZeroHour,
+                    Version = "weekly-2026-09-01",
+                    ExecutablePath = windowsExecutablePath,
+                });
+            }
 
             var service = CreateService(CreateSuperHackersProviderMock("weekly-2026-09-25").Object);
             SetupWizardViewModel? capturedVm = null;
@@ -590,7 +609,11 @@ public class SetupWizardServiceTests
             var shItem = capturedVm?.Items.FirstOrDefault(i => i.Title == "TheSuperHackers");
             if (OperatingSystem.IsWindows())
             {
-                Assert.Equal(GameClientConstants.WizardActionTypes.Update, shItem?.ActionType);
+                if (!windowsBuildListedFirst)
+                {
+                    Assert.Equal(GameClientConstants.WizardActionTypes.Update, shItem?.ActionType);
+                }
+
                 return;
             }
 

@@ -31,6 +31,7 @@ public class GameClientDetectorTests : IDisposable
     ];
 
     private static readonly byte[] MachOHeader = [0xFE, 0xED, 0xFA, 0xCE, 0x00, 0x00, 0x00, 0x00];
+    private static readonly byte[] ElfHeader = [0x7F, 0x45, 0x4C, 0x46, 0x02, 0x01, 0x01, 0x00];
 
     private readonly Mock<IManifestGenerationService> _manifestGenerationServiceMock;
     private readonly Mock<IContentManifestPool> _contentManifestPoolMock;
@@ -1276,7 +1277,7 @@ public class GameClientDetectorTests : IDisposable
     {
         var installPath = Directory.CreateDirectory(Path.Combine(_tempDirectory, "GeneralsZH")).FullName;
         var nativeBinaryPath = Path.Combine(installPath, Path.GetFileNameWithoutExtension(GameClientConstants.SuperHackersZeroHourExecutable));
-        await File.WriteAllBytesAsync(nativeBinaryPath, MachOHeader);
+        await File.WriteAllBytesAsync(nativeBinaryPath, OperatingSystem.IsLinux() ? ElfHeader : MachOHeader);
 
         var windowsPackage = new ContentManifest
         {
