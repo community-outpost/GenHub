@@ -1272,7 +1272,7 @@ public class GameClientDetectorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DetectGameClientsFromInstallationsAsync_NativeSuperHackersWithPooledWindowsPackage_KeepsNativeClientOnUnixHostsAsync()
+    public async Task DetectGameClientsFromInstallationsAsync_NativeSuperHackersWithPooledWindowsPackage_KeepsLocalBinaryOnUnixHostsAsync()
     {
         var installPath = Directory.CreateDirectory(Path.Combine(_tempDirectory, "GeneralsZH")).FullName;
         var nativeBinaryPath = Path.Combine(installPath, Path.GetFileNameWithoutExtension(GameClientConstants.SuperHackersZeroHourExecutable));
@@ -1320,6 +1320,61 @@ public class GameClientDetectorTests : IDisposable
             ? Path.Combine(installPath, GameClientConstants.SuperHackersZeroHourExecutable)
             : nativeBinaryPath;
         Assert.Equal(expected, client.ExecutablePath);
+    }
+
+    /// <summary>
+    /// An extensionless TheSuperHackers file that is really a Windows PE is not a native client,
+    /// so on macOS and Linux it does not hide the pooled package of the same publisher. Native
+    /// status comes from the file's content, not from the missing extension.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DetectGameClientsFromInstallationsAsync_ExtensionlessWindowsBinaryWithPooledPackage_UsesPooledPackageAsync()
+    {
+        var installPath = Directory.CreateDirectory(Path.Combine(_tempDirectory, "PeWithoutExtension")).FullName;
+        var extensionlessPe = Path.Combine(installPath, Path.GetFileNameWithoutExtension(GameClientConstants.SuperHackersZeroHourExecutable));
+        await File.WriteAllBytesAsync(extensionlessPe, [0x4D, 0x5A, 0x90, 0x00, 0x03, 0x00, 0x00, 0x00]);
+
+        var windowsPackage = new ContentManifest
+        {
+            Id = ManifestId.Create("1.20260925.thesuperhackers.gameclient.generalszh"),
+            Name = "TheSuperHackers - Zero Hour",
+            Version = "weekly-2026-09-25",
+            ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.TheSuperHackers },
+            Files =
+            [
+                new ManifestFile
+                {
+                    RelativePath = GameClientConstants.SuperHackersZeroHourExecutable,
+                    SourceType = ContentSourceType.ContentAddressable,
+                    Hash = "hash",
+                },
+            ],
+        };
+        _contentManifestPoolMock.Setup(pool => pool.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([windowsPackage]));
+
+        var detector = new GameClientDetector(
+            _manifestGenerationServiceMock.Object,
+            _contentManifestPoolMock.Object,
+            _hashProviderMock.Object,
+            _hashRegistryMock.Object,
+            [new SuperHackersClientIdentifier()],
+            NullLogger<GameClientDetector>.Instance);
+        var installation = new GameInstallation(installPath, GameInstallationType.Retail)
+        {
+            HasZeroHour = true,
+            ZeroHourPath = installPath,
+        };
+
+        var result = await detector.DetectGameClientsFromInstallationsAsync([installation]);
+
+        Assert.True(result.Success);
+        var client = Assert.Single(result.Items, c => c.PublisherType == PublisherTypeConstants.TheSuperHackers);
+        Assert.Equal(windowsPackage.Id.Value, client.Id);
+        Assert.Equal(Path.Combine(installPath, GameClientConstants.SuperHackersZeroHourExecutable), client.ExecutablePath);
     }
 
     /// <summary>

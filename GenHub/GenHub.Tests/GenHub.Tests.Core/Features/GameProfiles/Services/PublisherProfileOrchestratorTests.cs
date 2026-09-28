@@ -470,7 +470,7 @@ public sealed class PublisherProfileOrchestratorTests
     [InlineData(true, false, true)]
     [InlineData(false, false, true)]
     [InlineData(false, true, true)]
-    public async Task CreateProfilesForPublisherClientAsync_WhenNativeClientOnNonWindowsHost_CreatesNativeProfileWithoutAcquiringAsync(
+    public async Task CreateProfilesForPublisherClientAsync_WhenNativeBuildOnNonWindowsHost_CreatesNativeProfileWithoutAcquiringAsync(
         bool skipAcquisition,
         bool forceReacquireContent,
         bool poolHasWindowsManifest)
@@ -648,6 +648,59 @@ public sealed class PublisherProfileOrchestratorTests
             Assert.False(result.Success);
             Assert.Contains("disk full", string.Join(" ", result.Errors));
             VerifyNoAcquisition();
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies which detected clients count as native on this host. Flatpak bundles, app
+    /// bundles and ELF or Mach-O binaries are native on macOS and Linux; Windows binaries,
+    /// non-executables and missing files are not, and nothing is native on Windows.
+    /// </summary>
+    /// <param name="relativePath">The client path under a temporary directory.</param>
+    /// <param name="kind">What to create at that path.</param>
+    /// <param name="expectedOnUnix">The expected verdict on macOS and Linux.</param>
+    [Theory]
+    [InlineData("generalszh.flatpak", "text", true)]
+    [InlineData("GeneralsZH.AppImage", "elf", true)]
+    [InlineData("generalszh", "macho", true)]
+    [InlineData("Zero Hour.app", "directory", true)]
+    [InlineData("generalszh.exe", "pe", false)]
+    [InlineData("generalszh", "pe", false)]
+    [InlineData("generalszh", "text", false)]
+    [InlineData("generalszh", "missing", false)]
+    [InlineData("Data", "directory", false)]
+    public void HostPlatformCheck_ClassifiesClientsByPlatform(string relativePath, string kind, bool expectedOnUnix)
+    {
+        var directory = CreateTemporaryDirectory();
+        try
+        {
+            var path = Path.Combine(directory, relativePath);
+            switch (kind)
+            {
+                case "directory":
+                    Directory.CreateDirectory(path);
+                    break;
+                case "text":
+                    File.WriteAllText(path, "not a binary");
+                    break;
+                case "elf":
+                    File.WriteAllBytes(path, [0x7F, 0x45, 0x4C, 0x46, 0x02, 0x01, 0x01, 0x00]);
+                    break;
+                case "macho":
+                    File.WriteAllBytes(path, [0xCF, 0xFA, 0xED, 0xFE, 0x0C, 0x00, 0x00, 0x01]);
+                    break;
+                case "pe":
+                    File.WriteAllBytes(path, [0x4D, 0x5A, 0x90, 0x00, 0x03, 0x00, 0x00, 0x00]);
+                    break;
+            }
+
+            var client = CreateSuperHackersClient(path);
+
+            Assert.Equal(expectedOnUnix && !OperatingSystem.IsWindows(), PublisherProfileOrchestrator.IsHostNativeClient(client));
         }
         finally
         {

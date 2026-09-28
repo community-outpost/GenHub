@@ -238,12 +238,8 @@ public class PublisherProfileOrchestrator(
         }
 
         var executablePath = gameClient.ExecutablePath;
-        if (Directory.Exists(executablePath))
-        {
-            return executablePath.EndsWith(ContentFormatConstants.MacAppBundleExtension, StringComparison.OrdinalIgnoreCase);
-        }
-
-        return File.Exists(executablePath) && ExecutableFileClassifier.HasNativeExecutableMagicBytes(executablePath);
+        return (File.Exists(executablePath) || Directory.Exists(executablePath))
+            && ExecutableFileClassifier.DetectPlatform(executablePath) is ExecutablePlatform.Linux or ExecutablePlatform.MacOS;
     }
 
     private static string GetPublisherDisplayName(string publisherType, bool isNonRet)

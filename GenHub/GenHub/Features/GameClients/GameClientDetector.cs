@@ -1052,7 +1052,7 @@ public class GameClientDetector(
         if (!OperatingSystem.IsWindows())
         {
             detectedPublisherIds.ExceptWith(matchingCandidates
-                .Where(candidate => !Path.HasExtension(candidate.ExecutablePath))
+                .Where(candidate => ExecutableFileClassifier.DetectPlatform(candidate.ExecutablePath) is ExecutablePlatform.Linux or ExecutablePlatform.MacOS)
                 .Select(candidate => candidate.Identification.PublisherId));
         }
 
