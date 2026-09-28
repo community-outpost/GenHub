@@ -113,7 +113,7 @@ public sealed class MockGameInstallationService : IGameInstallationService
     public Task<OperationResult<bool>> AddInstallationToCacheAsync(GameInstallation installation, CancellationToken cancellationToken = default) => Task.FromResult(OperationResult<bool>.CreateSuccess(true));
 
     /// <inheritdoc/>
-    public Task CreateAndRegisterInstallationManifestsAsync(GameInstallation installation, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    public Task CreateAndRegisterInstallationManifestsAsync(GameInstallation installation, CancellationToken cancellationToken = default, bool forceRegeneration = false) => Task.CompletedTask;
 
     /// <inheritdoc/>
     public Task<OperationResult<GameInstallation>> RegisterCustomInstallationAsync(string directoryPath, CancellationToken cancellationToken = default) => Task.FromResult(OperationResult<GameInstallation>.CreateFailure("Custom installations are disabled in demo mode."));
@@ -234,7 +234,7 @@ public sealed class MockWndGameInstallationService : IGameInstallationService
     public Task<OperationResult<bool>> AddInstallationToCacheAsync(GameInstallation installation, CancellationToken cancellationToken = default) => Task.FromResult(OperationResult<bool>.CreateSuccess(true));
 
     /// <inheritdoc/>
-    public Task CreateAndRegisterInstallationManifestsAsync(GameInstallation installation, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    public Task CreateAndRegisterInstallationManifestsAsync(GameInstallation installation, CancellationToken cancellationToken = default, bool forceRegeneration = false) => Task.CompletedTask;
 
     /// <inheritdoc/>
     public Task<OperationResult<GameInstallation>> RegisterCustomInstallationAsync(string directoryPath, CancellationToken cancellationToken = default) => Task.FromResult(OperationResult<GameInstallation>.CreateFailure("Custom installations are disabled in demo mode."));
@@ -454,6 +454,27 @@ public sealed class MockProjectConfigService : IProjectConfigService
 {
     private readonly Dictionary<string, ModBuilderProject> _projects = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<string> _recent = [];
+
+    /// <inheritdoc/>
+    public Task<ProjectOperationResult<ModBuilderProject>> CreateProjectFromDirectoryAsync(
+        string projectPath,
+        string projectName,
+        string sourceDirectory,
+        string? gameInstallationId = null,
+        ContentType contentType = ContentType.Mod,
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        var project = new ModBuilderProject
+        {
+            Name = projectName,
+            ProjectDir = Path.GetDirectoryName(projectPath) ?? string.Empty,
+            ContentType = contentType,
+        };
+        _projects[projectPath] = project;
+        TrackRecent(projectPath);
+        return Task.FromResult(ProjectOperationResult<ModBuilderProject>.CreateSuccess(project));
+    }
 
     /// <inheritdoc/>
     public Task<ProjectOperationResult<ModBuilderProject>> CreateProjectAsync(string projectPath, string projectName, string? gameInstallationId = null, ProjectTemplate? template = null, ContentType contentType = ContentType.Mod, CancellationToken cancellationToken = default)
