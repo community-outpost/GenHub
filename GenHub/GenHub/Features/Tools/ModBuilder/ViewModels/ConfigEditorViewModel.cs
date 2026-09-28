@@ -201,21 +201,13 @@ public partial class ConfigEditorViewModel(
             return;
         }
 
-        var isBlank = string.IsNullOrWhiteSpace(newName);
         foreach (var itemNames in BundlePacks.Select(pack => pack.ItemNames))
         {
             for (var i = itemNames.Count - 1; i >= 0; i--)
             {
                 if (string.Equals(itemNames[i], oldName, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (isBlank)
-                    {
-                        itemNames.RemoveAt(i);
-                    }
-                    else
-                    {
-                        itemNames[i] = newName;
-                    }
+                    itemNames[i] = newName;
                 }
             }
         }
@@ -242,21 +234,13 @@ public partial class ConfigEditorViewModel(
             return;
         }
 
-        var isBlank = string.IsNullOrWhiteSpace(newName);
         foreach (var packNames in BundleManifests.Select(manifest => manifest.PackNames))
         {
             for (var i = packNames.Count - 1; i >= 0; i--)
             {
                 if (string.Equals(packNames[i], oldName, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (isBlank)
-                    {
-                        packNames.RemoveAt(i);
-                    }
-                    else
-                    {
-                        packNames[i] = newName;
-                    }
+                    packNames[i] = newName;
                 }
             }
         }
@@ -662,7 +646,7 @@ public partial class ConfigEditorViewModel(
         {
             Name = ResolveDefaultManifestName(),
             Version = ResolveProjectVersion(CurrentProject),
-            Publisher = !string.IsNullOrWhiteSpace(CurrentProject?.Publisher) ? CurrentProject.Publisher : (!string.IsNullOrWhiteSpace(CurrentProject?.Author) ? CurrentProject.Author : string.Empty),
+            Publisher = ResolveProjectPublisher(CurrentProject),
             Description = CurrentProject?.Description ?? string.Empty,
             ContentType = ResolveEditorContentType(null, CurrentProject),
             TargetGame = ResolveEditorTargetGame(null, CurrentProject),
@@ -691,6 +675,21 @@ public partial class ConfigEditorViewModel(
     {
         var projectVersion = project?.Version;
         return !string.IsNullOrWhiteSpace(projectVersion) ? projectVersion : ModBuilderConstants.DefaultManifestVersion;
+    }
+
+    private static string ResolveProjectPublisher(ModBuilderProject? project)
+    {
+        if (!string.IsNullOrWhiteSpace(project?.Publisher))
+        {
+            return project.Publisher;
+        }
+
+        if (!string.IsNullOrWhiteSpace(project?.Author))
+        {
+            return project.Author;
+        }
+
+        return string.Empty;
     }
 
     private static ContentType ResolveEditorContentType(ContentType? manifestValue, ModBuilderProject? project)
@@ -1082,7 +1081,7 @@ public partial class ConfigEditorViewModel(
         {
             Name = $"NewManifest{BundleManifests.Count + 1}",
             Version = ResolveProjectVersion(CurrentProject),
-            Publisher = !string.IsNullOrWhiteSpace(CurrentProject?.Publisher) ? CurrentProject.Publisher : (!string.IsNullOrWhiteSpace(CurrentProject?.Author) ? CurrentProject.Author : string.Empty),
+            Publisher = ResolveProjectPublisher(CurrentProject),
             Description = string.Empty,
             ContentType = ResolveEditorContentType(null, CurrentProject),
             TargetGame = ResolveEditorTargetGame(null, CurrentProject),
@@ -1132,102 +1131,12 @@ public partial class ConfigEditorViewModel(
         try
         {
             var projectDir = CurrentProject.ProjectDir;
-            var existingItems = Configuration.Items
-                .Where(i => !string.IsNullOrEmpty(i.Name))
-                .GroupBy(i => i.Name, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+            SyncItemsToConfiguration(projectDir);
+            SyncPacksToConfiguration();
+            SyncManifestsToConfiguration();
+            SyncCurrentProjectFromPrimaryManifest();
 
-            Configuration.Items.Clear();
-            var uniqueBundleItems = BundleItems
-                .Where(vm => !string.IsNullOrWhiteSpace(vm.Name))
-                .GroupBy(vm => vm.Name.Trim(), StringComparer.OrdinalIgnoreCase)
-                .Select(g => g.First());
-
-            foreach (var itemVm in uniqueBundleItems)
-            {
-                existingItems.TryGetValue(itemVm.Name, out var existingItem);
-                var parsedFiles = ParseItemFiles(itemVm, existingItem, projectDir);
-                Configuration.Items.Add(new BundleItem
-                {
-                    Name = itemVm.Name,
-                    NamePrefix = itemVm.NamePrefix,
-                    NameSuffix = itemVm.NameSuffix,
-                    IsBig = itemVm.IsBig,
-                    BigSuffix = itemVm.BigSuffix,
-                    SetGameLanguageOnInstall = itemVm.SetGameLanguageOnInstall,
-                    ManifestFile = itemVm.ManifestFile,
-                    Description = itemVm.Description,
-                    TargetDir = itemVm.TargetDir,
-                    BaseDir = itemVm.BaseDir,
-                    SourcePatterns = parsedFiles.Select(f => f.AbsSourceFile).ToList(),
-                    Files = parsedFiles,
-                    Events = existingItem?.Events != null ? new Dictionary<BundleEventType, BundleEvent>(existingItem.Events) : [],
-                });
-            }
-
-            Configuration.Packs.Clear();
-            var uniqueBundlePacks = BundlePacks
-                .Where(vm => !string.IsNullOrWhiteSpace(vm.Name))
-                .GroupBy(vm => vm.Name.Trim(), StringComparer.OrdinalIgnoreCase)
-                .Select(g => g.First());
-
-            foreach (var packVm in uniqueBundlePacks)
-            {
-                Configuration.Packs.Add(new BundlePack
-                {
-                    Name = packVm.Name,
-                    NamePrefix = packVm.NamePrefix,
-                    NameSuffix = packVm.NameSuffix,
-                    AllowBuild = packVm.AllowBuild,
-                    AllowInstall = packVm.AllowInstall,
-                    Big = packVm.Big,
-                    OutputFile = packVm.OutputFile,
-                    SetGameLanguageOnInstall = packVm.SetGameLanguageOnInstall,
-                    ManifestFile = packVm.ManifestFile,
-                    Description = packVm.Description,
-                    ItemNames = packVm.ItemNames.ToList(),
-                });
-            }
-
-            Configuration.Manifests.Clear();
-            foreach (var manifestVm in BundleManifests.Where(m => !string.IsNullOrWhiteSpace(m.Name)))
-            {
-                Configuration.Manifests.Add(new BundleManifest
-                {
-                    Name = manifestVm.Name.Trim(),
-                    Version = string.IsNullOrWhiteSpace(manifestVm.Version) ? ModBuilderConstants.DefaultManifestVersion : manifestVm.Version.Trim(),
-                    Publisher = manifestVm.Publisher.Trim(),
-                    Description = manifestVm.Description.Trim(),
-                    ContentType = manifestVm.ContentType,
-                    TargetGame = manifestVm.TargetGame,
-                    PackNames = manifestVm.PackNames.Where(p => !string.IsNullOrWhiteSpace(p)).ToList(),
-                });
-            }
-
-            if (CurrentProject != null)
-            {
-                var primaryManifest = Configuration.Manifests.FirstOrDefault();
-                if (primaryManifest != null)
-                {
-                    CurrentProject.Version = primaryManifest.Version;
-                    if (primaryManifest.ContentType.HasValue)
-                    {
-                        CurrentProject.ContentType = primaryManifest.ContentType.Value;
-                    }
-
-                    if (primaryManifest.TargetGame.HasValue)
-                    {
-                        CurrentProject.TargetGame = primaryManifest.TargetGame.Value;
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(primaryManifest.Publisher))
-                    {
-                        CurrentProject.Publisher = primaryManifest.Publisher;
-                    }
-                }
-
-                await PersistConfigurationToDiskAsync(CurrentProject.ProjectDir, cancellationToken).ConfigureAwait(false);
-            }
+            await PersistConfigurationToDiskAsync(projectDir, cancellationToken).ConfigureAwait(false);
 
             HasChanges = false;
             notificationService.ShowSuccess(
@@ -1254,6 +1163,136 @@ public partial class ConfigEditorViewModel(
             notificationService.ShowError(
                 localizationService.GetString("Tools.ModBuilder.ConfigEditor.Notifications.SaveFailed.Title"),
                 localizationService.GetString("Tools.ModBuilder.ConfigEditor.Notifications.SaveFailed.Message", ex.Message));
+        }
+    }
+
+    private void SyncItemsToConfiguration(string projectDir)
+    {
+        if (Configuration == null)
+        {
+            return;
+        }
+
+        var existingItems = Configuration.Items
+            .Where(i => !string.IsNullOrEmpty(i.Name))
+            .GroupBy(i => i.Name, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        Configuration.Items.Clear();
+        var uniqueBundleItems = BundleItems
+            .Where(vm => !string.IsNullOrWhiteSpace(vm.Name))
+            .GroupBy(vm => vm.Name.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First());
+
+        foreach (var itemVm in uniqueBundleItems)
+        {
+            existingItems.TryGetValue(itemVm.Name, out var existingItem);
+            var parsedFiles = ParseItemFiles(itemVm, existingItem, projectDir);
+            Configuration.Items.Add(new BundleItem
+            {
+                Name = itemVm.Name,
+                NamePrefix = itemVm.NamePrefix,
+                NameSuffix = itemVm.NameSuffix,
+                IsBig = itemVm.IsBig,
+                BigSuffix = itemVm.BigSuffix,
+                SetGameLanguageOnInstall = itemVm.SetGameLanguageOnInstall,
+                ManifestFile = itemVm.ManifestFile,
+                Description = itemVm.Description,
+                TargetDir = itemVm.TargetDir,
+                BaseDir = itemVm.BaseDir,
+                SourcePatterns = parsedFiles.Select(f => f.AbsSourceFile).ToList(),
+                Files = parsedFiles,
+                Events = existingItem?.Events != null ? new Dictionary<BundleEventType, BundleEvent>(existingItem.Events) : [],
+            });
+        }
+    }
+
+    private void SyncPacksToConfiguration()
+    {
+        if (Configuration == null)
+        {
+            return;
+        }
+
+        Configuration.Packs.Clear();
+        var uniqueBundlePacks = BundlePacks
+            .Where(vm => !string.IsNullOrWhiteSpace(vm.Name))
+            .GroupBy(vm => vm.Name.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First());
+
+        foreach (var packVm in uniqueBundlePacks)
+        {
+            Configuration.Packs.Add(new BundlePack
+            {
+                Name = packVm.Name,
+                NamePrefix = packVm.NamePrefix,
+                NameSuffix = packVm.NameSuffix,
+                AllowBuild = packVm.AllowBuild,
+                AllowInstall = packVm.AllowInstall,
+                Big = packVm.Big,
+                OutputFile = packVm.OutputFile,
+                SetGameLanguageOnInstall = packVm.SetGameLanguageOnInstall,
+                ManifestFile = packVm.ManifestFile,
+                Description = packVm.Description,
+                ItemNames = packVm.ItemNames.ToList(),
+            });
+        }
+    }
+
+    private void SyncManifestsToConfiguration()
+    {
+        if (Configuration == null)
+        {
+            return;
+        }
+
+        Configuration.Manifests.Clear();
+        foreach (var manifestVm in BundleManifests.Where(m => !string.IsNullOrWhiteSpace(m.Name)))
+        {
+            Configuration.Manifests.Add(new BundleManifest
+            {
+                Name = manifestVm.Name.Trim(),
+                Version = string.IsNullOrWhiteSpace(manifestVm.Version) ? ModBuilderConstants.DefaultManifestVersion : manifestVm.Version.Trim(),
+                Publisher = manifestVm.Publisher.Trim(),
+                Description = manifestVm.Description.Trim(),
+                ContentType = manifestVm.ContentType,
+                TargetGame = manifestVm.TargetGame,
+                PackNames = manifestVm.PackNames.Where(p => !string.IsNullOrWhiteSpace(p)).ToList(),
+            });
+        }
+    }
+
+    private void SyncCurrentProjectFromPrimaryManifest()
+    {
+        if (CurrentProject == null || Configuration == null)
+        {
+            return;
+        }
+
+        var primaryManifest = Configuration.Manifests.FirstOrDefault();
+        if (primaryManifest == null)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(primaryManifest.Version))
+        {
+            CurrentProject.Version = primaryManifest.Version;
+        }
+
+        if (primaryManifest.ContentType.HasValue)
+        {
+            CurrentProject.ContentType = primaryManifest.ContentType.Value;
+        }
+
+        if (primaryManifest.TargetGame.HasValue)
+        {
+            CurrentProject.TargetGame = primaryManifest.TargetGame.Value;
+        }
+
+        if (!string.IsNullOrWhiteSpace(primaryManifest.Publisher))
+        {
+            CurrentProject.Publisher = primaryManifest.Publisher;
         }
     }
 

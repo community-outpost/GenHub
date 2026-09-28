@@ -1047,6 +1047,23 @@ public sealed partial class DownloadsBrowserViewModel(
         return ContentStateService.CompareVersions(v1, v2);
     }
 
+    private static bool IsVariantUpdateCandidate(InstallableVariant candidate, InstallableVariant current)
+    {
+        if (string.Equals(candidate.ManifestId, current.ManifestId, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(candidate.Name) &&
+            !string.IsNullOrWhiteSpace(current.Name) &&
+            string.Equals(candidate.Name, current.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return candidate.IsDefault;
+    }
+
     private void HandleSelectedPublisherChanged(PublisherItemViewModel? value)
     {
         if (value == null)
@@ -2740,7 +2757,7 @@ public sealed partial class DownloadsBrowserViewModel(
         if (ReferenceEquals(targetItem, item) && item.Variants.Count > 1)
         {
             var updateVariant = item.Variants.FirstOrDefault(v => v.CurrentState == ContentState.NotDownloaded &&
-                (item.SelectedVariant == null || IsVariantUpdateCandidate(item, v, item.SelectedVariant)));
+                (item.SelectedVariant == null || IsVariantUpdateCandidate(v, item.SelectedVariant)));
             if (updateVariant != null)
             {
                 targetItem.SelectedVariant = updateVariant;
@@ -3858,29 +3875,6 @@ public sealed partial class DownloadsBrowserViewModel(
         }
 
         searchResult ??= gridItem.SearchResult;
-        if (searchResult == null)
-        {
-            return null;
-        }
-
         return await contentStateService.GetLocalManifestIdAsync(searchResult, cancellationToken).ConfigureAwait(false);
-    }
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("SonarCloud", "S2325:Methods and properties that don't access instance data should be static", Justification = "Consistency with instance method structure in ViewModel")]
-    private bool IsVariantUpdateCandidate(ContentGridItemViewModel parent, InstallableVariant candidate, InstallableVariant current)
-    {
-        if (string.Equals(candidate.ManifestId, current.ManifestId, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        if (!string.IsNullOrWhiteSpace(candidate.Name) &&
-            !string.IsNullOrWhiteSpace(current.Name) &&
-            string.Equals(candidate.Name, current.Name, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        return candidate.IsDefault;
     }
 }

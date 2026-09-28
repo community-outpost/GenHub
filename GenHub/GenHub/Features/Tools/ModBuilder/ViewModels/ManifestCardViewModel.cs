@@ -35,12 +35,14 @@ public partial class ManifestCardViewModel : ObservableObject
     /// <summary>
     /// Gets a user-friendly summary of the linked bundle packs.
     /// </summary>
-    public string PacksSummary => PackNames != null && PackNames.Count > 0
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Bound as an instance property in XAML and reads source-generated instance state.")]
+    public string PacksSummary => PackNames is { Count: > 0 }
         ? string.Join(", ", PackNames)
         : "None";
 
     /// <summary>
     /// Gets the count of linked bundle packs.
     /// </summary>
-    public int PacksCount => PackNames?.Count ?? 0;
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Bound as an instance property in XAML and reads source-generated instance state.")]
+    public int PacksCount => PackNames.Count;
 }

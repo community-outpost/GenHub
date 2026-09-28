@@ -1267,6 +1267,13 @@ public class GameLauncher(
         return content + "\r\nGameData\r\n  " + key + " = " + formattedVal + "\r\nEnd\r\n";
     }
 
+    private static bool IsInstallationRefreshCooldownActive(string? installationId)
+    {
+        return !string.IsNullOrWhiteSpace(installationId) &&
+            _lastInstallationDriftRefresh.TryGetValue(installationId, out var lastRefresh) &&
+            DateTimeOffset.UtcNow - lastRefresh < InstallationRefreshCooldown;
+    }
+
     /// <summary>
     /// Validates dependencies, applies initial INI settings, and performs preflight CAS checks for the profile.
     /// </summary>
@@ -2378,13 +2385,6 @@ public class GameLauncher(
         }
     }
 
-    private bool IsInstallationRefreshCooldownActive(string? installationId)
-    {
-        return !string.IsNullOrWhiteSpace(installationId) &&
-            _lastInstallationDriftRefresh.TryGetValue(installationId, out var lastRefresh) &&
-            DateTimeOffset.UtcNow - lastRefresh < InstallationRefreshCooldown;
-    }
-
     private List<(ContentManifest Manifest, InstallationManifestDrift Drift)> FindDriftedInstallationManifests(
         IEnumerable<ContentManifest> installationManifests,
         GameInstallation installation,
@@ -2393,7 +2393,7 @@ public class GameLauncher(
         var manifestsList = installationManifests.ToList();
         logger.LogDebug("[GameLauncher] Scanning for installation drift across {Count} candidate manifests", manifestsList.Count);
         var driftedManifests = new List<(ContentManifest Manifest, InstallationManifestDrift Drift)>();
-        foreach (var manifest in installationManifests)
+        foreach (var manifest in manifestsList)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var gameDir = manifest.TargetGame == GameType.Generals

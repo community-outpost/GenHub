@@ -694,4 +694,58 @@ public class ModBuilderViewModelTests : IDisposable
 
         Assert.False(isStale);
     }
+
+    [Fact]
+    public void LoadProject_WithBlankManifestVersion_PreservesProjectVersion()
+    {
+        var viewModel = CreateViewModel();
+        var project = new ModBuilderProject
+        {
+            Name = "TestProject",
+            Version = "1.5.0",
+            Configuration = new BuildConfiguration
+            {
+                Manifests =
+                [
+                    new BundleManifest
+                    {
+                        Name = "PrimaryManifest",
+                        Version = "   ",
+                    },
+                ],
+            },
+        };
+
+        viewModel.CurrentProject = project;
+
+        Assert.Equal("1.5.0", project.Version);
+    }
+
+    [Fact]
+    public async Task SaveProjectAsync_WithBlankManifestVersion_PreservesProjectVersion()
+    {
+        var viewModel = CreateViewModel();
+        var project = new ModBuilderProject
+        {
+            Name = "TestProject",
+            Version = "2.0.0",
+            ProjectDir = _tempDir,
+            Configuration = new BuildConfiguration
+            {
+                Manifests =
+                [
+                    new BundleManifest
+                    {
+                        Name = "PrimaryManifest",
+                        Version = string.Empty,
+                    },
+                ],
+            },
+        };
+
+        viewModel.CurrentProject = project;
+        await viewModel.SaveProjectCommand.ExecuteAsync(null);
+
+        Assert.Equal("2.0.0", project.Version);
+    }
 }

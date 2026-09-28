@@ -2637,19 +2637,7 @@ public partial class ModBuilderViewModel(
             var primaryManifest = CurrentProject.Configuration?.Manifests?.FirstOrDefault(m => !string.IsNullOrWhiteSpace(m.Name));
             if (primaryManifest != null)
             {
-                if (primaryManifest.TargetGame.HasValue)
-                {
-                    CurrentProject.TargetGame = primaryManifest.TargetGame.Value;
-                }
-                if (primaryManifest.ContentType.HasValue)
-                {
-                    CurrentProject.ContentType = primaryManifest.ContentType.Value;
-                }
-                CurrentProject.Version = primaryManifest.Version;
-                if (!string.IsNullOrWhiteSpace(primaryManifest.Publisher))
-                {
-                    CurrentProject.Publisher = primaryManifest.Publisher;
-                }
+                ApplyPrimaryManifestMetadataToProject(CurrentProject, primaryManifest);
             }
             else
             {
@@ -3636,6 +3624,41 @@ public partial class ModBuilderViewModel(
 
     private void PopulateProjectBundlesAndProperties(BuildConfiguration? config)
     {
+        PopulateBundlesFromConfig(config);
+
+        if (CurrentProject != null)
+        {
+            GameDirectory = CurrentProject.GameDir;
+            OutputDirectory = CurrentProject.Directories?.Build ?? ModBuilderConstants.DefaultBuildDir;
+        }
+
+        if (config != null)
+        {
+            SelectedCompressionLevel = config.ZipCompressionLevel;
+        }
+
+        FileCount = Bundles.Sum(b => b.FileCount);
+        FilesToBuildCount = FileCount;
+
+        var primaryManifest = config?.Manifests?.FirstOrDefault(m => !string.IsNullOrWhiteSpace(m.Name));
+        if (primaryManifest != null && CurrentProject != null)
+        {
+            ApplyPrimaryManifestMetadataToProject(CurrentProject, primaryManifest);
+            if (primaryManifest.ContentType.HasValue)
+            {
+                SelectedContentType = primaryManifest.ContentType.Value;
+            }
+            if (primaryManifest.TargetGame.HasValue)
+            {
+                SelectedTargetGame = primaryManifest.TargetGame.Value;
+            }
+        }
+
+        PopulateProjectManifestsFromConfig(config);
+    }
+
+    private void PopulateBundlesFromConfig(BuildConfiguration? config)
+    {
         Bundles.Clear();
 
         if (config?.Packs != null && config.Packs.Count > 0)
@@ -3664,42 +3687,11 @@ public partial class ModBuilderViewModel(
                 });
             }
         }
+    }
 
-        if (CurrentProject != null)
-        {
-            GameDirectory = CurrentProject.GameDir;
-            OutputDirectory = CurrentProject.Directories?.Build ?? ModBuilderConstants.DefaultBuildDir;
-        }
-
-        if (config != null)
-        {
-            SelectedCompressionLevel = config.ZipCompressionLevel;
-        }
-
-        FileCount = Bundles.Sum(b => b.FileCount);
-        FilesToBuildCount = FileCount;
-
+    private void PopulateProjectManifestsFromConfig(BuildConfiguration? config)
+    {
         ProjectManifests.Clear();
-
-        var primaryManifest = config?.Manifests?.FirstOrDefault(m => !string.IsNullOrWhiteSpace(m.Name));
-        if (primaryManifest != null && CurrentProject != null)
-        {
-            CurrentProject.Version = primaryManifest.Version;
-            if (primaryManifest.ContentType.HasValue)
-            {
-                CurrentProject.ContentType = primaryManifest.ContentType.Value;
-                SelectedContentType = primaryManifest.ContentType.Value;
-            }
-            if (primaryManifest.TargetGame.HasValue)
-            {
-                CurrentProject.TargetGame = primaryManifest.TargetGame.Value;
-                SelectedTargetGame = primaryManifest.TargetGame.Value;
-            }
-            if (!string.IsNullOrWhiteSpace(primaryManifest.Publisher))
-            {
-                CurrentProject.Publisher = primaryManifest.Publisher;
-            }
-        }
 
         if (config?.Manifests != null && config.Manifests.Count > 0)
         {
@@ -3898,29 +3890,10 @@ public partial class ModBuilderViewModel(
 
         if (value != null)
         {
-            if (value.Name.Equals(ModBuilderConstants.GeneralsGamePatch2SampleName, StringComparison.OrdinalIgnoreCase) &&
-                value.TargetGame == GameType.Generals)
-            {
-                value.TargetGame = GameType.ZeroHour;
-            }
+            NormalizeSampleProjectTargetGame(value);
 
             var primaryManifest = value.Configuration?.Manifests?.FirstOrDefault(m => !string.IsNullOrWhiteSpace(m.Name));
-            if (primaryManifest != null)
-            {
-                value.Version = primaryManifest.Version;
-                if (primaryManifest.ContentType.HasValue)
-                {
-                    value.ContentType = primaryManifest.ContentType.Value;
-                }
-                if (primaryManifest.TargetGame.HasValue)
-                {
-                    value.TargetGame = primaryManifest.TargetGame.Value;
-                }
-                if (!string.IsNullOrWhiteSpace(primaryManifest.Publisher))
-                {
-                    value.Publisher = primaryManifest.Publisher;
-                }
-            }
+            ApplyPrimaryManifestMetadataToProject(value, primaryManifest);
 
             SelectedTargetGame = value.TargetGame;
             SelectedContentType = value.ContentType != ContentType.UnknownContentType
@@ -3943,6 +3916,43 @@ public partial class ModBuilderViewModel(
             OnPropertyChanged(nameof(CurrentProjectPath));
             OnPropertyChanged(nameof(IsProjectLoaded));
         });
+    }
+
+    private static void NormalizeSampleProjectTargetGame(ModBuilderProject project)
+    {
+        if (project.Name.Equals(ModBuilderConstants.GeneralsGamePatch2SampleName, StringComparison.OrdinalIgnoreCase) &&
+            project.TargetGame == GameType.Generals)
+        {
+            project.TargetGame = GameType.ZeroHour;
+        }
+    }
+
+    private static void ApplyPrimaryManifestMetadataToProject(ModBuilderProject project, BundleManifest? primaryManifest)
+    {
+        if (primaryManifest == null)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(primaryManifest.Version))
+        {
+            project.Version = primaryManifest.Version;
+        }
+
+        if (primaryManifest.ContentType.HasValue)
+        {
+            project.ContentType = primaryManifest.ContentType.Value;
+        }
+
+        if (primaryManifest.TargetGame.HasValue)
+        {
+            project.TargetGame = primaryManifest.TargetGame.Value;
+        }
+
+        if (!string.IsNullOrWhiteSpace(primaryManifest.Publisher))
+        {
+            project.Publisher = primaryManifest.Publisher;
+        }
     }
 
     partial void OnSelectedBundleChanged(BundleItemViewModel? value)
