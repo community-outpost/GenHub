@@ -1324,17 +1324,15 @@ public partial class ConfigEditorViewModel(
         var fileParams = ConfigurationLoaderService.BuildFileParameters(itemVm.OutputFormat, itemVm.NoConvert);
         var configuredTarget = !string.IsNullOrWhiteSpace(itemVm.TargetDir) ? itemVm.TargetDir : string.Empty;
         var files = new List<BundleFile>(patterns.Length);
-        for (var i = 0; i < patterns.Length; i++)
+        foreach (var rawPattern in patterns)
         {
-            var rawPattern = patterns[i];
-
             // Relativize so entries corrupted by older saves heal back to portable patterns.
             var pattern = ConfigurationLoaderService.RelativizeToProject(rawPattern.Trim(), projectDir);
             var relTarget = ConfigurationLoaderService.ContainsWildcard(pattern)
                 ? configuredTarget
                 : ConfigurationLoaderService.StripGameFilesEditedPrefix(pattern.Replace('\\', '/'));
 
-            var existingFile = FindMatchingExistingFile(existingItem, pattern, rawPattern.Trim(), projectDir, i);
+            var existingFile = FindMatchingExistingFile(existingItem, pattern, rawPattern.Trim(), projectDir);
 
             Dictionary<string, object>? mergedParams;
             if (existingFile?.Params != null)
@@ -1382,29 +1380,17 @@ public partial class ConfigEditorViewModel(
         return files;
     }
 
-    private static BundleFile? FindMatchingExistingFile(BundleItem? existingItem, string pattern, string rawPattern, string projectDir, int index)
+    private static BundleFile? FindMatchingExistingFile(BundleItem? existingItem, string pattern, string rawPattern, string projectDir)
     {
         if (existingItem?.Files == null || existingItem.Files.Count == 0)
         {
             return null;
         }
 
-        var match = existingItem.Files.FirstOrDefault(f =>
+        return existingItem.Files.FirstOrDefault(f =>
             string.Equals(f.AbsSourceFile, pattern, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(f.AbsSourceFile, rawPattern, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(ConfigurationLoaderService.RelativizeToProject(f.AbsSourceFile, projectDir), pattern, StringComparison.OrdinalIgnoreCase));
-
-        if (match != null)
-        {
-            return match;
-        }
-
-        if (index >= 0 && index < existingItem.Files.Count)
-        {
-            return existingItem.Files[index];
-        }
-
-        return null;
     }
 
     private static string[] ResolveSavePatterns(BundleItemEditorViewModel itemVm, BundleItem? existingItem)
