@@ -470,7 +470,7 @@ public class SetupWizardServiceTests
         try
         {
             var executablePath = Path.Combine(directory, Path.GetFileNameWithoutExtension(GameClientConstants.SuperHackersZeroHourExecutable));
-            await File.WriteAllBytesAsync(executablePath, [0xCF, 0xFA, 0xED, 0xFE, 0x0C, 0x00, 0x00, 0x01]);
+            await File.WriteAllBytesAsync(executablePath, HostNativeExecutableHeader());
 
             _goDiscovererMock
                 .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
@@ -523,19 +523,24 @@ public class SetupWizardServiceTests
     }
 
     /// <summary>
-    /// Verifies that a native TheSuperHackers client on macOS or Linux that already has a profile
-    /// is treated as up to date: no Update is offered, since there is no native package to download.
+    /// Verifies that only a profile for the native build itself makes it up to date on macOS or Linux.
+    /// A profile for a Windows build of the same publisher, such as one run under Wine, still leaves
+    /// the native build to be profiled; neither case offers an Update.
     /// </summary>
+    /// <param name="nativeBuildHasProfile">Whether the native client has its own profile.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    [Fact]
-    public async Task RunSetupWizardAsync_WhenNativeSuperHackersBuildHasProfile_OffersNoUpdateOnUnixHostsAsync()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task RunSetupWizardAsync_WhenNativeSuperHackersBuildDetected_DecidesOnItsOwnProfileAsync(bool nativeBuildHasProfile)
     {
         var directory = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"GenHub.Wizard.{Guid.NewGuid():N}")).FullName;
         try
         {
-            const string clientId = "1.104.retail.gameclient.zerohour";
+            const string nativeClientId = "1.104.retail.gameclient.zerohour";
+            const string windowsManifestId = "1.20260901.thesuperhackers.gameclient.generalszh";
             var executablePath = Path.Combine(directory, Path.GetFileNameWithoutExtension(GameClientConstants.SuperHackersZeroHourExecutable));
-            await File.WriteAllBytesAsync(executablePath, [0xCF, 0xFA, 0xED, 0xFE, 0x0C, 0x00, 0x00, 0x01]);
+            await File.WriteAllBytesAsync(executablePath, HostNativeExecutableHeader());
 
             _goDiscovererMock
                 .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
@@ -543,19 +548,25 @@ public class SetupWizardServiceTests
             _cpDiscovererMock
                 .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult { Items = [] }));
+
+            // An older Windows package of the same publisher, profiled (for example under Wine).
+            var windowsPackage = CreateGameClientManifest(windowsManifestId, "TheSuperHackers - Zero Hour", "weekly-2026-09-01", PublisherTypeConstants.TheSuperHackers);
             _manifestPoolMock
                 .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+                .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([windowsPackage]));
             _profileServiceMock
-                .Setup(s => s.ProfileExistsForGameClientAsync(clientId, It.IsAny<CancellationToken>()))
+                .Setup(s => s.ProfileExistsForGameClientAsync(windowsManifestId, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(true);
+            _profileServiceMock
+                .Setup(s => s.ProfileExistsForGameClientAsync(nativeClientId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(nativeBuildHasProfile);
 
             var installation = new GameInstallation(directory, GameInstallationType.Retail, null);
             installation.AvailableGameClients =
             [
                 new GameClient
                 {
-                    Id = clientId,
+                    Id = nativeClientId,
                     InstallationId = installation.Id,
                     Name = $"{SuperHackersConstants.PublisherName} - {SuperHackersConstants.ZeroHourDisplayName}",
                     PublisherType = PublisherTypeConstants.TheSuperHackers,
@@ -583,14 +594,26 @@ public class SetupWizardServiceTests
                 return;
             }
 
-            Assert.Null(shItem);
-            Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.SuperHackersAction);
+            if (nativeBuildHasProfile)
+            {
+                Assert.Null(shItem);
+                Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.SuperHackersAction);
+            }
+            else
+            {
+                Assert.Equal(GameClientConstants.WizardActionTypes.CreateProfile, shItem?.ActionType);
+                Assert.Equal(GameClientConstants.WizardActionTypes.CreateProfile, result.SuperHackersAction);
+            }
         }
         finally
         {
             Directory.Delete(directory, recursive: true);
         }
     }
+
+    private static byte[] HostNativeExecutableHeader() => OperatingSystem.IsLinux()
+        ? [0x7F, 0x45, 0x4C, 0x46, 0x02, 0x01, 0x01, 0x00]
+        : [0xCF, 0xFA, 0xED, 0xFE, 0x0C, 0x00, 0x00, 0x01];
 
     private SetupWizardService CreateService(SuperHackersProvider? superHackersProvider = null)
     {

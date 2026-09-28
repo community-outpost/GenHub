@@ -223,9 +223,27 @@ public class SetupWizardService(
 
             // A native client on macOS or Linux is profiled as it is: the publisher package is a
             // Windows build, so there is nothing to download or update for it.
-            if (componentGlobal.Any(x => x.Client is GameClient client && PublisherProfileOrchestrator.IsHostNativeClient(client)))
+            var nativeClients = componentGlobal
+                .Select(x => x.Client as GameClient)
+                .OfType<GameClient>()
+                .Where(PublisherProfileOrchestrator.IsHostNativeClient)
+                .ToList();
+            if (nativeClients.Count > 0)
             {
-                if (anyProfileExists)
+                // Only profiles for the native builds themselves count; one for a Windows build of
+                // the same publisher (for example under Wine) still leaves a native build unprofiled.
+                var allNativeProfiled = true;
+                foreach (var nativeClient in nativeClients)
+                {
+                    if (string.IsNullOrEmpty(nativeClient.Id) ||
+                        !await gameClientProfileService.ProfileExistsForGameClientAsync(nativeClient.Id, cancellationToken))
+                    {
+                        allNativeProfiled = false;
+                        break;
+                    }
+                }
+
+                if (allNativeProfiled)
                 {
                     logger.LogInformation("[SetupWizard] Native client and profile found for {Title}, nothing to update", config.Title);
                     return (true, GameClientConstants.WizardActionTypes.Decline);
