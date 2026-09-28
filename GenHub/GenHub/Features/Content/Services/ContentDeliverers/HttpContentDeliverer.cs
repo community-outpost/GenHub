@@ -8,6 +8,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
@@ -24,7 +25,8 @@ namespace GenHub.Features.Content.Services.ContentDeliverers;
 public class HttpContentDeliverer(
     IDownloadService downloadService,
     ILogger<HttpContentDeliverer> logger,
-    IPlaywrightService? playwrightService = null) : IContentDeliverer
+    IPlaywrightService? playwrightService = null,
+    IArchivePayloadProcessor? archivePayloadProcessor = null) : IContentDeliverer
 {
     /// <inheritdoc />
     public string SourceName => ContentSourceNames.HttpDeliverer;
@@ -166,24 +168,36 @@ public class HttpContentDeliverer(
             }
 
             // Extract archives if needed
-            foreach (var file in filesToDownload)
+            if (archivePayloadProcessor != null)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var localPath = ResolveTargetPath(targetDirectory, file.RelativePath);
-
-                if (IsArchive(localPath))
+                await archivePayloadProcessor.ExtractArchivesSafelyAsync(
+                    targetDirectory,
+                    packageManifest.ContentType,
+                    progress,
+                    cancellationToken);
+            }
+            else
+            {
+                foreach (var file in filesToDownload)
                 {
-                    progress?.Report(new ContentAcquisitionProgress
-                    {
-                        Phase = ContentAcquisitionPhase.Extracting,
-                        ProgressPercentage = 0,
-                        CurrentOperation = $"Extracting {file.RelativePath}...",
-                        CurrentFile = file.RelativePath,
-                    });
+                    cancellationToken.ThrowIfCancellationRequested();
 
-                    // Extraction logic would go here
-                    // For now, assume files are ready to use
+                    var localPath = ResolveTargetPath(targetDirectory, file.RelativePath);
+
+                    if (IsArchive(localPath) && File.Exists(localPath) && ZipValidation.IsValidZipFile(localPath))
+                    {
+                        progress?.Report(new ContentAcquisitionProgress
+                        {
+                            Phase = ContentAcquisitionPhase.Extracting,
+                            ProgressPercentage = 0,
+                            CurrentOperation = $"Extracting {file.RelativePath}...",
+                            CurrentFile = file.RelativePath,
+                        });
+
+                        var destDir = Path.GetDirectoryName(localPath) ?? targetDirectory;
+                        ZipArchiveGuard.ExtractToDirectory(localPath, destDir, cancellationToken);
+                        File.Delete(localPath);
+                    }
                 }
             }
 

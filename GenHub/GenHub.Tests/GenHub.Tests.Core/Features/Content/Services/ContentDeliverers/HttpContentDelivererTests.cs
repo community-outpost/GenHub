@@ -1,6 +1,7 @@
 using FluentAssertions;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Content;
@@ -527,6 +528,41 @@ public class HttpContentDelivererTests
                 p.Phase == ContentAcquisitionPhase.Downloading &&
                 p.CurrentOperation.Contains("/s", StringComparison.Ordinal) &&
                 p.ProgressPercentage > 0);
+        }
+        finally
+        {
+            Directory.Delete(targetDirectory, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that archive downloads invoke the archive payload processor.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_WithArchive_InvokesArchiveProcessorAsync()
+    {
+        var targetDirectory = CreateTargetDirectory();
+        var manifest = CreateManifest("archive-mod", "1.0", "mod.zip", "test-hash");
+        var downloadService = CreateSuccessfulDownloadService();
+        var archiveProcessorMock = new Mock<IArchivePayloadProcessor>();
+        var deliverer = new HttpContentDeliverer(
+            downloadService.Object,
+            Mock.Of<ILogger<HttpContentDeliverer>>(),
+            archivePayloadProcessor: archiveProcessorMock.Object);
+
+        try
+        {
+            var result = await deliverer.DeliverContentAsync(manifest, targetDirectory);
+
+            result.Success.Should().BeTrue();
+            archiveProcessorMock.Verify(
+                a => a.ExtractArchivesSafelyAsync(
+                    targetDirectory,
+                    manifest.ContentType,
+                    It.IsAny<IProgress<ContentAcquisitionProgress>?>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
         }
         finally
         {
