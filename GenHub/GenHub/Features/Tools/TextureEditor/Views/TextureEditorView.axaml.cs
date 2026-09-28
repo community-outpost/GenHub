@@ -14,10 +14,10 @@ namespace GenHub.Features.Tools.TextureEditor.Views;
 // follows the WndEditorView and WndEditorViewModel patterns. Copy, cut, paste,
 // and duplicate already ship through EditorToolViewModelBase, and slice move
 // and resize already flow through Begin, Update, and End on the view model.
-// TODO: Undo and redo through slice snapshots in the view model (WndEditAction parity).
-// TODO: Ctrl axis-lock drag parity with the WND canvas.
-// TODO: Arrow and WASD 1px nudge (needs a focusable canvas host like WndEditorView).
-// TODO: Rubber-band multi-select (selection is single-select today).
+// - Undo and redo through slice snapshots in the view model (WndEditAction parity).
+// - Ctrl axis-lock drag parity with the WND canvas.
+// - Arrow and WASD 1px nudge (needs a focusable canvas host like WndEditorView).
+// - Rubber-band multi-select (selection is single-select today).
 
 /// <summary>
 /// Code-behind for TextureEditorView.

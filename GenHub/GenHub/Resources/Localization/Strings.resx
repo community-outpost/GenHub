@@ -14861,6 +14861,12 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="TextureEditor.Notify.ScanFailed.Message" xml:space="preserve">
     <value>Failed to scan MappedImages folder.</value>
   </data>
+  <data name="TextureEditor.Notify.ScanPartial.Title" xml:space="preserve">
+    <value>Scan completed with errors</value>
+  </data>
+  <data name="TextureEditor.Notify.ScanPartial.Message" xml:space="preserve">
+    <value>Indexed {0} mapped images from {1} files, but {2} entries failed: {3}.</value>
+  </data>
   <data name="TextureEditor.Notify.ExportComplete.Title" xml:space="preserve">
     <value>Export complete</value>
   </data>
@@ -14875,6 +14881,12 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   </data>
   <data name="TextureEditor.Notify.ExportInvalid.Message" xml:space="preserve">
     <value>Slice '{0}' extends outside the texture bounds.</value>
+  </data>
+  <data name="TextureEditor.Notify.ExportInvalidBlankName.Message" xml:space="preserve">
+    <value>A slice has an empty name. Name every slice before exporting.</value>
+  </data>
+  <data name="TextureEditor.Notify.ExportInvalidDuplicateName.Message" xml:space="preserve">
+    <value>Slice name '{0}' is duplicated. Slice names must be unique.</value>
   </data>
   <data name="TextureEditor.Notify.InvalidName.Message" xml:space="preserve">
     <value>Slice name '{0}' is empty or duplicated.</value>

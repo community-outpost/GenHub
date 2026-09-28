@@ -48,6 +48,8 @@ public sealed partial class TextureEditorViewModel(
     private const string ScanFailedTitleFallback = "Scan failed";
     private const string ImportFailedTitleKey = "TextureEditor.Notify.ImportFailed.Title";
     private const string ImportFailedTitleFallback = "Import failed";
+    private const string ExportInvalidTitleKey = "TextureEditor.Notify.ExportInvalid.Title";
+    private const string ExportInvalidTitleFallback = "Cannot export slices";
 
     private DecodedTexture? _atlasDecoded;
     private FileExplorerViewModel? _fileExplorer;
@@ -191,8 +193,8 @@ public sealed partial class TextureEditorViewModel(
     /// </summary>
     public override bool CanDelete => SelectedSlice is not null;
 
-    // TODO: Override CanUndo and CanRedo with a slice-snapshot history, following the
-    // canvas QOL roadmap in TextureEditorView.axaml.cs and the WndEditAction stacks.
+    // Undo and redo will override CanUndo and CanRedo with a slice-snapshot history;
+    // see the canvas QOL roadmap in TextureEditorView.axaml.cs and the WndEditAction stacks.
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads source-generated AtlasPath instance state.")]
     private string DefaultIniPath => Path.Combine(
         Path.GetDirectoryName(AtlasPath) ?? string.Empty,
@@ -703,6 +705,10 @@ public sealed partial class TextureEditorViewModel(
         ExportIniCommand.NotifyCanExecuteChanged();
         ExportSheetCommand.NotifyCanExecuteChanged();
         RefreshEditorCommands();
+
+        // Picker thumbnails are crops of AtlasBitmap: rebuild them so no item
+        // references a disposed atlas or keeps thumbnails for the previous texture.
+        RefreshRegistryImages();
     }
 
     partial void OnSelectedSliceChanged(TextureSliceViewModel? value)
@@ -773,23 +779,31 @@ public sealed partial class TextureEditorViewModel(
         var result = await registry.ScanDirectoryAsync(folder, cancellationToken).ConfigureAwait(true);
         cancellationToken.ThrowIfCancellationRequested();
         RefreshRegistryImages();
-        bool succeeded = result.Success && result.Data is not null;
-        if (succeeded && result.Data is not null)
-        {
-            Notifications.ShowSuccess(
-                Localize("TextureEditor.Notify.ScanComplete.Title", "Scan complete"),
-                Localize("TextureEditor.Notify.ScanComplete.Message", "Indexed {0} mapped images from {1} files.", result.Data.ImagesIndexed, result.Data.FilesScanned),
-                NotificationDurations.Medium);
-        }
-        else
+        if (result.Data is null)
         {
             Notifications.ShowError(
                 Localize(ScanFailedTitleKey, ScanFailedTitleFallback),
                 result.FirstError ?? Localize("TextureEditor.Notify.ScanFailed.Message", "Failed to scan MappedImages folder."),
                 NotificationDurations.Long);
+            return false;
         }
 
-        return succeeded;
+        if (result.Success)
+        {
+            Notifications.ShowSuccess(
+                Localize("TextureEditor.Notify.ScanComplete.Title", "Scan complete"),
+                Localize("TextureEditor.Notify.ScanComplete.Message", "Indexed {0} mapped images from {1} files.", result.Data.ImagesIndexed, result.Data.FilesScanned),
+                NotificationDurations.Medium);
+            return true;
+        }
+
+        // A partial scan still commits the valid entries, so follow-up work
+        // runs and the failures surface as a warning instead of an error.
+        Notifications.ShowWarning(
+            Localize("TextureEditor.Notify.ScanPartial.Title", "Scan completed with errors"),
+            Localize("TextureEditor.Notify.ScanPartial.Message", "Indexed {0} mapped images from {1} files, but {2} entries failed: {3}.", result.Data.ImagesIndexed, result.Data.FilesScanned, result.Errors.Count, result.FirstError ?? string.Empty),
+            NotificationDurations.Long);
+        return true;
     }
 
     [RelayCommand]
@@ -1668,23 +1682,35 @@ public sealed partial class TextureEditorViewModel(
         {
             logger.LogWarning("INI save aborted: slice {Slice} is outside the texture bounds", invalid.Name);
             Notifications.ShowError(
-                Localize("TextureEditor.Notify.ExportInvalid.Title", "Cannot export slices"),
+                Localize(ExportInvalidTitleKey, ExportInvalidTitleFallback),
                 Localize("TextureEditor.Notify.ExportInvalid.Message", "Slice '{0}' extends outside the texture bounds.", invalid.Name),
                 NotificationDurations.Long);
             return false;
         }
 
-        var badName = Slices.FirstOrDefault(slice => string.IsNullOrWhiteSpace(slice.Name))
-            ?? Slices.GroupBy(slice => slice.Name, StringComparer.OrdinalIgnoreCase)
-                .Where(group => group.Count() > 1)
-                .Select(group => group.First())
-                .FirstOrDefault();
-        if (badName is not null)
+        // The inspector edits names freely, but the INI format cannot round-trip
+        // blank or duplicated names: blank names fail to reload and duplicates
+        // collapse to the last entry, silently losing slices.
+        if (Slices.Any(slice => string.IsNullOrWhiteSpace(slice.Name)))
         {
-            logger.LogWarning("INI save aborted: slice name '{Slice}' is empty or duplicated", badName.Name);
+            logger.LogWarning("INI save aborted: a slice has an empty name");
             Notifications.ShowError(
-                Localize("TextureEditor.Notify.ExportInvalid.Title", "Cannot export slices"),
-                Localize("TextureEditor.Notify.InvalidName.Message", "Slice name '{0}' is empty or duplicated.", badName.Name),
+                Localize(ExportInvalidTitleKey, ExportInvalidTitleFallback),
+                Localize("TextureEditor.Notify.ExportInvalidBlankName.Message", "A slice has an empty name. Name every slice before exporting."),
+                NotificationDurations.Long);
+            return false;
+        }
+
+        var duplicate = Slices
+            .GroupBy(slice => slice.Name, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(group => group.Count() > 1)
+            ?.First();
+        if (duplicate is not null)
+        {
+            logger.LogWarning("INI save aborted: slice name {Slice} is duplicated", duplicate.Name);
+            Notifications.ShowError(
+                Localize(ExportInvalidTitleKey, ExportInvalidTitleFallback),
+                Localize("TextureEditor.Notify.ExportInvalidDuplicateName.Message", "Slice name '{0}' is duplicated. Slice names must be unique.", duplicate.Name),
                 NotificationDurations.Long);
             return false;
         }

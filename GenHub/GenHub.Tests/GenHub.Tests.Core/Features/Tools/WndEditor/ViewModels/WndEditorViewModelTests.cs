@@ -362,6 +362,35 @@ public sealed class WndEditorViewModelTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that pasting onto the copied window duplicates beside it instead of nesting inside it.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CopyPaste_SameSelection_PastesAsSibling()
+    {
+        // Arrange
+        await _viewModel.LoadFromTextAsync(SampleDocument, null);
+        _viewModel.SelectedNode = _viewModel.RootNodes[0].Children[0];
+
+        // Act: copy and paste twice without changing the selection.
+        _viewModel.CopyCommand.Execute(null);
+        await _viewModel.PasteCommand.ExecuteAsync(null);
+
+        // Assert: the first copy lands beside its source, not nested inside it.
+        _viewModel.RootNodes[0].Children.Should().HaveCount(2);
+
+        // Act
+        await _viewModel.PasteCommand.ExecuteAsync(null);
+
+        // Assert: repeats stay siblings instead of forming a nested chain.
+        _viewModel.RootNodes[0].Children.Should().HaveCount(3);
+        foreach (var child in _viewModel.RootNodes[0].Children)
+        {
+            child.Children.Should().BeEmpty();
+        }
+    }
+
+    /// <summary>
     /// Tests that cutting a window removes it and pastes exactly once.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
@@ -1312,13 +1341,21 @@ public sealed class WndEditorViewModelTests : IDisposable
     }
 
     /// <summary>
-    /// Tests that hiding the selected window shows guidance for selecting it again.
+    /// Tests that hiding the selected window shows localized guidance for selecting it again.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
     public async Task HidingSelectedWindow_ShowsUnhideGuidance()
     {
         // Arrange
+        string? localizedTitle = "Window hidden (localized)";
+        string? localizedMessage = "Hidden message (localized)";
+        _mockLocalizationService
+            .Setup(s => s.TryGetString("Tools.WndEditor.Hidden.HiddenTitle", out localizedTitle, It.IsAny<object?[]>()))
+            .Returns(true);
+        _mockLocalizationService
+            .Setup(s => s.TryGetString("Tools.WndEditor.Hidden.HiddenMessage", out localizedMessage, It.IsAny<object?[]>()))
+            .Returns(true);
         var doc =
             "FILE_VERSION = 2;\n" +
             "WINDOW\n" +
@@ -1341,8 +1378,8 @@ public sealed class WndEditorViewModelTests : IDisposable
         _viewModel.CanvasItems[0].CanvasVisible.Should().BeTrue();
         _mockNotificationService.Verify(
             n => n.ShowInfo(
-                "Window hidden",
-                "Select it in the Windows tree or enable Show hidden to edit it again.",
+                localizedTitle!,
+                localizedMessage!,
                 NotificationDurations.Medium,
                 It.IsAny<bool>()),
             Times.Once);

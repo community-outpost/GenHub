@@ -14802,6 +14802,12 @@ https://example.com/screenshot2.png</value>
   <data name="TextureEditor.Notify.ScanFailed.Message" xml:space="preserve">
     <value>تعذر فحص مجلد MappedImages.</value>
   </data>
+  <data name="TextureEditor.Notify.ScanPartial.Title" xml:space="preserve">
+    <value>اكتمل الفحص مع أخطاء</value>
+  </data>
+  <data name="TextureEditor.Notify.ScanPartial.Message" xml:space="preserve">
+    <value>تمت فهرسة {0} صورة من {1} ملفات، لكن {2} إدخالات فشلت: {3}.</value>
+  </data>
   <data name="TextureEditor.Notify.ExportComplete.Title" xml:space="preserve">
     <value>اكتمل التصدير</value>
   </data>
@@ -14816,6 +14822,12 @@ https://example.com/screenshot2.png</value>
   </data>
   <data name="TextureEditor.Notify.ExportInvalid.Message" xml:space="preserve">
     <value>الشريحة '{0}' تمتد خارج حدود القوام.</value>
+  </data>
+  <data name="TextureEditor.Notify.ExportInvalidBlankName.Message" xml:space="preserve">
+    <value>تحتوي شريحة على اسم فارغ. قم بتسمية كل شريحة قبل التصدير.</value>
+  </data>
+  <data name="TextureEditor.Notify.ExportInvalidDuplicateName.Message" xml:space="preserve">
+    <value>اسم الشريحة '{0}' مكرر. يجب أن تكون أسماء الشرائح فريدة.</value>
   </data>
   <data name="TextureEditor.Notify.InvalidName.Message" xml:space="preserve">
     <value>اسم الشريحة '{0}' فارغ أو مكرر.</value>

@@ -73,6 +73,7 @@ public sealed partial class WndEditorViewModel(
     private readonly object _thumbnailSync = new();
     private FileExplorerViewModel? _fileExplorer;
     private WndWindow? _copiedWindow;
+    private WndWindow? _copySourceWindow;
     private bool _isCutOperation;
     private int _historyVersion;
     private int _savedHistoryVersion;
@@ -1111,6 +1112,7 @@ public sealed partial class WndEditorViewModel(
         }
 
         _copiedWindow = CloneWindow(SelectedNode.Window);
+        _copySourceWindow = SelectedNode.Window;
         _isCutOperation = false;
         RefreshEditorCommands();
     }
@@ -1124,6 +1126,7 @@ public sealed partial class WndEditorViewModel(
         }
 
         _copiedWindow = CloneWindow(SelectedNode.Window);
+        _copySourceWindow = null;
         _isCutOperation = true;
         RemoveWindowWithUndo(SelectedNode, "Tools.WndEditor.History.CutWindow");
         RefreshEditorCommands();
@@ -2394,20 +2397,36 @@ public sealed partial class WndEditorViewModel(
             return;
         }
 
-        var parent = SelectedNode;
-        var siblings = parent is null ? _document.Windows : parent.Window.Children;
+        var selected = SelectedNode;
+        List<WndWindow> siblings;
+        int insertIndex;
+        if (!_isCutOperation && selected is not null && ReferenceEquals(selected.Window, _copySourceWindow))
+        {
+            // Pasting onto the copied window itself (or the clone from the last
+            // paste) duplicates beside it like OnDuplicate instead of nesting
+            // the copy inside its own source.
+            siblings = selected.Parent is null ? _document.Windows : selected.Parent.Window.Children;
+            insertIndex = siblings.IndexOf(selected.Window) + 1;
+        }
+        else
+        {
+            siblings = selected is null ? _document.Windows : selected.Window.Children;
+            insertIndex = siblings.Count;
+        }
+
+        var parent = selected;
         var clone = CloneWindow(_copiedWindow);
         if (!_isCutOperation)
         {
             OffsetWindowRect(clone);
         }
 
-        siblings.Add(clone);
+        siblings.Insert(Math.Min(insertIndex, siblings.Count), clone);
         PushUndo(new WndEditAction(
             Localization.GetString("Tools.WndEditor.History.PasteWindow"),
             () =>
             {
-                siblings.Add(clone);
+                siblings.Insert(Math.Min(insertIndex, siblings.Count), clone);
                 RebuildAll();
                 SelectWindow(clone);
             },
@@ -2423,6 +2442,10 @@ public sealed partial class WndEditorViewModel(
         {
             _copiedWindow = null;
             _isCutOperation = false;
+        }
+        else
+        {
+            _copySourceWindow = clone;
         }
 
         RefreshEditorCommands();

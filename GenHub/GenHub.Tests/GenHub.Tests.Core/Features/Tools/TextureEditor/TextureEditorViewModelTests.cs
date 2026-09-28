@@ -5,6 +5,7 @@ using GenHub.Common.Editors;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.TextureEditor;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.TextureEditor;
 using GenHub.Core.Services.Tools.TextureEditor;
 using GenHub.Features.Tools.TextureEditor.Services;
@@ -12,7 +13,9 @@ using GenHub.Features.Tools.TextureEditor.ViewModels;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -210,6 +213,112 @@ public sealed class TextureEditorViewModelTests
             string iniPath = Path.Combine(directory, "atlas.ini");
             Assert.True(File.Exists(iniPath));
             Assert.StartsWith("; ", await File.ReadAllTextAsync(iniPath));
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that saving slices with case-insensitively duplicated names shows an error and skips the write.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task SaveCommand_DuplicateSliceNames_ShowsErrorAndSkipsWriteAsync()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var notifications = new Mock<INotificationService>();
+            var dialogs = new Mock<IDialogService>(MockBehavior.Strict);
+            var viewModel = CreateViewModel(notifications: notifications, dialogs: dialogs);
+            viewModel.AtlasPath = Path.Combine(directory, "atlas.tga");
+            using var stream = new MemoryStream(ValidPngBytes);
+            using var bitmap = new Bitmap(stream);
+            viewModel.AtlasBitmap = bitmap;
+            viewModel.Slices.Add(new TextureSliceViewModel(new MappedImageDefinition("Hero", "atlas.tga", 1, 1, 0, 0, 1, 1)));
+            viewModel.Slices.Add(new TextureSliceViewModel(new MappedImageDefinition("hero", "atlas.tga", 1, 1, 0, 0, 1, 1)));
+
+            await viewModel.SaveCommand.ExecuteAsync(null);
+
+            Assert.False(File.Exists(Path.Combine(directory, "atlas.ini")));
+            notifications.Verify(
+                notification => notification.ShowError(It.IsAny<string>(), It.Is<string>(message => message.Contains("duplicated")), It.IsAny<int?>(), It.IsAny<bool>()),
+                Times.Once);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that saving a slice with a blank name shows an error and skips the write.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task SaveCommand_BlankSliceName_ShowsErrorAndSkipsWriteAsync()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var notifications = new Mock<INotificationService>();
+            var dialogs = new Mock<IDialogService>(MockBehavior.Strict);
+            var viewModel = CreateViewModel(notifications: notifications, dialogs: dialogs);
+            viewModel.AtlasPath = Path.Combine(directory, "atlas.tga");
+            using var stream = new MemoryStream(ValidPngBytes);
+            using var bitmap = new Bitmap(stream);
+            viewModel.AtlasBitmap = bitmap;
+            viewModel.Slices.Add(new TextureSliceViewModel(new MappedImageDefinition("  ", "atlas.tga", 1, 1, 0, 0, 1, 1)));
+
+            await viewModel.SaveCommand.ExecuteAsync(null);
+
+            Assert.False(File.Exists(Path.Combine(directory, "atlas.ini")));
+            notifications.Verify(
+                notification => notification.ShowError(It.IsAny<string>(), It.Is<string>(message => message.Contains("empty name")), It.IsAny<int?>(), It.IsAny<bool>()),
+                Times.Once);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that a partial scan warns instead of failing, since the registry commits the valid entries.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task ScanRegistry_PartialFailure_WarnsInsteadOfFailingAsync()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var registry = new Mock<IMappedImageRegistry>();
+            registry.Setup(mock => mock.ScanDirectoryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<MappedImageScanResult>.CreateFailure(
+                    ["icons.ini: malformed block"],
+                    new MappedImageScanResult(2, 5),
+                    TimeSpan.Zero));
+            registry.Setup(mock => mock.All).Returns(new List<MappedImageDefinition>());
+            registry.Setup(mock => mock.GetByTexture(It.IsAny<string>())).Returns(new List<MappedImageDefinition>());
+            var notifications = new Mock<INotificationService>();
+            var viewModel = CreateViewModel(notifications: notifications, registry: registry);
+            viewModel.FileExplorer.Directory = directory;
+            using var bitmap = OpenAtlas(viewModel, "atlas.tga");
+
+            await viewModel.ScanRegistryCommand.ExecuteAsync(null);
+
+            notifications.Verify(
+                notification => notification.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+                Times.Once);
+            notifications.Verify(
+                notification => notification.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+                Times.Never);
         }
         finally
         {
@@ -435,14 +544,21 @@ public sealed class TextureEditorViewModelTests
         return bitmap;
     }
 
-    private static TextureEditorViewModel CreateViewModel(Mock<INotificationService>? notifications = null, Mock<IDialogService>? dialogs = null)
+    private static TextureEditorViewModel CreateViewModel(Mock<INotificationService>? notifications = null, Mock<IDialogService>? dialogs = null, Mock<IMappedImageRegistry>? registry = null)
     {
         var bitmapService = new TextureBitmapService(
             new Mock<ISageTextureCodec>().Object,
             NullLogger<TextureBitmapService>.Instance);
+        var registryMock = registry ?? new Mock<IMappedImageRegistry>();
+        if (registry is null)
+        {
+            // Opening an atlas rebuilds the picker from the registry catalog.
+            registryMock.Setup(mock => mock.All).Returns(new List<MappedImageDefinition>());
+        }
+
         return new TextureEditorViewModel(
             new SageMappedImageParser(NullLogger<SageMappedImageParser>.Instance),
-            new Mock<IMappedImageRegistry>().Object,
+            registryMock.Object,
             new Mock<IAtlasPackingService>().Object,
             new Mock<ITextureImageLoader>().Object,
             bitmapService,
