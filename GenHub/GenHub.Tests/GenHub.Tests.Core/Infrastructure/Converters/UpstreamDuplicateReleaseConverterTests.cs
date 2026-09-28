@@ -25,7 +25,7 @@ public class UpstreamDuplicateReleaseConverterTests
             null,
             _culture);
 
-        Assert.Equal(false, result);
+        Assert.False((bool?)result);
     }
 
     /// <summary>
@@ -40,7 +40,7 @@ public class UpstreamDuplicateReleaseConverterTests
             null,
             _culture);
 
-        Assert.Equal(false, result);
+        Assert.False((bool?)result);
     }
 
     /// <summary>
@@ -55,7 +55,7 @@ public class UpstreamDuplicateReleaseConverterTests
             null,
             _culture);
 
-        Assert.Equal(true, result);
+        Assert.True((bool?)result);
     }
 
     /// <summary>
@@ -64,8 +64,8 @@ public class UpstreamDuplicateReleaseConverterTests
     [Fact]
     public void Convert_WhenNotTrackedOrNoPreview_ReturnsTrue()
     {
-        Assert.Equal(true, _converter.Convert(["1.06", new List<string> { "1.06" }, false], typeof(bool), null, _culture));
-        Assert.Equal(true, _converter.Convert(["1.06", new List<string>(), true], typeof(bool), null, _culture));
-        Assert.Equal(true, _converter.Convert(["1.06", null, true], typeof(bool), null, _culture));
+        Assert.True((bool?)_converter.Convert(["1.06", new List<string> { "1.06" }, false], typeof(bool), null, _culture));
+        Assert.True((bool?)_converter.Convert(["1.06", new List<string>(), true], typeof(bool), null, _culture));
+        Assert.True((bool?)_converter.Convert(["1.06", null, true], typeof(bool), null, _culture));
     }
 }

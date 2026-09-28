@@ -1445,13 +1445,13 @@ public partial class ContentLibraryViewModel(
         try
         {
             var clone = CloneForPreview(item);
-            if (clone == null)
+            if (clone == null || upstreamIngestionService == null)
             {
                 return;
             }
 
             var preview = new PublisherCatalog { Content = [clone] };
-            await upstreamIngestionService!.IngestCatalogAsync(preview, cts.Token);
+            await upstreamIngestionService.IngestCatalogAsync(preview, cts.Token);
             if (cts.IsCancellationRequested)
             {
                 return;
@@ -1472,9 +1472,8 @@ public partial class ContentLibraryViewModel(
                 }
 
                 UpstreamPreviewVersions = releases
+                    .Where(r => !string.IsNullOrWhiteSpace(r.Version))
                     .Select(r => r.Version)
-                    .Where(v => !string.IsNullOrWhiteSpace(v))
-                    .Select(v => v!)
                     .ToList();
                 OnPropertyChanged(nameof(HasUpstreamPreview));
                 OnPropertyChanged(nameof(UpstreamPreviewVersions));
@@ -1491,17 +1490,27 @@ public partial class ContentLibraryViewModel(
         }
         finally
         {
-            if (_upstreamPreviewCts == cts)
+            try
             {
-                _upstreamPreviewCts = null;
-                cts.Dispose();
-                await Dispatcher.UIThread.InvokeAsync(() =>
+                if (_upstreamPreviewCts == cts)
                 {
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        if (_upstreamPreviewCts == cts)
+                        {
+                            IsUpstreamPreviewLoading = false;
+                        }
+                    });
+
                     if (_upstreamPreviewCts == cts)
                     {
-                        IsUpstreamPreviewLoading = false;
+                        _upstreamPreviewCts = null;
                     }
-                });
+                }
+            }
+            finally
+            {
+                cts.Dispose();
             }
         }
     }

@@ -165,7 +165,8 @@ public sealed class GenericCatalogDiscovererDefinitionRefreshTests
             DefinitionUrl = definitionUrl,
             SelectedCatalogId = "dominator",
         };
-        var discoverer = CreateDiscoverer(catalog, routes);
+        var requestedUrls = new List<string>();
+        var discoverer = CreateDiscoverer(catalog, routes, requestedUrls);
         discoverer.Configure(subscription);
 
         var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
@@ -173,11 +174,18 @@ public sealed class GenericCatalogDiscovererDefinitionRefreshTests
         Assert.True(result.Success, result.FirstError);
         Assert.Equal(selectedUrl, subscription.CatalogUrl);
         Assert.Null(discoverer.TakeRefreshedCatalogUrl());
+
+        var selectedIndex = requestedUrls.IndexOf(selectedUrl);
+        var siblingIndex = requestedUrls.IndexOf(siblingUrl);
+        Assert.True(selectedIndex >= 0, $"Expected {selectedUrl} to be requested.");
+        Assert.True(siblingIndex >= 0, $"Expected {siblingUrl} to be requested.");
+        Assert.True(selectedIndex < siblingIndex, "Expected selectedUrl to be requested before siblingUrl.");
     }
 
     private static GenericCatalogDiscoverer CreateDiscoverer(
         PublisherCatalog catalog,
-        Dictionary<string, HttpResponseMessage> routes)
+        Dictionary<string, HttpResponseMessage> routes,
+        List<string>? requestedUrls = null)
     {
         var catalogParserMock = new Mock<IPublisherCatalogParser>();
         catalogParserMock
@@ -186,7 +194,7 @@ public sealed class GenericCatalogDiscovererDefinitionRefreshTests
 
         return new GenericCatalogDiscoverer(
             NullLogger<GenericCatalogDiscoverer>.Instance,
-            CreateRoutingHttpClientFactory(routes),
+            CreateRoutingHttpClientFactory(routes, requestedUrls),
             catalogParserMock.Object,
             new VersionSelector(NullLogger<VersionSelector>.Instance),
             Mock.Of<IGitHubApiClient>());
@@ -239,7 +247,9 @@ public sealed class GenericCatalogDiscovererDefinitionRefreshTests
         };
     }
 
-    private static IHttpClientFactory CreateRoutingHttpClientFactory(Dictionary<string, HttpResponseMessage> routes)
+    private static IHttpClientFactory CreateRoutingHttpClientFactory(
+        Dictionary<string, HttpResponseMessage> routes,
+        List<string>? requestedUrls = null)
     {
         var mockHandler = new Mock<HttpMessageHandler>();
         mockHandler
@@ -250,9 +260,13 @@ public sealed class GenericCatalogDiscovererDefinitionRefreshTests
                 ItExpr.IsAny<CancellationToken>())
             .ReturnsAsync((HttpRequestMessage request, CancellationToken _) =>
             {
-                if (request.RequestUri != null && routes.TryGetValue(request.RequestUri.ToString(), out var response))
+                if (request.RequestUri != null)
                 {
-                    return response;
+                    requestedUrls?.Add(request.RequestUri.ToString());
+                    if (routes.TryGetValue(request.RequestUri.ToString(), out var response))
+                    {
+                        return response;
+                    }
                 }
 
                 return new HttpResponseMessage

@@ -310,7 +310,7 @@ public class PublisherStudioService(
             }
 
             var catalogEntries = new List<CatalogEntry>();
-            var candidateCatalogs = ResolveCandidateCatalogs(project, projectCatalog, catalogHostingInfo).ToList();
+            var candidateCatalogs = ResolveCandidateCatalogs(project, projectCatalog).ToList();
 
             // Stale hosting entries (deleted/renamed catalogs still holding a URL) and
             // unpublished candidates were previously dropped silently, desyncing the
@@ -472,8 +472,7 @@ public class PublisherStudioService(
 
     private static IEnumerable<NamedCatalog> ResolveCandidateCatalogs(
         PublisherStudioProject project,
-        PublisherCatalog projectCatalog,
-        Dictionary<string, string> catalogHostingInfo)
+        PublisherCatalog projectCatalog)
     {
         if (project.Catalogs.Count > 0)
         {
@@ -481,16 +480,6 @@ public class PublisherStudioService(
         }
 
         var projectName = project.ProjectName ?? DefaultCatalogId;
-        if (catalogHostingInfo.Count > 0)
-        {
-            return catalogHostingInfo.Keys.Select(k => new NamedCatalog
-            {
-                Id = k,
-                Name = projectName,
-                Catalog = projectCatalog,
-            });
-        }
-
         return
         [
             new NamedCatalog

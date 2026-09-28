@@ -111,6 +111,12 @@ public partial class ContentDetailViewModel(
     private const string DeleteFailedTitleFallback = "Delete Failed";
     private const string DeleteFailedMessageKey = "Downloads.ContentDetail.DeleteFailedMessage";
     private const string DeleteFailedMessageFallback = "Could not delete '{0}': {1}";
+    private const string ScrubFailedTitleKey = "Settings.Manifests.ScrubFailed.Title";
+    private const string ScrubFailedTitleFallback = "Profile Update Incomplete";
+    private const string ScrubFailedEnumerationKey = "Settings.Manifests.ScrubFailed.EnumerationMessage";
+    private const string ScrubFailedEnumerationFallback = "The profile list could not be loaded, so deleted manifests may still be referenced by profiles.";
+    private const string ScrubFailedMessageKey = "Settings.Manifests.ScrubFailed.Message";
+    private const string ScrubFailedMessageFallback = "Deleted manifests could not be removed from {0} profile(s): {1}.";
 
     // ===== Static Fields =====
     // The SSRF-safe handler disables auto-redirect (required so the size probe validates
@@ -1502,8 +1508,8 @@ public partial class ContentDetailViewModel(
             {
                 logger.LogWarning(ex, "Failed to apply profile update strategy for bundle component {Name}", target.Name);
                 notificationService.ShowWarning(
-                    GetLocalizedString("Settings.Manifests.ScrubFailed.Title", "Profile Update Incomplete"),
-                    GetLocalizedString("Settings.Manifests.ScrubFailed.EnumerationMessage", "The profile list could not be loaded, so deleted manifests may still be referenced by profiles."));
+                    GetLocalizedString(ScrubFailedTitleKey, ScrubFailedTitleFallback),
+                    GetLocalizedString(ScrubFailedEnumerationKey, ScrubFailedEnumerationFallback));
                 return;
             }
 
@@ -1514,8 +1520,8 @@ public partial class ContentDetailViewModel(
                     oldManifestId,
                     target.Name);
                 notificationService.ShowWarning(
-                    GetLocalizedString("Settings.Manifests.ScrubFailed.Title", "Profile Update Incomplete"),
-                    GetLocalizedString("Settings.Manifests.ScrubFailed.EnumerationMessage", "The profile list could not be loaded, so deleted manifests may still be referenced by profiles."));
+                    GetLocalizedString(ScrubFailedTitleKey, ScrubFailedTitleFallback),
+                    GetLocalizedString(ScrubFailedEnumerationKey, ScrubFailedEnumerationFallback));
                 return;
             }
 
@@ -1555,8 +1561,8 @@ public partial class ContentDetailViewModel(
                                 target.Name,
                                 scrubResult.FirstError);
                             notificationService.ShowWarning(
-                                GetLocalizedString("Settings.Manifests.ScrubFailed.Title", "Profile Update Incomplete"),
-                                GetLocalizedString("Settings.Manifests.ScrubFailed.EnumerationMessage", "The profile list could not be loaded, so deleted manifests may still be referenced by profiles."));
+                                GetLocalizedString(ScrubFailedTitleKey, ScrubFailedTitleFallback),
+                                GetLocalizedString(ScrubFailedEnumerationKey, ScrubFailedEnumerationFallback));
                         }
                         else if (scrubResult.Data.FailedProfileNames.Count > 0)
                         {
@@ -1567,10 +1573,10 @@ public partial class ContentDetailViewModel(
                                 target.Name,
                                 string.Join(", ", scrubResult.Data.FailedProfileNames));
                             notificationService.ShowWarning(
-                                GetLocalizedString("Settings.Manifests.ScrubFailed.Title", "Profile Update Incomplete"),
+                                GetLocalizedString(ScrubFailedTitleKey, ScrubFailedTitleFallback),
                                 string.Format(
                                     CultureInfo.InvariantCulture,
-                                    GetLocalizedString("Settings.Manifests.ScrubFailed.Message", "Deleted manifests could not be removed from {0} profile(s): {1}."),
+                                    GetLocalizedString(ScrubFailedMessageKey, ScrubFailedMessageFallback),
                                     scrubResult.Data.FailedProfileNames.Count,
                                     string.Join(", ", scrubResult.Data.FailedProfileNames)));
                         }
@@ -5127,6 +5133,18 @@ public partial class ContentDetailViewModel(
                 }
             }
         }
+        else if (dialogService == null)
+        {
+            foreach (var updateComp in updateCandidates)
+            {
+                var candidateResult = updateComp.GetSelectedSearchResult();
+                if (candidateResult != null &&
+                    !targets.Any(t => string.Equals(t.Id, candidateResult.Id, StringComparison.OrdinalIgnoreCase)))
+                {
+                    targets.Add(candidateResult);
+                }
+            }
+        }
 
         if (targets.Count == 0)
         {
@@ -6797,10 +6815,10 @@ public partial class ContentDetailViewModel(
                 {
                     logger.LogWarning("Failed to scrub profile references after deleting {ManifestId}: {Error}", manifestId, scrubResult.FirstError);
                     var enumerationFormat = GetLocalizedString(
-                        "Settings.Manifests.ScrubFailed.EnumerationMessage",
+                        ScrubFailedEnumerationKey,
                         "The profile list could not be loaded, so deleted manifests may still be referenced by profiles. Those profiles may fail to launch until updated.");
                     notificationService.ShowWarning(
-                        GetLocalizedString("Settings.Manifests.ScrubFailed.Title", "Profile Update Incomplete"),
+                        GetLocalizedString(ScrubFailedTitleKey, ScrubFailedTitleFallback),
                         enumerationFormat,
                         NotificationDurations.Medium);
                 }
@@ -6813,10 +6831,10 @@ public partial class ContentDetailViewModel(
                         manifestId,
                         string.Join(", ", failedProfileNames));
                     var scrubFailedFormat = GetLocalizedString(
-                        "Settings.Manifests.ScrubFailed.Message",
+                        ScrubFailedMessageKey,
                         "Deleted manifests could not be removed from {0} profile(s): {1}. Those profiles may fail to launch until updated.");
                     notificationService.ShowWarning(
-                        GetLocalizedString("Settings.Manifests.ScrubFailed.Title", "Profile Update Incomplete"),
+                        GetLocalizedString(ScrubFailedTitleKey, ScrubFailedTitleFallback),
                         string.Format(CultureInfo.InvariantCulture, scrubFailedFormat, failedProfileNames.Count, string.Join(", ", failedProfileNames)),
                         NotificationDurations.Medium);
                 }

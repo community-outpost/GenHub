@@ -992,14 +992,13 @@ public class GenericCatalogDiscoverer(
                 continue;
             }
 
-            if (parsed?.Success == true && parsed.Data != null)
+            if (parsed?.Success == true)
             {
                 // Only persist the resolved URL when the preferred (first) candidate
                 // wins. A sibling winning after the selected catalog 404d is a
                 // fallback, not a redirect: persisting it would desync CatalogUrl
                 // from SelectedCatalogId and show the wrong catalog's items.
-                if (candidateUrls.Count == 0 ||
-                    string.Equals(candidateUrl, candidateUrls[0], StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(candidateUrl, candidateUrls[0], StringComparison.OrdinalIgnoreCase))
                 {
                     RememberResolvedCatalogUrl(candidateUrl);
                 }

@@ -1753,8 +1753,9 @@ public partial class AddContentDialogViewModel(
             // saved bundle keeps resolving external members (they are not inferable from
             // the matrix option alone). Release dependencies are rebuilt from BundledItems
             // downstream, so identity lost here is lost everywhere.
-            var priorDeps = _existingItem?.Releases
+            var priorDeps = (_existingItem?.Releases ?? [])
                 .SelectMany(r => r.Dependencies ?? [])
+                .Concat(_existingItem?.BundledItems ?? [])
                 .Where(d => !string.IsNullOrWhiteSpace(d.ContentId))
                 .GroupBy(d => d.ContentId, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase)

@@ -2092,9 +2092,7 @@ public sealed partial class ContentStateService(
         var matches = manifests.Where(manifest =>
             manifest.Files?.Any(file =>
                 !string.IsNullOrWhiteSpace(file.DownloadUrl) &&
-                string.Equals(file.DownloadUrl, selectedDownloadUrl, StringComparison.OrdinalIgnoreCase)) == true ||
-            (!string.IsNullOrWhiteSpace(manifest.Publisher?.ContentIndexUrl) &&
-                string.Equals(manifest.Publisher.ContentIndexUrl, selectedDownloadUrl, StringComparison.OrdinalIgnoreCase)));
+                string.Equals(file.DownloadUrl, selectedDownloadUrl, StringComparison.OrdinalIgnoreCase)) == true);
 
         return SelectBestMatchingManifest(matches, item, logger);
     }
