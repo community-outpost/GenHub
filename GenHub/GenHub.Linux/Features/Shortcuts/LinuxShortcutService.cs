@@ -364,6 +364,45 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger, Func<str
         return executablePath;
     }
 
+    private static string? TryResolveFromUserDirs(string configHome, string home)
+    {
+        var userDirsFile = Path.Combine(configHome, "user-dirs.dirs");
+        if (!File.Exists(userDirsFile))
+        {
+            return null;
+        }
+
+        try
+        {
+            foreach (var line in File.ReadAllLines(userDirsFile))
+            {
+                var trimmed = line.Trim();
+                if (!trimmed.StartsWith("XDG_DESKTOP_DIR=", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var value = trimmed["XDG_DESKTOP_DIR=".Length..].Trim('"', '\'', ' ');
+                value = value.Replace("$HOME", home, StringComparison.Ordinal);
+                if (!Path.IsPathRooted(value))
+                {
+                    value = Path.Combine(home, value);
+                }
+
+                if (!string.IsNullOrWhiteSpace(value) && Directory.Exists(value))
+                {
+                    return value;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Best effort XDG resolution
+        }
+
+        return null;
+    }
+
     /// <summary>
     /// Gets the user's desktop path, following XDG standards if available.
     /// </summary>
@@ -403,44 +442,6 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger, Func<str
         return Path.Combine(home, "Desktop");
     }
 
-    private static string? TryResolveFromUserDirs(string configHome, string home)
-    {
-        var userDirsFile = Path.Combine(configHome, "user-dirs.dirs");
-        if (!File.Exists(userDirsFile))
-        {
-            return null;
-        }
-
-        try
-        {
-            foreach (var line in File.ReadAllLines(userDirsFile))
-            {
-                var trimmed = line.Trim();
-                if (!trimmed.StartsWith("XDG_DESKTOP_DIR=", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                var value = trimmed["XDG_DESKTOP_DIR=".Length..].Trim('"', '\'', ' ');
-                value = value.Replace("$HOME", home, StringComparison.Ordinal);
-                if (!Path.IsPathRooted(value))
-                {
-                    value = Path.Combine(home, value);
-                }
-
-                if (!string.IsNullOrWhiteSpace(value) && Directory.Exists(value))
-                {
-                    return value;
-                }
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // Best effort XDG resolution
-        }
-
-        return null;
-    }
 
     /// <summary>
     /// Makes a file executable using chmod.
