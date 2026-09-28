@@ -7498,7 +7498,7 @@ GenHub связывает запуск модификаций со Steam, отк
     <value>Работа из исходников</value>
   </data>
   <data name="Tools.ModBuilder.Dashboard.CardGitHubImportDesc" xml:space="preserve">
-    <value>Скачайте любую ветку репозитория и откройте её как проект ModBuilder, как примеры проектов.</value>
+    <value>Скачайте любую ветку репозитория и откройте её как проект ModBuilder.</value>
   </data>
   <data name="Tools.ModBuilder.Dashboard.CardGitHubImportAction" xml:space="preserve">
     <value>Импортировать репозиторий →</value>

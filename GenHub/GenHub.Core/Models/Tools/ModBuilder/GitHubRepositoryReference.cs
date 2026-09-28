@@ -40,18 +40,9 @@ public sealed record GitHubRepositoryReference(string Owner, string Repo, string
             return null;
         }
 
-        string? embeddedBranch = null;
-        var atIndex = candidate.Contains("/tree/", StringComparison.OrdinalIgnoreCase) ? -1 : candidate.IndexOf('@');
-        if (atIndex >= 0)
+        if (!TryExtractAtBranch(ref candidate, out var embeddedBranch))
         {
-            var explicitBranch = candidate.Substring(atIndex + 1).Trim();
-            candidate = candidate.Substring(0, atIndex).TrimEnd('/');
-            if (!IsValidBranch(explicitBranch))
-            {
-                return null;
-            }
-
-            embeddedBranch = explicitBranch;
+            return null;
         }
 
         var segments = candidate.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -77,18 +68,53 @@ public sealed record GitHubRepositoryReference(string Owner, string Repo, string
             embeddedBranch ??= treeBranch;
         }
 
-        var effectiveBranch = !string.IsNullOrWhiteSpace(embeddedBranch)
-            ? embeddedBranch.Trim()
-            : (!string.IsNullOrWhiteSpace(defaultBranch)
-                ? defaultBranch.Trim()
-                : ModBuilderConstants.GitHubDefaultBranch);
-
+        var effectiveBranch = ResolveEffectiveBranch(embeddedBranch, defaultBranch);
         if (!IsValidBranch(effectiveBranch))
         {
             return null;
         }
 
         return new GitHubRepositoryReference(owner, repo, effectiveBranch);
+    }
+
+    private static bool TryExtractAtBranch(ref string candidate, out string? branch)
+    {
+        branch = null;
+        if (candidate.Contains("/tree/", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var atIndex = candidate.IndexOf('@');
+        if (atIndex < 0)
+        {
+            return true;
+        }
+
+        var explicitBranch = candidate.Substring(atIndex + 1).Trim();
+        candidate = candidate.Substring(0, atIndex).TrimEnd('/');
+        if (!IsValidBranch(explicitBranch))
+        {
+            return false;
+        }
+
+        branch = explicitBranch;
+        return true;
+    }
+
+    private static string ResolveEffectiveBranch(string? embeddedBranch, string? defaultBranch)
+    {
+        if (!string.IsNullOrWhiteSpace(embeddedBranch))
+        {
+            return embeddedBranch.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(defaultBranch))
+        {
+            return defaultBranch.Trim();
+        }
+
+        return ModBuilderConstants.GitHubDefaultBranch;
     }
 
     private static bool TryStripUrlPrefix(ref string candidate)

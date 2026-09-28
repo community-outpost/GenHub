@@ -37,6 +37,7 @@ internal static class InstallationManifestDriftDetector
     /// <param name="targetGame">The game the manifest describes.</param>
     /// <param name="manifestVersion">The manifest version string.</param>
     /// <param name="manifestFiles">The files recorded in the stored manifest.</param>
+    /// <param name="ignoredPaths">Optional set of relative paths to ignore for added-file detection.</param>
     /// <param name="cancellationToken">A token to cancel the scan.</param>
     /// <returns>The detected drift, if any.</returns>
     internal static InstallationManifestDrift DetectDrift(
@@ -44,6 +45,7 @@ internal static class InstallationManifestDriftDetector
         GameType targetGame,
         string? manifestVersion,
         IReadOnlyList<ManifestFile> manifestFiles,
+        IReadOnlySet<string>? ignoredPaths = null,
         CancellationToken cancellationToken = default)
     {
         var empty = new InstallationManifestDrift(false, [], [], []);
@@ -78,7 +80,7 @@ internal static class InstallationManifestDriftDetector
             }
         }
 
-        var added = CollectAddedFiles(diskFiles, manifestMap, targetGame, manifestVersion, cancellationToken);
+        var added = CollectAddedFiles(diskFiles, manifestMap, targetGame, manifestVersion, ignoredPaths, cancellationToken);
         var hasDrift = added.Count > 0 || removed.Count > 0 || changed.Count > 0;
         return new InstallationManifestDrift(hasDrift, added, removed, changed);
     }
@@ -88,6 +90,7 @@ internal static class InstallationManifestDriftDetector
         Dictionary<string, long> manifestMap,
         GameType targetGame,
         string? manifestVersion,
+        IReadOnlySet<string>? ignoredPaths,
         CancellationToken cancellationToken)
     {
         var added = new List<string>();
@@ -99,6 +102,11 @@ internal static class InstallationManifestDriftDetector
         foreach (var relativePath in diskFiles.Keys)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (ignoredPaths != null && ignoredPaths.Contains(relativePath))
+            {
+                continue;
+            }
+
             if (!manifestMap.ContainsKey(relativePath))
             {
                 added.Add(relativePath);

@@ -1280,19 +1280,26 @@ public partial class ModBuilderViewModel(
         _importCancellationTokenSource = cts;
         try
         {
-            var owner = GetOwnerWindow();
-            if (owner == null)
-            {
-                notificationService.ShowError(localizationService.GetString("Common.Status.Error"), localizationService.GetString("Tools.ModBuilder.Notification.DialogUnavailable.Message"));
-                return;
-            }
-
+            var ownerMissing = false;
             var reference = await InvokeOnUIThreadAsync(async () =>
             {
+                var owner = GetOwnerWindow();
+                if (owner == null)
+                {
+                    ownerMissing = true;
+                    return null;
+                }
+
                 var dialog = new Views.GitHubImportDialog(new GitHubImportViewModel(localizationService));
                 var confirmed = await dialog.ShowDialog<bool>(owner).ConfigureAwait(false);
                 return confirmed ? dialog.ResultReference : null;
             }).ConfigureAwait(false);
+
+            if (ownerMissing)
+            {
+                notificationService.ShowError(localizationService.GetString("Common.Status.Error"), localizationService.GetString("Tools.ModBuilder.Notification.DialogUnavailable.Message"));
+                return;
+            }
 
             if (reference == null)
             {

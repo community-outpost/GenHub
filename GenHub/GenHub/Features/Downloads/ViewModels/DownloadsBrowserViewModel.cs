@@ -2735,9 +2735,19 @@ public sealed partial class DownloadsBrowserViewModel(
             }
         }
 
-        var oldManifestId = item.SearchResult != null
-            ? await contentStateService.GetLocalManifestIdAsync(item.SearchResult, ct)
-            : null;
+        var oldManifestId = item.SelectedVariant != null && !string.IsNullOrEmpty(item.SelectedVariant.ManifestId)
+            ? item.SelectedVariant.ManifestId
+            : (item.SearchResult != null ? await contentStateService.GetLocalManifestIdAsync(item.SearchResult, ct) : null);
+
+        if (ReferenceEquals(targetItem, item) && item.Variants.Count > 1)
+        {
+            var updateVariant = item.Variants.FirstOrDefault(v => v.CurrentState == ContentState.NotDownloaded &&
+                (item.SelectedVariant == null || IsVariantUpdateCandidate(item, v, item.SelectedVariant)));
+            if (updateVariant != null)
+            {
+                targetItem.SelectedVariant = updateVariant;
+            }
+        }
 
         var downloadSuccess = await DownloadContentAsync(targetItem, ct);
         if (!downloadSuccess)
@@ -2760,9 +2770,9 @@ public sealed partial class DownloadsBrowserViewModel(
             return false;
         }
 
-        var newManifestId = targetItem.SearchResult != null
-            ? await contentStateService.GetLocalManifestIdAsync(targetItem.SearchResult, ct)
-            : null;
+        var newManifestId = targetItem.SelectedVariant != null && !string.IsNullOrEmpty(targetItem.SelectedVariant.ManifestId)
+            ? targetItem.SelectedVariant.ManifestId
+            : (targetItem.SearchResult != null ? await contentStateService.GetLocalManifestIdAsync(targetItem.SearchResult, ct) : null);
 
         var activeProfileManager = profileManager ?? serviceProvider.GetService<IGameProfileManager>();
         var reconciliationService = serviceProvider.GetService<IContentReconciliationService>();

@@ -72,6 +72,11 @@ public class GameLauncher(
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _steamInstallationLaunchLocks =
         new(InstallationPathLockKey.Comparer);
 
+    private static readonly ConcurrentDictionary<string, DateTimeOffset> _lastInstallationDriftRefresh =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly TimeSpan InstallationRefreshCooldown = TimeSpan.FromSeconds(30);
+
     private static readonly SearchValues<char> InvalidArgChars = SearchValues.Create(";|&\n\r\t`$%");
 
     /// <inheritdoc/>
@@ -2313,6 +2318,14 @@ public class GameLauncher(
     {
         try
         {
+            if (!string.IsNullOrWhiteSpace(installation.Id) &&
+                _lastInstallationDriftRefresh.TryGetValue(installation.Id, out var lastRefresh) &&
+                DateTimeOffset.UtcNow - lastRefresh < InstallationRefreshCooldown)
+            {
+                logger.LogDebug("[GameLauncher] Skipping installation manifest drift check for {InstallationId} (cooldown active)", installation.Id);
+                return (false, manifests);
+            }
+
             var installationManifests = manifests
                 .Where(m => m.ContentType == ContentType.GameInstallation)
                 .ToList();
@@ -2334,7 +2347,7 @@ public class GameLauncher(
                 }
 
                 var drift = InstallationManifestDriftDetector.DetectDrift(
-                    gameDir, manifest.TargetGame, manifest.Version, manifest.Files, cancellationToken);
+                    gameDir, manifest.TargetGame, manifest.Version, manifest.Files, cancellationToken: cancellationToken);
                 if (drift.HasDrift)
                 {
                     driftedManifests.Add((manifest, drift));
@@ -2357,6 +2370,11 @@ public class GameLauncher(
             }
 
             await gameInstallationService.CreateAndRegisterInstallationManifestsAsync(installation, cancellationToken, forceRegeneration: true);
+
+            if (!string.IsNullOrWhiteSpace(installation.Id))
+            {
+                _lastInstallationDriftRefresh[installation.Id] = DateTimeOffset.UtcNow;
+            }
 
             var refreshed = await ReResolveInstallationManifestsAsync(manifests, cancellationToken);
             if (!refreshed.Success || refreshed.Data == null)

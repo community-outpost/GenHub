@@ -66,6 +66,7 @@ public partial class GitHubImportViewModel(ILocalizationService localizationServ
         ClearError();
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates CommunityToolkit-generated observable properties.")]
     private void ClearError()
     {
         if (HasError)

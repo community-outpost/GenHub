@@ -1322,7 +1322,7 @@ public sealed class ProjectConfigService(
             return false;
         }
 
-        var topSegment = relativePath.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar])[0];
+        var topSegment = relativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)[0];
         if (topSegment.Equals(ModBuilderConstants.LowercaseConfigDir, StringComparison.OrdinalIgnoreCase)
             || topSegment.Equals(ModBuilderConstants.ConfigDir, StringComparison.OrdinalIgnoreCase)
             || topSegment.Equals(ModBuilderConstants.LowercaseConfigsDir, StringComparison.OrdinalIgnoreCase)

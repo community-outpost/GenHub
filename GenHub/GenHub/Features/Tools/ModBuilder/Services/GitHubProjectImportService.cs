@@ -51,88 +51,47 @@ public class GitHubProjectImportService(
             }
         }
 
+        var targetDirectoryExisted = Directory.Exists(targetDirectory);
         var stagingDir = Path.Combine(Path.GetTempPath(), $"genhub_github_{Guid.NewGuid():N}");
         var archivePath = Path.Combine(Path.GetTempPath(), $"genhub_github_{Guid.NewGuid():N}.zip");
         try
         {
-            progress?.Report($"Downloading {reference.FullName}@{reference.Branch} from GitHub...");
-            var downloadUrl = ApiConstants.GetGitHubBranchZipUrl(reference.Owner, reference.Repo, reference.Branch);
-            var downloadResult = await downloadService.DownloadFileAsync(
-                new Uri(downloadUrl),
-                archivePath,
-                progress: null,
-                cancellationToken: cancellationToken).ConfigureAwait(false);
-
-            if (!downloadResult.Success || !File.Exists(archivePath))
+            var extractResult = await DownloadAndExtractArchiveAsync(reference, stagingDir, archivePath, progress, cancellationToken).ConfigureAwait(false);
+            if (!extractResult.Success || extractResult.Data == null)
             {
-                var error = downloadResult.FirstError ?? "Download produced no file.";
-                return OperationResult<string>.CreateFailure(
-                    $"Failed to download {reference.FullName}@{reference.Branch} from GitHub: {error}");
+                return OperationResult<string>.CreateFailure(extractResult.FirstError ?? "Failed to extract repository archive.");
             }
 
-            progress?.Report($"Extracting {reference.FullName}...");
-            Directory.CreateDirectory(stagingDir);
-            await ModBuilderArchiveExtractor.ExtractArchiveFileAsync(archivePath, stagingDir, cancellationToken).ConfigureAwait(false);
-
-            var contentRoot = UnwrapSingleDirectory(stagingDir);
+            var contentRoot = extractResult.Data;
             var stagedProject = FindProjectFile(contentRoot);
 
-            if (stagedProject != null)
+            var result = stagedProject != null
+                ? LinkExistingStagedProject(contentRoot, stagedProject, targetDirectory, reference, cancellationToken)
+                : await CreateNewProjectAsync(contentRoot, targetDirectory, reference, progress, cancellationToken).ConfigureAwait(false);
+
+            if (!result.Success && !targetDirectoryExisted && Directory.Exists(targetDirectory))
             {
-                var targetExisted = Directory.Exists(targetDirectory);
-                try
-                {
-                    Directory.CreateDirectory(targetDirectory);
-                    CopyDirectoryContents(contentRoot, targetDirectory, cancellationToken);
-
-                    var projectRelativePath = Path.GetRelativePath(contentRoot, stagedProject);
-                    var existingProject = Path.Combine(targetDirectory, projectRelativePath);
-                    logger.LogInformation("Linked GitHub repository {Repo} as existing project {Project}", reference.FullName, existingProject);
-                    return OperationResult<string>.CreateSuccess(existingProject);
-                }
-                catch
-                {
-                    if (!targetExisted && Directory.Exists(targetDirectory))
-                    {
-                        DeleteDirectoryQuietly(targetDirectory);
-                    }
-
-                    throw;
-                }
+                DeleteDirectoryQuietly(targetDirectory);
             }
 
-            progress?.Report($"Creating ModBuilder project for {reference.FullName}...");
-            var projectPath = Path.Combine(targetDirectory, $"{reference.Repo}{ModBuilderConstants.ProjectFileExtension}");
-            var createProgress = progress == null ? null : new Progress<double>(p => progress.Report($"Creating ModBuilder project for {reference.FullName} ({p:P0})..."));
-
-            var targetDirectoryExisted = Directory.Exists(targetDirectory);
-            var createResult = await projectConfigService.CreateProjectFromDirectoryAsync(
-                projectPath,
-                reference.Repo,
-                contentRoot,
-                progress: createProgress,
-                cancellationToken: cancellationToken).ConfigureAwait(false);
-
-            if (!createResult.Success)
-            {
-                if (!targetDirectoryExisted && Directory.Exists(targetDirectory) && !Directory.EnumerateFileSystemEntries(targetDirectory).Any())
-                {
-                    DeleteDirectoryQuietly(targetDirectory);
-                }
-
-                return OperationResult<string>.CreateFailure(
-                    createResult.FirstError ?? $"Failed to create project for {reference.FullName}.");
-            }
-
-            logger.LogInformation("Imported GitHub repository {Repo} as new project {Project}", reference.FullName, projectPath);
-            return OperationResult<string>.CreateSuccess(projectPath);
+            return result;
         }
         catch (OperationCanceledException)
         {
+            if (!targetDirectoryExisted && Directory.Exists(targetDirectory))
+            {
+                DeleteDirectoryQuietly(targetDirectory);
+            }
+
             throw;
         }
         catch (Exception ex)
         {
+            if (!targetDirectoryExisted && Directory.Exists(targetDirectory))
+            {
+                DeleteDirectoryQuietly(targetDirectory);
+            }
+
             logger.LogError(ex, "Failed to import GitHub repository {Repo}", reference.FullName);
             return OperationResult<string>.CreateFailure($"Failed to import {reference.FullName}: {ex.Message}");
         }
@@ -141,6 +100,80 @@ public class GitHubProjectImportService(
             DeleteQuietly(archivePath);
             DeleteDirectoryQuietly(stagingDir);
         }
+    }
+
+    private async Task<OperationResult<string>> DownloadAndExtractArchiveAsync(
+        GitHubRepositoryReference reference,
+        string stagingDir,
+        string archivePath,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        progress?.Report($"Downloading {reference.FullName}@{reference.Branch} from GitHub...");
+        var downloadUrl = ApiConstants.GetGitHubBranchZipUrl(reference.Owner, reference.Repo, reference.Branch);
+        var downloadResult = await downloadService.DownloadFileAsync(
+            new Uri(downloadUrl),
+            archivePath,
+            progress: null,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        if (!downloadResult.Success || !File.Exists(archivePath))
+        {
+            var error = downloadResult.FirstError ?? "Download produced no file.";
+            return OperationResult<string>.CreateFailure(
+                $"Failed to download {reference.FullName}@{reference.Branch} from GitHub: {error}");
+        }
+
+        progress?.Report($"Extracting {reference.FullName}...");
+        Directory.CreateDirectory(stagingDir);
+        await ModBuilderArchiveExtractor.ExtractArchiveFileAsync(archivePath, stagingDir, cancellationToken).ConfigureAwait(false);
+
+        var contentRoot = UnwrapSingleDirectory(stagingDir);
+        return OperationResult<string>.CreateSuccess(contentRoot);
+    }
+
+    private OperationResult<string> LinkExistingStagedProject(
+        string contentRoot,
+        string stagedProject,
+        string targetDirectory,
+        GitHubRepositoryReference reference,
+        CancellationToken cancellationToken)
+    {
+        Directory.CreateDirectory(targetDirectory);
+        CopyDirectoryContents(contentRoot, targetDirectory, cancellationToken);
+
+        var projectRelativePath = Path.GetRelativePath(contentRoot, stagedProject);
+        var existingProject = Path.Combine(targetDirectory, projectRelativePath);
+        logger.LogInformation("Linked GitHub repository {Repo} as existing project {Project}", reference.FullName, existingProject);
+        return OperationResult<string>.CreateSuccess(existingProject);
+    }
+
+    private async Task<OperationResult<string>> CreateNewProjectAsync(
+        string contentRoot,
+        string targetDirectory,
+        GitHubRepositoryReference reference,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        progress?.Report($"Creating ModBuilder project for {reference.FullName}...");
+        var projectPath = Path.Combine(targetDirectory, $"{reference.Repo}{ModBuilderConstants.ProjectFileExtension}");
+        var createProgress = progress == null ? null : new Progress<double>(p => progress.Report($"Creating ModBuilder project for {reference.FullName} ({p:P0})..."));
+
+        var createResult = await projectConfigService.CreateProjectFromDirectoryAsync(
+            projectPath,
+            reference.Repo,
+            contentRoot,
+            progress: createProgress,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        if (!createResult.Success)
+        {
+            return OperationResult<string>.CreateFailure(
+                createResult.FirstError ?? $"Failed to create project for {reference.FullName}.");
+        }
+
+        logger.LogInformation("Imported GitHub repository {Repo} as new project {Project}", reference.FullName, projectPath);
+        return OperationResult<string>.CreateSuccess(projectPath);
     }
 
     internal static string? FindProjectFile(string targetDirectory)
