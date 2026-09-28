@@ -40,8 +40,6 @@ public sealed record GitHubRepositoryReference(string Owner, string Repo, string
             return null;
         }
 
-        candidate = StripGitSuffix(candidate);
-
         string? embeddedBranch = null;
         var atIndex = candidate.Contains("/tree/", StringComparison.OrdinalIgnoreCase) ? -1 : candidate.IndexOf('@');
         if (atIndex >= 0)
@@ -63,7 +61,7 @@ public sealed record GitHubRepositoryReference(string Owner, string Repo, string
         }
 
         var owner = segments[0];
-        var repo = segments[1];
+        var repo = StripGitSuffix(segments[1]);
         if (!IsValidSegment(owner) || !IsValidSegment(repo))
         {
             return null;
