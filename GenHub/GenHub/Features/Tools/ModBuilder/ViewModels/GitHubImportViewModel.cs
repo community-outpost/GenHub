@@ -52,6 +52,7 @@ public partial class GitHubImportViewModel(ILocalizationService localizationServ
 
         ErrorText = string.Empty;
         HasError = false;
+        BranchText = reference.Branch;
         return reference;
     }
 

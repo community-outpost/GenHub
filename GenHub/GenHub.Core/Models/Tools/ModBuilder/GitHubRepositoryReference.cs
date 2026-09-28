@@ -24,7 +24,7 @@ public sealed record GitHubRepositoryReference(string Owner, string Repo, string
     /// and GitHub URLs such as https://github.com/owner/repo or .../tree/branch.
     /// </summary>
     /// <param name="input">The raw user input.</param>
-    /// <param name="defaultBranch">The branch used when the input names none, or an explicit override.</param>
+    /// <param name="defaultBranch">The fallback branch used when the input does not embed one.</param>
     /// <returns>The parsed reference, or null when the input is not a valid repository reference.</returns>
     public static GitHubRepositoryReference? TryParse(string? input, string? defaultBranch = null)
     {
@@ -43,7 +43,7 @@ public sealed record GitHubRepositoryReference(string Owner, string Repo, string
         candidate = StripGitSuffix(candidate);
 
         string? embeddedBranch = null;
-        var atIndex = candidate.IndexOf('@');
+        var atIndex = candidate.Contains("/tree/", StringComparison.OrdinalIgnoreCase) ? -1 : candidate.IndexOf('@');
         if (atIndex >= 0)
         {
             var explicitBranch = candidate.Substring(atIndex + 1).Trim();

@@ -89,5 +89,6 @@ public sealed class GitHubImportViewModelTests
 
         Assert.NotNull(reference);
         Assert.Equal("develop", reference.Branch);
+        Assert.Equal("develop", viewModel.BranchText);
     }
 }
