@@ -132,6 +132,61 @@ public sealed partial class IniEditorViewModel(
     [ObservableProperty]
     private int _leftSidebarTabIndex;
 
+    /// <summary>
+    /// Gets whether the blocks sidebar tab is selected.
+    /// </summary>
+    public bool IsBlocksTabSelected => LeftSidebarTabIndex == 0;
+
+    /// <summary>
+    /// Gets whether the file explorer sidebar tab is selected.
+    /// </summary>
+    public bool IsFilesTabSelected => LeftSidebarTabIndex == 1;
+
+    /// <summary>
+    /// Gets whether the reference index sidebar tab is selected.
+    /// </summary>
+    public bool IsReferencesTabSelected => LeftSidebarTabIndex == 2;
+
+    /// <summary>
+    /// Gets whether the textures sidebar tab is selected.
+    /// </summary>
+    public bool IsTexturesTabSelected => LeftSidebarTabIndex == 3;
+
+    [ObservableProperty]
+    private string _textureSearchFilter = string.Empty;
+
+    [ObservableProperty]
+    private string? _textureStatusText;
+
+    private readonly List<IniTextureItemViewModel> _allTextureItems = [];
+
+    /// <summary>
+    /// Gets the filtered mapped images available for the 2-column texture picker.
+    /// </summary>
+    public ObservableCollection<IniTextureItemViewModel> FilteredTextureItems { get; } = [];
+
+    /// <summary>
+    /// Gets or sets the dynamic vital statistics for the selected block (2-column layout).
+    /// </summary>
+    [ObservableProperty]
+    private IReadOnlyList<CanvasVitalItem> _selectedBlockVitals = [];
+
+    /// <summary>
+    /// Gets whether the selected block has vitals to display.
+    /// </summary>
+    public bool HasSelectedBlockVitals => SelectedBlockVitals != null && SelectedBlockVitals.Count > 0;
+
+    /// <summary>
+    /// Gets or sets whether to show all document blocks on the canvas in an overview.
+    /// </summary>
+    [ObservableProperty]
+    private bool _showAllBlocksOnCanvas;
+
+    /// <summary>
+    /// Gets the top-level block cards for the multi-object canvas view.
+    /// </summary>
+    public ObservableCollection<IniCanvasCardViewModel> CanvasBlockCards { get; } = [];
+
     [ObservableProperty]
     private IniTreeNodeViewModel? _selectedNode;
 
@@ -1740,6 +1795,7 @@ public sealed partial class IniEditorViewModel(
             HasDocument = _document != null;
             InsertReferenceCommand.NotifyCanExecuteChanged();
             RefreshEditorCommands();
+            RebuildCanvasBlockCards();
             QueueThumbnailRefresh();
         }
         finally
@@ -2551,19 +2607,57 @@ public sealed partial class IniEditorViewModel(
 
     private IReadOnlyList<string>? ResolveSuggestions(string key, IniFieldSchema? schema)
     {
-        if (schema?.Options != null)
+        if (schema?.Options != null && schema.Options.Count > 0)
         {
             return schema.Options;
         }
 
-        if (schema?.ReferenceBlockType != null)
+        // Texture / Image references
+        if (schema?.IsTexture == true ||
+            key.Contains("Image", StringComparison.OrdinalIgnoreCase) ||
+            key.Contains("Portrait", StringComparison.OrdinalIgnoreCase) ||
+            key.Contains("Cameo", StringComparison.OrdinalIgnoreCase))
         {
-            return referenceService.GetNames(schema.ReferenceBlockType);
+            var textures = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var item in TexturePickerItems) textures.Add(item.Name);
+            foreach (var name in referenceService.GetNames("MappedImage")) textures.Add(name);
+            if (_document != null)
+            {
+                foreach (var b in _document.Blocks.Where(b => string.Equals(b.BlockType, "MappedImage", StringComparison.OrdinalIgnoreCase)))
+                {
+                    if (!string.IsNullOrWhiteSpace(b.Name)) textures.Add(b.Name);
+                }
+            }
+            if (textures.Count > 0) return textures.OrderBy(t => t, StringComparer.OrdinalIgnoreCase).ToList();
         }
 
-        if (schema?.IsTexture == true && TexturePickerItems.Count > 0)
+        // Block references
+        var refType = schema?.ReferenceBlockType;
+        if (string.IsNullOrEmpty(refType))
         {
-            return TexturePickerItems.Select(item => item.Name).ToList();
+            if (string.Equals(key, "CommandButton", StringComparison.OrdinalIgnoreCase)) refType = IniConstants.BlockTypes.CommandButton;
+            else if (string.Equals(key, "CommandSet", StringComparison.OrdinalIgnoreCase)) refType = IniConstants.BlockTypes.CommandSet;
+            else if (key.Contains("Weapon", StringComparison.OrdinalIgnoreCase)) refType = IniConstants.BlockTypes.Weapon;
+            else if (key.Contains("Upgrade", StringComparison.OrdinalIgnoreCase)) refType = IniConstants.BlockTypes.Upgrade;
+            else if (string.Equals(key, IniConstants.FieldKeys.Object, StringComparison.OrdinalIgnoreCase) || string.Equals(key, "TargetObject", StringComparison.OrdinalIgnoreCase)) refType = IniConstants.BlockTypes.Object;
+            else if (key.Contains("Armor", StringComparison.OrdinalIgnoreCase)) refType = IniConstants.BlockTypes.Armor;
+            else if (key.Contains("DamageFX", StringComparison.OrdinalIgnoreCase)) refType = IniConstants.BlockTypes.DamageFX;
+            else if (key.Contains("Locomotor", StringComparison.OrdinalIgnoreCase)) refType = IniConstants.BlockTypes.Locomotor;
+            else if (key.Contains("SpecialPower", StringComparison.OrdinalIgnoreCase)) refType = IniConstants.BlockTypes.SpecialPower;
+            else if (key.Contains("Science", StringComparison.OrdinalIgnoreCase)) refType = "Science";
+        }
+
+        if (!string.IsNullOrEmpty(refType))
+        {
+            var refs = new HashSet<string>(referenceService.GetNames(refType), StringComparer.OrdinalIgnoreCase);
+            if (_document != null)
+            {
+                foreach (var b in _document.Blocks.Where(b => string.Equals(b.BlockType, refType, StringComparison.OrdinalIgnoreCase)))
+                {
+                    if (!string.IsNullOrWhiteSpace(b.Name)) refs.Add(b.Name);
+                }
+            }
+            if (refs.Count > 0) return refs.OrderBy(r => r, StringComparer.OrdinalIgnoreCase).ToList();
         }
 
         if (string.Equals(key, IniConstants.FieldKeys.KindOf, StringComparison.OrdinalIgnoreCase))
@@ -2599,7 +2693,7 @@ public sealed partial class IniEditorViewModel(
                 .Where(f => string.Equals(f.Key, key, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(f.Value))
                 .Select(f => f.Value.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Take(30)
+                .Take(50)
                 .ToList();
 
             if (docValues.Count > 0)
@@ -2718,19 +2812,27 @@ public sealed partial class IniEditorViewModel(
     private async Task LoadThumbnailsAsync(IReadOnlyList<string> names, CancellationToken cancellationToken)
     {
         var installation = SelectedInstallation ?? AvailableInstallations.FirstOrDefault();
-        if (installation == null)
+        var installationPath = installation?.Path;
+        var isZeroHour = installation?.IsZeroHour ?? true;
+
+        var projectDirectory = string.IsNullOrEmpty(FilePath) ? FileExplorer.Directory : Path.GetDirectoryName(FilePath);
+        if (string.IsNullOrEmpty(installationPath))
+        {
+            installationPath = projectDirectory;
+        }
+
+        if (string.IsNullOrEmpty(installationPath))
         {
             return;
         }
 
-        var projectDirectory = string.IsNullOrEmpty(FilePath) ? null : Path.GetDirectoryName(FilePath);
         var result = await imageAssetService.GetImagesAsync(
             names,
-            installation.Path,
+            installationPath,
             null,
             projectDirectory,
             [],
-            installation.IsZeroHour,
+            isZeroHour,
             cancellationToken).ConfigureAwait(false);
         if (!result.Success || result.Data == null)
         {
@@ -2767,9 +2869,15 @@ public sealed partial class IniEditorViewModel(
             foreach (var (name, bitmap) in decoded)
             {
                 _textureThumbnails[name] = bitmap;
+                var match = _allTextureItems.FirstOrDefault(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
+                if (match != null)
+                {
+                    match.Thumbnail = bitmap;
+                }
             }
 
             ApplyCachedThumbnails();
+            RebuildCanvasBlockCards();
         }).ConfigureAwait(false);
     }
 
@@ -2849,11 +2957,18 @@ public sealed partial class IniEditorViewModel(
         await InvokeOnUIThreadAsync(() =>
         {
             TexturePickerItems.Clear();
+            _allTextureItems.Clear();
             foreach (var definition in definitions.OrderBy(item => item.Name, StringComparer.OrdinalIgnoreCase))
             {
                 TexturePickerItems.Add(definition);
+                _allTextureItems.Add(new IniTextureItemViewModel
+                {
+                    Name = definition.Name,
+                    Tooltip = $"{definition.Name} ({definition.Width}x{definition.Height}) [{(string.IsNullOrEmpty(definition.SourcePath) ? string.Empty : Path.GetFileName(definition.SourcePath))}]"
+                });
             }
 
+            ApplyTextureFilter();
             RebuildFieldRows();
         }).ConfigureAwait(false);
         QueueThumbnailRefresh();
@@ -3004,6 +3119,134 @@ public sealed partial class IniEditorViewModel(
         QueueThumbnailRefresh();
     }
 
+    private static string? ResolveHealthValue(IniBlock block)
+    {
+        var health = FindFieldValue(block, IniConstants.FieldKeys.Health) ?? FindFieldValue(block, "MaxHealth") ?? FindFieldValue(block, "InitialHealth");
+        if (!string.IsNullOrWhiteSpace(health))
+        {
+            return health;
+        }
+
+        foreach (var child in block.Children)
+        {
+            if (child.BlockType.Contains("Body", StringComparison.OrdinalIgnoreCase) ||
+                child.AssignmentValue?.Contains("Body", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                var childHealth = FindFieldValue(child, "MaxHealth") ?? FindFieldValue(child, "InitialHealth");
+                if (!string.IsNullOrWhiteSpace(childHealth))
+                {
+                    return childHealth;
+                }
+
+                if (child.BlockType.Contains("Immortal", StringComparison.OrdinalIgnoreCase) ||
+                    child.AssignmentValue?.Contains("Immortal", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    return "Immortal";
+                }
+            }
+        }
+
+        var bodyField = block.Fields.FirstOrDefault(f => string.Equals(f.Key, "Body", StringComparison.OrdinalIgnoreCase));
+        if (bodyField != null && bodyField.Value.Contains("Immortal", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Immortal";
+        }
+
+        return null;
+    }
+
+    private void RebuildCanvasBlockCards()
+    {
+        CanvasBlockCards.Clear();
+        if (_document == null) return;
+
+        foreach (var block in _document.Blocks)
+        {
+            var title = !string.IsNullOrWhiteSpace(block.Name) ? block.Name : block.BlockType;
+            var side = FindFieldValue(block, IniConstants.FieldKeys.Side);
+            var portraitName = (FindFieldValue(block, IniConstants.FieldKeys.SelectPortrait) ??
+                                FindFieldValue(block, IniConstants.FieldKeys.ButtonImage))?.Trim();
+            IImage? portrait = null;
+            if (!string.IsNullOrWhiteSpace(portraitName) && _textureThumbnails.TryGetValue(portraitName, out var thumb))
+            {
+                portrait = thumb;
+            }
+
+            var vitals = new List<CanvasVitalItem>();
+            var health = ResolveHealthValue(block);
+            if (!string.IsNullOrWhiteSpace(health)) vitals.Add(new("HP", health, "SuccessBrush"));
+            var cost = FindFieldValue(block, IniConstants.FieldKeys.BuildCost);
+            if (!string.IsNullOrWhiteSpace(cost)) vitals.Add(new("Cost", $"", "WarningBrush"));
+            var cmd = FindFieldValue(block, IniConstants.FieldKeys.Command);
+            if (!string.IsNullOrWhiteSpace(cmd)) vitals.Add(new("Cmd", cmd, "AccentBrush"));
+
+            CanvasBlockCards.Add(new IniCanvasCardViewModel(block, title, block.BlockType, side, portrait, vitals));
+        }
+    }
+
+    [RelayCommand]
+    private void ToggleCanvasOverview()
+    {
+        ShowAllBlocksOnCanvas = !ShowAllBlocksOnCanvas;
+    }
+
+    [RelayCommand]
+    private void SelectBlockCard(IniBlock? block)
+    {
+        if (block == null) return;
+        ShowAllBlocksOnCanvas = false;
+        var targetNode = FindNodeForBlock(RootNodes, block);
+        if (targetNode != null)
+        {
+            SelectedNode = targetNode;
+        }
+    }
+
+    private static IniTreeNodeViewModel? FindNodeForBlock(IEnumerable<IniTreeNodeViewModel> nodes, IniBlock targetBlock)
+    {
+        foreach (var node in nodes)
+        {
+            if (node.Block == targetBlock) return node;
+            var found = FindNodeForBlock(node.Children, targetBlock);
+            if (found != null) return found;
+        }
+        return null;
+    }
+
+    [RelayCommand]
+    private void ApplyTextureToSelectedBlock(string? textureName)
+    {
+        if (!string.IsNullOrWhiteSpace(textureName))
+        {
+            AttachTextureToSelectedBlock(textureName);
+        }
+    }
+
+    [RelayCommand]
+    private async Task CopyRawPreviewAsync()
+    {
+        if (string.IsNullOrEmpty(RawPreviewText)) return;
+        if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop &&
+            desktop.MainWindow?.Clipboard != null)
+        {
+            await desktop.MainWindow.Clipboard.SetTextAsync(RawPreviewText);
+        }
+    }
+
+    [RelayCommand]
+    private async Task PasteRawPreviewAsync()
+    {
+        if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop &&
+            desktop.MainWindow?.Clipboard != null)
+        {
+            var text = await desktop.MainWindow.Clipboard.GetTextAsync();
+            if (!string.IsNullOrEmpty(text))
+            {
+                RawPreviewText = text;
+            }
+        }
+    }
+
     private void RebuildVisualObjectCard()
     {
         var node = SelectedNode;
@@ -3023,6 +3266,8 @@ public sealed partial class IniEditorViewModel(
             SelectedBlockPortrait = null;
             SelectedBlockKindOfList.Clear();
             SelectedBlockModules.Clear();
+            SelectedBlockVitals = [];
+            OnPropertyChanged(nameof(HasSelectedBlockVitals));
             return;
         }
 
@@ -3031,9 +3276,70 @@ public sealed partial class IniEditorViewModel(
         SelectedBlockType = block.BlockType;
 
         SelectedBlockSide = FindFieldValue(block, IniConstants.FieldKeys.Side) ?? string.Empty;
-        SelectedBlockHealth = FindFieldValue(block, IniConstants.FieldKeys.Health) ?? FindFieldValue(block, "MaxHealth");
+        SelectedBlockHealth = ResolveHealthValue(block);
         SelectedBlockCost = FindFieldValue(block, IniConstants.FieldKeys.BuildCost);
         SelectedBlockTime = FindFieldValue(block, IniConstants.FieldKeys.BuildTime);
+
+        var vitals = new List<CanvasVitalItem>();
+        if (string.Equals(block.BlockType, IniConstants.BlockTypes.CommandButton, StringComparison.OrdinalIgnoreCase))
+        {
+            var cmd = FindFieldValue(block, IniConstants.FieldKeys.Command);
+            if (!string.IsNullOrWhiteSpace(cmd)) vitals.Add(new("Command", cmd, "AccentBrush"));
+
+            var border = FindFieldValue(block, "ButtonBorderType");
+            if (!string.IsNullOrWhiteSpace(border)) vitals.Add(new("Border", border, "TextSecondary"));
+
+            var obj = FindFieldValue(block, IniConstants.FieldKeys.Object) ?? FindFieldValue(block, "Upgrade");
+            if (!string.IsNullOrWhiteSpace(obj)) vitals.Add(new("Target", obj, "AccentBrush"));
+
+            var img = FindFieldValue(block, IniConstants.FieldKeys.ButtonImage);
+            if (!string.IsNullOrWhiteSpace(img)) vitals.Add(new("Image", img, "TextPrimary"));
+        }
+        else if (string.Equals(block.BlockType, IniConstants.BlockTypes.Weapon, StringComparison.OrdinalIgnoreCase))
+        {
+            var dmg = FindFieldValue(block, IniConstants.FieldKeys.PrimaryDamage);
+            if (!string.IsNullOrWhiteSpace(dmg)) vitals.Add(new("Damage", dmg, "AccentBrush"));
+
+            var range = FindFieldValue(block, IniConstants.FieldKeys.AttackRange);
+            if (!string.IsNullOrWhiteSpace(range)) vitals.Add(new("Range", range, "TextPrimary"));
+
+            var type = FindFieldValue(block, IniConstants.FieldKeys.DamageType);
+            if (!string.IsNullOrWhiteSpace(type)) vitals.Add(new("Type", type, "TextSecondary"));
+
+            var delay = FindFieldValue(block, "DelayBetweenShots");
+            if (!string.IsNullOrWhiteSpace(delay)) vitals.Add(new("Delay", delay, "TextSecondary"));
+        }
+        else if (string.Equals(block.BlockType, IniConstants.BlockTypes.Upgrade, StringComparison.OrdinalIgnoreCase))
+        {
+            var cost = FindFieldValue(block, IniConstants.FieldKeys.BuildCost);
+            if (!string.IsNullOrWhiteSpace(cost)) vitals.Add(new("Cost", $"", "AccentBrush"));
+
+            var time = FindFieldValue(block, IniConstants.FieldKeys.BuildTime);
+            if (!string.IsNullOrWhiteSpace(time)) vitals.Add(new("Time", $"{time}s", "TextPrimary"));
+
+            var type = FindFieldValue(block, IniConstants.FieldKeys.Type);
+            if (!string.IsNullOrWhiteSpace(type)) vitals.Add(new("Type", type, "TextSecondary"));
+        }
+        else
+        {
+            var health = ResolveHealthValue(block);
+            if (!string.IsNullOrWhiteSpace(health)) vitals.Add(new("Health", health, "SuccessBrush"));
+
+            var cost = FindFieldValue(block, IniConstants.FieldKeys.BuildCost);
+            if (!string.IsNullOrWhiteSpace(cost)) vitals.Add(new("Cost", $"", "WarningBrush"));
+
+            var time = FindFieldValue(block, IniConstants.FieldKeys.BuildTime);
+            if (!string.IsNullOrWhiteSpace(time)) vitals.Add(new("Build Time", $"{time}s", "TextPrimary"));
+
+            var vision = FindFieldValue(block, "VisionRange");
+            if (!string.IsNullOrWhiteSpace(vision)) vitals.Add(new("Vision", vision, "TextSecondary"));
+
+            var shroud = FindFieldValue(block, "ShroudClearingRange");
+            if (!string.IsNullOrWhiteSpace(shroud)) vitals.Add(new("Shroud", shroud, "TextSecondary"));
+        }
+
+        SelectedBlockVitals = vitals;
+        OnPropertyChanged(nameof(HasSelectedBlockVitals));
 
         var modelField = block.Fields.FirstOrDefault(f => string.Equals(f.Key, "Model", StringComparison.OrdinalIgnoreCase));
         if (modelField != null)
@@ -3269,6 +3575,35 @@ public sealed partial class IniEditorViewModel(
     partial void OnReferenceTypeFilterChanged(string? value)
     {
         FilterReferenceResults();
+    }
+
+    partial void OnLeftSidebarTabIndexChanged(int value)
+    {
+        OnPropertyChanged(nameof(IsBlocksTabSelected));
+        OnPropertyChanged(nameof(IsFilesTabSelected));
+        OnPropertyChanged(nameof(IsReferencesTabSelected));
+        OnPropertyChanged(nameof(IsTexturesTabSelected));
+    }
+
+    partial void OnTextureSearchFilterChanged(string value)
+    {
+        ApplyTextureFilter();
+    }
+
+    private void ApplyTextureFilter()
+    {
+        FilteredTextureItems.Clear();
+        var filter = TextureSearchFilter?.Trim();
+        var items = string.IsNullOrEmpty(filter)
+            ? (IEnumerable<IniTextureItemViewModel>)_allTextureItems
+            : _allTextureItems.Where(t => t.Name.Contains(filter, StringComparison.OrdinalIgnoreCase));
+
+        foreach (var item in items)
+        {
+            FilteredTextureItems.Add(item);
+        }
+
+        TextureStatusText = $"{FilteredTextureItems.Count} / {_allTextureItems.Count} textures";
     }
 
     partial void OnSelectedInstallationChanged(GameInstallationOption? value)
