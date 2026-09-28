@@ -1664,6 +1664,128 @@ public class DownloadsBrowserViewModelTests
     }
 
     /// <summary>
+    /// Verifies that UpdateContentCommand does not emit failure telemetry when download is cancelled.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task UpdateContentCommand_WhenDownloadIsCancelled_DoesNotEmitContentUpdateFailedAsync()
+    {
+        // Arrange
+        var orchestratorMock = new Mock<IContentOrchestrator>();
+        using var cts = new CancellationTokenSource();
+        orchestratorMock
+            .Setup(o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>?>(), It.IsAny<CancellationToken>()))
+            .Callback(() => cts.Cancel())
+            .ThrowsAsync(new OperationCanceledException(cts.Token));
+
+        var reconcilerRegistryMock = new Mock<IPublisherReconcilerRegistry>();
+        var contentStateServiceMock = new Mock<IContentStateService>();
+        var telemetryMock = new Mock<ITelemetryService>();
+        var serviceProviderMock = new Mock<IServiceProvider>();
+        serviceProviderMock
+            .Setup(sp => sp.GetService(typeof(ITelemetryService)))
+            .Returns(telemetryMock.Object);
+
+        var viewModel = CreateViewModel(
+            orchestrator: orchestratorMock.Object,
+            reconcilerRegistry: reconcilerRegistryMock.Object,
+            serviceProvider: serviceProviderMock.Object,
+            contentStateService: contentStateServiceMock.Object);
+
+        var gridStateServiceMock = new Mock<IContentStateService>();
+        var loggerMock = new Mock<ILogger<ContentGridItemViewModel>>();
+        var targetSr = new ContentSearchResult { Id = "test.mod.v2", Name = "Mod v2", ProviderName = "custom" };
+        var targetVm = new ContentGridItemViewModel(targetSr, gridStateServiceMock.Object, loggerMock.Object);
+        var currentSr = new ContentSearchResult { Id = "test.mod.v1", Name = "Mod v1", ProviderName = "custom" };
+        var currentVm = new ContentGridItemViewModel(currentSr, gridStateServiceMock.Object, loggerMock.Object)
+        {
+            UpdateTargetVm = targetVm,
+        };
+
+        // Act
+        await viewModel.UpdateContentCommand.ExecuteAsync(currentVm);
+
+        // Assert: no ContentUpdateFailed telemetry emitted on cancellation
+        telemetryMock.Verify(
+            t => t.TrackEvent(
+                TelemetryConstants.Events.ContentUpdateFailed,
+                It.IsAny<IReadOnlyDictionary<string, object?>>(),
+                It.IsAny<TelemetryLevel>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that UpdateContentCommand does not emit failure telemetry when update strategy is cancelled.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task UpdateContentCommand_WhenUpdateStrategyIsCancelled_DoesNotEmitContentUpdateFailedAsync()
+    {
+        // Arrange
+        var orchestratorMock = new Mock<IContentOrchestrator>();
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.custom.mod.test"),
+            Name = "Custom Mod",
+            Version = "2.0.0",
+        };
+        orchestratorMock
+            .Setup(o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
+
+        var reconcilerRegistryMock = new Mock<IPublisherReconcilerRegistry>();
+        var contentStateServiceMock = new Mock<IContentStateService>();
+        contentStateServiceMock
+            .Setup(s => s.GetLocalManifestIdAsync(It.IsAny<ContentSearchResult>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("1.0.custom.mod.old");
+
+        var manifestPoolMock = new Mock<IContentManifestPool>();
+        manifestPoolMock
+            .Setup(m => m.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+
+        var telemetryMock = new Mock<ITelemetryService>();
+        var serviceProviderMock = new Mock<IServiceProvider>();
+        serviceProviderMock
+            .Setup(sp => sp.GetService(typeof(ITelemetryService)))
+            .Returns(telemetryMock.Object);
+        serviceProviderMock
+            .Setup(sp => sp.GetService(typeof(IContentReconciliationService)))
+            .Returns(Mock.Of<IContentReconciliationService>());
+        serviceProviderMock
+            .Setup(sp => sp.GetService(typeof(IContentManifestPool)))
+            .Returns(manifestPoolMock.Object);
+
+        var viewModel = CreateViewModel(
+            orchestrator: orchestratorMock.Object,
+            reconcilerRegistry: reconcilerRegistryMock.Object,
+            serviceProvider: serviceProviderMock.Object,
+            contentStateService: contentStateServiceMock.Object);
+
+        var gridStateServiceMock = new Mock<IContentStateService>();
+        var loggerMock = new Mock<ILogger<ContentGridItemViewModel>>();
+        var targetSr = new ContentSearchResult { Id = "test.mod.v2", Name = "Mod v2", ProviderName = "custom" };
+        var targetVm = new ContentGridItemViewModel(targetSr, gridStateServiceMock.Object, loggerMock.Object);
+        var currentSr = new ContentSearchResult { Id = "test.mod.v1", Name = "Mod v1", ProviderName = "custom" };
+        var currentVm = new ContentGridItemViewModel(currentSr, gridStateServiceMock.Object, loggerMock.Object)
+        {
+            UpdateTargetVm = targetVm,
+        };
+
+        // Act & Assert
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => viewModel.UpdateContentCommand.ExecuteAsync(currentVm));
+
+        // Assert: no ContentUpdateFailed telemetry emitted on cancellation and status not marked as error
+        telemetryMock.Verify(
+            t => t.TrackEvent(
+                TelemetryConstants.Events.ContentUpdateFailed,
+                It.IsAny<IReadOnlyDictionary<string, object?>>(),
+                It.IsAny<TelemetryLevel>()),
+            Times.Never);
+        Assert.False(targetVm.DownloadStatus?.StartsWith(ContentConstants.ErrorStatusPrefix) == true);
+    }
+
+    /// <summary>
     /// Verifies that UpdateTargetVm is null when the selected variant is NotDownloaded,
     /// even if a sibling variant was downloaded (Kilo Code bot comment).
     /// </summary>

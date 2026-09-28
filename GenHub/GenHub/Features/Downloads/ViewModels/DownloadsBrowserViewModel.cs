@@ -2778,6 +2778,12 @@ public sealed partial class DownloadsBrowserViewModel(
         var downloadSuccess = await DownloadContentAsync(targetItem, ct);
         if (!downloadSuccess)
         {
+            if (ct.IsCancellationRequested ||
+                string.Equals(targetItem.DownloadStatus, ContentConstants.DownloadCancelledStatusMessage, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
             var failedPublisherId = publisherId ?? targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? DefaultPublisherName;
             _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
             {
@@ -2879,6 +2885,10 @@ public sealed partial class DownloadsBrowserViewModel(
                     [TelemetryConstants.Properties.ProfilesUpdated] = updateOutcome.ProfilesUpdated,
                     [TelemetryConstants.Properties.Success] = !updateOutcome.AnyFailure,
                 });
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
