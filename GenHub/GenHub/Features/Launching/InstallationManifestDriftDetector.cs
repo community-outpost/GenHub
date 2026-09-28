@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security;
 using System.Threading;
 
 namespace GenHub.Features.Launching;
@@ -25,7 +26,7 @@ internal static class InstallationManifestDriftDetector
 {
     private static readonly EnumerationOptions ScanOptions = new()
     {
-        IgnoreInaccessible = true,
+        IgnoreInaccessible = false,
         RecurseSubdirectories = true,
         AttributesToSkip = FileAttributes.ReparsePoint,
     };
@@ -62,7 +63,7 @@ internal static class InstallationManifestDriftDetector
         {
             diskFiles = ScanDiskFiles(installationPath, manifestMap, targetGame, cancellationToken);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException)
         {
             return empty;
         }
@@ -138,15 +139,8 @@ internal static class InstallationManifestDriftDetector
                 continue;
             }
 
-            try
-            {
-                var sourcePath = GameInstallationScanRules.ResolveSourcePathWithBackup(file);
-                diskFiles.TryAdd(relativePath, new FileInfo(sourcePath).Length);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                continue;
-            }
+            var sourcePath = GameInstallationScanRules.ResolveSourcePathWithBackup(file);
+            diskFiles.TryAdd(relativePath, new FileInfo(sourcePath).Length);
         }
 
         return diskFiles;
