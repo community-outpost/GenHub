@@ -201,13 +201,14 @@ public partial class ConfigEditorViewModel(
             return;
         }
 
+        var trimmedNewName = newName.Trim();
         foreach (var itemNames in BundlePacks.Select(pack => pack.ItemNames))
         {
             for (var i = itemNames.Count - 1; i >= 0; i--)
             {
                 if (string.Equals(itemNames[i], oldName, StringComparison.OrdinalIgnoreCase))
                 {
-                    itemNames[i] = newName;
+                    itemNames[i] = trimmedNewName;
                 }
             }
         }
@@ -234,13 +235,14 @@ public partial class ConfigEditorViewModel(
             return;
         }
 
+        var trimmedNewName = newName.Trim();
         foreach (var packNames in BundleManifests.Select(manifest => manifest.PackNames))
         {
             for (var i = packNames.Count - 1; i >= 0; i--)
             {
                 if (string.Equals(packNames[i], oldName, StringComparison.OrdinalIgnoreCase))
                 {
-                    packNames[i] = newName;
+                    packNames[i] = trimmedNewName;
                 }
             }
         }
@@ -646,7 +648,7 @@ public partial class ConfigEditorViewModel(
         {
             Name = ResolveDefaultManifestName(),
             Version = ResolveProjectVersion(CurrentProject),
-            Publisher = ResolveProjectPublisher(CurrentProject),
+            Publisher = CurrentProject?.ResolvePublisher() ?? string.Empty,
             Description = CurrentProject?.Description ?? string.Empty,
             ContentType = ResolveEditorContentType(null, CurrentProject),
             TargetGame = ResolveEditorTargetGame(null, CurrentProject),
@@ -675,21 +677,6 @@ public partial class ConfigEditorViewModel(
     {
         var projectVersion = project?.Version;
         return !string.IsNullOrWhiteSpace(projectVersion) ? projectVersion : ModBuilderConstants.DefaultManifestVersion;
-    }
-
-    private static string ResolveProjectPublisher(ModBuilderProject? project)
-    {
-        if (!string.IsNullOrWhiteSpace(project?.Publisher))
-        {
-            return project.Publisher;
-        }
-
-        if (!string.IsNullOrWhiteSpace(project?.Author))
-        {
-            return project.Author;
-        }
-
-        return string.Empty;
     }
 
     private static ContentType ResolveEditorContentType(ContentType? manifestValue, ModBuilderProject? project)
@@ -1081,7 +1068,7 @@ public partial class ConfigEditorViewModel(
         {
             Name = $"NewManifest{BundleManifests.Count + 1}",
             Version = ResolveProjectVersion(CurrentProject),
-            Publisher = ResolveProjectPublisher(CurrentProject),
+            Publisher = CurrentProject?.ResolvePublisher() ?? string.Empty,
             Description = string.Empty,
             ContentType = ResolveEditorContentType(null, CurrentProject),
             TargetGame = ResolveEditorTargetGame(null, CurrentProject),
@@ -1248,7 +1235,7 @@ public partial class ConfigEditorViewModel(
                 SetGameLanguageOnInstall = packVm.SetGameLanguageOnInstall,
                 ManifestFile = packVm.ManifestFile,
                 Description = packVm.Description,
-                ItemNames = packVm.ItemNames.ToList(),
+                ItemNames = packVm.ItemNames.Where(i => !string.IsNullOrWhiteSpace(i)).Select(i => i.Trim()).ToList(),
             });
         }
 
@@ -1273,7 +1260,7 @@ public partial class ConfigEditorViewModel(
                 Description = manifestVm.Description.Trim(),
                 ContentType = manifestVm.ContentType,
                 TargetGame = manifestVm.TargetGame,
-                PackNames = manifestVm.PackNames.Where(p => !string.IsNullOrWhiteSpace(p)).ToList(),
+                PackNames = manifestVm.PackNames.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.Trim()).ToList(),
             });
         }
 
@@ -1513,7 +1500,7 @@ public partial class ConfigEditorViewModel(
         var tempPacksPath = $"{packsPath}.{Guid.NewGuid():N}.save.tmp";
         var tempManifestsPath = $"{manifestsPath}.{Guid.NewGuid():N}.save.tmp";
         var tempFilesCreated = new List<string>();
-        var backups = new List<(string TargetPath, string BackupPath)>();
+        var backups = new List<(string TargetPath, string? BackupPath)>();
 
         try
         {
@@ -1547,7 +1534,7 @@ public partial class ConfigEditorViewModel(
                     File.Delete(manifestsPath);
                 }
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 RollbackFileBackups(backups, logger);
                 throw;
@@ -1558,17 +1545,21 @@ public partial class ConfigEditorViewModel(
         finally
         {
             DeleteFilesSafely(tempFilesCreated);
-            DeleteFilesSafely(backups.Select(b => b.BackupPath));
+            DeleteFilesSafely(backups.Where(b => b.BackupPath != null).Select(b => b.BackupPath!));
         }
     }
 
-    private static void CreateFileBackup(string filePath, List<(string TargetPath, string BackupPath)> backups)
+    private static void CreateFileBackup(string filePath, List<(string TargetPath, string? BackupPath)> backups)
     {
         if (File.Exists(filePath))
         {
             var backup = $"{filePath}.{Guid.NewGuid():N}.save.bak";
             File.Copy(filePath, backup, overwrite: true);
             backups.Add((filePath, backup));
+        }
+        else
+        {
+            backups.Add((filePath, null));
         }
     }
 
@@ -1578,18 +1569,22 @@ public partial class ConfigEditorViewModel(
         tempFilesCreated.Remove(tempPath);
     }
 
-    private static void RollbackFileBackups(List<(string TargetPath, string BackupPath)> backups, ILogger logger)
+    private static void RollbackFileBackups(List<(string TargetPath, string? BackupPath)> backups, ILogger logger)
     {
         foreach (var (targetPath, backupPath) in backups)
         {
             try
             {
-                if (File.Exists(backupPath))
+                if (backupPath != null && File.Exists(backupPath))
                 {
                     File.Copy(backupPath, targetPath, overwrite: true);
                 }
+                else if (backupPath == null && File.Exists(targetPath))
+                {
+                    File.Delete(targetPath);
+                }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 logger.LogWarning(ex, "Failed to restore backup {BackupPath} to {TargetPath}", backupPath, targetPath);
             }
@@ -1607,7 +1602,7 @@ public partial class ConfigEditorViewModel(
                     File.Delete(file);
                 }
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // Ignore cleanup errors
             }

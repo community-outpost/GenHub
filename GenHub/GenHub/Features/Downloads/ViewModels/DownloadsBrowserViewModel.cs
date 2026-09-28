@@ -1055,13 +1055,12 @@ public sealed partial class DownloadsBrowserViewModel(
         }
 
         if (!string.IsNullOrWhiteSpace(candidate.Name) &&
-            !string.IsNullOrWhiteSpace(current.Name) &&
-            string.Equals(candidate.Name, current.Name, StringComparison.OrdinalIgnoreCase))
+            !string.IsNullOrWhiteSpace(current.Name))
         {
-            return true;
+            return string.Equals(candidate.Name, current.Name, StringComparison.OrdinalIgnoreCase);
         }
 
-        return candidate.IsDefault;
+        return candidate.IsDefault && (current.IsDefault || string.IsNullOrWhiteSpace(current.Name));
     }
 
     private void HandleSelectedPublisherChanged(PublisherItemViewModel? value)

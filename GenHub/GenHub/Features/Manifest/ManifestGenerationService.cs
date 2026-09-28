@@ -975,9 +975,6 @@ public class ManifestGenerationService(
     }
 
     /// <summary>
-    /// Determines whether the specified file path is a symbolic link or reparse point.
-    /// </summary>
-    /// <summary>
     /// Determines whether the path is a file, or a symbolic link whose final target is a file.
     /// </summary>
     private static bool IsResolvableFile(string path)

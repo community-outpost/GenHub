@@ -135,4 +135,23 @@ public class ModBuilderProject
     /// </summary>
     [JsonPropertyName("metadata")]
     public Dictionary<string, object> Metadata { get; set; } = new();
+
+    /// <summary>
+    /// Resolves the effective publisher name, falling back to the author name if publisher is not specified.
+    /// </summary>
+    /// <returns>The resolved publisher or author name, or an empty string if neither is set.</returns>
+    public string ResolvePublisher()
+    {
+        if (!string.IsNullOrWhiteSpace(Publisher))
+        {
+            return Publisher;
+        }
+
+        if (!string.IsNullOrWhiteSpace(Author))
+        {
+            return Author;
+        }
+
+        return string.Empty;
+    }
 }

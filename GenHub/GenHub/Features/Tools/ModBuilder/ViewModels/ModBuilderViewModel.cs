@@ -3705,7 +3705,7 @@ public partial class ModBuilderViewModel(
                 {
                     Name = manifest.Name,
                     Version = string.IsNullOrWhiteSpace(manifest.Version) ? (CurrentProject?.Version ?? ModBuilderConstants.DefaultManifestVersion) : manifest.Version,
-                    Publisher = string.IsNullOrWhiteSpace(manifest.Publisher) ? ResolveProjectPublisher(CurrentProject) : manifest.Publisher,
+                    Publisher = string.IsNullOrWhiteSpace(manifest.Publisher) ? (CurrentProject?.ResolvePublisher() ?? string.Empty) : manifest.Publisher,
                     Description = manifest.Description ?? string.Empty,
                     TargetGame = manifest.TargetGame,
                     ContentType = manifest.ContentType,
@@ -3719,28 +3719,13 @@ public partial class ModBuilderViewModel(
             {
                 Name = CurrentProject.Name,
                 Version = CurrentProject.Version,
-                Publisher = ResolveProjectPublisher(CurrentProject),
+                Publisher = CurrentProject.ResolvePublisher(),
                 Description = string.Empty,
                 TargetGame = CurrentProject.TargetGame,
                 ContentType = CurrentProject.ContentType,
                 PackNames = Bundles.Where(b => b.IsSelected).Select(b => b.Name).ToList(),
             });
         }
-    }
-
-    private static string ResolveProjectPublisher(ModBuilderProject? project)
-    {
-        if (!string.IsNullOrWhiteSpace(project?.Publisher))
-        {
-            return project.Publisher;
-        }
-
-        if (!string.IsNullOrWhiteSpace(project?.Author))
-        {
-            return project.Author;
-        }
-
-        return string.Empty;
     }
 
     private async Task InitializeFileManagerAndGameDirectoryAsync(string projectDir)
