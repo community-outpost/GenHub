@@ -1502,6 +1502,7 @@ public partial class ConfigEditorViewModel(
         var tempPacksPath = $"{packsPath}.{Guid.NewGuid():N}.save.tmp";
         var tempManifestsPath = $"{manifestsPath}.{Guid.NewGuid():N}.save.tmp";
         var tempFilesCreated = new List<string>();
+        var backups = new List<(string TargetPath, string BackupPath)>();
 
         try
         {
@@ -1517,20 +1518,65 @@ public partial class ConfigEditorViewModel(
                 tempFilesCreated.Add(tempManifestsPath);
             }
 
-            File.Move(tempItemsPath, itemsPath, overwrite: true);
-            tempFilesCreated.Remove(tempItemsPath);
-
-            File.Move(tempPacksPath, packsPath, overwrite: true);
-            tempFilesCreated.Remove(tempPacksPath);
-
-            if (manifests.Count > 0)
+            // Create backups of existing files before replacing them so any move failure can be rolled back.
+            if (File.Exists(itemsPath))
             {
-                File.Move(tempManifestsPath, manifestsPath, overwrite: true);
-                tempFilesCreated.Remove(tempManifestsPath);
+                var backup = $"{itemsPath}.{Guid.NewGuid():N}.save.bak";
+                File.Copy(itemsPath, backup, overwrite: true);
+                backups.Add((itemsPath, backup));
             }
-            else if (File.Exists(manifestsPath))
+
+            if (File.Exists(packsPath))
             {
-                File.Delete(manifestsPath);
+                var backup = $"{packsPath}.{Guid.NewGuid():N}.save.bak";
+                File.Copy(packsPath, backup, overwrite: true);
+                backups.Add((packsPath, backup));
+            }
+
+            if (File.Exists(manifestsPath))
+            {
+                var backup = $"{manifestsPath}.{Guid.NewGuid():N}.save.bak";
+                File.Copy(manifestsPath, backup, overwrite: true);
+                backups.Add((manifestsPath, backup));
+            }
+
+            try
+            {
+                File.Move(tempItemsPath, itemsPath, overwrite: true);
+                tempFilesCreated.Remove(tempItemsPath);
+
+                File.Move(tempPacksPath, packsPath, overwrite: true);
+                tempFilesCreated.Remove(tempPacksPath);
+
+                if (manifests.Count > 0)
+                {
+                    File.Move(tempManifestsPath, manifestsPath, overwrite: true);
+                    tempFilesCreated.Remove(tempManifestsPath);
+                }
+                else if (File.Exists(manifestsPath))
+                {
+                    File.Delete(manifestsPath);
+                }
+            }
+            catch
+            {
+                // Roll back restored files from backup if replacement failed mid-flight.
+                foreach (var (targetPath, backupPath) in backups)
+                {
+                    try
+                    {
+                        if (File.Exists(backupPath))
+                        {
+                            File.Copy(backupPath, targetPath, overwrite: true);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Failed to restore backup {BackupPath} to {TargetPath}", backupPath, targetPath);
+                    }
+                }
+
+                throw;
             }
 
             logger.LogInformation("Saved bundle configuration to {ItemsPath} and {PacksPath}", itemsPath, packsPath);
@@ -1549,6 +1595,21 @@ public partial class ConfigEditorViewModel(
                 catch
                 {
                     // Ignore temp file cleanup errors
+                }
+            }
+
+            foreach (var (_, backupPath) in backups)
+            {
+                try
+                {
+                    if (File.Exists(backupPath))
+                    {
+                        File.Delete(backupPath);
+                    }
+                }
+                catch
+                {
+                    // Ignore backup file cleanup errors
                 }
             }
         }
