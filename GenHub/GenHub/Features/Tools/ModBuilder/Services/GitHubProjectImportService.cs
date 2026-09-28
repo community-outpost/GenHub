@@ -37,22 +37,12 @@ public class GitHubProjectImportService(
             return OperationResult<string>.CreateFailure("Target directory cannot be empty.");
         }
 
-        if (Directory.Exists(targetDirectory))
+        var validationResult = ValidateTargetDirectory(targetDirectory, out var targetDirectoryExisted, out var targetDirectoryInitiallyEmpty);
+        if (validationResult != null)
         {
-            var alreadyExisting = FindProjectFile(targetDirectory);
-            if (alreadyExisting != null)
-            {
-                logger.LogInformation("Target directory {Target} already contains project {Project}", targetDirectory, alreadyExisting);
-                return OperationResult<string>.CreateSuccess(alreadyExisting);
-            }
-
-            if (Directory.EnumerateFileSystemEntries(targetDirectory).Any())
-            {
-                return OperationResult<string>.CreateFailure("Target directory is not empty and does not contain a project file.");
-            }
+            return validationResult;
         }
 
-        var targetDirectoryExisted = Directory.Exists(targetDirectory);
         var stagingDir = Path.Combine(Path.GetTempPath(), $"genhub_github_{Guid.NewGuid():N}");
         var archivePath = Path.Combine(Path.GetTempPath(), $"genhub_github_{Guid.NewGuid():N}.zip");
         try
@@ -70,29 +60,21 @@ public class GitHubProjectImportService(
                 ? await LinkExistingStagedProjectAsync(contentRoot, stagedProject, targetDirectory, reference, cancellationToken).ConfigureAwait(false)
                 : await CreateNewProjectAsync(contentRoot, targetDirectory, reference, progress, cancellationToken).ConfigureAwait(false);
 
-            if (!result.Success && !targetDirectoryExisted && Directory.Exists(targetDirectory))
+            if (!result.Success)
             {
-                DeleteDirectoryQuietly(targetDirectory);
+                RollbackTargetDirectory(targetDirectory, targetDirectoryExisted, targetDirectoryInitiallyEmpty);
             }
 
             return result;
         }
         catch (OperationCanceledException)
         {
-            if (!targetDirectoryExisted && Directory.Exists(targetDirectory))
-            {
-                DeleteDirectoryQuietly(targetDirectory);
-            }
-
+            RollbackTargetDirectory(targetDirectory, targetDirectoryExisted, targetDirectoryInitiallyEmpty);
             throw;
         }
         catch (Exception ex)
         {
-            if (!targetDirectoryExisted && Directory.Exists(targetDirectory))
-            {
-                DeleteDirectoryQuietly(targetDirectory);
-            }
-
+            RollbackTargetDirectory(targetDirectory, targetDirectoryExisted, targetDirectoryInitiallyEmpty);
             logger.LogError(ex, "Failed to import GitHub repository {Repo}", reference.FullName);
             return OperationResult<string>.CreateFailure($"Failed to import {reference.FullName}: {ex.Message}");
         }
@@ -100,6 +82,70 @@ public class GitHubProjectImportService(
         {
             DeleteQuietly(archivePath);
             DeleteDirectoryQuietly(stagingDir);
+        }
+    }
+
+    private OperationResult<string>? ValidateTargetDirectory(string targetDirectory, out bool targetExisted, out bool initiallyEmpty)
+    {
+        targetExisted = Directory.Exists(targetDirectory);
+        initiallyEmpty = !targetExisted;
+
+        if (!targetExisted)
+        {
+            return null;
+        }
+
+        var alreadyExisting = FindProjectFile(targetDirectory);
+        if (alreadyExisting != null)
+        {
+            logger.LogInformation("Target directory {Target} already contains project {Project}", targetDirectory, alreadyExisting);
+            return OperationResult<string>.CreateSuccess(alreadyExisting);
+        }
+
+        if (Directory.EnumerateFileSystemEntries(targetDirectory).Any())
+        {
+            return OperationResult<string>.CreateFailure("Target directory is not empty and does not contain a project file.");
+        }
+
+        initiallyEmpty = true;
+        return null;
+    }
+
+    private void RollbackTargetDirectory(string targetDirectory, bool targetDirectoryExisted, bool initiallyEmpty)
+    {
+        if (!Directory.Exists(targetDirectory))
+        {
+            return;
+        }
+
+        if (!targetDirectoryExisted)
+        {
+            DeleteDirectoryQuietly(targetDirectory);
+        }
+        else if (initiallyEmpty)
+        {
+            CleanDirectoryQuietly(targetDirectory);
+        }
+    }
+
+    private static void CleanDirectoryQuietly(string path)
+    {
+        try
+        {
+            var di = new DirectoryInfo(path);
+            foreach (var file in di.EnumerateFiles())
+            {
+                file.Delete();
+            }
+
+            foreach (var dir in di.EnumerateDirectories())
+            {
+                dir.Delete(true);
+            }
+        }
+        catch
+        {
+            // Best-effort cleanup
         }
     }
 
@@ -180,6 +226,10 @@ public class GitHubProjectImportService(
                     await projectConfigService.SaveProjectAsync(existingProject, prj, cancellationToken).ConfigureAwait(false);
                 }
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

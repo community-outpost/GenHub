@@ -1282,19 +1282,17 @@ public partial class ModBuilderViewModel(
         _importCancellationTokenSource = cts;
         try
         {
-            var ownerMissing = false;
-            var reference = await InvokeOnUIThreadAsync(async () =>
+            var (reference, ownerMissing) = await InvokeOnUIThreadAsync(async () =>
             {
                 var owner = GetOwnerWindow();
                 if (owner == null)
                 {
-                    ownerMissing = true;
-                    return null;
+                    return ((GitHubRepositoryReference?)null, true);
                 }
 
                 var dialog = new Views.GitHubImportDialog(new GitHubImportViewModel(localizationService));
                 var confirmed = await dialog.ShowDialog<bool>(owner).ConfigureAwait(false);
-                return confirmed ? dialog.ResultReference : null;
+                return (confirmed ? dialog.ResultReference : null, false);
             }).ConfigureAwait(false);
 
             if (ownerMissing)

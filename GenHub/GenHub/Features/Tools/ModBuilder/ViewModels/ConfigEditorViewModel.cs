@@ -196,18 +196,26 @@ public partial class ConfigEditorViewModel(
 
     private void OnBundleItemRenamed(string oldName, string newName)
     {
-        if (string.IsNullOrWhiteSpace(oldName) || string.IsNullOrWhiteSpace(newName))
+        if (string.IsNullOrWhiteSpace(oldName))
         {
             return;
         }
 
-        foreach (var pack in BundlePacks)
+        var isBlank = string.IsNullOrWhiteSpace(newName);
+        foreach (var itemNames in BundlePacks.Select(pack => pack.ItemNames))
         {
-            for (var i = 0; i < pack.ItemNames.Count; i++)
+            for (var i = itemNames.Count - 1; i >= 0; i--)
             {
-                if (string.Equals(pack.ItemNames[i], oldName, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(itemNames[i], oldName, StringComparison.OrdinalIgnoreCase))
                 {
-                    pack.ItemNames[i] = newName;
+                    if (isBlank)
+                    {
+                        itemNames.RemoveAt(i);
+                    }
+                    else
+                    {
+                        itemNames[i] = newName;
+                    }
                 }
             }
         }
@@ -229,18 +237,26 @@ public partial class ConfigEditorViewModel(
 
     private void OnBundlePackRenamed(string oldName, string newName)
     {
-        if (string.IsNullOrWhiteSpace(oldName) || string.IsNullOrWhiteSpace(newName))
+        if (string.IsNullOrWhiteSpace(oldName))
         {
             return;
         }
 
-        foreach (var manifest in BundleManifests)
+        var isBlank = string.IsNullOrWhiteSpace(newName);
+        foreach (var packNames in BundleManifests.Select(manifest => manifest.PackNames))
         {
-            for (var i = 0; i < manifest.PackNames.Count; i++)
+            for (var i = packNames.Count - 1; i >= 0; i--)
             {
-                if (string.Equals(manifest.PackNames[i], oldName, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(packNames[i], oldName, StringComparison.OrdinalIgnoreCase))
                 {
-                    manifest.PackNames[i] = newName;
+                    if (isBlank)
+                    {
+                        packNames.RemoveAt(i);
+                    }
+                    else
+                    {
+                        packNames[i] = newName;
+                    }
                 }
             }
         }

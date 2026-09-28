@@ -3,6 +3,7 @@ using GenHub.Core.Models.Results.ModBuilder;
 using GenHub.Core.Models.Tools.ModBuilder;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -25,6 +26,7 @@ public interface IProjectConfigService
     /// <param name="publisher">Optional project publisher.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A result containing the created project.</returns>
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Project creation accepts comprehensive optional project metadata while maintaining backwards compatibility.")]
     Task<ProjectOperationResult<ModBuilderProject>> CreateProjectAsync(
         string projectPath,
         string projectName,
@@ -175,6 +177,7 @@ public interface IProjectConfigService
     /// <param name="progress">Optional progress reporter (0.0 to 1.0).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A result containing the created project.</returns>
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Directory-based project creation accepts comprehensive configuration and reporting options.")]
     Task<ProjectOperationResult<ModBuilderProject>> CreateProjectFromDirectoryAsync(
         string projectPath,
         string projectName,

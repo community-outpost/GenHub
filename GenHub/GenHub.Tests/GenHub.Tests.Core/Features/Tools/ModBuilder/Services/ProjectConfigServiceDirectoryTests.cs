@@ -73,7 +73,7 @@ public sealed class ProjectConfigServiceDirectoryTests : IDisposable
         packsJson.Should().Contain("0_MyMod.big");
 
         var itemsJson = File.ReadAllText(Path.Combine(projectDir, ModBuilderConstants.ConfigDir, ModBuilderConstants.BundleItemsConfigFileName));
-        itemsJson.Should().Contain(ModBuilderConstants.DefaultImportedGameFilesItemName);
+        itemsJson.Should().Contain("MyMod");
         itemsJson.Should().Contain("namePrefix");
     }
 

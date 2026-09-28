@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Telemetry;
@@ -68,6 +69,7 @@ public sealed class ProjectConfigService(
     private readonly SemaphoreSlim _recentProjectsLock = new(1, 1);
 
     /// <inheritdoc />
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Project creation accepts comprehensive optional project metadata while maintaining backwards compatibility.")]
     public async Task<ProjectOperationResult<ModBuilderProject>> CreateProjectAsync(
         string projectPath,
         string projectName,
@@ -1048,6 +1050,7 @@ public sealed class ProjectConfigService(
     }
 
     /// <inheritdoc />
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Directory-based project creation accepts comprehensive configuration and reporting options.")]
     public async Task<ProjectOperationResult<ModBuilderProject>> CreateProjectFromDirectoryAsync(
         string projectPath,
         string projectName,
@@ -1318,6 +1321,8 @@ public sealed class ProjectConfigService(
         return Directory.Exists(nested) ? nested : sourceDirectory;
     }
 
+    private static readonly char[] PathSeparators = [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar];
+
     private static bool IsExcludedSourceFile(string sourceDirectory, string gameSourceRoot, string relativePath, string sourceFile)
     {
         if (sourceFile.EndsWith(ModBuilderConstants.ProjectFileExtension, StringComparison.OrdinalIgnoreCase))
@@ -1330,7 +1335,7 @@ public sealed class ProjectConfigService(
             return false;
         }
 
-        var topSegment = relativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)[0];
+        var topSegment = relativePath.Split(PathSeparators, StringSplitOptions.None)[0];
         if (topSegment.Equals(ModBuilderConstants.LowercaseConfigDir, StringComparison.OrdinalIgnoreCase)
             || topSegment.Equals(ModBuilderConstants.ConfigDir, StringComparison.OrdinalIgnoreCase)
             || topSegment.Equals(ModBuilderConstants.LowercaseConfigsDir, StringComparison.OrdinalIgnoreCase)

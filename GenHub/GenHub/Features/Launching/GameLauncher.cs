@@ -2318,9 +2318,7 @@ public class GameLauncher(
     {
         try
         {
-            if (!string.IsNullOrWhiteSpace(installation.Id) &&
-                _lastInstallationDriftRefresh.TryGetValue(installation.Id, out var lastRefresh) &&
-                DateTimeOffset.UtcNow - lastRefresh < InstallationRefreshCooldown)
+            if (IsInstallationRefreshCooldownActive(installation.Id))
             {
                 logger.LogDebug("[GameLauncher] Skipping installation manifest drift check for {InstallationId} (cooldown active)", installation.Id);
                 return (false, manifests);
@@ -2334,26 +2332,7 @@ public class GameLauncher(
                 return (false, manifests);
             }
 
-            var driftedManifests = new List<(ContentManifest Manifest, InstallationManifestDrift Drift)>();
-            foreach (var manifest in installationManifests)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var gameDir = manifest.TargetGame == GameType.Generals
-                    ? installation.GeneralsPath
-                    : installation.ZeroHourPath;
-                if (string.IsNullOrWhiteSpace(gameDir) || !Directory.Exists(gameDir))
-                {
-                    continue;
-                }
-
-                var drift = InstallationManifestDriftDetector.DetectDrift(
-                    gameDir, manifest.TargetGame, manifest.Version, manifest.Files, cancellationToken: cancellationToken);
-                if (drift.HasDrift)
-                {
-                    driftedManifests.Add((manifest, drift));
-                }
-            }
-
+            var driftedManifests = FindDriftedInstallationManifests(installationManifests, installation, cancellationToken);
             if (driftedManifests.Count == 0)
             {
                 return (false, manifests);
@@ -2371,11 +2350,6 @@ public class GameLauncher(
 
             await gameInstallationService.CreateAndRegisterInstallationManifestsAsync(installation, cancellationToken, forceRegeneration: true);
 
-            if (!string.IsNullOrWhiteSpace(installation.Id))
-            {
-                _lastInstallationDriftRefresh[installation.Id] = DateTimeOffset.UtcNow;
-            }
-
             var refreshed = await ReResolveInstallationManifestsAsync(manifests, cancellationToken);
             if (!refreshed.Success || refreshed.Data == null)
             {
@@ -2383,6 +2357,11 @@ public class GameLauncher(
                     "[GameLauncher] Installation manifests regenerated but re-resolution failed: {Error}; launching with stored manifests",
                     refreshed.FirstError);
                 return (false, manifests);
+            }
+
+            if (!string.IsNullOrWhiteSpace(installation.Id))
+            {
+                _lastInstallationDriftRefresh[installation.Id] = DateTimeOffset.UtcNow;
             }
 
             driftWarnings.Add(LaunchReceiptConstants.InstallationManifestRefreshedWarningKey);
@@ -2397,6 +2376,43 @@ public class GameLauncher(
             logger.LogWarning(ex, "[GameLauncher] Best-effort installation manifest refresh failed; launching with stored manifests");
             return (false, manifests);
         }
+    }
+
+    private bool IsInstallationRefreshCooldownActive(string? installationId)
+    {
+        return !string.IsNullOrWhiteSpace(installationId) &&
+            _lastInstallationDriftRefresh.TryGetValue(installationId, out var lastRefresh) &&
+            DateTimeOffset.UtcNow - lastRefresh < InstallationRefreshCooldown;
+    }
+
+    private List<(ContentManifest Manifest, InstallationManifestDrift Drift)> FindDriftedInstallationManifests(
+        IEnumerable<ContentManifest> installationManifests,
+        GameInstallation installation,
+        CancellationToken cancellationToken)
+    {
+        var manifestsList = installationManifests.ToList();
+        logger.LogDebug("[GameLauncher] Scanning for installation drift across {Count} candidate manifests", manifestsList.Count);
+        var driftedManifests = new List<(ContentManifest Manifest, InstallationManifestDrift Drift)>();
+        foreach (var manifest in installationManifests)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var gameDir = manifest.TargetGame == GameType.Generals
+                ? installation.GeneralsPath
+                : installation.ZeroHourPath;
+            if (string.IsNullOrWhiteSpace(gameDir) || !Directory.Exists(gameDir))
+            {
+                continue;
+            }
+
+            var drift = InstallationManifestDriftDetector.DetectDrift(
+                gameDir, manifest.TargetGame, manifest.Version, manifest.Files, cancellationToken: cancellationToken);
+            if (drift.HasDrift)
+            {
+                driftedManifests.Add((manifest, drift));
+            }
+        }
+
+        return driftedManifests;
     }
 
     private async Task<OperationResult<List<ContentManifest>>> ReResolveInstallationManifestsAsync(

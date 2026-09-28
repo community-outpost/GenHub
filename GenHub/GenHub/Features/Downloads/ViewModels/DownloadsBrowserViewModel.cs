@@ -2735,9 +2735,7 @@ public sealed partial class DownloadsBrowserViewModel(
             }
         }
 
-        var oldManifestId = item.SelectedVariant != null && !string.IsNullOrEmpty(item.SelectedVariant.ManifestId)
-            ? item.SelectedVariant.ManifestId
-            : (item.SearchResult != null ? await contentStateService.GetLocalManifestIdAsync(item.SearchResult, ct) : null);
+        var oldManifestId = await ResolveLocalInstalledManifestIdAsync(item, ct).ConfigureAwait(false);
 
         if (ReferenceEquals(targetItem, item) && item.Variants.Count > 1)
         {
@@ -2770,9 +2768,7 @@ public sealed partial class DownloadsBrowserViewModel(
             return false;
         }
 
-        var newManifestId = targetItem.SelectedVariant != null && !string.IsNullOrEmpty(targetItem.SelectedVariant.ManifestId)
-            ? targetItem.SelectedVariant.ManifestId
-            : (targetItem.SearchResult != null ? await contentStateService.GetLocalManifestIdAsync(targetItem.SearchResult, ct) : null);
+        var newManifestId = await ResolveLocalInstalledManifestIdAsync(targetItem, ct).ConfigureAwait(false);
 
         var activeProfileManager = profileManager ?? serviceProvider.GetService<IGameProfileManager>();
         var reconciliationService = serviceProvider.GetService<IContentReconciliationService>();
@@ -2789,10 +2785,10 @@ public sealed partial class DownloadsBrowserViewModel(
                     ? await manifestPool.GetManifestAsync(newManifestId, ct)
                     : null;
 
-                var oldManifests = oldManifest?.Success == true && oldManifest.Data != null
+                var oldManifests = oldManifest is { Success: true, Data: not null }
                     ? new List<ContentManifest> { oldManifest.Data }
                     : new List<ContentManifest>();
-                var newManifests = newManifest?.Success == true && newManifest.Data != null
+                var newManifests = newManifest is { Success: true, Data: not null }
                     ? new List<ContentManifest> { newManifest.Data }
                     : new List<ContentManifest>();
 
@@ -3846,5 +3842,40 @@ public sealed partial class DownloadsBrowserViewModel(
                 localizationService?.GetString("Downloads.ImportSubscription.ImportErrorTitle") ?? "Import Error",
                 localizationService?.GetString("Downloads.ImportSubscription.ImportErrorBody", ex.Message) ?? $"Failed to open import dialog: {ex.Message}");
         }
+    }
+
+    private async Task<string?> ResolveLocalInstalledManifestIdAsync(ContentGridItemViewModel gridItem, CancellationToken cancellationToken)
+    {
+        ContentSearchResult? searchResult = null;
+        if (gridItem.SelectedVariant != null && !string.IsNullOrEmpty(gridItem.SelectedVariant.ManifestId))
+        {
+            gridItem.VariantSearchResults.TryGetValue(gridItem.SelectedVariant.ManifestId, out searchResult);
+        }
+
+        searchResult ??= gridItem.SearchResult;
+        if (searchResult == null)
+        {
+            return null;
+        }
+
+        return await contentStateService.GetLocalManifestIdAsync(searchResult, cancellationToken).ConfigureAwait(false);
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("SonarCloud", "S2325:Methods and properties that don't access instance data should be static", Justification = "Consistency with instance method structure in ViewModel")]
+    private bool IsVariantUpdateCandidate(ContentGridItemViewModel parent, InstallableVariant candidate, InstallableVariant current)
+    {
+        if (string.Equals(candidate.ManifestId, current.ManifestId, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(candidate.Name) &&
+            !string.IsNullOrWhiteSpace(current.Name) &&
+            string.Equals(candidate.Name, current.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return candidate.IsDefault;
     }
 }
