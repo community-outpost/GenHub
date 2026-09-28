@@ -697,8 +697,7 @@
                                     BorderThickness="1"
                                     CornerRadius="12"
                                     Padding="24"
-                                    Margin="0,8,0,24"
-                                    IsVisible="{Binding !#RootView.((vm:ContentLibraryViewModel)DataContext).SelectedContentTracksUpstream}">
+                                    Margin="0,8,0,24">
                                 <StackPanel Spacing="16">
                                     <!-- Hosting hint: pending uploads without a connected provider -->
                                     <Border Background="{DynamicResource StatusWarningBadgeBackgroundBrush}"

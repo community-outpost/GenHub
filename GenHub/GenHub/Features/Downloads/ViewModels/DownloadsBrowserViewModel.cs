@@ -1130,6 +1130,9 @@ public sealed partial class DownloadsBrowserViewModel(
             return;
         }
 
+        // Save current outgoing publisher state to _browseCache before switching
+        SaveOutgoingPublisherState(_lastPopulatedPublisherId);
+
         Interlocked.Increment(ref _activeRequestId);
         BeginLoadCatalogsForPublisher(value);
 
@@ -1137,9 +1140,6 @@ public sealed partial class DownloadsBrowserViewModel(
         _searchCts?.Cancel();
         _searchCts?.Dispose();
         _searchCts = null;
-
-        // Save current outgoing publisher state to _browseCache before switching
-        SaveOutgoingPublisherState(_lastPopulatedPublisherId);
 
         // Update selection state
         foreach (var publisher in Publishers)
@@ -1235,6 +1235,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 outgoingState.HasCustomQuery = _hasCustomQuery;
                 outgoingState.CurrentPage = CurrentPage;
                 outgoingState.CanLoadMore = CanLoadMore;
+                outgoingState.CatalogId = SelectedCatalog?.Id;
                 if (_hasCustomQuery)
                 {
                     if (outgoingState.Items.Count > 0)
@@ -1540,6 +1541,26 @@ public sealed partial class DownloadsBrowserViewModel(
         {
             _suppressCatalogChanged = false;
         }
+
+        lock (_cacheLock)
+        {
+            if (_browseCache.TryGetValue(publisherId, out var cachedState) &&
+                !string.IsNullOrEmpty(cachedState.CatalogId) &&
+                !string.Equals(cachedState.CatalogId, SelectedCatalog?.Id, StringComparison.OrdinalIgnoreCase))
+            {
+                _browseCache.Remove(publisherId);
+                foreach (var item in cachedState.Items)
+                {
+                    item.Dispose();
+                }
+
+                if (string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
+                {
+                    ContentItems = [];
+                    _ = RefreshContentAsync();
+                }
+            }
+        }
     }
 
     private async Task ApplySelectedCatalogAsync(string publisherId, CatalogEntry catalog)
@@ -1586,6 +1607,12 @@ public sealed partial class DownloadsBrowserViewModel(
 
             lock (_cacheLock)
             {
+                if (_inFlightOperations.Remove(publisherId, out var inFlightOp))
+                {
+                    inFlightOp.Cts.Cancel();
+                    inFlightOp.Cts.Dispose();
+                }
+
                 if (_browseCache.Remove(publisherId, out var oldState))
                 {
                     foreach (var item in oldState.Items)
@@ -2293,8 +2320,13 @@ public sealed partial class DownloadsBrowserViewModel(
                 var groups = GroupContentItemsByVariant(items);
                 var newVms = await ProcessDiscoveredGroupsAsync(groups, existingIds, inFlightOp, publisherId, requestId, fetchToken);
 
-                if (fetchToken.IsCancellationRequested)
+                if (fetchToken.IsCancellationRequested || inFlightOp?.Cts.IsCancellationRequested == true || !IsCurrentActiveOperation(requestId, publisherId, inFlightOp))
                 {
+                    foreach (var vm in newVms)
+                    {
+                        vm.Dispose();
+                    }
+
                     CleanupInFlight(publisherId, inFlightOp);
                     return false;
                 }
@@ -2576,6 +2608,16 @@ public sealed partial class DownloadsBrowserViewModel(
     {
         if (inFlightOp != null)
         {
+            if (inFlightOp.Cts.IsCancellationRequested)
+            {
+                foreach (var vm in newVms)
+                {
+                    vm.Dispose();
+                }
+
+                return;
+            }
+
             inFlightOp.IsCompleted = true;
             inFlightOp.HasMoreItems = hasMoreItems;
         }
@@ -2587,6 +2629,15 @@ public sealed partial class DownloadsBrowserViewModel(
 
         lock (_cacheLock)
         {
+            if (inFlightOp != null && _inFlightOperations.TryGetValue(publisherId, out var activeOp) && !ReferenceEquals(activeOp, inFlightOp))
+            {
+                foreach (var vm in newVms)
+                {
+                    vm.Dispose();
+                }
+
+                return;
+            }
             var isPublisherKnown = Publishers.Any(p => string.Equals(p.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase));
             if (!isPublisherKnown)
             {

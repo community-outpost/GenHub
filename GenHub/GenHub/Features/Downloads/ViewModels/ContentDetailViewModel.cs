@@ -1545,9 +1545,20 @@ public partial class ContentDetailViewModel(
                 var removeResult = await manifestPool.RemoveManifestAsync(ManifestId.Create(oldManifestId), cancellationToken: cancellationToken);
                 if (removeResult.Success)
                 {
-                    if (artworkService != null)
+                    try
                     {
-                        await artworkService.PurgeArtworkAsync(oldManifestId, cancellationToken);
+                        if (artworkService != null)
+                        {
+                            await artworkService.PurgeArtworkAsync(oldManifestId, cancellationToken);
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Failed to purge artwork for old manifest {OldManifestId} for bundle component {Name}", oldManifestId, target.Name);
                     }
 
                     if (profileManager != null)
@@ -5307,7 +5318,7 @@ public partial class ContentDetailViewModel(
                             WorkspaceStrategy = rollbackProfile.WorkspaceStrategy,
                             EnabledContentIds = rollbackProfile.EnabledContentIds.ToList(),
                             GameClient = rollbackProfile.GameClient,
-                            ActiveWorkspaceId = rollbackProfile.ActiveWorkspaceId,
+                            ActiveWorkspaceId = string.Empty,
                         };
                         await profileManager.UpdateProfileAsync(rollbackProfile.Id, rollbackRequest, CancellationToken.None);
                     }

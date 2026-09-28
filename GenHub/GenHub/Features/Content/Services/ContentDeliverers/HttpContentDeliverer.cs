@@ -106,6 +106,119 @@ public class HttpContentDeliverer(
         }
     }
 
+    /// <inheritdoc />
+    public Task<OperationResult<bool>> ValidateContentAsync(
+        ContentManifest manifest, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Validate that all required URLs are accessible
+            foreach (var file in manifest.Files.Where(f => f.IsRequired && !string.IsNullOrEmpty(f.DownloadUrl)))
+            {
+                if (!Uri.TryCreate(file.DownloadUrl, UriKind.Absolute, out var uri) ||
+                    !(uri.Scheme == "http" || uri.Scheme == "https") ||
+                    (ModDBConstants.IsModDbOrDbolicalUri(uri) && uri.Scheme != Uri.UriSchemeHttps))
+                {
+                    return Task.FromResult(OperationResult<bool>.CreateSuccess(false));
+                }
+            }
+
+            return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Validation failed for HTTP content manifest {ManifestId}", manifest.Id);
+            return Task.FromResult(OperationResult<bool>.CreateFailure($"Validation failed: {ex.Message}"));
+        }
+    }
+
+    private static IProgress<DownloadProgress>? CreateFileDownloadProgress(
+        IProgress<ContentAcquisitionProgress>? progress,
+        string relativePath,
+        int currentFileIndex,
+        int totalFiles)
+    {
+        if (progress == null)
+        {
+            return null;
+        }
+
+        return new Progress<DownloadProgress>(dp =>
+        {
+            double fileProgressRange = 100.0 / totalFiles;
+            double baseProgress = (currentFileIndex - 1) * fileProgressRange;
+            double currentProgress = Math.Clamp(baseProgress + (dp.Percentage / 100.0 * fileProgressRange), 0, 100);
+
+            progress.Report(new ContentAcquisitionProgress
+            {
+                Phase = ContentAcquisitionPhase.Downloading,
+                ProgressPercentage = currentProgress,
+                CurrentOperation = totalFiles > 1
+                    ? $"{relativePath} ({currentFileIndex}/{totalFiles}) - {dp.Percentage:F0}% ({dp.FormattedSpeed})"
+                    : $"{relativePath} - {dp.Percentage:F0}% ({dp.FormattedSpeed})",
+                FilesProcessed = currentFileIndex - 1,
+                TotalFiles = totalFiles,
+                TotalBytes = dp.TotalBytes,
+                BytesProcessed = dp.BytesReceived,
+                CurrentFile = relativePath,
+            });
+        });
+    }
+
+    private static void ExtractArchivesFallback(
+        IEnumerable<ManifestFile> filesToDownload,
+        string targetDirectory,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        foreach (var relativePath in filesToDownload.Select(file => file.RelativePath))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var localPath = ResolveTargetPath(targetDirectory, relativePath);
+            if (!IsArchive(localPath) || !File.Exists(localPath) || !ZipValidation.IsValidZipFile(localPath))
+            {
+                continue;
+            }
+
+            progress?.Report(new ContentAcquisitionProgress
+            {
+                Phase = ContentAcquisitionPhase.Extracting,
+                ProgressPercentage = 0,
+                CurrentOperation = $"Extracting {relativePath}...",
+                CurrentFile = relativePath,
+            });
+
+            var destDir = Path.GetDirectoryName(localPath) ?? targetDirectory;
+            ZipArchiveGuard.ExtractToDirectory(localPath, destDir, cancellationToken);
+            File.Delete(localPath);
+        }
+    }
+
+    private static bool IsArchive(string filePath)
+    {
+        var extension = Path.GetExtension(filePath).ToLowerInvariant();
+        return extension is ".zip" or ".tar" or ".gz" or ".7z" or ".rar";
+    }
+
+    private static string ResolveTargetPath(string targetDirectory, string relativePath)
+    {
+        var targetRoot = Path.GetFullPath(targetDirectory);
+        var targetPath = Path.GetFullPath(relativePath, targetRoot);
+        var relativeTargetPath = Path.GetRelativePath(targetRoot, targetPath);
+
+        if (relativeTargetPath.Equals("..", StringComparison.Ordinal) ||
+            relativeTargetPath.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal) ||
+            relativeTargetPath.StartsWith($"..{Path.AltDirectorySeparatorChar}", StringComparison.Ordinal) ||
+            Path.IsPathRooted(relativeTargetPath))
+        {
+            throw new InvalidOperationException(
+                $"Content path '{relativePath}' resolves outside target directory.");
+        }
+
+        return targetPath;
+    }
+
     private async Task<OperationResult<ContentManifest>> DownloadAllFilesAsync(
         ContentManifest packageManifest,
         IReadOnlyList<ManifestFile> filesToDownload,
@@ -191,39 +304,6 @@ public class HttpContentDeliverer(
         return await DownloadFileAsync(packageManifest, file, localPath, downloadProgress, cancellationToken);
     }
 
-    private static IProgress<DownloadProgress>? CreateFileDownloadProgress(
-        IProgress<ContentAcquisitionProgress>? progress,
-        string relativePath,
-        int currentFileIndex,
-        int totalFiles)
-    {
-        if (progress == null)
-        {
-            return null;
-        }
-
-        return new Progress<DownloadProgress>(dp =>
-        {
-            double fileProgressRange = 100.0 / totalFiles;
-            double baseProgress = (currentFileIndex - 1) * fileProgressRange;
-            double currentProgress = Math.Clamp(baseProgress + (dp.Percentage / 100.0 * fileProgressRange), 0, 100);
-
-            progress.Report(new ContentAcquisitionProgress
-            {
-                Phase = ContentAcquisitionPhase.Downloading,
-                ProgressPercentage = currentProgress,
-                CurrentOperation = totalFiles > 1
-                    ? $"{relativePath} ({currentFileIndex}/{totalFiles}) - {dp.Percentage:F0}% ({dp.FormattedSpeed})"
-                    : $"{relativePath} - {dp.Percentage:F0}% ({dp.FormattedSpeed})",
-                FilesProcessed = currentFileIndex - 1,
-                TotalFiles = totalFiles,
-                TotalBytes = dp.TotalBytes,
-                BytesProcessed = dp.BytesReceived,
-                CurrentFile = relativePath,
-            });
-        });
-    }
-
     private async Task ExtractArchivesAsync(
         ContentManifest packageManifest,
         IReadOnlyList<ManifestFile> filesToDownload,
@@ -242,86 +322,6 @@ public class HttpContentDeliverer(
         }
 
         ExtractArchivesFallback(filesToDownload, targetDirectory, progress, cancellationToken);
-    }
-
-    private static void ExtractArchivesFallback(
-        IEnumerable<ManifestFile> filesToDownload,
-        string targetDirectory,
-        IProgress<ContentAcquisitionProgress>? progress,
-        CancellationToken cancellationToken)
-    {
-        foreach (var relativePath in filesToDownload.Select(file => file.RelativePath))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var localPath = ResolveTargetPath(targetDirectory, relativePath);
-            if (!IsArchive(localPath) || !File.Exists(localPath) || !ZipValidation.IsValidZipFile(localPath))
-            {
-                continue;
-            }
-
-            progress?.Report(new ContentAcquisitionProgress
-            {
-                Phase = ContentAcquisitionPhase.Extracting,
-                ProgressPercentage = 0,
-                CurrentOperation = $"Extracting {relativePath}...",
-                CurrentFile = relativePath,
-            });
-
-            var destDir = Path.GetDirectoryName(localPath) ?? targetDirectory;
-            ZipArchiveGuard.ExtractToDirectory(localPath, destDir, cancellationToken);
-            File.Delete(localPath);
-        }
-    }
-
-    /// <inheritdoc />
-    public Task<OperationResult<bool>> ValidateContentAsync(
-        ContentManifest manifest, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            // Validate that all required URLs are accessible
-            foreach (var file in manifest.Files.Where(f => f.IsRequired && !string.IsNullOrEmpty(f.DownloadUrl)))
-            {
-                if (!Uri.TryCreate(file.DownloadUrl, UriKind.Absolute, out var uri) ||
-                    !(uri.Scheme == "http" || uri.Scheme == "https") ||
-                    (ModDBConstants.IsModDbOrDbolicalUri(uri) && uri.Scheme != Uri.UriSchemeHttps))
-                {
-                    return Task.FromResult(OperationResult<bool>.CreateSuccess(false));
-                }
-            }
-
-            return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Validation failed for HTTP content manifest {ManifestId}", manifest.Id);
-            return Task.FromResult(OperationResult<bool>.CreateFailure($"Validation failed: {ex.Message}"));
-        }
-    }
-
-    private static bool IsArchive(string filePath)
-    {
-        var extension = Path.GetExtension(filePath).ToLowerInvariant();
-        return extension is ".zip" or ".tar" or ".gz" or ".7z" or ".rar";
-    }
-
-    private static string ResolveTargetPath(string targetDirectory, string relativePath)
-    {
-        var targetRoot = Path.GetFullPath(targetDirectory);
-        var targetPath = Path.GetFullPath(relativePath, targetRoot);
-        var relativeTargetPath = Path.GetRelativePath(targetRoot, targetPath);
-
-        if (relativeTargetPath.Equals("..", StringComparison.Ordinal) ||
-            relativeTargetPath.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal) ||
-            relativeTargetPath.StartsWith($"..{Path.AltDirectorySeparatorChar}", StringComparison.Ordinal) ||
-            Path.IsPathRooted(relativeTargetPath))
-        {
-            throw new InvalidOperationException(
-                $"Content path '{relativePath}' resolves outside target directory.");
-        }
-
-        return targetPath;
     }
 
     private async Task<DownloadResult> DownloadFileAsync(

@@ -251,38 +251,44 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
 
             if (!string.IsNullOrWhiteSpace(hostPubId))
             {
-                if (content.BundledItems != null)
-                {
-                    foreach (var bundled in content.BundledItems)
-                    {
-                        if (itemIds.Contains(bundled.ContentId) &&
-                            !string.Equals(bundled.PublisherId, hostPubId, StringComparison.OrdinalIgnoreCase) &&
-                            !string.Equals(bundled.PublisherId, CatalogConstants.GenericCatalogPublisherCategory, StringComparison.OrdinalIgnoreCase))
-                        {
-                            bundled.PublisherId = hostPubId;
-                        }
-                    }
-                }
-
-                if (content.Releases != null)
-                {
-                    foreach (var release in content.Releases)
-                    {
-                        if (release.Dependencies != null)
-                        {
-                            foreach (var dep in release.Dependencies)
-                            {
-                                if (itemIds.Contains(dep.ContentId) &&
-                                    !string.Equals(dep.PublisherId, hostPubId, StringComparison.OrdinalIgnoreCase) &&
-                                    !string.Equals(dep.PublisherId, CatalogConstants.GenericCatalogPublisherCategory, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    dep.PublisherId = hostPubId;
-                                }
-                            }
-                        }
-                    }
-                }
+                NormalizeBundledItemPublishers(content, hostPubId, itemIds);
+                NormalizeReleaseDependencyPublishers(content, hostPubId, itemIds);
             }
+        }
+    }
+
+    private static void NormalizeBundledItemPublishers(CatalogContentItem content, string hostPubId, HashSet<string> itemIds)
+    {
+        if (content.BundledItems == null)
+        {
+            return;
+        }
+
+        foreach (var bundled in content.BundledItems.Where(b =>
+            itemIds.Contains(b.ContentId) &&
+            (string.IsNullOrWhiteSpace(b.PublisherId) ||
+             string.Equals(b.PublisherId, CatalogConstants.GenericCatalogPublisherCategory, StringComparison.OrdinalIgnoreCase))))
+        {
+            bundled.PublisherId = hostPubId;
+        }
+    }
+
+    private static void NormalizeReleaseDependencyPublishers(CatalogContentItem content, string hostPubId, HashSet<string> itemIds)
+    {
+        if (content.Releases == null)
+        {
+            return;
+        }
+
+        foreach (var dep in content.Releases
+            .Where(r => r.Dependencies != null)
+            .SelectMany(r => r.Dependencies)
+            .Where(dep =>
+                itemIds.Contains(dep.ContentId) &&
+                (string.IsNullOrWhiteSpace(dep.PublisherId) ||
+                 string.Equals(dep.PublisherId, CatalogConstants.GenericCatalogPublisherCategory, StringComparison.OrdinalIgnoreCase))))
+        {
+            dep.PublisherId = hostPubId;
         }
     }
 

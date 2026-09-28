@@ -167,10 +167,18 @@ public partial class ContentLibraryViewModel(
     /// <summary>
     /// Gets the effective release count for the selected content item (upstream live count when tracked, or static count).
     /// </summary>
-    public int EffectiveSelectedContentReleasesCount =>
-        SelectedContentTracksUpstream
-            ? (HasUpstreamPreview ? UpstreamPreviewReleases.Count : (SelectedContent?.Releases?.Count ?? 0))
-            : (SelectedContent?.Releases?.Count ?? 0);
+    public int EffectiveSelectedContentReleasesCount
+    {
+        get
+        {
+            if (SelectedContentTracksUpstream && HasUpstreamPreview)
+            {
+                return UpstreamPreviewReleases.Count;
+            }
+
+            return SelectedContent?.Releases?.Count ?? 0;
+        }
+    }
 
     /// <summary>
     /// Gets the localized catalog item count summary for the footer.

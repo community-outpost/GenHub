@@ -430,20 +430,18 @@ public class CatalogUpstreamIngestionService(
         if (item.Releases.Count > 0)
         {
             var firstRel = item.Releases[0];
-            foreach (var dep in firstRel.Dependencies)
+            foreach (var dep in firstRel.Dependencies.Where(dep =>
+                !synthesized.Dependencies.Any(d => string.Equals(d.ContentId, dep.ContentId, StringComparison.OrdinalIgnoreCase))))
             {
-                if (!synthesized.Dependencies.Any(d => string.Equals(d.ContentId, dep.ContentId, StringComparison.OrdinalIgnoreCase)))
+                synthesized.Dependencies.Add(new CatalogDependency
                 {
-                    synthesized.Dependencies.Add(new CatalogDependency
-                    {
-                        PublisherId = dep.PublisherId,
-                        ContentId = dep.ContentId,
-                        VersionConstraint = dep.VersionConstraint,
-                        ContentType = dep.ContentType,
-                        IsOptional = dep.IsOptional,
-                        DefinitionUrl = dep.DefinitionUrl,
-                    });
-                }
+                    PublisherId = dep.PublisherId,
+                    ContentId = dep.ContentId,
+                    VersionConstraint = dep.VersionConstraint,
+                    ContentType = dep.ContentType,
+                    IsOptional = dep.IsOptional,
+                    DefinitionUrl = dep.DefinitionUrl,
+                });
             }
         }
 
