@@ -134,7 +134,11 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
 
             using (var frameBuffer = bitmap.Lock())
             {
-                Marshal.Copy(texture.PixelData, 0, frameBuffer.Address, texture.PixelData.Length);
+                int rowBytes = texture.Width * 4;
+                for (int y = 0; y < texture.Height; y++)
+                {
+                    Marshal.Copy(texture.PixelData, y * rowBytes, frameBuffer.Address + (y * frameBuffer.RowBytes), rowBytes);
+                }
             }
 
             return OperationResult<Bitmap>.CreateSuccess(bitmap, Stopwatch.GetElapsedTime(started));
@@ -148,6 +152,113 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
         {
             logger.LogError(ex, "Invalid bitmap arguments for {Width}x{Height} texture", texture.Width, texture.Height);
             return OperationResult<Bitmap>.CreateFailure($"Invalid bitmap dimensions: {ex.Message}", Stopwatch.GetElapsedTime(started));
+        }
+    }
+
+    /// <summary>
+    /// Encodes portable pixels as PNG and saves them to a file.
+    /// </summary>
+    /// <param name="texture">The texture to save.</param>
+    /// <param name="path">The destination path.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The saved path, or a failure describing the problem.</returns>
+    public async Task<OperationResult<string>> SavePngAsync(DecodedTexture texture, string path, CancellationToken cancellationToken = default)
+    {
+        var started = Stopwatch.GetTimestamp();
+        ArgumentNullException.ThrowIfNull(texture);
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        if (texture.Width <= 0 || texture.Height <= 0)
+        {
+            return OperationResult<string>.CreateFailure("Texture dimensions must be positive.", Stopwatch.GetElapsedTime(started));
+        }
+
+        if ((long)texture.Width * texture.Height * 4 != texture.PixelData.Length)
+        {
+            return OperationResult<string>.CreateFailure("Pixel data length does not match texture dimensions.", Stopwatch.GetElapsedTime(started));
+        }
+
+        string? tempPath = null;
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            tempPath = CreateTempPath(path);
+            using (var stream = File.Create(tempPath))
+            {
+                using var image = Image.LoadPixelData<Rgba32>(texture.PixelData, texture.Width, texture.Height);
+                await image.SaveAsPngAsync(stream, cancellationToken).ConfigureAwait(false);
+                await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            ReplaceDestination(tempPath, path);
+            tempPath = null;
+            return OperationResult<string>.CreateSuccess(path, Stopwatch.GetElapsedTime(started));
+        }
+        catch (OperationCanceledException)
+        {
+            DeleteQuietly(tempPath);
+            throw;
+        }
+        catch (IOException ex)
+        {
+            DeleteQuietly(tempPath);
+            logger.LogWarning(ex, "Failed to save PNG file: {Path}", path);
+            return OperationResult<string>.CreateFailure($"Failed to save PNG file: {path}", Stopwatch.GetElapsedTime(started));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            DeleteQuietly(tempPath);
+            logger.LogWarning(ex, "Access denied saving PNG file: {Path}", path);
+            return OperationResult<string>.CreateFailure($"Access denied saving PNG file: {path}", Stopwatch.GetElapsedTime(started));
+        }
+    }
+
+    /// <summary>
+    /// Encodes portable pixels as TGA and saves them to a file.
+    /// </summary>
+    /// <param name="texture">The texture to save.</param>
+    /// <param name="path">The destination path.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The saved path, or a failure describing the problem.</returns>
+    public async Task<OperationResult<string>> SaveTgaAsync(DecodedTexture texture, string path, CancellationToken cancellationToken = default)
+    {
+        var started = Stopwatch.GetTimestamp();
+        ArgumentNullException.ThrowIfNull(texture);
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        var encoded = codec.EncodeTga(texture);
+        if (encoded.Failed || encoded.Data is null)
+        {
+            return OperationResult<string>.CreateFailure(encoded, Stopwatch.GetElapsedTime(started));
+        }
+
+        string? tempPath = null;
+        try
+        {
+            tempPath = CreateTempPath(path);
+            await File.WriteAllBytesAsync(tempPath, encoded.Data, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            ReplaceDestination(tempPath, path);
+            tempPath = null;
+            return OperationResult<string>.CreateSuccess(path, Stopwatch.GetElapsedTime(started));
+        }
+        catch (OperationCanceledException)
+        {
+            DeleteQuietly(tempPath);
+            throw;
+        }
+        catch (IOException ex)
+        {
+            DeleteQuietly(tempPath);
+            logger.LogWarning(ex, "Failed to save TGA file: {Path}", path);
+            return OperationResult<string>.CreateFailure($"Failed to save TGA file: {path}", Stopwatch.GetElapsedTime(started));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            DeleteQuietly(tempPath);
+            logger.LogWarning(ex, "Access denied saving TGA file: {Path}", path);
+            return OperationResult<string>.CreateFailure($"Access denied saving TGA file: {path}", Stopwatch.GetElapsedTime(started));
         }
     }
 
@@ -265,112 +376,6 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
         {
             logger.LogWarning(ex, "Access denied reading image file: {Path}", path);
             return OperationResult<DecodedTexture>.CreateFailure($"Access denied reading image file: {path}", Stopwatch.GetElapsedTime(started));
-        }
-    }
-    /// <summary>
-    /// Encodes portable pixels as PNG and saves them to a file.
-    /// </summary>
-    /// <param name="texture">The texture to save.</param>
-    /// <param name="path">The destination path.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The saved path, or a failure describing the problem.</returns>
-    public async Task<OperationResult<string>> SavePngAsync(DecodedTexture texture, string path, CancellationToken cancellationToken = default)
-    {
-        var started = Stopwatch.GetTimestamp();
-        ArgumentNullException.ThrowIfNull(texture);
-        ArgumentException.ThrowIfNullOrWhiteSpace(path);
-
-        if (texture.Width <= 0 || texture.Height <= 0)
-        {
-            return OperationResult<string>.CreateFailure("Texture dimensions must be positive.", Stopwatch.GetElapsedTime(started));
-        }
-
-        if ((long)texture.Width * texture.Height * 4 != texture.PixelData.Length)
-        {
-            return OperationResult<string>.CreateFailure("Pixel data length does not match texture dimensions.", Stopwatch.GetElapsedTime(started));
-        }
-
-        string? tempPath = null;
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            tempPath = CreateTempPath(path);
-            using (var stream = File.Create(tempPath))
-            {
-                using var image = Image.LoadPixelData<Rgba32>(texture.PixelData, texture.Width, texture.Height);
-                await image.SaveAsPngAsync(stream, cancellationToken).ConfigureAwait(false);
-                await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
-            }
-
-            cancellationToken.ThrowIfCancellationRequested();
-            ReplaceDestination(tempPath, path);
-            tempPath = null;
-            return OperationResult<string>.CreateSuccess(path, Stopwatch.GetElapsedTime(started));
-        }
-        catch (OperationCanceledException)
-        {
-            DeleteQuietly(tempPath);
-            throw;
-        }
-        catch (IOException ex)
-        {
-            DeleteQuietly(tempPath);
-            logger.LogWarning(ex, "Failed to save PNG file: {Path}", path);
-            return OperationResult<string>.CreateFailure($"Failed to save PNG file: {path}", Stopwatch.GetElapsedTime(started));
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            DeleteQuietly(tempPath);
-            logger.LogWarning(ex, "Access denied saving PNG file: {Path}", path);
-            return OperationResult<string>.CreateFailure($"Access denied saving PNG file: {path}", Stopwatch.GetElapsedTime(started));
-        }
-    }
-
-    /// <summary>
-    /// Encodes portable pixels as TGA and saves them to a file.
-    /// </summary>
-    /// <param name="texture">The texture to save.</param>
-    /// <param name="path">The destination path.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The saved path, or a failure describing the problem.</returns>
-    public async Task<OperationResult<string>> SaveTgaAsync(DecodedTexture texture, string path, CancellationToken cancellationToken = default)
-    {
-        var started = Stopwatch.GetTimestamp();
-        ArgumentNullException.ThrowIfNull(texture);
-        ArgumentException.ThrowIfNullOrWhiteSpace(path);
-
-        var encoded = codec.EncodeTga(texture);
-        if (encoded.Failed || encoded.Data is null)
-        {
-            return OperationResult<string>.CreateFailure(encoded, Stopwatch.GetElapsedTime(started));
-        }
-
-        string? tempPath = null;
-        try
-        {
-            tempPath = CreateTempPath(path);
-            await File.WriteAllBytesAsync(tempPath, encoded.Data, cancellationToken).ConfigureAwait(false);
-            cancellationToken.ThrowIfCancellationRequested();
-            ReplaceDestination(tempPath, path);
-            tempPath = null;
-            return OperationResult<string>.CreateSuccess(path, Stopwatch.GetElapsedTime(started));
-        }
-        catch (OperationCanceledException)
-        {
-            DeleteQuietly(tempPath);
-            throw;
-        }
-        catch (IOException ex)
-        {
-            DeleteQuietly(tempPath);
-            logger.LogWarning(ex, "Failed to save TGA file: {Path}", path);
-            return OperationResult<string>.CreateFailure($"Failed to save TGA file: {path}", Stopwatch.GetElapsedTime(started));
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            DeleteQuietly(tempPath);
-            logger.LogWarning(ex, "Access denied saving TGA file: {Path}", path);
-            return OperationResult<string>.CreateFailure($"Access denied saving TGA file: {path}", Stopwatch.GetElapsedTime(started));
         }
     }
 
