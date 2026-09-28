@@ -29,6 +29,11 @@ namespace GenHub.Tests.Core.Features.Info;
 /// </summary>
 public class ToolDemoViewModelTests
 {
+    private sealed class SynchronousProgress<T>(Action<T> action) : IProgress<T>
+    {
+        public void Report(T value) => action(value);
+    }
+
     private const string SampleWndText =
         "FILE_VERSION = 2;\n" +
         "WINDOW\n" +
@@ -383,10 +388,5 @@ public class ToolDemoViewModelTests
                 Dispatcher.UIThread.RunJobs();
             }
         }
-    }
-
-    private sealed class SynchronousProgress<T>(Action<T> action) : IProgress<T>
-    {
-        public void Report(T value) => action(value);
     }
 }
