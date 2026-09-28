@@ -1170,7 +1170,7 @@ public partial class ConfigEditorViewModel(
 
         var existingItems = Configuration.Items
             .Where(i => !string.IsNullOrEmpty(i.Name))
-            .GroupBy(i => i.Name, StringComparer.OrdinalIgnoreCase)
+            .GroupBy(i => i.Name.Trim(), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
         var uniqueBundleItems = BundleItems

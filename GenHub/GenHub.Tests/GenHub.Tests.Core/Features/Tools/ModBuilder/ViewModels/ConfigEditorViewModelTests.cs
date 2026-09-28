@@ -174,6 +174,48 @@ public class ConfigEditorViewModelTests
     }
 
     [Fact]
+    public async Task SaveAsync_PreservesExistingFilesAndEventsWithSurroundingWhitespaceAsync()
+    {
+        var existingFile = new BundleFile { AbsSourceFile = "/data/GameData.ini", RelTargetFile = "Data/INI/GameData.ini" };
+        var existingEvent = new BundleEvent { Type = BundleEventType.OnPreBuild, AbsScript = "tools/patch.py" };
+
+        var project = new ModBuilderProject
+        {
+            Name = "TestMod",
+            Configuration = new BuildConfiguration
+            {
+                Items =
+                [
+                    new BundleItem
+                    {
+                        Name = "  CoreData  ",
+                        IsBig = true,
+                        Files = [existingFile],
+                        Events = new Dictionary<BundleEventType, BundleEvent>
+                        {
+                            { BundleEventType.OnPreBuild, existingEvent },
+                        },
+                    },
+                ],
+            },
+        };
+
+        var viewModel = CreateViewModel();
+
+        await viewModel.InitializeAsync(project);
+
+        await viewModel.SaveCommand.ExecuteAsync(null);
+
+        Assert.Single(project.Configuration.Items);
+        var savedItem = project.Configuration.Items[0];
+        Assert.Equal("CoreData", savedItem.Name);
+        Assert.Single(savedItem.Files);
+        Assert.Equal(existingFile.AbsSourceFile, savedItem.Files[0].AbsSourceFile);
+        Assert.True(savedItem.Events.ContainsKey(BundleEventType.OnPreBuild));
+        Assert.False(viewModel.HasChanges);
+    }
+
+    [Fact]
     public async Task SaveAsync_PreservesPatternsParamsAndManifestsAsync()
     {
         var projectDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
