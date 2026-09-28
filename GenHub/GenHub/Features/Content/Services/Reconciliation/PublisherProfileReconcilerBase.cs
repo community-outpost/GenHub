@@ -227,11 +227,9 @@ public abstract class PublisherProfileReconcilerBase(
                     [TelemetryConstants.Properties.Success] = !anyFailure,
                 });
 
-                // Step 7: Show success notification
-                interactionServices.NotificationService.ShowSuccess(
-                    interactionServices.LocalizationService.GetLocalizedString(text.UpdatedTitleKey, text.UpdatedTitleFallback),
-                    interactionServices.LocalizationService.GetLocalizedString("Content.Notification.PublisherUpdated.Message", $"Successfully updated to version {updateResult.LatestVersion}. {profilesUpdated} profiles {(strategy == UpdateStrategy.CreateNewProfile ? "created" : "updated")}.", updateResult.LatestVersion, profilesUpdated, strategy == UpdateStrategy.CreateNewProfile ? interactionServices.LocalizationService.GetLocalizedString("Content.Notification.ProfilesCreated.Word", "created") : interactionServices.LocalizationService.GetLocalizedString("Content.Notification.ProfilesUpdated.Word", "updated")),
-                    NotificationDurations.Long);
+                // Step 7: Show completion notification. Partial failures warn instead of
+                // claiming success, mirroring GeneralsOnlineProfileReconciler.
+                ShowCompletionNotification(strategy, updateResult.LatestVersion, profilesUpdated, anyFailure);
 
                 logger.LogInformation(
                     "{Prefix} Reconciliation complete. Processed {ProfileCount} profiles with strategy {Strategy}",
@@ -239,6 +237,10 @@ public abstract class PublisherProfileReconcilerBase(
                     profilesUpdated,
                     strategy);
 
+                // Partial failures intentionally stay successful: the warning toast above
+                // and the telemetry event record the partial state, while success lets the
+                // launcher reload and run the updated target profile. This mirrors
+                // GeneralsOnlineProfileReconciler, which also returns success here.
                 return OperationResult<PublisherReconciliationResult>.CreateSuccess(PublisherReconciliationResult.Success(
                     strategy,
                     updateOutcome.TargetProfileId ?? triggeringProfileId,
@@ -289,6 +291,23 @@ public abstract class PublisherProfileReconcilerBase(
         }
 
         return mapping;
+    }
+
+    private void ShowCompletionNotification(UpdateStrategy strategy, string? latestVersion, int profilesUpdated, bool anyFailure)
+    {
+        if (anyFailure)
+        {
+            interactionServices.NotificationService.ShowWarning(
+                interactionServices.LocalizationService.GetLocalizedString(text.PartialUpdatedTitleKey, text.PartialUpdatedTitleFallback),
+                interactionServices.LocalizationService.GetLocalizedString("Content.Notification.PublisherUpdatedPartial.Message", $"Updated to {latestVersion}, but some profiles or components had issues.", latestVersion),
+                NotificationDurations.VeryLong);
+            return;
+        }
+
+        interactionServices.NotificationService.ShowSuccess(
+            interactionServices.LocalizationService.GetLocalizedString(text.UpdatedTitleKey, text.UpdatedTitleFallback),
+            interactionServices.LocalizationService.GetLocalizedString("Content.Notification.PublisherUpdated.Message", $"Successfully updated to version {latestVersion}. {profilesUpdated} profiles {(strategy == UpdateStrategy.CreateNewProfile ? "created" : "updated")}.", latestVersion, profilesUpdated, strategy == UpdateStrategy.CreateNewProfile ? interactionServices.LocalizationService.GetLocalizedString("Content.Notification.ProfilesCreated.Word", "created") : interactionServices.LocalizationService.GetLocalizedString("Content.Notification.ProfilesUpdated.Word", "updated")),
+            NotificationDurations.Long);
     }
 
     private OperationResult<PublisherReconciliationResult> FailUpdate(
