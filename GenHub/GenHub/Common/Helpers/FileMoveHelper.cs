@@ -1,6 +1,7 @@
 using GenHub.Features.Workspace;
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace GenHub.Common.Helpers;
 
@@ -9,10 +10,24 @@ namespace GenHub.Common.Helpers;
 /// </summary>
 internal static class FileMoveHelper
 {
+    private const int EPERM = 1;
+    private const int ENOENT = 2;
+    private const int EACCES = 13;
+    private const int EXDEV = 18;
+    private const int EINVAL = 22;
+    private const int LinuxENOSYS = 38;
+    private const int MacENOTSUP = 45;
+    private const int LinuxEOPNOTSUPP = 95;
+
     /// <summary>
-    /// Moves a file to a path that does not exist yet. On Unix, <see cref="File.Move(string, string)"/> copies the file
-    /// when it cannot link it and then deletes the source. When that delete fails, the copy is removed here before the
-    /// exception is rethrown, so the source is the only file left.
+    /// Moves a file to a path that does not exist yet, without ever replacing an existing destination.
+    /// <para>
+    /// On Unix, <see cref="File.Move(string, string)"/> copies a file it cannot link and then deletes the source.
+    /// When that delete fails, the copy stays behind. This method renames atomically with the no-replace flag instead,
+    /// so a failed move leaves nothing to clean up. When the file system does not support that rename, it falls back
+    /// to <see cref="File.Move(string, string)"/> and never deletes the destination, because it cannot prove that this
+    /// call created it. On Windows a same-volume <see cref="File.Move(string, string)"/> is already a plain rename.
+    /// </para>
     /// </summary>
     /// <param name="sourcePath">The file to move.</param>
     /// <param name="destinationPath">The new path. It must not exist.</param>
@@ -20,49 +35,57 @@ internal static class FileMoveHelper
     /// <exception cref="UnauthorizedAccessException">The move was not permitted.</exception>
     public static void MoveWithoutResidue(string sourcePath, string destinationPath)
     {
-        if (File.Exists(destinationPath) || Directory.Exists(destinationPath))
-        {
-            throw new IOException($"The destination '{destinationPath}' already exists.");
-        }
-
-        try
+        if (OperatingSystem.IsWindows())
         {
             File.Move(sourcePath, destinationPath);
+            return;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            if (File.Exists(sourcePath) && File.Exists(destinationPath))
-            {
-                RemovePartialCopy(destinationPath);
-            }
 
-            throw;
+        var error = TryRenameNoReplace(Path.GetFullPath(sourcePath), Path.GetFullPath(destinationPath));
+        if (error == 0)
+        {
+            return;
         }
+
+        if (error is null or EXDEV or EINVAL or LinuxENOSYS or MacENOTSUP or LinuxEOPNOTSUPP)
+        {
+            File.Move(sourcePath, destinationPath);
+            return;
+        }
+
+        throw CreateException(error.Value, sourcePath, destinationPath);
     }
 
-    private static void RemovePartialCopy(string path)
+    private static int? TryRenameNoReplace(string sourcePath, string destinationPath)
     {
         try
         {
-            File.Delete(path);
-            return;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // The copy carries the source's flags, so an immutable source leaves an immutable copy.
-            if (!MacOSNativeMethods.TryClearFileFlags(path))
+            if (OperatingSystem.IsMacOS())
             {
-                return;
+                return MacOSNativeMethods.RenameNoReplace(sourcePath, destinationPath);
+            }
+
+            if (OperatingSystem.IsLinux())
+            {
+                return LinuxNativeMethods.RenameNoReplace(sourcePath, destinationPath);
             }
         }
+        catch (EntryPointNotFoundException)
+        {
+            // The C library has no no-replace rename.
+        }
 
-        try
+        return null;
+    }
+
+    private static Exception CreateException(int error, string sourcePath, string destinationPath)
+    {
+        var message = $"Could not move '{sourcePath}' to '{destinationPath}': {Marshal.GetPInvokeErrorMessage(error)}";
+        return error switch
         {
-            File.Delete(path);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // The caller rethrows the original move failure.
-        }
+            EPERM or EACCES => new UnauthorizedAccessException(message),
+            ENOENT => new FileNotFoundException(message, sourcePath),
+            _ => new IOException(message),
+        };
     }
 }

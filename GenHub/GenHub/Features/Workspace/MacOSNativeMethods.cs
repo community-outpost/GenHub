@@ -60,16 +60,20 @@ internal static partial class MacOSNativeMethods
     }
 
     /// <summary>
-    /// Clears the flags of a file without following a symbolic link, so an immutable or
-    /// append-only file the user owns can be removed. Does nothing on other platforms.
+    /// Renames a file without replacing an existing destination, <c>renamex_np(2)</c> with
+    /// <c>RENAME_EXCL</c>. The rename is atomic and never falls back to copying.
     /// </summary>
-    /// <param name="path">The file to clear.</param>
-    /// <returns><c>true</c> when the flags were cleared.</returns>
-    internal static bool TryClearFileFlags(string path) =>
-        OperatingSystem.IsMacOS() && SetFileFlagsNoFollow(path, 0) == 0;
+    /// <param name="sourcePath">The file to rename.</param>
+    /// <param name="destinationPath">The new path.</param>
+    /// <returns>0 on success, otherwise the <c>errno</c> value.</returns>
+    internal static int RenameNoReplace(string sourcePath, string destinationPath)
+    {
+        const uint renameExclusive = 0x4;
+        return RenameExtended(sourcePath, destinationPath, renameExclusive) == 0 ? 0 : Marshal.GetLastPInvokeError();
+    }
 
-    [LibraryImport("libc", EntryPoint = "lchflags", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
-    private static partial int SetFileFlagsNoFollow(string path, uint flags);
+    [LibraryImport("libc", EntryPoint = "renamex_np", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
+    private static partial int RenameExtended(string sourcePath, string destinationPath, uint flags);
 
     [LibraryImport("libc", EntryPoint = "removexattr", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
     private static partial int RemoveExtendedAttribute(string path, string name, int options);
