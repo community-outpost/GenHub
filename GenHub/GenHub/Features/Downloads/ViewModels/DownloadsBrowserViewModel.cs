@@ -139,6 +139,9 @@ public sealed partial class DownloadsBrowserViewModel(
 
         /// <summary>Gets or sets the active detail view model for this publisher.</summary>
         public ContentDetailViewModel? ActiveDetailViewModel { get; set; }
+
+        /// <summary>Gets or sets the catalog ID associated with this browse snapshot.</summary>
+        public string? CatalogId { get; set; }
     }
 
     private readonly Dictionary<string, IFilterPanelViewModel> _filterViewModels = [];
@@ -1144,7 +1147,8 @@ public sealed partial class DownloadsBrowserViewModel(
 
         lock (_cacheLock)
         {
-            if (_browseCache.TryGetValue(value.PublisherId, out var cached))
+            if (_browseCache.TryGetValue(value.PublisherId, out var cached) &&
+                string.Equals(cached.CatalogId, SelectedCatalog?.Id, StringComparison.OrdinalIgnoreCase))
             {
                 // Cache hit: restore full dataset instantly without network discovery
                 ContentItems = new ObservableCollection<ContentGridItemViewModel>(cached.Items);
@@ -1239,6 +1243,7 @@ public sealed partial class DownloadsBrowserViewModel(
                     SearchTerm = SearchTerm,
                     HasCustomQuery = _hasCustomQuery,
                     ActiveDetailViewModel = SelectedContent,
+                    CatalogId = SelectedCatalog?.Id,
                 };
             }
         }
@@ -1537,14 +1542,11 @@ public sealed partial class DownloadsBrowserViewModel(
                 return;
             }
 
-            if (string.Equals(subscription.CatalogUrl, catalog.Url, StringComparison.OrdinalIgnoreCase))
-            {
-                if (!string.Equals(subscription.SelectedCatalogId, catalog.Id, StringComparison.Ordinal))
-                {
-                    subscription.SelectedCatalogId = catalog.Id;
-                    await subscriptionStore.UpdateSubscriptionAsync(subscription, _vmCts.Token);
-                }
+            var catalogUrlChanged = !string.Equals(subscription.CatalogUrl, catalog.Url, StringComparison.OrdinalIgnoreCase);
+            var catalogIdChanged = !string.Equals(subscription.SelectedCatalogId, catalog.Id, StringComparison.OrdinalIgnoreCase);
 
+            if (!catalogUrlChanged && !catalogIdChanged)
+            {
                 return;
             }
 
@@ -1564,6 +1566,17 @@ public sealed partial class DownloadsBrowserViewModel(
                     _localizationService?.GetString("Downloads.Browser.SwitchCatalogFailedMessage") ?? "The catalog selection could not be saved. Please try again.");
                 await RevertCatalogSelectionAsync(publisherId);
                 return;
+            }
+
+            lock (_cacheLock)
+            {
+                if (_browseCache.Remove(publisherId, out var oldState))
+                {
+                    foreach (var item in oldState.Items)
+                    {
+                        item.Dispose();
+                    }
+                }
             }
 
             discoverer.Configure(subscription);
@@ -2603,6 +2616,7 @@ public sealed partial class DownloadsBrowserViewModel(
                     existingState.CurrentPage = query.Page ?? 1;
                     existingState.CanLoadMore = hasMoreItems;
                 }
+                existingState.CatalogId = SelectedCatalog?.Id;
             }
             else
             {
@@ -2611,6 +2625,7 @@ public sealed partial class DownloadsBrowserViewModel(
                     Items = [.. newVms],
                     CurrentPage = query.Page ?? 1,
                     CanLoadMore = hasMoreItems,
+                    CatalogId = SelectedCatalog?.Id,
                 };
             }
 

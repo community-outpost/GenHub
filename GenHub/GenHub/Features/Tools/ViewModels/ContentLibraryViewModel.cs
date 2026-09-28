@@ -165,6 +165,14 @@ public partial class ContentLibraryViewModel(
     public bool ShowFallbackReleasesNote => SelectedContentTracksUpstream && HasUpstreamPreview;
 
     /// <summary>
+    /// Gets the effective release count for the selected content item (upstream live count when tracked, or static count).
+    /// </summary>
+    public int EffectiveSelectedContentReleasesCount =>
+        SelectedContentTracksUpstream
+            ? (HasUpstreamPreview ? UpstreamPreviewReleases.Count : (SelectedContent?.Releases?.Count ?? 0))
+            : (SelectedContent?.Releases?.Count ?? 0);
+
+    /// <summary>
     /// Gets the localized catalog item count summary for the footer.
     /// </summary>
     public string CatalogSummaryText => string.Format(
@@ -1402,6 +1410,7 @@ public partial class ContentLibraryViewModel(
         RefreshHostingHint();
         OnPropertyChanged(nameof(SelectedContentTracksUpstream));
         OnPropertyChanged(nameof(ShowFallbackReleasesNote));
+        OnPropertyChanged(nameof(EffectiveSelectedContentReleasesCount));
         if (_suppressUpstreamPreviewReload)
         {
             return;
@@ -1428,6 +1437,7 @@ public partial class ContentLibraryViewModel(
         OnPropertyChanged(nameof(HasUpstreamPreview));
         OnPropertyChanged(nameof(UpstreamPreviewVersions));
         OnPropertyChanged(nameof(ShowFallbackReleasesNote));
+        OnPropertyChanged(nameof(EffectiveSelectedContentReleasesCount));
 
         if (value == null || upstreamIngestionService == null || !IsSelectedContentUpstream())
         {

@@ -234,7 +234,16 @@
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Spacing="4">
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamVariantAxis}" Classes="label"/>
-                                    <TextBox Text="{Binding UpstreamVariantAxis}" Watermark="{localization:Localize Tools.PublisherStudio.Content.UpstreamVariantAxisPlaceholder}"/>
+                                    <AutoCompleteBox Text="{Binding UpstreamVariantAxis, Mode=TwoWay}"
+                                                     ItemsSource="{Binding CommonVariantAxes}"
+                                                     FilterMode="StartsWith"
+                                                     Watermark="{localization:Localize Tools.PublisherStudio.Content.UpstreamVariantAxisPlaceholder}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamVariantAxisHint}"
+                                               Classes="caption"
+                                               Foreground="{DynamicResource TextSecondary}"
+                                               TextWrapping="Wrap"
+                                               FontSize="11"
+                                               Margin="0,2,0,0"/>
                                 </StackPanel>
                             </Grid>
                         </StackPanel>
@@ -242,7 +251,7 @@
                 </Border>
 
                 <!-- Description -->
-                <StackPanel Spacing="6">
+                <StackPanel Spacing="6" Margin="0,0,0,4">
                     <StackPanel Orientation="Horizontal" Spacing="4">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.Description}" Classes="label"/>
                         <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
@@ -250,8 +259,7 @@
                     <TextBox Text="{Binding Description}"
                              TextWrapping="Wrap"
                              AcceptsReturn="True"
-                             MinHeight="110"
-                             Height="110"
+                             MinHeight="100"
                              Watermark="{localization:Localize Tools.PublisherStudio.Content.DescriptionPlaceholder}"/>
                 </StackPanel>
 

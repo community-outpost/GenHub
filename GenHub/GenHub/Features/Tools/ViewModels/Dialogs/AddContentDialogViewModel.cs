@@ -229,6 +229,19 @@ public partial class AddContentDialogViewModel(
     [ObservableProperty]
     private string? _upstreamVariantAxis = "game-type";
 
+    /// <summary>
+    /// Gets predefined common variant axes for autocompletion.
+    /// </summary>
+    public IReadOnlyList<string> CommonVariantAxes { get; } =
+    [
+        "game-type",
+        "resolution",
+        "language",
+        "edition",
+        "channel",
+        "platform",
+    ];
+
     [ObservableProperty]
     private bool _isFeatured;
 
@@ -1072,6 +1085,30 @@ public partial class AddContentDialogViewModel(
             {
                 PackageFilename = name;
             }
+
+            _ = TryFetchRemoteFileSizeAsync(uri.ToString());
+        }
+    }
+
+    private async Task TryFetchRemoteFileSizeAsync(string url)
+    {
+        try
+        {
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+            using var request = new HttpRequestMessage(HttpMethod.Head, url);
+            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            if (response.IsSuccessStatusCode && response.Content.Headers.ContentLength is { } length && length > 0)
+            {
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    FileSize = length;
+                    FileSizeDisplay = FormatBytes(length);
+                });
+            }
+        }
+        catch
+        {
+            // Remote size detection is best-effort
         }
     }
 
@@ -2166,7 +2203,7 @@ public partial class AddContentDialogViewModel(
             Filename = artifactName,
             DownloadUrl = UseDirectUrl ? (DownloadUrl?.Trim() ?? string.Empty) : string.Empty,
             LocalFilePath = UseDirectUrl ? null : LocalFilePath,
-            Size = UseDirectUrl ? 0 : FileSize,
+            Size = FileSize > 0 ? FileSize : 0,
             Sha256 = UseDirectUrl ? string.Empty : (Sha256Hash?.Trim() ?? string.Empty),
             ContentType = MimeTypeHelper.FromFileName(artifactName),
             IsPrimary = true,

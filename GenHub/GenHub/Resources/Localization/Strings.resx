@@ -14557,6 +14557,9 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="Tools.PublisherStudio.Content.UpstreamVariantAxisPlaceholder" xml:space="preserve">
     <value>game-type</value>
   </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamVariantAxisHint" xml:space="preserve">
+    <value>Specifies the dimension along which releases vary (e.g. game-type, resolution, edition). Leave blank if not applicable.</value>
+  </data>
   <data name="GameProfiles.Card.Tooltip.MoveLeft" xml:space="preserve">
     <value>Move Left</value>
   </data>
@@ -15797,5 +15800,8 @@ How do you want to apply this update?</value>
   </data>
   <data name="Info.Demo.SizeExpanded" xml:space="preserve">
     <value>Expanded (980x680)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
+    <value>Manual Fallback Releases (Overrides)</value>
   </data>
 </root>

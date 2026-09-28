@@ -255,10 +255,20 @@ public class CatalogUpstreamIngestionService(
         if (sync?.AssetRules is { Count: > 0 })
         {
             PopulateArtifactsFromAssetRules(synthesized, release.Assets, sync, logger);
+            if (synthesized.Artifacts.Count == 0)
+            {
+                logger.LogInformation("No artifacts matched custom asset rules for '{Version}', falling back to generic GitHub assets", synthesized.Version);
+                PopulateGenericGitHubArtifacts(synthesized, release.Assets);
+            }
         }
         else if (string.Equals(provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
         {
             PopulateDefaultSuperHackersArtifacts(synthesized, release.Assets);
+            if (synthesized.Artifacts.Count == 0)
+            {
+                logger.LogInformation("No artifacts matched default SuperHackers client patterns for '{Version}', falling back to generic GitHub assets", synthesized.Version);
+                PopulateGenericGitHubArtifacts(synthesized, release.Assets);
+            }
         }
         else
         {
@@ -416,6 +426,26 @@ public class CatalogUpstreamIngestionService(
 
         var synthesized = SynthesizeGitHubRelease(release, isTrackPrerelease, sync, provider, logger);
         AttachEaBaseGameDependency(item, synthesized);
+
+        if (item.Releases.Count > 0)
+        {
+            var firstRel = item.Releases[0];
+            foreach (var dep in firstRel.Dependencies)
+            {
+                if (!synthesized.Dependencies.Any(d => string.Equals(d.ContentId, dep.ContentId, StringComparison.OrdinalIgnoreCase)))
+                {
+                    synthesized.Dependencies.Add(new CatalogDependency
+                    {
+                        PublisherId = dep.PublisherId,
+                        ContentId = dep.ContentId,
+                        VersionConstraint = dep.VersionConstraint,
+                        ContentType = dep.ContentType,
+                        IsOptional = dep.IsOptional,
+                        DefinitionUrl = dep.DefinitionUrl,
+                    });
+                }
+            }
+        }
 
         if (synthesized.Artifacts.Count > 0)
         {

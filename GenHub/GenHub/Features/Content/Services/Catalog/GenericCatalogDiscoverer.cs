@@ -300,7 +300,10 @@ public class GenericCatalogDiscoverer(
         }
     }
 
-    private static IReadOnlyList<string> ResolveDefinitionCatalogUrls(PublisherDefinition? definition, string? selectedCatalogId)
+    private static IReadOnlyList<string> ResolveDefinitionCatalogUrls(
+        PublisherDefinition? definition,
+        string? selectedCatalogId,
+        string? subscriptionCatalogUrl = null)
     {
         var urls = new List<string>();
         if (definition == null)
@@ -313,8 +316,17 @@ public class GenericCatalogDiscoverer(
             // The selected catalog goes first so the feed the user follows wins
             // over sibling catalogs when a publisher hosts several.
             var selected = !string.IsNullOrWhiteSpace(selectedCatalogId)
-                ? definition.Catalogs.FirstOrDefault(e => string.Equals(e.Id, selectedCatalogId, StringComparison.OrdinalIgnoreCase))
+                ? definition.Catalogs.FirstOrDefault(e =>
+                    string.Equals(e.Id, selectedCatalogId, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(e.Url, selectedCatalogId, StringComparison.OrdinalIgnoreCase))
                 : null;
+
+            if (selected == null && !string.IsNullOrWhiteSpace(subscriptionCatalogUrl))
+            {
+                selected = definition.Catalogs.FirstOrDefault(e =>
+                    string.Equals(e.Url, subscriptionCatalogUrl, StringComparison.OrdinalIgnoreCase));
+            }
+
             if (selected != null)
             {
                 AddDefinitionUrl(urls, selected.Url);
@@ -854,7 +866,7 @@ public class GenericCatalogDiscoverer(
             {
                 RememberResolvedPublisherInfo(definition.Publisher);
                 logger.LogDebug("Resolving catalog URLs from definition for {PublisherId}", _subscription.PublisherId);
-                foreach (var url in ResolveDefinitionCatalogUrls(definition, _subscription.SelectedCatalogId))
+                foreach (var url in ResolveDefinitionCatalogUrls(definition, _subscription.SelectedCatalogId, _subscription.CatalogUrl))
                 {
                     AddDefinitionUrl(urls, url);
                 }

@@ -214,7 +214,14 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
             !dep.PublisherId.Equals(expectedPublisherType, StringComparison.OrdinalIgnoreCase) &&
             !dep.PublisherId.Equals(hostPublisherId, StringComparison.OrdinalIgnoreCase))
         {
-            errors.Add($"Dependency '{dep.ContentId}' in '{content.Id}' specifies publisherId '{dep.PublisherId}' which does not match sibling's declared publisherType '{expectedPublisherType}' or host catalog id '{hostPublisherId}'");
+            if (!string.IsNullOrWhiteSpace(hostPublisherId))
+            {
+                dep.PublisherId = hostPublisherId;
+            }
+            else
+            {
+                errors.Add($"Dependency '{dep.ContentId}' in '{content.Id}' specifies publisherId '{dep.PublisherId}' which does not match sibling's declared publisherType '{expectedPublisherType}' or host catalog id '{hostPublisherId}'");
+            }
         }
     }
 
@@ -235,10 +242,47 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
     {
         catalog.Content ??= [];
         var seenNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var itemIds = new HashSet<string>(catalog.Content.Where(c => c != null && !string.IsNullOrWhiteSpace(c.Id)).Select(c => c.Id), StringComparer.OrdinalIgnoreCase);
+        var hostPubId = catalog.Publisher?.Id;
 
         foreach (var content in catalog.Content.Where(content => content != null))
         {
             NormalizeContentItem(content, seenNames, logger);
+
+            if (!string.IsNullOrWhiteSpace(hostPubId))
+            {
+                if (content.BundledItems != null)
+                {
+                    foreach (var bundled in content.BundledItems)
+                    {
+                        if (itemIds.Contains(bundled.ContentId) &&
+                            !string.Equals(bundled.PublisherId, hostPubId, StringComparison.OrdinalIgnoreCase) &&
+                            !string.Equals(bundled.PublisherId, CatalogConstants.GenericCatalogPublisherCategory, StringComparison.OrdinalIgnoreCase))
+                        {
+                            bundled.PublisherId = hostPubId;
+                        }
+                    }
+                }
+
+                if (content.Releases != null)
+                {
+                    foreach (var release in content.Releases)
+                    {
+                        if (release.Dependencies != null)
+                        {
+                            foreach (var dep in release.Dependencies)
+                            {
+                                if (itemIds.Contains(dep.ContentId) &&
+                                    !string.Equals(dep.PublisherId, hostPubId, StringComparison.OrdinalIgnoreCase) &&
+                                    !string.Equals(dep.PublisherId, CatalogConstants.GenericCatalogPublisherCategory, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    dep.PublisherId = hostPubId;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
