@@ -14,6 +14,10 @@
         MaxWidth="700" MaxHeight="520"
         WindowStartupLocation="CenterOwner"
         CanResize="True"
+        SystemDecorations="Full"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1"
         Background="{DynamicResource WindowBackground}">
 
   <Window.Resources>
@@ -27,14 +31,17 @@
 
   <Grid RowDefinitions="Auto,*,Auto" Margin="18">
     <!-- Header -->
-    <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,12">
-      <TextBlock Text="{localization:Localize Tools.ModBuilder.GitHubImport.Header}"
-                 FontSize="17" FontWeight="Bold"
-                 Foreground="{DynamicResource TextPrimary}"/>
-      <TextBlock Text="{localization:Localize Tools.ModBuilder.GitHubImport.Subtitle}"
-                 FontSize="12" Foreground="{DynamicResource TextSecondary}"
-                 TextWrapping="Wrap"/>
-    </StackPanel>
+    <Grid Grid.Row="0" Margin="0,0,0,12"
+          Background="Transparent" PointerPressed="OnTitleBarPointerPressed">
+      <StackPanel Spacing="4">
+        <TextBlock Text="{localization:Localize Tools.ModBuilder.GitHubImport.Header}"
+                   FontSize="17" FontWeight="Bold"
+                   Foreground="{DynamicResource TextPrimary}"/>
+        <TextBlock Text="{localization:Localize Tools.ModBuilder.GitHubImport.Subtitle}"
+                   FontSize="12" Foreground="{DynamicResource TextSecondary}"
+                   TextWrapping="Wrap"/>
+      </StackPanel>
+    </Grid>
 
     <!-- Inputs -->
     <StackPanel Grid.Row="1" Spacing="12">

@@ -8,19 +8,9 @@ namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 /// <summary>
 /// ViewModel for the GitHub repository import dialog.
 /// </summary>
-public partial class GitHubImportViewModel : ObservableObject
+/// <param name="localizationService">The localization service.</param>
+public partial class GitHubImportViewModel(ILocalizationService localizationService) : ObservableObject
 {
-    private readonly ILocalizationService _localizationService;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="GitHubImportViewModel"/> class.
-    /// </summary>
-    /// <param name="localizationService">The localization service.</param>
-    public GitHubImportViewModel(ILocalizationService localizationService)
-    {
-        _localizationService = localizationService;
-    }
-
     /// <summary>
     /// Gets or sets the repository input (owner/repo or GitHub URL).
     /// </summary>
@@ -40,9 +30,10 @@ public partial class GitHubImportViewModel : ObservableObject
     private string _errorText = string.Empty;
 
     /// <summary>
-    /// Gets a value indicating whether a validation error is shown.
+    /// Gets or sets a value indicating whether a validation error is shown.
     /// </summary>
-    public bool HasError => !string.IsNullOrEmpty(ErrorText);
+    [ObservableProperty]
+    private bool _hasError;
 
     /// <summary>
     /// Validates the current input and updates the error message.
@@ -54,32 +45,32 @@ public partial class GitHubImportViewModel : ObservableObject
         var reference = GitHubRepositoryReference.TryParse(RepositoryText, branch);
         if (reference == null)
         {
-            ErrorText = _localizationService.GetString("Tools.ModBuilder.GitHubImport.Validation.InvalidReference");
+            ErrorText = localizationService.GetString("Tools.ModBuilder.GitHubImport.Validation.InvalidReference");
+            HasError = true;
             return null;
         }
 
         ErrorText = string.Empty;
+        HasError = false;
         return reference;
     }
 
     partial void OnRepositoryTextChanged(string value)
     {
-        if (!string.IsNullOrEmpty(ErrorText))
-        {
-            ErrorText = string.Empty;
-        }
+        ClearError();
     }
 
     partial void OnBranchTextChanged(string value)
     {
-        if (!string.IsNullOrEmpty(ErrorText))
-        {
-            ErrorText = string.Empty;
-        }
+        ClearError();
     }
 
-    partial void OnErrorTextChanged(string value)
+    private void ClearError()
     {
-        OnPropertyChanged(nameof(HasError));
+        if (HasError)
+        {
+            ErrorText = string.Empty;
+            HasError = false;
+        }
     }
 }

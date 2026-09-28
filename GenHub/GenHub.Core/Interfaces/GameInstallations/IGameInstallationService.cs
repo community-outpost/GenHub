@@ -48,8 +48,9 @@ public interface IGameInstallationService
     /// </summary>
     /// <param name="installation">The installation to persist.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
+    /// <param name="forceRegeneration">When true, regenerates manifests even if they already exist in the pool.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task CreateAndRegisterInstallationManifestsAsync(GameInstallation installation, CancellationToken cancellationToken = default);
+    Task CreateAndRegisterInstallationManifestsAsync(GameInstallation installation, CancellationToken cancellationToken = default, bool forceRegeneration = false);
 
     /// <summary>
     /// Registers a custom game installation from a specified directory path.

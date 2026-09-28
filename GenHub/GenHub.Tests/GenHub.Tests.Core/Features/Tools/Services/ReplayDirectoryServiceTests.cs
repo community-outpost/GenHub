@@ -72,7 +72,7 @@ public sealed class ReplayDirectoryServiceTests
             .Returns(_mockCasPoolService.Object);
 
         _mockInstallationService
-            .Setup(s => s.CreateAndRegisterInstallationManifestsAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.CreateAndRegisterInstallationManifestsAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>(), It.IsAny<bool>()))
             .Returns(Task.CompletedTask);
 
         _mockManifestPool

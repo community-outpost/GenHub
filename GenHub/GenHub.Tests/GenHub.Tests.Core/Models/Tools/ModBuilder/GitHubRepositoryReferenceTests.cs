@@ -22,7 +22,6 @@ public sealed class GitHubRepositoryReferenceTests
     [InlineData("owner/repo@feature/foo", "owner", "repo", "feature/foo")]
     [InlineData("https://github.com/owner/repo", "owner", "repo", "main")]
     [InlineData("https://github.com/owner/repo/", "owner", "repo", "main")]
-    [InlineData("http://github.com/owner/repo", "owner", "repo", "main")]
     [InlineData("github.com/owner/repo", "owner", "repo", "main")]
     [InlineData("www.github.com/owner/repo", "owner", "repo", "main")]
     [InlineData("https://www.github.com/owner/repo", "owner", "repo", "main")]
@@ -31,6 +30,8 @@ public sealed class GitHubRepositoryReferenceTests
     [InlineData("https://github.com/owner/repo/tree/develop", "owner", "repo", "develop")]
     [InlineData("https://github.com/owner/repo/tree/feature/foo", "owner", "repo", "feature/foo")]
     [InlineData("owner-name/repo.name_2", "owner-name", "repo.name_2", "main")]
+    [InlineData("owner/github.com", "owner", "github.com", "main")]
+    [InlineData("github.com-fan/repo", "github.com-fan", "repo", "main")]
     public void TryParse_WithValidInput_ReturnsReference(string input, string owner, string repo, string branch)
     {
         var reference = GitHubRepositoryReference.TryParse(input);
@@ -73,6 +74,7 @@ public sealed class GitHubRepositoryReferenceTests
     [InlineData("owner/repo@bad branch")]
     [InlineData("https://evil.com/owner/repo")]
     [InlineData("https://evilgithub.com/owner/repo")]
+    [InlineData("http://github.com/owner/repo")]
     [InlineData("ftp://github.com/owner/repo")]
     [InlineData("https://github.com/owner")]
     [InlineData("https://github.com/")]

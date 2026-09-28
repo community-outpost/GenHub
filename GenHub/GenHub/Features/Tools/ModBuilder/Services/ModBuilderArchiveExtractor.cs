@@ -30,6 +30,7 @@ internal static class ModBuilderArchiveExtractor
     {
         var fileInfo = new FileInfo(archivePath);
         using var archive = ArchiveFactory.OpenArchive(fileInfo);
+        long remainingAggregateBytes = MaxTotalBytes;
         foreach (var entry in archive.Entries)
         {
             if (entry.IsDirectory)
@@ -54,15 +55,16 @@ internal static class ModBuilderArchiveExtractor
                 Directory.CreateDirectory(entryDir);
             }
 
-            await using var entryStream = entry.OpenEntryStream();
-            await BoundedArchiveExtractor.CopyEntryToFileAsync(
+            using var entryStream = entry.OpenEntryStream();
+            var written = await BoundedArchiveExtractor.CopyEntryToFileAsync(
                 entryStream,
                 targetPath,
                 entry.Key,
                 MaxEntryBytes,
-                MaxTotalBytes,
+                remainingAggregateBytes,
                 overwrite: true,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
+            remainingAggregateBytes -= written;
         }
     }
 }

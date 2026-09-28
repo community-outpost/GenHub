@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using System;
 using System.Collections.Generic;
+using System.IO;
 
 namespace GenHub.Features.Manifest;
 
@@ -71,6 +72,50 @@ internal static class GameInstallationScanRules
                normalized.EndsWith(FileTypes.LegacyBackupExtension, StringComparison.OrdinalIgnoreCase) ||
                normalized.EndsWith(SteamConstants.ProxyLauncherFileName, StringComparison.OrdinalIgnoreCase) ||
                normalized.EndsWith(SteamConstants.TrackingFileName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Resolves the manifest source for a game file, preferring a sibling backup copy
+    /// (Steam proxy deployments keep the original executable beside its backup).
+    /// </summary>
+    /// <param name="filePath">The on-disk file path.</param>
+    /// <returns>The backup path when a usable backup exists; otherwise, the file path.</returns>
+    internal static string ResolveSourcePathWithBackup(string filePath)
+    {
+        var backupPath = filePath + SteamConstants.BackupExtension;
+        if (File.Exists(backupPath) && !IsReparsePoint(backupPath))
+        {
+            return backupPath;
+        }
+
+        var legacyBackupPath = filePath + FileTypes.LegacyBackupExtension;
+        if (File.Exists(legacyBackupPath) && !IsReparsePoint(legacyBackupPath))
+        {
+            return legacyBackupPath;
+        }
+
+        return filePath;
+    }
+
+    /// <summary>
+    /// Determines whether a path is a reparse point, treating unreadable paths as reparse points.
+    /// </summary>
+    /// <param name="path">The path to check.</param>
+    /// <returns>True when the path is a reparse point or cannot be read; otherwise, false.</returns>
+    internal static bool IsReparsePoint(string path)
+    {
+        try
+        {
+            return File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint);
+        }
+        catch (IOException)
+        {
+            return true;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return true;
+        }
     }
 
     /// <summary>

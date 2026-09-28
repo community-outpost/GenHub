@@ -24,7 +24,7 @@ public sealed record GitHubRepositoryReference(string Owner, string Repo, string
     /// and GitHub URLs such as https://github.com/owner/repo or .../tree/branch.
     /// </summary>
     /// <param name="input">The raw user input.</param>
-    /// <param name="defaultBranch">The branch used when the input names none.</param>
+    /// <param name="defaultBranch">The branch used when the input names none, or an explicit override.</param>
     /// <returns>The parsed reference, or null when the input is not a valid repository reference.</returns>
     public static GitHubRepositoryReference? TryParse(string? input, string? defaultBranch = null)
     {
@@ -33,16 +33,16 @@ public sealed record GitHubRepositoryReference(string Owner, string Repo, string
             return null;
         }
 
-        var branch = string.IsNullOrWhiteSpace(defaultBranch) ? ModBuilderConstants.GitHubDefaultBranch : defaultBranch.Trim();
         var candidate = input.Trim().TrimEnd('/');
 
-        if (!TryStripUrlPrefix(ref candidate) || candidate.Contains("://", StringComparison.Ordinal))
+        if (!TryStripUrlPrefix(ref candidate))
         {
             return null;
         }
 
         candidate = StripGitSuffix(candidate);
 
+        string? embeddedBranch = null;
         var atIndex = candidate.IndexOf('@');
         if (atIndex >= 0)
         {
@@ -53,7 +53,7 @@ public sealed record GitHubRepositoryReference(string Owner, string Repo, string
                 return null;
             }
 
-            branch = explicitBranch;
+            embeddedBranch = explicitBranch;
         }
 
         var segments = candidate.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -71,47 +71,73 @@ public sealed record GitHubRepositoryReference(string Owner, string Repo, string
 
         if (segments.Length > 2)
         {
-            if (!TryParseTreeBranch(segments, ref branch))
+            if (!TryParseTreeBranch(segments, out var treeBranch))
             {
                 return null;
             }
+
+            embeddedBranch ??= treeBranch;
         }
 
-        if (!IsValidBranch(branch))
+        var effectiveBranch = !string.IsNullOrWhiteSpace(defaultBranch)
+            ? defaultBranch.Trim()
+            : embeddedBranch ?? ModBuilderConstants.GitHubDefaultBranch;
+
+        if (!IsValidBranch(effectiveBranch))
         {
             return null;
         }
 
-        return new GitHubRepositoryReference(owner, repo, branch);
+        return new GitHubRepositoryReference(owner, repo, effectiveBranch);
     }
 
     private static bool TryStripUrlPrefix(ref string candidate)
     {
-        var lower = candidate.ToLowerInvariant();
-        var hostIndex = lower.IndexOf(ApiConstants.GitHubDomain, StringComparison.Ordinal);
-        if (hostIndex < 0)
+        var span = candidate.AsSpan().Trim();
+
+        var insecurePrefix = string.Concat(Uri.UriSchemeHttp, Uri.SchemeDelimiter);
+        if (span.StartsWith(insecurePrefix, StringComparison.OrdinalIgnoreCase))
         {
-            return true;
+            return false;
         }
 
-        var afterHost = candidate.Substring(hostIndex + ApiConstants.GitHubDomain.Length).Trim();
-        if (hostIndex > 0)
+        var securePrefix = string.Concat(Uri.UriSchemeHttps, Uri.SchemeDelimiter);
+        var hadUrlPrefix = false;
+        if (span.StartsWith(securePrefix, StringComparison.OrdinalIgnoreCase))
         {
-            var prefix = candidate.Substring(0, hostIndex);
-            if (!IsAllowedUrlPrefix(prefix))
+            span = span[securePrefix.Length..].TrimStart();
+            hadUrlPrefix = true;
+        }
+
+        const string wwwPrefix = "www.";
+        if (span.StartsWith(wwwPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            span = span[wwwPrefix.Length..].TrimStart();
+            hadUrlPrefix = true;
+        }
+
+        if (span.StartsWith(ApiConstants.GitHubDomain, StringComparison.OrdinalIgnoreCase))
+        {
+            var remainder = span[ApiConstants.GitHubDomain.Length..];
+            if (remainder.IsEmpty || remainder.StartsWith("/") || remainder.StartsWith("\\"))
+            {
+                candidate = remainder.TrimStart("/\\ ").ToString();
+                return candidate.Length > 0;
+            }
+
+            if (hadUrlPrefix)
             {
                 return false;
             }
         }
 
-        candidate = afterHost.TrimStart('/').Trim();
-        return candidate.Length > 0;
-    }
+        if (hadUrlPrefix || span.IndexOf("://".AsSpan(), StringComparison.Ordinal) >= 0)
+        {
+            return false;
+        }
 
-    private static bool IsAllowedUrlPrefix(string prefix)
-    {
-        var normalized = prefix.Trim().TrimEnd('/').ToLowerInvariant();
-        return normalized is "" or "https:" or "http:" or "https:/" or "http:/" or "www." or "https://www." or "http://www.";
+        candidate = span.ToString();
+        return true;
     }
 
     private static string StripGitSuffix(string candidate)
@@ -121,8 +147,9 @@ public sealed record GitHubRepositoryReference(string Owner, string Repo, string
             : candidate;
     }
 
-    private static bool TryParseTreeBranch(string[] segments, ref string branch)
+    private static bool TryParseTreeBranch(string[] segments, out string? branch)
     {
+        branch = null;
         if (!segments[2].Equals("tree", StringComparison.OrdinalIgnoreCase) || segments.Length < 4)
         {
             return false;

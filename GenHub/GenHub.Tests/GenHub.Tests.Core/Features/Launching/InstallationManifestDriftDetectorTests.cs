@@ -167,6 +167,45 @@ public sealed class InstallationManifestDriftDetectorTests : IDisposable
     }
 
     /// <summary>
+    /// A sibling backup provides the manifest size, matching generation's proxy handling.
+    /// </summary>
+    [Fact]
+    public void DetectDrift_WhenBackupHoldsManifestSize_ReportsNoDrift()
+    {
+        WriteFile("generals.exe", 64);
+        WriteFile("generals.exe.bak", 128);
+        var manifestFiles = new List<ManifestFile>
+        {
+            new() { RelativePath = "generals.exe", Size = 128 },
+        };
+
+        var drift = InstallationManifestDriftDetector.DetectDrift(
+            _gameDir, GameType.Generals, "1.08", manifestFiles);
+
+        Assert.False(drift.HasDrift);
+    }
+
+    /// <summary>
+    /// A changed backup size reports changed drift.
+    /// </summary>
+    [Fact]
+    public void DetectDrift_WhenBackupSizeDiffers_ReportsChanged()
+    {
+        WriteFile("generals.exe", 64);
+        WriteFile("generals.exe.bak", 96);
+        var manifestFiles = new List<ManifestFile>
+        {
+            new() { RelativePath = "generals.exe", Size = 128 },
+        };
+
+        var drift = InstallationManifestDriftDetector.DetectDrift(
+            _gameDir, GameType.Generals, "1.08", manifestFiles);
+
+        Assert.True(drift.HasDrift);
+        Assert.Contains("generals.exe", drift.ChangedFiles);
+    }
+
+    /// <summary>
     /// A missing directory fails open with no drift.
     /// </summary>
     [Fact]

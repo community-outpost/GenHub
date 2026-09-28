@@ -1,3 +1,4 @@
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Features.Manifest;
@@ -14,7 +15,9 @@ namespace GenHub.Features.Launching;
 /// (for example mod BIG archives dropped into the game root). The comparison mirrors the
 /// generation rules in <see cref="GameInstallationScanRules"/>: same skip list, same
 /// extension filter, and added-file detection only for scan-based manifests since
-/// authoritative catalog generation ignores loose extras.
+/// authoritative catalog generation ignores loose extras. Comparison is by file presence
+/// and size only: same-size in-place edits are intentionally not detected, since hashing
+/// the whole installation on every launch would cost more than the check saves.
 /// </summary>
 internal static class InstallationManifestDriftDetector
 {
@@ -107,7 +110,7 @@ internal static class InstallationManifestDriftDetector
 
     private static Dictionary<string, long> ScanDiskFiles(string installationPath, CancellationToken cancellationToken)
     {
-        var diskFiles = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        var diskFiles = new Dictionary<string, long>(PathHelper.PathComparer);
         foreach (var file in Directory.EnumerateFiles(installationPath, "*", ScanOptions))
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -119,7 +122,8 @@ internal static class InstallationManifestDriftDetector
 
             try
             {
-                diskFiles.TryAdd(relativePath, new FileInfo(file).Length);
+                var sourcePath = GameInstallationScanRules.ResolveSourcePathWithBackup(file);
+                diskFiles.TryAdd(relativePath, new FileInfo(sourcePath).Length);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -157,7 +161,7 @@ internal static class InstallationManifestDriftDetector
 
     private static Dictionary<string, long> BuildManifestMap(IReadOnlyList<ManifestFile> manifestFiles)
     {
-        var manifestMap = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        var manifestMap = new Dictionary<string, long>(PathHelper.PathComparer);
         foreach (var file in manifestFiles)
         {
             if (string.IsNullOrWhiteSpace(file.RelativePath))

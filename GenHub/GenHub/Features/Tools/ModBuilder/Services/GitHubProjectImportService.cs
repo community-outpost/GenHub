@@ -36,6 +36,16 @@ public class GitHubProjectImportService(
             return OperationResult<string>.CreateFailure("Target directory cannot be empty.");
         }
 
+        if (Directory.Exists(targetDirectory))
+        {
+            var alreadyExisting = FindProjectFile(targetDirectory);
+            if (alreadyExisting != null)
+            {
+                logger.LogInformation("Target directory {Target} already contains project {Project}", targetDirectory, alreadyExisting);
+                return OperationResult<string>.CreateSuccess(alreadyExisting);
+            }
+        }
+
         var stagingDir = Path.Combine(Path.GetTempPath(), $"genhub_github_{Guid.NewGuid():N}");
         var archivePath = Path.Combine(Path.GetTempPath(), $"genhub_github_{Guid.NewGuid():N}.zip");
         try
@@ -52,7 +62,7 @@ public class GitHubProjectImportService(
             {
                 var error = downloadResult.FirstError ?? "Download produced no file.";
                 return OperationResult<string>.CreateFailure(
-                    $"Failed to download {reference.FullName}@{reference.Branch} from GitHub: {error} Verify the repository and branch names.");
+                    $"Failed to download {reference.FullName}@{reference.Branch} from GitHub: {error}");
             }
 
             progress?.Report($"Extracting {reference.FullName}...");
@@ -60,19 +70,37 @@ public class GitHubProjectImportService(
             await ModBuilderArchiveExtractor.ExtractArchiveFileAsync(archivePath, stagingDir, cancellationToken).ConfigureAwait(false);
 
             var contentRoot = UnwrapSingleDirectory(stagingDir);
-            Directory.CreateDirectory(targetDirectory);
-            CopyDirectoryContents(contentRoot, targetDirectory, cancellationToken);
+            var stagedProject = FindProjectFile(contentRoot);
 
-            var existingProject = FindProjectFile(targetDirectory);
-            if (existingProject != null)
+            if (stagedProject != null)
             {
-                logger.LogInformation("Linked GitHub repository {Repo} as existing project {Project}", reference.FullName, existingProject);
-                return OperationResult<string>.CreateSuccess(existingProject);
+                var targetExisted = Directory.Exists(targetDirectory);
+                try
+                {
+                    Directory.CreateDirectory(targetDirectory);
+                    CopyDirectoryContents(contentRoot, targetDirectory, cancellationToken);
+
+                    var projectRelativePath = Path.GetRelativePath(contentRoot, stagedProject);
+                    var existingProject = Path.Combine(targetDirectory, projectRelativePath);
+                    logger.LogInformation("Linked GitHub repository {Repo} as existing project {Project}", reference.FullName, existingProject);
+                    return OperationResult<string>.CreateSuccess(existingProject);
+                }
+                catch
+                {
+                    if (!targetExisted && Directory.Exists(targetDirectory))
+                    {
+                        DeleteDirectoryQuietly(targetDirectory);
+                    }
+
+                    throw;
+                }
             }
 
             progress?.Report($"Creating ModBuilder project for {reference.FullName}...");
             var projectPath = Path.Combine(targetDirectory, $"{reference.Repo}{ModBuilderConstants.ProjectFileExtension}");
             var createProgress = progress == null ? null : new Progress<double>(p => progress.Report($"Creating ModBuilder project for {reference.FullName} ({p:P0})..."));
+
+            var targetDirectoryExisted = Directory.Exists(targetDirectory);
             var createResult = await projectConfigService.CreateProjectFromDirectoryAsync(
                 projectPath,
                 reference.Repo,
@@ -82,6 +110,11 @@ public class GitHubProjectImportService(
 
             if (!createResult.Success)
             {
+                if (!targetDirectoryExisted && Directory.Exists(targetDirectory) && !Directory.EnumerateFileSystemEntries(targetDirectory).Any())
+                {
+                    DeleteDirectoryQuietly(targetDirectory);
+                }
+
                 return OperationResult<string>.CreateFailure(
                     createResult.FirstError ?? $"Failed to create project for {reference.FullName}.");
             }
@@ -105,6 +138,27 @@ public class GitHubProjectImportService(
         }
     }
 
+    internal static string? FindProjectFile(string targetDirectory)
+    {
+        if (!Directory.Exists(targetDirectory))
+        {
+            return null;
+        }
+
+        var rootMatch = Directory.GetFiles(targetDirectory, ModBuilderConstants.ProjectFilePattern, SearchOption.TopDirectoryOnly)
+            .OrderBy(f => f, StringComparer.Ordinal)
+            .FirstOrDefault();
+        if (rootMatch != null)
+        {
+            return rootMatch;
+        }
+
+        return Directory.GetFiles(targetDirectory, ModBuilderConstants.ProjectFilePattern, SearchOption.AllDirectories)
+            .OrderBy(f => f.Length)
+            .ThenBy(f => f, StringComparer.Ordinal)
+            .FirstOrDefault();
+    }
+
     private static string UnwrapSingleDirectory(string stagingDir)
     {
         if (Directory.GetFiles(stagingDir, ModBuilderConstants.ProjectFilePattern).Length > 0)
@@ -120,22 +174,6 @@ public class GitHubProjectImportService(
         }
 
         return stagingDir;
-    }
-
-    private static string? FindProjectFile(string targetDirectory)
-    {
-        var rootMatch = Directory.GetFiles(targetDirectory, ModBuilderConstants.ProjectFilePattern, SearchOption.TopDirectoryOnly)
-            .OrderBy(f => f, StringComparer.Ordinal)
-            .FirstOrDefault();
-        if (rootMatch != null)
-        {
-            return rootMatch;
-        }
-
-        return Directory.GetFiles(targetDirectory, ModBuilderConstants.ProjectFilePattern, SearchOption.AllDirectories)
-            .OrderBy(f => f.Length)
-            .ThenBy(f => f, StringComparer.Ordinal)
-            .FirstOrDefault();
     }
 
     private static void CopyDirectoryContents(string sourceDir, string targetDir, CancellationToken cancellationToken)

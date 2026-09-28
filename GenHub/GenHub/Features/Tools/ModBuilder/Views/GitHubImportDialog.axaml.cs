@@ -52,6 +52,21 @@ public partial class GitHubImportDialog : Window
         }
     }
 
+    private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            if (e.ClickCount == 2 && CanResize)
+            {
+                WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+            }
+            else
+            {
+                BeginMoveDrag(e);
+            }
+        }
+    }
+
     private void OnCancelClick(object? sender, RoutedEventArgs e)
     {
         Close(false);

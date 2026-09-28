@@ -1372,13 +1372,8 @@ public class GameLauncher(
             var (installation, gameClient, actualInstallationPath, dynamicWorkspacePath, isSteamLaunch) = installResult.Data;
 
             var receiptDriftWarnings = new List<string>();
-            var refreshOutcome = await TryRefreshStaleInstallationManifestsAsync(
-                installation, manifests, receiptDriftWarnings, cancellationToken);
-            if (refreshOutcome.Refreshed)
-            {
-                manifests = refreshOutcome.Manifests;
-                manifestSourcePaths = await ManifestSourcePathResolver.ResolveManifestSourcePathsAsync(manifests, profile, manifestPool, logger, cancellationToken);
-            }
+            (manifests, manifestSourcePaths) = await RefreshManifestsIfInstallationDriftedAsync(
+                installation, manifests, manifestSourcePaths, profile, receiptDriftWarnings, cancellationToken);
 
             var candidateExecutable = TryResolveManifestExecutablePath(manifests) ?? gameClient.ExecutablePath;
             isSteamLaunch = AdjustSteamLaunchForExecutable(isSteamLaunch, profile.Id, candidateExecutable);
@@ -2281,6 +2276,31 @@ public class GameLauncher(
     }
 
     /// <summary>
+    /// Refreshes launch manifests when the installation folder drifted since detection,
+    /// recomputing source paths so the workspace reflects regenerated manifests.
+    /// </summary>
+    /// <param name="installation">The resolved retail installation.</param>
+    /// <param name="manifests">The manifests resolved for this launch.</param>
+    /// <param name="manifestSourcePaths">The resolved manifest source paths.</param>
+    /// <param name="profile">The game profile being launched.</param>
+    /// <param name="driftWarnings">Collects the drifted fields for the launch result.</param>
+    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <returns>The manifests and source paths to launch with.</returns>
+    private async Task<(List<ContentManifest> Manifests, Dictionary<string, string> ManifestSourcePaths)> RefreshManifestsIfInstallationDriftedAsync(
+        GameInstallation installation,
+        List<ContentManifest> manifests,
+        Dictionary<string, string> manifestSourcePaths,
+        GameProfile profile,
+        List<string> driftWarnings,
+        CancellationToken cancellationToken)
+    {
+        var refreshOutcome = await TryRefreshStaleInstallationManifestsAsync(
+            installation, manifests, driftWarnings, cancellationToken);
+
+        return (refreshOutcome.Manifests, manifestSourcePaths);
+    }
+
+    /// <summary>
     /// Regenerates game installation manifests when the installation folder changed since
     /// detection (loose mod archives added, removed, or modified). Best effort: any failure
     /// keeps the stored manifests so the launch proceeds exactly as before.
@@ -2341,7 +2361,7 @@ public class GameLauncher(
                     drift.ChangedFiles.Count);
             }
 
-            await gameInstallationService.CreateAndRegisterInstallationManifestsAsync(installation, cancellationToken);
+            await gameInstallationService.CreateAndRegisterInstallationManifestsAsync(installation, cancellationToken, forceRegeneration: true);
 
             var refreshed = await ReResolveInstallationManifestsAsync(manifests, cancellationToken);
             if (!refreshed.Success || refreshed.Data == null)

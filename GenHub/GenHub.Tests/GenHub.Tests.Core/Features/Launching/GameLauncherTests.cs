@@ -312,7 +312,7 @@ public class GameLauncherTests : IDisposable
         // manifest, so the launcher regenerates installation manifests and notes it.
         Assert.True(result.Success, result.FirstError);
         _gameInstallationServiceMock.Verify(
-            x => x.CreateAndRegisterInstallationManifestsAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>()),
+            x => x.CreateAndRegisterInstallationManifestsAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>(), It.IsAny<bool>()),
             Times.Once);
         Assert.Contains(LaunchReceiptConstants.InstallationManifestRefreshedWarningKey, result.Data!.ReceiptDriftWarnings);
     }
@@ -370,7 +370,7 @@ public class GameLauncherTests : IDisposable
         // Assert
         Assert.True(result.Success, result.FirstError);
         _gameInstallationServiceMock.Verify(
-            x => x.CreateAndRegisterInstallationManifestsAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>()),
+            x => x.CreateAndRegisterInstallationManifestsAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>(), It.IsAny<bool>()),
             Times.Never);
         Assert.DoesNotContain(LaunchReceiptConstants.InstallationManifestRefreshedWarningKey, result.Data!.ReceiptDriftWarnings);
     }

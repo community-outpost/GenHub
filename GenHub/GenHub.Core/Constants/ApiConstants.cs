@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 
 namespace GenHub.Core.Constants;
 
@@ -40,7 +41,9 @@ public static class ApiConstants
             : DefaultGitHubCodeloadBaseUrl;
 
     /// <summary>
-    /// Builds the download URL for a GitHub branch source archive.
+    /// Builds the download URL for a GitHub branch source archive. Branches containing
+    /// slashes use the refs/heads/ form with each segment escaped, since codeload does
+    /// not resolve an escaped slash as a path separator.
     /// </summary>
     /// <param name="owner">The repository owner.</param>
     /// <param name="repo">The repository name.</param>
@@ -48,7 +51,14 @@ public static class ApiConstants
     /// <returns>The branch archive download URL.</returns>
     public static string GetGitHubBranchZipUrl(string owner, string repo, string branch)
     {
-        return $"{GitHubCodeloadBaseUrl}/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repo)}/zip/{Uri.EscapeDataString(branch)}";
+        var segments = branch.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var escapedRef = string.Join('/', segments.Select(Uri.EscapeDataString));
+        if (segments.Length > 1)
+        {
+            escapedRef = $"refs/heads/{escapedRef}";
+        }
+
+        return $"{GitHubCodeloadBaseUrl}/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repo)}/zip/{escapedRef}";
     }
 
     // GitHub API

@@ -1330,16 +1330,12 @@ public partial class ModBuilderViewModel(
                 return;
             }
 
-            GitHubRepositoryReference? reference = null;
-            await InvokeOnUIThreadAsync(async () =>
+            var reference = await InvokeOnUIThreadAsync(async () =>
             {
                 var dialog = new Views.GitHubImportDialog(new GitHubImportViewModel(localizationService));
                 var confirmed = await dialog.ShowDialog<bool>(owner).ConfigureAwait(false);
-                if (confirmed)
-                {
-                    reference = dialog.ResultReference;
-                }
-            });
+                return confirmed ? dialog.ResultReference : null;
+            }).ConfigureAwait(false);
 
             if (reference == null)
             {
@@ -1355,8 +1351,8 @@ public partial class ModBuilderViewModel(
                 return;
             }
 
-            var existingProject = Path.Combine(targetDir, $"{reference.Repo}{ModBuilderConstants.ProjectFileExtension}");
-            if (File.Exists(existingProject))
+            var existingProject = GitHubProjectImportService.FindProjectFile(targetDir);
+            if (existingProject != null)
             {
                 notificationService.ShowInfo(
                     localizationService.GetString("Tools.ModBuilder.Notification.GitHubAlreadyImported.Title"),
@@ -2161,9 +2157,18 @@ public partial class ModBuilderViewModel(
 
     private static string GetUserModBuilderDirectory()
     {
-        var customRoot = StorageMigrationService.IsCustomInstallRoot()
-            ? StorageMigrationService.GetSourceRootDirectory()
-            : null;
+        string? customRoot = null;
+        if (StorageMigrationService.IsCustomInstallRoot())
+        {
+            var candidate = Path.Combine(
+                StorageMigrationService.GetSourceRootDirectory(),
+                ModBuilderConstants.ModBuilderDirName);
+            if (!IsPathInsideAppDirectory(candidate))
+            {
+                customRoot = StorageMigrationService.GetSourceRootDirectory();
+            }
+        }
+
         return ResolveDefaultModBuilderDirectory(
             customRoot,
             Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
@@ -3844,6 +3849,18 @@ public partial class ModBuilderViewModel(
         else
         {
             await Dispatcher.UIThread.InvokeAsync(action).ConfigureAwait(false);
+        }
+    }
+
+    private static async Task<T?> InvokeOnUIThreadAsync<T>(Func<Task<T?>> function)
+    {
+        if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            return await function().ConfigureAwait(false);
+        }
+        else
+        {
+            return await Dispatcher.UIThread.InvokeAsync(function).ConfigureAwait(false);
         }
     }
 

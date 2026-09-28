@@ -810,7 +810,7 @@ public class ManifestGenerationService(
             var match = Directory.EnumerateDirectories(currentDir, "*", options)
                 .FirstOrDefault(d => string.Equals(Path.GetFileName(d), segment, StringComparison.OrdinalIgnoreCase));
 
-            return (match != null && !IsReparsePoint(match)) ? match : null;
+            return (match != null && !GameInstallationScanRules.IsReparsePoint(match)) ? match : null;
         }
         catch (IOException)
         {
@@ -832,7 +832,7 @@ public class ManifestGenerationService(
             var match = Directory.EnumerateFiles(currentDir, "*", options)
                 .FirstOrDefault(f => string.Equals(Path.GetFileName(f), fileName, StringComparison.OrdinalIgnoreCase));
 
-            return (match != null && !IsReparsePoint(match)) ? match : null;
+            return (match != null && !GameInstallationScanRules.IsReparsePoint(match)) ? match : null;
         }
         catch (IOException)
         {
@@ -850,7 +850,7 @@ public class ManifestGenerationService(
     private static bool IsInvalidIntermediateDirectory(string currentDir, string fullInstallationPath)
     {
         return !Directory.Exists(currentDir) ||
-               (!string.Equals(currentDir, fullInstallationPath, StringComparison.OrdinalIgnoreCase) && IsReparsePoint(currentDir));
+               (!string.Equals(currentDir, fullInstallationPath, StringComparison.OrdinalIgnoreCase) && GameInstallationScanRules.IsReparsePoint(currentDir));
     }
 
     /// <summary>
@@ -955,7 +955,7 @@ public class ManifestGenerationService(
             return cachedIsReparse;
         }
 
-        var isReparsePoint = (File.Exists(currentPath) || Directory.Exists(currentPath)) && IsReparsePoint(currentPath);
+        var isReparsePoint = (File.Exists(currentPath) || Directory.Exists(currentPath)) && GameInstallationScanRules.IsReparsePoint(currentPath);
         cache?.TryAdd(currentPath, isReparsePoint);
         return isReparsePoint;
     }
@@ -975,22 +975,6 @@ public class ManifestGenerationService(
     /// <summary>
     /// Determines whether the specified file path is a symbolic link or reparse point.
     /// </summary>
-    private static bool IsReparsePoint(string path)
-    {
-        try
-        {
-            return File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint);
-        }
-        catch (IOException)
-        {
-            return true;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return true;
-        }
-    }
-
     /// <summary>
     /// Determines whether the path is a file, or a symbolic link whose final target is a file.
     /// </summary>
@@ -1584,7 +1568,7 @@ public class ManifestGenerationService(
             }
 
             var sourcePath = ResolveSourcePathWithBackup(resolvedFilePath, entry.RelativePath);
-            if (IsReparsePoint(sourcePath))
+            if (GameInstallationScanRules.IsReparsePoint(sourcePath))
             {
                 logger.LogWarning(
                     "Source path {SourcePath} for {RelativePath} is a reparse point or symbolic link and will be skipped",
@@ -2204,30 +2188,12 @@ public class ManifestGenerationService(
     /// </summary>
     private string ResolveSourcePathWithBackup(string filePath, string manifestFileName)
     {
-        var backupPath = filePath + SteamConstants.BackupExtension;
-        if (File.Exists(backupPath))
+        var resolved = GameInstallationScanRules.ResolveSourcePathWithBackup(filePath);
+        if (!resolved.Equals(filePath, StringComparison.Ordinal))
         {
-            if (!IsReparsePoint(backupPath))
-            {
-                logger.LogInformation("Using backup file {Backup} as source for {File} in manifest", Path.GetFileName(backupPath), manifestFileName);
-                return backupPath;
-            }
-
-            logger.LogWarning("Backup source {Backup} for {File} is a reparse point or symbolic link and will be skipped", Path.GetFileName(backupPath), manifestFileName);
+            logger.LogInformation("Using backup file {Backup} as source for {File} in manifest", Path.GetFileName(resolved), manifestFileName);
         }
 
-        var legacyBackupPath = filePath + FileTypes.LegacyBackupExtension;
-        if (File.Exists(legacyBackupPath))
-        {
-            if (!IsReparsePoint(legacyBackupPath))
-            {
-                logger.LogInformation("Using backup file {Backup} as source for {File} in manifest", Path.GetFileName(legacyBackupPath), manifestFileName);
-                return legacyBackupPath;
-            }
-
-            logger.LogWarning("Backup source {Backup} for {File} is a reparse point or symbolic link and will be skipped", Path.GetFileName(legacyBackupPath), manifestFileName);
-        }
-
-        return filePath;
+        return resolved;
     }
 }
