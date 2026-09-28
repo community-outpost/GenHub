@@ -161,7 +161,7 @@ public class ConfigEditorViewModelTests
         viewModel.BundleItems[0].NameSuffix = "_v1";
 
         // Save
-        viewModel.SaveCommand.Execute(null);
+        await viewModel.SaveCommand.ExecuteAsync(null);
 
         Assert.Single(project.Configuration.Items);
         var savedItem = project.Configuration.Items[0];

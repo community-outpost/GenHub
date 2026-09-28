@@ -1135,7 +1135,10 @@ public partial class ConfigEditorViewModel(
             var stagedPacks = BuildSyncedPacks();
             var stagedManifests = BuildSyncedManifests();
 
-            await PersistConfigurationToDiskAsync(projectDir, stagedItems, stagedPacks, stagedManifests, cancellationToken).ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(projectDir))
+            {
+                await PersistConfigurationToDiskAsync(projectDir, stagedItems, stagedPacks, stagedManifests, cancellationToken).ConfigureAwait(false);
+            }
 
             Configuration.Items.Clear();
             Configuration.Items.AddRange(stagedItems);
@@ -1476,6 +1479,11 @@ public partial class ConfigEditorViewModel(
         IReadOnlyList<BundleManifest> manifests,
         CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(projectDir))
+        {
+            return;
+        }
+
         var configDir = Path.Combine(projectDir, ModBuilderConstants.LowercaseConfigDir);
         Directory.CreateDirectory(configDir);
 
