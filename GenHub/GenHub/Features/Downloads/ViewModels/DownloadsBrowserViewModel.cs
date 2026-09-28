@@ -3868,13 +3868,12 @@ public sealed partial class DownloadsBrowserViewModel(
 
     private async Task<string?> ResolveLocalInstalledManifestIdAsync(ContentGridItemViewModel gridItem, CancellationToken cancellationToken)
     {
-        ContentSearchResult? searchResult = null;
-        if (gridItem.SelectedVariant != null && !string.IsNullOrEmpty(gridItem.SelectedVariant.ManifestId))
-        {
-            gridItem.VariantSearchResults.TryGetValue(gridItem.SelectedVariant.ManifestId, out searchResult);
-        }
+        var targetResult = gridItem.SelectedVariant != null &&
+            !string.IsNullOrEmpty(gridItem.SelectedVariant.ManifestId) &&
+            gridItem.VariantSearchResults.TryGetValue(gridItem.SelectedVariant.ManifestId, out var variantResult)
+            ? variantResult
+            : gridItem.SearchResult;
 
-        searchResult ??= gridItem.SearchResult;
-        return await contentStateService.GetLocalManifestIdAsync(searchResult, cancellationToken).ConfigureAwait(false);
+        return await contentStateService.GetLocalManifestIdAsync(targetResult, cancellationToken).ConfigureAwait(false);
     }
 }

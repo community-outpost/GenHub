@@ -744,6 +744,7 @@ public class ModBuilderViewModelTests : IDisposable
         };
 
         viewModel.CurrentProject = project;
+        viewModel.ProjectPath = Path.Combine(_tempDir, "project.json");
         await viewModel.SaveProjectCommand.ExecuteAsync(null);
 
         Assert.Equal("2.0.0", project.Version);

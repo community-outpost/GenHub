@@ -1134,7 +1134,7 @@ public partial class ConfigEditorViewModel(
             SyncItemsToConfiguration(projectDir);
             SyncPacksToConfiguration();
             SyncManifestsToConfiguration();
-            SyncCurrentProjectFromPrimaryManifest();
+            SyncCurrentProjectFromPrimaryManifest(CurrentProject, Configuration);
 
             await PersistConfigurationToDiskAsync(projectDir, cancellationToken).ConfigureAwait(false);
 
@@ -1262,14 +1262,14 @@ public partial class ConfigEditorViewModel(
         }
     }
 
-    private void SyncCurrentProjectFromPrimaryManifest()
+    private static void SyncCurrentProjectFromPrimaryManifest(ModBuilderProject? project, BuildConfiguration? configuration)
     {
-        if (CurrentProject == null || Configuration == null)
+        if (project == null || configuration == null)
         {
             return;
         }
 
-        var primaryManifest = Configuration.Manifests.FirstOrDefault();
+        var primaryManifest = configuration.Manifests.FirstOrDefault();
         if (primaryManifest == null)
         {
             return;
@@ -1277,22 +1277,22 @@ public partial class ConfigEditorViewModel(
 
         if (!string.IsNullOrWhiteSpace(primaryManifest.Version))
         {
-            CurrentProject.Version = primaryManifest.Version;
+            project.Version = primaryManifest.Version;
         }
 
         if (primaryManifest.ContentType.HasValue)
         {
-            CurrentProject.ContentType = primaryManifest.ContentType.Value;
+            project.ContentType = primaryManifest.ContentType.Value;
         }
 
         if (primaryManifest.TargetGame.HasValue)
         {
-            CurrentProject.TargetGame = primaryManifest.TargetGame.Value;
+            project.TargetGame = primaryManifest.TargetGame.Value;
         }
 
         if (!string.IsNullOrWhiteSpace(primaryManifest.Publisher))
         {
-            CurrentProject.Publisher = primaryManifest.Publisher;
+            project.Publisher = primaryManifest.Publisher;
         }
     }
 
