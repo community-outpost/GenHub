@@ -1,4 +1,4 @@
-﻿<?xml version='1.0' encoding='utf-8'?>
+<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -14643,7 +14643,7 @@ https://example.com/screenshot2.png</value>
   <data name="Tools.Plugin.texture-editor.Description" xml:space="preserve">
     <value>قسّم أطالس القوام وحرّر MappedImages بصريًا واجمع الأيقونات في صفحات SAGE.</value>
   </data>
-  <data name="TextureEditor.Header.NoAtlas" xml:space="preserve">
+    <data name="TextureEditor.Header.NoAtlas" xml:space="preserve">
     <value>لا يوجد أطلس مفتوح</value>
   </data>
   <data name="TextureEditor.Tooltip.ZoomOut" xml:space="preserve">
@@ -14976,29 +14976,11 @@ https://example.com/screenshot2.png</value>
   <data name="TextureEditor.Notify.ImportComplete.Title" xml:space="preserve">
     <value>اكتمل الاستيراد</value>
   </data>
-  <data name="TextureEditor.Notify.ImportComplete.Message" xml:space="preserve">
-    <value>تم استيراد {0} من الصور المرتبطة من {1}.</value>
-  </data>
   <data name="TextureEditor.Notify.ImportFailed.Title" xml:space="preserve">
     <value>فشل الاستيراد</value>
   </data>
   <data name="TextureEditor.Notify.ImportFailed.Message" xml:space="preserve">
     <value>لم يتم العثور على صور معينة.</value>
-  </data>
-  <data name="TextureEditor.Notify.ImportDetail.AppliedAll" xml:space="preserve">
-    <value>تم تطبيق جميع العناصر ({0}) على {1}.</value>
-  </data>
-  <data name="TextureEditor.Notify.ImportDetail.AppliedPartial" xml:space="preserve">
-    <value>تم تطبيق {0} من {1} من العناصر على {2}؛ والباقي في المكتبة. انقر فوق عنصر في المكتبة لفتح النسيج الخاص به.</value>
-  </data>
-  <data name="TextureEditor.Notify.ImportDetail.KeptSlices" xml:space="preserve">
-    <value>تم تطبيق {0} من {1} من العناصر تستهدف {2}؛ تم الاحتفاظ بالشرائح الحالية وجميع العناصر في المكتبة. انقر فوق عنصر في المكتبة لفتح النسيج الخاص به.</value>
-  </data>
-  <data name="TextureEditor.Notify.ImportDetail.NoMatch" xml:space="preserve">
-    <value>لا شيء يستهدف {0}؛ جميع العناصر في المكتبة. انقر فوق عنصر في المكتبة لفتح النسيج الخاص به.</value>
-  </data>
-  <data name="TextureEditor.Notify.ImportDetail.NoAtlas" xml:space="preserve">
-    <value>افتح نسيجًا لتطبيقها كشرائح؛ جميع العناصر في المكتبة.</value>
   </data>
   <data name="TextureEditor.Notify.RegistryOpened.Title" xml:space="preserve">
     <value>تم فتح النسيج</value>
@@ -15020,18 +15002,6 @@ https://example.com/screenshot2.png</value>
   </data>
   <data name="TextureEditor.Dialog.ClearSlices.Confirm" xml:space="preserve">
     <value>حفظ فارغ</value>
-  </data>
-  <data name="TextureEditor.Dialog.OpenTexture.Title" xml:space="preserve">
-    <value>فتح النسيج؟</value>
-  </data>
-  <data name="TextureEditor.Dialog.OpenTexture.Message" xml:space="preserve">
-    <value>يشير {0} إلى {1} من الأنسجة. هل تريد فتح {2} لتحرير الشرائح الخاصة به ({3})؟</value>
-  </data>
-  <data name="TextureEditor.Dialog.OpenTexture.Confirm" xml:space="preserve">
-    <value>فتح</value>
-  </data>
-  <data name="TextureEditor.Dialog.OpenTexture.Cancel" xml:space="preserve">
-    <value>إلغاء</value>
   </data>
   <data name="TextureEditor.Dialog.ClearSlices.Cancel" xml:space="preserve">
     <value>إلغاء</value>
@@ -17200,7 +17170,7 @@ Error: فشل: {3}
     <value>مجموعة الدروع</value>
   </data>
   <data name="Tools.IniEditor.Assembled.ArmorTooltip" xml:space="preserve">
-    <value>الدرع: {0} -> {1} ({2} معاملات)</value>
+    <value>الدرع: {0} -&gt; {1} ({2} معاملات)</value>
   </data>
   <data name="Tools.IniEditor.Assembled.CommandSetLabel" xml:space="preserve">
     <value>مجموعة الأوامر</value>
@@ -17324,5 +17294,11 @@ Error: فشل: {3}
   <data name="TextureEditor.Tooltip.PanMode" xml:space="preserve">
     <value>تبديل أداة التحريك</value>
   </data>
-
+  <data name="TextureEditor.Dialog.AllSupportedFiles" xml:space="preserve"><value>الملفات المدعومة (*.tga, *.dds, *.png, *.ini)</value></data>
+  <data name="TextureEditor.Notify.PlaceholderOpened.Title" xml:space="preserve"><value>نسيج مؤقت</value></data>
+  <data name="TextureEditor.Notify.PlaceholderOpened.Message" xml:space="preserve"><value>تم فتح لوحة قماشية مؤقتة ({0}x{1}) تحتوي على {2} شريحة من {3}{4}.</value></data>
+  <data name="TextureEditor.Notify.ImportExtraTextures" xml:space="preserve"><value> ({0} أنسجة أخرى في المكتبة)</value></data>
+  <data name="TextureEditor.Notify.ImportComplete.LoadedCurrentAtlas" xml:space="preserve"><value>تم تحميل {0} شريحة لـ {1} من {2}{3}.</value></data>
+  <data name="TextureEditor.Notify.ImportComplete.LoadedTargetAtlas" xml:space="preserve"><value>تم تحميل {0} شريحة لـ {1} من {2}{3}.</value></data>
+  <data name="TextureEditor.Notify.ImportComplete.LibraryOnly" xml:space="preserve"><value>تم استيراد {0} صورة في المكتبة.</value></data>
 </root>

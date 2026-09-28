@@ -1,4 +1,4 @@
-﻿<?xml version='1.0' encoding='utf-8'?>
+<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -14643,7 +14643,7 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="Tools.Plugin.texture-editor.Description" xml:space="preserve">
     <value>Нарезайте атласы текстур, визуально правьте MappedImages и упаковывайте иконки в листы SAGE.</value>
   </data>
-  <data name="TextureEditor.Header.NoAtlas" xml:space="preserve">
+    <data name="TextureEditor.Header.NoAtlas" xml:space="preserve">
     <value>Атлас не открыт</value>
   </data>
   <data name="TextureEditor.Tooltip.ZoomOut" xml:space="preserve">
@@ -14976,29 +14976,11 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="TextureEditor.Notify.ImportComplete.Title" xml:space="preserve">
     <value>Импорт завершён</value>
   </data>
-  <data name="TextureEditor.Notify.ImportComplete.Message" xml:space="preserve">
-    <value>Импортировано изображений: {0} из {1}.</value>
-  </data>
   <data name="TextureEditor.Notify.ImportFailed.Title" xml:space="preserve">
     <value>Ошибка импорта</value>
   </data>
   <data name="TextureEditor.Notify.ImportFailed.Message" xml:space="preserve">
     <value>Связанные изображения не найдены.</value>
-  </data>
-  <data name="TextureEditor.Notify.ImportDetail.AppliedAll" xml:space="preserve">
-    <value>Все записи ({0}) применены к {1}.</value>
-  </data>
-  <data name="TextureEditor.Notify.ImportDetail.AppliedPartial" xml:space="preserve">
-    <value>Применено {0} из {1} записей к {2}; остальные — в библиотеке. Щёлкните запись в библиотеке, чтобы открыть её текстуру.</value>
-  </data>
-  <data name="TextureEditor.Notify.ImportDetail.KeptSlices" xml:space="preserve">
-    <value>{0} из {1} записей относятся к {2}; текущие срезы сохранены, все записи — в библиотеке. Щёлкните запись в библиотеке, чтобы открыть её текстуру.</value>
-  </data>
-  <data name="TextureEditor.Notify.ImportDetail.NoMatch" xml:space="preserve">
-    <value>Ни одна не относится к {0}; все записи — в библиотеке. Щёлкните запись в библиотеке, чтобы открыть её текстуру.</value>
-  </data>
-  <data name="TextureEditor.Notify.ImportDetail.NoAtlas" xml:space="preserve">
-    <value>Откройте текстуру, чтобы применить их как срезы; все записи — в библиотеке.</value>
   </data>
   <data name="TextureEditor.Notify.RegistryOpened.Title" xml:space="preserve">
     <value>Текстура открыта</value>
@@ -15020,18 +15002,6 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   </data>
   <data name="TextureEditor.Dialog.ClearSlices.Confirm" xml:space="preserve">
     <value>Сохранить пустым</value>
-  </data>
-  <data name="TextureEditor.Dialog.OpenTexture.Title" xml:space="preserve">
-    <value>Открыть текстуру?</value>
-  </data>
-  <data name="TextureEditor.Dialog.OpenTexture.Message" xml:space="preserve">
-    <value>{0} ссылается на текстур: {1}. Открыть {2}, чтобы редактировать её срезы ({3})?</value>
-  </data>
-  <data name="TextureEditor.Dialog.OpenTexture.Confirm" xml:space="preserve">
-    <value>Открыть</value>
-  </data>
-  <data name="TextureEditor.Dialog.OpenTexture.Cancel" xml:space="preserve">
-    <value>Отмена</value>
   </data>
   <data name="TextureEditor.Dialog.ClearSlices.Cancel" xml:space="preserve">
     <value>Отмена</value>
@@ -17200,7 +17170,7 @@ Error: не удалось: {3}
     <value>Набор брони</value>
   </data>
   <data name="Tools.IniEditor.Assembled.ArmorTooltip" xml:space="preserve">
-    <value>Броня: {0} -> {1} ({2} коэффициентов)</value>
+    <value>Броня: {0} -&gt; {1} ({2} коэффициентов)</value>
   </data>
   <data name="Tools.IniEditor.Assembled.CommandSetLabel" xml:space="preserve">
     <value>Набор команд</value>
@@ -17324,5 +17294,11 @@ Error: не удалось: {3}
   <data name="TextureEditor.Tooltip.PanMode" xml:space="preserve">
     <value>Переключить инструмент панорамирования</value>
   </data>
-
+  <data name="TextureEditor.Dialog.AllSupportedFiles" xml:space="preserve"><value>Поддерживаемые файлы (*.tga, *.dds, *.png, *.ini)</value></data>
+  <data name="TextureEditor.Notify.PlaceholderOpened.Title" xml:space="preserve"><value>Текстура-заполнитель</value></data>
+  <data name="TextureEditor.Notify.PlaceholderOpened.Message" xml:space="preserve"><value>Открыт временный холст ({0}x{1}) с {2} срезами из {3}{4}.</value></data>
+  <data name="TextureEditor.Notify.ImportExtraTextures" xml:space="preserve"><value> ({0} других текстур в библиотеке)</value></data>
+  <data name="TextureEditor.Notify.ImportComplete.LoadedCurrentAtlas" xml:space="preserve"><value>Загружено {0} срезов для {1} из {2}{3}.</value></data>
+  <data name="TextureEditor.Notify.ImportComplete.LoadedTargetAtlas" xml:space="preserve"><value>Загружено {0} срезов для {1} из {2}{3}.</value></data>
+  <data name="TextureEditor.Notify.ImportComplete.LibraryOnly" xml:space="preserve"><value>Импортировано {0} связанных изображений в библиотеку.</value></data>
 </root>

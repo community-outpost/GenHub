@@ -96,7 +96,10 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
         var started = Stopwatch.GetTimestamp();
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
-        if (path.Contains('#'))
+        int hashIndex = path.IndexOf('#');
+        if (hashIndex > 0
+            && path[..hashIndex].EndsWith(".big", StringComparison.OrdinalIgnoreCase)
+            && File.Exists(path[..hashIndex]))
         {
             string[] parts = path.Split('#', 2);
             string archivePath = parts[0];

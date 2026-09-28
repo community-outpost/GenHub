@@ -1,4 +1,4 @@
-﻿<?xml version='1.0' encoding='utf-8'?>
+<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -14702,7 +14702,7 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="Tools.Plugin.texture-editor.Description" xml:space="preserve">
     <value>Slice texture atlases, edit MappedImages visually, and pack loose icons into SAGE sheets.</value>
   </data>
-  <data name="TextureEditor.Header.NoAtlas" xml:space="preserve">
+    <data name="TextureEditor.Header.NoAtlas" xml:space="preserve">
     <value>No atlas open</value>
   </data>
   <data name="TextureEditor.Tooltip.ZoomOut" xml:space="preserve">
@@ -15035,29 +15035,11 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="TextureEditor.Notify.ImportComplete.Title" xml:space="preserve">
     <value>Import complete</value>
   </data>
-  <data name="TextureEditor.Notify.ImportComplete.Message" xml:space="preserve">
-    <value>Imported {0} mapped images from {1}.</value>
-  </data>
   <data name="TextureEditor.Notify.ImportFailed.Title" xml:space="preserve">
     <value>Import failed</value>
   </data>
   <data name="TextureEditor.Notify.ImportFailed.Message" xml:space="preserve">
     <value>No mapped images found.</value>
-  </data>
-  <data name="TextureEditor.Notify.ImportDetail.AppliedAll" xml:space="preserve">
-    <value>All {0} entries were applied to {1}.</value>
-  </data>
-  <data name="TextureEditor.Notify.ImportDetail.AppliedPartial" xml:space="preserve">
-    <value>{0} of {1} entries were applied to {2}; the rest are in the Library. Click a Library entry to open its texture.</value>
-  </data>
-  <data name="TextureEditor.Notify.ImportDetail.KeptSlices" xml:space="preserve">
-    <value>{0} of {1} entries target {2}; current slices were kept and all entries are in the Library. Click a Library entry to open its texture.</value>
-  </data>
-  <data name="TextureEditor.Notify.ImportDetail.NoMatch" xml:space="preserve">
-    <value>None target {0}; all entries are in the Library. Click a Library entry to open its texture.</value>
-  </data>
-  <data name="TextureEditor.Notify.ImportDetail.NoAtlas" xml:space="preserve">
-    <value>Open a texture to apply them as slices; all entries are in the Library.</value>
   </data>
   <data name="TextureEditor.Notify.RegistryOpened.Title" xml:space="preserve">
     <value>Texture opened</value>
@@ -15079,18 +15061,6 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   </data>
   <data name="TextureEditor.Dialog.ClearSlices.Confirm" xml:space="preserve">
     <value>Save empty</value>
-  </data>
-  <data name="TextureEditor.Dialog.OpenTexture.Title" xml:space="preserve">
-    <value>Open texture?</value>
-  </data>
-  <data name="TextureEditor.Dialog.OpenTexture.Message" xml:space="preserve">
-    <value>{0} references {1} textures. Open {2} to edit its {3} slices?</value>
-  </data>
-  <data name="TextureEditor.Dialog.OpenTexture.Confirm" xml:space="preserve">
-    <value>Open</value>
-  </data>
-  <data name="TextureEditor.Dialog.OpenTexture.Cancel" xml:space="preserve">
-    <value>Cancel</value>
   </data>
   <data name="TextureEditor.Dialog.ClearSlices.Cancel" xml:space="preserve">
     <value>Cancel</value>
@@ -17259,7 +17229,7 @@ How do you want to apply this update?</value>
     <value>Armor Set</value>
   </data>
   <data name="Tools.IniEditor.Assembled.ArmorTooltip" xml:space="preserve">
-    <value>Armor: {0} -> {1} ({2} coefficients)</value>
+    <value>Armor: {0} -&gt; {1} ({2} coefficients)</value>
   </data>
   <data name="Tools.IniEditor.Assembled.CommandSetLabel" xml:space="preserve">
     <value>Command Set</value>
@@ -17383,5 +17353,11 @@ Mapped image texture reference</value>
   <data name="TextureEditor.Tooltip.PanMode" xml:space="preserve">
     <value>Toggle pan tool</value>
   </data>
-
+  <data name="TextureEditor.Dialog.AllSupportedFiles" xml:space="preserve"><value>Supported files (*.tga, *.dds, *.png, *.ini)</value></data>
+  <data name="TextureEditor.Notify.PlaceholderOpened.Title" xml:space="preserve"><value>Placeholder texture</value></data>
+  <data name="TextureEditor.Notify.PlaceholderOpened.Message" xml:space="preserve"><value>Opened placeholder canvas ({0}x{1}) with {2} slices from {3}{4}.</value></data>
+  <data name="TextureEditor.Notify.ImportExtraTextures" xml:space="preserve"><value> ({0} other textures in Library)</value></data>
+  <data name="TextureEditor.Notify.ImportComplete.LoadedCurrentAtlas" xml:space="preserve"><value>Loaded {0} slices for {1} from {2}{3}.</value></data>
+  <data name="TextureEditor.Notify.ImportComplete.LoadedTargetAtlas" xml:space="preserve"><value>Loaded {0} slices for {1} from {2}{3}.</value></data>
+  <data name="TextureEditor.Notify.ImportComplete.LibraryOnly" xml:space="preserve"><value>Imported {0} mapped images into Library.</value></data>
 </root>

@@ -32,6 +32,8 @@ public sealed class SageTextureCodec(ILogger<SageTextureCodec> logger) : ISageTe
     private const uint DdsFourCcDxt4 = 0x34545844;
     private const uint DdsFourCcDxt5 = 0x35545844;
     private const int DdsPixelFormatOffset = 72;
+    private const int DdsHeaderFlagsOffset = 4;
+    private const int DdsHeaderPitchFlag = 0x8;
     private const int DdsHeightOffset = 8;
     private const int DdsWidthOffset = 12;
     private const int DdsPitchOffset = 16;
@@ -653,7 +655,10 @@ public sealed class SageTextureCodec(ILogger<SageTextureCodec> logger) : ISageTe
 
         if (header.RgbBitCount == 32 || header.RgbBitCount == 24)
         {
-            int pitch = ReadInt32(header.Data, header.HeaderOffset + DdsPitchOffset);
+            int headerFlags = ReadInt32(header.Data, header.HeaderOffset + DdsHeaderFlagsOffset);
+            int pitch = (headerFlags & DdsHeaderPitchFlag) != 0
+                ? ReadInt32(header.Data, header.HeaderOffset + DdsPitchOffset)
+                : 0;
             uint alphaMask = (uint)ReadInt32(header.Data, header.PixelOffset + DdsPixelFormatAlphaMaskOffset);
             bool hasAlpha = (header.PixelFlags & DdsPixelFormatAlphaPixelsFlag) != 0 || alphaMask != 0;
             return DecodeDdsUncompressed(new DdsUncompressedRequest(header.Data, header.DataOffset, header.Width, header.Height, header.RgbBitCount / 8, pitch, header.RedMask, hasAlpha, header.SourceName, header.Started));

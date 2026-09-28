@@ -111,8 +111,9 @@ public sealed partial class TextureEditorViewModel(
                 return string.Empty;
             }
 
-            string clean = AtlasPath.Contains('#')
-                ? AtlasPath.Substring(AtlasPath.IndexOf('#') + 1)
+            int hashIndex = AtlasPath.IndexOf('#');
+            string clean = hashIndex > 0 && AtlasPath[..hashIndex].EndsWith(".big", StringComparison.OrdinalIgnoreCase)
+                ? AtlasPath.Substring(hashIndex + 1)
                 : AtlasPath;
             return clean.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? string.Empty;
         }
@@ -397,8 +398,8 @@ public sealed partial class TextureEditorViewModel(
 
         int width = _dragOriginal.Value.Right - _dragOriginal.Value.Left;
         int height = _dragOriginal.Value.Bottom - _dragOriginal.Value.Top;
-        _dragSlice.Left = Math.Max(0, _dragOriginal.Value.Left + deltaX);
-        _dragSlice.Top = Math.Max(0, _dragOriginal.Value.Top + deltaY);
+        _dragSlice.Left = Math.Clamp(_dragOriginal.Value.Left + deltaX, 0, Math.Max(0, AtlasPixelWidth - width));
+        _dragSlice.Top = Math.Clamp(_dragOriginal.Value.Top + deltaY, 0, Math.Max(0, AtlasPixelHeight - height));
         _dragSlice.Right = _dragSlice.Left + width;
         _dragSlice.Bottom = _dragSlice.Top + height;
     }
@@ -603,7 +604,7 @@ public sealed partial class TextureEditorViewModel(
         var operation = BeginOperation();
         try
         {
-            if (await TryWriteMappedImagesAsync(path, cancellationToken).ConfigureAwait(true))
+            if (await TryWriteMappedImagesAsync(path, operation.Token).ConfigureAwait(true))
             {
                 _savedIniPath = path;
                 MarkSaved();
@@ -669,7 +670,7 @@ public sealed partial class TextureEditorViewModel(
         var operation = BeginOperation();
         try
         {
-            if (await TryWriteMappedImagesAsync(path, cancellationToken).ConfigureAwait(true))
+            if (await TryWriteMappedImagesAsync(path, operation.Token).ConfigureAwait(true))
             {
                 _savedIniPath = path;
                 MarkSaved();
@@ -1405,11 +1406,11 @@ public sealed partial class TextureEditorViewModel(
                     MarkSaved();
 
                     string extraInfo = groups.Count > 1
-                        ? $" ({groups.Count - 1} other textures in Library)"
+                        ? Localize("TextureEditor.Notify.ImportExtraTextures", " ({0} other textures in Library)", groups.Count - 1)
                         : string.Empty;
                     Notifications.ShowSuccess(
                         Localize("TextureEditor.Notify.ImportComplete.Title", "Loaded INI"),
-                        $"Loaded {currentMatchGroup.Count()} slices for {AtlasFileName} from {Path.GetFileName(path)}{extraInfo}.",
+                        Localize("TextureEditor.Notify.ImportComplete.LoadedCurrentAtlas", "Loaded {0} slices for {1} from {2}{3}.", currentMatchGroup.Count(), AtlasFileName, Path.GetFileName(path), extraInfo),
                         NotificationDurations.Medium);
                     return;
                 }
@@ -1447,11 +1448,11 @@ public sealed partial class TextureEditorViewModel(
                         MarkSaved();
 
                         string extraInfo = groups.Count > 1
-                            ? $" ({groups.Count - 1} other textures in Library)"
+                            ? Localize("TextureEditor.Notify.ImportExtraTextures", " ({0} other textures in Library)", groups.Count - 1)
                             : string.Empty;
                         Notifications.ShowSuccess(
                             Localize("TextureEditor.Notify.ImportComplete.Title", "Loaded INI"),
-                            $"Loaded {targetGroup.Count()} slices for {Path.GetFileName(targetTexturePath)} from {Path.GetFileName(path)}{extraInfo}.",
+                            Localize("TextureEditor.Notify.ImportComplete.LoadedTargetAtlas", "Loaded {0} slices for {1} from {2}{3}.", targetGroup.Count(), Path.GetFileName(targetTexturePath), Path.GetFileName(path), extraInfo),
                             NotificationDurations.Medium);
                         return;
                     }
@@ -1475,11 +1476,11 @@ public sealed partial class TextureEditorViewModel(
                         MarkSaved();
 
                         string extraInfo = groups.Count > 1
-                            ? $" ({groups.Count - 1} other textures in Library)"
+                            ? Localize("TextureEditor.Notify.ImportExtraTextures", " ({0} other textures in Library)", groups.Count - 1)
                             : string.Empty;
                         Notifications.ShowInfo(
                             Localize("TextureEditor.Notify.PlaceholderOpened.Title", "Placeholder texture"),
-                            $"Opened placeholder canvas ({firstDefinition.TextureWidth}x{firstDefinition.TextureHeight}) with {targetGroup.Count()} slices from {Path.GetFileName(path)}{extraInfo}.",
+                            Localize("TextureEditor.Notify.PlaceholderOpened.Message", "Opened placeholder canvas ({0}x{1}) with {2} slices from {3}{4}.", firstDefinition.TextureWidth, firstDefinition.TextureHeight, targetGroup.Count(), Path.GetFileName(path), extraInfo),
                             NotificationDurations.Medium);
                         return;
                     }
@@ -1487,7 +1488,7 @@ public sealed partial class TextureEditorViewModel(
 
                 Notifications.ShowWarning(
                     Localize("TextureEditor.Notify.ImportComplete.Title", "Imported"),
-                    $"Imported {parsed.Data.Count} mapped images into Library.",
+                    Localize("TextureEditor.Notify.ImportComplete.LibraryOnly", "Imported {0} mapped images into Library.", parsed.Data.Count),
                     NotificationDurations.Medium);
             }).ConfigureAwait(true);
         }
@@ -1504,8 +1505,6 @@ public sealed partial class TextureEditorViewModel(
                 NotificationDurations.Long);
         }
     }
-
-    private Task ImportIniFileAsync(string path) => OpenIniFileAsync(path);
 
     private void RefreshRegistryImages()
     {
@@ -1555,26 +1554,46 @@ public sealed partial class TextureEditorViewModel(
             return;
         }
 
-        var sameDirMatches = allMatches
-            .Where(image => image.SourcePath is not null && IsSameDirectory(image.SourcePath, AtlasPath))
-            .ToList();
-        if (sameDirMatches.Count > 0)
-        {
-            ReplaceSlices(sameDirMatches);
-            return;
-        }
+        bool isAtlasArchive = !string.IsNullOrEmpty(AtlasPath) && AtlasPath.Contains('#');
+        string cleanAtlas = isAtlasArchive ? StripArchiveFragment(AtlasPath) : AtlasPath;
 
-        if (!string.IsNullOrEmpty(FileExplorer.Directory) &&
-            !string.IsNullOrEmpty(AtlasPath) &&
-            IsUnderDirectory(AtlasPath, FileExplorer.Directory))
+        if (isAtlasArchive)
         {
-            var projectMatches = allMatches
-                .Where(image => image.SourcePath is not null && IsUnderDirectory(image.SourcePath, FileExplorer.Directory))
+            var archiveMatches = allMatches
+                .Where(image => image.SourcePath is not null &&
+                                ((image.SourcePath.Contains('#') && string.Equals(StripArchiveFragment(image.SourcePath), cleanAtlas, StringComparison.OrdinalIgnoreCase)) ||
+                                 (!image.SourcePath.Contains('#') && (IsSameDirectory(image.SourcePath, cleanAtlas) ||
+                                  (!string.IsNullOrEmpty(FileExplorer.Directory) && IsUnderDirectory(image.SourcePath, FileExplorer.Directory))))))
                 .ToList();
-            if (projectMatches.Count > 0)
+            if (archiveMatches.Count > 0)
             {
-                ReplaceSlices(projectMatches);
+                ReplaceSlices(archiveMatches);
                 return;
+            }
+        }
+        else
+        {
+            var sameDirMatches = allMatches
+                .Where(image => image.SourcePath is not null && !image.SourcePath.Contains('#') && IsSameDirectory(image.SourcePath, AtlasPath))
+                .ToList();
+            if (sameDirMatches.Count > 0)
+            {
+                ReplaceSlices(sameDirMatches);
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(FileExplorer.Directory) &&
+                !string.IsNullOrEmpty(AtlasPath) &&
+                IsUnderDirectory(AtlasPath, FileExplorer.Directory))
+            {
+                var projectMatches = allMatches
+                    .Where(image => image.SourcePath is not null && !image.SourcePath.Contains('#') && IsUnderDirectory(image.SourcePath, FileExplorer.Directory))
+                    .ToList();
+                if (projectMatches.Count > 0)
+                {
+                    ReplaceSlices(projectMatches);
+                    return;
+                }
             }
         }
 
@@ -1586,21 +1605,6 @@ public sealed partial class TextureEditorViewModel(
             if (savedIniMatches.Count > 0)
             {
                 ReplaceSlices(savedIniMatches);
-                return;
-            }
-        }
-
-        if (!string.IsNullOrEmpty(AtlasPath) && AtlasPath.Contains('#'))
-        {
-            string cleanAtlas = StripArchiveFragment(AtlasPath);
-            var archiveMatches = allMatches
-                .Where(image => image.SourcePath is not null &&
-                                (image.SourcePath.Contains('#') || IsSameDirectory(image.SourcePath, cleanAtlas) ||
-                                 (!string.IsNullOrEmpty(FileExplorer.Directory) && IsUnderDirectory(image.SourcePath, FileExplorer.Directory))))
-                .ToList();
-            if (archiveMatches.Count > 0)
-            {
-                ReplaceSlices(archiveMatches);
                 return;
             }
         }
@@ -1812,9 +1816,12 @@ public sealed partial class TextureEditorViewModel(
         string[] bigFiles;
         try
         {
-            bigFiles = Directory.GetFiles(directory, "*.big", SearchOption.TopDirectoryOnly);
+            bigFiles = Directory
+                .GetFiles(directory, "*", SearchOption.TopDirectoryOnly)
+                .Where(file => string.Equals(Path.GetExtension(file), ".big", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return null;
         }
@@ -1998,12 +2005,28 @@ public sealed partial class TextureEditorViewModel(
         }
 
         var definitions = Slices.Select(slice => slice.ToDefinition()).ToList();
+        var preserved = new List<MappedImageDefinition>();
+        if (File.Exists(path))
+        {
+            var existing = await parser.ParseFileAsync(path, cancellationToken).ConfigureAwait(true);
+            if (existing.Failed || existing.Data is null)
+            {
+                Notifications.ShowError(
+                    Localize(ExportInvalidTitleKey, ExportInvalidTitleFallback),
+                    Localize("TextureEditor.Notify.ExportInspectFailed.Message", "Could not inspect '{0}'. The export was cancelled to protect its contents.", Path.GetFileName(path)),
+                    NotificationDurations.Long);
+                return false;
+            }
+
+            preserved.AddRange(existing.Data.Where(image => !MappedImageTextureMatcher.Matches(image.TextureFileName, AtlasFileName)));
+        }
+
         if (definitions.Count == 0 && !await ConfirmEmptyOverwriteAsync(path, cancellationToken).ConfigureAwait(true))
         {
             return false;
         }
 
-        string content = parser.Serialize(definitions, $"Generated by GenHub {TextureEditorConstants.ToolName} from {AtlasFileName}");
+        string content = parser.Serialize(preserved.Concat(definitions), $"Generated by GenHub {TextureEditorConstants.ToolName} from {AtlasFileName}");
         await AtomicFile.WriteAllTextAsync(path, content, cancellationToken).ConfigureAwait(true);
         return true;
     }

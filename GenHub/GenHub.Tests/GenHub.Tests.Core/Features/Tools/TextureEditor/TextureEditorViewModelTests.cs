@@ -191,6 +191,43 @@ public sealed class TextureEditorViewModelTests
     }
 
     /// <summary>
+    /// Verifies that saving over an existing INI preserves entries for other textures.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task SaveCommand_ExistingIniWithOtherTextures_PreservesOtherTexturesAsync()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(directory);
+        try
+        {
+            string iniPath = Path.Combine(directory, "atlas.ini");
+            string existingIni =
+                "MappedImage OtherHero\n  Texture = other.tga\n  TextureWidth = 100\n  TextureHeight = 100\n  Coords = Left:0 Top:0 Right:10 Bottom:10\n  Status = NONE\nEnd\n" +
+                "MappedImage OldHero\n  Texture = atlas.tga\n  TextureWidth = 100\n  TextureHeight = 100\n  Coords = Left:5 Top:5 Right:15 Bottom:15\n  Status = NONE\nEnd\n";
+            await File.WriteAllTextAsync(iniPath, existingIni);
+
+            var viewModel = CreateViewModel();
+            viewModel.AtlasPath = Path.Combine(directory, "atlas.tga");
+            using var stream = new MemoryStream(ValidPngBytes);
+            using var bitmap = new Bitmap(stream);
+            viewModel.AtlasBitmap = bitmap;
+            viewModel.Slices.Add(new TextureSliceViewModel(new MappedImageDefinition("NewHero", "atlas.tga", 1, 1, 0, 0, 1, 1)));
+
+            await viewModel.SaveCommand.ExecuteAsync(null);
+
+            string written = await File.ReadAllTextAsync(iniPath);
+            Assert.Contains("MappedImage OtherHero", written);
+            Assert.Contains("MappedImage NewHero", written);
+            Assert.DoesNotContain("MappedImage OldHero", written);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that saving zero slices over a missing INI writes without confirmation.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>

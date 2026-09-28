@@ -75,7 +75,10 @@ public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<M
         string[] bigFiles = Array.Empty<string>();
         try
         {
-            bigFiles = Directory.GetFiles(directory, "*.big", SearchOption.TopDirectoryOnly);
+            bigFiles = Directory
+                .GetFiles(directory, "*", SearchOption.TopDirectoryOnly)
+                .Where(file => string.Equals(Path.GetExtension(file), ".big", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -109,7 +112,10 @@ public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<M
                 }
 
                 bool foundInArchive = false;
-                foreach (var entry in archiveEntries.Values)
+                var orderedEntries = archiveEntries.Values
+                    .OrderBy(e => e.Path, Comparer<string>.Create(CompareSageLoadOrder))
+                    .ToList();
+                foreach (var entry in orderedEntries)
                 {
                     if (!entry.Path.EndsWith(".ini", StringComparison.OrdinalIgnoreCase))
                     {
@@ -180,7 +186,7 @@ public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<M
                         continue;
                     }
                 }
-                catch
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
                     continue;
                 }

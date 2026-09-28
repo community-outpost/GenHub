@@ -492,25 +492,7 @@ public sealed partial class WndEditorViewModel(
         }
 
         FilesDirectory = folderPath;
-        LeftSidebarTabIndex = 1;
-
-        if (HasDocument && !string.IsNullOrEmpty(FilePath) && IsSubPathOf(FilePath, folderPath))
-        {
-            FileExplorer.CurrentPath = FilePath;
-            return true;
-        }
-
-        var firstWnd = FileExplorer.FindFirstFile();
-        if (!string.IsNullOrEmpty(firstWnd))
-        {
-            return await OpenFileAsync(firstWnd, cancellationToken).ConfigureAwait(false);
-        }
-
-        Notifications.ShowInfo(
-            Localization.GetString("Tools.WndEditor.Files.NoWndFilesTitle"),
-            Localization.GetString("Tools.WndEditor.Files.NoWndFilesMessage"),
-            NotificationDurations.Medium);
-
+        await AdoptExplorerDirectoryAsync(folderPath, cancellationToken).ConfigureAwait(false);
         return true;
     }
 
