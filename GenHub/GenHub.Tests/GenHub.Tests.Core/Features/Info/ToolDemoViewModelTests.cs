@@ -148,7 +148,7 @@ public class ToolDemoViewModelTests
     /// Verifies that the demo factory returns the actual GenHotkeys view model with a sample profile and real tech tree.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
-    [AvaloniaFact]
+    [Fact]
     public async Task CreateDemoGenHotkeys_ReturnsActualViewModelWithSampleProfile()
     {
         var viewModel = DemoViewModelFactory.CreateDemoGenHotkeys();
@@ -160,6 +160,13 @@ public class ToolDemoViewModelTests
         while (viewModel.Factions.Count == 0 && DateTimeOffset.UtcNow < deadline)
         {
             await Task.Delay(50);
+
+            // Only pump jobs when executing on the UI thread ([AvaloniaFact]).
+            // Avoids cross-thread dispatcher pumping that throws PlatformNotSupportedException on headless Linux.
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                Dispatcher.UIThread.RunJobs();
+            }
         }
 
         viewModel.Profiles.Should().ContainSingle(p => p.Name == "Demo Hotkeys");
