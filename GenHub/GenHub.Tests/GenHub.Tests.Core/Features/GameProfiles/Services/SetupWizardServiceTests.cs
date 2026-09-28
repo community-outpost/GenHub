@@ -18,7 +18,9 @@ using GenHub.Features.GameProfiles.Services;
 using GenHub.Features.GameProfiles.ViewModels.Wizard;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -454,6 +456,70 @@ public class SetupWizardServiceTests
         // Assert: Both actions are confirmed for installation
         Assert.Equal(GameClientConstants.WizardActionTypes.Install, result.CommunityPatchAction);
         Assert.Equal(GameClientConstants.WizardActionTypes.Install, result.CommunityPatchNonRetAction);
+    }
+
+    /// <summary>
+    /// Verifies that a native TheSuperHackers client on macOS or Linux is offered as Create Profile,
+    /// since the publisher package the Install action downloads is a Windows build.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RunSetupWizardAsync_WhenNativeSuperHackersClientDetected_OffersCreateProfileOnUnixHostsAsync()
+    {
+        var directory = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"GenHub.Wizard.{Guid.NewGuid():N}")).FullName;
+        try
+        {
+            var executablePath = Path.Combine(directory, Path.GetFileNameWithoutExtension(GameClientConstants.SuperHackersZeroHourExecutable));
+            await File.WriteAllBytesAsync(executablePath, [0xCF, 0xFA, 0xED, 0xFE, 0x0C, 0x00, 0x00, 0x01]);
+
+            _goDiscovererMock
+                .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult { Items = [] }));
+            _cpDiscovererMock
+                .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult { Items = [] }));
+            _manifestPoolMock
+                .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+            var installation = new GameInstallation(directory, GameInstallationType.Retail, null);
+            installation.AvailableGameClients =
+            [
+                new GameClient
+                {
+                    Id = "1.104.retail.gameclient.zerohour",
+                    InstallationId = installation.Id,
+                    Name = $"{SuperHackersConstants.PublisherName} - {SuperHackersConstants.ZeroHourDisplayName}",
+                    PublisherType = PublisherTypeConstants.TheSuperHackers,
+                    GameType = GameType.ZeroHour,
+                    Version = GameClientConstants.UnknownVersion,
+                    ExecutablePath = executablePath,
+                },
+            ];
+
+            var service = CreateService(CreateSuperHackersProviderMock("weekly-2026-09-25").Object);
+            SetupWizardViewModel? capturedVm = null;
+            service.DialogShower = vm =>
+            {
+                capturedVm = vm;
+                vm.ConfirmCommand.Execute(null);
+                return Task.FromResult(true);
+            };
+
+            var result = await service.RunSetupWizardAsync([installation], CancellationToken.None);
+
+            var expectedAction = OperatingSystem.IsWindows()
+                ? GameClientConstants.WizardActionTypes.Install
+                : GameClientConstants.WizardActionTypes.CreateProfile;
+            var shItem = Assert.Single(capturedVm!.Items, i => i.Title == "TheSuperHackers");
+            Assert.Equal(expectedAction, shItem.ActionType);
+            Assert.True(shItem.IsSelected);
+            Assert.Equal(expectedAction, result.SuperHackersAction);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
     }
 
     private SetupWizardService CreateService(SuperHackersProvider? superHackersProvider = null)

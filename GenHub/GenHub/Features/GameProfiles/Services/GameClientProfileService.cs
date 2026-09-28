@@ -225,8 +225,7 @@ public class GameClientProfileService(
 
             // Create a GameClient object from the manifest
             // Extract executable path from manifest files
-            var executableFile = manifest.Files?.FirstOrDefault(f =>
-                f.RelativePath?.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) == true);
+            var executableFile = SelectClientExecutable(manifest.Files);
 
             if (executableFile == null)
             {
@@ -306,6 +305,22 @@ public class GameClientProfileService(
             logger.LogWarning(ex, "Error checking if profile exists for game client {GameClientId}", gameClientId);
             return false;
         }
+    }
+
+    /// <summary>
+    /// Selects the client executable from a manifest's files, preferring the host's form:
+    /// the extensionless native binary on macOS and Linux, the <c>.exe</c> on Windows.
+    /// </summary>
+    /// <param name="files">The manifest files.</param>
+    /// <returns>The executable file, or <see langword="null"/> when the manifest has none.</returns>
+    private static ManifestFile? SelectClientExecutable(IEnumerable<ManifestFile>? files)
+    {
+        return files?
+            .Where(f => !string.IsNullOrEmpty(f.RelativePath) &&
+                (f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
+                 (f.IsExecutable && !Path.HasExtension(f.RelativePath))))
+            .OrderBy(f => OperatingSystem.IsWindows() == Path.HasExtension(f.RelativePath) ? 0 : 1)
+            .FirstOrDefault();
     }
 
     /// <summary>

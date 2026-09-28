@@ -15,9 +15,11 @@ using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -65,6 +67,26 @@ public class PublisherProfileOrchestrator(
                 isNonRet,
                 installation.InstallationType);
 
+            // Publisher packages are Windows builds. On other hosts an install that already
+            // carries a native client must get its profile from that client, not from a download.
+            if (IsHostNativeClient(gameClient))
+            {
+                var nativeClients = (installation.AvailableGameClients ?? [])
+                    .Where(c => !ReferenceEquals(c, gameClient) &&
+                                string.Equals(c.PublisherType, publisherType, StringComparison.OrdinalIgnoreCase) &&
+                                (!isCommunityOutpost || IsNonRetail(c) == isNonRet) &&
+                                IsHostNativeClient(c))
+                    .Prepend(gameClient)
+                    .DistinctBy(c => c.ExecutablePath, StringComparer.Ordinal)
+                    .ToList();
+
+                logger.LogInformation(
+                    "Using {Count} native {PublisherType} client(s) without acquiring publisher content",
+                    nativeClients.Count,
+                    publisherType);
+                return await CreateProfilesFromDetectedClientsAsync(installation, nativeClients, publisherType, isNonRet, cancellationToken);
+            }
+
             // Check if manifests already exist in the pool for this publisher
             var existingManifests = await GetPublisherManifestsFromPoolAsync(publisherType, cancellationToken);
             if (isCommunityOutpost)
@@ -82,6 +104,14 @@ public class PublisherProfileOrchestrator(
                     publisherType,
                     isNonRet,
                     existingManifests.Count);
+            }
+            else if (skipAcquisition && HasExecutableOnDisk(gameClient))
+            {
+                logger.LogInformation(
+                    "Skip acquisition requested for {PublisherType} (IsNonRet: {IsNonRet}) with no pooled manifests, creating the profile from the detected client",
+                    publisherType,
+                    isNonRet);
+                return await CreateProfilesFromDetectedClientsAsync(installation, [gameClient], publisherType, isNonRet, cancellationToken);
             }
             else if (existingManifests.Count == 0)
             {
@@ -195,6 +225,27 @@ public class PublisherProfileOrchestrator(
         }
     }
 
+    /// <summary>
+    /// Determines whether a detected client is a native macOS or Linux build on a non-Windows host.
+    /// </summary>
+    /// <param name="gameClient">The detected client.</param>
+    /// <returns><c>true</c> when the client runs natively on this host.</returns>
+    internal static bool IsHostNativeClient(GameClient gameClient)
+    {
+        if (OperatingSystem.IsWindows() || string.IsNullOrEmpty(gameClient.ExecutablePath))
+        {
+            return false;
+        }
+
+        var executablePath = gameClient.ExecutablePath;
+        if (Directory.Exists(executablePath))
+        {
+            return executablePath.EndsWith(ContentFormatConstants.MacAppBundleExtension, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return File.Exists(executablePath) && ExecutableFileClassifier.HasNativeExecutableMagicBytes(executablePath);
+    }
+
     private static string GetPublisherDisplayName(string publisherType, bool isNonRet)
     {
         if (publisherType.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
@@ -217,6 +268,10 @@ public class PublisherProfileOrchestrator(
         return publisherType;
     }
 
+    private static bool HasExecutableOnDisk(GameClient gameClient) =>
+        !string.IsNullOrEmpty(gameClient.ExecutablePath) &&
+        (File.Exists(gameClient.ExecutablePath) || Directory.Exists(gameClient.ExecutablePath));
+
     private static bool IsNonRetail(GameClient client) =>
         CommunityOutpostConstants.IsNonRetailIdentifier(client.Id) ||
         CommunityOutpostConstants.IsNonRetailIdentifier(client.Name);
@@ -230,6 +285,50 @@ public class PublisherProfileOrchestrator(
         CommunityOutpostConstants.IsNonRetailIdentifier(result.Id) ||
         CommunityOutpostConstants.IsNonRetailIdentifier(result.Name) ||
         (result.Tags != null && result.Tags.Any(CommunityOutpostConstants.IsNonRetailIdentifier));
+
+    private async Task<OperationResult<int>> CreateProfilesFromDetectedClientsAsync(
+        GameInstallation installation,
+        IReadOnlyList<GameClient> gameClients,
+        string publisherType,
+        bool isNonRet,
+        CancellationToken cancellationToken)
+    {
+        var profilesCreated = 0;
+        foreach (var gameClient in gameClients)
+        {
+            var profileResult = await gameClientProfileService.CreateProfileForGameClientAsync(
+                installation,
+                gameClient,
+                cancellationToken: cancellationToken);
+
+            if (profileResult.Success && profileResult.Data != null)
+            {
+                profilesCreated++;
+                logger.LogInformation(
+                    "Created profile for detected {PublisherType} client {ExecutablePath} -> {ProfileName}",
+                    publisherType,
+                    gameClient.ExecutablePath,
+                    profileResult.Data.Name);
+            }
+            else
+            {
+                logger.LogInformation(
+                    "Skipped profile creation for detected client {ClientName}: {Reason}",
+                    gameClient.Name,
+                    ManifestHelper.FormatErrors(profileResult.Errors));
+            }
+        }
+
+        if (profilesCreated > 0)
+        {
+            var displayName = GetPublisherDisplayName(publisherType, isNonRet);
+            notificationService.ShowSuccess(
+                $"{displayName} Profiles Created",
+                $"Created {profilesCreated} profile(s) for {displayName}.");
+        }
+
+        return OperationResult<int>.CreateSuccess(profilesCreated);
+    }
 
     private async Task<List<ContentManifest>> GetPublisherManifestsFromPoolAsync(string publisherType, CancellationToken cancellationToken)
     {

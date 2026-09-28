@@ -1040,10 +1040,22 @@ public class GameClientDetector(
 
         // 1. Check manifest pool for existing DOWNLOADED content from publishers detected in this path
         var candidates = await IdentifyPublisherCandidatesAsync(installationPath, cancellationToken);
-        var detectedPublisherIds = candidates
+        var matchingCandidates = candidates
             .Where(candidate => candidate.Identification.GameType == gameType || candidate.Identification.GameType == GameType.Unknown)
+            .ToList();
+        var detectedPublisherIds = matchingCandidates
             .Select(candidate => candidate.Identification.PublisherId)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        // Pooled publisher packages are Windows builds rooted in this directory. Where the
+        // directory holds a native build instead, the local binary is the client to keep.
+        if (!OperatingSystem.IsWindows())
+        {
+            detectedPublisherIds.ExceptWith(matchingCandidates
+                .Where(candidate => !Path.HasExtension(candidate.ExecutablePath))
+                .Select(candidate => candidate.Identification.PublisherId));
+        }
+
         var publishersHandledFromPool = await DetectPublisherClientsFromPoolAsync(installation, installationPath, gameType, detectedPublisherIds, detectedClients, cancellationToken);
 
         // 2. Special handling for GeneralsOnline (detects multiple variants)

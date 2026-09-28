@@ -6,6 +6,7 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
@@ -234,6 +235,15 @@ public class SetupWizardService(
                 // Content downloaded in pool, but no profile exists
                 item.Status = GameClientConstants.WizardStatuses.Downloaded;
                 item.Description = FormatCreateProfileDescription(config.Title, displayVersion) + (config.DescriptionSuffix ?? string.Empty);
+                item.ActionLabel = GameClientConstants.WizardActionLabels.CreateProfile;
+                item.ActionType = GameClientConstants.WizardActionTypes.CreateProfile;
+                item.IsSelected = true;
+            }
+            else if (isDetected && componentGlobal.Any(x => x.Client is GameClient client && PublisherProfileOrchestrator.IsHostNativeClient(client)))
+            {
+                // A native client on macOS or Linux is profiled as it is; the publisher package is a Windows build.
+                item.Status = GameClientConstants.WizardStatuses.Detected;
+                item.Description = FormatCreateProfileDescription(config.Title, null) + (config.DescriptionSuffix ?? string.Empty);
                 item.ActionLabel = GameClientConstants.WizardActionLabels.CreateProfile;
                 item.ActionType = GameClientConstants.WizardActionTypes.CreateProfile;
                 item.IsSelected = true;

@@ -1267,6 +1267,62 @@ public class GameClientDetectorTests : IDisposable
     }
 
     /// <summary>
+    /// On macOS and Linux a native TheSuperHackers binary stays the detected client even when a
+    /// Windows package of the same publisher is pooled; that package would point at a missing <c>.exe</c>.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DetectGameClientsFromInstallationsAsync_NativeSuperHackersWithPooledWindowsPackage_KeepsNativeClientOnUnixHostsAsync()
+    {
+        var installPath = Directory.CreateDirectory(Path.Combine(_tempDirectory, "GeneralsZH")).FullName;
+        var nativeBinaryPath = Path.Combine(installPath, Path.GetFileNameWithoutExtension(GameClientConstants.SuperHackersZeroHourExecutable));
+        await File.WriteAllBytesAsync(nativeBinaryPath, MachOHeader);
+
+        var windowsPackage = new ContentManifest
+        {
+            Id = ManifestId.Create("1.20260925.thesuperhackers.gameclient.generalszh"),
+            Name = "TheSuperHackers - Zero Hour",
+            Version = "weekly-2026-09-25",
+            ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.TheSuperHackers },
+            Files =
+            [
+                new ManifestFile
+                {
+                    RelativePath = GameClientConstants.SuperHackersZeroHourExecutable,
+                    SourceType = ContentSourceType.ContentAddressable,
+                    Hash = "hash",
+                },
+            ],
+        };
+        _contentManifestPoolMock.Setup(pool => pool.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([windowsPackage]));
+
+        var detector = new GameClientDetector(
+            _manifestGenerationServiceMock.Object,
+            _contentManifestPoolMock.Object,
+            _hashProviderMock.Object,
+            _hashRegistryMock.Object,
+            [new SuperHackersClientIdentifier()],
+            NullLogger<GameClientDetector>.Instance);
+        var installation = new GameInstallation(installPath, GameInstallationType.Retail)
+        {
+            HasZeroHour = true,
+            ZeroHourPath = installPath,
+        };
+
+        var result = await detector.DetectGameClientsFromInstallationsAsync([installation]);
+
+        Assert.True(result.Success);
+        var client = Assert.Single(result.Items, c => c.PublisherType == PublisherTypeConstants.TheSuperHackers);
+        var expected = OperatingSystem.IsWindows()
+            ? Path.Combine(installPath, GameClientConstants.SuperHackersZeroHourExecutable)
+            : nativeBinaryPath;
+        Assert.Equal(expected, client.ExecutablePath);
+    }
+
+    /// <summary>
     /// Tests that DetectGameClientsFromInstallationsAsync detects a Generals client when the
     /// executable uses alternate casing (for example <c>Generals.exe</c> on case-sensitive filesystems).
     /// </summary>

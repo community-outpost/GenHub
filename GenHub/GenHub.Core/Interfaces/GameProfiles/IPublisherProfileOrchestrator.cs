@@ -13,11 +13,12 @@ public interface IPublisherProfileOrchestrator
     /// <summary>
     /// Attempts to create profiles for all variants of a publisher-based game client.
     /// Checks the manifest pool, triggers acquisition if needed, and creates profiles using IGameClientProfileService.
+    /// On macOS and Linux a detected native client gets its profile directly and nothing is acquired.
     /// </summary>
     /// <param name="installation">The parent game installation.</param>
     /// <param name="gameClient">The detected publisher game client.</param>
     /// <param name="forceReacquireContent">True to bypass cache and re-acquire content from the provider.</param>
-    /// <param name="skipAcquisition">True to skip downloading/acquiring content and only create profiles from existing pool manifests.</param>
+    /// <param name="skipAcquisition">True to skip downloading/acquiring content. Profiles come from existing pool manifests, or from the detected client when the pool has none and its executable is on disk.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Result containing the number of profiles created.</returns>
     Task<OperationResult<int>> CreateProfilesForPublisherClientAsync(
