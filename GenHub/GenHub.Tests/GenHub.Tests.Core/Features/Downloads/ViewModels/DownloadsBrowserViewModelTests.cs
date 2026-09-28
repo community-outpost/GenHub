@@ -24,6 +24,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
+using CatalogEntry = GenHub.Core.Models.Providers.CatalogEntry;
 using ContentState = GenHub.Core.Models.Enums.ContentState;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 using GameType = GenHub.Core.Models.Enums.GameType;
@@ -1096,6 +1097,98 @@ public class DownloadsBrowserViewModelTests
         Assert.Equal("mod-a", viewModel.ContentItems[0].Id);
         Assert.True(viewModel.IsLoading);
         Assert.Equal(viewModel.ActiveRequestId, inFlightOp.ActiveRequestId);
+    }
+
+    /// <summary>
+    /// Verifies that when an in-flight operation for an older publisher completes after switching
+    /// publishers, the captured in-flight catalog ID is preserved in the cache instead of being
+    /// overwritten by the active publisher's catalog ID.
+    /// </summary>
+    [Fact]
+    public void CommitBrowseResultsToCache_WhenInFlightOperationCompletesForOldPublisher_PreservesInFlightCatalogIdInCache()
+    {
+        // Arrange
+        using var viewModel = CreateViewModel();
+
+        var publisherA = new PublisherItemViewModel("pub-a", "Publisher A");
+        var publisherB = new PublisherItemViewModel("pub-b", "Publisher B");
+        viewModel.Publishers.Add(publisherA);
+        viewModel.Publishers.Add(publisherB);
+
+        var itemA = new ContentGridItemViewModel(
+            new ContentSearchResult { Id = "mod-a", Name = "Mod A" },
+            new Mock<IContentStateService>().Object,
+            new Mock<ILogger<ContentGridItemViewModel>>().Object);
+
+        using var cts = new CancellationTokenSource();
+        var inFlightOpA = new DownloadsBrowserViewModel.PublisherInFlightOperation(
+            "pub-a",
+            new ContentSearchQuery(),
+            cts,
+            catalogId: "catalog-a")
+        {
+            ActiveRequestId = 1,
+            IsCompleted = false,
+        };
+
+        viewModel.SetInFlightOperationForTesting("pub-a", inFlightOpA);
+
+        // Simulate user currently on Publisher B with Catalog B selected
+        viewModel.SelectedPublisher = publisherB;
+        viewModel.SelectedCatalog = new CatalogEntry { Id = "catalog-b", Name = "Catalog B" };
+
+        // Act: in-flight request for Publisher A finishes and commits to cache
+        viewModel.CommitBrowseResultsToCacheForTesting(
+            "pub-a",
+            new ContentSearchQuery(),
+            hasMoreItems: false,
+            isCustomQuery: false,
+            append: false,
+            inFlightOp: inFlightOpA,
+            newVms: [itemA]);
+
+        // Assert: Publisher A's cache must store "catalog-a", not the active "catalog-b"
+        var cachedCatalogId = viewModel.GetCachedCatalogIdForTesting("pub-a");
+        Assert.Equal("catalog-a", cachedCatalogId);
+    }
+
+    /// <summary>
+    /// Verifies that SaveOutgoingPublisherState preserves the publisher's own catalog ID
+    /// and does not overwrite it with another publisher's catalog ID.
+    /// </summary>
+    [Fact]
+    public void SaveOutgoingPublisherState_WhenSwitchingPublishers_PreservesOutgoingCatalogId()
+    {
+        // Arrange
+        using var viewModel = CreateViewModel();
+
+        var publisherA = new PublisherItemViewModel("pub-a", "Publisher A");
+        var publisherB = new PublisherItemViewModel("pub-b", "Publisher B");
+        viewModel.Publishers.Add(publisherA);
+        viewModel.Publishers.Add(publisherB);
+
+        var itemA = new ContentGridItemViewModel(
+            new ContentSearchResult { Id = "mod-a", Name = "Mod A" },
+            new Mock<IContentStateService>().Object,
+            new Mock<ILogger<ContentGridItemViewModel>>().Object);
+
+        viewModel.SelectedPublisher = publisherA;
+        viewModel.SelectedCatalog = new CatalogEntry { Id = "catalog-a", Name = "Catalog A" };
+        viewModel.ContentItems.Add(itemA);
+
+        // Act: save state for pub-a with catalog-a before switching
+        viewModel.SaveOutgoingPublisherStateForTesting("pub-a", "catalog-a");
+
+        // Now simulate switching to pub-b with catalog-b
+        viewModel.SelectedPublisher = publisherB;
+        viewModel.SelectedCatalog = new CatalogEntry { Id = "catalog-b", Name = "Catalog B" };
+
+        // Even if SaveOutgoingPublisherState is called for pub-a without catalogId parameter
+        viewModel.SaveOutgoingPublisherStateForTesting("pub-a");
+
+        // Assert: Pub A's cached catalog ID is still catalog-a, not catalog-b
+        var cachedCatalogId = viewModel.GetCachedCatalogIdForTesting("pub-a");
+        Assert.Equal("catalog-a", cachedCatalogId);
     }
 
     /// <summary>

@@ -90,7 +90,8 @@ public sealed partial class DownloadsBrowserViewModel(
     internal sealed class PublisherInFlightOperation(
         string publisherId,
         ContentSearchQuery query,
-        CancellationTokenSource cts)
+        CancellationTokenSource cts,
+        string? catalogId = null)
     {
         /// <summary>Gets the publisher identifier.</summary>
         public string PublisherId { get; } = publisherId;
@@ -100,6 +101,9 @@ public sealed partial class DownloadsBrowserViewModel(
 
         /// <summary>Gets the cancellation token source for this operation.</summary>
         public CancellationTokenSource Cts { get; } = cts;
+
+        /// <summary>Gets or sets the catalog identifier captured for this operation.</summary>
+        public string? CatalogId { get; set; } = catalogId;
 
         /// <summary>Gets the sync root for thread-safe list operations.</summary>
         public object SyncRoot { get; } = new();
@@ -699,6 +703,53 @@ public sealed partial class DownloadsBrowserViewModel(
         }
     }
 
+    /// <summary>
+    /// Gets the cached catalog ID for a publisher for testing.
+    /// </summary>
+    /// <param name="publisherId">The publisher ID to query.</param>
+    /// <returns>The cached catalog ID, or null if not cached.</returns>
+    internal string? GetCachedCatalogIdForTesting(string publisherId)
+    {
+        lock (_cacheLock)
+        {
+            return _browseCache.TryGetValue(publisherId, out var state) ? state.CatalogId : null;
+        }
+    }
+
+    /// <summary>
+    /// Invokes CommitBrowseResultsToCache for unit testing.
+    /// </summary>
+    /// <param name="publisherId">The publisher identifier.</param>
+    /// <param name="query">The search query.</param>
+    /// <param name="hasMoreItems">Whether more items exist.</param>
+    /// <param name="isCustomQuery">Whether query is custom.</param>
+    /// <param name="append">Whether to append.</param>
+    /// <param name="inFlightOp">The in-flight operation context.</param>
+    /// <param name="newVms">The list of newly created view models.</param>
+    /// <param name="catalogId">Optional explicit catalog identifier.</param>
+    internal void CommitBrowseResultsToCacheForTesting(
+        string publisherId,
+        ContentSearchQuery query,
+        bool hasMoreItems,
+        bool isCustomQuery,
+        bool append,
+        PublisherInFlightOperation? inFlightOp,
+        List<ContentGridItemViewModel> newVms,
+        string? catalogId = null)
+    {
+        CommitBrowseResultsToCache(publisherId, query, hasMoreItems, isCustomQuery, append, inFlightOp, newVms, catalogId);
+    }
+
+    /// <summary>
+    /// Invokes SaveOutgoingPublisherState for unit testing.
+    /// </summary>
+    /// <param name="publisherId">The publisher identifier.</param>
+    /// <param name="catalogId">Optional catalog identifier.</param>
+    internal void SaveOutgoingPublisherStateForTesting(string? publisherId, string? catalogId = null)
+    {
+        SaveOutgoingPublisherState(publisherId, catalogId);
+    }
+
     private static void ResetUninstalledFamilyItems(
         IEnumerable<ContentGridItemViewModel> items,
         HashSet<ContentGridItemViewModel> installedItems)
@@ -1167,7 +1218,7 @@ public sealed partial class DownloadsBrowserViewModel(
         }
 
         // Save current outgoing publisher state to _browseCache before switching
-        SaveOutgoingPublisherState(_lastPopulatedPublisherId);
+        SaveOutgoingPublisherState(_lastPopulatedPublisherId, SelectedCatalog?.Id);
 
         Interlocked.Increment(ref _activeRequestId);
         BeginLoadCatalogsForPublisher(value);
@@ -1255,7 +1306,7 @@ public sealed partial class DownloadsBrowserViewModel(
         _ = RefreshContentAsync();
     }
 
-    private void SaveOutgoingPublisherState(string? publisherId)
+    private void SaveOutgoingPublisherState(string? publisherId, string? catalogId = null)
     {
         if (string.IsNullOrEmpty(publisherId))
         {
@@ -1264,6 +1315,12 @@ public sealed partial class DownloadsBrowserViewModel(
 
         lock (_cacheLock)
         {
+            var targetCatalogId = catalogId;
+            if (string.IsNullOrEmpty(targetCatalogId) && string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
+            {
+                targetCatalogId = SelectedCatalog?.Id;
+            }
+
             if (_browseCache.TryGetValue(publisherId, out var outgoingState))
             {
                 outgoingState.ActiveDetailViewModel = SelectedContent;
@@ -1271,7 +1328,11 @@ public sealed partial class DownloadsBrowserViewModel(
                 outgoingState.HasCustomQuery = _hasCustomQuery;
                 outgoingState.CurrentPage = CurrentPage;
                 outgoingState.CanLoadMore = CanLoadMore;
-                outgoingState.CatalogId = SelectedCatalog?.Id;
+                if (!string.IsNullOrEmpty(targetCatalogId))
+                {
+                    outgoingState.CatalogId = targetCatalogId;
+                }
+
                 if (_hasCustomQuery)
                 {
                     if (outgoingState.Items.Count > 0)
@@ -1296,7 +1357,7 @@ public sealed partial class DownloadsBrowserViewModel(
                     SearchTerm = SearchTerm,
                     HasCustomQuery = _hasCustomQuery,
                     ActiveDetailViewModel = SelectedContent,
-                    CatalogId = SelectedCatalog?.Id,
+                    CatalogId = targetCatalogId,
                 };
             }
         }
@@ -2146,7 +2207,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 baseQuery = CurrentFilterViewModel.ApplyFilters(baseQuery);
             }
 
-            return await ExecuteStreamingFetchAsync(publisherId, baseQuery, requestId, isCustomQuery, append);
+            return await ExecuteStreamingFetchAsync(publisherId, baseQuery, requestId, isCustomQuery, append, SelectedCatalog?.Id);
         }
         catch (OperationCanceledException ex)
         {
@@ -2238,9 +2299,11 @@ public sealed partial class DownloadsBrowserViewModel(
         ContentSearchQuery query,
         int requestId,
         bool isCustomQuery,
-        bool append)
+        bool append,
+        string? catalogId = null)
     {
-        var (opCts, inFlightOp) = SetupFetchOperation(publisherId, query, isCustomQuery, append, requestId);
+        var targetCatalogId = catalogId ?? (string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase) ? SelectedCatalog?.Id : null);
+        var (opCts, inFlightOp) = SetupFetchOperation(publisherId, query, isCustomQuery, append, requestId, targetCatalogId);
 
         // Capture the token once: a concurrent refresh can dispose the CTS while this fetch
         // is still running, and re-accessing CTS.Token afterwards throws ObjectDisposedException.
@@ -2279,7 +2342,8 @@ public sealed partial class DownloadsBrowserViewModel(
                     .Where(item => !query.ContentType.HasValue || item.ContentType == query.ContentType.Value)
                     .ToList();
 
-                var cacheKey = $"{publisherId}:{SelectedCatalog?.Id ?? CatalogConstants.DefaultCatalogId}";
+                var effectiveCatalogId = inFlightOp?.CatalogId ?? targetCatalogId;
+                var cacheKey = $"{publisherId}:{effectiveCatalogId ?? CatalogConstants.DefaultCatalogId}";
                 if (_knownContentItemIds.TryGetValue(cacheKey, out var prevItemIds) && !append && !isCustomQuery)
                 {
                     var newDiscoveredItems = items.Where(i => !prevItemIds.Contains(i.Id)).ToList();
@@ -2291,6 +2355,9 @@ public sealed partial class DownloadsBrowserViewModel(
                         {
                             var title = _localizationService?.GetString("Downloads.Browser.NewContentNotificationTitle") ?? "New Content Available";
                             var actionText = _localizationService?.GetString("Downloads.Browser.ViewContentAction") ?? "View";
+                            var catalogName = AvailableCatalogs.FirstOrDefault(c => string.Equals(c.Id, effectiveCatalogId, StringComparison.OrdinalIgnoreCase))?.Name
+                                ?? (string.Equals(SelectedCatalog?.Id, effectiveCatalogId, StringComparison.OrdinalIgnoreCase) ? SelectedCatalog?.Name : null)
+                                ?? "Catalog";
 
                             if (newDiscoveredItems.Count == 1)
                             {
@@ -2298,7 +2365,7 @@ public sealed partial class DownloadsBrowserViewModel(
                                 var message = string.Format(
                                     _localizationService?.GetString("Downloads.Browser.NewContentNotificationFormat") ?? "New content '{0}' released in catalog '{1}'",
                                     item.Name,
-                                    SelectedCatalog?.Name ?? "Catalog");
+                                    catalogName);
 
                                 notificationService.Show(new NotificationMessage(
                                     NotificationType.Info,
@@ -2323,7 +2390,7 @@ public sealed partial class DownloadsBrowserViewModel(
                                 var message = string.Format(
                                     _localizationService?.GetString("Downloads.Browser.NewContentsNotificationFormat") ?? "{0} new content items released in catalog '{1}'",
                                     newDiscoveredItems.Count,
-                                    SelectedCatalog?.Name ?? "Catalog");
+                                    catalogName);
 
                                 notificationService.Show(new NotificationMessage(
                                     NotificationType.Info,
@@ -2364,7 +2431,7 @@ public sealed partial class DownloadsBrowserViewModel(
                     return false;
                 }
 
-                CommitBrowseResultsToCache(publisherId, query, result.Data.HasMoreItems, isCustomQuery, append, inFlightOp, newVms);
+                CommitBrowseResultsToCache(publisherId, query, result.Data.HasMoreItems, isCustomQuery, append, inFlightOp, newVms, effectiveCatalogId);
 
                 if (isCustomQuery && (_activeRequestId != requestId || SelectedPublisher?.PublisherId != publisherId))
                 {
@@ -2476,7 +2543,8 @@ public sealed partial class DownloadsBrowserViewModel(
         ContentSearchQuery query,
         bool isCustomQuery,
         bool append,
-        int requestId)
+        int requestId,
+        string? catalogId = null)
     {
         CancellationTokenSource opCts = _vmCts;
         PublisherInFlightOperation? inFlightOp = null;
@@ -2492,7 +2560,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 }
 
                 opCts = CancellationTokenSource.CreateLinkedTokenSource(_vmCts.Token);
-                inFlightOp = new PublisherInFlightOperation(publisherId, query, opCts)
+                inFlightOp = new PublisherInFlightOperation(publisherId, query, opCts, catalogId)
                 {
                     ActiveRequestId = requestId,
                 };
@@ -2504,7 +2572,7 @@ public sealed partial class DownloadsBrowserViewModel(
             _searchCts?.Cancel();
             _searchCts = CancellationTokenSource.CreateLinkedTokenSource(_vmCts.Token);
             opCts = _searchCts;
-            inFlightOp = new PublisherInFlightOperation(publisherId, query, opCts)
+            inFlightOp = new PublisherInFlightOperation(publisherId, query, opCts, catalogId)
             {
                 ActiveRequestId = requestId,
             };
@@ -2637,7 +2705,8 @@ public sealed partial class DownloadsBrowserViewModel(
         bool isCustomQuery,
         bool append,
         PublisherInFlightOperation? inFlightOp,
-        List<ContentGridItemViewModel> newVms)
+        List<ContentGridItemViewModel> newVms,
+        string? catalogId = null)
     {
         if (inFlightOp != null)
         {
@@ -2707,16 +2776,31 @@ public sealed partial class DownloadsBrowserViewModel(
                     existingState.CanLoadMore = hasMoreItems;
                 }
 
-                existingState.CatalogId = SelectedCatalog?.Id;
+                var targetCatalogId = inFlightOp?.CatalogId ?? catalogId;
+                if (string.IsNullOrEmpty(targetCatalogId) && string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
+                {
+                    targetCatalogId = SelectedCatalog?.Id;
+                }
+
+                if (!string.IsNullOrEmpty(targetCatalogId))
+                {
+                    existingState.CatalogId = targetCatalogId;
+                }
             }
             else
             {
+                var targetCatalogId = inFlightOp?.CatalogId ?? catalogId;
+                if (string.IsNullOrEmpty(targetCatalogId) && string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
+                {
+                    targetCatalogId = SelectedCatalog?.Id;
+                }
+
                 _browseCache[publisherId] = new PublisherBrowseState
                 {
                     Items = [.. newVms],
                     CurrentPage = query.Page ?? 1,
                     CanLoadMore = hasMoreItems,
-                    CatalogId = SelectedCatalog?.Id,
+                    CatalogId = targetCatalogId,
                 };
             }
 
