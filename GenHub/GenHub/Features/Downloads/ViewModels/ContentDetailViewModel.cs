@@ -1501,6 +1501,9 @@ public partial class ContentDetailViewModel(
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Failed to apply profile update strategy for bundle component {Name}", target.Name);
+                notificationService.ShowWarning(
+                    GetLocalizedString("Settings.Manifests.ScrubFailed.Title", "Profile Update Incomplete"),
+                    GetLocalizedString("Settings.Manifests.ScrubFailed.EnumerationMessage", "The profile list could not be loaded, so deleted manifests may still be referenced by profiles."));
                 return;
             }
 
@@ -1510,6 +1513,9 @@ public partial class ContentDetailViewModel(
                     "Skipping deletion of old manifest {OldManifestId} for bundle component {Name} because one or more profile updates failed",
                     oldManifestId,
                     target.Name);
+                notificationService.ShowWarning(
+                    GetLocalizedString("Settings.Manifests.ScrubFailed.Title", "Profile Update Incomplete"),
+                    GetLocalizedString("Settings.Manifests.ScrubFailed.EnumerationMessage", "The profile list could not be loaded, so deleted manifests may still be referenced by profiles."));
                 return;
             }
 

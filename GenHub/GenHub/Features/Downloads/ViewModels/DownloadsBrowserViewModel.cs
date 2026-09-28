@@ -543,7 +543,7 @@ public sealed partial class DownloadsBrowserViewModel(
             }
 
             ResetUninstalledFamilyItems(familyItems, installedItems);
-            ReconcileInstalledFamilyItems(familyItems, installedItems, familyItems[0]);
+            ReconcileInstalledFamilyItems(familyItems, installedItems, familyItems[0], isGeneralsOnline);
         }
     }
 
@@ -704,9 +704,14 @@ public sealed partial class DownloadsBrowserViewModel(
     private static void ReconcileInstalledFamilyItems(
         IEnumerable<ContentGridItemViewModel> items,
         HashSet<ContentGridItemViewModel> installedItems,
-        ContentGridItemViewModel newestItem)
+        ContentGridItemViewModel newestItem,
+        bool isGeneralsOnline)
     {
-        bool newestNeedsDownload = !installedItems.Contains(newestItem);
+        // Same-version siblings (language/resolution variants surfaced as separate cards)
+        // are not updates of each other: only a strictly newer newest item triggers updates.
+        var newestVersion = newestItem.SearchResult.Version;
+        bool newestNeedsDownload = !installedItems.Contains(newestItem) &&
+            installedItems.Any(i => ContentStateService.CompareVersions(newestVersion, i.SearchResult.Version, isGeneralsOnline) > 0);
 
         foreach (var item in items)
         {
@@ -2747,6 +2752,11 @@ public sealed partial class DownloadsBrowserViewModel(
         }
 
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_vmCts.Token, cancellationToken);
+        if (item.HasBundleComponents)
+        {
+            return await UpdateBundleComponentsAsync(item, linkedCts.Token);
+        }
+
         var ct = linkedCts.Token;
 
         var targetItem = item.UpdateTargetVm ?? item;
@@ -2788,7 +2798,12 @@ public sealed partial class DownloadsBrowserViewModel(
                 return false;
             }
 
-            return false;
+            // The reconciler found nothing to do on its own: fall through to the explicit
+            // update dialog plus re-download below so an acknowledged update is never
+            // silently swallowed.
+            logger.LogInformation(
+                "Reconciler reported no update work for {PublisherId}; continuing with explicit update flow",
+                publisherId);
         }
 
         var dialogService = serviceProvider.GetService<IDialogService>();
@@ -3632,10 +3647,104 @@ public sealed partial class DownloadsBrowserViewModel(
             targets.Count,
             item.Name);
 
+        var acquired = await AcquireBundleMemberTargetsAsync(item, targets, cancellationToken);
+        if (acquired == null)
+        {
+            return;
+        }
+
+        await item.RefreshBundleComponentStatesAsync();
+        item.DownloadProgress = 100;
+        item.DownloadStatus = item.AreBundleComponentsReadyForProfile
+            ? ContentConstants.DownloadCompleteStatusMessage
+            : "Downloaded selected content";
+    }
+
+    /// <summary>
+    /// Updates every acquired bundle member that reports a newer version, asking first via
+    /// the same update dialog used for single items and reconciling game profiles with the
+    /// old-to-new member manifest mapping afterwards.
+    /// </summary>
+    /// <param name="item">The bundle card to update.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True when all outdated members were updated; otherwise false.</returns>
+    private async Task<bool> UpdateBundleComponentsAsync(
+        ContentGridItemViewModel item,
+        CancellationToken cancellationToken)
+    {
+        var targets = BundleComponentViewModel.GetRequiredUpdateTargets(item.BundleComponents);
+        if (targets.Count == 0)
+        {
+            await item.RefreshBundleComponentStatesAsync();
+            return true;
+        }
+
+        logger.LogInformation(
+            "Updating {Count} outdated bundle member(s) for {Name}",
+            targets.Count,
+            item.Name);
+
+        var dialogService = serviceProvider.GetService<IDialogService>();
+        UpdateDialogResult? promptResult = null;
+        if (dialogService != null)
+        {
+            var title = _localizationService?.GetString("Downloads.UpdateDialog.Title", item.Name)
+                ?? $"{item.Name} Update Available";
+            var message = _localizationService?.GetString("Downloads.UpdateDialog.BundleMessage", item.Name, targets.Count)
+                ?? $"{item.Name} has {targets.Count} bundle member(s) with updates available.\n\nHow do you want to apply these updates?";
+            promptResult = await dialogService.ShowUpdateOptionDialogAsync(title, message, initialDeleteOldVersions: true);
+
+            if (promptResult == null || string.Equals(promptResult.Action, "Skip", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
+
+        var acquired = await AcquireBundleMemberTargetsAsync(item, targets, cancellationToken);
+        if (acquired == null)
+        {
+            return false;
+        }
+
+        await item.RefreshBundleComponentStatesAsync();
+        item.DownloadProgress = 100;
+        item.DownloadStatus = ContentConstants.DownloadCompleteStatusMessage;
+
+        await ReconcileBundleMemberUpdatesAsync(item, acquired, promptResult, cancellationToken);
+
+        var activeNotificationService = notificationService ?? serviceProvider.GetService<INotificationService>();
+        activeNotificationService?.ShowSuccess(
+            "Update Completed",
+            $"Updated {item.Name} to latest version.",
+            NotificationDurations.Medium);
+
+        if (SelectedPublisher != null)
+        {
+            await RefreshAndReconcileItemsAsync(ContentItems, SelectedPublisher.PublisherId);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Downloads one bundle member target per entry with aggregated progress and a single
+    /// terminal notification. Captures each member's pre-download manifest so callers can
+    /// reconcile profiles afterwards.
+    /// </summary>
+    /// <param name="item">The bundle card owning the members.</param>
+    /// <param name="targets">Member search results to acquire in order.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The per-member acquisitions, or null when a member failed or was cancelled.</returns>
+    private async Task<IReadOnlyList<(ContentSearchResult Target, string OriginalContentId, string? OldManifestId, string NewManifestId)>?> AcquireBundleMemberTargetsAsync(
+        ContentGridItemViewModel item,
+        IReadOnlyList<ContentSearchResult> targets,
+        CancellationToken cancellationToken)
+    {
         // One aggregated notification covers every member so a bundle never toasts per member.
         var localization = serviceProvider.GetService<ILocalizationService>();
         using var scope = new DownloadNotificationScope(notificationService, item.Name, localization: localization);
 
+        var acquired = new List<(ContentSearchResult Target, string OriginalContentId, string? OldManifestId, string NewManifestId)>();
         var completed = 0;
         try
         {
@@ -3663,6 +3772,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 });
 
                 var originalContentId = target.Id ?? string.Empty;
+                var oldManifestId = await contentStateService.GetLocalManifestIdAsync(target, cancellationToken);
                 var result = _downloadCoordinator != null
                     ? await _downloadCoordinator.DownloadContentAsync(target, progress, cancellationToken, suppressNotifications: true)
                     : await contentOrchestrator.AcquireContentAsync(target, progress, cancellationToken);
@@ -3672,7 +3782,7 @@ public sealed partial class DownloadsBrowserViewModel(
                     logger.LogError("Failed to download bundle member {ItemName}: {Error}", target.Name, errorMsg);
                     item.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{errorMsg}";
                     scope.CompleteFailure(errorMsg);
-                    return;
+                    return null;
                 }
 
                 target.UpdateId(result.Data.Id.Value);
@@ -3684,6 +3794,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 var moddbId = target.GetModDbId();
 
                 contentStateService.NotifyStateChanged(originalContentId, ContentState.Downloaded, result.Data.Id.Value, moddbId);
+                acquired.Add((target, originalContentId, oldManifestId, result.Data.Id.Value));
                 completed++;
             }
         }
@@ -3693,15 +3804,97 @@ public sealed partial class DownloadsBrowserViewModel(
             throw;
         }
 
-        await item.RefreshBundleComponentStatesAsync();
-        item.DownloadProgress = 100;
-        item.DownloadStatus = item.AreBundleComponentsReadyForProfile
-            ? ContentConstants.DownloadCompleteStatusMessage
-            : "Downloaded selected content";
-
         if (item.AreBundleComponentsReadyForProfile)
         {
             scope.CompleteSuccess();
+        }
+
+        return acquired;
+    }
+
+    /// <summary>
+    /// Reconciles game profiles with the old-to-new manifest mapping of updated bundle members.
+    /// </summary>
+    /// <param name="item">The bundle card that was updated.</param>
+    /// <param name="acquired">Per-member acquisitions from the update run.</param>
+    /// <param name="promptResult">The update dialog outcome, if the user was prompted.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    private async Task ReconcileBundleMemberUpdatesAsync(
+        ContentGridItemViewModel item,
+        IReadOnlyList<(ContentSearchResult Target, string OriginalContentId, string? OldManifestId, string NewManifestId)> acquired,
+        UpdateDialogResult? promptResult,
+        CancellationToken cancellationToken)
+    {
+        var activeProfileManager = profileManager ?? serviceProvider.GetService<IGameProfileManager>();
+        var reconciliationService = serviceProvider.GetService<IContentReconciliationService>();
+        var manifestPool = serviceProvider.GetService<IContentManifestPool>();
+
+        if (activeProfileManager == null || reconciliationService == null || manifestPool == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var oldManifests = new List<ContentManifest>();
+            var newManifests = new List<ContentManifest>();
+            var mapping = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in acquired)
+            {
+                if (string.IsNullOrEmpty(entry.OldManifestId) ||
+                    string.Equals(entry.OldManifestId, entry.NewManifestId, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var oldManifest = await manifestPool.GetManifestAsync(entry.OldManifestId, cancellationToken);
+                var newManifest = await manifestPool.GetManifestAsync(entry.NewManifestId, cancellationToken);
+                if (oldManifest?.Success == true && oldManifest.Data != null &&
+                    newManifest?.Success == true && newManifest.Data != null)
+                {
+                    oldManifests.Add(oldManifest.Data);
+                    newManifests.Add(newManifest.Data);
+                    mapping[entry.OldManifestId] = entry.NewManifestId;
+                }
+            }
+
+            if (newManifests.Count == 0)
+            {
+                return;
+            }
+
+            var strategy = promptResult?.Strategy ?? UpdateStrategy.CreateNewProfile;
+            var shouldDelete = promptResult?.DeleteOldVersions ?? false;
+
+            var helperContext = new PublisherReconciliationContext(
+                activeProfileManager,
+                reconciliationService,
+                notificationService,
+                logger,
+                item.SearchResult?.ProviderName ?? "Content",
+                "[Downloads Bundle Update]");
+
+            var updateOutcome = await PublisherReconcilerHelper.ApplyUpdateStrategyAsync(
+                new UpdateStrategyExecutionArgs(
+                    strategy,
+                    oldManifests,
+                    newManifests,
+                    mapping,
+                    item.SearchResult?.Version ?? string.Empty,
+                    shouldDelete,
+                    null),
+                helperContext,
+                cancellationToken);
+
+            if (updateOutcome.ShouldDeleteOldVersions && !updateOutcome.AnyFailure)
+            {
+                await reconciliationService.ScheduleGarbageCollectionAsync(false, cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to apply bundle update strategy for {Name}", item.Name);
         }
     }
 

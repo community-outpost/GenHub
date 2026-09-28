@@ -1724,6 +1724,58 @@ public class DownloadsBrowserViewModelTests
     }
 
     /// <summary>
+    /// Verifies that same-version sibling cards from one multi-asset release (e.g. language
+    /// variants surfaced as separate cards) never mark each other as updates: the downloaded
+    /// sibling stays Downloaded with no update target.
+    /// </summary>
+    [Fact]
+    public void ReconcileReleaseUpdateStates_WhenFamilySharesOneVersion_DownloadedSiblingStaysDownloaded()
+    {
+        // Arrange: three cards from ElTioRata/ImprovedMenus v1.3, English downloaded.
+        var stateServiceMock = new Mock<IContentStateService>();
+        var loggerMock = new Mock<ILogger<ContentGridItemViewModel>>();
+
+        ContentGridItemViewModel CreateSiblingCard(string language, ContentState state)
+        {
+            var sr = new ContentSearchResult
+            {
+                Id = $"github.ElTioRata.ImprovedMenus.v1.3.{language}",
+                Name = $"ImprovedMenus ({language})",
+                Version = "v1.3_h1",
+                ProviderName = "github",
+                ContentType = ContentType.Addon,
+                TargetGame = GameType.ZeroHour,
+                LastUpdated = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc),
+                ResolverMetadata =
+                {
+                    [GitHubConstants.OwnerMetadataKey] = "ElTioRata",
+                    [GitHubConstants.RepoMetadataKey] = "ImprovedMenus",
+                },
+            };
+            return new ContentGridItemViewModel(sr, stateServiceMock.Object, loggerMock.Object)
+            {
+                CurrentState = state,
+                IsDownloaded = state is ContentState.Downloaded or ContentState.UpdateAvailable,
+            };
+        }
+
+        var english = CreateSiblingCard("English", ContentState.Downloaded);
+        var russian = CreateSiblingCard("Russian", ContentState.NotDownloaded);
+        var spanish = CreateSiblingCard("Spanish", ContentState.NotDownloaded);
+
+        // Act
+        DownloadsBrowserViewModel.ReconcileReleaseUpdateStates([english, russian, spanish]);
+
+        // Assert: no card offers an update to a same-version sibling.
+        Assert.Equal(ContentState.Downloaded, english.CurrentState);
+        Assert.True(english.IsDownloaded);
+        Assert.Null(english.UpdateTargetVm);
+        Assert.False(english.ShowUpdateButton);
+        Assert.Equal(ContentState.NotDownloaded, russian.CurrentState);
+        Assert.Equal(ContentState.NotDownloaded, spanish.CurrentState);
+    }
+
+    /// <summary>
     /// Verifies that UpdateContentCommand invokes the publisher reconciler when one is registered.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
@@ -1830,11 +1882,13 @@ public class DownloadsBrowserViewModelTests
     }
 
     /// <summary>
-    /// Verifies that UpdateContentCommand does not download the target item when publisher reconciler reports no reconciliation or user skips.
+    /// Verifies that UpdateContentCommand falls through to the explicit update flow (download
+    /// plus reconcile) when the publisher reconciler reports success-but-noop, so an
+    /// acknowledged update is never silently swallowed.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task UpdateContentCommand_WhenPublisherReconcilerReturnsNoReconciliation_DoesNotDownloadAsync()
+    public async Task UpdateContentCommand_WhenPublisherReconcilerReturnsNoReconciliation_FallsBackToDownloadAsync()
     {
         // Arrange
         var orchestratorMock = new Mock<IContentOrchestrator>();
@@ -1888,7 +1942,7 @@ public class DownloadsBrowserViewModelTests
         // Act
         await viewModel.UpdateContentCommand.ExecuteAsync(currentVm);
 
-        // Assert: Reconciler was invoked and handled the update; since it returned false, no download was performed
+        // Assert: Reconciler was invoked but reported noop, so the explicit update flow downloaded the target
         reconcilerMock.Verify(
             r => r.CheckAndReconcileIfNeededAsync(string.Empty, It.IsAny<CancellationToken>()),
             Times.Once);
@@ -1897,7 +1951,7 @@ public class DownloadsBrowserViewModelTests
                 It.IsAny<ContentSearchResult>(),
                 It.IsAny<IProgress<ContentAcquisitionProgress>?>(),
                 It.IsAny<CancellationToken>()),
-            Times.Never);
+            Times.Once);
     }
 
     /// <summary>

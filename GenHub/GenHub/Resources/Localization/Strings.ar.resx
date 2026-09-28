@@ -13918,8 +13918,16 @@ https://example.com/screenshot2.png</value>
   <data name="Tools.PublisherStudio.Library.UpstreamReleasesLoading" xml:space="preserve">
     <value>جارٍ تحميل إصدارات المصدر…</value>
   </data>
+  <data name="Tools.PublisherStudio.Library.ReleasesFallbackNote" xml:space="preserve">
+    <value>إصدارات احتياطية (تُستخدم عند تعذّر الوصول إلى المصدر). إصدارات المصدر المباشرة مذكورة أدناه؛ التكرارات مخفية.</value>
+  </data>
   <data name="Downloads.UpdateDialog.Title" xml:space="preserve">
     <value>تحديث متوفر لـ {0}</value>
+  </data>
+  <data name="Downloads.UpdateDialog.BundleMessage" xml:space="preserve">
+    <value>يتوفر تحديث لـ {1} من عناصر الحزمة في {0}.
+
+كيف ترغب في تطبيق هذه التحديثات؟</value>
   </data>
   <data name="Downloads.UpdateDialog.MessageWithVersion" xml:space="preserve">
     <value>يتوفر تحديث لـ {0} ({1}).

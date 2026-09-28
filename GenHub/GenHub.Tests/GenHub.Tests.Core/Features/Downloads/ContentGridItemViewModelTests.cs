@@ -284,6 +284,32 @@ public sealed class ContentGridItemViewModelTests
     }
 
     /// <summary>
+    /// A ContentBundle card with every member acquired but one member reporting a newer
+    /// version must surface the Update action while staying ready for profiles.
+    /// </summary>
+    [Fact]
+    public void BundleCard_WithOutdatedMember_ShowsUpdateButton()
+    {
+        var viewModel = CreateViewModel(CreateBundleSearchResult());
+        viewModel.LoadBundleComponents();
+        MarkAllSelectedDownloaded(viewModel);
+
+        Assert.False(viewModel.BundleComponentsNeedUpdate);
+        Assert.False(viewModel.ShowUpdateButton);
+
+        var lemon = Assert.Single(viewModel.BundleComponents, c => c.CatalogContentId == "lemon-controlbar");
+        Assert.NotNull(lemon.SelectedVariant);
+        lemon.SelectedVariant.CurrentState = ContentState.UpdateAvailable;
+
+        Assert.True(lemon.RequiresUpdate);
+        Assert.True(viewModel.BundleComponentsNeedUpdate);
+        Assert.True(viewModel.ShowUpdateButton);
+        Assert.True(viewModel.AreBundleComponentsReadyForProfile);
+        Assert.True(viewModel.ShowAddToProfileButton);
+        Assert.False(viewModel.ShowDownloadButton);
+    }
+
+    /// <summary>
     /// Verifies Description strips HTML tags and decodes entities.
     /// </summary>
     [Fact]

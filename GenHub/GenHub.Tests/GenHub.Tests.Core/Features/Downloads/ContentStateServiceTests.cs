@@ -827,12 +827,14 @@ public class ContentStateServiceTests
     }
 
     /// <summary>
-    /// Verifies that when a newer version of content is installed, an older prospective release is not
-    /// reported as downloaded.
+    /// Verifies that when a newer build of the same content source is installed, an older
+    /// prospective release stays downloaded (and still resolves for profiles) instead of
+    /// prompting a re-download of older bytes. Multi-release feeds are exempt: every
+    /// release there is its own card.
     /// </summary>
     /// <returns>A completed task.</returns>
     [Fact]
-    public async Task GetStateAsync_OlderProspectiveRelease_WhenNewerManifestInstalled_ReturnsNotDownloadedAsync()
+    public async Task GetStateAsync_OlderProspectiveRelease_WhenNewerManifestInstalled_ReturnsDownloadedAsync()
     {
         var storedManifest = new ContentManifest
         {
@@ -887,9 +889,9 @@ public class ContentStateServiceTests
             LastUpdated = new DateTime(2026, 9, 1),
         };
 
-        // Older release is NotDownloaded
-        Assert.Equal(ContentState.NotDownloaded, await service.GetStateAsync(olderRelease));
-        Assert.Null(await service.GetLocalManifestIdAsync(olderRelease));
+        // Older release stays Downloaded and resolves the newer local build for profiles
+        Assert.Equal(ContentState.Downloaded, await service.GetStateAsync(olderRelease));
+        Assert.Equal(storedManifest.Id.Value, await service.GetLocalManifestIdAsync(olderRelease));
 
         // Same release is Downloaded
         Assert.Equal(ContentState.Downloaded, await service.GetStateAsync(sameRelease));

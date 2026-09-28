@@ -2092,7 +2092,9 @@ public sealed partial class ContentStateService(
         var matches = manifests.Where(manifest =>
             manifest.Files?.Any(file =>
                 !string.IsNullOrWhiteSpace(file.DownloadUrl) &&
-                string.Equals(file.DownloadUrl, selectedDownloadUrl, StringComparison.OrdinalIgnoreCase)) == true);
+                string.Equals(file.DownloadUrl, selectedDownloadUrl, StringComparison.OrdinalIgnoreCase)) == true ||
+            (!string.IsNullOrWhiteSpace(manifest.Publisher?.ContentIndexUrl) &&
+                string.Equals(manifest.Publisher.ContentIndexUrl, selectedDownloadUrl, StringComparison.OrdinalIgnoreCase)));
 
         return SelectBestMatchingManifest(matches, item, logger);
     }
@@ -2194,12 +2196,26 @@ public sealed partial class ContentStateService(
                 return ContentState.Downloaded;
             }
 
-            logger.LogInformation(
-                "Content {ContentName} is not downloaded (local is newer: {LocalId}, prospective: {ProspectiveId})",
+            // The pool holds a newer build of the same content source than the card shows.
+            // Reporting NotDownloaded here would prompt a re-download of older bytes, so the
+            // card stays Downloaded. Multi-release feeds keep NotDownloaded: every release is
+            // its own card and the prospective release genuinely is not acquired.
+            if (IsMultiReleaseItem(item))
+            {
+                logger.LogInformation(
+                    "Content {ContentName} is not downloaded (multi-release prospective release; local is newer: {LocalId}, prospective: {ProspectiveId})",
+                    item.Name,
+                    persistedManifest.Id.Value,
+                    prospectiveId);
+                return ContentState.NotDownloaded;
+            }
+
+            logger.LogDebug(
+                "Content {ContentName} is downloaded (local is newer: {LocalId}, prospective: {ProspectiveId})",
                 item.Name,
                 persistedManifest.Id.Value,
                 prospectiveId);
-            return ContentState.NotDownloaded;
+            return ContentState.Downloaded;
         }
 
         return ContentState.Downloaded;
@@ -2248,12 +2264,25 @@ public sealed partial class ContentStateService(
                 return ContentState.Downloaded;
             }
 
-            logger.LogInformation(
-                "Content {ContentName} is not downloaded (local is newer: {LocalId}, prospective: {ProspectiveId})",
+            // Same policy as the persisted-manifest path above: a newer local build of the
+            // same source keeps the card Downloaded, except in multi-release feeds where the
+            // prospective release card genuinely is not acquired.
+            if (IsMultiReleaseItem(item))
+            {
+                logger.LogInformation(
+                    "Content {ContentName} is not downloaded (multi-release prospective release; local is newer: {LocalId}, prospective: {ProspectiveId})",
+                    item.Name,
+                    matchingManifest.Id.Value,
+                    prospectiveId);
+                return ContentState.NotDownloaded;
+            }
+
+            logger.LogDebug(
+                "Content {ContentName} is downloaded (local is newer: {LocalId}, prospective: {ProspectiveId})",
                 item.Name,
                 matchingManifest.Id.Value,
                 prospectiveId);
-            return ContentState.NotDownloaded;
+            return ContentState.Downloaded;
         }
 
         logger.LogInformation(
@@ -2320,7 +2349,20 @@ public sealed partial class ContentStateService(
             IsNewerVersion(persistedManifest.Id.Value, prospectiveId, persistedManifest.Version, item.Version))
         {
             var exactResult = await manifestPool.IsManifestAcquiredAsync(prospectiveId, cancellationToken);
-            return exactResult.Success && exactResult.Data ? prospectiveId : null;
+            if (exactResult.Success && exactResult.Data)
+            {
+                return prospectiveId;
+            }
+
+            // Mirrors GetStateAsync: a newer local build of the same source resolves to
+            // itself so Add to Profile keeps working. Multi-release feeds resolve null
+            // because the prospective release card genuinely is not acquired.
+            if (IsMultiReleaseItem(item))
+            {
+                return null;
+            }
+
+            return persistedManifest.Id.Value;
         }
 
         return persistedManifest.Id.Value;
@@ -2347,7 +2389,20 @@ public sealed partial class ContentStateService(
         if (isOlderAvailable)
         {
             var exactResult = await manifestPool.IsManifestAcquiredAsync(prospectiveId, cancellationToken);
-            return exactResult.Success && exactResult.Data ? prospectiveId : null;
+            if (exactResult.Success && exactResult.Data)
+            {
+                return prospectiveId;
+            }
+
+            // Mirrors GetStateAsync: a newer local build of the same source resolves to
+            // itself so Add to Profile keeps working. Multi-release feeds resolve null
+            // because the prospective release card genuinely is not acquired.
+            if (IsMultiReleaseItem(item))
+            {
+                return null;
+            }
+
+            return matchingManifest.Id.Value;
         }
 
         return matchingManifest.Id.Value;

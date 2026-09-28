@@ -310,35 +310,53 @@ public class PublisherStudioService(
             }
 
             var catalogEntries = new List<CatalogEntry>();
-            var candidateCatalogs = ResolveCandidateCatalogs(project, projectCatalog, catalogHostingInfo);
+            var candidateCatalogs = ResolveCandidateCatalogs(project, projectCatalog, catalogHostingInfo).ToList();
+
+            // Stale hosting entries (deleted/renamed catalogs still holding a URL) and
+            // unpublished candidates were previously dropped silently, desyncing the
+            // definition from the publish grid. Name them so the publisher can prune.
+            var candidateIds = new HashSet<string>(
+                candidateCatalogs.Select(c => c.Id),
+                StringComparer.OrdinalIgnoreCase);
+            foreach (var staleUrl in catalogHostingInfo.Keys.Where(k => !candidateIds.Contains(k)))
+            {
+                logger.LogWarning(
+                    "Hosting state references unknown catalog '{CatalogId}'; it is excluded from the provider definition until pruned or re-added",
+                    staleUrl);
+            }
 
             foreach (var catalog in candidateCatalogs)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (catalogHostingInfo.TryGetValue(catalog.Id, out var catalogUrl))
+                if (!catalogHostingInfo.TryGetValue(catalog.Id, out var catalogUrl))
                 {
-                    var effectiveCatalogIcon = catalog.IconUrl;
-                    if (string.IsNullOrWhiteSpace(effectiveCatalogIcon))
-                    {
-                        effectiveCatalogIcon = catalog.Catalog?.IconUrl;
-                    }
-
-                    if (string.IsNullOrWhiteSpace(effectiveCatalogIcon))
-                    {
-                        effectiveCatalogIcon = publisher.AvatarUrl;
-                    }
-
-                    catalogEntries.Add(new CatalogEntry
-                    {
-                        Id = catalog.Id,
-                        Name = catalog.Name,
-                        Description = catalog.Description,
-                        IconUrl = effectiveCatalogIcon,
-                        Url = catalogUrl,
-                        Mirrors = [],
-                    });
+                    logger.LogWarning(
+                        "Catalog '{CatalogId}' has no published URL and is excluded from the provider definition",
+                        catalog.Id);
+                    continue;
                 }
+
+                var effectiveCatalogIcon = catalog.IconUrl;
+                if (string.IsNullOrWhiteSpace(effectiveCatalogIcon))
+                {
+                    effectiveCatalogIcon = catalog.Catalog?.IconUrl;
+                }
+
+                if (string.IsNullOrWhiteSpace(effectiveCatalogIcon))
+                {
+                    effectiveCatalogIcon = publisher.AvatarUrl;
+                }
+
+                catalogEntries.Add(new CatalogEntry
+                {
+                    Id = catalog.Id,
+                    Name = catalog.Name,
+                    Description = catalog.Description,
+                    IconUrl = effectiveCatalogIcon,
+                    Url = catalogUrl,
+                    Mirrors = [],
+                });
             }
 
             if (catalogEntries.Count == 0)

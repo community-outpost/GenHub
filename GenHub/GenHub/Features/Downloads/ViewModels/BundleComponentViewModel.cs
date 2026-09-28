@@ -58,12 +58,14 @@ public sealed partial class BundleComponentViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSelectedDownloaded))]
+    [NotifyPropertyChangedFor(nameof(RequiresUpdate))]
     [NotifyPropertyChangedFor(nameof(EffectiveState))]
     [NotifyPropertyChangedFor(nameof(SelectedDisplayName))]
     private InstallableVariant? _selectedVariant;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSelectedDownloaded))]
+    [NotifyPropertyChangedFor(nameof(RequiresUpdate))]
     [NotifyPropertyChangedFor(nameof(EffectiveState))]
     private ContentState _currentState = ContentState.NotDownloaded;
 
@@ -78,6 +80,13 @@ public sealed partial class BundleComponentViewModel : ObservableObject
     /// Gets a value indicating whether this required component still needs to be downloaded.
     /// </summary>
     public bool RequiresDownload => !IsBaseGame && !IsOptional && !IsSelectedDownloaded;
+
+    /// <summary>
+    /// Gets a value indicating whether this required component is acquired but a newer
+    /// version is available. Unlike <see cref="RequiresDownload"/>, these members count
+    /// as ready for profiles but should surface a bundle-level update action.
+    /// </summary>
+    public bool RequiresUpdate => !IsBaseGame && !IsOptional && EffectiveState == ContentState.UpdateAvailable;
 
     /// <summary>Gets the name shown on the component row (variant label when present).</summary>
     public string SelectedDisplayName =>
@@ -157,6 +166,27 @@ public sealed partial class BundleComponentViewModel : ObservableObject
     {
         var targets = new List<ContentSearchResult>();
         foreach (var component in components.Where(c => c.RequiresDownload))
+        {
+            var searchResult = component.GetSelectedSearchResult();
+            if (searchResult != null)
+            {
+                targets.Add(searchResult);
+            }
+        }
+
+        return targets;
+    }
+
+    /// <summary>
+    /// Returns search results for acquired members that have a newer version available.
+    /// </summary>
+    /// <param name="components">Bundle components.</param>
+    /// <returns>Update targets for the current selections.</returns>
+    public static IReadOnlyList<ContentSearchResult> GetRequiredUpdateTargets(
+        IEnumerable<BundleComponentViewModel> components)
+    {
+        var targets = new List<ContentSearchResult>();
+        foreach (var component in components.Where(c => c.RequiresUpdate))
         {
             var searchResult = component.GetSelectedSearchResult();
             if (searchResult != null)
@@ -306,6 +336,7 @@ public sealed partial class BundleComponentViewModel : ObservableObject
         OnPropertyChanged(nameof(IsSelectedDownloaded));
         OnPropertyChanged(nameof(EffectiveState));
         OnPropertyChanged(nameof(RequiresDownload));
+        OnPropertyChanged(nameof(RequiresUpdate));
     }
 
     /// <summary>
@@ -322,6 +353,7 @@ public sealed partial class BundleComponentViewModel : ObservableObject
         OnPropertyChanged(nameof(IsSelectedDownloaded));
         OnPropertyChanged(nameof(EffectiveState));
         OnPropertyChanged(nameof(RequiresDownload));
+        OnPropertyChanged(nameof(RequiresUpdate));
     }
 
     /// <summary>
@@ -364,6 +396,7 @@ public sealed partial class BundleComponentViewModel : ObservableObject
         OnPropertyChanged(nameof(IsSelectedDownloaded));
         OnPropertyChanged(nameof(EffectiveState));
         OnPropertyChanged(nameof(RequiresDownload));
+        OnPropertyChanged(nameof(RequiresUpdate));
     }
 
     private static BundleComponentViewModel? CreateComponentFromDescriptor(
@@ -525,6 +558,7 @@ public sealed partial class BundleComponentViewModel : ObservableObject
         OnPropertyChanged(nameof(IsSelectedDownloaded));
         OnPropertyChanged(nameof(EffectiveState));
         OnPropertyChanged(nameof(RequiresDownload));
+        OnPropertyChanged(nameof(RequiresUpdate));
     }
 
     private void RebuildVariantAxes()

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Content Bundles Catalog Postplan: copy reference + fix list</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { background: #000; color: #fff; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0; padding: 24px 16px 64px; line-height: 1.5; }
+  main { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  h2 { font-size: 1.1rem; margin: 32px 0 8px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+  p, li { font-size: 0.92rem; }
+  .meta { color: #aaa; font-size: 0.85rem; margin-bottom: 16px; }
+  .meta code { color: #fff; }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: 0.82em; background: #161616; padding: 1px 5px; border-radius: 4px; word-break: break-all; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin: 8px 0 16px; }
+  th, td { text-align: left; padding: 6px 8px; border: 1px solid #2a2a2a; vertical-align: top; }
+  th { background: #161616; }
+  tr:nth-child(even) td { background: #0b0b0b; }
+  .ok { color: #4ade80; }
+  .warn { color: #fbbf24; }
+  ul { padding-left: 20px; }
+  @media (max-width: 720px) { table { font-size: 0.72rem; } th, td { padding: 4px 5px; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Content Bundles Catalog Postplan</h1>
+  <div class="meta">Status: <span class="ok">reference + fix list</span> &middot; Date: 2026-09-27 &middot; Canonical source: <code>GenHub/GenHub/SampleCatalogs/genhub-test-catalog.catalog.json</code> (publisher <code>genhub-test-publishers</code>, display name "Content Bundles")</div>
+
+  <p>Copy reference for rebuilding the Content Bundles catalog (4 game clients, 4 addons, 3 bundles). Every value below is taken verbatim from the canonical JSON so a catalog rebuilt from this page matches it exactly. Section 4 lists the code fixes shipped with this postplan.</p>
+
+  <h2>1. Game clients (upstream-tracked, static fallback release kept)</h2>
+  <table>
+    <tr><th>Content ID</th><th>Name</th><th>Upstream provider / repo / channel</th><th>Fallback release</th></tr>
+    <tr><td><code>zerohour</code></td><td>TheSuperHackers Zero Hour Game Code</td><td><code>GitHubReleases</code> / <code>TheSuperHackers/GeneralsGameCode</code> / stable, variantAxis <code>game-type</code>, rules <code>generalszh-.*\.zip$</code> &rarr; Zero Hour (default), <code>generals-.*\.zip$</code> &rarr; Generals</td><td><code>2026.07.31</code> latest, artifacts <code>generalszh-weekly-2026-07-31.zip</code> + <code>generals-weekly-2026-07-31.zip</code>, dep <code>ea/zerohour 1.04</code></td></tr>
+    <tr><td><code>60hz</code></td><td>Generals Online (60Hz Client)</td><td><code>GeneralsOnline</code> / channel stable (no repo, resolved via GeneralsOnline discoverer)</td><td><code>081326</code> latest, artifact <code>GeneralsOnline_portable_081326.zip</code>, deps <code>ea/zerohour 1.04</code> + <code>generalsonline/quickmatch-maps &gt;=081326</code></td></tr>
+    <tr><td><code>community-patch-retail</code></td><td>Community Patch (TheSuperHackers Build)</td><td><code>CommunityOutpost</code> / channel stable (resolved via CommunityOutpost discoverer)</td><td><code>1.06</code> latest, artifact <code>generalszh_23-07-2026.zip</code> (<code>https://legi.cc/patch/…</code>), dep <code>ea/zerohour 1.04</code></td></tr>
+    <tr><td><code>community-patch-nonretail</code></td><td>Community Patch (TheSuperHackers Non-Retail Build)</td><td><code>CommunityOutpost</code> / channel stable</td><td><code>1.06</code> latest, artifact <code>generalszh_11-09-2026_NonRet.zip</code>, dep <code>ea/zerohour 1.04</code></td></tr>
+  </table>
+
+  <h2>2. Addons (static releases, no upstream)</h2>
+  <table>
+    <tr><th>Content ID</th><th>Name</th><th>Release</th><th>Artifacts (variants)</th></tr>
+    <tr><td><code>l3m-controlbar</code></td><td>L3M Modern HD Control Bar</td><td><code>1.3</code> latest</td><td>4 resolution variants from <code>L3-M/GeneralsControlBar</code> <code>v1.3</code> (720p / 1080p / 1440p / 4K)</td></tr>
+    <tr><td><code>lemon-controlbar</code></td><td>Control Bar Pro Lemon Edition ZH</td><td><code>1.3</code> latest</td><td>Same <code>L3-M/GeneralsControlBar</code> repo, Lemon Edition filenames (720p / 900p / 1080p / 1440p). Standalone item only: as requested it is <strong>no longer a member of any bundle</strong> &mdash; bundles depend on <code>l3m-controlbar</code>.</td></tr>
+    <tr><td><code>eliorata-improved-menus</code></td><td>Improved Menus Widescreen</td><td><code>1.3</code> latest</td><td><code>0_ImprovedMenusEnglish.zip</code> sha256 <code>2e89f663d01709c848c69ac5124f07c194d67a82afd6f1edf1d9f444952f3f7a</code> (225,401,259 bytes), plus Russian <code>86152588…</code> and Spanish <code>b991b18f…</code> variants from <code>ElTioRata/ImprovedMenus</code> <code>v1.3</code></td></tr>
+    <tr><td><code>leikeze-hotkeys</code></td><td>Leikeze Competitive Hotkeys</td><td><code>2026.07.01</code> latest</td><td><code>hlei.dat</code> / <code>hlde.dat</code> / <code>hlen.dat</code> from <code>gentool.net/program_data/genpatcher/</code>. Static only: there is no GitHub release with matching asset rules, so upstream ingestion keeps existing releases ("No artifacts matched" path). That is expected, not a bug.</td></tr>
+  </table>
+  <p><span class="warn">Copy warning:</span> a published catalog pinning English menus to sha256 <code>3280056a…</code> is stale and fails every bundle download with "Hash verification failed. Expected: 3280056a…, Actual: 2e89f663…". Republish the release with the hash above. Direct GitHub downloads keep working because that path builds the manifest after download instead of trusting the pinned hash.</p>
+
+  <h2>3. Bundles (components live in release dependencies)</h2>
+  <table>
+    <tr><th>Bundle ID</th><th>Name</th><th>Release deps (all <code>latest</code> unless noted)</th></tr>
+    <tr><td><code>bundle-thesuperhackers-latest-stack</code></td><td>TheSuperHackers Latest Stack</td><td><code>ea/zerohour 1.04</code>, <code>thesuperhackers/zerohour</code>, <code>genhub-test-publishers/leikeze-hotkeys</code>, <code>genhub-test-publishers/l3m-controlbar</code>, <code>genhub-test-publishers/eliorata-improved-menus</code></td></tr>
+    <tr><td><code>bundle-community-outpost-stack</code></td><td>Community Outpost Patch Stack</td><td><code>ea/zerohour 1.04</code>, <code>communityoutpost/community-patch-retail</code>, <code>communityoutpost/community-patch-nonretail</code>, <code>genhub-test-publishers/leikeze-hotkeys</code>, <code>genhub-test-publishers/l3m-controlbar</code>, <code>genhub-test-publishers/eliorata-improved-menus</code></td></tr>
+    <tr><td><code>bundle-generalsonline-complete-pack</code></td><td>Generals Online Complete Pack</td><td><code>ea/zerohour 1.04</code>, <code>generalsonline/60hz</code>, <code>genhub-test-publishers/leikeze-hotkeys</code>, <code>genhub-test-publishers/l3m-controlbar</code>, <code>genhub-test-publishers/eliorata-improved-menus</code></td></tr>
+  </table>
+  <ul>
+    <li><code>bundledItems</code> is empty on all three bundles; components are read from release <code>dependencies</code> (fallback added in <code>b8f03bb7</code>). A Studio save writes the matrix selection into <code>bundledItems</code> with publisher identity preserved and clears release deps, so both paths stay consistent.</li>
+    <li>Upstream version strings are preserved verbatim (only a leading <code>v</code> is stripped): community-patch day-date (<code>11-09-2026</code>), GeneralsOnline american date (<code>092226_QFE2</code>), TheSuperHackers weekly tag (<code>weekly-2026-09-25</code>). Static fallback releases (<code>1.06</code>, <code>081326</code>, <code>2026.07.31</code>) intentionally differ from the live preview. Tracked items now label the static list as fallback and hide static releases whose version duplicates the live preview.</li>
+    <li>Game clients hidden from the user-side main grid are components with <code>isStandalone: false</code>: retained for bundle composition, hidden from the main downloads grid by design. All game clients in this catalog are <code>isStandalone: true</code> and visible. If a catalog shows the wrong items, check the subscription URL matches the selected catalog (see fallback-clobber fix).</li>
+    <li>Leikeze hotkeys are static-only: <code>hlei.dat</code> / <code>hlde.dat</code> / <code>hlen.dat</code> come from <code>gentool.net</code> with no matching upstream release feed, so there is no <code>upstreamSync</code> to track. That is data reality, not a missing ingestion.</li>
+  </ul>
+
+  <h2>4. Code fixes shipped with this postplan</h2>
+  <ul>
+    <li><span class="ok">Fixed:</span> fallback clobber. <code>GenericCatalogDiscoverer</code> persisted the first <em>successful</em> candidate URL, so Dominator 404 + Main success rewrote <code>CatalogUrl</code> to Main while <code>SelectedCatalogId</code> stayed Dominator: dropdown showed Dominator, grid showed Main's single card. The resolved URL is now only persisted when the preferred (first) candidate wins. Regression test: <code>DiscoverAsync_SelectedCatalogFailsSiblingSucceeds_DoesNotClobberSubscriptionUrlAsync</code>.</li>
+    <li><span class="ok">Fixed:</span> edit discard. <code>ContentLibraryViewModel.EditContentAsync</code> copied back only name/description/type/game/tags/extends/metadata, silently dropping matrix (<code>BundledItems</code>), <code>Releases</code>, <code>UpstreamSync</code>, <code>PublisherType</code>, <code>IsFeatured</code>/<code>FeaturedBadge</code>, <code>Addons</code>/<code>AddonReleases</code>. All are now copied back on save.</li>
+    <li><span class="ok">Fixed:</span> upstream shown twice. Tracked items rendered the static fallback list <em>and</em> the live upstream preview with no distinction, and a static release whose version equaled the preview version appeared twice. The static section now shows a fallback note, and static releases duplicating a preview version are hidden (<code>UpstreamDuplicateReleaseConverter</code>). Fallbacks stay editable (Add Release kept).</li>
+    <li><span class="ok">Fixed:</span> false "update available" on same-version siblings. <code>ReconcileInstalledFamilyItems</code> treated any uninstalled family card as newer, so a downloaded language/resolution variant was flagged as updatable to an identical-version sibling. Updates now require a strictly newer version (<code>ContentStateService.CompareVersions</code>, GeneralsOnline-aware). Regression test: <code>ReconcileReleaseUpdateStates_WhenFamilySharesOneVersion_DownloadedSiblingStaysDownloaded</code>.</li>
+    <li><span class="ok">Fixed:</span> "local is newer" reported as not downloaded. A pool holding a newer build of the same source showed NotDownloaded and resolved no manifest, so Add to Profile failed too. Non-multi-release cards now stay Downloaded and resolve the local manifest; multi-release feeds (GitHub/TSH weeklies) keep NotDownloaded per release card. Regression test: <code>GetStateAsync_WhenLocalBuildIsNewerThanCard_StaysDownloadedAndResolvesAsync</code>.</li>
+    <li><span class="ok">Fixed:</span> bundle member updates not actionable. Bundle cards never showed an Update button (<code>ShowUpdateButton</code> excluded bundles) and ready-members counted UpdateAvailable as downloaded. Bundles with outdated members now show Update, ask via the standard update dialog (<code>Downloads.UpdateDialog.BundleMessage</code>), re-download only outdated members, and reconcile game profiles with the old&rarr;new member mapping.</li>
+    <li><span class="ok">Fixed:</span> silent update swallow. When a publisher reconciler reported success-but-noop, <code>UpdateContentAsync</code> returned false without asking. It now falls through to the explicit update dialog + download + reconcile flow.</li>
+    <li><span class="ok">Fixed:</span> factory manifests drop origin linkage. Publisher factories rebuild manifests from extracted content, losing <code>OriginalContentId</code> and any download URL, so sibling cards from other publishers could never match. The orchestrator re-stamps origin metadata plus the origin download URL (<code>Publisher.ContentIndexUrl</code>) after prepare, and URL matching now considers it.</li>
+    <li><span class="ok">Fixed:</span> silent catalog drops on export (5 vs 6). Stale hosting URLs (deleted/renamed catalogs) and unpublished candidates were dropped without a word. <code>ExportProviderDefinitionAsync</code> now logs each excluded id so the publisher can prune hosting state and republish.</li>
+    <li><span class="ok">Fixed:</span> bundle save dropped publisher identity. Studio wrote matrix selections into <code>BundledItems</code> with content id only, breaking external members after save. Publisher, version constraint, and catalog URL are now carried over from the prior release dependencies.</li>
+    <li><span class="ok">Data (this repo):</span> removed <code>github/lemon-controlbar</code> from all three bundle releases (bundles use the L3M bar); bundle descriptions now say L3M Modern HD Control Bar. The <code>lemon-controlbar</code> item itself stays as a standalone entry.</li>
+  </ul>
+
+  <h2>5. Publisher checklist (your live catalogs)</h2>
+  <ul>
+    <li><span class="warn">Republish Improved Menus English</span> with sha256 <code>2e89f663d01709c848c69ac5124f07c194d67a82afd6f1edf1d9f444952f3f7a</code> (225,401,259 bytes). A published catalog pinning <code>3280056a…</code> fails every bundle download with "Hash verification failed. Expected: 3280056a…, Actual: 2e89f663…". A manual GitHub download is a <em>different upstream build</em> and cannot satisfy the pinned bundle member; only the republished pin fixes the bundle.</li>
+    <li>Remove <code>github/lemon-controlbar</code> from your bundle release dependencies (keep the L3M member), matching section 3.</li>
+    <li>Prune stale hosting entries (watch the new export warnings), then republish the provider definition so the definition catalog count matches the publish grid.</li>
+    <li>Re-subscribe (or Refresh) the Content Bundles catalog on the user side after republishing so the new pins and members take effect; re-download previously failed members (re-download overwrites the stored manifest).</li>
+  </ul>
+</main>
+</body>
+</html>

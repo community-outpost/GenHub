@@ -147,7 +147,7 @@ public sealed class ContentDetailBundleUpdateTests
 
     /// <summary>
     /// Verifies that a failed profile update skips workspace cleanup and the
-    /// replacement broadcast, leaving the old workspace intact.
+    /// replacement broadcast, leaving the old workspace intact, and raises a warning toast.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
@@ -168,8 +168,12 @@ public sealed class ContentDetailBundleUpdateTests
             .Setup(m => m.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateFailure("update failed"));
         var workspaceMock = new Mock<IWorkspaceManager>();
+        var notificationMock = new Mock<INotificationService>();
 
-        var viewModel = CreateViewModel(profileManagerMock.Object, workspaceMock.Object);
+        var viewModel = CreateViewModel(
+            profileManagerMock.Object,
+            workspaceMock.Object,
+            notificationService: notificationMock.Object);
         var recipient = new object();
         ManifestReplacedMessage? received = null;
         WeakReferenceMessenger.Default.Register<ManifestReplacedMessage>(recipient, (_, message) => received = message);
@@ -192,6 +196,63 @@ public sealed class ContentDetailBundleUpdateTests
         workspaceMock.Verify(
             m => m.CleanupWorkspaceAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Never);
+        notificationMock.Verify(
+            n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        Assert.Null(received);
+    }
+
+    /// <summary>
+    /// Verifies that an unexpected exception during profile update is caught,
+    /// skips cleanup and broadcast, and raises a warning toast.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ApplyBundleComponentUpdateStrategy_StrategyThrows_LogsAndRaisesWarningToastAsync()
+    {
+        var profile = new GameProfile
+        {
+            Id = "profile-1",
+            Name = "Profile",
+            EnabledContentIds = [OldManifestId],
+            ActiveWorkspaceId = "workspace-1",
+        };
+        var profileManagerMock = new Mock<IGameProfileManager>();
+        profileManagerMock
+            .Setup(m => m.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("unexpected error"));
+        var workspaceMock = new Mock<IWorkspaceManager>();
+        var notificationMock = new Mock<INotificationService>();
+
+        var viewModel = CreateViewModel(
+            profileManagerMock.Object,
+            workspaceMock.Object,
+            notificationService: notificationMock.Object);
+        var recipient = new object();
+        ManifestReplacedMessage? received = null;
+        WeakReferenceMessenger.Default.Register<ManifestReplacedMessage>(recipient, (_, message) => received = message);
+
+        try
+        {
+            await viewModel.ApplyBundleComponentUpdateStrategyAsync(
+                new ContentSearchResult { Id = "content-1", Name = "Content" },
+                "content-1",
+                OldManifestId,
+                CreateManifest(),
+                new UpdateDialogResult { Strategy = UpdateStrategy.ReplaceCurrent, DeleteOldVersions = false },
+                CancellationToken.None);
+        }
+        finally
+        {
+            WeakReferenceMessenger.Default.Unregister<ManifestReplacedMessage>(recipient);
+        }
+
+        workspaceMock.Verify(
+            m => m.CleanupWorkspaceAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        notificationMock.Verify(
+            n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
         Assert.Null(received);
     }
 

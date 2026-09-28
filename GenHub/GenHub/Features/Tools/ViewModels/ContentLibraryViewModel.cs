@@ -149,6 +149,22 @@ public partial class ContentLibraryViewModel(
     public bool HasUpstreamPreview => UpstreamPreviewReleases.Count > 0;
 
     /// <summary>
+    /// Gets a value indicating whether the selected content item tracks a live upstream provider.
+    /// Static releases of tracked items are fallback releases: the live upstream releases below supersede them.
+    /// </summary>
+    public bool SelectedContentTracksUpstream => IsSelectedContentUpstream();
+
+    /// <summary>
+    /// Gets the normalized versions of the live upstream preview releases for duplicate detection.
+    /// </summary>
+    public IReadOnlyList<string> UpstreamPreviewVersions { get; private set; } = [];
+
+    /// <summary>
+    /// Gets a value indicating whether the fallback-releases note should be shown above the static list.
+    /// </summary>
+    public bool ShowFallbackReleasesNote => SelectedContentTracksUpstream && HasUpstreamPreview;
+
+    /// <summary>
     /// Gets the localized catalog item count summary for the footer.
     /// </summary>
     public string CatalogSummaryText => string.Format(
@@ -787,6 +803,14 @@ public partial class ContentLibraryViewModel(
             target.Tags = edited.Tags;
             target.ExtendsContentId = edited.ExtendsContentId;
             target.Metadata = edited.Metadata;
+            target.IsFeatured = edited.IsFeatured;
+            target.FeaturedBadge = edited.FeaturedBadge;
+            target.UpstreamSync = edited.UpstreamSync;
+            target.PublisherType = edited.PublisherType;
+            target.BundledItems = edited.BundledItems;
+            target.Releases = edited.Releases;
+            target.Addons = edited.Addons;
+            target.AddonReleases = edited.AddonReleases;
             var (catalogIcon, publisherAvatar) = ResolveCatalogPresentationUrls(activeCatalog, parentViewModel);
             target.CatalogIconUrl = catalogIcon;
             target.PublisherAvatarUrl = publisherAvatar;
@@ -1376,6 +1400,8 @@ public partial class ContentLibraryViewModel(
     partial void OnSelectedContentChanged(CatalogContentItem? value)
     {
         RefreshHostingHint();
+        OnPropertyChanged(nameof(SelectedContentTracksUpstream));
+        OnPropertyChanged(nameof(ShowFallbackReleasesNote));
         if (_suppressUpstreamPreviewReload)
         {
             return;
@@ -1397,8 +1423,11 @@ public partial class ContentLibraryViewModel(
         _upstreamPreviewCts?.Dispose();
         _upstreamPreviewCts = null;
         UpstreamPreviewReleases.Clear();
+        UpstreamPreviewVersions = [];
         IsUpstreamPreviewLoading = false;
         OnPropertyChanged(nameof(HasUpstreamPreview));
+        OnPropertyChanged(nameof(UpstreamPreviewVersions));
+        OnPropertyChanged(nameof(ShowFallbackReleasesNote));
 
         if (value == null || upstreamIngestionService == null || !IsSelectedContentUpstream())
         {
@@ -1442,7 +1471,14 @@ public partial class ContentLibraryViewModel(
                     UpstreamPreviewReleases.Add(release);
                 }
 
+                UpstreamPreviewVersions = releases
+                    .Select(r => r.Version)
+                    .Where(v => !string.IsNullOrWhiteSpace(v))
+                    .Select(v => v!)
+                    .ToList();
                 OnPropertyChanged(nameof(HasUpstreamPreview));
+                OnPropertyChanged(nameof(UpstreamPreviewVersions));
+                OnPropertyChanged(nameof(ShowFallbackReleasesNote));
             });
         }
         catch (OperationCanceledException ex)

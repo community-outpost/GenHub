@@ -138,6 +138,43 @@ public sealed class GenericCatalogDiscovererDefinitionRefreshTests
         Assert.Null(discoverer.TakeRefreshedCatalogUrl());
     }
 
+    /// <summary>
+    /// A sibling catalog succeeding after the selected catalog 404s is a
+    /// fallback, not a redirect: the subscription URL must stay pinned to the
+    /// selected catalog so the browser does not show the wrong catalog's items.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_SelectedCatalogFailsSiblingSucceeds_DoesNotClobberSubscriptionUrlAsync()
+    {
+        const string selectedUrl = "https://example.com/catalog-dominator.json";
+        const string siblingUrl = "https://example.com/catalog-main.json";
+        const string definitionUrl = "https://example.com/publisher.json";
+        var catalog = CreateCatalog();
+        var routes = new Dictionary<string, HttpResponseMessage>(StringComparer.OrdinalIgnoreCase)
+        {
+            [definitionUrl] = JsonResponse(CreateDefinitionJson([("dominator", selectedUrl), ("main", siblingUrl)])),
+            [siblingUrl] = JsonResponse(JsonSerializer.Serialize(catalog)),
+        };
+
+        var subscription = new PublisherSubscription
+        {
+            PublisherId = "test-pub",
+            PublisherName = "Test Publisher",
+            CatalogUrl = selectedUrl,
+            DefinitionUrl = definitionUrl,
+            SelectedCatalogId = "dominator",
+        };
+        var discoverer = CreateDiscoverer(catalog, routes);
+        discoverer.Configure(subscription);
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.Equal(selectedUrl, subscription.CatalogUrl);
+        Assert.Null(discoverer.TakeRefreshedCatalogUrl());
+    }
+
     private static GenericCatalogDiscoverer CreateDiscoverer(
         PublisherCatalog catalog,
         Dictionary<string, HttpResponseMessage> routes)

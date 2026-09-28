@@ -13976,8 +13976,16 @@ Would you like to use this existing hosted file instead of uploading a new copy?
   <data name="Tools.PublisherStudio.Library.UpstreamReleasesLoading" xml:space="preserve">
     <value>Loading upstream releases…</value>
   </data>
+  <data name="Tools.PublisherStudio.Library.ReleasesFallbackNote" xml:space="preserve">
+    <value>Fallback releases (used when upstream is unreachable). Live upstream releases are listed below; duplicates are hidden.</value>
+  </data>
   <data name="Downloads.UpdateDialog.Title" xml:space="preserve">
     <value>{0} Update Available</value>
+  </data>
+  <data name="Downloads.UpdateDialog.BundleMessage" xml:space="preserve">
+    <value>{0} has {1} bundle member(s) with updates available.
+
+How do you want to apply these updates?</value>
   </data>
   <data name="Downloads.UpdateDialog.MessageWithVersion" xml:space="preserve">
     <value>{0} has an update available ({1}).

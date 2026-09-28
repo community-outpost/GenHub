@@ -19,6 +19,7 @@
         <converters:FileSizeConverter x:Key="FileSizeConverter"/>
         <converters:ArtifactPendingUploadConverter x:Key="ArtifactPendingUploadConverter"/>
         <converters:ReleaseOrderingConverter x:Key="ReleaseOrderingConverter"/>
+        <converters:UpstreamDuplicateReleaseConverter x:Key="UpstreamDuplicateReleaseConverter"/>
         <converters:StringToImageConverter x:Key="StringToImageConverter"/>
         <converters:ColorToBrushConverter x:Key="AccentColorBrushConverter"/>
         <converters:ValidColorToVisibilityConverter x:Key="ValidColorToVisibilityConverter"/>
@@ -734,6 +735,19 @@
                                         </Button>
                                     </Grid>
 
+                                    <!-- Fallback note: static releases of upstream-tracked items are superseded by the live preview below -->
+                                    <Border Background="{DynamicResource GlassFillSubtleBrush}"
+                                            BorderBrush="{DynamicResource GlassBorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            Padding="12,10"
+                                            IsVisible="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).ShowFallbackReleasesNote}">
+                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.ReleasesFallbackNote}"
+                                                   FontSize="12"
+                                                   Foreground="{DynamicResource TextSecondary}"
+                                                   TextWrapping="Wrap"/>
+                                    </Border>
+
                                     <!-- Releases Drop Zone -->
                                     <Border x:Name="ReleasesDropZone"
                                             IsVisible="{Binding !Releases.Count}"
@@ -761,6 +775,13 @@
                                                           Margin="0,0,0,8"
                                                           Padding="16"
                                                           IsExpanded="True">
+                                                    <Expander.IsVisible>
+                                                        <MultiBinding Converter="{StaticResource UpstreamDuplicateReleaseConverter}">
+                                                            <Binding Path="Version"/>
+                                                            <Binding Path="#RootView.((vm:ContentLibraryViewModel)DataContext).UpstreamPreviewVersions"/>
+                                                            <Binding Path="#RootView.((vm:ContentLibraryViewModel)DataContext).SelectedContentTracksUpstream"/>
+                                                        </MultiBinding>
+                                                    </Expander.IsVisible>
                                                     <Expander.Header>
                                                         <Grid ColumnDefinitions="Auto,*,Auto">
                                                             <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">

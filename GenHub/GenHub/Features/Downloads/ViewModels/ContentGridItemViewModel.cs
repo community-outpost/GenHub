@@ -423,7 +423,9 @@ public sealed partial class ContentGridItemViewModel(
     /// Gets a value indicating whether the Update button should be shown. Reflects the
     /// currently selected variant when the card represents a variant group.
     /// </summary>
-    public bool ShowUpdateButton => !HasBundleComponents && EffectiveCurrentState == ContentState.UpdateAvailable;
+    public bool ShowUpdateButton => HasBundleComponents
+        ? BundleComponentsNeedUpdate && !IsDownloading
+        : EffectiveCurrentState == ContentState.UpdateAvailable;
 
     /// <summary>
     /// Gets a value indicating whether the Add to Profile button should be shown.
@@ -497,6 +499,14 @@ public sealed partial class ContentGridItemViewModel(
     /// </summary>
     public bool AreBundleComponentsReadyForProfile =>
         HasBundleComponents && BundleComponentViewModel.AreRequiredSelectionsDownloaded(BundleComponents);
+
+    /// <summary>
+    /// Gets a value indicating whether any acquired required bundle member has a newer
+    /// version available. Ready bundles with member updates surface an update action
+    /// instead of silently keeping stale members.
+    /// </summary>
+    public bool BundleComponentsNeedUpdate =>
+        HasBundleComponents && BundleComponents.Any(c => c.RequiresUpdate);
 
     private Action? _unsubscribeAxisHandlers;
 
@@ -663,6 +673,7 @@ public sealed partial class ContentGridItemViewModel(
 
             OnPropertyChanged(nameof(EffectiveCurrentState));
             OnPropertyChanged(nameof(EffectiveIsDownloaded));
+            OnPropertyChanged(nameof(BundleComponentsNeedUpdate));
             OnPropertyChanged(nameof(ShowDownloadButton));
             OnPropertyChanged(nameof(ShowUpdateButton));
             NotifyStateChanged();
@@ -844,7 +855,9 @@ public sealed partial class ContentGridItemViewModel(
                 }
 
                 OnPropertyChanged(nameof(AreBundleComponentsReadyForProfile));
+                OnPropertyChanged(nameof(BundleComponentsNeedUpdate));
                 OnPropertyChanged(nameof(ShowDownloadButton));
+                OnPropertyChanged(nameof(ShowUpdateButton));
                 OnPropertyChanged(nameof(ShowAddToProfileButton));
             }
 
@@ -1063,7 +1076,9 @@ public sealed partial class ContentGridItemViewModel(
 
         OnPropertyChanged(nameof(HasBundleComponents));
         OnPropertyChanged(nameof(AreBundleComponentsReadyForProfile));
+        OnPropertyChanged(nameof(BundleComponentsNeedUpdate));
         OnPropertyChanged(nameof(ShowDownloadButton));
+        OnPropertyChanged(nameof(ShowUpdateButton));
         OnPropertyChanged(nameof(ShowAddToProfileButton));
         OnPropertyChanged(nameof(HasIncludesSummary));
     }
@@ -1085,7 +1100,9 @@ public sealed partial class ContentGridItemViewModel(
         }
 
         OnPropertyChanged(nameof(AreBundleComponentsReadyForProfile));
+        OnPropertyChanged(nameof(BundleComponentsNeedUpdate));
         OnPropertyChanged(nameof(ShowDownloadButton));
+        OnPropertyChanged(nameof(ShowUpdateButton));
         OnPropertyChanged(nameof(ShowAddToProfileButton));
     }
 
@@ -1334,11 +1351,15 @@ public sealed partial class ContentGridItemViewModel(
     {
         if (e.PropertyName is nameof(BundleComponentViewModel.SelectedVariant)
             or nameof(BundleComponentViewModel.IsSelectedDownloaded)
+            or nameof(BundleComponentViewModel.RequiresUpdate)
+            or nameof(BundleComponentViewModel.EffectiveState)
             or nameof(BundleComponentViewModel.CurrentState)
             or nameof(BundleComponentViewModel.RequiresDownload))
         {
             OnPropertyChanged(nameof(AreBundleComponentsReadyForProfile));
+            OnPropertyChanged(nameof(BundleComponentsNeedUpdate));
             OnPropertyChanged(nameof(ShowDownloadButton));
+            OnPropertyChanged(nameof(ShowUpdateButton));
             OnPropertyChanged(nameof(ShowAddToProfileButton));
         }
     }

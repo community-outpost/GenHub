@@ -13918,8 +13918,16 @@ https://example.com/screenshot2.png</value>
   <data name="Tools.PublisherStudio.Library.UpstreamReleasesLoading" xml:space="preserve">
     <value>Загрузка релизов из источника…</value>
   </data>
+  <data name="Tools.PublisherStudio.Library.ReleasesFallbackNote" xml:space="preserve">
+    <value>Резервные релизы (используются, когда источник недоступен). Актуальные релизы из источника перечислены ниже; дубликаты скрыты.</value>
+  </data>
   <data name="Downloads.UpdateDialog.Title" xml:space="preserve">
     <value>Доступно обновление для {0}</value>
+  </data>
+  <data name="Downloads.UpdateDialog.BundleMessage" xml:space="preserve">
+    <value>В пакете {0} доступны обновления для {1} элементов.
+
+Как применить эти обновления?</value>
   </data>
   <data name="Downloads.UpdateDialog.MessageWithVersion" xml:space="preserve">
     <value>Для {0} доступно обновление ({1}).

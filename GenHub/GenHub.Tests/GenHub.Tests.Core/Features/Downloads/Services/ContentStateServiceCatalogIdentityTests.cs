@@ -213,4 +213,45 @@ public sealed class ContentStateServiceCatalogIdentityTests
         Assert.Equal(ContentState.NotDownloaded, await service.GetStateAsync(authorTwoCard));
         Assert.Null(await service.GetLocalManifestIdAsync(authorTwoCard));
     }
+
+    /// <summary>
+    /// Verifies that a card whose pool holds a newer build of the same content source stays
+    /// Downloaded (and still resolves for profiles) instead of prompting a re-download of
+    /// older bytes.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetStateAsync_WhenLocalBuildIsNewerThanCard_StaysDownloadedAndResolvesAsync()
+    {
+        var poolMock = new Mock<IContentManifestPool>();
+
+        var localManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.10001.genericcatalog.mappack.glacampaignbytklyo"),
+            Name = "GLA Campaign by TKlyo",
+            Version = "1.0.1",
+            ContentType = ContentType.MapPack,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        poolMock.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(new List<ContentManifest> { localManifest }));
+        poolMock.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var service = new ContentStateService(poolMock.Object, NullLogger<ContentStateService>.Instance);
+
+        var card = new ContentSearchResult
+        {
+            Id = "1.10000.genericcatalog.mappack.glacampaignbytklyo",
+            Name = "GLA Campaign by TKlyo",
+            Version = "1.0.0",
+            ProviderName = "generic-catalog",
+            ContentType = ContentType.MapPack,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        Assert.Equal(ContentState.Downloaded, await service.GetStateAsync(card));
+        Assert.Equal(localManifest.Id.Value, await service.GetLocalManifestIdAsync(card));
+    }
 }

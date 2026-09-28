@@ -1749,15 +1749,30 @@ public partial class AddContentDialogViewModel(
 
         if (SelectedContentType == ContentType.ContentBundle)
         {
+            // Preserve publisher identity from the previous release dependencies so a
+            // saved bundle keeps resolving external members (they are not inferable from
+            // the matrix option alone). Release dependencies are rebuilt from BundledItems
+            // downstream, so identity lost here is lost everywhere.
+            var priorDeps = _existingItem?.Releases
+                .SelectMany(r => r.Dependencies ?? [])
+                .Where(d => !string.IsNullOrWhiteSpace(d.ContentId))
+                .GroupBy(d => d.ContentId, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase)
+                ?? new Dictionary<string, CatalogDependency>(StringComparer.OrdinalIgnoreCase);
+
             contentItem.BundledItems.Clear();
             foreach (var opt in BundleComponentOptions.Where(o => o.IsSelected))
             {
+                priorDeps.TryGetValue(opt.ContentId, out var prior);
                 contentItem.BundledItems.Add(new CatalogDependency
                 {
+                    PublisherId = prior?.PublisherId,
                     ContentId = opt.ContentId,
+                    VersionConstraint = prior?.VersionConstraint ?? "latest",
                     IsOptional = false,
                     DefaultVariant = opt.SelectedVariant,
                     ContentType = opt.ContentType.ToString(),
+                    CatalogUrl = prior?.CatalogUrl,
                 });
             }
         }
