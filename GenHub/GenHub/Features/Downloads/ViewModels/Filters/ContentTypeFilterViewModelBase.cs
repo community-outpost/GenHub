@@ -61,7 +61,9 @@ public abstract partial class ContentTypeFilterViewModelBase : FilterPanelViewMo
     {
         if (SelectedContentType.HasValue)
         {
-            yield return $"{LocalizationService.GetLocalizedString("Downloads.Filter.ContentType", "Content Type")}: {SelectedContentType.Value}";
+            var label = ContentTypeFilters.FirstOrDefault(f => f.ContentType == SelectedContentType.Value)?.DisplayName
+                ?? SelectedContentType.Value.ToString();
+            yield return $"{LocalizationService.GetLocalizedString("Downloads.Filter.ContentType", "Content Type")}: {label}";
         }
     }
 

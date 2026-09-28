@@ -268,4 +268,93 @@ public class CommunityOutpostProfileReconcilerTests
             x => x.ShowUpdateOptionDialogAsync(It.IsAny<string>(), It.IsAny<string>(), false),
             Times.Once);
     }
+
+    /// <summary>
+    /// Verifies that FindReplacementManifest correctly matches retail to retail and non-retail to non-retail.
+    /// </summary>
+    [Fact]
+    public void FindReplacementManifest_MatchesRetailToRetail_AndNonRetailToNonRetail()
+    {
+        var testReconciler = new TestableCommunityOutpostProfileReconciler(
+            NullLogger<CommunityOutpostProfileReconciler>.Instance,
+            _updateServiceMock.Object,
+            _manifestPoolMock.Object,
+            _contentOrchestratorMock.Object,
+            _reconciliationServiceMock.Object,
+            _notificationServiceMock.Object,
+            _dialogServiceMock.Object,
+            _userSettingsServiceMock.Object,
+            _profileManagerMock.Object);
+
+        var oldRetail = new ContentManifest
+        {
+            Id = new ManifestId("community.outpost.GameClient.community-patch.1.0"),
+            Name = "Community Patch 1.0 (Retail)",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Version = "1.0.0",
+            Metadata = new ContentMetadata { Tags = ["contentcode:community-patch"] },
+        };
+
+        var oldNonRetail = new ContentManifest
+        {
+            Id = new ManifestId("community.outpost.GameClient.community-patch-non-retail.1.0"),
+            Name = "Community Patch 1.0 (Non-Retail)",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Version = "1.0.0",
+            Metadata = new ContentMetadata { Tags = ["contentcode:community-patch-non-retail"] },
+        };
+
+        var newRetail = new ContentManifest
+        {
+            Id = new ManifestId("community.outpost.GameClient.community-patch.1.1"),
+            Name = "Community Patch 1.1 (Retail)",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Version = "1.1.0",
+            Metadata = new ContentMetadata { Tags = ["contentcode:community-patch"] },
+        };
+
+        var newNonRetail = new ContentManifest
+        {
+            Id = new ManifestId("community.outpost.GameClient.community-patch-non-retail.1.1"),
+            Name = "Community Patch 1.1 (Non-Retail)",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Version = "1.1.0",
+            Metadata = new ContentMetadata { Tags = ["contentcode:community-patch-non-retail"] },
+        };
+
+        var candidatePool = new List<ContentManifest> { newNonRetail, newRetail };
+
+        var matchedRetail = testReconciler.InvokeFindReplacementManifest(oldRetail, candidatePool);
+        var matchedNonRetail = testReconciler.InvokeFindReplacementManifest(oldNonRetail, candidatePool);
+
+        Assert.NotNull(matchedRetail);
+        Assert.Equal(newRetail.Id, matchedRetail.Id);
+
+        Assert.NotNull(matchedNonRetail);
+        Assert.Equal(newNonRetail.Id, matchedNonRetail.Id);
+    }
+
+    private sealed class TestableCommunityOutpostProfileReconciler : CommunityOutpostProfileReconciler
+    {
+        public TestableCommunityOutpostProfileReconciler(
+            Microsoft.Extensions.Logging.ILogger<CommunityOutpostProfileReconciler> logger,
+            ICommunityOutpostUpdateService updateService,
+            IContentManifestPool manifestPool,
+            IContentOrchestrator contentOrchestrator,
+            IContentReconciliationService reconciliationService,
+            INotificationService notificationService,
+            IDialogService dialogService,
+            IUserSettingsService userSettingsService,
+            IGameProfileManager profileManager)
+            : base(logger, updateService, manifestPool, contentOrchestrator, reconciliationService, notificationService, dialogService, userSettingsService, profileManager)
+        {
+        }
+
+        public ContentManifest? InvokeFindReplacementManifest(ContentManifest oldManifest, IReadOnlyList<ContentManifest> newManifests) =>
+            FindReplacementManifest(oldManifest, newManifests);
+    }
 }

@@ -264,7 +264,7 @@ public abstract class PublisherProfileReconcilerBase(
 
     /// <summary>
     /// Finds the replacement manifest for an old manifest. The default matches by content
-    /// type; publishers with per-variant manifests override this.
+    /// type and target game; publishers with per-variant manifests override this.
     /// </summary>
     /// <param name="oldManifest">The old manifest being replaced.</param>
     /// <param name="newManifests">The newly acquired manifests.</param>
@@ -272,7 +272,9 @@ public abstract class PublisherProfileReconcilerBase(
     protected virtual ContentManifest? FindReplacementManifest(
         ContentManifest oldManifest,
         IReadOnlyList<ContentManifest> newManifests) =>
-        newManifests.FirstOrDefault(n => n.ContentType == oldManifest.ContentType);
+        newManifests.FirstOrDefault(n =>
+            n.ContentType == oldManifest.ContentType &&
+            (oldManifest.TargetGame == GameType.UnknownGame || n.TargetGame == GameType.UnknownGame || n.TargetGame == oldManifest.TargetGame));
 
     private Dictionary<string, string> BuildManifestMapping(
         IReadOnlyList<ContentManifest> oldManifests,

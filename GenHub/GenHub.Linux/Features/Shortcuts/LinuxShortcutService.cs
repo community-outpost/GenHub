@@ -388,38 +388,10 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger, Func<str
             configHome = Path.Combine(home, ".config");
         }
 
-        var userDirsFile = Path.Combine(configHome, "user-dirs.dirs");
-        if (File.Exists(userDirsFile))
+        var userDirsPath = TryResolveFromUserDirs(configHome, home);
+        if (userDirsPath != null)
         {
-            try
-            {
-                foreach (var line in File.ReadAllLines(userDirsFile))
-                {
-                    var trimmed = line.Trim();
-                    if (trimmed.StartsWith("XDG_DESKTOP_DIR=", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var value = trimmed["XDG_DESKTOP_DIR=".Length..].Trim('"', '\'', ' ');
-                        value = value.Replace("$HOME", home, StringComparison.Ordinal);
-                        if (!Path.IsPathRooted(value))
-                        {
-                            value = Path.Combine(home, value);
-                        }
-
-                        if (!string.IsNullOrWhiteSpace(value) && Directory.Exists(value))
-                        {
-                            return value;
-                        }
-                    }
-                }
-            }
-            catch (IOException)
-            {
-                // Best effort XDG resolution
-            }
-            catch (UnauthorizedAccessException)
-            {
-                // Best effort XDG resolution
-            }
+            return userDirsPath;
         }
 
         var desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
@@ -429,6 +401,45 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger, Func<str
         }
 
         return Path.Combine(home, "Desktop");
+    }
+
+    private static string? TryResolveFromUserDirs(string configHome, string home)
+    {
+        var userDirsFile = Path.Combine(configHome, "user-dirs.dirs");
+        if (!File.Exists(userDirsFile))
+        {
+            return null;
+        }
+
+        try
+        {
+            foreach (var line in File.ReadAllLines(userDirsFile))
+            {
+                var trimmed = line.Trim();
+                if (!trimmed.StartsWith("XDG_DESKTOP_DIR=", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var value = trimmed["XDG_DESKTOP_DIR=".Length..].Trim('"', '\'', ' ');
+                value = value.Replace("$HOME", home, StringComparison.Ordinal);
+                if (!Path.IsPathRooted(value))
+                {
+                    value = Path.Combine(home, value);
+                }
+
+                if (!string.IsNullOrWhiteSpace(value) && Directory.Exists(value))
+                {
+                    return value;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Best effort XDG resolution
+        }
+
+        return null;
     }
 
     /// <summary>
