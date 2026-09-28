@@ -1739,8 +1739,10 @@ public sealed partial class TextureEditorViewModel(
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
+            // Fail closed: without a successful content check the save cannot
+            // proceed, otherwise an empty export could silently discard mappings.
             logger.LogWarning(ex, "Unable to inspect existing INI {Path} before an empty save.", path);
-            return true;
+            return false;
         }
 
         if (!hasContent)
