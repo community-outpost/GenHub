@@ -646,30 +646,40 @@ public sealed class SageTextureCodec(ILogger<SageTextureCodec> logger) : ISageTe
 
     private OperationResult<DecodedTexture> DecodeDdsPixels(DdsImageHeader header)
     {
-        bool hasFourCc = (header.PixelFlags & DdsPixelFormatFourCcFlag) != 0;
-        if (hasFourCc && header.FourCc == DdsFourCcDxt1)
+        if ((header.PixelFlags & DdsPixelFormatFourCcFlag) != 0)
         {
-            return DecodeDdsDxt1(header.Data, header.DataOffset, header.Width, header.Height, header.SourceName, header.Started);
+            return DecodeDdsFourCc(header);
         }
 
-        if (hasFourCc && (header.FourCc == DdsFourCcDxt2 || header.FourCc == DdsFourCcDxt3))
-        {
-            bool premultiplied = header.FourCc == DdsFourCcDxt2;
-            return DecodeDdsDxt35(new DdsBlockDecodeRequest(header.Data, header.DataOffset, header.Width, header.Height, header.SourceName, header.Started, false, premultiplied, premultiplied ? "DXT2" : "DXT3"));
-        }
-
-        if (hasFourCc && (header.FourCc == DdsFourCcDxt4 || header.FourCc == DdsFourCcDxt5))
-        {
-            bool premultiplied = header.FourCc == DdsFourCcDxt4;
-            return DecodeDdsDxt35(new DdsBlockDecodeRequest(header.Data, header.DataOffset, header.Width, header.Height, header.SourceName, header.Started, true, premultiplied, premultiplied ? "DXT4" : "DXT5"));
-        }
-
-        if (!hasFourCc && (header.RgbBitCount == 32 || header.RgbBitCount == 24))
+        if (header.RgbBitCount == 32 || header.RgbBitCount == 24)
         {
             int pitch = ReadInt32(header.Data, header.HeaderOffset + DdsPitchOffset);
             uint alphaMask = (uint)ReadInt32(header.Data, header.PixelOffset + DdsPixelFormatAlphaMaskOffset);
             bool hasAlpha = (header.PixelFlags & DdsPixelFormatAlphaPixelsFlag) != 0 || alphaMask != 0;
             return DecodeDdsUncompressed(new DdsUncompressedRequest(header.Data, header.DataOffset, header.Width, header.Height, header.RgbBitCount / 8, pitch, header.RedMask, hasAlpha, header.SourceName, header.Started));
+        }
+
+        logger.LogWarning("Unsupported DDS pixel format in {Source}", header.SourceName);
+        return OperationResult<DecodedTexture>.CreateFailure($"Unsupported DDS pixel format: {header.SourceName}", Stopwatch.GetElapsedTime(header.Started));
+    }
+
+    private OperationResult<DecodedTexture> DecodeDdsFourCc(DdsImageHeader header)
+    {
+        if (header.FourCc == DdsFourCcDxt1)
+        {
+            return DecodeDdsDxt1(header.Data, header.DataOffset, header.Width, header.Height, header.SourceName, header.Started);
+        }
+
+        if (header.FourCc == DdsFourCcDxt2 || header.FourCc == DdsFourCcDxt3)
+        {
+            bool premultiplied = header.FourCc == DdsFourCcDxt2;
+            return DecodeDdsDxt35(new DdsBlockDecodeRequest(header.Data, header.DataOffset, header.Width, header.Height, header.SourceName, header.Started, false, premultiplied, premultiplied ? "DXT2" : "DXT3"));
+        }
+
+        if (header.FourCc == DdsFourCcDxt4 || header.FourCc == DdsFourCcDxt5)
+        {
+            bool premultiplied = header.FourCc == DdsFourCcDxt4;
+            return DecodeDdsDxt35(new DdsBlockDecodeRequest(header.Data, header.DataOffset, header.Width, header.Height, header.SourceName, header.Started, true, premultiplied, premultiplied ? "DXT4" : "DXT5"));
         }
 
         logger.LogWarning("Unsupported DDS pixel format in {Source}", header.SourceName);

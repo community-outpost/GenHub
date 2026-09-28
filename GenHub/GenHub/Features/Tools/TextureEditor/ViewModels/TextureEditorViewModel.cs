@@ -193,8 +193,8 @@ public sealed partial class TextureEditorViewModel(
     /// </summary>
     public override bool CanDelete => SelectedSlice is not null;
 
-    // Undo and redo will override CanUndo and CanRedo with a slice-snapshot history;
-    // see the canvas QOL roadmap in TextureEditorView.axaml.cs and the WndEditAction stacks.
+    // Slice-snapshot undo history is future work. See the canvas QOL roadmap in
+    // TextureEditorView.axaml.cs and the WndEditAction stacks.
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads source-generated AtlasPath instance state.")]
     private string DefaultIniPath => Path.Combine(
         Path.GetDirectoryName(AtlasPath) ?? string.Empty,
@@ -335,10 +335,11 @@ public sealed partial class TextureEditorViewModel(
         if (_isResizing)
         {
             var (left, top, right, bottom) = CanvasResizeHelper.Resize(
-                _dragOriginal.Value.Left,
-                _dragOriginal.Value.Top,
-                _dragOriginal.Value.Right,
-                _dragOriginal.Value.Bottom,
+                new CanvasResizeEdges(
+                    _dragOriginal.Value.Left,
+                    _dragOriginal.Value.Top,
+                    _dragOriginal.Value.Right,
+                    _dragOriginal.Value.Bottom),
                 _resizeDirection,
                 deltaX,
                 deltaY,
@@ -496,6 +497,7 @@ public sealed partial class TextureEditorViewModel(
     /// <inheritdoc />
     protected override async Task OnOpenFileAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var topLevel = GetTopLevel();
         if (topLevel is null)
         {
@@ -520,7 +522,7 @@ public sealed partial class TextureEditorViewModel(
             return;
         }
 
-        await LoadAtlasAsync(files[0].Path.LocalPath, cancellationToken).ConfigureAwait(true);
+        await LoadAtlasAsync(files[0].Path.LocalPath).ConfigureAwait(true);
     }
 
     /// <inheritdoc />
@@ -1134,13 +1136,14 @@ public sealed partial class TextureEditorViewModel(
         try
         {
             bool scanSucceeded = await RunOperationAsync(operationToken => ScanDirectoryCoreAsync(folder, operationToken)).ConfigureAwait(true);
+            cancellationToken.ThrowIfCancellationRequested();
 
             if (scanSucceeded)
             {
                 string? texture = FindFirstTextureFile(FileExplorer.Nodes);
                 if (texture is not null)
                 {
-                    await LoadAtlasAsync(texture, cancellationToken).ConfigureAwait(true);
+                    await LoadAtlasAsync(texture).ConfigureAwait(true);
                 }
             }
         }
@@ -1176,21 +1179,24 @@ public sealed partial class TextureEditorViewModel(
 
         if (TextureEditorConstants.TextureExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase))
         {
-            _ = LoadAtlasAsync(node.FullPath, CancellationToken.None);
+            _ = LoadAtlasAsync(node.FullPath);
         }
     }
 
-    private async Task LoadAtlasAsync(string path, CancellationToken cancellationToken)
+    private async Task LoadAtlasAsync(string path)
     {
-        if (!await ConfirmDiscardUnsavedAsync(cancellationToken).ConfigureAwait(true))
-        {
-            return;
-        }
-
         try
         {
             await RunOperationAsync(async operationToken =>
             {
+                // The busy guard engages synchronously on entry, so the confirm
+                // dialog runs under it: a second activation during the prompt
+                // sees IsBusy and is ignored instead of loading concurrently.
+                if (!await ConfirmDiscardUnsavedAsync(operationToken).ConfigureAwait(true))
+                {
+                    return;
+                }
+
                 var decoded = await bitmapService.LoadDecodedAsync(path, operationToken).ConfigureAwait(true);
                 operationToken.ThrowIfCancellationRequested();
                 if (decoded.Failed || decoded.Data is null)
@@ -1268,48 +1274,7 @@ public sealed partial class TextureEditorViewModel(
         IReadOnlyList<MappedImageDefinition>? imported = null;
         try
         {
-            await RunOperationAsync(async operationToken =>
-            {
-                var parsed = await parser.ParseFileAsync(path, operationToken).ConfigureAwait(true);
-                operationToken.ThrowIfCancellationRequested();
-                if (parsed.Data is null || parsed.Data.Count == 0)
-                {
-                    Notifications.ShowError(
-                        Localize(ImportFailedTitleKey, ImportFailedTitleFallback),
-                        parsed.FirstError ?? Localize("TextureEditor.Notify.ImportFailed.Message", "No mapped images found."),
-                        NotificationDurations.Long);
-                    return;
-                }
-
-                imported = parsed.Data;
-                registry.ImportDefinitions(parsed.Data);
-                RefreshRegistryImages();
-
-                // An INI usually references many textures, so only its entries for
-                // the open atlas can become slices, and only when that cannot
-                // clobber unsaved work. Everything else stays browsable in the library.
-                // Explicit imports adopt their own entries regardless of folder:
-                // the user just pointed at this INI, unlike the automatic
-                // same-folder fallback in LoadSlicesForAtlas.
-                List<MappedImageDefinition> matches = AtlasBitmap is null
-                    ? []
-                    : parsed.Data
-                        .Where(image => MappedImageTextureMatcher.Matches(image.TextureFileName, AtlasFileName))
-                        .ToList();
-                bool adopted = matches.Count > 0 && Slices.Count == 0;
-                if (adopted)
-                {
-                    ReplaceSlices(matches);
-                    MarkSaved();
-                }
-
-                // The explorer badge tracks the open document, so importing an INI
-                // never moves it: the atlas stays current.
-                Notifications.ShowSuccess(
-                    Localize("TextureEditor.Notify.ImportComplete.Title", "Import complete"),
-                    BuildImportCompleteMessage(path, parsed.Data.Count, matches.Count, adopted),
-                    NotificationDurations.Medium);
-            }).ConfigureAwait(true);
+            imported = await RunOperationAsync(operationToken => ImportIniCoreAsync(path, operationToken)).ConfigureAwait(true);
         }
         catch (OperationCanceledException)
         {
@@ -1332,6 +1297,49 @@ public sealed partial class TextureEditorViewModel(
         {
             await MaybeOpenTextureForImportAsync(path, imported).ConfigureAwait(true);
         }
+    }
+
+    private async Task<IReadOnlyList<MappedImageDefinition>?> ImportIniCoreAsync(string path, CancellationToken cancellationToken)
+    {
+        var parsed = await parser.ParseFileAsync(path, cancellationToken).ConfigureAwait(true);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (parsed.Data is null || parsed.Data.Count == 0)
+        {
+            Notifications.ShowError(
+                Localize(ImportFailedTitleKey, ImportFailedTitleFallback),
+                parsed.FirstError ?? Localize("TextureEditor.Notify.ImportFailed.Message", "No mapped images found."),
+                NotificationDurations.Long);
+            return null;
+        }
+
+        registry.ImportDefinitions(parsed.Data);
+        RefreshRegistryImages();
+
+        // An INI usually references many textures, so only its entries for
+        // the open atlas can become slices, and only when that cannot
+        // clobber unsaved work. Everything else stays browsable in the library.
+        // Explicit imports adopt their own entries regardless of folder:
+        // the user just pointed at this INI, unlike the automatic
+        // same-folder fallback in LoadSlicesForAtlas.
+        List<MappedImageDefinition> matches = AtlasBitmap is null
+            ? []
+            : parsed.Data
+                .Where(image => MappedImageTextureMatcher.Matches(image.TextureFileName, AtlasFileName))
+                .ToList();
+        bool adopted = matches.Count > 0 && Slices.Count == 0;
+        if (adopted)
+        {
+            ReplaceSlices(matches);
+            MarkSaved();
+        }
+
+        // The explorer badge tracks the open document, so importing an INI
+        // never moves it: the atlas stays current.
+        Notifications.ShowSuccess(
+            Localize("TextureEditor.Notify.ImportComplete.Title", "Import complete"),
+            BuildImportCompleteMessage(path, parsed.Data.Count, matches.Count, adopted),
+            NotificationDurations.Medium);
+        return parsed.Data;
     }
 
     private async Task MaybeOpenTextureForImportAsync(string iniPath, IReadOnlyList<MappedImageDefinition> imported)
@@ -1380,25 +1388,21 @@ public sealed partial class TextureEditorViewModel(
                 return;
             }
 
-            await LoadAtlasAsync(texturePath, CancellationToken.None).ConfigureAwait(true);
+            await LoadAtlasAsync(texturePath).ConfigureAwait(true);
             if (!string.Equals(AtlasPath, texturePath, StringComparison.OrdinalIgnoreCase))
             {
                 return;
             }
 
-            // LoadAtlasAsync adopts same-folder registry entries on its own, but
-            // an explicitly imported INI adopts its own entries regardless of
-            // folder, matching the adopt rule in ImportIniFileAsync.
-            if (Slices.Count == 0)
+            // The user explicitly chose this INI, so its entries take precedence
+            // over whatever LoadAtlasAsync adopted automatically.
+            var matches = imported
+                .Where(image => MappedImageTextureMatcher.Matches(image.TextureFileName, AtlasFileName))
+                .ToList();
+            if (matches.Count > 0)
             {
-                var matches = imported
-                    .Where(image => MappedImageTextureMatcher.Matches(image.TextureFileName, AtlasFileName))
-                    .ToList();
-                if (matches.Count > 0)
-                {
-                    ReplaceSlices(matches);
-                    MarkSaved();
-                }
+                ReplaceSlices(matches);
+                MarkSaved();
             }
 
             return;
@@ -1513,7 +1517,7 @@ public sealed partial class TextureEditorViewModel(
 
     private async Task OpenTextureAndLoadEntryAsync(string texturePath, MappedImageDefinition definition)
     {
-        await LoadAtlasAsync(texturePath, CancellationToken.None).ConfigureAwait(true);
+        await LoadAtlasAsync(texturePath).ConfigureAwait(true);
         if (!string.Equals(AtlasPath, texturePath, StringComparison.OrdinalIgnoreCase))
         {
             // The user cancelled the discard prompt or the atlas failed to open,

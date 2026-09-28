@@ -1401,10 +1401,11 @@ public sealed partial class WndEditorViewModel(
         var deltaY = (int)Math.Round((canvasPoint.Y - _dragStart.Y) / Zoom);
 
         var (left, top, right, bottom) = CanvasResizeHelper.Resize(
-            _dragOriginal.UpperLeftX,
-            _dragOriginal.UpperLeftY,
-            _dragOriginal.BottomRightX,
-            _dragOriginal.BottomRightY,
+            new CanvasResizeEdges(
+                _dragOriginal.UpperLeftX,
+                _dragOriginal.UpperLeftY,
+                _dragOriginal.BottomRightX,
+                _dragOriginal.BottomRightY),
             _resizeDirection,
             deltaX,
             deltaY,

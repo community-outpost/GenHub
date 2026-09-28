@@ -13,20 +13,14 @@ public static class CanvasResizeHelper
     /// <summary>
     /// Resizes a rectangle from its original edges by a pointer delta.
     /// </summary>
-    /// <param name="left">The original left edge.</param>
-    /// <param name="top">The original top edge.</param>
-    /// <param name="right">The original right edge.</param>
-    /// <param name="bottom">The original bottom edge.</param>
+    /// <param name="edges">The original edges.</param>
     /// <param name="direction">The dragged handle direction.</param>
     /// <param name="deltaX">The horizontal pointer delta in content pixels.</param>
     /// <param name="deltaY">The vertical pointer delta in content pixels.</param>
     /// <param name="minSize">The minimum width and height in content pixels.</param>
     /// <returns>The resized edges.</returns>
     public static (int Left, int Top, int Right, int Bottom) Resize(
-        int left,
-        int top,
-        int right,
-        int bottom,
+        CanvasResizeEdges edges,
         CanvasResizeDirection direction,
         int deltaX,
         int deltaY,
@@ -35,15 +29,15 @@ public static class CanvasResizeHelper
         int minimum = Math.Max(1, minSize);
         return direction switch
         {
-            CanvasResizeDirection.East => (left, top, Math.Max(left + minimum, right + deltaX), bottom),
-            CanvasResizeDirection.West => (Math.Min(right - minimum, left + deltaX), top, right, bottom),
-            CanvasResizeDirection.South => (left, top, right, Math.Max(top + minimum, bottom + deltaY)),
-            CanvasResizeDirection.North => (left, Math.Min(bottom - minimum, top + deltaY), right, bottom),
-            CanvasResizeDirection.SouthEast => (left, top, Math.Max(left + minimum, right + deltaX), Math.Max(top + minimum, bottom + deltaY)),
-            CanvasResizeDirection.NorthEast => (left, Math.Min(bottom - minimum, top + deltaY), Math.Max(left + minimum, right + deltaX), bottom),
-            CanvasResizeDirection.SouthWest => (Math.Min(right - minimum, left + deltaX), top, right, Math.Max(top + minimum, bottom + deltaY)),
-            CanvasResizeDirection.NorthWest => (Math.Min(right - minimum, left + deltaX), Math.Min(bottom - minimum, top + deltaY), right, bottom),
-            _ => (left, top, right, bottom),
+            CanvasResizeDirection.East => (edges.Left, edges.Top, Math.Max(edges.Left + minimum, edges.Right + deltaX), edges.Bottom),
+            CanvasResizeDirection.West => (Math.Min(edges.Right - minimum, edges.Left + deltaX), edges.Top, edges.Right, edges.Bottom),
+            CanvasResizeDirection.South => (edges.Left, edges.Top, edges.Right, Math.Max(edges.Top + minimum, edges.Bottom + deltaY)),
+            CanvasResizeDirection.North => (edges.Left, Math.Min(edges.Bottom - minimum, edges.Top + deltaY), edges.Right, edges.Bottom),
+            CanvasResizeDirection.SouthEast => (edges.Left, edges.Top, Math.Max(edges.Left + minimum, edges.Right + deltaX), Math.Max(edges.Top + minimum, edges.Bottom + deltaY)),
+            CanvasResizeDirection.NorthEast => (edges.Left, Math.Min(edges.Bottom - minimum, edges.Top + deltaY), Math.Max(edges.Left + minimum, edges.Right + deltaX), edges.Bottom),
+            CanvasResizeDirection.SouthWest => (Math.Min(edges.Right - minimum, edges.Left + deltaX), edges.Top, edges.Right, Math.Max(edges.Top + minimum, edges.Bottom + deltaY)),
+            CanvasResizeDirection.NorthWest => (Math.Min(edges.Right - minimum, edges.Left + deltaX), Math.Min(edges.Bottom - minimum, edges.Top + deltaY), edges.Right, edges.Bottom),
+            _ => (edges.Left, edges.Top, edges.Right, edges.Bottom),
         };
     }
 

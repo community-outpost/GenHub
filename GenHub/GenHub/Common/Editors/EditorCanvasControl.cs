@@ -64,7 +64,7 @@ public class EditorCanvasControl : ContentControl
             defaultValue: false,
             defaultBindingMode: Avalonia.Data.BindingMode.TwoWay);
 
-    private static Cursor? _panCursor;
+    private static readonly Cursor PanCursor = new(StandardCursorType.Hand);
 
     private ScrollViewer? _scrollViewer;
     private bool _isPanning;
@@ -187,7 +187,7 @@ public class EditorCanvasControl : ContentControl
         _panStart = e.GetPosition(_scrollViewer);
         _panOrigin = _scrollViewer.Offset;
         _previousCursor = Cursor;
-        Cursor = _panCursor ??= new Cursor(StandardCursorType.Hand);
+        Cursor = PanCursor;
         e.Pointer.Capture(_scrollViewer);
         e.Handled = true;
     }
