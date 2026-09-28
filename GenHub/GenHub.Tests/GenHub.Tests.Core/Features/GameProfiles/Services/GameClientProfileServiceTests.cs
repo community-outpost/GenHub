@@ -108,6 +108,63 @@ public sealed class GameClientProfileServiceTests
         Assert.Equal(Path.Combine(InstallationPath, nativeName), _capturedRequest!.GameClient!.ExecutablePath);
     }
 
+    /// <summary>
+    /// A declared entry point wins over a helper executable listed before it.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateProfileFromManifestAsync_WithDeclaredEntryPoint_UsesItOverEarlierHelperAsync()
+    {
+        var nativeName = Path.GetFileNameWithoutExtension(GameClientConstants.SuperHackersZeroHourExecutable);
+        var manifest = CreateManifest(
+            new ManifestFile { RelativePath = "crashpad_handler", IsExecutable = true },
+            new ManifestFile { RelativePath = nativeName, IsExecutable = true });
+        manifest.EntryPoint = nativeName;
+
+        var result = await _service.CreateProfileFromManifestAsync(manifest);
+
+        Assert.True(result.Success, string.Join("; ", result.Errors));
+        Assert.Equal(Path.Combine(InstallationPath, nativeName), _capturedRequest!.GameClient!.ExecutablePath);
+    }
+
+    /// <summary>
+    /// A declared entry point missing from the files fails with the resolver's reason instead of guessing.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateProfileFromManifestAsync_WithMissingDeclaredEntryPoint_FailsWithoutGuessingAsync()
+    {
+        var manifest = CreateManifest(
+            new ManifestFile { RelativePath = "crashpad_handler", IsExecutable = true },
+            new ManifestFile { RelativePath = GameClientConstants.SuperHackersZeroHourExecutable });
+        manifest.EntryPoint = "generalszh";
+
+        var result = await _service.CreateProfileFromManifestAsync(manifest);
+
+        Assert.False(result.Success);
+        Assert.Contains("generalszh", string.Join("; ", result.Errors));
+        Assert.Null(_capturedRequest);
+    }
+
+    /// <summary>
+    /// An existing profile is reported with a structured error code rather than only a message.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateProfileFromManifestAsync_WhenProfileExists_ReturnsAlreadyExistsErrorCodeAsync()
+    {
+        var manifest = CreateManifest(new ManifestFile { RelativePath = GameClientConstants.SuperHackersZeroHourExecutable });
+        _profileManagerMock
+            .Setup(m => m.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess(
+                [new GameProfile { Id = "existing", Name = "Existing", GameClient = new GenHub.Core.Models.GameClients.GameClient { Id = manifest.Id.Value } }]));
+
+        var result = await _service.CreateProfileFromManifestAsync(manifest);
+
+        Assert.False(result.Success);
+        Assert.Equal(ProfileConstants.ProfileAlreadyExistsErrorCode, result.ErrorCode);
+    }
+
     private static ContentManifest CreateManifest(params ManifestFile[] files) => new()
     {
         Id = ManifestId.Create("1.20260925.thesuperhackers.gameclient.generalszh"),

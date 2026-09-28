@@ -538,6 +538,7 @@ public sealed class PublisherProfileOrchestratorTests
             await File.WriteAllBytesAsync(generalsPath, [0x7F, 0x45, 0x4C, 0x46, 0x02, 0x01, 0x01, 0x00]);
             var zeroHour = CreateSuperHackersClient(zeroHourPath);
             var generals = CreateSuperHackersClient(generalsPath);
+            generals.Id = "1.108.retail.gameclient.generals";
             generals.GameType = GameType.Generals;
             var installation = new GameInstallation(directory, GameInstallationType.Retail, null)
             {
@@ -551,6 +552,101 @@ public sealed class PublisherProfileOrchestratorTests
 
             Assert.True(result.Success);
             Assert.Equal(2, result.Data);
+            VerifyNoAcquisition();
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies how detected-client profile outcomes combine: real failures are propagated
+    /// and an already existing profile is not an error.
+    /// </summary>
+    /// <param name="firstOutcome">The outcome for the Zero Hour client.</param>
+    /// <param name="secondOutcome">The outcome for the Generals client.</param>
+    /// <param name="expectSuccess">Whether the orchestrator should report success.</param>
+    /// <param name="expectedCount">The expected number of created profiles on success.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Theory]
+    [InlineData("fail", "fail", false, 0)]
+    [InlineData("exists", "fail", false, 0)]
+    [InlineData("exists", "exists", true, 0)]
+    [InlineData("created", "fail", true, 1)]
+    public async Task CreateProfilesForPublisherClientAsync_WithDetectedClientOutcomes_PropagatesRealFailuresAsync(
+        string firstOutcome,
+        string secondOutcome,
+        bool expectSuccess,
+        int expectedCount)
+    {
+        var directory = CreateTemporaryDirectory();
+        try
+        {
+            var zeroHourPath = Path.Combine(directory, GameClientConstants.SuperHackersZeroHourExecutable);
+            var generalsPath = Path.Combine(directory, GameClientConstants.SuperHackersGeneralsExecutable);
+            await File.WriteAllBytesAsync(zeroHourPath, [0x4D, 0x5A, 0x90, 0x00]);
+            await File.WriteAllBytesAsync(generalsPath, [0x4D, 0x5A, 0x90, 0x00]);
+            var zeroHour = CreateSuperHackersClient(zeroHourPath);
+            var generals = CreateSuperHackersClient(generalsPath);
+            generals.Id = "1.108.retail.gameclient.generals";
+            generals.GameType = GameType.Generals;
+            var installation = new GameInstallation(directory, GameInstallationType.Retail, null);
+            var clients = new[] { zeroHour, generals };
+            SetupPool([]);
+            SetupProfileOutcome(installation, zeroHour, firstOutcome);
+            SetupProfileOutcome(installation, generals, secondOutcome);
+
+            var method = typeof(PublisherProfileOrchestrator).GetMethod(
+                "CreateProfilesFromDetectedClientsAsync",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+            var result = await (Task<OperationResult<int>>)method.Invoke(
+                _orchestrator,
+                [installation, clients, PublisherTypeConstants.TheSuperHackers, false, CancellationToken.None])!;
+
+            Assert.Equal(expectSuccess, result.Success);
+            if (expectSuccess)
+            {
+                Assert.Equal(expectedCount, result.Data);
+            }
+            else
+            {
+                Assert.Contains("disk full", string.Join(" ", result.Errors));
+                Assert.DoesNotContain("already exists", string.Join(" ", result.Errors), StringComparison.OrdinalIgnoreCase);
+            }
+
+            var anyFailure = firstOutcome == "fail" || secondOutcome == "fail";
+            _notificationServiceMock.Verify(
+                n => n.ShowWarning(It.IsAny<string>(), It.Is<string>(m => m.Contains("disk full")), It.IsAny<int?>(), It.IsAny<bool>()),
+                anyFailure ? Times.Once() : Times.Never());
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that skipAcquisition with a failing profile creation returns a failure with the reason.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateProfilesForPublisherClientAsync_WhenSkipAcquisitionAndProfileCreationFails_ReturnsFailureAsync()
+    {
+        var directory = CreateTemporaryDirectory();
+        try
+        {
+            var executablePath = Path.Combine(directory, GameClientConstants.SuperHackersZeroHourExecutable);
+            await File.WriteAllBytesAsync(executablePath, [0x4D, 0x5A, 0x90, 0x00]);
+            var installation = new GameInstallation(directory, GameInstallationType.Retail, null);
+            var client = CreateSuperHackersClient(executablePath);
+            SetupPool([]);
+            SetupProfileOutcome(installation, client, "fail");
+
+            var result = await _orchestrator.CreateProfilesForPublisherClientAsync(installation, client, skipAcquisition: true);
+
+            Assert.False(result.Success);
+            Assert.Contains("disk full", string.Join(" ", result.Errors));
             VerifyNoAcquisition();
         }
         finally
@@ -669,5 +765,18 @@ public sealed class PublisherProfileOrchestratorTests
         _contentOrchestratorMock.Verify(
             o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()),
             Times.Never);
+    }
+
+    private void SetupProfileOutcome(GameInstallation installation, GameClient client, string outcome)
+    {
+        var result = outcome switch
+        {
+            "created" => ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = client.ExecutablePath, Name = client.Name, GameClient = client }),
+            "exists" => ProfileOperationResult<GameProfile>.CreateFailure("Profile already exists", ProfileConstants.ProfileAlreadyExistsErrorCode),
+            _ => ProfileOperationResult<GameProfile>.CreateFailure("disk full"),
+        };
+        _gameClientProfileServiceMock
+            .Setup(s => s.CreateProfileForGameClientAsync(installation, client, null, null, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(result);
     }
 }

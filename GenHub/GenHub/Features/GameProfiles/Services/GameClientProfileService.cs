@@ -60,7 +60,7 @@ public class GameClientProfileService(
                     "Profile already exists for {InstallationType} {GameClientName}",
                     installation.InstallationType,
                     gameClient.Name);
-                return ProfileOperationResult<GameProfile>.CreateFailure("Profile already exists");
+                return ProfileOperationResult<GameProfile>.CreateFailure("Profile already exists", ProfileConstants.ProfileAlreadyExistsErrorCode);
             }
 
             var preferredStrategy = configService.GetDefaultWorkspaceStrategy();
@@ -199,7 +199,7 @@ public class GameClientProfileService(
             if (await ProfileExistsForGameClientAsync(manifest.Id.Value, cancellationToken))
             {
                 logger.LogDebug("Profile already exists for manifest {ManifestId}", manifest.Id);
-                return ProfileOperationResult<GameProfile>.CreateFailure("Profile already exists for this manifest");
+                return ProfileOperationResult<GameProfile>.CreateFailure("Profile already exists for this manifest", ProfileConstants.ProfileAlreadyExistsErrorCode);
             }
 
             var installationsResult = await installationService.GetAllInstallationsAsync(cancellationToken);
@@ -225,13 +225,13 @@ public class GameClientProfileService(
 
             // Create a GameClient object from the manifest
             // Extract executable path from manifest files
-            var executableFile = SelectClientExecutable(manifest.Files);
+            var executableFile = SelectClientExecutable(manifest, out var entryPointError);
 
             if (executableFile == null)
             {
-                logger.LogWarning("Manifest {ManifestId} has no executable file", manifest.Id);
+                logger.LogWarning("Manifest {ManifestId} has no usable executable file: {Reason}", manifest.Id, entryPointError);
                 return ProfileOperationResult<GameProfile>.CreateFailure(
-                    "Manifest does not contain an executable file");
+                    entryPointError ?? "Manifest does not contain an executable file");
             }
 
             // Derive installation path from matching installation based on target game
@@ -308,14 +308,35 @@ public class GameClientProfileService(
     }
 
     /// <summary>
-    /// Selects the client executable from a manifest's files, preferring the host's form:
-    /// the extensionless native binary on macOS and Linux, the <c>.exe</c> on Windows.
+    /// Selects the client executable of a manifest. A declared entry point wins, resolved
+    /// through <see cref="ManifestVariantResolver"/> so the host's variant applies. Without
+    /// one, the host's form is preferred: the extensionless native binary on macOS and Linux,
+    /// the <c>.exe</c> on Windows.
     /// </summary>
-    /// <param name="files">The manifest files.</param>
-    /// <returns>The executable file, or <see langword="null"/> when the manifest has none.</returns>
-    private static ManifestFile? SelectClientExecutable(IEnumerable<ManifestFile>? files)
+    /// <param name="manifest">The GameClient manifest.</param>
+    /// <param name="error">Why a declared entry point could not be resolved, if it could not.</param>
+    /// <returns>The executable file, or <see langword="null"/> when none can be selected.</returns>
+    private static ManifestFile? SelectClientExecutable(ContentManifest manifest, out string? error)
     {
-        return files?
+        error = null;
+        var files = ManifestVariantResolver.ResolveFiles(manifest);
+        var declared = manifest.Variants.Count == 0
+            ? manifest.EntryPoint
+            : ManifestVariantResolver.ResolveVariant(manifest)?.EntryPoint;
+
+        if (!string.IsNullOrWhiteSpace(declared))
+        {
+            var resolution = ManifestVariantResolver.ResolveEntryPoint(manifest);
+            if (!resolution.Success)
+            {
+                error = resolution.Reason;
+                return null;
+            }
+
+            return files.First(f => ManifestVariantResolver.PathsMatch(f.RelativePath, resolution.RelativePath!));
+        }
+
+        return files
             .Where(f => !string.IsNullOrEmpty(f.RelativePath) &&
                 (f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
                  (f.IsExecutable && !Path.HasExtension(f.RelativePath))))

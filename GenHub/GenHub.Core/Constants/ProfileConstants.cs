@@ -79,4 +79,9 @@ public static class ProfileConstants
     /// Default fallback format for workspace failed notification message.
     /// </summary>
     public const string WorkspaceFailedDefaultFormat = "Workspace initialization failed for '{0}'.";
+
+    /// <summary>
+    /// Error code of a profile creation refused because the profile already exists.
+    /// </summary>
+    public const string ProfileAlreadyExistsErrorCode = "ProfileAlreadyExists";
 }

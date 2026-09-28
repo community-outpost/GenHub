@@ -294,6 +294,7 @@ public class PublisherProfileOrchestrator(
         CancellationToken cancellationToken)
     {
         var profilesCreated = 0;
+        List<string> failures = [];
         foreach (var gameClient in gameClients)
         {
             var profileResult = await gameClientProfileService.CreateProfileForGameClientAsync(
@@ -310,24 +311,45 @@ public class PublisherProfileOrchestrator(
                     gameClient.ExecutablePath,
                     profileResult.Data.Name);
             }
-            else
+            else if (profileResult.ErrorCode == ProfileConstants.ProfileAlreadyExistsErrorCode)
             {
                 logger.LogInformation(
-                    "Skipped profile creation for detected client {ClientName}: {Reason}",
+                    "Profile already exists for detected {PublisherType} client {ClientName}",
+                    publisherType,
+                    gameClient.Name);
+            }
+            else
+            {
+                var reason = ManifestHelper.FormatErrors(profileResult.Errors);
+                failures.Add($"{gameClient.Name}: {reason}");
+                logger.LogWarning(
+                    "Failed to create profile for detected {PublisherType} client {ClientName}: {Reason}",
+                    publisherType,
                     gameClient.Name,
-                    ManifestHelper.FormatErrors(profileResult.Errors));
+                    reason);
             }
         }
 
+        var displayName = GetPublisherDisplayName(publisherType, isNonRet);
         if (profilesCreated > 0)
         {
-            var displayName = GetPublisherDisplayName(publisherType, isNonRet);
             notificationService.ShowSuccess(
                 $"{displayName} Profiles Created",
                 $"Created {profilesCreated} profile(s) for {displayName}.");
         }
 
-        return OperationResult<int>.CreateSuccess(profilesCreated);
+        if (failures.Count == 0)
+        {
+            return OperationResult<int>.CreateSuccess(profilesCreated);
+        }
+
+        notificationService.ShowWarning(
+            $"{displayName} Profile Creation Failed",
+            string.Join(Environment.NewLine, failures));
+
+        return profilesCreated > 0
+            ? OperationResult<int>.CreateSuccess(profilesCreated)
+            : OperationResult<int>.CreateFailure(failures);
     }
 
     private async Task<List<ContentManifest>> GetPublisherManifestsFromPoolAsync(string publisherType, CancellationToken cancellationToken)

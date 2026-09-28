@@ -1866,6 +1866,15 @@ public partial class GameProfileLauncherViewModel(
             clientToUse,
             forceReacquireContent: forceAttr,
             skipAcquisition: skipAcquire);
+        if (!result.Success)
+        {
+            logger.LogWarning(
+                "Profile creation for {ClientName} failed for installation {InstallationId}: {Errors}",
+                clientToUse.Name,
+                installation.Id,
+                string.Join(", ", result.Errors));
+        }
+
         int profiles = (result.Success && result.Data > 0) ? result.Data : 0;
 
         return (true, profiles);
