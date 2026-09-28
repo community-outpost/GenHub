@@ -1,3 +1,4 @@
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
@@ -29,6 +30,7 @@ public sealed partial class FileExplorerViewModel : ObservableObject
 
     private readonly ILogger _logger;
     private Func<CancellationToken, Task<string?>>? _browseFolderAsync;
+    private CancellationTokenSource? _refreshCts;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DirectoryName))]
@@ -37,6 +39,15 @@ public sealed partial class FileExplorerViewModel : ObservableObject
 
     [ObservableProperty]
     private string? _currentPath;
+
+    [ObservableProperty]
+    private bool _isLoading;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether tree building executes asynchronously on a background thread.
+    /// Used by INI editor and large directory explorers to prevent freezing the UI thread.
+    /// </summary>
+    public bool AsynchronousEnumeration { get; set; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="FileExplorerViewModel"/> class.
@@ -134,32 +145,122 @@ public sealed partial class FileExplorerViewModel : ObservableObject
     /// Finds the first file path in the tree, depth first.
     /// </summary>
     /// <returns>The first file path, or null when the tree has no files.</returns>
-    public string? FindFirstFile() => FindFirstFilePath(Nodes);
+    public string? FindFirstFile()
+    {
+        var found = FindFirstFilePath(Nodes);
+        if (found != null)
+        {
+            return found;
+        }
+
+        if (AsynchronousEnumeration && !string.IsNullOrEmpty(Directory) && System.IO.Directory.Exists(Directory))
+        {
+            try
+            {
+                foreach (var pattern in FilePatterns)
+                {
+                    var file = System.IO.Directory.EnumerateFiles(Directory, pattern, SearchOption.AllDirectories).FirstOrDefault();
+                    if (file != null)
+                    {
+                        return file;
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogWarning(ex, "Failed to enumerate first file in {Directory}", Directory);
+            }
+        }
+
+        return null;
+    }
 
     /// <summary>
     /// Rebuilds the tree from the current directory.
+    /// When on the UI thread, tree generation executes on a background thread so UI never freezes.
     /// </summary>
     public void Refresh()
     {
-        Nodes.Clear();
-        if (string.IsNullOrEmpty(Directory) || !System.IO.Directory.Exists(Directory))
+        _refreshCts?.Cancel();
+        _refreshCts?.Dispose();
+        _refreshCts = new CancellationTokenSource();
+        var ct = _refreshCts.Token;
+
+        var directory = Directory;
+        var currentPath = CurrentPath;
+
+        if (string.IsNullOrEmpty(directory) || !System.IO.Directory.Exists(directory))
         {
+            Nodes.Clear();
+            IsLoading = false;
             return;
         }
 
-        try
+        if (!AsynchronousEnumeration)
         {
-            var rootNode = BuildDirectoryNode(new DirectoryInfo(Directory), CurrentPath, null);
-            if (rootNode is not null)
+            Nodes.Clear();
+            IsLoading = false;
+            try
             {
-                Nodes.Add(rootNode);
+                var rootNode = BuildDirectoryNode(new DirectoryInfo(directory), currentPath, null, 0, ct);
+                if (rootNode is not null)
+                {
+                    Nodes.Add(rootNode);
+                }
             }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogWarning(ex, "Failed to list files in {Directory}", directory);
+            }
+
+            return;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // Nodes is still empty here: nothing is added until BuildDirectoryNode returns.
-            _logger.LogWarning(ex, "Failed to list files in {Directory}", Directory);
-        }
+
+        IsLoading = true;
+        Nodes.Clear();
+        _ = Task.Run(
+            () =>
+            {
+                try
+                {
+                    if (ct.IsCancellationRequested)
+                    {
+                        return;
+                    }
+
+                    var rootNode = BuildDirectoryNode(new DirectoryInfo(directory), currentPath, null, 0, ct);
+                    if (ct.IsCancellationRequested)
+                    {
+                        return;
+                    }
+
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        if (ct.IsCancellationRequested)
+                        {
+                            return;
+                        }
+
+                        Nodes.Clear();
+                        if (rootNode is not null)
+                        {
+                            Nodes.Add(rootNode);
+                        }
+
+                        IsLoading = false;
+                    });
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    _logger.LogWarning(ex, "Failed to list files in {Directory}", directory);
+                    Dispatcher.UIThread.Post(() => IsLoading = false);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Ignored
+                }
+            },
+            ct);
     }
 
     private static string? FindFirstFilePath(IEnumerable<EditorFileTreeNodeViewModel> nodes)
@@ -258,9 +359,14 @@ public sealed partial class FileExplorerViewModel : ObservableObject
         FileActivated?.Invoke(this, node);
     }
 
-    private EditorFileTreeNodeViewModel? BuildDirectoryNode(DirectoryInfo directoryInfo, string? currentPath, EditorFileTreeNodeViewModel? parent, int depth = 0)
+    private EditorFileTreeNodeViewModel? BuildDirectoryNode(
+        DirectoryInfo directoryInfo,
+        string? currentPath,
+        EditorFileTreeNodeViewModel? parent,
+        int depth = 0,
+        CancellationToken cancellationToken = default)
     {
-        if (depth > EditorConstants.FileExplorerMaxDepth || IsExcludedDirectory(directoryInfo, parent))
+        if (cancellationToken.IsCancellationRequested || depth > EditorConstants.FileExplorerMaxDepth || IsExcludedDirectory(directoryInfo, parent))
         {
             return null;
         }
@@ -274,7 +380,8 @@ public sealed partial class FileExplorerViewModel : ObservableObject
 
             foreach (var subDirectory in subDirectories)
             {
-                var childNode = BuildDirectoryNode(subDirectory, currentPath, node, depth + 1);
+                if (cancellationToken.IsCancellationRequested) return null;
+                var childNode = BuildDirectoryNode(subDirectory, currentPath, node, depth + 1, cancellationToken);
                 if (childNode is not null && childNode.Children.Count > 0)
                 {
                     node.AddChild(childNode);
@@ -286,6 +393,7 @@ public sealed partial class FileExplorerViewModel : ObservableObject
             _logger.LogWarning(ex, "Access denied enumerating subdirectories in {Path}", directoryInfo.FullName);
         }
 
+        if (cancellationToken.IsCancellationRequested) return null;
         AddFileNodes(node, directoryInfo, currentPath);
         return node.Children.Count == 0 ? null : node;
     }

@@ -57,7 +57,20 @@ public partial class MappedImagePickerControl : UserControl
         InitializeComponent();
         SearchBox.TextChanged += (_, _) => RefreshFilter();
         ImagesList.SelectionChanged += OnListSelectionChanged;
-        ImagesList.DoubleTapped += (_, _) => RaiseEditRequested();
+        ImagesList.DoubleTapped += (_, _) =>
+        {
+            if (SelectedImage is not null)
+            {
+                if (ImageActivated is not null)
+                {
+                    ImageActivated.Invoke(this, SelectedImage);
+                }
+                else
+                {
+                    RaiseEditRequested();
+                }
+            }
+        };
         EditButton.Click += (_, _) => RaiseEditRequested();
     }
 
@@ -98,6 +111,11 @@ public partial class MappedImagePickerControl : UserControl
     /// Raised when the user requests editing the selected image in the Texture Editor.
     /// </summary>
     public event EventHandler<MappedImageDefinition>? EditRequested;
+
+    /// <summary>
+    /// Raised when the user double-taps or activates a mapped image definition.
+    /// </summary>
+    public event EventHandler<MappedImageDefinition>? ImageActivated;
 
     /// <inheritdoc />
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -183,43 +201,34 @@ public partial class MappedImagePickerControl : UserControl
             _trackedSource = null;
         }
 
-        if (oldSource is INotifyCollectionChanged oldObservable && !ReferenceEquals(oldSource, newSource))
+        if (newSource is INotifyCollectionChanged notify)
         {
-            oldObservable.CollectionChanged -= OnItemsSourceCollectionChanged;
-        }
-
-        if (newSource is INotifyCollectionChanged newObservable)
-        {
-            _trackedSource = newObservable;
-            newObservable.CollectionChanged += OnItemsSourceCollectionChanged;
+            _trackedSource = notify;
+            _trackedSource.CollectionChanged += OnItemsSourceCollectionChanged;
         }
     }
 
-    private void OnItemsSourceCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => RefreshFilter();
+    private void OnItemsSourceCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        RefreshFilter();
+    }
 
     private void RefreshFilter()
     {
-        string search = SearchBox.Text?.Trim() ?? string.Empty;
-        var provider = ThumbnailProvider;
-        var items = ItemsSource ?? [];
-        var matches = items
-            .Where(image => MatchesSearch(image, search))
-            .OrderBy(image => image.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(image => new MappedImagePickerItem(image, provider?.Invoke(image)))
-            .ToList();
-
-        try
+        _filteredItems.Clear();
+        if (ItemsSource is null)
         {
-            _syncingSelection = true;
-            _filteredItems.Clear();
-            foreach (var item in matches)
-            {
-                _filteredItems.Add(item);
-            }
+            return;
         }
-        finally
+
+        var search = (SearchBox.Text ?? string.Empty).Trim();
+        foreach (var image in ItemsSource)
         {
-            _syncingSelection = false;
+            if (MatchesSearch(image, search))
+            {
+                var thumbnail = ThumbnailProvider?.Invoke(image);
+                _filteredItems.Add(new MappedImagePickerItem(image, thumbnail));
+            }
         }
 
         if (SelectedImage is not null && !_filteredItems.Any(item => string.Equals(item.Definition.Name, SelectedImage.Name, StringComparison.OrdinalIgnoreCase)))

@@ -5,7 +5,7 @@ namespace GenHub.Core.Constants;
 /// (game objects, weapons, upgrades, damage, armor, command sets).
 /// Syntax follows the engine INI parser: semicolon comments, blocks opened by a
 /// block type line and closed by <c>End</c>. The engine tolerates tab characters,
-/// but this tool rejects them so files stay in canonical form.
+/// and this tool normalizes them to preserve structure.
 /// </summary>
 public static class IniConstants
 {
@@ -90,15 +90,207 @@ public static class IniConstants
         /// <summary>Defines a mapped image sprite.</summary>
         public const string MappedImage = "MappedImage";
 
+        /// <summary>Default condition state sub-block.</summary>
+        public const string DefaultConditionState = "DefaultConditionState";
+
+        /// <summary>Replace module override in map.ini.</summary>
+        public const string ReplaceModule = "ReplaceModule";
+
+        /// <summary>Add module override in map.ini.</summary>
+        public const string AddModule = "AddModule";
+
+        /// <summary>Prerequisites sub-block.</summary>
+        public const string Prerequisites = "Prerequisites";
+
+        /// <summary>Turret sub-block.</summary>
+        public const string Turret = "Turret";
+
+        /// <summary>Alt turret sub-block.</summary>
+        public const string AltTurret = "AltTurret";
+
+        /// <summary>Create object sub-block.</summary>
+        public const string CreateObject = "CreateObject";
+
+        /// <summary>Create debris sub-block.</summary>
+        public const string CreateDebris = "CreateDebris";
+
+        /// <summary>Deliver payload sub-block.</summary>
+        public const string DeliverPayload = "DeliverPayload";
+
+        /// <summary>Apply random force sub-block.</summary>
+        public const string ApplyRandomForce = "ApplyRandomForce";
+
+        /// <summary>Fire weapon sub-block.</summary>
+        public const string FireWeapon = "FireWeapon";
+
+        /// <summary>FXList at bone pos sub-block.</summary>
+        public const string FXListAtBonePos = "FXListAtBonePos";
+
+        /// <summary>Unit specific sounds sub-block.</summary>
+        public const string UnitSpecificSounds = "UnitSpecificSounds";
+
+        /// <summary>Water transparency block.</summary>
+        public const string WaterTransparency = "WaterTransparency";
+
+        /// <summary>Weather block.</summary>
+        public const string Weather = "Weather";
+
+        /// <summary>AI Data block.</summary>
+        public const string AIData = "AIData";
+
+        /// <summary>Audio event block.</summary>
+        public const string AudioEvent = "AudioEvent";
+
+        /// <summary>Dialog event block.</summary>
+        public const string DialogEvent = "DialogEvent";
+
+        /// <summary>Music track block.</summary>
+        public const string MusicTrack = "MusicTrack";
+
+        /// <summary>FXList block.</summary>
+        public const string FXList = "FXList";
+
+        /// <summary>Particle system block.</summary>
+        public const string ParticleSystem = "ParticleSystem";
+
+        /// <summary>Object reskin block.</summary>
+        public const string ObjectReskin = "ObjectReskin";
+
         /// <summary>
-        /// All block types with schema assistance.
+        /// All top-level block types with schema assistance.
         /// </summary>
         public static readonly string[] All =
         [
-            Object, Weapon, Armor, ArmorSet, WeaponSet, CommandButton, CommandSet,
-            Upgrade, Science, SpecialPower, Locomotor, ObjectCreationList,
-            DamageFX, PlayerTemplate, ExperienceLevels, Veterancy,
+            Object,
+            Weapon,
+            Armor,
+            ArmorSet,
+            WeaponSet,
+            CommandButton,
+            CommandSet,
+            Upgrade,
+            Science,
+            SpecialPower,
+            Locomotor,
+            ObjectCreationList,
+            DamageFX,
+            PlayerTemplate,
+            ExperienceLevels,
+            Veterancy,
             MappedImage,
+        ];
+    }
+
+    /// <summary>
+    /// Additional sub-block and map.ini directive block types.
+    /// </summary>
+    public static class SubBlockTypes
+    {
+        /// <summary>Default condition state sub-block.</summary>
+        public const string DefaultConditionState = "DefaultConditionState";
+
+        /// <summary>Condition state sub-block.</summary>
+        public const string ConditionState = "ConditionState";
+
+        /// <summary>Transition state sub-block.</summary>
+        public const string TransitionState = "TransitionState";
+
+        /// <summary>Animation state sub-block.</summary>
+        public const string AnimationState = "AnimationState";
+
+        /// <summary>Replace module in map.ini.</summary>
+        public const string ReplaceModule = "ReplaceModule";
+
+        /// <summary>Add module in map.ini.</summary>
+        public const string AddModule = "AddModule";
+
+        /// <summary>Prerequisites sub-block.</summary>
+        public const string Prerequisites = "Prerequisites";
+
+        /// <summary>Turret sub-block.</summary>
+        public const string Turret = "Turret";
+
+        /// <summary>Alt turret sub-block.</summary>
+        public const string AltTurret = "AltTurret";
+
+        /// <summary>Create object sub-block.</summary>
+        public const string CreateObject = "CreateObject";
+
+        /// <summary>Create debris sub-block.</summary>
+        public const string CreateDebris = "CreateDebris";
+
+        /// <summary>Deliver payload sub-block.</summary>
+        public const string DeliverPayload = "DeliverPayload";
+
+        /// <summary>Apply random force sub-block.</summary>
+        public const string ApplyRandomForce = "ApplyRandomForce";
+
+        /// <summary>Fire weapon sub-block.</summary>
+        public const string FireWeapon = "FireWeapon";
+
+        /// <summary>FXList at bone pos sub-block.</summary>
+        public const string FXListAtBonePos = "FXListAtBonePos";
+
+        /// <summary>Unit specific sounds sub-block.</summary>
+        public const string UnitSpecificSounds = "UnitSpecificSounds";
+
+        /// <summary>Water transparency block.</summary>
+        public const string WaterTransparency = "WaterTransparency";
+
+        /// <summary>Weather block.</summary>
+        public const string Weather = "Weather";
+
+        /// <summary>AI Data block.</summary>
+        public const string AIData = "AIData";
+
+        /// <summary>Audio event block.</summary>
+        public const string AudioEvent = "AudioEvent";
+
+        /// <summary>Dialog event block.</summary>
+        public const string DialogEvent = "DialogEvent";
+
+        /// <summary>Music track block.</summary>
+        public const string MusicTrack = "MusicTrack";
+
+        /// <summary>FXList block.</summary>
+        public const string FXList = "FXList";
+
+        /// <summary>Particle system block.</summary>
+        public const string ParticleSystem = "ParticleSystem";
+
+        /// <summary>Object reskin block.</summary>
+        public const string ObjectReskin = "ObjectReskin";
+
+        /// <summary>
+        /// All sub-block and directive types.
+        /// </summary>
+        public static readonly string[] All =
+        [
+            DefaultConditionState,
+            ConditionState,
+            TransitionState,
+            AnimationState,
+            ReplaceModule,
+            AddModule,
+            Prerequisites,
+            Turret,
+            AltTurret,
+            CreateObject,
+            CreateDebris,
+            DeliverPayload,
+            ApplyRandomForce,
+            FireWeapon,
+            FXListAtBonePos,
+            UnitSpecificSounds,
+            WaterTransparency,
+            Weather,
+            AIData,
+            AudioEvent,
+            DialogEvent,
+            MusicTrack,
+            FXList,
+            ParticleSystem,
+            ObjectReskin,
         ];
     }
 
@@ -136,6 +328,15 @@ public static class IniConstants
         /// <summary>Draw idle animation state.</summary>
         public const string IdleAnimationState = "IdleAnimationState";
 
+        /// <summary>Default condition state.</summary>
+        public const string DefaultConditionState = "DefaultConditionState";
+
+        /// <summary>Replace module in map.ini.</summary>
+        public const string ReplaceModule = "ReplaceModule";
+
+        /// <summary>Add module in map.ini.</summary>
+        public const string AddModule = "AddModule";
+
         /// <summary>
         /// All keys that always open a module sub-block.
         /// </summary>
@@ -143,6 +344,7 @@ public static class IniConstants
         [
             Body, Behavior, Draw, ClientUpdate, ConditionState,
             ModelConditionState, TransitionState, AnimationState, IdleAnimationState,
+            DefaultConditionState, ReplaceModule, AddModule,
         ];
     }
 
@@ -231,6 +433,12 @@ public static class IniConstants
         /// <summary>Button image key.</summary>
         public const string ButtonImage = "ButtonImage";
 
+        /// <summary>Select portrait key.</summary>
+        public const string SelectPortrait = "SelectPortrait";
+
+        /// <summary>Kind of flags key.</summary>
+        public const string KindOf = "KindOf";
+
         /// <summary>Build cost key.</summary>
         public const string BuildCost = "BuildCost";
 
@@ -296,6 +504,56 @@ public static class IniConstants
 
         /// <summary>Upgrades key.</summary>
         public const string Upgrades = "Upgrades";
+
+        /// <summary>Commonly referenced field keys.</summary>
+        public static readonly IReadOnlyList<string> All =
+        [
+            DisplayName,
+            ButtonImage,
+            SelectPortrait,
+            KindOf,
+            BuildCost,
+            BuildTime,
+            DamageType,
+            PrimaryDamage,
+            PrimaryDamageRadius,
+            DeathType,
+            Upgrade,
+            TriggeredBy,
+            Health,
+            Side,
+            "MaxHealth",
+            "Model",
+            Speed,
+            "Armor",
+            Command,
+            Object,
+            AttackRange,
+            "Weapon",
+            "VisionRange",
+            "ShroudClearingRange"
+        ];
+    }
+
+    /// <summary>
+    /// Common KindOf flags used across Generals and Zero Hour.
+    /// </summary>
+    public static class KindOfFlags
+    {
+        /// <summary>
+        /// Representative KindOf flags for auto-complete and multi-selection.
+        /// </summary>
+        public static readonly string[] All =
+        [
+            "STRUCTURE", "SELECTABLE", "IMMOBILE", "CAN_ATTACK", "CAN_CAST_REFLECTIONS",
+            "VEHICLE", "INFANTRY", "AIRCRAFT", "DRONE", "SCORE", "PRELOAD",
+            "FS_POWER", "FS_FACTORY", "FS_BASE_DEFENSE", "FS_TECHNOLOGY",
+            "AUTO_RALLYPOINT", "CAPTURABLE", "TRANSPORT", "CLEARED_BY_BUILD",
+            "BALLISTIC_MISSILE", "DEFENSIVE_WALL", "REBUILD_HOLE", "HEAL_PAD",
+            "STEALTH_GARRISON", "SUPPLY_SOURCE", "MONEY_STORE", "DOZER", "HARVESTER",
+            "PRODUCED_AT_HELIPAD", "ATTACK_NEEDS_LINE_OF_SIGHT", "NO_COLLIDE",
+            "GARRISONABLE", "SALVAGER", "POWERED", "PARACHUTABLE",
+        ];
     }
 
     /// <summary>
@@ -331,15 +589,15 @@ public static class IniConstants
         public const int MaxReferenceResults = 500;
 
         /// <summary>Maximum picker textures preloaded with thumbnails.</summary>
-        public const int MaxPickerThumbnails = 64;
+        public const int MaxPickerThumbnails = 2048;
 
         /// <summary>Maximum mapped image files parsed for texture pickers.</summary>
-        public const int MaxMappedImageFiles = 50;
+        public const int MaxMappedImageFiles = 250;
 
         /// <summary>Maximum mapped image definitions offered by texture pickers.</summary>
-        public const int MaxPickerDefinitions = 2000;
+        public const int MaxPickerDefinitions = 10000;
 
         /// <summary>Maximum characters rendered in the raw text preview.</summary>
-        public const int MaxRawPreviewChars = 100000;
+        public const int MaxRawPreviewChars = 200000;
     }
 }

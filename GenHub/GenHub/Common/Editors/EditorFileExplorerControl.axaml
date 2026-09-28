@@ -72,6 +72,12 @@
             BorderBrush="{DynamicResource BorderBrush}"
             BorderThickness="1" CornerRadius="8"
             Background="{DynamicResource SurfaceElevatedBrush}">
+      <Grid>
+        <ProgressBar IsIndeterminate="True"
+                     IsVisible="{Binding IsLoading}"
+                     VerticalAlignment="Top"
+                     Height="2"
+                     ZIndex="10"/>
       <TreeView ItemsSource="{Binding Nodes}"
                 BorderThickness="0" Background="Transparent"
                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -191,6 +197,7 @@
           </TreeDataTemplate>
         </TreeView.ItemTemplate>
       </TreeView>
+      </Grid>
     </Border>
   </Grid>
 </UserControl>

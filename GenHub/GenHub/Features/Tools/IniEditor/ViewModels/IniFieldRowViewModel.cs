@@ -1,8 +1,11 @@
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Tools.IniEditor;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace GenHub.Features.Tools.IniEditor.ViewModels;
 
@@ -16,6 +19,15 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
     private readonly int _fieldIndex;
     private readonly Action _onChanged;
     private readonly Action<string, string> _onEditCommitted;
+
+    [ObservableProperty]
+    private string _selectedFlagToAdd = string.Empty;
+
+    [ObservableProperty]
+    private IImage? _textureThumbnail;
+
+    [ObservableProperty]
+    private string _value;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="IniFieldRowViewModel"/> class.
@@ -102,16 +114,82 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
     public bool IsTexture { get; }
 
     /// <summary>
-    /// Gets or sets the texture thumbnail, loaded asynchronously for texture rows.
+    /// Gets a value indicating whether this field is KindOf flags.
     /// </summary>
-    [ObservableProperty]
-    private IImage? _textureThumbnail;
+    public bool IsKindOf => string.Equals(Key, IniConstants.FieldKeys.KindOf, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Gets or sets the edited value, writing through to the document on change.
+    /// Gets available KindOf flags.
     /// </summary>
-    [ObservableProperty]
-    private string _value;
+    public IReadOnlyList<string> AvailableKindOfFlags => IniConstants.KindOfFlags.All;
+
+    /// <summary>
+    /// Gets the active flags split from the space-separated value.
+    /// </summary>
+    public IReadOnlyList<string> ActiveFlags => (Value ?? string.Empty)
+        .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    /// <summary>
+    /// Appends a flag to the KindOf value.
+    /// </summary>
+    /// <param name="flag">Flag to add.</param>
+    [RelayCommand]
+    public void AddFlag(string? flag)
+    {
+        if (string.IsNullOrWhiteSpace(flag))
+        {
+            return;
+        }
+
+        var parts = (Value ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        if (!parts.Contains(flag.Trim(), StringComparer.OrdinalIgnoreCase))
+        {
+            parts.Add(flag.Trim());
+            Value = string.Join(" ", parts);
+            OnPropertyChanged(nameof(ActiveFlags));
+        }
+    }
+
+    /// <summary>
+    /// Removes a flag from the KindOf value.
+    /// </summary>
+    /// <param name="flag">Flag to remove.</param>
+    [RelayCommand]
+    public void RemoveFlag(string? flag)
+    {
+        if (string.IsNullOrWhiteSpace(flag))
+        {
+            return;
+        }
+
+        var parts = (Value ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        if (parts.RemoveAll(p => string.Equals(p, flag.Trim(), StringComparison.OrdinalIgnoreCase)) > 0)
+        {
+            Value = string.Join(" ", parts);
+            OnPropertyChanged(nameof(ActiveFlags));
+        }
+    }
+
+    /// <summary>
+    /// Signals that editing of the value finished, recording undo state if changed.
+    /// </summary>
+    /// <param name="preEditValue">The value prior to the edit sequence.</param>
+    public void CommitEdit(string preEditValue)
+    {
+        if (!string.Equals(preEditValue, Value, StringComparison.Ordinal))
+        {
+            _onEditCommitted(preEditValue, Value);
+        }
+    }
+
+    partial void OnSelectedFlagToAddChanged(string value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            AddFlag(value);
+            SelectedFlagToAdd = string.Empty;
+        }
+    }
 
     partial void OnValueChanged(string value)
     {
@@ -119,5 +197,6 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
         _fields[_fieldIndex] = current with { Value = value, IsBare = current.IsBare && value.Length == 0 };
         _onChanged();
         _onEditCommitted(current.Value, value);
+        OnPropertyChanged(nameof(ActiveFlags));
     }
 }

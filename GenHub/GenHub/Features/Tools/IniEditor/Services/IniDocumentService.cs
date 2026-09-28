@@ -256,6 +256,7 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
     /// <returns>True if the token is a recognized block or module keyword; otherwise, false.</returns>
     internal static bool IsBlockType(string token) =>
         IniConstants.BlockTypes.All.Any(blockType => string.Equals(blockType, token, StringComparison.OrdinalIgnoreCase)) ||
+        IniConstants.SubBlockTypes.All.Any(subType => string.Equals(subType, token, StringComparison.OrdinalIgnoreCase)) ||
         IsModuleKey(token);
 
     /// <summary>
@@ -315,8 +316,7 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
         var (code, comment) = SplitComment(raw);
         if (code.Contains('\t'))
         {
-            context.Errors.Add($"Line {lineNumber}: Tab characters are not allowed in INI files.");
-            return;
+            code = code.Replace("\t", "  ");
         }
 
         var line = code.Trim();
@@ -382,45 +382,20 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
             return;
         }
 
-        var firstToken = line.Split(' ', 2)[0];
-        if (IsBlockType(firstToken))
+        if (line.StartsWith("RemoveModule", StringComparison.OrdinalIgnoreCase))
         {
-            OpenBlock(line, GetIndent(raw), lineNumber, comment, context.Stack, context.PendingComments, context.Document);
+            var parts = line.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+            var key = parts[0];
+            var value = parts.Length > 1 ? parts[1].Trim() : string.Empty;
+            var field = new IniField(key, value, comment) { IsBare = true };
+            field.LeadingComments.AddRange(context.PendingComments);
+            context.PendingComments.Clear();
+            context.Stack.Peek().Block.Fields.Add(field);
             return;
         }
 
-        if (TryAddWhitespaceField(line, comment, context.Stack, context.PendingComments))
-        {
-            return;
-        }
-
-        AddBareField(line, comment, context.Stack, context.PendingComments);
-    }
-
-    private static bool TryAddWhitespaceField(
-        string line,
-        string? comment,
-        Stack<BlockFrame> stack,
-        List<IniComment> pendingComments)
-    {
-        var spaceIndex = line.IndexOf(' ');
-        if (spaceIndex <= 0)
-        {
-            return false;
-        }
-
-        var key = line[..spaceIndex].Trim();
-        var value = line[(spaceIndex + 1)..].Trim();
-        if (key.Length == 0)
-        {
-            return false;
-        }
-
-        var field = new IniField(key, value, comment);
-        field.LeadingComments.AddRange(pendingComments);
-        pendingComments.Clear();
-        stack.Peek().Block.Fields.Add(field);
-        return true;
+        // Inside a block, any non-equal directive line opens a child block (e.g. DefaultConditionState, ReplaceModule ModuleTag, AddModule, Prerequisites, etc.)
+        OpenBlock(line, GetIndent(raw), lineNumber, comment, context.Stack, context.PendingComments, context.Document);
     }
 
     private static void AddGlobalField(
@@ -674,7 +649,9 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
         foreach (var field in block.Fields)
         {
             WriteComments(builder, field.LeadingComments, indent + 1);
-            var fieldText = field.IsBare ? field.Key : $"{field.Key} = {field.Value}";
+            var fieldText = field.IsBare
+                ? (string.IsNullOrEmpty(field.Value) ? field.Key : $"{field.Key} {field.Value}")
+                : $"{field.Key} = {field.Value}";
             AppendLine(builder, indent + 1, AppendTrailingComment(fieldText, field.TrailingComment));
         }
 
@@ -744,20 +721,22 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
         return bytes;
     }
 
-    private (string Content, Encoding Encoding) DecodeContent(byte[] bytes, string filePath)
+    private static (string Content, Encoding Encoding) DecodeContent(byte[] bytes, string filePath)
     {
-        var hasBom = bytes.Length >= Utf8Bom.Length &&
-            bytes[0] == Utf8Bom[0] && bytes[1] == Utf8Bom[1] && bytes[2] == Utf8Bom[2];
-        var contentBytes = StripUtf8Bom(bytes);
+        var stripped = StripUtf8Bom(bytes);
+        if (stripped.Length != bytes.Length)
+        {
+            return (Encoding.UTF8.GetString(stripped), Encoding.UTF8);
+        }
+
         try
         {
-            var encoding = new UTF8Encoding(hasBom, throwOnInvalidBytes: true);
-            return (encoding.GetString(contentBytes).TrimStart('\uFEFF'), encoding);
+            var strictUtf8 = new UTF8Encoding(false, true);
+            return (strictUtf8.GetString(bytes), Encoding.UTF8);
         }
-        catch (DecoderFallbackException ex)
+        catch (DecoderFallbackException)
         {
-            logger.LogWarning(ex, "File {Path} is not valid UTF-8; decoding as single byte ANSI text", filePath);
-            return (Encoding.Latin1.GetString(contentBytes).TrimStart('\uFEFF'), Encoding.Latin1);
+            return (Encoding.Latin1.GetString(bytes), Encoding.Latin1);
         }
     }
 }

@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Tools.IniEditor;
 using System.Collections.ObjectModel;
 
@@ -50,4 +51,9 @@ public sealed partial class IniTreeNodeViewModel : ObservableObject
     /// Gets the block type badge text.
     /// </summary>
     public string Badge => Block.BlockType;
+
+    /// <summary>
+    /// Gets the icon kind representing this block type.
+    /// </summary>
+    public string IconKind => IniBlockIconHelper.GetIconKind(Block.BlockType);
 }
