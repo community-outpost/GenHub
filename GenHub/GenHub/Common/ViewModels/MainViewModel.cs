@@ -267,11 +267,19 @@ public partial class MainViewModel(
         var settings = userSettingsService.Get();
         if (!settings.HasSeenQuickStart)
         {
+            var cancellationToken = _initializationCts.Token;
             Dispatcher.UIThread.Post(async () =>
             {
-                if (linkActivationTracker?.HasReceivedLink == true)
+                try
                 {
-                    logger?.LogInformation("Deferring the Getting Started dialog because this session was opened to handle a link");
+                    if (linkActivationTracker != null && await linkActivationTracker.WaitForLaunchLinkAsync(cancellationToken))
+                    {
+                        logger?.LogInformation("Deferring the Getting Started dialog because this session was opened to handle a link");
+                        return;
+                    }
+                }
+                catch (OperationCanceledException)
+                {
                     return;
                 }
 

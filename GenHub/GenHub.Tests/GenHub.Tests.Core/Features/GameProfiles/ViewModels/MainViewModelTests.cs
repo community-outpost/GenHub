@@ -278,7 +278,7 @@ public class MainViewModelTests
         dialogService
             .Setup(x => x.ShowMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<DialogAction>>(), It.IsAny<bool>()))
             .ReturnsAsync((null, false));
-        var tracker = new LinkActivationTracker();
+        var tracker = new LinkActivationTracker(TimeSpan.Zero);
         if (linkReceived)
         {
             tracker.RecordLink();
@@ -292,6 +292,73 @@ public class MainViewModelTests
         dialogService.Verify(
             x => x.ShowMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<DialogAction>>(), true),
             Times.Exactly(expectedDialogs));
+    }
+
+    /// <summary>
+    /// Verifies that a link delivered after startup, as macOS does for a cold start from a link, still defers Getting Started.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task InitializeAsync_GettingStarted_DeferredWhenLinkArrivesDuringLaunchWaitAsync()
+    {
+        var dialogService = new Mock<IDialogService>();
+        dialogService
+            .Setup(x => x.ShowMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<DialogAction>>(), It.IsAny<bool>()))
+            .ReturnsAsync((null, false));
+        var tracker = new LinkActivationTracker(TimeSpan.FromSeconds(30));
+        var vm = CreateMainViewModel(dialogService: dialogService, linkActivationTracker: tracker);
+
+        await vm.InitializeAsync();
+        Dispatcher.UIThread.RunJobs();
+        var wait = tracker.WaitForLaunchLinkAsync(CancellationToken.None);
+        tracker.RecordLink();
+        Assert.True(await wait.WaitAsync(TimeSpan.FromSeconds(5)));
+        await PumpDispatcherAsync(TimeSpan.FromMilliseconds(200));
+
+        dialogService.Verify(
+            x => x.ShowMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<DialogAction>>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that Getting Started opens once the launch wait passes without a link.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task InitializeAsync_GettingStarted_ShownAfterLaunchWaitWithoutLinkAsync()
+    {
+        var shown = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var dialogService = new Mock<IDialogService>();
+        dialogService
+            .Setup(x => x.ShowMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<DialogAction>>(), It.IsAny<bool>()))
+            .Callback(() => shown.TrySetResult())
+            .ReturnsAsync((null, false));
+        var tracker = new LinkActivationTracker(TimeSpan.FromMilliseconds(50));
+        var vm = CreateMainViewModel(dialogService: dialogService, linkActivationTracker: tracker);
+
+        await vm.InitializeAsync();
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(shown.Task.IsCompleted);
+
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (!shown.Task.IsCompleted && DateTime.UtcNow < deadline)
+        {
+            await PumpDispatcherAsync(TimeSpan.FromMilliseconds(20));
+        }
+
+        Assert.True(shown.Task.IsCompleted);
+    }
+
+    private static async Task PumpDispatcherAsync(TimeSpan duration)
+    {
+        var until = DateTime.UtcNow + duration;
+        do
+        {
+            Dispatcher.UIThread.RunJobs();
+            await Task.Delay(10);
+        }
+        while (DateTime.UtcNow < until);
+        Dispatcher.UIThread.RunJobs();
     }
 
     private static MainViewModel CreateMainViewModel(
