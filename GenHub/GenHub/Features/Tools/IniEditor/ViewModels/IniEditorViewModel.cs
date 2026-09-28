@@ -159,7 +159,6 @@ public sealed partial class IniEditorViewModel(
     [ObservableProperty]
     private string? _textureStatusText;
 
-
     /// <summary>
     /// Gets the filtered mapped images available for the 2-column texture picker.
     /// </summary>
