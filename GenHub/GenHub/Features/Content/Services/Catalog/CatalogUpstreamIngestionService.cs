@@ -255,20 +255,10 @@ public class CatalogUpstreamIngestionService(
         if (sync?.AssetRules is { Count: > 0 })
         {
             PopulateArtifactsFromAssetRules(synthesized, release.Assets, sync, logger);
-            if (synthesized.Artifacts.Count == 0)
-            {
-                logger.LogInformation("No artifacts matched custom asset rules for '{Version}', falling back to generic GitHub assets", synthesized.Version);
-                PopulateGenericGitHubArtifacts(synthesized, release.Assets);
-            }
         }
         else if (string.Equals(provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
         {
             PopulateDefaultSuperHackersArtifacts(synthesized, release.Assets);
-            if (synthesized.Artifacts.Count == 0)
-            {
-                logger.LogInformation("No artifacts matched default SuperHackers client patterns for '{Version}', falling back to generic GitHub assets", synthesized.Version);
-                PopulateGenericGitHubArtifacts(synthesized, release.Assets);
-            }
         }
         else
         {
@@ -306,6 +296,37 @@ public class CatalogUpstreamIngestionService(
             ContentType = ContentType.GameInstallation.ToString(),
             IsOptional = false,
         });
+    }
+
+    private static void PreserveReleaseDependenciesAndMetadata(
+        CatalogContentItem item,
+        ContentRelease synthesized)
+    {
+        AttachEaBaseGameDependency(item, synthesized);
+
+        if (item.Releases.Count > 0)
+        {
+            var firstRel = item.Releases[0];
+            if (string.IsNullOrWhiteSpace(synthesized.Changelog))
+            {
+                synthesized.Changelog = firstRel.Changelog;
+            }
+
+            foreach (var dep in firstRel.Dependencies.Where(dep =>
+                dep != null &&
+                !synthesized.Dependencies.Any(d => string.Equals(d.ContentId, dep.ContentId, StringComparison.OrdinalIgnoreCase))))
+            {
+                synthesized.Dependencies.Add(new CatalogDependency
+                {
+                    PublisherId = dep.PublisherId,
+                    ContentId = dep.ContentId,
+                    VersionConstraint = dep.VersionConstraint,
+                    ContentType = dep.ContentType,
+                    IsOptional = dep.IsOptional,
+                    DefinitionUrl = dep.DefinitionUrl,
+                });
+            }
+        }
     }
 
     private static ContentSearchResult? FindMatchingDiscoveryItem(IReadOnlyList<ContentSearchResult> items, CatalogContentItem item)
@@ -425,25 +446,7 @@ public class CatalogUpstreamIngestionService(
         }
 
         var synthesized = SynthesizeGitHubRelease(release, isTrackPrerelease, sync, provider, logger);
-        AttachEaBaseGameDependency(item, synthesized);
-
-        if (item.Releases.Count > 0)
-        {
-            var firstRel = item.Releases[0];
-            foreach (var dep in firstRel.Dependencies.Where(dep =>
-                !synthesized.Dependencies.Any(d => string.Equals(d.ContentId, dep.ContentId, StringComparison.OrdinalIgnoreCase))))
-            {
-                synthesized.Dependencies.Add(new CatalogDependency
-                {
-                    PublisherId = dep.PublisherId,
-                    ContentId = dep.ContentId,
-                    VersionConstraint = dep.VersionConstraint,
-                    ContentType = dep.ContentType,
-                    IsOptional = dep.IsOptional,
-                    DefinitionUrl = dep.DefinitionUrl,
-                });
-            }
-        }
+        PreserveReleaseDependenciesAndMetadata(item, synthesized);
 
         if (synthesized.Artifacts.Count > 0)
         {
@@ -514,6 +517,8 @@ public class CatalogUpstreamIngestionService(
             Size = downloadSize,
             IsPrimary = true,
         });
+
+        PreserveReleaseDependenciesAndMetadata(item, synthesized);
 
         item.Releases.Clear();
         item.Releases.Add(synthesized);

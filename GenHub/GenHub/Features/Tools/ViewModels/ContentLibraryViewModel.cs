@@ -50,6 +50,47 @@ public partial class ContentLibraryViewModel(
     [ObservableProperty]
     private ObservableCollection<CatalogContentItem> _contentItems = InitializeContentItems(activeCatalog, parentViewModel);
 
+    private static bool AreUpstreamSyncsEqual(CatalogUpstreamSync? a, CatalogUpstreamSync? b)
+    {
+        if (ReferenceEquals(a, b))
+        {
+            return true;
+        }
+
+        if (a == null || b == null)
+        {
+            return false;
+        }
+
+        if (!string.Equals(a.Provider, b.Provider, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(a.Repository, b.Repository, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(a.Channel, b.Channel, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(a.VariantAxis, b.VariantAxis, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (a.AssetRules.Count != b.AssetRules.Count)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < a.AssetRules.Count; i++)
+        {
+            var ruleA = a.AssetRules[i];
+            var ruleB = b.AssetRules[i];
+            if (!string.Equals(ruleA.Pattern, ruleB.Pattern, StringComparison.Ordinal) ||
+                !string.Equals(ruleA.Variant, ruleB.Variant, StringComparison.Ordinal) ||
+                ruleA.IsDefault != ruleB.IsDefault ||
+                ruleA.TargetGame != ruleB.TargetGame)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private static CatalogContentItem? CloneForPreview(CatalogContentItem item)
     {
         try
@@ -90,8 +131,8 @@ public partial class ContentLibraryViewModel(
 
             foreach (var item in content)
             {
-                item.CatalogIconUrl = catalogIcon;
-                item.PublisherAvatarUrl = publisherAvatar;
+                item.CatalogIconUrl ??= catalogIcon;
+                item.PublisherAvatarUrl ??= publisherAvatar;
                 items.Add(item);
             }
         }
@@ -163,6 +204,11 @@ public partial class ContentLibraryViewModel(
     /// Gets a value indicating whether the fallback-releases note should be shown above the static list.
     /// </summary>
     public bool ShowFallbackReleasesNote => SelectedContentTracksUpstream && HasUpstreamPreview;
+
+    /// <summary>
+    /// Gets a value indicating whether the manual fallback releases expander should be shown.
+    /// </summary>
+    public bool ShowManualFallbackReleases => ShowFallbackReleasesNote && (SelectedContent?.Releases?.Count ?? 0) > 0;
 
     /// <summary>
     /// Gets the effective release count for the selected content item (upstream live count when tracked, or static count).
@@ -811,6 +857,9 @@ public partial class ContentLibraryViewModel(
 
         if (edited != null)
         {
+            var previousUpstreamSync = target.UpstreamSync;
+            var upstreamChanged = !AreUpstreamSyncsEqual(previousUpstreamSync, edited.UpstreamSync);
+
             // Update the existing item's properties
             target.Name = edited.Name;
             target.Description = edited.Description;
@@ -834,6 +883,11 @@ public partial class ContentLibraryViewModel(
 
             // Trigger UI update
             RefreshSelectedContent();
+
+            if (upstreamChanged && ReferenceEquals(target, SelectedContent))
+            {
+                BeginUpstreamPreviewLoad(target);
+            }
 
             MarkProjectAndCatalogDirty();
             if (parentViewModel != null)
@@ -1418,6 +1472,7 @@ public partial class ContentLibraryViewModel(
         RefreshHostingHint();
         OnPropertyChanged(nameof(SelectedContentTracksUpstream));
         OnPropertyChanged(nameof(ShowFallbackReleasesNote));
+        OnPropertyChanged(nameof(ShowManualFallbackReleases));
         OnPropertyChanged(nameof(EffectiveSelectedContentReleasesCount));
         if (_suppressUpstreamPreviewReload)
         {
@@ -1445,6 +1500,7 @@ public partial class ContentLibraryViewModel(
         OnPropertyChanged(nameof(HasUpstreamPreview));
         OnPropertyChanged(nameof(UpstreamPreviewVersions));
         OnPropertyChanged(nameof(ShowFallbackReleasesNote));
+        OnPropertyChanged(nameof(ShowManualFallbackReleases));
         OnPropertyChanged(nameof(EffectiveSelectedContentReleasesCount));
 
         if (value == null || upstreamIngestionService == null || !IsSelectedContentUpstream())
@@ -1496,6 +1552,8 @@ public partial class ContentLibraryViewModel(
                 OnPropertyChanged(nameof(HasUpstreamPreview));
                 OnPropertyChanged(nameof(UpstreamPreviewVersions));
                 OnPropertyChanged(nameof(ShowFallbackReleasesNote));
+                OnPropertyChanged(nameof(ShowManualFallbackReleases));
+                OnPropertyChanged(nameof(EffectiveSelectedContentReleasesCount));
             });
         }
         catch (OperationCanceledException ex)

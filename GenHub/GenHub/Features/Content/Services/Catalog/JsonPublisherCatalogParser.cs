@@ -265,9 +265,10 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         }
 
         foreach (var bundled in content.BundledItems.Where(b =>
+            b != null &&
             itemIds.Contains(b.ContentId) &&
             (string.IsNullOrWhiteSpace(b.PublisherId) ||
-             string.Equals(b.PublisherId, CatalogConstants.GenericCatalogPublisherCategory, StringComparison.OrdinalIgnoreCase))))
+             string.Equals(b.PublisherId, CatalogConstants.GenericCatalogResolverId, StringComparison.OrdinalIgnoreCase))))
         {
             bundled.PublisherId = hostPubId;
         }
@@ -281,12 +282,13 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         }
 
         foreach (var dep in content.Releases
-            .Where(r => r.Dependencies != null)
+            .Where(r => r?.Dependencies != null)
             .SelectMany(r => r.Dependencies)
             .Where(dep =>
+                dep != null &&
                 itemIds.Contains(dep.ContentId) &&
                 (string.IsNullOrWhiteSpace(dep.PublisherId) ||
-                 string.Equals(dep.PublisherId, CatalogConstants.GenericCatalogPublisherCategory, StringComparison.OrdinalIgnoreCase))))
+                 string.Equals(dep.PublisherId, CatalogConstants.GenericCatalogResolverId, StringComparison.OrdinalIgnoreCase))))
         {
             dep.PublisherId = hostPubId;
         }

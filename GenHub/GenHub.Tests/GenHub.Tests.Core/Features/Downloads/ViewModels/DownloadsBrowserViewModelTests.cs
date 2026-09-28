@@ -1030,6 +1030,35 @@ public class DownloadsBrowserViewModelTests
     }
 
     /// <summary>
+    /// Verifies that DisposeUnretainedViewModels does not dispose view models retained in ContentItems or cache.
+    /// </summary>
+    [Fact]
+    public void DisposeUnretainedViewModels_RetainsItemsInContentItemsAndCache()
+    {
+        // Arrange
+        using var viewModel = CreateViewModel();
+
+        var contentItem = new ContentGridItemViewModel(
+            new ContentSearchResult { Id = "content1", Name = "Content Item 1" },
+            new Mock<IContentStateService>().Object,
+            new Mock<ILogger<ContentGridItemViewModel>>().Object);
+
+        var orphanItem = new ContentGridItemViewModel(
+            new ContentSearchResult { Id = "orphan1", Name = "Orphan Item" },
+            new Mock<IContentStateService>().Object,
+            new Mock<ILogger<ContentGridItemViewModel>>().Object);
+
+        viewModel.ContentItems.Add(contentItem);
+
+        // Act
+        viewModel.DisposeUnretainedViewModels([contentItem, orphanItem]);
+
+        // Assert
+        Assert.False(contentItem.IsDisposed, "Items present in ContentItems must NOT be disposed.");
+        Assert.True(orphanItem.IsDisposed, "Orphan items must be disposed.");
+    }
+
+    /// <summary>
     /// Verifies that when switching away from an in-flight publisher and switching back,
     /// the active request ID is updated on the in-flight operation so it doesn't get stuck in loading state.
     /// </summary>

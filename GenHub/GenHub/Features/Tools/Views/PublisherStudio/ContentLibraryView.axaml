@@ -1071,7 +1071,7 @@
                                     <!-- Optional manual fallback releases -->
                                     <Expander Header="{localization:Localize Tools.PublisherStudio.Library.ManualReleasesExpander}"
                                               IsExpanded="False"
-                                              IsVisible="{Binding Releases.Count}"
+                                              IsVisible="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).ShowManualFallbackReleases}"
                                               Margin="0,8,0,0"
                                               Background="{DynamicResource GlassFillSubtleBrush}"
                                               BorderBrush="{DynamicResource GlassBorderBrush}"
