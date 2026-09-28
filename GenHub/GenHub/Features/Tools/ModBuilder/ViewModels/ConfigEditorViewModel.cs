@@ -201,14 +201,13 @@ public partial class ConfigEditorViewModel(
             return;
         }
 
-        var trimmedNewName = newName.Trim();
         foreach (var itemNames in BundlePacks.Select(pack => pack.ItemNames))
         {
             for (var i = itemNames.Count - 1; i >= 0; i--)
             {
                 if (string.Equals(itemNames[i], oldName, StringComparison.OrdinalIgnoreCase))
                 {
-                    itemNames[i] = trimmedNewName;
+                    itemNames[i] = newName;
                 }
             }
         }
@@ -235,14 +234,13 @@ public partial class ConfigEditorViewModel(
             return;
         }
 
-        var trimmedNewName = newName.Trim();
         foreach (var packNames in BundleManifests.Select(manifest => manifest.PackNames))
         {
             for (var i = packNames.Count - 1; i >= 0; i--)
             {
                 if (string.Equals(packNames[i], oldName, StringComparison.OrdinalIgnoreCase))
                 {
-                    packNames[i] = trimmedNewName;
+                    packNames[i] = newName;
                 }
             }
         }
@@ -1235,7 +1233,7 @@ public partial class ConfigEditorViewModel(
                 SetGameLanguageOnInstall = packVm.SetGameLanguageOnInstall,
                 ManifestFile = packVm.ManifestFile,
                 Description = packVm.Description,
-                ItemNames = packVm.ItemNames.Where(i => !string.IsNullOrWhiteSpace(i)).Select(i => i.Trim()).ToList(),
+                ItemNames = packVm.ItemNames.Where(i => !string.IsNullOrWhiteSpace(i)).Select(i => i.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
             });
         }
 
@@ -1260,7 +1258,7 @@ public partial class ConfigEditorViewModel(
                 Description = manifestVm.Description.Trim(),
                 ContentType = manifestVm.ContentType,
                 TargetGame = manifestVm.TargetGame,
-                PackNames = manifestVm.PackNames.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.Trim()).ToList(),
+                PackNames = manifestVm.PackNames.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
             });
         }
 
@@ -1586,7 +1584,14 @@ public partial class ConfigEditorViewModel(
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                logger.LogWarning(ex, "Failed to restore backup {BackupPath} to {TargetPath}", backupPath, targetPath);
+                if (backupPath != null)
+                {
+                    logger.LogWarning(ex, "Failed to restore backup {BackupPath} to {TargetPath}", backupPath, targetPath);
+                }
+                else
+                {
+                    logger.LogWarning(ex, "Failed to delete file created by failed save {TargetPath}", targetPath);
+                }
             }
         }
     }

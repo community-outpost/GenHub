@@ -421,4 +421,59 @@ public class ConfigEditorViewModelTests
             Directory.Delete(projectDir, recursive: true);
         }
     }
+
+    [Fact]
+    public async Task SaveAsync_TrimsAndDeduplicatesPackItemNamesAndManifestPackNamesAsync()
+    {
+        var projectDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(projectDir);
+        try
+        {
+            var project = new ModBuilderProject
+            {
+                Name = "TrimDedupTest",
+                ProjectDir = projectDir,
+                Configuration = new BuildConfiguration
+                {
+                    Items =
+                    [
+                        new BundleItem { Name = "ItemA" },
+                    ],
+                    Packs =
+                    [
+                        new BundlePack
+                        {
+                            Name = "PackA",
+                            ItemNames = ["ItemA", " ItemA ", "itema", string.Empty],
+                        },
+                    ],
+                    Manifests =
+                    [
+                        new BundleManifest
+                        {
+                            Name = "ManifestA",
+                            PackNames = ["PackA", " PackA ", "packa", string.Empty],
+                        },
+                    ],
+                },
+            };
+
+            var viewModel = CreateViewModel();
+            await viewModel.InitializeAsync(project);
+
+            await viewModel.SaveCommand.ExecuteAsync(null);
+
+            var savedPack = Assert.Single(project.Configuration.Packs);
+            var savedItemName = Assert.Single(savedPack.ItemNames);
+            Assert.Equal("ItemA", savedItemName);
+
+            var savedManifest = Assert.Single(project.Configuration.Manifests);
+            var savedPackName = Assert.Single(savedManifest.PackNames);
+            Assert.Equal("PackA", savedPackName);
+        }
+        finally
+        {
+            Directory.Delete(projectDir, recursive: true);
+        }
+    }
 }
