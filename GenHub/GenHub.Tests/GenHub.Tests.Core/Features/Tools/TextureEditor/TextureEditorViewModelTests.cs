@@ -2,6 +2,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using GenHub.Common.Editors;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
@@ -988,6 +989,7 @@ public sealed class TextureEditorViewModelTests
             (dialogs ?? new Mock<IDialogService>()).Object,
             gameInstallations?.Object);
     }
+
     private static void DeleteDirectoryQuietly(string? path)
     {
         if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
@@ -1009,4 +1011,3 @@ public sealed class TextureEditorViewModelTests
         }
     }
 }
-

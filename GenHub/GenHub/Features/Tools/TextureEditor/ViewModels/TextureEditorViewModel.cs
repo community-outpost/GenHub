@@ -658,115 +658,6 @@ public sealed partial class TextureEditorViewModel(
         await PasteFromClipboardAsync(cancellationToken).ConfigureAwait(true);
     }
 
-    private void PasteInternalCopiedSlice()
-    {
-        var copy = _copiedSlice;
-        if (_isCutOperation)
-        {
-            _copiedSlice = null;
-            _isCutOperation = false;
-        }
-
-        if (copy is null)
-        {
-            return;
-        }
-
-        var pasted = InsertSliceCopy(copy);
-        if (pasted is not null)
-        {
-            PushUndo(new TextureEditAction(
-                Localize("TextureEditor.History.PasteSlice", "Paste slice"),
-                () =>
-                {
-                    if (!Slices.Contains(pasted))
-                    {
-                        TrackSlice(pasted);
-                    }
-
-                    SelectedSlice = pasted;
-                    MarkDirty();
-                },
-                () =>
-                {
-                    UntrackSlice(pasted);
-                    MarkDirty();
-                }));
-        }
-
-        MarkDirty();
-        RefreshEditorCommands();
-    }
-
-    private async Task PasteFromClipboardAsync(CancellationToken cancellationToken)
-    {
-        var topLevel = GetTopLevel();
-        if (topLevel?.Clipboard is not { } clipboard)
-        {
-            return;
-        }
-
-        try
-        {
-            var text = await clipboard.GetTextAsync().ConfigureAwait(true);
-            cancellationToken.ThrowIfCancellationRequested();
-            if (string.IsNullOrWhiteSpace(text))
-            {
-                return;
-            }
-
-            var parsed = parser.ParseText(text);
-            if (!parsed.Success || parsed.Data is null || parsed.Data.Count == 0)
-            {
-                Notifications.ShowWarning(
-                    Localize("TextureEditor.Notify.PasteFailed.Title", "Paste failed"),
-                    Localize("TextureEditor.Notify.PasteFailed.Message", "Clipboard does not contain valid MappedImage definitions."),
-                    NotificationDurations.Medium);
-                return;
-            }
-
-            var added = parsed.Data
-                .Select(InsertSliceCopy)
-                .OfType<TextureSliceViewModel>()
-                .ToList();
-
-            if (added.Count > 0)
-            {
-                PushUndo(new TextureEditAction(
-                    Localize("TextureEditor.History.PasteSlice", "Paste slice"),
-                    () =>
-                    {
-                        foreach (var s in added.Where(s => !Slices.Contains(s)))
-                        {
-                            TrackSlice(s);
-                        }
-
-                        SelectedSlice = added[^1];
-                        MarkDirty();
-                    },
-                    () =>
-                    {
-                        foreach (var s in added)
-                        {
-                            UntrackSlice(s);
-                        }
-
-                        MarkDirty();
-                    }));
-                MarkDirty();
-                RefreshEditorCommands();
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
-        {
-            logger.LogWarning(ex, "Failed to read clipboard text for paste");
-        }
-    }
-
     /// <inheritdoc />
     protected override void OnDuplicate()
     {
@@ -1951,12 +1842,10 @@ public sealed partial class TextureEditorViewModel(
             }
         }
 
-        if (targetTexturePath is null)
+        if (targetTexturePath is null || targetGroup is null)
         {
             return false;
         }
-
-        Debug.Assert(targetGroup is not null);
 
         if (HasUnsavedChanges && !await ConfirmDiscardUnsavedAsync(operationToken).ConfigureAwait(true))
         {
@@ -2421,7 +2310,8 @@ public sealed partial class TextureEditorViewModel(
             ?? FindTextureInInstallations(candidates);
     }
 
-    private static string? FindTextureInDirectories(IReadOnlyList<string> probeDirectories, IReadOnlyCollection<string> candidates)
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
+    private string? FindTextureInDirectories(IReadOnlyList<string> probeDirectories, IReadOnlyCollection<string> candidates)
     {
         foreach (string directory in probeDirectories)
         {
@@ -2560,7 +2450,8 @@ public sealed partial class TextureEditorViewModel(
             .ToList();
     }
 
-    private static IEnumerable<string?> GetInstallationDirectoryCandidates(IGameInstallation inst)
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
+    private IEnumerable<string> GetInstallationDirectoryCandidates(IGameInstallation inst)
     {
         string? generalsCandidate = inst.EffectiveGeneralsArchivePath;
         if (string.IsNullOrEmpty(generalsCandidate) && inst.HasGenerals)
@@ -2568,13 +2459,15 @@ public sealed partial class TextureEditorViewModel(
             generalsCandidate = inst.GeneralsPath;
         }
 
-        return
+        string?[] candidates =
         [
             inst.HasZeroHour ? inst.ZeroHourPath : null,
             inst.BundledGeneralsPath,
             generalsCandidate,
             inst.InstallationPath,
         ];
+
+        return candidates.OfType<string>();
     }
 
     private async Task EnsureGameInstallationsLoadedAsync(CancellationToken cancellationToken = default)
@@ -2620,7 +2513,8 @@ public sealed partial class TextureEditorViewModel(
         return probeDirectories.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }
 
-    private static void AddDirectoryWithParents(List<string> list, string dir)
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
+    private void AddDirectoryWithParents(List<string> list, string dir)
     {
         if (string.IsNullOrEmpty(dir))
         {
@@ -2725,6 +2619,115 @@ public sealed partial class TextureEditorViewModel(
     }
 
     private void DeleteSlice(TextureSliceViewModel slice) => UntrackSlice(slice);
+
+    private void PasteInternalCopiedSlice()
+    {
+        var copy = _copiedSlice;
+        if (_isCutOperation)
+        {
+            _copiedSlice = null;
+            _isCutOperation = false;
+        }
+
+        if (copy is null)
+        {
+            return;
+        }
+
+        var pasted = InsertSliceCopy(copy);
+        if (pasted is not null)
+        {
+            PushUndo(new TextureEditAction(
+                Localize("TextureEditor.History.PasteSlice", "Paste slice"),
+                () =>
+                {
+                    if (!Slices.Contains(pasted))
+                    {
+                        TrackSlice(pasted);
+                    }
+
+                    SelectedSlice = pasted;
+                    MarkDirty();
+                },
+                () =>
+                {
+                    UntrackSlice(pasted);
+                    MarkDirty();
+                }));
+        }
+
+        MarkDirty();
+        RefreshEditorCommands();
+    }
+
+    private async Task PasteFromClipboardAsync(CancellationToken cancellationToken)
+    {
+        var topLevel = GetTopLevel();
+        if (topLevel?.Clipboard is not { } clipboard)
+        {
+            return;
+        }
+
+        try
+        {
+            var text = await clipboard.GetTextAsync().ConfigureAwait(true);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return;
+            }
+
+            var parsed = parser.ParseText(text);
+            if (!parsed.Success || parsed.Data is null || parsed.Data.Count == 0)
+            {
+                Notifications.ShowWarning(
+                    Localize("TextureEditor.Notify.PasteFailed.Title", "Paste failed"),
+                    Localize("TextureEditor.Notify.PasteFailed.Message", "Clipboard does not contain valid MappedImage definitions."),
+                    NotificationDurations.Medium);
+                return;
+            }
+
+            var added = parsed.Data
+                .Select(InsertSliceCopy)
+                .OfType<TextureSliceViewModel>()
+                .ToList();
+
+            if (added.Count > 0)
+            {
+                PushUndo(new TextureEditAction(
+                    Localize("TextureEditor.History.PasteSlice", "Paste slice"),
+                    () =>
+                    {
+                        foreach (var s in added.Where(s => !Slices.Contains(s)))
+                        {
+                            TrackSlice(s);
+                        }
+
+                        SelectedSlice = added[^1];
+                        MarkDirty();
+                    },
+                    () =>
+                    {
+                        foreach (var s in added)
+                        {
+                            UntrackSlice(s);
+                        }
+
+                        MarkDirty();
+                    }));
+                MarkDirty();
+                RefreshEditorCommands();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            logger.LogWarning(ex, "Failed to read clipboard text for paste");
+        }
+    }
 
     private TextureSliceViewModel? InsertSliceCopy(MappedImageDefinition source)
     {

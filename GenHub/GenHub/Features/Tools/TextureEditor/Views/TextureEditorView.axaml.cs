@@ -8,6 +8,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Models.Tools.Common;
 using GenHub.Features.Tools.TextureEditor.ViewModels;
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace GenHub.Features.Tools.TextureEditor.Views;
 
@@ -100,7 +101,8 @@ public partial class TextureEditorView : UserControl
         HandleNavigationOrEditKey(viewModel, e);
     }
 
-    private static bool TryHandleUndoRedoKey(TextureEditorViewModel viewModel, KeyEventArgs e)
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
+    private bool TryHandleUndoRedoKey(TextureEditorViewModel viewModel, KeyEventArgs e)
     {
         var modifiers = e.KeyModifiers;
         var hasCommandModifier = (modifiers & (KeyModifiers.Control | KeyModifiers.Meta)) != 0;
@@ -128,7 +130,8 @@ public partial class TextureEditorView : UserControl
         return false;
     }
 
-    private static void HandleNavigationOrEditKey(TextureEditorViewModel viewModel, KeyEventArgs e)
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
+    private void HandleNavigationOrEditKey(TextureEditorViewModel viewModel, KeyEventArgs e)
     {
         if (viewModel.SelectedSlice is null)
         {
