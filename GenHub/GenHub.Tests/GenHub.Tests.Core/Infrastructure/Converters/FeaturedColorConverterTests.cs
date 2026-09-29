@@ -73,6 +73,28 @@ public class FeaturedColorConverterTests
     }
 
     /// <summary>
+    /// Verifies the hover parameter resolves to a brighter glow in the featured hue
+    /// instead of the legacy fixed gold hover glow.
+    /// </summary>
+    [Fact]
+    public void ShadowConverter_HoverParameter_ReturnsBrighterTintedGlow()
+    {
+        var result = _shadowConverter.Convert(
+            "#0F8E45",
+            typeof(BoxShadows),
+            FeaturedColorToBoxShadowConverter.HoverParameter,
+            _culture);
+
+        var shadows = Assert.IsType<BoxShadows>(result);
+        Assert.Equal(1, shadows.Count);
+        var shadow = shadows[0];
+        Assert.Equal(new Color(0x80, 0x0F, 0x8E, 0x45), shadow.Color);
+        Assert.Equal(0, shadow.OffsetX);
+        Assert.Equal(14, shadow.OffsetY);
+        Assert.Equal(42, shadow.Blur);
+    }
+
+    /// <summary>
     /// Verifies null or invalid values return UnsetValue so styled fallback shadows apply.
     /// </summary>
     /// <param name="value">The candidate featured color value.</param>

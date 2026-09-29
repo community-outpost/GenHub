@@ -65,8 +65,8 @@
         </Style>
 
         <Style Selector="Border.content-card.featured-card:pointerover">
-            <Setter Property="BorderBrush" Value="{DynamicResource PendingActionHoverBrush}" />
-            <Setter Property="BoxShadow" Value="0 14 42 0 #80F59E0B" />
+            <Setter Property="BorderBrush" Value="{Binding FeaturedColor, Converter={StaticResource FeaturedColorToBrushConverter}, FallbackValue={DynamicResource PendingActionHoverBrush}}" />
+            <Setter Property="BoxShadow" Value="{Binding FeaturedColor, Converter={StaticResource FeaturedColorToBoxShadowConverter}, ConverterParameter={x:Static converters:FeaturedColorToBoxShadowConverter.HoverParameter}, FallbackValue='0 14 42 0 #80F59E0B'}" />
         </Style>
 
         <Style Selector="Border.featured-badge">
@@ -293,7 +293,7 @@
                                        MaxWidth="228">
                                 <Border Classes="type-badge featured-badge"
                                         Background="{Binding FeaturedColor, Converter={StaticResource ColorToBrushConverter}}"
-                                        BorderBrush="{DynamicResource PendingActionHoverBrush}"
+                                        BorderBrush="{Binding FeaturedColor, Converter={StaticResource FeaturedColorToBrushConverter}, FallbackValue={DynamicResource PendingActionHoverBrush}}"
                                         IsVisible="{Binding HasFeaturedBadge}"
                                         Margin="0,0,4,4"
                                         ToolTip.Tip="{Binding FeaturedBadge}">
