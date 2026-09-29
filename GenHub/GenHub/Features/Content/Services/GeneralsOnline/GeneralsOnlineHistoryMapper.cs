@@ -50,6 +50,9 @@ public static class GeneralsOnlineHistoryMapper
         IReadOnlyList<CrcMappingEntry> entries,
         string? excludeVersion)
     {
+        var excludedComponent = string.IsNullOrWhiteSpace(excludeVersion)
+            ? 0
+            : GameVersionHelper.GetGeneralsOnlineManifestIdComponent(excludeVersion);
         var preferredByComponent = new Dictionary<int, CrcMappingEntry>();
         foreach (var entry in entries)
         {
@@ -59,7 +62,7 @@ public static class GeneralsOnlineHistoryMapper
             }
 
             var component = GameVersionHelper.GetGeneralsOnlineManifestIdComponent(entry.Version);
-            if (component <= 0 || HasUnencodableQfe(entry.Version))
+            if (component <= 0 || IsExcludedComponent(component, excludedComponent) || HasUnencodableQfe(entry.Version))
             {
                 continue;
             }
@@ -103,6 +106,11 @@ public static class GeneralsOnlineHistoryMapper
 
         return string.IsNullOrWhiteSpace(excludeVersion) ||
             !string.Equals(entry.Version.Trim(), excludeVersion.Trim(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsExcludedComponent(int component, int excludedComponent)
+    {
+        return excludedComponent > 0 && component == excludedComponent;
     }
 
     private static bool HasUnencodableQfe(string version)
@@ -172,12 +180,9 @@ public static class GeneralsOnlineHistoryMapper
             SelectedDownloadUrl = cdnUrl,
         };
 
-        foreach (var tag in GeneralsOnlineConstants.Tags)
+        foreach (var tag in GeneralsOnlineConstants.Tags.Where(tag => !searchResult.Tags.Contains(tag)))
         {
-            if (!searchResult.Tags.Contains(tag))
-            {
-                searchResult.Tags.Add(tag);
-            }
+            searchResult.Tags.Add(tag);
         }
 
         searchResult.SetData(release);

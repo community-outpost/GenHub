@@ -106,6 +106,24 @@ public class GeneralsOnlineHistoryMapperTests
     }
 
     /// <summary>
+    /// An EAC latest release also excludes the standard row sharing its manifest component,
+    /// so the current release cannot appear twice with colliding manifest IDs.
+    /// </summary>
+    [Fact]
+    public void BuildHistoryResults_WithEacLatestVersion_ExcludesSharedComponent()
+    {
+        var entries = new List<CrcMappingEntry>
+        {
+            CreateEntry("042826_QFE2", "https://cdn.playgenerals.online/GeneralsOnline_portable_042826_QFE2.zip"),
+            CreateEntry("042826_QFE2_EAC", "https://cdn.playgenerals.online/GeneralsOnline_portable_042826_QFE2_EAC.zip"),
+        };
+
+        var results = GeneralsOnlineHistoryMapper.BuildHistoryResults(entries, excludeVersion: "042826_QFE2_EAC");
+
+        Assert.Empty(results);
+    }
+
+    /// <summary>
     /// Non-Generals Online entries and rows without a portable zip are skipped.
     /// </summary>
     [Fact]
