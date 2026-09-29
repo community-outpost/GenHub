@@ -132,7 +132,7 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
     public IReadOnlyList<string> ActiveFlags => SplitFlags(Value);
 
     /// <summary>
-    /// Appends a flag to the KindOf value.
+    /// Appends a flag to the KindOf value and clears the flag entry box.
     /// </summary>
     /// <param name="flag">Flag to add.</param>
     [RelayCommand]
@@ -150,6 +150,8 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
             Value = string.Join(" ", parts);
             OnPropertyChanged(nameof(ActiveFlags));
         }
+
+        SelectedFlagToAdd = string.Empty;
     }
 
     /// <summary>
@@ -184,7 +186,6 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
         if (matched is not null)
         {
             AddFlag(matched);
-            SelectedFlagToAdd = string.Empty;
         }
     }
 

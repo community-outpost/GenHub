@@ -490,7 +490,7 @@ public class IniEditorViewTests
             .Returns(new List<string>());
 
         return new IniEditorViewModel(
-            new IniDocumentService(Mock.Of<ILogger<IniDocumentService>>()),
+            new IniDocumentService(Mock.Of<ILogger<IniDocumentService>>(), mockLocalization.Object),
             new IniSchemaService(mockLocalization.Object),
             mockReferenceService.Object,
             Mock.Of<ISageMappedImageParser>(),

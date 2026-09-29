@@ -5,7 +5,6 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Common.Editors;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions.GameInstallations;
@@ -16,7 +15,6 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.IniEditor;
 using GenHub.Core.Interfaces.Tools.TextureEditor;
 using GenHub.Core.Interfaces.Tools.WndEditor;
-using GenHub.Core.Messages;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Tools.IniEditor;
 using GenHub.Core.Models.Tools.TextureEditor;
@@ -92,6 +90,10 @@ public sealed partial class IniEditorViewModel(
     private CancellationTokenSource? _rawEditCts;
     private bool _isUpdatingRawPreview;
     private int _documentRevision;
+    private IniDocument? _suggestionIndexDocument;
+    private int _suggestionIndexRevision = -1;
+    private Dictionary<string, IReadOnlyList<string>> _suggestionFieldValues = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, HashSet<string>> _suggestionBlockNames = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Gets the root block nodes of the edited document.
@@ -531,18 +533,6 @@ public sealed partial class IniEditorViewModel(
     /// </summary>
     public Func<MappedImageDefinition, IImage?> PickerThumbnailProvider => definition =>
         _textureThumbnails.TryGetValue(definition.Name, out var thumbnail) ? thumbnail : null;
-
-    /// <summary>
-    /// Opens a mapped image in the Texture Editor tool.
-    /// </summary>
-    /// <param name="definition">The mapped image definition.</param>
-    public static void OpenTextureInEditor(MappedImageDefinition definition)
-    {
-        ArgumentNullException.ThrowIfNull(definition);
-        WeakReferenceMessenger.Default.Send(new OpenFileInToolMessage(
-            TextureEditorConstants.ToolId,
-            definition.SourcePath ?? definition.Name));
-    }
 
     /// <summary>
     /// Attaches the specified texture name to the currently selected block or active field row.
@@ -1014,6 +1004,7 @@ public sealed partial class IniEditorViewModel(
             CancelDeferred(ref _previewCts);
             CancelDeferred(ref _filterCts);
             CancelDeferred(ref _thumbnailCts);
+            CancelDeferred(ref _rawEditCts);
             if (_fileExplorer != null)
             {
                 _fileExplorer.FileActivated -= OnExplorerFileActivated;
@@ -2022,7 +2013,7 @@ public sealed partial class IniEditorViewModel(
         {
             _document = document;
             _documentRevision++;
-            _rawEditCts?.Cancel();
+            CancelDeferred(ref _rawEditCts);
             _undoStack.Clear();
             _redoStack.Clear();
             FilePath = filePath;
@@ -2910,13 +2901,54 @@ public sealed partial class IniEditorViewModel(
         }
     }
 
+    private void EnsureSuggestionIndexes()
+    {
+        if (ReferenceEquals(_suggestionIndexDocument, _document) && _suggestionIndexRevision == _documentRevision)
+        {
+            return;
+        }
+
+        _suggestionIndexDocument = _document;
+        _suggestionIndexRevision = _documentRevision;
+        _suggestionFieldValues = BuildDocumentValueIndex();
+        _suggestionBlockNames = BuildBlockNameIndex();
+    }
+
+    private Dictionary<string, HashSet<string>> BuildBlockNameIndex()
+    {
+        var index = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        if (_document == null)
+        {
+            return index;
+        }
+
+        foreach (var block in _document.Blocks)
+        {
+            if (string.IsNullOrWhiteSpace(block.Name))
+            {
+                continue;
+            }
+
+            if (!index.TryGetValue(block.BlockType, out var names))
+            {
+                names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                index[block.BlockType] = names;
+            }
+
+            names.Add(block.Name);
+        }
+
+        return index;
+    }
+
     private SuggestionScope BuildSuggestionScope()
     {
+        EnsureSuggestionIndexes();
         return new SuggestionScope
         {
             Textures = ResolveTextureSuggestions(),
-            Sides = ResolveSideSuggestions(),
-            DocumentValues = BuildDocumentValueIndex(),
+            Sides = ResolveSideSuggestions(_suggestionFieldValues),
+            DocumentValues = _suggestionFieldValues,
         };
     }
 
@@ -2997,12 +3029,9 @@ public sealed partial class IniEditorViewModel(
             textures.Add(name);
         }
 
-        if (_document != null)
+        if (_suggestionBlockNames.TryGetValue(IniConstants.BlockTypes.MappedImage, out var mappedImages))
         {
-            foreach (var name in _document.Blocks
-                .Where(b => string.Equals(b.BlockType, IniConstants.BlockTypes.MappedImage, StringComparison.OrdinalIgnoreCase))
-                .Select(b => b.Name)
-                .Where(name => !string.IsNullOrWhiteSpace(name)))
+            foreach (var name in mappedImages)
             {
                 textures.Add(name);
             }
@@ -3021,12 +3050,9 @@ public sealed partial class IniEditorViewModel(
         }
 
         var refs = new HashSet<string>(referenceService.GetNames(refType), StringComparer.OrdinalIgnoreCase);
-        if (_document != null)
+        if (_suggestionBlockNames.TryGetValue(refType, out var documentNames))
         {
-            foreach (var name in _document.Blocks
-                .Where(b => string.Equals(b.BlockType, refType, StringComparison.OrdinalIgnoreCase))
-                .Select(b => b.Name)
-                .Where(name => !string.IsNullOrWhiteSpace(name)))
+            foreach (var name in documentNames)
             {
                 refs.Add(name);
             }
@@ -3039,16 +3065,12 @@ public sealed partial class IniEditorViewModel(
         return result;
     }
 
-    private IReadOnlyList<string> ResolveSideSuggestions()
+    private IReadOnlyList<string> ResolveSideSuggestions(Dictionary<string, IReadOnlyList<string>> fieldValues)
     {
         var suggestions = new HashSet<string>(IniConstants.Sides.All, StringComparer.OrdinalIgnoreCase);
-        if (_document != null)
+        if (fieldValues.TryGetValue(IniConstants.FieldKeys.Side, out var values))
         {
-            foreach (var value in _document.Blocks
-                .SelectMany(b => b.Fields)
-                .Where(f => string.Equals(f.Key, IniConstants.FieldKeys.Side, StringComparison.OrdinalIgnoreCase) &&
-                    !string.IsNullOrWhiteSpace(f.Value))
-                .Select(f => f.Value.Trim()))
+            foreach (var value in values)
             {
                 suggestions.Add(value);
             }
@@ -3165,7 +3187,11 @@ public sealed partial class IniEditorViewModel(
     {
         var installation = SelectedInstallation ?? AvailableInstallations.FirstOrDefault();
         var installationPath = installation?.Path;
-        var isZeroHour = installation?.IsZeroHour ?? true;
+
+        // Without a detected installation there is no tier signal, so fall back to the
+        // platform default. Zero Hour mode enforces strict per-game isolation while the
+        // base tier stays permissive about loose project files.
+        var isZeroHour = installation?.IsZeroHour ?? false;
 
         var projectDirectory = string.IsNullOrEmpty(FilePath) ? FileExplorer.Directory : Path.GetDirectoryName(FilePath);
         if (string.IsNullOrEmpty(installationPath))
@@ -3486,6 +3512,7 @@ public sealed partial class IniEditorViewModel(
         RebuildCanvasBlockCards();
         ApplyTextureFilter();
         FilterReferenceResults();
+        RebuildValidationIssues();
         RefreshEditorCommands();
     }
 
@@ -3536,6 +3563,7 @@ public sealed partial class IniEditorViewModel(
 
     private void RebuildValidationIssues()
     {
+        EnsureSuggestionIndexes();
         ValidationIssues.Clear();
         var total = 0;
         if (_document != null)
@@ -3562,13 +3590,13 @@ public sealed partial class IniEditorViewModel(
             return 0;
         }
 
-        var cache = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        var cache = new Dictionary<(string ReferenceType, bool IsTexture), HashSet<string>>();
 
         // TryAddReferenceRow records a validation row as a side effect while testing each row.
         return FieldRows.Count(row => TryAddReferenceRow(row, cache));
     }
 
-    private bool TryAddReferenceRow(IniFieldRowViewModel row, Dictionary<string, HashSet<string>> cache)
+    private bool TryAddReferenceRow(IniFieldRowViewModel row, Dictionary<(string ReferenceType, bool IsTexture), HashSet<string>> cache)
     {
         var referenceType = row.ReferenceBlockType;
         if (referenceType == null && row.IsTexture)
@@ -3587,10 +3615,11 @@ public sealed partial class IniEditorViewModel(
             return false;
         }
 
-        if (!cache.TryGetValue(referenceType, out var known))
+        var cacheKey = (referenceType, row.IsTexture);
+        if (!cache.TryGetValue(cacheKey, out var known))
         {
             known = CollectKnownReferenceNames(referenceType, row.IsTexture);
-            cache[referenceType] = known;
+            cache[cacheKey] = known;
         }
 
         if (known.Count == 0 || known.Contains(value))
@@ -3611,12 +3640,9 @@ public sealed partial class IniEditorViewModel(
     private HashSet<string> CollectKnownReferenceNames(string referenceType, bool includeTextures)
     {
         var known = new HashSet<string>(referenceService.GetNames(referenceType), StringComparer.OrdinalIgnoreCase);
-        if (_document != null)
+        if (_suggestionBlockNames.TryGetValue(referenceType, out var documentNames))
         {
-            foreach (var name in _document.Blocks
-                .Where(block => string.Equals(block.BlockType, referenceType, StringComparison.OrdinalIgnoreCase))
-                .Select(block => block.Name)
-                .Where(name => !string.IsNullOrWhiteSpace(name)))
+            foreach (var name in documentNames)
             {
                 known.Add(name);
             }
@@ -3713,19 +3739,31 @@ public sealed partial class IniEditorViewModel(
     }
 
     [RelayCommand]
-    private async Task CopyRawPreviewAsync()
+    private async Task CopyRawPreviewAsync(CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrEmpty(RawPreviewText)) return;
+        cancellationToken.ThrowIfCancellationRequested();
+        if (string.IsNullOrEmpty(RawPreviewText))
+        {
+            return;
+        }
+
         if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop &&
             desktop.MainWindow?.Clipboard != null)
         {
             await desktop.MainWindow.Clipboard.SetTextAsync(RawPreviewText);
+            return;
         }
+
+        Notifications.ShowWarning(
+            Localization.GetString("Tools.IniEditor.Toast.ClipboardUnavailableTitle"),
+            Localization.GetString("Tools.IniEditor.Toast.ClipboardUnavailableMessage"),
+            NotificationDurations.Medium);
     }
 
     [RelayCommand]
-    private async Task PasteRawPreviewAsync()
+    private async Task PasteRawPreviewAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop &&
             desktop.MainWindow?.Clipboard != null)
         {
@@ -3734,7 +3772,14 @@ public sealed partial class IniEditorViewModel(
             {
                 RawPreviewText = text;
             }
+
+            return;
         }
+
+        Notifications.ShowWarning(
+            Localization.GetString("Tools.IniEditor.Toast.ClipboardUnavailableTitle"),
+            Localization.GetString("Tools.IniEditor.Toast.ClipboardUnavailableMessage"),
+            NotificationDurations.Medium);
     }
 
     private void RebuildVisualObjectCard()

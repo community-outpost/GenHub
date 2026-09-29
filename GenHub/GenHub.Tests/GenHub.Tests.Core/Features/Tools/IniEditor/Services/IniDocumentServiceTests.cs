@@ -1,4 +1,5 @@
 using FluentAssertions;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Validation;
 using GenHub.Features.Tools.IniEditor.Services;
 using Microsoft.Extensions.Logging;
@@ -36,6 +37,7 @@ public sealed class IniDocumentServiceTests : IDisposable
         "End\n";
 
     private readonly Mock<ILogger<IniDocumentService>> _mockLogger;
+    private readonly Mock<ILocalizationService> _mockLocalization;
     private readonly IniDocumentService _service;
     private readonly string _tempDirectory;
 
@@ -45,7 +47,11 @@ public sealed class IniDocumentServiceTests : IDisposable
     public IniDocumentServiceTests()
     {
         _mockLogger = new Mock<ILogger<IniDocumentService>>();
-        _service = new IniDocumentService(_mockLogger.Object);
+        _mockLocalization = new Mock<ILocalizationService>();
+        _mockLocalization
+            .Setup(service => service.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
+            .Returns((string key, object?[] args) => key);
+        _service = new IniDocumentService(_mockLogger.Object, _mockLocalization.Object);
         _tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempDirectory);
     }
@@ -461,7 +467,8 @@ public sealed class IniDocumentServiceTests : IDisposable
     public async Task ParseFileAsync_Utf8Bom_StripsBom()
     {
         var filePath = Path.Combine(_tempDirectory, "Bom.ini");
-        var bytes = new UTF8Encoding(true).GetBytes("Object BomObject\n  Health = 1.0\nEnd\n");
+        var body = new UTF8Encoding(false).GetBytes("Object BomObject\n  Health = 1.0\nEnd\n");
+        var bytes = new UTF8Encoding(true).GetPreamble().Concat(body).ToArray();
         await File.WriteAllBytesAsync(filePath, bytes);
 
         var result = await _service.ParseFileAsync(filePath, CancellationToken.None);
@@ -577,7 +584,8 @@ public sealed class IniDocumentServiceTests : IDisposable
 
     /// <summary>
     /// Verifies that formatting refuses to overwrite a file whose recovery
-    /// discarded source lines, leaving the original bytes untouched.
+    /// discarded source lines, leaving the original bytes untouched and
+    /// reporting the localized refusal message.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
@@ -590,6 +598,7 @@ public sealed class IniDocumentServiceTests : IDisposable
         var result = await _service.FormatFileAsync(filePath, CancellationToken.None);
 
         result.Success.Should().BeFalse();
+        result.FirstError.Should().Be("Tools.IniEditor.Format.RefusedDiscardedContent");
         (await File.ReadAllTextAsync(filePath)).Should().Be(lossy);
     }
 
@@ -1055,6 +1064,9 @@ public sealed class IniDocumentServiceTests : IDisposable
             "      End\n" +
             "    End\n" +
             "  End\n" +
+            "  AddModule ModuleTag_03\n" +
+            "    Model = NICFAG_SKN2\n" +
+            "  End\n" +
             "End\n";
 
         var result = _service.ParseText(mapIniContent);
@@ -1068,6 +1080,10 @@ public sealed class IniDocumentServiceTests : IDisposable
         replaceModule.Children.Should().ContainSingle(c => c.BlockType == "Draw");
         var drawModule = replaceModule.Children[0];
         drawModule.Children.Should().ContainSingle(c => c.BlockType == "DefaultConditionState");
+        block.Children.Should().ContainSingle(c => c.BlockType == "AddModule");
+        var addModule = block.Children.First(c => c.BlockType == "AddModule");
+        addModule.Name.Should().Be("ModuleTag_03");
+        addModule.Fields.Should().Contain(f => f.Key == "Model" && f.Value == "NICFAG_SKN2");
     }
 
     /// <summary>

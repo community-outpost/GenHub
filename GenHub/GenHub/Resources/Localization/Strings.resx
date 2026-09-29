@@ -15565,6 +15565,9 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="Tools.IniEditor.Properties.NewValueWatermark" xml:space="preserve">
     <value>New field value...</value>
   </data>
+  <data name="Tools.IniEditor.Properties.AddFlagTooltip" xml:space="preserve">
+    <value>Add the typed flag, even when it is not in the suggestion list.</value>
+  </data>
   <data name="Tools.IniEditor.Properties.AddField" xml:space="preserve">
     <value>Add Field</value>
   </data>
@@ -15652,6 +15655,9 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   </data>
   <data name="Tools.IniEditor.Format.NoFileMessage" xml:space="preserve">
     <value>Save the document to a file before formatting.</value>
+  </data>
+  <data name="Tools.IniEditor.Format.RefusedDiscardedContent" xml:space="preserve">
+    <value>Refusing to format: parsing discarded source lines. Resolve the parse errors first.</value>
   </data>
   <data name="Tools.IniEditor.History.AddBlock" xml:space="preserve">
     <value>Add block</value>
@@ -17720,6 +17726,12 @@ Mapped image texture reference</value>
   </data>
   <data name="Tools.IniEditor.Toast.AttachTextureSuccessMessage" xml:space="preserve">
     <value>Attached {0} to {1}.</value>
+  </data>
+  <data name="Tools.IniEditor.Toast.ClipboardUnavailableTitle" xml:space="preserve">
+    <value>Clipboard Unavailable</value>
+  </data>
+  <data name="Tools.IniEditor.Toast.ClipboardUnavailableMessage" xml:space="preserve">
+    <value>The system clipboard is not available.</value>
   </data>
   <data name="Tools.IniEditor.Schema.Fields.Object.ExperienceRequired" xml:space="preserve">
     <value>Experience points per veterancy level.</value>

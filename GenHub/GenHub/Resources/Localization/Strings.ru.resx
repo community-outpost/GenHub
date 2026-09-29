@@ -15413,6 +15413,9 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="Tools.IniEditor.Properties.NewValueWatermark" xml:space="preserve">
     <value>Новое значение поля...</value>
   </data>
+  <data name="Tools.IniEditor.Properties.AddFlagTooltip" xml:space="preserve">
+    <value>Добавить введённый флаг, даже если его нет в списке предложений.</value>
+  </data>
   <data name="Tools.IniEditor.Properties.AddField" xml:space="preserve">
     <value>Добавить поле</value>
   </data>
@@ -15500,6 +15503,9 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   </data>
   <data name="Tools.IniEditor.Format.NoFileMessage" xml:space="preserve">
     <value>Сохраните документ в файл перед форматированием.</value>
+  </data>
+  <data name="Tools.IniEditor.Format.RefusedDiscardedContent" xml:space="preserve">
+    <value>Форматирование отклонено: при разборе были потеряны строки исходного текста. Сначала исправьте ошибки разбора.</value>
   </data>
   <data name="Tools.IniEditor.History.AddBlock" xml:space="preserve">
     <value>Добавление блока</value>
@@ -17661,6 +17667,12 @@ Error: не удалось: {3}
   </data>
   <data name="Tools.IniEditor.Toast.AttachTextureSuccessMessage" xml:space="preserve">
     <value>Прикреплено {0} к {1}.</value>
+  </data>
+  <data name="Tools.IniEditor.Toast.ClipboardUnavailableTitle" xml:space="preserve">
+    <value>Буфер обмена недоступен</value>
+  </data>
+  <data name="Tools.IniEditor.Toast.ClipboardUnavailableMessage" xml:space="preserve">
+    <value>Системный буфер обмена недоступен.</value>
   </data>
   <data name="Tools.IniEditor.Schema.Fields.Object.ExperienceRequired" xml:space="preserve">
     <value>Очки опыта за каждый уровень ветеранства.</value>

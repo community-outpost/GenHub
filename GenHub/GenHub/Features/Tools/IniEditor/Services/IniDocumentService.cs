@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Tools.IniEditor;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.IniEditor;
@@ -19,7 +20,7 @@ namespace GenHub.Features.Tools.IniEditor.Services;
 /// <summary>
 /// Service for parsing, writing, formatting, and validating Generals and Zero Hour INI documents.
 /// </summary>
-public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIniDocumentService
+public sealed class IniDocumentService(ILogger<IniDocumentService> logger, ILocalizationService localizationService) : IIniDocumentService
 {
     /// <summary>
     /// An open block and the indentation of its opening line.
@@ -152,7 +153,7 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
             logger.LogWarning("Refusing to format INI file {Path}: recovery discarded source lines", filePath);
             return OperationResult<bool>.CreateFailure(
                 parseResult.Data.ParseErrors.Prepend(
-                    "Refusing to format: parsing discarded source lines. Resolve the parse errors first."),
+                    localizationService.GetString("Tools.IniEditor.Format.RefusedDiscardedContent")),
                 stopwatch.Elapsed);
         }
 
@@ -789,9 +790,8 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
 
     private (string Content, Encoding Encoding) DecodeContent(byte[] bytes, string filePath)
     {
-        var hasBom = bytes.Length >= Utf8Bom.Length &&
-            bytes[0] == Utf8Bom[0] && bytes[1] == Utf8Bom[1] && bytes[2] == Utf8Bom[2];
         var contentBytes = StripUtf8Bom(bytes);
+        var hasBom = contentBytes.Length != bytes.Length;
         try
         {
             var encoding = new UTF8Encoding(hasBom, throwOnInvalidBytes: true);
@@ -800,7 +800,7 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
         catch (DecoderFallbackException ex)
         {
             logger.LogWarning(ex, "File {Path} is not valid UTF-8; decoding as single byte ANSI text", filePath);
-            return (Encoding.Latin1.GetString(contentBytes).TrimStart('\uFEFF'), Encoding.Latin1);
+            return (Encoding.Latin1.GetString(contentBytes), Encoding.Latin1);
         }
     }
 }

@@ -154,6 +154,33 @@ public class EditorCanvasControl : ContentControl
         _scrollViewer.LayoutUpdated += OnScrollLayoutUpdated;
     }
 
+    /// <inheritdoc />
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == ZoomProperty)
+        {
+            CoerceZoom();
+        }
+    }
+
+    private void CoerceZoom()
+    {
+        var zoom = Zoom;
+        var coerced = double.IsFinite(zoom) && zoom > 0
+            ? Math.Clamp(zoom, MinZoom, MaxZoom)
+            : EditorConstants.ZoomDefault;
+        if (!double.IsFinite(coerced) || coerced <= 0)
+        {
+            coerced = EditorConstants.ZoomDefault;
+        }
+
+        if (coerced != zoom)
+        {
+            Zoom = coerced;
+        }
+    }
+
     private void DetachScrollViewer()
     {
         if (_scrollViewer is null)
@@ -243,7 +270,7 @@ public class EditorCanvasControl : ContentControl
 
         if (Zoom <= 0 || !double.IsFinite(Zoom))
         {
-            Zoom = 1.0;
+            Zoom = EditorConstants.ZoomDefault;
         }
 
         double factor = e.Delta.Y > 0 ? WheelZoomFactor : 1.0 / WheelZoomFactor;

@@ -15506,6 +15506,9 @@ https://example.com/screenshot2.png</value>
   <data name="Tools.IniEditor.Properties.NewValueWatermark" xml:space="preserve">
     <value>قيمة الحقل الجديدة...</value>
   </data>
+  <data name="Tools.IniEditor.Properties.AddFlagTooltip" xml:space="preserve">
+    <value>إضافة العَلَم المكتوب حتى لو لم يكن في قائمة الاقتراحات.</value>
+  </data>
   <data name="Tools.IniEditor.Properties.AddField" xml:space="preserve">
     <value>إضافة حقل</value>
   </data>
@@ -15593,6 +15596,9 @@ https://example.com/screenshot2.png</value>
   </data>
   <data name="Tools.IniEditor.Format.NoFileMessage" xml:space="preserve">
     <value>احفظ المستند في ملف قبل التنسيق.</value>
+  </data>
+  <data name="Tools.IniEditor.Format.RefusedDiscardedContent" xml:space="preserve">
+    <value>تعذّر التنسيق: فقد التحليل بعض أسطر المصدر. أصلح أخطاء التحليل أولاً.</value>
   </data>
   <data name="Tools.IniEditor.History.AddBlock" xml:space="preserve">
     <value>إضافة كتلة</value>
@@ -17661,6 +17667,12 @@ Error: فشل: {3}
   </data>
   <data name="Tools.IniEditor.Toast.AttachTextureSuccessMessage" xml:space="preserve">
     <value>تم إرفاق {0} بـ {1}.</value>
+  </data>
+  <data name="Tools.IniEditor.Toast.ClipboardUnavailableTitle" xml:space="preserve">
+    <value>الحافظة غير متاحة</value>
+  </data>
+  <data name="Tools.IniEditor.Toast.ClipboardUnavailableMessage" xml:space="preserve">
+    <value>حافظة النظام غير متاحة.</value>
   </data>
   <data name="Tools.IniEditor.Schema.Fields.Object.ExperienceRequired" xml:space="preserve">
     <value>نقاط الخبرة لكل مستوى أقدمية.</value>

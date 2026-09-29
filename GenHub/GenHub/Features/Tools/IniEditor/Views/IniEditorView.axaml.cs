@@ -2,8 +2,6 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
-using GenHub.Common.Controls;
-using GenHub.Core.Models.Tools.TextureEditor;
 using GenHub.Features.Tools.IniEditor.ViewModels;
 using System.Windows.Input;
 
@@ -21,13 +19,6 @@ public partial class IniEditorView : UserControl
     {
         InitializeComponent();
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
-
-        var picker = this.Find<MappedImagePickerControl>("TexturePicker");
-        if (picker is not null)
-        {
-            picker.EditRequested += OnPickerEditRequested;
-            picker.ImageActivated += OnPickerImageActivated;
-        }
     }
 
     private static bool IsPrimaryShortcut(KeyEventArgs e)
@@ -58,22 +49,6 @@ public partial class IniEditorView : UserControl
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
-    }
-
-    private void OnPickerEditRequested(object? sender, MappedImageDefinition definition)
-    {
-        if (DataContext is IniEditorViewModel)
-        {
-            IniEditorViewModel.OpenTextureInEditor(definition);
-        }
-    }
-
-    private void OnPickerImageActivated(object? sender, MappedImageDefinition definition)
-    {
-        if (DataContext is IniEditorViewModel viewModel)
-        {
-            viewModel.AttachTextureToSelectedBlock(definition.Name);
-        }
     }
 
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
