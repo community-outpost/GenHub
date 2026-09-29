@@ -21,6 +21,9 @@
         <converters:ContentTypeToBrushConverter x:Key="ContentTypeToBrushConverter" />
         <converters:ContentTypeToBadgeBackgroundConverter x:Key="ContentTypeToBadgeBackgroundConverter" />
         <converters:ContentTypeDisplayConverter x:Key="ContentTypeDisplayConverter" />
+        <converters:ContrastTextColorConverter x:Key="ContrastTextColorConverter" />
+        <converters:FeaturedColorToBrushConverter x:Key="FeaturedColorToBrushConverter" />
+        <converters:FeaturedColorToBoxShadowConverter x:Key="FeaturedColorToBoxShadowConverter" />
     </UserControl.Resources>
 
     <UserControl.Styles>
@@ -52,6 +55,8 @@
             <Setter Property="MaxHeight" Value="560" />
         </Style>
 
+        <!-- Featured fallback frame. The card BorderBrush/BoxShadow bindings below resolve the
+             publisher featured color (or default gold) and override these values whenever set. -->
         <Style Selector="Border.content-card.featured-card">
             <Setter Property="BorderBrush" Value="{DynamicResource WarningHighlightBrush}" />
             <Setter Property="BorderThickness" Value="2" />
@@ -184,7 +189,9 @@
         </Style>
     </UserControl.Styles>
 
-    <Border Classes="content-card" Classes.bundle-card="{Binding HasBundleComponents}" Classes.featured-card="{Binding IsFeatured}">
+    <Border Classes="content-card" Classes.bundle-card="{Binding HasBundleComponents}" Classes.featured-card="{Binding IsFeatured}"
+            BorderBrush="{Binding FeaturedColor, Converter={StaticResource FeaturedColorToBrushConverter}}"
+            BoxShadow="{Binding FeaturedColor, Converter={StaticResource FeaturedColorToBoxShadowConverter}}">
         <Panel>
             <!-- 1. Acrylic blur -->
             <ExperimentalAcrylicBorder CornerRadius="12" IsHitTestVisible="False">
@@ -286,15 +293,15 @@
                                        Margin="6"
                                        MaxWidth="228">
                                 <Border Classes="type-badge featured-badge"
-                                        Background="{DynamicResource WarningHighlightBrush}"
-                                        BorderBrush="{DynamicResource PendingActionHoverBrush}"
+                                        Background="{Binding FeaturedColor, Converter={StaticResource ColorToBrushConverter}}"
+                                        BorderBrush="{Binding FeaturedColor, Converter={StaticResource ColorToBrushConverter}}"
                                         IsVisible="{Binding HasFeaturedBadge}"
                                         Margin="0,0,4,4"
                                         ToolTip.Tip="{Binding FeaturedBadge}">
                                     <TextBlock Text="{Binding FeaturedBadge}"
                                                FontSize="10"
                                                FontWeight="Bold"
-                                               Foreground="{DynamicResource WarningForegroundBrush}" />
+                                               Foreground="{Binding FeaturedColor, Converter={StaticResource ContrastTextColorConverter}}" />
                                 </Border>
                                 <Border Classes="type-badge"
                                         Background="{DynamicResource CardBackground}"

@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Constants;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using System;
 using System.Collections.Generic;
@@ -17,6 +18,8 @@ public class CatalogContentItem : ObservableObject
     private string _description = string.Empty;
     private ContentType _contentType = ContentType.Mod;
     private ContentRichMetadata? _metadata;
+    private bool _isFeatured;
+    private string? _featuredBadge;
     private string? _catalogIconUrl;
     private string? _publisherAvatarUrl;
     private List<ContentRelease> _releases = [];
@@ -102,6 +105,8 @@ public class CatalogContentItem : ObservableObject
             if (SetProperty(ref _metadata, value))
             {
                 OnPropertyChanged(nameof(EffectiveIconUrl));
+                OnPropertyChanged(nameof(FeaturedColor));
+                OnPropertyChanged(nameof(HasFeaturedColor));
             }
         }
     }
@@ -178,13 +183,41 @@ public class CatalogContentItem : ObservableObject
     /// Gets or sets a value indicating whether this content item is featured.
     /// </summary>
     [JsonPropertyName("isFeatured")]
-    public bool IsFeatured { get; set; }
+    public bool IsFeatured
+    {
+        get => _isFeatured;
+        set
+        {
+            if (SetProperty(ref _isFeatured, value))
+            {
+                OnPropertyChanged(nameof(FeaturedColor));
+                OnPropertyChanged(nameof(HasFeaturedColor));
+            }
+        }
+    }
 
     /// <summary>
     /// Gets or sets a custom badge label shown on featured cards.
     /// </summary>
     [JsonPropertyName("featuredBadge")]
-    public string? FeaturedBadge { get; set; }
+    public string? FeaturedBadge
+    {
+        get => _featuredBadge;
+        set => SetProperty(ref _featuredBadge, value);
+    }
+
+    /// <summary>
+    /// Gets the effective featured color hex: the publisher accent color when valid,
+    /// otherwise the default featured gold. Null when the item is not featured.
+    /// </summary>
+    [JsonIgnore]
+    public string? FeaturedColor => ContentCardBadgeHelper.GetFeaturedColor(this);
+
+    /// <summary>
+    /// Gets a value indicating whether a featured color is available for borders and badges.
+    /// </summary>
+    [JsonIgnore]
+    public bool HasFeaturedColor => FeaturedColor != null;
 
     /// <summary>
     /// Gets or sets upstream synchronization configuration for autonomous releases.
@@ -283,5 +316,9 @@ public class CatalogContentItem : ObservableObject
         OnPropertyChanged(nameof(EffectiveIconUrl));
         OnPropertyChanged(nameof(Name));
         OnPropertyChanged(nameof(Description));
+        OnPropertyChanged(nameof(IsFeatured));
+        OnPropertyChanged(nameof(FeaturedBadge));
+        OnPropertyChanged(nameof(FeaturedColor));
+        OnPropertyChanged(nameof(HasFeaturedColor));
     }
 }

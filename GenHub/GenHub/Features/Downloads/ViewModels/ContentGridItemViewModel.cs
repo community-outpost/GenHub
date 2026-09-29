@@ -213,6 +213,17 @@ public sealed partial class ContentGridItemViewModel(
     public bool HasFeaturedBadge => IsFeatured;
 
     /// <summary>
+    /// Gets the effective featured color hex: the publisher accent color when valid,
+    /// otherwise the default featured gold. Null when the item is not featured.
+    /// </summary>
+    public string? FeaturedColor => ContentCardBadgeHelper.GetFeaturedColor(SearchResult);
+
+    /// <summary>
+    /// Gets a value indicating whether a featured color is available for card border, badge, and glow highlights.
+    /// </summary>
+    public bool HasFeaturedColor => FeaturedColor != null;
+
+    /// <summary>
     /// Gets the content version.
     /// </summary>
     public string Version => SearchResult.Version ?? string.Empty;

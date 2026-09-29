@@ -714,6 +714,58 @@ public sealed class ContentGridItemViewModelTests
         Assert.False(viewModel.ShowUpdateButton);
     }
 
+    /// <summary>
+    /// Verifies featured cards expose the publisher accent as the border and badge color.
+    /// </summary>
+    [Fact]
+    public void FeaturedColor_FeaturedWithCustomAccent_ReturnsAccent()
+    {
+        var viewModel = CreateViewModel(new ContentSearchResult
+        {
+            Id = "bundle",
+            Name = "Bundle",
+            IsFeatured = true,
+            AccentColor = "#76F525",
+        });
+
+        Assert.Equal("#76F525", viewModel.FeaturedColor);
+        Assert.True(viewModel.HasFeaturedColor);
+    }
+
+    /// <summary>
+    /// Verifies featured cards without an accent fall back to default gold.
+    /// </summary>
+    [Fact]
+    public void FeaturedColor_FeaturedWithoutAccent_ReturnsDefaultGold()
+    {
+        var viewModel = CreateViewModel(new ContentSearchResult
+        {
+            Id = "bundle",
+            Name = "Bundle",
+            IsFeatured = true,
+        });
+
+        Assert.Equal(CatalogConstants.FeaturedDefaultColor, viewModel.FeaturedColor);
+        Assert.True(viewModel.HasFeaturedColor);
+    }
+
+    /// <summary>
+    /// Verifies non-featured cards expose no featured color.
+    /// </summary>
+    [Fact]
+    public void FeaturedColor_NotFeatured_ReturnsNull()
+    {
+        var viewModel = CreateViewModel(new ContentSearchResult
+        {
+            Id = "mod",
+            Name = "Mod",
+            AccentColor = "#76F525",
+        });
+
+        Assert.Null(viewModel.FeaturedColor);
+        Assert.False(viewModel.HasFeaturedColor);
+    }
+
     private static void MarkAllSelectedDownloaded(ContentGridItemViewModel viewModel)
     {
         foreach (var component in viewModel.BundleComponents)
