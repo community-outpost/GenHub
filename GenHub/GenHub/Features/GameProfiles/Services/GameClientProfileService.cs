@@ -343,7 +343,13 @@ public class GameClientProfileService(
             return null;
         }
 
-        return files.First(f => ManifestVariantResolver.PathsMatch(f.RelativePath, resolution.RelativePath!));
+        var resolved = files.FirstOrDefault(f => ManifestVariantResolver.PathsMatch(f.RelativePath, resolution.RelativePath!));
+        if (resolved == null)
+        {
+            error = $"Resolved entry point '{resolution.RelativePath}' is not among the manifest's files.";
+        }
+
+        return resolved;
     }
 
     /// <summary>

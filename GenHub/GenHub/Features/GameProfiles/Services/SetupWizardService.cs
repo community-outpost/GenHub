@@ -131,7 +131,7 @@ public class SetupWizardService(
             {
                 // Only profiles for the native builds themselves count; one for a Windows build of
                 // the same publisher (for example under Wine) still leaves a native build unprofiled.
-                foreach (var nativeClientId in nativeClients.Select(c => c.Id))
+                foreach (var (nativeClientId, nativeVersion) in nativeClients.Select(c => (c.Id, c.Version)))
                 {
                     if (string.IsNullOrEmpty(nativeClientId) ||
                         !await gameClientProfileService.ProfileExistsForGameClientAsync(nativeClientId, cancellationToken))
@@ -140,7 +140,8 @@ public class SetupWizardService(
                         {
                             Title = config.Title,
                             Status = GameClientConstants.WizardStatuses.Detected,
-                            Description = FormatCreateProfileDescription(config.Title, null) + (config.DescriptionSuffix ?? string.Empty),
+                            Description = FormatCreateProfileDescription(config.Title, nativeVersion) + (config.DescriptionSuffix ?? string.Empty),
+                            Version = nativeVersion == GameClientConstants.UnknownVersion ? string.Empty : nativeVersion,
                             ActionLabel = GameClientConstants.WizardActionLabels.CreateProfile,
                             ActionType = GameClientConstants.WizardActionTypes.CreateProfile,
                             IsSelected = true,
