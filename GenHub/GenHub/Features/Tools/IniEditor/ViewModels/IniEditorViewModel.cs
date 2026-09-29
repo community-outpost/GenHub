@@ -202,6 +202,40 @@ public sealed partial class IniEditorViewModel(
     private IniTreeNodeViewModel? _selectedNode;
 
     /// <summary>
+    /// Gets or sets a value indicating whether left-drag pans the canvas instead of interacting with content.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isPanMode;
+
+    /// <summary>
+    /// Gets the ancestor chain from the root block to the selected node for breadcrumb navigation.
+    /// </summary>
+    public ObservableCollection<IniTreeNodeViewModel> SelectedNodeTrail { get; } = [];
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the selected node is nested and shows a breadcrumb trail.
+    /// </summary>
+    [ObservableProperty]
+    private bool _hasTrail;
+
+    /// <summary>
+    /// Gets the live validation issues for the open document and selected block.
+    /// </summary>
+    public ObservableCollection<IniValidationRow> ValidationIssues { get; } = [];
+
+    /// <summary>
+    /// Gets or sets a value indicating whether any live validation issues exist.
+    /// </summary>
+    [ObservableProperty]
+    private bool _hasValidationIssues;
+
+    /// <summary>
+    /// Gets or sets the total number of live validation issues.
+    /// </summary>
+    [ObservableProperty]
+    private int _validationIssueCount;
+
+    /// <summary>
     /// Gets or sets the block filter text.
     /// </summary>
     [ObservableProperty]
@@ -616,6 +650,17 @@ public sealed partial class IniEditorViewModel(
 
         await AdoptDocumentAsync(result.Data, filePath, cancellationToken).ConfigureAwait(false);
         logger.LogInformation("Opened INI file {Path}", filePath);
+        if (result.Data.HasParseErrors)
+        {
+            Notifications.ShowWarning(
+                Localization.GetString("Tools.IniEditor.Open.RecoveredTitle"),
+                Localization.GetString(
+                    "Tools.IniEditor.Open.RecoveredMessage",
+                    result.Data.ParseErrors.Count,
+                    result.Data.ParseErrors[0]),
+                NotificationDurations.Long);
+        }
+
         return true;
     }
 
@@ -1994,6 +2039,7 @@ public sealed partial class IniEditorViewModel(
 
         await RebuildReferenceIndexAsync(false, cancellationToken).ConfigureAwait(false);
         await LoadTexturePickerItemsAsync(cancellationToken).ConfigureAwait(false);
+        await InvokeOnUIThreadAsync(RebuildValidationIssues).ConfigureAwait(false);
     }
 
     private void UpdateExplorerForFile(string? filePath)
@@ -2036,6 +2082,8 @@ public sealed partial class IniEditorViewModel(
             InsertReferenceCommand.NotifyCanExecuteChanged();
             RefreshEditorCommands();
             RebuildCanvasBlockCards();
+            RebuildTrail();
+            RebuildValidationIssues();
             QueueThumbnailRefresh();
         }
         finally
@@ -2102,8 +2150,8 @@ public sealed partial class IniEditorViewModel(
                 known,
                 BuildFieldTooltip(key, schema),
                 ResolveSuggestions(key, schema),
-                schema?.ReferenceBlockType,
-                schema?.IsTexture ?? false);
+                ResolveReferenceBlockType(key, schema),
+                IsTextureSuggestionKey(key, schema));
             FieldRows.Add(new IniFieldRowViewModel(
                 block.Fields,
                 fieldIndex,
@@ -2534,6 +2582,7 @@ public sealed partial class IniEditorViewModel(
         RefreshRawText();
         RebuildCanvasSummary();
         RebuildAssembledRows();
+        RebuildValidationIssues();
     }
 
     private void MarkDocumentDirty()
@@ -3392,7 +3441,131 @@ public sealed partial class IniEditorViewModel(
         RebuildVisualObjectCard();
         UpdateAvailableFieldKeys();
         RefreshRawPreviewText();
+        RebuildTrail();
+        RebuildValidationIssues();
         QueueThumbnailRefresh();
+    }
+
+    private void RebuildTrail()
+    {
+        SelectedNodeTrail.Clear();
+        var chain = new Stack<IniTreeNodeViewModel>();
+        var current = SelectedNode;
+        while (current != null)
+        {
+            chain.Push(current);
+            current = current.Parent;
+        }
+
+        foreach (var node in chain)
+        {
+            SelectedNodeTrail.Add(node);
+        }
+
+        HasTrail = SelectedNodeTrail.Count > 1;
+    }
+
+    private void RebuildValidationIssues()
+    {
+        ValidationIssues.Clear();
+        var total = 0;
+        if (_document != null)
+        {
+            foreach (var parseError in _document.ParseErrors)
+            {
+                total++;
+                if (ValidationIssues.Count < IniConstants.Editor.MaxValidationRows)
+                {
+                    ValidationIssues.Add(new IniValidationRow(parseError, true));
+                }
+            }
+        }
+
+        total += AddSelectedBlockReferenceRows();
+        ValidationIssueCount = total;
+        HasValidationIssues = total > 0;
+    }
+
+    private int AddSelectedBlockReferenceRows()
+    {
+        if (SelectedNode == null)
+        {
+            return 0;
+        }
+
+        var added = 0;
+        var cache = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in FieldRows)
+        {
+            var referenceType = row.ReferenceBlockType;
+            if (referenceType == null && row.IsTexture)
+            {
+                referenceType = IniConstants.BlockTypes.MappedImage;
+            }
+
+            if (referenceType == null || string.IsNullOrWhiteSpace(row.Value))
+            {
+                continue;
+            }
+
+            var value = row.Value.Trim();
+            if (value.Length == 0 || value.IndexOfAny([' ', '\t']) >= 0)
+            {
+                continue;
+            }
+
+            if (!cache.TryGetValue(referenceType, out var known))
+            {
+                known = CollectKnownReferenceNames(referenceType, row.IsTexture);
+                cache[referenceType] = known;
+            }
+
+            if (known.Count == 0 || known.Contains(value))
+            {
+                continue;
+            }
+
+            added++;
+            if (ValidationIssues.Count < IniConstants.Editor.MaxValidationRows)
+            {
+                ValidationIssues.Add(new IniValidationRow(
+                    Localization.GetString("Tools.IniEditor.Validation.UnknownReference", value, referenceType),
+                    false));
+            }
+        }
+
+        return added;
+    }
+
+    private HashSet<string> CollectKnownReferenceNames(string referenceType, bool includeTextures)
+    {
+        var known = new HashSet<string>(referenceService.GetNames(referenceType), StringComparer.OrdinalIgnoreCase);
+        if (_document != null)
+        {
+            foreach (var block in _document.Blocks)
+            {
+                if (string.Equals(block.BlockType, referenceType, StringComparison.OrdinalIgnoreCase) &&
+                    !string.IsNullOrWhiteSpace(block.Name))
+                {
+                    known.Add(block.Name);
+                }
+            }
+        }
+
+        if (includeTextures)
+        {
+            foreach (var item in TexturePickerItems)
+            {
+                known.Add(item.Name);
+            }
+
+            foreach (var name in _textureThumbnails.Keys)
+            {
+                known.Add(name);
+            }
+        }
+
+        return known;
     }
 
     private void RebuildCanvasBlockCards()
@@ -3720,7 +3893,7 @@ public sealed partial class IniEditorViewModel(
         }
 
         var parsed = iniDocumentService.ParseText(text);
-        if (!parsed.Success || parsed.Data == null || parsed.Data.Blocks.Count == 0)
+        if (!parsed.Success || parsed.Data == null || parsed.Data.Blocks.Count == 0 || parsed.Data.HasParseErrors)
         {
             return;
         }

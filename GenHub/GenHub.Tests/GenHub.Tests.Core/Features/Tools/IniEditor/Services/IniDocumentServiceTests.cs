@@ -95,15 +95,20 @@ public sealed class IniDocumentServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that a block missing End fails parsing.
+    /// Verifies that a block missing End recovers with a diagnostic instead of failing,
+    /// so editors can open and repair real-world files such as map overrides.
     /// </summary>
     [Fact]
-    public void ParseText_MissingEnd_ReturnsFailure()
+    public void ParseText_MissingEnd_RecoversBlockAndReportsDiagnostic()
     {
         var result = _service.ParseText("Object MissingEnd\n  Health = 100.0\n");
 
-        result.Success.Should().BeFalse();
-        result.FirstError.Should().Contain("missing 'End'");
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Blocks.Should().ContainSingle();
+        result.Data.Blocks[0].Fields.Should().ContainSingle(f => f.Key == "Health");
+        result.Data.HasParseErrors.Should().BeTrue();
+        result.Data.ParseErrors.Should().ContainSingle().Which.Should().Contain("missing 'End'");
     }
 
     /// <summary>
@@ -145,15 +150,19 @@ public sealed class IniDocumentServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that a field with a missing key fails parsing instead of becoming a block.
+    /// Verifies that a field with a missing key is skipped with a diagnostic instead of failing parsing.
     /// </summary>
     [Fact]
-    public void ParseText_MissingKey_ReturnsFailure()
+    public void ParseText_MissingKey_SkipsFieldAndReportsDiagnostic()
     {
         var result = _service.ParseText("Object NoKey\n  = 100\nEnd\n");
 
-        result.Success.Should().BeFalse();
-        result.FirstError.Should().Contain("missing a key");
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Blocks.Should().ContainSingle();
+        result.Data.Blocks[0].Fields.Should().BeEmpty();
+        result.Data.HasParseErrors.Should().BeTrue();
+        result.Data.ParseErrors.Should().ContainSingle().Which.Should().Contain("missing a key");
     }
 
     /// <summary>
@@ -191,15 +200,86 @@ public sealed class IniDocumentServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that an unexpected End without an open block fails parsing.
+    /// Verifies that an unexpected End without an open block is ignored with a diagnostic instead of failing parsing.
     /// </summary>
     [Fact]
-    public void ParseText_UnexpectedEnd_ReturnsFailure()
+    public void ParseText_UnexpectedEnd_ReportsDiagnostic()
     {
         var result = _service.ParseText("End\n");
 
-        result.Success.Should().BeFalse();
-        result.FirstError.Should().Contain("Unexpected 'End'");
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Blocks.Should().BeEmpty();
+        result.Data.HasParseErrors.Should().BeTrue();
+        result.Data.ParseErrors.Should().ContainSingle().Which.Should().Contain("Unexpected 'End'");
+    }
+
+    /// <summary>
+    /// Verifies that map-style <c>End</c> markers with trailing whitespace close blocks.
+    /// </summary>
+    [Fact]
+    public void ParseText_TrailingSpaceEnd_ParsesSuccessfully()
+    {
+        var result = _service.ParseText("PlayerTemplate FactionAmerica\nProductionTimeChange = AmericaCommandCenter -80%\nEnd \n");
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.HasParseErrors.Should().BeFalse();
+        result.Data.Blocks.Should().ContainSingle();
+        result.Data.Blocks[0].Fields.Should().ContainSingle(f => f.Key == "ProductionTimeChange");
+    }
+
+    /// <summary>
+    /// Verifies that ragged indentation inside a flat map section never opens modules,
+    /// so each section keeps its own <c>End</c> and sibling blocks stay siblings.
+    /// </summary>
+    [Fact]
+    public void ParseText_RaggedIndentFlatSection_StaysFlatWithSiblings()
+    {
+        var result = _service.ParseText(
+            "PlayerTemplate FactionAmerica\n" +
+            "ProductionTimeChange = AmericaCommandCenter -80%\n" +
+            " ProductionTimeChange = GLAVehicleBombTruck -90%\n" +
+            "  ProductionTimeChange = GLAVehicleScudLauncher -90%\n" +
+            "End\n" +
+            "PlayerTemplate FactionChina\n" +
+            "ProductionTimeChange = ChinaCommandCenter -80%\n" +
+            "End\n");
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.HasParseErrors.Should().BeFalse();
+        result.Data.Blocks.Should().HaveCount(2);
+        result.Data.Blocks[0].Children.Should().BeEmpty();
+        result.Data.Blocks[0].Fields.Should().HaveCount(3);
+        result.Data.Blocks[1].Name.Should().Be("FactionChina");
+    }
+
+    /// <summary>
+    /// Verifies that an unclosed map override block recovers with all fields intact and a
+    /// repair that re-emits the missing <c>End</c> on save.
+    /// </summary>
+    [Fact]
+    public void ParseText_UnclosedPlayerTemplate_RecoversBlockAndReportsDiagnostic()
+    {
+        var result = _service.ParseText(
+            "PlayerTemplate FactionBossGeneral\n" +
+            "ProductionTimeChange = AmericaCommandCenter -80%\n" +
+            "ProductionTimeChange = AmericaVehicleDozer -80%\n");
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Blocks.Should().ContainSingle();
+        result.Data.Blocks[0].Name.Should().Be("FactionBossGeneral");
+        result.Data.Blocks[0].Fields.Should().HaveCount(2);
+        result.Data.HasParseErrors.Should().BeTrue();
+        result.Data.ParseErrors.Should().ContainSingle().Which.Should().Contain("missing 'End'");
+
+        var canonical = _service.WriteDocument(result.Data);
+        canonical.Should().Contain("End");
+        var reparsed = _service.ParseText(canonical);
+        reparsed.Success.Should().BeTrue();
+        reparsed.Data!.HasParseErrors.Should().BeFalse();
     }
 
     /// <summary>
@@ -290,6 +370,22 @@ public sealed class IniDocumentServiceTests : IDisposable
         var validation = _service.ValidateDocument(parsed.Data!, "test");
 
         validation.Issues.Should().Contain(issue => issue.Severity == ValidationSeverity.Warning);
+    }
+
+    /// <summary>
+    /// Verifies that recovered parse diagnostics surface as validation errors.
+    /// </summary>
+    [Fact]
+    public void ValidateDocument_ParseErrors_SurfaceAsErrors()
+    {
+        var parsed = _service.ParseText("Object BrokenObject\n  Health = 1.0\n");
+        parsed.Success.Should().BeTrue();
+
+        var validation = _service.ValidateDocument(parsed.Data!, "test");
+
+        validation.IsValid.Should().BeFalse();
+        validation.Issues.Should().ContainSingle()
+            .Which.Message.Should().Contain("missing 'End'");
     }
 
     /// <summary>
@@ -414,11 +510,12 @@ public sealed class IniDocumentServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that formatting a file with parse errors fails without touching the original bytes.
+    /// Verifies that formatting a file with recovered parse errors repairs it by
+    /// re-emitting the missing <c>End</c> markers.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task FormatFileAsync_ParseFailure_LeavesOriginalBytesIntact()
+    public async Task FormatFileAsync_RecoveredParseError_RepairsMissingEnd()
     {
         var filePath = Path.Combine(_tempDirectory, "Broken.ini");
         const string broken = "Object BrokenObject\n  Health = 1.0\n";
@@ -426,8 +523,12 @@ public sealed class IniDocumentServiceTests : IDisposable
 
         var result = await _service.FormatFileAsync(filePath, CancellationToken.None);
 
-        result.Success.Should().BeFalse();
-        (await File.ReadAllTextAsync(filePath)).Should().Be(broken);
+        result.Success.Should().BeTrue();
+        var formatted = await File.ReadAllTextAsync(filePath);
+        formatted.Should().Contain("End");
+        var reparsed = _service.ParseText(formatted);
+        reparsed.Success.Should().BeTrue();
+        reparsed.Data!.HasParseErrors.Should().BeFalse();
     }
 
     /// <summary>

@@ -357,6 +357,21 @@ public static class IniConstants
     }
 
     /// <summary>
+    /// Boolean option values for toggle fields such as <c>IsTrainable</c>.
+    /// </summary>
+    public static class BooleanOptions
+    {
+        /// <summary>Enabled value.</summary>
+        public const string Yes = "YES";
+
+        /// <summary>Disabled value.</summary>
+        public const string No = "NO";
+
+        /// <summary>All boolean option values.</summary>
+        public static readonly string[] All = [Yes, No];
+    }
+
+    /// <summary>
     /// Well known INI field keys shared by the schema and the editor.
     /// </summary>
     public static class FieldKeys
@@ -439,6 +454,36 @@ public static class IniConstants
         /// <summary>Upgrades key.</summary>
         public const string Upgrades = "Upgrades";
 
+        /// <summary>Experience required key.</summary>
+        public const string ExperienceRequired = "ExperienceRequired";
+
+        /// <summary>Is trainable key.</summary>
+        public const string IsTrainable = "IsTrainable";
+
+        /// <summary>Crushable level key.</summary>
+        public const string CrushableLevel = "CrushableLevel";
+
+        /// <summary>Max simultaneous of type key.</summary>
+        public const string MaxSimultaneousOfType = "MaxSimultaneousOfType";
+
+        /// <summary>Voice select key.</summary>
+        public const string VoiceSelect = "VoiceSelect";
+
+        /// <summary>Voice move key.</summary>
+        public const string VoiceMove = "VoiceMove";
+
+        /// <summary>Voice attack key.</summary>
+        public const string VoiceAttack = "VoiceAttack";
+
+        /// <summary>Voice fear key.</summary>
+        public const string VoiceFear = "VoiceFear";
+
+        /// <summary>Voice guard key.</summary>
+        public const string VoiceGuard = "VoiceGuard";
+
+        /// <summary>Sound stealth on key.</summary>
+        public const string SoundStealthOn = "SoundStealthOn";
+
         /// <summary>Commonly referenced field keys.</summary>
         public static readonly IReadOnlyList<string> All =
         [
@@ -465,7 +510,17 @@ public static class IniConstants
             AttackRange,
             "Weapon",
             "VisionRange",
-            "ShroudClearingRange"
+            "ShroudClearingRange",
+            ExperienceRequired,
+            IsTrainable,
+            CrushableLevel,
+            MaxSimultaneousOfType,
+            VoiceSelect,
+            VoiceMove,
+            VoiceAttack,
+            VoiceFear,
+            VoiceGuard,
+            SoundStealthOn
         ];
     }
 
@@ -567,6 +622,9 @@ public static class IniConstants
 
         /// <summary>Maximum reference results shown in the reference browser.</summary>
         public const int MaxReferenceResults = 500;
+
+        /// <summary>Maximum live validation rows shown in the issues panel.</summary>
+        public const int MaxValidationRows = 50;
 
         /// <summary>Maximum picker textures preloaded with thumbnails.</summary>
         public const int MaxPickerThumbnails = 64;

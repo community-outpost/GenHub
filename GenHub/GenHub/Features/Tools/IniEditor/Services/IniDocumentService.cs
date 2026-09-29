@@ -52,11 +52,18 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
 
         if (errors.Count > 0)
         {
-            logger.LogWarning("Failed to parse INI {Source}: {Error}", sourcePath ?? "(memory)", errors[0]);
-            return OperationResult<IniDocument>.CreateFailure(errors, stopwatch.Elapsed);
+            document.ParseErrors.AddRange(errors);
+            logger.LogWarning(
+                "Parsed INI {Source} with {Count} recovered error(s): {Error}",
+                sourcePath ?? "(memory)",
+                errors.Count,
+                errors[0]);
+        }
+        else
+        {
+            logger.LogInformation("Parsed INI {Source} with {Count} blocks", sourcePath ?? "(memory)", document.Blocks.Count);
         }
 
-        logger.LogInformation("Parsed INI {Source} with {Count} blocks", sourcePath ?? "(memory)", document.Blocks.Count);
         return OperationResult<IniDocument>.CreateSuccess(document, stopwatch.Elapsed);
     }
 
@@ -166,6 +173,14 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
         ArgumentNullException.ThrowIfNull(validatedTargetId);
         var stopwatch = Stopwatch.StartNew();
         var issues = new List<ValidationIssue>();
+
+        foreach (var parseError in document.ParseErrors)
+        {
+            issues.Add(new ValidationIssue(parseError, ValidationSeverity.Error, validatedTargetId)
+            {
+                IssueType = ValidationIssueType.CorruptedFile,
+            });
+        }
 
         if (document.Blocks.Count == 0 && document.GlobalFields.Count == 0)
         {
@@ -287,31 +302,14 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
     }
 
     /// <summary>
-    /// Determines whether a line opens an indented module block.
+    /// Determines whether a <c>Key = Value</c> line opens a nested module block.
+    /// Only engine module slot keys open modules. Indentation alone never opens a
+    /// module: real-world map overrides use ragged alignment inside flat sections,
+    /// and treating an indent increase as nesting swallows the section <c>End</c>.
     /// </summary>
     /// <param name="key">The key of the current line.</param>
-    /// <param name="parentIndent">The indentation depth of the parent block.</param>
-    /// <param name="indent">The indentation depth of the current line.</param>
-    /// <param name="lines">The full set of lines in the document.</param>
-    /// <param name="index">The 0-based index of the current line.</param>
     /// <returns>True if the line opens a module block; otherwise, false.</returns>
-    internal static bool OpensModuleBlock(string key, int parentIndent, int indent, string[] lines, int index)
-    {
-        if (IsModuleKey(key))
-        {
-            return true;
-        }
-
-        if (indent <= parentIndent)
-        {
-            return false;
-        }
-
-        var next = FindNextSignificant(lines, index + 1);
-        return next != null &&
-            !string.Equals(next.Value.Text, IniConstants.BlockTags.End, StringComparison.OrdinalIgnoreCase) &&
-            next.Value.Indent > indent;
-    }
+    internal static bool OpensModuleBlock(string key) => IsModuleKey(key);
 
     private sealed record IniParseContext(
         string[] Lines,
@@ -498,7 +496,7 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
         }
 
         var indent = GetIndent(context.Lines[index]);
-        if (OpensModuleBlock(key, context.Stack.Peek().Indent, indent, context.Lines, index))
+        if (OpensModuleBlock(key))
         {
             OpenModuleBlock(key, value, indent, lineNumber, comment, context.Stack, context.PendingComments);
             return;
@@ -508,23 +506,6 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
         field.LeadingComments.AddRange(context.PendingComments);
         context.PendingComments.Clear();
         context.Stack.Peek().Block.Fields.Add(field);
-    }
-
-    private static (string Text, int Indent)? FindNextSignificant(string[] lines, int start)
-    {
-        for (var i = start; i < lines.Length; i++)
-        {
-            var (code, _) = SplitComment(lines[i]);
-            var text = code.Trim();
-            if (text.Length == 0 || text.StartsWith('#'))
-            {
-                continue;
-            }
-
-            return (text, GetIndent(lines[i]));
-        }
-
-        return null;
     }
 
     private static void OpenModuleBlock(

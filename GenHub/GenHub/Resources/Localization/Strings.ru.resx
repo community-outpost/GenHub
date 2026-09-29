@@ -17662,6 +17662,42 @@ Error: не удалось: {3}
   <data name="Tools.IniEditor.Toast.AttachTextureSuccessMessage" xml:space="preserve">
     <value>Прикреплено {0} к {1}.</value>
   </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.ExperienceRequired" xml:space="preserve">
+    <value>Experience points per veterancy level.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.IsTrainable" xml:space="preserve">
+    <value>Whether the unit gains veterancy.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.VoiceFear" xml:space="preserve">
+    <value>Fear voice.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.VoiceGuard" xml:space="preserve">
+    <value>Guard voice.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.SoundStealthOn" xml:space="preserve">
+    <value>Stealth activation sound.</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.PanTooltip" xml:space="preserve">
+    <value>Сдвинуть предпросмотр</value>
+  </data>
+  <data name="Tools.IniEditor.Toolbar.QuickAdd" xml:space="preserve">
+    <value>Быстрое добавление</value>
+  </data>
+  <data name="Tools.IniEditor.Toolbar.QuickAddTooltip" xml:space="preserve">
+    <value>Быстро добавить улучшения, профили урона, блоки или поля к выбранному</value>
+  </data>
+  <data name="Tools.IniEditor.Open.RecoveredTitle" xml:space="preserve">
+    <value>Открыто с проблемами</value>
+  </data>
+  <data name="Tools.IniEditor.Open.RecoveredMessage" xml:space="preserve">
+    <value>Восстановлено проблем: {0}. Первая: {1}</value>
+  </data>
+  <data name="Tools.IniEditor.Validation.Title" xml:space="preserve">
+    <value>Проблемы</value>
+  </data>
+  <data name="Tools.IniEditor.Validation.UnknownReference" xml:space="preserve">
+    <value>Неизвестная ссылка {1}: '{0}'.</value>
+  </data>
   <data name="TextureEditor.Button.OpenFolder" xml:space="preserve">
     <value>Открыть папку</value>
   </data>

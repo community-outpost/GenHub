@@ -205,10 +205,9 @@ public sealed class IniReferenceService(
             if (separatorIndex >= 0)
             {
                 var key = line[..separatorIndex].Trim();
-                var indent = IniDocumentService.GetIndent(raw);
-                if (IniDocumentService.OpensModuleBlock(key, indentStack.Peek(), indent, lines, index))
+                if (IniDocumentService.OpensModuleBlock(key))
                 {
-                    indentStack.Push(indent);
+                    indentStack.Push(IniDocumentService.GetIndent(raw));
                 }
             }
             else if (!IniDocumentService.IsValuelessKey(line) &&

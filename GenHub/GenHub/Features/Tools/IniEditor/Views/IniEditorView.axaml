@@ -66,12 +66,17 @@
             <TextBox Text="{Binding Value, Mode=TwoWay}"
                      IsVisible="{Binding !HasSuggestions}"
                      FontSize="11" ToolTip.Tip="{Binding Description}"/>
-            <AutoCompleteBox x:CompileBindings="False"
-                             Text="{Binding Value, Mode=TwoWay}"
-                             ItemsSource="{Binding Suggestions}"
-                             FilterMode="Contains" MinimumPrefixLength="0" MaxDropDownHeight="220"
-                             IsVisible="{Binding HasSuggestions}"
-                             FontSize="11" ToolTip.Tip="{Binding Description}"/>
+            <Grid IsVisible="{Binding HasSuggestions}">
+              <AutoCompleteBox x:CompileBindings="False"
+                               Text="{Binding Value, Mode=TwoWay}"
+                               ItemsSource="{Binding Suggestions}"
+                               FilterMode="Contains" MinimumPrefixLength="0" MaxDropDownHeight="220"
+                               FontSize="11" ToolTip.Tip="{Binding Description}"/>
+              <material:MaterialIcon Kind="ChevronDown" Width="14" Height="14"
+                                     Foreground="{DynamicResource TextSecondary}"
+                                     HorizontalAlignment="Right" VerticalAlignment="Center"
+                                     Margin="0,0,8,0" IsHitTestVisible="False"/>
+            </Grid>
           </Grid>
 
           <!-- Multi-flag selector with chips when field is KindOf -->
@@ -255,29 +260,58 @@
                    VerticalAlignment="Center" HorizontalAlignment="Center"
                    TextTrimming="CharacterEllipsis" Margin="12,0"/>
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-          <Button Command="{Binding AddUpgradeHookupCommand}"
-                  Padding="8,4"
+          <Button Padding="8,4"
                   Background="{DynamicResource SurfaceElevatedBrush}"
                   BorderBrush="{DynamicResource BorderBrush}"
                   BorderThickness="1" CornerRadius="6"
-                  ToolTip.Tip="{localization:Localize Tools.IniEditor.Toolbar.AddUpgradeTooltip}"
-                  AutomationProperties.Name="{localization:Localize Tools.IniEditor.Toolbar.AddUpgrade}">
+                  ToolTip.Tip="{localization:Localize Tools.IniEditor.Toolbar.QuickAddTooltip}"
+                  AutomationProperties.Name="{localization:Localize Tools.IniEditor.Toolbar.QuickAdd}"
+                  IsEnabled="{Binding HasSelectedBlock}">
             <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-              <material:MaterialIcon Kind="ArrowUpBoldCircleOutline" Width="14" Height="14"/>
-              <TextBlock Text="{localization:Localize Tools.IniEditor.Toolbar.AddUpgrade}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+              <material:MaterialIcon Kind="PlusBoxOutline" Width="14" Height="14"/>
+              <TextBlock Text="{localization:Localize Tools.IniEditor.Toolbar.QuickAdd}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+              <material:MaterialIcon Kind="ChevronDown" Width="12" Height="12"/>
             </StackPanel>
-          </Button>
-          <Button Command="{Binding AddDamageProfileCommand}"
-                  Padding="8,4"
-                  Background="{DynamicResource SurfaceElevatedBrush}"
-                  BorderBrush="{DynamicResource BorderBrush}"
-                  BorderThickness="1" CornerRadius="6"
-                  ToolTip.Tip="{localization:Localize Tools.IniEditor.Toolbar.AddDamageTooltip}"
-                  AutomationProperties.Name="{localization:Localize Tools.IniEditor.Toolbar.AddDamage}">
-            <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-              <material:MaterialIcon Kind="Flash" Width="14" Height="14"/>
-              <TextBlock Text="{localization:Localize Tools.IniEditor.Toolbar.AddDamage}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
-            </StackPanel>
+            <Button.Flyout>
+              <MenuFlyout Placement="BottomEdgeAlignedRight">
+                <MenuItem Header="{localization:Localize Tools.IniEditor.Toolbar.AddUpgrade}"
+                          Command="{Binding AddUpgradeHookupCommand}"
+                          ToolTip.Tip="{localization:Localize Tools.IniEditor.Toolbar.AddUpgradeTooltip}">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="ArrowUpBoldCircleOutline" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="{localization:Localize Tools.IniEditor.Toolbar.AddDamage}"
+                          Command="{Binding AddDamageProfileCommand}"
+                          ToolTip.Tip="{localization:Localize Tools.IniEditor.Toolbar.AddDamageTooltip}">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="Flash" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="{localization:Localize Tools.IniEditor.Tree.AddBlock}"
+                          Command="{Binding AddBlockCommand}"
+                          ToolTip.Tip="{localization:Localize Tools.IniEditor.Tree.AddBlock}">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="CubeOutline" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="{localization:Localize Tools.IniEditor.Properties.AddField}"
+                          Command="{Binding AddFieldCommand}"
+                          ToolTip.Tip="{localization:Localize Tools.IniEditor.Properties.AddField}">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="FormTextbox" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="{localization:Localize Tools.IniEditor.Toolbar.Duplicate}"
+                          Command="{Binding DuplicateCommand}"
+                          ToolTip.Tip="{localization:Localize Tools.IniEditor.Toolbar.Duplicate}">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="ContentDuplicate" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+              </MenuFlyout>
+            </Button.Flyout>
           </Button>
         </StackPanel>
       </Grid>
@@ -615,22 +649,30 @@
                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                 CornerRadius="10" Padding="8" ClipToBounds="True" MinWidth="220">
           <DockPanel LastChildFill="True">
-            <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="4,0,4,8">
-              <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                <material:MaterialIcon Kind="ViewDashboardOutline" Width="16" Height="16" Foreground="{DynamicResource AccentBrush}"/>
-                <TextBlock Text="{localization:Localize Tools.IniEditor.Canvas.Title}"
-                           FontWeight="Bold" FontSize="13"
-                           Foreground="{DynamicResource TextPrimary}"
-                           VerticalAlignment="Center"/>
-                <Border Background="{DynamicResource AccentTintBackgroundBrush}"
-                        BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
-                        CornerRadius="4" Padding="6,1"
-                        IsVisible="{Binding HasSelectedBlock}">
-                  <TextBlock Text="{Binding SelectedBlockTitle}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
-                </Border>
-              </StackPanel>
-              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                <Button Command="{Binding ZoomOutCommand}"
+            <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="4,0,4,8">
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                  <material:MaterialIcon Kind="ViewDashboardOutline" Width="16" Height="16" Foreground="{DynamicResource AccentBrush}"/>
+                  <TextBlock Text="{localization:Localize Tools.IniEditor.Canvas.Title}"
+                             FontWeight="Bold" FontSize="13"
+                             Foreground="{DynamicResource TextPrimary}"
+                             VerticalAlignment="Center"/>
+                  <Border Background="{DynamicResource AccentTintBackgroundBrush}"
+                          BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
+                          CornerRadius="4" Padding="6,1"
+                          IsVisible="{Binding HasSelectedBlock}">
+                    <TextBlock Text="{Binding SelectedBlockTitle}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
+                  </Border>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                  <ToggleButton IsChecked="{Binding IsPanMode, Mode=TwoWay}"
+                                Padding="6,2" Background="Transparent"
+                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6"
+                                ToolTip.Tip="{localization:Localize Tools.IniEditor.Canvas.PanTooltip}"
+                                AutomationProperties.Name="{localization:Localize Tools.IniEditor.Canvas.PanTooltip}">
+                    <material:MaterialIcon Kind="Hand" Width="13" Height="13"/>
+                  </ToggleButton>
+                  <Button Command="{Binding ZoomOutCommand}"
                         Padding="6,2" Background="Transparent"
                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6"
                         ToolTip.Tip="{localization:Localize Tools.IniEditor.Canvas.ZoomOutTooltip}"
@@ -658,13 +700,80 @@
                         ToolTip.Tip="{localization:Localize Tools.IniEditor.Canvas.Title}">
                   <material:MaterialIcon Kind="ViewGridOutline" Width="13" Height="13"/>
                 </Button>
-              </StackPanel>
-            </Grid>
+                </StackPanel>
+              </Grid>
+              <ItemsControl ItemsSource="{Binding SelectedNodeTrail}"
+                            IsVisible="{Binding HasTrail}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <WrapPanel Orientation="Horizontal"/>
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:IniTreeNodeViewModel">
+                    <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                      <material:MaterialIcon Kind="ChevronRight" Width="12" Height="12"
+                                             Foreground="{DynamicResource TextSecondary}"
+                                             VerticalAlignment="Center"/>
+                      <Button x:CompileBindings="False"
+                              Command="{Binding DataContext.SelectModuleNodeCommand, ElementName=Root}"
+                              CommandParameter="{Binding}"
+                              Padding="6,2" Background="Transparent"
+                              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                              CornerRadius="4"
+                              ToolTip.Tip="{Binding DisplayName}">
+                        <TextBlock Text="{Binding DisplayName}" FontSize="10" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimary}"
+                                   TextTrimming="CharacterEllipsis" MaxWidth="140"/>
+                      </Button>
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
 
             <editors:EditorCanvasControl Zoom="{Binding Zoom, Mode=TwoWay}"
+                                         IsPanMode="{Binding IsPanMode, Mode=TwoWay}"
                                          Background="Transparent"
                                          ClipToBounds="True">
               <StackPanel Spacing="12" Margin="14" MaxWidth="580" HorizontalAlignment="Center">
+                <!-- Live validation issues -->
+                <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                        BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1"
+                        CornerRadius="10" Padding="12"
+                        IsVisible="{Binding HasValidationIssues}">
+                  <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                      <material:MaterialIcon Kind="AlertOutline" Width="14" Height="14" Foreground="{DynamicResource WarningBrush}"/>
+                      <TextBlock Text="{localization:Localize Tools.IniEditor.Validation.Title}"
+                                 FontWeight="Bold" FontSize="12" Foreground="{DynamicResource TextPrimary}"/>
+                      <Border Background="{DynamicResource AccentTintBackgroundBrush}"
+                              BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
+                              CornerRadius="4" Padding="6,1">
+                        <TextBlock Text="{Binding ValidationIssueCount}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
+                      </Border>
+                    </StackPanel>
+                    <ItemsControl ItemsSource="{Binding ValidationIssues}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:IniValidationRow">
+                          <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,4" VerticalAlignment="Center">
+                            <material:MaterialIcon Grid.Column="0" Kind="AlertCircleOutline" Width="13" Height="13"
+                                                   Foreground="{DynamicResource ErrorBrush}"
+                                                   VerticalAlignment="Center" Margin="0,0,6,0"
+                                                   IsVisible="{Binding IsError}"/>
+                            <material:MaterialIcon Grid.Column="0" Kind="AlertOutline" Width="13" Height="13"
+                                                   Foreground="{DynamicResource WarningBrush}"
+                                                   VerticalAlignment="Center" Margin="0,0,6,0"
+                                                   IsVisible="{Binding !IsError}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding Message}" FontSize="10"
+                                       Foreground="{DynamicResource TextPrimary}"
+                                       TextWrapping="Wrap" VerticalAlignment="Center"/>
+                          </Grid>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                </Border>
                 <!-- Multi-Object Overview Canvas Grid -->
                 <Border Background="{DynamicResource SurfaceElevatedBrush}"
                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
