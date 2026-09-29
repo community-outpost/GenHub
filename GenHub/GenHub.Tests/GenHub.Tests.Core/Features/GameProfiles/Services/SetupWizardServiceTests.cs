@@ -729,11 +729,14 @@ public class SetupWizardServiceTests
     /// package is left unselected so confirming does not download it too.
     /// </summary>
     /// <param name="withRetailWindowsClient">Whether a Windows retail client is also installed.</param>
+    /// <param name="nonRetailHasProfile">Whether the native non-retail client already has a profile.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task RunSetupWizardAsync_WhenNativeNonRetailCommunityPatchDetected_OffersOnlyNonRetailAsync(bool withRetailWindowsClient)
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    [InlineData(false, true)]
+    public async Task RunSetupWizardAsync_WhenNativeNonRetailCommunityPatchDetected_OffersOnlyNonRetailAsync(bool withRetailWindowsClient, bool nonRetailHasProfile)
     {
         if (OperatingSystem.IsWindows())
         {
@@ -761,7 +764,7 @@ public class SetupWizardServiceTests
                 .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
             _profileServiceMock
                 .Setup(s => s.ProfileExistsForGameClientAsync(nonRetClientId, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(false);
+                .ReturnsAsync(nonRetailHasProfile);
 
             var installation = new GameInstallation(directory, GameInstallationType.Retail, null);
             installation.AvailableGameClients =
@@ -805,11 +808,19 @@ public class SetupWizardServiceTests
             var retailItem = capturedVm?.Items.FirstOrDefault(i => i.Title == "Community Patch (Retail)");
             var nonRetItem = capturedVm?.Items.FirstOrDefault(i => i.Title == "Community Patch (Non-Retail)");
             Assert.NotNull(retailItem);
-            Assert.Equal(GameClientConstants.WizardActionTypes.CreateProfile, nonRetItem?.ActionType);
             Assert.Equal(GameClientConstants.WizardActionTypes.Install, retailItem.ActionType);
             Assert.False(retailItem.IsSelected);
-            Assert.Equal(GameClientConstants.WizardActionTypes.CreateProfile, result.CommunityPatchNonRetAction);
             Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.CommunityPatchAction);
+            if (nonRetailHasProfile)
+            {
+                Assert.Null(nonRetItem);
+                Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.CommunityPatchNonRetAction);
+            }
+            else
+            {
+                Assert.Equal(GameClientConstants.WizardActionTypes.CreateProfile, nonRetItem?.ActionType);
+                Assert.Equal(GameClientConstants.WizardActionTypes.CreateProfile, result.CommunityPatchNonRetAction);
+            }
         }
         finally
         {

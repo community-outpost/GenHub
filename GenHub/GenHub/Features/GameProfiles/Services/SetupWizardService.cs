@@ -154,6 +154,7 @@ public class SetupWizardService(
                     }
                 }
 
+                nativeComponents.Add(config.Metadata);
                 logger.LogInformation("[SetupWizard] Native client and profile found for {Title}, nothing to update", config.Title);
                 return (true, GameClientConstants.WizardActionTypes.Decline);
             }
