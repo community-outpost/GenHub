@@ -210,12 +210,14 @@
                           ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Artifact.PrimaryArtifactTooltip}"/>
 
                 <!-- Divider -->
-                <Rectangle Height="1" Fill="{DynamicResource GlassStrongBrush}" Margin="0,4"/>
+                <Rectangle Height="1" Fill="{DynamicResource GlassStrongBrush}" Margin="0,4"
+                           IsVisible="{Binding AllowVariants}"/>
 
-                <!-- Variant -->
-                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.VariantHeader}" Classes="label"/>
+                <!-- Variant (hidden for bundle-mode releases whose artifacts install together) -->
+                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.VariantHeader}" Classes="label"
+                           IsVisible="{Binding AllowVariants}"/>
 
-                <StackPanel Spacing="8">
+                <StackPanel Spacing="8" IsVisible="{Binding AllowVariants}">
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.VariantAxis}" Classes="label"/>
                     <ComboBox ItemsSource="{Binding VariantAxisSelector.Options}"
                               SelectedItem="{Binding VariantAxisSelector.SelectedOption}"
@@ -237,7 +239,7 @@
                                TextWrapping="Wrap"/>
                 </StackPanel>
 
-                <StackPanel Spacing="8">
+                <StackPanel Spacing="8" IsVisible="{Binding AllowVariants}">
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.VariantLabel}" Classes="label"/>
                     <TextBox Text="{Binding Variant}"
                              Watermark="{localization:Localize Tools.PublisherStudio.Artifact.VariantLabelPlaceholder}"/>
@@ -247,6 +249,7 @@
                 </StackPanel>
 
                 <CheckBox Content="{localization:Localize Tools.PublisherStudio.Artifact.DefaultVariant}" IsChecked="{Binding IsDefaultVariant}"
+                          IsVisible="{Binding AllowVariants}"
                           ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Artifact.DefaultVariantTooltip}"/>
             </StackPanel>
         </ScrollViewer>

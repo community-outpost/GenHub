@@ -137,6 +137,118 @@ public sealed class ContentLibraryUpstreamPreviewTests
         Assert.True(viewModel.ShowManualFallbackReleases);
     }
 
+    /// <summary>
+    /// Verifies that selecting an upstream-tracked item hides the manual release
+    /// entry points, since releases arrive from the provider.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task SelectUpstreamItem_HidesManualReleaseEntryPointsAsync()
+    {
+        var ingestionMock = new Mock<ICatalogUpstreamIngestionService>();
+        ingestionMock
+            .Setup(s => s.IngestCatalogAsync(It.IsAny<PublisherCatalog>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var item = CreateUpstreamItem("item-tracked");
+        var viewModel = CreateViewModel(item, ingestionMock.Object);
+        viewModel.SelectedContent = item;
+        await WaitForPreviewSettledAsync(viewModel, ingestionMock);
+
+        Assert.True(viewModel.SelectedContentTracksUpstream);
+        Assert.False(viewModel.CanAddManualRelease);
+        Assert.False(viewModel.ShowReleasesDropZone);
+    }
+
+    /// <summary>
+    /// Verifies that static fallback releases do not re-enable manual release
+    /// entry points on upstream-tracked items.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task SelectUpstreamItem_WithStaticReleases_HidesManualReleaseEntryPointsAsync()
+    {
+        var ingestionMock = new Mock<ICatalogUpstreamIngestionService>();
+        ingestionMock
+            .Setup(s => s.IngestCatalogAsync(It.IsAny<PublisherCatalog>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var item = CreateUpstreamItem("item-fallback");
+        item.Releases.Add(new ContentRelease { Version = "1.0.0", IsLatest = true });
+        var viewModel = CreateViewModel(item, ingestionMock.Object);
+        viewModel.SelectedContent = item;
+        await WaitForPreviewSettledAsync(viewModel, ingestionMock);
+
+        Assert.False(viewModel.CanAddManualRelease);
+        Assert.False(viewModel.ShowReleasesDropZone);
+    }
+
+    /// <summary>
+    /// Verifies that a plain content item keeps the manual release entry points,
+    /// including the drop zone while it has no releases.
+    /// </summary>
+    [AvaloniaFact]
+    public void SelectPlainItem_ShowsManualReleaseEntryPoints()
+    {
+        var item = new CatalogContentItem { Id = "plain", Name = "Plain", ContentType = ContentType.Mod };
+        var viewModel = CreateViewModel(item, Mock.Of<ICatalogUpstreamIngestionService>());
+        viewModel.SelectedContent = item;
+
+        Assert.False(viewModel.SelectedContentTracksUpstream);
+        Assert.True(viewModel.CanAddManualRelease);
+        Assert.True(viewModel.ShowReleasesDropZone);
+    }
+
+    /// <summary>
+    /// Verifies that the add-release command refuses to open the dialog for
+    /// upstream-tracked items instead of creating a manual release.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task AddReleaseCommand_UpstreamTracked_DoesNotAddReleaseAsync()
+    {
+        var dialogMock = new Mock<IPublisherStudioDialogService>();
+        var ingestionMock = new Mock<ICatalogUpstreamIngestionService>();
+        ingestionMock
+            .Setup(s => s.IngestCatalogAsync(It.IsAny<PublisherCatalog>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var item = CreateUpstreamItem("item-guarded");
+        var viewModel = CreateViewModel(item, ingestionMock.Object, dialogMock.Object);
+        viewModel.SelectedContent = item;
+        await WaitForPreviewSettledAsync(viewModel, ingestionMock);
+
+        await viewModel.AddReleaseCommand.ExecuteAsync(null);
+
+        Assert.Empty(item.Releases);
+        dialogMock.Verify(
+            d => d.ShowAddReleaseDialogAsync(It.IsAny<CatalogContentItem>(), It.IsAny<PublisherCatalog>(), It.IsAny<IEnumerable<string>?>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that the add-release command still creates a manual release for
+    /// plain content items.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task AddReleaseCommand_PlainItem_AddsReleaseAsync()
+    {
+        var created = new ContentRelease { Version = "1.0.0", IsLatest = true };
+        var dialogMock = new Mock<IPublisherStudioDialogService>();
+        dialogMock
+            .Setup(d => d.ShowAddReleaseDialogAsync(It.IsAny<CatalogContentItem>(), It.IsAny<PublisherCatalog>(), It.IsAny<IEnumerable<string>?>()))
+            .ReturnsAsync(created);
+
+        var item = new CatalogContentItem { Id = "plain-add", Name = "Plain Add", ContentType = ContentType.Mod };
+        var viewModel = CreateViewModel(item, Mock.Of<ICatalogUpstreamIngestionService>(), dialogMock.Object);
+        viewModel.SelectedContent = item;
+
+        await viewModel.AddReleaseCommand.ExecuteAsync(null);
+
+        Assert.Same(created, Assert.Single(item.Releases));
+    }
+
     private static CatalogContentItem CreateUpstreamItem(string id) => new()
     {
         Id = id,
@@ -152,6 +264,15 @@ public sealed class ContentLibraryUpstreamPreviewTests
     private static ContentLibraryViewModel CreateViewModel(
         CatalogContentItem activeItem,
         ICatalogUpstreamIngestionService ingestionService,
+        params CatalogContentItem[] extraItems)
+    {
+        return CreateViewModel(activeItem, ingestionService, Mock.Of<IPublisherStudioDialogService>(), extraItems);
+    }
+
+    private static ContentLibraryViewModel CreateViewModel(
+        CatalogContentItem activeItem,
+        ICatalogUpstreamIngestionService ingestionService,
+        IPublisherStudioDialogService dialogService,
         params CatalogContentItem[] extraItems)
     {
         var catalog = new NamedCatalog
@@ -175,7 +296,7 @@ public sealed class ContentLibraryUpstreamPreviewTests
             catalog,
             null!,
             NullLogger.Instance,
-            Mock.Of<IPublisherStudioDialogService>(),
+            dialogService,
             upstreamIngestionService: ingestionService);
     }
 

@@ -1050,6 +1050,10 @@ public partial class AddContentDialogViewModel(
             IsUpstreamSource = false;
             RefreshBundleComponentOptions();
         }
+        else
+        {
+            IncludeInitialRelease = true;
+        }
     }
 
     partial void OnIsVariantsModeChanged(bool value)
@@ -1065,6 +1069,7 @@ public partial class AddContentDialogViewModel(
         if (value)
         {
             IsVariantsMode = false;
+            ClearReleaseArtifactVariants();
         }
     }
 
@@ -1668,7 +1673,7 @@ public partial class AddContentDialogViewModel(
     private async Task AddArtifactAsync()
     {
         if (dialogService == null) return;
-        var artifact = await dialogService.ShowAddArtifactDialogAsync();
+        var artifact = await dialogService.ShowAddArtifactDialogAsync(IsVariantsMode);
         if (artifact != null)
         {
             if (artifact.IsPrimary)
@@ -1678,6 +1683,30 @@ public partial class AddContentDialogViewModel(
 
             ReleaseArtifacts.Add(artifact);
             OnPropertyChanged(nameof(HasInitialReleaseFiles));
+        }
+    }
+
+    /// <summary>
+    /// Clears variant fields from initial-release artifacts.
+    /// Bundle-mode releases install every artifact together, so variant data must not linger
+    /// from an earlier variants-mode selection.
+    /// </summary>
+    private void ClearReleaseArtifactVariants()
+    {
+        for (var index = 0; index < ReleaseArtifacts.Count; index++)
+        {
+            var artifact = ReleaseArtifacts[index];
+            if (artifact.VariantAxis == null && artifact.Variant == null && !artifact.IsDefaultVariant)
+            {
+                continue;
+            }
+
+            artifact.VariantAxis = null;
+            artifact.Variant = null;
+            artifact.IsDefaultVariant = false;
+
+            // ReleaseArtifact is a plain model, so replace the entry to refresh bound lists.
+            ReleaseArtifacts[index] = artifact;
         }
     }
 
@@ -1835,68 +1864,8 @@ public partial class AddContentDialogViewModel(
             contentItem.Metadata.FeaturedBadge = FeaturedBadge;
         }
 
-        if (IsUpstreamSource)
-        {
-            contentItem.UpstreamSync = new CatalogUpstreamSync
-            {
-                Provider = SelectedUpstreamProvider,
-                Repository = UpstreamRepository,
-                Channel = UpstreamChannel,
-                VariantAxis = UpstreamVariantAxisSelector.EffectiveValue,
-                ContentCode = string.IsNullOrWhiteSpace(UpstreamContentCode) ? null : UpstreamContentCode.Trim(),
-            };
-
-            // The dialog has no asset-rule editor, so editing must never drop rules loaded from JSON.
-            if (IsEditMode && _existingItem?.UpstreamSync?.AssetRules is { Count: > 0 } existingRules)
-            {
-                contentItem.UpstreamSync.AssetRules = existingRules.Select(rule => new CatalogUpstreamAssetRule
-                {
-                    Pattern = rule.Pattern,
-                    Variant = rule.Variant,
-                    IsDefault = rule.IsDefault,
-                    TargetGame = rule.TargetGame,
-                }).ToList();
-            }
-
-            contentItem.PublisherType = SelectedUpstreamProvider switch
-            {
-                CatalogConstants.UpstreamProviders.TheSuperHackers => "thesuperhackers",
-                CatalogConstants.UpstreamProviders.GeneralsOnline => "generalsonline",
-                CatalogConstants.UpstreamProviders.CommunityOutpost => "communityoutpost",
-                _ => contentItem.PublisherType,
-            };
-        }
-
-        if (SelectedContentType == ContentType.ContentBundle)
-        {
-            // Preserve publisher identity from the previous release dependencies and source options
-            // so a saved bundle keeps resolving external members across distinct publishers.
-            var priorDeps = (_existingItem?.Releases ?? [])
-                .SelectMany(r => r.Dependencies ?? [])
-                .Concat(_existingItem?.BundledItems ?? [])
-                .Where(d => !string.IsNullOrWhiteSpace(d.ContentId))
-                .GroupBy(d => $"{d.PublisherId ?? string.Empty}::{d.ContentId}", StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-
-            contentItem.BundledItems.Clear();
-            foreach (var opt in BundleComponentOptions.Where(o => o.IsSelected))
-            {
-                var key = $"{opt.PublisherId ?? string.Empty}::{opt.ContentId}";
-                priorDeps.TryGetValue(key, out var prior);
-                var source = opt.SourceDependency ?? prior;
-
-                contentItem.BundledItems.Add(new CatalogDependency
-                {
-                    PublisherId = opt.PublisherId ?? source?.PublisherId,
-                    ContentId = opt.ContentId,
-                    VersionConstraint = opt.VersionConstraint ?? source?.VersionConstraint ?? "latest",
-                    IsOptional = false,
-                    DefaultVariant = opt.SelectedVariant,
-                    ContentType = opt.ContentType.ToString(),
-                    CatalogUrl = opt.CatalogUrl ?? source?.CatalogUrl,
-                });
-            }
-        }
+        ApplyUpstreamSync(contentItem);
+        PopulateBundledItems(contentItem);
 
         if (!IsEditMode)
         {
@@ -1918,6 +1887,79 @@ public partial class AddContentDialogViewModel(
         }
 
         onContentCreated(contentItem);
+    }
+
+    private void ApplyUpstreamSync(CatalogContentItem contentItem)
+    {
+        if (!IsUpstreamSource)
+        {
+            return;
+        }
+
+        contentItem.UpstreamSync = new CatalogUpstreamSync
+        {
+            Provider = SelectedUpstreamProvider,
+            Repository = UpstreamRepository,
+            Channel = UpstreamChannel,
+            VariantAxis = UpstreamVariantAxisSelector.EffectiveValue,
+            ContentCode = string.IsNullOrWhiteSpace(UpstreamContentCode) ? null : UpstreamContentCode.Trim(),
+        };
+
+        // The dialog has no asset-rule editor, so editing must never drop rules loaded from JSON.
+        if (IsEditMode && _existingItem?.UpstreamSync?.AssetRules is { Count: > 0 } existingRules)
+        {
+            contentItem.UpstreamSync.AssetRules = existingRules.Select(rule => new CatalogUpstreamAssetRule
+            {
+                Pattern = rule.Pattern,
+                Variant = rule.Variant,
+                IsDefault = rule.IsDefault,
+                TargetGame = rule.TargetGame,
+            }).ToList();
+        }
+
+        contentItem.PublisherType = SelectedUpstreamProvider switch
+        {
+            CatalogConstants.UpstreamProviders.TheSuperHackers => "thesuperhackers",
+            CatalogConstants.UpstreamProviders.GeneralsOnline => "generalsonline",
+            CatalogConstants.UpstreamProviders.CommunityOutpost => "communityoutpost",
+            _ => contentItem.PublisherType,
+        };
+    }
+
+    private void PopulateBundledItems(CatalogContentItem contentItem)
+    {
+        if (SelectedContentType != ContentType.ContentBundle)
+        {
+            return;
+        }
+
+        // Preserve publisher identity from the previous release dependencies and source options
+        // so a saved bundle keeps resolving external members across distinct publishers.
+        var priorDeps = (_existingItem?.Releases ?? [])
+            .SelectMany(r => r.Dependencies ?? [])
+            .Concat(_existingItem?.BundledItems ?? [])
+            .Where(d => !string.IsNullOrWhiteSpace(d.ContentId))
+            .GroupBy(d => $"{d.PublisherId ?? string.Empty}::{d.ContentId}", StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        contentItem.BundledItems.Clear();
+        foreach (var opt in BundleComponentOptions.Where(o => o.IsSelected))
+        {
+            var key = $"{opt.PublisherId ?? string.Empty}::{opt.ContentId}";
+            priorDeps.TryGetValue(key, out var prior);
+            var source = opt.SourceDependency ?? prior;
+
+            contentItem.BundledItems.Add(new CatalogDependency
+            {
+                PublisherId = opt.PublisherId ?? source?.PublisherId,
+                ContentId = opt.ContentId,
+                VersionConstraint = opt.VersionConstraint ?? source?.VersionConstraint ?? "latest",
+                IsOptional = false,
+                DefaultVariant = opt.SelectedVariant,
+                ContentType = opt.ContentType.ToString(),
+                CatalogUrl = opt.CatalogUrl ?? source?.CatalogUrl,
+            });
+        }
     }
 
     private string DetermineArtifactName(string contentId, string version)
@@ -1999,7 +2041,21 @@ public partial class AddContentDialogViewModel(
 
     private bool ValidateInitialRelease()
     {
-        if (SelectedContentType == ContentType.ContentBundle || IsUpstreamSource)
+        if (SelectedContentType == ContentType.ContentBundle)
+        {
+            if (!BundleComponentOptions.Any(o => o.IsSelected))
+            {
+                ValidationError = GetLocalizedString(
+                    "Tools.PublisherStudio.Validation.BundleComponentRequired",
+                    "At least one bundle component is required.");
+                IsValid = false;
+                return false;
+            }
+
+            return true;
+        }
+
+        if (IsUpstreamSource)
         {
             return true;
         }
@@ -2192,6 +2248,11 @@ public partial class AddContentDialogViewModel(
         }
 
         var version = string.IsNullOrWhiteSpace(InitialVersion) ? "1.0.0" : InitialVersion.Trim();
+        if (BundleArtifacts)
+        {
+            ClearReleaseArtifactVariants();
+        }
+
         var release = new ContentRelease
         {
             Version = version,

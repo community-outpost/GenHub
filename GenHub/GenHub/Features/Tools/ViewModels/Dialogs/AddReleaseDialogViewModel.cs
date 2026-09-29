@@ -472,6 +472,11 @@ public partial class AddReleaseDialogViewModel(
         {
             IsVariantsMode = !value;
         }
+
+        if (value)
+        {
+            ClearArtifactVariants();
+        }
     }
 
     partial void OnTitleChanged(string value) => Validate();
@@ -492,7 +497,7 @@ public partial class AddReleaseDialogViewModel(
     private async Task AddArtifactAsync()
     {
         if (dialogService == null) return;
-        var artifact = await dialogService.ShowAddArtifactDialogAsync();
+        var artifact = await dialogService.ShowAddArtifactDialogAsync(IsVariantsMode);
         if (artifact != null)
         {
             if (artifact.IsPrimary)
@@ -682,7 +687,7 @@ public partial class AddReleaseDialogViewModel(
             return;
         }
 
-        var edited = await dialogService.ShowEditArtifactDialogAsync(artifact);
+        var edited = await dialogService.ShowEditArtifactDialogAsync(artifact, IsVariantsMode);
         if (edited == null)
         {
             return;
@@ -696,8 +701,33 @@ public partial class AddReleaseDialogViewModel(
             }
         }
 
+        edited.EntryPoint ??= artifact.EntryPoint;
         Artifacts[index] = edited;
         Validate();
+    }
+
+    /// <summary>
+    /// Clears variant fields from staged artifacts.
+    /// Bundle-mode releases install every artifact together, so variant data must not linger
+    /// from an earlier variants-mode selection or from a legacy edited release.
+    /// </summary>
+    private void ClearArtifactVariants()
+    {
+        for (var index = 0; index < Artifacts.Count; index++)
+        {
+            var artifact = Artifacts[index];
+            if (artifact.VariantAxis == null && artifact.Variant == null && !artifact.IsDefaultVariant)
+            {
+                continue;
+            }
+
+            artifact.VariantAxis = null;
+            artifact.Variant = null;
+            artifact.IsDefaultVariant = false;
+
+            // ReleaseArtifact is a plain model, so replace the entry to refresh bound lists.
+            Artifacts[index] = artifact;
+        }
     }
 
     /// <summary>
@@ -865,6 +895,11 @@ public partial class AddReleaseDialogViewModel(
         else
         {
             effectiveTitle = null;
+        }
+
+        if (BundleArtifacts)
+        {
+            ClearArtifactVariants();
         }
 
         var primaryEntryPoint = Artifacts.FirstOrDefault(a => !string.IsNullOrWhiteSpace(a.EntryPoint))?.EntryPoint;

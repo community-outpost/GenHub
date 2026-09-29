@@ -23,7 +23,6 @@
         <converters:StringToImageConverter x:Key="StringToImageConverter"/>
         <converters:ColorToBrushConverter x:Key="AccentColorBrushConverter"/>
         <converters:ValidColorToVisibilityConverter x:Key="ValidColorToVisibilityConverter"/>
-        <converters:ContrastTextColorConverter x:Key="ContrastTextColorConverter"/>
     </UserControl.Resources>
 
     <UserControl.Styles>
@@ -43,6 +42,18 @@
         <Style Selector="ListBoxItem:selected Border#CardRoot">
             <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
+        </Style>
+        <!-- Featured preview: publisher featured color (or default gold) border, mirroring download cards.
+             The selected+featured combination keeps the featured border so publishers always see the
+             storefront appearance; selection stays visible through the tinted background. -->
+        <Style Selector="Border#CardRoot.featured" x:CompileBindings="False">
+            <Setter Property="BorderBrush" Value="{Binding FeaturedColor, Converter={StaticResource AccentColorBrushConverter}}"/>
+            <Setter Property="BorderThickness" Value="2"/>
+        </Style>
+        <Style Selector="ListBoxItem:selected Border#CardRoot.featured" x:CompileBindings="False">
+            <Setter Property="BorderBrush" Value="{Binding FeaturedColor, Converter={StaticResource AccentColorBrushConverter}}"/>
+            <Setter Property="BorderThickness" Value="2"/>
             <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
         </Style>
 
@@ -288,9 +299,15 @@
                                         BorderBrush="{DynamicResource GlassFillBrush}"
                                         BorderThickness="1"
                                         CornerRadius="8"
-                                        Padding="12"
-                                        Transitions="{x:Null}">
-                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                        Padding="0"
+                                        Transitions="{x:Null}"
+                                        Classes.featured="{Binding IsFeatured}">
+                                    <Grid ColumnDefinitions="4,*">
+                                        <!-- Publisher accent stripe. The fixed column keeps rows aligned when no color is set. -->
+                                        <Border CornerRadius="7,0,0,7"
+                                                Background="{Binding Metadata.AccentColor, Converter={StaticResource AccentColorBrushConverter}}"
+                                                IsVisible="{Binding Metadata.AccentColor, Converter={StaticResource ValidColorToVisibilityConverter}}" />
+                                        <Grid Grid.Column="1" ColumnDefinitions="Auto,*,Auto" Margin="8,12,12,12">
                                         <!-- Type Icon Box -->
                                         <Border Width="40" Height="40"
                                                 CornerRadius="8"
@@ -345,6 +362,7 @@
                                                           Foreground="{DynamicResource AccentColorBrush}"/>
                                             </Button>
                                         </StackPanel>
+                                        </Grid>
                                     </Grid>
                                 </Border>
                             </DataTemplate>
@@ -448,17 +466,6 @@
                                                             FontSize="11"
                                                             FontWeight="Bold"
                                                             Foreground="{DynamicResource AccentColorBrush}"/>
-                                            </Border>
-                                            <Border Background="{Binding Metadata.AccentColor, Converter={StaticResource AccentColorBrushConverter}}"
-                                                    CornerRadius="4"
-                                                    Padding="8,2"
-                                                    VerticalAlignment="Center"
-                                                    IsVisible="{Binding Metadata.AccentColor, Converter={StaticResource ValidColorToVisibilityConverter}}"
-                                                    ToolTip.Tip="{Binding Metadata.AccentColor}">
-                                                 <TextBlock Text="{Binding Metadata.AccentColor}"
-                                                            FontSize="11"
-                                                            FontWeight="Bold"
-                                                            Foreground="{Binding Metadata.AccentColor, Converter={StaticResource ContrastTextColorConverter}}"/>
                                             </Border>
                                         </StackPanel>
                                         <TextBlock FontSize="13" Foreground="{DynamicResource TextSecondary}">
@@ -727,6 +734,7 @@
                                                    Foreground="{DynamicResource TextPrimary}"/>
                                         <Button Grid.Column="1"
                                                 Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).AddReleaseCommand}"
+                                                IsVisible="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).CanAddManualRelease}"
                                                 Classes="accent-glass-btn">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
                                                 <PathIcon Data="{StaticResource AddIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
@@ -766,9 +774,9 @@
                                         </Grid>
                                     </Border>
 
-                                    <!-- Releases Drop Zone -->
+                                    <!-- Releases Drop Zone (hidden for upstream-tracked items) -->
                                     <Border x:Name="ReleasesDropZone"
-                                            IsVisible="{Binding !Releases.Count}"
+                                            IsVisible="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).ShowReleasesDropZone}"
                                             DragDrop.AllowDrop="True"
                                             BorderBrush="{DynamicResource GlassBorderBrush}"
                                             BorderThickness="1"

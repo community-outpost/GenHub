@@ -224,6 +224,18 @@ public partial class ContentLibraryViewModel(
     public bool ShowStaticReleasesList => !HasUpstreamPreview;
 
     /// <summary>
+    /// Gets a value indicating whether a manual release can be added to the selected content item.
+    /// Upstream-tracked items receive their releases from the provider, so manual adds are hidden.
+    /// </summary>
+    public bool CanAddManualRelease => !SelectedContentTracksUpstream;
+
+    /// <summary>
+    /// Gets a value indicating whether the releases drop zone should be shown.
+    /// Hidden for upstream-tracked items, which receive releases from the provider.
+    /// </summary>
+    public bool ShowReleasesDropZone => !SelectedContentTracksUpstream && (SelectedContent?.Releases.Count ?? 0) == 0;
+
+    /// <summary>
     /// Gets a value indicating whether the upstream sync failure warning should be shown.
     /// </summary>
     public bool ShowUpstreamSyncFailedWarning => SelectedContentTracksUpstream && UpstreamPreviewFailed && !IsUpstreamPreviewLoading;
@@ -536,7 +548,7 @@ public partial class ContentLibraryViewModel(
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public async Task AddReleaseWithPathsAsync(IEnumerable<string> paths)
     {
-        if (SelectedContent == null)
+        if (SelectedContent == null || SelectedContentTracksUpstream)
         {
             return;
         }
@@ -976,7 +988,7 @@ public partial class ContentLibraryViewModel(
     [RelayCommand]
     private async Task AddReleaseAsync()
     {
-        if (SelectedContent == null)
+        if (SelectedContent == null || SelectedContentTracksUpstream)
         {
             return;
         }
@@ -1384,7 +1396,7 @@ public partial class ContentLibraryViewModel(
     {
         if (release == null) return;
 
-        var artifact = await dialogService.ShowAddArtifactDialogAsync();
+        var artifact = await dialogService.ShowAddArtifactDialogAsync(!release.BundleArtifacts);
         if (artifact != null)
         {
             if (artifact.IsPrimary)
@@ -1492,6 +1504,8 @@ public partial class ContentLibraryViewModel(
         OnPropertyChanged(nameof(ShowFallbackReleasesNote));
         OnPropertyChanged(nameof(ShowManualFallbackReleases));
         OnPropertyChanged(nameof(ShowStaticReleasesList));
+        OnPropertyChanged(nameof(CanAddManualRelease));
+        OnPropertyChanged(nameof(ShowReleasesDropZone));
         OnPropertyChanged(nameof(ShowUpstreamSyncFailedWarning));
         OnPropertyChanged(nameof(EffectiveSelectedContentReleasesCount));
         if (_suppressUpstreamPreviewReload)

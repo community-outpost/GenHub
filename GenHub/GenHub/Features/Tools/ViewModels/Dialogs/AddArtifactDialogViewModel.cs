@@ -22,7 +22,7 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 /// Provides validation and creation of new ReleaseArtifact entries.
 /// </summary>
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI.")]
-public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifactCreated, GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null) : ObservableValidator, IDisposable
+public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifactCreated, GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null, bool allowVariants = true) : ObservableValidator, IDisposable
 {
     private readonly GenHub.Core.Models.Enums.GameType _existingTargetGame;
 
@@ -90,17 +90,25 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
     public VariantAxisSelector VariantAxisSelector { get; } = new(localizationService);
 
     /// <summary>
+    /// Gets a value indicating whether variant fields are available for this artifact.
+    /// Bundle-mode releases install every artifact together, so variants do not apply.
+    /// </summary>
+    public bool AllowVariants => allowVariants;
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="AddArtifactDialogViewModel"/> class in edit mode,
     /// pre-populated with an existing artifact's data.
     /// </summary>
     /// <param name="existing">The existing artifact to edit.</param>
     /// <param name="onArtifactCreated">Callback invoked when the artifact is saved.</param>
     /// <param name="localizationService">Optional localization service.</param>
+    /// <param name="allowVariants">True to expose variant fields; false for bundle-mode releases whose artifacts install together.</param>
     public AddArtifactDialogViewModel(
         ReleaseArtifact existing,
         Action<ReleaseArtifact> onArtifactCreated,
-        GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null)
-        : this(onArtifactCreated, localizationService)
+        GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null,
+        bool allowVariants = true)
+        : this(onArtifactCreated, localizationService, allowVariants)
     {
         ArgumentNullException.ThrowIfNull(existing);
 
@@ -765,43 +773,13 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
             return;
         }
 
-        // Validate based on selection mode
-        if (UseLocalFile)
+        if (!ValidateArtifactSource())
         {
-            // Local file mode - require a local file or folder path
-            if (string.IsNullOrWhiteSpace(LocalFilePath) ||
-                (!File.Exists(LocalFilePath) && !Directory.Exists(LocalFilePath)))
-            {
-                ValidationError = GetLocalizedString(
-                    "Tools.PublisherStudio.Artifact.LocalFileRequired",
-                    "Please select a local file to upload");
-                IsValid = false;
-                return;
-            }
-        }
-        else
-        {
-            // URL mode - require valid URL
-            if (string.IsNullOrWhiteSpace(DownloadUrl) ||
-                !Uri.TryCreate(DownloadUrl, UriKind.Absolute, out var uri) ||
-                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
-            {
-                ValidationError = GetLocalizedString(
-                    "Tools.PublisherStudio.Artifact.ValidUrlRequired",
-                    "Please enter a valid HTTP or HTTPS download URL");
-                IsValid = false;
-                return;
-            }
+            return;
         }
 
-        var variantAxis = VariantAxisSelector.EffectiveValue;
-        var variant = string.IsNullOrWhiteSpace(Variant) ? null : Variant.Trim();
-        if (variant != null && variantAxis == null)
+        if (!ValidateVariantSettings(out var variantAxis, out var variant))
         {
-            ValidationError = GetLocalizedString(
-                "Tools.PublisherStudio.Artifact.VariantAxisRequired",
-                "Select a variant axis when a variant label is set.");
-            IsValid = false;
             return;
         }
 
@@ -822,6 +800,60 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
 
         ArgumentNullException.ThrowIfNull(onArtifactCreated);
         onArtifactCreated(artifact);
+    }
+
+    private bool ValidateArtifactSource()
+    {
+        if (UseLocalFile)
+        {
+            if (string.IsNullOrWhiteSpace(LocalFilePath) ||
+                (!File.Exists(LocalFilePath) && !Directory.Exists(LocalFilePath)))
+            {
+                ValidationError = GetLocalizedString(
+                    "Tools.PublisherStudio.Artifact.LocalFileRequired",
+                    "Please select a local file to upload");
+                IsValid = false;
+                return false;
+            }
+
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(DownloadUrl) ||
+            !Uri.TryCreate(DownloadUrl, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            ValidationError = GetLocalizedString(
+                "Tools.PublisherStudio.Artifact.ValidUrlRequired",
+                "Please enter a valid HTTP or HTTPS download URL");
+            IsValid = false;
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool ValidateVariantSettings(out string? variantAxis, out string? variant)
+    {
+        if (!AllowVariants)
+        {
+            variantAxis = null;
+            variant = null;
+            return true;
+        }
+
+        variantAxis = VariantAxisSelector.EffectiveValue;
+        variant = string.IsNullOrWhiteSpace(Variant) ? null : Variant.Trim();
+        if (variant != null && variantAxis == null)
+        {
+            ValidationError = GetLocalizedString(
+                "Tools.PublisherStudio.Artifact.VariantAxisRequired",
+                "Select a variant axis when a variant label is set.");
+            IsValid = false;
+            return false;
+        }
+
+        return true;
     }
 
     /// <summary>
