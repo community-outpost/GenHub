@@ -128,6 +128,47 @@ public sealed class GameClientProfileServiceTests
     }
 
     /// <summary>
+    /// Without a declared entry point, the known game executable in the host's form is chosen
+    /// even when a helper executable is listed before it.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateProfileFromManifestAsync_WithoutEntryPoint_PicksGameExecutableOverEarlierHelperAsync()
+    {
+        var gameName = OperatingSystem.IsWindows()
+            ? GameClientConstants.SuperHackersZeroHourExecutable
+            : Path.GetFileNameWithoutExtension(GameClientConstants.SuperHackersZeroHourExecutable);
+        var helperName = OperatingSystem.IsWindows() ? "crashpad_handler.exe" : "crashpad_handler";
+        var manifest = CreateManifest(
+            new ManifestFile { RelativePath = helperName, IsExecutable = true },
+            new ManifestFile { RelativePath = gameName, IsExecutable = true });
+
+        var result = await _service.CreateProfileFromManifestAsync(manifest);
+
+        Assert.True(result.Success, string.Join("; ", result.Errors));
+        Assert.Equal(Path.Combine(InstallationPath, gameName), _capturedRequest!.GameClient!.ExecutablePath);
+    }
+
+    /// <summary>
+    /// Without a declared entry point or a known game executable, several executables are
+    /// ambiguous: profile creation fails instead of taking the first one.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateProfileFromManifestAsync_WithAmbiguousExecutables_FailsWithoutGuessingAsync()
+    {
+        var suffix = OperatingSystem.IsWindows() ? GameClientConstants.ExeExtension : string.Empty;
+        var manifest = CreateManifest(
+            new ManifestFile { RelativePath = "crashpad_handler" + suffix, IsExecutable = true },
+            new ManifestFile { RelativePath = "custom_client" + suffix, IsExecutable = true });
+
+        var result = await _service.CreateProfileFromManifestAsync(manifest);
+
+        Assert.False(result.Success);
+        Assert.Null(_capturedRequest);
+    }
+
+    /// <summary>
     /// A declared entry point missing from the files fails with the resolver's reason instead of guessing.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
