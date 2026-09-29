@@ -743,19 +743,6 @@
                                         </Button>
                                     </Grid>
 
-                                    <!-- Fallback note: static releases of upstream-tracked items are superseded by the live preview below -->
-                                    <Border Background="{DynamicResource GlassFillSubtleBrush}"
-                                            BorderBrush="{DynamicResource GlassBorderBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="8"
-                                            Padding="12,10"
-                                            IsVisible="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).ShowFallbackReleasesNote}">
-                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.ReleasesFallbackNote}"
-                                                   FontSize="12"
-                                                   Foreground="{DynamicResource TextSecondary}"
-                                                   TextWrapping="Wrap"/>
-                                    </Border>
-
                                     <!-- Upstream sync failure: the provider returned no releases -->
                                     <Border Background="{DynamicResource StatusWarningBadgeBackgroundBrush}"
                                             BorderBrush="{DynamicResource WarningHighlightBrush}"
@@ -864,8 +851,9 @@
                                                             <TextBlock Text="{Binding Changelog}" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondary}" FontSize="13"/>
                                                         </StackPanel>
 
-                                                        <!-- Artifacts List -->
-                                                        <StackPanel Spacing="8">
+                                                        <!-- Artifacts List (hidden for content bundles, which carry only dependencies) -->
+                                                        <StackPanel Spacing="8"
+                                                                    IsVisible="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).ShowReleaseArtifacts}">
                                                             <Grid ColumnDefinitions="*,Auto">
                                                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.Artifacts}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
                                                                 <Button Grid.Column="1"
@@ -1121,6 +1109,13 @@
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate DataType="models:ContentRelease">
                                                         <Border Background="{DynamicResource GlassFillBrush}" CornerRadius="6" Padding="12" Margin="0,0,0,6">
+                                                            <Border.IsVisible>
+                                                                <MultiBinding Converter="{StaticResource UpstreamDuplicateReleaseConverter}">
+                                                                    <Binding Path="Version"/>
+                                                                    <Binding Path="#RootView.((vm:ContentLibraryViewModel)DataContext).UpstreamPreviewVersions"/>
+                                                                    <Binding Path="#RootView.((vm:ContentLibraryViewModel)DataContext).SelectedContentTracksUpstream"/>
+                                                                </MultiBinding>
+                                                            </Border.IsVisible>
                                                             <Grid ColumnDefinitions="*,Auto">
                                                                 <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                                                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.ManualFallbackPrefix}" FontWeight="Medium" Foreground="{DynamicResource TextPrimary}"/>

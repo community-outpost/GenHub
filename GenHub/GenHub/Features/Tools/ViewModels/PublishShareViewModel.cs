@@ -3163,7 +3163,14 @@ public partial class PublishShareViewModel(
         if (IsPendingArtworkPath(value))
         {
             var trimmed = value!.Trim();
-            pending.Add((content, slot, ResolveArtworkLocalPath(trimmed) ?? trimmed));
+            var localPath = ResolveArtworkLocalPath(trimmed);
+            if (localPath == null)
+            {
+                logger.LogDebug("Skipping artwork path that cannot be resolved under the project directory for '{ContentId}'", content.Id);
+                return;
+            }
+
+            pending.Add((content, slot, localPath));
         }
     }
 

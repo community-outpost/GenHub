@@ -294,9 +294,66 @@ public class GenericCatalogDiscoverer(
         searchResult.ResolverMetadata[CatalogConstants.PublisherProfileJsonMetadataKey] = JsonSerializer.Serialize(catalog.Publisher);
         searchResult.ResolverMetadata[CatalogConstants.CatalogContentIdMetadataKey] = contentItem.Id;
 
+        ApplyUpstreamGitHubIdentity(searchResult, contentItem, release);
+
         if (catalog.Referrals is { Count: > 0 })
         {
             searchResult.ResolverMetadata[CatalogConstants.CatalogReferralsJsonMetadataKey] = JsonSerializer.Serialize(catalog.Referrals);
+        }
+    }
+
+    /// <summary>
+    /// Stamps GitHub upstream identity onto catalog search results so install-state
+    /// detection can match the same repository acquired through another publisher.
+    /// </summary>
+    private static void ApplyUpstreamGitHubIdentity(
+        ContentSearchResult searchResult,
+        CatalogContentItem contentItem,
+        ContentRelease release)
+    {
+        var declaredProvider = !string.IsNullOrWhiteSpace(contentItem.UpstreamSync?.Provider)
+            ? contentItem.UpstreamSync.Provider
+            : contentItem.PublisherType;
+        var provider = CatalogConstants.UpstreamProviders.Normalize(declaredProvider);
+        var isGitHubUpstream = string.Equals(provider, CatalogConstants.UpstreamProviders.GitHubReleases, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase);
+        if (!isGitHubUpstream)
+        {
+            return;
+        }
+
+        var repository = contentItem.UpstreamSync?.Repository?.Trim();
+        if (string.IsNullOrWhiteSpace(repository) &&
+            string.Equals(provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
+        {
+            repository = $"{SuperHackersConstants.GeneralsGameCodeOwner}/{SuperHackersConstants.GeneralsGameCodeRepo}";
+        }
+
+        var parts = repository?.Split('/');
+        if (parts?.Length != 2 || string.IsNullOrWhiteSpace(parts[0]) || string.IsNullOrWhiteSpace(parts[1]))
+        {
+            return;
+        }
+
+        if (!searchResult.ResolverMetadata.ContainsKey(GitHubConstants.OwnerMetadataKey))
+        {
+            searchResult.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = parts[0].Trim();
+        }
+
+        if (!searchResult.ResolverMetadata.ContainsKey(GitHubConstants.RepoMetadataKey))
+        {
+            searchResult.ResolverMetadata[GitHubConstants.RepoMetadataKey] = parts[1].Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(release.Version) &&
+            !searchResult.ResolverMetadata.ContainsKey(GitHubConstants.TagMetadataKey))
+        {
+            searchResult.ResolverMetadata[GitHubConstants.TagMetadataKey] = release.Version;
+        }
+
+        if (string.IsNullOrWhiteSpace(searchResult.SourceUrl))
+        {
+            searchResult.SourceUrl = $"https://github.com/{parts[0].Trim()}/{parts[1].Trim()}";
         }
     }
 

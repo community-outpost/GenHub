@@ -700,9 +700,14 @@ public sealed partial class ContentGridItemViewModel(
         }
 
         var segments = e.ManifestId.Split('.');
-        if (segments.Length != 5 ||
-            (!string.Equals(segments[2], SearchResult.ProviderName, StringComparison.OrdinalIgnoreCase) &&
-             !ContentStateService.IsCompatiblePublisherAlias(segments[2], SearchResult.ProviderName)))
+        if (segments.Length != 5)
+        {
+            return false;
+        }
+
+        if (!string.Equals(segments[2], SearchResult.ProviderName, StringComparison.OrdinalIgnoreCase) &&
+            !ContentStateService.IsCompatiblePublisherAlias(segments[2], SearchResult.ProviderName) &&
+            !MatchesGitHubUpstreamIdentity(segments))
         {
             return false;
         }
@@ -728,6 +733,44 @@ public sealed partial class ContentGridItemViewModel(
         return MatchesKey(CNCLabsConstants.MapIdMetadataKey, e) ||
                MatchesKey(AODMapsConstants.MapIdMetadataKey, e) ||
                MatchesKey(ModDBConstants.ContentIdMetadataKey, e);
+    }
+
+    private bool MatchesGitHubUpstreamIdentity(string[] manifestSegments)
+    {
+        if (SearchResult?.ResolverMetadata == null || manifestSegments.Length != 5)
+        {
+            return false;
+        }
+
+        if (!SearchResult.ResolverMetadata.TryGetValue(GitHubConstants.OwnerMetadataKey, out var owner) ||
+            string.IsNullOrWhiteSpace(owner) ||
+            !SearchResult.ResolverMetadata.TryGetValue(GitHubConstants.RepoMetadataKey, out var repo) ||
+            string.IsNullOrWhiteSpace(repo))
+        {
+            return false;
+        }
+
+        if (!string.Equals(manifestSegments[3], SearchResult.ContentType.ToString(), StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var manifestPublisher = ContentStateService.NormalizeSegment(manifestSegments[2]);
+        if (string.Equals(manifestPublisher, "github", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var expectedOwner = ContentStateService.NormalizeSegment(owner);
+        if (!string.Equals(manifestPublisher, expectedOwner, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var manifestName = ContentStateService.NormalizeSegment(manifestSegments[4]);
+        var expectedRepo = ContentStateService.NormalizeSegment(repo);
+        return manifestName.StartsWith(expectedRepo, StringComparison.OrdinalIgnoreCase) ||
+            expectedRepo.StartsWith(manifestName, StringComparison.OrdinalIgnoreCase);
     }
 
     private bool MatchesKey(string key, ContentStateChangedEventArgs e)
@@ -1370,6 +1413,8 @@ public sealed partial class ContentGridItemViewModel(
         OnPropertyChanged(nameof(IsFeatured));
         OnPropertyChanged(nameof(HasFeaturedBadge));
         OnPropertyChanged(nameof(FeaturedBadge));
+        OnPropertyChanged(nameof(FeaturedColor));
+        OnPropertyChanged(nameof(HasFeaturedColor));
 
         _ = LoadIconAsync();
     }

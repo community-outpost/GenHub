@@ -729,7 +729,18 @@ public sealed class CatalogUpstreamIngestionServiceTests
 
         await _service.IngestCatalogAsync(catalog, CancellationToken.None);
 
-        Assert.Equal(2, Assert.Single(item.Releases).Artifacts.Count);
+        var ingested = Assert.Single(item.Releases);
+        Assert.Equal("1.3", ingested.Version);
+        Assert.True(ingested.IsLatest);
+        Assert.Equal(2, ingested.Artifacts.Count);
+        Assert.Equal("ControlBar_1280x720.zip", ingested.Artifacts[0].Filename);
+        Assert.Equal("https://github.com/custom/download/720.zip", ingested.Artifacts[0].DownloadUrl);
+        Assert.Equal(1_000_000, ingested.Artifacts[0].Size);
+        Assert.True(ingested.Artifacts[0].IsPrimary);
+        Assert.Equal("ControlBar_1920x1080.zip", ingested.Artifacts[1].Filename);
+        Assert.Equal("https://github.com/custom/download/1080.zip", ingested.Artifacts[1].DownloadUrl);
+        Assert.Equal(1_100_000, ingested.Artifacts[1].Size);
+        Assert.False(ingested.Artifacts[1].IsPrimary);
     }
 
     /// <summary>
@@ -789,6 +800,136 @@ public sealed class CatalogUpstreamIngestionServiceTests
 
         var artifact = Assert.Single(Assert.Single(item.Releases).Artifacts);
         Assert.Equal("game-zh-client.zip", artifact.Filename);
+        Assert.Equal("https://github.com/test/download/zh.zip", artifact.DownloadUrl);
+        Assert.Equal(10_000_000, artifact.Size);
+        Assert.Equal("Zero Hour", artifact.Variant);
+        Assert.Equal(CatalogConstants.GameTypeVariantAxis, artifact.VariantAxis);
+        Assert.True(artifact.IsDefaultVariant);
+        Assert.True(artifact.IsPrimary);
+        Assert.Equal(GameType.ZeroHour, artifact.TargetGame);
+    }
+
+    /// <summary>
+    /// Tests that a non-client item tracking the official SuperHackers repo hydrates
+    /// every asset (for example a mod following weekly game-code releases) instead
+    /// of applying the zh/gen/full-client filename filter and ending with no releases.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task IngestCatalogAsync_SuperHackersDefaultRepoNonClientItem_HydratesAllAssetsAsync()
+    {
+        var release = new GitHubRelease
+        {
+            TagName = "weekly-2026-09-25",
+            CreatedAt = DateTime.UtcNow,
+            Assets =
+            [
+                new GitHubReleaseAsset
+                {
+                    Name = "GeneralsGameCode-weekly.zip",
+                    BrowserDownloadUrl = "https://github.com/test/download/gamecode.zip",
+                    Size = 20_000_000,
+                },
+                new GitHubReleaseAsset
+                {
+                    Name = "symbols.zip",
+                    BrowserDownloadUrl = "https://github.com/test/download/symbols.zip",
+                    Size = 5_000_000,
+                },
+            ],
+        };
+
+        _gitHubClientMock
+            .Setup(c => c.GetLatestReleaseAsync("TheSuperHackers", "GeneralsGameCode", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(release);
+
+        var item = new CatalogContentItem
+        {
+            Id = "game-code-mod",
+            Name = "Game Code",
+            ContentType = ContentType.Mod,
+            Releases = [],
+            UpstreamSync = new CatalogUpstreamSync
+            {
+                Provider = CatalogConstants.UpstreamProviders.TheSuperHackers,
+                Repository = "TheSuperHackers/GeneralsGameCode",
+            },
+        };
+
+        var catalog = new PublisherCatalog
+        {
+            SchemaVersion = 1,
+            Publisher = new PublisherProfile { Id = "test-pub", Name = "Test Publisher" },
+            Content = [item],
+        };
+
+        await _service.IngestCatalogAsync(catalog, CancellationToken.None);
+
+        Assert.Equal(2, Assert.Single(item.Releases).Artifacts.Count);
+    }
+
+    /// <summary>
+    /// Tests that a game-client item tracking the official SuperHackers repo hydrates the
+    /// real weekly asset names (generals-weekly and generalszh-weekly) into Generals and
+    /// Zero Hour variants instead of matching nothing.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task IngestCatalogAsync_SuperHackersRealWeeklyAssets_HydratesGameVariantsAsync()
+    {
+        CatalogUpstreamIngestionService.ClearReleaseCache();
+        var release = new GitHubRelease
+        {
+            TagName = "weekly-2026-09-25",
+            CreatedAt = DateTime.UtcNow,
+            Assets =
+            [
+                new GitHubReleaseAsset
+                {
+                    Name = "generals-weekly-2026-09-25.zip",
+                    BrowserDownloadUrl = "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-09-25/generals-weekly-2026-09-25.zip",
+                    Size = 31791889,
+                },
+                new GitHubReleaseAsset
+                {
+                    Name = "generalszh-weekly-2026-09-25.zip",
+                    BrowserDownloadUrl = "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-09-25/generalszh-weekly-2026-09-25.zip",
+                    Size = 33584841,
+                },
+            ],
+        };
+
+        _gitHubClientMock
+            .Setup(c => c.GetLatestReleaseAsync("TheSuperHackers", "GeneralsGameCode", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(release);
+
+        var item = new CatalogContentItem
+        {
+            Id = "superhackers-game-client",
+            Name = "SuperHackers Game Client",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Releases = [],
+            UpstreamSync = new CatalogUpstreamSync
+            {
+                Provider = CatalogConstants.UpstreamProviders.TheSuperHackers,
+                Repository = "TheSuperHackers/GeneralsGameCode",
+            },
+        };
+
+        var catalog = new PublisherCatalog
+        {
+            SchemaVersion = 1,
+            Publisher = new PublisherProfile { Id = "test-pub", Name = "Test Publisher" },
+            Content = [item],
+        };
+
+        await _service.IngestCatalogAsync(catalog, CancellationToken.None);
+
+        var synthesized = Assert.Single(item.Releases);
+        Assert.Equal(2, synthesized.Artifacts.Count);
+        Assert.Contains(synthesized.Artifacts, a => a.Variant == "Zero Hour" && a.TargetGame == GameType.ZeroHour);
+        Assert.Contains(synthesized.Artifacts, a => a.Variant == "Generals" && a.TargetGame == GameType.Generals);
     }
 
     private sealed class StubGeneralsOnlineDiscoverer(ContentDiscoveryResult result) : GeneralsOnlineDiscoverer(

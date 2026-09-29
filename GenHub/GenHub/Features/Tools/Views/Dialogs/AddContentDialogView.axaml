@@ -442,6 +442,20 @@
                                 </StackPanel>
                             </Border>
 
+                            <!-- Follow-up drop target: keeps screenshot drops working after the first image hides the main zone. -->
+                            <Border x:Name="ContentMediaDropZoneMore"
+                                    IsVisible="{Binding Screenshots.Count}"
+                                    DragDrop.AllowDrop="True"
+                                    BorderBrush="{DynamicResource GlassBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Background="Transparent"
+                                    Padding="8,4"
+                                    Margin="0,0,0,4"
+                                    Cursor="Hand">
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DragDropImagesHint}" FontSize="11" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.75"/>
+                            </Border>
+
                             <!-- Screenshots List -->
                             <ItemsControl ItemsSource="{Binding Screenshots}" IsVisible="{Binding Screenshots.Count}">
                                 <ItemsControl.ItemTemplate>

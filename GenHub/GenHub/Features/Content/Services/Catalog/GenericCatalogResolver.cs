@@ -90,6 +90,19 @@ public partial class GenericCatalogResolver(
                 ? contentItem.Metadata.DocumentationUrl
                 : (publisher.Website ?? string.Empty);
 
+            var upstreamRepoUrl = ResolveUpstreamGitHubRepoUrl(contentItem);
+            var supportUrl = publisher.SupportUrl ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(upstreamRepoUrl) && string.IsNullOrWhiteSpace(supportUrl))
+            {
+                supportUrl = upstreamRepoUrl;
+            }
+
+            var changelogUrl = contentItem.Metadata?.DocumentationUrl ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(upstreamRepoUrl) && string.IsNullOrWhiteSpace(changelogUrl))
+            {
+                changelogUrl = upstreamRepoUrl;
+            }
+
             // ContentBundle (and other meta-packages) may ship no downloadable artifacts —
             // their payload is the dependency graph alone. Skip remote-file registration.
             // The primary is selected from installable artifacts only: a rejected primary
@@ -112,7 +125,7 @@ public partial class GenericCatalogResolver(
                 .WithPublisher(
                     publisherDisplayName,
                     website,
-                    publisher.SupportUrl ?? string.Empty,
+                    supportUrl,
                     publisher.ContactEmail ?? string.Empty,
                     publisherType: declaredPublisherId)
                 .WithMetadata(
@@ -120,7 +133,7 @@ public partial class GenericCatalogResolver(
                     tags: [.. contentItem.Tags],
                     iconUrl: contentItem.Metadata?.IconUrl ?? contentItem.Metadata?.BannerUrl ?? string.Empty,
                     screenshotUrls: contentItem.Metadata?.ScreenshotUrls?.ToList(),
-                    changelogUrl: contentItem.Metadata?.DocumentationUrl ?? string.Empty);
+                    changelogUrl: changelogUrl);
 
             if (ManifestId.TryParse(discoveredItem.Id, out var parsedManifestId))
             {
@@ -223,6 +236,35 @@ public partial class GenericCatalogResolver(
         }
 
         return contentItem.TargetGame;
+    }
+
+    private static string? ResolveUpstreamGitHubRepoUrl(CatalogContentItem contentItem)
+    {
+        var declaredProvider = !string.IsNullOrWhiteSpace(contentItem.UpstreamSync?.Provider)
+            ? contentItem.UpstreamSync.Provider
+            : contentItem.PublisherType;
+        var provider = CatalogConstants.UpstreamProviders.Normalize(declaredProvider);
+        var isGitHubUpstream = string.Equals(provider, CatalogConstants.UpstreamProviders.GitHubReleases, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase);
+        if (!isGitHubUpstream)
+        {
+            return null;
+        }
+
+        var repository = contentItem.UpstreamSync?.Repository?.Trim();
+        if (string.IsNullOrWhiteSpace(repository) &&
+            string.Equals(provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
+        {
+            repository = $"{SuperHackersConstants.GeneralsGameCodeOwner}/{SuperHackersConstants.GeneralsGameCodeRepo}";
+        }
+
+        var parts = repository?.Split('/');
+        if (parts?.Length != 2 || string.IsNullOrWhiteSpace(parts[0]) || string.IsNullOrWhiteSpace(parts[1]))
+        {
+            return null;
+        }
+
+        return $"https://github.com/{parts[0].Trim()}/{parts[1].Trim()}";
     }
 
     private static string SanitizeArtifactFilename(ReleaseArtifact primaryArtifact, CatalogContentItem contentItem)

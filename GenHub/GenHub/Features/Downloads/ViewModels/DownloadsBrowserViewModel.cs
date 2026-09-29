@@ -1264,8 +1264,12 @@ public sealed partial class DownloadsBrowserViewModel(
 
         lock (_cacheLock)
         {
+            // SelectedCatalog is null while catalogs load (BeginLoadCatalogsForPublisher
+            // clears it above). A surviving entry is still safe to restore: PopulateCatalogs
+            // evicts and refreshes when the loaded catalog differs from the cached one.
             if (_browseCache.TryGetValue(value.PublisherId, out var cached) &&
-                string.Equals(cached.CatalogId, SelectedCatalog?.Id, StringComparison.OrdinalIgnoreCase))
+                (SelectedCatalog == null ||
+                 string.Equals(cached.CatalogId, SelectedCatalog?.Id, StringComparison.OrdinalIgnoreCase)))
             {
                 // Cache hit: restore full dataset instantly without network discovery
                 ContentItems = new ObservableCollection<ContentGridItemViewModel>(cached.Items);
@@ -2756,6 +2760,14 @@ public sealed partial class DownloadsBrowserViewModel(
 
         lock (_cacheLock)
         {
+            // Re-check cancellation under the lock: an op cancelled and unregistered
+            // after the pre-lock check must not recreate a cache entry with a stale catalog.
+            if (inFlightOp != null && inFlightOp.Cts.IsCancellationRequested)
+            {
+                DisposeUnretainedViewModels(newVms);
+                return false;
+            }
+
             if (inFlightOp != null && _inFlightOperations.TryGetValue(publisherId, out var activeOp) && !ReferenceEquals(activeOp, inFlightOp))
             {
                 DisposeUnretainedViewModels(newVms);
@@ -3970,12 +3982,14 @@ public sealed partial class DownloadsBrowserViewModel(
         }
 
         item.DownloadProgress = 100;
-        item.DownloadStatus = ContentConstants.DownloadCompleteStatusMessage;
+        item.DownloadStatus = item.AreBundleComponentsReadyForProfile
+            ? ContentConstants.DownloadCompleteStatusMessage
+            : "Downloaded selected content";
 
         var activeNotificationService = notificationService ?? serviceProvider.GetService<INotificationService>();
         activeNotificationService?.ShowSuccess(
-            "Update Completed",
-            $"Updated {item.Name} to latest version.",
+            _localizationService?.GetLocalizedString("Content.Notification.UpdateCompleted.Title", "Update Completed") ?? "Update Completed",
+            _localizationService?.GetLocalizedString("Downloads.Notification.ItemUpdated.Message", $"Updated {item.Name} to latest version.", item.Name) ?? $"Updated {item.Name} to latest version.",
             NotificationDurations.Medium);
 
         if (SelectedPublisher != null)
@@ -4132,7 +4146,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 reconciliationService,
                 notificationService,
                 logger,
-                item.SearchResult?.ProviderName ?? "Content",
+                item.SearchResult?.ProviderName ?? DefaultPublisherName,
                 "[Downloads Bundle Update]",
                 localizationService);
 

@@ -4639,6 +4639,9 @@
 
 Хотите обновить и заменить ее в профиле в рамках установки этого набора?</value>
   </data>
+  <data name="Downloads.ContentDetail.BundleProfileUpdateFailed.Message" xml:space="preserve">
+    <value>Не удалось обновить один или несколько профилей, поэтому предыдущая версия сохранена.</value>
+  </data>
   <data name="Downloads.ContentDetail.ByAuthorFormat" xml:space="preserve">
     <value>Автор: {0}</value>
   </data>

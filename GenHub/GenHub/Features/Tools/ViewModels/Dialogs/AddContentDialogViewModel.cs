@@ -11,6 +11,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Utilities;
 using GenHub.Features.Tools.Interfaces;
+using GenHub.Infrastructure.Services;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -36,6 +37,12 @@ public partial class AddContentDialogViewModel(
     PublisherCatalog? catalog = null,
     INotificationService? notificationService = null) : ObservableValidator, IDisposable
 {
+    private static readonly HttpClient SharedFileSizeClient = new(
+        ImageCacheService.CreateSsrfSafeSocketsHttpHandler())
+    {
+        Timeout = TimeSpan.FromSeconds(5),
+    };
+
     /// <summary>
     /// Represents an option in the ContentBundle component matrix.
     /// </summary>
@@ -802,6 +809,7 @@ public partial class AddContentDialogViewModel(
         {
             _disposed = true;
             CancelAllStagedCompute();
+            UpstreamVariantAxisSelector.Dispose();
         }
     }
 
@@ -1131,21 +1139,27 @@ public partial class AddContentDialogViewModel(
     {
         try
         {
-            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
             using var request = new HttpRequestMessage(HttpMethod.Head, url);
-            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-            if (response.IsSuccessStatusCode && response.Content.Headers.ContentLength is { } length && length > 0)
+            using var response = await SharedFileSizeClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength is not { } length || length <= 0)
             {
-                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    FileSize = length;
-                    FileSizeDisplay = FormatBytes(length);
-                });
+                return;
             }
+
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                if (!string.Equals(DownloadUrl?.Trim(), url, StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
+                FileSize = length;
+                FileSizeDisplay = FormatBytes(length);
+            });
         }
-        catch
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
         {
-            // Remote size detection is best-effort
+            // Remote size detection is best-effort.
         }
     }
 
@@ -1896,11 +1910,12 @@ public partial class AddContentDialogViewModel(
             return;
         }
 
+        var isGitHubFamily = IsGitHubFamilyProvider(SelectedUpstreamProvider);
         contentItem.UpstreamSync = new CatalogUpstreamSync
         {
             Provider = SelectedUpstreamProvider,
-            Repository = UpstreamRepository,
-            Channel = UpstreamChannel,
+            Repository = isGitHubFamily ? UpstreamRepository : null,
+            Channel = isGitHubFamily ? UpstreamChannel : null,
             VariantAxis = UpstreamVariantAxisSelector.EffectiveValue,
             ContentCode = string.IsNullOrWhiteSpace(UpstreamContentCode) ? null : UpstreamContentCode.Trim(),
         };
@@ -2310,7 +2325,8 @@ public partial class AddContentDialogViewModel(
             Version = bundleVersion,
             ReleaseDate = DateTime.UtcNow,
             IsLatest = true,
-            Changelog = string.IsNullOrWhiteSpace(ReleaseChangelog) ? "Initial bundle release" : ReleaseChangelog.Trim(),
+            Changelog = string.IsNullOrWhiteSpace(ReleaseChangelog) ? null : ReleaseChangelog.Trim(),
+            BundleArtifacts = true,
             Artifacts = [],
             Dependencies = [],
             ImageUrls = [],

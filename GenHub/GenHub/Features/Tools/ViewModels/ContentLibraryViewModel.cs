@@ -225,20 +225,34 @@ public partial class ContentLibraryViewModel(
 
     /// <summary>
     /// Gets a value indicating whether a manual release can be added to the selected content item.
-    /// Upstream-tracked items receive their releases from the provider, so manual adds are hidden.
+    /// Upstream-tracked items receive their releases from the provider, and content bundles
+    /// version their dependency graph through the bundle editor, so manual adds are hidden.
     /// </summary>
-    public bool CanAddManualRelease => !SelectedContentTracksUpstream;
+    public bool CanAddManualRelease => !SelectedContentTracksUpstream && SelectedContent?.ContentType != ContentType.ContentBundle;
 
     /// <summary>
     /// Gets a value indicating whether the releases drop zone should be shown.
-    /// Hidden for upstream-tracked items, which receive releases from the provider.
+    /// Hidden for upstream-tracked items, which receive releases from the provider,
+    /// and for content bundles, which have no file artifacts.
     /// </summary>
-    public bool ShowReleasesDropZone => !SelectedContentTracksUpstream && (SelectedContent?.Releases.Count ?? 0) == 0;
+    public bool ShowReleasesDropZone => CanAddManualRelease && (SelectedContent?.Releases.Count ?? 0) == 0;
 
     /// <summary>
     /// Gets a value indicating whether the upstream sync failure warning should be shown.
     /// </summary>
     public bool ShowUpstreamSyncFailedWarning => SelectedContentTracksUpstream && UpstreamPreviewFailed && !IsUpstreamPreviewLoading;
+
+    /// <summary>
+    /// Gets a value indicating whether the selected content is a content bundle.
+    /// Bundle releases carry only dependencies, never file artifacts.
+    /// </summary>
+    public bool IsSelectedContentBundle => SelectedContent?.ContentType == ContentType.ContentBundle;
+
+    /// <summary>
+    /// Gets a value indicating whether release artifact UI should be shown.
+    /// Hidden for content bundles, which version a dependency graph instead of files.
+    /// </summary>
+    public bool ShowReleaseArtifacts => !IsSelectedContentBundle;
 
     /// <summary>
     /// Gets the effective release count for the selected content item (upstream live count when tracked, or static count).
@@ -548,7 +562,7 @@ public partial class ContentLibraryViewModel(
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public async Task AddReleaseWithPathsAsync(IEnumerable<string> paths)
     {
-        if (SelectedContent == null || SelectedContentTracksUpstream)
+        if (SelectedContent == null || !CanAddManualRelease)
         {
             return;
         }
@@ -988,7 +1002,7 @@ public partial class ContentLibraryViewModel(
     [RelayCommand]
     private async Task AddReleaseAsync()
     {
-        if (SelectedContent == null || SelectedContentTracksUpstream)
+        if (SelectedContent == null || !CanAddManualRelease)
         {
             return;
         }
@@ -1394,7 +1408,7 @@ public partial class ContentLibraryViewModel(
     [RelayCommand]
     private async Task AddArtifactToReleaseAsync(ContentRelease? release)
     {
-        if (release == null) return;
+        if (release == null || IsSelectedContentBundle) return;
 
         var artifact = await dialogService.ShowAddArtifactDialogAsync(!release.BundleArtifacts);
         if (artifact != null)
@@ -1507,6 +1521,8 @@ public partial class ContentLibraryViewModel(
         OnPropertyChanged(nameof(CanAddManualRelease));
         OnPropertyChanged(nameof(ShowReleasesDropZone));
         OnPropertyChanged(nameof(ShowUpstreamSyncFailedWarning));
+        OnPropertyChanged(nameof(IsSelectedContentBundle));
+        OnPropertyChanged(nameof(ShowReleaseArtifacts));
         OnPropertyChanged(nameof(EffectiveSelectedContentReleasesCount));
         if (_suppressUpstreamPreviewReload)
         {

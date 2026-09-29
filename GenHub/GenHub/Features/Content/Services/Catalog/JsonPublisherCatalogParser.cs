@@ -50,7 +50,8 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
                 return OperationResult<PublisherCatalog>.CreateFailure("Failed to deserialize catalog JSON");
             }
 
-            // Validate after parsing
+            // Normalize import-time defaults, then validate the normalized model
+            NormalizeCatalog(catalog);
             var validationResult = ValidateCatalog(catalog);
             if (!validationResult.Success)
             {
@@ -86,11 +87,17 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
     }
 
     /// <inheritdoc />
-    public OperationResult<bool> ValidateCatalog(PublisherCatalog catalog)
+    public void NormalizeCatalog(PublisherCatalog catalog)
     {
         ArgumentNullException.ThrowIfNull(catalog);
 
         NormalizeCatalogCollections(catalog, logger);
+    }
+
+    /// <inheritdoc />
+    public OperationResult<bool> ValidateCatalog(PublisherCatalog catalog)
+    {
+        ArgumentNullException.ThrowIfNull(catalog);
 
         var errors = new List<string>();
 
@@ -235,7 +242,10 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
     {
         catalog.Content ??= [];
         var seenNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var itemIds = new HashSet<string>(catalog.Content.Where(c => c != null && !string.IsNullOrWhiteSpace(c.Id)).Select(c => c.Id), StringComparer.OrdinalIgnoreCase);
+        var itemsById = catalog.Content
+            .Where(c => c != null && !string.IsNullOrWhiteSpace(c.Id))
+            .GroupBy(c => c.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
         var hostPubId = catalog.Publisher?.Id;
 
         foreach (var content in catalog.Content.Where(content => content != null))
@@ -244,13 +254,38 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
 
             if (!string.IsNullOrWhiteSpace(hostPubId))
             {
-                NormalizeBundledItemPublishers(content, hostPubId, itemIds);
-                NormalizeReleaseDependencyPublishers(content, hostPubId, itemIds);
+                NormalizeBundledItemPublishers(content, hostPubId, itemsById);
+                NormalizeReleaseDependencyPublishers(content, hostPubId, itemsById);
             }
         }
     }
 
-    private static void NormalizeBundledItemPublishers(CatalogContentItem content, string hostPubId, HashSet<string> itemIds)
+    private static bool ShouldRewriteDependencyPublisher(
+        string? publisherId,
+        string contentId,
+        string hostPubId,
+        Dictionary<string, CatalogContentItem> itemsById)
+    {
+        if (string.IsNullOrWhiteSpace(contentId) || !itemsById.TryGetValue(contentId, out var sibling))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(publisherId) &&
+            !string.Equals(publisherId, CatalogConstants.GenericCatalogResolverId, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        // Upstream-tracked siblings resolve through their provider identity, which the
+        // bundle resolver matches canonically. Rewriting them to the host slug would
+        // resolve to generic-catalog and break the match, so leave them untouched.
+        var declared = CatalogManifestIdentity.ResolveDeclaredPublisherType(sibling);
+        return string.Equals(declared, CatalogConstants.GenericCatalogResolverId, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(declared, hostPubId, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void NormalizeBundledItemPublishers(CatalogContentItem content, string hostPubId, Dictionary<string, CatalogContentItem> itemsById)
     {
         if (content.BundledItems == null)
         {
@@ -258,16 +293,13 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         }
 
         foreach (var bundled in content.BundledItems.Where(b =>
-            b != null &&
-            itemIds.Contains(b.ContentId) &&
-            (string.IsNullOrWhiteSpace(b.PublisherId) ||
-             string.Equals(b.PublisherId, CatalogConstants.GenericCatalogResolverId, StringComparison.OrdinalIgnoreCase))))
+            b != null && ShouldRewriteDependencyPublisher(b.PublisherId, b.ContentId, hostPubId, itemsById)))
         {
             bundled.PublisherId = hostPubId;
         }
     }
 
-    private static void NormalizeReleaseDependencyPublishers(CatalogContentItem content, string hostPubId, HashSet<string> itemIds)
+    private static void NormalizeReleaseDependencyPublishers(CatalogContentItem content, string hostPubId, Dictionary<string, CatalogContentItem> itemsById)
     {
         if (content.Releases == null)
         {
@@ -278,10 +310,7 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
             .Where(r => r?.Dependencies != null)
             .SelectMany(r => r.Dependencies)
             .Where(dep =>
-                dep != null &&
-                itemIds.Contains(dep.ContentId) &&
-                (string.IsNullOrWhiteSpace(dep.PublisherId) ||
-                 string.Equals(dep.PublisherId, CatalogConstants.GenericCatalogResolverId, StringComparison.OrdinalIgnoreCase))))
+                dep != null && ShouldRewriteDependencyPublisher(dep.PublisherId, dep.ContentId, hostPubId, itemsById)))
         {
             dep.PublisherId = hostPubId;
         }

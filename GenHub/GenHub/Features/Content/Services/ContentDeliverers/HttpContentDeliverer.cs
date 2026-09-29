@@ -169,15 +169,24 @@ public class HttpContentDeliverer(
         IEnumerable<ManifestFile> filesToDownload,
         string targetDirectory,
         IProgress<ContentAcquisitionProgress>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ILogger logger)
     {
         foreach (var relativePath in filesToDownload.Select(file => file.RelativePath))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             var localPath = ResolveTargetPath(targetDirectory, relativePath);
-            if (!IsArchive(localPath) || !File.Exists(localPath) || !ZipValidation.IsValidZipFile(localPath))
+            if (!IsArchive(localPath) || !File.Exists(localPath))
             {
+                continue;
+            }
+
+            // The fallback extractor only handles zip archives: anything else would be
+            // left packed while delivery reports success, so surface it explicitly.
+            if (!ZipValidation.IsValidZipFile(localPath))
+            {
+                logger.LogWarning("Skipping extraction of non-zip archive '{Path}': no archive processor is configured", localPath);
                 continue;
             }
 
@@ -321,7 +330,7 @@ public class HttpContentDeliverer(
             return;
         }
 
-        ExtractArchivesFallback(filesToDownload, targetDirectory, progress, cancellationToken);
+        ExtractArchivesFallback(filesToDownload, targetDirectory, progress, cancellationToken, logger);
     }
 
     private async Task<DownloadResult> DownloadFileAsync(

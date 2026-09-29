@@ -105,6 +105,7 @@ public class CatalogContentItem : ObservableObject
             if (SetProperty(ref _metadata, value))
             {
                 OnPropertyChanged(nameof(EffectiveIconUrl));
+                OnPropertyChanged(nameof(IsFeatured));
                 OnPropertyChanged(nameof(FeaturedColor));
                 OnPropertyChanged(nameof(HasFeaturedColor));
             }
@@ -181,11 +182,13 @@ public class CatalogContentItem : ObservableObject
 
     /// <summary>
     /// Gets or sets a value indicating whether this content item is featured.
+    /// The getter exposes the effective value, honoring the metadata-level flag
+    /// so catalogs that only set <c>metadata.isFeatured</c> still get featured styling.
     /// </summary>
     [JsonPropertyName("isFeatured")]
     public bool IsFeatured
     {
-        get => _isFeatured;
+        get => _isFeatured || (Metadata?.IsFeatured ?? false);
         set
         {
             if (SetProperty(ref _isFeatured, value))

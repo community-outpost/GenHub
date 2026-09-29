@@ -29,7 +29,8 @@ public partial class AddContentDialogView : UserControl
 
     private static async Task<bool> TryHandleDropZonesAsync(Visual? sourceVisual, List<string> paths, AddContentDialogViewModel vm)
     {
-        if (ViewDropHelper.IsInSubtree(sourceVisual, "ContentMediaDropZone"))
+        if (ViewDropHelper.IsInSubtree(sourceVisual, "ContentMediaDropZone") ||
+            ViewDropHelper.IsInSubtree(sourceVisual, "ContentMediaDropZoneMore"))
         {
             await vm.AddScreenshotsFromPathsAsync(paths);
             return true;

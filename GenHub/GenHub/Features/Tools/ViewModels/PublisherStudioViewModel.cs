@@ -652,6 +652,7 @@ public partial class PublisherStudioViewModel(
 
         if (catalogParser != null)
         {
+            catalogParser.NormalizeCatalog(catalog);
             var validation = catalogParser.ValidateCatalog(catalog);
             if (!validation.Success)
             {

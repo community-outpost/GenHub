@@ -4639,6 +4639,9 @@
 
 هل ترغب في تحديثه واستبداله في ملف التعريف كجزء من تثبيت هذه الحزمة؟</value>
   </data>
+  <data name="Downloads.ContentDetail.BundleProfileUpdateFailed.Message" xml:space="preserve">
+    <value>تعذر تحديث ملف تعريف واحد أو أكثر، لذلك تم الاحتفاظ بالإصدار السابق.</value>
+  </data>
   <data name="Downloads.ContentDetail.ByAuthorFormat" xml:space="preserve">
     <value>بواسطة: {0}</value>
   </data>

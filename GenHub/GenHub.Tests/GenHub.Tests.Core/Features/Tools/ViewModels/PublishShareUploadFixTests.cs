@@ -490,6 +490,77 @@ public class PublishShareUploadFixTests
         Assert.True(staleCallbackInvoked);
     }
 
+    /// <summary>
+    /// Artwork paths that escape the studio project directory must never be queued for
+    /// upload, so a crafted imported catalog cannot exfiltrate publisher-local files
+    /// outside the project. Only the in-project icon is uploaded.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PublishCatalogCommand_ArtworkOutsideProjectDirectory_IsSkippedAsync()
+    {
+        var projectDir = Directory.CreateTempSubdirectory("genhub-artwork-").FullName;
+        var outsideIcon = Path.GetTempFileName();
+        try
+        {
+            await File.WriteAllBytesAsync(Path.Combine(projectDir, "icon.png"), [1, 2, 3, 4]);
+            await File.WriteAllTextAsync(outsideIcon, "outside");
+            var insideItem = new CatalogContentItem
+            {
+                Id = "inside",
+                Name = "Inside",
+                Metadata = new ContentRichMetadata { IconUrl = "icon.png" },
+            };
+            var outsideItem = new CatalogContentItem
+            {
+                Id = "outside",
+                Name = "Outside",
+                Metadata = new ContentRichMetadata { IconUrl = outsideIcon },
+            };
+            var catalog = new NamedCatalog
+            {
+                Id = "cat",
+                Name = "Cat",
+                Catalog = new PublisherCatalog { Content = [insideItem, outsideItem] },
+            };
+            var project = new PublisherStudioProject
+            {
+                ProjectPath = Path.Combine(projectDir, "project.json"),
+                Catalogs = [catalog],
+            };
+
+            var mockProvider = CreateRecordingArtifactProvider([]);
+            SetupCatalogServiceMocks();
+            var vm = CreatePublishShareViewModel(project, mockProvider.Object);
+
+            await vm.PublishCatalogCommand.ExecuteAsync(catalog);
+
+            mockProvider.Verify(
+                p => p.UploadFileAsync(
+                    It.IsAny<Stream>(),
+                    It.Is<string>(name => name.Contains("icon", StringComparison.OrdinalIgnoreCase)),
+                    It.IsAny<string?>(),
+                    It.IsAny<IProgress<int>?>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+            mockProvider.Verify(
+                p => p.UploadFileAsync(
+                    It.IsAny<Stream>(),
+                    It.Is<string>(name => name.Contains(Path.GetFileName(outsideIcon), StringComparison.OrdinalIgnoreCase)),
+                    It.IsAny<string?>(),
+                    It.IsAny<IProgress<int>?>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+            Assert.StartsWith("https://", insideItem.Metadata?.IconUrl);
+            Assert.Equal(outsideIcon, outsideItem.Metadata?.IconUrl);
+        }
+        finally
+        {
+            File.Delete(outsideIcon);
+            Directory.Delete(projectDir, true);
+        }
+    }
+
     private static PublisherStudioProject CreateProjectWithArtifacts(params ReleaseArtifact[] artifacts)
     {
         var catalog = new NamedCatalog

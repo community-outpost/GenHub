@@ -1994,7 +1994,14 @@ public sealed partial class ContentStateService(
 
     private static bool IsGitHubManifestMatch(ContentManifest manifest, ContentSearchResult item)
     {
-        if (manifest.ContentType != item.ContentType || manifest.TargetGame != item.TargetGame)
+        if (manifest.ContentType != item.ContentType)
+        {
+            return false;
+        }
+
+        if (manifest.TargetGame != GameType.Unknown &&
+            item.TargetGame != GameType.Unknown &&
+            manifest.TargetGame != item.TargetGame)
         {
             return false;
         }
@@ -2029,9 +2036,55 @@ public sealed partial class ContentStateService(
             itemAuthor = metadataOwner;
         }
 
-        return string.IsNullOrWhiteSpace(manifestAuthor) ||
-               string.IsNullOrWhiteSpace(itemAuthor) ||
-               string.Equals(manifestAuthor, itemAuthor, StringComparison.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(manifestAuthor) ||
+            string.IsNullOrWhiteSpace(itemAuthor) ||
+            string.Equals(manifestAuthor, itemAuthor, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var manifestOwner = ExtractGitHubOwner(manifest.Publisher?.Website)
+            ?? ExtractGitHubOwner(manifest.Publisher?.SupportUrl)
+            ?? ExtractGitHubOwner(manifest.Metadata?.ChangelogUrl);
+        var itemOwner = ExtractGitHubOwner(item.SourceUrl);
+        if (string.IsNullOrWhiteSpace(itemOwner) &&
+            item.ResolverMetadata?.TryGetValue(GitHubConstants.OwnerMetadataKey, out var ownerMeta) == true &&
+            !string.IsNullOrWhiteSpace(ownerMeta))
+        {
+            itemOwner = ownerMeta.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(manifestOwner) && !string.IsNullOrWhiteSpace(itemAuthor) &&
+            string.Equals(manifestOwner, itemAuthor, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(itemOwner) && !string.IsNullOrWhiteSpace(manifestAuthor) &&
+            string.Equals(itemOwner, manifestAuthor, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return !string.IsNullOrWhiteSpace(manifestOwner) &&
+            !string.IsNullOrWhiteSpace(itemOwner) &&
+            string.Equals(manifestOwner, itemOwner, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? ExtractGitHubOwner(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url) || !IsGitHubUrl(url))
+        {
+            return null;
+        }
+
+        if (!Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri))
+        {
+            return null;
+        }
+
+        var segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        return segments.Length >= 1 ? segments[0] : null;
     }
 
     private static bool IsGitHubUrlMatch(ContentManifest manifest, string? sourceUrl)

@@ -26,6 +26,8 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
 {
     private readonly GenHub.Core.Models.Enums.GameType _existingTargetGame;
 
+    private bool _localizationSubscribed;
+
     [ObservableProperty]
     [NotifyDataErrorInfo]
     [LocalizedRequired("Tools.PublisherStudio.Validation.FilenameRequired", "Filename is required")]
@@ -149,16 +151,41 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
     /// <summary>
     /// Gets the dialog title based on the current mode.
     /// </summary>
-    public string DialogTitle => IsEditMode
-        ? GetLocalizedString("Tools.PublisherStudio.Artifact.EditTitle", "Edit Artifact")
-        : GetLocalizedString("Tools.PublisherStudio.Artifact.AddTitle", "Add Artifact");
+    public string DialogTitle
+    {
+        get
+        {
+            EnsureLocalizationSubscribed();
+            return IsEditMode
+                ? GetLocalizedString("Tools.PublisherStudio.Artifact.EditTitle", "Edit Artifact")
+                : GetLocalizedString("Tools.PublisherStudio.Artifact.AddTitle", "Add Artifact");
+        }
+    }
 
     /// <summary>
     /// Gets the submit button text based on the current mode.
     /// </summary>
-    public string SubmitButtonText => IsEditMode
-        ? GetLocalizedString("Tools.PublisherStudio.Common.SaveChanges", "Save Changes")
-        : GetLocalizedString("Tools.PublisherStudio.Artifact.AddTitle", "Add Artifact");
+    public string SubmitButtonText
+    {
+        get
+        {
+            EnsureLocalizationSubscribed();
+            return IsEditMode
+                ? GetLocalizedString("Tools.PublisherStudio.Common.SaveChanges", "Save Changes")
+                : GetLocalizedString("Tools.PublisherStudio.Artifact.AddTitle", "Add Artifact");
+        }
+    }
+
+    private void EnsureLocalizationSubscribed()
+    {
+        if (_localizationSubscribed || localizationService == null)
+        {
+            return;
+        }
+
+        localizationService.PropertyChanged += OnLocalizationChanged;
+        _localizationSubscribed = true;
+    }
 
     /// <summary>
     /// Gets or sets a value indicating whether to use an existing URL instead of uploading a file.
@@ -291,6 +318,16 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
             _hashCts?.Cancel();
             _hashCts?.Dispose();
             _hashCts = null;
+            if (_localizationSubscribed)
+            {
+                var service = localizationService;
+                if (service != null)
+                {
+                    service.PropertyChanged -= OnLocalizationChanged;
+                }
+            }
+
+            VariantAxisSelector.Dispose();
         }
     }
 
@@ -324,6 +361,15 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
 
         sha256.TransformFinalBlock([], 0, 0);
         return Convert.ToHexString(sha256.Hash!).ToLowerInvariant();
+    }
+
+    private void OnLocalizationChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(GenHub.Core.Interfaces.Common.ILocalizationService.CurrentCulture))
+        {
+            OnPropertyChanged(nameof(DialogTitle));
+            OnPropertyChanged(nameof(SubmitButtonText));
+        }
     }
 
     private void CancelPendingHash()

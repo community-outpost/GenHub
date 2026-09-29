@@ -249,6 +249,38 @@ public sealed class ContentLibraryUpstreamPreviewTests
         Assert.Same(created, Assert.Single(item.Releases));
     }
 
+    /// <summary>
+    /// Verifies that content bundles hide manual release creation and artifact UI,
+    /// since bundle releases version a dependency graph instead of files.
+    /// </summary>
+    [AvaloniaFact]
+    public void BundleItem_HidesManualReleaseAndArtifacts()
+    {
+        var bundle = new CatalogContentItem { Id = "bundle-1", Name = "Bundle", ContentType = ContentType.ContentBundle };
+        var viewModel = CreateViewModel(bundle, Mock.Of<ICatalogUpstreamIngestionService>());
+        viewModel.SelectedContent = bundle;
+
+        Assert.False(viewModel.CanAddManualRelease);
+        Assert.False(viewModel.ShowReleasesDropZone);
+        Assert.True(viewModel.IsSelectedContentBundle);
+        Assert.False(viewModel.ShowReleaseArtifacts);
+    }
+
+    /// <summary>
+    /// Verifies that plain items still allow manual releases and show artifacts.
+    /// </summary>
+    [AvaloniaFact]
+    public void PlainItem_ShowsManualReleaseAndArtifacts()
+    {
+        var item = new CatalogContentItem { Id = "plain-1", Name = "Plain", ContentType = ContentType.Mod };
+        var viewModel = CreateViewModel(item, Mock.Of<ICatalogUpstreamIngestionService>());
+        viewModel.SelectedContent = item;
+
+        Assert.True(viewModel.CanAddManualRelease);
+        Assert.False(viewModel.IsSelectedContentBundle);
+        Assert.True(viewModel.ShowReleaseArtifacts);
+    }
+
     private static CatalogContentItem CreateUpstreamItem(string id) => new()
     {
         Id = id,

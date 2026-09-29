@@ -254,4 +254,121 @@ public sealed class ContentStateServiceCatalogIdentityTests
         Assert.Equal(ContentState.Downloaded, await service.GetStateAsync(card));
         Assert.Equal(localManifest.Id.Value, await service.GetLocalManifestIdAsync(card));
     }
+
+    /// <summary>
+    /// Verifies that a catalog card tracking a GitHub upstream repository resolves to
+    /// Downloaded when the same repository was acquired through the GitHub provider.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetStateAsync_CatalogUpstreamGitHubCard_MatchesGitHubManifestAsync()
+    {
+        var poolMock = new Mock<IContentManifestPool>();
+
+        var gitHubManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.13.l3m.addon.generalscontrolbar1080p"),
+            Name = "GeneralsControlBar1080p",
+            Version = "v1.3",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo
+            {
+                Name = "L3-M",
+                PublisherType = "github",
+                Website = "https://github.com/L3-M",
+            },
+            Metadata = new ContentMetadata
+            {
+                ChangelogUrl = "https://github.com/L3-M/GeneralsControlBar/releases/tag/v1.3",
+            },
+        };
+
+        poolMock.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(new List<ContentManifest> { gitHubManifest }));
+        poolMock.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        poolMock.Setup(p => p.IsManifestAcquiredAsync(gitHubManifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var service = new ContentStateService(poolMock.Object, NullLogger<ContentStateService>.Instance);
+
+        var catalogCard = new ContentSearchResult
+        {
+            Id = "1.13.github.addon.l3mcontrolbarresolution1080p",
+            Name = "L3M Modern HD Control Bar (1080p)",
+            Version = "1.3",
+            ProviderName = "undead2146",
+            AuthorName = "undead2146",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            SourceUrl = "https://github.com/L3-M/GeneralsControlBar",
+        };
+        catalogCard.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = "L3-M";
+        catalogCard.ResolverMetadata[GitHubConstants.RepoMetadataKey] = "GeneralsControlBar";
+        catalogCard.ResolverMetadata[GitHubConstants.TagMetadataKey] = "v1.3";
+
+        Assert.Equal(ContentState.Downloaded, await service.GetStateAsync(catalogCard));
+        Assert.Equal(gitHubManifest.Id.Value, await service.GetLocalManifestIdAsync(catalogCard));
+    }
+
+    /// <summary>
+    /// Verifies that a GitHub card resolves to Downloaded when the same repository was
+    /// acquired through a catalog that stamps the upstream repository URL.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetStateAsync_GitHubCard_MatchesCatalogUpstreamManifestAsync()
+    {
+        var poolMock = new Mock<IContentManifestPool>();
+
+        var catalogManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.13.github.addon.l3mcontrolbar1080p"),
+            Name = "L3M Modern HD Control Bar (1080p)",
+            Version = "1.3",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = "github",
+            OriginalContentId = "1.13.github.addon.l3mcontrolbar1080p",
+            Publisher = new PublisherInfo
+            {
+                Name = "undead2146",
+                PublisherType = "github",
+                Website = "https://undead2146.example.com",
+                SupportUrl = "https://github.com/L3-M/GeneralsControlBar",
+            },
+            Metadata = new ContentMetadata
+            {
+                ChangelogUrl = "https://github.com/L3-M/GeneralsControlBar",
+            },
+        };
+
+        poolMock.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(new List<ContentManifest> { catalogManifest }));
+        poolMock.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        poolMock.Setup(p => p.IsManifestAcquiredAsync(catalogManifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var service = new ContentStateService(poolMock.Object, NullLogger<ContentStateService>.Instance);
+
+        var gitHubCard = new ContentSearchResult
+        {
+            Id = "1.13.l3m.addon.generalscontrolbar1080p",
+            Name = "GeneralsControlBar (1080p)",
+            Version = "v1.3",
+            ProviderName = "GitHub",
+            AuthorName = "L3-M",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            SourceUrl = "https://github.com/L3-M/GeneralsControlBar",
+        };
+        gitHubCard.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = "L3-M";
+        gitHubCard.ResolverMetadata[GitHubConstants.RepoMetadataKey] = "GeneralsControlBar";
+        gitHubCard.ResolverMetadata[GitHubConstants.TagMetadataKey] = "v1.3";
+
+        Assert.Equal(ContentState.Downloaded, await service.GetStateAsync(gitHubCard));
+        Assert.Equal(catalogManifest.Id.Value, await service.GetLocalManifestIdAsync(gitHubCard));
+    }
 }

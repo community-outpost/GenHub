@@ -12,6 +12,7 @@ using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.CommunityOutpost;
 using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.Content.Services.GitHub;
+using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
@@ -159,9 +160,16 @@ public class CatalogUpstreamIngestionService(
     {
         foreach (var asset in assets)
         {
-            var isZh = asset.Name.Contains("zh-client", StringComparison.OrdinalIgnoreCase);
-            var isGen = asset.Name.Contains("gen-client", StringComparison.OrdinalIgnoreCase);
+            if (string.IsNullOrWhiteSpace(asset.Name))
+            {
+                continue;
+            }
+
             var isFull = asset.Name.Contains("full-client", StringComparison.OrdinalIgnoreCase);
+            var isZh = !isFull && (asset.Name.Contains("zh-client", StringComparison.OrdinalIgnoreCase)
+                || SuperHackersAssetMatcher.IsZeroHourAssetName(asset.Name));
+            var isGen = !isFull && !isZh && (asset.Name.Contains("gen-client", StringComparison.OrdinalIgnoreCase)
+                || SuperHackersAssetMatcher.IsGeneralsAssetName(asset.Name));
 
             if (!isZh && !isGen && !isFull)
             {
@@ -241,6 +249,7 @@ public class CatalogUpstreamIngestionService(
         CatalogUpstreamSync? sync,
         string? provider,
         string? repository,
+        CatalogContentItem item,
         ILogger logger)
     {
         var version = NormalizeReleaseVersion(release);
@@ -257,8 +266,13 @@ public class CatalogUpstreamIngestionService(
         {
             PopulateArtifactsFromAssetRules(synthesized, release.Assets, sync, logger);
         }
-        else if (IsDefaultSuperHackersRepository(provider, repository))
+        else if (item.ContentType == ContentType.GameClient &&
+            IsDefaultSuperHackersRepository(provider, repository))
         {
+            // The zh/gen/full-client filename filter only fits game-client items.
+            // Other content types tracking the official repo (for example a mod
+            // following weekly game-code releases) hydrate every asset instead
+            // of matching nothing and keeping zero releases.
             PopulateDefaultSuperHackersArtifacts(synthesized, release.Assets);
         }
         else
@@ -328,7 +342,7 @@ public class CatalogUpstreamIngestionService(
                 synthesized.Changelog = firstRel.Changelog;
             }
 
-            foreach (var dep in firstRel.Dependencies.Where(dep =>
+            foreach (var dep in (firstRel.Dependencies ?? []).Where(dep =>
                 dep != null &&
                 !synthesized.Dependencies.Any(d => string.Equals(d.ContentId, dep.ContentId, StringComparison.OrdinalIgnoreCase))))
             {
@@ -396,17 +410,11 @@ public class CatalogUpstreamIngestionService(
 
     private static string ResolveDiscoveryVersion(ContentSearchResult matched)
     {
+        // Feed producers always populate Version (GenPatcherDatCatalogParser falls back
+        // to DefaultMetadataVersion), so an empty version only means an unknown one.
         if (!string.IsNullOrWhiteSpace(matched.Version))
         {
             return matched.Version;
-        }
-
-        // Catalog-backed feeds (GenPatcher dl.dat) stamp the catalog revision on every entry,
-        // which still moves when the publisher ships new files.
-        if (matched.ResolverMetadata.TryGetValue(CommunityOutpostCatalogConstants.CatalogVersionKey, out var catalogVersion) &&
-            !string.IsNullOrWhiteSpace(catalogVersion))
-        {
-            return catalogVersion;
         }
 
         return "1.0.0";
@@ -505,10 +513,11 @@ public class CatalogUpstreamIngestionService(
         var release = await FetchGitHubReleaseAsync(parts[0], parts[1], isTrackPrerelease, cacheKey, cancellationToken);
         if (release == null)
         {
+            logger.LogWarning("No upstream release found for repository '{Repo}' on item '{ItemId}'", repo, item.Id);
             return;
         }
 
-        var synthesized = SynthesizeGitHubRelease(release, isTrackPrerelease, sync, provider, repo, logger);
+        var synthesized = SynthesizeGitHubRelease(release, isTrackPrerelease, sync, provider, repo, item, logger);
         PreserveReleaseDependenciesAndMetadata(item, synthesized);
 
         if (synthesized.Artifacts.Count > 0)
@@ -557,6 +566,10 @@ public class CatalogUpstreamIngestionService(
         var matched = FindMatchingDiscoveryItem(items, item, item.UpstreamSync);
         if (matched == null)
         {
+            logger.LogWarning(
+                "No discovered item matched catalog item '{ItemId}' (contentCode '{ContentCode}'); keeping existing releases",
+                item.Id,
+                item.UpstreamSync?.ContentCode);
             return;
         }
 

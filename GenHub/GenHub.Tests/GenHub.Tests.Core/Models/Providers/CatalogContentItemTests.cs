@@ -84,4 +84,35 @@ public class CatalogContentItemTests
         Assert.Contains(nameof(CatalogContentItem.FeaturedColor), notified);
         Assert.Equal("#0F6A0D", item.FeaturedColor);
     }
+
+    /// <summary>
+    /// Verifies metadata-only featured flags surface through the effective value.
+    /// </summary>
+    [Fact]
+    public void IsFeatured_MetadataFlagOnly_ReturnsTrue()
+    {
+        var item = new CatalogContentItem
+        {
+            Metadata = new ContentRichMetadata { IsFeatured = true },
+        };
+
+        Assert.True(item.IsFeatured);
+        Assert.Equal(CatalogConstants.FeaturedDefaultColor, item.FeaturedColor);
+    }
+
+    /// <summary>
+    /// Verifies replacing metadata notifies featured bindings.
+    /// </summary>
+    [Fact]
+    public void Metadata_Set_RaisesIsFeaturedNotification()
+    {
+        var item = new CatalogContentItem();
+        var notified = new List<string?>();
+        item.PropertyChanged += (_, args) => notified.Add(args.PropertyName);
+
+        item.Metadata = new ContentRichMetadata { IsFeatured = true };
+
+        Assert.Contains(nameof(CatalogContentItem.IsFeatured), notified);
+        Assert.True(item.IsFeatured);
+    }
 }

@@ -61,9 +61,11 @@ public class FeaturedColorConverterTests
     [Fact]
     public void ShadowConverter_ValidHex_ReturnsTintedGlow()
     {
-        var result = _shadowConverter.Convert("#76F525", typeof(BoxShadow), null, _culture);
+        var result = _shadowConverter.Convert("#76F525", typeof(BoxShadows), null, _culture);
 
-        var shadow = Assert.IsType<BoxShadow>(result);
+        var shadows = Assert.IsType<BoxShadows>(result);
+        Assert.Equal(1, shadows.Count);
+        var shadow = shadows[0];
         Assert.Equal(new Color(0x59, 0x76, 0xF5, 0x25), shadow.Color);
         Assert.Equal(0, shadow.OffsetX);
         Assert.Equal(10, shadow.OffsetY);

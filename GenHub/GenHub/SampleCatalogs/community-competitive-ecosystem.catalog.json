@@ -187,6 +187,17 @@
                             "isPrimary": false
                         },
                         {
+                            "filename": "ControlBarProLemonEditionZH_v1.3_1600x900.zip",
+                            "downloadUrl": "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1600x900.zip",
+                            "size": 1224790,
+                            "sha256": "7a2db7af4cf029841240854b4ecbad265dc5b841c5283bdac643a38c9229f924",
+                            "contentType": "application/zip",
+                            "variantAxis": "resolution",
+                            "variant": "900p",
+                            "isDefaultVariant": false,
+                            "isPrimary": false
+                        },
+                        {
                             "filename": "ControlBarProLemonEditionZH_v1.3_1920x1080.zip",
                             "downloadUrl": "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1920x1080.zip",
                             "size": 1224544,

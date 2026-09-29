@@ -55,12 +55,13 @@
             <Setter Property="MaxHeight" Value="560" />
         </Style>
 
-        <!-- Featured fallback frame. The card BorderBrush/BoxShadow bindings below resolve the
-             publisher featured color (or default gold) and override these values whenever set. -->
+        <!-- Featured frame. The bindings resolve the publisher featured color (or default
+             gold) and override these fallbacks whenever set; keeping them in styles (rather
+             than local values on the Border) lets the pointerover setters below still apply. -->
         <Style Selector="Border.content-card.featured-card">
-            <Setter Property="BorderBrush" Value="{DynamicResource WarningHighlightBrush}" />
             <Setter Property="BorderThickness" Value="2" />
-            <Setter Property="BoxShadow" Value="0 10 35 0 #59F59E0B" />
+            <Setter Property="BorderBrush" Value="{Binding FeaturedColor, Converter={StaticResource FeaturedColorToBrushConverter}, FallbackValue={DynamicResource WarningHighlightBrush}}" />
+            <Setter Property="BoxShadow" Value="{Binding FeaturedColor, Converter={StaticResource FeaturedColorToBoxShadowConverter}, FallbackValue='0 10 35 0 #59F59E0B'}" />
         </Style>
 
         <Style Selector="Border.content-card.featured-card:pointerover">
@@ -189,9 +190,7 @@
         </Style>
     </UserControl.Styles>
 
-    <Border Classes="content-card" Classes.bundle-card="{Binding HasBundleComponents}" Classes.featured-card="{Binding IsFeatured}"
-            BorderBrush="{Binding FeaturedColor, Converter={StaticResource FeaturedColorToBrushConverter}}"
-            BoxShadow="{Binding FeaturedColor, Converter={StaticResource FeaturedColorToBoxShadowConverter}}">
+    <Border Classes="content-card" Classes.bundle-card="{Binding HasBundleComponents}" Classes.featured-card="{Binding IsFeatured}">
         <Panel>
             <!-- 1. Acrylic blur -->
             <ExperimentalAcrylicBorder CornerRadius="12" IsHitTestVisible="False">
@@ -294,7 +293,7 @@
                                        MaxWidth="228">
                                 <Border Classes="type-badge featured-badge"
                                         Background="{Binding FeaturedColor, Converter={StaticResource ColorToBrushConverter}}"
-                                        BorderBrush="{Binding FeaturedColor, Converter={StaticResource ColorToBrushConverter}}"
+                                        BorderBrush="{DynamicResource PendingActionHoverBrush}"
                                         IsVisible="{Binding HasFeaturedBadge}"
                                         Margin="0,0,4,4"
                                         ToolTip.Tip="{Binding FeaturedBadge}">

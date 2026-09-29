@@ -27,14 +27,14 @@ public class FeaturedColorToBoxShadowConverter : IValueConverter
             ContentCardBadgeHelper.IsValidAccentColor(colorString) &&
             Color.TryParse(colorString.Trim(), out var parsed))
         {
-            return new BoxShadow
+            return new BoxShadows(new BoxShadow
             {
                 OffsetX = 0,
                 OffsetY = GlowOffsetY,
                 Blur = GlowBlurRadius,
                 Spread = 0,
                 Color = new Color(GlowAlpha, parsed.R, parsed.G, parsed.B),
-            };
+            });
         }
 
         return AvaloniaProperty.UnsetValue;

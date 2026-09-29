@@ -115,6 +115,8 @@ public partial class ContentDetailViewModel(
     private const string ScrubFailedTitleFallback = "Profile Update Incomplete";
     private const string ScrubFailedEnumerationKey = "Settings.Manifests.ScrubFailed.EnumerationMessage";
     private const string ScrubFailedEnumerationFallback = "The profile list could not be loaded, so deleted manifests may still be referenced by profiles.";
+    private const string BundleProfileUpdateFailedMessageKey = "Downloads.ContentDetail.BundleProfileUpdateFailed.Message";
+    private const string BundleProfileUpdateFailedMessageFallback = "One or more profiles could not be updated, so the previous version was kept.";
     private const string ScrubFailedMessageKey = "Settings.Manifests.ScrubFailed.Message";
     private const string ScrubFailedMessageFallback = "Deleted manifests could not be removed from {0} profile(s): {1}.";
 
@@ -1509,7 +1511,7 @@ public partial class ContentDetailViewModel(
                 logger.LogWarning(ex, "Failed to apply profile update strategy for bundle component {Name}", target.Name);
                 notificationService.ShowWarning(
                     GetLocalizedString(ScrubFailedTitleKey, ScrubFailedTitleFallback),
-                    GetLocalizedString(ScrubFailedEnumerationKey, ScrubFailedEnumerationFallback));
+                    GetLocalizedString(BundleProfileUpdateFailedMessageKey, BundleProfileUpdateFailedMessageFallback));
                 return;
             }
 
@@ -1521,7 +1523,7 @@ public partial class ContentDetailViewModel(
                     target.Name);
                 notificationService.ShowWarning(
                     GetLocalizedString(ScrubFailedTitleKey, ScrubFailedTitleFallback),
-                    GetLocalizedString(ScrubFailedEnumerationKey, ScrubFailedEnumerationFallback));
+                    GetLocalizedString(BundleProfileUpdateFailedMessageKey, BundleProfileUpdateFailedMessageFallback));
                 return;
             }
 
@@ -5302,44 +5304,66 @@ public partial class ContentDetailViewModel(
         var replacedProfiles = new List<GameProfile>();
         var createdProfileIds = new List<string>();
 
+        async Task RollbackPartialUpdatesAsync()
+        {
+            foreach (var rollbackProfile in replacedProfiles)
+            {
+                try
+                {
+                    var rollbackRequest = new UpdateProfileRequest
+                    {
+                        Name = rollbackProfile.Name,
+                        Description = rollbackProfile.Description,
+                        WorkspaceStrategy = rollbackProfile.WorkspaceStrategy,
+                        EnabledContentIds = rollbackProfile.EnabledContentIds.ToList(),
+                        GameClient = rollbackProfile.GameClient,
+                        ActiveWorkspaceId = string.Empty,
+                    };
+                    await profileManager.UpdateProfileAsync(rollbackProfile.Id, rollbackRequest, CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to rollback profile {ProfileId} during failed bundle update", rollbackProfile.Id);
+                }
+            }
+
+            foreach (var createdId in createdProfileIds)
+            {
+                try
+                {
+                    await profileManager.DeleteProfileAsync(createdId, CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to delete cloned profile {ProfileId} during failed bundle update rollback", createdId);
+                }
+            }
+        }
+
         foreach (var profile in profilesResult.Data)
         {
-            var (updated, wasModified, createdProfileId) = await ApplyBundleProfileUpdateAsync(profile, target, oldManifestId, newManifest, promptResult, cancellationToken);
+            bool updated;
+            bool wasModified;
+            string? createdProfileId;
+            try
+            {
+                (updated, wasModified, createdProfileId) = await ApplyBundleProfileUpdateAsync(profile, target, oldManifestId, newManifest, promptResult, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                await RollbackPartialUpdatesAsync();
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to apply profile update strategy for bundle component {Name}", target.Name);
+                await RollbackPartialUpdatesAsync();
+                return false;
+            }
+
             if (!updated)
             {
-                foreach (var rollbackProfile in replacedProfiles)
-                {
-                    try
-                    {
-                        var rollbackRequest = new UpdateProfileRequest
-                        {
-                            Name = rollbackProfile.Name,
-                            Description = rollbackProfile.Description,
-                            WorkspaceStrategy = rollbackProfile.WorkspaceStrategy,
-                            EnabledContentIds = rollbackProfile.EnabledContentIds.ToList(),
-                            GameClient = rollbackProfile.GameClient,
-                            ActiveWorkspaceId = string.Empty,
-                        };
-                        await profileManager.UpdateProfileAsync(rollbackProfile.Id, rollbackRequest, CancellationToken.None);
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogError(ex, "Failed to rollback profile {ProfileId} during failed bundle update", rollbackProfile.Id);
-                    }
-                }
-
-                foreach (var createdId in createdProfileIds)
-                {
-                    try
-                    {
-                        await profileManager.DeleteProfileAsync(createdId, CancellationToken.None);
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogError(ex, "Failed to delete cloned profile {ProfileId} during failed bundle update rollback", createdId);
-                    }
-                }
-
+                await RollbackPartialUpdatesAsync();
                 return false;
             }
 
