@@ -1536,11 +1536,15 @@ public partial class PublishShareViewModel(
             totalBytes += defSize;
         }
 
+        // A hosted definition is loadable when the local publisher profile is empty (e.g. after
+        // local data was wiped): this is the only path that surfaces the restore banner and pull command.
+        var canLoadDefinitionToProject = isDefHosted && string.IsNullOrWhiteSpace(project.Catalog?.Publisher?.Id);
+
         HostedAssets.Add(new HostedAssetItemViewModel
         {
             AssetKind = HostedAssetKind.Definition,
             CanUpload = !isDefHosted && SelectedHostingProvider != null && SelectedHostingProvider.SupportsCatalogHosting,
-            CanLoadToProject = false,
+            CanLoadToProject = canLoadDefinitionToProject,
             LoadButtonTooltip = GetLocalizedString("Tools.PublisherStudio.Hosting.LoadToProjectTip", "Load this definition and its catalogs into current project"),
             Name = project.ProviderDefinitionFileName ?? HostingConstants.DefaultDefinitionFileName,
             Category = GetLocalizedString("Tools.PublisherStudio.Hosting.AssetCategoryDefinition", "Publisher Definition"),
@@ -5033,6 +5037,13 @@ public partial class PublishShareViewModel(
         RefreshHostedAssets();
         GenerateSubscriptionUrl();
 
+        // When the local profile is empty, a sync doubles as a restore: pull the discovered
+        // definition and its catalogs so the project reflects what is actually hosted.
+        if (await TryAutoRestoreCloudDefinitionAsync())
+        {
+            return;
+        }
+
         var foundCount = (_currentHostingState?.Catalogs.Count ?? 0) +
                          (_currentHostingState?.Artifacts.Count ?? 0) +
                          (_currentHostingState?.Definition != null ? 1 : 0);
@@ -5041,6 +5052,41 @@ public partial class PublishShareViewModel(
             GetLocalizedString("Tools.PublisherStudio.Publish.StorageSynced", "Storage Synced"),
             StorageScanStatusMessage,
             autoDismissMs: 4000);
+    }
+
+    /// <summary>
+    /// Restores the discovered cloud publisher definition and its catalogs into the project when
+    /// the local publisher profile is empty (for example after local data was wiped) and cloud
+    /// storage holds a published definition.
+    /// </summary>
+    /// <returns>True when a cloud definition restore was attempted.</returns>
+    private async Task<bool> TryAutoRestoreCloudDefinitionAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(project.Catalog?.Publisher?.Id))
+        {
+            return false;
+        }
+
+        var target = DiscoveredCloudDefinition;
+        if (target == null || string.IsNullOrWhiteSpace(target.Url))
+        {
+            return false;
+        }
+
+        try
+        {
+            await LoadDefinitionToProjectAsync(target);
+            return true;
+        }
+        catch (Exception ex) when (ex is HttpRequestException
+            or System.Text.Json.JsonException
+            or IOException
+            or UnauthorizedAccessException
+            or InvalidOperationException)
+        {
+            logger.LogWarning(ex, "Automatic restore of cloud publisher definition failed; manual restore remains available");
+            return false;
+        }
     }
 
     /// <summary>
@@ -5128,6 +5174,7 @@ public partial class PublishShareViewModel(
                 RefreshUploadHierarchy();
                 RefreshHostedAssets();
                 GenerateSubscriptionUrl();
+                await TryAutoRestoreCloudDefinitionAsync();
             }
         }
         catch (OperationCanceledException ex)
@@ -5826,7 +5873,42 @@ public partial class PublishShareViewModel(
             }
         }
 
+        if (loadedCatalogsCount > 0)
+        {
+            RemoveEmptyDefaultCatalogPlaceholder();
+        }
+
         return loadedCatalogsCount;
+    }
+
+    /// <summary>
+    /// Drops the migrated empty placeholder catalog once real cloud catalogs are attached, so a
+    /// restored project does not keep a confusing empty "Content" entry next to its catalogs.
+    /// </summary>
+    private void RemoveEmptyDefaultCatalogPlaceholder()
+    {
+        if (project.Catalog == null || project.Catalogs.Count <= 1)
+        {
+            return;
+        }
+
+        var removed = false;
+        for (var i = project.Catalogs.Count - 1; i >= 0; i--)
+        {
+            var candidate = project.Catalogs[i];
+            if (candidate != null &&
+                ReferenceEquals(candidate.Catalog, project.Catalog) &&
+                (candidate.Catalog.Content == null || candidate.Catalog.Content.Count == 0))
+            {
+                project.Catalogs.RemoveAt(i);
+                removed = true;
+            }
+        }
+
+        if (removed)
+        {
+            SyncAvailableCatalogs();
+        }
     }
 
     private async Task<bool> TryLoadReferencedCatalogAsync(CatalogEntry catRef)
@@ -5851,7 +5933,7 @@ public partial class PublishShareViewModel(
                 catFileName = $"catalog-{catRef.Id}.json";
             }
 
-            var existingNamedCat = project.Catalogs.FirstOrDefault(c => c.Id == catRef.Id);
+            var existingNamedCat = project.Catalogs.FirstOrDefault(c => string.Equals(c.Id, catRef.Id, StringComparison.OrdinalIgnoreCase));
             if (existingNamedCat != null)
             {
                 existingNamedCat.Catalog = pubCat;
