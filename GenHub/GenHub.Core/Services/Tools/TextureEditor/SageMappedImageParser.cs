@@ -106,9 +106,9 @@ public sealed class SageMappedImageParser(ILogger<SageMappedImageParser> logger)
 
         foreach (var image in images)
         {
-            ValidateSerializeField(image.Name, nameof(image.Name));
-            ValidateSerializeField(image.TextureFileName, nameof(image.TextureFileName));
-            ValidateSerializeField(image.Status, nameof(image.Status));
+            ValidateSerializeField(image.Name, nameof(image.Name), image.Name);
+            ValidateSerializeField(image.TextureFileName, nameof(image.TextureFileName), image.Name);
+            ValidateSerializeField(image.Status, nameof(image.Status), image.Name);
             sb.Append(TextureEditorConstants.IniBlockName).Append(' ').AppendLine(image.Name);
             sb.Append("  Texture = ").AppendLine(image.TextureFileName);
             sb.Append("  TextureWidth = ").AppendLine(image.TextureWidth.ToString());
@@ -185,13 +185,13 @@ public sealed class SageMappedImageParser(ILogger<SageMappedImageParser> logger)
     private static string FormatError(string? sourcePath, int lineNumber, string message) =>
         sourcePath is null ? $"Line {lineNumber}: {message}" : $"{sourcePath} line {lineNumber}: {message}";
 
-    private static void ValidateSerializeField(string value, string fieldName)
+    private static void ValidateSerializeField(string value, string fieldName, string entryName)
     {
         // SAGE INI has no escape mechanism: line breaks would inject extra lines
         // and ';' would be stripped as a comment on reload, so reject them.
         if (value.Contains('\r') || value.Contains('\n') || value.Contains(';'))
         {
-            throw new ArgumentException($"MappedImage {fieldName} must not contain line breaks or ';'.", fieldName);
+            throw new ArgumentException($"MappedImage '{entryName}' has an invalid {fieldName}: values must not contain line breaks or ';'.");
         }
     }
 

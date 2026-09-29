@@ -57,13 +57,8 @@ public partial class MappedImagePickerControl : UserControl
         InitializeComponent();
         SearchBox.TextChanged += (_, _) => RefreshFilter();
         ImagesList.SelectionChanged += OnListSelectionChanged;
-        EditButton.Click += (_, _) =>
-        {
-            if (SelectedImage is not null)
-            {
-                EditRequested?.Invoke(this, SelectedImage);
-            }
-        };
+        ImagesList.DoubleTapped += (_, _) => RaiseEditRequested();
+        EditButton.Click += (_, _) => RaiseEditRequested();
     }
 
     /// <summary>
@@ -132,6 +127,14 @@ public partial class MappedImagePickerControl : UserControl
 
         return image.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
             image.TextureFileName.Contains(search, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void RaiseEditRequested()
+    {
+        if (SelectedImage is not null)
+        {
+            EditRequested?.Invoke(this, SelectedImage);
+        }
     }
 
     private void OnListSelectionChanged(object? sender, SelectionChangedEventArgs e)

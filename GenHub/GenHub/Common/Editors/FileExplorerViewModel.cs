@@ -311,7 +311,7 @@ public sealed partial class FileExplorerViewModel : ObservableObject
         {
             var files = FilePatterns
                 .SelectMany(pattern => directoryInfo.EnumerateFiles(pattern))
-                .DistinctBy(file => file.FullName, StringComparer.OrdinalIgnoreCase)
+                .DistinctBy(file => file.FullName, StringComparer.Ordinal)
                 .OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase);
 
             foreach (var file in files)

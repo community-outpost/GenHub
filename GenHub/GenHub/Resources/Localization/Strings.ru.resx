@@ -14579,6 +14579,21 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="Settings.Profiles.DeletedMessage" xml:space="preserve">
     <value>Успешно удалено профилей: {0}.</value>
   </data>
+  <data name="Info.Card.tools.publisher-studio-authoring.Action.NAV_Tools" xml:space="preserve">
+    <value>Открыть студию издателя</value>
+  </data>
+  <data name="Info.Demo.WindowSize" xml:space="preserve">
+    <value>Размер окна:</value>
+  </data>
+  <data name="Info.Demo.SizeCompact" xml:space="preserve">
+    <value>Компактный (720x480)</value>
+  </data>
+  <data name="Info.Demo.SizeStandard" xml:space="preserve">
+    <value>Стандартный (840x580)</value>
+  </data>
+  <data name="Info.Demo.SizeExpanded" xml:space="preserve">
+    <value>Расширенный (980x680)</value>
+  </data>
   <data name="GameProfiles.Card.Tooltip.MoveLeft" xml:space="preserve">
     <value>Переместить влево</value>
   </data>
@@ -14720,7 +14735,7 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="Tools.Plugin.texture-editor.Description" xml:space="preserve">
     <value>Нарезайте атласы текстур, визуально правьте MappedImages и упаковывайте иконки в листы SAGE.</value>
   </data>
-  <data name="TextureEditor.Header.NoAtlas" xml:space="preserve">
+    <data name="TextureEditor.Header.NoAtlas" xml:space="preserve">
     <value>Атлас не открыт</value>
   </data>
   <data name="TextureEditor.Tooltip.ZoomOut" xml:space="preserve">
@@ -14732,9 +14747,6 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="TextureEditor.Tooltip.ResetZoom" xml:space="preserve">
     <value>Сбросить масштаб до 100%</value>
   </data>
-  <data name="TextureEditor.Tooltip.OpenAtlas" xml:space="preserve">
-    <value>Открыть атлас текстур (TGA, DDS, PNG)</value>
-  </data>
   <data name="TextureEditor.Tooltip.ScanRegistry" xml:space="preserve">
     <value>Сканировать папку с INI-файлами MappedImages</value>
   </data>
@@ -14742,7 +14754,7 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
     <value>Упаковать папку изображений в новый атлас</value>
   </data>
   <data name="TextureEditor.Tooltip.ExportIni" xml:space="preserve">
-    <value>Экспортировать срезы в INI-файл MappedImages</value>
+    <value>Экспортировать копию INI (рабочий файл не изменится)</value>
   </data>
   <data name="TextureEditor.Tooltip.ExportSheet" xml:space="preserve">
     <value>Экспортировать лист текстур (TGA или PNG)</value>
@@ -14761,9 +14773,6 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   </data>
   <data name="TextureEditor.Tooltip.PresetHud" xml:space="preserve">
     <value>Размер среза: кнопка HUD 32x32</value>
-  </data>
-  <data name="TextureEditor.Button.Open" xml:space="preserve">
-    <value>Открыть</value>
   </data>
   <data name="TextureEditor.Button.Scan" xml:space="preserve">
     <value>Сканировать</value>
@@ -14885,6 +14894,12 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="TextureEditor.Notify.ScanFailed.Message" xml:space="preserve">
     <value>Не удалось сканировать папку MappedImages.</value>
   </data>
+  <data name="TextureEditor.Notify.ScanPartial.Title" xml:space="preserve">
+    <value>Сканирование завершено с ошибками</value>
+  </data>
+  <data name="TextureEditor.Notify.ScanPartial.Message" xml:space="preserve">
+    <value>Связанных изображений: {0}. Файлов: {1}. Не удалось: {2}: {3}.</value>
+  </data>
   <data name="TextureEditor.Notify.ExportComplete.Title" xml:space="preserve">
     <value>Экспорт завершён</value>
   </data>
@@ -14899,6 +14914,15 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   </data>
   <data name="TextureEditor.Notify.ExportInvalid.Message" xml:space="preserve">
     <value>Срез «{0}» выходит за пределы текстуры.</value>
+  </data>
+  <data name="TextureEditor.Notify.ExportInvalidBlankName.Message" xml:space="preserve">
+    <value>У одного из срезов пустое имя. Назовите все срезы перед экспортом.</value>
+  </data>
+  <data name="TextureEditor.Notify.ExportInvalidDuplicateName.Message" xml:space="preserve">
+    <value>Имя среза «{0}» дублируется. Имена срезов должны быть уникальными.</value>
+  </data>
+  <data name="TextureEditor.Notify.ExportInspectFailed.Message" xml:space="preserve">
+    <value>Не удалось проверить «{0}». Экспорт отменён для защиты содержимого.</value>
   </data>
   <data name="TextureEditor.Notify.InvalidName.Message" xml:space="preserve">
     <value>Имя фрагмента '{0}' пустое или дублируется.</value>
@@ -14922,7 +14946,7 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
     <value>Нет изображений</value>
   </data>
   <data name="TextureEditor.Picker.Empty.Description" xml:space="preserve">
-    <value>Просканируйте папку MappedImages для просмотра записей.</value>
+    <value>Просканируйте папку MappedImages, чтобы просмотреть все записи, затем дважды щёлкните запись, чтобы загрузить её как срез.</value>
   </data>
   <data name="TextureEditor.Picker.Tooltip.EditInTextureEditor" xml:space="preserve">
     <value>Загрузить запись срезом в редактор текстур</value>
@@ -14997,7 +15021,7 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
     <value>Сохранить срезы (Ctrl+S)</value>
   </data>
   <data name="TextureEditor.Tooltip.SaveAs" xml:space="preserve">
-    <value>Сохранить срезы в новый файл</value>
+    <value>Сохранить срезы в новый файл (станет рабочим файлом)</value>
   </data>
   <data name="TextureEditor.Tooltip.DuplicateSlice" xml:space="preserve">
     <value>Дублировать выбранный срез</value>
@@ -15044,20 +15068,23 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="TextureEditor.Notify.ImportComplete.Title" xml:space="preserve">
     <value>Импорт завершён</value>
   </data>
-  <data name="TextureEditor.Notify.ImportComplete.Message" xml:space="preserve">
-    <value>Импортировано изображений: {0} из {1}.</value>
-  </data>
   <data name="TextureEditor.Notify.ImportFailed.Title" xml:space="preserve">
     <value>Ошибка импорта</value>
   </data>
   <data name="TextureEditor.Notify.ImportFailed.Message" xml:space="preserve">
     <value>Связанные изображения не найдены.</value>
   </data>
-  <data name="TextureEditor.Notify.RegistryMismatch.Title" xml:space="preserve">
-    <value>Другая текстура</value>
+  <data name="TextureEditor.Notify.RegistryOpened.Title" xml:space="preserve">
+    <value>Текстура открыта</value>
   </data>
-  <data name="TextureEditor.Notify.RegistryMismatch.Message" xml:space="preserve">
-    <value>'{0}' относится к {1}, а не к открытому атласу.</value>
+  <data name="TextureEditor.Notify.RegistryOpened.Message" xml:space="preserve">
+    <value>Открыта текстура {0} для редактирования «{1}».</value>
+  </data>
+  <data name="TextureEditor.Notify.TextureNotFound.Title" xml:space="preserve">
+    <value>Текстура не найдена</value>
+  </data>
+  <data name="TextureEditor.Notify.TextureNotFound.Message" xml:space="preserve">
+    <value>«{0}» относится к {1}, которая не найдена. Откройте папку, содержащую {1}, и повторите попытку.</value>
   </data>
   <data name="TextureEditor.Dialog.ClearSlices.Title" xml:space="preserve">
     <value>Заменить срезы пустым набором?</value>
@@ -17324,26 +17351,11 @@ Error: не удалось: {3}
   <data name="Tools.PublisherStudio.Content.UpstreamVariantAxisHint" xml:space="preserve">
     <value>Определяет параметр, по которому различаются выпуски (например, тип игры, разрешение, редакция). Оставьте пустым, если не применимо.</value>
   </data>
-  <data name="Info.Card.tools.publisher-studio-authoring.Action.NAV_Tools" xml:space="preserve">
-    <value>Открыть студию издателя</value>
-  </data>
-  <data name="Info.Demo.WindowSize" xml:space="preserve">
-    <value>Размер окна:</value>
-  </data>
-  <data name="Info.Demo.SizeCompact" xml:space="preserve">
-    <value>Компактный (720x480)</value>
-  </data>
-  <data name="Info.Demo.SizeStandard" xml:space="preserve">
-    <value>Стандартный (840x580)</value>
-  </data>
-  <data name="Info.Demo.SizeExpanded" xml:space="preserve">
-    <value>Расширенный (980x680)</value>
-  </data>
   <data name="Tools.IniEditor.Assembled.ArmorLabel" xml:space="preserve">
     <value>Набор брони</value>
   </data>
   <data name="Tools.IniEditor.Assembled.ArmorTooltip" xml:space="preserve">
-    <value>Броня: {0} -> {1} ({2} коэффициентов)</value>
+    <value>Броня: {0} -&gt; {1} ({2} коэффициентов)</value>
   </data>
   <data name="Tools.IniEditor.Assembled.CommandSetLabel" xml:space="preserve">
     <value>Набор команд</value>
@@ -17455,6 +17467,41 @@ Error: не удалось: {3}
   <data name="Tools.IniEditor.Reference.NotFoundTitle" xml:space="preserve">
     <value>Определение не найдено</value>
   </data>
+  <data name="TextureEditor.Button.OpenFolder" xml:space="preserve">
+    <value>Открыть папку</value>
+  </data>
+  <data name="TextureEditor.Tooltip.OpenFolder" xml:space="preserve">
+    <value>Открыть папку проекта с текстурами и MappedImages</value>
+  </data>
+  <data name="TextureEditor.Tooltip.Menu" xml:space="preserve">
+    <value>Другие действия</value>
+  </data>
+  <data name="TextureEditor.Tooltip.PanMode" xml:space="preserve">
+    <value>Переключить инструмент панорамирования</value>
+  </data>
+  <data name="TextureEditor.Dialog.AllSupportedFiles" xml:space="preserve"><value>Поддерживаемые файлы (*.tga, *.dds, *.png, *.ini)</value></data>
+  <data name="TextureEditor.Notify.PlaceholderOpened.Title" xml:space="preserve"><value>Текстура-заполнитель</value></data>
+  <data name="TextureEditor.Notify.PlaceholderOpened.Message" xml:space="preserve"><value>Открыт временный холст ({0}x{1}) с {2} срезами из {3}{4}.</value></data>
+  <data name="TextureEditor.Notify.ImportExtraTextures" xml:space="preserve"><value> ({0} других текстур в библиотеке)</value></data>
+  <data name="TextureEditor.Notify.ImportComplete.LoadedCurrentAtlas" xml:space="preserve"><value>Загружено {0} срезов для {1} из {2}{3}.</value></data>
+  <data name="TextureEditor.Notify.ImportComplete.LoadedTargetAtlas" xml:space="preserve"><value>Загружено {0} срезов для {1} из {2}{3}.</value></data>
+  <data name="TextureEditor.Notify.ImportComplete.LibraryOnly" xml:space="preserve"><value>Импортировано {0} связанных изображений в библиотеку.</value></data>
+  <data name="TextureEditor.Notify.PlaceholderSingleOpened.Message" xml:space="preserve"><value>Открыт временный холст {0}x{1} для '{2}' (файл текстуры не найден на диске или в архивах игры).</value></data>
+  <data name="TextureEditor.Badge.Placeholder" xml:space="preserve"><value>Текстура отсутствует (заполнитель)</value></data>
+  <data name="TextureEditor.Badge.PlaceholderTooltip" xml:space="preserve"><value>Файл текстуры не найден на диске или в архивах игры. Отображается временный холст.</value></data>
+  <data name="TextureEditor.History.AddSlice" xml:space="preserve"><value>Добавить срез</value></data>
+  <data name="TextureEditor.History.MoveSlice" xml:space="preserve"><value>Переместить срез</value></data>
+  <data name="TextureEditor.History.ResizeSlice" xml:space="preserve"><value>Изменить размер среза</value></data>
+  <data name="TextureEditor.History.CutSlice" xml:space="preserve"><value>Вырезать срез</value></data>
+  <data name="TextureEditor.History.PasteSlice" xml:space="preserve"><value>Вставить срез</value></data>
+  <data name="TextureEditor.History.DuplicateSlice" xml:space="preserve"><value>Дублировать срез</value></data>
+  <data name="TextureEditor.History.DeleteSlice" xml:space="preserve"><value>Удалить срез</value></data>
+  <data name="TextureEditor.Notify.CopyFailed.Title" xml:space="preserve"><value>Не удалось скопировать</value></data>
+  <data name="TextureEditor.History.NudgeSlice" xml:space="preserve"><value>Сдвинуть срез</value></data>
+  <data name="TextureEditor.History.ApplyPreset" xml:space="preserve"><value>Применить предустановку</value></data>
+  <data name="TextureEditor.Notify.PasteFailed.Title" xml:space="preserve"><value>Ошибка вставки</value></data>
+  <data name="TextureEditor.Notify.PasteFailed.Message" xml:space="preserve"><value>Буфер обмена не содержит допустимых определений MappedImage.</value></data>
+  <data name="TextureEditor.Notify.OpenFailed.Message" xml:space="preserve"><value>Не удалось открыть целевую текстуру.</value></data>
   <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
     <value>Резервные выпуски вручную (переопределения)</value>
   </data>

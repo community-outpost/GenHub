@@ -193,7 +193,19 @@ public sealed class AtlasPackingService(
 
         try
         {
-            var targets = new BuildTargets(Path.GetFullPath(request.TargetTexture), Path.GetFullPath(request.TargetIni));
+            string targetTextureFull = Path.GetFullPath(request.TargetTexture);
+            string targetIniFull = Path.GetFullPath(request.TargetIni);
+            if (targetTextureFull.Equals(targetIniFull, StringComparison.OrdinalIgnoreCase))
+            {
+                return OperationResult<BuildTargets>.CreateFailure("Target texture and target INI must be different files.", Stopwatch.GetElapsedTime(started));
+            }
+
+            if (!TextureEditorConstants.TgaExtension.Equals(Path.GetExtension(targetTextureFull), StringComparison.OrdinalIgnoreCase))
+            {
+                return OperationResult<BuildTargets>.CreateFailure($"Target texture must use the {TextureEditorConstants.TgaExtension} extension; the packer emits TGA bytes.", Stopwatch.GetElapsedTime(started));
+            }
+
+            var targets = new BuildTargets(targetTextureFull, targetIniFull);
             return OperationResult<BuildTargets>.CreateSuccess(targets, Stopwatch.GetElapsedTime(started));
         }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException or IOException)

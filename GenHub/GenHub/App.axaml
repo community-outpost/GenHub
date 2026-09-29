@@ -46,6 +46,7 @@
         <StyleInclude Source="avares://GenHub/Assets/Styles/ExpanderStyles.axaml" />
         <StyleInclude Source="avares://GenHub/Assets/Styles/NumericUpDownStyles.axaml" />
         <StyleInclude Source="avares://GenHub/Common/Controls/SidebarLayoutStyles.axaml" />
+        <StyleInclude Source="avares://GenHub/Common/Editors/EditorShellStyles.axaml" />
 
         <Style Selector="ProgressBar">
             <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />

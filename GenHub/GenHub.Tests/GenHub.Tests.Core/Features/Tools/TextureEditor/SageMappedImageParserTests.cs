@@ -239,7 +239,8 @@ public sealed class SageMappedImageParserTests
         var definition = new GenHub.Core.Models.Tools.TextureEditor.MappedImageDefinition(
             "Evil\nEnd", "a.tga", 64, 64, 0, 0, 63, 63);
 
-        Assert.Throws<ArgumentException>(() => _parser.Serialize([definition]));
+        var exception = Assert.Throws<ArgumentException>(() => _parser.Serialize([definition]));
+        Assert.Contains("Evil", exception.Message);
     }
 
     /// <summary>

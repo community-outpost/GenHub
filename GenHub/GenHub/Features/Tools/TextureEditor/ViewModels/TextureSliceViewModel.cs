@@ -1,5 +1,6 @@
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Tools.TextureEditor;
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -80,6 +81,26 @@ public sealed partial class TextureSliceViewModel : ObservableObject
     public double DisplayHeight => Height * _zoom;
 
     /// <summary>
+    /// Gets the half-width offset for center resize handles.
+    /// </summary>
+    public double HalfWidthMinusHandle => CanvasResizeHelper.CenterHandleOffset(DisplayWidth);
+
+    /// <summary>
+    /// Gets the half-height offset for middle resize handles.
+    /// </summary>
+    public double HalfHeightMinusHandle => CanvasResizeHelper.CenterHandleOffset(DisplayHeight);
+
+    /// <summary>
+    /// Gets the right offset for east resize handles.
+    /// </summary>
+    public double WidthMinusHandle => CanvasResizeHelper.EndHandleOffset(DisplayWidth);
+
+    /// <summary>
+    /// Gets the bottom offset for south resize handles.
+    /// </summary>
+    public double HeightMinusHandle => CanvasResizeHelper.EndHandleOffset(DisplayHeight);
+
+    /// <summary>
     /// Gets a value indicating whether coordinates are ordered and inside the texture bounds.
     /// </summary>
     public bool IsWithinTexture =>
@@ -128,6 +149,10 @@ public sealed partial class TextureSliceViewModel : ObservableObject
         OnPropertyChanged(nameof(DisplayY));
         OnPropertyChanged(nameof(DisplayWidth));
         OnPropertyChanged(nameof(DisplayHeight));
+        OnPropertyChanged(nameof(HalfWidthMinusHandle));
+        OnPropertyChanged(nameof(HalfHeightMinusHandle));
+        OnPropertyChanged(nameof(WidthMinusHandle));
+        OnPropertyChanged(nameof(HeightMinusHandle));
     }
 
     /// <summary>
@@ -175,6 +200,10 @@ public sealed partial class TextureSliceViewModel : ObservableObject
         OnPropertyChanged(nameof(DisplayY));
         OnPropertyChanged(nameof(DisplayWidth));
         OnPropertyChanged(nameof(DisplayHeight));
+        OnPropertyChanged(nameof(HalfWidthMinusHandle));
+        OnPropertyChanged(nameof(HalfHeightMinusHandle));
+        OnPropertyChanged(nameof(WidthMinusHandle));
+        OnPropertyChanged(nameof(HeightMinusHandle));
         OnPropertyChanged(nameof(IsWithinTexture));
         OnPropertyChanged(nameof(HasGuardBorder));
     }

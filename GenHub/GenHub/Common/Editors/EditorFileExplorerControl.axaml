@@ -21,7 +21,8 @@
               Command="{Binding RefreshTreeCommand}"
               Padding="8,4" Margin="6,0,0,0"
               Background="Transparent"
-              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              BorderBrush="{DynamicResource BorderBrush}"
+              BorderThickness="1"
               CornerRadius="6"
               Content="{localization:Localize Common.Editors.Files.Refresh}"
               FontSize="11"/>
@@ -29,7 +30,8 @@
               Command="{Binding ExpandAllCommand}"
               Padding="5,4" Margin="4,0,0,0"
               Background="Transparent"
-              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              BorderBrush="{DynamicResource BorderBrush}"
+              BorderThickness="1"
               CornerRadius="6"
               AutomationProperties.Name="{localization:Localize Common.Editors.Files.ExpandAll}"
               ToolTip.Tip="{localization:Localize Common.Editors.Files.ExpandAll}">
@@ -39,7 +41,8 @@
               Command="{Binding CollapseAllCommand}"
               Padding="5,4" Margin="4,0,0,0"
               Background="Transparent"
-              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              BorderBrush="{DynamicResource BorderBrush}"
+              BorderThickness="1"
               CornerRadius="6"
               AutomationProperties.Name="{localization:Localize Common.Editors.Files.CollapseAll}"
               ToolTip.Tip="{localization:Localize Common.Editors.Files.CollapseAll}">
@@ -108,22 +111,16 @@
           <Style Selector="TreeViewItem:selected /template/ Border#PART_LayoutRoot > ContentPresenter#PART_HeaderPresenter">
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
           </Style>
+          <!-- Chevrons removed for a tight, flush explorer layout. Folder nodes expand/collapse on direct click. -->
           <Style Selector="TreeViewItem /template/ Panel#PART_ExpandCollapseChevronContainer">
-            <Setter Property="Margin" Value="0,0,1,0"/>
-          </Style>
-          <Style Selector="TreeViewItem /template/ ToggleButton#PART_ExpandCollapseChevron">
-            <Setter Property="Width" Value="10"/>
-            <Setter Property="Height" Value="10"/>
+            <Setter Property="IsVisible" Value="False"/>
+            <Setter Property="Width" Value="0"/>
             <Setter Property="Margin" Value="0"/>
-            <Setter Property="Padding" Value="0"/>
-          </Style>
-          <Style Selector="TreeViewItem /template/ ToggleButton#PART_ExpandCollapseChevron PathIcon">
-            <Setter Property="Width" Value="8"/>
-            <Setter Property="Height" Value="8"/>
           </Style>
           <Style Selector="TreeViewItem:empty /template/ Panel#PART_ExpandCollapseChevronContainer">
-            <Setter Property="Width" Value="10"/>
-            <Setter Property="Margin" Value="0,0,1,0"/>
+            <Setter Property="IsVisible" Value="False"/>
+            <Setter Property="Width" Value="0"/>
+            <Setter Property="Margin" Value="0"/>
           </Style>
           <Style Selector="TreeViewItem Button">
             <Setter Property="Background" Value="Transparent"/>
