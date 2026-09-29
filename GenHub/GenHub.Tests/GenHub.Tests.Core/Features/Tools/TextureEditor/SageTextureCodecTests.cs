@@ -185,6 +185,22 @@ public sealed class SageTextureCodecTests
     }
 
     /// <summary>
+    /// Verifies that a legacy 32-bit DDS with a real alpha mask keeps its alpha without the flag.
+    /// </summary>
+    [Fact]
+    public void Decode_UncompressedDdsWithAlphaMask_PreservesAlpha()
+    {
+        byte[] data = BuildDds(1, 1, 32, [20, 10, 200, 128], pixelFlags: 0x40, alphaMask: 0xFF000000);
+
+        var result = _codec.Decode(data, ".dds", "test");
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal([200, 10, 20, 128], result.Data.PixelData);
+        Assert.True(result.Data.HasAlpha);
+    }
+
+    /// <summary>
     /// Verifies that a DXT1 DDS block decodes the palette and indices.
     /// </summary>
     [Fact]
@@ -205,6 +221,112 @@ public sealed class SageTextureCodecTests
         Assert.Equal(0, result.Data.PixelData[2]);
         Assert.Equal(255, result.Data.PixelData[3]);
         Assert.Equal(16 * 4, result.Data.PixelData.Length);
+    }
+
+    /// <summary>
+    /// Verifies that a DXT3 DDS block decodes explicit alpha and color endpoints.
+    /// </summary>
+    [Fact]
+    public void Decode_Dxt3Dds_DecodesBlocks()
+    {
+        // 4x4 block: explicit alpha nibbles of 8, then red/blue endpoints with color 0 selected.
+        byte[] block =
+        [
+            0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88,
+            0x00, 0xF8, 0x1F, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+        byte[] data = BuildDds(4, 4, 0, block, fourCc: 0x33545844);
+
+        var result = _codec.Decode(data, ".dds", "test");
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(4, result.Data.Width);
+        Assert.Equal(4, result.Data.Height);
+        Assert.Equal([255, 0, 0, 136], result.Data.PixelData[..4]);
+        Assert.Equal(16 * 4, result.Data.PixelData.Length);
+    }
+
+    /// <summary>
+    /// Verifies that a DXT5 DDS block decodes interpolated alpha and color endpoints.
+    /// </summary>
+    [Fact]
+    public void Decode_Dxt5Dds_DecodesBlocks()
+    {
+        // 4x4 block: alpha endpoints 255/0 with every index selecting 7, then red endpoints.
+        byte[] block =
+        [
+            0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+            0x00, 0xF8, 0x1F, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+        byte[] data = BuildDds(4, 4, 0, block, fourCc: 0x35545844);
+
+        var result = _codec.Decode(data, ".dds", "test");
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(4, result.Data.Width);
+        Assert.Equal(4, result.Data.Height);
+        Assert.Equal([255, 0, 0, 36], result.Data.PixelData[..4]);
+        Assert.Equal(16 * 4, result.Data.PixelData.Length);
+    }
+
+    /// <summary>
+    /// Verifies that premultiplied DXT2 and DXT4 variants decode like DXT3 and DXT5.
+    /// </summary>
+    /// <param name="fourCc">The DDS FourCC to decode.</param>
+    [Theory]
+    [InlineData(0x32545844)]
+    [InlineData(0x34545844)]
+    public void Decode_PremultipliedDxtVariants_DecodeLikeOpaque(uint fourCc)
+    {
+        byte[] color = [0x00, 0xF8, 0x1F, 0x00, 0x00, 0x00, 0x00, 0x00];
+        byte[] alpha = fourCc == 0x32545844
+            ? [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
+            : [0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
+        byte[] data = BuildDds(4, 4, 0, [.. alpha, .. color], fourCc: fourCc);
+
+        var result = _codec.Decode(data, ".dds", "test");
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal([255, 0, 0, 255], result.Data.PixelData[..4]);
+    }
+
+    /// <summary>
+    /// Verifies that DXT2 premultiplied colors are restored to straight alpha.
+    /// </summary>
+    [Fact]
+    public void Decode_Dxt2PartialAlpha_UnPremultipliesColors()
+    {
+        // Interpolated color (170, 0, 85) with explicit alpha 136 restores to (255, 0, 159).
+        byte[] color = [0x00, 0xF8, 0x1F, 0x00, 0xAA, 0xAA, 0xAA, 0xAA];
+        byte[] alpha = [0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88];
+        byte[] data = BuildDds(4, 4, 0, [.. alpha, .. color], fourCc: 0x32545844);
+
+        var result = _codec.Decode(data, ".dds", "test");
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal([255, 0, 159, 136], result.Data.PixelData[..4]);
+    }
+
+    /// <summary>
+    /// Verifies that DXT4 premultiplied colors are restored to straight alpha.
+    /// </summary>
+    [Fact]
+    public void Decode_Dxt4PartialAlpha_UnPremultipliesColors()
+    {
+        // Interpolated color (170, 0, 85) with interpolated alpha 218 restores to (198, 0, 99).
+        byte[] color = [0x00, 0xF8, 0x1F, 0x00, 0xAA, 0xAA, 0xAA, 0xAA];
+        byte[] alpha = [0xFF, 0x00, 0x92, 0x24, 0x49, 0x92, 0x24, 0x49];
+        byte[] data = BuildDds(4, 4, 0, [.. alpha, .. color], fourCc: 0x34545844);
+
+        var result = _codec.Decode(data, ".dds", "test");
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal([198, 0, 99, 218], result.Data.PixelData[..4]);
     }
 
     /// <summary>
@@ -388,7 +510,7 @@ public sealed class SageTextureCodecTests
         return [.. header, .. pixels];
     }
 
-    private static byte[] BuildDds(int width, int height, int bitCount, byte[] pixels, uint fourCc = 0, int pitch = 0, uint redMask = 0, int pixelFlags = 0x41)
+    private static byte[] BuildDds(int width, int height, int bitCount, byte[] pixels, uint fourCc = 0, int pitch = 0, uint redMask = 0, int pixelFlags = 0x41, uint alphaMask = 0)
     {
         var data = new byte[4 + 124 + pixels.Length];
         data[0] = (byte)'D';
@@ -396,6 +518,7 @@ public sealed class SageTextureCodecTests
         data[2] = (byte)'S';
         data[3] = (byte)' ';
         WriteInt32(data, 4, 124);
+        WriteInt32(data, 4 + 4, 0x1007 | (pitch > 0 ? 0x8 : 0));
         WriteInt32(data, 4 + 8, height);
         WriteInt32(data, 4 + 12, width);
         WriteInt32(data, 4 + 16, pitch);
@@ -405,6 +528,7 @@ public sealed class SageTextureCodecTests
             WriteInt32(data, 4 + 76, pixelFlags);
             WriteInt32(data, 4 + 84, bitCount);
             WriteInt32(data, 4 + 88, unchecked((int)redMask));
+            WriteInt32(data, 4 + 100, unchecked((int)alphaMask));
         }
         else
         {

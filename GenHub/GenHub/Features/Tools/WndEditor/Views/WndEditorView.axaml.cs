@@ -1,9 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.Threading;
-using GenHub.Core.Constants;
-using GenHub.Core.Models.Tools.WndEditor;
+using GenHub.Core.Models.Tools.Common;
 using GenHub.Features.Tools.WndEditor.ViewModels;
 using System;
 using System.Collections.Generic;
@@ -15,9 +13,6 @@ namespace GenHub.Features.Tools.WndEditor.Views;
 /// </summary>
 public partial class WndEditorView : UserControl
 {
-    private bool _panning;
-    private Point _panStartPoint;
-    private Vector _panStartOffset;
     private WndEditorViewModel? _framingViewModel;
 
     /// <summary>
@@ -53,15 +48,10 @@ public partial class WndEditorView : UserControl
     {
         _ = sender;
         _ = e;
-        if (DataContext is not WndEditorViewModel viewModel || CanvasScrollViewer == null)
+        if (DataContext is WndEditorViewModel viewModel)
         {
-            return;
+            EditorCanvas?.FrameTo(viewModel.CanvasContentOffset);
         }
-
-        var offset = viewModel.CanvasContentOffset;
-        Dispatcher.UIThread.Post(
-            () => CanvasScrollViewer.Offset = offset,
-            DispatcherPriority.Loaded);
     }
 
     private void OnCanvasItemPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -75,7 +65,7 @@ public partial class WndEditorView : UserControl
         var point = e.GetCurrentPoint(this);
         if (viewModel.IsPanMode || point.Properties.IsMiddleButtonPressed)
         {
-            TryBeginPan(e);
+            // Pan gestures bubble to the shared EditorCanvasControl.
             return;
         }
 
@@ -99,7 +89,7 @@ public partial class WndEditorView : UserControl
         var point = e.GetCurrentPoint(this);
         if (viewModel.IsPanMode || point.Properties.IsMiddleButtonPressed)
         {
-            TryBeginPan(e);
+            // Pan gestures bubble to the shared EditorCanvasControl.
             return;
         }
 
@@ -107,7 +97,7 @@ public partial class WndEditorView : UserControl
             && control.DataContext is WndCanvasItemViewModel item
             && point.Properties.IsLeftButtonPressed
             && control.Tag is string tagStr
-            && Enum.TryParse<WndResizeDirection>(tagStr, out var direction))
+            && Enum.TryParse<CanvasResizeDirection>(tagStr, out var direction))
         {
             e.Pointer.Capture(CanvasHost);
             viewModel.BeginCanvasResize(item, direction, e.GetPosition(CanvasHost));
@@ -125,7 +115,7 @@ public partial class WndEditorView : UserControl
 
         if (viewModel.IsPanMode || e.GetCurrentPoint(this).Properties.IsMiddleButtonPressed)
         {
-            TryBeginPan(e);
+            // Pan gestures bubble to the shared EditorCanvasControl.
             return;
         }
 
@@ -142,90 +132,24 @@ public partial class WndEditorView : UserControl
             return;
         }
 
-        if (_panning && CanvasScrollViewer != null)
-        {
-            UpdatePan(e.GetPosition(CanvasScrollViewer));
-            return;
-        }
-
         viewModel.UpdateCanvasDrag(e.GetPosition(CanvasHost));
     }
 
     private void OnCanvasPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
+        if (DataContext is not WndEditorViewModel viewModel)
+        {
+            return;
+        }
+
+        if (viewModel.IsPanMode || e.InitialPressMouseButton == MouseButton.Middle)
+        {
+            // The shared EditorCanvasControl owns pan captures.
+            return;
+        }
+
         e.Pointer.Capture(null);
-        if (_panning)
-        {
-            _panning = false;
-            return;
-        }
-
-        if (DataContext is WndEditorViewModel viewModel)
-        {
-            viewModel.EndCanvasDrag();
-        }
-    }
-
-    private void OnCanvasWheelChanged(object? sender, PointerWheelEventArgs e)
-    {
-        if (DataContext is not WndEditorViewModel viewModel || CanvasScrollViewer == null)
-        {
-            return;
-        }
-
-        if (!e.KeyModifiers.HasFlag(KeyModifiers.Control) || e.Delta.Y.Equals(0))
-        {
-            return;
-        }
-
-        e.Handled = true;
-        var oldZoom = viewModel.Zoom;
-        var newZoom = e.Delta.Y > 0
-            ? oldZoom * WndConstants.Editor.ZoomStepFactor
-            : oldZoom / WndConstants.Editor.ZoomStepFactor;
-        newZoom = Math.Clamp(newZoom, WndConstants.Editor.MinZoom, WndConstants.Editor.MaxZoom);
-        if (newZoom.Equals(oldZoom))
-        {
-            return;
-        }
-
-        var scroller = CanvasScrollViewer;
-        var viewportPoint = e.GetPosition(scroller);
-        var scale = newZoom / oldZoom;
-        var contentX = scroller.Offset.X + viewportPoint.X;
-        var contentY = scroller.Offset.Y + viewportPoint.Y;
-        viewModel.Zoom = newZoom;
-        Dispatcher.UIThread.Post(
-            () => scroller.Offset = new Vector(
-                (contentX * scale) - viewportPoint.X,
-                (contentY * scale) - viewportPoint.Y),
-            DispatcherPriority.Loaded);
-    }
-
-    private void TryBeginPan(PointerPressedEventArgs e)
-    {
-        if (CanvasHost == null || CanvasScrollViewer == null)
-        {
-            return;
-        }
-
-        e.Pointer.Capture(CanvasHost);
-        _panning = true;
-        _panStartPoint = e.GetPosition(CanvasScrollViewer);
-        _panStartOffset = CanvasScrollViewer.Offset;
-        e.Handled = true;
-    }
-
-    private void UpdatePan(Point viewportPoint)
-    {
-        if (CanvasScrollViewer == null)
-        {
-            return;
-        }
-
-        var deltaX = viewportPoint.X - _panStartPoint.X;
-        var deltaY = viewportPoint.Y - _panStartPoint.Y;
-        CanvasScrollViewer.Offset = new Vector(_panStartOffset.X - deltaX, _panStartOffset.Y - deltaY);
+        viewModel.EndCanvasDrag();
     }
 
     private static void OnCanvasDragOver(object? sender, DragEventArgs e)

@@ -39,7 +39,9 @@ public interface IMappedImageRegistry
     MappedImageDefinition? GetByName(string name);
 
     /// <summary>
-    /// Gets all entries referencing a texture file name using case-insensitive comparison.
+    /// Gets all entries referencing a texture file name.
+    /// Matching is case-insensitive and ignores the file extension, so an entry
+    /// for <c>Foo.tga</c> matches a <c>Foo.dds</c> atlas like the SAGE engine.
     /// </summary>
     /// <param name="textureFileName">The texture file name.</param>
     /// <returns>The matching entries ordered by name.</returns>

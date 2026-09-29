@@ -16,6 +16,7 @@ using GenHub.Core.Models.Tools.WndEditor;
 using GenHub.Features.Tools.WndEditor.Services;
 using GenHub.Features.Tools.WndEditor.ViewModels;
 using GenHub.Features.Tools.WndEditor.Views;
+using GenHub.Tests.Core.Features.Tools;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System.Collections.Generic;
@@ -56,7 +57,7 @@ public sealed class WndEditorViewsTests
             Dispatcher.UIThread.RunJobs(null);
 
             // Assert
-            view.FindControl<ScrollViewer>("CanvasScrollViewer").Should().NotBeNull();
+            EditorCanvasTestHelper.FindCanvasScroller(view).Should().NotBeNull();
             view.GetVisualDescendants().OfType<ToggleButton>().Should().NotBeEmpty();
             view.GetVisualDescendants().OfType<ComboBox>().Should().NotBeEmpty();
         }

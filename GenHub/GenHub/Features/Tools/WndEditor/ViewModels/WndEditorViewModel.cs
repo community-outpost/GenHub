@@ -19,6 +19,7 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Interfaces.Tools.WndEditor;
 using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.Tools.Common;
 using GenHub.Core.Models.Tools.WndEditor;
 using GenHub.Core.Services.Tools.WndEditor;
 using GenHub.Features.Tools.ModBuilder.Models;
@@ -72,6 +73,8 @@ public sealed partial class WndEditorViewModel(
     private readonly object _thumbnailSync = new();
     private FileExplorerViewModel? _fileExplorer;
     private WndWindow? _copiedWindow;
+    private WndWindow? _copySourceWindow;
+    private WndWindow? _lastPastedClone;
     private bool _isCutOperation;
     private int _historyVersion;
     private int _savedHistoryVersion;
@@ -82,7 +85,7 @@ public sealed partial class WndEditorViewModel(
     private Point _dragStart;
     private WndScreenRect? _dragOriginal;
     private bool _isResizing;
-    private WndResizeDirection _resizeDirection = WndResizeDirection.None;
+    private CanvasResizeDirection _resizeDirection = CanvasResizeDirection.None;
     private IReadOnlyList<GameInstallation> _installations = [];
     private Dictionary<string, Bitmap> _previewBitmaps = new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, byte[]> _previewPngs = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
@@ -158,6 +161,9 @@ public sealed partial class WndEditorViewModel(
     /// </summary>
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
     public Cursor? CanvasCursor => IsPanMode ? HandCursor : null;
+
+    /// <inheritdoc />
+    public override double ZoomMax => WndConstants.Editor.MaxZoom;
 
     /// <summary>
     /// Gets the scroll offset showing content origin, framing the padded canvas on load and zoom reset.
@@ -487,26 +493,7 @@ public sealed partial class WndEditorViewModel(
         }
 
         FilesDirectory = folderPath;
-        LeftSidebarTabIndex = 1;
-
-        if (HasDocument && !string.IsNullOrEmpty(FilePath) && IsSubPathOf(FilePath, folderPath))
-        {
-            FileExplorer.CurrentPath = FilePath;
-            return true;
-        }
-
-        var firstWnd = FileExplorer.FindFirstFile();
-        if (!string.IsNullOrEmpty(firstWnd))
-        {
-            return await OpenFileAsync(firstWnd, cancellationToken).ConfigureAwait(false);
-        }
-
-        Notifications.ShowInfo(
-            Localization.GetString("Tools.WndEditor.Files.NoWndFilesTitle"),
-            Localization.GetString("Tools.WndEditor.Files.NoWndFilesMessage"),
-            NotificationDurations.Medium);
-
-        return true;
+        return await AdoptExplorerDirectoryAsync(folderPath, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -737,7 +724,7 @@ public sealed partial class WndEditorViewModel(
         _dragItem = null;
         _dragOriginal = null;
         _isResizing = false;
-        _resizeDirection = WndResizeDirection.None;
+        _resizeDirection = CanvasResizeDirection.None;
         if (item == null || !item.Window.TryGetScreenRect(out var rect) || rect == null)
         {
             return;
@@ -755,14 +742,14 @@ public sealed partial class WndEditorViewModel(
     /// <param name="item">The resized item.</param>
     /// <param name="direction">The resize handle direction.</param>
     /// <param name="canvasPoint">The pointer position in canvas coordinates.</param>
-    public void BeginCanvasResize(WndCanvasItemViewModel? item, WndResizeDirection direction, Point canvasPoint)
+    public void BeginCanvasResize(WndCanvasItemViewModel? item, CanvasResizeDirection direction, Point canvasPoint)
     {
         _dragItem = null;
         _dragOriginal = null;
         _isResizing = false;
-        _resizeDirection = WndResizeDirection.None;
+        _resizeDirection = CanvasResizeDirection.None;
 
-        if (item == null || direction == WndResizeDirection.None || !item.Window.TryGetScreenRect(out var rect) || rect == null)
+        if (item == null || direction == CanvasResizeDirection.None || !item.Window.TryGetScreenRect(out var rect) || rect == null)
         {
             return;
         }
@@ -819,7 +806,7 @@ public sealed partial class WndEditorViewModel(
         _dragItem = null;
         _dragOriginal = null;
         _isResizing = false;
-        _resizeDirection = WndResizeDirection.None;
+        _resizeDirection = CanvasResizeDirection.None;
 
         if (item == null || original == null)
         {
@@ -985,7 +972,7 @@ public sealed partial class WndEditorViewModel(
     /// <inheritdoc />
     protected override void Dispose(bool disposing)
     {
-        if (!disposing)
+        if (IsDisposed || !disposing)
         {
             return;
         }
@@ -1018,9 +1005,6 @@ public sealed partial class WndEditorViewModel(
         _thumbnailBitmaps.Clear();
         base.Dispose(disposing);
     }
-
-    /// <inheritdoc />
-    protected override double ZoomMax => WndConstants.Editor.MaxZoom;
 
     /// <inheritdoc />
     protected override bool HasUnsavedChanges => IsModified;
@@ -1110,6 +1094,8 @@ public sealed partial class WndEditorViewModel(
         }
 
         _copiedWindow = CloneWindow(SelectedNode.Window);
+        _copySourceWindow = SelectedNode.Window;
+        _lastPastedClone = null;
         _isCutOperation = false;
         RefreshEditorCommands();
     }
@@ -1123,6 +1109,8 @@ public sealed partial class WndEditorViewModel(
         }
 
         _copiedWindow = CloneWindow(SelectedNode.Window);
+        _copySourceWindow = null;
+        _lastPastedClone = null;
         _isCutOperation = true;
         RemoveWindowWithUndo(SelectedNode, "Tools.WndEditor.History.CutWindow");
         RefreshEditorCommands();
@@ -1396,45 +1384,16 @@ public sealed partial class WndEditorViewModel(
         var deltaX = (int)Math.Round((canvasPoint.X - _dragStart.X) / Zoom);
         var deltaY = (int)Math.Round((canvasPoint.Y - _dragStart.Y) / Zoom);
 
-        var minDimension = WndConstants.Editor.MinResizeDimension;
-        var left = _dragOriginal.UpperLeftX;
-        var top = _dragOriginal.UpperLeftY;
-        var right = _dragOriginal.BottomRightX;
-        var bottom = _dragOriginal.BottomRightY;
-
-        switch (_resizeDirection)
-        {
-            case WndResizeDirection.East:
-                right = Math.Max(left + minDimension, _dragOriginal.BottomRightX + deltaX);
-                break;
-            case WndResizeDirection.West:
-                left = Math.Min(right - minDimension, _dragOriginal.UpperLeftX + deltaX);
-                break;
-            case WndResizeDirection.South:
-                bottom = Math.Max(top + minDimension, _dragOriginal.BottomRightY + deltaY);
-                break;
-            case WndResizeDirection.North:
-                top = Math.Min(bottom - minDimension, _dragOriginal.UpperLeftY + deltaY);
-                break;
-            case WndResizeDirection.SouthEast:
-                right = Math.Max(left + minDimension, _dragOriginal.BottomRightX + deltaX);
-                bottom = Math.Max(top + minDimension, _dragOriginal.BottomRightY + deltaY);
-                break;
-            case WndResizeDirection.NorthEast:
-                right = Math.Max(left + minDimension, _dragOriginal.BottomRightX + deltaX);
-                top = Math.Min(bottom - minDimension, _dragOriginal.UpperLeftY + deltaY);
-                break;
-            case WndResizeDirection.SouthWest:
-                left = Math.Min(right - minDimension, _dragOriginal.UpperLeftX + deltaX);
-                bottom = Math.Max(top + minDimension, _dragOriginal.BottomRightY + deltaY);
-                break;
-            case WndResizeDirection.NorthWest:
-                left = Math.Min(right - minDimension, _dragOriginal.UpperLeftX + deltaX);
-                top = Math.Min(bottom - minDimension, _dragOriginal.UpperLeftY + deltaY);
-                break;
-            default:
-                break;
-        }
+        var (left, top, right, bottom) = CanvasResizeHelper.Resize(
+            new CanvasResizeEdges(
+                _dragOriginal.UpperLeftX,
+                _dragOriginal.UpperLeftY,
+                _dragOriginal.BottomRightX,
+                _dragOriginal.BottomRightY),
+            _resizeDirection,
+            deltaX,
+            deltaY,
+            WndConstants.Editor.MinResizeDimension);
 
         var resized = new WndScreenRect(
             left,
@@ -2423,20 +2382,36 @@ public sealed partial class WndEditorViewModel(
             return;
         }
 
-        var parent = SelectedNode;
-        var siblings = parent is null ? _document.Windows : parent.Window.Children;
+        var selected = SelectedNode;
+        List<WndWindow> siblings;
+        int insertIndex;
+        if (!_isCutOperation && selected is not null && (ReferenceEquals(selected.Window, _copySourceWindow) || ReferenceEquals(selected.Window, _lastPastedClone)))
+        {
+            // Pasting onto the copied window itself (or the clone from the last
+            // paste) duplicates beside it like OnDuplicate instead of nesting
+            // the copy inside its own source.
+            siblings = selected.Parent is null ? _document.Windows : selected.Parent.Window.Children;
+            insertIndex = siblings.IndexOf(selected.Window) + 1;
+        }
+        else
+        {
+            siblings = selected is null ? _document.Windows : selected.Window.Children;
+            insertIndex = siblings.Count;
+        }
+
+        var parent = selected;
         var clone = CloneWindow(_copiedWindow);
         if (!_isCutOperation)
         {
             OffsetWindowRect(clone);
         }
 
-        siblings.Add(clone);
+        siblings.Insert(Math.Min(insertIndex, siblings.Count), clone);
         PushUndo(new WndEditAction(
             Localization.GetString("Tools.WndEditor.History.PasteWindow"),
             () =>
             {
-                siblings.Add(clone);
+                siblings.Insert(Math.Min(insertIndex, siblings.Count), clone);
                 RebuildAll();
                 SelectWindow(clone);
             },
@@ -2451,7 +2426,13 @@ public sealed partial class WndEditorViewModel(
         if (_isCutOperation)
         {
             _copiedWindow = null;
+            _copySourceWindow = null;
+            _lastPastedClone = null;
             _isCutOperation = false;
+        }
+        else
+        {
+            _lastPastedClone = clone;
         }
 
         RefreshEditorCommands();
@@ -2481,7 +2462,7 @@ public sealed partial class WndEditorViewModel(
         explorer.ExcludedDirectoryNames = [ModBuilderConstants.DefaultBuildDir, ModBuilderConstants.DefaultReleaseDir];
         explorer.NodeFactory = (name, fullPath, isDirectory, isCurrent, parent) => new WndFileTreeNodeViewModel(name, fullPath, isDirectory, isCurrent, parent);
         explorer.BrowseFolderAsync = PickFolderAsync;
-        explorer.DirectoryAdoptedAsync = AdoptExplorerDirectoryAsync;
+        explorer.DirectoryAdoptedAsync = (f, ct) => AdoptExplorerDirectoryAsync(f, ct);
         explorer.FileActivated += OnExplorerFileActivated;
         return explorer;
     }
@@ -2508,26 +2489,26 @@ public sealed partial class WndEditorViewModel(
         return folders[0].TryGetLocalPath();
     }
 
-    private async Task AdoptExplorerDirectoryAsync(string folder, CancellationToken cancellationToken)
+    private async Task<bool> AdoptExplorerDirectoryAsync(string folder, CancellationToken cancellationToken)
     {
         LeftSidebarTabIndex = 1;
         if (HasDocument && !string.IsNullOrEmpty(FilePath) && IsSubPathOf(FilePath, folder))
         {
             FileExplorer.CurrentPath = FilePath;
-            return;
+            return true;
         }
 
         var firstWnd = FileExplorer.FindFirstFile();
         if (!string.IsNullOrEmpty(firstWnd))
         {
-            await OpenFileAsync(firstWnd, cancellationToken);
-            return;
+            return await OpenFileAsync(firstWnd, cancellationToken).ConfigureAwait(false);
         }
 
         Notifications.ShowInfo(
             Localization.GetString("Tools.WndEditor.Files.NoWndFilesTitle"),
             Localization.GetString("Tools.WndEditor.Files.NoWndFilesMessage"),
             NotificationDurations.Medium);
+        return true;
     }
 
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Routes to the source-generated OpenExplorerFileCommand instance member.")]
@@ -3065,8 +3046,8 @@ public sealed partial class WndEditorViewModel(
         }
 
         Notifications.ShowInfo(
-            Localization.GetString("Tools.WndEditor.Hidden.HiddenTitle"),
-            Localization.GetString("Tools.WndEditor.Hidden.HiddenMessage"),
+            Localize("Tools.WndEditor.Hidden.HiddenTitle", "Window hidden"),
+            Localize("Tools.WndEditor.Hidden.HiddenMessage", "Select it in the Windows tree or enable Show hidden to edit it again."),
             NotificationDurations.Medium);
     }
 

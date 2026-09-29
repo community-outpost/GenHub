@@ -173,6 +173,11 @@ public abstract class EditorToolViewModelBase : ObservableObject, IDisposable
     public virtual string ZoomDisplayText => $"{Zoom:P0}";
 
     /// <summary>
+    /// Gets the maximum canvas zoom factor.
+    /// </summary>
+    public virtual double ZoomMax => EditorConstants.ZoomMax;
+
+    /// <summary>
     /// Gets a value indicating whether a cancellable operation is running.
     /// </summary>
     public bool IsBusy
@@ -358,11 +363,6 @@ public abstract class EditorToolViewModelBase : ObservableObject, IDisposable
     protected virtual double ZoomMin => EditorConstants.ZoomMin;
 
     /// <summary>
-    /// Gets the maximum canvas zoom factor.
-    /// </summary>
-    protected virtual double ZoomMax => EditorConstants.ZoomMax;
-
-    /// <summary>
     /// Gets a value indicating whether unsaved changes block destructive actions.
     /// </summary>
     protected virtual bool HasUnsavedChanges => IsDirty;
@@ -535,6 +535,31 @@ public abstract class EditorToolViewModelBase : ObservableObject, IDisposable
     }
 
     /// <summary>
+    /// Runs an action as a cancellable busy operation, swallowing cooperative cancellation.
+    /// </summary>
+    /// <typeparam name="T">The action result type.</typeparam>
+    /// <param name="action">The action receiving the operation token.</param>
+    /// <returns>The action result, or default when the operation was cancelled.</returns>
+    protected async Task<T> RunOperationAsync<T>(Func<CancellationToken, Task<T>> action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        var owner = BeginOperation();
+        try
+        {
+            return await action(owner.Token).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            // Cooperative cancellation from the busy overlay is silent by design.
+            return default!;
+        }
+        finally
+        {
+            EndOperation(owner);
+        }
+    }
+
+    /// <summary>
     /// Asks the user to confirm discarding unsaved changes.
     /// </summary>
     /// <param name="cancellationToken">The cancellation token.</param>
@@ -572,6 +597,12 @@ public abstract class EditorToolViewModelBase : ObservableObject, IDisposable
     }
 
     /// <summary>
+    /// Gets a value indicating whether this instance has been disposed.
+    /// Overrides check this first so a second Dispose call skips their cleanup.
+    /// </summary>
+    protected bool IsDisposed => _disposed;
+
+    /// <summary>
     /// Releases managed resources.
     /// </summary>
     /// <param name="disposing">Whether managed resources should be released.</param>
@@ -593,6 +624,13 @@ public abstract class EditorToolViewModelBase : ObservableObject, IDisposable
             _operationCts.Cancel();
             _operationCts.Dispose();
             _operationCts = null;
+        }
+
+        // Cancelling the operation source does not stop async commands started
+        // outside RunOperationAsync, so cancel those directly as well.
+        foreach (var command in _asyncCommands.ToArray())
+        {
+            command.Cancel();
         }
     }
 

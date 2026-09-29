@@ -12,6 +12,7 @@ using GenHub.Core.Interfaces.Tools.WndEditor;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Tools.Common;
 using GenHub.Core.Models.Tools.WndEditor;
 using GenHub.Features.Tools.WndEditor.Services;
 using GenHub.Features.Tools.WndEditor.ViewModels;
@@ -168,6 +169,18 @@ public sealed class WndEditorViewModelTests : IDisposable
         {
             Directory.Delete(_tempDirectory, recursive: true);
         }
+    }
+
+    /// <summary>
+    /// Verifies that disposing the editor twice is safe and runs cleanup once.
+    /// </summary>
+    [Fact]
+    public void Dispose_CalledTwice_DoesNotThrow()
+    {
+        _viewModel.Dispose();
+        var exception = Record.Exception(() => _viewModel.Dispose());
+
+        Assert.Null(exception);
     }
 
     /// <summary>
@@ -349,6 +362,35 @@ public sealed class WndEditorViewModelTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that pasting onto the copied window duplicates beside it instead of nesting inside it.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CopyPaste_SameSelection_PastesAsSibling()
+    {
+        // Arrange
+        await _viewModel.LoadFromTextAsync(SampleDocument, null);
+        _viewModel.SelectedNode = _viewModel.RootNodes[0].Children[0];
+
+        // Act: copy and paste twice without changing the selection.
+        _viewModel.CopyCommand.Execute(null);
+        await _viewModel.PasteCommand.ExecuteAsync(null);
+
+        // Assert: the first copy lands beside its source, not nested inside it.
+        _viewModel.RootNodes[0].Children.Should().HaveCount(2);
+
+        // Act
+        await _viewModel.PasteCommand.ExecuteAsync(null);
+
+        // Assert: repeats stay siblings instead of forming a nested chain.
+        _viewModel.RootNodes[0].Children.Should().HaveCount(3);
+        foreach (var child in _viewModel.RootNodes[0].Children)
+        {
+            child.Children.Should().BeEmpty();
+        }
+    }
+
+    /// <summary>
     /// Tests that cutting a window removes it and pastes exactly once.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
@@ -444,7 +486,7 @@ public sealed class WndEditorViewModelTests : IDisposable
         var item = _viewModel.CanvasItems.First(i => i.Window.ControlType == WndControlType.PushButton);
 
         // Act - resize SouthEast (drag corner by +20, +30)
-        _viewModel.BeginCanvasResize(item, WndResizeDirection.SouthEast, new Point(110, 60));
+        _viewModel.BeginCanvasResize(item, CanvasResizeDirection.SouthEast, new Point(110, 60));
         _viewModel.UpdateCanvasDrag(new Point(130, 90));
         _viewModel.EndCanvasDrag();
 
@@ -1299,13 +1341,21 @@ public sealed class WndEditorViewModelTests : IDisposable
     }
 
     /// <summary>
-    /// Tests that hiding the selected window shows guidance for selecting it again.
+    /// Tests that hiding the selected window shows localized guidance for selecting it again.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
     public async Task HidingSelectedWindow_ShowsUnhideGuidance()
     {
         // Arrange
+        string? localizedTitle = "Window hidden (localized)";
+        string? localizedMessage = "Hidden message (localized)";
+        _mockLocalizationService
+            .Setup(s => s.TryGetString("Tools.WndEditor.Hidden.HiddenTitle", out localizedTitle, It.IsAny<object?[]>()))
+            .Returns(true);
+        _mockLocalizationService
+            .Setup(s => s.TryGetString("Tools.WndEditor.Hidden.HiddenMessage", out localizedMessage, It.IsAny<object?[]>()))
+            .Returns(true);
         var doc =
             "FILE_VERSION = 2;\n" +
             "WINDOW\n" +
@@ -1328,8 +1378,8 @@ public sealed class WndEditorViewModelTests : IDisposable
         _viewModel.CanvasItems[0].CanvasVisible.Should().BeTrue();
         _mockNotificationService.Verify(
             n => n.ShowInfo(
-                "Tools.WndEditor.Hidden.HiddenTitle",
-                "Tools.WndEditor.Hidden.HiddenMessage",
+                localizedTitle!,
+                localizedMessage!,
                 NotificationDurations.Medium,
                 It.IsAny<bool>()),
             Times.Once);

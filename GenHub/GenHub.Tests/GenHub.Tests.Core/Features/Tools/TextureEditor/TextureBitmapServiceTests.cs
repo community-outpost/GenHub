@@ -6,10 +6,12 @@ using Avalonia.Platform;
 using GenHub.Core.Models.Tools.TextureEditor;
 using GenHub.Core.Services.Tools.TextureEditor;
 using GenHub.Features.Tools.TextureEditor.Services;
+using GenHub.Tests.Core.Features.Tools.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -195,5 +197,31 @@ public sealed class TextureBitmapServiceTests
 
         Assert.True(result.Failed);
         Assert.False(File.Exists(path));
+    }
+
+    /// <summary>
+    /// Verifies that loading a texture from an archive throws OperationCanceledException when cancelled.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LoadDecodedAsync_FromArchiveWhenCancelled_ThrowsOperationCanceledExceptionAsync()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            string bigPath = Path.Combine(directory, "test.big");
+            BigArchiveFixture.Write(bigPath, ("Art/Textures/test.png", "dummy"));
+
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                () => _service.LoadDecodedAsync($"{bigPath}#Art/Textures/test.png", cts.Token));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
     }
 }

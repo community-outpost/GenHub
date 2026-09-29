@@ -15,6 +15,7 @@ using GenHub.Core.Models.Results;
 using GenHub.Features.Tools.WndEditor.Services;
 using GenHub.Features.Tools.WndEditor.ViewModels;
 using GenHub.Features.Tools.WndEditor.Views;
+using GenHub.Tests.Core.Features.Tools;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System.Collections.Generic;
@@ -51,7 +52,7 @@ public sealed class WndEditorPanTests
         {
             window.Show();
             Dispatcher.UIThread.RunJobs(null);
-            var scroller = view.FindControl<ScrollViewer>("CanvasScrollViewer");
+            var scroller = EditorCanvasTestHelper.FindCanvasScroller(view);
             scroller.Should().NotBeNull();
             var start = CenterOnWindow(scroller!, window);
 
@@ -97,7 +98,7 @@ public sealed class WndEditorPanTests
         {
             window.Show();
             Dispatcher.UIThread.RunJobs(null);
-            var scroller = view.FindControl<ScrollViewer>("CanvasScrollViewer");
+            var scroller = EditorCanvasTestHelper.FindCanvasScroller(view);
             scroller.Should().NotBeNull();
             var start = CenterOnWindow(scroller!, window);
 
@@ -182,7 +183,7 @@ public sealed class WndEditorPanTests
         {
             window.Show();
             Dispatcher.UIThread.RunJobs(null);
-            var scroller = view.FindControl<ScrollViewer>("CanvasScrollViewer");
+            var scroller = EditorCanvasTestHelper.FindCanvasScroller(view);
             scroller.Should().NotBeNull();
             scroller!.Offset = new Vector(200, 150);
             Dispatcher.UIThread.RunJobs(null);

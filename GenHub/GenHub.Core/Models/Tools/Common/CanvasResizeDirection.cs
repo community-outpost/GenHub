@@ -1,9 +1,10 @@
-namespace GenHub.Core.Models.Tools.WndEditor;
+namespace GenHub.Core.Models.Tools.Common;
 
 /// <summary>
-/// Specifies the handle direction when resizing a window on the editor canvas.
+/// Specifies the handle direction when resizing a rectangle on an editor canvas.
+/// Shared by the WND and Texture editors so resize handles behave identically.
 /// </summary>
-public enum WndResizeDirection
+public enum CanvasResizeDirection
 {
     /// <summary>No direction.</summary>
     None,

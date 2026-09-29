@@ -8,6 +8,7 @@
              xmlns:views="clr-namespace:GenHub.Features.Tools.WndEditor.Views"
              xmlns:vm="clr-namespace:GenHub.Features.Tools.WndEditor.ViewModels"
              xmlns:editors="clr-namespace:GenHub.Common.Editors"
+             xmlns:constants="using:GenHub.Core.Constants"
              x:Class="GenHub.Features.Tools.WndEditor.Views.WndEditorView"
              x:DataType="vm:WndEditorViewModel">
   <UserControl.KeyBindings>
@@ -30,31 +31,7 @@
     <KeyBinding Gesture="Ctrl+D" Command="{Binding DuplicateCommand}"/>
     <KeyBinding Gesture="Delete" Command="{Binding DeleteCommand}"/>
   </UserControl.KeyBindings>
-  <UserControl.Styles>
-    <Style Selector="TabControl.compact-tabs TabItem">
-      <Setter Property="FontSize" Value="11"/>
-      <Setter Property="FontWeight" Value="SemiBold"/>
-      <Setter Property="MinHeight" Value="22"/>
-      <Setter Property="Padding" Value="6,2,6,3"/>
-      <Setter Property="Margin" Value="0,0,3,0"/>
-      <Setter Property="Cursor" Value="Hand"/>
-      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
-    </Style>
-    <Style Selector="TabControl.compact-tabs TabItem:pointerover">
-      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-    </Style>
-    <Style Selector="TabControl.compact-tabs TabItem:selected">
-      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-    </Style>
-    <Style Selector="TabControl.compact-tabs TabItem /template/ Border#PART_SelectedPipe">
-      <Setter Property="Height" Value="2"/>
-      <Setter Property="CornerRadius" Value="1"/>
-      <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
-    </Style>
-    <Style Selector="TabControl.compact-tabs TabItem:selected /template/ Border#PART_SelectedPipe">
-      <Setter Property="IsVisible" Value="True"/>
-    </Style>
-  </UserControl.Styles>
+  <!-- Shared editor shell styles (compact tabs, canvas host) live in EditorShellStyles.axaml. -->
   <Grid RowDefinitions="Auto,*">
     <Border Grid.Row="0"
             Background="{DynamicResource CardBackground}"
@@ -617,15 +594,17 @@
                     BorderThickness="1" CornerRadius="8"
                     Background="{DynamicResource SurfaceElevatedBrush}"
                     ClipToBounds="True">
-              <ScrollViewer x:Name="CanvasScrollViewer" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+              <editors:EditorCanvasControl x:Name="EditorCanvas"
+                                           Zoom="{Binding Zoom, Mode=TwoWay}"
+                                           IsPanMode="{Binding IsPanMode, Mode=TwoWay}"
+                                           MaxZoom="{Binding ZoomMax}">
                 <Panel x:Name="CanvasHost"
                        Background="Transparent"
                        Cursor="{Binding CanvasCursor}"
                        DragDrop.AllowDrop="True"
                        PointerPressed="OnCanvasHostPointerPressed"
                        PointerMoved="OnCanvasPointerMoved"
-                       PointerReleased="OnCanvasPointerReleased"
-                       PointerWheelChanged="OnCanvasWheelChanged">
+                       PointerReleased="OnCanvasPointerReleased">
                   <!-- Virtual Game Screen Frame -->
                   <Canvas Width="{Binding CanvasWidth}" Height="{Binding CanvasHeight}" IsHitTestVisible="False">
                     <Border Canvas.Left="{Binding ScreenGuideX}"
@@ -749,37 +728,29 @@
                                      IsVisible="{Binding ShowFallbackNameTag}"
                                      IsHitTestVisible="False"/>
                           <Canvas Width="{Binding Width}" Height="{Binding Height}" IsVisible="{Binding IsSelected}" IsHitTestVisible="True">
-                            <Border Canvas.Left="-5" Canvas.Top="-5" Width="10" Height="10"
-                                    Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource AccentBrush}"
-                                    BorderThickness="1.5" CornerRadius="2" Cursor="TopLeftCorner" Tag="NorthWest"
+                            <Border Canvas.Left="{x:Static constants:EditorConstants.ResizeHandleNegativeOffset}" Canvas.Top="{x:Static constants:EditorConstants.ResizeHandleNegativeOffset}" Classes="resize-handle"
+                                    Cursor="TopLeftCorner" Tag="NorthWest"
                                     PointerPressed="OnResizeHandlePointerPressed"/>
-                            <Border Canvas.Left="{Binding HalfWidthMinusHandle}" Canvas.Top="-5" Width="10" Height="10"
-                                    Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource AccentBrush}"
-                                    BorderThickness="1.5" CornerRadius="2" Cursor="TopSide" Tag="North"
+                            <Border Canvas.Left="{Binding HalfWidthMinusHandle}" Canvas.Top="{x:Static constants:EditorConstants.ResizeHandleNegativeOffset}" Classes="resize-handle"
+                                    Cursor="TopSide" Tag="North"
                                     PointerPressed="OnResizeHandlePointerPressed"/>
-                            <Border Canvas.Left="{Binding WidthMinusHandle}" Canvas.Top="-5" Width="10" Height="10"
-                                    Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource AccentBrush}"
-                                    BorderThickness="1.5" CornerRadius="2" Cursor="TopRightCorner" Tag="NorthEast"
+                            <Border Canvas.Left="{Binding WidthMinusHandle}" Canvas.Top="{x:Static constants:EditorConstants.ResizeHandleNegativeOffset}" Classes="resize-handle"
+                                    Cursor="TopRightCorner" Tag="NorthEast"
                                     PointerPressed="OnResizeHandlePointerPressed"/>
-                            <Border Canvas.Left="{Binding WidthMinusHandle}" Canvas.Top="{Binding HalfHeightMinusHandle}" Width="10" Height="10"
-                                    Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource AccentBrush}"
-                                    BorderThickness="1.5" CornerRadius="2" Cursor="RightSide" Tag="East"
+                            <Border Canvas.Left="{Binding WidthMinusHandle}" Canvas.Top="{Binding HalfHeightMinusHandle}" Classes="resize-handle"
+                                    Cursor="RightSide" Tag="East"
                                     PointerPressed="OnResizeHandlePointerPressed"/>
-                            <Border Canvas.Left="{Binding WidthMinusHandle}" Canvas.Top="{Binding HeightMinusHandle}" Width="10" Height="10"
-                                    Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource AccentBrush}"
-                                    BorderThickness="1.5" CornerRadius="2" Cursor="BottomRightCorner" Tag="SouthEast"
+                            <Border Canvas.Left="{Binding WidthMinusHandle}" Canvas.Top="{Binding HeightMinusHandle}" Classes="resize-handle"
+                                    Cursor="BottomRightCorner" Tag="SouthEast"
                                     PointerPressed="OnResizeHandlePointerPressed"/>
-                            <Border Canvas.Left="{Binding HalfWidthMinusHandle}" Canvas.Top="{Binding HeightMinusHandle}" Width="10" Height="10"
-                                    Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource AccentBrush}"
-                                    BorderThickness="1.5" CornerRadius="2" Cursor="BottomSide" Tag="South"
+                            <Border Canvas.Left="{Binding HalfWidthMinusHandle}" Canvas.Top="{Binding HeightMinusHandle}" Classes="resize-handle"
+                                    Cursor="BottomSide" Tag="South"
                                     PointerPressed="OnResizeHandlePointerPressed"/>
-                            <Border Canvas.Left="-5" Canvas.Top="{Binding HeightMinusHandle}" Width="10" Height="10"
-                                    Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource AccentBrush}"
-                                    BorderThickness="1.5" CornerRadius="2" Cursor="BottomLeftCorner" Tag="SouthWest"
+                            <Border Canvas.Left="{x:Static constants:EditorConstants.ResizeHandleNegativeOffset}" Canvas.Top="{Binding HeightMinusHandle}" Classes="resize-handle"
+                                    Cursor="BottomLeftCorner" Tag="SouthWest"
                                     PointerPressed="OnResizeHandlePointerPressed"/>
-                            <Border Canvas.Left="-5" Canvas.Top="{Binding HalfHeightMinusHandle}" Width="10" Height="10"
-                                    Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource AccentBrush}"
-                                    BorderThickness="1.5" CornerRadius="2" Cursor="LeftSide" Tag="West"
+                            <Border Canvas.Left="{x:Static constants:EditorConstants.ResizeHandleNegativeOffset}" Canvas.Top="{Binding HalfHeightMinusHandle}" Classes="resize-handle"
+                                    Cursor="LeftSide" Tag="West"
                                     PointerPressed="OnResizeHandlePointerPressed"/>
                           </Canvas>
                         </Panel>
@@ -787,7 +758,7 @@
                     </ItemsControl.ItemTemplate>
                   </ItemsControl>
                 </Panel>
-              </ScrollViewer>
+              </editors:EditorCanvasControl>
             </Border>
         </Border>
 

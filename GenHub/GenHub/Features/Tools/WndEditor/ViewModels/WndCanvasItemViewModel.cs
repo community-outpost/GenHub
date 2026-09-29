@@ -3,6 +3,7 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Tools.WndEditor;
 using System;
 using System.Collections.Generic;
@@ -73,28 +74,28 @@ public sealed partial class WndCanvasItemViewModel : ObservableObject
     /// </summary>
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
-    public double HalfWidthMinusHandle => Math.Max(0, (Width / 2.0) - 5.0);
+    public double HalfWidthMinusHandle => CanvasResizeHelper.CenterHandleOffset(Width);
 
     /// <summary>
     /// Gets the half-height offset for middle resize handles.
     /// </summary>
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
-    public double HalfHeightMinusHandle => Math.Max(0, (Height / 2.0) - 5.0);
+    public double HalfHeightMinusHandle => CanvasResizeHelper.CenterHandleOffset(Height);
 
     /// <summary>
     /// Gets the right offset for east resize handles.
     /// </summary>
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
-    public double WidthMinusHandle => Math.Max(0, Width - 5.0);
+    public double WidthMinusHandle => CanvasResizeHelper.EndHandleOffset(Width);
 
     /// <summary>
     /// Gets the bottom offset for south resize handles.
     /// </summary>
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
-    public double HeightMinusHandle => Math.Max(0, Height - 5.0);
+    public double HeightMinusHandle => CanvasResizeHelper.EndHandleOffset(Height);
 #pragma warning restore S2325
 
     /// <summary>

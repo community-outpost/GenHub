@@ -1,3 +1,5 @@
+using System;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
@@ -29,6 +31,11 @@ public static class TextureEditorConstants
     /// Root SAGE directory for MappedImages INI files, relative to game data.
     /// </summary>
     public const string MappedImagesRootDirectory = "Data/INI/MappedImages";
+
+    /// <summary>
+    /// Directory name for MappedImages folders.
+    /// </summary>
+    public const string MappedImagesDirectoryName = "MappedImages";
 
     /// <summary>
     /// Directory name for hand-authored MappedImages overrides, applied last in SAGE load order.
@@ -171,6 +178,61 @@ public static class TextureEditorConstants
     public const string MappedImagesExtension = ".ini";
 
     /// <summary>
+    /// TGA file extension. The atlas packer always emits TGA bytes.
+    /// </summary>
+    public const string TgaExtension = ".tga";
+
+    /// <summary>
+    /// Extension for BIG archive files.
+    /// </summary>
+    public const string BigArchiveExtension = ".big";
+
+    /// <summary>
+    /// Search pattern for BIG archive files.
+    /// </summary>
+    public const string BigArchiveSearchPattern = "*.big";
+
+    /// <summary>
+    /// Character separator separating archive file path and entry path in composite references.
+    /// </summary>
+    public const char ArchiveEntrySeparator = '#';
+
+    /// <summary>
+    /// Folder name for Window UI assets.
+    /// </summary>
+    public const string WindowFolder = "Window";
+
+    /// <summary>
+    /// Folder name for Textures assets.
+    /// </summary>
+    public const string TexturesFolder = "Textures";
+
+    /// <summary>
+    /// Singular folder name for Texture assets.
+    /// </summary>
+    public const string TextureFolder = "Texture";
+
+    /// <summary>
+    /// Folder name for Art assets.
+    /// </summary>
+    public const string ArtFolder = "Art";
+
+    /// <summary>
+    /// Folder name for Menus assets.
+    /// </summary>
+    public const string MenusFolder = "Menus";
+
+    /// <summary>
+    /// Zero Hour marker in archive names.
+    /// </summary>
+    public const string ZeroHourMarker = "ZH";
+
+    /// <summary>
+    /// Maximum number of undo history actions retained in memory.
+    /// </summary>
+    public const int MaxHistoryDepth = 100;
+
+    /// <summary>
     /// Suffix appended to duplicated slice names.
     /// </summary>
     public const string DuplicateNameSuffix = "_Copy";
@@ -179,6 +241,11 @@ public static class TextureEditorConstants
     /// Pixel offset applied to pasted or duplicated slices so they do not stack exactly.
     /// </summary>
     public const int PasteOffset = 16;
+
+    /// <summary>
+    /// Minimum slice width and height in pixels when resizing on the canvas.
+    /// </summary>
+    public const int MinSliceDimension = 1;
 
     /// <summary>
     /// Supported texture file extensions for the editor.
@@ -193,7 +260,7 @@ public static class TextureEditorConstants
     /// <summary>
     /// File search patterns listed in the texture editor file explorer.
     /// </summary>
-    public static readonly string[] ExplorerFilePatterns = ["*.tga", "*.dds", "*.png", "*.ini"];
+    public static readonly string[] ExplorerFilePatterns = ["*.tga", "*.dds", "*.png", "*.ini", "*.big"];
 
     /// <summary>
     /// Match timeout guarding Coords parsing against pathological input lines.
@@ -204,4 +271,37 @@ public static class TextureEditorConstants
     /// Valid power-of-two atlas dimensions.
     /// </summary>
     public static readonly int[] PowerOfTwoSizes = [32, 64, 128, 256, 512, 1024, 2048];
+
+    /// <summary>
+    /// Formats an archive path and entry path into a composite archive reference.
+    /// </summary>
+    /// <param name="archivePath">The path to the BIG archive file.</param>
+    /// <param name="entryPath">The entry path inside the archive.</param>
+    /// <returns>A composite reference in the format archivePath#entryPath.</returns>
+    public static string FormatArchiveReference(string archivePath, string entryPath) =>
+        $"{archivePath}{ArchiveEntrySeparator}{entryPath}";
+
+    /// <summary>
+    /// Parses a composite archive reference into its archive path and entry path components.
+    /// </summary>
+    /// <param name="path">The composite reference string.</param>
+    /// <param name="archivePath">When this method returns, contains the archive path, or empty if not an archive reference.</param>
+    /// <param name="entryRelativePath">When this method returns, contains the relative entry path, or empty if not an archive reference.</param>
+    /// <returns><c>true</c> if the path is a valid archive reference; otherwise, <c>false</c>.</returns>
+    public static bool TryParseArchiveReference(string path, out string archivePath, out string entryRelativePath)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+
+        int hashIndex = path.IndexOf(ArchiveEntrySeparator);
+        if (hashIndex > 0 && path[..hashIndex].EndsWith(BigArchiveExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            archivePath = path[..hashIndex];
+            entryRelativePath = path[(hashIndex + 1)..];
+            return true;
+        }
+
+        archivePath = string.Empty;
+        entryRelativePath = string.Empty;
+        return false;
+    }
 }

@@ -14731,6 +14731,21 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="Tools.PublisherStudio.Content.UpstreamVariantAxisHint" xml:space="preserve">
     <value>Specifies the dimension along which releases vary (e.g. game-type, resolution, edition). Leave blank if not applicable.</value>
   </data>
+  <data name="Info.Card.tools.publisher-studio-authoring.Action.NAV_Tools" xml:space="preserve">
+    <value>Open Publisher Studio</value>
+  </data>
+  <data name="Info.Demo.WindowSize" xml:space="preserve">
+    <value>Window Size:</value>
+  </data>
+  <data name="Info.Demo.SizeCompact" xml:space="preserve">
+    <value>Compact (720x480)</value>
+  </data>
+  <data name="Info.Demo.SizeStandard" xml:space="preserve">
+    <value>Standard (840x580)</value>
+  </data>
+  <data name="Info.Demo.SizeExpanded" xml:space="preserve">
+    <value>Expanded (980x680)</value>
+  </data>
   <data name="GameProfiles.Card.Tooltip.MoveLeft" xml:space="preserve">
     <value>Move Left</value>
   </data>
@@ -14872,7 +14887,7 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="Tools.Plugin.texture-editor.Description" xml:space="preserve">
     <value>Slice texture atlases, edit MappedImages visually, and pack loose icons into SAGE sheets.</value>
   </data>
-  <data name="TextureEditor.Header.NoAtlas" xml:space="preserve">
+    <data name="TextureEditor.Header.NoAtlas" xml:space="preserve">
     <value>No atlas open</value>
   </data>
   <data name="TextureEditor.Tooltip.ZoomOut" xml:space="preserve">
@@ -14884,9 +14899,6 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="TextureEditor.Tooltip.ResetZoom" xml:space="preserve">
     <value>Reset zoom to 100%</value>
   </data>
-  <data name="TextureEditor.Tooltip.OpenAtlas" xml:space="preserve">
-    <value>Open a texture atlas (TGA, DDS, PNG)</value>
-  </data>
   <data name="TextureEditor.Tooltip.ScanRegistry" xml:space="preserve">
     <value>Scan a folder for MappedImages INI files</value>
   </data>
@@ -14894,7 +14906,7 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
     <value>Pack a folder of loose images into a new atlas</value>
   </data>
   <data name="TextureEditor.Tooltip.ExportIni" xml:space="preserve">
-    <value>Export slices to a MappedImages INI file</value>
+    <value>Export a copy of the INI (working file unchanged)</value>
   </data>
   <data name="TextureEditor.Tooltip.ExportSheet" xml:space="preserve">
     <value>Export the texture sheet (TGA or PNG)</value>
@@ -14913,9 +14925,6 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   </data>
   <data name="TextureEditor.Tooltip.PresetHud" xml:space="preserve">
     <value>Resize slice to 32x32 HUD button</value>
-  </data>
-  <data name="TextureEditor.Button.Open" xml:space="preserve">
-    <value>Open</value>
   </data>
   <data name="TextureEditor.Button.Scan" xml:space="preserve">
     <value>Scan</value>
@@ -15037,6 +15046,12 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="TextureEditor.Notify.ScanFailed.Message" xml:space="preserve">
     <value>Failed to scan MappedImages folder.</value>
   </data>
+  <data name="TextureEditor.Notify.ScanPartial.Title" xml:space="preserve">
+    <value>Scan completed with errors</value>
+  </data>
+  <data name="TextureEditor.Notify.ScanPartial.Message" xml:space="preserve">
+    <value>Indexed {0} mapped images from {1} files, but {2} entries failed: {3}.</value>
+  </data>
   <data name="TextureEditor.Notify.ExportComplete.Title" xml:space="preserve">
     <value>Export complete</value>
   </data>
@@ -15051,6 +15066,15 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   </data>
   <data name="TextureEditor.Notify.ExportInvalid.Message" xml:space="preserve">
     <value>Slice '{0}' extends outside the texture bounds.</value>
+  </data>
+  <data name="TextureEditor.Notify.ExportInvalidBlankName.Message" xml:space="preserve">
+    <value>A slice has an empty name. Name every slice before exporting.</value>
+  </data>
+  <data name="TextureEditor.Notify.ExportInvalidDuplicateName.Message" xml:space="preserve">
+    <value>Slice name '{0}' is duplicated. Slice names must be unique.</value>
+  </data>
+  <data name="TextureEditor.Notify.ExportInspectFailed.Message" xml:space="preserve">
+    <value>Could not inspect '{0}'. The export was cancelled to protect its contents.</value>
   </data>
   <data name="TextureEditor.Notify.InvalidName.Message" xml:space="preserve">
     <value>Slice name '{0}' is empty or duplicated.</value>
@@ -15074,7 +15098,7 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
     <value>No mapped images</value>
   </data>
   <data name="TextureEditor.Picker.Empty.Description" xml:space="preserve">
-    <value>Scan a MappedImages folder to browse entries here.</value>
+    <value>Scan a MappedImages folder to browse every entry here, then double-click one to load it as a slice.</value>
   </data>
   <data name="TextureEditor.Picker.Tooltip.EditInTextureEditor" xml:space="preserve">
     <value>Load this entry as a slice in the Texture Editor</value>
@@ -15149,7 +15173,7 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
     <value>Save slices (Ctrl+S)</value>
   </data>
   <data name="TextureEditor.Tooltip.SaveAs" xml:space="preserve">
-    <value>Save slices under a new path</value>
+    <value>Save slices under a new path (becomes the working file)</value>
   </data>
   <data name="TextureEditor.Tooltip.DuplicateSlice" xml:space="preserve">
     <value>Duplicate selected slice</value>
@@ -15196,20 +15220,23 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="TextureEditor.Notify.ImportComplete.Title" xml:space="preserve">
     <value>Import complete</value>
   </data>
-  <data name="TextureEditor.Notify.ImportComplete.Message" xml:space="preserve">
-    <value>Imported {0} mapped images from {1}.</value>
-  </data>
   <data name="TextureEditor.Notify.ImportFailed.Title" xml:space="preserve">
     <value>Import failed</value>
   </data>
   <data name="TextureEditor.Notify.ImportFailed.Message" xml:space="preserve">
     <value>No mapped images found.</value>
   </data>
-  <data name="TextureEditor.Notify.RegistryMismatch.Title" xml:space="preserve">
-    <value>Different texture</value>
+  <data name="TextureEditor.Notify.RegistryOpened.Title" xml:space="preserve">
+    <value>Texture opened</value>
   </data>
-  <data name="TextureEditor.Notify.RegistryMismatch.Message" xml:space="preserve">
-    <value>'{0}' belongs to {1}, not to the open atlas.</value>
+  <data name="TextureEditor.Notify.RegistryOpened.Message" xml:space="preserve">
+    <value>Opened {0} to edit '{1}'.</value>
+  </data>
+  <data name="TextureEditor.Notify.TextureNotFound.Title" xml:space="preserve">
+    <value>Texture not found</value>
+  </data>
+  <data name="TextureEditor.Notify.TextureNotFound.Message" xml:space="preserve">
+    <value>'{0}' belongs to {1}, which was not found. Open the folder containing {1} and try again.</value>
   </data>
   <data name="TextureEditor.Dialog.ClearSlices.Title" xml:space="preserve">
     <value>Replace slices with an empty set?</value>
@@ -17383,26 +17410,11 @@ How do you want to apply this update?</value>
   <data name="Tools.ModBuilder.View.TooltipEditManifests" xml:space="preserve">
     <value>Edit bundle manifests in Configuration Editor</value>
   </data>
-  <data name="Info.Card.tools.publisher-studio-authoring.Action.NAV_Tools" xml:space="preserve">
-    <value>Open Publisher Studio</value>
-  </data>
-  <data name="Info.Demo.WindowSize" xml:space="preserve">
-    <value>Window Size:</value>
-  </data>
-  <data name="Info.Demo.SizeCompact" xml:space="preserve">
-    <value>Compact (720x480)</value>
-  </data>
-  <data name="Info.Demo.SizeStandard" xml:space="preserve">
-    <value>Standard (840x580)</value>
-  </data>
-  <data name="Info.Demo.SizeExpanded" xml:space="preserve">
-    <value>Expanded (980x680)</value>
-  </data>
   <data name="Tools.IniEditor.Assembled.ArmorLabel" xml:space="preserve">
     <value>Armor Set</value>
   </data>
   <data name="Tools.IniEditor.Assembled.ArmorTooltip" xml:space="preserve">
-    <value>Armor: {0} -> {1} ({2} coefficients)</value>
+    <value>Armor: {0} -&gt; {1} ({2} coefficients)</value>
   </data>
   <data name="Tools.IniEditor.Assembled.CommandSetLabel" xml:space="preserve">
     <value>Command Set</value>
@@ -17514,6 +17526,41 @@ Mapped image texture reference</value>
   <data name="Tools.IniEditor.Reference.NotFoundTitle" xml:space="preserve">
     <value>Definition Not Found</value>
   </data>
+  <data name="TextureEditor.Button.OpenFolder" xml:space="preserve">
+    <value>Open folder</value>
+  </data>
+  <data name="TextureEditor.Tooltip.OpenFolder" xml:space="preserve">
+    <value>Open a project folder with textures and MappedImages</value>
+  </data>
+  <data name="TextureEditor.Tooltip.Menu" xml:space="preserve">
+    <value>More actions</value>
+  </data>
+  <data name="TextureEditor.Tooltip.PanMode" xml:space="preserve">
+    <value>Toggle pan tool</value>
+  </data>
+  <data name="TextureEditor.Dialog.AllSupportedFiles" xml:space="preserve"><value>Supported files (*.tga, *.dds, *.png, *.ini)</value></data>
+  <data name="TextureEditor.Notify.PlaceholderOpened.Title" xml:space="preserve"><value>Placeholder texture</value></data>
+  <data name="TextureEditor.Notify.PlaceholderOpened.Message" xml:space="preserve"><value>Opened placeholder canvas ({0}x{1}) with {2} slices from {3}{4}.</value></data>
+  <data name="TextureEditor.Notify.ImportExtraTextures" xml:space="preserve"><value> ({0} other textures in Library)</value></data>
+  <data name="TextureEditor.Notify.ImportComplete.LoadedCurrentAtlas" xml:space="preserve"><value>Loaded {0} slices for {1} from {2}{3}.</value></data>
+  <data name="TextureEditor.Notify.ImportComplete.LoadedTargetAtlas" xml:space="preserve"><value>Loaded {0} slices for {1} from {2}{3}.</value></data>
+  <data name="TextureEditor.Notify.ImportComplete.LibraryOnly" xml:space="preserve"><value>Imported {0} mapped images into Library.</value></data>
+  <data name="TextureEditor.Notify.PlaceholderSingleOpened.Message" xml:space="preserve"><value>Opened {0}x{1} placeholder for '{2}' (texture file not found on disk or game archives).</value></data>
+  <data name="TextureEditor.Badge.Placeholder" xml:space="preserve"><value>Missing Texture (Placeholder)</value></data>
+  <data name="TextureEditor.Badge.PlaceholderTooltip" xml:space="preserve"><value>Texture file was not found on disk or game archives. A temporary placeholder canvas is displayed.</value></data>
+  <data name="TextureEditor.History.AddSlice" xml:space="preserve"><value>Add slice</value></data>
+  <data name="TextureEditor.History.MoveSlice" xml:space="preserve"><value>Move slice</value></data>
+  <data name="TextureEditor.History.ResizeSlice" xml:space="preserve"><value>Resize slice</value></data>
+  <data name="TextureEditor.History.CutSlice" xml:space="preserve"><value>Cut slice</value></data>
+  <data name="TextureEditor.History.PasteSlice" xml:space="preserve"><value>Paste slice</value></data>
+  <data name="TextureEditor.History.DuplicateSlice" xml:space="preserve"><value>Duplicate slice</value></data>
+  <data name="TextureEditor.History.DeleteSlice" xml:space="preserve"><value>Delete slice</value></data>
+  <data name="TextureEditor.Notify.CopyFailed.Title" xml:space="preserve"><value>Copy failed</value></data>
+  <data name="TextureEditor.History.NudgeSlice" xml:space="preserve"><value>Nudge slice</value></data>
+  <data name="TextureEditor.History.ApplyPreset" xml:space="preserve"><value>Apply preset</value></data>
+  <data name="TextureEditor.Notify.PasteFailed.Title" xml:space="preserve"><value>Paste failed</value></data>
+  <data name="TextureEditor.Notify.PasteFailed.Message" xml:space="preserve"><value>Clipboard does not contain valid MappedImage definitions.</value></data>
+  <data name="TextureEditor.Notify.OpenFailed.Message" xml:space="preserve"><value>Failed to open target texture.</value></data>
   <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
     <value>Manual Fallback Releases (Overrides)</value>
   </data>

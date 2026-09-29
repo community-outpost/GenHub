@@ -14672,6 +14672,21 @@ https://example.com/screenshot2.png</value>
   <data name="Tools.PublisherStudio.Content.UpstreamVariantAxisHint" xml:space="preserve">
     <value>يحدد البُعد الذي تختلف عبره الإصدارات (مثل نوع اللعبة، الدقة، الإصدار). اتركه فارغاً إذا لم ينطبق.</value>
   </data>
+  <data name="Info.Card.tools.publisher-studio-authoring.Action.NAV_Tools" xml:space="preserve">
+    <value>فتح استوديو الناشر</value>
+  </data>
+  <data name="Info.Demo.WindowSize" xml:space="preserve">
+    <value>حجم النافذة:</value>
+  </data>
+  <data name="Info.Demo.SizeCompact" xml:space="preserve">
+    <value>مدمج (720x480)</value>
+  </data>
+  <data name="Info.Demo.SizeStandard" xml:space="preserve">
+    <value>قياسي (840x580)</value>
+  </data>
+  <data name="Info.Demo.SizeExpanded" xml:space="preserve">
+    <value>موسع (980x680)</value>
+  </data>
   <data name="GameProfiles.Card.Tooltip.MoveLeft" xml:space="preserve">
     <value>تحريك لليسار</value>
   </data>
@@ -14813,7 +14828,7 @@ https://example.com/screenshot2.png</value>
   <data name="Tools.Plugin.texture-editor.Description" xml:space="preserve">
     <value>قسّم أطالس القوام وحرّر MappedImages بصريًا واجمع الأيقونات في صفحات SAGE.</value>
   </data>
-  <data name="TextureEditor.Header.NoAtlas" xml:space="preserve">
+    <data name="TextureEditor.Header.NoAtlas" xml:space="preserve">
     <value>لا يوجد أطلس مفتوح</value>
   </data>
   <data name="TextureEditor.Tooltip.ZoomOut" xml:space="preserve">
@@ -14825,9 +14840,6 @@ https://example.com/screenshot2.png</value>
   <data name="TextureEditor.Tooltip.ResetZoom" xml:space="preserve">
     <value>إعادة التكبير إلى 100٪</value>
   </data>
-  <data name="TextureEditor.Tooltip.OpenAtlas" xml:space="preserve">
-    <value>فتح أطلس قوام (TGA أو DDS أو PNG)</value>
-  </data>
   <data name="TextureEditor.Tooltip.ScanRegistry" xml:space="preserve">
     <value>فحص مجلد بحثًا عن ملفات MappedImages INI</value>
   </data>
@@ -14835,7 +14847,7 @@ https://example.com/screenshot2.png</value>
     <value>جمع مجلد صور في أطلس جديد</value>
   </data>
   <data name="TextureEditor.Tooltip.ExportIni" xml:space="preserve">
-    <value>تصدير الشرائح إلى ملف MappedImages INI</value>
+    <value>تصدير نسخة من ملف INI (يبقى ملف العمل دون تغيير)</value>
   </data>
   <data name="TextureEditor.Tooltip.ExportSheet" xml:space="preserve">
     <value>تصدير ورقة القوام (TGA أو PNG)</value>
@@ -14854,9 +14866,6 @@ https://example.com/screenshot2.png</value>
   </data>
   <data name="TextureEditor.Tooltip.PresetHud" xml:space="preserve">
     <value>تغيير حجم الشريحة إلى زر HUD بمقاس 32x32</value>
-  </data>
-  <data name="TextureEditor.Button.Open" xml:space="preserve">
-    <value>فتح</value>
   </data>
   <data name="TextureEditor.Button.Scan" xml:space="preserve">
     <value>فحص</value>
@@ -14978,6 +14987,12 @@ https://example.com/screenshot2.png</value>
   <data name="TextureEditor.Notify.ScanFailed.Message" xml:space="preserve">
     <value>تعذر فحص مجلد MappedImages.</value>
   </data>
+  <data name="TextureEditor.Notify.ScanPartial.Title" xml:space="preserve">
+    <value>اكتمل الفحص مع أخطاء</value>
+  </data>
+  <data name="TextureEditor.Notify.ScanPartial.Message" xml:space="preserve">
+    <value>تمت فهرسة {0} صورة من {1} ملفات، لكن {2} إدخالات فشلت: {3}.</value>
+  </data>
   <data name="TextureEditor.Notify.ExportComplete.Title" xml:space="preserve">
     <value>اكتمل التصدير</value>
   </data>
@@ -14992,6 +15007,15 @@ https://example.com/screenshot2.png</value>
   </data>
   <data name="TextureEditor.Notify.ExportInvalid.Message" xml:space="preserve">
     <value>الشريحة '{0}' تمتد خارج حدود القوام.</value>
+  </data>
+  <data name="TextureEditor.Notify.ExportInvalidBlankName.Message" xml:space="preserve">
+    <value>تحتوي شريحة على اسم فارغ. قم بتسمية كل شريحة قبل التصدير.</value>
+  </data>
+  <data name="TextureEditor.Notify.ExportInvalidDuplicateName.Message" xml:space="preserve">
+    <value>اسم الشريحة '{0}' مكرر. يجب أن تكون أسماء الشرائح فريدة.</value>
+  </data>
+  <data name="TextureEditor.Notify.ExportInspectFailed.Message" xml:space="preserve">
+    <value>تعذر فحص '{0}'. تم إلغاء التصدير لحماية محتوياته.</value>
   </data>
   <data name="TextureEditor.Notify.InvalidName.Message" xml:space="preserve">
     <value>اسم الشريحة '{0}' فارغ أو مكرر.</value>
@@ -15015,7 +15039,7 @@ https://example.com/screenshot2.png</value>
     <value>لا توجد صور مرسومة</value>
   </data>
   <data name="TextureEditor.Picker.Empty.Description" xml:space="preserve">
-    <value>افحص مجلد MappedImages لتصفح العناصر هنا.</value>
+    <value>امسح مجلد MappedImages لتصفح كل الإدخالات هنا، ثم انقر نقرًا مزدوجًا فوق أحدها لتحميله كشريحة.</value>
   </data>
   <data name="TextureEditor.Picker.Tooltip.EditInTextureEditor" xml:space="preserve">
     <value>تحميل هذا العنصر كشريحة في محرر القوام</value>
@@ -15090,7 +15114,7 @@ https://example.com/screenshot2.png</value>
     <value>حفظ الشرائح (Ctrl+S)</value>
   </data>
   <data name="TextureEditor.Tooltip.SaveAs" xml:space="preserve">
-    <value>حفظ الشرائح تحت مسار جديد</value>
+    <value>حفظ الشرائح تحت مسار جديد (يصبح ملف العمل)</value>
   </data>
   <data name="TextureEditor.Tooltip.DuplicateSlice" xml:space="preserve">
     <value>تكرار الشريحة المحددة</value>
@@ -15137,20 +15161,23 @@ https://example.com/screenshot2.png</value>
   <data name="TextureEditor.Notify.ImportComplete.Title" xml:space="preserve">
     <value>اكتمل الاستيراد</value>
   </data>
-  <data name="TextureEditor.Notify.ImportComplete.Message" xml:space="preserve">
-    <value>تم استيراد {0} من الصور المرتبطة من {1}.</value>
-  </data>
   <data name="TextureEditor.Notify.ImportFailed.Title" xml:space="preserve">
     <value>فشل الاستيراد</value>
   </data>
   <data name="TextureEditor.Notify.ImportFailed.Message" xml:space="preserve">
     <value>لم يتم العثور على صور معينة.</value>
   </data>
-  <data name="TextureEditor.Notify.RegistryMismatch.Title" xml:space="preserve">
-    <value>نسيج مختلف</value>
+  <data name="TextureEditor.Notify.RegistryOpened.Title" xml:space="preserve">
+    <value>تم فتح النسيج</value>
   </data>
-  <data name="TextureEditor.Notify.RegistryMismatch.Message" xml:space="preserve">
-    <value>'{0}' ينتمي إلى {1}، وليس إلى الأطلس المفتوح.</value>
+  <data name="TextureEditor.Notify.RegistryOpened.Message" xml:space="preserve">
+    <value>تم فتح {0} لتحرير '{1}'.</value>
+  </data>
+  <data name="TextureEditor.Notify.TextureNotFound.Title" xml:space="preserve">
+    <value>النسيج غير موجود</value>
+  </data>
+  <data name="TextureEditor.Notify.TextureNotFound.Message" xml:space="preserve">
+    <value>'{0}' ينتمي إلى {1}، وهو غير موجود. افتح المجلد الذي يحتوي على {1} وحاول مرة أخرى.</value>
   </data>
   <data name="TextureEditor.Dialog.ClearSlices.Title" xml:space="preserve">
     <value>استبدال الشرائح بمجموعة فارغة؟</value>
@@ -17324,26 +17351,11 @@ Error: فشل: {3}
   <data name="Tools.ModBuilder.View.TooltipEditManifests" xml:space="preserve">
     <value>تعديل بيانات الحزمة في محرر التكوين</value>
   </data>
-  <data name="Info.Card.tools.publisher-studio-authoring.Action.NAV_Tools" xml:space="preserve">
-    <value>فتح استوديو الناشر</value>
-  </data>
-  <data name="Info.Demo.WindowSize" xml:space="preserve">
-    <value>حجم النافذة:</value>
-  </data>
-  <data name="Info.Demo.SizeCompact" xml:space="preserve">
-    <value>مدمج (720x480)</value>
-  </data>
-  <data name="Info.Demo.SizeStandard" xml:space="preserve">
-    <value>قياسي (840x580)</value>
-  </data>
-  <data name="Info.Demo.SizeExpanded" xml:space="preserve">
-    <value>موسع (980x680)</value>
-  </data>
   <data name="Tools.IniEditor.Assembled.ArmorLabel" xml:space="preserve">
     <value>مجموعة الدروع</value>
   </data>
   <data name="Tools.IniEditor.Assembled.ArmorTooltip" xml:space="preserve">
-    <value>الدرع: {0} -> {1} ({2} معاملات)</value>
+    <value>الدرع: {0} -&gt; {1} ({2} معاملات)</value>
   </data>
   <data name="Tools.IniEditor.Assembled.CommandSetLabel" xml:space="preserve">
     <value>مجموعة الأوامر</value>
@@ -17455,6 +17467,41 @@ Error: فشل: {3}
   <data name="Tools.IniEditor.Reference.NotFoundTitle" xml:space="preserve">
     <value>التعريف غير موجود</value>
   </data>
+  <data name="TextureEditor.Button.OpenFolder" xml:space="preserve">
+    <value>فتح مجلد</value>
+  </data>
+  <data name="TextureEditor.Tooltip.OpenFolder" xml:space="preserve">
+    <value>فتح مجلد مشروع يحتوي على القوام وMappedImages</value>
+  </data>
+  <data name="TextureEditor.Tooltip.Menu" xml:space="preserve">
+    <value>إجراءات أخرى</value>
+  </data>
+  <data name="TextureEditor.Tooltip.PanMode" xml:space="preserve">
+    <value>تبديل أداة التحريك</value>
+  </data>
+  <data name="TextureEditor.Dialog.AllSupportedFiles" xml:space="preserve"><value>الملفات المدعومة (*.tga, *.dds, *.png, *.ini)</value></data>
+  <data name="TextureEditor.Notify.PlaceholderOpened.Title" xml:space="preserve"><value>نسيج مؤقت</value></data>
+  <data name="TextureEditor.Notify.PlaceholderOpened.Message" xml:space="preserve"><value>تم فتح لوحة قماشية مؤقتة ({0}x{1}) تحتوي على {2} شريحة من {3}{4}.</value></data>
+  <data name="TextureEditor.Notify.ImportExtraTextures" xml:space="preserve"><value> ({0} أنسجة أخرى في المكتبة)</value></data>
+  <data name="TextureEditor.Notify.ImportComplete.LoadedCurrentAtlas" xml:space="preserve"><value>تم تحميل {0} شريحة لـ {1} من {2}{3}.</value></data>
+  <data name="TextureEditor.Notify.ImportComplete.LoadedTargetAtlas" xml:space="preserve"><value>تم تحميل {0} شريحة لـ {1} من {2}{3}.</value></data>
+  <data name="TextureEditor.Notify.ImportComplete.LibraryOnly" xml:space="preserve"><value>تم استيراد {0} صورة في المكتبة.</value></data>
+  <data name="TextureEditor.Notify.PlaceholderSingleOpened.Message" xml:space="preserve"><value>تم فتح لوحة قماشية مؤقتة {0}x{1} لـ '{2}' (لم يتم العثور على ملف النسيج على القرص أو في ملفات اللعبة).</value></data>
+  <data name="TextureEditor.Badge.Placeholder" xml:space="preserve"><value>نسيج مفقود (مؤقت)</value></data>
+  <data name="TextureEditor.Badge.PlaceholderTooltip" xml:space="preserve"><value>لم يتم العثور على ملف النسيج على القرص أو في أرشيفات اللعبة. يتم عرض لوحة قماشية مؤقتة.</value></data>
+  <data name="TextureEditor.History.AddSlice" xml:space="preserve"><value>إضافة شريحة</value></data>
+  <data name="TextureEditor.History.MoveSlice" xml:space="preserve"><value>نقل الشريحة</value></data>
+  <data name="TextureEditor.History.ResizeSlice" xml:space="preserve"><value>تغيير حجم الشريحة</value></data>
+  <data name="TextureEditor.History.CutSlice" xml:space="preserve"><value>قص الشريحة</value></data>
+  <data name="TextureEditor.History.PasteSlice" xml:space="preserve"><value>لصق الشريحة</value></data>
+  <data name="TextureEditor.History.DuplicateSlice" xml:space="preserve"><value>تكرار الشريحة</value></data>
+  <data name="TextureEditor.History.DeleteSlice" xml:space="preserve"><value>حذف الشريحة</value></data>
+  <data name="TextureEditor.Notify.CopyFailed.Title" xml:space="preserve"><value>فشل النسخ</value></data>
+  <data name="TextureEditor.History.NudgeSlice" xml:space="preserve"><value>تحريك الشريحة</value></data>
+  <data name="TextureEditor.History.ApplyPreset" xml:space="preserve"><value>تطبيق الإعداد المسبق</value></data>
+  <data name="TextureEditor.Notify.PasteFailed.Title" xml:space="preserve"><value>فشل اللصق</value></data>
+  <data name="TextureEditor.Notify.PasteFailed.Message" xml:space="preserve"><value>لا تحتوي الحافظة على تعريفات MappedImage صالحة.</value></data>
+  <data name="TextureEditor.Notify.OpenFailed.Message" xml:space="preserve"><value>فشل فتح النسيج الهدف.</value></data>
   <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
     <value>إصدارات احتياطية يدوية (تجاوزات)</value>
   </data>
