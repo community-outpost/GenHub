@@ -1837,11 +1837,16 @@ public partial class GameProfileLauncherViewModel(
 
         var isCommunityOutpost = string.Equals(publisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase);
 
-        var client = installation.AvailableGameClients?.FirstOrDefault(c =>
-            string.Equals(c.PublisherType, publisherType, StringComparison.OrdinalIgnoreCase) &&
-            (!isCommunityOutpost || (isNonRetail
-                ? (CommunityOutpostConstants.IsNonRetailIdentifier(c.Id) || CommunityOutpostConstants.IsNonRetailIdentifier(c.Name))
-                : (!CommunityOutpostConstants.IsNonRetailIdentifier(c.Id) && !CommunityOutpostConstants.IsNonRetailIdentifier(c.Name)))));
+        // Prefer a build native to this host, as the setup wizard does, so a Windows build listed
+        // first does not take the action meant for the native one.
+        var client = installation.AvailableGameClients?
+            .Where(c =>
+                string.Equals(c.PublisherType, publisherType, StringComparison.OrdinalIgnoreCase) &&
+                (!isCommunityOutpost || (isNonRetail
+                    ? (CommunityOutpostConstants.IsNonRetailIdentifier(c.Id) || CommunityOutpostConstants.IsNonRetailIdentifier(c.Name))
+                    : (!CommunityOutpostConstants.IsNonRetailIdentifier(c.Id) && !CommunityOutpostConstants.IsNonRetailIdentifier(c.Name)))))
+            .OrderBy(c => PublisherProfileOrchestrator.IsHostNativeClient(c) ? 0 : 1)
+            .FirstOrDefault();
 
         if (client == null &&
             decision != GameClientConstants.WizardActionTypes.Install &&

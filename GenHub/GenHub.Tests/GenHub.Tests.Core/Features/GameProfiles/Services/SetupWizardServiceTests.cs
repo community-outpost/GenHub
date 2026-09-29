@@ -725,11 +725,15 @@ public class SetupWizardServiceTests
 
     /// <summary>
     /// Verifies that a native non-retail Community Patch client on macOS or Linux is offered only
-    /// under the non-retail component, not also under the retail one.
+    /// under the non-retail component, not also under the retail one, and that the Windows retail
+    /// package is left unselected so confirming does not download it too.
     /// </summary>
+    /// <param name="withRetailWindowsClient">Whether a Windows retail client is also installed.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    [Fact]
-    public async Task RunSetupWizardAsync_WhenNativeNonRetailCommunityPatchDetected_OffersOnlyNonRetailAsync()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task RunSetupWizardAsync_WhenNativeNonRetailCommunityPatchDetected_OffersOnlyNonRetailAsync(bool withRetailWindowsClient)
     {
         if (OperatingSystem.IsWindows())
         {
@@ -772,7 +776,10 @@ public class SetupWizardServiceTests
                     Version = GameClientConstants.UnknownVersion,
                     ExecutablePath = executablePath,
                 },
-                new GameClient
+            ];
+            if (withRetailWindowsClient)
+            {
+                installation.AvailableGameClients.Add(new GameClient
                 {
                     Id = retailClientId,
                     InstallationId = installation.Id,
@@ -781,8 +788,8 @@ public class SetupWizardServiceTests
                     GameType = GameType.ZeroHour,
                     Version = GameClientConstants.UnknownVersion,
                     ExecutablePath = retailExecutablePath,
-                },
-            ];
+                });
+            }
 
             var service = CreateService();
             SetupWizardViewModel? capturedVm = null;
@@ -797,9 +804,12 @@ public class SetupWizardServiceTests
 
             var retailItem = capturedVm?.Items.FirstOrDefault(i => i.Title == "Community Patch (Retail)");
             var nonRetItem = capturedVm?.Items.FirstOrDefault(i => i.Title == "Community Patch (Non-Retail)");
+            Assert.NotNull(retailItem);
             Assert.Equal(GameClientConstants.WizardActionTypes.CreateProfile, nonRetItem?.ActionType);
-            Assert.NotEqual(GameClientConstants.WizardActionTypes.CreateProfile, retailItem?.ActionType);
-            Assert.NotEqual(GameClientConstants.WizardActionTypes.CreateProfile, result.CommunityPatchAction);
+            Assert.Equal(GameClientConstants.WizardActionTypes.Install, retailItem.ActionType);
+            Assert.False(retailItem.IsSelected);
+            Assert.Equal(GameClientConstants.WizardActionTypes.CreateProfile, result.CommunityPatchNonRetAction);
+            Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.CommunityPatchAction);
         }
         finally
         {

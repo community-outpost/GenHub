@@ -98,6 +98,7 @@ public class SetupWizardService(
 
         // 3. Collection Phase: Build Wizard Items
         var wizardItems = new List<SetupWizardItemViewModel>();
+        var nativeComponents = new HashSet<string>(StringComparer.Ordinal);
 
         // Pre-fetch latest versions
         var (cpRetailLatestVersion, cpNonRetLatestVersion) = await GetLatestCommunityPatchVersionsAsync();
@@ -118,8 +119,9 @@ public class SetupWizardService(
             // A native client on macOS or Linux is profiled as it is: the publisher package is a
             // Windows build, so there is nothing to download or update for it. This runs before the
             // up-to-date checks, which look at Windows packages and would otherwise hide it.
-            // Every native build of the publisher counts, not only the client selected per installation,
-            // so a profiled Zero Hour build does not hide an unprofiled Generals build beside it.
+            // Every native build matching this component counts, not only the client selected per
+            // installation, so a profiled Zero Hour build does not hide an unprofiled Generals build
+            // beside it.
             var nativeClients = componentGlobal
                 .Select(x => x.Inst as GameInstallation)
                 .OfType<GameInstallation>()
@@ -147,6 +149,7 @@ public class SetupWizardService(
                             Metadata = config.Metadata,
                         };
                         wizardItems.Add(nativeItem);
+                        nativeComponents.Add(config.Metadata);
                         return (false, nativeItem.ActionType);
                     }
                 }
@@ -368,6 +371,21 @@ public class SetupWizardService(
         };
         var cpNonRetRes = await ProcessComponentAsync(cpNonRetConfig);
         result.CommunityPatchNonRetAction = cpNonRetRes.FinalAction;
+
+        // A native non-retail build is profiled as it is. Leave the Windows retail package unselected
+        // so confirming the wizard does not also download it next to the non-retail build.
+        if (nativeComponents.Contains(CommunityOutpostConstants.CommunityPatchNonRetCode) &&
+            !nativeComponents.Contains(CommunityOutpostConstants.CommunityPatchRetailCode))
+        {
+            var retailItem = wizardItems.FirstOrDefault(i =>
+                string.Equals(i.Metadata as string, CommunityOutpostConstants.CommunityPatchRetailCode, StringComparison.Ordinal));
+            if (retailItem != null)
+            {
+                retailItem.IsSelected = false;
+            }
+
+            result.CommunityPatchAction = GameClientConstants.WizardActionTypes.Decline;
+        }
 
         var goConfig = new WizardComponentConfig
         {

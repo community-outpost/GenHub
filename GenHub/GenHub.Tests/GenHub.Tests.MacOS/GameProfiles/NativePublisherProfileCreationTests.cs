@@ -39,14 +39,17 @@ public class NativePublisherProfileCreationTests
 
     /// <summary>
     /// A native install gets a profile on its own native executable, and neither wizard
-    /// answer searches for or downloads the Windows TheSuperHackers package.
+    /// answer searches for or downloads the Windows TheSuperHackers package. A Windows build in
+    /// the same folder does not take the action meant for the native one.
     /// </summary>
     /// <param name="wizardAction">The TheSuperHackers action the wizard returns.</param>
+    /// <param name="withWindowsBuild">Whether a Windows <c>generalszh.exe</c> sits beside the native build.</param>
     /// <returns>A task representing the asynchronous test.</returns>
     [Theory]
-    [InlineData(GameClientConstants.WizardActionTypes.CreateProfile)]
-    [InlineData(GameClientConstants.WizardActionTypes.Install)]
-    public async Task ScanForGames_NativeSuperHackersInstall_CreatesNativeProfileWithoutDownloadAsync(string wizardAction)
+    [InlineData(GameClientConstants.WizardActionTypes.CreateProfile, false)]
+    [InlineData(GameClientConstants.WizardActionTypes.Install, false)]
+    [InlineData(GameClientConstants.WizardActionTypes.CreateProfile, true)]
+    public async Task ScanForGames_NativeSuperHackersInstall_CreatesNativeProfileWithoutDownloadAsync(string wizardAction, bool withWindowsBuild)
     {
         using var testEnvironment = new TemporaryApplicationEnvironment();
         var home = Environment.GetEnvironmentVariable("HOME")!;
@@ -61,6 +64,10 @@ public class NativePublisherProfileCreationTests
         File.WriteAllText(Path.Combine(deployRoot, GameClientConstants.ZeroHourIniBig), "archive");
         var enginePath = Path.Combine(deployRoot, Path.GetFileNameWithoutExtension(GameClientConstants.SuperHackersZeroHourExecutable));
         File.WriteAllBytes(enginePath, MachOHeader);
+        if (withWindowsBuild)
+        {
+            File.WriteAllBytes(Path.Combine(deployRoot, GameClientConstants.SuperHackersZeroHourExecutable), [0x4D, 0x5A, 0x90, 0x00, 0x03, 0x00, 0x00, 0x00]);
+        }
 
         var contentOrchestrator = new Mock<IContentOrchestrator>();
         contentOrchestrator
