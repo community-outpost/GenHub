@@ -26,7 +26,7 @@ namespace GenHub.Tests.Core.Features.GameProfiles.Services;
 /// </summary>
 public sealed class GameClientProfileServiceTests
 {
-    private const string InstallationPath = "/Games/ZeroHour";
+    private static readonly string InstallationPath = Path.GetFullPath("/Games/ZeroHour");
 
     private readonly Mock<IGameProfileManager> _profileManagerMock = new();
     private readonly Mock<IGameInstallationService> _installationServiceMock = new();
@@ -204,6 +204,51 @@ public sealed class GameClientProfileServiceTests
 
         Assert.False(result.Success);
         Assert.Equal(ProfileConstants.ProfileAlreadyExistsErrorCode, result.ErrorCode);
+    }
+
+    /// <summary>Unsafe declared and inferred entry points must not create profiles.</summary>
+    /// <param name="prefix">The unsafe path prefix.</param>
+    /// <param name="declared">Whether the entry point is declared.</param>
+    /// <returns>The test task.</returns>
+    [Theory]
+    [InlineData("../", true)]
+    [InlineData("../", false)]
+    [InlineData("..\\", true)]
+    [InlineData("..\\", false)]
+    [InlineData("/outside/", true)]
+    [InlineData("/outside/", false)]
+    [InlineData("C:/outside/", true)]
+    [InlineData("C:/outside/", false)]
+    public async Task CreateProfileFromManifestAsync_UnsafeEntryPoint_RejectsProfileAsync(string prefix, bool declared)
+    {
+        var name = OperatingSystem.IsWindows() ? "generalszh.exe" : "generalszh";
+        var path = prefix + name;
+        var manifest = CreateManifest(new ManifestFile { RelativePath = path, IsExecutable = true });
+        if (declared)
+        {
+            manifest.EntryPoint = path;
+        }
+
+        var result = await _service.CreateProfileFromManifestAsync(manifest);
+
+        Assert.False(result.Success);
+        Assert.Null(_capturedRequest);
+        Assert.NotEmpty(result.Errors);
+    }
+
+    /// <summary>A Steam engine and launcher without an entry point must not silently select the stub.</summary>
+    /// <returns>The test task.</returns>
+    [Fact]
+    public async Task CreateProfileFromManifestAsync_AmbiguousSteamExecutables_RejectsProfileAsync()
+    {
+        var manifest = CreateManifest(
+            new ManifestFile { RelativePath = GameClientConstants.GeneralsExecutable, IsExecutable = true },
+            new ManifestFile { RelativePath = GameClientConstants.SteamGameDatExecutable, IsExecutable = true });
+
+        var result = await _service.CreateProfileFromManifestAsync(manifest);
+
+        Assert.False(result.Success);
+        Assert.Null(_capturedRequest);
     }
 
     private static ContentManifest CreateManifest(params ManifestFile[] files) => new()

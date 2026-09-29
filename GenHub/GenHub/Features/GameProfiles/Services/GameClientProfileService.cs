@@ -250,6 +250,12 @@ public class GameClientProfileService(
                     $"Installation path not found for {manifest.TargetGame}");
             }
 
+            var resolvedPath = ContentPathPolicy.ResolveContainedFile(installationPath, executableFile.RelativePath);
+            if (!resolvedPath.Success || resolvedPath.Data == null)
+            {
+                return ProfileOperationResult<GameProfile>.CreateFailure(string.Join("; ", resolvedPath.Errors));
+            }
+
             var gameClient = new GameClient
             {
                 Id = manifest.Id.Value,
@@ -258,7 +264,7 @@ public class GameClientProfileService(
                 GameType = manifest.TargetGame,
                 SourceType = ContentType.GameClient,
                 PublisherType = manifest.Publisher?.PublisherType,
-                ExecutablePath = Path.Combine(installationPath, executableFile.RelativePath),
+                ExecutablePath = resolvedPath.Data,
                 WorkingDirectory = installationPath,
                 InstallationId = matchingInstallation.Id,
             };
@@ -310,8 +316,7 @@ public class GameClientProfileService(
     /// <summary>
     /// Selects the client executable of a manifest. A declared entry point wins, resolved
     /// through <see cref="ManifestVariantResolver"/> so the host's variant applies. Without
-    /// one, a known game executable in the host's form is used when exactly one exists: the
-    /// extensionless native binary on macOS and Linux, the <c>.exe</c> on Windows. Otherwise
+    /// one, a known extensionless game executable is preferred on macOS and Linux. Otherwise
     /// the resolver decides, and an ambiguous manifest fails instead of taking the first match.
     /// </summary>
     /// <param name="manifest">The GameClient manifest.</param>
@@ -325,7 +330,7 @@ public class GameClientProfileService(
             ? manifest.EntryPoint
             : ManifestVariantResolver.ResolveVariant(manifest)?.EntryPoint;
 
-        if (string.IsNullOrWhiteSpace(declared))
+        if (string.IsNullOrWhiteSpace(declared) && !OperatingSystem.IsWindows())
         {
             var hostGameExecutables = files
                 .Where(f => !string.IsNullOrEmpty(f.RelativePath) && IsHostFormGameExecutable(f.RelativePath))
