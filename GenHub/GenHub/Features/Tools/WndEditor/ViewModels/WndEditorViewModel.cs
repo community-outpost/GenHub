@@ -2456,7 +2456,10 @@ public sealed partial class WndEditorViewModel(
 
     private FileExplorerViewModel CreateFileExplorer()
     {
-        var explorer = new FileExplorerViewModel(logger);
+        var explorer = new FileExplorerViewModel(logger)
+        {
+            AsynchronousEnumeration = true,
+        };
         explorer.FilePatterns = [ModBuilderConstants.FileNames.WndSearchPattern];
         explorer.ShowFileExtensions = false;
         explorer.ExcludedDirectoryNames = [ModBuilderConstants.DefaultBuildDir, ModBuilderConstants.DefaultReleaseDir];

@@ -37,7 +37,7 @@
   </Style>
 
   <!-- Compact sidebar tab strip shared by every editor sidebar. -->
-  <Style Selector="TabStrip.compact-tabs TabItem">
+  <Style Selector="TabStrip.compact-tabs TabStripItem">
     <Setter Property="FontSize" Value="11" />
     <Setter Property="FontWeight" Value="SemiBold" />
     <Setter Property="MinHeight" Value="22" />
@@ -46,10 +46,10 @@
     <Setter Property="Cursor" Value="Hand" />
     <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
   </Style>
-  <Style Selector="TabStrip.compact-tabs TabItem:pointerover">
+  <Style Selector="TabStrip.compact-tabs TabStripItem:pointerover">
     <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
   </Style>
-  <Style Selector="TabStrip.compact-tabs TabItem:selected">
+  <Style Selector="TabStrip.compact-tabs TabStripItem:selected">
     <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
   </Style>
   <Style Selector="TabControl.compact-tabs TabItem">

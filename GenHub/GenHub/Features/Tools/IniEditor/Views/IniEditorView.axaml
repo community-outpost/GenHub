@@ -128,6 +128,9 @@
     <KeyBinding Gesture="Ctrl+Y" Command="{Binding RedoCommand}"/>
     <KeyBinding Gesture="Ctrl+Shift+Z" Command="{Binding RedoCommand}"/>
     <KeyBinding Gesture="Ctrl+D" Command="{Binding DuplicateCommand}"/>
+    <KeyBinding Gesture="Ctrl+C" Command="{Binding CopyCommand}"/>
+    <KeyBinding Gesture="Ctrl+X" Command="{Binding CutCommand}"/>
+    <KeyBinding Gesture="Ctrl+V" Command="{Binding PasteCommand}"/>
     <KeyBinding Gesture="Delete" Command="{Binding DeleteCommand}"/>
   </UserControl.KeyBindings>
   <Grid RowDefinitions="Auto,*">
@@ -375,13 +378,9 @@
                       <Style Selector="TreeViewItem" x:DataType="vm:IniTreeNodeViewModel">
                         <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
                       </Style>
-                      <Style Selector="TreeViewItem /template/ Panel#PART_ExpandCollapseChevronContainer">
-                        <Setter Property="IsVisible" Value="False"/>
-                        <Setter Property="Width" Value="0"/>
-                      </Style>
-                      <Style Selector="TreeViewItem /template/ ToggleButton#PART_ExpandCollapseChevron">
-                        <Setter Property="IsVisible" Value="False"/>
-                        <Setter Property="Width" Value="0"/>
+                      <Style Selector="TreeViewItem:empty /template/ Panel#PART_ExpandCollapseChevronContainer">
+                        <Setter Property="Width" Value="10"/>
+                        <Setter Property="Margin" Value="0,0,1,0"/>
                       </Style>
                     </TreeView.Styles>
                     <TreeView.ItemTemplate>

@@ -158,16 +158,21 @@ public sealed partial class FileExplorerViewModel : ObservableObject
     /// <returns>The first file path, or null when the tree has no files.</returns>
     public async Task<string?> FindFirstFileAsync(CancellationToken cancellationToken = default)
     {
-        var refreshTask = _currentRefreshTask;
-        if (refreshTask is not null)
+        Task? refreshTask;
+        while ((refreshTask = _currentRefreshTask) is not null)
         {
             try
             {
                 await refreshTask.WaitAsync(cancellationToken).ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
-                // Ignored
+                // A superseded refresh was cancelled; wait for the replacement instead.
+            }
+
+            if (ReferenceEquals(refreshTask, _currentRefreshTask))
+            {
+                break;
             }
         }
 
@@ -323,6 +328,7 @@ public sealed partial class FileExplorerViewModel : ObservableObject
         });
     }
 
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Clears instance loading state on the UI thread.")]
     private async Task ClearLoadingOnFailureAsync(CancellationToken cancellationToken)
     {
         if (cancellationToken.IsCancellationRequested)

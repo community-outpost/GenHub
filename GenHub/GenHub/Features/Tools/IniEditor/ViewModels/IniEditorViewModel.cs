@@ -89,6 +89,9 @@ public sealed partial class IniEditorViewModel(
     private CancellationTokenSource? _previewCts;
     private CancellationTokenSource? _filterCts;
     private CancellationTokenSource? _thumbnailCts;
+    private CancellationTokenSource? _rawEditCts;
+    private bool _isUpdatingRawPreview;
+    private int _documentRevision;
 
     /// <summary>
     /// Gets the root block nodes of the edited document.
@@ -553,9 +556,11 @@ public sealed partial class IniEditorViewModel(
         }
 
         var block = SelectedNode.Block;
+        var expectedPortraitKey = string.Equals(block.BlockType, IniConstants.BlockTypes.CommandButton, StringComparison.OrdinalIgnoreCase)
+            ? IniConstants.FieldKeys.ButtonImage
+            : IniConstants.FieldKeys.SelectPortrait;
         var existingPortrait = block.Fields.FirstOrDefault(f =>
-            string.Equals(f.Key, IniConstants.FieldKeys.SelectPortrait, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(f.Key, IniConstants.FieldKeys.ButtonImage, StringComparison.OrdinalIgnoreCase));
+            string.Equals(f.Key, expectedPortraitKey, StringComparison.OrdinalIgnoreCase));
 
         if (existingPortrait is not null)
         {
@@ -1198,7 +1203,7 @@ public sealed partial class IniEditorViewModel(
 
     private static string? ResolveReferenceBlockType(string key, IniFieldSchema? schema)
     {
-        if (!string.IsNullOrEmpty(schema?.ReferenceBlockType))
+        if (schema != null)
         {
             return schema.ReferenceBlockType;
         }
@@ -1525,7 +1530,21 @@ public sealed partial class IniEditorViewModel(
         }
     }
 
-    private static void AddBlockTypeVitals(IniBlock block, List<CanvasVitalItem> vitals)
+    private static string ResolveBlockModel(IniBlock block)
+    {
+        var modelField = block.Fields.FirstOrDefault(f => string.Equals(f.Key, "Model", StringComparison.OrdinalIgnoreCase));
+        if (modelField != null)
+        {
+            return modelField.Value;
+        }
+
+        var drawChild = block.Children.FirstOrDefault(c => c.BlockType.Contains("Draw", StringComparison.OrdinalIgnoreCase));
+        var conditionChild = drawChild?.Children.FirstOrDefault(c => c.BlockType.Contains("ConditionState", StringComparison.OrdinalIgnoreCase));
+        var childModel = conditionChild?.Fields.FirstOrDefault(f => string.Equals(f.Key, "Model", StringComparison.OrdinalIgnoreCase));
+        return childModel?.Value ?? string.Empty;
+    }
+
+    private void AddBlockTypeVitals(IniBlock block, List<CanvasVitalItem> vitals)
     {
         if (string.Equals(block.BlockType, IniConstants.BlockTypes.CommandButton, StringComparison.OrdinalIgnoreCase))
         {
@@ -1545,71 +1564,57 @@ public sealed partial class IniEditorViewModel(
         }
     }
 
-    private static void AddCommandButtonVitals(IniBlock block, List<CanvasVitalItem> vitals)
+    private void AddCommandButtonVitals(IniBlock block, List<CanvasVitalItem> vitals)
     {
-        AddVitalIfPresent(vitals, "Command", FindFieldValue(block, IniConstants.FieldKeys.Command), AccentBrushKey);
-        AddVitalIfPresent(vitals, "Border", FindFieldValue(block, "ButtonBorderType"), TextSecondaryBrushKey);
-        AddVitalIfPresent(vitals, "Target", FindFieldValue(block, IniConstants.FieldKeys.Object) ?? FindFieldValue(block, "Upgrade"), AccentBrushKey);
-        AddVitalIfPresent(vitals, "Image", FindFieldValue(block, IniConstants.FieldKeys.ButtonImage), TextPrimaryBrushKey);
+        AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Command"), FindFieldValue(block, IniConstants.FieldKeys.Command), AccentBrushKey);
+        AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Border"), FindFieldValue(block, "ButtonBorderType"), TextSecondaryBrushKey);
+        AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Target"), FindFieldValue(block, IniConstants.FieldKeys.Object) ?? FindFieldValue(block, "Upgrade"), AccentBrushKey);
+        AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Image"), FindFieldValue(block, IniConstants.FieldKeys.ButtonImage), TextPrimaryBrushKey);
     }
 
-    private static void AddWeaponVitals(IniBlock block, List<CanvasVitalItem> vitals)
+    private void AddWeaponVitals(IniBlock block, List<CanvasVitalItem> vitals)
     {
-        AddVitalIfPresent(vitals, "Damage", FindFieldValue(block, IniConstants.FieldKeys.PrimaryDamage), AccentBrushKey);
-        AddVitalIfPresent(vitals, "Range", FindFieldValue(block, IniConstants.FieldKeys.AttackRange), TextPrimaryBrushKey);
-        AddVitalIfPresent(vitals, "Type", FindFieldValue(block, IniConstants.FieldKeys.DamageType), TextSecondaryBrushKey);
-        AddVitalIfPresent(vitals, "Delay", FindFieldValue(block, "DelayBetweenShots"), TextSecondaryBrushKey);
+        AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Damage"), FindFieldValue(block, IniConstants.FieldKeys.PrimaryDamage), AccentBrushKey);
+        AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Range"), FindFieldValue(block, IniConstants.FieldKeys.AttackRange), TextPrimaryBrushKey);
+        AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Type"), FindFieldValue(block, IniConstants.FieldKeys.DamageType), TextSecondaryBrushKey);
+        AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Delay"), FindFieldValue(block, "DelayBetweenShots"), TextSecondaryBrushKey);
     }
 
-    private static void AddUpgradeVitals(IniBlock block, List<CanvasVitalItem> vitals)
+    private void AddUpgradeVitals(IniBlock block, List<CanvasVitalItem> vitals)
     {
         var cost = FindFieldValue(block, IniConstants.FieldKeys.BuildCost);
         if (!string.IsNullOrWhiteSpace(cost))
         {
-            vitals.Add(new("Cost", string.Empty, AccentBrushKey));
+            vitals.Add(new(Localization.GetString("Tools.IniEditor.Vitals.Cost"), $"${cost}", AccentBrushKey));
         }
 
         var time = FindFieldValue(block, IniConstants.FieldKeys.BuildTime);
         if (!string.IsNullOrWhiteSpace(time))
         {
-            vitals.Add(new("Time", $"{time}s", TextPrimaryBrushKey));
+            vitals.Add(new(Localization.GetString("Tools.IniEditor.Vitals.Time"), $"{time}s", TextPrimaryBrushKey));
         }
 
-        AddVitalIfPresent(vitals, "Type", FindFieldValue(block, IniConstants.FieldKeys.Type), TextSecondaryBrushKey);
+        AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Type"), FindFieldValue(block, IniConstants.FieldKeys.Type), TextSecondaryBrushKey);
     }
 
-    private static void AddDefaultVitals(IniBlock block, List<CanvasVitalItem> vitals)
+    private void AddDefaultVitals(IniBlock block, List<CanvasVitalItem> vitals)
     {
-        AddVitalIfPresent(vitals, "Health", ResolveHealthValue(block), SuccessBrushKey);
+        AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Health"), ResolveHealthValue(block), SuccessBrushKey);
 
         var cost = FindFieldValue(block, IniConstants.FieldKeys.BuildCost);
         if (!string.IsNullOrWhiteSpace(cost))
         {
-            vitals.Add(new("Cost", $"${cost}", WarningBrushKey));
+            vitals.Add(new(Localization.GetString("Tools.IniEditor.Vitals.Cost"), $"${cost}", WarningBrushKey));
         }
 
         var time = FindFieldValue(block, IniConstants.FieldKeys.BuildTime);
         if (!string.IsNullOrWhiteSpace(time))
         {
-            vitals.Add(new("Build Time", $"{time}s", TextPrimaryBrushKey));
+            vitals.Add(new(Localization.GetString("Tools.IniEditor.Vitals.BuildTime"), $"{time}s", TextPrimaryBrushKey));
         }
 
-        AddVitalIfPresent(vitals, "Vision", FindFieldValue(block, "VisionRange"), TextSecondaryBrushKey);
-        AddVitalIfPresent(vitals, "Shroud", FindFieldValue(block, "ShroudClearingRange"), TextSecondaryBrushKey);
-    }
-
-    private static string ResolveBlockModel(IniBlock block)
-    {
-        var modelField = block.Fields.FirstOrDefault(f => string.Equals(f.Key, "Model", StringComparison.OrdinalIgnoreCase));
-        if (modelField != null)
-        {
-            return modelField.Value;
-        }
-
-        var drawChild = block.Children.FirstOrDefault(c => c.BlockType.Contains("Draw", StringComparison.OrdinalIgnoreCase));
-        var conditionChild = drawChild?.Children.FirstOrDefault(c => c.BlockType.Contains("ConditionState", StringComparison.OrdinalIgnoreCase));
-        var childModel = conditionChild?.Fields.FirstOrDefault(f => string.Equals(f.Key, "Model", StringComparison.OrdinalIgnoreCase));
-        return childModel?.Value ?? string.Empty;
+        AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Vision"), FindFieldValue(block, "VisionRange"), TextSecondaryBrushKey);
+        AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Shroud"), FindFieldValue(block, "ShroudClearingRange"), TextSecondaryBrushKey);
     }
 
     /// <summary>
@@ -2027,6 +2032,8 @@ public sealed partial class IniEditorViewModel(
         await InvokeOnUIThreadAsync(() =>
         {
             _document = document;
+            _documentRevision++;
+            _rawEditCts?.Cancel();
             _undoStack.Clear();
             _redoStack.Clear();
             FilePath = filePath;
@@ -2140,6 +2147,7 @@ public sealed partial class IniEditorViewModel(
             return;
         }
 
+        var suggestions = BuildSuggestionScope();
         for (var i = 0; i < block.Fields.Count; i++)
         {
             var key = block.Fields[i].Key;
@@ -2149,7 +2157,7 @@ public sealed partial class IniEditorViewModel(
                 schema?.Description,
                 known,
                 BuildFieldTooltip(key, schema),
-                ResolveSuggestions(key, schema),
+                ResolveSuggestions(key, schema, suggestions),
                 ResolveReferenceBlockType(key, schema),
                 IsTextureSuggestionKey(key, schema));
             FieldRows.Add(new IniFieldRowViewModel(
@@ -2593,6 +2601,7 @@ public sealed partial class IniEditorViewModel(
 
     private void SyncDirtyAfterHistory()
     {
+        _documentRevision++;
         _undoStack.TryPeek(out var top);
         if (ReferenceEquals(top, _savedTopAction))
         {
@@ -2615,6 +2624,7 @@ public sealed partial class IniEditorViewModel(
         }
 
         _undoStack.Push(action);
+        _documentRevision++;
         if (_undoStack.Count > IniConstants.Editor.MaxUndoHistory)
         {
             var kept = _undoStack.Take(IniConstants.Editor.MaxUndoHistory).Reverse().ToArray();
@@ -2894,7 +2904,62 @@ public sealed partial class IniEditorViewModel(
         }
     }
 
-    private IReadOnlyList<string>? ResolveSuggestions(string key, IniFieldSchema? schema)
+    private sealed class SuggestionScope
+    {
+        public IReadOnlyList<string>? Textures { get; init; }
+
+        public IReadOnlyList<string> Sides { get; init; } = [];
+
+        public Dictionary<string, IReadOnlyList<string>> DocumentValues { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+
+        public Dictionary<string, IReadOnlyList<string>?> References { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+        public IReadOnlyList<string>? GetDocumentValues(string key)
+        {
+            return DocumentValues.TryGetValue(key, out var values) && values.Count > 0 ? values : null;
+        }
+    }
+
+    private SuggestionScope BuildSuggestionScope()
+    {
+        return new SuggestionScope
+        {
+            Textures = ResolveTextureSuggestions(),
+            Sides = ResolveSideSuggestions(),
+            DocumentValues = BuildDocumentValueIndex(),
+        };
+    }
+
+    private Dictionary<string, IReadOnlyList<string>> BuildDocumentValueIndex()
+    {
+        var index = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        if (_document != null)
+        {
+            foreach (var field in _document.Blocks.SelectMany(static block => block.Fields))
+            {
+                if (string.IsNullOrWhiteSpace(field.Value))
+                {
+                    continue;
+                }
+
+                if (!index.TryGetValue(field.Key, out var values))
+                {
+                    values = [];
+                    index[field.Key] = values;
+                }
+
+                var value = field.Value.Trim();
+                if (values.Count < 50 && !values.Contains(value, StringComparer.OrdinalIgnoreCase))
+                {
+                    values.Add(value);
+                }
+            }
+        }
+
+        return index.ToDictionary(static entry => entry.Key, static entry => (IReadOnlyList<string>)entry.Value, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private IReadOnlyList<string>? ResolveSuggestions(string key, IniFieldSchema? schema, SuggestionScope scope)
     {
         if (schema?.Options != null && schema.Options.Count > 0)
         {
@@ -2903,17 +2968,16 @@ public sealed partial class IniEditorViewModel(
 
         if (IsTextureSuggestionKey(key, schema))
         {
-            var textures = ResolveTextureSuggestions();
-            if (textures != null)
+            if (scope.Textures != null)
             {
-                return textures;
+                return scope.Textures;
             }
         }
 
         var refType = ResolveReferenceBlockType(key, schema);
         if (!string.IsNullOrEmpty(refType))
         {
-            var refs = ResolveReferenceSuggestions(refType);
+            var refs = ResolveReferenceSuggestions(refType, scope.References);
             if (refs != null)
             {
                 return refs;
@@ -2927,10 +2991,10 @@ public sealed partial class IniEditorViewModel(
 
         if (string.Equals(key, IniConstants.FieldKeys.Side, StringComparison.OrdinalIgnoreCase))
         {
-            return ResolveSideSuggestions();
+            return scope.Sides;
         }
 
-        return ResolveDocumentValueSuggestions(key);
+        return scope.GetDocumentValues(key);
     }
 
     private IReadOnlyList<string>? ResolveTextureSuggestions()
@@ -2962,8 +3026,13 @@ public sealed partial class IniEditorViewModel(
             : null;
     }
 
-    private IReadOnlyList<string>? ResolveReferenceSuggestions(string refType)
+    private IReadOnlyList<string>? ResolveReferenceSuggestions(string refType, Dictionary<string, IReadOnlyList<string>?> cache)
     {
+        if (cache.TryGetValue(refType, out var cached))
+        {
+            return cached;
+        }
+
         var refs = new HashSet<string>(referenceService.GetNames(refType), StringComparer.OrdinalIgnoreCase);
         if (_document != null)
         {
@@ -2976,9 +3045,11 @@ public sealed partial class IniEditorViewModel(
             }
         }
 
-        return refs.Count > 0
+        IReadOnlyList<string>? result = refs.Count > 0
             ? refs.OrderBy(r => r, StringComparer.OrdinalIgnoreCase).ToList()
             : null;
+        cache[refType] = result;
+        return result;
     }
 
     private IReadOnlyList<string> ResolveSideSuggestions()
@@ -2997,24 +3068,6 @@ public sealed partial class IniEditorViewModel(
         }
 
         return suggestions.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList();
-    }
-
-    private IReadOnlyList<string>? ResolveDocumentValueSuggestions(string key)
-    {
-        if (_document == null)
-        {
-            return null;
-        }
-
-        var docValues = _document.Blocks
-            .SelectMany(b => b.Fields)
-            .Where(f => string.Equals(f.Key, key, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(f.Value))
-            .Select(f => f.Value.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(50)
-            .ToList();
-
-        return docValues.Count > 0 ? docValues : null;
     }
 
     private string? BuildFieldTooltip(string key, IniFieldSchema? schema)
@@ -3217,6 +3270,10 @@ public sealed partial class IniEditorViewModel(
             {
                 row.TextureThumbnail = thumbnail;
             }
+            else if (row.IsTexture)
+            {
+                row.TextureThumbnail = null;
+            }
         }
 
         foreach (var row in AssembledRows)
@@ -3225,6 +3282,10 @@ public sealed partial class IniEditorViewModel(
                 _textureThumbnails.TryGetValue(row.TextureName.Trim(), out var thumbnail))
             {
                 row.TextureThumbnail = thumbnail;
+            }
+            else if (!string.IsNullOrWhiteSpace(row.TextureName))
+            {
+                row.TextureThumbnail = null;
             }
         }
 
@@ -3364,6 +3425,16 @@ public sealed partial class IniEditorViewModel(
             return;
         }
 
+        if (_document.HasDiscardedContent)
+        {
+            logger.LogWarning("Refusing to save INI file {Path}: recovery discarded source lines", filePath);
+            Notifications.ShowError(
+                Localization.GetString("Tools.IniEditor.Save.FailureTitle"),
+                Localization.GetString("Tools.IniEditor.Save.DiscardedContentMessage"),
+                NotificationDurations.Long);
+            return;
+        }
+
         try
         {
             var canonical = iniDocumentService.WriteDocument(_document);
@@ -3424,6 +3495,9 @@ public sealed partial class IniEditorViewModel(
         RebuildGlobalFieldRows();
         RebuildCanvasSummary();
         RebuildAssembledRows();
+        RebuildVisualObjectCard();
+        RebuildCanvasBlockCards();
+        ApplyTextureFilter();
         FilterReferenceResults();
         RefreshEditorCommands();
     }
@@ -3449,6 +3523,12 @@ public sealed partial class IniEditorViewModel(
     private void RebuildTrail()
     {
         SelectedNodeTrail.Clear();
+        if (SelectedNode == null)
+        {
+            HasTrail = false;
+            return;
+        }
+
         var chain = new Stack<IniTreeNodeViewModel>();
         var current = SelectedNode;
         while (current != null)
@@ -3497,44 +3577,53 @@ public sealed partial class IniEditorViewModel(
         var cache = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
         foreach (var row in FieldRows)
         {
-            var referenceType = row.ReferenceBlockType;
-            if (referenceType == null && row.IsTexture)
+            if (TryAddReferenceRow(row, cache))
             {
-                referenceType = IniConstants.BlockTypes.MappedImage;
-            }
-
-            if (referenceType == null || string.IsNullOrWhiteSpace(row.Value))
-            {
-                continue;
-            }
-
-            var value = row.Value.Trim();
-            if (value.Length == 0 || value.IndexOfAny([' ', '\t']) >= 0)
-            {
-                continue;
-            }
-
-            if (!cache.TryGetValue(referenceType, out var known))
-            {
-                known = CollectKnownReferenceNames(referenceType, row.IsTexture);
-                cache[referenceType] = known;
-            }
-
-            if (known.Count == 0 || known.Contains(value))
-            {
-                continue;
-            }
-
-            added++;
-            if (ValidationIssues.Count < IniConstants.Editor.MaxValidationRows)
-            {
-                ValidationIssues.Add(new IniValidationRow(
-                    Localization.GetString("Tools.IniEditor.Validation.UnknownReference", value, referenceType),
-                    false));
+                added++;
             }
         }
 
         return added;
+    }
+
+    private bool TryAddReferenceRow(IniFieldRowViewModel row, Dictionary<string, HashSet<string>> cache)
+    {
+        var referenceType = row.ReferenceBlockType;
+        if (referenceType == null && row.IsTexture)
+        {
+            referenceType = IniConstants.BlockTypes.MappedImage;
+        }
+
+        if (referenceType == null || string.IsNullOrWhiteSpace(row.Value))
+        {
+            return false;
+        }
+
+        var value = row.Value.Trim();
+        if (value.Length == 0 || value.IndexOfAny([' ', '\t']) >= 0)
+        {
+            return false;
+        }
+
+        if (!cache.TryGetValue(referenceType, out var known))
+        {
+            known = CollectKnownReferenceNames(referenceType, row.IsTexture);
+            cache[referenceType] = known;
+        }
+
+        if (known.Count == 0 || known.Contains(value))
+        {
+            return false;
+        }
+
+        if (ValidationIssues.Count < IniConstants.Editor.MaxValidationRows)
+        {
+            ValidationIssues.Add(new IniValidationRow(
+                Localization.GetString("Tools.IniEditor.Validation.UnknownReference", value, referenceType),
+                false));
+        }
+
+        return true;
     }
 
     private HashSet<string> CollectKnownReferenceNames(string referenceType, bool includeTextures)
@@ -3542,13 +3631,12 @@ public sealed partial class IniEditorViewModel(
         var known = new HashSet<string>(referenceService.GetNames(referenceType), StringComparer.OrdinalIgnoreCase);
         if (_document != null)
         {
-            foreach (var block in _document.Blocks)
+            foreach (var name in _document.Blocks
+                .Where(block => string.Equals(block.BlockType, referenceType, StringComparison.OrdinalIgnoreCase))
+                .Select(block => block.Name)
+                .Where(name => !string.IsNullOrWhiteSpace(name)))
             {
-                if (string.Equals(block.BlockType, referenceType, StringComparison.OrdinalIgnoreCase) &&
-                    !string.IsNullOrWhiteSpace(block.Name))
-                {
-                    known.Add(block.Name);
-                }
+                known.Add(name);
             }
         }
 
@@ -3592,19 +3680,19 @@ public sealed partial class IniEditorViewModel(
             var health = ResolveHealthValue(block);
             if (!string.IsNullOrWhiteSpace(health))
             {
-                vitals.Add(new("HP", health, SuccessBrushKey));
+                vitals.Add(new(Localization.GetString("Tools.IniEditor.Canvas.CardHpLabel"), health, SuccessBrushKey));
             }
 
             var cost = FindFieldValue(block, IniConstants.FieldKeys.BuildCost);
             if (!string.IsNullOrWhiteSpace(cost))
             {
-                vitals.Add(new("Cost", $"${cost}", WarningBrushKey));
+                vitals.Add(new(Localization.GetString("Tools.IniEditor.Vitals.Cost"), $"${cost}", WarningBrushKey));
             }
 
             var cmd = FindFieldValue(block, IniConstants.FieldKeys.Command);
             if (!string.IsNullOrWhiteSpace(cmd))
             {
-                vitals.Add(new("Cmd", cmd, AccentBrushKey));
+                vitals.Add(new(Localization.GetString("Tools.IniEditor.Canvas.CardCmdLabel"), cmd, AccentBrushKey));
             }
 
             CanvasBlockCards.Add(new IniCanvasCardViewModel(block, title, block.BlockType, side, portrait, vitals));
@@ -3736,6 +3824,7 @@ public sealed partial class IniEditorViewModel(
         }
     }
 
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Populates instance-bound visual object collections.")]
     private void ApplyVisualObjectLists(IniBlock block, IniTreeNodeViewModel? node)
     {
         SelectedBlockKindOfList.Clear();
@@ -3798,9 +3887,6 @@ public sealed partial class IniEditorViewModel(
         }
     }
 
-    private bool _isUpdatingRawPreview;
-    private CancellationTokenSource? _rawEditCts;
-
     partial void OnRawPreviewTextChanged(string value)
     {
         if (_isUpdatingRawPreview || _isRebuilding || _document == null)
@@ -3814,8 +3900,14 @@ public sealed partial class IniEditorViewModel(
             return;
         }
 
+        var scheduledRevision = _documentRevision;
         ScheduleDeferred(ref _rawEditCts, IniConstants.Editor.PreviewRefreshDebounceMs, () =>
         {
+            if (scheduledRevision != _documentRevision)
+            {
+                return;
+            }
+
             ApplyRawPreviewEdit(targetBlock, value);
         });
     }
@@ -3895,6 +3987,10 @@ public sealed partial class IniEditorViewModel(
         var parsed = iniDocumentService.ParseText(text);
         if (!parsed.Success || parsed.Data == null || parsed.Data.Blocks.Count == 0 || parsed.Data.HasParseErrors)
         {
+            Notifications.ShowWarning(
+                Localization.GetString("Tools.IniEditor.Preview.RawEditRejectedTitle"),
+                Localization.GetString("Tools.IniEditor.Preview.RawEditRejectedMessage"),
+                NotificationDurations.Medium);
             return;
         }
 
@@ -3969,7 +4065,7 @@ public sealed partial class IniEditorViewModel(
             FilteredTextureItems.Add(item);
         }
 
-        TextureStatusText = $"{FilteredTextureItems.Count} / {_allTextureItems.Count} textures";
+        TextureStatusText = Localization.GetString("Tools.IniEditor.Textures.StatusFormat", FilteredTextureItems.Count, _allTextureItems.Count);
     }
 
     partial void OnSelectedInstallationChanged(GameInstallationOption? value)

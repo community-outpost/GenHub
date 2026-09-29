@@ -532,6 +532,89 @@ public sealed class IniDocumentServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that a keyless field is reported as discarded content so format
+    /// and save paths refuse to serialize the recovered document.
+    /// </summary>
+    [Fact]
+    public void ParseText_KeylessField_ReportsDiscardedContent()
+    {
+        var result = _service.ParseText("Object Keyless\n  = 100\nEnd\n");
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.HasParseErrors.Should().BeTrue();
+        result.Data.HasDiscardedContent.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Verifies that missing End repair does not flag discarded content, so
+    /// formatting a repaired document stays available.
+    /// </summary>
+    [Fact]
+    public void ParseText_MissingEnd_KeepsRepairWithoutDiscardFlag()
+    {
+        var result = _service.ParseText("Object MissingEnd\n  Health = 100.0\n");
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.HasParseErrors.Should().BeTrue();
+        result.Data.HasDiscardedContent.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Verifies that an unexpected End marker is reported as discarded content.
+    /// </summary>
+    [Fact]
+    public void ParseText_UnexpectedEnd_ReportsDiscardedContent()
+    {
+        var result = _service.ParseText("End\nObject AfterEnd\n  Health = 1.0\nEnd\n");
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.HasParseErrors.Should().BeTrue();
+        result.Data.HasDiscardedContent.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Verifies that formatting refuses to overwrite a file whose recovery
+    /// discarded source lines, leaving the original bytes untouched.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task FormatFileAsync_DiscardedContent_RefusesAndPreservesFile()
+    {
+        var filePath = Path.Combine(_tempDirectory, "Lossy.ini");
+        const string lossy = "Object Lossy\n  = 100\nEnd\n";
+        await File.WriteAllTextAsync(filePath, lossy);
+
+        var result = await _service.FormatFileAsync(filePath, CancellationToken.None);
+
+        result.Success.Should().BeFalse();
+        (await File.ReadAllTextAsync(filePath)).Should().Be(lossy);
+    }
+
+    /// <summary>
+    /// Verifies that a map override RemoveModule directive keeps whitespace syntax
+    /// even when the editor cleared its bare marker while editing the value.
+    /// </summary>
+    [Fact]
+    public void WriteDocument_RemoveModuleWithoutBareFlag_PreservesWhitespaceSyntax()
+    {
+        var parsed = _service.ParseText("Object MapOverride\n  RemoveModule ModuleTag\nEnd\n");
+        parsed.Success.Should().BeTrue();
+        parsed.Data.Should().NotBeNull();
+        var block = parsed.Data!.Blocks.Should().ContainSingle().Subject;
+        var index = block.Fields.FindIndex(f => f.Key == "RemoveModule");
+        index.Should().BeGreaterThanOrEqualTo(0);
+        block.Fields[index] = block.Fields[index] with { Value = "OtherTag", IsBare = false };
+
+        var written = _service.WriteDocument(parsed.Data);
+
+        written.Should().Contain("RemoveModule OtherTag");
+        written.Should().NotContain("RemoveModule =");
+    }
+
+    /// <summary>
     /// Verifies that validating a file with parse errors reports a corrupted file issue.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>

@@ -53,4 +53,13 @@ public sealed class IniDocument
     /// Gets a value indicating whether the parser recovered from any content errors.
     /// </summary>
     public bool HasParseErrors => ParseErrors.Count > 0;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether recovery discarded source lines
+    /// (keyless fields, unexpected <c>End</c> markers). Serializing such a document
+    /// would silently drop content, so format and save paths must refuse until the
+    /// parse errors are resolved. Missing-<c>End</c> repairs only add markers and
+    /// never set this flag.
+    /// </summary>
+    public bool HasDiscardedContent { get; set; }
 }

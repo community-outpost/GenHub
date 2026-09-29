@@ -40,6 +40,9 @@ public interface IIniDocumentService
 
     /// <summary>
     /// Rewrites an INI file in canonical form, atomically.
+    /// Refuses to overwrite when parsing discarded source lines
+    /// (<see cref="IniDocument.HasDiscardedContent"/>); missing <c>End</c>
+    /// repairs only add markers and are still formatted.
     /// </summary>
     /// <param name="filePath">Path to the .ini file.</param>
     /// <param name="cancellationToken">Cancellation token.</param>

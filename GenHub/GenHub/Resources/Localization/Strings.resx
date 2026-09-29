@@ -17757,6 +17757,66 @@ Mapped image texture reference</value>
   <data name="Tools.IniEditor.Validation.UnknownReference" xml:space="preserve">
     <value>Unknown {1} reference '{0}'.</value>
   </data>
+  <data name="Tools.IniEditor.Vitals.Command" xml:space="preserve">
+    <value>Command</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Border" xml:space="preserve">
+    <value>Border</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Target" xml:space="preserve">
+    <value>Target</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Image" xml:space="preserve">
+    <value>Image</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Damage" xml:space="preserve">
+    <value>Damage</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Range" xml:space="preserve">
+    <value>Range</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Type" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Delay" xml:space="preserve">
+    <value>Delay</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Cost" xml:space="preserve">
+    <value>Cost</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Time" xml:space="preserve">
+    <value>Time</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Health" xml:space="preserve">
+    <value>Health</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.BuildTime" xml:space="preserve">
+    <value>Build Time</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Vision" xml:space="preserve">
+    <value>Vision</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Shroud" xml:space="preserve">
+    <value>Shroud</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.CardHpLabel" xml:space="preserve">
+    <value>HP</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.CardCmdLabel" xml:space="preserve">
+    <value>Cmd</value>
+  </data>
+  <data name="Tools.IniEditor.Textures.StatusFormat" xml:space="preserve">
+    <value>{0} / {1} textures</value>
+  </data>
+  <data name="Tools.IniEditor.Save.DiscardedContentMessage" xml:space="preserve">
+    <value>Cannot save: parsing discarded source lines. Resolve the parse errors first.</value>
+  </data>
+  <data name="Tools.IniEditor.Preview.RawEditRejectedTitle" xml:space="preserve">
+    <value>Raw edit not applied</value>
+  </data>
+  <data name="Tools.IniEditor.Preview.RawEditRejectedMessage" xml:space="preserve">
+    <value>The edited text has syntax errors. Fix them before applying.</value>
+  </data>
   <data name="TextureEditor.Button.OpenFolder" xml:space="preserve">
     <value>Open folder</value>
   </data>

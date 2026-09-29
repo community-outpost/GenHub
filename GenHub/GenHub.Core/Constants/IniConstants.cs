@@ -283,6 +283,17 @@ public static class IniConstants
     }
 
     /// <summary>
+    /// Map override whitespace directives. Lines such as <c>RemoveModule ModuleTag</c>
+    /// in map INI overrides always use whitespace syntax; serializing them with
+    /// <c>Key = Value</c> would change the engine command's meaning.
+    /// </summary>
+    public static class MapDirectives
+    {
+        /// <summary>Remove module directive in map INI overrides.</summary>
+        public const string RemoveModule = "RemoveModule";
+    }
+
+    /// <summary>
     /// Bare valueless entry keys. Lines holding only one of these keys inside a block
     /// are single-line entries rather than nested blocks. The engine credits files
     /// use <c>Blank</c> for empty lines within a credits block.

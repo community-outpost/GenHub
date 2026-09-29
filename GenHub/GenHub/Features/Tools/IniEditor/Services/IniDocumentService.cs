@@ -147,6 +147,15 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
             return OperationResult<bool>.CreateFailure(parseResult.Errors, stopwatch.Elapsed);
         }
 
+        if (parseResult.Data.HasDiscardedContent)
+        {
+            logger.LogWarning("Refusing to format INI file {Path}: recovery discarded source lines", filePath);
+            return OperationResult<bool>.CreateFailure(
+                parseResult.Data.ParseErrors.Prepend(
+                    "Refusing to format: parsing discarded source lines. Resolve the parse errors first."),
+                stopwatch.Elapsed);
+        }
+
         var canonical = WriteDocument(parseResult.Data);
         try
         {
@@ -387,7 +396,7 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
             return;
         }
 
-        if (line.StartsWith("RemoveModule", StringComparison.OrdinalIgnoreCase))
+        if (line.StartsWith(IniConstants.MapDirectives.RemoveModule, StringComparison.OrdinalIgnoreCase))
         {
             var parts = line.Split([' ', '\t'], 2, StringSplitOptions.RemoveEmptyEntries);
             var key = parts[0];
@@ -452,6 +461,7 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
         if (key.Length == 0)
         {
             context.Errors.Add($"Line {lineNumber}: Field is missing a key.");
+            context.Document.HasDiscardedContent = true;
             return;
         }
 
@@ -492,6 +502,7 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
         if (key.Length == 0)
         {
             context.Errors.Add($"Line {lineNumber}: Field is missing a key.");
+            context.Document.HasDiscardedContent = true;
             return;
         }
 
@@ -539,6 +550,7 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
         if (stack.Count == 0)
         {
             errors.Add($"Line {lineNumber}: Unexpected 'End' without an open block.");
+            document.HasDiscardedContent = true;
             return;
         }
 
@@ -564,7 +576,7 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
         List<IniComment> pendingComments,
         IniDocument document)
     {
-        var tokens = line.Split([' ', '	'], StringSplitOptions.RemoveEmptyEntries);
+        var tokens = line.Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries);
         var block = new IniBlock
         {
             BlockType = tokens[0],
@@ -708,7 +720,8 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
 
     private static string FormatFieldText(IniField field)
     {
-        if (!field.IsBare)
+        if (!field.IsBare &&
+            !string.Equals(field.Key, IniConstants.MapDirectives.RemoveModule, StringComparison.OrdinalIgnoreCase))
         {
             return $"{field.Key} = {field.Value}";
         }

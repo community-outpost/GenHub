@@ -17663,19 +17663,19 @@ Error: فشل: {3}
     <value>تم إرفاق {0} بـ {1}.</value>
   </data>
   <data name="Tools.IniEditor.Schema.Fields.Object.ExperienceRequired" xml:space="preserve">
-    <value>Experience points per veterancy level.</value>
+    <value>نقاط الخبرة لكل مستوى أقدمية.</value>
   </data>
   <data name="Tools.IniEditor.Schema.Fields.Object.IsTrainable" xml:space="preserve">
-    <value>Whether the unit gains veterancy.</value>
+    <value>ما إذا كانت الوحدة تكتسب الأقدمية.</value>
   </data>
   <data name="Tools.IniEditor.Schema.Fields.Object.VoiceFear" xml:space="preserve">
-    <value>Fear voice.</value>
+    <value>صوت الخوف.</value>
   </data>
   <data name="Tools.IniEditor.Schema.Fields.Object.VoiceGuard" xml:space="preserve">
-    <value>Guard voice.</value>
+    <value>صوت الحراسة.</value>
   </data>
   <data name="Tools.IniEditor.Schema.Fields.Object.SoundStealthOn" xml:space="preserve">
-    <value>Stealth activation sound.</value>
+    <value>صوت تفعيل التخفي.</value>
   </data>
   <data name="Tools.IniEditor.Canvas.PanTooltip" xml:space="preserve">
     <value>تحريك اللوحة</value>
@@ -17697,6 +17697,66 @@ Error: فشل: {3}
   </data>
   <data name="Tools.IniEditor.Validation.UnknownReference" xml:space="preserve">
     <value>مرجع {1} غير معروف '{0}'.</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Command" xml:space="preserve">
+    <value>أمر</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Border" xml:space="preserve">
+    <value>حد</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Target" xml:space="preserve">
+    <value>هدف</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Image" xml:space="preserve">
+    <value>صورة</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Damage" xml:space="preserve">
+    <value>ضرر</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Range" xml:space="preserve">
+    <value>مدى</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Type" xml:space="preserve">
+    <value>نوع</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Delay" xml:space="preserve">
+    <value>تأخير</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Cost" xml:space="preserve">
+    <value>تكلفة</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Time" xml:space="preserve">
+    <value>وقت</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Health" xml:space="preserve">
+    <value>صحة</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.BuildTime" xml:space="preserve">
+    <value>وقت البناء</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Vision" xml:space="preserve">
+    <value>رؤية</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Shroud" xml:space="preserve">
+    <value>ضباب</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.CardHpLabel" xml:space="preserve">
+    <value>HP</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.CardCmdLabel" xml:space="preserve">
+    <value>Cmd</value>
+  </data>
+  <data name="Tools.IniEditor.Textures.StatusFormat" xml:space="preserve">
+    <value>{0} / {1} من القوام</value>
+  </data>
+  <data name="Tools.IniEditor.Save.DiscardedContentMessage" xml:space="preserve">
+    <value>تعذر الحفظ: أدى التحليل إلى تجاهل أسطر من المصدر. قم بحل أخطاء التحليل أولاً.</value>
+  </data>
+  <data name="Tools.IniEditor.Preview.RawEditRejectedTitle" xml:space="preserve">
+    <value>تعذر تطبيق التحرير</value>
+  </data>
+  <data name="Tools.IniEditor.Preview.RawEditRejectedMessage" xml:space="preserve">
+    <value>يحتوي النص المحرر على أخطاء في الصياغة. قم بإصلاحها قبل التطبيق.</value>
   </data>
   <data name="TextureEditor.Button.OpenFolder" xml:space="preserve">
     <value>فتح مجلد</value>

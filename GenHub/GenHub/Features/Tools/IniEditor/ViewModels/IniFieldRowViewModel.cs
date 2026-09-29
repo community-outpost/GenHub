@@ -126,11 +126,10 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
     public IReadOnlyList<string> AvailableKindOfFlags => IniConstants.KindOfFlags.All;
 
     /// <summary>
-    /// Gets the active flags split from the space-separated value.
+    /// Gets the active flags split from the space- or tab-separated value.
     /// </summary>
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads source-generated value instance state and is bound from XAML.")]
-    public IReadOnlyList<string> ActiveFlags => (Value ?? string.Empty)
-        .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    public IReadOnlyList<string> ActiveFlags => SplitFlags(Value);
 
     /// <summary>
     /// Appends a flag to the KindOf value.
@@ -144,7 +143,7 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
             return;
         }
 
-        var parts = (Value ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        var parts = SplitFlags(Value).ToList();
         if (!parts.Contains(flag.Trim(), StringComparer.OrdinalIgnoreCase))
         {
             parts.Add(flag.Trim());
@@ -165,7 +164,7 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
             return;
         }
 
-        var parts = (Value ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        var parts = SplitFlags(Value).ToList();
         if (parts.RemoveAll(p => string.Equals(p, flag.Trim(), StringComparison.OrdinalIgnoreCase)) > 0)
         {
             Value = string.Join(" ", parts);
@@ -197,4 +196,8 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
         _onEditCommitted(current.Value, value);
         OnPropertyChanged(nameof(ActiveFlags));
     }
+
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Shared flag splitter kept as an instance helper to satisfy member ordering.")]
+    private string[] SplitFlags(string? value) => (value ?? string.Empty)
+        .Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 }
