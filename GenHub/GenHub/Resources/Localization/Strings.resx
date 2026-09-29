@@ -17363,4 +17363,12 @@ Mapped image texture reference</value>
   <data name="TextureEditor.Notify.PlaceholderSingleOpened.Message" xml:space="preserve"><value>Opened {0}x{1} placeholder for '{2}' (texture file not found on disk or game archives).</value></data>
   <data name="TextureEditor.Badge.Placeholder" xml:space="preserve"><value>Missing Texture (Placeholder)</value></data>
   <data name="TextureEditor.Badge.PlaceholderTooltip" xml:space="preserve"><value>Texture file was not found on disk or game archives. A temporary placeholder canvas is displayed.</value></data>
+  <data name="TextureEditor.History.AddSlice" xml:space="preserve"><value>Add slice</value></data>
+  <data name="TextureEditor.History.MoveSlice" xml:space="preserve"><value>Move slice</value></data>
+  <data name="TextureEditor.History.ResizeSlice" xml:space="preserve"><value>Resize slice</value></data>
+  <data name="TextureEditor.History.CutSlice" xml:space="preserve"><value>Cut slice</value></data>
+  <data name="TextureEditor.History.PasteSlice" xml:space="preserve"><value>Paste slice</value></data>
+  <data name="TextureEditor.History.DuplicateSlice" xml:space="preserve"><value>Duplicate slice</value></data>
+  <data name="TextureEditor.History.DeleteSlice" xml:space="preserve"><value>Delete slice</value></data>
+  <data name="TextureEditor.Notify.CopyFailed.Title" xml:space="preserve"><value>Copy failed</value></data>
 </root>

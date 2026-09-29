@@ -57,6 +57,8 @@ public sealed partial class TextureEditorViewModel(
     private const string ExportInvalidTitleFallback = "Cannot export slices";
     private const string OpenFailedTitleKey = "TextureEditor.Notify.OpenFailed.Title";
     private const string OpenFailedTitleFallback = "Failed to open atlas";
+    private const string CopyFailedTitleKey = "TextureEditor.Notify.CopyFailed.Title";
+    private const string CopyFailedTitleFallback = "Copy failed";
     private const string WindowFolder = "Window";
     private const string TextureFolder = "Texture";
 
@@ -559,9 +561,23 @@ public sealed partial class TextureEditorViewModel(
         }
 
         var def = SelectedSlice.ToDefinition();
+        string serialized;
+        try
+        {
+            serialized = parser.Serialize([def]);
+        }
+        catch (ArgumentException ex)
+        {
+            logger.LogWarning(ex, "Failed to serialize slice {Name} for clipboard copy", def.Name);
+            Notifications.ShowWarning(
+                Localize(CopyFailedTitleKey, CopyFailedTitleFallback),
+                ex.Message,
+                NotificationDurations.Medium);
+            return;
+        }
+
         _copiedSlice = def;
         _isCutOperation = false;
-        var serialized = parser.Serialize([def]);
         _ = CopyTextToClipboardAsync(serialized);
         RefreshEditorCommands();
     }
@@ -576,9 +592,23 @@ public sealed partial class TextureEditorViewModel(
 
         var slice = SelectedSlice;
         var def = slice.ToDefinition();
+        string serialized;
+        try
+        {
+            serialized = parser.Serialize([def]);
+        }
+        catch (ArgumentException ex)
+        {
+            logger.LogWarning(ex, "Failed to serialize slice {Name} for clipboard cut", def.Name);
+            Notifications.ShowWarning(
+                Localize(CopyFailedTitleKey, CopyFailedTitleFallback),
+                ex.Message,
+                NotificationDurations.Medium);
+            return;
+        }
+
         _copiedSlice = def;
         _isCutOperation = true;
-        var serialized = parser.Serialize([def]);
         _ = CopyTextToClipboardAsync(serialized);
 
         int index = Slices.IndexOf(slice);
@@ -592,15 +622,7 @@ public sealed partial class TextureEditorViewModel(
             },
             () =>
             {
-                if (index >= 0 && index <= Slices.Count)
-                {
-                    Slices.Insert(index, slice);
-                }
-                else
-                {
-                    TrackSlice(slice);
-                }
-
+                RestoreSlice(slice, index);
                 SelectedSlice = slice;
                 MarkDirty();
             }));
@@ -768,15 +790,7 @@ public sealed partial class TextureEditorViewModel(
             },
             () =>
             {
-                if (index >= 0 && index <= Slices.Count)
-                {
-                    Slices.Insert(index, slice);
-                }
-                else
-                {
-                    TrackSlice(slice);
-                }
-
+                RestoreSlice(slice, index);
                 SelectedSlice = slice;
                 MarkDirty();
             }));
@@ -2474,7 +2488,7 @@ public sealed partial class TextureEditorViewModel(
         {
             await gameInstallationService.GetAllInstallationsAsync(cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogDebug(ex, "Failed to load game installations for texture lookup");
         }
@@ -2534,6 +2548,10 @@ public sealed partial class TextureEditorViewModel(
         }
 
         Slices.Clear();
+        _undoStack.Clear();
+        _redoStack.Clear();
+        RefreshEditorCommands();
+
         foreach (var definition in definitions)
         {
             var slice = new TextureSliceViewModel(definition);
@@ -2547,6 +2565,21 @@ public sealed partial class TextureEditorViewModel(
         }
 
         SelectedSlice = Slices.FirstOrDefault();
+    }
+
+    private void RestoreSlice(TextureSliceViewModel slice, int index)
+    {
+        if (index >= 0 && index <= Slices.Count)
+        {
+            Slices.Insert(index, slice);
+        }
+        else
+        {
+            Slices.Add(slice);
+        }
+
+        slice.PropertyChanged += OnSlicePropertyChanged;
+        slice.Thumbnail = CreateThumbnail(slice);
     }
 
     private void TrackSlice(TextureSliceViewModel slice)

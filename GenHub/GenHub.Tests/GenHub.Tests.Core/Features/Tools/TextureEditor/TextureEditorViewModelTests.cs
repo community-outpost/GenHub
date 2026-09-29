@@ -870,6 +870,31 @@ public sealed class TextureEditorViewModelTests
         Assert.Equal(17, slice.Top);
     }
 
+    /// <summary>
+    /// Verifies that undoing slice deletion restores change tracking and thumbnail.
+    /// </summary>
+    [AvaloniaFact]
+    public void UndoDelete_RestoresSliceWithChangeTracking()
+    {
+        var viewModel = CreateViewModel();
+        using var bitmap = OpenAtlas(viewModel, "atlas.tga");
+        var slice = new TextureSliceViewModel(new MappedImageDefinition("TrackedSlice", "atlas.tga", 100, 100, 10, 10, 30, 30));
+        viewModel.Slices.Add(slice);
+        viewModel.SelectedSlice = slice;
+
+        viewModel.DeleteCommand.Execute(null);
+        Assert.Empty(viewModel.Slices);
+
+        viewModel.UndoCommand.Execute(null);
+        Assert.Single(viewModel.Slices);
+        var restored = viewModel.Slices[0];
+        Assert.NotNull(restored.Thumbnail);
+
+        Assert.True(viewModel.IsDirty);
+        restored.Left = 15;
+        Assert.True(viewModel.IsDirty);
+    }
+
     private static async Task WaitForAtlasAsync(TextureEditorViewModel viewModel, string expectedPath)
     {
         for (int attempt = 0; attempt < 500 && (viewModel.AtlasPath != expectedPath || viewModel.IsBusy); attempt++)

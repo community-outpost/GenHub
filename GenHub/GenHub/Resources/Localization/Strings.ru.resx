@@ -17304,4 +17304,12 @@ Error: не удалось: {3}
   <data name="TextureEditor.Notify.PlaceholderSingleOpened.Message" xml:space="preserve"><value>Открыт временный холст {0}x{1} для '{2}' (файл текстуры не найден на диске или в архивах игры).</value></data>
   <data name="TextureEditor.Badge.Placeholder" xml:space="preserve"><value>Текстура отсутствует (заполнитель)</value></data>
   <data name="TextureEditor.Badge.PlaceholderTooltip" xml:space="preserve"><value>Файл текстуры не найден на диске или в архивах игры. Отображается временный холст.</value></data>
+  <data name="TextureEditor.History.AddSlice" xml:space="preserve"><value>Добавить срез</value></data>
+  <data name="TextureEditor.History.MoveSlice" xml:space="preserve"><value>Переместить срез</value></data>
+  <data name="TextureEditor.History.ResizeSlice" xml:space="preserve"><value>Изменить размер среза</value></data>
+  <data name="TextureEditor.History.CutSlice" xml:space="preserve"><value>Вырезать срез</value></data>
+  <data name="TextureEditor.History.PasteSlice" xml:space="preserve"><value>Вставить срез</value></data>
+  <data name="TextureEditor.History.DuplicateSlice" xml:space="preserve"><value>Дублировать срез</value></data>
+  <data name="TextureEditor.History.DeleteSlice" xml:space="preserve"><value>Удалить срез</value></data>
+  <data name="TextureEditor.Notify.CopyFailed.Title" xml:space="preserve"><value>Не удалось скопировать</value></data>
 </root>

@@ -17304,4 +17304,12 @@ Error: فشل: {3}
   <data name="TextureEditor.Notify.PlaceholderSingleOpened.Message" xml:space="preserve"><value>تم فتح لوحة قماشية مؤقتة {0}x{1} لـ '{2}' (لم يتم العثور على ملف النسيج على القرص أو في ملفات اللعبة).</value></data>
   <data name="TextureEditor.Badge.Placeholder" xml:space="preserve"><value>نسيج مفقود (مؤقت)</value></data>
   <data name="TextureEditor.Badge.PlaceholderTooltip" xml:space="preserve"><value>لم يتم العثور على ملف النسيج على القرص أو في أرشيفات اللعبة. يتم عرض لوحة قماشية مؤقتة.</value></data>
+  <data name="TextureEditor.History.AddSlice" xml:space="preserve"><value>إضافة شريحة</value></data>
+  <data name="TextureEditor.History.MoveSlice" xml:space="preserve"><value>نقل الشريحة</value></data>
+  <data name="TextureEditor.History.ResizeSlice" xml:space="preserve"><value>تغيير حجم الشريحة</value></data>
+  <data name="TextureEditor.History.CutSlice" xml:space="preserve"><value>قص الشريحة</value></data>
+  <data name="TextureEditor.History.PasteSlice" xml:space="preserve"><value>لصق الشريحة</value></data>
+  <data name="TextureEditor.History.DuplicateSlice" xml:space="preserve"><value>تكرار الشريحة</value></data>
+  <data name="TextureEditor.History.DeleteSlice" xml:space="preserve"><value>حذف الشريحة</value></data>
+  <data name="TextureEditor.Notify.CopyFailed.Title" xml:space="preserve"><value>فشل النسخ</value></data>
 </root>
