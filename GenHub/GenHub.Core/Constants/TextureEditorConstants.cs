@@ -198,11 +198,6 @@ public static class TextureEditorConstants
     public const char ArchiveEntrySeparator = '#';
 
     /// <summary>
-    /// String separator separating archive file path and entry path in composite references.
-    /// </summary>
-    public const string ArchiveEntrySeparatorString = "#";
-
-    /// <summary>
     /// Folder name for Window UI assets.
     /// </summary>
     public const string WindowFolder = "Window";

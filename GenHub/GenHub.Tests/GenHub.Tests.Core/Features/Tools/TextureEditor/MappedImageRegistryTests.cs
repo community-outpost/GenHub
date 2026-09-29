@@ -24,7 +24,7 @@ public sealed class MappedImageRegistryTests
             if (sourcePath != null && sourcePath.StartsWith(gatedDirectory, StringComparison.OrdinalIgnoreCase))
             {
                 entered.TrySetResult();
-                gate.GetAwaiter().GetResult();
+                gate.Wait(TimeSpan.FromSeconds(10));
                 return OperationResult<IReadOnlyList<MappedImageDefinition>>.CreateSuccess(
                     [new MappedImageDefinition("a", "old.tga", 64, 64, 0, 0, 63, 63)],
                     TimeSpan.Zero);
@@ -84,7 +84,7 @@ public sealed class MappedImageRegistryTests
         }
         finally
         {
-            Directory.Delete(directory, true);
+            DeleteDirectoryQuietly(directory);
         }
     }
 
@@ -109,7 +109,7 @@ public sealed class MappedImageRegistryTests
         }
         finally
         {
-            Directory.Delete(directory, true);
+            DeleteDirectoryQuietly(directory);
         }
     }
 
@@ -136,7 +136,7 @@ public sealed class MappedImageRegistryTests
         }
         finally
         {
-            Directory.Delete(directory, true);
+            DeleteDirectoryQuietly(directory);
         }
     }
 
@@ -160,7 +160,7 @@ public sealed class MappedImageRegistryTests
         }
         finally
         {
-            Directory.Delete(directory, true);
+            DeleteDirectoryQuietly(directory);
         }
     }
 
@@ -186,7 +186,7 @@ public sealed class MappedImageRegistryTests
         }
         finally
         {
-            Directory.Delete(directory, true);
+            DeleteDirectoryQuietly(directory);
         }
     }
 
@@ -226,7 +226,7 @@ public sealed class MappedImageRegistryTests
         }
         finally
         {
-            Directory.Delete(directory, true);
+            DeleteDirectoryQuietly(directory);
         }
     }
 
@@ -253,7 +253,7 @@ public sealed class MappedImageRegistryTests
         }
         finally
         {
-            Directory.Delete(directory, true);
+            DeleteDirectoryQuietly(directory);
         }
     }
 
@@ -284,8 +284,8 @@ public sealed class MappedImageRegistryTests
         }
         finally
         {
-            Directory.Delete(first, true);
-            Directory.Delete(second, true);
+            DeleteDirectoryQuietly(first);
+            DeleteDirectoryQuietly(second);
         }
     }
 
@@ -331,7 +331,7 @@ public sealed class MappedImageRegistryTests
         }
         finally
         {
-            Directory.Delete(directory, true);
+            DeleteDirectoryQuietly(directory);
         }
     }
 
@@ -369,8 +369,8 @@ public sealed class MappedImageRegistryTests
         }
         finally
         {
-            Directory.Delete(first, true);
-            Directory.Delete(second, true);
+            DeleteDirectoryQuietly(first);
+            DeleteDirectoryQuietly(second);
         }
     }
 
@@ -402,7 +402,7 @@ public sealed class MappedImageRegistryTests
         }
         finally
         {
-            Directory.Delete(directory, true);
+            DeleteDirectoryQuietly(directory);
         }
     }
 
@@ -444,7 +444,7 @@ public sealed class MappedImageRegistryTests
         }
         finally
         {
-            Directory.Delete(directory, true);
+            DeleteDirectoryQuietly(directory);
         }
     }
 
@@ -480,7 +480,40 @@ public sealed class MappedImageRegistryTests
         }
         finally
         {
-            Directory.Delete(directory, true);
+            DeleteDirectoryQuietly(directory);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that .BIG archives with uppercase extension are discovered and parsed on case-sensitive file systems.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ScanDirectoryAsync_UppercaseBigArchive_DiscoveredAndParsedAsync()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(directory);
+
+        try
+        {
+            string bigPath = Path.Combine(directory, "TEXTURES.BIG");
+            string entryContent = Block("UppercaseHero", "upper_textures.tga");
+            CreateTestBigArchive(bigPath, new Dictionary<string, byte[]>
+            {
+                [@"Data\INI\MappedImages\Heroes.ini"] = System.Text.Encoding.Latin1.GetBytes(entryContent),
+            });
+
+            var result = await _registry.ScanDirectoryAsync(directory);
+
+            Assert.True(result.Success);
+            Assert.Equal(1, _registry.Count);
+            var hero = _registry.GetByName("UppercaseHero");
+            Assert.NotNull(hero);
+            Assert.Equal("upper_textures.tga", hero.TextureFileName);
+        }
+        finally
+        {
+            DeleteDirectoryQuietly(directory);
         }
     }
 
@@ -515,7 +548,7 @@ public sealed class MappedImageRegistryTests
         }
         finally
         {
-            Directory.Delete(directory, true);
+            DeleteDirectoryQuietly(directory);
         }
     }
 
@@ -552,7 +585,22 @@ public sealed class MappedImageRegistryTests
         }
         finally
         {
-            Directory.Delete(directory, true);
+            DeleteDirectoryQuietly(directory);
+        }
+    }
+
+    private static void DeleteDirectoryQuietly(string directory)
+    {
+        try
+        {
+            if (Directory.Exists(directory))
+            {
+                Directory.Delete(directory, true);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Best effort cleanup in tests
         }
     }
 

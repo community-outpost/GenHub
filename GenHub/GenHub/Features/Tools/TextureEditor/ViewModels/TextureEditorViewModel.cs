@@ -22,6 +22,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
@@ -245,18 +246,11 @@ public sealed partial class TextureEditorViewModel(
     {
         get
         {
-            string dir;
-            if (!string.IsNullOrEmpty(FileExplorer.Directory))
+            string cleanPath = StripArchiveFragment(AtlasPath);
+            string dir = Path.GetDirectoryName(cleanPath) ?? string.Empty;
+            if (string.IsNullOrEmpty(dir) && !string.IsNullOrEmpty(FileExplorer.Directory))
             {
                 dir = FileExplorer.Directory;
-            }
-            else if (AtlasPath.Contains('#'))
-            {
-                dir = Path.GetDirectoryName(StripArchiveFragment(AtlasPath)) ?? string.Empty;
-            }
-            else
-            {
-                dir = Path.GetDirectoryName(AtlasPath) ?? string.Empty;
             }
 
             string baseName = Path.GetFileNameWithoutExtension(AtlasFileName);
@@ -487,7 +481,7 @@ public sealed partial class TextureEditorViewModel(
         slice.Bottom = newBottom;
 
         PushUndo(new TextureEditAction(
-            Localize("TextureEditor.History.MoveSlice", "Move slice"),
+            Localize("TextureEditor.History.NudgeSlice", "Nudge slice"),
             () =>
             {
                 slice.Left = newLeft;
@@ -981,6 +975,12 @@ public sealed partial class TextureEditorViewModel(
     private static string StripArchiveFragment(string path) =>
         path.Contains('#') ? path.Split('#')[0] : path;
 
+    private static string GetEntryFileName(string path)
+    {
+        int lastSep = path.LastIndexOfAny(['/', '\\']);
+        return lastSep >= 0 ? path[(lastSep + 1)..] : path;
+    }
+
     private static bool IsSameDirectory(string left, string right)
     {
         try
@@ -1098,7 +1098,7 @@ public sealed partial class TextureEditorViewModel(
 
             var matching = entries.Values
                 .Select(entry => entry.Path)
-                .FirstOrDefault(path => candidates.Contains(path.Split(['/', '\\']).LastOrDefault() ?? string.Empty));
+                .FirstOrDefault(path => candidates.Contains(GetEntryFileName(path)));
 
             if (matching is not null)
             {
@@ -1501,6 +1501,11 @@ public sealed partial class TextureEditorViewModel(
             _ => (SelectedSlice.Width, SelectedSlice.Height),
         };
 
+        int maxWidth = AtlasPixelWidth > 0 ? Math.Max(1, AtlasPixelWidth - SelectedSlice.Left) : width;
+        int maxHeight = AtlasPixelHeight > 0 ? Math.Max(1, AtlasPixelHeight - SelectedSlice.Top) : height;
+        width = Math.Clamp(width, 1, maxWidth);
+        height = Math.Clamp(height, 1, maxHeight);
+
         int origRight = SelectedSlice.Right;
         int origBottom = SelectedSlice.Bottom;
         var slice = SelectedSlice;
@@ -1512,7 +1517,7 @@ public sealed partial class TextureEditorViewModel(
         int newBottom = SelectedSlice.Bottom;
 
         PushUndo(new TextureEditAction(
-            Localize("TextureEditor.History.ResizeSlice", "Resize slice"),
+            Localize("TextureEditor.History.ApplyPreset", "Apply size preset"),
             () =>
             {
                 slice.Right = newRight;
@@ -1620,8 +1625,9 @@ public sealed partial class TextureEditorViewModel(
         }
     }
 
-    private async Task LoadAtlasAsync(string path)
+    private async Task<bool> LoadAtlasAsync(string path)
     {
+        bool loaded = false;
         try
         {
             await RunOperationAsync(async operationToken =>
@@ -1655,6 +1661,7 @@ public sealed partial class TextureEditorViewModel(
                 LoadSlicesForAtlas();
                 FileExplorer.CurrentPath = path;
                 MarkSaved();
+                loaded = true;
             }).ConfigureAwait(true);
         }
         catch (OperationCanceledException)
@@ -1669,6 +1676,8 @@ public sealed partial class TextureEditorViewModel(
                 ex.Message,
                 NotificationDurations.Long);
         }
+
+        return loaded;
     }
 
     private async Task ImportSiblingIniAsync(string atlasPath, CancellationToken cancellationToken)
@@ -1842,10 +1851,12 @@ public sealed partial class TextureEditorViewModel(
             }
         }
 
-        if (targetTexturePath is null || targetGroup is null)
+        if (targetTexturePath is null)
         {
             return false;
         }
+
+        Debug.Assert(targetGroup is not null, "Target group is guaranteed when target texture path is found.");
 
         if (HasUnsavedChanges && !await ConfirmDiscardUnsavedAsync(operationToken).ConfigureAwait(true))
         {
@@ -2082,8 +2093,7 @@ public sealed partial class TextureEditorViewModel(
 
     private async Task OpenTextureAndLoadEntryAsync(string texturePath, MappedImageDefinition definition)
     {
-        await LoadAtlasAsync(texturePath).ConfigureAwait(true);
-        if (!string.Equals(AtlasPath, texturePath, StringComparison.OrdinalIgnoreCase))
+        if (!await LoadAtlasAsync(texturePath).ConfigureAwait(true))
         {
             // The user cancelled the discard prompt or the atlas failed to open,
             // and LoadAtlasAsync already reported the outcome.
@@ -2293,10 +2303,14 @@ public sealed partial class TextureEditorViewModel(
 
         if (cleanSource is not null)
         {
-            return Path.GetDirectoryName(cleanSource) ?? Path.GetTempPath();
+            string? dir = Path.GetDirectoryName(cleanSource);
+            if (!string.IsNullOrEmpty(dir))
+            {
+                return dir;
+            }
         }
 
-        return Path.GetTempPath();
+        return AppDataPathHelper.GetDataRoot();
     }
 
     private string? FindTextureFile(string textureFileName, string? sourcePath)
@@ -2320,31 +2334,43 @@ public sealed partial class TextureEditorViewModel(
                 continue;
             }
 
-            foreach (string candidate in candidates)
+            string? found = ProbeDirectoryCandidates(directory, candidates);
+            if (found is not null)
             {
-                string probed = Path.Combine(directory, candidate);
-                if (File.Exists(probed))
-                {
-                    return probed;
-                }
+                return found;
+            }
+        }
 
-                string artTextures = Path.Combine(directory, TextureEditorConstants.ArtFolder, TextureEditorConstants.TexturesFolder, candidate);
-                if (File.Exists(artTextures))
-                {
-                    return artTextures;
-                }
+        return null;
+    }
 
-                string texturesDir = Path.Combine(directory, TextureEditorConstants.TexturesFolder, candidate);
-                if (File.Exists(texturesDir))
-                {
-                    return texturesDir;
-                }
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
+    private string? ProbeDirectoryCandidates(string directory, IReadOnlyCollection<string> candidates)
+    {
+        foreach (string candidate in candidates)
+        {
+            string probed = Path.Combine(directory, candidate);
+            if (File.Exists(probed))
+            {
+                return probed;
+            }
 
-                string windowDir = Path.Combine(directory, TextureEditorConstants.WindowFolder, candidate);
-                if (File.Exists(windowDir))
-                {
-                    return windowDir;
-                }
+            string artTextures = Path.Combine(directory, TextureEditorConstants.ArtFolder, TextureEditorConstants.TexturesFolder, candidate);
+            if (File.Exists(artTextures))
+            {
+                return artTextures;
+            }
+
+            string texturesDir = Path.Combine(directory, TextureEditorConstants.TexturesFolder, candidate);
+            if (File.Exists(texturesDir))
+            {
+                return texturesDir;
+            }
+
+            string windowDir = Path.Combine(directory, TextureEditorConstants.WindowFolder, candidate);
+            if (File.Exists(windowDir))
+            {
+                return windowDir;
             }
         }
 
@@ -2399,37 +2425,49 @@ public sealed partial class TextureEditorViewModel(
                 continue;
             }
 
-            foreach (string candidate in candidates)
+            string? found = ProbeInstallationCandidates(gameDir, candidates);
+            if (found is not null)
             {
-                string probed = Path.Combine(gameDir, candidate);
-                if (File.Exists(probed))
-                {
-                    return probed;
-                }
-
-                string artTextures = Path.Combine(gameDir, TextureEditorConstants.ArtFolder, TextureEditorConstants.TexturesFolder, candidate);
-                if (File.Exists(artTextures))
-                {
-                    return artTextures;
-                }
-
-                string windowDir = Path.Combine(gameDir, TextureEditorConstants.WindowFolder, candidate);
-                if (File.Exists(windowDir))
-                {
-                    return windowDir;
-                }
-
-                string windowMenusDir = Path.Combine(gameDir, TextureEditorConstants.WindowFolder, TextureEditorConstants.MenusFolder, candidate);
-                if (File.Exists(windowMenusDir))
-                {
-                    return windowMenusDir;
-                }
+                return found;
             }
 
             string? fromGameBig = FindTextureInBigArchives(gameDir, candidates, recurse: true);
             if (fromGameBig is not null)
             {
                 return fromGameBig;
+            }
+        }
+
+        return null;
+    }
+
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
+    private string? ProbeInstallationCandidates(string gameDir, HashSet<string> candidates)
+    {
+        foreach (string candidate in candidates)
+        {
+            string probed = Path.Combine(gameDir, candidate);
+            if (File.Exists(probed))
+            {
+                return probed;
+            }
+
+            string artTextures = Path.Combine(gameDir, TextureEditorConstants.ArtFolder, TextureEditorConstants.TexturesFolder, candidate);
+            if (File.Exists(artTextures))
+            {
+                return artTextures;
+            }
+
+            string windowDir = Path.Combine(gameDir, TextureEditorConstants.WindowFolder, candidate);
+            if (File.Exists(windowDir))
+            {
+                return windowDir;
+            }
+
+            string windowMenusDir = Path.Combine(gameDir, TextureEditorConstants.WindowFolder, TextureEditorConstants.MenusFolder, candidate);
+            if (File.Exists(windowMenusDir))
+            {
+                return windowMenusDir;
             }
         }
 

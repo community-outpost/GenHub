@@ -244,22 +244,45 @@ public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<M
         }
     }
 
+    private static bool ContainsDirectorySegment(string path, string segmentName)
+    {
+        ReadOnlySpan<char> span = path.AsSpan();
+        while (!span.IsEmpty)
+        {
+            int sepIndex = span.IndexOfAny('/', '\\');
+            ReadOnlySpan<char> current = sepIndex >= 0 ? span[..sepIndex] : span;
+            if (current.Equals(segmentName.AsSpan(), StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            span = sepIndex >= 0 ? span[(sepIndex + 1)..] : ReadOnlySpan<char>.Empty;
+        }
+
+        return false;
+    }
+
     private (bool Success, string[]? Files, OperationResult<MappedImageScanResult>? Failure) EnumerateMappedImageFiles(string directory, long started, CancellationToken cancellationToken)
     {
         try
         {
             var files = new List<string>();
-            foreach (var file in Directory.EnumerateFiles(directory, TextureEditorConstants.MappedImagesFilePattern, SearchOption.AllDirectories))
+            var options = new EnumerationOptions
+            {
+                MatchCasing = MatchCasing.CaseInsensitive,
+                RecurseSubdirectories = true,
+                IgnoreInaccessible = true,
+            };
+            foreach (var file in Directory.EnumerateFiles(directory, TextureEditorConstants.MappedImagesFilePattern, options))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                files.Add(file);
+                if (file.EndsWith(".ini", StringComparison.OrdinalIgnoreCase))
+                {
+                    files.Add(file);
+                }
             }
 
             return (true, files.ToArray(), null);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
         }
         catch (IOException ex)
         {
@@ -278,17 +301,22 @@ public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<M
         try
         {
             var bigFiles = new List<string>();
-            foreach (var file in Directory.EnumerateFiles(directory, TextureEditorConstants.BigArchiveSearchPattern, SearchOption.AllDirectories))
+            var options = new EnumerationOptions
+            {
+                MatchCasing = MatchCasing.CaseInsensitive,
+                RecurseSubdirectories = true,
+                IgnoreInaccessible = true,
+            };
+            foreach (var file in Directory.EnumerateFiles(directory, "*", options))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                bigFiles.Add(file);
+                if (file.EndsWith(".big", StringComparison.OrdinalIgnoreCase))
+                {
+                    bigFiles.Add(file);
+                }
             }
 
             return bigFiles.ToArray();
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -347,7 +375,7 @@ public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<M
         foreach (var entry in orderedEntries)
         {
             if (!entry.Path.EndsWith(TextureEditorConstants.MappedImagesExtension, StringComparison.OrdinalIgnoreCase)
-                || !entry.Path.Contains(TextureEditorConstants.MappedImagesDirectoryName, StringComparison.OrdinalIgnoreCase))
+                || !ContainsDirectorySegment(entry.Path, TextureEditorConstants.MappedImagesDirectoryName))
             {
                 continue;
             }
@@ -414,44 +442,61 @@ public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<M
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            string text;
-            try
-            {
-                text = await File.ReadAllTextAsync(file, cancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                logger.LogWarning(ex, "Failed to read MappedImages INI file: {Path}", file);
-                errors.Add($"Failed to read MappedImages INI file: {file}");
-                continue;
-            }
-
-            bool isMappedImagesFolder = file.Contains(TextureEditorConstants.MappedImagesDirectoryName, StringComparison.OrdinalIgnoreCase);
-            if (!isMappedImagesFolder && !text.Contains(TextureEditorConstants.IniBlockName, StringComparison.OrdinalIgnoreCase))
+            string? text = await TryReadLooseFileAsync(file, errors, cancellationToken).ConfigureAwait(false);
+            if (text is null)
             {
                 continue;
             }
 
-            looseFilesParsed++;
-            var parsed = parser.ParseText(text, file);
-            if (parsed.Data is not null)
+            if (TryStageLooseFile(file, text, staged, errors))
             {
-                foreach (var image in parsed.Data)
-                {
-                    staged[image.Name] = image;
-                }
-            }
-
-            if (parsed.Failed)
-            {
-                errors.AddRange(parsed.Errors);
+                looseFilesParsed++;
             }
         }
 
         return looseFilesParsed;
+    }
+
+    private async Task<string?> TryReadLooseFileAsync(string file, List<string> errors, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await File.ReadAllTextAsync(file, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Failed to read MappedImages INI file: {Path}", file);
+            errors.Add($"Failed to read MappedImages INI file: {file}");
+            return null;
+        }
+    }
+
+    private bool TryStageLooseFile(
+        string file,
+        string text,
+        Dictionary<string, MappedImageDefinition> staged,
+        List<string> errors)
+    {
+        bool isMappedImagesFolder = ContainsDirectorySegment(file, TextureEditorConstants.MappedImagesDirectoryName);
+        if (!isMappedImagesFolder && !text.Contains(TextureEditorConstants.IniBlockName, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var parsed = parser.ParseText(text, file);
+        if (parsed.Data is not null)
+        {
+            foreach (var image in parsed.Data)
+            {
+                staged[image.Name] = image;
+            }
+        }
+
+        if (parsed.Failed)
+        {
+            errors.AddRange(parsed.Errors);
+        }
+
+        return true;
     }
 }
