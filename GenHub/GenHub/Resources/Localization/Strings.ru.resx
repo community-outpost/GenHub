@@ -17770,6 +17770,9 @@ Error: не удалось: {3}
   <data name="Tools.IniEditor.Preview.RawEditRejectedMessage" xml:space="preserve">
     <value>Отредактированный текст содержит синтаксические ошибки. Исправьте их перед применением.</value>
   </data>
+  <data name="Tools.IniEditor.Preview.RawEditMultiBlockMessage" xml:space="preserve">
+    <value>Отредактированный текст содержит несколько блоков. Редактируйте по одному блоку за раз.</value>
+  </data>
   <data name="TextureEditor.Button.OpenFolder" xml:space="preserve">
     <value>Открыть папку</value>
   </data>

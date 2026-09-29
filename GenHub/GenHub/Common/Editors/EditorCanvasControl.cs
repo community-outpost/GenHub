@@ -232,6 +232,7 @@ public class EditorCanvasControl : ContentControl
 
     private void OnScrollPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
+        e.Pointer.Capture(null);
         EndPan();
     }
 

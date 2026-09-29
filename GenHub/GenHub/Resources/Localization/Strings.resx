@@ -17829,6 +17829,9 @@ Mapped image texture reference</value>
   <data name="Tools.IniEditor.Preview.RawEditRejectedMessage" xml:space="preserve">
     <value>The edited text has syntax errors. Fix them before applying.</value>
   </data>
+  <data name="Tools.IniEditor.Preview.RawEditMultiBlockMessage" xml:space="preserve">
+    <value>The edited text contains multiple blocks. Edit one block at a time.</value>
+  </data>
   <data name="TextureEditor.Button.OpenFolder" xml:space="preserve">
     <value>Open folder</value>
   </data>

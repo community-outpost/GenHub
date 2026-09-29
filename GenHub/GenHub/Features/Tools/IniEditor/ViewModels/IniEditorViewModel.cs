@@ -4025,6 +4025,15 @@ public sealed partial class IniEditorViewModel(
             return;
         }
 
+        if (parsed.Data.Blocks.Count > 1)
+        {
+            Notifications.ShowWarning(
+                Localization.GetString("Tools.IniEditor.Preview.RawEditRejectedTitle"),
+                Localization.GetString("Tools.IniEditor.Preview.RawEditMultiBlockMessage"),
+                NotificationDurations.Medium);
+            return;
+        }
+
         var newBlock = parsed.Data.Blocks[0];
         var oldBlockType = targetBlock.BlockType;
         var oldName = targetBlock.Name;
