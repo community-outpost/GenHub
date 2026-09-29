@@ -147,10 +147,11 @@ public class GeneralsOnlineHistoryMapperTests
     }
 
     /// <summary>
-    /// Portable URLs carrying a query string still resolve to history cards.
+    /// Portable URLs carrying a query string are skipped because the delivery pipeline
+    /// requires the raw download URL to end with the portable extension.
     /// </summary>
     [Fact]
-    public void BuildHistoryResults_WithPortableUrlQueryString_KeepsCard()
+    public void BuildHistoryResults_WithPortableUrlQueryString_Skips()
     {
         var entries = new List<CrcMappingEntry>
         {
@@ -159,8 +160,7 @@ public class GeneralsOnlineHistoryMapperTests
 
         var results = GeneralsOnlineHistoryMapper.BuildHistoryResults(entries);
 
-        var result = Assert.Single(results);
-        Assert.Equal("https://cdn.playgenerals.online/GeneralsOnline_portable_081326.zip?nocache=123", result.SelectedDownloadUrl);
+        Assert.Empty(results);
     }
 
     /// <summary>

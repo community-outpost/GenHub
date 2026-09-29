@@ -125,18 +125,12 @@ public static class GeneralsOnlineHistoryMapper
             return false;
         }
 
-        if (!IsPortableUrl(entry.CdnUrl))
+        if (!entry.CdnUrl.EndsWith(GeneralsOnlineConstants.PortableExtension, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
 
         return excludedVersions.Count == 0 || !excludedVersions.Contains(entry.Version.Trim());
-    }
-
-    private static bool IsPortableUrl(string cdnUrl)
-    {
-        return Uri.TryCreate(cdnUrl, UriKind.Absolute, out var uri) &&
-            uri.AbsolutePath.EndsWith(GeneralsOnlineConstants.PortableExtension, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsSupportedVersion(string version)
