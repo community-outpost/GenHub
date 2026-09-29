@@ -4147,6 +4147,9 @@ This will modify game files and configuration settings at:
   <data name="Downloads.Card.AddToProfile" xml:space="preserve">
     <value>Add to Profile</value>
   </data>
+  <data name="Downloads.Card.DownloadedSelectedContent" xml:space="preserve">
+    <value>Downloaded selected content</value>
+  </data>
   <data name="Color.Amber" xml:space="preserve">
     <value>Amber</value>
   </data>
@@ -10736,6 +10739,9 @@ Then click the 'Submit' button at the bottom of the page! (GenHub requests exact
   </data>
   <data name="Tools.PublisherStudio.Library.ReleasesSuffix" xml:space="preserve">
     <value> releases</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UpstreamSuffix" xml:space="preserve">
+    <value>upstream</value>
   </data>
   <data name="Tools.PublisherStudio.Library.Remove" xml:space="preserve">
     <value>Remove</value>

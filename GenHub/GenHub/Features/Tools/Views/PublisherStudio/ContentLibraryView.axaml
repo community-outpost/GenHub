@@ -339,11 +339,20 @@
                                                        TextTrimming="CharacterEllipsis"/>
                                             <TextBlock FontSize="12"
                                                        Foreground="{DynamicResource TextSecondary}"
-                                                       TextTrimming="CharacterEllipsis">
+                                                       TextTrimming="CharacterEllipsis"
+                                                       IsVisible="{Binding !ShowsUpstreamReleasesPlaceholder}">
                                                 <Run Text="{Binding ContentType}"/>
                                                 <Run Text=" • "/>
                                                 <Run Text="{Binding Releases.Count, Mode=OneWay}"/>
                                                 <Run Text="{localization:Localize Tools.PublisherStudio.Library.ReleasesSuffix}"/>
+                                            </TextBlock>
+                                            <TextBlock FontSize="12"
+                                                       Foreground="{DynamicResource TextSecondary}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       IsVisible="{Binding ShowsUpstreamReleasesPlaceholder}">
+                                                <Run Text="{Binding ContentType}"/>
+                                                <Run Text=" • "/>
+                                                <Run Text="{localization:Localize Tools.PublisherStudio.Library.UpstreamSuffix}"/>
                                             </TextBlock>
                                         </StackPanel>
 
@@ -799,7 +808,7 @@
                                                     <Expander.Header>
                                                         <Grid ColumnDefinitions="Auto,*,Auto">
                                                             <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                                                                <TextBlock Text="{Binding Version, StringFormat='v{0}'}"
+                                                                <TextBlock Text="{Binding Version}"
                                                                            FontWeight="Bold"
                                                                            FontSize="16"
                                                                            Foreground="{DynamicResource TextPrimary}"/>
@@ -1030,7 +1039,7 @@
                                                             Margin="0,0,0,8">
                                                         <StackPanel Spacing="8">
                                                             <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                                                                <TextBlock Text="{Binding Version, StringFormat='v{0}'}"
+                                                                <TextBlock Text="{Binding Version}"
                                                                            FontWeight="Bold"
                                                                            FontSize="16"
                                                                            Foreground="{DynamicResource TextPrimary}"/>
@@ -1119,7 +1128,7 @@
                                                             <Grid ColumnDefinitions="*,Auto">
                                                                 <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                                                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.ManualFallbackPrefix}" FontWeight="Medium" Foreground="{DynamicResource TextPrimary}"/>
-                                                                    <TextBlock Text="{Binding Version, StringFormat='v{0}'}" FontWeight="Medium" Foreground="{DynamicResource TextPrimary}"/>
+                                                                    <TextBlock Text="{Binding Version}" FontWeight="Medium" Foreground="{DynamicResource TextPrimary}"/>
                                                                 </StackPanel>
                                                                 <TextBlock Grid.Column="1" Text="{Binding ReleaseDate, StringFormat='{}{0:yyyy-MM-dd}'}" Foreground="{DynamicResource TextSecondary}" FontSize="11"/>
                                                             </Grid>

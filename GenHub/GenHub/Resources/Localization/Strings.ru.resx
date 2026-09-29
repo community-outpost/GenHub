@@ -4147,6 +4147,9 @@
   <data name="Downloads.Card.AddToProfile" xml:space="preserve">
     <value>Добавить в профиль</value>
   </data>
+  <data name="Downloads.Card.DownloadedSelectedContent" xml:space="preserve">
+    <value>Выбранное содержимое загружено</value>
+  </data>
   <data name="Color.Amber" xml:space="preserve">
     <value>Янтарный</value>
   </data>
@@ -10678,6 +10681,9 @@ GenHub связывает запуск модификаций со Steam, отк
   </data>
   <data name="Tools.PublisherStudio.Library.ReleasesSuffix" xml:space="preserve">
     <value> релизов</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UpstreamSuffix" xml:space="preserve">
+    <value>апстрим</value>
   </data>
   <data name="Tools.PublisherStudio.Library.Remove" xml:space="preserve">
     <value>Удалить</value>

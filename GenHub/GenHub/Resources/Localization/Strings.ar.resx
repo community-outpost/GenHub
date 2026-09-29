@@ -4147,6 +4147,9 @@
   <data name="Downloads.Card.AddToProfile" xml:space="preserve">
     <value>إضافة إلى الملف الشخصي</value>
   </data>
+  <data name="Downloads.Card.DownloadedSelectedContent" xml:space="preserve">
+    <value>تم تنزيل المحتوى المحدد</value>
+  </data>
   <data name="Color.Amber" xml:space="preserve">
     <value>كهرماني</value>
   </data>
@@ -10678,6 +10681,9 @@
   </data>
   <data name="Tools.PublisherStudio.Library.ReleasesSuffix" xml:space="preserve">
     <value> إصدارات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UpstreamSuffix" xml:space="preserve">
+    <value>من المصدر</value>
   </data>
   <data name="Tools.PublisherStudio.Library.Remove" xml:space="preserve">
     <value>إزالة</value>

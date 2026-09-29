@@ -27,6 +27,7 @@ public class CatalogContentItem : ObservableObject
     private List<CatalogDependency> _bundledItems = [];
     private List<CatalogDependency> _addons = [];
     private List<ContentRelease> _addonReleases = [];
+    private CatalogUpstreamSync? _upstreamSync;
 
     /// <summary>
     /// Gets or sets the unique content identifier within this publisher's catalog.
@@ -90,7 +91,13 @@ public class CatalogContentItem : ObservableObject
     public List<ContentRelease> Releases
     {
         get => _releases;
-        set => _releases = value ?? [];
+        set
+        {
+            if (SetProperty(ref _releases, value ?? []))
+            {
+                OnPropertyChanged(nameof(ShowsUpstreamReleasesPlaceholder));
+            }
+        }
     }
 
     /// <summary>
@@ -226,7 +233,25 @@ public class CatalogContentItem : ObservableObject
     /// Gets or sets upstream synchronization configuration for autonomous releases.
     /// </summary>
     [JsonPropertyName("upstreamSync")]
-    public CatalogUpstreamSync? UpstreamSync { get; set; }
+    public CatalogUpstreamSync? UpstreamSync
+    {
+        get => _upstreamSync;
+        set
+        {
+            if (SetProperty(ref _upstreamSync, value))
+            {
+                OnPropertyChanged(nameof(ShowsUpstreamReleasesPlaceholder));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether the sidebar should show an upstream placeholder
+    /// instead of a static release count. Upstream-tracked items with no stored releases
+    /// resolve live at selection time, so "0 releases" would be misleading.
+    /// </summary>
+    [JsonIgnore]
+    public bool ShowsUpstreamReleasesPlaceholder => UpstreamSync != null && (Releases == null || Releases.Count == 0);
 
     /// <summary>
     /// Gets or sets the inherited catalog icon URL fallback for this content item.
