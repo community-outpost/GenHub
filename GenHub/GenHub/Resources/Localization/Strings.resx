@@ -9908,6 +9908,9 @@ Install location:
   <data name="Tools.PublisherStudio.Content.IdHint" xml:space="preserve">
     <value>Unique identifier for this content item. Alphanumeric and hyphens only.</value>
   </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamIdHint" xml:space="preserve">
+    <value>Derived from the upstream repository so the same content shares one stable ID across publishers.</value>
+  </data>
   <data name="Tools.PublisherStudio.Content.IdPlaceholder" xml:space="preserve">
     <value>e.g. generals-online</value>
   </data>

@@ -410,10 +410,11 @@ public sealed class SuperHackersBundleIntegrationTests
     }
 
     /// <summary>
-    /// Verifies that CatalogBundleComponentBuilder filters out incompatible game variants when building a Zero Hour bundle.
+    /// Verifies that CatalogBundleComponentBuilder shows all game variants for bundle
+    /// components so users can pick, with the default variant guiding selection.
     /// </summary>
     [Fact]
-    public void CatalogBundleComponentBuilder_ZeroHourBundle_FiltersOutIncompatibleGeneralsVariant()
+    public void CatalogBundleComponentBuilder_ZeroHourBundle_ShowsAllGameVariants()
     {
         // arrange
         var shContent = new CatalogContentItem
@@ -489,8 +490,9 @@ public sealed class SuperHackersBundleIntegrationTests
         // assert
         Assert.Single(components);
         var shComponent = components[0];
-        Assert.Single(shComponent.Variants);
-        Assert.Equal("Zero Hour", shComponent.Variants[0].Label);
+        Assert.Equal(2, shComponent.Variants.Count);
+        Assert.Contains(shComponent.Variants, v => v.Label == "Zero Hour" && v.IsDefault);
+        Assert.Contains(shComponent.Variants, v => v.Label == "Generals");
     }
 
     /// <summary>

@@ -750,7 +750,8 @@ public sealed partial class ContentGridItemViewModel(
             return false;
         }
 
-        if (!string.Equals(manifestSegments[3], SearchResult.ContentType.ToString(), StringComparison.OrdinalIgnoreCase))
+        if (!Enum.TryParse<ContentType>(manifestSegments[3], ignoreCase: true, out var manifestType) ||
+            !ContentStateService.IsCompatibleGitHubContentType(manifestType, SearchResult.ContentType))
         {
             return false;
         }

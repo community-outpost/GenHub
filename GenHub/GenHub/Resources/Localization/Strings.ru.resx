@@ -9850,6 +9850,9 @@ GenHub связывает запуск модификаций со Steam, отк
   <data name="Tools.PublisherStudio.Content.IdHint" xml:space="preserve">
     <value>Уникальный идентификатор контента. Только буквы, цифры и дефисы.</value>
   </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamIdHint" xml:space="preserve">
+    <value>Происходит из вышестоящего репозитория, чтобы один и тот же контент имел единый стабильный идентификатор у всех издателей.</value>
+  </data>
   <data name="Tools.PublisherStudio.Content.IdPlaceholder" xml:space="preserve">
     <value>например: generals-online</value>
   </data>

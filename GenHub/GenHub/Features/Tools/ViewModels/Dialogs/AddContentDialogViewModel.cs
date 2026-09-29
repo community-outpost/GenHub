@@ -208,6 +208,8 @@ public partial class AddContentDialogViewModel(
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanShowInitialRelease))]
     [NotifyPropertyChangedFor(nameof(IsUpstreamTracked))]
+    [NotifyPropertyChangedFor(nameof(IsContentIdReadOnly))]
+    [NotifyPropertyChangedFor(nameof(SuggestedContentId))]
     private bool _isUpstreamSource;
 
     /// <summary>
@@ -230,15 +232,18 @@ public partial class AddContentDialogViewModel(
     [NotifyPropertyChangedFor(nameof(ShowUpstreamRepository))]
     [NotifyPropertyChangedFor(nameof(ShowUpstreamChannel))]
     [NotifyPropertyChangedFor(nameof(ShowUpstreamContentCode))]
+    [NotifyPropertyChangedFor(nameof(SuggestedContentId))]
     private string _selectedUpstreamProvider = CatalogConstants.UpstreamProviders.TheSuperHackers;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SuggestedContentId))]
     private string? _upstreamRepository = "TheSuperHackers/GeneralsGameCode";
 
     [ObservableProperty]
     private string? _upstreamChannel = "stable";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SuggestedContentId))]
     private string? _upstreamContentCode;
 
     /// <summary>
@@ -671,9 +676,29 @@ public partial class AddContentDialogViewModel(
     public string SubmitButtonText => ActionButtonText;
 
     /// <summary>
-    /// Gets a suggested content ID based on the entered name.
+    /// Gets a suggested content ID based on the entered name, or the upstream
+    /// repository when tracking a live provider.
     /// </summary>
-    public string SuggestedContentId => GenerateContentId(ContentName);
+    public string SuggestedContentId => IsUpstreamSource
+        ? UpstreamSuggestedContentId
+        : GenerateContentId(ContentName);
+
+    /// <summary>
+    /// Gets a value indicating whether the Content ID field is read-only.
+    /// Existing items lock their ID to preserve addon and bundle references.
+    /// New upstream-tracked items derive their ID from the provider repository
+    /// so the same upstream content shares one stable ID across publishers.
+    /// </summary>
+    public bool IsContentIdReadOnly => IsEditMode || IsUpstreamSource;
+
+    /// <summary>
+    /// Gets the suggested content ID derived from the upstream provider.
+    /// </summary>
+    public string UpstreamSuggestedContentId => GenerateUpstreamContentId(
+        SelectedUpstreamProvider,
+        UpstreamRepository,
+        UpstreamContentCode,
+        ContentName);
 
     /// <summary>
     /// Gets a value indicating whether the content type can extend another.
@@ -847,6 +872,36 @@ public partial class AddContentDialogViewModel(
         id = id.Trim('-');
 
         return id;
+    }
+
+    private static string GenerateUpstreamContentId(
+        string provider,
+        string? repository,
+        string? contentCode,
+        string fallbackName)
+    {
+        var normalizedProvider = CatalogConstants.UpstreamProviders.Normalize(provider);
+        if (IsGitHubFamilyProvider(normalizedProvider))
+        {
+            var parts = repository?.Trim().Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (parts?.Length == 2 && !string.IsNullOrWhiteSpace(parts[0]) && !string.IsNullOrWhiteSpace(parts[1]))
+            {
+                return GenerateContentId($"{parts[0]}-{parts[1]}");
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(contentCode))
+        {
+            return GenerateContentId($"{normalizedProvider}-{contentCode.Trim()}");
+        }
+        else if (!string.IsNullOrWhiteSpace(normalizedProvider))
+        {
+            var fallback = GenerateContentId(fallbackName);
+            return string.IsNullOrWhiteSpace(fallback)
+                ? GenerateContentId(normalizedProvider)
+                : GenerateContentId($"{normalizedProvider}-{fallback}");
+        }
+
+        return GenerateContentId(fallbackName);
     }
 
     /// <summary>
@@ -2463,6 +2518,47 @@ public partial class AddContentDialogViewModel(
         if (value && !HasValidAccentColor)
         {
             AccentColor = CatalogConstants.FeaturedDefaultColor;
+        }
+    }
+
+    partial void OnIsUpstreamSourceChanged(bool value)
+    {
+        if (value && !IsEditMode)
+        {
+            RefreshUpstreamContentId();
+        }
+    }
+
+    partial void OnUpstreamRepositoryChanged(string? value)
+    {
+        if (IsUpstreamSource && !IsEditMode)
+        {
+            RefreshUpstreamContentId();
+        }
+    }
+
+    partial void OnSelectedUpstreamProviderChanged(string value)
+    {
+        if (IsUpstreamSource && !IsEditMode)
+        {
+            RefreshUpstreamContentId();
+        }
+    }
+
+    partial void OnUpstreamContentCodeChanged(string? value)
+    {
+        if (IsUpstreamSource && !IsEditMode)
+        {
+            RefreshUpstreamContentId();
+        }
+    }
+
+    private void RefreshUpstreamContentId()
+    {
+        var suggested = UpstreamSuggestedContentId;
+        if (!string.IsNullOrWhiteSpace(suggested))
+        {
+            ContentId = suggested;
         }
     }
 

@@ -371,4 +371,87 @@ public sealed class ContentStateServiceCatalogIdentityTests
         Assert.Equal(ContentState.Downloaded, await service.GetStateAsync(gitHubCard));
         Assert.Equal(catalogManifest.Id.Value, await service.GetLocalManifestIdAsync(gitHubCard));
     }
+
+    /// <summary>
+    /// An unknown-game item must not resolve when manifests span several games,
+    /// otherwise version/date tiebreaks could pick the wrong game.
+    /// </summary>
+    [Fact]
+    public void FindGitHubRepoMatch_UnknownGameSpanningMultipleGames_ReturnsNull()
+    {
+        var manifests = new List<ContentManifest>
+        {
+            CreateGitHubManifest(GameType.Generals, "1.0.github.addon.testwidget"),
+            CreateGitHubManifest(GameType.ZeroHour, "2.0.github.addon.testwidget"),
+        };
+
+        var result = ContentStateService.FindGitHubRepoMatch(manifests, CreateGitHubItem(GameType.Unknown));
+
+        Assert.Null(result);
+    }
+
+    /// <summary>
+    /// An unknown-game item still resolves when every candidate targets one game.
+    /// </summary>
+    [Fact]
+    public void FindGitHubRepoMatch_UnknownGameSingleGame_ReturnsManifest()
+    {
+        var manifests = new List<ContentManifest>
+        {
+            CreateGitHubManifest(GameType.ZeroHour, "2.0.github.addon.testwidget"),
+        };
+
+        var result = ContentStateService.FindGitHubRepoMatch(manifests, CreateGitHubItem(GameType.Unknown));
+
+        Assert.NotNull(result);
+        Assert.Equal(GameType.ZeroHour, result.TargetGame);
+    }
+
+    /// <summary>
+    /// A known-game item resolves to its own game even when both games publish.
+    /// </summary>
+    [Fact]
+    public void FindGitHubRepoMatch_KnownGame_PicksMatchingGame()
+    {
+        var manifests = new List<ContentManifest>
+        {
+            CreateGitHubManifest(GameType.Generals, "1.0.github.addon.testwidget"),
+            CreateGitHubManifest(GameType.ZeroHour, "2.0.github.addon.testwidget"),
+        };
+
+        var result = ContentStateService.FindGitHubRepoMatch(manifests, CreateGitHubItem(GameType.ZeroHour));
+
+        Assert.NotNull(result);
+        Assert.Equal(GameType.ZeroHour, result.TargetGame);
+    }
+
+    private ContentManifest CreateGitHubManifest(GameType game, string id)
+    {
+        return new ContentManifest
+        {
+            Id = ManifestId.Create(id),
+            Name = "TestWidget",
+            ContentType = ContentType.Addon,
+            TargetGame = game,
+            Publisher = new PublisherInfo
+            {
+                Name = "Owner",
+                PublisherType = "github",
+                Website = "https://github.com/Owner/Repo",
+            },
+        };
+    }
+
+    private ContentSearchResult CreateGitHubItem(GameType game)
+    {
+        return new ContentSearchResult
+        {
+            Id = "testwidget",
+            Name = "TestWidget",
+            ContentType = ContentType.Addon,
+            TargetGame = game,
+            AuthorName = "Owner",
+            SourceUrl = "https://github.com/Owner/Repo",
+        };
+    }
 }

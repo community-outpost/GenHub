@@ -138,4 +138,31 @@ public sealed class ReleaseDialogBundleModeTests
         Assert.Null(artifact.Variant);
         Assert.False(artifact.IsDefaultVariant);
     }
+
+    /// <summary>
+    /// The add flow must populate bundle component options so a new bundle
+    /// release can satisfy the required-component validation.
+    /// </summary>
+    [Fact]
+    public void ReleaseDialog_AddFlow_PopulatesBundleComponentOptions()
+    {
+        var catalog = new PublisherCatalog
+        {
+            Publisher = new PublisherProfile { Id = "test-pub", Name = "Test Publisher" },
+            Content =
+            [
+                new CatalogContentItem { Id = "bundle", Name = "Bundle", ContentType = GenHub.Core.Models.Enums.ContentType.ContentBundle },
+                new CatalogContentItem { Id = "mod-a", Name = "Mod A", ContentType = GenHub.Core.Models.Enums.ContentType.Addon },
+            ],
+        };
+
+        var vm = new AddReleaseDialogViewModel(
+            catalog.Content[0],
+            catalog,
+            _ => { },
+            Mock.Of<IPublisherStudioDialogService>());
+
+        Assert.NotEmpty(vm.BundleComponentOptions);
+        Assert.Contains(vm.BundleComponentOptions, o => o.ContentId == "mod-a");
+    }
 }

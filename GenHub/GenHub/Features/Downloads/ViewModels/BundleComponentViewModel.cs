@@ -507,66 +507,109 @@ public sealed partial class BundleComponentViewModel : ObservableObject
         string? catalogItemJson,
         string? releaseJson)
     {
-        if (!string.IsNullOrWhiteSpace(catalogItemJson))
+        ApplyCatalogItemUpstreamIdentity(searchResult, catalogItemJson);
+        ApplyReleaseDownloadUrl(searchResult, releaseJson);
+    }
+
+    private static void ApplyCatalogItemUpstreamIdentity(ContentSearchResult searchResult, string? catalogItemJson)
+    {
+        if (string.IsNullOrWhiteSpace(catalogItemJson))
         {
-            try
-            {
-                var sibling = JsonSerializer.Deserialize<CatalogContentItem>(catalogItemJson);
-                var declaredProvider = !string.IsNullOrWhiteSpace(sibling?.UpstreamSync?.Provider)
-                    ? sibling.UpstreamSync.Provider
-                    : sibling?.PublisherType;
-                var provider = CatalogConstants.UpstreamProviders.Normalize(declaredProvider);
-                var isGitHubUpstream = string.Equals(provider, CatalogConstants.UpstreamProviders.GitHubReleases, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase);
-                var repository = sibling?.UpstreamSync?.Repository?.Trim();
-                if (isGitHubUpstream &&
-                    string.IsNullOrWhiteSpace(repository) &&
-                    string.Equals(provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
-                {
-                    repository = $"{SuperHackersConstants.GeneralsGameCodeOwner}/{SuperHackersConstants.GeneralsGameCodeRepo}";
-                }
-
-                var parts = repository?.Split('/');
-                if (isGitHubUpstream && parts?.Length == 2 && !string.IsNullOrWhiteSpace(parts[0]) && !string.IsNullOrWhiteSpace(parts[1]))
-                {
-                    if (!searchResult.ResolverMetadata.ContainsKey(GitHubConstants.OwnerMetadataKey))
-                    {
-                        searchResult.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = parts[0].Trim();
-                    }
-
-                    if (!searchResult.ResolverMetadata.ContainsKey(GitHubConstants.RepoMetadataKey))
-                    {
-                        searchResult.ResolverMetadata[GitHubConstants.RepoMetadataKey] = parts[1].Trim();
-                    }
-
-                    if (string.IsNullOrWhiteSpace(searchResult.SourceUrl))
-                    {
-                        searchResult.SourceUrl = $"https://github.com/{parts[0].Trim()}/{parts[1].Trim()}";
-                    }
-                }
-            }
-            catch (JsonException)
-            {
-                // Fall back to catalog IDs when the embedded item cannot be parsed.
-            }
+            return;
         }
 
-        if (!string.IsNullOrWhiteSpace(releaseJson) && string.IsNullOrWhiteSpace(searchResult.SelectedDownloadUrl))
+        CatalogContentItem? sibling;
+        try
         {
-            try
+            sibling = JsonSerializer.Deserialize<CatalogContentItem>(catalogItemJson);
+        }
+        catch (JsonException)
+        {
+            // Fall back to catalog IDs when the embedded item cannot be parsed.
+            return;
+        }
+
+        if (sibling == null)
+        {
+            return;
+        }
+
+        var repository = ResolveSiblingRepository(sibling);
+        if (repository == null)
+        {
+            return;
+        }
+
+        ApplyGitHubCoordinates(searchResult, repository[0], repository[1]);
+    }
+
+    private static string[]? ResolveSiblingRepository(CatalogContentItem sibling)
+    {
+        var declaredProvider = !string.IsNullOrWhiteSpace(sibling.UpstreamSync?.Provider)
+            ? sibling.UpstreamSync.Provider
+            : sibling.PublisherType;
+        var provider = CatalogConstants.UpstreamProviders.Normalize(declaredProvider);
+        var isGitHubUpstream = string.Equals(provider, CatalogConstants.UpstreamProviders.GitHubReleases, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase);
+        if (!isGitHubUpstream)
+        {
+            return null;
+        }
+
+        var repository = sibling.UpstreamSync?.Repository?.Trim();
+        if (string.IsNullOrWhiteSpace(repository) &&
+            string.Equals(provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
+        {
+            repository = $"{SuperHackersConstants.GeneralsGameCodeOwner}/{SuperHackersConstants.GeneralsGameCodeRepo}";
+        }
+
+        var parts = repository?.Split('/');
+        if (parts?.Length != 2 || string.IsNullOrWhiteSpace(parts[0]) || string.IsNullOrWhiteSpace(parts[1]))
+        {
+            return null;
+        }
+
+        return parts;
+    }
+
+    private static void ApplyGitHubCoordinates(ContentSearchResult searchResult, string owner, string repo)
+    {
+        if (!searchResult.ResolverMetadata.ContainsKey(GitHubConstants.OwnerMetadataKey))
+        {
+            searchResult.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = owner.Trim();
+        }
+
+        if (!searchResult.ResolverMetadata.ContainsKey(GitHubConstants.RepoMetadataKey))
+        {
+            searchResult.ResolverMetadata[GitHubConstants.RepoMetadataKey] = repo.Trim();
+        }
+
+        if (string.IsNullOrWhiteSpace(searchResult.SourceUrl))
+        {
+            searchResult.SourceUrl = $"https://github.com/{owner.Trim()}/{repo.Trim()}";
+        }
+    }
+
+    private static void ApplyReleaseDownloadUrl(ContentSearchResult searchResult, string? releaseJson)
+    {
+        if (string.IsNullOrWhiteSpace(releaseJson) || !string.IsNullOrWhiteSpace(searchResult.SelectedDownloadUrl))
+        {
+            return;
+        }
+
+        try
+        {
+            var release = JsonSerializer.Deserialize<ContentRelease>(releaseJson);
+            var artifact = release?.Artifacts?.FirstOrDefault(a => a.IsPrimary && !string.IsNullOrWhiteSpace(a.DownloadUrl)) ??
+                release?.Artifacts?.FirstOrDefault(a => !string.IsNullOrWhiteSpace(a.DownloadUrl));
+            if (!string.IsNullOrWhiteSpace(artifact?.DownloadUrl))
             {
-                var release = JsonSerializer.Deserialize<ContentRelease>(releaseJson);
-                var artifact = release?.Artifacts?.FirstOrDefault(a => a.IsPrimary && !string.IsNullOrWhiteSpace(a.DownloadUrl)) ??
-                    release?.Artifacts?.FirstOrDefault(a => !string.IsNullOrWhiteSpace(a.DownloadUrl));
-                if (!string.IsNullOrWhiteSpace(artifact?.DownloadUrl))
-                {
-                    searchResult.SelectedDownloadUrl = artifact.DownloadUrl;
-                }
+                searchResult.SelectedDownloadUrl = artifact.DownloadUrl;
             }
-            catch (JsonException)
-            {
-                // Fall back to catalog IDs when the embedded release cannot be parsed.
-            }
+        }
+        catch (JsonException)
+        {
+            // Fall back to catalog IDs when the embedded release cannot be parsed.
         }
     }
 

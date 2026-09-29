@@ -9850,6 +9850,9 @@
   <data name="Tools.PublisherStudio.Content.IdHint" xml:space="preserve">
     <value>معرف فريد لعنصر المحتوى هذا. أحرف وأرقام وشرطات فقط.</value>
   </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamIdHint" xml:space="preserve">
+    <value>مشتق من مستودع المصدر حتى يشارك نفس المحتوى معرفًا ثابتًا واحدًا عبر الناشرين.</value>
+  </data>
   <data name="Tools.PublisherStudio.Content.IdPlaceholder" xml:space="preserve">
     <value>مثلاً: generals-online</value>
   </data>

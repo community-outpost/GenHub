@@ -40,7 +40,7 @@ public partial class VariantAxisSelector : ObservableObject, IDisposable
     /// Gets the selectable axis options.
     /// </summary>
     [ObservableProperty]
-    private IReadOnlyList<VariantAxisOption> _options = [];
+    private IReadOnlyList<VariantAxisOption> _options;
 
     /// <summary>
     /// Gets a value indicating whether the custom free-text input should be shown.
@@ -77,6 +77,7 @@ public partial class VariantAxisSelector : ObservableObject, IDisposable
     /// Unknown values select the custom option and fill the free-text input.
     /// </summary>
     /// <param name="value">The axis identifier to select, or null for none.</param>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Assigns instance state through the CommunityToolkit-generated SelectedOption and CustomValue properties.")]
     public void SetValue(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -103,12 +104,24 @@ public partial class VariantAxisSelector : ObservableObject, IDisposable
     /// <inheritdoc />
     public void Dispose()
     {
-        if (LocalizationService != null)
-        {
-            LocalizationService.PropertyChanged -= OnLocalizationChanged;
-        }
-
+        Dispose(true);
         GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases managed resources.
+    /// </summary>
+    /// <param name="disposing">True when called from <see cref="Dispose()"/>.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            var service = LocalizationService;
+            if (service != null)
+            {
+                service.PropertyChanged -= OnLocalizationChanged;
+            }
+        }
     }
 
     private static IReadOnlyList<VariantAxisOption> BuildOptions(ILocalizationService? localizationService)

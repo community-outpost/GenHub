@@ -107,9 +107,13 @@
                         <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
                     </StackPanel>
                     <TextBox Text="{Binding ContentId}" Watermark="{localization:Localize Tools.PublisherStudio.Content.IdPlaceholder}"
-                             IsReadOnly="{Binding IsEditMode}"/>
+                             IsReadOnly="{Binding IsContentIdReadOnly}"/>
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.IdHint}"
-                               Classes="hint"/>
+                               Classes="hint"
+                               IsVisible="{Binding !IsUpstreamSource}"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamIdHint}"
+                               Classes="hint"
+                               IsVisible="{Binding IsUpstreamSource}"/>
                 </StackPanel>
 
                 <!-- Type & Target -->

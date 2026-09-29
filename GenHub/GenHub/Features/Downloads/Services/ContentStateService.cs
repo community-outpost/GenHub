@@ -260,6 +260,30 @@ public sealed partial class ContentStateService(
     }
 
     /// <summary>
+    /// Determines whether two content types may share Downloaded state for the same
+    /// GitHub repository. File-based types (Mod, Patch, Addon, maps, tools) install
+    /// the same bytes, while GameClient, GameInstallation, and ContentBundle require
+    /// exact matches.
+    /// </summary>
+    /// <param name="manifestType">The local manifest content type.</param>
+    /// <param name="itemType">The card content type.</param>
+    /// <returns>True when the types are compatible; otherwise, false.</returns>
+    internal static bool IsCompatibleGitHubContentType(ContentType manifestType, ContentType itemType)
+    {
+        if (manifestType == itemType)
+        {
+            return true;
+        }
+
+        if (manifestType == ContentType.UnknownContentType || itemType == ContentType.UnknownContentType)
+        {
+            return true;
+        }
+
+        return IsFileBasedContentType(manifestType) && IsFileBasedContentType(itemType);
+    }
+
+    /// <summary>
     /// Checks whether two publisher identifiers are compatible aliases.
     /// </summary>
     /// <param name="manifestPublisher">The manifest publisher ID.</param>
@@ -538,6 +562,38 @@ public sealed partial class ContentStateService(
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Finds the installed manifest matching a GitHub-backed catalog item by owner,
+    /// repository URL, content type, and variant. When the item declares no game
+    /// while manifests span several games, returns null instead of letting
+    /// version/date tiebreaks pick the wrong game.
+    /// </summary>
+    /// <param name="manifests">The installed manifests to search.</param>
+    /// <param name="item">The catalog item to match.</param>
+    /// <param name="logger">Optional logger.</param>
+    /// <returns>The best matching manifest, or null when there is no unambiguous match.</returns>
+    internal static ContentManifest? FindGitHubRepoMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item, ILogger? logger = null)
+    {
+        if (string.IsNullOrWhiteSpace(item.SourceUrl) || !IsGitHubUrl(item.SourceUrl))
+        {
+            return null;
+        }
+
+        var matches = manifests.Where(manifest => IsGitHubManifestMatch(manifest, item)).ToList();
+        if (item.TargetGame == GameType.Unknown &&
+            matches.Select(manifest => manifest.TargetGame).Distinct().Count(game => game != GameType.Unknown) > 1)
+        {
+            // The item declares no game while manifests exist for several games:
+            // version/date tiebreaks could resolve to the wrong game, so fail closed.
+            logger?.LogDebug(
+                "Skipping GitHub manifest match for '{ContentId}': target game is unknown and manifests span multiple games",
+                item.Id);
+            return null;
+        }
+
+        return SelectBestMatchingManifest(matches, item, logger);
     }
 
     /// <summary>
@@ -1981,20 +2037,9 @@ public sealed partial class ContentStateService(
         return SelectBestMatchingManifest(matches, item, logger);
     }
 
-    private static ContentManifest? FindGitHubRepoMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item, ILogger? logger = null)
-    {
-        if (string.IsNullOrWhiteSpace(item.SourceUrl) || !IsGitHubUrl(item.SourceUrl))
-        {
-            return null;
-        }
-
-        var matches = manifests.Where(manifest => IsGitHubManifestMatch(manifest, item));
-        return SelectBestMatchingManifest(matches, item, logger);
-    }
-
     private static bool IsGitHubManifestMatch(ContentManifest manifest, ContentSearchResult item)
     {
-        if (manifest.ContentType != item.ContentType)
+        if (!IsCompatibleGitHubContentType(manifest.ContentType, item.ContentType))
         {
             return false;
         }
@@ -2024,6 +2069,23 @@ public sealed partial class ContentStateService(
         }
 
         return IsGitHubVariantMatch(manifest, item);
+    }
+
+    private static bool IsFileBasedContentType(ContentType contentType)
+    {
+        return contentType is ContentType.Mod
+            or ContentType.Patch
+            or ContentType.Addon
+            or ContentType.MapPack
+            or ContentType.LanguagePack
+            or ContentType.Mission
+            or ContentType.Map
+            or ContentType.Skin
+            or ContentType.Video
+            or ContentType.Replay
+            or ContentType.Screensaver
+            or ContentType.Executable
+            or ContentType.ModdingTool;
     }
 
     private static bool IsGitHubAuthorCompatible(ContentManifest manifest, ContentSearchResult item)

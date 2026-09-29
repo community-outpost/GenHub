@@ -305,43 +305,10 @@ public static class CatalogBundleComponentBuilder
 
         var resolvedSiblingRelease = CloneReleaseWithResolvedTypes(siblingRelease, sibling, itemsById);
         var variantArtifacts = CatalogManifestIdentity.GetVariantArtifacts(resolvedSiblingRelease);
-        variantArtifacts = FilterVariantArtifactsByTargetGame(variantArtifacts, parent.TargetGame);
 
         PopulateComponentVariants(descriptor, sibling, resolvedSiblingRelease, variantArtifacts, dependency);
 
         return descriptor;
-    }
-
-    private static IReadOnlyList<ReleaseArtifact> FilterVariantArtifactsByTargetGame(
-        IReadOnlyList<ReleaseArtifact> variantArtifacts,
-        GameType parentTargetGame)
-    {
-        if (parentTargetGame is not (GameType.Generals or GameType.ZeroHour))
-        {
-            return variantArtifacts;
-        }
-
-        return variantArtifacts.Where(artifact =>
-        {
-            if (string.Equals(artifact.VariantAxis, CatalogConstants.GameTypeVariantAxis, StringComparison.OrdinalIgnoreCase))
-            {
-                var isGen = string.Equals(artifact.Variant, CatalogConstants.GeneralsVariantLabel, StringComparison.OrdinalIgnoreCase);
-                var isZh = string.Equals(artifact.Variant, CatalogConstants.ZeroHourVariantLabel, StringComparison.OrdinalIgnoreCase) ||
-                           string.Equals(artifact.Variant, CatalogConstants.ZeroHourCompactVariantLabel, StringComparison.OrdinalIgnoreCase);
-
-                if (parentTargetGame == GameType.Generals && isZh)
-                {
-                    return false;
-                }
-
-                if (parentTargetGame == GameType.ZeroHour && isGen)
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }).ToList();
     }
 
     /// <summary>
