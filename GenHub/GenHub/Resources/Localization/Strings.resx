@@ -16350,6 +16350,9 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="GameProfiles.Notification.PublisherProfilesCreated.Message" xml:space="preserve">
     <value>Created {0} profile(s) for {1}.</value>
   </data>
+  <data name="GameProfiles.Notification.PublisherProfileCreationFailed.Title" xml:space="preserve">
+    <value>{0} Profile Creation Failed</value>
+  </data>
   <data name="GameProfiles.Notification.PublisherContentNotFound.Title" xml:space="preserve">
     <value>{0} Not Found</value>
   </data>

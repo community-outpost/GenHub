@@ -16291,6 +16291,9 @@ https://example.com/screenshot2.png</value>
   <data name="GameProfiles.Notification.PublisherProfilesCreated.Message" xml:space="preserve">
     <value>تم إنشاء {0} من الملفات الشخصية لـ {1}.</value>
   </data>
+  <data name="GameProfiles.Notification.PublisherProfileCreationFailed.Title" xml:space="preserve">
+    <value>فشل إنشاء ملفات {0} الشخصية</value>
+  </data>
   <data name="GameProfiles.Notification.PublisherContentNotFound.Title" xml:space="preserve">
     <value>{0} غير موجود</value>
   </data>

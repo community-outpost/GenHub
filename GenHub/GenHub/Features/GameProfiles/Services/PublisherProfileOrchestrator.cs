@@ -307,8 +307,8 @@ public class PublisherProfileOrchestrator(
         if (profilesCreated > 0)
         {
             notificationService.ShowSuccess(
-                $"{displayName} Profiles Created",
-                $"Created {profilesCreated} profile(s) for {displayName}.");
+                localizationService.GetLocalizedString("GameProfiles.Notification.PublisherProfilesCreated.Title", $"{displayName} Profiles Created", displayName),
+                localizationService.GetLocalizedString("GameProfiles.Notification.PublisherProfilesCreated.Message", $"Created {profilesCreated} profile(s) for {displayName}.", profilesCreated, displayName));
         }
 
         if (failures.Count == 0)
@@ -317,7 +317,7 @@ public class PublisherProfileOrchestrator(
         }
 
         notificationService.ShowWarning(
-            $"{displayName} Profile Creation Failed",
+            localizationService.GetLocalizedString("GameProfiles.Notification.PublisherProfileCreationFailed.Title", $"{displayName} Profile Creation Failed", displayName),
             string.Join(Environment.NewLine, failures));
 
         return profilesCreated > 0

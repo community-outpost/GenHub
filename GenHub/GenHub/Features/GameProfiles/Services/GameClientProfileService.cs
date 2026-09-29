@@ -338,7 +338,7 @@ public class GameClientProfileService(
 
         return files
             .Where(f => !string.IsNullOrEmpty(f.RelativePath) &&
-                (f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
+                (f.RelativePath.EndsWith(GameClientConstants.ExeExtension, StringComparison.OrdinalIgnoreCase) ||
                  (f.IsExecutable && !Path.HasExtension(f.RelativePath))))
             .OrderBy(f => OperatingSystem.IsWindows() == Path.HasExtension(f.RelativePath) ? 0 : 1)
             .FirstOrDefault();
