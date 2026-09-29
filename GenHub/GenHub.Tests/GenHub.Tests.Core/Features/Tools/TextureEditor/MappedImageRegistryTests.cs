@@ -19,8 +19,21 @@ public sealed class MappedImageRegistryTests
 {
     private sealed class GatedParser(Task gate, string gatedDirectory, TaskCompletionSource entered) : ISageMappedImageParser
     {
-        public OperationResult<IReadOnlyList<MappedImageDefinition>> ParseText(string content, string? sourcePath = null) =>
-            throw new NotSupportedException();
+        public OperationResult<IReadOnlyList<MappedImageDefinition>> ParseText(string content, string? sourcePath = null)
+        {
+            if (sourcePath != null && sourcePath.StartsWith(gatedDirectory, StringComparison.OrdinalIgnoreCase))
+            {
+                entered.TrySetResult();
+                gate.GetAwaiter().GetResult();
+                return OperationResult<IReadOnlyList<MappedImageDefinition>>.CreateSuccess(
+                    [new MappedImageDefinition("a", "old.tga", 64, 64, 0, 0, 63, 63)],
+                    TimeSpan.Zero);
+            }
+
+            return OperationResult<IReadOnlyList<MappedImageDefinition>>.CreateSuccess(
+                [new MappedImageDefinition("Direct", "direct.tga", 64, 64, 0, 0, 63, 63)],
+                TimeSpan.Zero);
+        }
 
         public async Task<OperationResult<IReadOnlyList<MappedImageDefinition>>> ParseFileAsync(string path, CancellationToken cancellationToken = default)
         {
@@ -310,7 +323,7 @@ public sealed class MappedImageRegistryTests
 
             using var cancelled = new CancellationTokenSource();
             cancelled.Cancel();
-            await Assert.ThrowsAsync<OperationCanceledException>(async () => await _registry.ScanDirectoryAsync(directory, cancelled.Token));
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await _registry.ScanDirectoryAsync(directory, cancelled.Token));
 
             Assert.Equal(1, _registry.Count);
             Assert.NotNull(_registry.GetByName("Alpha"));
