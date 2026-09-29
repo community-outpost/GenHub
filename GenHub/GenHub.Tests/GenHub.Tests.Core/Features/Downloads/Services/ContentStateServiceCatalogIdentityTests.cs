@@ -3,12 +3,16 @@ using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Downloads.Services;
+using GenHub.Features.Downloads.ViewModels;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -516,6 +520,254 @@ public sealed class ContentStateServiceCatalogIdentityTests
 
         Assert.NotNull(result);
         Assert.Equal(manifest.Id.Value, result.Id.Value);
+    }
+
+    /// <summary>
+    /// Verifies that a bundle component built through production
+    /// <see cref="BundleComponentViewModel.CreateFromSearchResult"/> resolves to Downloaded
+    /// when the same upstream GitHub files were acquired through the GitHub provider.
+    /// This pins the bundle-card regression where components showed Download while the
+    /// standalone cards showed Add to Profile.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetStateAsync_BundleComponentWithUpstreamIdentity_MatchesGitHubManifestAsync()
+    {
+        const string assetUrl = "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/GeneralsControlBar_1080p.zip";
+        var poolMock = new Mock<IContentManifestPool>();
+
+        var gitHubManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.13.l3m.addon.generalscontrolbar1080p"),
+            Name = "GeneralsControlBar1080p",
+            Version = "v1.3",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            OriginalContentId = "1.13.l3m.addon.generalscontrolbar1080p",
+            OriginalProviderName = "github",
+            Publisher = new PublisherInfo
+            {
+                Name = "L3-M",
+                PublisherType = "github",
+                Website = "https://github.com/L3-M",
+            },
+            Metadata = new ContentMetadata
+            {
+                ChangelogUrl = "https://github.com/L3-M/GeneralsControlBar/releases/tag/v1.3",
+            },
+            Files =
+            [
+                new ManifestFile
+                {
+                    RelativePath = "GeneralsControlBar_1080p.zip",
+                    DownloadUrl = assetUrl,
+                },
+            ],
+        };
+
+        poolMock.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(new List<ContentManifest> { gitHubManifest }));
+        poolMock.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        poolMock.Setup(p => p.IsManifestAcquiredAsync(gitHubManifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var service = new ContentStateService(poolMock.Object, NullLogger<ContentStateService>.Instance);
+
+        var sibling = new CatalogContentItem
+        {
+            Id = "l3m-controlbar",
+            Name = "L3M Modern HD Control Bar",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            PublisherType = "undead2146",
+            UpstreamSync = new CatalogUpstreamSync
+            {
+                Provider = CatalogConstants.UpstreamProviders.GitHubReleases,
+                Repository = "L3-M/GeneralsControlBar",
+            },
+        };
+
+        var release = new ContentRelease
+        {
+            Version = "1.3",
+            IsLatest = true,
+            Artifacts =
+            [
+                new ReleaseArtifact
+                {
+                    Filename = "GeneralsControlBar_1080p.zip",
+                    DownloadUrl = assetUrl,
+                    VariantAxis = "resolution",
+                    Variant = "1080p",
+                    IsDefaultVariant = true,
+                },
+            ],
+        };
+
+        var descriptors = new List<CatalogBundleComponentDescriptor>
+        {
+            new CatalogBundleComponentDescriptor
+            {
+                ContentId = "l3m-controlbar",
+                Name = "L3M Modern HD Control Bar",
+                PublisherId = "undead2146",
+                ContentType = ContentType.Addon.ToString(),
+                CatalogItemJson = JsonSerializer.Serialize(sibling),
+                Variants =
+                [
+                    new CatalogBundleComponentVariantDescriptor
+                    {
+                        Axis = "resolution",
+                        Label = "1080p",
+                        CatalogId = "1.13.github.addon.l3mcontrolbar1080p",
+                        ReleaseJson = JsonSerializer.Serialize(release),
+                        IsDefault = true,
+                    },
+                ],
+            },
+        };
+
+        var bundleResult = new ContentSearchResult
+        {
+            Id = "1.20260731.undead2146.contentbundle.stack",
+            Name = "Stack",
+            ContentType = ContentType.ContentBundle,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = "undead2146",
+            AuthorName = "undead2146",
+        };
+        bundleResult.ResolverMetadata[CatalogConstants.BundleComponentsJsonMetadataKey] =
+            JsonSerializer.Serialize(descriptors);
+
+        var component = BundleComponentViewModel.CreateFromSearchResult(bundleResult).Single();
+        var componentResult = component.GetSelectedSearchResult();
+        Assert.NotNull(componentResult);
+
+        Assert.Equal(ContentState.Downloaded, await service.GetStateAsync(componentResult));
+        Assert.Equal(gitHubManifest.Id.Value, await service.GetLocalManifestIdAsync(componentResult));
+    }
+
+    /// <summary>
+    /// Verifies that a bundle component carrying upstream GitHub identity still resolves
+    /// when the acquired manifest has no per-file download URLs to overlap, matching the
+    /// standalone card through repository identity instead of file identity.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetStateAsync_BundleComponentWithoutFileUrlOverlap_MatchesGitHubManifestAsync()
+    {
+        var poolMock = new Mock<IContentManifestPool>();
+
+        var gitHubManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.13.l3m.addon.generalscontrolbar1080p"),
+            Name = "GeneralsControlBar1080p",
+            Version = "v1.3",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            OriginalContentId = "1.13.l3m.addon.generalscontrolbar1080p",
+            OriginalProviderName = "github",
+            Publisher = new PublisherInfo
+            {
+                Name = "L3-M",
+                PublisherType = "github",
+                Website = "https://github.com/L3-M",
+            },
+            Metadata = new ContentMetadata
+            {
+                ChangelogUrl = "https://github.com/L3-M/GeneralsControlBar/releases/tag/v1.3",
+            },
+            Files =
+            [
+                new ManifestFile
+                {
+                    RelativePath = "GeneralsControlBar_1080p.zip",
+                },
+            ],
+        };
+
+        poolMock.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(new List<ContentManifest> { gitHubManifest }));
+        poolMock.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        poolMock.Setup(p => p.IsManifestAcquiredAsync(gitHubManifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var service = new ContentStateService(poolMock.Object, NullLogger<ContentStateService>.Instance);
+
+        var sibling = new CatalogContentItem
+        {
+            Id = "l3m-controlbar",
+            Name = "L3M Modern HD Control Bar",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            PublisherType = "undead2146",
+            UpstreamSync = new CatalogUpstreamSync
+            {
+                Provider = CatalogConstants.UpstreamProviders.GitHubReleases,
+                Repository = "L3-M/GeneralsControlBar",
+            },
+        };
+
+        var release = new ContentRelease
+        {
+            Version = "1.3",
+            IsLatest = true,
+            Artifacts =
+            [
+                new ReleaseArtifact
+                {
+                    Filename = "GeneralsControlBar_1080p.zip",
+                    DownloadUrl = "https://example.invalid/mirror/GeneralsControlBar_1080p.zip",
+                    VariantAxis = "resolution",
+                    Variant = "1080p",
+                    IsDefaultVariant = true,
+                },
+            ],
+        };
+
+        var descriptors = new List<CatalogBundleComponentDescriptor>
+        {
+            new CatalogBundleComponentDescriptor
+            {
+                ContentId = "l3m-controlbar",
+                Name = "L3M Modern HD Control Bar",
+                PublisherId = "undead2146",
+                ContentType = ContentType.Addon.ToString(),
+                CatalogItemJson = JsonSerializer.Serialize(sibling),
+                Variants =
+                [
+                    new CatalogBundleComponentVariantDescriptor
+                    {
+                        Axis = "resolution",
+                        Label = "1080p",
+                        CatalogId = "1.13.github.addon.l3mcontrolbar1080p",
+                        ReleaseJson = JsonSerializer.Serialize(release),
+                        IsDefault = true,
+                    },
+                ],
+            },
+        };
+
+        var bundleResult = new ContentSearchResult
+        {
+            Id = "1.20260731.undead2146.contentbundle.stack",
+            Name = "Stack",
+            ContentType = ContentType.ContentBundle,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = "undead2146",
+            AuthorName = "undead2146",
+        };
+        bundleResult.ResolverMetadata[CatalogConstants.BundleComponentsJsonMetadataKey] =
+            JsonSerializer.Serialize(descriptors);
+
+        var component = BundleComponentViewModel.CreateFromSearchResult(bundleResult).Single();
+        var componentResult = component.GetSelectedSearchResult();
+        Assert.NotNull(componentResult);
+
+        Assert.Equal(ContentState.Downloaded, await service.GetStateAsync(componentResult));
+        Assert.Equal(gitHubManifest.Id.Value, await service.GetLocalManifestIdAsync(componentResult));
     }
 
     private ContentManifest CreateGitHubManifest(GameType game, string id)

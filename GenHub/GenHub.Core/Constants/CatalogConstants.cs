@@ -506,23 +506,7 @@ public static class CatalogConstants
                 return false;
             }
 
-            foreach (var part in parts)
-            {
-                if (part.Length == 0)
-                {
-                    return false;
-                }
-
-                foreach (var c in part)
-                {
-                    if (char.IsWhiteSpace(c))
-                    {
-                        return false;
-                    }
-                }
-            }
-
-            return true;
+            return parts.All(part => part.Length != 0 && !part.Any(char.IsWhiteSpace));
         }
     }
 

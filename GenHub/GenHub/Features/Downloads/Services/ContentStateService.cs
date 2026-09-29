@@ -1986,6 +1986,20 @@ public sealed partial class ContentStateService(
         return SelectBestMatchingManifest(matches, item, logger);
     }
 
+    private static ContentManifest? FindFileRowRepositoryMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item, ILogger? logger = null)
+    {
+        if (item.ResolverMetadata?.TryGetValue(GitHubConstants.OwnerMetadataKey, out var owner) != true ||
+            string.IsNullOrWhiteSpace(owner) ||
+            item.ResolverMetadata.TryGetValue(GitHubConstants.RepoMetadataKey, out var repo) != true ||
+            string.IsNullOrWhiteSpace(repo))
+        {
+            return null;
+        }
+
+        return FindGitHubRepoMatch(manifests, item, logger)
+            ?? FindSuperHackersMatch(manifests, item, logger);
+    }
+
     private static ContentManifest? FindOriginMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item, ILogger? logger = null)
     {
         bool isGitHub = IsGitHubPublisher(item.ProviderName);
@@ -2099,16 +2113,9 @@ public sealed partial class ContentStateService(
         if (item.ResolverMetadata?.TryGetValue(GitHubConstants.AssetNameMetadataKey, out var assetName) == true &&
             !string.IsNullOrWhiteSpace(assetName))
         {
-            foreach (var file in manifest.Files)
-            {
-                if (string.Equals(file.RelativePath, assetName, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(Path.GetFileName(file.RelativePath), assetName, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            return manifest.Files.Any(file =>
+                string.Equals(file.RelativePath, assetName, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(Path.GetFileName(file.RelativePath), assetName, StringComparison.OrdinalIgnoreCase));
         }
 
         if (!string.IsNullOrWhiteSpace(item.SelectedDownloadUrl))
@@ -2585,7 +2592,13 @@ public sealed partial class ContentStateService(
 
         if (IsFileRow(item))
         {
-            return FindDirectFileMatch(manifests, item, logger);
+            // Direct file provenance wins; when it misses, rows carrying upstream
+            // repository identity (bundle components, GitHub file rows) fall back to
+            // the same repository matchers standalone cards use. Per-file rows without
+            // repository identity keep strict file-only matching so ModDB siblings
+            // sharing a parent page can never match each other.
+            return FindDirectFileMatch(manifests, item, logger)
+                ?? FindFileRowRepositoryMatch(manifests, item, logger);
         }
 
         return FindOriginMatch(manifests, item, logger)
