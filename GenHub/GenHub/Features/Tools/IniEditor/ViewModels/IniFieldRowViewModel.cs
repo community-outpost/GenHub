@@ -5,6 +5,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Models.Tools.IniEditor;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
 namespace GenHub.Features.Tools.IniEditor.ViewModels;
@@ -121,11 +122,13 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
     /// <summary>
     /// Gets available KindOf flags.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Bound from XAML; instance member required for binding.")]
     public IReadOnlyList<string> AvailableKindOfFlags => IniConstants.KindOfFlags.All;
 
     /// <summary>
     /// Gets the active flags split from the space-separated value.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads source-generated value instance state and is bound from XAML.")]
     public IReadOnlyList<string> ActiveFlags => (Value ?? string.Empty)
         .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 

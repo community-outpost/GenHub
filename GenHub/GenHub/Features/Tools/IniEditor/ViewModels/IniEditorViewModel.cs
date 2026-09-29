@@ -53,6 +53,13 @@ public sealed partial class IniEditorViewModel(
     ILogger<IniEditorViewModel> logger)
     : EditorToolViewModelBase(notificationService, localizationService, dialogService)
 {
+    private const string ImmortalMarker = "Immortal";
+    private const string AccentBrushKey = "AccentBrush";
+    private const string TextPrimaryBrushKey = "TextPrimary";
+    private const string TextSecondaryBrushKey = "TextSecondary";
+    private const string SuccessBrushKey = "SuccessBrush";
+    private const string WarningBrushKey = "WarningBrush";
+
     private static readonly (string Key, string Value)[] UpgradeHookupTemplate =
     [
         (IniConstants.FieldKeys.Upgrade, "Upgrade_"),
@@ -136,21 +143,25 @@ public sealed partial class IniEditorViewModel(
     /// <summary>
     /// Gets a value indicating whether the blocks sidebar tab is selected.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads source-generated tab index instance state and is bound from XAML.")]
     public bool IsBlocksTabSelected => LeftSidebarTabIndex == 0;
 
     /// <summary>
     /// Gets a value indicating whether the file explorer sidebar tab is selected.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads source-generated tab index instance state and is bound from XAML.")]
     public bool IsFilesTabSelected => LeftSidebarTabIndex == 1;
 
     /// <summary>
     /// Gets a value indicating whether the reference index sidebar tab is selected.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads source-generated tab index instance state and is bound from XAML.")]
     public bool IsReferencesTabSelected => LeftSidebarTabIndex == 2;
 
     /// <summary>
     /// Gets a value indicating whether the textures sidebar tab is selected.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads source-generated tab index instance state and is bound from XAML.")]
     public bool IsTexturesTabSelected => LeftSidebarTabIndex == 3;
 
     [ObservableProperty]
@@ -173,6 +184,7 @@ public sealed partial class IniEditorViewModel(
     /// <summary>
     /// Gets a value indicating whether the selected block has vitals to display.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads source-generated vitals instance state and is bound from XAML.")]
     public bool HasSelectedBlockVitals => SelectedBlockVitals != null && SelectedBlockVitals.Count > 0;
 
     /// <summary>
@@ -404,26 +416,31 @@ public sealed partial class IniEditorViewModel(
     /// <summary>
     /// Gets the health stat label for the canvas summary card.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Bound from XAML; instance member required for binding.")]
     public string HealthLabel => Localization.GetString("Tools.IniEditor.Canvas.HealthLabel");
 
     /// <summary>
     /// Gets the cost stat label for the canvas summary card.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Bound from XAML; instance member required for binding.")]
     public string CostLabel => Localization.GetString("Tools.IniEditor.Canvas.CostLabel");
 
     /// <summary>
     /// Gets the build time stat label for the canvas summary card.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Bound from XAML; instance member required for binding.")]
     public string BuildTimeLabel => Localization.GetString("Tools.IniEditor.Canvas.BuildTimeLabel");
 
     /// <summary>
     /// Gets the kind-of flags header label for the canvas summary card.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Bound from XAML; instance member required for binding.")]
     public string KindOfLabel => Localization.GetString("Tools.IniEditor.Canvas.KindOfLabel");
 
     /// <summary>
     /// Gets the modules header label for the canvas summary card.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Bound from XAML; instance member required for binding.")]
     public string ModulesLabel => Localization.GetString("Tools.IniEditor.Canvas.ModulesLabel");
 
     /// <inheritdoc />
@@ -504,7 +521,7 @@ public sealed partial class IniEditorViewModel(
         var block = SelectedNode.Block;
         var existingPortrait = block.Fields.FirstOrDefault(f =>
             string.Equals(f.Key, IniConstants.FieldKeys.SelectPortrait, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(f.Key, "ButtonImage", StringComparison.OrdinalIgnoreCase));
+            string.Equals(f.Key, IniConstants.FieldKeys.ButtonImage, StringComparison.OrdinalIgnoreCase));
 
         if (existingPortrait is not null)
         {
@@ -543,7 +560,7 @@ public sealed partial class IniEditorViewModel(
         else
         {
             var key = string.Equals(block.BlockType, IniConstants.BlockTypes.CommandButton, StringComparison.OrdinalIgnoreCase)
-                ? "ButtonImage"
+                ? IniConstants.FieldKeys.ButtonImage
                 : IniConstants.FieldKeys.SelectPortrait;
             var newField = new IniField(key, textureName);
             block.Fields.Add(newField);
@@ -1126,6 +1143,80 @@ public sealed partial class IniEditorViewModel(
         return block.Fields.FirstOrDefault(field => string.Equals(field.Key, key, StringComparison.OrdinalIgnoreCase))?.Value;
     }
 
+    private static bool IsTextureSuggestionKey(string key, IniFieldSchema? schema)
+    {
+        return schema?.IsTexture == true ||
+            key.Contains("Image", StringComparison.OrdinalIgnoreCase) ||
+            key.Contains("Portrait", StringComparison.OrdinalIgnoreCase) ||
+            key.Contains("Cameo", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? ResolveReferenceBlockType(string key, IniFieldSchema? schema)
+    {
+        if (!string.IsNullOrEmpty(schema?.ReferenceBlockType))
+        {
+            return schema.ReferenceBlockType;
+        }
+
+        if (string.Equals(key, "CommandButton", StringComparison.OrdinalIgnoreCase))
+        {
+            return IniConstants.BlockTypes.CommandButton;
+        }
+
+        if (string.Equals(key, "CommandSet", StringComparison.OrdinalIgnoreCase))
+        {
+            return IniConstants.BlockTypes.CommandSet;
+        }
+
+        if (key.Contains("Weapon", StringComparison.OrdinalIgnoreCase))
+        {
+            return IniConstants.BlockTypes.Weapon;
+        }
+
+        if (key.Contains("Upgrade", StringComparison.OrdinalIgnoreCase))
+        {
+            return IniConstants.BlockTypes.Upgrade;
+        }
+
+        if (string.Equals(key, IniConstants.FieldKeys.Object, StringComparison.OrdinalIgnoreCase) || string.Equals(key, "TargetObject", StringComparison.OrdinalIgnoreCase))
+        {
+            return IniConstants.BlockTypes.Object;
+        }
+
+        if (key.Contains("Armor", StringComparison.OrdinalIgnoreCase))
+        {
+            return IniConstants.BlockTypes.Armor;
+        }
+
+        if (key.Contains("DamageFX", StringComparison.OrdinalIgnoreCase))
+        {
+            return IniConstants.BlockTypes.DamageFX;
+        }
+
+        if (key.Contains("Locomotor", StringComparison.OrdinalIgnoreCase))
+        {
+            return IniConstants.BlockTypes.Locomotor;
+        }
+
+        if (key.Contains("SpecialPower", StringComparison.OrdinalIgnoreCase))
+        {
+            return IniConstants.BlockTypes.SpecialPower;
+        }
+
+        if (key.Contains("Science", StringComparison.OrdinalIgnoreCase))
+        {
+            return IniConstants.BlockTypes.Science;
+        }
+
+        if (key.StartsWith("Voice", StringComparison.OrdinalIgnoreCase) ||
+            key.StartsWith("Sound", StringComparison.OrdinalIgnoreCase))
+        {
+            return IniConstants.SubBlockTypes.AudioEvent;
+        }
+
+        return null;
+    }
+
     private static void SeedBlockTemplate(IniBlock block)
     {
         if (string.Equals(block.BlockType, IniConstants.BlockTypes.Object, StringComparison.OrdinalIgnoreCase))
@@ -1345,18 +1436,18 @@ public sealed partial class IniEditorViewModel(
                     return childHealth;
                 }
 
-                if (child.BlockType.Contains("Immortal", StringComparison.OrdinalIgnoreCase) ||
-                    child.AssignmentValue?.Contains("Immortal", StringComparison.OrdinalIgnoreCase) == true)
+                if (child.BlockType.Contains(ImmortalMarker, StringComparison.OrdinalIgnoreCase) ||
+                    child.AssignmentValue?.Contains(ImmortalMarker, StringComparison.OrdinalIgnoreCase) == true)
                 {
-                    return "Immortal";
+                    return ImmortalMarker;
                 }
             }
         }
 
         var bodyField = block.Fields.FirstOrDefault(f => string.Equals(f.Key, "Body", StringComparison.OrdinalIgnoreCase));
-        if (bodyField != null && bodyField.Value.Contains("Immortal", StringComparison.OrdinalIgnoreCase))
+        if (bodyField != null && bodyField.Value.Contains(ImmortalMarker, StringComparison.OrdinalIgnoreCase))
         {
-            return "Immortal";
+            return ImmortalMarker;
         }
 
         return null;
@@ -1379,6 +1470,101 @@ public sealed partial class IniEditorViewModel(
         }
 
         return null;
+    }
+
+    private static void AddVitalIfPresent(List<CanvasVitalItem> vitals, string label, string? value, string brushKey)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            vitals.Add(new(label, value, brushKey));
+        }
+    }
+
+    private static void AddBlockTypeVitals(IniBlock block, List<CanvasVitalItem> vitals)
+    {
+        if (string.Equals(block.BlockType, IniConstants.BlockTypes.CommandButton, StringComparison.OrdinalIgnoreCase))
+        {
+            AddCommandButtonVitals(block, vitals);
+        }
+        else if (string.Equals(block.BlockType, IniConstants.BlockTypes.Weapon, StringComparison.OrdinalIgnoreCase))
+        {
+            AddWeaponVitals(block, vitals);
+        }
+        else if (string.Equals(block.BlockType, IniConstants.BlockTypes.Upgrade, StringComparison.OrdinalIgnoreCase))
+        {
+            AddUpgradeVitals(block, vitals);
+        }
+        else
+        {
+            AddDefaultVitals(block, vitals);
+        }
+    }
+
+    private static void AddCommandButtonVitals(IniBlock block, List<CanvasVitalItem> vitals)
+    {
+        AddVitalIfPresent(vitals, "Command", FindFieldValue(block, IniConstants.FieldKeys.Command), AccentBrushKey);
+        AddVitalIfPresent(vitals, "Border", FindFieldValue(block, "ButtonBorderType"), TextSecondaryBrushKey);
+        AddVitalIfPresent(vitals, "Target", FindFieldValue(block, IniConstants.FieldKeys.Object) ?? FindFieldValue(block, "Upgrade"), AccentBrushKey);
+        AddVitalIfPresent(vitals, "Image", FindFieldValue(block, IniConstants.FieldKeys.ButtonImage), TextPrimaryBrushKey);
+    }
+
+    private static void AddWeaponVitals(IniBlock block, List<CanvasVitalItem> vitals)
+    {
+        AddVitalIfPresent(vitals, "Damage", FindFieldValue(block, IniConstants.FieldKeys.PrimaryDamage), AccentBrushKey);
+        AddVitalIfPresent(vitals, "Range", FindFieldValue(block, IniConstants.FieldKeys.AttackRange), TextPrimaryBrushKey);
+        AddVitalIfPresent(vitals, "Type", FindFieldValue(block, IniConstants.FieldKeys.DamageType), TextSecondaryBrushKey);
+        AddVitalIfPresent(vitals, "Delay", FindFieldValue(block, "DelayBetweenShots"), TextSecondaryBrushKey);
+    }
+
+    private static void AddUpgradeVitals(IniBlock block, List<CanvasVitalItem> vitals)
+    {
+        var cost = FindFieldValue(block, IniConstants.FieldKeys.BuildCost);
+        if (!string.IsNullOrWhiteSpace(cost))
+        {
+            vitals.Add(new("Cost", string.Empty, AccentBrushKey));
+        }
+
+        var time = FindFieldValue(block, IniConstants.FieldKeys.BuildTime);
+        if (!string.IsNullOrWhiteSpace(time))
+        {
+            vitals.Add(new("Time", $"{time}s", TextPrimaryBrushKey));
+        }
+
+        AddVitalIfPresent(vitals, "Type", FindFieldValue(block, IniConstants.FieldKeys.Type), TextSecondaryBrushKey);
+    }
+
+    private static void AddDefaultVitals(IniBlock block, List<CanvasVitalItem> vitals)
+    {
+        AddVitalIfPresent(vitals, "Health", ResolveHealthValue(block), SuccessBrushKey);
+
+        var cost = FindFieldValue(block, IniConstants.FieldKeys.BuildCost);
+        if (!string.IsNullOrWhiteSpace(cost))
+        {
+            vitals.Add(new("Cost", $"${cost}", WarningBrushKey));
+        }
+
+        var time = FindFieldValue(block, IniConstants.FieldKeys.BuildTime);
+        if (!string.IsNullOrWhiteSpace(time))
+        {
+            vitals.Add(new("Build Time", $"{time}s", TextPrimaryBrushKey));
+        }
+
+        AddVitalIfPresent(vitals, "Vision", FindFieldValue(block, "VisionRange"), TextSecondaryBrushKey);
+        AddVitalIfPresent(vitals, "Shroud", FindFieldValue(block, "ShroudClearingRange"), TextSecondaryBrushKey);
+    }
+
+    private static string ResolveBlockModel(IniBlock block)
+    {
+        var modelField = block.Fields.FirstOrDefault(f => string.Equals(f.Key, "Model", StringComparison.OrdinalIgnoreCase));
+        if (modelField != null)
+        {
+            return modelField.Value;
+        }
+
+        var drawChild = block.Children.FirstOrDefault(c => c.BlockType.Contains("Draw", StringComparison.OrdinalIgnoreCase));
+        var conditionChild = drawChild?.Children.FirstOrDefault(c => c.BlockType.Contains("ConditionState", StringComparison.OrdinalIgnoreCase));
+        var childModel = conditionChild?.Fields.FirstOrDefault(f => string.Equals(f.Key, "Model", StringComparison.OrdinalIgnoreCase));
+        return childModel?.Value ?? string.Empty;
     }
 
     /// <summary>
@@ -2666,103 +2852,22 @@ public sealed partial class IniEditorViewModel(
             return schema.Options;
         }
 
-        // Texture / Image references
-        if (schema?.IsTexture == true ||
-            key.Contains("Image", StringComparison.OrdinalIgnoreCase) ||
-            key.Contains("Portrait", StringComparison.OrdinalIgnoreCase) ||
-            key.Contains("Cameo", StringComparison.OrdinalIgnoreCase))
+        if (IsTextureSuggestionKey(key, schema))
         {
-            var textures = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var item in TexturePickerItems)
+            var textures = ResolveTextureSuggestions();
+            if (textures != null)
             {
-                textures.Add(item.Name);
-            }
-
-            foreach (var name in referenceService.GetNames("MappedImage"))
-            {
-                textures.Add(name);
-            }
-
-            if (_document != null)
-            {
-                foreach (var b in _document.Blocks.Where(b => string.Equals(b.BlockType, "MappedImage", StringComparison.OrdinalIgnoreCase)))
-                {
-                    if (!string.IsNullOrWhiteSpace(b.Name))
-                    {
-                        textures.Add(b.Name);
-                    }
-                }
-            }
-
-            if (textures.Count > 0)
-            {
-                return textures.OrderBy(t => t, StringComparer.OrdinalIgnoreCase).ToList();
+                return textures;
             }
         }
 
-        // Block references
-        var refType = schema?.ReferenceBlockType;
-        if (string.IsNullOrEmpty(refType))
-        {
-            if (string.Equals(key, "CommandButton", StringComparison.OrdinalIgnoreCase))
-            {
-                refType = IniConstants.BlockTypes.CommandButton;
-            }
-            else if (string.Equals(key, "CommandSet", StringComparison.OrdinalIgnoreCase))
-            {
-                refType = IniConstants.BlockTypes.CommandSet;
-            }
-            else if (key.Contains("Weapon", StringComparison.OrdinalIgnoreCase))
-            {
-                refType = IniConstants.BlockTypes.Weapon;
-            }
-            else if (key.Contains("Upgrade", StringComparison.OrdinalIgnoreCase))
-            {
-                refType = IniConstants.BlockTypes.Upgrade;
-            }
-            else if (string.Equals(key, IniConstants.FieldKeys.Object, StringComparison.OrdinalIgnoreCase) || string.Equals(key, "TargetObject", StringComparison.OrdinalIgnoreCase))
-            {
-                refType = IniConstants.BlockTypes.Object;
-            }
-            else if (key.Contains("Armor", StringComparison.OrdinalIgnoreCase))
-            {
-                refType = IniConstants.BlockTypes.Armor;
-            }
-            else if (key.Contains("DamageFX", StringComparison.OrdinalIgnoreCase))
-            {
-                refType = IniConstants.BlockTypes.DamageFX;
-            }
-            else if (key.Contains("Locomotor", StringComparison.OrdinalIgnoreCase))
-            {
-                refType = IniConstants.BlockTypes.Locomotor;
-            }
-            else if (key.Contains("SpecialPower", StringComparison.OrdinalIgnoreCase))
-            {
-                refType = IniConstants.BlockTypes.SpecialPower;
-            }
-            else if (key.Contains("Science", StringComparison.OrdinalIgnoreCase))
-            {
-                refType = "Science";
-            }
-        }
-
+        var refType = ResolveReferenceBlockType(key, schema);
         if (!string.IsNullOrEmpty(refType))
         {
-            var refs = new HashSet<string>(referenceService.GetNames(refType), StringComparer.OrdinalIgnoreCase);
-            if (_document != null)
+            var refs = ResolveReferenceSuggestions(refType);
+            if (refs != null)
             {
-                foreach (var b in _document.Blocks.Where(b => string.Equals(b.BlockType, refType, StringComparison.OrdinalIgnoreCase)))
-                {
-                    if (!string.IsNullOrWhiteSpace(b.Name))
-                    {
-                        refs.Add(b.Name);
-                    }
-                }
-            }
-
-            if (refs.Count > 0)
-            {
-                return refs.OrderBy(r => r, StringComparer.OrdinalIgnoreCase).ToList();
+                return refs;
             }
         }
 
@@ -2773,42 +2878,94 @@ public sealed partial class IniEditorViewModel(
 
         if (string.Equals(key, IniConstants.FieldKeys.Side, StringComparison.OrdinalIgnoreCase))
         {
-            var suggestions = new HashSet<string>(IniConstants.Sides.All, StringComparer.OrdinalIgnoreCase);
-            if (_document != null)
-            {
-                foreach (var b in _document.Blocks)
-                {
-                    foreach (var f in b.Fields)
-                    {
-                        if (string.Equals(f.Key, IniConstants.FieldKeys.Side, StringComparison.OrdinalIgnoreCase) &&
-                            !string.IsNullOrWhiteSpace(f.Value))
-                        {
-                            suggestions.Add(f.Value.Trim());
-                        }
-                    }
-                }
-            }
+            return ResolveSideSuggestions();
+        }
 
-            return suggestions.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList();
+        return ResolveDocumentValueSuggestions(key);
+    }
+
+    private IReadOnlyList<string>? ResolveTextureSuggestions()
+    {
+        var textures = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in TexturePickerItems)
+        {
+            textures.Add(item.Name);
+        }
+
+        foreach (var name in referenceService.GetNames(IniConstants.BlockTypes.MappedImage))
+        {
+            textures.Add(name);
         }
 
         if (_document != null)
         {
-            var docValues = _document.Blocks
-                .SelectMany(b => b.Fields)
-                .Where(f => string.Equals(f.Key, key, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(f.Value))
-                .Select(f => f.Value.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Take(50)
-                .ToList();
-
-            if (docValues.Count > 0)
+            foreach (var name in _document.Blocks
+                .Where(b => string.Equals(b.BlockType, IniConstants.BlockTypes.MappedImage, StringComparison.OrdinalIgnoreCase))
+                .Select(b => b.Name)
+                .Where(name => !string.IsNullOrWhiteSpace(name)))
             {
-                return docValues;
+                textures.Add(name);
             }
         }
 
-        return null;
+        return textures.Count > 0
+            ? textures.OrderBy(t => t, StringComparer.OrdinalIgnoreCase).ToList()
+            : null;
+    }
+
+    private IReadOnlyList<string>? ResolveReferenceSuggestions(string refType)
+    {
+        var refs = new HashSet<string>(referenceService.GetNames(refType), StringComparer.OrdinalIgnoreCase);
+        if (_document != null)
+        {
+            foreach (var name in _document.Blocks
+                .Where(b => string.Equals(b.BlockType, refType, StringComparison.OrdinalIgnoreCase))
+                .Select(b => b.Name)
+                .Where(name => !string.IsNullOrWhiteSpace(name)))
+            {
+                refs.Add(name);
+            }
+        }
+
+        return refs.Count > 0
+            ? refs.OrderBy(r => r, StringComparer.OrdinalIgnoreCase).ToList()
+            : null;
+    }
+
+    private IReadOnlyList<string> ResolveSideSuggestions()
+    {
+        var suggestions = new HashSet<string>(IniConstants.Sides.All, StringComparer.OrdinalIgnoreCase);
+        if (_document != null)
+        {
+            foreach (var value in _document.Blocks
+                .SelectMany(b => b.Fields)
+                .Where(f => string.Equals(f.Key, IniConstants.FieldKeys.Side, StringComparison.OrdinalIgnoreCase) &&
+                    !string.IsNullOrWhiteSpace(f.Value))
+                .Select(f => f.Value.Trim()))
+            {
+                suggestions.Add(value);
+            }
+        }
+
+        return suggestions.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    private IReadOnlyList<string>? ResolveDocumentValueSuggestions(string key)
+    {
+        if (_document == null)
+        {
+            return null;
+        }
+
+        var docValues = _document.Blocks
+            .SelectMany(b => b.Fields)
+            .Where(f => string.Equals(f.Key, key, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(f.Value))
+            .Select(f => f.Value.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(50)
+            .ToList();
+
+        return docValues.Count > 0 ? docValues : null;
     }
 
     private string? BuildFieldTooltip(string key, IniFieldSchema? schema)
@@ -2890,7 +3047,7 @@ public sealed partial class IniEditorViewModel(
         if (SelectedNode?.Block != null)
         {
             var portrait = FindFieldValue(SelectedNode.Block, IniConstants.FieldKeys.SelectPortrait) ??
-                           FindFieldValue(SelectedNode.Block, "ButtonImage");
+                           FindFieldValue(SelectedNode.Block, IniConstants.FieldKeys.ButtonImage);
             if (!string.IsNullOrWhiteSpace(portrait))
             {
                 names.Add(portrait.Trim());
@@ -2992,7 +3149,7 @@ public sealed partial class IniEditorViewModel(
         if (SelectedNode?.Block != null)
         {
             var portrait = FindFieldValue(SelectedNode.Block, IniConstants.FieldKeys.SelectPortrait) ??
-                           FindFieldValue(SelectedNode.Block, "ButtonImage");
+                           FindFieldValue(SelectedNode.Block, IniConstants.FieldKeys.ButtonImage);
             if (!string.IsNullOrWhiteSpace(portrait) && _textureThumbnails.TryGetValue(portrait.Trim(), out var thumb))
             {
                 SelectedBlockPortrait = thumb;
@@ -3027,22 +3184,7 @@ public sealed partial class IniEditorViewModel(
 
     private async Task LoadTexturePickerItemsAsync(CancellationToken cancellationToken)
     {
-        var directory = FileExplorer.Directory;
-        var files = new List<string>();
-        if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory))
-        {
-            try
-            {
-                files.AddRange(Directory
-                    .EnumerateFiles(directory, ModBuilderConstants.FileNames.IniSearchPattern, SearchOption.AllDirectories)
-                    .Where(file => file.Contains("MappedImages", StringComparison.OrdinalIgnoreCase))
-                    .Take(IniConstants.Editor.MaxMappedImageFiles));
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                logger.LogWarning(ex, "Failed to enumerate mapped image files in {Directory}", directory);
-            }
-        }
+        var files = CollectMappedImageFiles(FileExplorer.Directory);
 
         var definitions = new List<MappedImageDefinition>();
         foreach (var file in files)
@@ -3060,6 +3202,34 @@ public sealed partial class IniEditorViewModel(
             }
         }
 
+        await PopulateTexturePickerItemsAsync(definitions).ConfigureAwait(false);
+    }
+
+    private List<string> CollectMappedImageFiles(string? directory)
+    {
+        var files = new List<string>();
+        if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory))
+        {
+            return files;
+        }
+
+        try
+        {
+            files.AddRange(Directory
+                .EnumerateFiles(directory, ModBuilderConstants.FileNames.IniSearchPattern, SearchOption.AllDirectories)
+                .Where(file => file.Contains("MappedImages", StringComparison.OrdinalIgnoreCase))
+                .Take(IniConstants.Editor.MaxMappedImageFiles));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Failed to enumerate mapped image files in {Directory}", directory);
+        }
+
+        return files;
+    }
+
+    private async Task PopulateTexturePickerItemsAsync(List<MappedImageDefinition> definitions)
+    {
         await InvokeOnUIThreadAsync(() =>
         {
             TexturePickerItems.Clear();
@@ -3249,19 +3419,19 @@ public sealed partial class IniEditorViewModel(
             var health = ResolveHealthValue(block);
             if (!string.IsNullOrWhiteSpace(health))
             {
-                vitals.Add(new("HP", health, "SuccessBrush"));
+                vitals.Add(new("HP", health, SuccessBrushKey));
             }
 
             var cost = FindFieldValue(block, IniConstants.FieldKeys.BuildCost);
             if (!string.IsNullOrWhiteSpace(cost))
             {
-                vitals.Add(new("Cost", $"${cost}", "WarningBrush"));
+                vitals.Add(new("Cost", $"${cost}", WarningBrushKey));
             }
 
             var cmd = FindFieldValue(block, IniConstants.FieldKeys.Command);
             if (!string.IsNullOrWhiteSpace(cmd))
             {
-                vitals.Add(new("Cmd", cmd, "AccentBrush"));
+                vitals.Add(new("Cmd", cmd, AccentBrushKey));
             }
 
             CanvasBlockCards.Add(new IniCanvasCardViewModel(block, title, block.BlockType, side, portrait, vitals));
@@ -3330,21 +3500,7 @@ public sealed partial class IniEditorViewModel(
         var block = node?.Block;
         if (block == null)
         {
-            HasSelectedBlock = false;
-            HasSelectedBlockKindOf = false;
-            HasSelectedBlockModules = false;
-            SelectedBlockTitle = string.Empty;
-            SelectedBlockType = string.Empty;
-            SelectedBlockSide = string.Empty;
-            SelectedBlockHealth = null;
-            SelectedBlockCost = null;
-            SelectedBlockTime = null;
-            SelectedBlockModel = string.Empty;
-            SelectedBlockPortrait = null;
-            SelectedBlockKindOfList.Clear();
-            SelectedBlockModules.Clear();
-            SelectedBlockVitals = [];
-            OnPropertyChanged(nameof(HasSelectedBlockVitals));
+            ResetVisualObjectCard();
             return;
         }
 
@@ -3358,80 +3514,45 @@ public sealed partial class IniEditorViewModel(
         SelectedBlockTime = FindFieldValue(block, IniConstants.FieldKeys.BuildTime);
 
         var vitals = new List<CanvasVitalItem>();
-        if (string.Equals(block.BlockType, IniConstants.BlockTypes.CommandButton, StringComparison.OrdinalIgnoreCase))
-        {
-            var cmd = FindFieldValue(block, IniConstants.FieldKeys.Command);
-            if (!string.IsNullOrWhiteSpace(cmd)) vitals.Add(new("Command", cmd, "AccentBrush"));
-
-            var border = FindFieldValue(block, "ButtonBorderType");
-            if (!string.IsNullOrWhiteSpace(border)) vitals.Add(new("Border", border, "TextSecondary"));
-
-            var obj = FindFieldValue(block, IniConstants.FieldKeys.Object) ?? FindFieldValue(block, "Upgrade");
-            if (!string.IsNullOrWhiteSpace(obj)) vitals.Add(new("Target", obj, "AccentBrush"));
-
-            var img = FindFieldValue(block, IniConstants.FieldKeys.ButtonImage);
-            if (!string.IsNullOrWhiteSpace(img)) vitals.Add(new("Image", img, "TextPrimary"));
-        }
-        else if (string.Equals(block.BlockType, IniConstants.BlockTypes.Weapon, StringComparison.OrdinalIgnoreCase))
-        {
-            var dmg = FindFieldValue(block, IniConstants.FieldKeys.PrimaryDamage);
-            if (!string.IsNullOrWhiteSpace(dmg)) vitals.Add(new("Damage", dmg, "AccentBrush"));
-
-            var range = FindFieldValue(block, IniConstants.FieldKeys.AttackRange);
-            if (!string.IsNullOrWhiteSpace(range)) vitals.Add(new("Range", range, "TextPrimary"));
-
-            var type = FindFieldValue(block, IniConstants.FieldKeys.DamageType);
-            if (!string.IsNullOrWhiteSpace(type)) vitals.Add(new("Type", type, "TextSecondary"));
-
-            var delay = FindFieldValue(block, "DelayBetweenShots");
-            if (!string.IsNullOrWhiteSpace(delay)) vitals.Add(new("Delay", delay, "TextSecondary"));
-        }
-        else if (string.Equals(block.BlockType, IniConstants.BlockTypes.Upgrade, StringComparison.OrdinalIgnoreCase))
-        {
-            var cost = FindFieldValue(block, IniConstants.FieldKeys.BuildCost);
-            if (!string.IsNullOrWhiteSpace(cost)) vitals.Add(new("Cost", $"", "AccentBrush"));
-
-            var time = FindFieldValue(block, IniConstants.FieldKeys.BuildTime);
-            if (!string.IsNullOrWhiteSpace(time)) vitals.Add(new("Time", $"{time}s", "TextPrimary"));
-
-            var type = FindFieldValue(block, IniConstants.FieldKeys.Type);
-            if (!string.IsNullOrWhiteSpace(type)) vitals.Add(new("Type", type, "TextSecondary"));
-        }
-        else
-        {
-            var health = ResolveHealthValue(block);
-            if (!string.IsNullOrWhiteSpace(health)) vitals.Add(new("Health", health, "SuccessBrush"));
-
-            var cost = FindFieldValue(block, IniConstants.FieldKeys.BuildCost);
-            if (!string.IsNullOrWhiteSpace(cost)) vitals.Add(new("Cost", $"${cost}", "WarningBrush"));
-
-            var time = FindFieldValue(block, IniConstants.FieldKeys.BuildTime);
-            if (!string.IsNullOrWhiteSpace(time)) vitals.Add(new("Build Time", $"{time}s", "TextPrimary"));
-
-            var vision = FindFieldValue(block, "VisionRange");
-            if (!string.IsNullOrWhiteSpace(vision)) vitals.Add(new("Vision", vision, "TextSecondary"));
-
-            var shroud = FindFieldValue(block, "ShroudClearingRange");
-            if (!string.IsNullOrWhiteSpace(shroud)) vitals.Add(new("Shroud", shroud, "TextSecondary"));
-        }
-
+        AddBlockTypeVitals(block, vitals);
         SelectedBlockVitals = vitals;
         OnPropertyChanged(nameof(HasSelectedBlockVitals));
 
-        var modelField = block.Fields.FirstOrDefault(f => string.Equals(f.Key, "Model", StringComparison.OrdinalIgnoreCase));
-        if (modelField != null)
-        {
-            SelectedBlockModel = modelField.Value;
-        }
-        else
-        {
-            var drawChild = block.Children.FirstOrDefault(c => c.BlockType.Contains("Draw", StringComparison.OrdinalIgnoreCase));
-            var conditionChild = drawChild?.Children.FirstOrDefault(c => c.BlockType.Contains("ConditionState", StringComparison.OrdinalIgnoreCase));
-            var childModel = conditionChild?.Fields.FirstOrDefault(f => string.Equals(f.Key, "Model", StringComparison.OrdinalIgnoreCase));
-            SelectedBlockModel = childModel?.Value ?? string.Empty;
-        }
+        SelectedBlockModel = ResolveBlockModel(block);
+        ApplyVisualObjectPortrait(block);
+        ApplyVisualObjectLists(block, node);
 
-        var portraitName = (FindFieldValue(block, IniConstants.FieldKeys.SelectPortrait) ?? FindFieldValue(block, "ButtonImage"))?.Trim();
+        HasSelectedBlockKindOf = SelectedBlockKindOfList.Count > 0;
+        HasSelectedBlockModules = SelectedBlockModules.Count > 0;
+        OnPropertyChanged(nameof(HealthLabel));
+        OnPropertyChanged(nameof(CostLabel));
+        OnPropertyChanged(nameof(BuildTimeLabel));
+        OnPropertyChanged(nameof(KindOfLabel));
+        OnPropertyChanged(nameof(ModulesLabel));
+    }
+
+    private void ResetVisualObjectCard()
+    {
+        HasSelectedBlock = false;
+        HasSelectedBlockKindOf = false;
+        HasSelectedBlockModules = false;
+        SelectedBlockTitle = string.Empty;
+        SelectedBlockType = string.Empty;
+        SelectedBlockSide = string.Empty;
+        SelectedBlockHealth = null;
+        SelectedBlockCost = null;
+        SelectedBlockTime = null;
+        SelectedBlockModel = string.Empty;
+        SelectedBlockPortrait = null;
+        SelectedBlockKindOfList.Clear();
+        SelectedBlockModules.Clear();
+        SelectedBlockVitals = [];
+        OnPropertyChanged(nameof(HasSelectedBlockVitals));
+    }
+
+    private void ApplyVisualObjectPortrait(IniBlock block)
+    {
+        var portraitName = (FindFieldValue(block, IniConstants.FieldKeys.SelectPortrait) ?? FindFieldValue(block, IniConstants.FieldKeys.ButtonImage))?.Trim();
         if (!string.IsNullOrWhiteSpace(portraitName) && _textureThumbnails.TryGetValue(portraitName, out var thumb))
         {
             SelectedBlockPortrait = thumb;
@@ -3440,7 +3561,10 @@ public sealed partial class IniEditorViewModel(
         {
             SelectedBlockPortrait = null;
         }
+    }
 
+    private void ApplyVisualObjectLists(IniBlock block, IniTreeNodeViewModel? node)
+    {
         SelectedBlockKindOfList.Clear();
         var kindOfStr = FindFieldValue(block, IniConstants.FieldKeys.KindOf);
         if (!string.IsNullOrWhiteSpace(kindOfStr))
@@ -3452,21 +3576,13 @@ public sealed partial class IniEditorViewModel(
         }
 
         SelectedBlockModules.Clear();
-        if (node?.Children != null)
+        if (node != null)
         {
             foreach (var childNode in node.Children)
             {
                 SelectedBlockModules.Add(childNode);
             }
         }
-
-        HasSelectedBlockKindOf = SelectedBlockKindOfList.Count > 0;
-        HasSelectedBlockModules = SelectedBlockModules.Count > 0;
-        OnPropertyChanged(nameof(HealthLabel));
-        OnPropertyChanged(nameof(CostLabel));
-        OnPropertyChanged(nameof(BuildTimeLabel));
-        OnPropertyChanged(nameof(KindOfLabel));
-        OnPropertyChanged(nameof(ModulesLabel));
     }
 
     private void UpdateAvailableFieldKeys()

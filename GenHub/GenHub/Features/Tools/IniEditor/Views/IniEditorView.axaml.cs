@@ -5,6 +5,7 @@ using Avalonia.Markup.Xaml;
 using GenHub.Common.Controls;
 using GenHub.Core.Models.Tools.TextureEditor;
 using GenHub.Features.Tools.IniEditor.ViewModels;
+using System.Windows.Input;
 
 namespace GenHub.Features.Tools.IniEditor.Views;
 
@@ -27,6 +28,31 @@ public partial class IniEditorView : UserControl
             picker.EditRequested += OnPickerEditRequested;
             picker.ImageActivated += OnPickerImageActivated;
         }
+    }
+
+    private static bool IsPrimaryShortcut(KeyEventArgs e)
+    {
+        var isPrimary = (e.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Meta)) != 0;
+        var hasAlt = (e.KeyModifiers & KeyModifiers.Alt) != 0;
+        return isPrimary && !hasAlt;
+    }
+
+    private static bool HasShiftModifier(KeyEventArgs e)
+    {
+        return (e.KeyModifiers & KeyModifiers.Shift) != 0;
+    }
+
+    private static ICommand? ResolveShortcutCommand(IniEditorViewModel viewModel, Key key, bool hasShift)
+    {
+        return (key, hasShift) switch
+        {
+            (Key.Z, false) => viewModel.UndoCommand,
+            (Key.Y, false) => viewModel.RedoCommand,
+            (Key.Z, true) => viewModel.RedoCommand,
+            (Key.S, false) => viewModel.SaveCommand,
+            (Key.S, true) => viewModel.SaveAsCommand,
+            _ => null,
+        };
     }
 
     private void InitializeComponent()
@@ -52,51 +78,16 @@ public partial class IniEditorView : UserControl
 
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
     {
-        if (DataContext is not IniEditorViewModel viewModel)
+        if (DataContext is not IniEditorViewModel viewModel || !IsPrimaryShortcut(e))
         {
             return;
         }
 
-        var isPrimary = (e.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Meta)) != 0;
-        var hasShift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
-        var hasAlt = (e.KeyModifiers & KeyModifiers.Alt) != 0;
-
-        if (!isPrimary || hasAlt)
+        var command = ResolveShortcutCommand(viewModel, e.Key, HasShiftModifier(e));
+        if (command?.CanExecute(null) == true)
         {
-            return;
-        }
-
-        if (!hasShift && e.Key == Key.Z)
-        {
-            if (viewModel.UndoCommand.CanExecute(null))
-            {
-                viewModel.UndoCommand.Execute(null);
-                e.Handled = true;
-            }
-        }
-        else if ((!hasShift && e.Key == Key.Y) || (hasShift && e.Key == Key.Z))
-        {
-            if (viewModel.RedoCommand.CanExecute(null))
-            {
-                viewModel.RedoCommand.Execute(null);
-                e.Handled = true;
-            }
-        }
-        else if (!hasShift && e.Key == Key.S)
-        {
-            if (viewModel.SaveCommand.CanExecute(null))
-            {
-                viewModel.SaveCommand.Execute(null);
-                e.Handled = true;
-            }
-        }
-        else if (hasShift && e.Key == Key.S)
-        {
-            if (viewModel.SaveAsCommand.CanExecute(null))
-            {
-                viewModel.SaveAsCommand.Execute(null);
-                e.Handled = true;
-            }
+            command.Execute(null);
+            e.Handled = true;
         }
     }
 }

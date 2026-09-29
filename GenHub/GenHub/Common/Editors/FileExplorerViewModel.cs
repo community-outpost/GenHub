@@ -200,80 +200,14 @@ public sealed partial class FileExplorerViewModel : ObservableObject
 
         if (!AsynchronousEnumeration)
         {
-            _currentRefreshTask = null;
-            Nodes.Clear();
-            IsLoading = false;
-            try
-            {
-                var rootNode = BuildDirectoryNode(new DirectoryInfo(directory), currentPath, null, 0, ct);
-                if (rootNode is not null)
-                {
-                    Nodes.Add(rootNode);
-                    UpdateNodesCurrentState(Nodes, CurrentPath);
-                }
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                _logger.LogWarning(ex, "Failed to list files in {Directory}", directory);
-            }
-
+            RefreshSynchronously(directory, currentPath, ct);
             return;
         }
 
         IsLoading = true;
         Nodes.Clear();
         _currentRefreshTask = Task.Run(
-            async () =>
-            {
-                try
-                {
-                    if (ct.IsCancellationRequested)
-                    {
-                        return;
-                    }
-
-                    var rootNode = BuildDirectoryNode(new DirectoryInfo(directory), currentPath, null, 0, ct);
-                    if (ct.IsCancellationRequested)
-                    {
-                        return;
-                    }
-
-                    await Dispatcher.UIThread.InvokeAsync(() =>
-                    {
-                        if (ct.IsCancellationRequested)
-                        {
-                            return;
-                        }
-
-                        Nodes.Clear();
-                        if (rootNode is not null)
-                        {
-                            Nodes.Add(rootNode);
-                            UpdateNodesCurrentState(Nodes, CurrentPath);
-                        }
-
-                        IsLoading = false;
-                    });
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    _logger.LogWarning(ex, "Failed to list files in {Directory}", directory);
-                    if (!ct.IsCancellationRequested)
-                    {
-                        await Dispatcher.UIThread.InvokeAsync(() =>
-                        {
-                            if (!ct.IsCancellationRequested)
-                            {
-                                IsLoading = false;
-                            }
-                        });
-                    }
-                }
-                catch (OperationCanceledException)
-                {
-                    // Ignored
-                }
-            },
+            () => RefreshInBackgroundAsync(directory, currentPath, ct),
             ct);
     }
 
@@ -319,6 +253,90 @@ public sealed partial class FileExplorerViewModel : ObservableObject
 
             UpdateNodesCurrentState(node.Children, currentPath);
         }
+    }
+
+    private void RefreshSynchronously(string directory, string? currentPath, CancellationToken cancellationToken)
+    {
+        _currentRefreshTask = null;
+        Nodes.Clear();
+        IsLoading = false;
+        try
+        {
+            var rootNode = BuildDirectoryNode(new DirectoryInfo(directory), currentPath, null, 0, cancellationToken);
+            if (rootNode is not null)
+            {
+                Nodes.Add(rootNode);
+                UpdateNodesCurrentState(Nodes, CurrentPath);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(ex, "Failed to list files in {Directory}", directory);
+        }
+    }
+
+    private async Task RefreshInBackgroundAsync(string directory, string? currentPath, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            var rootNode = BuildDirectoryNode(new DirectoryInfo(directory), currentPath, null, 0, cancellationToken);
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            await InstallCompletedTreeAsync(rootNode, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Failed to list files in {Directory}", directory);
+            await ClearLoadingOnFailureAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // Ignored
+        }
+    }
+
+    private async Task InstallCompletedTreeAsync(EditorFileTreeNodeViewModel? rootNode, CancellationToken cancellationToken)
+    {
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            Nodes.Clear();
+            if (rootNode is not null)
+            {
+                Nodes.Add(rootNode);
+                UpdateNodesCurrentState(Nodes, CurrentPath);
+            }
+
+            IsLoading = false;
+        });
+    }
+
+    private async Task ClearLoadingOnFailureAsync(CancellationToken cancellationToken)
+    {
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            if (!cancellationToken.IsCancellationRequested)
+            {
+                IsLoading = false;
+            }
+        });
     }
 
     partial void OnDirectoryChanged(string? value) => Refresh();

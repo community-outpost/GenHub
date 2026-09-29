@@ -123,7 +123,7 @@ public partial class MappedImagePickerControl : UserControl
         base.OnPropertyChanged(change);
         if (change.Property == ItemsSourceProperty)
         {
-            TrackItemsSource(change.GetOldValue<IEnumerable<MappedImageDefinition>?>(), change.GetNewValue<IEnumerable<MappedImageDefinition>?>());
+            TrackItemsSource(change.GetNewValue<IEnumerable<MappedImageDefinition>?>());
             RefreshFilter();
         }
         else if (change.Property == ThumbnailProviderProperty)
@@ -193,7 +193,7 @@ public partial class MappedImagePickerControl : UserControl
         }
     }
 
-    private void TrackItemsSource(IEnumerable<MappedImageDefinition>? oldSource, IEnumerable<MappedImageDefinition>? newSource)
+    private void TrackItemsSource(IEnumerable<MappedImageDefinition>? newSource)
     {
         if (_trackedSource is not null)
         {

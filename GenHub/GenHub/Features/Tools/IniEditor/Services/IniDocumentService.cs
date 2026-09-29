@@ -693,10 +693,7 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
         foreach (var field in block.Fields)
         {
             WriteComments(builder, field.LeadingComments, indent + 1);
-            var fieldText = field.IsBare
-                ? (string.IsNullOrEmpty(field.Value) ? field.Key : $"{field.Key} {field.Value}")
-                : $"{field.Key} = {field.Value}";
-            AppendLine(builder, indent + 1, AppendTrailingComment(fieldText, field.TrailingComment));
+            AppendLine(builder, indent + 1, AppendTrailingComment(FormatFieldText(field), field.TrailingComment));
         }
 
         foreach (var child in block.Children)
@@ -726,6 +723,16 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
     private static string AppendTrailingComment(string code, string? comment)
     {
         return comment == null ? code : $"{code} ; {comment}";
+    }
+
+    private static string FormatFieldText(IniField field)
+    {
+        if (!field.IsBare)
+        {
+            return $"{field.Key} = {field.Value}";
+        }
+
+        return string.IsNullOrEmpty(field.Value) ? field.Key : $"{field.Key} {field.Value}";
     }
 
     private static void AppendLine(StringBuilder builder, int indent, string text)
