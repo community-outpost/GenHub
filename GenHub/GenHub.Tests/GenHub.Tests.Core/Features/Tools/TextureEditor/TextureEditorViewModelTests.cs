@@ -78,13 +78,14 @@ public sealed class TextureEditorViewModelTests
     /// <summary>
     /// Verifies that loading a registry entry without an open atlas informs and is skipped.
     /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public void LoadRegistryEntry_NoAtlas_ShowsInfoAndSkips()
+    public async Task LoadRegistryEntry_NoAtlas_ShowsInfoAndSkipsAsync()
     {
         var notifications = new Mock<INotificationService>();
         var viewModel = CreateViewModel(notifications: notifications);
 
-        viewModel.LoadRegistryEntry(new MappedImageDefinition("Local", "atlas.tga", 1, 1, 0, 0, 1, 1));
+        await viewModel.LoadRegistryEntryAsync(new MappedImageDefinition("Local", "atlas.tga", 1, 1, 0, 0, 1, 1));
 
         Assert.Empty(viewModel.Slices);
         notifications.Verify(
@@ -95,14 +96,15 @@ public sealed class TextureEditorViewModelTests
     /// <summary>
     /// Verifies that a registry entry from another texture warns and is not loaded.
     /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
     [AvaloniaFact]
-    public void LoadRegistryEntry_TextureMismatch_WarnsAndSkips()
+    public async Task LoadRegistryEntry_TextureMismatch_WarnsAndSkipsAsync()
     {
         var notifications = new Mock<INotificationService>();
         var viewModel = CreateViewModel(notifications: notifications);
         using var bitmap = OpenAtlas(viewModel, "atlas.tga");
 
-        viewModel.LoadRegistryEntry(new MappedImageDefinition("Foreign", "other.tga", 64, 64, 0, 0, 32, 32));
+        await viewModel.LoadRegistryEntryAsync(new MappedImageDefinition("Foreign", "other.tga", 64, 64, 0, 0, 32, 32));
 
         Assert.Empty(viewModel.Slices);
         notifications.Verify(
@@ -113,13 +115,14 @@ public sealed class TextureEditorViewModelTests
     /// <summary>
     /// Verifies that a registry entry from the open atlas is added as a slice.
     /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
     [AvaloniaFact]
-    public void LoadRegistryEntry_MatchingTexture_AddsSlice()
+    public async Task LoadRegistryEntry_MatchingTexture_AddsSliceAsync()
     {
         var viewModel = CreateViewModel();
         using var bitmap = OpenAtlas(viewModel, "atlas.tga");
 
-        viewModel.LoadRegistryEntry(new MappedImageDefinition("Local", "atlas.tga", 1, 1, 0, 0, 1, 1));
+        await viewModel.LoadRegistryEntryAsync(new MappedImageDefinition("Local", "atlas.tga", 1, 1, 0, 0, 1, 1));
 
         Assert.Single(viewModel.Slices);
         Assert.Same(viewModel.Slices[0], viewModel.SelectedSlice);
@@ -129,15 +132,16 @@ public sealed class TextureEditorViewModelTests
     /// Verifies that a registry entry from another directory warns and is not loaded,
     /// even when the texture name matches.
     /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
     [AvaloniaFact]
-    public void LoadRegistryEntry_ForeignDirectory_WarnsAndSkips()
+    public async Task LoadRegistryEntry_ForeignDirectory_WarnsAndSkipsAsync()
     {
         var notifications = new Mock<INotificationService>();
         var viewModel = CreateViewModel(notifications: notifications);
         using var bitmap = OpenAtlas(viewModel, "atlas.tga");
         string foreignIni = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString(), "icons.ini");
 
-        viewModel.LoadRegistryEntry(new MappedImageDefinition("Stale", "atlas.tga", 1, 1, 0, 0, 1, 1, SourcePath: foreignIni));
+        await viewModel.LoadRegistryEntryAsync(new MappedImageDefinition("Stale", "atlas.tga", 1, 1, 0, 0, 1, 1, SourcePath: foreignIni));
 
         Assert.Empty(viewModel.Slices);
         notifications.Verify(
@@ -148,14 +152,15 @@ public sealed class TextureEditorViewModelTests
     /// <summary>
     /// Verifies that a registry entry from the atlas directory is adopted.
     /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
     [AvaloniaFact]
-    public void LoadRegistryEntry_SameDirectory_AddsSlice()
+    public async Task LoadRegistryEntry_SameDirectory_AddsSliceAsync()
     {
         var viewModel = CreateViewModel();
         using var bitmap = OpenAtlas(viewModel, "atlas.tga");
-        string siblingIni = Path.Combine(Path.GetTempPath(), "icons.ini");
+        string siblingIni = Path.Combine(Path.GetDirectoryName(viewModel.AtlasPath!)!, "icons.ini");
 
-        viewModel.LoadRegistryEntry(new MappedImageDefinition("Local", "atlas.tga", 1, 1, 0, 0, 1, 1, SourcePath: siblingIni));
+        await viewModel.LoadRegistryEntryAsync(new MappedImageDefinition("Local", "atlas.tga", 1, 1, 0, 0, 1, 1, SourcePath: siblingIni));
 
         Assert.Single(viewModel.Slices);
     }
@@ -561,7 +566,7 @@ public sealed class TextureEditorViewModelTests
         var viewModel = CreateViewModel(notifications: notifications);
         var definition = new MappedImageDefinition("MissingImage", "MissingTexture.tga", 512, 256, 10, 10, 50, 50);
 
-        viewModel.LoadRegistryEntry(definition, explicitOpen: true);
+        await viewModel.LoadRegistryEntryAsync(definition, explicitOpen: true);
 
         for (int attempt = 0; attempt < 500 && (viewModel.AtlasBitmap is null || viewModel.IsBusy); attempt++)
         {
@@ -652,7 +657,7 @@ public sealed class TextureEditorViewModelTests
             var viewModel = CreateViewModel(gameInstallations: gameMock);
             var definition = new MappedImageDefinition("SkirmishSlice", "Skirmish_Load.tga", 1, 1, 0, 0, 1, 1);
 
-            viewModel.LoadRegistryEntry(definition, explicitOpen: true);
+            await viewModel.LoadRegistryEntryAsync(definition, explicitOpen: true);
 
             for (int attempt = 0; attempt < 500 && (viewModel.AtlasBitmap is null || viewModel.IsBusy); attempt++)
             {
@@ -700,7 +705,7 @@ public sealed class TextureEditorViewModelTests
             viewModel.AtlasPath = @"A:\Steam\steamapps\common\WindowZH.big#Window\Menus\Skirmish_Load.tga";
             viewModel.AtlasBitmap = bitmap;
 
-            viewModel.LoadRegistryEntry(slice1, explicitOpen: true);
+            await viewModel.LoadRegistryEntryAsync(slice1, explicitOpen: true);
 
             for (int attempt = 0; attempt < 100 && viewModel.Slices.Count < 2; attempt++)
             {
@@ -955,7 +960,9 @@ public sealed class TextureEditorViewModelTests
             new Avalonia.Vector(96, 96),
             Avalonia.Platform.PixelFormat.Bgra8888,
             Avalonia.Platform.AlphaFormat.Premul);
-        viewModel.AtlasPath = Path.Combine(Path.GetTempPath(), fileName);
+        string testDir = Path.Combine(Path.GetTempPath(), "GenHubTests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(testDir);
+        viewModel.AtlasPath = Path.Combine(testDir, fileName);
         viewModel.AtlasBitmap = writeable;
         return writeable;
     }

@@ -269,6 +269,17 @@ public sealed partial class TextureEditorViewModel(
     /// <param name="explicitOpen">True when the entry was just opened with its texture, bypassing the directory guard.</param>
     public void LoadRegistryEntry(MappedImageDefinition definition, bool explicitOpen = false)
     {
+        _ = LoadRegistryEntryAsync(definition, explicitOpen);
+    }
+
+    /// <summary>
+    /// Asynchronously loads a mapped image definition from the registry into the editor.
+    /// </summary>
+    /// <param name="definition">The mapped image definition.</param>
+    /// <param name="explicitOpen">True when the entry was just opened with its texture, bypassing the directory guard.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public async Task LoadRegistryEntryAsync(MappedImageDefinition definition, bool explicitOpen = false)
+    {
         ArgumentNullException.ThrowIfNull(definition);
         if (IsBusy)
         {
@@ -277,7 +288,7 @@ public sealed partial class TextureEditorViewModel(
 
         if (AtlasBitmap is null)
         {
-            _ = HandleRegistryEntryWithoutAtlasAsync(definition, explicitOpen);
+            await HandleRegistryEntryWithoutAtlasAsync(definition, explicitOpen).ConfigureAwait(true);
             return;
         }
 
@@ -287,7 +298,7 @@ public sealed partial class TextureEditorViewModel(
             return;
         }
 
-        _ = ResolveExternalAtlasEntryAsync(definition, explicitOpen, sameDirectory);
+        await ResolveExternalAtlasEntryAsync(definition, explicitOpen, sameDirectory).ConfigureAwait(true);
     }
 
     /// <summary>
@@ -1585,7 +1596,7 @@ public sealed partial class TextureEditorViewModel(
                 else if (RegistryImages.Count > 0)
                 {
                     var firstEntry = RegistryImages[0];
-                    LoadRegistryEntry(firstEntry, explicitOpen: true);
+                    await LoadRegistryEntryAsync(firstEntry, explicitOpen: true).ConfigureAwait(true);
                 }
             }
         }
@@ -2100,7 +2111,7 @@ public sealed partial class TextureEditorViewModel(
             return;
         }
 
-        LoadRegistryEntry(definition, explicitOpen: true);
+        await LoadRegistryEntryAsync(definition, explicitOpen: true).ConfigureAwait(true);
         Notifications.ShowInfo(
             Localize("TextureEditor.Notify.RegistryOpened.Title", "Texture opened"),
             Localize("TextureEditor.Notify.RegistryOpened.Message", "Opened {0} to edit '{1}'.", AtlasFileName, definition.Name),
@@ -2405,7 +2416,7 @@ public sealed partial class TextureEditorViewModel(
                 continue;
             }
 
-            string? fromBig = FindTextureInBigArchives(directory, candidates, recurse: true);
+            string? fromBig = FindTextureInBigArchives(directory, candidates, recurse: false);
             if (fromBig is not null)
             {
                 return fromBig;
@@ -2431,10 +2442,20 @@ public sealed partial class TextureEditorViewModel(
                 return found;
             }
 
-            string? fromGameBig = FindTextureInBigArchives(gameDir, candidates, recurse: true);
+            string? fromGameBig = FindTextureInBigArchives(gameDir, candidates, recurse: false);
             if (fromGameBig is not null)
             {
                 return fromGameBig;
+            }
+
+            string dataDir = Path.Combine(gameDir, "Data");
+            if (Directory.Exists(dataDir))
+            {
+                string? fromDataBig = FindTextureInBigArchives(dataDir, candidates, recurse: false);
+                if (fromDataBig is not null)
+                {
+                    return fromDataBig;
+                }
             }
         }
 
@@ -2562,10 +2583,20 @@ public sealed partial class TextureEditorViewModel(
         list.Add(dir);
         try
         {
+            string? tempRoot = Path.GetTempPath().TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             var current = new DirectoryInfo(dir);
             for (int depth = 0; depth < 5 && current.Parent is not null; depth++)
             {
                 current = current.Parent;
+                string fullName = current.FullName.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                string root = Path.GetPathRoot(current.FullName)?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) ?? string.Empty;
+                if (string.IsNullOrEmpty(fullName) ||
+                    string.Equals(fullName, root, StringComparison.OrdinalIgnoreCase) ||
+                    (!string.IsNullOrEmpty(tempRoot) && string.Equals(fullName, tempRoot, StringComparison.OrdinalIgnoreCase)))
+                {
+                    break;
+                }
+
                 list.Add(current.FullName);
             }
         }
