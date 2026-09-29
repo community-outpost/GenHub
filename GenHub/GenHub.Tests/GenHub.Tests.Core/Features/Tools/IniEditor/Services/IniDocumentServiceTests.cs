@@ -594,6 +594,55 @@ public sealed class IniDocumentServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that a second top-level block parsed inside an unclosed block of
+    /// the same type is reported as ambiguous discarded content, since the lost
+    /// sibling boundary would bake in the wrong nesting on save.
+    /// </summary>
+    [Fact]
+    public void ParseText_SameTypeNestedBlock_ReportsDiscardedContent()
+    {
+        var result = _service.ParseText("Object First\n  Health = 1.0\nObject Second\n  Health = 2.0\nEnd\nEnd\n");
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.HasParseErrors.Should().BeTrue();
+        result.Data.HasDiscardedContent.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Verifies that an unclosed block holding a legitimate nested module keeps
+    /// its repair available instead of being flagged as discarded content.
+    /// </summary>
+    [Fact]
+    public void ParseText_UnclosedBlockWithNestedModule_KeepsRepairAllowed()
+    {
+        var result = _service.ParseText("Object Modular\n  WeaponSet\n    PRIMARY = SomeWeapon\n");
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.HasParseErrors.Should().BeTrue();
+        result.Data.HasDiscardedContent.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Verifies that formatting refuses a file whose missing End repair cannot
+    /// preserve the original top-level nesting.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task FormatFileAsync_AmbiguousNesting_RefusesAndPreservesFile()
+    {
+        var filePath = Path.Combine(_tempDirectory, "Ambiguous.ini");
+        const string ambiguous = "Object First\n  Health = 1.0\nObject Second\n  Health = 2.0\nEnd\nEnd\n";
+        await File.WriteAllTextAsync(filePath, ambiguous);
+
+        var result = await _service.FormatFileAsync(filePath, CancellationToken.None);
+
+        result.Success.Should().BeFalse();
+        (await File.ReadAllTextAsync(filePath)).Should().Be(ambiguous);
+    }
+
+    /// <summary>
     /// Verifies that a map override RemoveModule directive keeps whitespace syntax
     /// even when the editor cleared its bare marker while editing the value.
     /// </summary>

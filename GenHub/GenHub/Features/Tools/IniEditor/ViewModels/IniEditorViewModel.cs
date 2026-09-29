@@ -564,51 +564,40 @@ public sealed partial class IniEditorViewModel(
 
         if (existingPortrait is not null)
         {
-            var index = block.Fields.IndexOf(existingPortrait);
-            var oldField = existingPortrait;
-            var newField = existingPortrait with { Value = textureName };
-            block.Fields[index] = newField;
+            var oldValue = existingPortrait.Value;
+            SetFieldValueByKey(block.Fields, expectedPortraitKey, textureName);
 
             PushUndo(new IniEditAction(
                 Title: Localization.GetString("Tools.IniEditor.History.AttachTexture"),
                 Redo: () =>
                 {
-                    var idx = block.Fields.IndexOf(oldField);
-                    if (idx >= 0)
-                    {
-                        block.Fields[idx] = newField;
-                    }
-                    else
-                    {
-                        block.Fields.Add(newField);
-                    }
-
+                    SetFieldValueByKey(block.Fields, expectedPortraitKey, textureName);
                     RebuildAll();
                 },
                 Undo: () =>
                 {
-                    var idx = block.Fields.IndexOf(newField);
-                    if (idx >= 0)
-                    {
-                        block.Fields[idx] = oldField;
-                    }
-
+                    SetFieldValueByKey(block.Fields, expectedPortraitKey, oldValue);
                     RebuildAll();
                 }));
         }
         else
         {
-            var key = string.Equals(block.BlockType, IniConstants.BlockTypes.CommandButton, StringComparison.OrdinalIgnoreCase)
-                ? IniConstants.FieldKeys.ButtonImage
-                : IniConstants.FieldKeys.SelectPortrait;
-            var newField = new IniField(key, textureName);
+            var newField = new IniField(expectedPortraitKey, textureName);
             block.Fields.Add(newField);
 
             PushUndo(new IniEditAction(
                 Title: Localization.GetString("Tools.IniEditor.History.AttachTexture"),
                 Redo: () =>
                 {
-                    block.Fields.Add(newField);
+                    if (block.Fields.Any(f => string.Equals(f.Key, expectedPortraitKey, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        SetFieldValueByKey(block.Fields, expectedPortraitKey, textureName);
+                    }
+                    else
+                    {
+                        block.Fields.Add(newField);
+                    }
+
                     RebuildAll();
                 },
                 Undo: () =>
@@ -2596,6 +2585,7 @@ public sealed partial class IniEditorViewModel(
     private void MarkDocumentDirty()
     {
         MarkDirty();
+        _documentRevision++;
         ScheduleDeferred(ref _previewCts, IniConstants.Editor.PreviewRefreshDebounceMs, RefreshPreviews);
     }
 

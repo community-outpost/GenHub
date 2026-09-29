@@ -17744,7 +17744,7 @@ Error: не удалось: {3}
     <value>HP</value>
   </data>
   <data name="Tools.IniEditor.Canvas.CardCmdLabel" xml:space="preserve">
-    <value>Cmd</value>
+    <value>Ком.</value>
   </data>
   <data name="Tools.IniEditor.Textures.StatusFormat" xml:space="preserve">
     <value>{0} / {1} текстур</value>

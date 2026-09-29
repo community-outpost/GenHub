@@ -178,7 +178,7 @@ public sealed partial class FileExplorerViewModel : ObservableObject
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        return FindFirstFilePath(Nodes);
+        return await Dispatcher.UIThread.InvokeAsync(FindFirstFile);
     }
 
     /// <summary>
