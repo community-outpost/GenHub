@@ -62,6 +62,9 @@ public sealed partial class TextureEditorViewModel(
 
     private readonly ConcurrentDictionary<string, Dictionary<string, BigArchiveEntry>> _archiveIndexCache = new(StringComparer.OrdinalIgnoreCase);
 
+    private readonly Stack<TextureEditAction> _undoStack = new();
+    private readonly Stack<TextureEditAction> _redoStack = new();
+
     private DecodedTexture? _atlasDecoded;
     private FileExplorerViewModel? _fileExplorer;
     private MappedImageDefinition? _copiedSlice;
@@ -201,6 +204,16 @@ public sealed partial class TextureEditorViewModel(
     public override bool CanSaveAs => HasAtlas;
 
     /// <summary>
+    /// Gets a value indicating whether undo is available.
+    /// </summary>
+    public override bool CanUndo => _undoStack.Count > 0;
+
+    /// <summary>
+    /// Gets a value indicating whether redo is available.
+    /// </summary>
+    public override bool CanRedo => _redoStack.Count > 0;
+
+    /// <summary>
     /// Gets a value indicating whether the selected slice can be copied.
     /// </summary>
     public override bool CanCopy => SelectedSlice is not null;
@@ -211,9 +224,9 @@ public sealed partial class TextureEditorViewModel(
     public override bool CanCut => SelectedSlice is not null;
 
     /// <summary>
-    /// Gets a value indicating whether a copied slice can be pasted.
+    /// Gets a value indicating whether a slice can be pasted.
     /// </summary>
-    public override bool CanPaste => HasAtlas && _copiedSlice is not null;
+    public override bool CanPaste => HasAtlas;
 
     /// <summary>
     /// Gets a value indicating whether the selected slice can be duplicated.
@@ -225,8 +238,6 @@ public sealed partial class TextureEditorViewModel(
     /// </summary>
     public override bool CanDelete => SelectedSlice is not null;
 
-    // Slice-snapshot undo history is future work. See the canvas QOL roadmap in
-    // TextureEditorView.axaml.cs and the WndEditAction stacks.
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads source-generated AtlasPath instance state.")]
     private string DefaultIniPath
     {
@@ -376,10 +387,113 @@ public sealed partial class TextureEditorViewModel(
     /// </summary>
     public void EndSliceDrag()
     {
+        if (_dragSlice is not null && _dragOriginal is not null)
+        {
+            var orig = _dragOriginal.Value;
+            var slice = _dragSlice;
+            if (slice.Left != orig.Left || slice.Top != orig.Top || slice.Right != orig.Right || slice.Bottom != orig.Bottom)
+            {
+                int targetLeft = slice.Left;
+                int targetTop = slice.Top;
+                int targetRight = slice.Right;
+                int targetBottom = slice.Bottom;
+                PushUndo(new TextureEditAction(
+                    _isResizing
+                        ? Localize("TextureEditor.History.ResizeSlice", "Resize slice")
+                        : Localize("TextureEditor.History.MoveSlice", "Move slice"),
+                    () =>
+                    {
+                        slice.Left = targetLeft;
+                        slice.Top = targetTop;
+                        slice.Right = targetRight;
+                        slice.Bottom = targetBottom;
+                        MarkDirty();
+                    },
+                    () =>
+                    {
+                        slice.Left = orig.Left;
+                        slice.Top = orig.Top;
+                        slice.Right = orig.Right;
+                        slice.Bottom = orig.Bottom;
+                        MarkDirty();
+                    }));
+                MarkDirty();
+            }
+        }
+
         _dragSlice = null;
         _dragOriginal = null;
         _isResizing = false;
         _resizeDirection = CanvasResizeDirection.None;
+    }
+
+    /// <summary>
+    /// Pushes an undoable action to the undo stack, clearing the redo stack.
+    /// </summary>
+    /// <param name="action">The edit action to record.</param>
+    public void PushUndo(TextureEditAction action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        _undoStack.Push(action);
+        _redoStack.Clear();
+        RefreshEditorCommands();
+    }
+
+    /// <summary>
+    /// Nudges the selected slice by the specified offsets in texture coordinates.
+    /// </summary>
+    /// <param name="deltaX">The horizontal offset in pixels.</param>
+    /// <param name="deltaY">The vertical offset in pixels.</param>
+    public void NudgeSelectedSlice(int deltaX, int deltaY)
+    {
+        if (SelectedSlice is null || AtlasBitmap is null)
+        {
+            return;
+        }
+
+        var slice = SelectedSlice;
+        int width = slice.Width;
+        int height = slice.Height;
+        int newLeft = Math.Clamp(slice.Left + deltaX, 0, Math.Max(0, AtlasPixelWidth - width));
+        int newTop = Math.Clamp(slice.Top + deltaY, 0, Math.Max(0, AtlasPixelHeight - height));
+        int newRight = newLeft + width;
+        int newBottom = newTop + height;
+
+        if (newLeft == slice.Left && newTop == slice.Top)
+        {
+            return;
+        }
+
+        int origLeft = slice.Left;
+        int origTop = slice.Top;
+        int origRight = slice.Right;
+        int origBottom = slice.Bottom;
+
+        slice.Left = newLeft;
+        slice.Top = newTop;
+        slice.Right = newRight;
+        slice.Bottom = newBottom;
+
+        PushUndo(new TextureEditAction(
+            Localize("TextureEditor.History.MoveSlice", "Move slice"),
+            () =>
+            {
+                slice.Left = newLeft;
+                slice.Top = newTop;
+                slice.Right = newRight;
+                slice.Bottom = newBottom;
+                MarkDirty();
+            },
+            () =>
+            {
+                slice.Left = origLeft;
+                slice.Top = origTop;
+                slice.Right = origRight;
+                slice.Bottom = origBottom;
+                MarkDirty();
+            }));
+
+        MarkDirty();
     }
 
     /// <inheritdoc />
@@ -407,6 +521,36 @@ public sealed partial class TextureEditorViewModel(
     }
 
     /// <inheritdoc />
+    protected override void OnUndo()
+    {
+        if (_undoStack.Count == 0)
+        {
+            return;
+        }
+
+        var action = _undoStack.Pop();
+        action.Undo();
+        _redoStack.Push(action);
+        MarkDirty();
+        RefreshEditorCommands();
+    }
+
+    /// <inheritdoc />
+    protected override void OnRedo()
+    {
+        if (_redoStack.Count == 0)
+        {
+            return;
+        }
+
+        var action = _redoStack.Pop();
+        action.Redo();
+        _undoStack.Push(action);
+        MarkDirty();
+        RefreshEditorCommands();
+    }
+
+    /// <inheritdoc />
     protected override void OnCopy()
     {
         if (IsTextInputFocused() || SelectedSlice is null)
@@ -414,8 +558,11 @@ public sealed partial class TextureEditorViewModel(
             return;
         }
 
-        _copiedSlice = SelectedSlice.ToDefinition();
+        var def = SelectedSlice.ToDefinition();
+        _copiedSlice = def;
         _isCutOperation = false;
+        var serialized = parser.Serialize([def]);
+        _ = CopyTextToClipboardAsync(serialized);
         RefreshEditorCommands();
     }
 
@@ -427,31 +574,144 @@ public sealed partial class TextureEditorViewModel(
             return;
         }
 
-        _copiedSlice = SelectedSlice.ToDefinition();
+        var slice = SelectedSlice;
+        var def = slice.ToDefinition();
+        _copiedSlice = def;
         _isCutOperation = true;
-        DeleteSlice(SelectedSlice);
+        var serialized = parser.Serialize([def]);
+        _ = CopyTextToClipboardAsync(serialized);
+
+        int index = Slices.IndexOf(slice);
+        DeleteSlice(slice);
+        PushUndo(new TextureEditAction(
+            Localize("TextureEditor.History.CutSlice", "Cut slice"),
+            () =>
+            {
+                DeleteSlice(slice);
+                MarkDirty();
+            },
+            () =>
+            {
+                if (index >= 0 && index <= Slices.Count)
+                {
+                    Slices.Insert(index, slice);
+                }
+                else
+                {
+                    TrackSlice(slice);
+                }
+
+                SelectedSlice = slice;
+                MarkDirty();
+            }));
+
         MarkDirty();
         RefreshEditorCommands();
     }
 
     /// <inheritdoc />
-    protected override Task OnPasteAsync(CancellationToken cancellationToken)
+    protected override async Task OnPasteAsync(CancellationToken cancellationToken)
     {
-        if (IsTextInputFocused() || _copiedSlice is null || AtlasBitmap is null)
+        if (IsTextInputFocused() || AtlasBitmap is null)
         {
-            return Task.CompletedTask;
+            return;
         }
 
-        InsertSliceCopy(_copiedSlice);
-        if (_isCutOperation)
+        if (_copiedSlice is not null)
         {
-            _copiedSlice = null;
-            _isCutOperation = false;
+            var copy = _copiedSlice;
+            if (_isCutOperation)
+            {
+                _copiedSlice = null;
+                _isCutOperation = false;
+            }
+
+            var pasted = InsertSliceCopy(copy);
+            if (pasted is not null)
+            {
+                PushUndo(new TextureEditAction(
+                    Localize("TextureEditor.History.PasteSlice", "Paste slice"),
+                    () =>
+                    {
+                        if (!Slices.Contains(pasted))
+                        {
+                            TrackSlice(pasted);
+                        }
+
+                        SelectedSlice = pasted;
+                        MarkDirty();
+                    },
+                    () =>
+                    {
+                        UntrackSlice(pasted);
+                        MarkDirty();
+                    }));
+            }
+
+            MarkDirty();
+            RefreshEditorCommands();
+            return;
         }
 
-        MarkDirty();
-        RefreshEditorCommands();
-        return Task.CompletedTask;
+        var topLevel = GetTopLevel();
+        if (topLevel?.Clipboard is { } clipboard)
+        {
+            try
+            {
+                var text = await clipboard.GetTextAsync().ConfigureAwait(true);
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    var parsed = parser.ParseText(text);
+                    if (parsed.Success && parsed.Data is { Count: > 0 })
+                    {
+                        var added = new List<TextureSliceViewModel>();
+                        foreach (var def in parsed.Data)
+                        {
+                            var slice = InsertSliceCopy(def);
+                            if (slice is not null)
+                            {
+                                added.Add(slice);
+                            }
+                        }
+
+                        if (added.Count > 0)
+                        {
+                            PushUndo(new TextureEditAction(
+                                Localize("TextureEditor.History.PasteSlice", "Paste slice"),
+                                () =>
+                                {
+                                    foreach (var s in added)
+                                    {
+                                        if (!Slices.Contains(s))
+                                        {
+                                            TrackSlice(s);
+                                        }
+                                    }
+
+                                    SelectedSlice = added[^1];
+                                    MarkDirty();
+                                },
+                                () =>
+                                {
+                                    foreach (var s in added)
+                                    {
+                                        UntrackSlice(s);
+                                    }
+
+                                    MarkDirty();
+                                }));
+                            MarkDirty();
+                            RefreshEditorCommands();
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+            {
+                logger.LogWarning(ex, "Failed to read clipboard text for paste");
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -462,7 +722,28 @@ public sealed partial class TextureEditorViewModel(
             return;
         }
 
-        InsertSliceCopy(SelectedSlice.ToDefinition());
+        var copy = InsertSliceCopy(SelectedSlice.ToDefinition());
+        if (copy is not null)
+        {
+            PushUndo(new TextureEditAction(
+                Localize("TextureEditor.History.DuplicateSlice", "Duplicate slice"),
+                () =>
+                {
+                    if (!Slices.Contains(copy))
+                    {
+                        TrackSlice(copy);
+                    }
+
+                    SelectedSlice = copy;
+                    MarkDirty();
+                },
+                () =>
+                {
+                    UntrackSlice(copy);
+                    MarkDirty();
+                }));
+        }
+
         MarkDirty();
         RefreshEditorCommands();
     }
@@ -475,7 +756,31 @@ public sealed partial class TextureEditorViewModel(
             return;
         }
 
-        DeleteSlice(SelectedSlice);
+        var slice = SelectedSlice;
+        int index = Slices.IndexOf(slice);
+        DeleteSlice(slice);
+        PushUndo(new TextureEditAction(
+            Localize("TextureEditor.History.DeleteSlice", "Delete slice"),
+            () =>
+            {
+                DeleteSlice(slice);
+                MarkDirty();
+            },
+            () =>
+            {
+                if (index >= 0 && index <= Slices.Count)
+                {
+                    Slices.Insert(index, slice);
+                }
+                else
+                {
+                    TrackSlice(slice);
+                }
+
+                SelectedSlice = slice;
+                MarkDirty();
+            }));
+
         MarkDirty();
         RefreshEditorCommands();
     }
@@ -1213,6 +1518,23 @@ public sealed partial class TextureEditorViewModel(
         slice.UpdateZoom(Zoom);
         TrackSlice(slice);
         SelectedSlice = slice;
+        PushUndo(new TextureEditAction(
+            Localize("TextureEditor.History.AddSlice", "Add slice"),
+            () =>
+            {
+                if (!Slices.Contains(slice))
+                {
+                    TrackSlice(slice);
+                }
+
+                SelectedSlice = slice;
+                MarkDirty();
+            },
+            () =>
+            {
+                UntrackSlice(slice);
+                MarkDirty();
+            }));
         MarkDirty();
     }
 
@@ -1237,8 +1559,32 @@ public sealed partial class TextureEditorViewModel(
             _ => (SelectedSlice.Width, SelectedSlice.Height),
         };
 
+        int origRight = SelectedSlice.Right;
+        int origBottom = SelectedSlice.Bottom;
+        var slice = SelectedSlice;
+
         SelectedSlice.Right = SelectedSlice.Left + width;
         SelectedSlice.Bottom = SelectedSlice.Top + height;
+
+        int newRight = SelectedSlice.Right;
+        int newBottom = SelectedSlice.Bottom;
+
+        PushUndo(new TextureEditAction(
+            Localize("TextureEditor.History.ResizeSlice", "Resize slice"),
+            () =>
+            {
+                slice.Right = newRight;
+                slice.Bottom = newBottom;
+                MarkDirty();
+            },
+            () =>
+            {
+                slice.Right = origRight;
+                slice.Bottom = origBottom;
+                MarkDirty();
+            }));
+
+        MarkDirty();
     }
 
     private FileExplorerViewModel CreateFileExplorer()
@@ -1694,9 +2040,11 @@ public sealed partial class TextureEditorViewModel(
             }
         }
 
-        // If the atlas was loaded from game archives or an external directory,
+        // If the atlas was loaded from game archives or an external directory outside the workspace,
         // definitions in the open project/workspace matching this texture must be adopted.
-        if (!string.IsNullOrEmpty(FileExplorer.Directory))
+        if (!string.IsNullOrEmpty(FileExplorer.Directory) &&
+            !string.IsNullOrEmpty(AtlasPath) &&
+            !IsUnderDirectory(StripArchiveFragment(AtlasPath), FileExplorer.Directory))
         {
             var projectMatches = allMatches
                 .Where(image => image.SourcePath is not null && IsUnderDirectory(image.SourcePath, FileExplorer.Directory))
@@ -1717,7 +2065,7 @@ public sealed partial class TextureEditorViewModel(
             return;
         }
 
-        ReplaceSlices(allMatches);
+        ReplaceSlices([]);
     }
 
     private List<MappedImageDefinition> FindArchiveAtlasMatches(IReadOnlyList<MappedImageDefinition> allMatches, string cleanAtlas)
@@ -2208,10 +2556,11 @@ public sealed partial class TextureEditorViewModel(
         Slices.Add(slice);
     }
 
-    private void DeleteSlice(TextureSliceViewModel slice)
+    private void UntrackSlice(TextureSliceViewModel slice)
     {
         slice.PropertyChanged -= OnSlicePropertyChanged;
         DisposeThumbnail(slice.Thumbnail);
+        slice.Thumbnail = null;
         Slices.Remove(slice);
         if (ReferenceEquals(SelectedSlice, slice))
         {
@@ -2219,11 +2568,13 @@ public sealed partial class TextureEditorViewModel(
         }
     }
 
-    private void InsertSliceCopy(MappedImageDefinition source)
+    private void DeleteSlice(TextureSliceViewModel slice) => UntrackSlice(slice);
+
+    private TextureSliceViewModel? InsertSliceCopy(MappedImageDefinition source)
     {
         if (AtlasBitmap is null)
         {
-            return;
+            return null;
         }
 
         int width = source.Right - source.Left;
@@ -2242,6 +2593,23 @@ public sealed partial class TextureEditorViewModel(
         slice.UpdateZoom(Zoom);
         TrackSlice(slice);
         SelectedSlice = slice;
+        return slice;
+    }
+
+    private async Task CopyTextToClipboardAsync(string text)
+    {
+        try
+        {
+            var topLevel = GetTopLevel();
+            if (topLevel?.Clipboard is { } clipboard)
+            {
+                await clipboard.SetTextAsync(text).ConfigureAwait(true);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            logger.LogWarning(ex, "Failed to copy MappedImage text to clipboard");
+        }
     }
 
     private string UniqueSliceName(string baseName)
@@ -2276,6 +2644,8 @@ public sealed partial class TextureEditorViewModel(
         _savedIniPath = null;
         _copiedSlice = null;
         _isCutOperation = false;
+        _undoStack.Clear();
+        _redoStack.Clear();
         RefreshRegistryImages();
     }
 

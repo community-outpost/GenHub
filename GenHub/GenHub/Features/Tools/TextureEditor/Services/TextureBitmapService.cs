@@ -409,5 +409,4 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
             return OperationResult<DecodedTexture>.CreateFailure($"Access denied reading image file: {path}", Stopwatch.GetElapsedTime(started));
         }
     }
-
 }

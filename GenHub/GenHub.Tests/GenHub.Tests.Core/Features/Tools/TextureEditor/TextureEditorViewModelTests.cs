@@ -5,8 +5,9 @@ using GenHub.Common.Editors;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
-using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Interfaces.Tools.TextureEditor;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.TextureEditor;
 using GenHub.Core.Services.Tools.TextureEditor;
@@ -640,9 +641,8 @@ public sealed class TextureEditorViewModelTests
             await File.WriteAllBytesAsync(Path.Combine(artDir, "Skirmish_Load.png"), ValidPngBytes);
 
             var gameMock = new Mock<IGameInstallationService>();
-            var inst = new GameInstallation
+            var inst = new GameInstallation(gameDir, GameInstallationType.Retail)
             {
-                InstallationPath = gameDir,
                 ZeroHourPath = gameDir,
                 HasZeroHour = true,
             };
@@ -717,6 +717,159 @@ public sealed class TextureEditorViewModelTests
         }
     }
 
+    /// <summary>
+    /// Verifies that adding a slice records an undo action that restores the previous state.
+    /// </summary>
+    [AvaloniaFact]
+    public void AddSlice_PushesUndo_CanUndoAndRedo()
+    {
+        var viewModel = CreateViewModel();
+        using var bitmap = OpenAtlas(viewModel, "atlas.tga");
+
+        Assert.False(viewModel.CanUndo);
+        Assert.False(viewModel.CanRedo);
+
+        viewModel.AddSliceCommand.Execute(null);
+
+        Assert.Single(viewModel.Slices);
+        Assert.True(viewModel.CanUndo);
+        Assert.False(viewModel.CanRedo);
+
+        viewModel.UndoCommand.Execute(null);
+
+        Assert.Empty(viewModel.Slices);
+        Assert.False(viewModel.CanUndo);
+        Assert.True(viewModel.CanRedo);
+
+        viewModel.RedoCommand.Execute(null);
+
+        Assert.Single(viewModel.Slices);
+        Assert.True(viewModel.CanUndo);
+        Assert.False(viewModel.CanRedo);
+    }
+
+    /// <summary>
+    /// Verifies that deleting the selected slice can be undone and redone.
+    /// </summary>
+    [AvaloniaFact]
+    public void Delete_PushesUndo_CanUndoAndRedo()
+    {
+        var viewModel = CreateViewModel();
+        using var bitmap = OpenAtlas(viewModel, "atlas.tga");
+        var slice = new TextureSliceViewModel(new MappedImageDefinition("Hero", "atlas.tga", 100, 100, 10, 10, 50, 50));
+        viewModel.Slices.Add(slice);
+        viewModel.SelectedSlice = slice;
+
+        Assert.True(viewModel.CanDelete);
+        viewModel.DeleteCommand.Execute(null);
+
+        Assert.Empty(viewModel.Slices);
+        Assert.True(viewModel.CanUndo);
+
+        viewModel.UndoCommand.Execute(null);
+
+        Assert.Single(viewModel.Slices);
+        Assert.Equal("Hero", viewModel.Slices[0].Name);
+        Assert.Same(viewModel.Slices[0], viewModel.SelectedSlice);
+
+        viewModel.RedoCommand.Execute(null);
+
+        Assert.Empty(viewModel.Slices);
+    }
+
+    /// <summary>
+    /// Verifies that duplicating a slice creates a new offset slice and pushes an undo action.
+    /// </summary>
+    [AvaloniaFact]
+    public void Duplicate_CreatesOffsetSlice_CanUndoAndRedo()
+    {
+        var viewModel = CreateViewModel();
+        using var bitmap = OpenAtlas(viewModel, "atlas.tga");
+        var slice = new TextureSliceViewModel(new MappedImageDefinition("Icon", "atlas.tga", 200, 200, 10, 20, 60, 70));
+        viewModel.Slices.Add(slice);
+        viewModel.SelectedSlice = slice;
+
+        Assert.True(viewModel.CanDuplicate);
+        viewModel.DuplicateCommand.Execute(null);
+
+        Assert.Equal(2, viewModel.Slices.Count);
+        var duplicated = viewModel.SelectedSlice;
+        Assert.NotNull(duplicated);
+        Assert.NotSame(slice, duplicated);
+        Assert.StartsWith("Icon", duplicated.Name);
+        Assert.Equal(slice.Width, duplicated.Width);
+        Assert.Equal(slice.Height, duplicated.Height);
+
+        viewModel.UndoCommand.Execute(null);
+
+        Assert.Single(viewModel.Slices);
+        Assert.Same(slice, viewModel.Slices[0]);
+
+        viewModel.RedoCommand.Execute(null);
+
+        Assert.Equal(2, viewModel.Slices.Count);
+    }
+
+    /// <summary>
+    /// Verifies that cutting a slice removes it and pasting restores it with an offset.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task CutAndPaste_PastesSlice_CanUndoAndRedoAsync()
+    {
+        var viewModel = CreateViewModel();
+        using var bitmap = OpenAtlas(viewModel, "atlas.tga");
+        var slice = new TextureSliceViewModel(new MappedImageDefinition("CutMe", "atlas.tga", 300, 300, 20, 30, 80, 90));
+        viewModel.Slices.Add(slice);
+        viewModel.SelectedSlice = slice;
+
+        viewModel.CutCommand.Execute(null);
+        Assert.Empty(viewModel.Slices);
+
+        await viewModel.PasteCommand.ExecuteAsync(null);
+        Assert.Single(viewModel.Slices);
+        Assert.StartsWith("CutMe", viewModel.Slices[0].Name);
+
+        viewModel.UndoCommand.Execute(null);
+        Assert.Empty(viewModel.Slices);
+
+        viewModel.RedoCommand.Execute(null);
+        Assert.Single(viewModel.Slices);
+    }
+
+    /// <summary>
+    /// Verifies that nudging a slice updates coordinates and can be undone.
+    /// </summary>
+    [AvaloniaFact]
+    public void NudgeSelectedSlice_UpdatesCoordinates_AndUndoes()
+    {
+        var viewModel = CreateViewModel();
+        using var bitmap = OpenAtlas(viewModel, "atlas.tga");
+        var slice = new TextureSliceViewModel(new MappedImageDefinition("Mover", "atlas.tga", 100, 100, 10, 10, 30, 30));
+        viewModel.Slices.Add(slice);
+        viewModel.SelectedSlice = slice;
+
+        viewModel.NudgeSelectedSlice(5, 7);
+
+        Assert.Equal(15, slice.Left);
+        Assert.Equal(17, slice.Top);
+        Assert.Equal(35, slice.Right);
+        Assert.Equal(37, slice.Bottom);
+        Assert.True(viewModel.CanUndo);
+
+        viewModel.UndoCommand.Execute(null);
+
+        Assert.Equal(10, slice.Left);
+        Assert.Equal(10, slice.Top);
+        Assert.Equal(30, slice.Right);
+        Assert.Equal(30, slice.Bottom);
+
+        viewModel.RedoCommand.Execute(null);
+
+        Assert.Equal(15, slice.Left);
+        Assert.Equal(17, slice.Top);
+    }
+
     private static async Task WaitForAtlasAsync(TextureEditorViewModel viewModel, string expectedPath)
     {
         for (int attempt = 0; attempt < 500 && (viewModel.AtlasPath != expectedPath || viewModel.IsBusy); attempt++)
@@ -745,13 +898,16 @@ public sealed class TextureEditorViewModelTests
             new Mock<IDialogService>().Object);
     }
 
-    private static Bitmap OpenAtlas(TextureEditorViewModel viewModel, string fileName)
+    private static Bitmap OpenAtlas(TextureEditorViewModel viewModel, string fileName, int width = 1024, int height = 1024)
     {
-        using var stream = new MemoryStream(ValidPngBytes);
-        var bitmap = new Bitmap(stream);
+        var writeable = new WriteableBitmap(
+            new Avalonia.PixelSize(width, height),
+            new Avalonia.Vector(96, 96),
+            Avalonia.Platform.PixelFormat.Bgra8888,
+            Avalonia.Platform.AlphaFormat.Premul);
         viewModel.AtlasPath = Path.Combine(Path.GetTempPath(), fileName);
-        viewModel.AtlasBitmap = bitmap;
-        return bitmap;
+        viewModel.AtlasBitmap = writeable;
+        return writeable;
     }
 
     private static TextureEditorViewModel CreateViewModel(

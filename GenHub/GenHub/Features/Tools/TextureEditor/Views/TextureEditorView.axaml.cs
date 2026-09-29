@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.VisualTree;
 using GenHub.Core.Models.Tools.Common;
@@ -32,6 +33,9 @@ public partial class TextureEditorView : UserControl
     public TextureEditorView()
     {
         InitializeComponent();
+        Focusable = true;
+
+        AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
 
         _overlay = this.Find<ItemsControl>("SliceOverlay");
         if (_overlay is not null)
@@ -69,6 +73,76 @@ public partial class TextureEditorView : UserControl
         AvaloniaXamlLoader.Load(this);
     }
 
+    private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (DataContext is not TextureEditorViewModel viewModel)
+        {
+            return;
+        }
+
+        var topLevel = TopLevel.GetTopLevel(this);
+        var focused = topLevel?.FocusManager?.GetFocusedElement();
+        if (focused is TextBox or NumericUpDown)
+        {
+            return;
+        }
+
+        var modifiers = e.KeyModifiers;
+        var hasCommandModifier = (modifiers & (KeyModifiers.Control | KeyModifiers.Meta)) != 0;
+        var isShift = (modifiers & KeyModifiers.Shift) != 0;
+
+        if (hasCommandModifier && (modifiers & ~(KeyModifiers.Control | KeyModifiers.Meta | KeyModifiers.Shift)) == 0)
+        {
+            if (e.Key == Key.Z && !isShift && viewModel.UndoCommand.CanExecute(null))
+            {
+                viewModel.UndoCommand.Execute(null);
+                e.Handled = true;
+                return;
+            }
+
+            if (((e.Key == Key.Y && !isShift) || (e.Key == Key.Z && isShift)) && viewModel.RedoCommand.CanExecute(null))
+            {
+                viewModel.RedoCommand.Execute(null);
+                e.Handled = true;
+                return;
+            }
+        }
+
+        if (viewModel.SelectedSlice is null)
+        {
+            return;
+        }
+
+        int step = isShift ? 10 : 1;
+        switch (e.Key)
+        {
+            case Key.Left:
+                viewModel.NudgeSelectedSlice(-step, 0);
+                e.Handled = true;
+                break;
+            case Key.Right:
+                viewModel.NudgeSelectedSlice(step, 0);
+                e.Handled = true;
+                break;
+            case Key.Up:
+                viewModel.NudgeSelectedSlice(0, -step);
+                e.Handled = true;
+                break;
+            case Key.Down:
+                viewModel.NudgeSelectedSlice(0, step);
+                e.Handled = true;
+                break;
+            case Key.Delete:
+                if (viewModel.DeleteCommand.CanExecute(null))
+                {
+                    viewModel.DeleteCommand.Execute(null);
+                    e.Handled = true;
+                }
+
+                break;
+        }
+    }
+
     private void OnPickerEditRequested(object? sender, GenHub.Core.Models.Tools.TextureEditor.MappedImageDefinition definition)
     {
         if (DataContext is TextureEditorViewModel viewModel)
@@ -79,6 +153,7 @@ public partial class TextureEditorView : UserControl
 
     private void OnResizeHandlePointerPressed(object? sender, PointerPressedEventArgs e)
     {
+        Focus();
         if (DataContext is not TextureEditorViewModel viewModel || _overlay is null)
         {
             return;
@@ -105,21 +180,40 @@ public partial class TextureEditorView : UserControl
 
     private void OnOverlayPointerPressed(object? sender, PointerPressedEventArgs e)
     {
+        Focus();
         if (DataContext is not TextureEditorViewModel viewModel || _overlay is null)
         {
             return;
         }
 
-        var slice = FindSlice(e.Source as Visual);
-        if (slice is null || viewModel.IsPanMode || !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        var point = e.GetCurrentPoint(this);
+        if (viewModel.IsPanMode || point.Properties.IsMiddleButtonPressed)
         {
             // Pan gestures bubble to the shared EditorCanvasControl.
             return;
         }
 
-        e.Pointer.Capture(_overlay);
-        viewModel.BeginSliceDrag(slice, e.GetPosition(_overlay));
-        e.Handled = true;
+        var slice = FindSlice(e.Source as Visual);
+        if (slice is null)
+        {
+            if (point.Properties.IsLeftButtonPressed)
+            {
+                viewModel.SelectedSlice = null;
+            }
+
+            return;
+        }
+
+        if (point.Properties.IsLeftButtonPressed)
+        {
+            e.Pointer.Capture(_overlay);
+            viewModel.BeginSliceDrag(slice, e.GetPosition(_overlay));
+            e.Handled = true;
+        }
+        else if (point.Properties.IsRightButtonPressed)
+        {
+            viewModel.SelectedSlice = slice;
+        }
     }
 
     private void OnOverlayPointerMoved(object? sender, PointerEventArgs e)
