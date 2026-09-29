@@ -4468,6 +4468,81 @@
   <data name="Profiles.Wizard.SelectComponentsSubtitle" xml:space="preserve">
     <value>Выберите компоненты, которые вы хотите настроить.</value>
   </data>
+  <data name="Profiles.Wizard.WindowTitle" xml:space="preserve">
+    <value>Мастер настройки</value>
+  </data>
+  <data name="Profiles.Wizard.Title" xml:space="preserve">
+    <value>Настройка обнаруженного содержимого</value>
+  </data>
+  <data name="Profiles.Wizard.Skip" xml:space="preserve">
+    <value>Пропустить</value>
+  </data>
+  <data name="Profiles.Wizard.Continue" xml:space="preserve">
+    <value>Продолжить</value>
+  </data>
+  <data name="Profiles.Wizard.ContinueWithCount" xml:space="preserve">
+    <value>Продолжить ({0})</value>
+  </data>
+  <data name="Profiles.Wizard.Component.CommunityPatchRetail" xml:space="preserve">
+    <value>Community Patch (розничная версия)</value>
+  </data>
+  <data name="Profiles.Wizard.Component.CommunityPatchNonRetail" xml:space="preserve">
+    <value>Community Patch (нерозничная версия)</value>
+  </data>
+  <data name="Profiles.Wizard.Component.GeneralsOnline" xml:space="preserve">
+    <value>Generals Online</value>
+  </data>
+  <data name="Profiles.Wizard.Component.TheSuperHackers" xml:space="preserve">
+    <value>TheSuperHackers</value>
+  </data>
+  <data name="Profiles.Wizard.Description.Install" xml:space="preserve">
+    <value>Скачать и установить {0}.</value>
+  </data>
+  <data name="Profiles.Wizard.Description.InstallVersion" xml:space="preserve">
+    <value>Скачать и установить {0} {1}.</value>
+  </data>
+  <data name="Profiles.Wizard.Description.InstallManaged" xml:space="preserve">
+    <value>Скачать и установить управляемые файлы {0}.</value>
+  </data>
+  <data name="Profiles.Wizard.Description.InstallManagedVersion" xml:space="preserve">
+    <value>Скачать и установить управляемые файлы {0} {1}.</value>
+  </data>
+  <data name="Profiles.Wizard.Description.CreateProfile" xml:space="preserve">
+    <value>Создать игровой профиль для {0}.</value>
+  </data>
+  <data name="Profiles.Wizard.Description.CreateProfileVersion" xml:space="preserve">
+    <value>Создать игровой профиль для {0} {1}.</value>
+  </data>
+  <data name="Profiles.Wizard.Description.Update" xml:space="preserve">
+    <value>Обновить {0} до последней версии.</value>
+  </data>
+  <data name="Profiles.Wizard.Description.UpdateVersion" xml:space="preserve">
+    <value>Обновить {0} до версии {1}.</value>
+  </data>
+  <data name="Profiles.Wizard.Description.NonRetailIncompatible" xml:space="preserve">
+    <value>Несовместимо с розничной версией Zero Hour 1.04.</value>
+  </data>
+  <data name="Profiles.Wizard.Action.UpdateReinstall" xml:space="preserve">
+    <value>Обновить / переустановить</value>
+  </data>
+  <data name="Profiles.Wizard.Action.CreateProfile" xml:space="preserve">
+    <value>Создать профиль</value>
+  </data>
+  <data name="Profiles.Wizard.Action.DownloadAndInstall" xml:space="preserve">
+    <value>Скачать и установить</value>
+  </data>
+  <data name="Profiles.Wizard.Status.Installed" xml:space="preserve">
+    <value>Установлено</value>
+  </data>
+  <data name="Profiles.Wizard.Status.Downloaded" xml:space="preserve">
+    <value>Загружено</value>
+  </data>
+  <data name="Profiles.Wizard.Status.Detected" xml:space="preserve">
+    <value>Обнаружено</value>
+  </data>
+  <data name="Profiles.Wizard.Status.Missing" xml:space="preserve">
+    <value>Отсутствует</value>
+  </data>
   <data name="Downloads.Filter.AddonType" xml:space="preserve">
     <value>Тип аддона</value>
   </data>

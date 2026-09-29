@@ -498,7 +498,7 @@ public static class GameClientConstants
     }
 
     /// <summary>
-    /// Status strings displayed in the Setup Wizard.
+    /// Status identifiers for Setup Wizard items. The values double as the English fallback status labels.
     /// </summary>
     public static class WizardStatuses
     {
@@ -516,7 +516,8 @@ public static class GameClientConstants
     }
 
     /// <summary>
-    /// Action button and toggle labels displayed in the Setup Wizard.
+    /// English fallback action labels for the Setup Wizard. The displayed text is resolved from
+    /// <see cref="WizardLocalizationKeys"/>.
     /// </summary>
     public static class WizardActionLabels
     {
@@ -528,6 +529,84 @@ public static class GameClientConstants
 
         /// <summary>Download and install action label.</summary>
         public const string DownloadAndInstall = "Download & Install";
+    }
+
+    /// <summary>
+    /// Localization resource keys for text shown in the Setup Wizard.
+    /// </summary>
+    public static class WizardLocalizationKeys
+    {
+        /// <summary>Wizard heading.</summary>
+        public const string Title = "Profiles.Wizard.Title";
+
+        /// <summary>Skip button label.</summary>
+        public const string Skip = "Profiles.Wizard.Skip";
+
+        /// <summary>Continue button label with no selected items.</summary>
+        public const string Continue = "Profiles.Wizard.Continue";
+
+        /// <summary>Continue button label with the selected item count as {0}.</summary>
+        public const string ContinueWithCount = "Profiles.Wizard.ContinueWithCount";
+
+        /// <summary>Community Patch (Retail) component title.</summary>
+        public const string CommunityPatchRetailTitle = "Profiles.Wizard.Component.CommunityPatchRetail";
+
+        /// <summary>Community Patch (Non-Retail) component title.</summary>
+        public const string CommunityPatchNonRetailTitle = "Profiles.Wizard.Component.CommunityPatchNonRetail";
+
+        /// <summary>Generals Online component title.</summary>
+        public const string GeneralsOnlineTitle = "Profiles.Wizard.Component.GeneralsOnline";
+
+        /// <summary>TheSuperHackers component title.</summary>
+        public const string SuperHackersTitle = "Profiles.Wizard.Component.TheSuperHackers";
+
+        /// <summary>Install description with the title as {0}.</summary>
+        public const string InstallDescription = "Profiles.Wizard.Description.Install";
+
+        /// <summary>Install description with the title as {0} and the version as {1}.</summary>
+        public const string InstallVersionDescription = "Profiles.Wizard.Description.InstallVersion";
+
+        /// <summary>Managed install description with the title as {0}.</summary>
+        public const string InstallManagedDescription = "Profiles.Wizard.Description.InstallManaged";
+
+        /// <summary>Managed install description with the title as {0} and the version as {1}.</summary>
+        public const string InstallManagedVersionDescription = "Profiles.Wizard.Description.InstallManagedVersion";
+
+        /// <summary>Create profile description with the title as {0}.</summary>
+        public const string CreateProfileDescription = "Profiles.Wizard.Description.CreateProfile";
+
+        /// <summary>Create profile description with the title as {0} and the version as {1}.</summary>
+        public const string CreateProfileVersionDescription = "Profiles.Wizard.Description.CreateProfileVersion";
+
+        /// <summary>Update description with the title as {0}.</summary>
+        public const string UpdateDescription = "Profiles.Wizard.Description.Update";
+
+        /// <summary>Update description with the title as {0} and the version as {1}.</summary>
+        public const string UpdateVersionDescription = "Profiles.Wizard.Description.UpdateVersion";
+
+        /// <summary>Notice appended to the Non-Retail Community Patch description.</summary>
+        public const string NonRetailIncompatibleNotice = "Profiles.Wizard.Description.NonRetailIncompatible";
+
+        /// <summary>Update or reinstall action label.</summary>
+        public const string UpdateReinstallAction = "Profiles.Wizard.Action.UpdateReinstall";
+
+        /// <summary>Create profile action label.</summary>
+        public const string CreateProfileAction = "Profiles.Wizard.Action.CreateProfile";
+
+        /// <summary>Download and install action label.</summary>
+        public const string DownloadAndInstallAction = "Profiles.Wizard.Action.DownloadAndInstall";
+
+        /// <summary>Installed status label.</summary>
+        public const string InstalledStatus = "Profiles.Wizard.Status.Installed";
+
+        /// <summary>Downloaded status label.</summary>
+        public const string DownloadedStatus = "Profiles.Wizard.Status.Downloaded";
+
+        /// <summary>Detected status label.</summary>
+        public const string DetectedStatus = "Profiles.Wizard.Status.Detected";
+
+        /// <summary>Missing status label.</summary>
+        public const string MissingStatus = "Profiles.Wizard.Status.Missing";
     }
 
     /// <summary>

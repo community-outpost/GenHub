@@ -4468,6 +4468,81 @@ This will modify game files and configuration settings at:
   <data name="Profiles.Wizard.SelectComponentsSubtitle" xml:space="preserve">
     <value>Select the components you wish to configure.</value>
   </data>
+  <data name="Profiles.Wizard.WindowTitle" xml:space="preserve">
+    <value>Setup Wizard</value>
+  </data>
+  <data name="Profiles.Wizard.Title" xml:space="preserve">
+    <value>Setup Detected Content</value>
+  </data>
+  <data name="Profiles.Wizard.Skip" xml:space="preserve">
+    <value>Skip</value>
+  </data>
+  <data name="Profiles.Wizard.Continue" xml:space="preserve">
+    <value>Continue</value>
+  </data>
+  <data name="Profiles.Wizard.ContinueWithCount" xml:space="preserve">
+    <value>Continue ({0})</value>
+  </data>
+  <data name="Profiles.Wizard.Component.CommunityPatchRetail" xml:space="preserve">
+    <value>Community Patch (Retail)</value>
+  </data>
+  <data name="Profiles.Wizard.Component.CommunityPatchNonRetail" xml:space="preserve">
+    <value>Community Patch (Non-Retail)</value>
+  </data>
+  <data name="Profiles.Wizard.Component.GeneralsOnline" xml:space="preserve">
+    <value>Generals Online</value>
+  </data>
+  <data name="Profiles.Wizard.Component.TheSuperHackers" xml:space="preserve">
+    <value>TheSuperHackers</value>
+  </data>
+  <data name="Profiles.Wizard.Description.Install" xml:space="preserve">
+    <value>Download and install {0}.</value>
+  </data>
+  <data name="Profiles.Wizard.Description.InstallVersion" xml:space="preserve">
+    <value>Download and install {0} {1}.</value>
+  </data>
+  <data name="Profiles.Wizard.Description.InstallManaged" xml:space="preserve">
+    <value>Download and install managed {0} files.</value>
+  </data>
+  <data name="Profiles.Wizard.Description.InstallManagedVersion" xml:space="preserve">
+    <value>Download and install managed {0} {1} files.</value>
+  </data>
+  <data name="Profiles.Wizard.Description.CreateProfile" xml:space="preserve">
+    <value>Create a game profile for {0}.</value>
+  </data>
+  <data name="Profiles.Wizard.Description.CreateProfileVersion" xml:space="preserve">
+    <value>Create a game profile for {0} {1}.</value>
+  </data>
+  <data name="Profiles.Wizard.Description.Update" xml:space="preserve">
+    <value>Update {0} to the latest version.</value>
+  </data>
+  <data name="Profiles.Wizard.Description.UpdateVersion" xml:space="preserve">
+    <value>Update {0} to version {1}.</value>
+  </data>
+  <data name="Profiles.Wizard.Description.NonRetailIncompatible" xml:space="preserve">
+    <value>Not compatible with retail 1.04 zero hour.</value>
+  </data>
+  <data name="Profiles.Wizard.Action.UpdateReinstall" xml:space="preserve">
+    <value>Update / Reinstall</value>
+  </data>
+  <data name="Profiles.Wizard.Action.CreateProfile" xml:space="preserve">
+    <value>Create Profile</value>
+  </data>
+  <data name="Profiles.Wizard.Action.DownloadAndInstall" xml:space="preserve">
+    <value>Download &amp; Install</value>
+  </data>
+  <data name="Profiles.Wizard.Status.Installed" xml:space="preserve">
+    <value>Installed</value>
+  </data>
+  <data name="Profiles.Wizard.Status.Downloaded" xml:space="preserve">
+    <value>Downloaded</value>
+  </data>
+  <data name="Profiles.Wizard.Status.Detected" xml:space="preserve">
+    <value>Detected</value>
+  </data>
+  <data name="Profiles.Wizard.Status.Missing" xml:space="preserve">
+    <value>Missing</value>
+  </data>
   <data name="Downloads.Filter.AddonType" xml:space="preserve">
     <value>Addon Type</value>
   </data>

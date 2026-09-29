@@ -34,10 +34,16 @@ public partial class SetupWizardItemViewModel : ObservableObject
     private bool _isMandatory;
 
     /// <summary>
-    /// Gets or sets the display status (e.g., "Installed", "Missing").
+    /// Gets or sets the status identifier (e.g., "Installed", "Missing").
     /// </summary>
     [ObservableProperty]
     private string _status = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the localized status text shown in the status badge.
+    /// </summary>
+    [ObservableProperty]
+    private string _statusLabel = string.Empty;
 
     /// <summary>
     /// Gets or sets the label for the action button/toggle (e.g., "Install", "Update").
