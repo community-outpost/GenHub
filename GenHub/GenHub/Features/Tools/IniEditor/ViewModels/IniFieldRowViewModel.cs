@@ -144,9 +144,18 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
         }
 
         var parts = SplitFlags(Value).ToList();
-        if (!parts.Contains(flag.Trim(), StringComparer.OrdinalIgnoreCase))
+        var added = false;
+        foreach (var token in SplitFlags(flag))
         {
-            parts.Add(flag.Trim());
+            if (!parts.Contains(token, StringComparer.OrdinalIgnoreCase))
+            {
+                parts.Add(token);
+                added = true;
+            }
+        }
+
+        if (added)
+        {
             Value = string.Join(" ", parts);
             OnPropertyChanged(nameof(ActiveFlags));
         }

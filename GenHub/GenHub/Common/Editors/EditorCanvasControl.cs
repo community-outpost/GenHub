@@ -167,17 +167,17 @@ public class EditorCanvasControl : ContentControl
     private void CoerceZoom()
     {
         var zoom = Zoom;
-        var coerced = double.IsFinite(zoom) && zoom > 0
-            ? Math.Clamp(zoom, MinZoom, MaxZoom)
-            : EditorConstants.ZoomDefault;
-        if (!double.IsFinite(coerced) || coerced <= 0)
+        var min = Math.Min(MinZoom, MaxZoom);
+        var max = Math.Max(MinZoom, MaxZoom);
+        if (!double.IsFinite(zoom) || zoom <= 0 || max <= 0 || !double.IsFinite(max))
         {
-            coerced = EditorConstants.ZoomDefault;
+            Zoom = EditorConstants.ZoomDefault;
+            return;
         }
 
-        if (coerced != zoom)
+        if (zoom < min || zoom > max)
         {
-            Zoom = coerced;
+            Zoom = Math.Clamp(zoom, min, max);
         }
     }
 

@@ -3065,6 +3065,7 @@ public sealed partial class IniEditorViewModel(
         return result;
     }
 
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Kept as an instance helper to satisfy member ordering.")]
     private IReadOnlyList<string> ResolveSideSuggestions(Dictionary<string, IReadOnlyList<string>> fieldValues)
     {
         var suggestions = new HashSet<string>(IniConstants.Sides.All, StringComparer.OrdinalIgnoreCase);
@@ -4002,6 +4003,9 @@ public sealed partial class IniEditorViewModel(
                 RebuildAll();
             }
 
+            // Invalidate the suggestion indexes before the synchronous rebuild inside
+            // the apply; PushUndo bumps the revision again afterwards.
+            _documentRevision++;
             ApplyEmpty();
             PushUndo(new IniEditAction(
                 Title: Localization.GetString("Tools.IniEditor.History.ApplyRawPreview"),
@@ -4043,6 +4047,9 @@ public sealed partial class IniEditorViewModel(
             RebuildAll();
         }
 
+        // Invalidate the suggestion indexes before the synchronous rebuild inside
+        // the apply; PushUndo bumps the revision again afterwards.
+        _documentRevision++;
         ApplyParsedState(newBlockType, newName, newFields, newChildren);
         PushUndo(new IniEditAction(
             Title: Localization.GetString("Tools.IniEditor.History.ApplyRawPreview"),
