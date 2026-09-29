@@ -33,12 +33,26 @@ public static class GeneralsOnlineHistoryMapper
         IReadOnlyList<CrcMappingEntry>? entries,
         string? excludeVersion = null)
     {
+        IReadOnlyCollection<string>? excludeVersions = excludeVersion == null ? null : [excludeVersion];
+        return BuildHistoryResults(entries, excludeVersions);
+    }
+
+    /// <summary>
+    /// Builds history search results from CRC catalog entries.
+    /// </summary>
+    /// <param name="entries">All CRC catalog entries, including non-Generals Online publishers.</param>
+    /// <param name="excludeVersions">CDN current versions to exclude so none is listed twice.</param>
+    /// <returns>History results ordered newest first. Never null.</returns>
+    public static IReadOnlyList<ContentSearchResult> BuildHistoryResults(
+        IReadOnlyList<CrcMappingEntry>? entries,
+        IReadOnlyCollection<string>? excludeVersions)
+    {
         if (entries == null || entries.Count == 0)
         {
             return [];
         }
 
-        var selected = SelectPreferredEntries(entries, excludeVersion);
+        var selected = SelectPreferredEntries(entries, excludeVersions);
         return selected
             .Select(CreateHistoryResult)
             .OrderByDescending(result => result.LastUpdated ?? DateTime.MinValue)
@@ -48,21 +62,19 @@ public static class GeneralsOnlineHistoryMapper
 
     private static IReadOnlyList<CrcMappingEntry> SelectPreferredEntries(
         IReadOnlyList<CrcMappingEntry> entries,
-        string? excludeVersion)
+        IReadOnlyCollection<string>? excludeVersions)
     {
-        var excludedComponent = string.IsNullOrWhiteSpace(excludeVersion)
-            ? 0
-            : GameVersionHelper.GetGeneralsOnlineManifestIdComponent(excludeVersion);
+        var exclusions = CollectExclusions(excludeVersions);
         var preferredByComponent = new Dictionary<int, CrcMappingEntry>();
         foreach (var entry in entries)
         {
-            if (!IsHistoryCandidate(entry, excludeVersion))
+            if (!IsHistoryCandidate(entry, exclusions.Versions))
             {
                 continue;
             }
 
             var component = GameVersionHelper.GetGeneralsOnlineManifestIdComponent(entry.Version);
-            if (component <= 0 || IsExcludedComponent(component, excludedComponent) || !IsSupportedVersion(entry.Version) || HasUnencodableQfe(entry.Version))
+            if (component <= 0 || exclusions.Components.Contains(component) || !IsSupportedVersion(entry.Version) || HasUnencodableQfe(entry.Version))
             {
                 continue;
             }
@@ -82,7 +94,35 @@ public static class GeneralsOnlineHistoryMapper
         return [.. preferredByComponent.Values];
     }
 
-    private static bool IsHistoryCandidate(CrcMappingEntry? entry, string? excludeVersion)
+    private static (HashSet<string> Versions, HashSet<int> Components) CollectExclusions(
+        IReadOnlyCollection<string>? excludeVersions)
+    {
+        var versions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var components = new HashSet<int>();
+        if (excludeVersions == null)
+        {
+            return (versions, components);
+        }
+
+        foreach (var excludeVersion in excludeVersions)
+        {
+            if (string.IsNullOrWhiteSpace(excludeVersion))
+            {
+                continue;
+            }
+
+            versions.Add(excludeVersion.Trim());
+            var component = GameVersionHelper.GetGeneralsOnlineManifestIdComponent(excludeVersion);
+            if (component > 0)
+            {
+                components.Add(component);
+            }
+        }
+
+        return (versions, components);
+    }
+
+    private static bool IsHistoryCandidate(CrcMappingEntry? entry, HashSet<string> excludedVersions)
     {
         if (entry == null)
         {
@@ -104,13 +144,7 @@ public static class GeneralsOnlineHistoryMapper
             return false;
         }
 
-        return string.IsNullOrWhiteSpace(excludeVersion) ||
-            !string.Equals(entry.Version.Trim(), excludeVersion.Trim(), StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsExcludedComponent(int component, int excludedComponent)
-    {
-        return excludedComponent > 0 && component == excludedComponent;
+        return excludedVersions.Count == 0 || !excludedVersions.Contains(entry.Version.Trim());
     }
 
     private static bool IsSupportedVersion(string version)

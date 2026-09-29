@@ -124,6 +124,29 @@ public class GeneralsOnlineHistoryMapperTests
     }
 
     /// <summary>
+    /// Every current CDN variant is excluded by version and manifest component, so a
+    /// future multi-card CDN cannot leak back into history.
+    /// </summary>
+    [Fact]
+    public void BuildHistoryResults_WithMultipleCurrentVersions_ExcludesAllVariants()
+    {
+        var entries = new List<CrcMappingEntry>
+        {
+            CreateEntry("082826_QFE1", "https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE1.zip"),
+            CreateEntry("042826_QFE2", "https://cdn.playgenerals.online/GeneralsOnline_portable_042826_QFE2.zip"),
+            CreateEntry("042826_QFE2_EAC", "https://cdn.playgenerals.online/GeneralsOnline_portable_042826_QFE2_EAC.zip"),
+            CreateEntry("081326", "https://cdn.playgenerals.online/GeneralsOnline_portable_081326.zip"),
+        };
+
+        var results = GeneralsOnlineHistoryMapper.BuildHistoryResults(
+            entries,
+            ["082826_QFE1", "042826_QFE2"]);
+
+        var result = Assert.Single(results);
+        Assert.Equal("081326", result.Version);
+    }
+
+    /// <summary>
     /// Non-Generals Online entries and rows without a portable zip are skipped.
     /// </summary>
     [Fact]

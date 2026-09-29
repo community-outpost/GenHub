@@ -183,8 +183,12 @@ public class GeneralsOnlineDiscoverer(
                 return;
             }
 
-            var currentVersion = list.FirstOrDefault()?.Version;
-            var history = GeneralsOnlineHistoryMapper.BuildHistoryResults(crcRegistry.GetAllEntries(), currentVersion);
+            var currentVersions = list
+                .Select(item => item.Version)
+                .OfType<string>()
+                .Where(static version => !string.IsNullOrWhiteSpace(version))
+                .ToList();
+            var history = GeneralsOnlineHistoryMapper.BuildHistoryResults(crcRegistry.GetAllEntries(), currentVersions);
             if (history.Count == 0)
             {
                 return;
