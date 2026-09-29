@@ -49,4 +49,14 @@ public static class EditorConstants
     /// Negative half resize handle edge length, used for leading-edge canvas placement.
     /// </summary>
     public const double ResizeHandleNegativeOffset = -ResizeHandleHalfSize;
+
+    /// <summary>
+    /// Default keyboard nudge step for selected slices or controls in pixels.
+    /// </summary>
+    public const int KeyboardNudgeStep = 1;
+
+    /// <summary>
+    /// Large keyboard nudge step (Shift+Arrow) for selected slices or controls in pixels.
+    /// </summary>
+    public const int KeyboardNudgeStepLarge = 10;
 }

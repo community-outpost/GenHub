@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Tools.TextureEditor;
 using GenHub.Core.Models.Results;
@@ -124,9 +125,10 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
             return OperationResult<Bitmap>.CreateFailure("Pixel data length does not match texture dimensions.", Stopwatch.GetElapsedTime(started));
         }
 
+        WriteableBitmap? bitmap = null;
         try
         {
-            var bitmap = new WriteableBitmap(
+            bitmap = new WriteableBitmap(
                 new PixelSize(texture.Width, texture.Height),
                 new Vector(96, 96),
                 PixelFormat.Rgba8888,
@@ -141,7 +143,9 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
                 }
             }
 
-            return OperationResult<Bitmap>.CreateSuccess(bitmap, Stopwatch.GetElapsedTime(started));
+            var result = bitmap;
+            bitmap = null;
+            return OperationResult<Bitmap>.CreateSuccess(result, Stopwatch.GetElapsedTime(started));
         }
         catch (OutOfMemoryException ex)
         {
@@ -152,6 +156,10 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
         {
             logger.LogError(ex, "Invalid bitmap arguments for {Width}x{Height} texture", texture.Width, texture.Height);
             return OperationResult<Bitmap>.CreateFailure($"Invalid bitmap dimensions: {ex.Message}", Stopwatch.GetElapsedTime(started));
+        }
+        finally
+        {
+            bitmap?.Dispose();
         }
     }
 
@@ -197,20 +205,16 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
         }
         catch (OperationCanceledException)
         {
-            DeleteQuietly(tempPath);
             throw;
         }
-        catch (IOException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
         {
-            DeleteQuietly(tempPath);
             logger.LogWarning(ex, "Failed to save PNG file: {Path}", path);
             return OperationResult<string>.CreateFailure($"Failed to save PNG file: {path}", Stopwatch.GetElapsedTime(started));
         }
-        catch (UnauthorizedAccessException ex)
+        finally
         {
             DeleteQuietly(tempPath);
-            logger.LogWarning(ex, "Access denied saving PNG file: {Path}", path);
-            return OperationResult<string>.CreateFailure($"Access denied saving PNG file: {path}", Stopwatch.GetElapsedTime(started));
         }
     }
 
@@ -227,6 +231,7 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
         ArgumentNullException.ThrowIfNull(texture);
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
+        cancellationToken.ThrowIfCancellationRequested();
         var encoded = codec.EncodeTga(texture);
         if (encoded.Failed || encoded.Data is null)
         {
@@ -245,38 +250,21 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
         }
         catch (OperationCanceledException)
         {
-            DeleteQuietly(tempPath);
             throw;
         }
-        catch (IOException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
         {
-            DeleteQuietly(tempPath);
             logger.LogWarning(ex, "Failed to save TGA file: {Path}", path);
             return OperationResult<string>.CreateFailure($"Failed to save TGA file: {path}", Stopwatch.GetElapsedTime(started));
         }
-        catch (UnauthorizedAccessException ex)
+        finally
         {
             DeleteQuietly(tempPath);
-            logger.LogWarning(ex, "Access denied saving TGA file: {Path}", path);
-            return OperationResult<string>.CreateFailure($"Access denied saving TGA file: {path}", Stopwatch.GetElapsedTime(started));
         }
     }
 
-    private static bool TryParseArchiveReference(string path, out string archivePath, out string entryRelativePath)
-    {
-        int hashIndex = path.IndexOf('#');
-        if (hashIndex > 0 && path[..hashIndex].EndsWith(".big", StringComparison.OrdinalIgnoreCase))
-        {
-            string[] parts = path.Split('#', 2);
-            archivePath = parts[0];
-            entryRelativePath = parts[1];
-            return true;
-        }
-
-        archivePath = string.Empty;
-        entryRelativePath = string.Empty;
-        return false;
-    }
+    private static bool TryParseArchiveReference(string path, out string archivePath, out string entryRelativePath) =>
+        TextureEditorConstants.TryParseArchiveReference(path, out archivePath, out entryRelativePath);
 
     private static string CreateTempPath(string path)
     {
@@ -348,6 +336,11 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
 
             using var ms = new MemoryStream(bytes);
             using var image = await Image.LoadAsync<Rgba32>(ms, cancellationToken).ConfigureAwait(false);
+            if ((long)image.Width * image.Height * 4 > int.MaxValue)
+            {
+                return OperationResult<DecodedTexture>.CreateFailure("Image dimensions exceed maximum supported pixel buffer size.", Stopwatch.GetElapsedTime(started));
+            }
+
             var pixels = new byte[image.Width * image.Height * 4];
             image.CopyPixelDataTo(pixels);
             var texture = new DecodedTexture(image.Width, image.Height, pixels);
@@ -357,7 +350,7 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is UnknownImageFormatException or InvalidImageContentException or IOException or EndOfStreamException or NotSupportedException or ArgumentException or InvalidOperationException)
         {
             logger.LogWarning(ex, "Failed to decode texture {Entry} from archive {Archive}", entryRelativePath, archivePath);
             return OperationResult<DecodedTexture>.CreateFailure($"Failed to decode texture from archive: {ex.Message}", Stopwatch.GetElapsedTime(started));
@@ -383,6 +376,11 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
         try
         {
             using var image = await Image.LoadAsync<Rgba32>(path, cancellationToken).ConfigureAwait(false);
+            if ((long)image.Width * image.Height * 4 > int.MaxValue)
+            {
+                return OperationResult<DecodedTexture>.CreateFailure("Image dimensions exceed maximum supported pixel buffer size.", Stopwatch.GetElapsedTime(started));
+            }
+
             var pixels = new byte[image.Width * image.Height * 4];
             image.CopyPixelDataTo(pixels);
             var texture = new DecodedTexture(image.Width, image.Height, pixels);

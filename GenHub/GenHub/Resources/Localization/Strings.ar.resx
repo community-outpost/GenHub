@@ -17312,4 +17312,9 @@ Error: فشل: {3}
   <data name="TextureEditor.History.DuplicateSlice" xml:space="preserve"><value>تكرار الشريحة</value></data>
   <data name="TextureEditor.History.DeleteSlice" xml:space="preserve"><value>حذف الشريحة</value></data>
   <data name="TextureEditor.Notify.CopyFailed.Title" xml:space="preserve"><value>فشل النسخ</value></data>
+  <data name="TextureEditor.History.NudgeSlice" xml:space="preserve"><value>تحريك الشريحة</value></data>
+  <data name="TextureEditor.History.ApplyPreset" xml:space="preserve"><value>تطبيق الإعداد المسبق</value></data>
+  <data name="TextureEditor.Notify.PasteFailed.Title" xml:space="preserve"><value>فشل اللصق</value></data>
+  <data name="TextureEditor.Notify.PasteFailed.Message" xml:space="preserve"><value>لا تحتوي الحافظة على تعريفات MappedImage صالحة.</value></data>
+  <data name="TextureEditor.Notify.OpenFailed.Message" xml:space="preserve"><value>فشل فتح النسيج الهدف.</value></data>
 </root>

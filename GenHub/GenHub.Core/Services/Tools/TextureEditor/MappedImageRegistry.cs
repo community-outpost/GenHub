@@ -65,13 +65,13 @@ public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<M
             return OperationResult<MappedImageScanResult>.CreateFailure($"Directory not found: {directory}", Stopwatch.GetElapsedTime(started));
         }
 
-        var (iniSuccess, files, iniFailure) = EnumerateMappedImageFiles(directory, started);
+        var (iniSuccess, files, iniFailure) = await Task.Run(() => EnumerateMappedImageFiles(directory, started, cancellationToken), cancellationToken).ConfigureAwait(false);
         if (!iniSuccess || files is null)
         {
-            return iniFailure!;
+            return iniFailure ?? OperationResult<MappedImageScanResult>.CreateFailure($"Failed to enumerate directory: {directory}", Stopwatch.GetElapsedTime(started));
         }
 
-        string[] bigFiles = EnumerateBigFiles(directory);
+        string[] bigFiles = await Task.Run(() => EnumerateBigFiles(directory, cancellationToken), cancellationToken).ConfigureAwait(false);
         Array.Sort(files, CompareSageLoadOrder);
         var errors = new List<string>();
 
@@ -218,17 +218,48 @@ public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<M
 
     private static string DecodeArchiveIniText(byte[] bytes)
     {
-        return bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF
-            ? Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3)
-            : Encoding.Latin1.GetString(bytes);
+        if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+        {
+            return Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3);
+        }
+
+        if (bytes.Length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE)
+        {
+            return Encoding.Unicode.GetString(bytes, 2, bytes.Length - 2);
+        }
+
+        if (bytes.Length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF)
+        {
+            return Encoding.BigEndianUnicode.GetString(bytes, 2, bytes.Length - 2);
+        }
+
+        try
+        {
+            var utf8Strict = new UTF8Encoding(false, true);
+            return utf8Strict.GetString(bytes);
+        }
+        catch (DecoderFallbackException)
+        {
+            return Encoding.Latin1.GetString(bytes);
+        }
     }
 
-    private (bool Success, string[]? Files, OperationResult<MappedImageScanResult>? Failure) EnumerateMappedImageFiles(string directory, long started)
+    private (bool Success, string[]? Files, OperationResult<MappedImageScanResult>? Failure) EnumerateMappedImageFiles(string directory, long started, CancellationToken cancellationToken)
     {
         try
         {
-            string[] files = Directory.GetFiles(directory, TextureEditorConstants.MappedImagesFilePattern, SearchOption.AllDirectories);
-            return (true, files, null);
+            var files = new List<string>();
+            foreach (var file in Directory.EnumerateFiles(directory, TextureEditorConstants.MappedImagesFilePattern, SearchOption.AllDirectories))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                files.Add(file);
+            }
+
+            return (true, files.ToArray(), null);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (IOException ex)
         {
@@ -242,14 +273,22 @@ public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<M
         }
     }
 
-    private string[] EnumerateBigFiles(string directory)
+    private string[] EnumerateBigFiles(string directory, CancellationToken cancellationToken)
     {
         try
         {
-            return Directory
-                .GetFiles(directory, "*", SearchOption.AllDirectories)
-                .Where(file => string.Equals(Path.GetExtension(file), ".big", StringComparison.OrdinalIgnoreCase))
-                .ToArray();
+            var bigFiles = new List<string>();
+            foreach (var file in Directory.EnumerateFiles(directory, TextureEditorConstants.BigArchiveSearchPattern, SearchOption.AllDirectories))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                bigFiles.Add(file);
+            }
+
+            return bigFiles.ToArray();
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -307,8 +346,8 @@ public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<M
 
         foreach (var entry in orderedEntries)
         {
-            if (!entry.Path.EndsWith(".ini", StringComparison.OrdinalIgnoreCase)
-                || !entry.Path.Contains("MappedImages", StringComparison.OrdinalIgnoreCase))
+            if (!entry.Path.EndsWith(TextureEditorConstants.MappedImagesExtension, StringComparison.OrdinalIgnoreCase)
+                || !entry.Path.Contains(TextureEditorConstants.MappedImagesDirectoryName, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -346,7 +385,7 @@ public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<M
             return false;
         }
 
-        string sourcePath = $"{bigFile}#{entry.Path}";
+        string sourcePath = TextureEditorConstants.FormatArchiveReference(bigFile, entry.Path);
         var parsed = parser.ParseText(text, sourcePath);
         if (parsed.Data is not null)
         {
@@ -375,13 +414,30 @@ public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<M
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (!await ShouldIncludeLooseIniAsync(file, cancellationToken).ConfigureAwait(false))
+            string text;
+            try
+            {
+                text = await File.ReadAllTextAsync(file, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning(ex, "Failed to read MappedImages INI file: {Path}", file);
+                errors.Add($"Failed to read MappedImages INI file: {file}");
+                continue;
+            }
+
+            bool isMappedImagesFolder = file.Contains(TextureEditorConstants.MappedImagesDirectoryName, StringComparison.OrdinalIgnoreCase);
+            if (!isMappedImagesFolder && !text.Contains(TextureEditorConstants.IniBlockName, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
             looseFilesParsed++;
-            var parsed = await parser.ParseFileAsync(file, cancellationToken).ConfigureAwait(false);
+            var parsed = parser.ParseText(text, file);
             if (parsed.Data is not null)
             {
                 foreach (var image in parsed.Data)
@@ -397,24 +453,5 @@ public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<M
         }
 
         return looseFilesParsed;
-    }
-
-    private async Task<bool> ShouldIncludeLooseIniAsync(string file, CancellationToken cancellationToken)
-    {
-        if (file.Contains("MappedImages", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        try
-        {
-            string sample = await File.ReadAllTextAsync(file, cancellationToken).ConfigureAwait(false);
-            return sample.Contains(TextureEditorConstants.IniBlockName, StringComparison.OrdinalIgnoreCase);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            logger.LogDebug(ex, "Failed to read candidate INI file {File} during content probe, skipping", file);
-            return false;
-        }
     }
 }

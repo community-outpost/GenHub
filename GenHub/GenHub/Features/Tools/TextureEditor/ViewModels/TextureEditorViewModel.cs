@@ -59,8 +59,6 @@ public sealed partial class TextureEditorViewModel(
     private const string OpenFailedTitleFallback = "Failed to open atlas";
     private const string CopyFailedTitleKey = "TextureEditor.Notify.CopyFailed.Title";
     private const string CopyFailedTitleFallback = "Copy failed";
-    private const string WindowFolder = "Window";
-    private const string TextureFolder = "Texture";
 
     private readonly ConcurrentDictionary<string, Dictionary<string, BigArchiveEntry>> _archiveIndexCache = new(StringComparer.OrdinalIgnoreCase);
 
@@ -85,11 +83,13 @@ public sealed partial class TextureEditorViewModel(
     [NotifyPropertyChangedFor(nameof(AtlasPixelHeight))]
     [NotifyPropertyChangedFor(nameof(DisplayWidth))]
     [NotifyPropertyChangedFor(nameof(DisplayHeight))]
+    [NotifyPropertyChangedFor(nameof(PickerThumbnailProvider))]
     private Bitmap? _atlasBitmap;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AtlasFileName))]
     [NotifyPropertyChangedFor(nameof(DocumentTitle))]
+    [NotifyPropertyChangedFor(nameof(PickerThumbnailProvider))]
     private string _atlasPath = string.Empty;
 
     [ObservableProperty]
@@ -437,6 +437,16 @@ public sealed partial class TextureEditorViewModel(
     {
         ArgumentNullException.ThrowIfNull(action);
         _undoStack.Push(action);
+        if (_undoStack.Count > TextureEditorConstants.MaxHistoryDepth)
+        {
+            var items = _undoStack.ToArray();
+            _undoStack.Clear();
+            for (int i = TextureEditorConstants.MaxHistoryDepth - 1; i >= 0; i--)
+            {
+                _undoStack.Push(items[i]);
+            }
+        }
+
         _redoStack.Clear();
         RefreshEditorCommands();
     }
@@ -641,98 +651,119 @@ public sealed partial class TextureEditorViewModel(
 
         if (_copiedSlice is not null)
         {
-            var copy = _copiedSlice;
-            if (_isCutOperation)
+            PasteInternalCopiedSlice();
+            return;
+        }
+
+        await PasteFromClipboardAsync(cancellationToken).ConfigureAwait(true);
+    }
+
+    private void PasteInternalCopiedSlice()
+    {
+        var copy = _copiedSlice;
+        if (_isCutOperation)
+        {
+            _copiedSlice = null;
+            _isCutOperation = false;
+        }
+
+        if (copy is null)
+        {
+            return;
+        }
+
+        var pasted = InsertSliceCopy(copy);
+        if (pasted is not null)
+        {
+            PushUndo(new TextureEditAction(
+                Localize("TextureEditor.History.PasteSlice", "Paste slice"),
+                () =>
+                {
+                    if (!Slices.Contains(pasted))
+                    {
+                        TrackSlice(pasted);
+                    }
+
+                    SelectedSlice = pasted;
+                    MarkDirty();
+                },
+                () =>
+                {
+                    UntrackSlice(pasted);
+                    MarkDirty();
+                }));
+        }
+
+        MarkDirty();
+        RefreshEditorCommands();
+    }
+
+    private async Task PasteFromClipboardAsync(CancellationToken cancellationToken)
+    {
+        var topLevel = GetTopLevel();
+        if (topLevel?.Clipboard is not { } clipboard)
+        {
+            return;
+        }
+
+        try
+        {
+            var text = await clipboard.GetTextAsync().ConfigureAwait(true);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (string.IsNullOrWhiteSpace(text))
             {
-                _copiedSlice = null;
-                _isCutOperation = false;
+                return;
             }
 
-            var pasted = InsertSliceCopy(copy);
-            if (pasted is not null)
+            var parsed = parser.ParseText(text);
+            if (!parsed.Success || parsed.Data is null || parsed.Data.Count == 0)
+            {
+                Notifications.ShowWarning(
+                    Localize("TextureEditor.Notify.PasteFailed.Title", "Paste failed"),
+                    Localize("TextureEditor.Notify.PasteFailed.Message", "Clipboard does not contain valid MappedImage definitions."),
+                    NotificationDurations.Medium);
+                return;
+            }
+
+            var added = parsed.Data
+                .Select(InsertSliceCopy)
+                .OfType<TextureSliceViewModel>()
+                .ToList();
+
+            if (added.Count > 0)
             {
                 PushUndo(new TextureEditAction(
                     Localize("TextureEditor.History.PasteSlice", "Paste slice"),
                     () =>
                     {
-                        if (!Slices.Contains(pasted))
+                        foreach (var s in added.Where(s => !Slices.Contains(s)))
                         {
-                            TrackSlice(pasted);
+                            TrackSlice(s);
                         }
 
-                        SelectedSlice = pasted;
+                        SelectedSlice = added[^1];
                         MarkDirty();
                     },
                     () =>
                     {
-                        UntrackSlice(pasted);
+                        foreach (var s in added)
+                        {
+                            UntrackSlice(s);
+                        }
+
                         MarkDirty();
                     }));
+                MarkDirty();
+                RefreshEditorCommands();
             }
-
-            MarkDirty();
-            RefreshEditorCommands();
-            return;
         }
-
-        var topLevel = GetTopLevel();
-        if (topLevel?.Clipboard is { } clipboard)
+        catch (OperationCanceledException)
         {
-            try
-            {
-                var text = await clipboard.GetTextAsync().ConfigureAwait(true);
-                cancellationToken.ThrowIfCancellationRequested();
-                if (!string.IsNullOrWhiteSpace(text))
-                {
-                    var parsed = parser.ParseText(text);
-                    if (parsed.Success && parsed.Data is { Count: > 0 })
-                    {
-                        var added = new List<TextureSliceViewModel>();
-                        foreach (var def in parsed.Data)
-                        {
-                            var slice = InsertSliceCopy(def);
-                            if (slice is not null)
-                            {
-                                added.Add(slice);
-                            }
-                        }
-
-                        if (added.Count > 0)
-                        {
-                            PushUndo(new TextureEditAction(
-                                Localize("TextureEditor.History.PasteSlice", "Paste slice"),
-                                () =>
-                                {
-                                    foreach (var s in added)
-                                    {
-                                        if (!Slices.Contains(s))
-                                        {
-                                            TrackSlice(s);
-                                        }
-                                    }
-
-                                    SelectedSlice = added[^1];
-                                    MarkDirty();
-                                },
-                                () =>
-                                {
-                                    foreach (var s in added)
-                                    {
-                                        UntrackSlice(s);
-                                    }
-
-                                    MarkDirty();
-                                }));
-                            MarkDirty();
-                            RefreshEditorCommands();
-                        }
-                    }
-                }
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
-            {
-                logger.LogWarning(ex, "Failed to read clipboard text for paste");
-            }
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            logger.LogWarning(ex, "Failed to read clipboard text for paste");
         }
     }
 
@@ -999,6 +1030,9 @@ public sealed partial class TextureEditorViewModel(
         }
 
         Slices.Clear();
+        _undoStack.Clear();
+        _redoStack.Clear();
+        _archiveIndexCache.Clear();
         AtlasBitmap?.Dispose();
         AtlasBitmap = null;
         base.Dispose(disposing);
@@ -1109,15 +1143,17 @@ public sealed partial class TextureEditorViewModel(
 
     private static int CompareBigArchiveTexturePriority(string a, string b)
     {
-        bool aIsZh = a.Contains("ZH", StringComparison.OrdinalIgnoreCase);
-        bool bIsZh = b.Contains("ZH", StringComparison.OrdinalIgnoreCase);
+        bool aIsZh = a.Contains(TextureEditorConstants.ZeroHourMarker, StringComparison.OrdinalIgnoreCase);
+        bool bIsZh = b.Contains(TextureEditorConstants.ZeroHourMarker, StringComparison.OrdinalIgnoreCase);
         if (aIsZh != bIsZh)
         {
             return aIsZh ? -1 : 1;
         }
 
-        bool aIsTextureOrWindow = a.Contains(WindowFolder, StringComparison.OrdinalIgnoreCase) || a.Contains(TextureFolder, StringComparison.OrdinalIgnoreCase);
-        bool bIsTextureOrWindow = b.Contains(WindowFolder, StringComparison.OrdinalIgnoreCase) || b.Contains(TextureFolder, StringComparison.OrdinalIgnoreCase);
+        bool aIsTextureOrWindow = a.Contains(TextureEditorConstants.WindowFolder, StringComparison.OrdinalIgnoreCase) ||
+                                  a.Contains(TextureEditorConstants.TextureFolder, StringComparison.OrdinalIgnoreCase);
+        bool bIsTextureOrWindow = b.Contains(TextureEditorConstants.WindowFolder, StringComparison.OrdinalIgnoreCase) ||
+                                  b.Contains(TextureEditorConstants.TextureFolder, StringComparison.OrdinalIgnoreCase);
         if (aIsTextureOrWindow != bIsTextureOrWindow)
         {
             return aIsTextureOrWindow ? -1 : 1;
@@ -1143,7 +1179,7 @@ public sealed partial class TextureEditorViewModel(
         string[] bigFiles;
         try
         {
-            bigFiles = Directory.GetFiles(directory, "*.big", enumOptions);
+            bigFiles = Directory.GetFiles(directory, TextureEditorConstants.BigArchiveSearchPattern, enumOptions);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -1171,11 +1207,11 @@ public sealed partial class TextureEditorViewModel(
 
             var matching = entries.Values
                 .Select(entry => entry.Path)
-                .FirstOrDefault(path => candidates.Contains(Path.GetFileName(path.Replace('/', '\\'))));
+                .FirstOrDefault(path => candidates.Contains(path.Split(['/', '\\']).LastOrDefault() ?? string.Empty));
 
             if (matching is not null)
             {
-                return $"{bigFile}#{matching}";
+                return TextureEditorConstants.FormatArchiveReference(bigFile, matching);
             }
         }
 
@@ -1260,6 +1296,7 @@ public sealed partial class TextureEditorViewModel(
 
     private async Task<bool> ScanDirectoryCoreAsync(string folder, CancellationToken cancellationToken)
     {
+        _archiveIndexCache.Clear();
         var result = await registry.ScanDirectoryAsync(folder, cancellationToken).ConfigureAwait(true);
         cancellationToken.ThrowIfCancellationRequested();
         RefreshRegistryImages();
@@ -1895,6 +1932,11 @@ public sealed partial class TextureEditorViewModel(
         IReadOnlyList<MappedImageDefinition> allDefinitions,
         CancellationToken operationToken)
     {
+        if (gameInstallationService is not null && gameInstallationService.CachedInstallations is null)
+        {
+            await EnsureGameInstallationsLoadedAsync(operationToken).ConfigureAwait(true);
+        }
+
         string? targetTexturePath = null;
         IGrouping<string, MappedImageDefinition>? targetGroup = null;
 
@@ -1909,10 +1951,12 @@ public sealed partial class TextureEditorViewModel(
             }
         }
 
-        if (targetTexturePath is null || targetGroup is null)
+        if (targetTexturePath is null)
         {
             return false;
         }
+
+        Debug.Assert(targetGroup is not null);
 
         if (HasUnsavedChanges && !await ConfirmDiscardUnsavedAsync(operationToken).ConfigureAwait(true))
         {
@@ -1921,25 +1965,29 @@ public sealed partial class TextureEditorViewModel(
 
         var decoded = await bitmapService.LoadDecodedAsync(targetTexturePath, operationToken).ConfigureAwait(true);
         operationToken.ThrowIfCancellationRequested();
-        if (decoded.Success && decoded.Data is not null && OpenDecodedAtlas(decoded.Data, targetTexturePath))
+        if (decoded.Failed || decoded.Data is null || !OpenDecodedAtlas(decoded.Data, targetTexturePath))
         {
-            CommitParsedDefinitions(allDefinitions);
-            ReplaceSlices(targetGroup.ToList());
-            _savedIniPath = path;
-            FileExplorer.CurrentPath = path;
-            MarkSaved();
-
-            string extraInfo = groups.Count > 1
-                ? Localize("TextureEditor.Notify.ImportExtraTextures", " ({0} other textures in Library)", groups.Count - 1)
-                : string.Empty;
-            Notifications.ShowSuccess(
-                Localize("TextureEditor.Notify.ImportComplete.Title", "Loaded INI"),
-                Localize("TextureEditor.Notify.ImportComplete.LoadedTargetAtlas", "Loaded {0} slices for {1} from {2}{3}.", targetGroup.Count(), Path.GetFileName(targetTexturePath), Path.GetFileName(path), extraInfo),
-                NotificationDurations.Medium);
+            Notifications.ShowError(
+                Localize(OpenFailedTitleKey, OpenFailedTitleFallback),
+                decoded.FirstError ?? Localize("TextureEditor.Notify.OpenFailed.Message", "Failed to open target texture."),
+                NotificationDurations.Long);
             return true;
         }
 
-        return false;
+        CommitParsedDefinitions(allDefinitions);
+        ReplaceSlices(targetGroup.ToList());
+        _savedIniPath = path;
+        FileExplorer.CurrentPath = path;
+        MarkSaved();
+
+        string extraInfo = groups.Count > 1
+            ? Localize("TextureEditor.Notify.ImportExtraTextures", " ({0} other textures in Library)", groups.Count - 1)
+            : string.Empty;
+        Notifications.ShowSuccess(
+            Localize("TextureEditor.Notify.ImportComplete.Title", "Loaded INI"),
+            Localize("TextureEditor.Notify.ImportComplete.LoadedTargetAtlas", "Loaded {0} slices for {1} from {2}{3}.", targetGroup.Count(), Path.GetFileName(targetTexturePath), Path.GetFileName(path), extraInfo),
+            NotificationDurations.Medium);
+        return true;
     }
 
     private async Task<bool> TryOpenPlaceholderGroupAsync(
@@ -2162,30 +2210,45 @@ public sealed partial class TextureEditorViewModel(
 
     private async Task HandleRegistryEntryWithoutAtlasAsync(MappedImageDefinition definition, bool explicitOpen)
     {
-        string? texturePath = FindTextureFile(definition.TextureFileName, definition.SourcePath);
-        if (texturePath is null && gameInstallationService is not null && gameInstallationService.CachedInstallations is null)
+        try
         {
-            await EnsureGameInstallationsLoadedAsync().ConfigureAwait(true);
-            texturePath = FindTextureFile(definition.TextureFileName, definition.SourcePath);
-        }
+            if (gameInstallationService is not null && gameInstallationService.CachedInstallations is null)
+            {
+                await EnsureGameInstallationsLoadedAsync().ConfigureAwait(true);
+            }
 
-        if (texturePath is not null)
+            string? texturePath = FindTextureFile(definition.TextureFileName, definition.SourcePath);
+
+            if (texturePath is not null)
+            {
+                await OpenTextureAndLoadEntryAsync(texturePath, definition).ConfigureAwait(true);
+                return;
+            }
+
+            if (explicitOpen)
+            {
+                await OpenPlaceholderForEntryAsync(definition).ConfigureAwait(true);
+                return;
+            }
+
+            logger.LogInformation("Registry entry {Name} not loaded: no atlas is open.", definition.Name);
+            Notifications.ShowInfo(
+                Localize("TextureEditor.Notify.NoAtlas.Title", "No atlas open"),
+                Localize("TextureEditor.Notify.NoAtlas.Message", "Open a texture atlas before adding slices."),
+                NotificationDurations.Medium);
+        }
+        catch (OperationCanceledException)
         {
-            await OpenTextureAndLoadEntryAsync(texturePath, definition).ConfigureAwait(true);
-            return;
+            // Cancelled
         }
-
-        if (explicitOpen)
+        catch (Exception ex)
         {
-            await OpenPlaceholderForEntryAsync(definition).ConfigureAwait(true);
-            return;
+            logger.LogError(ex, "Failed to load registry entry {Name}", definition.Name);
+            Notifications.ShowError(
+                Localize(OpenFailedTitleKey, OpenFailedTitleFallback),
+                ex.Message,
+                NotificationDurations.Long);
         }
-
-        logger.LogInformation("Registry entry {Name} not loaded: no atlas is open.", definition.Name);
-        Notifications.ShowInfo(
-            Localize("TextureEditor.Notify.NoAtlas.Title", "No atlas open"),
-            Localize("TextureEditor.Notify.NoAtlas.Message", "Open a texture atlas before adding slices."),
-            NotificationDurations.Medium);
     }
 
     private bool IsDefinitionInSameDirectory(MappedImageDefinition definition)
@@ -2217,39 +2280,54 @@ public sealed partial class TextureEditorViewModel(
 
     private async Task ResolveExternalAtlasEntryAsync(MappedImageDefinition definition, bool explicitOpen, bool sameDirectory)
     {
-        string? resolved = FindTextureFile(definition.TextureFileName, definition.SourcePath);
-        if (resolved is null && gameInstallationService is not null && gameInstallationService.CachedInstallations is null)
+        try
         {
-            await EnsureGameInstallationsLoadedAsync().ConfigureAwait(true);
-            resolved = FindTextureFile(definition.TextureFileName, definition.SourcePath);
-        }
+            if (gameInstallationService is not null && gameInstallationService.CachedInstallations is null)
+            {
+                await EnsureGameInstallationsLoadedAsync().ConfigureAwait(true);
+            }
 
-        if (resolved is not null && !string.Equals(resolved, AtlasPath, StringComparison.OrdinalIgnoreCase))
+            string? resolved = FindTextureFile(definition.TextureFileName, definition.SourcePath);
+
+            if (resolved is not null && !string.Equals(resolved, AtlasPath, StringComparison.OrdinalIgnoreCase))
+            {
+                await OpenTextureAndLoadEntryAsync(resolved, definition).ConfigureAwait(true);
+                return;
+            }
+
+            if (resolved is not null && sameDirectory)
+            {
+                AdoptRegistryEntry(definition);
+                return;
+            }
+
+            if (explicitOpen)
+            {
+                await OpenPlaceholderForEntryAsync(definition).ConfigureAwait(true);
+                return;
+            }
+
+            logger.LogWarning(
+                "Registry entry {Name} targets {Expected} but no matching texture file was found.",
+                definition.Name,
+                definition.TextureFileName);
+            Notifications.ShowWarning(
+                Localize("TextureEditor.Notify.TextureNotFound.Title", "Texture not found"),
+                Localize("TextureEditor.Notify.TextureNotFound.Message", "'{0}' belongs to {1}, which was not found. Open the folder containing {1} and try again.", definition.Name, definition.TextureFileName),
+                NotificationDurations.Medium);
+        }
+        catch (OperationCanceledException)
         {
-            await OpenTextureAndLoadEntryAsync(resolved, definition).ConfigureAwait(true);
-            return;
+            // Cancelled
         }
-
-        if (resolved is not null && sameDirectory)
+        catch (Exception ex)
         {
-            AdoptRegistryEntry(definition);
-            return;
+            logger.LogError(ex, "Failed to resolve external atlas entry {Name}", definition.Name);
+            Notifications.ShowError(
+                Localize(OpenFailedTitleKey, OpenFailedTitleFallback),
+                ex.Message,
+                NotificationDurations.Long);
         }
-
-        if (explicitOpen)
-        {
-            await OpenPlaceholderForEntryAsync(definition).ConfigureAwait(true);
-            return;
-        }
-
-        logger.LogWarning(
-            "Registry entry {Name} targets {Expected} but no matching texture file was found.",
-            definition.Name,
-            definition.TextureFileName);
-        Notifications.ShowWarning(
-            Localize("TextureEditor.Notify.TextureNotFound.Title", "Texture not found"),
-            Localize("TextureEditor.Notify.TextureNotFound.Message", "'{0}' belongs to {1}, which was not found. Open the folder containing {1} and try again.", definition.Name, definition.TextureFileName),
-            NotificationDurations.Medium);
     }
 
     private async Task OpenPlaceholderForEntryAsync(MappedImageDefinition definition)
@@ -2326,10 +2404,10 @@ public sealed partial class TextureEditorViewModel(
 
         if (cleanSource is not null)
         {
-            return Path.GetDirectoryName(cleanSource) ?? Directory.GetCurrentDirectory();
+            return Path.GetDirectoryName(cleanSource) ?? Path.GetTempPath();
         }
 
-        return Directory.GetCurrentDirectory();
+        return Path.GetTempPath();
     }
 
     private string? FindTextureFile(string textureFileName, string? sourcePath)
@@ -2337,7 +2415,14 @@ public sealed partial class TextureEditorViewModel(
         var candidates = GetTextureCandidates(textureFileName);
         var probeDirectories = GetProbeDirectories(sourcePath);
 
-        // 1. Check loose texture files in candidate directories and common subdirectories
+        return FindTextureInDirectories(probeDirectories, candidates)
+            ?? FindTextureInExplorerTree(candidates)
+            ?? FindTextureInArchives(probeDirectories, candidates)
+            ?? FindTextureInInstallations(candidates);
+    }
+
+    private static string? FindTextureInDirectories(IReadOnlyList<string> probeDirectories, IReadOnlyCollection<string> candidates)
+    {
         foreach (string directory in probeDirectories)
         {
             if (!Directory.Exists(directory))
@@ -2353,19 +2438,19 @@ public sealed partial class TextureEditorViewModel(
                     return probed;
                 }
 
-                string artTextures = Path.Combine(directory, "Art", "Textures", candidate);
+                string artTextures = Path.Combine(directory, TextureEditorConstants.ArtFolder, TextureEditorConstants.TexturesFolder, candidate);
                 if (File.Exists(artTextures))
                 {
                     return artTextures;
                 }
 
-                string texturesDir = Path.Combine(directory, "Textures", candidate);
+                string texturesDir = Path.Combine(directory, TextureEditorConstants.TexturesFolder, candidate);
                 if (File.Exists(texturesDir))
                 {
                     return texturesDir;
                 }
 
-                string windowDir = Path.Combine(directory, WindowFolder, candidate);
+                string windowDir = Path.Combine(directory, TextureEditorConstants.WindowFolder, candidate);
                 if (File.Exists(windowDir))
                 {
                     return windowDir;
@@ -2373,20 +2458,30 @@ public sealed partial class TextureEditorViewModel(
             }
         }
 
-        // 2. Fall back to the already enumerated explorer tree
-        if (FileExplorer is not null)
+        return null;
+    }
+
+    private string? FindTextureInExplorerTree(IReadOnlyCollection<string> candidates)
+    {
+        if (FileExplorer is null)
         {
-            foreach (var candidate in candidates)
+            return null;
+        }
+
+        foreach (var candidate in candidates)
+        {
+            string? inTree = FindTextureInNodes(FileExplorer.Nodes, candidate);
+            if (inTree is not null)
             {
-                string? inTree = FindTextureInNodes(FileExplorer.Nodes, candidate);
-                if (inTree is not null)
-                {
-                    return inTree;
-                }
+                return inTree;
             }
         }
 
-        // 3. Check .BIG archives in candidate directories (recursively in workspace)
+        return null;
+    }
+
+    private string? FindTextureInArchives(IReadOnlyList<string> probeDirectories, HashSet<string> candidates)
+    {
         foreach (string directory in probeDirectories)
         {
             if (!Directory.Exists(directory))
@@ -2401,7 +2496,11 @@ public sealed partial class TextureEditorViewModel(
             }
         }
 
-        // 4. Fall back to detected game installations (Zero Hour / Generals retail archives & loose files)
+        return null;
+    }
+
+    private string? FindTextureInInstallations(HashSet<string> candidates)
+    {
         var gameDirectories = GetGameInstallationDirectories();
         foreach (string gameDir in gameDirectories)
         {
@@ -2418,19 +2517,19 @@ public sealed partial class TextureEditorViewModel(
                     return probed;
                 }
 
-                string artTextures = Path.Combine(gameDir, "Art", "Textures", candidate);
+                string artTextures = Path.Combine(gameDir, TextureEditorConstants.ArtFolder, TextureEditorConstants.TexturesFolder, candidate);
                 if (File.Exists(artTextures))
                 {
                     return artTextures;
                 }
 
-                string windowDir = Path.Combine(gameDir, WindowFolder, candidate);
+                string windowDir = Path.Combine(gameDir, TextureEditorConstants.WindowFolder, candidate);
                 if (File.Exists(windowDir))
                 {
                     return windowDir;
                 }
 
-                string windowMenusDir = Path.Combine(gameDir, WindowFolder, "Menus", candidate);
+                string windowMenusDir = Path.Combine(gameDir, TextureEditorConstants.WindowFolder, TextureEditorConstants.MenusFolder, candidate);
                 if (File.Exists(windowMenusDir))
                 {
                     return windowMenusDir;
@@ -2454,27 +2553,28 @@ public sealed partial class TextureEditorViewModel(
             return [];
         }
 
-        var directories = new List<string>();
-        foreach (var inst in installations)
-        {
-            string?[] candidates =
-            [
-                inst.HasZeroHour ? inst.ZeroHourPath : null,
-                inst.BundledGeneralsPath,
-                !string.IsNullOrEmpty(inst.EffectiveGeneralsArchivePath) ? inst.EffectiveGeneralsArchivePath : (inst.HasGenerals ? inst.GeneralsPath : null),
-                inst.InstallationPath,
-            ];
+        return installations
+            .SelectMany(GetInstallationDirectoryCandidates)
+            .Where(dir => !string.IsNullOrEmpty(dir) && Directory.Exists(dir))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
 
-            foreach (var candidate in candidates)
-            {
-                if (!string.IsNullOrEmpty(candidate) && Directory.Exists(candidate))
-                {
-                    directories.Add(candidate);
-                }
-            }
+    private static IEnumerable<string?> GetInstallationDirectoryCandidates(IGameInstallation inst)
+    {
+        string? generalsCandidate = inst.EffectiveGeneralsArchivePath;
+        if (string.IsNullOrEmpty(generalsCandidate) && inst.HasGenerals)
+        {
+            generalsCandidate = inst.GeneralsPath;
         }
 
-        return directories.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        return
+        [
+            inst.HasZeroHour ? inst.ZeroHourPath : null,
+            inst.BundledGeneralsPath,
+            generalsCandidate,
+            inst.InstallationPath,
+        ];
     }
 
     private async Task EnsureGameInstallationsLoadedAsync(CancellationToken cancellationToken = default)
@@ -2503,21 +2603,44 @@ public sealed partial class TextureEditorViewModel(
             string? sourceDir = Path.GetDirectoryName(cleanSource);
             if (!string.IsNullOrEmpty(sourceDir))
             {
-                probeDirectories.Add(sourceDir);
+                AddDirectoryWithParents(probeDirectories, sourceDir);
             }
         }
 
         if (!string.IsNullOrEmpty(FileExplorer.Directory))
         {
-            probeDirectories.Add(FileExplorer.Directory);
+            AddDirectoryWithParents(probeDirectories, FileExplorer.Directory);
         }
 
         if (ShouldProbeAtlasDirectory(sourcePath, out string? atlasDirectory) && !string.IsNullOrEmpty(atlasDirectory))
         {
-            probeDirectories.Add(atlasDirectory);
+            AddDirectoryWithParents(probeDirectories, atlasDirectory);
         }
 
         return probeDirectories.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    private static void AddDirectoryWithParents(List<string> list, string dir)
+    {
+        if (string.IsNullOrEmpty(dir))
+        {
+            return;
+        }
+
+        list.Add(dir);
+        try
+        {
+            var current = new DirectoryInfo(dir);
+            for (int depth = 0; depth < 5 && current.Parent is not null; depth++)
+            {
+                current = current.Parent;
+                list.Add(current.FullName);
+            }
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or SecurityException or NotSupportedException)
+        {
+            // Ignore invalid paths
+        }
     }
 
     private bool ShouldProbeAtlasDirectory(string? sourcePath, out string? atlasDirectory)
@@ -2639,7 +2762,7 @@ public sealed partial class TextureEditorViewModel(
                 await clipboard.SetTextAsync(text).ConfigureAwait(true);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to copy MappedImage text to clipboard");
         }
@@ -2935,7 +3058,7 @@ public sealed partial class TextureEditorViewModel(
 
     private Avalonia.Media.IImage? CreatePickerThumbnail(MappedImageDefinition definition)
     {
-        if (AtlasBitmap is null || !MappedImageTextureMatcher.Matches(definition.TextureFileName, AtlasFileName))
+        if (AtlasBitmap is null || IsPlaceholder || !MappedImageTextureMatcher.Matches(definition.TextureFileName, AtlasFileName))
         {
             return null;
         }

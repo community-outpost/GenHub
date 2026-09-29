@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.VisualTree;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Tools.Common;
 using GenHub.Features.Tools.TextureEditor.ViewModels;
 using System;
@@ -33,7 +34,6 @@ public partial class TextureEditorView : UserControl
     public TextureEditorView()
     {
         InitializeComponent();
-        Focusable = true;
 
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
 
@@ -57,7 +57,7 @@ public partial class TextureEditorView : UserControl
     {
         while (visual is not null)
         {
-            if (visual is Border { DataContext: TextureSliceViewModel slice, Tag: null })
+            if (visual is Control { DataContext: TextureSliceViewModel slice })
             {
                 return slice;
             }
@@ -87,33 +87,56 @@ public partial class TextureEditorView : UserControl
             return;
         }
 
+        if (TryHandleUndoRedoKey(viewModel, e))
+        {
+            return;
+        }
+
+        if (focused is ListBox or ListBoxItem)
+        {
+            return;
+        }
+
+        HandleNavigationOrEditKey(viewModel, e);
+    }
+
+    private static bool TryHandleUndoRedoKey(TextureEditorViewModel viewModel, KeyEventArgs e)
+    {
         var modifiers = e.KeyModifiers;
         var hasCommandModifier = (modifiers & (KeyModifiers.Control | KeyModifiers.Meta)) != 0;
         var isShift = (modifiers & KeyModifiers.Shift) != 0;
 
-        if (hasCommandModifier && (modifiers & ~(KeyModifiers.Control | KeyModifiers.Meta | KeyModifiers.Shift)) == 0)
+        if (!hasCommandModifier || (modifiers & ~(KeyModifiers.Control | KeyModifiers.Meta | KeyModifiers.Shift)) != 0)
         {
-            if (e.Key == Key.Z && !isShift && viewModel.UndoCommand.CanExecute(null))
-            {
-                viewModel.UndoCommand.Execute(null);
-                e.Handled = true;
-                return;
-            }
-
-            if (((e.Key == Key.Y && !isShift) || (e.Key == Key.Z && isShift)) && viewModel.RedoCommand.CanExecute(null))
-            {
-                viewModel.RedoCommand.Execute(null);
-                e.Handled = true;
-                return;
-            }
+            return false;
         }
 
+        if (e.Key == Key.Z && !isShift && viewModel.UndoCommand.CanExecute(null))
+        {
+            viewModel.UndoCommand.Execute(null);
+            e.Handled = true;
+            return true;
+        }
+
+        if (((e.Key == Key.Y && !isShift) || (e.Key == Key.Z && isShift)) && viewModel.RedoCommand.CanExecute(null))
+        {
+            viewModel.RedoCommand.Execute(null);
+            e.Handled = true;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static void HandleNavigationOrEditKey(TextureEditorViewModel viewModel, KeyEventArgs e)
+    {
         if (viewModel.SelectedSlice is null)
         {
             return;
         }
 
-        int step = isShift ? 10 : 1;
+        bool isShift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
+        int step = isShift ? EditorConstants.KeyboardNudgeStepLarge : EditorConstants.KeyboardNudgeStep;
         switch (e.Key)
         {
             case Key.Left:
@@ -140,6 +163,14 @@ public partial class TextureEditorView : UserControl
                 }
 
                 break;
+        }
+    }
+
+    private void OnSliceItemPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is Control { DataContext: TextureSliceViewModel slice } && DataContext is TextureEditorViewModel viewModel)
+        {
+            viewModel.SelectedSlice = slice;
         }
     }
 

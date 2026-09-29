@@ -17371,4 +17371,9 @@ Mapped image texture reference</value>
   <data name="TextureEditor.History.DuplicateSlice" xml:space="preserve"><value>Duplicate slice</value></data>
   <data name="TextureEditor.History.DeleteSlice" xml:space="preserve"><value>Delete slice</value></data>
   <data name="TextureEditor.Notify.CopyFailed.Title" xml:space="preserve"><value>Copy failed</value></data>
+  <data name="TextureEditor.History.NudgeSlice" xml:space="preserve"><value>Nudge slice</value></data>
+  <data name="TextureEditor.History.ApplyPreset" xml:space="preserve"><value>Apply preset</value></data>
+  <data name="TextureEditor.Notify.PasteFailed.Title" xml:space="preserve"><value>Paste failed</value></data>
+  <data name="TextureEditor.Notify.PasteFailed.Message" xml:space="preserve"><value>Clipboard does not contain valid MappedImage definitions.</value></data>
+  <data name="TextureEditor.Notify.OpenFailed.Message" xml:space="preserve"><value>Failed to open target texture.</value></data>
 </root>

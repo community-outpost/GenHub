@@ -189,7 +189,7 @@ public sealed class TextureEditorViewModelTests
         }
         finally
         {
-            Directory.Delete(directory, true);
+            DeleteDirectoryQuietly(directory);
         }
     }
 
@@ -226,7 +226,7 @@ public sealed class TextureEditorViewModelTests
         }
         finally
         {
-            Directory.Delete(directory, true);
+            DeleteDirectoryQuietly(directory);
         }
     }
 
@@ -256,7 +256,7 @@ public sealed class TextureEditorViewModelTests
         }
         finally
         {
-            Directory.Delete(directory, true);
+            DeleteDirectoryQuietly(directory);
         }
     }
 
@@ -290,7 +290,7 @@ public sealed class TextureEditorViewModelTests
         }
         finally
         {
-            Directory.Delete(directory, true);
+            DeleteDirectoryQuietly(directory);
         }
     }
 
@@ -323,7 +323,7 @@ public sealed class TextureEditorViewModelTests
         }
         finally
         {
-            Directory.Delete(directory, true);
+            DeleteDirectoryQuietly(directory);
         }
     }
 
@@ -362,7 +362,7 @@ public sealed class TextureEditorViewModelTests
         }
         finally
         {
-            Directory.Delete(directory, true);
+            DeleteDirectoryQuietly(directory);
         }
     }
 
@@ -410,7 +410,7 @@ public sealed class TextureEditorViewModelTests
         }
         finally
         {
-            Directory.Delete(directory, true);
+            DeleteDirectoryQuietly(directory);
         }
     }
 
@@ -450,7 +450,7 @@ public sealed class TextureEditorViewModelTests
         }
         finally
         {
-            Directory.Delete(root, true);
+            DeleteDirectoryQuietly(root);
         }
     }
 
@@ -492,7 +492,7 @@ public sealed class TextureEditorViewModelTests
         }
         finally
         {
-            Directory.Delete(root, true);
+            DeleteDirectoryQuietly(root);
         }
     }
 
@@ -544,7 +544,7 @@ public sealed class TextureEditorViewModelTests
         }
         finally
         {
-            Directory.Delete(root, true);
+            DeleteDirectoryQuietly(root);
         }
     }
 
@@ -620,7 +620,7 @@ public sealed class TextureEditorViewModelTests
         }
         finally
         {
-            Directory.Delete(root, true);
+            DeleteDirectoryQuietly(root);
         }
     }
 
@@ -666,7 +666,7 @@ public sealed class TextureEditorViewModelTests
         }
         finally
         {
-            Directory.Delete(gameDir, true);
+            DeleteDirectoryQuietly(gameDir);
         }
     }
 
@@ -713,7 +713,7 @@ public sealed class TextureEditorViewModelTests
         }
         finally
         {
-            Directory.Delete(projectDir, true);
+            DeleteDirectoryQuietly(projectDir);
         }
     }
 
@@ -895,6 +895,30 @@ public sealed class TextureEditorViewModelTests
         Assert.True(viewModel.IsDirty);
     }
 
+    /// <summary>
+    /// Verifies that undo history does not exceed MaxHistoryDepth.
+    /// </summary>
+    [AvaloniaFact]
+    public void PushUndo_CapsHistoryAtMaxHistoryDepth()
+    {
+        var viewModel = CreateViewModel();
+        using var bitmap = OpenAtlas(viewModel, "atlas.tga");
+
+        for (int i = 0; i < TextureEditorConstants.MaxHistoryDepth + 20; i++)
+        {
+            viewModel.PushUndo(new TextureEditAction($"Action {i}", () => { }, () => { }));
+        }
+
+        Assert.True(viewModel.CanUndo);
+        for (int i = 0; i < TextureEditorConstants.MaxHistoryDepth; i++)
+        {
+            Assert.True(viewModel.CanUndo);
+            viewModel.UndoCommand.Execute(null);
+        }
+
+        Assert.False(viewModel.CanUndo);
+    }
+
     private static async Task WaitForAtlasAsync(TextureEditorViewModel viewModel, string expectedPath)
     {
         for (int attempt = 0; attempt < 500 && (viewModel.AtlasPath != expectedPath || viewModel.IsBusy); attempt++)
@@ -964,4 +988,25 @@ public sealed class TextureEditorViewModelTests
             (dialogs ?? new Mock<IDialogService>()).Object,
             gameInstallations?.Object);
     }
+    private static void DeleteDirectoryQuietly(string? path)
+    {
+        if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
+        {
+            return;
+        }
+
+        try
+        {
+            Directory.Delete(path, true);
+        }
+        catch (IOException)
+        {
+            // Best effort cleanup in tests
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Best effort cleanup in tests
+        }
+    }
 }
+

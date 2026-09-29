@@ -17312,4 +17312,9 @@ Error: не удалось: {3}
   <data name="TextureEditor.History.DuplicateSlice" xml:space="preserve"><value>Дублировать срез</value></data>
   <data name="TextureEditor.History.DeleteSlice" xml:space="preserve"><value>Удалить срез</value></data>
   <data name="TextureEditor.Notify.CopyFailed.Title" xml:space="preserve"><value>Не удалось скопировать</value></data>
+  <data name="TextureEditor.History.NudgeSlice" xml:space="preserve"><value>Сдвинуть срез</value></data>
+  <data name="TextureEditor.History.ApplyPreset" xml:space="preserve"><value>Применить предустановку</value></data>
+  <data name="TextureEditor.Notify.PasteFailed.Title" xml:space="preserve"><value>Ошибка вставки</value></data>
+  <data name="TextureEditor.Notify.PasteFailed.Message" xml:space="preserve"><value>Буфер обмена не содержит допустимых определений MappedImage.</value></data>
+  <data name="TextureEditor.Notify.OpenFailed.Message" xml:space="preserve"><value>Не удалось открыть целевую текстуру.</value></data>
 </root>
