@@ -380,7 +380,7 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
             return;
         }
 
-        OpenBlock(line, GetIndent(raw), lineNumber, comment, context.Stack, context.PendingComments, context.Document, context.Errors);
+        OpenBlock(context, line, GetIndent(raw), lineNumber, comment);
     }
 
     private static void ParseBlockContentLine(
@@ -411,7 +411,7 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
         var firstToken = line.Split([' ', '\t'], 2, StringSplitOptions.RemoveEmptyEntries)[0];
         if (IsBlockType(firstToken))
         {
-            OpenBlock(line, GetIndent(raw), lineNumber, comment, context.Stack, context.PendingComments, context.Document, context.Errors);
+            OpenBlock(context, line, GetIndent(raw), lineNumber, comment);
             return;
         }
 
@@ -568,17 +568,14 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
     }
 
     private static void OpenBlock(
+        IniParseContext context,
         string line,
         int indent,
         int lineNumber,
-        string? comment,
-        Stack<BlockFrame> stack,
-        List<IniComment> pendingComments,
-        IniDocument document,
-        List<string> errors)
+        string? comment)
     {
         var tokens = line.Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries);
-        ReportAmbiguousNesting(stack, document, errors, lineNumber, tokens[0]);
+        ReportAmbiguousNesting(context, lineNumber, tokens[0]);
         var block = new IniBlock
         {
             BlockType = tokens[0],
@@ -586,14 +583,14 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
             TrailingComment = comment,
             LineNumber = lineNumber,
         };
-        block.LeadingComments.AddRange(pendingComments);
-        pendingComments.Clear();
-        if (stack.Count == 0 && document.Blocks.Count == 0)
+        block.LeadingComments.AddRange(context.PendingComments);
+        context.PendingComments.Clear();
+        if (context.Stack.Count == 0 && context.Document.Blocks.Count == 0)
         {
-            DrainDocumentHeader(document, block);
+            DrainDocumentHeader(context.Document, block);
         }
 
-        stack.Push(new BlockFrame(block, indent));
+        context.Stack.Push(new BlockFrame(block, indent));
     }
 
     /// <summary>
@@ -601,26 +598,20 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
     /// nest legitimately, so this shape means a sibling boundary was lost to a
     /// missing <c>End</c> and serializing would bake in the wrong nesting.
     /// </summary>
-    /// <param name="stack">The currently open blocks, innermost last.</param>
-    /// <param name="document">The document collecting the discard marker.</param>
-    /// <param name="errors">The parse diagnostics.</param>
+    /// <param name="context">The parsing context.</param>
     /// <param name="lineNumber">The 1-based line number of the new header.</param>
     /// <param name="blockType">The block type being opened.</param>
     private static void ReportAmbiguousNesting(
-        Stack<BlockFrame> stack,
-        IniDocument document,
-        List<string> errors,
+        IniParseContext context,
         int lineNumber,
         string blockType)
     {
-        foreach (var frame in stack)
+        var conflictingFrame = context.Stack.FirstOrDefault(frame =>
+            string.Equals(frame.Block.BlockType, blockType, StringComparison.OrdinalIgnoreCase));
+        if (conflictingFrame is not null)
         {
-            if (string.Equals(frame.Block.BlockType, blockType, StringComparison.OrdinalIgnoreCase))
-            {
-                errors.Add($"Line {lineNumber}: Block '{blockType}' opens inside unclosed '{frame.Block.DisplayHeader}' (missing 'End'?).");
-                document.HasDiscardedContent = true;
-                return;
-            }
+            context.Errors.Add($"Line {lineNumber}: Block '{blockType}' opens inside unclosed '{conflictingFrame.Block.DisplayHeader}' (missing 'End'?).");
+            context.Document.HasDiscardedContent = true;
         }
     }
 
