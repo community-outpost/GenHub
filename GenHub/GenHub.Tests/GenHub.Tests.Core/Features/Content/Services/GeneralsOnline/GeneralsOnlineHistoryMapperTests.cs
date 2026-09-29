@@ -158,6 +158,57 @@ public class GeneralsOnlineHistoryMapperTests
     }
 
     /// <summary>
+    /// Malformed versions that the version scheme cannot parse are skipped instead of
+    /// minting cards with fabricated manifest components.
+    /// </summary>
+    [Fact]
+    public void BuildHistoryResults_WithUnparseableVersion_Skips()
+    {
+        var entries = new List<CrcMappingEntry>
+        {
+            CreateEntry("133126", "https://cdn.playgenerals.online/GeneralsOnline_portable_133126.zip"),
+        };
+
+        var results = GeneralsOnlineHistoryMapper.BuildHistoryResults(entries);
+
+        Assert.Empty(results);
+    }
+
+    /// <summary>
+    /// EAC-only releases that share no component with another row are kept.
+    /// </summary>
+    [Fact]
+    public void BuildHistoryResults_WithEacOnlyVersion_KeepsCard()
+    {
+        var entries = new List<CrcMappingEntry>
+        {
+            CreateEntry("042826_QFE3_EAC", "https://cdn.playgenerals.online/GeneralsOnline_portable_042826_QFE3_EAC.zip"),
+        };
+
+        var results = GeneralsOnlineHistoryMapper.BuildHistoryResults(entries);
+
+        var result = Assert.Single(results);
+        Assert.Equal("042826_QFE3_EAC", result.Version);
+    }
+
+    /// <summary>
+    /// Timezone-less build dates resolve to midnight UTC deterministically.
+    /// </summary>
+    [Fact]
+    public void BuildHistoryResults_WithDateOnlyBuildDate_ResolvesMidnightUtc()
+    {
+        var entries = new List<CrcMappingEntry>
+        {
+            CreateEntry("081326", "https://cdn.playgenerals.online/GeneralsOnline_portable_081326.zip", buildDate: "2026-08-13"),
+        };
+
+        var results = GeneralsOnlineHistoryMapper.BuildHistoryResults(entries);
+
+        var result = Assert.Single(results);
+        Assert.Equal(new DateTime(2026, 8, 13, 0, 0, 0, DateTimeKind.Utc), result.LastUpdated);
+    }
+
+    /// <summary>
     /// Null catalogs yield no history.
     /// </summary>
     [Fact]

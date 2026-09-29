@@ -62,7 +62,7 @@ public static class GeneralsOnlineHistoryMapper
             }
 
             var component = GameVersionHelper.GetGeneralsOnlineManifestIdComponent(entry.Version);
-            if (component <= 0 || IsExcludedComponent(component, excludedComponent) || HasUnencodableQfe(entry.Version))
+            if (component <= 0 || IsExcludedComponent(component, excludedComponent) || !IsSupportedVersion(entry.Version) || HasUnencodableQfe(entry.Version))
             {
                 continue;
             }
@@ -113,6 +113,11 @@ public static class GeneralsOnlineHistoryMapper
         return excludedComponent > 0 && component == excludedComponent;
     }
 
+    private static bool IsSupportedVersion(string version)
+    {
+        return VersionScheme.TryParse(version, out _);
+    }
+
     private static bool HasUnencodableQfe(string version)
     {
         if (VersionScheme.TryParse(version, out var parsed) && parsed.Components.Count > 3)
@@ -131,7 +136,7 @@ public static class GeneralsOnlineHistoryMapper
     private static DateTime? ResolveReleaseDate(CrcMappingEntry entry)
     {
         if (!string.IsNullOrWhiteSpace(entry.BuildDate) &&
-            DateTime.TryParse(entry.BuildDate, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal, out var buildDate))
+            DateTime.TryParse(entry.BuildDate, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var buildDate))
         {
             return DateTime.SpecifyKind(buildDate, DateTimeKind.Utc);
         }
