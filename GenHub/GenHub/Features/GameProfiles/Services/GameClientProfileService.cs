@@ -225,7 +225,7 @@ public class GameClientProfileService(
 
             // Create a GameClient object from the manifest
             // Extract executable path from manifest files
-            var executableFile = SelectClientExecutable(manifest, out var entryPointError);
+            var executableFile = SelectClientExecutable(manifest, OperatingSystem.IsWindows(), out var entryPointError);
 
             if (executableFile == null)
             {
@@ -253,6 +253,12 @@ public class GameClientProfileService(
             var resolvedPath = ContentPathPolicy.ResolveContainedFile(installationPath, executableFile.RelativePath);
             if (!resolvedPath.Success || resolvedPath.Data == null)
             {
+                logger.LogWarning(
+                    "Executable path {RelativePath} of manifest {ManifestId} does not resolve inside installation path {InstallationPath}: {Errors}",
+                    executableFile.RelativePath,
+                    manifest.Id,
+                    installationPath,
+                    string.Join("; ", resolvedPath.Errors));
                 return ProfileOperationResult<GameProfile>.CreateFailure(string.Join("; ", resolvedPath.Errors));
             }
 
@@ -316,13 +322,18 @@ public class GameClientProfileService(
     /// <summary>
     /// Selects the client executable of a manifest. A declared entry point wins, resolved
     /// through <see cref="ManifestVariantResolver"/> so the host's variant applies. Without
-    /// one, a known extensionless game executable is preferred on macOS and Linux. Otherwise
-    /// the resolver decides, and an ambiguous manifest fails instead of taking the first match.
+    /// one, a single known game executable in the host's form is used: the extensionless
+    /// native binary on macOS and Linux, the <c>.exe</c> on Windows. On Windows that shortcut
+    /// is skipped when the manifest also carries another known launch target such as
+    /// <c>game.dat</c> or <c>generals.ctr</c>, so the resolver keeps deciding those layouts.
+    /// Otherwise the resolver decides, and an ambiguous manifest fails instead of taking the
+    /// first match.
     /// </summary>
     /// <param name="manifest">The GameClient manifest.</param>
+    /// <param name="isWindowsHost">Whether the host runs Windows executables natively.</param>
     /// <param name="error">Why no executable could be selected, if none could.</param>
     /// <returns>The executable file, or <see langword="null"/> when none can be selected.</returns>
-    private static ManifestFile? SelectClientExecutable(ContentManifest manifest, out string? error)
+    internal static ManifestFile? SelectClientExecutable(ContentManifest manifest, bool isWindowsHost, out string? error)
     {
         error = null;
         var files = ManifestVariantResolver.ResolveFiles(manifest);
@@ -330,10 +341,11 @@ public class GameClientProfileService(
             ? manifest.EntryPoint
             : ManifestVariantResolver.ResolveVariant(manifest)?.EntryPoint;
 
-        if (string.IsNullOrWhiteSpace(declared) && !OperatingSystem.IsWindows())
+        if (string.IsNullOrWhiteSpace(declared) &&
+            !(isWindowsHost && files.Any(f => IsOtherKnownLaunchTarget(f.RelativePath))))
         {
             var hostGameExecutables = files
-                .Where(f => !string.IsNullOrEmpty(f.RelativePath) && IsHostFormGameExecutable(f.RelativePath))
+                .Where(f => IsHostFormGameExecutable(f.RelativePath, isWindowsHost))
                 .ToList();
             if (hostGameExecutables.Count == 1)
             {
@@ -361,11 +373,16 @@ public class GameClientProfileService(
     /// Determines whether a manifest path names a known game executable in the host's form:
     /// with the <c>.exe</c> extension on Windows, extensionless on macOS and Linux.
     /// </summary>
-    private static bool IsHostFormGameExecutable(string relativePath)
+    private static bool IsHostFormGameExecutable(string? relativePath, bool isWindowsHost)
     {
+        if (string.IsNullOrEmpty(relativePath))
+        {
+            return false;
+        }
+
         var fileName = Path.GetFileName(relativePath.Replace('\\', '/'));
         var isWindowsForm = fileName.EndsWith(GameClientConstants.ExeExtension, StringComparison.OrdinalIgnoreCase);
-        if (isWindowsForm != OperatingSystem.IsWindows() || (!isWindowsForm && Path.HasExtension(fileName)))
+        if (isWindowsForm != isWindowsHost || (!isWindowsForm && Path.HasExtension(fileName)))
         {
             return false;
         }
@@ -373,6 +390,23 @@ public class GameClientProfileService(
         var stem = Path.GetFileNameWithoutExtension(fileName);
         return GameClientConstants.ValidGameExecutableNames
             .Any(name => string.Equals(Path.GetFileNameWithoutExtension(name), stem, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Determines whether a manifest path names a known launch target that is not an <c>.exe</c>,
+    /// such as the Steam <c>game.dat</c> or a Contra <c>generals.ctr</c>.
+    /// </summary>
+    private static bool IsOtherKnownLaunchTarget(string? relativePath)
+    {
+        if (string.IsNullOrEmpty(relativePath))
+        {
+            return false;
+        }
+
+        var fileName = Path.GetFileName(relativePath.Replace('\\', '/'));
+        return Path.HasExtension(fileName) &&
+               !fileName.EndsWith(GameClientConstants.ExeExtension, StringComparison.OrdinalIgnoreCase) &&
+               GameClientConstants.ValidGameExecutableNames.Contains(fileName, StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>

@@ -169,6 +169,47 @@ public sealed class GameClientProfileServiceTests
     }
 
     /// <summary>
+    /// Selection without a declared entry point, for each host. The host-form shortcut picks the
+    /// <c>.exe</c> over its extensionless counterpart on Windows and the reverse elsewhere, but on
+    /// Windows it steps aside when another known launch target such as <c>game.dat</c> or
+    /// <c>generals.ctr</c> is present, so the resolver keeps its decision or reports ambiguity.
+    /// </summary>
+    /// <param name="files">Comma-separated file names in manifest order; a trailing <c>*</c> marks a file
+    /// as needing execute permission, as native binaries are and Windows files are not.</param>
+    /// <param name="isWindowsHost">Whether selection runs as on Windows.</param>
+    /// <param name="expected">The expected file name, or <see langword="null"/> when selection must fail.</param>
+    [Theory]
+    [InlineData("generalszh.exe,generalszh*", true, "generalszh.exe")]
+    [InlineData("generalszh*,generalszh.exe", true, "generalszh.exe")]
+    [InlineData("generalszh.exe,generalszh*", false, "generalszh")]
+    [InlineData("crashpad_handler*,generalszh*", false, "generalszh")]
+    [InlineData("game.dat", true, "game.dat")]
+    [InlineData("game.dat", false, "game.dat")]
+    [InlineData("generals.ctr", true, "generals.ctr")]
+    [InlineData("generals.ctr", false, "generals.ctr")]
+    [InlineData("generals.exe,game.dat", true, null)]
+    [InlineData("generals.exe,generals.ctr", true, null)]
+    [InlineData("generals.exe,game.exe", true, null)]
+    public void SelectClientExecutable_WithoutEntryPoint_HonoursHostAndCompetingTargets(string files, bool isWindowsHost, string? expected)
+    {
+        var manifest = CreateManifest(files.Split(',')
+            .Select(name => new ManifestFile { RelativePath = name.TrimEnd('*'), IsExecutable = name.EndsWith('*') })
+            .ToArray());
+
+        var selected = GameClientProfileService.SelectClientExecutable(manifest, isWindowsHost, out var error);
+
+        if (expected == null)
+        {
+            Assert.Null(selected);
+            Assert.False(string.IsNullOrEmpty(error));
+        }
+        else
+        {
+            Assert.Equal(expected, selected?.RelativePath);
+        }
+    }
+
+    /// <summary>
     /// A declared entry point missing from the files fails with the resolver's reason instead of guessing.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
