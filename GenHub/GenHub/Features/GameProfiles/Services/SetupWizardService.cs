@@ -98,7 +98,6 @@ public class SetupWizardService(
 
         // 3. Collection Phase: Build Wizard Items
         var wizardItems = new List<SetupWizardItemViewModel>();
-        var nativeComponents = new HashSet<string>(StringComparer.Ordinal);
 
         // Pre-fetch latest versions
         var (cpRetailLatestVersion, cpNonRetLatestVersion) = await GetLatestCommunityPatchVersionsAsync();
@@ -112,7 +111,7 @@ public class SetupWizardService(
         result.SuperHackersAction = GameClientConstants.WizardActionTypes.Decline;
 
         // Helper to check for managed/up-to-date client for a specific global list
-        async Task<(bool SkipWizard, string FinalAction)> ProcessComponentAsync(WizardComponentConfig config)
+        async Task<(bool SkipWizard, string FinalAction, bool IsNative, SetupWizardItemViewModel? Item)> ProcessComponentAsync(WizardComponentConfig config)
         {
             var componentGlobal = config.ComponentGlobal.Cast<dynamic>().ToList();
 
@@ -132,10 +131,10 @@ public class SetupWizardService(
             {
                 // Only profiles for the native builds themselves count; one for a Windows build of
                 // the same publisher (for example under Wine) still leaves a native build unprofiled.
-                foreach (var nativeClient in nativeClients)
+                foreach (var nativeClientId in nativeClients.Select(c => c.Id))
                 {
-                    if (string.IsNullOrEmpty(nativeClient.Id) ||
-                        !await gameClientProfileService.ProfileExistsForGameClientAsync(nativeClient.Id, cancellationToken))
+                    if (string.IsNullOrEmpty(nativeClientId) ||
+                        !await gameClientProfileService.ProfileExistsForGameClientAsync(nativeClientId, cancellationToken))
                     {
                         var nativeItem = new SetupWizardItemViewModel
                         {
@@ -149,14 +148,12 @@ public class SetupWizardService(
                             Metadata = config.Metadata,
                         };
                         wizardItems.Add(nativeItem);
-                        nativeComponents.Add(config.Metadata);
-                        return (false, nativeItem.ActionType);
+                        return (false, nativeItem.ActionType, true, nativeItem);
                     }
                 }
 
-                nativeComponents.Add(config.Metadata);
                 logger.LogInformation("[SetupWizard] Native client and profile found for {Title}, nothing to update", config.Title);
-                return (true, GameClientConstants.WizardActionTypes.Decline);
+                return (true, GameClientConstants.WizardActionTypes.Decline, true, null);
             }
 
             // 1. Identify managed clients in the manifest pool
@@ -178,7 +175,7 @@ public class SetupWizardService(
                 if (profileExists)
                 {
                     logger.LogInformation("[SetupWizard] Managed up-to-date manifest and profile found for {Title} ({Version})", config.Title, config.LatestVersion);
-                    return (true, GameClientConstants.WizardActionTypes.Decline);
+                    return (true, GameClientConstants.WizardActionTypes.Decline, false, null);
                 }
 
                 logger.LogInformation("[SetupWizard] Managed up-to-date manifest found for {Title} ({Version}), but profile missing. Showing in wizard to create profile.", config.Title, config.LatestVersion);
@@ -195,7 +192,7 @@ public class SetupWizardService(
                     Version = config.LatestVersion,
                 };
                 wizardItems.Add(downloadedItem);
-                return (false, downloadedItem.ActionType);
+                return (false, downloadedItem.ActionType, false, downloadedItem);
             }
 
             // Also check unmanaged clients from installations in case an unmanaged client is managed/has ID
@@ -214,7 +211,7 @@ public class SetupWizardService(
                 if (profileExists)
                 {
                     logger.LogInformation("[SetupWizard] Up-to-date client and profile found in installations for {Title} ({Version})", config.Title, config.LatestVersion);
-                    return (true, GameClientConstants.WizardActionTypes.Decline);
+                    return (true, GameClientConstants.WizardActionTypes.Decline, false, null);
                 }
 
                 logger.LogInformation("[SetupWizard] Up-to-date client found in installations for {Title} ({Version}), profile missing. Showing in wizard to create profile.", config.Title, config.LatestVersion);
@@ -231,7 +228,7 @@ public class SetupWizardService(
                     Version = config.LatestVersion,
                 };
                 wizardItems.Add(detectedItem);
-                return (false, detectedItem.ActionType);
+                return (false, detectedItem.ActionType, false, detectedItem);
             }
 
             // 3. Check if any profiles exist for this component (managed or unmanaged)
@@ -311,7 +308,7 @@ public class SetupWizardService(
             }
 
             wizardItems.Add(item);
-            return (false, item.ActionType);
+            return (false, item.ActionType, false, item);
         }
 
         var cpRetailCleanVersion = CleanVersionString(cpRetailLatestVersion);
@@ -375,14 +372,11 @@ public class SetupWizardService(
 
         // A native non-retail build is profiled as it is. Leave the Windows retail package unselected
         // so confirming the wizard does not also download it next to the non-retail build.
-        if (nativeComponents.Contains(CommunityOutpostConstants.CommunityPatchNonRetCode) &&
-            !nativeComponents.Contains(CommunityOutpostConstants.CommunityPatchRetailCode))
+        if (cpNonRetRes.IsNative && !cpRetailRes.IsNative)
         {
-            var retailItem = wizardItems.FirstOrDefault(i =>
-                string.Equals(i.Metadata as string, CommunityOutpostConstants.CommunityPatchRetailCode, StringComparison.Ordinal));
-            if (retailItem != null)
+            if (cpRetailRes.Item != null)
             {
-                retailItem.IsSelected = false;
+                cpRetailRes.Item.IsSelected = false;
             }
 
             result.CommunityPatchAction = GameClientConstants.WizardActionTypes.Decline;
