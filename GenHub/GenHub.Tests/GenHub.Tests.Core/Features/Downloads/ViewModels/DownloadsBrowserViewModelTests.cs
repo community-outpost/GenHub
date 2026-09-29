@@ -1205,6 +1205,117 @@ public class DownloadsBrowserViewModelTests
     }
 
     /// <summary>
+    /// Verifies that Generals Online QFE and non-QFE releases are reconciled correctly:
+    /// newest uninstalled release (092826) stays NotDownloaded, downloaded older QFE release
+    /// (082826_QFE1) receives UpdateAvailable pointing to 092826, and uninstalled older
+    /// releases (082826, 081326_QFE3) stay NotDownloaded.
+    /// </summary>
+    [Fact]
+    public void ReconcileReleaseUpdateStates_GeneralsOnlineQfeReleases_ReconcilesChronologically()
+    {
+        // Arrange
+        var stateServiceMock = new Mock<IContentStateService>();
+        var loggerMock = new Mock<ILogger<ContentGridItemViewModel>>();
+
+        var newestSr = new ContentSearchResult
+        {
+            Id = "generalsonline-092826",
+            Name = "Generals Online",
+            Version = "092826",
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            LastUpdated = new DateTime(2026, 9, 28, 0, 0, 0, DateTimeKind.Utc),
+        };
+        var newestVm = new ContentGridItemViewModel(newestSr, stateServiceMock.Object, loggerMock.Object)
+        {
+            CurrentState = ContentState.NotDownloaded,
+            IsDownloaded = false,
+        };
+        var newestVariant = new InstallableVariant
+        {
+            Name = "Generals Online",
+            ManifestId = "1.928260.generalsonline.gameclient.60hz",
+            CurrentState = ContentState.NotDownloaded,
+        };
+        newestVm.Variants.Add(newestVariant);
+        newestVm.SelectedVariant = newestVariant;
+
+        var olderQfeSr = new ContentSearchResult
+        {
+            Id = "generalsonline-082826_QFE1",
+            Name = "Generals Online",
+            Version = "082826_QFE1",
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            LastUpdated = new DateTime(2026, 8, 28, 0, 0, 0, DateTimeKind.Utc),
+        };
+        var olderQfeVm = new ContentGridItemViewModel(olderQfeSr, stateServiceMock.Object, loggerMock.Object)
+        {
+            CurrentState = ContentState.Downloaded,
+            IsDownloaded = true,
+        };
+        var olderQfeVariant = new InstallableVariant
+        {
+            Name = "Generals Online",
+            ManifestId = "1.828261.generalsonline.gameclient.60hz",
+            CurrentState = ContentState.Downloaded,
+        };
+        olderQfeVm.Variants.Add(olderQfeVariant);
+        olderQfeVm.SelectedVariant = olderQfeVariant;
+
+        var olderSr = new ContentSearchResult
+        {
+            Id = "generalsonline-082826",
+            Name = "Generals Online",
+            Version = "082826",
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            LastUpdated = new DateTime(2026, 8, 28, 0, 0, 0, DateTimeKind.Utc),
+        };
+        var olderVm = new ContentGridItemViewModel(olderSr, stateServiceMock.Object, loggerMock.Object)
+        {
+            CurrentState = ContentState.NotDownloaded,
+            IsDownloaded = false,
+        };
+        var olderVariant = new InstallableVariant
+        {
+            Name = "Generals Online",
+            ManifestId = "1.828260.generalsonline.gameclient.60hz",
+            CurrentState = ContentState.NotDownloaded,
+        };
+        olderVm.Variants.Add(olderVariant);
+        olderVm.SelectedVariant = olderVariant;
+
+        // Act
+        DownloadsBrowserViewModel.ReconcileReleaseUpdateStates([newestVm, olderQfeVm, olderVm]);
+
+        // Assert: Newest release 092826 must remain NotDownloaded
+        Assert.Equal(ContentState.NotDownloaded, newestVm.CurrentState);
+        Assert.False(newestVm.IsDownloaded);
+        Assert.Null(newestVm.UpdateTargetVm);
+        Assert.True(newestVm.ShowDownloadButton);
+        Assert.False(newestVm.ShowUpdateButton);
+
+        // Assert: Installed 082826_QFE1 must be UpdateAvailable targeting newestVm (092826)
+        Assert.Equal(ContentState.UpdateAvailable, olderQfeVm.CurrentState);
+        Assert.True(olderQfeVm.IsDownloaded);
+        Assert.Same(newestVm, olderQfeVm.UpdateTargetVm);
+        Assert.False(olderQfeVm.ShowDownloadButton);
+        Assert.True(olderQfeVm.ShowUpdateButton);
+        Assert.True(olderQfeVm.ShowAddToProfileButton);
+
+        // Assert: Older uninstalled 082826 must remain NotDownloaded
+        Assert.Equal(ContentState.NotDownloaded, olderVm.CurrentState);
+        Assert.False(olderVm.IsDownloaded);
+        Assert.Null(olderVm.UpdateTargetVm);
+        Assert.True(olderVm.ShowDownloadButton);
+        Assert.False(olderVm.ShowUpdateButton);
+    }
+
+    /// <summary>
     /// Verifies that when the newest release is already downloaded, older downloaded releases
     /// stay Downloaded and do not show an unnecessary Update Available button.
     /// </summary>

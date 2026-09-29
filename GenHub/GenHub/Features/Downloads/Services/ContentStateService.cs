@@ -437,8 +437,25 @@ public sealed partial class ContentStateService(
     }
 
     /// <summary>
-    /// Checks whether the given item originates from a multi-release feed (such as GitHub releases or
-    /// TheSuperHackers weekly builds) where every release has its own discrete card in the UI.
+    /// Checks whether the publisher string matches Generals Online or any of its known aliases.
+    /// </summary>
+    /// <param name="publisher">The publisher identifier or name.</param>
+    /// <returns>True if the publisher is Generals Online; otherwise, false.</returns>
+    internal static bool IsGeneralsOnlinePublisher(string? publisher)
+    {
+        if (string.IsNullOrWhiteSpace(publisher))
+        {
+            return false;
+        }
+
+        var p = NormalizeSegment(publisher);
+        return string.Equals(p, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+               IsCompatiblePublisherAlias(p, PublisherTypeConstants.GeneralsOnline);
+    }
+
+    /// <summary>
+    /// Checks whether the given item originates from a multi-release feed (such as GitHub releases,
+    /// TheSuperHackers weekly builds, or Generals Online history releases) where every release has its own discrete card in the UI.
     /// In such feeds, prospective newer releases are uninstalled items, not update targets on that card.
     /// </summary>
     /// <param name="item">The content search result item to check.</param>
@@ -447,6 +464,7 @@ public sealed partial class ContentStateService(
     {
         return IsGitHubPublisher(item.ProviderName) ||
                string.Equals(item.ProviderName, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+               IsGeneralsOnlinePublisher(item.ProviderName) ||
                item.ResolverMetadata?.ContainsKey(GitHubConstants.OwnerMetadataKey) == true;
     }
 
@@ -558,9 +576,13 @@ public sealed partial class ContentStateService(
     {
         var prospectiveSegments = prospectiveId.Split('.');
         var localSegments = localId.Split('.');
-        bool isGoProspective = prospectiveSegments.Length == 5 && IsCompatiblePublisherAlias(prospectiveSegments[2], PublisherTypeConstants.GeneralsOnline);
-        bool isGoLocal = localSegments.Length == 5 && IsCompatiblePublisherAlias(localSegments[2], PublisherTypeConstants.GeneralsOnline);
-        bool isGoPublisher = isGoProspective && isGoLocal;
+        bool isGoProspective = (prospectiveSegments.Length == 5 && IsCompatiblePublisherAlias(prospectiveSegments[2], PublisherTypeConstants.GeneralsOnline)) ||
+                               prospectiveId.StartsWith(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+                               prospectiveId.Contains(".generalsonline.", StringComparison.OrdinalIgnoreCase);
+        bool isGoLocal = (localSegments.Length == 5 && IsCompatiblePublisherAlias(localSegments[2], PublisherTypeConstants.GeneralsOnline)) ||
+                         localId.StartsWith(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+                         localId.Contains(".generalsonline.", StringComparison.OrdinalIgnoreCase);
+        bool isGoPublisher = isGoProspective || isGoLocal;
 
         // 1. If human-readable version strings are available on both sides, compare them first.
         if (CompareVersionStrings(prospectiveVersionStr, localVersionStr, out var stringCompareResult, isGoPublisher))
@@ -1405,6 +1427,18 @@ public sealed partial class ContentStateService(
             return false;
         }
 
+        if (!string.IsNullOrWhiteSpace(item.Version) && !string.IsNullOrWhiteSpace(manifest.Version))
+        {
+            var isGeneralsOnline = IsGeneralsOnlinePublisher(item.ProviderName) ||
+                                   IsGeneralsOnlinePublisher(manifest.Publisher?.PublisherType) ||
+                                   IsGeneralsOnlinePublisher(manifest.OriginalProviderName);
+
+            if (CompareVersions(item.Version, manifest.Version, isGeneralsOnline) != 0)
+            {
+                return false;
+            }
+        }
+
         if (IsSameContentSource(manifest, item))
         {
             return true;
@@ -1692,6 +1726,18 @@ public sealed partial class ContentStateService(
 
     private static bool IsSameContentSource(ContentManifest manifest, ContentSearchResult item)
     {
+        if (!string.IsNullOrWhiteSpace(item.Version) && !string.IsNullOrWhiteSpace(manifest.Version))
+        {
+            var isGeneralsOnline = IsGeneralsOnlinePublisher(item.ProviderName) ||
+                                   IsGeneralsOnlinePublisher(manifest.Publisher?.PublisherType) ||
+                                   IsGeneralsOnlinePublisher(manifest.OriginalProviderName);
+
+            if (CompareVersions(item.Version, manifest.Version, isGeneralsOnline) != 0)
+            {
+                return false;
+            }
+        }
+
         if (!string.IsNullOrWhiteSpace(item.SourceUrl) && MatchesSourceUrl(manifest, item.SourceUrl))
         {
             return true;
@@ -2353,6 +2399,13 @@ public sealed partial class ContentStateService(
             return exactResult.Success && exactResult.Data ? prospectiveId : null;
         }
 
+        if (IsMultiReleaseItem(item) && canCompareVersion &&
+            IsNewerVersion(prospectiveId, persistedManifest.Id.Value, item.Version, persistedManifest.Version))
+        {
+            var exactResult = await manifestPool.IsManifestAcquiredAsync(prospectiveId, cancellationToken);
+            return exactResult.Success && exactResult.Data ? prospectiveId : null;
+        }
+
         return persistedManifest.Id.Value;
     }
 
@@ -2362,7 +2415,7 @@ public sealed partial class ContentStateService(
         DateTime releaseDate,
         CancellationToken cancellationToken)
     {
-        var (matchingManifest, _, isOlderAvailable) = await FindMatchingManifestAsync(
+        var (matchingManifest, isNewerAvailable, isOlderAvailable) = await FindMatchingManifestAsync(
             prospectiveId,
             releaseDate,
             item.Version,
@@ -2375,6 +2428,12 @@ public sealed partial class ContentStateService(
         }
 
         if (isOlderAvailable)
+        {
+            var exactResult = await manifestPool.IsManifestAcquiredAsync(prospectiveId, cancellationToken);
+            return exactResult.Success && exactResult.Data ? prospectiveId : null;
+        }
+
+        if (isNewerAvailable && IsMultiReleaseItem(item))
         {
             var exactResult = await manifestPool.IsManifestAcquiredAsync(prospectiveId, cancellationToken);
             return exactResult.Success && exactResult.Data ? prospectiveId : null;

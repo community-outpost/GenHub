@@ -2620,7 +2620,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 targetItem = variantSr;
             }
 
-            if (variantVm.IsDownloaded && (string.IsNullOrEmpty(targetItem.Id) || !ManifestIdValidator.IsValid(targetItem.Id, out _)))
+            if (variantVm.CurrentState == ContentState.Downloaded && (string.IsNullOrEmpty(targetItem.Id) || !ManifestIdValidator.IsValid(targetItem.Id, out _)))
             {
                 var manifestId = await contentStateService.GetLocalManifestIdAsync(targetItem, ct);
                 if (!string.IsNullOrEmpty(manifestId))
@@ -2648,7 +2648,7 @@ public sealed partial class DownloadsBrowserViewModel(
             vm.CurrentState = singletonState;
             vm.IsDownloaded = singletonState is ContentState.Downloaded or ContentState.UpdateAvailable;
 
-            if (vm.IsDownloaded && (string.IsNullOrEmpty(primaryItem.Id) || !ManifestIdValidator.IsValid(primaryItem.Id, out _)))
+            if (vm.CurrentState == ContentState.Downloaded && (string.IsNullOrEmpty(primaryItem.Id) || !ManifestIdValidator.IsValid(primaryItem.Id, out _)))
             {
                 var manifestId = await contentStateService.GetLocalManifestIdAsync(primaryItem, ct);
                 if (!string.IsNullOrEmpty(manifestId))
