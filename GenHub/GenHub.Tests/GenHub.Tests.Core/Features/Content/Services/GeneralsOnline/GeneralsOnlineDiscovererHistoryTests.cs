@@ -42,7 +42,7 @@ public class GeneralsOnlineDiscovererHistoryTests
     [Fact]
     public async Task DiscoverAsync_WithoutOlderVersions_ExcludesHistoryAsync()
     {
-        var discoverer = CreateDiscoverer();
+        var discoverer = CreateDiscoverer(LatestVersion, [CreateEntry(HistoryVersion, "https://cdn.playgenerals.online/GeneralsOnline_portable_081326.zip")]);
 
         var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
 
@@ -58,7 +58,7 @@ public class GeneralsOnlineDiscovererHistoryTests
     [Fact]
     public async Task DiscoverAsync_WithOlderVersions_AppendsHistoryAsync()
     {
-        var discoverer = CreateDiscoverer();
+        var discoverer = CreateDiscoverer(LatestVersion, [CreateEntry(HistoryVersion, "https://cdn.playgenerals.online/GeneralsOnline_portable_081326.zip")]);
 
         var result = await discoverer.DiscoverAsync(new ContentSearchQuery { IncludeOlderVersions = true });
 
@@ -68,9 +68,29 @@ public class GeneralsOnlineDiscovererHistoryTests
         Assert.Contains(HistoryVersion, versions);
     }
 
-    private static GeneralsOnlineDiscoverer CreateDiscoverer()
+    /// <summary>
+    /// A search term that filters out the current CDN card still excludes its history twin.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DiscoverAsync_WithSearchTermFilteringCurrentCard_StillExcludesHistoryTwinAsync()
     {
-        var catalogJson = "{\"Version\":\"082826_QFE1\",\"Download_Url\":\"https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE1.zip\",\"Size\":42,\"Release_Notes\":\"Latest\"}";
+        var discoverer = CreateDiscoverer(
+            "042826_QFE2",
+            [
+                CreateEntry("042826_QFE2", "https://cdn.playgenerals.online/GeneralsOnline_portable_042826_QFE2.zip"),
+                CreateEntry("042826_QFE2_EAC", "https://cdn.playgenerals.online/GeneralsOnline_portable_042826_QFE2_EAC.zip"),
+            ]);
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery { SearchTerm = "EAC", IncludeOlderVersions = true });
+
+        Assert.True(result.Success);
+        Assert.Empty(result.Data!.Items);
+    }
+
+    private static GeneralsOnlineDiscoverer CreateDiscoverer(string latestVersion, IReadOnlyList<CrcMappingEntry> historyEntries)
+    {
+        var catalogJson = $"{{\"Version\":\"{latestVersion}\",\"Download_Url\":\"https://cdn.playgenerals.online/GeneralsOnline_portable_{latestVersion}.zip\",\"Size\":42,\"Release_Notes\":\"Latest\"}}";
 
         var providerLoader = new Mock<IProviderDefinitionLoader>();
         providerLoader.Setup(loader => loader.GetProvider(GeneralsOnlineConstants.PublisherType)).Returns(new ProviderDefinition
@@ -92,11 +112,7 @@ public class GeneralsOnlineDiscovererHistoryTests
             .Returns(new HttpClient(new StubHandler(catalogJson)));
 
         var registry = new Mock<ICrcMappingRegistry>();
-        registry.Setup(r => r.GetAllEntries()).Returns(new List<CrcMappingEntry>
-        {
-            CreateEntry(LatestVersion, "https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE1.zip"),
-            CreateEntry(HistoryVersion, "https://cdn.playgenerals.online/GeneralsOnline_portable_081326.zip"),
-        });
+        registry.Setup(r => r.GetAllEntries()).Returns(historyEntries);
 
         return new GeneralsOnlineDiscoverer(
             NullLogger<GeneralsOnlineDiscoverer>.Instance,

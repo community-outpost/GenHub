@@ -135,11 +135,13 @@ public class GeneralsOnlineDiscoverer(
                     parseResult.FirstError ?? "Failed to parse catalog");
             }
 
-            // Step 4: Apply search filters
-            var results = parseResult.Data;
+            // Step 4: Apply search filters. Exclusions use the unfiltered CDN results
+            // so a search term cannot resurrect an excluded release as history.
+            var currentResults = parseResult.Data.ToList();
+            var results = currentResults.AsEnumerable();
             if (!string.IsNullOrWhiteSpace(query.SearchTerm))
             {
-                results = results.Where(r =>
+                results = currentResults.Where(r =>
                     r.Version?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) == true ||
                     r.Name?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) == true);
             }
@@ -156,7 +158,7 @@ public class GeneralsOnlineDiscoverer(
             // History is opt-in: setup and update flows query latest-only and must not acquire archived versions.
             if (query.IncludeOlderVersions)
             {
-                AppendHistoryResults(list, query);
+                AppendHistoryResults(list, query, currentResults);
             }
 
             return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
@@ -178,7 +180,10 @@ public class GeneralsOnlineDiscoverer(
     /// Appends archived releases from the CRC catalog. History is best effort and never
     /// fails discovery; entries resolve through the standard resolver and deliverer.
     /// </summary>
-    private void AppendHistoryResults(List<ContentSearchResult> list, ContentSearchQuery query)
+    private void AppendHistoryResults(
+        List<ContentSearchResult> list,
+        ContentSearchQuery query,
+        IReadOnlyList<ContentSearchResult> currentResults)
     {
         try
         {
@@ -187,7 +192,7 @@ public class GeneralsOnlineDiscoverer(
                 return;
             }
 
-            var currentVersions = list
+            var currentVersions = currentResults
                 .Select(item => item.Version)
                 .OfType<string>()
                 .Where(static version => !string.IsNullOrWhiteSpace(version))

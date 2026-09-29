@@ -125,7 +125,7 @@ public static class GeneralsOnlineHistoryMapper
             return false;
         }
 
-        if (!entry.CdnUrl.EndsWith(GeneralsOnlineConstants.PortableExtension, StringComparison.OrdinalIgnoreCase))
+        if (!entry.CdnUrl.Trim().EndsWith(GeneralsOnlineConstants.PortableExtension, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
