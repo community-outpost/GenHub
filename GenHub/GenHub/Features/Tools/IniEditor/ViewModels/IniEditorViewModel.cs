@@ -2966,12 +2966,9 @@ public sealed partial class IniEditorViewModel(
             return schema.Options;
         }
 
-        if (IsTextureSuggestionKey(key, schema))
+        if (IsTextureSuggestionKey(key, schema) && scope.Textures != null)
         {
-            if (scope.Textures != null)
-            {
-                return scope.Textures;
-            }
+            return scope.Textures;
         }
 
         var refType = ResolveReferenceBlockType(key, schema);
@@ -3523,14 +3520,15 @@ public sealed partial class IniEditorViewModel(
     private void RebuildTrail()
     {
         SelectedNodeTrail.Clear();
-        if (SelectedNode == null)
+        var selectedNode = SelectedNode;
+        if (selectedNode == null)
         {
             HasTrail = false;
             return;
         }
 
         var chain = new Stack<IniTreeNodeViewModel>();
-        var current = SelectedNode;
+        var current = selectedNode;
         while (current != null)
         {
             chain.Push(current);
@@ -3573,17 +3571,10 @@ public sealed partial class IniEditorViewModel(
             return 0;
         }
 
-        var added = 0;
         var cache = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var row in FieldRows)
-        {
-            if (TryAddReferenceRow(row, cache))
-            {
-                added++;
-            }
-        }
 
-        return added;
+        // TryAddReferenceRow records a validation row as a side effect while testing each row.
+        return FieldRows.Count(row => TryAddReferenceRow(row, cache));
     }
 
     private bool TryAddReferenceRow(IniFieldRowViewModel row, Dictionary<string, HashSet<string>> cache)
