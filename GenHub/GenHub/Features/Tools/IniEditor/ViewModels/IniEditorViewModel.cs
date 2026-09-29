@@ -3517,6 +3517,7 @@ public sealed partial class IniEditorViewModel(
         QueueThumbnailRefresh();
     }
 
+    [SuppressMessage("Minor Bug", "S4158:Empty collections should not be accessed", Justification = "False positive: the trail stack always holds the non-null selected node before iteration.")]
     private void RebuildTrail()
     {
         SelectedNodeTrail.Clear();
