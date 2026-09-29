@@ -78,7 +78,6 @@ public class GeneralsOnlineDiscovererHistoryTests
         var discoverer = CreateDiscoverer(
             "042826_QFE2",
             [
-                CreateEntry("042826_QFE2", "https://cdn.playgenerals.online/GeneralsOnline_portable_042826_QFE2.zip"),
                 CreateEntry("042826_QFE2_EAC", "https://cdn.playgenerals.online/GeneralsOnline_portable_042826_QFE2_EAC.zip"),
             ]);
 
