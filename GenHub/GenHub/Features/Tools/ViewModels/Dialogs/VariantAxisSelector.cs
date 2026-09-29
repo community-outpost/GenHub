@@ -39,14 +39,23 @@ public partial class VariantAxisSelector : ObservableObject
     /// <summary>
     /// Gets a value indicating whether the custom free-text input should be shown.
     /// </summary>
-    public bool ShowCustomValue => SelectedOption?.IsCustom == true;
+    public bool ShowCustomValue => SelectedOption is { IsCustom: true };
 
     /// <summary>
     /// Gets the effective axis identifier, or null when no axis applies.
     /// </summary>
-    public string? EffectiveValue => ShowCustomValue
-        ? (string.IsNullOrWhiteSpace(CustomValue) ? null : CustomValue.Trim())
-        : SelectedOption?.Value;
+    public string? EffectiveValue
+    {
+        get
+        {
+            if (ShowCustomValue)
+            {
+                return string.IsNullOrWhiteSpace(CustomValue) ? null : CustomValue.Trim();
+            }
+
+            return SelectedOption?.Value;
+        }
+    }
 
     /// <summary>
     /// Gets the description of the currently selected option.
@@ -87,46 +96,54 @@ public partial class VariantAxisSelector : ObservableObject
     {
         string Text(string key, string fallback) => localizationService?.GetString(key) ?? fallback;
 
-        return
-        [
-            new VariantAxisOption(
+        var options = new List<VariantAxisOption>
+        {
+            new(
                 null,
                 Text("Tools.PublisherStudio.Content.VariantAxis.None", "(None)"),
                 Text(
                     "Tools.PublisherStudio.Content.VariantAxis.NoneDescription",
                     "No variants. Every artifact in the release is installed together.")),
-            new VariantAxisOption(
-                CatalogConstants.GameTypeVariantAxis,
-                CatalogConstants.GameTypeVariantAxis,
-                Text(
-                    "Tools.PublisherStudio.Content.VariantAxis.GameTypeDescription",
-                    "Same release for different games, e.g. Zero Hour and Generals builds.")),
-            new VariantAxisOption(
-                CatalogConstants.ResolutionVariantAxis,
-                CatalogConstants.ResolutionVariantAxis,
-                Text(
-                    "Tools.PublisherStudio.Content.VariantAxis.ResolutionDescription",
-                    "Same release in different resolutions, e.g. 720p, 1080p or 4K control bars.")),
-            new VariantAxisOption(
-                CatalogConstants.LanguageVariantAxis,
-                CatalogConstants.LanguageVariantAxis,
-                Text(
-                    "Tools.PublisherStudio.Content.VariantAxis.LanguageDescription",
-                    "Same release in different languages, e.g. English or German hotkey layouts.")),
-            new VariantAxisOption(
-                CatalogConstants.EditionVariantAxis,
-                CatalogConstants.EditionVariantAxis,
-                Text(
-                    "Tools.PublisherStudio.Content.VariantAxis.EditionDescription",
-                    "Same release in different editions, e.g. Standard or HD.")),
-            new VariantAxisOption(
-                "custom",
-                Text("Tools.PublisherStudio.Content.VariantAxis.Custom", "Custom..."),
-                Text(
-                    "Tools.PublisherStudio.Content.VariantAxis.CustomDescription",
-                    "Use your own axis name, e.g. compatibility or platform."),
-                IsCustom: true),
-        ];
+        };
+
+        foreach (var axis in CatalogConstants.KnownVariantAxes)
+        {
+            var descriptionKey = axis switch
+            {
+                CatalogConstants.GameTypeVariantAxis => "Tools.PublisherStudio.Content.VariantAxis.GameTypeDescription",
+                CatalogConstants.ResolutionVariantAxis => "Tools.PublisherStudio.Content.VariantAxis.ResolutionDescription",
+                CatalogConstants.LanguageVariantAxis => "Tools.PublisherStudio.Content.VariantAxis.LanguageDescription",
+                CatalogConstants.EditionVariantAxis => "Tools.PublisherStudio.Content.VariantAxis.EditionDescription",
+                _ => string.Empty,
+            };
+
+            var fallbackDescription = axis switch
+            {
+                CatalogConstants.GameTypeVariantAxis => "Same release for different games, e.g. Zero Hour and Generals builds.",
+                CatalogConstants.ResolutionVariantAxis => "Same release in different resolutions, e.g. 720p, 1080p or 4K control bars.",
+                CatalogConstants.LanguageVariantAxis => "Same release in different languages, e.g. English or German hotkey layouts.",
+                CatalogConstants.EditionVariantAxis => "Same release in different editions, e.g. Standard or HD.",
+                _ => axis,
+            };
+
+            var description = string.IsNullOrEmpty(descriptionKey)
+                ? fallbackDescription
+                : Text(descriptionKey, fallbackDescription);
+            options.Add(new VariantAxisOption(
+                axis,
+                axis,
+                description));
+        }
+
+        options.Add(new VariantAxisOption(
+            "custom",
+            Text("Tools.PublisherStudio.Content.VariantAxis.Custom", "Custom..."),
+            Text(
+                "Tools.PublisherStudio.Content.VariantAxis.CustomDescription",
+                "Use your own axis name, e.g. compatibility or platform."),
+            IsCustom: true));
+
+        return options;
     }
 
     partial void OnSelectedOptionChanged(VariantAxisOption? value)

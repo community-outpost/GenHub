@@ -13471,6 +13471,9 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.PublisherStudio.Content.AutoDescriptionFormat" xml:space="preserve">
     <value>{0} package for {1}.</value>
   </data>
+  <data name="Tools.PublisherStudio.Validation.BundleComponentRequired" xml:space="preserve">
+    <value>At least one bundle component is required.</value>
+  </data>
   <data name="Tools.PublisherStudio.Validation.ReleaseItemRequired" xml:space="preserve">
     <value>A release item is required. Please provide a valid download URL or local file.</value>
   </data>

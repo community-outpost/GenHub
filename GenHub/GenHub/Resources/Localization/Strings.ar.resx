@@ -13410,6 +13410,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Content.AutoDescriptionFormat" xml:space="preserve">
     <value>{0} حزمة لـ {1}.</value>
   </data>
+  <data name="Tools.PublisherStudio.Validation.BundleComponentRequired" xml:space="preserve">
+    <value>مطلوب مكون حزمة واحد على الأقل.</value>
+  </data>
   <data name="Tools.PublisherStudio.Validation.ReleaseItemRequired" xml:space="preserve">
     <value>عنصر الإصدار مطلوب. يرجى توفير عنوان URL صالح للتنزيل أو ملف محلي.</value>
   </data>

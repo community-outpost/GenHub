@@ -13410,6 +13410,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Content.AutoDescriptionFormat" xml:space="preserve">
     <value>Пакет {0} для {1}.</value>
   </data>
+  <data name="Tools.PublisherStudio.Validation.BundleComponentRequired" xml:space="preserve">
+    <value>Требуется хотя бы один компонент пакета.</value>
+  </data>
   <data name="Tools.PublisherStudio.Validation.ReleaseItemRequired" xml:space="preserve">
     <value>Требуется элемент выпуска. Пожалуйста, укажите действительный URL-адрес для загрузки или локальный файл.</value>
   </data>
