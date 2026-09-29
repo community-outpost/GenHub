@@ -165,10 +165,10 @@ public class CatalogUpstreamIngestionService(
                 continue;
             }
 
-            var isFull = asset.Name.Contains("full-client", StringComparison.OrdinalIgnoreCase);
-            var isZh = !isFull && (asset.Name.Contains("zh-client", StringComparison.OrdinalIgnoreCase)
+            var isFull = asset.Name.Contains(SuperHackersConstants.FullClientAssetMarker, StringComparison.OrdinalIgnoreCase);
+            var isZh = !isFull && (asset.Name.Contains(SuperHackersConstants.ZeroHourClientAssetMarker, StringComparison.OrdinalIgnoreCase)
                 || SuperHackersAssetMatcher.IsZeroHourAssetName(asset.Name));
-            var isGen = !isFull && !isZh && (asset.Name.Contains("gen-client", StringComparison.OrdinalIgnoreCase)
+            var isGen = !isFull && !isZh && (asset.Name.Contains(SuperHackersConstants.GeneralsClientAssetMarker, StringComparison.OrdinalIgnoreCase)
                 || SuperHackersAssetMatcher.IsGeneralsAssetName(asset.Name));
 
             if (!isZh && !isGen && !isFull)
@@ -238,11 +238,6 @@ public class CatalogUpstreamIngestionService(
         }
     }
 
-    private static bool IsTrackPrereleaseChannel(string? channel) =>
-        string.Equals(channel, "prerelease", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(channel, "beta", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(channel, "nightly", StringComparison.OrdinalIgnoreCase);
-
     private static ContentRelease SynthesizeGitHubRelease(
         GitHubRelease release,
         bool isTrackPrerelease,
@@ -293,7 +288,7 @@ public class CatalogUpstreamIngestionService(
         // The zh/gen/full-client filename filter only fits the official game-code repo.
         // Custom repositories under this provider hydrate every release asset instead
         // of silently matching nothing.
-        var defaultRepository = $"{SuperHackersConstants.GeneralsGameCodeOwner}/{SuperHackersConstants.GeneralsGameCodeRepo}";
+        var defaultRepository = CatalogConstants.UpstreamProviders.DefaultSuperHackersRepository;
         return string.IsNullOrWhiteSpace(repository) ||
             string.Equals(repository.Trim(), defaultRepository, StringComparison.OrdinalIgnoreCase);
     }
@@ -497,7 +492,7 @@ public class CatalogUpstreamIngestionService(
         var repo = sync?.Repository;
         if (string.IsNullOrWhiteSpace(repo))
         {
-            repo = $"{SuperHackersConstants.GeneralsGameCodeOwner}/{SuperHackersConstants.GeneralsGameCodeRepo}";
+            repo = CatalogConstants.UpstreamProviders.DefaultSuperHackersRepository;
         }
 
         var parts = repo.Split('/');
@@ -507,8 +502,8 @@ public class CatalogUpstreamIngestionService(
             return;
         }
 
-        var isTrackPrerelease = IsTrackPrereleaseChannel(sync?.Channel);
-        var cacheKey = $"{repo}:{sync?.Channel ?? "stable"}";
+        var isTrackPrerelease = CatalogConstants.UpstreamChannels.IsPrereleaseChannel(sync?.Channel);
+        var cacheKey = $"{repo}:{sync?.Channel ?? CatalogConstants.UpstreamChannels.Stable}";
 
         var release = await FetchGitHubReleaseAsync(parts[0], parts[1], isTrackPrerelease, cacheKey, cancellationToken);
         if (release == null)

@@ -367,6 +367,12 @@ public static class CatalogConstants
         public const string GitHubReleasesAlias = "github-releases";
 
         /// <summary>
+        /// Default upstream repository used when a TheSuperHackers item declares none.
+        /// </summary>
+        public const string DefaultSuperHackersRepository =
+            SuperHackersConstants.GeneralsGameCodeOwner + "/" + SuperHackersConstants.GeneralsGameCodeRepo;
+
+        /// <summary>
         /// Normalizes provider aliases to canonical upstream provider identifiers.
         /// </summary>
         /// <param name="provider">The provider name or alias to normalize.</param>
@@ -434,5 +440,125 @@ public static class CatalogConstants
 
             return IsSupported(provider);
         }
+
+        /// <summary>
+        /// Determines whether the declared provider tracks a GitHub-hosted repository.
+        /// </summary>
+        /// <param name="provider">The provider name or alias to check.</param>
+        /// <returns><c>true</c> for GitHub-backed providers; otherwise <c>false</c>.</returns>
+        public static bool IsGitHubUpstream(string? provider)
+        {
+            var normalized = Normalize(provider);
+            return string.Equals(normalized, GitHubReleases, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(normalized, TheSuperHackers, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Resolves the owner/repository coordinates for a GitHub-tracked item, applying
+        /// the default game-code repository when a TheSuperHackers item declares none.
+        /// </summary>
+        /// <param name="declaredProvider">The item's upstream provider or publisher type.</param>
+        /// <param name="declaredRepository">The item's declared repository in owner/repo form.</param>
+        /// <param name="owner">The resolved repository owner.</param>
+        /// <param name="repo">The resolved repository name.</param>
+        /// <returns><c>true</c> when the provider is GitHub-backed and the coordinates are valid.</returns>
+        public static bool TryResolveGitHubRepository(
+            string? declaredProvider,
+            string? declaredRepository,
+            out string owner,
+            out string repo)
+        {
+            owner = string.Empty;
+            repo = string.Empty;
+            if (!IsGitHubUpstream(declaredProvider))
+            {
+                return false;
+            }
+
+            var repository = declaredRepository?.Trim();
+            if (string.IsNullOrWhiteSpace(repository) &&
+                string.Equals(Normalize(declaredProvider), TheSuperHackers, StringComparison.OrdinalIgnoreCase))
+            {
+                repository = DefaultSuperHackersRepository;
+            }
+
+            var parts = repository?.Split('/');
+            if (parts?.Length != 2 || string.IsNullOrWhiteSpace(parts[0]) || string.IsNullOrWhiteSpace(parts[1]))
+            {
+                return false;
+            }
+
+            owner = parts[0].Trim();
+            repo = parts[1].Trim();
+            return true;
+        }
+
+        /// <summary>
+        /// Validates an upstream repository in owner/repo format.
+        /// </summary>
+        /// <param name="repo">The repository value to validate.</param>
+        /// <returns><c>true</c> for exactly two non-empty whitespace-free segments.</returns>
+        public static bool IsValidOwnerRepo(string? repo)
+        {
+            var parts = repo?.Split('/');
+            if (parts?.Length != 2)
+            {
+                return false;
+            }
+
+            foreach (var part in parts)
+            {
+                if (part.Length == 0)
+                {
+                    return false;
+                }
+
+                foreach (var c in part)
+                {
+                    if (char.IsWhiteSpace(c))
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Well-known upstream release channels.
+    /// </summary>
+    public static class UpstreamChannels
+    {
+        /// <summary>
+        /// Stable releases channel.
+        /// </summary>
+        public const string Stable = "stable";
+
+        /// <summary>
+        /// Prerelease releases channel.
+        /// </summary>
+        public const string Prerelease = "prerelease";
+
+        /// <summary>
+        /// Beta releases channel.
+        /// </summary>
+        public const string Beta = "beta";
+
+        /// <summary>
+        /// Nightly releases channel.
+        /// </summary>
+        public const string Nightly = "nightly";
+
+        /// <summary>
+        /// Determines whether the channel tracks prerelease builds.
+        /// </summary>
+        /// <param name="channel">The channel name to check.</param>
+        /// <returns><c>true</c> for prerelease, beta, or nightly channels.</returns>
+        public static bool IsPrereleaseChannel(string? channel) =>
+            string.Equals(channel, Prerelease, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(channel, Beta, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(channel, Nightly, StringComparison.OrdinalIgnoreCase);
     }
 }

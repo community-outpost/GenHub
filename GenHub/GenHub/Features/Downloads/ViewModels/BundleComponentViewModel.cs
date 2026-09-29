@@ -399,6 +399,43 @@ public sealed partial class BundleComponentViewModel : ObservableObject
         OnPropertyChanged(nameof(RequiresUpdate));
     }
 
+    /// <summary>
+    /// Sets the download URL from the artifact matching the selected variant,
+    /// falling back to the release primary and then the first downloadable artifact.
+    /// </summary>
+    /// <param name="searchResult">The component search result to update.</param>
+    /// <param name="variant">The selected component variant.</param>
+    /// <param name="releaseJson">The serialized release holding every artifact.</param>
+    internal static void ApplyReleaseDownloadUrl(
+        ContentSearchResult searchResult,
+        CatalogBundleComponentVariantDescriptor variant,
+        string? releaseJson)
+    {
+        if (string.IsNullOrWhiteSpace(releaseJson) || !string.IsNullOrWhiteSpace(searchResult.SelectedDownloadUrl))
+        {
+            return;
+        }
+
+        try
+        {
+            var release = JsonSerializer.Deserialize<ContentRelease>(releaseJson);
+            var downloadable = release?.Artifacts?.Where(a => !string.IsNullOrWhiteSpace(a.DownloadUrl)).ToList();
+            var artifact = (!string.IsNullOrWhiteSpace(variant.Label)
+                ? downloadable?.FirstOrDefault(a => string.Equals(a.Variant, variant.Label, StringComparison.OrdinalIgnoreCase))
+                : null) ??
+                release?.Artifacts?.FirstOrDefault(a => a.IsPrimary && !string.IsNullOrWhiteSpace(a.DownloadUrl)) ??
+                downloadable?.FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(artifact?.DownloadUrl))
+            {
+                searchResult.SelectedDownloadUrl = artifact.DownloadUrl;
+            }
+        }
+        catch (JsonException)
+        {
+            // Fall back to catalog IDs when the embedded release cannot be parsed.
+        }
+    }
+
     private static BundleComponentViewModel? CreateComponentFromDescriptor(
         ContentSearchResult bundleResult,
         CatalogBundleComponentDescriptor descriptor,
@@ -493,7 +530,7 @@ public sealed partial class BundleComponentViewModel : ObservableObject
 
         searchResult.ResolverMetadata[CatalogConstants.CatalogContentIdMetadataKey] = descriptor.ContentId;
 
-        ApplyUpstreamIdentity(searchResult, descriptor.CatalogItemJson, variant.ReleaseJson);
+        ApplyUpstreamIdentity(searchResult, descriptor.CatalogItemJson, variant);
         return searchResult;
     }
 
@@ -505,10 +542,10 @@ public sealed partial class BundleComponentViewModel : ObservableObject
     private static void ApplyUpstreamIdentity(
         ContentSearchResult searchResult,
         string? catalogItemJson,
-        string? releaseJson)
+        CatalogBundleComponentVariantDescriptor variant)
     {
         ApplyCatalogItemUpstreamIdentity(searchResult, catalogItemJson);
-        ApplyReleaseDownloadUrl(searchResult, releaseJson);
+        ApplyReleaseDownloadUrl(searchResult, variant, variant.ReleaseJson);
     }
 
     private static void ApplyCatalogItemUpstreamIdentity(ContentSearchResult searchResult, string? catalogItemJson)
@@ -548,28 +585,16 @@ public sealed partial class BundleComponentViewModel : ObservableObject
         var declaredProvider = !string.IsNullOrWhiteSpace(sibling.UpstreamSync?.Provider)
             ? sibling.UpstreamSync.Provider
             : sibling.PublisherType;
-        var provider = CatalogConstants.UpstreamProviders.Normalize(declaredProvider);
-        var isGitHubUpstream = string.Equals(provider, CatalogConstants.UpstreamProviders.GitHubReleases, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase);
-        if (!isGitHubUpstream)
+        if (!CatalogConstants.UpstreamProviders.TryResolveGitHubRepository(
+            declaredProvider,
+            sibling.UpstreamSync?.Repository,
+            out var owner,
+            out var repo))
         {
             return null;
         }
 
-        var repository = sibling.UpstreamSync?.Repository?.Trim();
-        if (string.IsNullOrWhiteSpace(repository) &&
-            string.Equals(provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
-        {
-            repository = $"{SuperHackersConstants.GeneralsGameCodeOwner}/{SuperHackersConstants.GeneralsGameCodeRepo}";
-        }
-
-        var parts = repository?.Split('/');
-        if (parts?.Length != 2 || string.IsNullOrWhiteSpace(parts[0]) || string.IsNullOrWhiteSpace(parts[1]))
-        {
-            return null;
-        }
-
-        return parts;
+        return [owner, repo];
     }
 
     private static void ApplyGitHubCoordinates(ContentSearchResult searchResult, string owner, string repo)
@@ -587,29 +612,6 @@ public sealed partial class BundleComponentViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(searchResult.SourceUrl))
         {
             searchResult.SourceUrl = $"https://github.com/{owner.Trim()}/{repo.Trim()}";
-        }
-    }
-
-    private static void ApplyReleaseDownloadUrl(ContentSearchResult searchResult, string? releaseJson)
-    {
-        if (string.IsNullOrWhiteSpace(releaseJson) || !string.IsNullOrWhiteSpace(searchResult.SelectedDownloadUrl))
-        {
-            return;
-        }
-
-        try
-        {
-            var release = JsonSerializer.Deserialize<ContentRelease>(releaseJson);
-            var artifact = release?.Artifacts?.FirstOrDefault(a => a.IsPrimary && !string.IsNullOrWhiteSpace(a.DownloadUrl)) ??
-                release?.Artifacts?.FirstOrDefault(a => !string.IsNullOrWhiteSpace(a.DownloadUrl));
-            if (!string.IsNullOrWhiteSpace(artifact?.DownloadUrl))
-            {
-                searchResult.SelectedDownloadUrl = artifact.DownloadUrl;
-            }
-        }
-        catch (JsonException)
-        {
-            // Fall back to catalog IDs when the embedded release cannot be parsed.
         }
     }
 

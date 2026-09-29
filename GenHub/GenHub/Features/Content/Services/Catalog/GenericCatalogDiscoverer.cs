@@ -314,35 +314,23 @@ public class GenericCatalogDiscoverer(
         var declaredProvider = !string.IsNullOrWhiteSpace(contentItem.UpstreamSync?.Provider)
             ? contentItem.UpstreamSync.Provider
             : contentItem.PublisherType;
-        var provider = CatalogConstants.UpstreamProviders.Normalize(declaredProvider);
-        var isGitHubUpstream = string.Equals(provider, CatalogConstants.UpstreamProviders.GitHubReleases, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase);
-        if (!isGitHubUpstream)
-        {
-            return;
-        }
-
-        var repository = contentItem.UpstreamSync?.Repository?.Trim();
-        if (string.IsNullOrWhiteSpace(repository) &&
-            string.Equals(provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
-        {
-            repository = $"{SuperHackersConstants.GeneralsGameCodeOwner}/{SuperHackersConstants.GeneralsGameCodeRepo}";
-        }
-
-        var parts = repository?.Split('/');
-        if (parts?.Length != 2 || string.IsNullOrWhiteSpace(parts[0]) || string.IsNullOrWhiteSpace(parts[1]))
+        if (!CatalogConstants.UpstreamProviders.TryResolveGitHubRepository(
+            declaredProvider,
+            contentItem.UpstreamSync?.Repository,
+            out var owner,
+            out var repo))
         {
             return;
         }
 
         if (!searchResult.ResolverMetadata.ContainsKey(GitHubConstants.OwnerMetadataKey))
         {
-            searchResult.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = parts[0].Trim();
+            searchResult.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = owner;
         }
 
         if (!searchResult.ResolverMetadata.ContainsKey(GitHubConstants.RepoMetadataKey))
         {
-            searchResult.ResolverMetadata[GitHubConstants.RepoMetadataKey] = parts[1].Trim();
+            searchResult.ResolverMetadata[GitHubConstants.RepoMetadataKey] = repo;
         }
 
         if (!string.IsNullOrWhiteSpace(release.Version) &&
@@ -353,7 +341,7 @@ public class GenericCatalogDiscoverer(
 
         if (string.IsNullOrWhiteSpace(searchResult.SourceUrl))
         {
-            searchResult.SourceUrl = $"https://github.com/{parts[0].Trim()}/{parts[1].Trim()}";
+            searchResult.SourceUrl = $"https://github.com/{owner}/{repo}";
         }
     }
 
@@ -735,7 +723,7 @@ public class GenericCatalogDiscoverer(
         GitHubRelease? latestRelease = null;
         try
         {
-            var cacheKey = $"{SuperHackersConstants.GeneralsGameCodeOwner}/{SuperHackersConstants.GeneralsGameCodeRepo}";
+            var cacheKey = CatalogConstants.UpstreamProviders.DefaultSuperHackersRepository;
             if (ReleaseCache.TryGetValue(cacheKey, out var cached) && DateTime.UtcNow - cached.CachedAt < CacheTtl)
             {
                 latestRelease = cached.Release;

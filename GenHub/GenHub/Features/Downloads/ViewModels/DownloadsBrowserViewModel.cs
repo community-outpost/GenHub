@@ -3876,6 +3876,13 @@ public sealed partial class DownloadsBrowserViewModel(
     }
 
     /// <summary>
+    /// Resolves the user-facing status shown when only the selected bundle members
+    /// downloaded. Falls back to English when localization is unavailable.
+    /// </summary>
+    private string GetDownloadedSelectedContentStatus() =>
+        _localizationService?.GetString("Downloads.Card.DownloadedSelectedContent") ?? "Downloaded selected content";
+
+    /// <summary>
     /// Acquires every required bundle member that is not yet downloaded for the current selection.
     /// </summary>
     private async Task DownloadBundleComponentsAsync(
@@ -3909,7 +3916,7 @@ public sealed partial class DownloadsBrowserViewModel(
         item.DownloadProgress = 100;
         item.DownloadStatus = item.AreBundleComponentsReadyForProfile
             ? ContentConstants.DownloadCompleteStatusMessage
-            : "Downloaded selected content";
+            : GetDownloadedSelectedContentStatus();
     }
 
     /// <summary>
@@ -3984,7 +3991,7 @@ public sealed partial class DownloadsBrowserViewModel(
         item.DownloadProgress = 100;
         item.DownloadStatus = item.AreBundleComponentsReadyForProfile
             ? ContentConstants.DownloadCompleteStatusMessage
-            : "Downloaded selected content";
+            : GetDownloadedSelectedContentStatus();
 
         var activeNotificationService = notificationService ?? serviceProvider.GetService<INotificationService>();
         activeNotificationService?.ShowSuccess(

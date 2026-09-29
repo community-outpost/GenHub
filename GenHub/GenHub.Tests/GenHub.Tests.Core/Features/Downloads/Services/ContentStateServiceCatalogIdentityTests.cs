@@ -425,6 +425,80 @@ public sealed class ContentStateServiceCatalogIdentityTests
         Assert.Equal(GameType.ZeroHour, result.TargetGame);
     }
 
+    /// <summary>
+    /// A cross-type card must not resolve another deliverable's manifest from the same
+    /// repository: a Mod card carrying its own asset name must not match a Patch
+    /// manifest recording a different asset.
+    /// </summary>
+    [Fact]
+    public void FindGitHubRepoMatch_CrossTypeDifferentAssets_ReturnsNull()
+    {
+        var manifest = CreateGitHubManifest(GameType.ZeroHour, "1.0.github.patch.testwidget");
+        manifest.ContentType = ContentType.Patch;
+        manifest.Files.Add(new ManifestFile
+        {
+            RelativePath = "patch-asset.zip",
+            DownloadUrl = "https://github.com/Owner/Repo/releases/download/v1/patch-asset.zip",
+        });
+
+        var item = CreateGitHubItem(GameType.ZeroHour);
+        item.ContentType = ContentType.Mod;
+        item.ResolverMetadata[GitHubConstants.AssetNameMetadataKey] = "mod-asset.zip";
+
+        var result = ContentStateService.FindGitHubRepoMatch(new List<ContentManifest> { manifest }, item);
+
+        Assert.Null(result);
+    }
+
+    /// <summary>
+    /// Cross-type tolerance still matches the same deliverable: a Mod card whose asset
+    /// name appears in a Patch manifest resolves, preserving cross-publisher identity.
+    /// </summary>
+    [Fact]
+    public void FindGitHubRepoMatch_CrossTypeSameAsset_ReturnsManifest()
+    {
+        var manifest = CreateGitHubManifest(GameType.ZeroHour, "1.0.github.patch.testwidget");
+        manifest.ContentType = ContentType.Patch;
+        manifest.Files.Add(new ManifestFile
+        {
+            RelativePath = "shared-asset.zip",
+            DownloadUrl = "https://github.com/Owner/Repo/releases/download/v1/shared-asset.zip",
+        });
+
+        var item = CreateGitHubItem(GameType.ZeroHour);
+        item.ContentType = ContentType.Mod;
+        item.ResolverMetadata[GitHubConstants.AssetNameMetadataKey] = "shared-asset.zip";
+
+        var result = ContentStateService.FindGitHubRepoMatch(new List<ContentManifest> { manifest }, item);
+
+        Assert.NotNull(result);
+        Assert.Equal(manifest.Id.Value, result.Id.Value);
+    }
+
+    /// <summary>
+    /// Items carrying no asset identity keep the legacy cross-type behavior so
+    /// catalog-authored cards without asset metadata still resolve.
+    /// </summary>
+    [Fact]
+    public void FindGitHubRepoMatch_CrossTypeWithoutAssetIdentity_ReturnsManifest()
+    {
+        var manifest = CreateGitHubManifest(GameType.ZeroHour, "1.0.github.patch.testwidget");
+        manifest.ContentType = ContentType.Patch;
+        manifest.Files.Add(new ManifestFile
+        {
+            RelativePath = "patch-asset.zip",
+            DownloadUrl = "https://github.com/Owner/Repo/releases/download/v1/patch-asset.zip",
+        });
+
+        var item = CreateGitHubItem(GameType.ZeroHour);
+        item.ContentType = ContentType.Mod;
+
+        var result = ContentStateService.FindGitHubRepoMatch(new List<ContentManifest> { manifest }, item);
+
+        Assert.NotNull(result);
+        Assert.Equal(manifest.Id.Value, result.Id.Value);
+    }
+
     private ContentManifest CreateGitHubManifest(GameType game, string id)
     {
         return new ContentManifest

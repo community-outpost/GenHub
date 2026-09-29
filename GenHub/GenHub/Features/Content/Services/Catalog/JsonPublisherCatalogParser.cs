@@ -417,17 +417,11 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         if (string.Equals(provider, CatalogConstants.UpstreamProviders.GitHubReleases, StringComparison.OrdinalIgnoreCase))
         {
             var repo = content.UpstreamSync.Repository;
-            if (string.IsNullOrWhiteSpace(repo) || !IsValidOwnerRepo(repo))
+            if (string.IsNullOrWhiteSpace(repo) || !CatalogConstants.UpstreamProviders.IsValidOwnerRepo(repo))
             {
                 errors.Add($"Upstream GitHub item '{content.Id}' must declare a valid repository in 'owner/repo' format");
             }
         }
-    }
-
-    private static bool IsValidOwnerRepo(string repo)
-    {
-        var parts = repo.Split('/');
-        return parts.Length == 2 && parts.All(part => part.Length > 0 && part.All(c => !char.IsWhiteSpace(c)));
     }
 
     private void ValidateContentItems(PublisherCatalog catalog, List<string> errors)

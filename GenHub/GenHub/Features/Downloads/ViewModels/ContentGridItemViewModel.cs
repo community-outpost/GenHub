@@ -566,6 +566,46 @@ public sealed partial class ContentGridItemViewModel(
         }
     }
 
+    /// <summary>
+    /// Determines whether a manifest event matches this card via shared GitHub upstream identity.
+    /// </summary>
+    /// <param name="manifestSegments">The dot-separated manifest ID segments.</param>
+    /// <returns>True when owner, repo, and compatible type match; otherwise, false.</returns>
+    internal bool MatchesGitHubUpstreamIdentity(string[] manifestSegments)
+    {
+        if (SearchResult?.ResolverMetadata == null || manifestSegments.Length != 5)
+        {
+            return false;
+        }
+
+        if (!SearchResult.ResolverMetadata.TryGetValue(GitHubConstants.OwnerMetadataKey, out var owner) ||
+            string.IsNullOrWhiteSpace(owner) ||
+            !SearchResult.ResolverMetadata.TryGetValue(GitHubConstants.RepoMetadataKey, out var repo) ||
+            string.IsNullOrWhiteSpace(repo))
+        {
+            return false;
+        }
+
+        if (!Enum.TryParse<ContentType>(manifestSegments[3], ignoreCase: true, out var manifestType) ||
+            !ContentStateService.IsCompatibleGitHubContentType(manifestType, SearchResult.ContentType))
+        {
+            return false;
+        }
+
+        var manifestPublisher = ContentStateService.NormalizeSegment(manifestSegments[2]);
+        var expectedOwner = ContentStateService.NormalizeSegment(owner);
+        if (!string.Equals(manifestPublisher, "github", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(manifestPublisher, expectedOwner, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var manifestName = ContentStateService.NormalizeSegment(manifestSegments[4]);
+        var expectedRepo = ContentStateService.NormalizeSegment(repo);
+        return manifestName.StartsWith(expectedRepo, StringComparison.OrdinalIgnoreCase) ||
+            expectedRepo.StartsWith(manifestName, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static void RunOnUi(Action action)
     {
         if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess() || Avalonia.Application.Current == null)
@@ -733,45 +773,6 @@ public sealed partial class ContentGridItemViewModel(
         return MatchesKey(CNCLabsConstants.MapIdMetadataKey, e) ||
                MatchesKey(AODMapsConstants.MapIdMetadataKey, e) ||
                MatchesKey(ModDBConstants.ContentIdMetadataKey, e);
-    }
-
-    private bool MatchesGitHubUpstreamIdentity(string[] manifestSegments)
-    {
-        if (SearchResult?.ResolverMetadata == null || manifestSegments.Length != 5)
-        {
-            return false;
-        }
-
-        if (!SearchResult.ResolverMetadata.TryGetValue(GitHubConstants.OwnerMetadataKey, out var owner) ||
-            string.IsNullOrWhiteSpace(owner) ||
-            !SearchResult.ResolverMetadata.TryGetValue(GitHubConstants.RepoMetadataKey, out var repo) ||
-            string.IsNullOrWhiteSpace(repo))
-        {
-            return false;
-        }
-
-        if (!Enum.TryParse<ContentType>(manifestSegments[3], ignoreCase: true, out var manifestType) ||
-            !ContentStateService.IsCompatibleGitHubContentType(manifestType, SearchResult.ContentType))
-        {
-            return false;
-        }
-
-        var manifestPublisher = ContentStateService.NormalizeSegment(manifestSegments[2]);
-        if (string.Equals(manifestPublisher, "github", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        var expectedOwner = ContentStateService.NormalizeSegment(owner);
-        if (!string.Equals(manifestPublisher, expectedOwner, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        var manifestName = ContentStateService.NormalizeSegment(manifestSegments[4]);
-        var expectedRepo = ContentStateService.NormalizeSegment(repo);
-        return manifestName.StartsWith(expectedRepo, StringComparison.OrdinalIgnoreCase) ||
-            expectedRepo.StartsWith(manifestName, StringComparison.OrdinalIgnoreCase);
     }
 
     private bool MatchesKey(string key, ContentStateChangedEventArgs e)

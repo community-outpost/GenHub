@@ -165,4 +165,65 @@ public sealed class ReleaseDialogBundleModeTests
         Assert.NotEmpty(vm.BundleComponentOptions);
         Assert.Contains(vm.BundleComponentOptions, o => o.ContentId == "mod-a");
     }
+
+    /// <summary>
+    /// Saving an edited bundle must preserve dependency resolution metadata
+    /// instead of rebuilding dependencies with only a subset of fields.
+    /// </summary>
+    [Fact]
+    public void ReleaseDialog_EditBundle_PreservesDependencyMetadata()
+    {
+        ContentRelease? created = null;
+        var catalog = new PublisherCatalog
+        {
+            Publisher = new PublisherProfile { Id = "test-pub", Name = "Test Publisher" },
+            Content =
+            [
+                new CatalogContentItem { Id = "bundle", Name = "Bundle", ContentType = GenHub.Core.Models.Enums.ContentType.ContentBundle },
+                new CatalogContentItem { Id = "mod-a", Name = "Mod A", ContentType = GenHub.Core.Models.Enums.ContentType.Addon },
+            ],
+        };
+        var existing = new ContentRelease
+        {
+            Version = "1.0",
+            Artifacts = [],
+            Dependencies =
+            [
+                new CatalogDependency
+                {
+                    PublisherId = "test-pub",
+                    ContentId = "mod-a",
+                    VersionConstraint = ">=1.0",
+                    CatalogUrl = "https://example.com/catalog.json",
+                    DependencyType = GenHub.Core.Models.Enums.DependencyType.Required,
+                    DefinitionUrl = "https://example.com/definition.json",
+                    ConflictsWith = ["mod-b"],
+                    DefaultVariant = "1080p",
+                    AllowedVariantAxes = ["resolution"],
+                },
+            ],
+        };
+
+        var vm = new AddReleaseDialogViewModel(
+            existing,
+            catalog.Content[0],
+            catalog,
+            r => created = r,
+            Mock.Of<IPublisherStudioDialogService>());
+        vm.Version = "1.1";
+
+        vm.CreateReleaseCommand.Execute(null);
+
+        Assert.NotNull(created);
+        var dep = Assert.Single(created.Dependencies);
+        Assert.Equal("test-pub", dep.PublisherId);
+        Assert.Equal("mod-a", dep.ContentId);
+        Assert.Equal("https://example.com/catalog.json", dep.CatalogUrl);
+        Assert.Equal("https://example.com/definition.json", dep.DefinitionUrl);
+        Assert.Equal(GenHub.Core.Models.Enums.DependencyType.Required, dep.DependencyType);
+        Assert.Equal(["mod-b"], dep.ConflictsWith);
+        Assert.Equal(["resolution"], dep.AllowedVariantAxes);
+        Assert.Equal("1080p", dep.DefaultVariant);
+        Assert.Equal(">=1.0", dep.VersionConstraint);
+    }
 }

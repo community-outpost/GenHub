@@ -766,6 +766,67 @@ public sealed class ContentGridItemViewModelTests
         Assert.False(viewModel.HasFeaturedColor);
     }
 
+    /// <summary>
+    /// A manifest from an unrelated repository must not match the card even
+    /// when the publisher segment is the generic github provider.
+    /// </summary>
+    [Fact]
+    public void MatchesGitHubUpstreamIdentity_UnrelatedRepo_ReturnsFalse()
+    {
+        var searchResult = new ContentSearchResult
+        {
+            Id = "testwidget",
+            Name = "TestWidget",
+            ContentType = ContentType.Addon,
+        };
+        searchResult.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = "Owner";
+        searchResult.ResolverMetadata[GitHubConstants.RepoMetadataKey] = "Repo";
+
+        var viewModel = CreateViewModel(searchResult);
+
+        Assert.False(viewModel.MatchesGitHubUpstreamIdentity(["1", "0", "github", "addon", "unrelated"]));
+    }
+
+    /// <summary>
+    /// A generic github manifest whose name matches the repository matches.
+    /// </summary>
+    [Fact]
+    public void MatchesGitHubUpstreamIdentity_MatchingRepo_ReturnsTrue()
+    {
+        var searchResult = new ContentSearchResult
+        {
+            Id = "testwidget",
+            Name = "TestWidget",
+            ContentType = ContentType.Addon,
+        };
+        searchResult.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = "Owner";
+        searchResult.ResolverMetadata[GitHubConstants.RepoMetadataKey] = "Repo";
+
+        var viewModel = CreateViewModel(searchResult);
+
+        Assert.True(viewModel.MatchesGitHubUpstreamIdentity(["1", "0", "github", "addon", "repoextra"]));
+    }
+
+    /// <summary>
+    /// A manifest published under the owning account matches by owner and repo.
+    /// </summary>
+    [Fact]
+    public void MatchesGitHubUpstreamIdentity_OwnerPublisher_ReturnsTrue()
+    {
+        var searchResult = new ContentSearchResult
+        {
+            Id = "testwidget",
+            Name = "TestWidget",
+            ContentType = ContentType.Addon,
+        };
+        searchResult.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = "Owner";
+        searchResult.ResolverMetadata[GitHubConstants.RepoMetadataKey] = "Repo";
+
+        var viewModel = CreateViewModel(searchResult);
+
+        Assert.True(viewModel.MatchesGitHubUpstreamIdentity(["1", "0", "owner", "addon", "repoextra"]));
+    }
+
     private static void MarkAllSelectedDownloaded(ContentGridItemViewModel viewModel)
     {
         foreach (var component in viewModel.BundleComponents)

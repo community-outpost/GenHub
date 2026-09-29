@@ -615,6 +615,8 @@ public partial class AddReleaseDialogViewModel(
             DependencyType = source.DependencyType,
             DefinitionUrl = source.DefinitionUrl,
             ConflictsWith = [.. source.ConflictsWith],
+            DefaultVariant = source.DefaultVariant,
+            AllowedVariantAxes = [.. source.AllowedVariantAxes],
         };
     }
 
@@ -1012,16 +1014,19 @@ public partial class AddReleaseDialogViewModel(
         var result = new List<CatalogDependency>();
         foreach (var opt in BundleComponentOptions.Where(o => o.IsSelected))
         {
-            var source = opt.SourceDependency;
-            result.Add(new CatalogDependency
-            {
-                PublisherId = opt.PublisherId ?? source?.PublisherId ?? catalog?.Publisher?.Id,
-                ContentId = opt.ContentId,
-                VersionConstraint = opt.VersionConstraint ?? source?.VersionConstraint ?? CatalogConstants.LatestVersionToken,
-                IsOptional = false,
-                DefaultVariant = opt.SelectedVariant ?? source?.DefaultVariant,
-                ContentType = opt.ContentType.ToString(),
-            });
+            // Clone the source dependency when one exists so resolution metadata
+            // (catalog/definition URLs, dependency type, conflicts, allowed axes)
+            // survives the rebuild; the option only overlays edited fields.
+            var dep = opt.SourceDependency != null
+                ? CloneDependency(opt.SourceDependency)
+                : new CatalogDependency { ContentId = opt.ContentId };
+            dep.PublisherId = opt.PublisherId ?? dep.PublisherId ?? catalog?.Publisher?.Id;
+            dep.ContentId = opt.ContentId;
+            dep.VersionConstraint = opt.VersionConstraint ?? dep.VersionConstraint ?? CatalogConstants.LatestVersionToken;
+            dep.IsOptional = false;
+            dep.DefaultVariant = opt.SelectedVariant ?? dep.DefaultVariant;
+            dep.ContentType = opt.ContentType.ToString();
+            result.Add(dep);
         }
 
         if (_existingRelease != null)

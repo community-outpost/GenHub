@@ -14,6 +14,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -2044,6 +2045,12 @@ public sealed partial class ContentStateService(
             return false;
         }
 
+        if (manifest.ContentType != item.ContentType &&
+            !IsSameGitHubAsset(manifest, item))
+        {
+            return false;
+        }
+
         if (manifest.TargetGame != GameType.Unknown &&
             item.TargetGame != GameType.Unknown &&
             manifest.TargetGame != item.TargetGame)
@@ -2069,6 +2076,49 @@ public sealed partial class ContentStateService(
         }
 
         return IsGitHubVariantMatch(manifest, item);
+    }
+
+    /// <summary>
+    /// Determines whether a catalog item and an installed manifest describe the same
+    /// GitHub release asset. Cross-type matches (for example a Patch card against a
+    /// Mod manifest from the same repository) are only trusted when both sides agree
+    /// on the deliverable: the item's asset name or selected download URL must appear
+    /// in the manifest files. Items carrying no asset identity keep the legacy
+    /// behavior so catalog-authored cards without asset metadata still resolve.
+    /// </summary>
+    /// <param name="manifest">The installed manifest to inspect.</param>
+    /// <param name="item">The catalog item to match.</param>
+    /// <returns>True when the item identifies the manifest's asset, or carries no asset identity.</returns>
+    private static bool IsSameGitHubAsset(ContentManifest manifest, ContentSearchResult item)
+    {
+        if (manifest.Files.Count == 0)
+        {
+            return false;
+        }
+
+        if (item.ResolverMetadata?.TryGetValue(GitHubConstants.AssetNameMetadataKey, out var assetName) == true &&
+            !string.IsNullOrWhiteSpace(assetName))
+        {
+            foreach (var file in manifest.Files)
+            {
+                if (string.Equals(file.RelativePath, assetName, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(Path.GetFileName(file.RelativePath), assetName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.SelectedDownloadUrl))
+        {
+            return manifest.Files.Any(file =>
+                !string.IsNullOrWhiteSpace(file.DownloadUrl) &&
+                string.Equals(file.DownloadUrl, item.SelectedDownloadUrl, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return true;
     }
 
     private static bool IsFileBasedContentType(ContentType contentType)

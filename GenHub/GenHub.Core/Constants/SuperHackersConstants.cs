@@ -80,6 +80,21 @@ public static class SuperHackersConstants
     public const string ZeroHourShortAssetMarker = "_zh";
 
     /// <summary>
+    /// Filename marker identifying full-client game-code release archives.
+    /// </summary>
+    public const string FullClientAssetMarker = "full-client";
+
+    /// <summary>
+    /// Filename marker identifying Zero Hour client release archives.
+    /// </summary>
+    public const string ZeroHourClientAssetMarker = "zh-client";
+
+    /// <summary>
+    /// Filename marker identifying Generals client release archives.
+    /// </summary>
+    public const string GeneralsClientAssetMarker = "gen-client";
+
+    /// <summary>
     /// The resolver ID used for GitHub releases.
     /// </summary>
     public const string ResolverId = "GitHubRelease";

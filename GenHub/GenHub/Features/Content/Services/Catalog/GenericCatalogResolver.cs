@@ -276,28 +276,16 @@ public partial class GenericCatalogResolver(
         var declaredProvider = !string.IsNullOrWhiteSpace(contentItem.UpstreamSync?.Provider)
             ? contentItem.UpstreamSync.Provider
             : contentItem.PublisherType;
-        var provider = CatalogConstants.UpstreamProviders.Normalize(declaredProvider);
-        var isGitHubUpstream = string.Equals(provider, CatalogConstants.UpstreamProviders.GitHubReleases, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase);
-        if (!isGitHubUpstream)
+        if (!CatalogConstants.UpstreamProviders.TryResolveGitHubRepository(
+            declaredProvider,
+            contentItem.UpstreamSync?.Repository,
+            out var owner,
+            out var repo))
         {
             return null;
         }
 
-        var repository = contentItem.UpstreamSync?.Repository?.Trim();
-        if (string.IsNullOrWhiteSpace(repository) &&
-            string.Equals(provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
-        {
-            repository = $"{SuperHackersConstants.GeneralsGameCodeOwner}/{SuperHackersConstants.GeneralsGameCodeRepo}";
-        }
-
-        var parts = repository?.Split('/');
-        if (parts?.Length != 2 || string.IsNullOrWhiteSpace(parts[0]) || string.IsNullOrWhiteSpace(parts[1]))
-        {
-            return null;
-        }
-
-        return $"https://github.com/{parts[0].Trim()}/{parts[1].Trim()}";
+        return $"https://github.com/{owner}/{repo}";
     }
 
     private static string SanitizeArtifactFilename(ReleaseArtifact primaryArtifact, CatalogContentItem contentItem)

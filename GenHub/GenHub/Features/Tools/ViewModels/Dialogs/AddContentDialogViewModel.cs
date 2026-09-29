@@ -237,10 +237,10 @@ public partial class AddContentDialogViewModel(
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SuggestedContentId))]
-    private string? _upstreamRepository = "TheSuperHackers/GeneralsGameCode";
+    private string? _upstreamRepository = CatalogConstants.UpstreamProviders.DefaultSuperHackersRepository;
 
     [ObservableProperty]
-    private string? _upstreamChannel = "stable";
+    private string? _upstreamChannel = CatalogConstants.UpstreamChannels.Stable;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SuggestedContentId))]
@@ -1989,9 +1989,9 @@ public partial class AddContentDialogViewModel(
 
         contentItem.PublisherType = SelectedUpstreamProvider switch
         {
-            CatalogConstants.UpstreamProviders.TheSuperHackers => "thesuperhackers",
-            CatalogConstants.UpstreamProviders.GeneralsOnline => "generalsonline",
-            CatalogConstants.UpstreamProviders.CommunityOutpost => "communityoutpost",
+            CatalogConstants.UpstreamProviders.TheSuperHackers => PublisherTypeConstants.TheSuperHackers,
+            CatalogConstants.UpstreamProviders.GeneralsOnline => PublisherTypeConstants.GeneralsOnline,
+            CatalogConstants.UpstreamProviders.CommunityOutpost => PublisherTypeConstants.CommunityOutpost,
             _ => contentItem.PublisherType,
         };
     }

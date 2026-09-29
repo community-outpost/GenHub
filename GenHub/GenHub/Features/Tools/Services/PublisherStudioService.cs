@@ -574,19 +574,13 @@ public class PublisherStudioService(
         if (string.Equals(provider, CatalogConstants.UpstreamProviders.GitHubReleases, StringComparison.OrdinalIgnoreCase))
         {
             var repo = content.UpstreamSync.Repository;
-            if (string.IsNullOrWhiteSpace(repo) || !IsValidOwnerRepo(repo))
+            if (string.IsNullOrWhiteSpace(repo) || !CatalogConstants.UpstreamProviders.IsValidOwnerRepo(repo))
             {
                 return OperationResult<bool>.CreateFailure($"Upstream GitHub item '{content.Name}' must declare a valid repository in 'owner/repo' format");
             }
         }
 
         return OperationResult<bool>.CreateSuccess(true);
-    }
-
-    private static bool IsValidOwnerRepo(string repo)
-    {
-        var parts = repo.Split('/');
-        return parts.Length == 2 && parts.All(part => part.Length > 0 && part.All(c => !char.IsWhiteSpace(c)));
     }
 
     private static OperationResult<bool> ValidateSingleContentReleases(
