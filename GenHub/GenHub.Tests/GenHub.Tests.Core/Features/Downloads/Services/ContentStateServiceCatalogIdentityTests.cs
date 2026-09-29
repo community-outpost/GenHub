@@ -476,6 +476,25 @@ public sealed class ContentStateServiceCatalogIdentityTests
     }
 
     /// <summary>
+    /// A manifest with null files must not throw during cross-type matching.
+    /// </summary>
+    [Fact]
+    public void FindGitHubRepoMatch_CrossTypeNullFiles_ReturnsNull()
+    {
+        var manifest = CreateGitHubManifest(GameType.ZeroHour, "1.0.github.patch.testwidget");
+        manifest.ContentType = ContentType.Patch;
+        manifest.Files = null!;
+
+        var item = CreateGitHubItem(GameType.ZeroHour);
+        item.ContentType = ContentType.Mod;
+        item.ResolverMetadata[GitHubConstants.AssetNameMetadataKey] = "mod-asset.zip";
+
+        var result = ContentStateService.FindGitHubRepoMatch(new List<ContentManifest> { manifest }, item);
+
+        Assert.Null(result);
+    }
+
+    /// <summary>
     /// Items carrying no asset identity keep the legacy cross-type behavior so
     /// catalog-authored cards without asset metadata still resolve.
     /// </summary>

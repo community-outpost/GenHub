@@ -2091,7 +2091,7 @@ public sealed partial class ContentStateService(
     /// <returns>True when the item identifies the manifest's asset, or carries no asset identity.</returns>
     private static bool IsSameGitHubAsset(ContentManifest manifest, ContentSearchResult item)
     {
-        if (manifest.Files.Count == 0)
+        if (manifest.Files is null || manifest.Files.Count == 0)
         {
             return false;
         }

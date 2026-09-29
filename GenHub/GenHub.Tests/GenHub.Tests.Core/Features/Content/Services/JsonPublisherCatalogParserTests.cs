@@ -358,6 +358,80 @@ public sealed class JsonPublisherCatalogParserTests
     }
 
     /// <summary>
+    /// Bundled entries use the same content-type validation as release dependencies.
+    /// </summary>
+    [Fact]
+    public void ValidateCatalog_BundleWithInvalidBundledContentType_Fails()
+    {
+        var catalog = new PublisherCatalog
+        {
+            SchemaVersion = 1,
+            Publisher = new PublisherProfile { Id = "test-pub", Name = "Test" },
+            Content =
+            [
+                new CatalogContentItem
+                {
+                    Id = "bundle-a",
+                    Name = "Bundle A",
+                    ContentType = ContentType.ContentBundle,
+                    BundledItems =
+                    [
+                        new CatalogDependency
+                        {
+                            PublisherId = "test-pub",
+                            ContentId = "client-a",
+                            ContentType = "NotAType",
+                        },
+                    ],
+                },
+            ],
+        };
+
+        var parser = new JsonPublisherCatalogParser(NullLogger<JsonPublisherCatalogParser>.Instance);
+        var result = parser.ValidateCatalog(catalog);
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Errors, e => e.Contains("invalid contentType", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// Base-game bundled entries must declare the GameInstallation content type.
+    /// </summary>
+    [Fact]
+    public void ValidateCatalog_BundleWithBaseGameNonInstallationType_Fails()
+    {
+        var catalog = new PublisherCatalog
+        {
+            SchemaVersion = 1,
+            Publisher = new PublisherProfile { Id = "test-pub", Name = "Test" },
+            Content =
+            [
+                new CatalogContentItem
+                {
+                    Id = "bundle-a",
+                    Name = "Bundle A",
+                    ContentType = ContentType.ContentBundle,
+                    BundledItems =
+                    [
+                        new CatalogDependency
+                        {
+                            PublisherId = CatalogConstants.EaPublisherId,
+                            ContentId = CatalogConstants.ZeroHourContentId,
+                            ContentType = ContentType.Mod.ToString(),
+                        },
+                    ],
+                },
+            ],
+        };
+
+        var parser = new JsonPublisherCatalogParser(NullLogger<JsonPublisherCatalogParser>.Instance);
+        var result = parser.ValidateCatalog(catalog);
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Errors, e => e.Contains("non-GameInstallation contentType", StringComparison.Ordinal));
+    }
+
+    /// <summary>
     /// VerifySignature returns true and warns when a signature is present but unconfigured.
     /// </summary>
     [Fact]

@@ -384,7 +384,11 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         }
     }
 
-    private static void ValidateBundleItem(CatalogContentItem content, List<string> errors)
+    private static void ValidateBundleItem(
+        CatalogContentItem content,
+        Dictionary<string, CatalogContentItem> itemsById,
+        string? hostPublisherId,
+        List<string> errors)
     {
         if (content.ContentType != ContentType.ContentBundle)
         {
@@ -401,6 +405,26 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         else if (content.BundledItems != null && content.BundledItems.Any(d => d == null || string.IsNullOrWhiteSpace(d.ContentId)))
         {
             errors.Add($"Content bundle '{content.Id}' has bundled items with missing content IDs");
+        }
+
+        if (content.BundledItems == null)
+        {
+            return;
+        }
+
+        foreach (var dep in content.BundledItems)
+        {
+            if (dep == null || string.IsNullOrWhiteSpace(dep.ContentId))
+            {
+                continue;
+            }
+
+            if (!ValidateDependencyContentType(content, dep, errors))
+            {
+                continue;
+            }
+
+            ValidateDependencyPublisher(content, dep, itemsById, hostPublisherId, errors);
         }
     }
 
@@ -467,7 +491,7 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
     {
         ValidateBasicProperties(content, index, errors);
         ValidatePublisherType(content, errors);
-        ValidateBundleItem(content, errors);
+        ValidateBundleItem(content, itemsById, hostPublisherId, errors);
         ValidateUpstreamItem(content, errors);
         ValidateItemReleases(content, itemsById, hostPublisherId, errors);
     }
