@@ -115,4 +115,53 @@ public class CatalogContentItemTests
         Assert.Contains(nameof(CatalogContentItem.IsFeatured), notified);
         Assert.True(item.IsFeatured);
     }
+
+    /// <summary>
+    /// Verifies upstream-tracked items with no stored releases show the placeholder.
+    /// </summary>
+    [Fact]
+    public void ShowsUpstreamReleasesPlaceholder_UpstreamWithoutReleases_ReturnsTrue()
+    {
+        var item = new CatalogContentItem
+        {
+            UpstreamSync = new CatalogUpstreamSync(),
+            Releases = [],
+        };
+
+        Assert.True(item.ShowsUpstreamReleasesPlaceholder);
+    }
+
+    /// <summary>
+    /// Verifies items with stored releases never show the upstream placeholder.
+    /// </summary>
+    [Fact]
+    public void ShowsUpstreamReleasesPlaceholder_WithReleases_ReturnsFalse()
+    {
+        var item = new CatalogContentItem
+        {
+            UpstreamSync = new CatalogUpstreamSync(),
+            Releases = [new ContentRelease { Version = "1.0.0" }],
+        };
+
+        Assert.False(item.ShowsUpstreamReleasesPlaceholder);
+    }
+
+    /// <summary>
+    /// Verifies replacing releases notifies placeholder bindings.
+    /// </summary>
+    [Fact]
+    public void Releases_Set_RaisesPlaceholderNotification()
+    {
+        var item = new CatalogContentItem
+        {
+            UpstreamSync = new CatalogUpstreamSync(),
+        };
+        var notified = new List<string?>();
+        item.PropertyChanged += (_, args) => notified.Add(args.PropertyName);
+
+        item.Releases = [new ContentRelease { Version = "1.0.0" }];
+
+        Assert.Contains(nameof(CatalogContentItem.ShowsUpstreamReleasesPlaceholder), notified);
+        Assert.False(item.ShowsUpstreamReleasesPlaceholder);
+    }
 }
