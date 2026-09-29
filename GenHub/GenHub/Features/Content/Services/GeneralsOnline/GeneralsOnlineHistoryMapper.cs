@@ -27,25 +27,11 @@ public static class GeneralsOnlineHistoryMapper
     /// Builds history search results from CRC catalog entries.
     /// </summary>
     /// <param name="entries">All CRC catalog entries, including non-Generals Online publishers.</param>
-    /// <param name="excludeVersion">CDN latest version to exclude so it is not listed twice.</param>
-    /// <returns>History results ordered newest first. Never null.</returns>
-    public static IReadOnlyList<ContentSearchResult> BuildHistoryResults(
-        IReadOnlyList<CrcMappingEntry>? entries,
-        string? excludeVersion = null)
-    {
-        IReadOnlyCollection<string>? excludeVersions = excludeVersion == null ? null : [excludeVersion];
-        return BuildHistoryResults(entries, excludeVersions);
-    }
-
-    /// <summary>
-    /// Builds history search results from CRC catalog entries.
-    /// </summary>
-    /// <param name="entries">All CRC catalog entries, including non-Generals Online publishers.</param>
     /// <param name="excludeVersions">CDN current versions to exclude so none is listed twice.</param>
     /// <returns>History results ordered newest first. Never null.</returns>
     public static IReadOnlyList<ContentSearchResult> BuildHistoryResults(
         IReadOnlyList<CrcMappingEntry>? entries,
-        IReadOnlyCollection<string>? excludeVersions)
+        IReadOnlyCollection<string>? excludeVersions = null)
     {
         if (entries == null || entries.Count == 0)
         {
@@ -139,12 +125,18 @@ public static class GeneralsOnlineHistoryMapper
             return false;
         }
 
-        if (!entry.CdnUrl.EndsWith(GeneralsOnlineConstants.PortableExtension, StringComparison.OrdinalIgnoreCase))
+        if (!IsPortableUrl(entry.CdnUrl))
         {
             return false;
         }
 
         return excludedVersions.Count == 0 || !excludedVersions.Contains(entry.Version.Trim());
+    }
+
+    private static bool IsPortableUrl(string cdnUrl)
+    {
+        return Uri.TryCreate(cdnUrl, UriKind.Absolute, out var uri) &&
+            uri.AbsolutePath.EndsWith(GeneralsOnlineConstants.PortableExtension, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsSupportedVersion(string version)

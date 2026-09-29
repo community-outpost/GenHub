@@ -99,7 +99,7 @@ public class GeneralsOnlineHistoryMapperTests
             CreateEntry("081326", "https://cdn.playgenerals.online/GeneralsOnline_portable_081326.zip"),
         };
 
-        var results = GeneralsOnlineHistoryMapper.BuildHistoryResults(entries, excludeVersion: "082826_QFE1");
+        var results = GeneralsOnlineHistoryMapper.BuildHistoryResults(entries, ["082826_QFE1"]);
 
         var result = Assert.Single(results);
         Assert.Equal("081326", result.Version);
@@ -118,7 +118,7 @@ public class GeneralsOnlineHistoryMapperTests
             CreateEntry("042826_QFE2_EAC", "https://cdn.playgenerals.online/GeneralsOnline_portable_042826_QFE2_EAC.zip"),
         };
 
-        var results = GeneralsOnlineHistoryMapper.BuildHistoryResults(entries, excludeVersion: "042826_QFE2_EAC");
+        var results = GeneralsOnlineHistoryMapper.BuildHistoryResults(entries, ["042826_QFE2_EAC"]);
 
         Assert.Empty(results);
     }
@@ -144,6 +144,23 @@ public class GeneralsOnlineHistoryMapperTests
 
         var result = Assert.Single(results);
         Assert.Equal("081326", result.Version);
+    }
+
+    /// <summary>
+    /// Portable URLs carrying a query string still resolve to history cards.
+    /// </summary>
+    [Fact]
+    public void BuildHistoryResults_WithPortableUrlQueryString_KeepsCard()
+    {
+        var entries = new List<CrcMappingEntry>
+        {
+            CreateEntry("081326", "https://cdn.playgenerals.online/GeneralsOnline_portable_081326.zip?nocache=123"),
+        };
+
+        var results = GeneralsOnlineHistoryMapper.BuildHistoryResults(entries);
+
+        var result = Assert.Single(results);
+        Assert.Equal("https://cdn.playgenerals.online/GeneralsOnline_portable_081326.zip?nocache=123", result.SelectedDownloadUrl);
     }
 
     /// <summary>

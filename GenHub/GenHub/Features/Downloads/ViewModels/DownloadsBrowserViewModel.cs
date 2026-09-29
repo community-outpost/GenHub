@@ -2010,6 +2010,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 Take = effectivePageSize,
                 Page = CurrentPage,
                 TargetGame = ContentConstants.DefaultGameType,
+                IncludeOlderVersions = string.Equals(publisherId, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase),
             };
 
             // Apply active filters from filter panel

@@ -152,8 +152,12 @@ public class GeneralsOnlineDiscoverer(
                 await EnrichWithPatchNotesAsync(item, provider, cancellationToken);
             }
 
-            // Step 6: Append archived portable releases from the CRC catalog so older executables stay installable
-            AppendHistoryResults(list, query);
+            // Step 6: Append archived portable releases from the CRC catalog so older executables stay installable.
+            // History is opt-in: setup and update flows query latest-only and must not acquire archived versions.
+            if (query.IncludeOlderVersions)
+            {
+                AppendHistoryResults(list, query);
+            }
 
             return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
             {
