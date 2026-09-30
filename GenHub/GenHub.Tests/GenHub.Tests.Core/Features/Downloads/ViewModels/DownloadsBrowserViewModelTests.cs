@@ -1208,7 +1208,7 @@ public class DownloadsBrowserViewModelTests
     /// Verifies that Generals Online QFE and non-QFE releases are reconciled correctly:
     /// newest uninstalled release (092826) stays NotDownloaded, downloaded older QFE release
     /// (082826_QFE1) receives UpdateAvailable pointing to 092826, and uninstalled older
-    /// releases (082826, 081326_QFE3) stay NotDownloaded.
+    /// releases (082826) stay NotDownloaded.
     /// </summary>
     [Fact]
     public void ReconcileReleaseUpdateStates_GeneralsOnlineQfeReleases_ReconcilesChronologically()

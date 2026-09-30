@@ -2519,6 +2519,73 @@ public class ContentStateServiceTests
         Assert.Null(await service.GetLocalManifestIdAsync(card082826));
     }
 
+    /// <summary>
+    /// Verifies that when a publisher item (such as ModDB) carries a display version ("1.85")
+    /// that differs from the manifest's date-based version ("2025.10.15"), matching OriginalContentId
+    /// or metadata provenance correctly identifies the item as Downloaded without being vetoed
+    /// by version discrepancy.
+    /// </summary>
+    /// <returns>A completed task.</returns>
+    [Fact]
+    public async Task GetStateAsync_ModDbRowWithDisplayVersionDifferentFromManifestDate_MatchesDownloadedByOriginalContentIdAsync()
+    {
+        // Arrange
+        var installedManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.20251015.moddb.mod.shockwave"),
+            Name = "ShockWave Mod",
+            Version = "2025.10.15",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = PublisherTypeConstants.ModDB,
+            OriginalContentId = "moddb-addon-12345",
+            Publisher = new PublisherInfo
+            {
+                PublisherType = PublisherTypeConstants.ModDB,
+                Website = "https://www.moddb.com/mods/cc-shockwave",
+            },
+            Files =
+            [
+                new ManifestFile
+                {
+                    DownloadUrl = "https://www.moddb.com/downloads/start/12345",
+                    RelativePath = "shockwave-v185.zip",
+                },
+            ],
+        };
+
+        var modDbItem = new ContentSearchResult
+        {
+            Id = "moddb-addon-12345",
+            Name = "ShockWave Mod v1.85",
+            Version = "1.85",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = PublisherTypeConstants.ModDB,
+            SourceUrl = "https://www.moddb.com/mods/cc-shockwave/downloads/shockwave-v185",
+            SelectedDownloadUrl = "https://www.moddb.com/downloads/start/12345",
+        };
+        modDbItem.ResolverMetadata[ModDBConstants.ContentIdMetadataKey] = "12345";
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([installedManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        pool.Setup(p => p.IsManifestAcquiredAsync(installedManifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        // Act
+        var state = await service.GetStateAsync(modDbItem);
+        var localManifestId = await service.GetLocalManifestIdAsync(modDbItem);
+
+        // Assert: Exact provenance/OriginalContentId match must resolve Downloaded and matching manifest ID
+        Assert.Equal(ContentState.Downloaded, state);
+        Assert.Equal(installedManifest.Id.Value, localManifestId);
+    }
+
     private static ContentSearchResult CreateGitHubAssetCard(
         string owner,
         string repo,

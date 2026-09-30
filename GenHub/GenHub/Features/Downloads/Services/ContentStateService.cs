@@ -440,7 +440,7 @@ public sealed partial class ContentStateService(
     /// Checks whether the publisher string matches Generals Online or any of its known aliases.
     /// </summary>
     /// <param name="publisher">The publisher identifier or name.</param>
-    /// <returns>True if the publisher is Generals Online; otherwise, false.</returns>
+    /// <returns><see langword="true"/> if the publisher is Generals Online; otherwise, <see langword="false"/>.</returns>
     internal static bool IsGeneralsOnlinePublisher(string? publisher)
     {
         if (string.IsNullOrWhiteSpace(publisher))
@@ -578,10 +578,10 @@ public sealed partial class ContentStateService(
         var localSegments = localId.Split('.');
         bool isGoProspective = (prospectiveSegments.Length == 5 && IsCompatiblePublisherAlias(prospectiveSegments[2], PublisherTypeConstants.GeneralsOnline)) ||
                                prospectiveId.StartsWith(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
-                               prospectiveId.Contains(".generalsonline.", StringComparison.OrdinalIgnoreCase);
+                               prospectiveId.Contains($".{PublisherTypeConstants.GeneralsOnline}.", StringComparison.OrdinalIgnoreCase);
         bool isGoLocal = (localSegments.Length == 5 && IsCompatiblePublisherAlias(localSegments[2], PublisherTypeConstants.GeneralsOnline)) ||
                          localId.StartsWith(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
-                         localId.Contains(".generalsonline.", StringComparison.OrdinalIgnoreCase);
+                         localId.Contains($".{PublisherTypeConstants.GeneralsOnline}.", StringComparison.OrdinalIgnoreCase);
         bool isGoPublisher = isGoProspective || isGoLocal;
 
         // 1. If human-readable version strings are available on both sides, compare them first.
@@ -1414,6 +1414,20 @@ public sealed partial class ContentStateService(
         return best;
     }
 
+    private static bool VersionsDiffer(ContentSearchResult item, ContentManifest manifest)
+    {
+        if (string.IsNullOrWhiteSpace(item.Version) || string.IsNullOrWhiteSpace(manifest.Version))
+        {
+            return false;
+        }
+
+        var isGeneralsOnline = IsGeneralsOnlinePublisher(item.ProviderName) ||
+                               IsGeneralsOnlinePublisher(manifest.Publisher?.PublisherType) ||
+                               IsGeneralsOnlinePublisher(manifest.OriginalProviderName);
+
+        return CompareVersions(item.Version, manifest.Version, isGeneralsOnline) != 0;
+    }
+
     private static bool IsExactManifestMatch(ContentManifest manifest, ContentSearchResult item)
     {
         var itemVariant = ExtractVariantToken(item.Name) ?? ExtractVariantToken(item.Id);
@@ -1427,16 +1441,12 @@ public sealed partial class ContentStateService(
             return false;
         }
 
-        if (!string.IsNullOrWhiteSpace(item.Version) && !string.IsNullOrWhiteSpace(manifest.Version))
+        if (!string.IsNullOrWhiteSpace(item.Id) &&
+            (string.Equals(manifest.Id.Value, item.Id, StringComparison.OrdinalIgnoreCase) ||
+             (!string.IsNullOrWhiteSpace(manifest.OriginalContentId) &&
+              string.Equals(manifest.OriginalContentId, item.Id, StringComparison.OrdinalIgnoreCase))))
         {
-            var isGeneralsOnline = IsGeneralsOnlinePublisher(item.ProviderName) ||
-                                   IsGeneralsOnlinePublisher(manifest.Publisher?.PublisherType) ||
-                                   IsGeneralsOnlinePublisher(manifest.OriginalProviderName);
-
-            if (CompareVersions(item.Version, manifest.Version, isGeneralsOnline) != 0)
-            {
-                return false;
-            }
+            return true;
         }
 
         if (IsSameContentSource(manifest, item))
@@ -1444,12 +1454,9 @@ public sealed partial class ContentStateService(
             return true;
         }
 
-        if (!string.IsNullOrWhiteSpace(item.Id) &&
-            (string.Equals(manifest.Id.Value, item.Id, StringComparison.OrdinalIgnoreCase) ||
-             (!string.IsNullOrWhiteSpace(manifest.OriginalContentId) &&
-              string.Equals(manifest.OriginalContentId, item.Id, StringComparison.OrdinalIgnoreCase))))
+        if (VersionsDiffer(item, manifest))
         {
-            return true;
+            return false;
         }
 
         if (!string.IsNullOrWhiteSpace(item.Version) && !string.IsNullOrWhiteSpace(manifest.Version))
@@ -1726,23 +1733,6 @@ public sealed partial class ContentStateService(
 
     private static bool IsSameContentSource(ContentManifest manifest, ContentSearchResult item)
     {
-        if (!string.IsNullOrWhiteSpace(item.Version) && !string.IsNullOrWhiteSpace(manifest.Version))
-        {
-            var isGeneralsOnline = IsGeneralsOnlinePublisher(item.ProviderName) ||
-                                   IsGeneralsOnlinePublisher(manifest.Publisher?.PublisherType) ||
-                                   IsGeneralsOnlinePublisher(manifest.OriginalProviderName);
-
-            if (CompareVersions(item.Version, manifest.Version, isGeneralsOnline) != 0)
-            {
-                return false;
-            }
-        }
-
-        if (!string.IsNullOrWhiteSpace(item.SourceUrl) && MatchesSourceUrl(manifest, item.SourceUrl))
-        {
-            return true;
-        }
-
         if (!string.IsNullOrWhiteSpace(item.Id) &&
             !string.IsNullOrWhiteSpace(manifest.OriginalContentId) && (
             string.Equals(manifest.OriginalContentId, item.Id, StringComparison.OrdinalIgnoreCase) ||
@@ -1759,6 +1749,16 @@ public sealed partial class ContentStateService(
             (item.ResolverMetadata?.TryGetValue(ModDBConstants.ContentIdMetadataKey, out var modDbId) == true &&
              (manifest.OriginalContentId.EndsWith($".{modDbId}", StringComparison.OrdinalIgnoreCase) ||
               string.Equals(manifest.OriginalContentId, modDbId, StringComparison.OrdinalIgnoreCase)))))
+        {
+            return true;
+        }
+
+        if (VersionsDiffer(item, manifest))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.SourceUrl) && MatchesSourceUrl(manifest, item.SourceUrl))
         {
             return true;
         }
