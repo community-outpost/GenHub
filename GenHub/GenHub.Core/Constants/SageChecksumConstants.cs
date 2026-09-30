@@ -16,11 +16,6 @@ public static class SageChecksumConstants
     public const string BigFileExtension = ".big";
 
     /// <summary>
-    /// File name prefix for retail patch big archive files.
-    /// </summary>
-    public const string PatchArchivePrefix = "patch";
-
-    /// <summary>
     /// Search pattern for SAGE INI files.
     /// </summary>
     public const string IniFileSearchPattern = "*.ini";

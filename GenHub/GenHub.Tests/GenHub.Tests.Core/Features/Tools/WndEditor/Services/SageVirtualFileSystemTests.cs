@@ -258,40 +258,46 @@ public sealed class SageVirtualFileSystemTests : IDisposable
     }
 
     /// <summary>
-    /// Tests that patch archives (e.g. Patch.big) overwrite base archives (e.g. INI.big)
-    /// within the same tier, correctly mirroring retail Generals 1.08 patch behavior.
+    /// Tests that within the same tier, BIG archives strictly adhere to the SAGE engine's
+    /// alphabetical first-loaded-wins rule (Win32BIGFileSystem overwrite=FALSE).
+    /// Prefixing with a lower sort key (such as 0_) overrides later-sorted base archives.
     /// </summary>
     [Fact]
-    public void Read_PatchArchiveInSameTier_OverridesBaseArchive()
+    public void Read_SameTierArchives_FollowsAlphabeticalFirstLoadedWins()
     {
-        // Arrange: base archive and patch archive in the same directory
-        var patchRoot = Path.Combine(_tempRoot, "PatchOverrideRoot");
-        Directory.CreateDirectory(patchRoot);
+        // Arrange: 0_Override.big (loads first), INI.big (loads second), Patch.big (loads third)
+        var root = Path.Combine(_tempRoot, "SameTierSortRoot");
+        Directory.CreateDirectory(root);
+        var overrideBytes = Encoding.UTF8.GetBytes("override-ini-content");
         var baseBytes = Encoding.UTF8.GetBytes("base-ini-content");
-        var patchBytes = Encoding.UTF8.GetBytes("patched-ini-content");
+        var laterBytes = Encoding.UTF8.GetBytes("later-ini-content");
+
         WndTestAssets.CreateBigArchive(
-            Path.Combine(patchRoot, "INI.big"),
+            Path.Combine(root, "0_Override.big"),
+            ("Data\\INI\\GameData.ini", overrideBytes));
+        WndTestAssets.CreateBigArchive(
+            Path.Combine(root, "INI.big"),
             ("Data\\INI\\GameData.ini", baseBytes),
-            ("Data\\INI\\VanillaOnly.ini", baseBytes));
+            ("Data\\INI\\Second.ini", baseBytes));
         WndTestAssets.CreateBigArchive(
-            Path.Combine(patchRoot, "Patch.big"),
-            ("Data\\INI\\GameData.ini", patchBytes));
+            Path.Combine(root, "Patch.big"),
+            ("Data\\INI\\Second.ini", laterBytes));
 
         var vfs = new SageVirtualFileSystem(
-            patchRoot,
+            root,
             isZeroHour: false,
             logger: Mock.Of<ILogger>(),
             initialTier: SageFileTier.BaseGame);
 
         // Act
         var gameData = vfs.Read("Data\\INI\\GameData.ini");
-        var vanillaOnly = vfs.Read("Data\\INI\\VanillaOnly.ini");
+        var second = vfs.Read("Data\\INI\\Second.ini");
 
-        // Assert: Patch.big overrides INI.big for overlapping files, but preserves non-overlapping files
+        // Assert: 0_Override.big beats INI.big, and INI.big beats Patch.big (earliest loaded wins)
         gameData.Should().NotBeNull();
-        gameData.Should().Equal(patchBytes);
-        vanillaOnly.Should().NotBeNull();
-        vanillaOnly.Should().Equal(baseBytes);
+        gameData.Should().Equal(overrideBytes);
+        second.Should().NotBeNull();
+        second.Should().Equal(baseBytes);
     }
 
     /// <summary>

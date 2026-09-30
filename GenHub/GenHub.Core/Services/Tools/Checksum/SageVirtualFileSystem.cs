@@ -102,7 +102,7 @@ public sealed class SageVirtualFileSystem
                 continue;
             }
 
-            AddArchive(bigFile, initialTier, overwriteSameTier: IsPatchArchive(bigFile));
+            AddArchive(bigFile, initialTier);
         }
     }
 
@@ -123,7 +123,7 @@ public sealed class SageVirtualFileSystem
         Array.Sort(bigFiles, StringComparer.OrdinalIgnoreCase);
         foreach (string bigFile in bigFiles)
         {
-            AddArchive(bigFile, SageFileTier.BaseGame, overwriteSameTier: IsPatchArchive(bigFile));
+            AddArchive(bigFile, SageFileTier.BaseGame);
         }
     }
 
@@ -145,12 +145,12 @@ public sealed class SageVirtualFileSystem
             Array.Sort(bigFiles, StringComparer.OrdinalIgnoreCase);
             foreach (string bigFile in bigFiles)
             {
-                AddArchive(bigFile, SageFileTier.Expansion, overwriteSameTier: IsPatchArchive(bigFile));
+                AddArchive(bigFile, SageFileTier.Expansion);
             }
         }
         else if (File.Exists(path) && path.EndsWith(SageChecksumConstants.BigFileExtension, StringComparison.OrdinalIgnoreCase))
         {
-            AddArchive(path, SageFileTier.Expansion, overwriteSameTier: IsPatchArchive(path));
+            AddArchive(path, SageFileTier.Expansion);
         }
         else
         {
@@ -579,12 +579,6 @@ public sealed class SageVirtualFileSystem
         return Directory.Exists(current) && current.StartsWith(fullRoot, StringComparison.OrdinalIgnoreCase) ? current : null;
     }
 
-    private static bool IsPatchArchive(string path)
-    {
-        string fileName = Path.GetFileName(path);
-        return fileName.StartsWith(SageChecksumConstants.PatchArchivePrefix, StringComparison.OrdinalIgnoreCase);
-    }
-
     private static bool IsTierInBand(SageFileTier tier, SageFileTier? minTier, SageFileTier? maxTier)
     {
         return (minTier == null || tier >= minTier) && (maxTier == null || tier <= maxTier);
@@ -659,24 +653,6 @@ public sealed class SageVirtualFileSystem
 
         if (candidate.Tier == currentBest.Value.Tier)
         {
-            bool candidateIsPatch = IsPatchArchive(candidate.Entry.ArchivePath);
-            bool bestIsPatch = IsPatchArchive(currentBest.Value.Entry.ArchivePath);
-
-            if (candidateIsPatch && !bestIsPatch)
-            {
-                return true;
-            }
-
-            if (!candidateIsPatch && bestIsPatch)
-            {
-                return false;
-            }
-
-            if (candidateIsPatch && bestIsPatch)
-            {
-                return GetMountOrder(candidate.Entry.ArchivePath) > GetMountOrder(currentBest.Value.Entry.ArchivePath);
-            }
-
             // Same rule as AddArchive: the engine mounts BIGs in sorted order with
             // overwrite disabled, so the earliest-mounted archive wins filename ties.
             return GetMountOrder(candidate.Entry.ArchivePath) < GetMountOrder(currentBest.Value.Entry.ArchivePath);
