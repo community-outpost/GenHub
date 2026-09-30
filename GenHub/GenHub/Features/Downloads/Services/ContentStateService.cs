@@ -2380,11 +2380,11 @@ public sealed partial class ContentStateService(
             return null;
         }
 
-        // File rows (release/addon rows) already matched at file level; exact provenance
-        // linkage identifies the row's own manifest regardless of version-string schemes,
-        // which differ per publisher (ModDB rows carry display versions like "1.85" while
-        // manifests carry dates). Version heuristics below must not veto that linkage.
-        if (IsFileRow(item) && IsSameContentSource(persistedManifest, item))
+        // Exact provenance linkage identifies the row's own manifest regardless of
+        // version-string schemes, which differ per publisher (ModDB rows carry display
+        // versions like "1.85" while manifests carry dates). Version heuristics below must
+        // not veto that linkage.
+        if (IsSameContentSource(persistedManifest, item))
         {
             return persistedManifest.Id.Value;
         }

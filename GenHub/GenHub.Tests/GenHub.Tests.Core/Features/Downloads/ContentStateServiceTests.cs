@@ -2565,7 +2565,6 @@ public class ContentStateServiceTests
             SourceUrl = "https://www.moddb.com/mods/cc-shockwave/downloads/shockwave-v185",
             SelectedDownloadUrl = "https://www.moddb.com/downloads/start/12345",
         };
-        modDbItem.ResolverMetadata[ModDBConstants.ContentIdMetadataKey] = "12345";
 
         var pool = new Mock<IContentManifestPool>();
         pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
@@ -2582,6 +2581,65 @@ public class ContentStateServiceTests
         var localManifestId = await service.GetLocalManifestIdAsync(modDbItem);
 
         // Assert: Exact provenance/OriginalContentId match must resolve Downloaded and matching manifest ID
+        Assert.Equal(ContentState.Downloaded, state);
+        Assert.Equal(installedManifest.Id.Value, localManifestId);
+    }
+
+    /// <summary>
+    /// Verifies that when a publisher non-file item (such as ModDB mod page) carries a display version ("1.85")
+    /// that differs from the manifest's date-based version ("2025.10.15"), metadata provenance
+    /// (e.g. ModDB content ID) correctly identifies the item as Downloaded and resolves its local manifest ID
+    /// without divergence or version veto.
+    /// </summary>
+    /// <returns>A completed task.</returns>
+    [Fact]
+    public async Task GetStateAsync_ModDbNonFileRowWithDisplayVersionDifferentFromManifestDate_MatchesDownloadedByMetadataContentIdAsync()
+    {
+        // Arrange
+        var installedManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.20251015.moddb.mod.shockwave"),
+            Name = "ShockWave Mod",
+            Version = "2025.10.15",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = PublisherTypeConstants.ModDB,
+            OriginalContentId = "moddb.12345",
+            Publisher = new PublisherInfo
+            {
+                PublisherType = PublisherTypeConstants.ModDB,
+                Website = "https://www.moddb.com/mods/cc-shockwave",
+            },
+        };
+
+        var modDbItem = new ContentSearchResult
+        {
+            Id = "moddb-page-shockwave",
+            Name = "ShockWave Mod v1.85",
+            Version = "1.85",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = PublisherTypeConstants.ModDB,
+            SourceUrl = "https://www.moddb.com/mods/cc-shockwave",
+            SelectedDownloadUrl = null,
+        };
+        modDbItem.ResolverMetadata[ModDBConstants.ContentIdMetadataKey] = "12345";
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([installedManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        pool.Setup(p => p.IsManifestAcquiredAsync(installedManifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        // Act
+        var state = await service.GetStateAsync(modDbItem);
+        var localManifestId = await service.GetLocalManifestIdAsync(modDbItem);
+
+        // Assert: Metadata provenance match must resolve Downloaded and matching manifest ID for non-file row
         Assert.Equal(ContentState.Downloaded, state);
         Assert.Equal(installedManifest.Id.Value, localManifestId);
     }
