@@ -2,7 +2,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
-using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.Common;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -25,13 +24,13 @@ public sealed partial class SetupWizardViewModel(IEnumerable<SetupWizardItemView
     /// Gets or sets the title of the wizard window.
     /// </summary>
     [ObservableProperty]
-    private string _title = localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.Title, GameClientConstants.WizardFallbackText.Title);
+    private string _title = localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.Title);
 
     /// <summary>
     /// Gets or sets the label for the cancel/skip button.
     /// </summary>
     [ObservableProperty]
-    private string _cancelLabel = localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.Skip, GameClientConstants.WizardFallbackText.Skip);
+    private string _cancelLabel = localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.Skip);
 
     /// <summary>
     /// Gets or sets the label for the confirm/continue button.
@@ -48,8 +47,8 @@ public sealed partial class SetupWizardViewModel(IEnumerable<SetupWizardItemView
 
     private static string FormatConfirmLabel(ILocalizationService? localizationService, int selectedCount) =>
         selectedCount > 0
-            ? localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.ContinueWithCount, GameClientConstants.WizardFallbackText.ContinueWithCount, selectedCount)
-            : localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.Continue, GameClientConstants.WizardFallbackText.Continue);
+            ? localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.ContinueWithCount, selectedCount)
+            : localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.Continue);
 
     [RelayCommand]
     private void ToggleSelection(SetupWizardItemViewModel? item)

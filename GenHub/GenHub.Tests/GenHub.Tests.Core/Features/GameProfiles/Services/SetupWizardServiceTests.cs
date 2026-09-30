@@ -390,7 +390,7 @@ public class SetupWizardServiceTests
         // Non-retail item defaults to unchecked and contains compatibility warning
         Assert.False(nonRetItem.IsSelected);
         Assert.Equal(nonRetVersion, nonRetItem.Version);
-        Assert.EndsWith(" " + GameClientConstants.WizardFallbackText.NonRetailIncompatibleNotice, nonRetItem.Description);
+        Assert.EndsWith(" " + GameClientConstants.WizardFallbackText[GameClientConstants.WizardLocalizationKeys.NonRetailIncompatibleNotice], nonRetItem.Description);
         Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.CommunityPatchNonRetAction);
         Assert.True(result.Confirmed);
     }
@@ -1052,7 +1052,32 @@ public class SetupWizardServiceTests
 
         service.ApplyDisplayLabels(item);
 
-        Assert.Equal(GameClientConstants.WizardFallbackText.DefaultAction, item.ActionLabel);
+        Assert.Equal(GameClientConstants.WizardFallbackText[GameClientConstants.WizardLocalizationKeys.DefaultAction], item.ActionLabel);
+    }
+
+    /// <summary>
+    /// Verifies that every wizard localization key has an English fallback and that each fallback
+    /// equals the neutral <c>Strings.resx</c> value, so the two cannot drift apart.
+    /// </summary>
+    [Fact]
+    public void WizardFallbackText_CoversEveryKeyAndMatchesNeutralResources()
+    {
+        var resourceManager = new System.Resources.ResourceManager(
+            LocalizationConstants.StringResourceBaseName,
+            typeof(GenHub.Common.Services.LocalizationService).Assembly);
+        var keys = typeof(GameClientConstants.WizardLocalizationKeys)
+            .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+            .Where(f => f.IsLiteral)
+            .Select(f => (string)f.GetRawConstantValue()!)
+            .ToList();
+
+        Assert.NotEmpty(keys);
+        Assert.Equal(keys.Count, GameClientConstants.WizardFallbackText.Count);
+        foreach (var key in keys)
+        {
+            Assert.True(GameClientConstants.WizardFallbackText.TryGetValue(key, out var fallback), $"No fallback for {key}");
+            Assert.Equal(resourceManager.GetString(key, System.Globalization.CultureInfo.InvariantCulture), fallback);
+        }
     }
 
     private static byte[] HostNativeExecutableHeader() => OperatingSystem.IsLinux()

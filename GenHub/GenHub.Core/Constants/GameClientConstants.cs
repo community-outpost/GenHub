@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 
 namespace GenHub.Core.Constants;
@@ -613,64 +615,37 @@ public static class GameClientConstants
     }
 
     /// <summary>
-    /// English fallback text for the Setup Wizard keys in <see cref="WizardLocalizationKeys"/>, used when no resource resolves.
+    /// Gets the English fallback text for each <see cref="WizardLocalizationKeys"/> key, used when no resource resolves.
     /// </summary>
-    public static class WizardFallbackText
-    {
-        /// <summary>Wizard heading.</summary>
-        public const string Title = "Setup Detected Content";
-
-        /// <summary>Skip button label.</summary>
-        public const string Skip = "Skip";
-
-        /// <summary>Continue button label with no selected items.</summary>
-        public const string Continue = "Continue";
-
-        /// <summary>Continue button label with the selected item count as {0}.</summary>
-        public const string ContinueWithCount = "Continue ({0})";
-
-        /// <summary>Community Patch (Retail) component title.</summary>
-        public const string CommunityPatchRetailTitle = "Community Patch (Retail)";
-
-        /// <summary>Community Patch (Non-Retail) component title.</summary>
-        public const string CommunityPatchNonRetailTitle = "Community Patch (Non-Retail)";
-
-        /// <summary>Generals Online component title.</summary>
-        public const string GeneralsOnlineTitle = "Generals Online";
-
-        /// <summary>TheSuperHackers component title.</summary>
-        public const string SuperHackersTitle = "TheSuperHackers";
-
-        /// <summary>Install description with the title as {0}.</summary>
-        public const string InstallDescription = "Download and install {0}.";
-
-        /// <summary>Install description with the title as {0} and the version as {1}.</summary>
-        public const string InstallVersionDescription = "Download and install {0} {1}.";
-
-        /// <summary>Managed install description with the title as {0}.</summary>
-        public const string InstallManagedDescription = "Download and install managed {0} files.";
-
-        /// <summary>Managed install description with the title as {0} and the version as {1}.</summary>
-        public const string InstallManagedVersionDescription = "Download and install managed {0} {1} files.";
-
-        /// <summary>Create profile description with the title as {0}.</summary>
-        public const string CreateProfileDescription = "Create a game profile for {0}.";
-
-        /// <summary>Create profile description with the title as {0} and the version as {1}.</summary>
-        public const string CreateProfileVersionDescription = "Create a game profile for {0} {1}.";
-
-        /// <summary>Update description with the title as {0}.</summary>
-        public const string UpdateDescription = "Update {0} to the latest version.";
-
-        /// <summary>Update description with the title as {0} and the version as {1}.</summary>
-        public const string UpdateVersionDescription = "Update {0} to version {1}.";
-
-        /// <summary>Notice appended to the Non-Retail Community Patch description.</summary>
-        public const string NonRetailIncompatibleNotice = "Not compatible with retail Zero Hour 1.04.";
-
-        /// <summary>Action label for an item whose action type has no specific label.</summary>
-        public const string DefaultAction = "Select";
-    }
+    public static IReadOnlyDictionary<string, string> WizardFallbackText { get; } =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            [WizardLocalizationKeys.Title] = "Setup Detected Content",
+            [WizardLocalizationKeys.Skip] = "Skip",
+            [WizardLocalizationKeys.Continue] = "Continue",
+            [WizardLocalizationKeys.ContinueWithCount] = "Continue ({0})",
+            [WizardLocalizationKeys.CommunityPatchRetailTitle] = "Community Patch (Retail)",
+            [WizardLocalizationKeys.CommunityPatchNonRetailTitle] = "Community Patch (Non-Retail)",
+            [WizardLocalizationKeys.GeneralsOnlineTitle] = "Generals Online",
+            [WizardLocalizationKeys.SuperHackersTitle] = "TheSuperHackers",
+            [WizardLocalizationKeys.InstallDescription] = "Download and install {0}.",
+            [WizardLocalizationKeys.InstallVersionDescription] = "Download and install {0} {1}.",
+            [WizardLocalizationKeys.InstallManagedDescription] = "Download and install managed {0} files.",
+            [WizardLocalizationKeys.InstallManagedVersionDescription] = "Download and install managed {0} {1} files.",
+            [WizardLocalizationKeys.CreateProfileDescription] = "Create a game profile for {0}.",
+            [WizardLocalizationKeys.CreateProfileVersionDescription] = "Create a game profile for {0} {1}.",
+            [WizardLocalizationKeys.UpdateDescription] = "Update {0} to the latest version.",
+            [WizardLocalizationKeys.UpdateVersionDescription] = "Update {0} to version {1}.",
+            [WizardLocalizationKeys.NonRetailIncompatibleNotice] = "Not compatible with retail Zero Hour 1.04.",
+            [WizardLocalizationKeys.DefaultAction] = "Select",
+            [WizardLocalizationKeys.UpdateReinstallAction] = WizardActionLabels.UpdateReinstall,
+            [WizardLocalizationKeys.CreateProfileAction] = WizardActionLabels.CreateProfile,
+            [WizardLocalizationKeys.DownloadAndInstallAction] = WizardActionLabels.DownloadAndInstall,
+            [WizardLocalizationKeys.InstalledStatus] = WizardStatuses.Installed,
+            [WizardLocalizationKeys.DownloadedStatus] = WizardStatuses.Downloaded,
+            [WizardLocalizationKeys.DetectedStatus] = WizardStatuses.Detected,
+            [WizardLocalizationKeys.MissingStatus] = WizardStatuses.Missing,
+        }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>
     /// Deterministic IDs for synthetic game clients used during initial setup.

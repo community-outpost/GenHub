@@ -2,7 +2,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using GenHub.Core.Constants;
-using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
@@ -326,10 +325,10 @@ public class SetupWizardService(
              CommunityOutpostConstants.IsNonRetailIdentifier(m.Name) ||
              (m.Metadata?.Tags != null && m.Metadata.Tags.Any(CommunityOutpostConstants.IsNonRetailIdentifier)));
 
-        var cpRetailTitle = localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.CommunityPatchRetailTitle, GameClientConstants.WizardFallbackText.CommunityPatchRetailTitle);
-        var cpNonRetTitle = localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.CommunityPatchNonRetailTitle, GameClientConstants.WizardFallbackText.CommunityPatchNonRetailTitle);
-        var goTitle = localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.GeneralsOnlineTitle, GameClientConstants.WizardFallbackText.GeneralsOnlineTitle);
-        var shTitle = localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.SuperHackersTitle, GameClientConstants.WizardFallbackText.SuperHackersTitle);
+        var cpRetailTitle = localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.CommunityPatchRetailTitle);
+        var cpNonRetTitle = localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.CommunityPatchNonRetailTitle);
+        var goTitle = localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.GeneralsOnlineTitle);
+        var shTitle = localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.SuperHackersTitle);
 
         var cpRetailDescription = FormatInstallDescription(cpRetailTitle, cpRetailCleanVersion);
         var cpNonRetDescription = FormatInstallDescription(cpNonRetTitle, cpNonRetCleanVersion);
@@ -363,7 +362,7 @@ public class SetupWizardService(
             Metadata = CommunityOutpostConstants.CommunityPatchNonRetCode,
             ManifestFilter = IsCpNonRetManifest,
             DefaultSelected = false,
-            DescriptionSuffix = " " + localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.NonRetailIncompatibleNotice, GameClientConstants.WizardFallbackText.NonRetailIncompatibleNotice),
+            DescriptionSuffix = " " + localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.NonRetailIncompatibleNotice),
         };
         var cpNonRetRes = await ProcessComponentAsync(cpNonRetConfig);
         result.CommunityPatchNonRetAction = cpNonRetRes.FinalAction;
@@ -475,20 +474,20 @@ public class SetupWizardService(
     {
         item.ActionLabel = item.ActionType switch
         {
-            GameClientConstants.WizardActionTypes.Update => localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.UpdateReinstallAction, GameClientConstants.WizardActionLabels.UpdateReinstall),
-            GameClientConstants.WizardActionTypes.CreateProfile => localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.CreateProfileAction, GameClientConstants.WizardActionLabels.CreateProfile),
-            GameClientConstants.WizardActionTypes.Install => localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.DownloadAndInstallAction, GameClientConstants.WizardActionLabels.DownloadAndInstall),
+            GameClientConstants.WizardActionTypes.Update => localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.UpdateReinstallAction),
+            GameClientConstants.WizardActionTypes.CreateProfile => localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.CreateProfileAction),
+            GameClientConstants.WizardActionTypes.Install => localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.DownloadAndInstallAction),
             _ => string.IsNullOrEmpty(item.ActionLabel)
-                ? localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.DefaultAction, GameClientConstants.WizardFallbackText.DefaultAction)
+                ? localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.DefaultAction)
                 : item.ActionLabel,
         };
 
         item.StatusLabel = item.Status switch
         {
-            GameClientConstants.WizardStatuses.Installed => localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.InstalledStatus, GameClientConstants.WizardStatuses.Installed),
-            GameClientConstants.WizardStatuses.Downloaded => localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.DownloadedStatus, GameClientConstants.WizardStatuses.Downloaded),
-            GameClientConstants.WizardStatuses.Detected => localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.DetectedStatus, GameClientConstants.WizardStatuses.Detected),
-            GameClientConstants.WizardStatuses.Missing => localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.MissingStatus, GameClientConstants.WizardStatuses.Missing),
+            GameClientConstants.WizardStatuses.Installed => localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.InstalledStatus),
+            GameClientConstants.WizardStatuses.Downloaded => localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.DownloadedStatus),
+            GameClientConstants.WizardStatuses.Detected => localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.DetectedStatus),
+            GameClientConstants.WizardStatuses.Missing => localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.MissingStatus),
             _ => item.Status,
         };
     }
@@ -534,23 +533,23 @@ public class SetupWizardService(
 
     private string FormatCreateProfileDescription(string title, string? version) =>
         HasDisplayVersion(version)
-            ? localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.CreateProfileVersionDescription, GameClientConstants.WizardFallbackText.CreateProfileVersionDescription, title, version)
-            : localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.CreateProfileDescription, GameClientConstants.WizardFallbackText.CreateProfileDescription, title);
+            ? localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.CreateProfileVersionDescription, title, version)
+            : localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.CreateProfileDescription, title);
 
     private string FormatUpdateProfileDescription(string title, string? version) =>
         HasDisplayVersion(version)
-            ? localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.UpdateVersionDescription, GameClientConstants.WizardFallbackText.UpdateVersionDescription, title, version)
-            : localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.UpdateDescription, GameClientConstants.WizardFallbackText.UpdateDescription, title);
+            ? localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.UpdateVersionDescription, title, version)
+            : localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.UpdateDescription, title);
 
     private string FormatDetectedInstallDescription(string title, string? version) =>
         HasDisplayVersion(version)
-            ? localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.InstallManagedVersionDescription, GameClientConstants.WizardFallbackText.InstallManagedVersionDescription, title, version)
-            : localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.InstallManagedDescription, GameClientConstants.WizardFallbackText.InstallManagedDescription, title);
+            ? localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.InstallManagedVersionDescription, title, version)
+            : localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.InstallManagedDescription, title);
 
     private string FormatInstallDescription(string title, string? version) =>
         HasDisplayVersion(version)
-            ? localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.InstallVersionDescription, GameClientConstants.WizardFallbackText.InstallVersionDescription, title, version)
-            : localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.InstallDescription, GameClientConstants.WizardFallbackText.InstallDescription, title);
+            ? localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.InstallVersionDescription, title, version)
+            : localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.InstallDescription, title);
 
     private async Task<(string RetailVersion, string NonRetVersion)> GetLatestCommunityPatchVersionsAsync()
     {
