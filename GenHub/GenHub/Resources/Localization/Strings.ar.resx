@@ -13560,6 +13560,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Hosting.DownloadEmptyError" xml:space="preserve">
     <value>الملف الذي تم تنزيله كان فارغاً.</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.NoShareableUrlError" xml:space="preserve">
+    <value>لا يتوفر رابط تنزيل قابل للمشاركة.</value>
+  </data>
   <data name="Tools.PublisherStudio.Hosting.DeserializeDefinitionErrorFormat" xml:space="preserve">
     <value>تنسيق JSON لتعريف الناشر غير صالح: {0}</value>
   </data>

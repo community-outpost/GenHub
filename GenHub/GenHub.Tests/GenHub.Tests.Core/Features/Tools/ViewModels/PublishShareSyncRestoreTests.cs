@@ -11,6 +11,8 @@ using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading;
@@ -83,14 +85,108 @@ public sealed class PublishShareSyncRestoreTests : IDisposable
         Assert.DoesNotContain(project.Catalogs, c => c.Id == "default");
     }
 
+    /// <summary>
+    /// A scan that discovers a publisher definition without a shareable URL (for example a
+    /// Dropbox file with no shared link yet) must resolve a download URL on demand and still
+    /// restore the publisher profile instead of leaving it empty.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ScanCloudStorage_DefinitionWithoutShareableUrl_ResolvesUrlAndAutoRestoresAsync()
+    {
+        var project = new PublisherStudioProject { ProjectPath = "/test/path/project.json" };
+        project.Catalogs.Add(new NamedCatalog
+        {
+            Id = "default",
+            Name = "Content",
+            FileName = "catalog.json",
+            Catalog = project.Catalog,
+        });
+        var vm = await CreateScannedViewModelAsync(
+            project,
+            serveValidContent: true,
+            discoveredDefinitionUrl: string.Empty,
+            setupUrlResolution: true);
+
+        Assert.Equal("restored-pub", project.Catalog.Publisher.Id);
+        Assert.Equal("Restored Publisher", project.Catalog.Publisher.Name);
+        Assert.Equal(DefinitionUrl, vm.ProviderDefinitionUrl);
+        Assert.False(vm.ShowNoDefinitionBanner);
+        var restored = project.Catalogs.Find(c => c.Id == "main");
+        Assert.NotNull(restored);
+    }
+
+    /// <summary>
+    /// A URL-less discovered definition must still surface the restore banner so the synced
+    /// provider definition can be pulled into an empty project.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ScanCloudStorage_DefinitionWithoutShareableUrl_SurfacesRestoreBannerAsync()
+    {
+        var project = new PublisherStudioProject { ProjectPath = "/test/path/project.json" };
+        var vm = await CreateScannedViewModelAsync(
+            project,
+            serveValidContent: false,
+            discoveredDefinitionUrl: string.Empty,
+            setupUrlResolution: true);
+
+        Assert.True(vm.HasDiscoveredCloudDefinition);
+        Assert.True(vm.ShowDiscoveredDefinitionBanner);
+        Assert.NotNull(vm.DiscoveredCloudDefinition);
+        Assert.True(vm.DiscoveredCloudDefinition.CanLoadToProject);
+    }
+
+    /// <summary>
+    /// A resolved definition URL must survive a rescan that again reports the definition
+    /// without a URL, so the restore does not flap between scans.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ScanCloudStorage_ResolvedDefinitionUrlSurvivesRescanAsync()
+    {
+        var project = new PublisherStudioProject { ProjectPath = "/test/path/project.json" };
+        project.Catalogs.Add(new NamedCatalog
+        {
+            Id = "default",
+            Name = "Content",
+            FileName = "catalog.json",
+            Catalog = project.Catalog,
+        });
+        var savedDefinitionUrls = new List<string>();
+        var vm = await CreateScannedViewModelAsync(
+            project,
+            serveValidContent: true,
+            discoveredDefinitionUrl: string.Empty,
+            setupUrlResolution: true,
+            onSave: states =>
+            {
+                if (states.States.TryGetValue(HostingConstants.GoogleDrive, out var state))
+                {
+                    savedDefinitionUrls.Add(state.Definitions.FirstOrDefault()?.Url ?? string.Empty);
+                }
+            });
+
+        await vm.ScanCloudStorageCommand.ExecuteAsync(null);
+
+        Assert.Equal("restored-pub", project.Catalog.Publisher.Id);
+        Assert.Equal(
+            new[] { string.Empty, DefinitionUrl, DefinitionUrl },
+            savedDefinitionUrls);
+    }
+
     private async Task<PublishShareViewModel> CreateScannedViewModelAsync(
         PublisherStudioProject project,
-        bool serveValidContent)
+        bool serveValidContent,
+        string discoveredDefinitionUrl = DefinitionUrl,
+        bool setupUrlResolution = false,
+        Action<PublisherHostingStates>? onSave = null)
     {
         var container = new PublisherHostingStates();
         _mockHostingStateManager.Setup(m => m.LoadStatesAsync(project.ProjectPath, It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<PublisherHostingStates>.CreateSuccess(container));
         _mockHostingStateManager.Setup(m => m.SaveStatesAsync(project.ProjectPath, It.IsAny<PublisherHostingStates>(), It.IsAny<CancellationToken>()))
+            .Callback((string _, PublisherHostingStates states, CancellationToken _) => onSave?.Invoke(states))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         var cloudState = new HostingState
@@ -99,15 +195,16 @@ public sealed class PublishShareSyncRestoreTests : IDisposable
             Definition = new HostedFileInfo
             {
                 FileName = HostingConstants.DefaultDefinitionFileName,
-                Url = DefinitionUrl,
+                Url = discoveredDefinitionUrl,
                 LastUpdated = DateTime.UtcNow,
             },
             Definitions =
             [
                 new HostedFileInfo
                 {
+                    FileId = "id:publisher-definition",
                     FileName = HostingConstants.DefaultDefinitionFileName,
-                    Url = DefinitionUrl,
+                    Url = discoveredDefinitionUrl,
                     LastUpdated = DateTime.UtcNow,
                 },
             ],
@@ -132,6 +229,11 @@ public sealed class PublishShareSyncRestoreTests : IDisposable
         mockProvider.Setup(p => p.SupportsCatalogHosting).Returns(true);
         mockProvider.Setup(p => p.RecoverHostingStateAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<HostingState?>.CreateSuccess(cloudState));
+        if (setupUrlResolution)
+        {
+            mockProvider.Setup(p => p.EnsureShareableDownloadUrlAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<string>.CreateSuccess(DefinitionUrl));
+        }
 
         _mockStudioService.Setup(m => m.ValidateCatalogAsync(It.IsAny<PublisherCatalog>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));

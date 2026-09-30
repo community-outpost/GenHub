@@ -13560,6 +13560,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Hosting.DownloadEmptyError" xml:space="preserve">
     <value>Загруженный файл оказался пустым.</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.NoShareableUrlError" xml:space="preserve">
+    <value>Нет доступной общей ссылки для скачивания.</value>
+  </data>
   <data name="Tools.PublisherStudio.Hosting.DeserializeDefinitionErrorFormat" xml:space="preserve">
     <value>Неверный формат JSON манифеста: {0}</value>
   </data>

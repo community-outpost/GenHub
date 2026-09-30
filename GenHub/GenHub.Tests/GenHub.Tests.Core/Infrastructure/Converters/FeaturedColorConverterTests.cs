@@ -29,6 +29,19 @@ public class FeaturedColorConverterTests
     }
 
     /// <summary>
+    /// Verifies an alpha-bearing accent normalizes to fully opaque so borders, badges,
+    /// and glows agree on the same color.
+    /// </summary>
+    [Fact]
+    public void BrushConverter_AlphaBearingHex_ReturnsFullyOpaqueBrush()
+    {
+        var result = _brushConverter.Convert("#33F59E0B", typeof(IBrush), null, _culture);
+
+        var brush = Assert.IsType<SolidColorBrush>(result);
+        Assert.Equal(new Color(0xFF, 0xF5, 0x9E, 0x0B), brush.Color);
+    }
+
+    /// <summary>
     /// Verifies repeated evaluations return the shared cached brush instance.
     /// </summary>
     [Fact]

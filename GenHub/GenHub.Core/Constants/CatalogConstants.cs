@@ -454,6 +454,31 @@ public static class CatalogConstants
         }
 
         /// <summary>
+        /// Selects the effective upstream provider declaration for an item, preferring an
+        /// explicit upstream sync provider over the publisher type.
+        /// </summary>
+        /// <param name="syncProvider">The item's upstream sync provider, if declared.</param>
+        /// <param name="publisherType">The item's publisher type fallback.</param>
+        /// <returns>The declared provider or publisher type.</returns>
+        public static string? DeclaredProvider(string? syncProvider, string? publisherType)
+        {
+            return !string.IsNullOrWhiteSpace(syncProvider) ? syncProvider : publisherType;
+        }
+
+        /// <summary>
+        /// Builds the GitHub repository URL for a declared provider and repository pair.
+        /// </summary>
+        /// <param name="declaredProvider">The item's upstream provider or publisher type.</param>
+        /// <param name="declaredRepository">The item's declared repository in owner/repo form.</param>
+        /// <returns>The repository URL, or null when the pair is not GitHub-backed.</returns>
+        public static string? GitHubRepositoryUrl(string? declaredProvider, string? declaredRepository)
+        {
+            return TryResolveGitHubRepository(declaredProvider, declaredRepository, out var owner, out var repo)
+                ? $"https://github.com/{owner}/{repo}"
+                : null;
+        }
+
+        /// <summary>
         /// Resolves the owner/repository coordinates for a GitHub-tracked item, applying
         /// the default game-code repository when a TheSuperHackers item declares none.
         /// </summary>

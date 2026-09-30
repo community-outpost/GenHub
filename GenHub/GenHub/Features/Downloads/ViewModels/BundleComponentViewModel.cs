@@ -421,7 +421,9 @@ public sealed partial class BundleComponentViewModel : ObservableObject
             var release = JsonSerializer.Deserialize<ContentRelease>(releaseJson);
             var downloadable = release?.Artifacts?.Where(a => !string.IsNullOrWhiteSpace(a.DownloadUrl)).ToList();
             var artifact = (!string.IsNullOrWhiteSpace(variant.Label)
-                ? downloadable?.FirstOrDefault(a => string.Equals(a.Variant, variant.Label, StringComparison.OrdinalIgnoreCase))
+                ? downloadable?.FirstOrDefault(a => string.Equals(a.Variant, variant.Label, StringComparison.OrdinalIgnoreCase) &&
+                    (string.IsNullOrWhiteSpace(variant.Axis) || string.Equals(a.VariantAxis, variant.Axis, StringComparison.OrdinalIgnoreCase))) ??
+                    downloadable?.FirstOrDefault(a => string.Equals(a.Variant, variant.Label, StringComparison.OrdinalIgnoreCase))
                 : null) ??
                 release?.Artifacts?.FirstOrDefault(a => a.IsPrimary && !string.IsNullOrWhiteSpace(a.DownloadUrl)) ??
                 downloadable?.FirstOrDefault();
@@ -582,9 +584,7 @@ public sealed partial class BundleComponentViewModel : ObservableObject
 
     private static string[]? ResolveSiblingRepository(CatalogContentItem sibling)
     {
-        var declaredProvider = !string.IsNullOrWhiteSpace(sibling.UpstreamSync?.Provider)
-            ? sibling.UpstreamSync.Provider
-            : sibling.PublisherType;
+        var declaredProvider = CatalogConstants.UpstreamProviders.DeclaredProvider(sibling.UpstreamSync?.Provider, sibling.PublisherType);
         if (!CatalogConstants.UpstreamProviders.TryResolveGitHubRepository(
             declaredProvider,
             sibling.UpstreamSync?.Repository,

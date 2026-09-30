@@ -421,7 +421,7 @@ public class CatalogUpstreamIngestionService(
         CancellationToken cancellationToken)
     {
         var sync = item.UpstreamSync;
-        var declaredProvider = !string.IsNullOrWhiteSpace(sync?.Provider) ? sync.Provider : item.PublisherType;
+        var declaredProvider = CatalogConstants.UpstreamProviders.DeclaredProvider(sync?.Provider, item.PublisherType);
         var provider = CatalogConstants.UpstreamProviders.Normalize(declaredProvider);
 
         if (string.Equals(provider, CatalogConstants.UpstreamProviders.GitHubReleases, StringComparison.OrdinalIgnoreCase) ||

@@ -2047,8 +2047,9 @@ public sealed class GenericCatalogResolverBundleTests
             Version = "1.3",
             Artifacts =
             [
-                new ReleaseArtifact { Filename = "cb-720p.zip", DownloadUrl = "https://example.com/720.zip", Variant = "720p" },
-                new ReleaseArtifact { Filename = "cb-1080p.zip", DownloadUrl = "https://example.com/1080.zip", Variant = "1080p", IsPrimary = true },
+                new ReleaseArtifact { Filename = "cb-720p-game.zip", DownloadUrl = "https://example.com/game-720.zip", Variant = "720p", VariantAxis = "game" },
+                new ReleaseArtifact { Filename = "cb-720p.zip", DownloadUrl = "https://example.com/720.zip", Variant = "720p", VariantAxis = "resolution" },
+                new ReleaseArtifact { Filename = "cb-1080p.zip", DownloadUrl = "https://example.com/1080.zip", Variant = "1080p", VariantAxis = "resolution", IsPrimary = true },
             ],
         };
         var searchResult = new ContentSearchResult { Id = "cb", Name = "Control Bar" };

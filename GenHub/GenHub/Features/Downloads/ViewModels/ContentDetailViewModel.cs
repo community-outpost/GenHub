@@ -5129,6 +5129,7 @@ public partial class ContentDetailViewModel(
 
                 if (promptResult == null || string.Equals(promptResult.Action, "Skip", StringComparison.OrdinalIgnoreCase))
                 {
+                    targets.RemoveAll(t => string.Equals(t.Id, candidateResult.Id, StringComparison.OrdinalIgnoreCase));
                     continue;
                 }
 

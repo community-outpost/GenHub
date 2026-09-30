@@ -191,7 +191,7 @@ These converters transform Avalonia `Color` values into brushes, opacity values,
 
 - **Namespace**: `GenHub.Infrastructure.Converters`
 - **Purpose**: Converts an effective featured color hex into the soft featured card glow (`0 10 35 0` at the same translucency as the default gold glow). Returns `AvaloniaProperty.UnsetValue` for null or invalid values so styled fallback shadows keep working.
-- **Return Type**: `BoxShadow` or `UnsetValue`
+- **Return Type**: `BoxShadows` or `UnsetValue`
 
 ### Featured Glow Example
 

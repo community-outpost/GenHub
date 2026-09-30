@@ -311,9 +311,7 @@ public class GenericCatalogDiscoverer(
         CatalogContentItem contentItem,
         ContentRelease release)
     {
-        var declaredProvider = !string.IsNullOrWhiteSpace(contentItem.UpstreamSync?.Provider)
-            ? contentItem.UpstreamSync.Provider
-            : contentItem.PublisherType;
+        var declaredProvider = CatalogConstants.UpstreamProviders.DeclaredProvider(contentItem.UpstreamSync?.Provider, contentItem.PublisherType);
         if (!CatalogConstants.UpstreamProviders.TryResolveGitHubRepository(
             declaredProvider,
             contentItem.UpstreamSync?.Repository,

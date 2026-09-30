@@ -1809,7 +1809,7 @@ public partial class PublishShareViewModel(
 
         foreach (var cloudDef in _currentHostingState.Definitions.Where(cloudDef => !HostedAssets.Any(a =>
             (!string.IsNullOrEmpty(a.Url) && !string.IsNullOrEmpty(cloudDef.Url) && string.Equals(a.Url, cloudDef.Url, StringComparison.OrdinalIgnoreCase)) ||
-            (!string.IsNullOrEmpty(a.Name) && !string.IsNullOrEmpty(cloudDef.FileName) && string.Equals(a.Name, cloudDef.FileName, StringComparison.OrdinalIgnoreCase)))))
+            (a.IsOnline && !string.IsNullOrEmpty(a.Name) && !string.IsNullOrEmpty(cloudDef.FileName) && string.Equals(a.Name, cloudDef.FileName, StringComparison.OrdinalIgnoreCase)))))
         {
             totalBytes += cloudDef.FileSize;
             HostedDefinitionCount++;
@@ -1820,9 +1820,10 @@ public partial class PublishShareViewModel(
             {
                 AssetKind = HostedAssetKind.Definition,
                 CanUpload = false,
-                CanLoadToProject = !string.IsNullOrEmpty(cloudDef.Url),
+                CanLoadToProject = !string.IsNullOrEmpty(cloudDef.Url) || !string.IsNullOrEmpty(cloudDef.FileId),
                 LoadButtonTooltip = GetLocalizedString("Tools.PublisherStudio.Hosting.LoadToProjectTip", "Load this definition and its catalogs into current project"),
                 Name = string.IsNullOrEmpty(cloudDef.FileName) ? HostingConstants.DefaultDefinitionFileName : cloudDef.FileName,
+                FileId = cloudDef.FileId,
                 Category = categoryName,
                 Location = $"{providerName} ({HostingFolderPath})",
                 FileSize = cloudDef.FileSize,
@@ -1855,7 +1856,8 @@ public partial class PublishShareViewModel(
                 AssetKind = HostedAssetKind.Catalog,
                 CatalogId = cloudCat.CatalogId,
                 CanUpload = false,
-                CanLoadToProject = !isProjectCat && !string.IsNullOrEmpty(cloudCat.Url),
+                CanLoadToProject = !isProjectCat && (!string.IsNullOrEmpty(cloudCat.Url) || !string.IsNullOrEmpty(cloudCat.FileId)),
+                FileId = cloudCat.FileId,
                 LoadButtonTooltip = GetLocalizedString("Tools.PublisherStudio.Hosting.LoadCatalogTip", "Load this catalog into current project"),
                 Name = string.IsNullOrEmpty(cloudCat.FileName) ? $"catalog-{cloudCat.CatalogId}.json" : cloudCat.FileName,
                 Category = FormatLocalizedString("Tools.PublisherStudio.Hosting.AssetCategoryCloudCatalogFormat", "Cloud Catalog ({0})", cloudCat.CatalogId),
@@ -5039,8 +5041,9 @@ public partial class PublishShareViewModel(
 
         // When the local profile is empty, a sync doubles as a restore: pull the discovered
         // definition and its catalogs so the project reflects what is actually hosted.
-        if (await TryAutoRestoreCloudDefinitionAsync())
+        if (await TryAutoRestoreCloudDefinitionAsync(ct, resolveShareableUrl: true))
         {
+            await SaveAllHostingStatesAsync(ct);
             return;
         }
 
@@ -5059,8 +5062,11 @@ public partial class PublishShareViewModel(
     /// the local publisher profile is empty (for example after local data was wiped) and cloud
     /// storage holds a published definition.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="resolveShareableUrl">True to resolve a shareable URL on demand when the
+    /// discovered definition has none yet; false keeps background scans side-effect free.</param>
     /// <returns>True when a cloud definition restore was attempted.</returns>
-    private async Task<bool> TryAutoRestoreCloudDefinitionAsync()
+    private async Task<bool> TryAutoRestoreCloudDefinitionAsync(CancellationToken cancellationToken, bool resolveShareableUrl)
     {
         if (!string.IsNullOrWhiteSpace(project.Catalog?.Publisher?.Id))
         {
@@ -5068,9 +5074,17 @@ public partial class PublishShareViewModel(
         }
 
         var target = DiscoveredCloudDefinition;
-        if (target == null || string.IsNullOrWhiteSpace(target.Url))
+        if (target == null)
         {
             return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(target.Url))
+        {
+            if (!resolveShareableUrl || !await EnsureAssetDownloadUrlAsync(target, cancellationToken))
+            {
+                return false;
+            }
         }
 
         try
@@ -5086,6 +5100,80 @@ public partial class PublishShareViewModel(
         {
             logger.LogWarning(ex, "Automatic restore of cloud publisher definition failed; manual restore remains available");
             return false;
+        }
+    }
+
+    /// <summary>
+    /// Resolves a shareable download URL on demand for a discovered asset that has none yet
+    /// (for example a Dropbox file with no shared link) and persists it into hosting state.
+    /// </summary>
+    /// <param name="asset">The hosted asset item to resolve.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True when the asset has a usable download URL afterwards.</returns>
+    private async Task<bool> EnsureAssetDownloadUrlAsync(HostedAssetItemViewModel asset, CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(asset.Url))
+        {
+            return true;
+        }
+
+        if (SelectedHostingProvider == null || string.IsNullOrWhiteSpace(asset.FileId) || string.IsNullOrWhiteSpace(asset.Name))
+        {
+            return false;
+        }
+
+        try
+        {
+            var result = await SelectedHostingProvider.EnsureShareableDownloadUrlAsync(asset.FileId, asset.Name, cancellationToken);
+            if (!result.Success || string.IsNullOrWhiteSpace(result.Data))
+            {
+                logger.LogWarning(
+                    "Provider {Provider} could not resolve a shareable URL for {File}: {Error}",
+                    SelectedHostingProvider.DisplayName,
+                    asset.Name,
+                    result.FirstError);
+                return false;
+            }
+
+            asset.Url = result.Data;
+            PersistResolvedAssetUrl(asset);
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to resolve a shareable URL for {File}", asset.Name);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Writes a resolved asset URL back into the persisted hosting state entries so later
+    /// scans and inventory rebuilds keep the shareable link.
+    /// </summary>
+    /// <param name="asset">The hosted asset item carrying the resolved URL.</param>
+    private void PersistResolvedAssetUrl(HostedAssetItemViewModel asset)
+    {
+        if (_currentHostingState == null || string.IsNullOrWhiteSpace(asset.Url))
+        {
+            return;
+        }
+
+        foreach (var definition in _currentHostingState.Definitions.Where(d =>
+            (!string.IsNullOrEmpty(d.FileId) && !string.IsNullOrEmpty(asset.FileId) && string.Equals(d.FileId, asset.FileId, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(d.FileName) && string.Equals(d.FileName, asset.Name, StringComparison.OrdinalIgnoreCase))))
+        {
+            definition.Url = asset.Url;
+        }
+
+        foreach (var catalog in _currentHostingState.Catalogs.Where(c =>
+            (!string.IsNullOrEmpty(c.FileId) && !string.IsNullOrEmpty(asset.FileId) && string.Equals(c.FileId, asset.FileId, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(c.FileName) && string.Equals(c.FileName, asset.Name, StringComparison.OrdinalIgnoreCase))))
+        {
+            catalog.Url = asset.Url;
         }
     }
 
@@ -5174,7 +5262,7 @@ public partial class PublishShareViewModel(
                 RefreshUploadHierarchy();
                 RefreshHostedAssets();
                 GenerateSubscriptionUrl();
-                await TryAutoRestoreCloudDefinitionAsync();
+                await TryAutoRestoreCloudDefinitionAsync(silentCt, resolveShareableUrl: false);
             }
         }
         catch (OperationCanceledException ex)
@@ -5244,7 +5332,13 @@ public partial class PublishShareViewModel(
         {
             if (cloudDef.LastUpdated >= existing.LastUpdated)
             {
-                existing.Url = cloudDef.Url;
+                // Never clobber a resolved shareable URL with an empty scan result: providers
+                // such as Dropbox report unshared files without a URL on every scan.
+                if (!string.IsNullOrEmpty(cloudDef.Url))
+                {
+                    existing.Url = cloudDef.Url;
+                }
+
                 existing.FileSize = cloudDef.FileSize;
                 existing.LastUpdated = cloudDef.LastUpdated;
                 if (!string.IsNullOrEmpty(cloudDef.FileName))
@@ -5732,9 +5826,21 @@ public partial class PublishShareViewModel(
     [RelayCommand]
     private async Task LoadAssetToProjectAsync(HostedAssetItemViewModel? asset)
     {
-        if (asset == null || string.IsNullOrWhiteSpace(asset.Url))
+        if (asset == null)
         {
             return;
+        }
+
+        if (string.IsNullOrWhiteSpace(asset.Url))
+        {
+            using var resolveCts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            if (!await EnsureAssetDownloadUrlAsync(asset, resolveCts.Token))
+            {
+                notificationService?.ShowError(
+                    GetLocalizedString(LoadFailedTitleKey, LoadFailedDefaultTitle),
+                    FormatLocalizedString("Tools.PublisherStudio.Hosting.LoadFailedFormat", "Failed to load {0}: {1}", asset.Name, GetLocalizedString("Tools.PublisherStudio.Hosting.NoShareableUrlError", "No shareable download URL is available.")));
+                return;
+            }
         }
 
         try

@@ -540,6 +540,46 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     }
 
     /// <inheritdoc/>
+    public async Task<OperationResult<string>> EnsureShareableDownloadUrlAsync(string fileId, string fileName, CancellationToken cancellationToken = default)
+    {
+        // Lookup is path-based: discovery lists the publisher folder non-recursively, so the
+        // file ID is not needed to address the file.
+        _ = fileId;
+        if (!IsAuthenticated)
+        {
+            return OperationResult<string>.CreateFailure("Not authenticated with Dropbox.");
+        }
+
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return OperationResult<string>.CreateFailure("A file name is required to resolve a download URL.");
+        }
+
+        try
+        {
+            // Discovery lists the publisher folder non-recursively, so every discovered file
+            // is a direct child and its path rebuilds exactly from the folder plus file name.
+            var path = $"{PublisherFolderPath}/{fileName}".ToLowerInvariant();
+            var linkResult = await CreateSharedLinkAsync(path, cancellationToken).ConfigureAwait(false);
+            if (!linkResult.Success || string.IsNullOrWhiteSpace(linkResult.Data))
+            {
+                return OperationResult<string>.CreateFailure(linkResult.FirstError ?? "Dropbox did not return a shared link.");
+            }
+
+            return OperationResult<string>.CreateSuccess(ConvertToDirectDownloadUrl(linkResult.Data));
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to resolve a shareable download URL for {FileName}", fileName);
+            return OperationResult<string>.CreateFailure($"Dropbox shared link error: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
     public string GetSubscriptionLink(string catalogUrl)
     {
         return CommandLineConstants.BuildSubscriptionUrl(catalogUrl);

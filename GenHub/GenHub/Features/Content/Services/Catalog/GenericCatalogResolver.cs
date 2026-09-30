@@ -273,19 +273,9 @@ public partial class GenericCatalogResolver(
 
     private static string? ResolveUpstreamGitHubRepoUrl(CatalogContentItem contentItem)
     {
-        var declaredProvider = !string.IsNullOrWhiteSpace(contentItem.UpstreamSync?.Provider)
-            ? contentItem.UpstreamSync.Provider
-            : contentItem.PublisherType;
-        if (!CatalogConstants.UpstreamProviders.TryResolveGitHubRepository(
-            declaredProvider,
-            contentItem.UpstreamSync?.Repository,
-            out var owner,
-            out var repo))
-        {
-            return null;
-        }
-
-        return $"https://github.com/{owner}/{repo}";
+        return CatalogConstants.UpstreamProviders.GitHubRepositoryUrl(
+            CatalogConstants.UpstreamProviders.DeclaredProvider(contentItem.UpstreamSync?.Provider, contentItem.PublisherType),
+            contentItem.UpstreamSync?.Repository);
     }
 
     private static string SanitizeArtifactFilename(ReleaseArtifact primaryArtifact, CatalogContentItem contentItem)
