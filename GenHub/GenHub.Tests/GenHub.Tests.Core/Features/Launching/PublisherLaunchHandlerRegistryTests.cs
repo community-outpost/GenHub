@@ -28,15 +28,7 @@ public sealed class PublisherLaunchHandlerRegistryTests
     public void GetHandler_ReturnsMatchingHandler_WhenProfileMatches()
     {
         // arrange
-        var settingsMock = new Mock<IGameSettingsService>();
-        var generalsOnlineHandler = new GeneralsOnlineLaunchHandler(
-            settingsMock.Object,
-            NullLogger<GeneralsOnlineLaunchHandler>.Instance);
-        var defaultHandler = new DefaultPublisherLaunchHandler();
-        var registry = new PublisherLaunchHandlerRegistry(
-            [defaultHandler, generalsOnlineHandler],
-            NullLogger<PublisherLaunchHandlerRegistry>.Instance);
-
+        var (registry, generalsOnlineHandler, _) = CreateTestRegistry();
         var profile = new GameProfile
         {
             GameClient = new GameClient
@@ -60,15 +52,7 @@ public sealed class PublisherLaunchHandlerRegistryTests
     public void GetHandler_ReturnsDefaultHandler_WhenNoSpecificHandlerMatches()
     {
         // arrange
-        var settingsMock = new Mock<IGameSettingsService>();
-        var generalsOnlineHandler = new GeneralsOnlineLaunchHandler(
-            settingsMock.Object,
-            NullLogger<GeneralsOnlineLaunchHandler>.Instance);
-        var defaultHandler = new DefaultPublisherLaunchHandler();
-        var registry = new PublisherLaunchHandlerRegistry(
-            [defaultHandler, generalsOnlineHandler],
-            NullLogger<PublisherLaunchHandlerRegistry>.Instance);
-
+        var (registry, _, defaultHandler) = CreateTestRegistry();
         var profile = new GameProfile
         {
             GameClient = new GameClient
@@ -92,14 +76,7 @@ public sealed class PublisherLaunchHandlerRegistryTests
     public void GetHandlerByPublisherType_ReturnsHandler_WhenTypeMatchesCaseInsensitively()
     {
         // arrange
-        var settingsMock = new Mock<IGameSettingsService>();
-        var generalsOnlineHandler = new GeneralsOnlineLaunchHandler(
-            settingsMock.Object,
-            NullLogger<GeneralsOnlineLaunchHandler>.Instance);
-        var defaultHandler = new DefaultPublisherLaunchHandler();
-        var registry = new PublisherLaunchHandlerRegistry(
-            [defaultHandler, generalsOnlineHandler],
-            NullLogger<PublisherLaunchHandlerRegistry>.Instance);
+        var (registry, generalsOnlineHandler, _) = CreateTestRegistry();
 
         // act
         var handler = registry.GetHandlerByPublisherType("generalsonline");
@@ -202,10 +179,10 @@ public sealed class PublisherLaunchHandlerRegistryTests
         var existingSettings = new GeneralsOnlineSettings { ShowFps = false };
         var settingsMock = new Mock<IGameSettingsService>();
         settingsMock
-            .Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+            .Setup(x => x.LoadGeneralsOnlineSettingsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(existingSettings));
         settingsMock
-            .Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
+            .Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         var handler = new GeneralsOnlineLaunchHandler(
@@ -228,7 +205,22 @@ public sealed class PublisherLaunchHandlerRegistryTests
         // assert
         Assert.True(result.Success);
         settingsMock.Verify(
-            x => x.SaveGeneralsOnlineSettingsAsync(It.Is<GeneralsOnlineSettings>(s => s.ShowFps)),
+            x => x.SaveGeneralsOnlineSettingsAsync(It.Is<GeneralsOnlineSettings>(s => s.ShowFps), It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    private static (PublisherLaunchHandlerRegistry Registry, GeneralsOnlineLaunchHandler GoHandler, DefaultPublisherLaunchHandler DefaultHandler) CreateTestRegistry(
+        Mock<IGameSettingsService>? settingsMock = null)
+    {
+        var settings = settingsMock ?? new Mock<IGameSettingsService>();
+        var goHandler = new GeneralsOnlineLaunchHandler(
+            settings.Object,
+            NullLogger<GeneralsOnlineLaunchHandler>.Instance);
+        var defHandler = new DefaultPublisherLaunchHandler();
+        var reg = new PublisherLaunchHandlerRegistry(
+            [defHandler, goHandler],
+            NullLogger<PublisherLaunchHandlerRegistry>.Instance);
+
+        return (reg, goHandler, defHandler);
     }
 }

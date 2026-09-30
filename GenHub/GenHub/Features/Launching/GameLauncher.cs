@@ -1577,7 +1577,7 @@ public class GameLauncher(
 
         var manifests = resolutionResult.Data;
         logger.LogDebug("[GameLauncher] Applying profile settings to Options.ini before workspace preparation");
-        await ApplyProfileSettingsToIniOptionsAsync(profile);
+        await ApplyProfileSettingsToIniOptionsAsync(profile, cancellationToken);
 
         progress?.Report(new LaunchProgress { Phase = LaunchPhase.PreparingWorkspace, PercentComplete = 20 });
 
@@ -1740,13 +1740,10 @@ public class GameLauncher(
             var receiptContext = BuildLaunchReceiptContext(profile, gameClient, workspaceInfo, launchConfig, manifests, launchId, installation);
             AppendConfigurationDrift(profile.Id, previousReceipt, receiptContext, receiptDriftWarnings);
 
-            var publisherHandler = publisherLaunchHandlerRegistry.GetHandler(profile);
-            var beforeStartResult = await publisherHandler.BeforeProcessStartAsync(profile, launchConfig, cancellationToken);
-            if (!beforeStartResult.Success)
+            var publisherHookResult = await ExecutePublisherBeforeProcessStartAsync(profile, launchConfig, launchId, cancellationToken);
+            if (publisherHookResult != null)
             {
-                logger.LogError("[GameLauncher] Publisher before-process start hook failed: {Error}", beforeStartResult.FirstError);
-                await launchRegistry.UnregisterLaunchAsync(launchId);
-                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(beforeStartResult.FirstError ?? "Publisher pre-launch hook failed", launchId, profile.Id);
+                return publisherHookResult;
             }
 
             var processResult = await LaunchProcessAsync(
@@ -2812,8 +2809,9 @@ public class GameLauncher(
     /// This ensures the game launches with the settings configured for this specific profile.
     /// </summary>
     /// <param name="profile">The game profile containing the settings to apply.</param>
+    /// <param name="cancellationToken">cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    private async Task ApplyProfileSettingsToIniOptionsAsync(GameProfile profile)
+    private async Task ApplyProfileSettingsToIniOptionsAsync(GameProfile profile, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -2865,7 +2863,7 @@ public class GameLauncher(
 
             // apply publisher-specific pre-launch settings
             var publisherHandler = publisherLaunchHandlerRegistry.GetHandler(profile);
-            var beforeLaunchResult = await publisherHandler.BeforeLaunchAsync(profile);
+            var beforeLaunchResult = await publisherHandler.BeforeLaunchAsync(profile, cancellationToken);
             if (!beforeLaunchResult.Success)
             {
                 logger.LogWarning("[GameLauncher] Publisher launch handler '{PublisherType}' reported before-launch failure: {Error}", publisherHandler.PublisherType, beforeLaunchResult.FirstError);
@@ -2876,6 +2874,27 @@ public class GameLauncher(
             // don't fail the launch if options writing fails - log and continue
             logger.LogError(ex, "Failed to apply profile settings to Options.ini, continuing with launch");
         }
+    }
+
+    private async Task<LaunchOperationResult<GameLaunchInfo>?> ExecutePublisherBeforeProcessStartAsync(
+        GameProfile profile,
+        GameLaunchConfiguration launchConfig,
+        string launchId,
+        CancellationToken cancellationToken)
+    {
+        var publisherHandler = publisherLaunchHandlerRegistry.GetHandler(profile);
+        var beforeStartResult = await publisherHandler.BeforeProcessStartAsync(profile, launchConfig, cancellationToken);
+        if (!beforeStartResult.Success)
+        {
+            logger.LogError("[GameLauncher] Publisher before-process start hook failed: {Error}", beforeStartResult.FirstError);
+            await launchRegistry.UnregisterLaunchAsync(launchId);
+            return LaunchOperationResult<GameLaunchInfo>.CreateFailure(
+                beforeStartResult.FirstError ?? "Publisher pre-launch hook failed",
+                launchId,
+                profile.Id);
+        }
+
+        return null;
     }
 
     private void LogMissingCasFile(ContentManifest manifest, ManifestFile file)

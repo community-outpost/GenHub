@@ -111,17 +111,12 @@ public class GeneralsOnlineDeliverer(
                 CurrentOperation = "Registering all variant manifests to content library",
             });
 
-            // for GameClient content, ensure installation pool path is initialized before storing
-            var hasGameClientManifest = manifests.Any(m => m.ContentType == ContentType.GameClient);
-            if (hasGameClientManifest)
+            // for gameclient content, ensure installation pool path is initialized before storing
+            var storageResult = await EnsureGameClientStorageAsync(manifests, cancellationToken);
+            if (!storageResult.Success)
             {
-                var poolPathReady = await EnsureInstallationPoolPathAsync(cancellationToken);
-                if (!poolPathReady)
-                {
-                    CleanupTempArtifacts(zipPath, extractPath, logger);
-                    return OperationResult<ContentManifest>.CreateFailure(
-                        "Could not ensure storage for GameClient content.");
-                }
+                CleanupTempArtifacts(zipPath, extractPath, logger);
+                return OperationResult<ContentManifest>.CreateFailure(storageResult.FirstError!);
             }
 
             var registrationResult = await RegisterVariantManifestsAsync(manifests, extractPath, newlyRegisteredManifests, cancellationToken);
@@ -564,29 +559,28 @@ public class GeneralsOnlineDeliverer(
     /// This prevents content from being stored in the wrong CAS pool.
     /// </summary>
     /// <returns>True when content acquisition may continue; otherwise, false.</returns>
-    private async Task<bool> EnsureInstallationPoolPathAsync(CancellationToken cancellationToken)
+    private Task<bool> EnsureInstallationPoolPathAsync(CancellationToken cancellationToken)
     {
-        try
-        {
-            logger.LogInformation("Forcing installation detection to ensure correct installation pool path");
-            installationService.InvalidateCache();
+        return InstallationPoolPathHelper.EnsureInstallationPoolPathAsync(
+            installationService,
+            installationCasPoolService,
+            logger,
+            cancellationToken);
+    }
 
-            var installationsResult = await installationService.GetAllInstallationsAsync(cancellationToken);
-            if (!installationsResult.Success || installationsResult.Data == null)
-            {
-                logger.LogWarning(
-                    "Failed to get installations for CAS pool path resolution: {Error}; the primary CAS pool will be used",
-                    installationsResult.FirstError);
-                return true;
-            }
-
-            var installations = installationsResult.Data.ToList();
-            return await installationCasPoolService.EnsurePoolPathAsync(installations, cancellationToken);
-        }
-        catch (Exception ex)
+    private async Task<OperationResult> EnsureGameClientStorageAsync(
+        IReadOnlyList<ContentManifest> manifests,
+        CancellationToken cancellationToken)
+    {
+        var hasGameClientManifest = manifests.Any(m => m.ContentType == ContentType.GameClient);
+        if (!hasGameClientManifest)
         {
-            logger.LogError(ex, "Failed to ensure installation pool root path is set");
-            return false;
+            return OperationResult.CreateSuccess();
         }
+
+        var poolPathReady = await EnsureInstallationPoolPathAsync(cancellationToken);
+        return poolPathReady
+            ? OperationResult.CreateSuccess()
+            : OperationResult.CreateFailure("Could not ensure storage for GameClient content.");
     }
 }

@@ -918,34 +918,13 @@ public class CommunityOutpostDeliverer(
     /// This prevents content from being stored in the wrong CAS pool.
     /// </summary>
     /// <returns><c>true</c> when content acquisition may continue; otherwise, <c>false</c>.</returns>
-    private async Task<bool> EnsureInstallationPoolPathAsync(CancellationToken cancellationToken)
+    private Task<bool> EnsureInstallationPoolPathAsync(CancellationToken cancellationToken)
     {
-        try
-        {
-            // ALWAYS force installation detection and reset the path
-            // Even if a path is set, it might be stale (from before user deleted data)
-            // or point to the wrong installation
-            logger.LogInformation("Forcing installation detection to ensure correct InstallationPoolRootPath");
-            installationService.InvalidateCache();
-
-            // Get all installations (this will trigger detection if cache is empty)
-            var installationsResult = await installationService.GetAllInstallationsAsync(cancellationToken);
-            if (!installationsResult.Success || installationsResult.Data == null)
-            {
-                logger.LogWarning(
-                    "Failed to get installations for CAS pool path resolution: {Error}; the primary CAS pool will be used",
-                    installationsResult.FirstError);
-                return true;
-            }
-
-            var installations = installationsResult.Data.ToList();
-            return await installationCasPoolService.EnsurePoolPathAsync(installations, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to ensure InstallationPoolRootPath is set");
-            return false;
-        }
+        return InstallationPoolPathHelper.EnsureInstallationPoolPathAsync(
+            installationService,
+            installationCasPoolService,
+            logger,
+            cancellationToken);
     }
 
     /// <summary>

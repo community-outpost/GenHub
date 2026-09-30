@@ -48,7 +48,7 @@ public class GeneralsOnlineLaunchHandler(
             logger.LogInformation("[GeneralsOnlineLaunchHandler] Applying Generals Online settings to settings.json for profile {ProfileId}", profile.Id);
 
             // load existing settings first to preserve keys the client owns that the profile does not declare
-            var loadResult = await gameSettingsService.LoadGeneralsOnlineSettingsAsync();
+            var loadResult = await gameSettingsService.LoadGeneralsOnlineSettingsAsync(cancellationToken);
             if (loadResult?.Success != true || loadResult.Data == null)
             {
                 logger.LogWarning(
@@ -60,7 +60,7 @@ public class GeneralsOnlineLaunchHandler(
             var settings = loadResult.Data;
             GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
 
-            var saveResult = await gameSettingsService.SaveGeneralsOnlineSettingsAsync(settings);
+            var saveResult = await gameSettingsService.SaveGeneralsOnlineSettingsAsync(settings, cancellationToken);
             if (!saveResult.Success)
             {
                 logger.LogWarning("[GeneralsOnlineLaunchHandler] Failed to save Generals Online settings: {Error}", saveResult.FirstError);

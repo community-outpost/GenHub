@@ -101,7 +101,11 @@ public class GameLauncherTests : IDisposable
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
         _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
             .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings()));
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings()));
         _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         // Setup storage location service mock
@@ -1301,7 +1305,7 @@ public class GameLauncherTests : IDisposable
         // Assert
         Assert.True(result.Success, result.FirstError);
         _gameSettingsServiceMock.Verify(
-            x => x.SaveGeneralsOnlineSettingsAsync(It.Is<GeneralsOnlineSettings>(s => s.ShowFps)),
+            x => x.SaveGeneralsOnlineSettingsAsync(It.Is<GeneralsOnlineSettings>(s => s.ShowFps), It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -1315,7 +1319,7 @@ public class GameLauncherTests : IDisposable
     public async Task LaunchProfileAsync_WithUnreadableGeneralsOnlineSettings_ShouldNotRewriteThemAsync()
     {
         // Arrange
-        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateFailure("settings.json is locked"));
 
         var profile = CreateZeroHourProfile(PublisherTypeConstants.GeneralsOnline, "GeneralsOnline");
@@ -1328,7 +1332,7 @@ public class GameLauncherTests : IDisposable
         // Assert
         Assert.True(result.Success, result.FirstError);
         _gameSettingsServiceMock.Verify(
-            x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()),
+            x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -1343,7 +1347,7 @@ public class GameLauncherTests : IDisposable
         // Arrange
         var existing = new GeneralsOnlineSettings { Camera = null! };
 
-        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(existing));
 
         var profile = CreateZeroHourProfile(PublisherTypeConstants.GeneralsOnline, "GeneralsOnline");
@@ -1351,8 +1355,8 @@ public class GameLauncherTests : IDisposable
         ArrangeSuccessfulLaunch(profile);
 
         GeneralsOnlineSettings? saved = null;
-        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
-            .Callback<GeneralsOnlineSettings>(s => saved = s)
+        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>(), It.IsAny<CancellationToken>()))
+            .Callback<GeneralsOnlineSettings, CancellationToken>((s, _) => saved = s)
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         // Act
@@ -1382,7 +1386,7 @@ public class GameLauncherTests : IDisposable
         existing.Render.FpsLimit = 60;
         existing.AdditionalSettings["auth_token"] = JsonSerializer.Deserialize<JsonElement>("\"preserve-me\"");
 
-        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(existing));
 
         var profile = CreateZeroHourProfile(PublisherTypeConstants.GeneralsOnline, "GeneralsOnline");
@@ -1390,8 +1394,8 @@ public class GameLauncherTests : IDisposable
         ArrangeSuccessfulLaunch(profile);
 
         GeneralsOnlineSettings? saved = null;
-        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
-            .Callback<GeneralsOnlineSettings>(s => saved = s)
+        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>(), It.IsAny<CancellationToken>()))
+            .Callback<GeneralsOnlineSettings, CancellationToken>((s, _) => saved = s)
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         // Act
