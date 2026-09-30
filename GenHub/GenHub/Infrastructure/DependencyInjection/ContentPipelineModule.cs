@@ -7,6 +7,7 @@ using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Parsers;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Publishers;
+using GenHub.Core.Interfaces.Security;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Storage;
@@ -14,6 +15,7 @@ using GenHub.Core.Services.Content;
 using GenHub.Core.Services.Providers;
 using GenHub.Core.Services.Providers.VersionSchemes;
 using GenHub.Core.Services.Publishers;
+using GenHub.Core.Services.Security;
 using GenHub.Features.Content.Services;
 using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Content.Services.Common;
@@ -218,6 +220,11 @@ public static class ContentPipelineModule
 
         // User-followed GenHub catalogs (catalog-direct now; definition URLs via Publisher Studio later)
         services.AddSingleton<IPublisherSubscriptionStore, PublisherSubscriptionStore>();
+
+        // Publisher signature verification building blocks and trusted key store
+        services.AddSingleton<IPublicKeyVerifier, RsaPublicKeyVerifier>();
+        services.AddSingleton<IPublicKeyVerifier, EcdsaPublicKeyVerifier>();
+        services.AddSingleton<IPublisherKeyStore, PublisherKeyStore>();
 
         // Register publisher definition service (fetches via the shared catalog HTTP client)
         services.AddSingleton<IPublisherDefinitionService, PublisherDefinitionService>();

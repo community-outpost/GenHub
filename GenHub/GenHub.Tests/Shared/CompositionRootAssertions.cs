@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Launching;
+using GenHub.Core.Interfaces.Security;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
@@ -53,6 +54,7 @@ public static class CompositionRootAssertions
         typeof(IInstallationConflictService),
         typeof(IInstallationLocationTracker),
         typeof(IInstallationSearchPathProvider),
+        typeof(IPublisherKeyStore),
         typeof(IShortcutService),
         typeof(IStorageMigrationService),
         typeof(ISymlinkCapabilityProvider),
@@ -67,6 +69,7 @@ public static class CompositionRootAssertions
     private static readonly Type[] RequiredNonEmptyCollections =
     [
         typeof(IGameInstallationDetector),
+        typeof(IPublicKeyVerifier),
     ];
 
     /// <summary>
