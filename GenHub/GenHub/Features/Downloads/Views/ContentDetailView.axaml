@@ -149,7 +149,7 @@
         <Style Selector="Button.back-to-browse-btn:pointerover /template/ Border#PART_RootBorder">
             <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-            <Setter Property="BoxShadow" Value="{DynamicResource DialogBoxShadow}" />
+            <Setter Property="BoxShadow" Value="{DynamicResource CardHoverBoxShadow}" />
         </Style>
         <Style Selector="Button.back-to-browse-btn.over-banner:pointerover /template/ Border#PART_RootBorder">
             <Setter Property="Background" Value="{DynamicResource BannerPillBackgroundHoverBrush}" />
