@@ -95,6 +95,90 @@ public sealed class W3dSceneTests
     }
 
     /// <summary>
+    /// Verifies that sampling between keys interpolates translation deltas.
+    /// </summary>
+    [Fact]
+    public void SampleFrame_BetweenKeys_InterpolatesTranslation()
+    {
+        var hierarchy = new W3dHierarchy(
+            "H",
+            new W3dVector3(0, 0, 0),
+            [new W3dPivot("ROOT", -1, new W3dVector3(1, 0, 0), new W3dVector3(0, 0, 0), new W3dQuaternion(0, 0, 0, 1))]);
+        var clip = new W3dAnimationClip(
+            "C",
+            "H",
+            3,
+            30,
+            false,
+            0,
+            [new W3dAnimationChannel(0, 0, 0, 2, 1, [new W3dAnimationKey(0, [0]), new W3dAnimationKey(2, [10])], false)]);
+
+        var worlds = W3dAnimationSampler.SampleFrame(hierarchy, clip, 1);
+
+        Assert.Equal(new Vector3(6, 0, 0), worlds[0].Translation);
+    }
+
+    /// <summary>
+    /// Verifies that frames past the last key hold the last key value.
+    /// </summary>
+    [Fact]
+    public void SampleFrame_PastLastKey_HoldsLastValue()
+    {
+        var hierarchy = new W3dHierarchy(
+            "H",
+            new W3dVector3(0, 0, 0),
+            [new W3dPivot("ROOT", -1, new W3dVector3(1, 0, 0), new W3dVector3(0, 0, 0), new W3dQuaternion(0, 0, 0, 1))]);
+        var clip = new W3dAnimationClip(
+            "C",
+            "H",
+            4,
+            30,
+            false,
+            0,
+            [new W3dAnimationChannel(0, 0, 0, 1, 1, [new W3dAnimationKey(0, [0]), new W3dAnimationKey(1, [5])], false)]);
+
+        var worlds = W3dAnimationSampler.SampleFrame(hierarchy, clip, 3);
+
+        Assert.Equal(new Vector3(6, 0, 0), worlds[0].Translation);
+    }
+
+    /// <summary>
+    /// Verifies that skeleton segments record parent pivot indices for pose-space rendering.
+    /// </summary>
+    [Fact]
+    public void BindPoseSegments_ChildPivot_RecordsParentIndex()
+    {
+        var hierarchy = new W3dHierarchy(
+            "H",
+            new W3dVector3(0, 0, 0),
+            [
+                new W3dPivot("ROOT", -1, new W3dVector3(0, 0, 0), new W3dVector3(0, 0, 0), new W3dQuaternion(0, 0, 0, 1)),
+                new W3dPivot("CHILD", 0, new W3dVector3(0, 2, 0), new W3dVector3(0, 0, 0), new W3dQuaternion(0, 0, 0, 1)),
+            ]);
+
+        var segments = W3dAnimationSampler.BindPoseSegments(hierarchy);
+
+        Assert.Equal(2, segments.Count);
+        Assert.Equal(-1, segments[0].ParentIndex);
+        Assert.Equal(0, segments[1].ParentIndex);
+    }
+
+    /// <summary>
+    /// Verifies that picking skips hidden meshes.
+    /// </summary>
+    [Fact]
+    public void Pick_WithHiddenPredicate_SkipsMesh()
+    {
+        var mesh = MeshWithTriangle();
+        var model = new W3dModel([mesh], [], [], [], []);
+        var scene = W3dSceneBuilder.Build(model, new Dictionary<string, DecodedTexture>());
+
+        var hit = W3dRayPicker.Pick(scene, new Vector3(0.25f, 0.25f, 1), new Vector3(0, 0, -1), null, _ => true);
+
+        Assert.Null(hit);
+    }
+
+    /// <summary>
     /// Verifies that a ray through a triangle picks the mesh.
     /// </summary>
     [Fact]

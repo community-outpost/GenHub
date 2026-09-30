@@ -465,6 +465,24 @@ public sealed partial class IniEditorViewModel(
     private IReadOnlyList<Matrix4x4>? _previewPose;
 
     /// <summary>
+    /// Gets or sets the preview bind-pose transforms used to relativize animation.
+    /// </summary>
+    [ObservableProperty]
+    private IReadOnlyList<Matrix4x4>? _previewBindPose;
+
+    /// <summary>
+    /// Gets or sets the mesh names hidden by the selected block draw states.
+    /// </summary>
+    [ObservableProperty]
+    private IReadOnlySet<string>? _previewHiddenMeshNames;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the 3D camera follows the animated model.
+    /// </summary>
+    [ObservableProperty]
+    private bool _previewTrackTarget = true;
+
+    /// <summary>
     /// Gets or sets a value indicating whether the preview skeleton renders.
     /// </summary>
     [ObservableProperty]
@@ -1676,18 +1694,108 @@ public sealed partial class IniEditorViewModel(
         }
     }
 
-    private static string ResolveBlockModel(IniBlock block)
+    private string ResolveBlockModel(IniBlock block)
     {
-        var modelField = block.Fields.FirstOrDefault(f => string.Equals(f.Key, "Model", StringComparison.OrdinalIgnoreCase));
-        if (modelField != null)
+        return ResolveBlockModelRecursive(block, 0);
+    }
+
+    private string ResolveBlockModelRecursive(IniBlock block, int depth)
+    {
+        var direct = FindFieldValue(block, IniConstants.FieldKeys.Model);
+        if (!string.IsNullOrWhiteSpace(direct))
         {
-            return modelField.Value;
+            return direct.Trim();
         }
 
-        var drawChild = block.Children.FirstOrDefault(c => c.BlockType.Contains("Draw", StringComparison.OrdinalIgnoreCase));
-        var conditionChild = drawChild?.Children.FirstOrDefault(c => c.BlockType.Contains("ConditionState", StringComparison.OrdinalIgnoreCase));
-        var childModel = conditionChild?.Fields.FirstOrDefault(f => string.Equals(f.Key, "Model", StringComparison.OrdinalIgnoreCase));
-        return childModel?.Value ?? string.Empty;
+        var nested = FindNestedModel(block);
+        if (!string.IsNullOrEmpty(nested))
+        {
+            return nested;
+        }
+
+        if (depth > 0)
+        {
+            return string.Empty;
+        }
+
+        // Blocks without their own model, such as command buttons and player
+        // templates, preview the model of the object they point at.
+        var target = FindFieldValue(block, IniConstants.FieldKeys.Object)
+            ?? FindFieldValue(block, IniConstants.FieldKeys.StartingBuilding);
+        if (string.IsNullOrWhiteSpace(target))
+        {
+            return string.Empty;
+        }
+
+        var referenced = FindBlocks(IniConstants.BlockTypes.Object, target.Trim()).FirstOrDefault();
+        return referenced == null ? string.Empty : ResolveBlockModelRecursive(referenced, depth + 1);
+    }
+
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Kept as an instance helper to satisfy member ordering.")]
+    private string FindNestedModel(IniBlock block)
+    {
+        var queue = new Queue<IniBlock>(block.Children);
+        while (queue.Count > 0)
+        {
+            var child = queue.Dequeue();
+            var model = FindFieldValue(child, IniConstants.FieldKeys.Model);
+            if (!string.IsNullOrWhiteSpace(model))
+            {
+                return model.Trim();
+            }
+
+            foreach (var grandchild in child.Children)
+            {
+                queue.Enqueue(grandchild);
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private void RebuildPreviewHiddenMeshes(IniBlock? block)
+    {
+        if (block == null)
+        {
+            PreviewHiddenMeshNames = null;
+            return;
+        }
+
+        var hidden = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var shown = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        CollectSubObjectVisibility(block, hidden, shown);
+        hidden.ExceptWith(shown);
+        PreviewHiddenMeshNames = hidden.Count > 0 ? hidden : null;
+    }
+
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Kept as an instance helper to satisfy member ordering.")]
+    private void CollectSubObjectVisibility(IniBlock block, HashSet<string> hidden, HashSet<string> shown)
+    {
+        foreach (var field in block.Fields)
+        {
+            if (string.Equals(field.Key, IniConstants.FieldKeys.ShowSubObjects, StringComparison.OrdinalIgnoreCase))
+            {
+                AddSubObjectTokens(shown, field.Value);
+            }
+            else if (string.Equals(field.Key, IniConstants.FieldKeys.HideSubObjects, StringComparison.OrdinalIgnoreCase))
+            {
+                AddSubObjectTokens(hidden, field.Value);
+            }
+        }
+
+        foreach (var child in block.Children)
+        {
+            CollectSubObjectVisibility(child, hidden, shown);
+        }
+    }
+
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Kept as an instance helper to satisfy member ordering.")]
+    private void AddSubObjectTokens(HashSet<string> names, string value)
+    {
+        foreach (var token in value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            names.Add(token);
+        }
     }
 
     private void AddBlockTypeVitals(IniBlock block, List<CanvasVitalItem> vitals)
@@ -1989,14 +2097,15 @@ public sealed partial class IniEditorViewModel(
     [RelayCommand]
     private async Task GoToDefinitionAsync(IniFieldRowViewModel? row, CancellationToken cancellationToken = default)
     {
-        if (row?.ReferenceBlockType == null || string.IsNullOrWhiteSpace(row.Value))
+        var referenceName = row?.IsPercentPair == true ? row.PairTarget : row?.Value;
+        if (row?.ReferenceBlockType == null || string.IsNullOrWhiteSpace(referenceName))
         {
             return;
         }
 
         var local = _document?.Blocks.FirstOrDefault(block =>
             string.Equals(block.BlockType, row.ReferenceBlockType, StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(block.Name, row.Value.Trim(), StringComparison.OrdinalIgnoreCase));
+            string.Equals(block.Name, referenceName.Trim(), StringComparison.OrdinalIgnoreCase));
         if (local != null)
         {
             SelectBlock(local);
@@ -2005,12 +2114,12 @@ public sealed partial class IniEditorViewModel(
 
         var entry = referenceService.Entries.FirstOrDefault(candidate =>
             string.Equals(candidate.BlockType, row.ReferenceBlockType, StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(candidate.Name, row.Value.Trim(), StringComparison.OrdinalIgnoreCase));
+            string.Equals(candidate.Name, referenceName.Trim(), StringComparison.OrdinalIgnoreCase));
         if (entry?.FilePath == null)
         {
             Notifications.ShowInfo(
                 Localization.GetString("Tools.IniEditor.Reference.NotFoundTitle"),
-                Localization.GetString("Tools.IniEditor.Reference.NotFoundMessage", row.Value.Trim()),
+                Localization.GetString("Tools.IniEditor.Reference.NotFoundMessage", referenceName.Trim()),
                 NotificationDurations.Short);
             return;
         }
@@ -3327,26 +3436,6 @@ public sealed partial class IniEditorViewModel(
 
     private IReadOnlyList<string>? ResolveSuggestions(string key, IniFieldSchema? schema, SuggestionScope scope)
     {
-        if (schema?.Options != null && schema.Options.Count > 0)
-        {
-            return schema.Options;
-        }
-
-        if (IsTextureSuggestionKey(key, schema) && scope.Textures != null)
-        {
-            return scope.Textures;
-        }
-
-        var refType = ResolveReferenceBlockType(key, schema);
-        if (!string.IsNullOrEmpty(refType))
-        {
-            var refs = ResolveReferenceSuggestions(refType, scope.References);
-            if (refs != null)
-            {
-                return refs;
-            }
-        }
-
         if (string.Equals(key, IniConstants.FieldKeys.KindOf, StringComparison.OrdinalIgnoreCase))
         {
             return IniConstants.KindOfFlags.All;
@@ -3357,7 +3446,47 @@ public sealed partial class IniEditorViewModel(
             return scope.Sides;
         }
 
-        return scope.GetDocumentValues(key);
+        var merged = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (schema?.Options != null)
+        {
+            AddUniqueSuggestions(merged, seen, schema.Options);
+        }
+
+        if (IsTextureSuggestionKey(key, schema) && scope.Textures != null)
+        {
+            AddUniqueSuggestions(merged, seen, scope.Textures);
+        }
+
+        var refType = ResolveReferenceBlockType(key, schema);
+        if (!string.IsNullOrEmpty(refType))
+        {
+            var refs = ResolveReferenceSuggestions(refType, scope.References);
+            if (refs != null)
+            {
+                AddUniqueSuggestions(merged, seen, refs);
+            }
+        }
+
+        var documentValues = scope.GetDocumentValues(key);
+        if (documentValues != null)
+        {
+            AddUniqueSuggestions(merged, seen, documentValues);
+        }
+
+        return merged.Count > 0 ? merged : null;
+    }
+
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Kept as an instance helper to satisfy member ordering.")]
+    private void AddUniqueSuggestions(List<string> merged, HashSet<string> seen, IReadOnlyList<string> candidates)
+    {
+        foreach (var candidate in candidates)
+        {
+            if (seen.Add(candidate))
+            {
+                merged.Add(candidate);
+            }
+        }
     }
 
     private IReadOnlyList<string>? ResolvePairTargets(string key, IniFieldSchema? schema, SuggestionScope scope)
@@ -4272,6 +4401,7 @@ public sealed partial class IniEditorViewModel(
         ApplyVisualObjectPortrait(block);
         ApplyVisualObjectLists(block, node);
         RebuildSelectedBlockAssets(block, node);
+        RebuildPreviewHiddenMeshes(block);
 
         HasSelectedBlockKindOf = SelectedBlockKindOfList.Count > 0;
         HasSelectedBlockModules = SelectedBlockModules.Count > 0;
@@ -4300,6 +4430,7 @@ public sealed partial class IniEditorViewModel(
         SelectedBlockKindOfList.Clear();
         SelectedBlockModules.Clear();
         SelectedBlockAssets.Clear();
+        PreviewHiddenMeshNames = null;
         HasSelectedBlockAssets = false;
         SelectedBlockVitals = [];
         OnPropertyChanged(nameof(HasSelectedBlockVitals));
@@ -4343,6 +4474,7 @@ public sealed partial class IniEditorViewModel(
         _lastPreviewModel = null;
         PreviewScene = null;
         PreviewPose = null;
+        PreviewBindPose = null;
         HasPreviewScene = false;
         IsPreviewLoading = false;
         IsPreviewPlaying = false;
@@ -4468,6 +4600,7 @@ public sealed partial class IniEditorViewModel(
         _lastPreviewModel = model;
         PreviewScene = null;
         PreviewPose = null;
+        PreviewBindPose = null;
         HasPreviewScene = false;
         IsPreviewLoading = false;
         IsPreviewPlaying = false;
@@ -4534,6 +4667,7 @@ public sealed partial class IniEditorViewModel(
         if (clip == null || resolved == null || !clip.IsSamplable)
         {
             PreviewPose = null;
+            PreviewBindPose = null;
             return;
         }
 
@@ -4543,9 +4677,11 @@ public sealed partial class IniEditorViewModel(
         if (hierarchy == null)
         {
             PreviewPose = null;
+            PreviewBindPose = null;
             return;
         }
 
+        PreviewBindPose = W3dAnimationSampler.BindPoseWorlds(hierarchy);
         int frame = (int)Math.Round(PreviewFrame);
         PreviewPose = W3dAnimationSampler.SampleFrame(hierarchy, clip, frame);
     }
@@ -4796,7 +4932,7 @@ public sealed partial class IniEditorViewModel(
             block.BlockType.Contains("FX", StringComparison.OrdinalIgnoreCase) ||
             block.BlockType.Contains("Particle", StringComparison.OrdinalIgnoreCase) ||
             block.BlockType.Contains("Sound", StringComparison.OrdinalIgnoreCase) ||
-            block.Fields.Any(field => string.Equals(field.Key, "Model", StringComparison.OrdinalIgnoreCase));
+            block.Fields.Any(field => string.Equals(field.Key, IniConstants.FieldKeys.Model, StringComparison.OrdinalIgnoreCase));
     }
 
     private void ApplyVisualObjectPortrait(IniBlock block)

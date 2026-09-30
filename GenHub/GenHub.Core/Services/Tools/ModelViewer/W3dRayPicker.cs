@@ -33,11 +33,35 @@ public static class W3dRayPicker
     /// <returns>The pick result, or null when nothing is hit.</returns>
     public static W3dPickResult? Pick(W3dRenderScene scene, Vector3 origin, Vector3 direction, IReadOnlyList<Matrix4x4>? meshModels)
     {
+        return Pick(scene, origin, direction, meshModels, null);
+    }
+
+    /// <summary>
+    /// Picks the closest visible mesh intersected by a ray.
+    /// </summary>
+    /// <param name="scene">The render scene.</param>
+    /// <param name="origin">The ray origin in world space.</param>
+    /// <param name="direction">The normalized ray direction.</param>
+    /// <param name="meshModels">The per-mesh model transforms, or null for the bind pose.</param>
+    /// <param name="isHidden">Predicate excluding hidden meshes by name, or null for none.</param>
+    /// <returns>The pick result, or null when nothing is hit.</returns>
+    public static W3dPickResult? Pick(
+        W3dRenderScene scene,
+        Vector3 origin,
+        Vector3 direction,
+        IReadOnlyList<Matrix4x4>? meshModels,
+        Func<string, bool>? isHidden)
+    {
         ArgumentNullException.ThrowIfNull(scene);
         W3dPickResult? best = null;
 
         for (int m = 0; m < scene.Meshes.Count; m++)
         {
+            if (isHidden != null && isHidden(scene.Meshes[m].Name))
+            {
+                continue;
+            }
+
             var model = meshModels != null && m < meshModels.Count ? meshModels[m] : Matrix4x4.Identity;
             float? distance = RayMesh(scene.Meshes[m], model, origin, direction);
             if (distance.HasValue && (best == null || distance.Value < best.Distance))

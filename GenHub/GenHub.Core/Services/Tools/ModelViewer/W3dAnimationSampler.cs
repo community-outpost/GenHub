@@ -46,12 +46,12 @@ public static class W3dAnimationSampler
             var end = new W3dVector3(worlds[i].Translation.X, worlds[i].Translation.Y, worlds[i].Translation.Z);
             if (pivot.ParentIndex < 0 || pivot.ParentIndex >= hierarchy.Pivots.Count)
             {
-                segments.Add(new W3dSkeletonSegment(end, end, i, pivot.Name));
+                segments.Add(new W3dSkeletonSegment(end, end, i, pivot.Name, -1));
             }
             else
             {
                 var parent = worlds[pivot.ParentIndex].Translation;
-                segments.Add(new W3dSkeletonSegment(new W3dVector3(parent.X, parent.Y, parent.Z), end, i, pivot.Name));
+                segments.Add(new W3dSkeletonSegment(new W3dVector3(parent.X, parent.Y, parent.Z), end, i, pivot.Name, pivot.ParentIndex));
             }
         }
 
@@ -60,7 +60,8 @@ public static class W3dAnimationSampler
 
     /// <summary>
     /// Samples a clip at a frame, returning world transforms in pivot order.
-    /// Frames outside a channel range hold the nearest key.
+    /// Values interpolate linearly between bracketing keys; frames outside a
+    /// channel range hold the nearest key and quaternions use spherical interpolation.
     /// </summary>
     /// <param name="hierarchy">The hierarchy.</param>
     /// <param name="clip">The clip to sample.</param>
@@ -136,8 +137,7 @@ public static class W3dAnimationSampler
 
         foreach (var channel in channels)
         {
-            var key = NearestKey(channel, frame);
-            if (key == null || key.Values.Count == 0)
+            if (channel.Keys.Count == 0)
             {
                 continue;
             }
@@ -145,31 +145,31 @@ public static class W3dAnimationSampler
             switch (channel.ChannelType)
             {
                 case W3dConstants.AnimationChannels.X:
-                    translation.X += key.Values[0];
+                    translation.X += SampleScalar(channel, frame);
                     break;
                 case W3dConstants.AnimationChannels.Y:
-                    translation.Y += key.Values[0];
+                    translation.Y += SampleScalar(channel, frame);
                     break;
                 case W3dConstants.AnimationChannels.Z:
-                    translation.Z += key.Values[0];
+                    translation.Z += SampleScalar(channel, frame);
                     break;
                 case W3dConstants.AnimationChannels.Xr:
-                    eulerX += key.Values[0];
+                    eulerX += SampleScalar(channel, frame);
                     hasEuler = true;
                     break;
                 case W3dConstants.AnimationChannels.Yr:
-                    eulerY += key.Values[0];
+                    eulerY += SampleScalar(channel, frame);
                     hasEuler = true;
                     break;
                 case W3dConstants.AnimationChannels.Zr:
-                    eulerZ += key.Values[0];
+                    eulerZ += SampleScalar(channel, frame);
                     hasEuler = true;
                     break;
                 case W3dConstants.AnimationChannels.Q:
-                    if (key.Values.Count >= 4)
+                    var delta = SampleQuaternion(channel, frame);
+                    if (delta != null)
                     {
-                        var delta = Normalize(new W3dQuaternion(key.Values[0], key.Values[1], key.Values[2], key.Values[3]));
-                        rotation = Quaternion.Multiply(ToNumerics(delta), rotation);
+                        rotation = Quaternion.Multiply(delta.Value, rotation);
                     }
 
                     break;
@@ -185,21 +185,54 @@ public static class W3dAnimationSampler
         }
     }
 
-    private static W3dAnimationKey? NearestKey(W3dAnimationChannel channel, int frame)
+    private static float SampleScalar(W3dAnimationChannel channel, int frame)
     {
-        W3dAnimationKey? best = null;
-        int bestDistance = int.MaxValue;
-        foreach (var key in channel.Keys)
+        BracketKeys(channel, frame, out var lower, out var upper);
+        float first = lower.Values.Count > 0 ? lower.Values[0] : 0;
+        if (ReferenceEquals(lower, upper) || lower.Frame == upper.Frame || upper.Values.Count == 0)
         {
-            int distance = Math.Abs(key.Frame - frame);
-            if (distance < bestDistance)
-            {
-                bestDistance = distance;
-                best = key;
-            }
+            return first;
         }
 
-        return best;
+        float t = (float)(frame - lower.Frame) / (upper.Frame - lower.Frame);
+        return first + ((upper.Values[0] - first) * t);
+    }
+
+    private static Quaternion? SampleQuaternion(W3dAnimationChannel channel, int frame)
+    {
+        BracketKeys(channel, frame, out var lower, out var upper);
+        if (lower.Values.Count < 4)
+        {
+            return null;
+        }
+
+        var first = ToNumerics(Normalize(new W3dQuaternion(lower.Values[0], lower.Values[1], lower.Values[2], lower.Values[3])));
+        if (ReferenceEquals(lower, upper) || lower.Frame == upper.Frame || upper.Values.Count < 4)
+        {
+            return first;
+        }
+
+        var second = ToNumerics(Normalize(new W3dQuaternion(upper.Values[0], upper.Values[1], upper.Values[2], upper.Values[3])));
+        float t = (float)(frame - lower.Frame) / (upper.Frame - lower.Frame);
+        return Quaternion.Slerp(first, second, t);
+    }
+
+    private static void BracketKeys(W3dAnimationChannel channel, int frame, out W3dAnimationKey lower, out W3dAnimationKey upper)
+    {
+        lower = channel.Keys[0];
+        upper = channel.Keys[^1];
+        foreach (var key in channel.Keys)
+        {
+            if (key.Frame <= frame && key.Frame >= lower.Frame)
+            {
+                lower = key;
+            }
+
+            if (key.Frame >= frame && key.Frame <= upper.Frame)
+            {
+                upper = key;
+            }
+        }
     }
 
     private static W3dQuaternion Normalize(W3dQuaternion rotation)

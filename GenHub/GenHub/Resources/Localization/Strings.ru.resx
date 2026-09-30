@@ -17785,6 +17785,9 @@ Error: не удалось: {3}
   <data name="Tools.IniEditor.Fields.PairPercentWatermark" xml:space="preserve">
     <value>-80</value>
   </data>
+  <data name="Tools.IniEditor.Fields.OpenSuggestionsTooltip" xml:space="preserve">
+    <value>Открыть список предложений с поиском</value>
+  </data>
   <data name="Tools.IniEditor.Assets.Title" xml:space="preserve">
     <value>Model and assets</value>
   </data>
@@ -17897,7 +17900,7 @@ Error: не удалось: {3}
     <value>3D-предпросмотр</value>
   </data>
   <data name="Tools.IniEditor.Preview3D.Empty" xml:space="preserve">
-    <value>Выберите блок Object с полем Model для 3D-предпросмотра.</value>
+    <value>Выберите блок с полем Model или кнопку, указывающую на объект, для 3D-предпросмотра.</value>
   </data>
   <data name="Tools.IniEditor.Preview3D.Loading" xml:space="preserve">
     <value>Загрузка {0}…</value>
@@ -17929,6 +17932,12 @@ Error: не удалось: {3}
   <data name="Tools.IniEditor.Preview3D.Wireframe" xml:space="preserve">
     <value>Каркас</value>
   </data>
+  <data name="Tools.IniEditor.Preview3D.Track" xml:space="preserve">
+    <value>Следить</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.TrackTooltip" xml:space="preserve">
+    <value>Следовать за моделью во время воспроизведения анимации</value>
+  </data>
   <data name="Tools.IniEditor.Preview3D.Play" xml:space="preserve">
     <value>Играть</value>
   </data>
@@ -17957,7 +17966,7 @@ Error: не удалось: {3}
     <value>Состояния отрисовки, использующие этот меш</value>
   </data>
   <data name="Tools.IniEditor.Preview3D.DoubleClickHint" xml:space="preserve">
-    <value>Перетаскивание — поворот • Колесо — масштаб • Двойной щелчок — сброс</value>
+    <value>Перетаскивание — поворот • Колесо — масштаб • Правая кнопка или Shift — панорама • WASD — движение • Двойной щелчок — сброс</value>
   </data>
   <data name="Tools.IniEditor.Preview3D.NoClips" xml:space="preserve">
     <value>Нет анимаций</value>

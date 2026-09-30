@@ -169,6 +169,20 @@ public sealed class IniSchemaServiceTests
     }
 
     /// <summary>
+    /// Verifies that command buttons suggest command verbs, border types, and options.
+    /// </summary>
+    [Fact]
+    public void TryGetField_CommandButtonDropdowns_ExposeOptions()
+    {
+        _service.TryGetField(IniConstants.BlockTypes.CommandButton, "Command", out var command).Should().BeTrue();
+        command!.Options.Should().Equal(IniConstants.CommandButtonCommands.All);
+        _service.TryGetField(IniConstants.BlockTypes.CommandButton, "ButtonBorderType", out var border).Should().BeTrue();
+        border!.Options.Should().Equal(IniConstants.CommandButtonBorderTypes.All);
+        _service.TryGetField(IniConstants.BlockTypes.CommandButton, "Options", out var options).Should().BeTrue();
+        options!.Options.Should().Equal(IniConstants.CommandButtonOptions.All);
+    }
+
+    /// <summary>
     /// Verifies that weapon sets follow the engine parse table instead of slot names.
     /// </summary>
     [Fact]

@@ -54,6 +54,25 @@ public sealed class W3dViewerControl : OpenGlControlBase
         AvaloniaProperty.Register<W3dViewerControl, IReadOnlyList<Matrix4x4>?>(nameof(Pose));
 
     /// <summary>
+    /// Per-pivot bind-pose world transforms used to relativize animation poses,
+    /// or null when the bind pose is unavailable.
+    /// </summary>
+    public static readonly StyledProperty<IReadOnlyList<Matrix4x4>?> BindPoseProperty =
+        AvaloniaProperty.Register<W3dViewerControl, IReadOnlyList<Matrix4x4>?>(nameof(BindPose));
+
+    /// <summary>
+    /// Whether the camera target follows the animated root pivot.
+    /// </summary>
+    public static readonly StyledProperty<bool> TrackTargetProperty =
+        AvaloniaProperty.Register<W3dViewerControl, bool>(nameof(TrackTarget), defaultValue: false);
+
+    /// <summary>
+    /// Mesh names hidden by the active draw state, or null when all meshes show.
+    /// </summary>
+    public static readonly StyledProperty<IReadOnlySet<string>?> HiddenMeshNamesProperty =
+        AvaloniaProperty.Register<W3dViewerControl, IReadOnlySet<string>?>(nameof(HiddenMeshNames));
+
+    /// <summary>
     /// The last GL failure message, or null when healthy.
     /// </summary>
     public static readonly DirectProperty<W3dViewerControl, string?> GlErrorProperty =
@@ -77,6 +96,8 @@ public sealed class W3dViewerControl : OpenGlControlBase
     private const double DragThresholdPixels = 4.0;
     private const double OrbitSpeed = 0.008;
     private const double ZoomStep = 1.12;
+    private const double KeyboardPanFraction = 10.0;
+    private const double KeyboardZoomStep = 1.2;
     private const float FieldOfViewRadians = 0.7853982f;
 
     private const string MeshVertexShader = """
@@ -167,6 +188,7 @@ public sealed class W3dViewerControl : OpenGlControlBase
     private readonly object _cameraLock = new();
     private readonly List<W3dMeshBuffers> _meshBuffers = [];
     private readonly List<int> _textures = [];
+    private Matrix4x4[] _inverseBind = [];
 
     private string? _glError;
     private bool _glReady;
@@ -201,12 +223,16 @@ public sealed class W3dViewerControl : OpenGlControlBase
     private bool _pressing;
     private bool _dragging;
     private bool _panning;
+    private int _rootPivotIndex;
+    private Vector3 _lastRootTranslation;
+    private bool _hasLastRootTranslation;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="W3dViewerControl"/> class.
     /// </summary>
     public W3dViewerControl()
     {
+        Focusable = true;
         DoubleTapped += (_, _) => ResetView();
     }
 
@@ -256,6 +282,33 @@ public sealed class W3dViewerControl : OpenGlControlBase
     }
 
     /// <summary>
+    /// Gets or sets the per-pivot bind-pose world transforms, or null when unavailable.
+    /// </summary>
+    public IReadOnlyList<Matrix4x4>? BindPose
+    {
+        get => GetValue(BindPoseProperty);
+        set => SetValue(BindPoseProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the camera target follows the animated root pivot.
+    /// </summary>
+    public bool TrackTarget
+    {
+        get => GetValue(TrackTargetProperty);
+        set => SetValue(TrackTargetProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the mesh names hidden by the active draw state, or null when all meshes show.
+    /// </summary>
+    public IReadOnlySet<string>? HiddenMeshNames
+    {
+        get => GetValue(HiddenMeshNamesProperty);
+        set => SetValue(HiddenMeshNamesProperty, value);
+    }
+
+    /// <summary>
     /// Gets the last GL failure message, or null when healthy.
     /// </summary>
     public string? GlError
@@ -295,6 +348,7 @@ public sealed class W3dViewerControl : OpenGlControlBase
             var scene = Scene;
             if (scene != null)
             {
+                _rootPivotIndex = FindRootPivot(scene);
                 lock (_cameraLock)
                 {
                     FrameScene(scene);
@@ -303,16 +357,29 @@ public sealed class W3dViewerControl : OpenGlControlBase
 
             SelectedMeshIndex = -1;
             _hoveredMeshIndex = -1;
+            _hasLastRootTranslation = false;
             RequestNextFrameRendering();
         }
         else if (change.Property == PoseProperty)
         {
             _linesDirty = true;
+            TrackAnimatedRoot();
             RequestNextFrameRendering();
+        }
+        else if (change.Property == BindPoseProperty)
+        {
+            RebuildInverseBind();
+            _linesDirty = true;
+            RequestNextFrameRendering();
+        }
+        else if (change.Property == TrackTargetProperty)
+        {
+            _hasLastRootTranslation = false;
         }
         else if (change.Property == SelectedMeshIndexProperty ||
                  change.Property == ShowSkeletonProperty ||
-                 change.Property == ShowWireframeProperty)
+                 change.Property == ShowWireframeProperty ||
+                 change.Property == HiddenMeshNamesProperty)
         {
             RequestNextFrameRendering();
         }
@@ -422,9 +489,12 @@ public sealed class W3dViewerControl : OpenGlControlBase
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
+        Focus();
         var point = e.GetCurrentPoint(this);
         _pressing = point.Properties.IsLeftButtonPressed || point.Properties.IsMiddleButtonPressed || point.Properties.IsRightButtonPressed;
-        _panning = point.Properties.IsMiddleButtonPressed || point.Properties.IsRightButtonPressed;
+        _panning = point.Properties.IsMiddleButtonPressed ||
+            point.Properties.IsRightButtonPressed ||
+            (point.Properties.IsLeftButtonPressed && e.KeyModifiers.HasFlag(KeyModifiers.Shift));
         _dragging = false;
         _pressPosition = e.GetPosition(this);
         _lastPointerPosition = _pressPosition;
@@ -495,17 +565,30 @@ public sealed class W3dViewerControl : OpenGlControlBase
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
     {
         base.OnPointerWheelChanged(e);
-        e.Handled = true;
-        lock (_cameraLock)
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Control))
         {
-            double steps = e.Delta.Y > 0 ? 1 : -1;
-            if (Math.Abs(e.Delta.Y) > double.Epsilon)
-            {
-                _distance = Math.Clamp(_distance / Math.Pow(ZoomStep, steps), _minDistance, _maxDistance);
-            }
+            // Ctrl+wheel belongs to the surrounding document canvas zoom.
+            return;
+        }
+
+        e.Handled = true;
+        if (Math.Abs(e.Delta.Y) > double.Epsilon)
+        {
+            ZoomBySteps(e.Delta.Y);
         }
 
         RequestNextFrameRendering();
+    }
+
+    /// <inheritdoc />
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (HandleNavigationKey(e.Key))
+        {
+            e.Handled = true;
+            RequestNextFrameRendering();
+        }
     }
 
     private static int CreateProgram(GlInterface gl, string vertexSource, string fragmentSource, (string Name, int Index)[] attributes)
@@ -648,15 +731,29 @@ public sealed class W3dViewerControl : OpenGlControlBase
         return edges;
     }
 
-    private static Vector3 TransformPoint(W3dVector3 point, int pivotIndex, IReadOnlyList<Matrix4x4>? pose)
+    private static int FindRootPivot(W3dRenderScene scene)
     {
-        var vector = new Vector3(point.X, point.Y, point.Z);
-        if (pose == null || pivotIndex < 0 || pivotIndex >= pose.Count)
+        foreach (var segment in scene.Skeleton)
         {
-            return vector;
+            if (segment.ParentIndex < 0)
+            {
+                return segment.PivotIndex;
+            }
         }
 
-        return Vector3.Transform(vector, pose[pivotIndex]);
+        return 0;
+    }
+
+    private static Vector3 SkeletonEndPoint(W3dSkeletonSegment segment, bool parentEnd, IReadOnlyList<Matrix4x4>? pose)
+    {
+        int pivotIndex = parentEnd ? segment.ParentIndex : segment.PivotIndex;
+        if (pose != null && pivotIndex >= 0 && pivotIndex < pose.Count)
+        {
+            return pose[pivotIndex].Translation;
+        }
+
+        var stored = parentEnd ? segment.Start : segment.End;
+        return new Vector3(stored.X, stored.Y, stored.Z);
     }
 
     private static void AddLineVertex(List<float> data, Vector3 point, float r, float g, float b, float a)
@@ -688,16 +785,6 @@ public sealed class W3dViewerControl : OpenGlControlBase
         return magnitude;
     }
 
-    private static Matrix4x4 MeshModel(W3dRenderMesh mesh, IReadOnlyList<Matrix4x4>? pose)
-    {
-        if (pose == null || mesh.BoneIndex < 0 || mesh.BoneIndex >= pose.Count)
-        {
-            return Matrix4x4.Identity;
-        }
-
-        return pose[mesh.BoneIndex];
-    }
-
     private static void AddGridLines(List<float> data, W3dRenderScene scene)
     {
         float extent = Math.Max(scene.Bounds.SphereRadius * 2, 4);
@@ -723,6 +810,23 @@ public sealed class W3dViewerControl : OpenGlControlBase
         GlError = message;
     }
 
+    private Matrix4x4 MeshModel(W3dRenderMesh mesh, IReadOnlyList<Matrix4x4>? pose)
+    {
+        if (pose == null || mesh.BoneIndex < 0 || mesh.BoneIndex >= pose.Count)
+        {
+            return Matrix4x4.Identity;
+        }
+
+        // Mesh vertices already sit in bind-pose world space, so animation applies
+        // the pivot motion relative to the bind pose instead of the absolute pose.
+        if (mesh.BoneIndex < _inverseBind.Length)
+        {
+            return _inverseBind[mesh.BoneIndex] * pose[mesh.BoneIndex];
+        }
+
+        return pose[mesh.BoneIndex];
+    }
+
     private void CacheUniformLocations(GlInterface gl)
     {
         _meshMvpLocation = gl.GetUniformLocationString(_meshProgram, "uMvp");
@@ -741,10 +845,112 @@ public sealed class W3dViewerControl : OpenGlControlBase
         _target = new Vector3(bounds.SphereCenter.X, bounds.SphereCenter.Y, bounds.SphereCenter.Z);
         float radius = Math.Max(bounds.SphereRadius, 0.5f);
         _distance = radius * 3.2;
-        _minDistance = Math.Max(radius / 50, 0.05);
-        _maxDistance = radius * 40;
+        _minDistance = Math.Max(radius / 200, 0.01);
+        _maxDistance = radius * 60;
         _yaw = 0.7;
         _pitch = 0.45;
+    }
+
+    private void ZoomBySteps(double steps)
+    {
+        lock (_cameraLock)
+        {
+            _distance = Math.Clamp(_distance / Math.Pow(ZoomStep, steps), _minDistance, _maxDistance);
+        }
+    }
+
+    private void RebuildInverseBind()
+    {
+        var bind = BindPose;
+        if (bind == null || bind.Count == 0)
+        {
+            _inverseBind = [];
+            return;
+        }
+
+        var inverses = new Matrix4x4[bind.Count];
+        for (int i = 0; i < bind.Count; i++)
+        {
+            inverses[i] = Matrix4x4.Invert(bind[i], out var inverted) ? inverted : Matrix4x4.Identity;
+        }
+
+        _inverseBind = inverses;
+    }
+
+    private void TrackAnimatedRoot()
+    {
+        var pose = Pose;
+        if (!TrackTarget || pose == null || _rootPivotIndex < 0 || _rootPivotIndex >= pose.Count)
+        {
+            _hasLastRootTranslation = false;
+            return;
+        }
+
+        var root = pose[_rootPivotIndex].Translation;
+        if (_hasLastRootTranslation)
+        {
+            lock (_cameraLock)
+            {
+                _target += root - _lastRootTranslation;
+            }
+        }
+
+        _lastRootTranslation = root;
+        _hasLastRootTranslation = true;
+    }
+
+    private bool HandleNavigationKey(Key key)
+    {
+        double panPixels = Math.Max(Bounds.Height, 1) / KeyboardPanFraction;
+        switch (key)
+        {
+            case Key.Left:
+            case Key.A:
+                PanByPixels(-panPixels, 0);
+                return true;
+            case Key.Right:
+            case Key.D:
+                PanByPixels(panPixels, 0);
+                return true;
+            case Key.Up:
+            case Key.W:
+                PanByPixels(0, -panPixels);
+                return true;
+            case Key.Down:
+            case Key.S:
+                PanByPixels(0, panPixels);
+                return true;
+            case Key.Add:
+            case Key.OemPlus:
+                ZoomBySteps(1);
+                return true;
+            case Key.Subtract:
+            case Key.OemMinus:
+                ZoomBySteps(-1);
+                return true;
+            case Key.Home:
+                ResetView();
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private bool IsMeshHidden(string meshName)
+    {
+        if (HiddenMeshNames == null)
+        {
+            return false;
+        }
+
+        if (HiddenMeshNames.Contains(meshName))
+        {
+            return true;
+        }
+
+        // Draw states name sub-objects without the model prefix, e.g. TREADSL01 for AVLEOPARD.TREADSL01.
+        int dot = meshName.LastIndexOf('.');
+        return dot >= 0 && HiddenMeshNames.Contains(meshName[(dot + 1)..]);
     }
 
     private void PanByPixels(double dx, double dy)
@@ -877,8 +1083,8 @@ public sealed class W3dViewerControl : OpenGlControlBase
         var pose = Pose;
         foreach (var segment in scene.Skeleton)
         {
-            var start = TransformPoint(segment.Start, segment.PivotIndex, pose);
-            var end = TransformPoint(segment.End, segment.PivotIndex, pose);
+            var start = SkeletonEndPoint(segment, true, pose);
+            var end = SkeletonEndPoint(segment, false, pose);
             AddLineVertex(data, start, 1f, 0.75f, 0.25f, 1f);
             AddLineVertex(data, end, 1f, 0.75f, 0.25f, 1f);
         }
@@ -908,6 +1114,11 @@ public sealed class W3dViewerControl : OpenGlControlBase
 
         for (int i = 0; i < scene.Meshes.Count && i < _meshBuffers.Count; i++)
         {
+            if (IsMeshHidden(scene.Meshes[i].Name))
+            {
+                continue;
+            }
+
             RenderMeshElement(gl, scene.Meshes[i], _meshBuffers[i], i, context);
         }
     }
@@ -988,8 +1199,8 @@ public sealed class W3dViewerControl : OpenGlControlBase
             return;
         }
 
-        var hit = W3dRayPicker.Pick(scene, ray.Value.Origin, ray.Value.Direction, CurrentMeshModels(scene));
-        if (hit == null)
+        var hit = W3dRayPicker.Pick(scene, ray.Value.Origin, ray.Value.Direction, CurrentMeshModels(scene), IsMeshHidden);
+        if (hit == null || IsMeshHidden(scene.Meshes[hit.MeshIndex].Name))
         {
             SetHover(-1, null);
             return;
@@ -1025,7 +1236,7 @@ public sealed class W3dViewerControl : OpenGlControlBase
             return;
         }
 
-        var hit = W3dRayPicker.Pick(scene, ray.Value.Origin, ray.Value.Direction, CurrentMeshModels(scene));
+        var hit = W3dRayPicker.Pick(scene, ray.Value.Origin, ray.Value.Direction, CurrentMeshModels(scene), IsMeshHidden);
         SelectedMeshIndex = hit?.MeshIndex ?? -1;
     }
 

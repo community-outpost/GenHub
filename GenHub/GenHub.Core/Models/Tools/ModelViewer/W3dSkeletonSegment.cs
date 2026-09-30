@@ -7,4 +7,5 @@ namespace GenHub.Core.Models.Tools.ModelViewer;
 /// <param name="End">The pivot end point.</param>
 /// <param name="PivotIndex">The pivot index.</param>
 /// <param name="PivotName">The pivot name.</param>
-public sealed record W3dSkeletonSegment(W3dVector3 Start, W3dVector3 End, int PivotIndex, string PivotName);
+/// <param name="ParentIndex">The parent pivot index, or -1 for the root.</param>
+public sealed record W3dSkeletonSegment(W3dVector3 Start, W3dVector3 End, int PivotIndex, string PivotName, int ParentIndex);

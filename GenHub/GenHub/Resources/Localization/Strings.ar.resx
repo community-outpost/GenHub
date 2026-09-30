@@ -17785,6 +17785,9 @@ Error: فشل: {3}
   <data name="Tools.IniEditor.Fields.PairPercentWatermark" xml:space="preserve">
     <value>-80</value>
   </data>
+  <data name="Tools.IniEditor.Fields.OpenSuggestionsTooltip" xml:space="preserve">
+    <value>فتح قائمة الاقتراحات القابلة للبحث</value>
+  </data>
   <data name="Tools.IniEditor.Assets.Title" xml:space="preserve">
     <value>Model and assets</value>
   </data>
@@ -17897,7 +17900,7 @@ Error: فشل: {3}
     <value>معاينة ثلاثية الأبعاد</value>
   </data>
   <data name="Tools.IniEditor.Preview3D.Empty" xml:space="preserve">
-    <value>حدد كتلة Object تحتوي على Model لمعاينتها ثلاثية الأبعاد.</value>
+    <value>حدد كتلة تحتوي على Model، أو زرًا يشير إلى كائن، لمعاينتها ثلاثية الأبعاد.</value>
   </data>
   <data name="Tools.IniEditor.Preview3D.Loading" xml:space="preserve">
     <value>جارٍ تحميل {0}…</value>
@@ -17929,6 +17932,12 @@ Error: فشل: {3}
   <data name="Tools.IniEditor.Preview3D.Wireframe" xml:space="preserve">
     <value>إطار سلكي</value>
   </data>
+  <data name="Tools.IniEditor.Preview3D.Track" xml:space="preserve">
+    <value>تتبع</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.TrackTooltip" xml:space="preserve">
+    <value>تتبع النموذج أثناء تشغيل الحركة</value>
+  </data>
   <data name="Tools.IniEditor.Preview3D.Play" xml:space="preserve">
     <value>تشغيل</value>
   </data>
@@ -17957,7 +17966,7 @@ Error: فشل: {3}
     <value>حالات الرسم التي تستخدم هذه الشبكة</value>
   </data>
   <data name="Tools.IniEditor.Preview3D.DoubleClickHint" xml:space="preserve">
-    <value>اسحب للتدوير • العجلة للتقريب • نقرة مزدوجة لإعادة الضبط</value>
+    <value>اسحب للتدوير • العجلة للتقريب • السحب بالزر الأيمن أو Shift للتحريك • WASD للحركة • نقرة مزدوجة لإعادة الضبط</value>
   </data>
   <data name="Tools.IniEditor.Preview3D.NoClips" xml:space="preserve">
     <value>لا توجد حركات</value>

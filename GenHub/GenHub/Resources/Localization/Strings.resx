@@ -17844,6 +17844,9 @@ Mapped image texture reference</value>
   <data name="Tools.IniEditor.Fields.PairPercentWatermark" xml:space="preserve">
     <value>-80</value>
   </data>
+  <data name="Tools.IniEditor.Fields.OpenSuggestionsTooltip" xml:space="preserve">
+    <value>Open the searchable suggestion list</value>
+  </data>
   <data name="Tools.IniEditor.Assets.Title" xml:space="preserve">
     <value>Model and assets</value>
   </data>
@@ -17956,7 +17959,7 @@ Mapped image texture reference</value>
     <value>3D Preview</value>
   </data>
   <data name="Tools.IniEditor.Preview3D.Empty" xml:space="preserve">
-    <value>Select an Object block with a Model to preview it in 3D.</value>
+    <value>Select a block with a Model, or a button pointing at an object, to preview it in 3D.</value>
   </data>
   <data name="Tools.IniEditor.Preview3D.Loading" xml:space="preserve">
     <value>Loading {0}…</value>
@@ -17988,6 +17991,12 @@ Mapped image texture reference</value>
   <data name="Tools.IniEditor.Preview3D.Wireframe" xml:space="preserve">
     <value>Wireframe</value>
   </data>
+  <data name="Tools.IniEditor.Preview3D.Track" xml:space="preserve">
+    <value>Track</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.TrackTooltip" xml:space="preserve">
+    <value>Follow the model while the animation plays</value>
+  </data>
   <data name="Tools.IniEditor.Preview3D.Play" xml:space="preserve">
     <value>Play</value>
   </data>
@@ -18016,7 +18025,7 @@ Mapped image texture reference</value>
     <value>Draw states using this mesh</value>
   </data>
   <data name="Tools.IniEditor.Preview3D.DoubleClickHint" xml:space="preserve">
-    <value>Drag to orbit • Wheel to zoom • Double-click to reset</value>
+    <value>Drag to orbit • Wheel to zoom • Right-drag or Shift+drag to pan • WASD to move • Double-click to reset</value>
   </data>
   <data name="Tools.IniEditor.Preview3D.NoClips" xml:space="preserve">
     <value>No animations</value>

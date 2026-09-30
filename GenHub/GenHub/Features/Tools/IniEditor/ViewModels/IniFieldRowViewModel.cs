@@ -2,6 +2,7 @@ using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Tools.IniEditor;
 using System;
 using System.Collections.Generic;
@@ -36,6 +37,12 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
 
     [ObservableProperty]
     private string _pairPercent = string.Empty;
+
+    [ObservableProperty]
+    private bool _isSuggestionsOpen;
+
+    [ObservableProperty]
+    private bool _isPairSuggestionsOpen;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="IniFieldRowViewModel"/> class.
@@ -112,6 +119,28 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
     /// Gets a value indicating whether the row offers a searchable value dropdown.
     /// </summary>
     public bool HasSuggestions => Suggestions != null && Suggestions.Count > 0;
+
+    /// <summary>
+    /// Gets a value indicating whether the row renders a searchable dropdown editor.
+    /// Reference, texture, and option-backed fields keep the dropdown even while their
+    /// suggestion lists are still loading so the picker affordance never disappears.
+    /// </summary>
+    public bool HasValuePicker => HasSuggestions || CanGoToDefinition || IsTexture;
+
+    /// <summary>
+    /// Gets the icon kind for the value picker button.
+    /// </summary>
+    public string FieldIconKind => ReferenceBlockType != null
+        ? IniBlockIconHelper.GetIconKind(ReferenceBlockType)
+        : IsTexture
+            ? "ImageOutline"
+            : "ChevronDown";
+
+    /// <summary>
+    /// Gets the icon kind for the pair target picker button.
+    /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Bound from XAML; instance member required for binding.")]
+    public string PairIconKind => IniBlockIconHelper.GetIconKind(ReferenceBlockType ?? IniConstants.BlockTypes.Object);
 
     /// <summary>
     /// Gets the referenced block type for go-to-definition, when any.
@@ -193,6 +222,24 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
         }
 
         SelectedFlagToAdd = string.Empty;
+    }
+
+    /// <summary>
+    /// Toggles the searchable value dropdown open or closed.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleSuggestions()
+    {
+        IsSuggestionsOpen = !IsSuggestionsOpen;
+    }
+
+    /// <summary>
+    /// Toggles the pair target dropdown open or closed.
+    /// </summary>
+    [RelayCommand]
+    public void TogglePairSuggestions()
+    {
+        IsPairSuggestionsOpen = !IsPairSuggestionsOpen;
     }
 
     /// <summary>

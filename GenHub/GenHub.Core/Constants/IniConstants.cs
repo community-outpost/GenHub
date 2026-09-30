@@ -386,6 +386,63 @@ public static class IniConstants
     }
 
     /// <summary>
+    /// Well known command button command verbs from the engine command list.
+    /// Offered as suggestions alongside document values so custom commands still appear.
+    /// </summary>
+    public static class CommandButtonCommands
+    {
+        /// <summary>
+        /// Known command verbs in alphabetical order.
+        /// </summary>
+        public static readonly string[] All =
+        [
+            "BOMBARD",
+            "CONSTRUCT",
+            "DOZER_CONSTRUCT",
+            "FIRE_WEAPON",
+            "GUARD",
+            "GUARD_WITHOUT_PURSUIT",
+            "HACK",
+            "REPAIR",
+            "SPECIAL_POWER",
+            "STOP",
+            "UNIT_BUILD",
+        ];
+    }
+
+    /// <summary>
+    /// Well known command button border types.
+    /// </summary>
+    public static class CommandButtonBorderTypes
+    {
+        /// <summary>
+        /// Known border types in alphabetical order.
+        /// </summary>
+        public static readonly string[] All =
+        [
+            "ACTION",
+            "BUILD",
+            "SYSTEM",
+        ];
+    }
+
+    /// <summary>
+    /// Well known command button option flags.
+    /// </summary>
+    public static class CommandButtonOptions
+    {
+        /// <summary>
+        /// Known option flags in alphabetical order.
+        /// </summary>
+        public static readonly string[] All =
+        [
+            "NEED_SPECIAL_POWER",
+            "NEED_TRIGGERED_SPECIAL_POWER",
+            "OK_FOR_MULTI_SELECT",
+        ];
+    }
+
+    /// <summary>
     /// Well known INI field keys shared by the schema and the editor.
     /// </summary>
     public static class FieldKeys
@@ -515,6 +572,12 @@ public static class IniConstants
 
         /// <summary>Sub-objects hidden by a draw state.</summary>
         public const string HideSubObjects = "HideSubObjects";
+
+        /// <summary>Model asset key used by draw states.</summary>
+        public const string Model = "Model";
+
+        /// <summary>Starting building key used by player templates.</summary>
+        public const string StartingBuilding = "StartingBuilding";
 
         /// <summary>Commonly referenced field keys.</summary>
         public static readonly IReadOnlyList<string> All =

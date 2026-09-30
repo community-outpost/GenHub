@@ -13,13 +13,46 @@
              x:Class="GenHub.Features.Tools.IniEditor.Views.IniEditorView"
              x:DataType="vm:IniEditorViewModel">
   <UserControl.Resources>
+    <DataTemplate x:Key="IniFieldRowActionsTemplate" x:DataType="vm:IniFieldRowViewModel">
+      <StackPanel Orientation="Horizontal">
+        <Border IsVisible="{Binding IsKnown}"
+                Background="{DynamicResource AccentTintBackgroundBrush}"
+                BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
+                CornerRadius="3" Padding="2,0" Margin="5,0,0,0"
+                VerticalAlignment="Center">
+          <material:MaterialIcon Kind="Check" Width="9" Height="9"
+                                 Foreground="{DynamicResource AccentBrush}"/>
+        </Border>
+        <Button x:CompileBindings="False"
+                Command="{Binding DataContext.GoToDefinitionCommand, ElementName=Root}"
+                CommandParameter="{Binding}"
+                IsVisible="{Binding CanGoToDefinition}"
+                Padding="3,1" Margin="5,0,0,0"
+                Background="Transparent" BorderThickness="0"
+                ToolTip.Tip="{localization:Localize Tools.IniEditor.Properties.GoToDefinitionTooltip}"
+                VerticalAlignment="Center">
+          <material:MaterialIcon Kind="ArrowRightBoldCircleOutline" Width="12" Height="12"
+                                 Foreground="{DynamicResource AccentBrush}"/>
+        </Button>
+        <Button x:CompileBindings="False"
+                Command="{Binding DataContext.DeleteFieldCommand, ElementName=Root}"
+                CommandParameter="{Binding}"
+                Padding="3,1" Margin="2,0,0,0"
+                Background="Transparent" BorderThickness="0"
+                ToolTip.Tip="{localization:Localize Tools.IniEditor.Properties.DeleteFieldTooltip}"
+                VerticalAlignment="Center">
+          <material:MaterialIcon Kind="DeleteOutline" Width="12" Height="12"
+                                 Foreground="{DynamicResource ErrorBrush}"/>
+        </Button>
+      </StackPanel>
+    </DataTemplate>
     <DataTemplate x:Key="IniFieldRowTemplate" x:DataType="vm:IniFieldRowViewModel">
       <Border Padding="4,3" Margin="0,0,0,2" CornerRadius="5"
               Background="{DynamicResource CardBackground}"
               BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
               ToolTip.Tip="{Binding Tooltip}">
         <Grid RowDefinitions="Auto,Auto">
-          <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto">
+          <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto" IsVisible="{Binding !IsPercentPair}">
             <Image Grid.Column="0"
                    Source="{Binding TextureThumbnail}"
                    Width="18" Height="18" Margin="0,0,5,0"
@@ -36,69 +69,76 @@
             <!-- Standard value edit when not KindOf or a pair -->
             <Grid Grid.Column="2" IsVisible="{Binding IsPlainValue}" VerticalAlignment="Center">
               <TextBox Text="{Binding Value, Mode=TwoWay}"
-                       IsVisible="{Binding !HasSuggestions}"
+                       IsVisible="{Binding !HasValuePicker}"
                        FontSize="10" ToolTip.Tip="{Binding Description}"/>
-              <Grid IsVisible="{Binding HasSuggestions}">
-                <AutoCompleteBox x:CompileBindings="False"
+              <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding HasValuePicker}">
+                <AutoCompleteBox Grid.Column="0" x:CompileBindings="False"
                                  Text="{Binding Value, Mode=TwoWay}"
                                  ItemsSource="{Binding Suggestions}"
+                                 IsDropDownOpen="{Binding IsSuggestionsOpen, Mode=TwoWay}"
                                  FilterMode="Contains" MinimumPrefixLength="0" MaxDropDownHeight="220"
                                  FontSize="10" ToolTip.Tip="{Binding Description}"/>
-                <material:MaterialIcon Kind="ChevronDown" Width="13" Height="13"
-                                       Foreground="{DynamicResource TextSecondary}"
-                                       HorizontalAlignment="Right" VerticalAlignment="Center"
-                                       Margin="0,0,8,0" IsHitTestVisible="False"/>
+                <Button Grid.Column="1" x:CompileBindings="False"
+                        Command="{Binding ToggleSuggestionsCommand}"
+                        Padding="3,1" Margin="2,0,0,0"
+                        Background="Transparent" BorderThickness="0"
+                        ToolTip.Tip="{localization:Localize Tools.IniEditor.Fields.OpenSuggestionsTooltip}"
+                        AutomationProperties.Name="{localization:Localize Tools.IniEditor.Fields.OpenSuggestionsTooltip}"
+                        VerticalAlignment="Center">
+                  <material:MaterialIcon Kind="{Binding FieldIconKind}" Width="13" Height="13"
+                                         Foreground="{DynamicResource AccentBrush}"/>
+                </Button>
               </Grid>
-            </Grid>
-            <!-- Target plus percent pair edit, e.g. ProductionTimeChange -->
-            <Grid Grid.Column="2" ColumnDefinitions="*,Auto,Auto" IsVisible="{Binding IsPercentPair}" VerticalAlignment="Center">
-              <AutoCompleteBox Grid.Column="0" x:CompileBindings="False"
-                               Text="{Binding PairTarget, Mode=TwoWay}"
-                               ItemsSource="{Binding PairTargetSuggestions}"
-                               FilterMode="Contains" MinimumPrefixLength="0" MaxDropDownHeight="220"
-                               Watermark="{localization:Localize Tools.IniEditor.Fields.PairTargetWatermark}"
-                               ToolTip.Tip="{Binding Description}"
-                               FontSize="10" Margin="0,0,4,0"/>
-              <TextBox Grid.Column="1" Text="{Binding PairPercent, Mode=TwoWay}"
-                       Watermark="{localization:Localize Tools.IniEditor.Fields.PairPercentWatermark}"
-                       ToolTip.Tip="{Binding Description}"
-                       FontSize="10" MinWidth="44"/>
-              <TextBlock Grid.Column="2" Text="%" FontSize="10" FontWeight="SemiBold"
-                         Foreground="{DynamicResource TextSecondary}"
-                         VerticalAlignment="Center" Margin="2,0,0,0"/>
             </Grid>
             <!-- Spacer keeps the actions right-aligned for KindOf rows -->
             <Border Grid.Column="2" IsVisible="{Binding IsKindOf}"/>
-            <Border Grid.Column="3"
-                    IsVisible="{Binding IsKnown}"
-                    Background="{DynamicResource AccentTintBackgroundBrush}"
-                    BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
-                    CornerRadius="3" Padding="2,0" Margin="5,0,0,0"
-                    VerticalAlignment="Center">
-              <material:MaterialIcon Kind="Check" Width="9" Height="9"
-                                     Foreground="{DynamicResource AccentBrush}"/>
-            </Border>
-            <Button Grid.Column="4" x:CompileBindings="False"
-                    Command="{Binding DataContext.GoToDefinitionCommand, ElementName=Root}"
-                    CommandParameter="{Binding}"
-                    IsVisible="{Binding CanGoToDefinition}"
-                    Padding="3,1" Margin="5,0,0,0"
+            <ContentControl Grid.Column="3"
+                            Content="{Binding}"
+                            ContentTemplate="{StaticResource IniFieldRowActionsTemplate}"
+                            VerticalAlignment="Center"/>
+          </Grid>
+          <!-- Pair header spans the full card width so long keys stay readable -->
+          <Grid Grid.Row="0" ColumnDefinitions="*,Auto" IsVisible="{Binding IsPercentPair}">
+            <TextBlock Grid.Column="0"
+                       Text="{Binding Key}"
+                       FontSize="10" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimary}"
+                       VerticalAlignment="Center"
+                       TextTrimming="CharacterEllipsis" Margin="0,0,6,0"/>
+            <ContentControl Grid.Column="1"
+                            Content="{Binding}"
+                            ContentTemplate="{StaticResource IniFieldRowActionsTemplate}"
+                            VerticalAlignment="Center"/>
+          </Grid>
+
+          <!-- Target plus percent pair edit, e.g. ProductionTimeChange -->
+          <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,4,0,0"
+                IsVisible="{Binding IsPercentPair}" VerticalAlignment="Center">
+            <Button Grid.Column="0" x:CompileBindings="False"
+                    Command="{Binding TogglePairSuggestionsCommand}"
+                    Padding="3,1" Margin="0,0,4,0"
                     Background="Transparent" BorderThickness="0"
-                    ToolTip.Tip="{localization:Localize Tools.IniEditor.Properties.GoToDefinitionTooltip}"
+                    ToolTip.Tip="{localization:Localize Tools.IniEditor.Fields.OpenSuggestionsTooltip}"
+                    AutomationProperties.Name="{localization:Localize Tools.IniEditor.Fields.OpenSuggestionsTooltip}"
                     VerticalAlignment="Center">
-              <material:MaterialIcon Kind="ArrowRightBoldCircleOutline" Width="12" Height="12"
+              <material:MaterialIcon Kind="{Binding PairIconKind}" Width="13" Height="13"
                                      Foreground="{DynamicResource AccentBrush}"/>
             </Button>
-            <Button Grid.Column="5" x:CompileBindings="False"
-                    Command="{Binding DataContext.DeleteFieldCommand, ElementName=Root}"
-                    CommandParameter="{Binding}"
-                    Padding="3,1" Margin="2,0,0,0"
-                    Background="Transparent" BorderThickness="0"
-                    ToolTip.Tip="{localization:Localize Tools.IniEditor.Properties.DeleteFieldTooltip}"
-                    VerticalAlignment="Center">
-              <material:MaterialIcon Kind="DeleteOutline" Width="12" Height="12"
-                                     Foreground="{DynamicResource ErrorBrush}"/>
-            </Button>
+            <AutoCompleteBox Grid.Column="1" x:CompileBindings="False"
+                             Text="{Binding PairTarget, Mode=TwoWay}"
+                             ItemsSource="{Binding PairTargetSuggestions}"
+                             IsDropDownOpen="{Binding IsPairSuggestionsOpen, Mode=TwoWay}"
+                             FilterMode="Contains" MinimumPrefixLength="0" MaxDropDownHeight="220"
+                             Watermark="{localization:Localize Tools.IniEditor.Fields.PairTargetWatermark}"
+                             ToolTip.Tip="{Binding Description}"
+                             FontSize="10" Margin="0,0,4,0"/>
+            <TextBox Grid.Column="2" Text="{Binding PairPercent, Mode=TwoWay}"
+                     Watermark="{localization:Localize Tools.IniEditor.Fields.PairPercentWatermark}"
+                     ToolTip.Tip="{Binding Description}"
+                     FontSize="10" MinWidth="44"/>
+            <TextBlock Grid.Column="3" Text="%" FontSize="10" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextSecondary}"
+                       VerticalAlignment="Center" Margin="2,0,0,0"/>
           </Grid>
 
           <!-- Multi-flag selector with chips when field is KindOf -->
@@ -366,18 +406,27 @@
             </TabStrip>
             <Grid Grid.Row="1">
               <!-- Blocks Tab -->
-              <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" IsVisible="{Binding IsBlocksTabSelected}">
-                <TextBox Grid.Row="0"
-                         Text="{Binding BlockFilter, Mode=TwoWay}"
-                         Watermark="{localization:Localize Tools.IniEditor.Tree.FilterWatermark}"
-                         ToolTip.Tip="{localization:Localize Tools.IniEditor.Tree.FilterWatermark}"
-                         FontSize="11" Margin="0,4,0,4"/>
+              <Grid RowDefinitions="Auto,Auto,*,Auto" IsVisible="{Binding IsBlocksTabSelected}">
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,4,0,4">
+                  <TextBox Grid.Column="0"
+                           Text="{Binding BlockFilter, Mode=TwoWay}"
+                           Watermark="{localization:Localize Tools.IniEditor.Tree.FilterWatermark}"
+                           ToolTip.Tip="{localization:Localize Tools.IniEditor.Tree.FilterWatermark}"
+                           FontSize="11" Margin="0,0,6,0"/>
+                  <CheckBox Grid.Column="1"
+                            IsChecked="{Binding IsGroupByTypeEnabled, Mode=TwoWay}"
+                            Content="{localization:Localize Tools.IniEditor.Tree.GroupByType}"
+                            ToolTip.Tip="{localization:Localize Tools.IniEditor.Tree.GroupByType}"
+                            FontSize="10" VerticalAlignment="Center"/>
+                </Grid>
                 <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,4">
                   <TextBlock Grid.Column="0"
-                             Text="{localization:Localize Tools.IniEditor.Tree.Hint}"
+                             Text="{Binding BlockCountText}"
                              FontSize="10"
                              Foreground="{DynamicResource TextSecondary}"
-                             VerticalAlignment="Center" TextWrapping="Wrap"/>
+                             VerticalAlignment="Center"
+                             TextTrimming="CharacterEllipsis"
+                             ToolTip.Tip="{localization:Localize Tools.IniEditor.Tree.Hint}"/>
                   <Button Grid.Column="1"
                           Command="{Binding ExpandAllBlocksCommand}"
                           Padding="6,2" Margin="4,0,0,0"
@@ -397,20 +446,7 @@
                           ToolTip.Tip="{localization:Localize Common.Editors.Files.CollapseAll}"
                           FontSize="10"/>
                 </Grid>
-                <Grid Grid.Row="2" ColumnDefinitions="Auto,*" Margin="0,0,0,4">
-                  <CheckBox Grid.Column="0"
-                            IsChecked="{Binding IsGroupByTypeEnabled, Mode=TwoWay}"
-                            Content="{localization:Localize Tools.IniEditor.Tree.GroupByType}"
-                            ToolTip.Tip="{localization:Localize Tools.IniEditor.Tree.GroupByType}"
-                            FontSize="10" VerticalAlignment="Center"/>
-                  <TextBlock Grid.Column="1"
-                             Text="{Binding BlockCountText}"
-                             FontSize="10"
-                             Foreground="{DynamicResource TextSecondary}"
-                             VerticalAlignment="Center" HorizontalAlignment="Right"
-                             TextTrimming="CharacterEllipsis" Margin="6,0,0,0"/>
-                </Grid>
-                <Border Grid.Row="3"
+                <Border Grid.Row="2"
                         BorderBrush="{DynamicResource BorderBrush}"
                         BorderThickness="1" CornerRadius="8"
                         Background="{DynamicResource SurfaceElevatedBrush}">
@@ -426,27 +462,36 @@
                         <Setter Property="MinHeight" Value="0"/>
                       </Style>
                       <Style Selector="TreeViewItem /template/ Panel#PART_ExpandCollapseChevronContainer">
-                        <Setter Property="Margin" Value="0,0,1,0"/>
-                      </Style>
-                      <Style Selector="TreeViewItem /template/ ToggleButton#PART_ExpandCollapseChevron">
-                        <Setter Property="Width" Value="10"/>
-                        <Setter Property="Height" Value="10"/>
+                        <Setter Property="IsVisible" Value="False"/>
+                        <Setter Property="Width" Value="0"/>
                         <Setter Property="Margin" Value="0"/>
-                        <Setter Property="Padding" Value="0"/>
-                      </Style>
-                      <Style Selector="TreeViewItem /template/ ToggleButton#PART_ExpandCollapseChevron PathIcon">
-                        <Setter Property="Width" Value="8"/>
-                        <Setter Property="Height" Value="8"/>
                       </Style>
                       <Style Selector="TreeViewItem:empty /template/ Panel#PART_ExpandCollapseChevronContainer">
-                        <Setter Property="Width" Value="10"/>
-                        <Setter Property="Margin" Value="0,0,1,0"/>
+                        <Setter Property="IsVisible" Value="False"/>
+                        <Setter Property="Width" Value="0"/>
+                        <Setter Property="Margin" Value="0"/>
                       </Style>
                     </TreeView.Styles>
                     <TreeView.ItemTemplate>
                       <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="vm:IniTreeNodeViewModel">
                         <Border Margin="2,0" Padding="4,2" CornerRadius="5" Background="Transparent" ToolTip.Tip="{Binding DisplayName}" HorizontalAlignment="Stretch">
-                          <Grid>
+                          <Grid ColumnDefinitions="Auto,*">
+                            <ToggleButton Grid.Column="0"
+                                          IsChecked="{Binding IsExpanded, Mode=TwoWay}"
+                                          IsVisible="{Binding HasSubItems}"
+                                          Padding="1" Margin="0,0,3,0"
+                                          Background="Transparent" BorderThickness="0"
+                                          VerticalAlignment="Center">
+                              <Panel>
+                                <material:MaterialIcon Kind="ChevronRight" Width="11" Height="11"
+                                                       Foreground="{DynamicResource TextSecondary}"
+                                                       IsVisible="{Binding !IsExpanded}"/>
+                                <material:MaterialIcon Kind="ChevronDown" Width="11" Height="11"
+                                                       Foreground="{DynamicResource TextSecondary}"
+                                                       IsVisible="{Binding IsExpanded}"/>
+                              </Panel>
+                            </ToggleButton>
+                            <Grid Grid.Column="1">
                             <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center" IsVisible="{Binding IsGroupHeader}">
                               <material:MaterialIcon Grid.Column="0" Kind="FolderOutline" Width="12" Height="12" Margin="0,0,6,0" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
                               <TextBlock Grid.Column="1"
@@ -481,13 +526,14 @@
                                          VerticalAlignment="Center"
                                          TextTrimming="CharacterEllipsis"/>
                             </Grid>
+                            </Grid>
                           </Grid>
                         </Border>
                       </TreeDataTemplate>
                     </TreeView.ItemTemplate>
                   </TreeView>
                 </Border>
-                <Grid Grid.Row="4" RowDefinitions="Auto,Auto" Margin="0,10,0,0">
+                <Grid Grid.Row="3" RowDefinitions="Auto,Auto" Margin="0,10,0,0">
                   <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,6">
                     <TextBox Grid.Column="0"
                              Text="{Binding NewBlockName, Mode=TwoWay}"
@@ -875,6 +921,9 @@
                                   IsChecked="{Binding PreviewShowSkeleton, Mode=TwoWay}" FontSize="10"/>
                         <CheckBox Content="{localization:Localize Tools.IniEditor.Preview3D.Wireframe}"
                                   IsChecked="{Binding PreviewShowWireframe, Mode=TwoWay}" FontSize="10"/>
+                        <CheckBox Content="{localization:Localize Tools.IniEditor.Preview3D.Track}"
+                                  ToolTip.Tip="{localization:Localize Tools.IniEditor.Preview3D.TrackTooltip}"
+                                  IsChecked="{Binding PreviewTrackTarget, Mode=TwoWay}" FontSize="10"/>
                       </StackPanel>
                     </Grid>
                     <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
@@ -885,6 +934,9 @@
                                                    ShowSkeleton="{Binding PreviewShowSkeleton}"
                                                    ShowWireframe="{Binding PreviewShowWireframe}"
                                                    Pose="{Binding PreviewPose}"
+                                                   BindPose="{Binding PreviewBindPose}"
+                                                   TrackTarget="{Binding PreviewTrackTarget}"
+                                                   HiddenMeshNames="{Binding PreviewHiddenMeshNames}"
                                                    IsVisible="{Binding HasPreviewScene}"/>
                         <StackPanel IsVisible="{Binding !HasPreviewScene}"
                                     VerticalAlignment="Center" HorizontalAlignment="Center"

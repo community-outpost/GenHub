@@ -97,6 +97,12 @@ public sealed partial class IniTreeNodeViewModel : ObservableObject
         : IniBlockIconHelper.GetIconKind(Block.BlockType);
 
     /// <summary>
+    /// Gets a value indicating whether the node can expand to show children.
+    /// Group headers always expand; block nodes expand when they carry nested modules.
+    /// </summary>
+    public bool HasSubItems => IsGroupHeader || Block.Children.Count > 0;
+
+    /// <summary>
     /// Creates a synthetic collapsible header grouping blocks of one type.
     /// </summary>
     /// <param name="blockType">The grouped block type.</param>
