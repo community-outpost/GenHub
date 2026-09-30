@@ -524,7 +524,7 @@ public sealed partial class ContentGridItemViewModel(
 
     private static void RunOnUi(Action action)
     {
-        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess() || Avalonia.Application.Current == null)
+        if (Avalonia.Application.Current == null || Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
         {
             action();
         }

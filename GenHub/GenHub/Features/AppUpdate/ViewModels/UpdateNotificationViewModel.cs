@@ -1711,7 +1711,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
     private void OnGitHubAuthStateChanged(object? sender, GitHubAuthStateChangedEventArgs e)
     {
-        if (Dispatcher.UIThread.CheckAccess() || Application.Current == null)
+        if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
         {
             RefreshAuthenticationState(e.IsAuthenticated);
         }

@@ -124,7 +124,7 @@ public class PublisherStudioTool(ILogger<PublisherStudioTool> logger) : IToolPlu
 
     private static void RunOnUiThread(Action action)
     {
-        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess() || Avalonia.Application.Current == null)
+        if (Avalonia.Application.Current == null || Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
         {
             action();
         }
