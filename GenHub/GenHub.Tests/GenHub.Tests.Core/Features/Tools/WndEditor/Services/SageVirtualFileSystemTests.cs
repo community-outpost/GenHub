@@ -258,6 +258,43 @@ public sealed class SageVirtualFileSystemTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that patch archives (e.g. Patch.big) overwrite base archives (e.g. INI.big)
+    /// within the same tier, correctly mirroring retail Generals 1.08 patch behavior.
+    /// </summary>
+    [Fact]
+    public void Read_PatchArchiveInSameTier_OverridesBaseArchive()
+    {
+        // Arrange: base archive and patch archive in the same directory
+        var patchRoot = Path.Combine(_tempRoot, "PatchOverrideRoot");
+        Directory.CreateDirectory(patchRoot);
+        var baseBytes = Encoding.UTF8.GetBytes("base-ini-content");
+        var patchBytes = Encoding.UTF8.GetBytes("patched-ini-content");
+        WndTestAssets.CreateBigArchive(
+            Path.Combine(patchRoot, "INI.big"),
+            ("Data\\INI\\GameData.ini", baseBytes),
+            ("Data\\INI\\VanillaOnly.ini", baseBytes));
+        WndTestAssets.CreateBigArchive(
+            Path.Combine(patchRoot, "Patch.big"),
+            ("Data\\INI\\GameData.ini", patchBytes));
+
+        var vfs = new SageVirtualFileSystem(
+            patchRoot,
+            isZeroHour: false,
+            logger: Mock.Of<ILogger>(),
+            initialTier: SageFileTier.BaseGame);
+
+        // Act
+        var gameData = vfs.Read("Data\\INI\\GameData.ini");
+        var vanillaOnly = vfs.Read("Data\\INI\\VanillaOnly.ini");
+
+        // Assert: Patch.big overrides INI.big for overlapping files, but preserves non-overlapping files
+        gameData.Should().NotBeNull();
+        gameData.Should().Equal(patchBytes);
+        vanillaOnly.Should().NotBeNull();
+        vanillaOnly.Should().Equal(baseBytes);
+    }
+
+    /// <summary>
     /// Tests that filename-only archive lookups apply the same first-mounted-wins rule
     /// within one tier, so root expansion textures beat same-name subdirectory textures.
     /// </summary>
