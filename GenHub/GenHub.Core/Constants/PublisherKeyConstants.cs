@@ -1,0 +1,42 @@
+namespace GenHub.Core.Constants;
+
+/// <summary>
+/// Constants for publisher public key import, signature verification, and the trusted key store.
+/// </summary>
+public static class PublisherKeyConstants
+{
+    /// <summary>
+    /// File name of the trusted publisher key store under the application data directory.
+    /// </summary>
+    public const string StoreFileName = "publisher-keys.json";
+
+    /// <summary>
+    /// Current schema version of the trusted publisher key store file.
+    /// </summary>
+    public const int StoreSchemaVersion = 1;
+
+    /// <summary>
+    /// PEM label of an X.509 SubjectPublicKeyInfo public key.
+    /// </summary>
+    public const string SubjectPublicKeyInfoPemLabel = "PUBLIC KEY";
+
+    /// <summary>
+    /// PEM label of a PKCS#1 RSA public key.
+    /// </summary>
+    public const string RsaPublicKeyPemLabel = "RSA PUBLIC KEY";
+
+    /// <summary>
+    /// Text every private key PEM label contains, covering PKCS#8, encrypted PKCS#8, PKCS#1, and SEC1 keys.
+    /// </summary>
+    public const string PrivateKeyPemLabelMarker = "PRIVATE KEY";
+
+    /// <summary>
+    /// Smallest accepted RSA modulus in bits.
+    /// </summary>
+    public const int MinimumRsaKeySizeBits = 2048;
+
+    /// <summary>
+    /// Smallest accepted ECDSA curve size in bits.
+    /// </summary>
+    public const int MinimumEcdsaKeySizeBits = 256;
+}
