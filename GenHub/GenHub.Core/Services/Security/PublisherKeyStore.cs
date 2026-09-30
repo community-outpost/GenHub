@@ -10,15 +10,13 @@ using System.Text.Json;
 namespace GenHub.Core.Services.Security;
 
 /// <summary>
-/// Stores trusted publisher public keys as JSON in <see cref="PublisherKeyConstants.StoreFileName"/>
-/// under the application data directory. Writes are atomic, and a store that cannot be read is
-/// reported through the result and never overwritten, so a corrupt file cannot silently drop trust.
+/// Stores trusted publisher public keys in <see cref="PublisherKeyConstants.StoreFileName"/> under the
+/// application data directory. The JSON document is encrypted at rest with AES-256-GCM under a key
+/// derived from the machine-bound secret (<see cref="MachineBoundEncryption"/>), so a copied or
+/// modified file does not decrypt. Writes are atomic, and a store that cannot be decrypted or parsed
+/// is reported through the result and never overwritten, so a bad file cannot silently drop trust.
 /// </summary>
-/// <param name="configurationProvider">Resolves the application data directory.</param>
-/// <param name="logger">The logger.</param>
-public sealed class PublisherKeyStore(
-    IConfigurationProviderService configurationProvider,
-    ILogger<PublisherKeyStore> logger) : IPublisherKeyStore
+public sealed class PublisherKeyStore : IPublisherKeyStore
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -27,11 +25,37 @@ public sealed class PublisherKeyStore(
         WriteIndented = true,
     };
 
-    private readonly string _storeFilePath = Path.Combine(
-        configurationProvider.GetApplicationDataPath(),
-        PublisherKeyConstants.StoreFileName);
-
+    private readonly ILogger<PublisherKeyStore> _logger;
+    private readonly Func<MachineSecret> _resolveMachineSecret;
+    private readonly string _storeFilePath;
     private readonly SemaphoreSlim _fileLock = new(1, 1);
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PublisherKeyStore"/> class.
+    /// </summary>
+    /// <param name="configurationProvider">Resolves the application data directory.</param>
+    /// <param name="logger">The logger.</param>
+    public PublisherKeyStore(IConfigurationProviderService configurationProvider, ILogger<PublisherKeyStore> logger)
+        : this(configurationProvider, logger, MachineBoundEncryption.ResolveMachineSecret)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PublisherKeyStore"/> class with a machine secret source.
+    /// </summary>
+    /// <param name="configurationProvider">Resolves the application data directory.</param>
+    /// <param name="logger">The logger.</param>
+    /// <param name="resolveMachineSecret">Resolves the machine-bound secret for the encryption key.</param>
+    internal PublisherKeyStore(
+        IConfigurationProviderService configurationProvider,
+        ILogger<PublisherKeyStore> logger,
+        Func<MachineSecret> resolveMachineSecret)
+    {
+        ArgumentNullException.ThrowIfNull(configurationProvider);
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _resolveMachineSecret = resolveMachineSecret ?? throw new ArgumentNullException(nameof(resolveMachineSecret));
+        _storeFilePath = Path.Combine(configurationProvider.GetApplicationDataPath(), PublisherKeyConstants.StoreFileName);
+    }
 
     /// <inheritdoc />
     public async Task<OperationResult<IReadOnlyList<TrustedPublisherKey>>> GetKeysAsync(CancellationToken cancellationToken = default)
@@ -102,7 +126,7 @@ public sealed class PublisherKeyStore(
             var written = await WriteAsync(keys, cancellationToken).ConfigureAwait(false);
             if (written.Success)
             {
-                logger.LogInformation(
+                _logger.LogInformation(
                     "Saved trusted {Algorithm} key for publisher {PublisherId}",
                     key.PublicKey.Algorithm,
                     key.PublisherId);
@@ -142,7 +166,7 @@ public sealed class PublisherKeyStore(
                 return OperationResult<bool>.CreateFailure(written);
             }
 
-            logger.LogInformation("Removed trusted key for publisher {PublisherId}", publisherId);
+            _logger.LogInformation("Removed trusted key for publisher {PublisherId}", publisherId);
             return OperationResult<bool>.CreateSuccess(true);
         }
         finally
@@ -207,23 +231,10 @@ public sealed class PublisherKeyStore(
             return OperationResult<List<TrustedPublisherKey>>.CreateSuccess([]);
         }
 
-        PublisherKeyStoreDocument? document;
+        byte[] encryptedBytes;
         try
         {
-            await using var stream = new FileStream(
-                _storeFilePath,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.Read,
-                IoConstants.DefaultFileBufferSize,
-                FileOptions.Asynchronous);
-            document = await JsonSerializer
-                .DeserializeAsync<PublisherKeyStoreDocument>(stream, JsonOptions, cancellationToken)
-                .ConfigureAwait(false);
-        }
-        catch (JsonException)
-        {
-            return Corrupt("the file is not valid JSON");
+            encryptedBytes = await File.ReadAllBytesAsync(_storeFilePath, cancellationToken).ConfigureAwait(false);
         }
         catch (IOException ex)
         {
@@ -232,6 +243,27 @@ public sealed class PublisherKeyStore(
         catch (UnauthorizedAccessException ex)
         {
             return ReadFailed(ex);
+        }
+
+        // Resolving the secret can spawn a process and key derivation is deliberately slow, so both run off the caller's thread.
+        var plainBytes = await Task.Run(
+            () => MachineBoundEncryption.TryDecryptWithSecret(encryptedBytes, _resolveMachineSecret(), PublisherKeyConstants.StoreKeySalt, out var decrypted)
+                ? decrypted
+                : null,
+            cancellationToken).ConfigureAwait(false);
+        if (plainBytes is null)
+        {
+            return Corrupt("the file cannot be decrypted on this machine or was modified");
+        }
+
+        PublisherKeyStoreDocument? document;
+        try
+        {
+            document = JsonSerializer.Deserialize<PublisherKeyStoreDocument>(plainBytes, JsonOptions);
+        }
+        catch (JsonException)
+        {
+            return Corrupt("the decrypted content is not valid JSON");
         }
 
         var problem = FindProblem(document);
@@ -259,8 +291,11 @@ public sealed class PublisherKeyStore(
                 Directory.CreateDirectory(directory);
             }
 
-            var json = JsonSerializer.Serialize(document, JsonOptions);
-            await AtomicFile.WriteAllTextAsync(_storeFilePath, json, cancellationToken).ConfigureAwait(false);
+            var plainBytes = JsonSerializer.SerializeToUtf8Bytes(document, JsonOptions);
+            var encryptedBytes = await Task.Run(
+                () => MachineBoundEncryption.EncryptWithSecret(plainBytes, _resolveMachineSecret().Secret, PublisherKeyConstants.StoreKeySalt),
+                cancellationToken).ConfigureAwait(false);
+            await AtomicFile.WriteAllBytesAsync(_storeFilePath, encryptedBytes, cancellationToken).ConfigureAwait(false);
             return OperationResult.CreateSuccess();
         }
         catch (IOException ex)
@@ -275,20 +310,20 @@ public sealed class PublisherKeyStore(
 
     private OperationResult<List<TrustedPublisherKey>> Corrupt(string problem)
     {
-        logger.LogWarning("Publisher key store {StoreFilePath} is unreadable: {Problem}", _storeFilePath, problem);
+        _logger.LogWarning("Publisher key store {StoreFilePath} is unreadable: {Problem}", _storeFilePath, problem);
         return OperationResult<List<TrustedPublisherKey>>.CreateFailure(
             $"The publisher key store is unreadable: {problem}. It was left unchanged.");
     }
 
     private OperationResult<List<TrustedPublisherKey>> ReadFailed(Exception ex)
     {
-        logger.LogError(ex, "Failed to read publisher key store {StoreFilePath}", _storeFilePath);
+        _logger.LogError(ex, "Failed to read publisher key store {StoreFilePath}", _storeFilePath);
         return OperationResult<List<TrustedPublisherKey>>.CreateFailure($"Failed to read the publisher key store: {ex.Message}");
     }
 
     private OperationResult WriteFailed(Exception ex)
     {
-        logger.LogError(ex, "Failed to write publisher key store {StoreFilePath}", _storeFilePath);
+        _logger.LogError(ex, "Failed to write publisher key store {StoreFilePath}", _storeFilePath);
         return OperationResult.CreateFailure($"Failed to write the publisher key store: {ex.Message}");
     }
 }

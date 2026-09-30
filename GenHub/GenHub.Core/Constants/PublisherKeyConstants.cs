@@ -6,9 +6,14 @@ namespace GenHub.Core.Constants;
 public static class PublisherKeyConstants
 {
     /// <summary>
-    /// File name of the trusted publisher key store under the application data directory.
+    /// File name of the encrypted trusted publisher key store under the application data directory.
     /// </summary>
-    public const string StoreFileName = "publisher-keys.json";
+    public const string StoreFileName = "publisher-keys.dat";
+
+    /// <summary>
+    /// Domain separation salt for the key store encryption key; the machine secret provides uniqueness.
+    /// </summary>
+    public const string StoreKeySalt = "GenHub.PublisherKeyStore.v1";
 
     /// <summary>
     /// Current schema version of the trusted publisher key store file.
