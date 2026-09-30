@@ -1429,77 +1429,7 @@
                     </TabItem>
 
                     <!-- Publisher Tabs - catalog-defined cards for subscribed publishers -->
-                    <TabItem Header="{localization:Localize Downloads.ContentDetail.Publisher}" IsVisible="{Binding HasCustomTabs}">
-                        <Grid RowDefinitions="Auto,*" Margin="0,20,0,0">
-                            <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,0,16">
-                                <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <PathIcon Data="M12 2 2 7l10 5 8.2-4.1V14h2V7L12 2zm-6 11v4.5L12 21l6-3.5V13l-6 3-6-3z"
-                                              Width="20" Height="20" Foreground="{DynamicResource AccentBrush}" />
-                                    <TextBlock Text="{localization:Localize Downloads.ContentDetail.PublisherDisclaimer}"
-                                               Foreground="{DynamicResource TextSecondary}" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center" />
-                                </StackPanel>
-                            </Border>
-
-                            <TabControl Grid.Row="1" ItemsSource="{Binding CustomTabs}">
-                                <TabControl.ItemTemplate>
-                                    <DataTemplate DataType="content:CustomTabDefinition">
-                                        <TextBlock Text="{Binding Header}" />
-                                    </DataTemplate>
-                                </TabControl.ItemTemplate>
-                                <TabControl.ContentTemplate>
-                                    <DataTemplate DataType="content:CustomTabDefinition">
-                                        <ScrollViewer>
-                                            <StackPanel Spacing="16" Margin="0,16,0,0">
-                                                <StackPanel Spacing="6" IsVisible="{Binding Intro, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                                    <TextBlock Text="{Binding Header}" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
-                                                    <TextBlock Text="{Binding Intro}" Foreground="{DynamicResource TextSecondary}" FontSize="14" LineHeight="21" TextWrapping="Wrap" />
-                                                </StackPanel>
-
-                                                <ItemsControl ItemsSource="{Binding Cards}">
-                                                    <ItemsControl.ItemsPanel>
-                                                        <ItemsPanelTemplate>
-                                                            <WrapPanel Orientation="Horizontal" />
-                                                        </ItemsPanelTemplate>
-                                                    </ItemsControl.ItemsPanel>
-                                                    <ItemsControl.ItemTemplate>
-                                                        <DataTemplate DataType="content:CustomTabCardDefinition">
-                                                            <Border Width="250" Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="12" Margin="0,0,12,12">
-                                                                <StackPanel Spacing="10">
-                                                                    <Button Command="{Binding $parent[views:ContentDetailView].((vm:ContentDetailViewModel)DataContext).OpenFullScreenMediaCommand}"
-                                                                            CommandParameter="{Binding ImageUrl}"
-                                                                            Background="Transparent"
-                                                                            BorderThickness="0"
-                                                                            Padding="0"
-                                                                            Cursor="Hand"
-                                                                            ToolTip.Tip="{localization:Localize Downloads.ContentDetail.ExpandImageTooltip}"
-                                                                            IsVisible="{Binding ImageUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                                                        <Button.Template>
-                                                                            <ControlTemplate TargetType="Button">
-                                                                                <ContentPresenter Content="{TemplateBinding Content}" />
-                                                                            </ControlTemplate>
-                                                                        </Button.Template>
-                                                                        <Border Height="96" Background="{DynamicResource SurfaceElevatedBrush}" CornerRadius="6" ClipToBounds="True">
-                                                                            <Image controls:ImageLoader.Source="{Binding ImageUrl}" Stretch="UniformToFill" />
-                                                                        </Border>
-                                                                    </Button>
-                                                                    <StackPanel Spacing="4">
-                                                                        <TextBlock Text="{Binding Label}" Foreground="{DynamicResource AccentBrush}" FontSize="11" FontWeight="SemiBold"
-                                                                                   IsVisible="{Binding Label, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                                                                        <TextBlock Text="{Binding Title}" Foreground="{DynamicResource TextPrimary}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
-                                                                        <TextBlock Text="{Binding Description}" Foreground="{DynamicResource TextSecondary}" FontSize="13" LineHeight="19" TextWrapping="Wrap" />
-                                                                    </StackPanel>
-                                                                </StackPanel>
-                                                            </Border>
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
-                                            </StackPanel>
-                                        </ScrollViewer>
-                                    </DataTemplate>
-                                </TabControl.ContentTemplate>
-                            </TabControl>
-                        </Grid>
-                    </TabItem>
+                    <!-- TODO: Re-introduce publisher-defined custom tabs per content item once per-item tab authoring is supported. See GitHub issue #621 (https://github.com/community-outpost/GenHub/issues/621). -->
                 </TabControl>
             </Grid>
 

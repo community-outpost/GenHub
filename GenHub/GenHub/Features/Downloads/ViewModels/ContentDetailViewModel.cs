@@ -368,6 +368,10 @@ public partial class ContentDetailViewModel(
     /// <summary>
     /// Gets the collection of custom tabs from publishers.
     /// </summary>
+    /// <remarks>
+    /// TODO: Re-introduce publisher-defined custom tabs per content item once per-item tab authoring is supported.
+    /// See GitHub issue #621 (https://github.com/community-outpost/GenHub/issues/621).
+    /// </remarks>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasCustomTabs))]
     [NotifyPropertyChangedFor(nameof(HasPublisherInfo))]
@@ -7513,6 +7517,10 @@ public partial class ContentDetailViewModel(
     /// <summary>
     /// Loads custom tabs from registered tab providers.
     /// </summary>
+    /// <remarks>
+    /// TODO: Re-introduce publisher-defined custom tabs per content item once per-item tab authoring is supported.
+    /// See GitHub issue #621 (https://github.com/community-outpost/GenHub/issues/621).
+    /// </remarks>
     private async Task LoadCustomTabsAsync()
     {
         try
