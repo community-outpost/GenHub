@@ -13408,6 +13408,12 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Downloads.Browser.LoadingCatalogs" xml:space="preserve">
     <value>Loading catalogs...</value>
   </data>
+  <data name="Downloads.Browser.ReloadCatalog" xml:space="preserve">
+    <value>Reload catalog</value>
+  </data>
+  <data name="Downloads.Browser.UpdatingCatalog" xml:space="preserve">
+    <value>Updating catalog...</value>
+  </data>
   <data name="Downloads.Browser.CurrentCatalog" xml:space="preserve">
     <value>Current catalog</value>
   </data>

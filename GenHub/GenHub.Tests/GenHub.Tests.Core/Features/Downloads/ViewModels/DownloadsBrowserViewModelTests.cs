@@ -2909,6 +2909,104 @@ public class DownloadsBrowserViewModelTests
         Assert.False(card.ShowAddToProfileButton);
     }
 
+    /// <summary>
+    /// Verifies that CanShowCatalogSwitcher returns true when a publisher has multiple catalogs.
+    /// </summary>
+    [Fact]
+    public void CanShowCatalogSwitcher_WhenMultipleCatalogs_ReturnsTrue()
+    {
+        // Arrange
+        using var viewModel = CreateViewModel();
+        viewModel.AvailableCatalogs.Add(new CatalogEntry { Id = "c1", Name = "Catalog 1", Url = "https://example.com/1.json" });
+        viewModel.AvailableCatalogs.Add(new CatalogEntry { Id = "c2", Name = "Catalog 2", Url = "https://example.com/2.json" });
+
+        // Act & Assert
+        Assert.True(viewModel.HasMultipleCatalogs);
+        Assert.True(viewModel.CanShowCatalogSwitcher);
+    }
+
+    /// <summary>
+    /// Verifies that CanShowCatalogSwitcher returns true when catalogs are loading for a subscribed publisher.
+    /// </summary>
+    [Fact]
+    public void CanShowCatalogSwitcher_WhenSubscribedPublisherAndLoadingCatalogs_ReturnsTrue()
+    {
+        // Arrange
+        using var viewModel = CreateViewModel();
+        var subPub = new PublisherItemViewModel("sub-1", "Subscribed Publisher", null, CatalogConstants.SubscribedPublisherCategory);
+        viewModel.Publishers.Add(subPub);
+        viewModel.SelectedPublisher = subPub;
+
+        // Act
+        viewModel.IsLoadingCatalogs = true;
+
+        // Assert
+        Assert.True(viewModel.IsSubscribedPublisher);
+        Assert.True(viewModel.CanShowCatalogSwitcher);
+    }
+
+    /// <summary>
+    /// Verifies that CanShowCatalogSwitcher returns false for a single catalog when not loading.
+    /// </summary>
+    [Fact]
+    public void CanShowCatalogSwitcher_WhenSingleCatalogAndNotLoading_ReturnsFalse()
+    {
+        // Arrange
+        using var viewModel = CreateViewModel();
+        var subPub = new PublisherItemViewModel("sub-1", "Subscribed Publisher", null, CatalogConstants.SubscribedPublisherCategory);
+        viewModel.Publishers.Add(subPub);
+        viewModel.SelectedPublisher = subPub;
+        viewModel.AvailableCatalogs.Add(new CatalogEntry { Id = "c1", Name = "Catalog 1", Url = "https://example.com/1.json" });
+        viewModel.IsLoadingCatalogs = false;
+
+        // Act & Assert
+        Assert.False(viewModel.HasMultipleCatalogs);
+        Assert.False(viewModel.CanShowCatalogSwitcher);
+    }
+
+    /// <summary>
+    /// Verifies that CatalogLoadingStatusText reflects updating state when catalogs exist,
+    /// and loading state when no catalogs exist.
+    /// </summary>
+    [Fact]
+    public void CatalogLoadingStatusText_ReflectsUpdateVsInitialLoadState()
+    {
+        // Arrange
+        using var viewModel = CreateViewModel();
+
+        // Empty catalog list -> initial loading text
+        Assert.Equal("Loading catalogs...", viewModel.CatalogLoadingStatusText);
+
+        // Populated catalog list -> updating text
+        viewModel.AvailableCatalogs.Add(new CatalogEntry { Id = "c1", Name = "Catalog 1", Url = "https://example.com/1.json" });
+        Assert.Equal("Updating catalog...", viewModel.CatalogLoadingStatusText);
+    }
+
+    /// <summary>
+    /// Verifies that CanReloadCatalog tracks busy and loading states appropriately.
+    /// </summary>
+    [Fact]
+    public void CanReloadCatalog_TracksLoadingStates()
+    {
+        // Arrange
+        using var viewModel = CreateViewModel();
+        Assert.False(viewModel.CanReloadCatalog);
+
+        var publisher = new PublisherItemViewModel("pub-1", "Pub 1", null, CatalogConstants.SubscribedPublisherCategory);
+        viewModel.Publishers.Add(publisher);
+        viewModel.SelectedPublisher = publisher;
+        Assert.True(viewModel.CanReloadCatalog);
+
+        viewModel.IsLoadingCatalogs = true;
+        Assert.False(viewModel.CanReloadCatalog);
+
+        viewModel.IsLoadingCatalogs = false;
+        Assert.True(viewModel.CanReloadCatalog);
+
+        viewModel.IsLoading = true;
+        Assert.False(viewModel.CanReloadCatalog);
+    }
+
     private static InstallableVariant AddCardVariant(
         ContentGridItemViewModel card,
         string manifestId,

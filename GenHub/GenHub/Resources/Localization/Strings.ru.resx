@@ -13347,6 +13347,12 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Downloads.Browser.LoadingCatalogs" xml:space="preserve">
     <value>Загрузка каталогов...</value>
   </data>
+  <data name="Downloads.Browser.ReloadCatalog" xml:space="preserve">
+    <value>Перезагрузить каталог</value>
+  </data>
+  <data name="Downloads.Browser.UpdatingCatalog" xml:space="preserve">
+    <value>Обновление каталога...</value>
+  </data>
   <data name="Downloads.Browser.CurrentCatalog" xml:space="preserve">
     <value>Текущий каталог</value>
   </data>

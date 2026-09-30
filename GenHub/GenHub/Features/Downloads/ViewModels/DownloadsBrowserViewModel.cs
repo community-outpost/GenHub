@@ -193,6 +193,8 @@ public sealed partial class DownloadsBrowserViewModel(
     private bool _isFilterPanelVisible;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanReloadCatalog))]
+    [NotifyCanExecuteChangedFor(nameof(ReloadCatalogCommand))]
     private bool _isLoading;
 
     private PublisherItemViewModel? _selectedPublisher;
@@ -219,6 +221,10 @@ public sealed partial class DownloadsBrowserViewModel(
     private CatalogEntry? _selectedCatalog;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanShowCatalogSwitcher))]
+    [NotifyPropertyChangedFor(nameof(CatalogLoadingStatusText))]
+    [NotifyPropertyChangedFor(nameof(CanReloadCatalog))]
+    [NotifyCanExecuteChangedFor(nameof(ReloadCatalogCommand))]
     private bool _isLoadingCatalogs;
 
     [ObservableProperty]
@@ -248,6 +254,10 @@ public sealed partial class DownloadsBrowserViewModel(
             {
                 OnPropertyChanged(nameof(CanSearch));
                 OnPropertyChanged(nameof(CanSearchOrFilter));
+                OnPropertyChanged(nameof(IsSubscribedPublisher));
+                OnPropertyChanged(nameof(CanShowCatalogSwitcher));
+                OnPropertyChanged(nameof(CanReloadCatalog));
+                ReloadCatalogCommand.NotifyCanExecuteChanged();
                 HandleSelectedPublisherChanged(value);
             }
         }
@@ -281,6 +291,29 @@ public sealed partial class DownloadsBrowserViewModel(
     /// Drives the catalog switcher visibility in the toolbar.
     /// </summary>
     public bool HasMultipleCatalogs => AvailableCatalogs.Count > 1;
+
+    /// <summary>
+    /// Gets a value indicating whether the selected publisher is a subscribed publisher.
+    /// </summary>
+    public bool IsSubscribedPublisher => SelectedPublisher != null &&
+        SelectedPublisher.PublisherType.Equals(CatalogConstants.SubscribedPublisherCategory, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets a value indicating whether the catalog switcher and reload bar should be visible in the toolbar.
+    /// </summary>
+    public bool CanShowCatalogSwitcher => HasMultipleCatalogs || (IsSubscribedPublisher && IsLoadingCatalogs);
+
+    /// <summary>
+    /// Gets a value indicating whether the catalog can currently be reloaded.
+    /// </summary>
+    public bool CanReloadCatalog => !IsLoadingCatalogs && !IsLoading && SelectedPublisher != null;
+
+    /// <summary>
+    /// Gets the localized status text displayed while catalogs are loading or updating.
+    /// </summary>
+    public string CatalogLoadingStatusText => AvailableCatalogs.Count > 0
+        ? _localizationService?.GetString("Downloads.Browser.UpdatingCatalog") ?? "Updating catalog..."
+        : _localizationService?.GetString("Downloads.Browser.LoadingCatalogs") ?? "Loading catalogs...";
 
     /// <summary>
     /// Gets a value indicating whether the detail view is currently visible.
@@ -1420,6 +1453,10 @@ public sealed partial class DownloadsBrowserViewModel(
         }
 
         OnPropertyChanged(nameof(HasMultipleCatalogs));
+        OnPropertyChanged(nameof(CanShowCatalogSwitcher));
+        OnPropertyChanged(nameof(CatalogLoadingStatusText));
+        OnPropertyChanged(nameof(CanReloadCatalog));
+        ReloadCatalogCommand.NotifyCanExecuteChanged();
     }
 
     private CatalogEntry? FindMatchingCatalogEntry(
@@ -1647,6 +1684,10 @@ public sealed partial class DownloadsBrowserViewModel(
 
             SelectedCatalog = match ?? catalogs[0];
             OnPropertyChanged(nameof(HasMultipleCatalogs));
+            OnPropertyChanged(nameof(CanShowCatalogSwitcher));
+            OnPropertyChanged(nameof(CatalogLoadingStatusText));
+            OnPropertyChanged(nameof(CanReloadCatalog));
+            ReloadCatalogCommand.NotifyCanExecuteChanged();
         }
         finally
         {
@@ -2072,6 +2113,8 @@ public sealed partial class DownloadsBrowserViewModel(
             {
                 entry.DisplayName = ResolveDownloadedContentLabel();
             }
+
+            OnPropertyChanged(nameof(CatalogLoadingStatusText));
         }
     }
 
@@ -2137,6 +2180,37 @@ public sealed partial class DownloadsBrowserViewModel(
         await RefreshContentAsync();
     }
 
+    /// <summary>
+    /// Reloads the available catalogs and content for the current publisher.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [RelayCommand(CanExecute = nameof(CanReloadCatalog))]
+    private async Task ReloadCatalogAsync()
+    {
+        if (SelectedPublisher == null)
+        {
+            return;
+        }
+
+        var publisherId = SelectedPublisher.PublisherId;
+        lock (_cacheLock)
+        {
+            _browseCache.Remove(publisherId);
+        }
+
+        if (IsSubscribedPublisher)
+        {
+            _lastCatalogPublisherId = publisherId;
+            _catalogsCts?.Cancel();
+            _catalogsCts?.Dispose();
+            _catalogsCts = CancellationTokenSource.CreateLinkedTokenSource(_vmCts.Token);
+
+            await LoadAvailableCatalogsAsync(publisherId, _catalogsCts.Token);
+        }
+
+        await RefreshContentAsync(reloadCatalogs: false);
+    }
+
     [RelayCommand]
     private async Task LoadMoreAsync()
     {
@@ -2177,9 +2251,13 @@ public sealed partial class DownloadsBrowserViewModel(
         }
     }
 
+    /// <summary>
+    /// Refreshes the content for the currently selected publisher.
+    /// </summary>
     /// <param name="append">Whether to append results to the current list instead of clearing.</param>
+    /// <param name="reloadCatalogs">Whether to reload subscribed catalogs.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    private async Task<bool> RefreshContentAsync(bool append = false)
+    private async Task<bool> RefreshContentAsync(bool append = false, bool reloadCatalogs = true)
     {
         if (SelectedPublisher == null)
         {
@@ -2196,7 +2274,7 @@ public sealed partial class DownloadsBrowserViewModel(
             if (!append)
             {
                 PrepareContentCollectionForRefresh(publisherId, isCustomQuery);
-                if (SelectedPublisher.PublisherType.Equals(CatalogConstants.SubscribedPublisherCategory, StringComparison.OrdinalIgnoreCase))
+                if (reloadCatalogs && SelectedPublisher.PublisherType.Equals(CatalogConstants.SubscribedPublisherCategory, StringComparison.OrdinalIgnoreCase))
                 {
                     _ = LoadAvailableCatalogsAsync(publisherId, _vmCts.Token);
                 }
