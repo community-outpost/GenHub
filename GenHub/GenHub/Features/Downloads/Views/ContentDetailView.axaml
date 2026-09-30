@@ -98,49 +98,92 @@
             <Setter Property="Stretch" Value="Uniform" />
             <Setter Property="HorizontalAlignment" Value="Left" />
         </Style>
+        <!-- Back to Browse Button -->
+        <Style Selector="Button.back-to-browse-btn">
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15" />
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.back-to-browse-btn.over-banner">
+            <Setter Property="Background" Value="#CC14141E" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="Margin" Value="12,12,0,0" />
+        </Style>
+        <Style Selector="Button.back-to-browse-btn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+        </Style>
+        <Style Selector="Button.back-to-browse-btn.over-banner:pointerover">
+            <Setter Property="Background" Value="#E61E1E2C" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+        </Style>
+        <Style Selector="Button.back-to-browse-btn:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.97)" />
+        </Style>
     </UserControl.Styles>
 
     <Panel>
-    <Grid RowDefinitions="Auto,*" Margin="24">
-        <!-- Header / Navigation -->
-        <Button Grid.Row="0"
-                Command="{Binding CloseCommand}"
-                Content="{localization:Localize Downloads.ContentDetail.BackToBrowse}"
-                Background="Transparent"
-                Foreground="{DynamicResource AccentBrush}"
-                BorderThickness="0"
-                Margin="0,0,0,16"
-                FontSize="14"
-                FontWeight="SemiBold"
-                Cursor="Hand"
-                HorizontalAlignment="Left"
-                Padding="0,8">
-            <Button.Styles>
-                <Style Selector="Button:pointerover">
-                    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-                </Style>
-            </Button.Styles>
-        </Button>
-
-        <Grid Grid.Row="1" ColumnDefinitions="*, 320">
+        <Grid ColumnDefinitions="*, 320" Margin="24">
             <!-- Main Content (Left) -->
             <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*" Margin="0,0,24,0">
-                <!-- Backdrop cover (publisher artwork; hidden when the content has none) -->
-                <Border Grid.Row="0" CornerRadius="12" Height="180" ClipToBounds="True" Margin="0,0,0,16"
-                        Background="{DynamicResource CardBackground}"
-                        IsVisible="{Binding BackdropBitmap, Converter={x:Static ObjectConverters.IsNotNull}}">
-                    <Panel>
-                        <Image Source="{Binding BackdropBitmap}" Stretch="UniformToFill" />
-                        <Border VerticalAlignment="Bottom" Height="64" IsHitTestVisible="False">
-                            <Border.Background>
-                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-                                    <GradientStop Offset="0" Color="Transparent" />
-                                    <GradientStop Offset="1" Color="{DynamicResource SurfaceBackgroundDark}" />
-                                </LinearGradientBrush>
-                            </Border.Background>
-                        </Border>
-                    </Panel>
-                </Border>
+                <!-- Header / Navigation & Banner Area -->
+                <Panel Grid.Row="0" Margin="0,0,0,16">
+                    <!-- Backdrop cover (publisher artwork; hidden when the content has none) -->
+                    <Border CornerRadius="12" Height="180" ClipToBounds="True"
+                            Background="{DynamicResource CardBackground}"
+                            IsVisible="{Binding BackdropBitmap, Converter={x:Static ObjectConverters.IsNotNull}}">
+                        <Panel>
+                            <Image Source="{Binding BackdropBitmap}" Stretch="UniformToFill" />
+                            <Border VerticalAlignment="Top" Height="56" IsHitTestVisible="False">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                                        <GradientStop Offset="0" Color="#66000000" />
+                                        <GradientStop Offset="1" Color="Transparent" />
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                            </Border>
+                            <Border VerticalAlignment="Bottom" Height="64" IsHitTestVisible="False">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                                        <GradientStop Offset="0" Color="Transparent" />
+                                        <GradientStop Offset="1" Color="{DynamicResource SurfaceBackgroundDark}" />
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                            </Border>
+                        </Panel>
+                    </Border>
+
+                    <!-- Back to Browse Button -->
+                    <Button x:Name="BackToBrowseButton"
+                            Command="{Binding CloseCommand}"
+                            Classes="back-to-browse-btn"
+                            Classes.over-banner="{Binding BackdropBitmap, Converter={x:Static ObjectConverters.IsNotNull}}"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Top"
+                            Cursor="Hand"
+                            ToolTip.Tip="{localization:Localize Downloads.ContentDetail.BackToBrowse}">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <PathIcon Data="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"
+                                      Width="11" Height="11"
+                                      Foreground="{DynamicResource AccentBrush}"
+                                      VerticalAlignment="Center" />
+                            <TextBlock Text="{localization:Localize Downloads.ContentDetail.BackToBrowse}"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimary}"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                </Panel>
 
                 <!-- Header Info -->
                 <Grid Grid.Row="1" ColumnDefinitions="Auto,*" Margin="0,0,0,24">
@@ -1847,7 +1890,6 @@
                 </StackPanel>
             </ScrollViewer>
         </Grid>
-    </Grid>
 
     <!-- Full-Screen Media Modal Overlay -->
     <Grid IsVisible="{Binding IsFullScreenMediaOpen}"
