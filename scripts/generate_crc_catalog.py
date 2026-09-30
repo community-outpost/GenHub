@@ -801,7 +801,7 @@ def build_generalsonline_entry(cand: tuple[str, str, str, str], inspect_binaries
     if ini_crc == "0x81FB5632":
         entry["dataPatchName"] = COMMUNITY_PATCH_CORE_INI_NAME
         entry["dataPatchCdnUrl"] = COMMUNITY_PATCH_CORE_INI_URL
-        entry["dataPatchManifestId"] = manifest_id.replace(".gameclient.zerohour", ".patch.gamedata")
+        entry["dataPatchManifestId"] = manifest_id.replace(".gameclient.zerohour", ".patch.gamedata").replace(".gameclient.eac-zerohour", ".patch.gamedata")
     return entry
 
 

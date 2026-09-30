@@ -262,9 +262,30 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
     private static void AddOrUpdateIniEntry(ImmutableDictionary<string, CrcMappingEntry>.Builder iniBuilder, CrcMappingEntry entry)
     {
         var normalizedIni = NormalizeHex(entry.IniCrc);
-        if (!string.IsNullOrEmpty(normalizedIni) &&
-            (!iniBuilder.TryGetValue(normalizedIni, out _) ||
-             !string.IsNullOrEmpty(entry.DataPatchManifestId)))
+        if (string.IsNullOrEmpty(normalizedIni))
+        {
+            return;
+        }
+
+        if (!iniBuilder.TryGetValue(normalizedIni, out var existing))
+        {
+            iniBuilder[normalizedIni] = entry;
+            return;
+        }
+
+        if (string.IsNullOrEmpty(existing.DataPatchManifestId) && !string.IsNullOrEmpty(entry.DataPatchManifestId))
+        {
+            iniBuilder[normalizedIni] = entry;
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(existing.DataPatchManifestId) && string.IsNullOrEmpty(entry.DataPatchManifestId))
+        {
+            return;
+        }
+
+        int dateCmp = string.Compare(entry.BuildDate, existing.BuildDate, StringComparison.OrdinalIgnoreCase);
+        if (dateCmp > 0 || (dateCmp == 0 && CompareVersions(entry.Version, existing.Version) > 0))
         {
             iniBuilder[normalizedIni] = entry;
         }
