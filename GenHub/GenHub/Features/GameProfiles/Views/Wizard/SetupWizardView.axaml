@@ -149,7 +149,7 @@
                                         <!-- Status / Action Badge -->
                                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0" Spacing="8">
                                             <Border Background="#203040" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding StatusLabel}" FontSize="11" FontWeight="SemiBold" Foreground="#3297FD"/>
+                                                <TextBlock Text="{Binding StatusLabel}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
                                             </Border>
 
                                             <!-- Version Badge -->

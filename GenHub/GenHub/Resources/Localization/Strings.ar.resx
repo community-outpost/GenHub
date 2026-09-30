@@ -4531,6 +4531,9 @@
   <data name="Profiles.Wizard.Action.DownloadAndInstall" xml:space="preserve">
     <value>تنزيل وتثبيت</value>
   </data>
+  <data name="Profiles.Wizard.Action.Default" xml:space="preserve">
+    <value>تحديد</value>
+  </data>
   <data name="Profiles.Wizard.Status.Installed" xml:space="preserve">
     <value>مثبت</value>
   </data>

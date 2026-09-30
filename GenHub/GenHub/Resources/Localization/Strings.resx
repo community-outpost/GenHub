@@ -4520,7 +4520,7 @@ This will modify game files and configuration settings at:
     <value>Update {0} to version {1}.</value>
   </data>
   <data name="Profiles.Wizard.Description.NonRetailIncompatible" xml:space="preserve">
-    <value>Not compatible with retail 1.04 zero hour.</value>
+    <value>Not compatible with retail Zero Hour 1.04.</value>
   </data>
   <data name="Profiles.Wizard.Action.UpdateReinstall" xml:space="preserve">
     <value>Update / Reinstall</value>
@@ -4530,6 +4530,9 @@ This will modify game files and configuration settings at:
   </data>
   <data name="Profiles.Wizard.Action.DownloadAndInstall" xml:space="preserve">
     <value>Download &amp; Install</value>
+  </data>
+  <data name="Profiles.Wizard.Action.Default" xml:space="preserve">
+    <value>Select</value>
   </data>
   <data name="Profiles.Wizard.Status.Installed" xml:space="preserve">
     <value>Installed</value>

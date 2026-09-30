@@ -4531,6 +4531,9 @@
   <data name="Profiles.Wizard.Action.DownloadAndInstall" xml:space="preserve">
     <value>Скачать и установить</value>
   </data>
+  <data name="Profiles.Wizard.Action.Default" xml:space="preserve">
+    <value>Выбрать</value>
+  </data>
   <data name="Profiles.Wizard.Status.Installed" xml:space="preserve">
     <value>Установлено</value>
   </data>

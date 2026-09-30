@@ -596,6 +596,9 @@ public static class GameClientConstants
         /// <summary>Download and install action label.</summary>
         public const string DownloadAndInstallAction = "Profiles.Wizard.Action.DownloadAndInstall";
 
+        /// <summary>Action label for an item whose action type has no specific label.</summary>
+        public const string DefaultAction = "Profiles.Wizard.Action.Default";
+
         /// <summary>Installed status label.</summary>
         public const string InstalledStatus = "Profiles.Wizard.Status.Installed";
 
@@ -607,6 +610,66 @@ public static class GameClientConstants
 
         /// <summary>Missing status label.</summary>
         public const string MissingStatus = "Profiles.Wizard.Status.Missing";
+    }
+
+    /// <summary>
+    /// English fallback text for the Setup Wizard keys in <see cref="WizardLocalizationKeys"/>, used when no resource resolves.
+    /// </summary>
+    public static class WizardFallbackText
+    {
+        /// <summary>Wizard heading.</summary>
+        public const string Title = "Setup Detected Content";
+
+        /// <summary>Skip button label.</summary>
+        public const string Skip = "Skip";
+
+        /// <summary>Continue button label with no selected items.</summary>
+        public const string Continue = "Continue";
+
+        /// <summary>Continue button label with the selected item count as {0}.</summary>
+        public const string ContinueWithCount = "Continue ({0})";
+
+        /// <summary>Community Patch (Retail) component title.</summary>
+        public const string CommunityPatchRetailTitle = "Community Patch (Retail)";
+
+        /// <summary>Community Patch (Non-Retail) component title.</summary>
+        public const string CommunityPatchNonRetailTitle = "Community Patch (Non-Retail)";
+
+        /// <summary>Generals Online component title.</summary>
+        public const string GeneralsOnlineTitle = "Generals Online";
+
+        /// <summary>TheSuperHackers component title.</summary>
+        public const string SuperHackersTitle = "TheSuperHackers";
+
+        /// <summary>Install description with the title as {0}.</summary>
+        public const string InstallDescription = "Download and install {0}.";
+
+        /// <summary>Install description with the title as {0} and the version as {1}.</summary>
+        public const string InstallVersionDescription = "Download and install {0} {1}.";
+
+        /// <summary>Managed install description with the title as {0}.</summary>
+        public const string InstallManagedDescription = "Download and install managed {0} files.";
+
+        /// <summary>Managed install description with the title as {0} and the version as {1}.</summary>
+        public const string InstallManagedVersionDescription = "Download and install managed {0} {1} files.";
+
+        /// <summary>Create profile description with the title as {0}.</summary>
+        public const string CreateProfileDescription = "Create a game profile for {0}.";
+
+        /// <summary>Create profile description with the title as {0} and the version as {1}.</summary>
+        public const string CreateProfileVersionDescription = "Create a game profile for {0} {1}.";
+
+        /// <summary>Update description with the title as {0}.</summary>
+        public const string UpdateDescription = "Update {0} to the latest version.";
+
+        /// <summary>Update description with the title as {0} and the version as {1}.</summary>
+        public const string UpdateVersionDescription = "Update {0} to version {1}.";
+
+        /// <summary>Notice appended to the Non-Retail Community Patch description.</summary>
+        public const string NonRetailIncompatibleNotice = "Not compatible with retail Zero Hour 1.04.";
+
+        /// <summary>Action label for an item whose action type has no specific label.</summary>
+        public const string DefaultAction = "Select";
     }
 
     /// <summary>

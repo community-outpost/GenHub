@@ -15,13 +15,6 @@ namespace GenHub.Tests.Core.Features.GameProfiles;
 internal sealed class MarkerLocalizationService : ILocalizationService
 {
     /// <inheritdoc/>
-    public event PropertyChangedEventHandler? PropertyChanged
-    {
-        add { }
-        remove { }
-    }
-
-    /// <inheritdoc/>
     public IReadOnlyList<CultureInfo> AvailableCultures { get; } = [CultureInfo.InvariantCulture];
 
     /// <inheritdoc/>
@@ -29,6 +22,13 @@ internal sealed class MarkerLocalizationService : ILocalizationService
 
     /// <inheritdoc/>
     public string this[string key] => Marker(key);
+
+    /// <inheritdoc/>
+    public event PropertyChangedEventHandler? PropertyChanged
+    {
+        add { }
+        remove { }
+    }
 
     /// <summary>
     /// Builds the marker a key and its arguments resolve to.

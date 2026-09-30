@@ -25,13 +25,13 @@ public sealed partial class SetupWizardViewModel(IEnumerable<SetupWizardItemView
     /// Gets or sets the title of the wizard window.
     /// </summary>
     [ObservableProperty]
-    private string _title = localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.Title, "Setup Detected Content");
+    private string _title = localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.Title, GameClientConstants.WizardFallbackText.Title);
 
     /// <summary>
     /// Gets or sets the label for the cancel/skip button.
     /// </summary>
     [ObservableProperty]
-    private string _cancelLabel = localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.Skip, "Skip");
+    private string _cancelLabel = localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.Skip, GameClientConstants.WizardFallbackText.Skip);
 
     /// <summary>
     /// Gets or sets the label for the confirm/continue button.
@@ -48,8 +48,8 @@ public sealed partial class SetupWizardViewModel(IEnumerable<SetupWizardItemView
 
     private static string FormatConfirmLabel(ILocalizationService? localizationService, int selectedCount) =>
         selectedCount > 0
-            ? localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.ContinueWithCount, "Continue ({0})", selectedCount)
-            : localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.Continue, "Continue");
+            ? localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.ContinueWithCount, GameClientConstants.WizardFallbackText.ContinueWithCount, selectedCount)
+            : localizationService.GetLocalizedString(GameClientConstants.WizardLocalizationKeys.Continue, GameClientConstants.WizardFallbackText.Continue);
 
     [RelayCommand]
     private void ToggleSelection(SetupWizardItemViewModel? item)

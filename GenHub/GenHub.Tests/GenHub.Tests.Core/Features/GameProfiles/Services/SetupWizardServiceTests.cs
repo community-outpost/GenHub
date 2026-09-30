@@ -390,7 +390,7 @@ public class SetupWizardServiceTests
         // Non-retail item defaults to unchecked and contains compatibility warning
         Assert.False(nonRetItem.IsSelected);
         Assert.Equal(nonRetVersion, nonRetItem.Version);
-        Assert.Contains("Not compatible with retail 1.04 zero hour", nonRetItem.Description);
+        Assert.EndsWith(" " + GameClientConstants.WizardFallbackText.NonRetailIncompatibleNotice, nonRetItem.Description);
         Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.CommunityPatchNonRetAction);
         Assert.True(result.Confirmed);
     }
@@ -1007,6 +1007,52 @@ public class SetupWizardServiceTests
             retailItem.Description);
         Assert.Equal(MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.CreateProfileAction), retailItem.ActionLabel);
         Assert.Equal(MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.DownloadedStatus), retailItem.StatusLabel);
+    }
+
+    /// <summary>
+    /// Verifies that every wizard action type gets a non-empty localized action label, and that an
+    /// action type without a specific label falls back to the default action key.
+    /// </summary>
+    [Fact]
+    public void ApplyDisplayLabels_ForEveryActionType_SetsNonEmptyLocalizedActionLabel()
+    {
+        var service = CreateService(localizationService: new MarkerLocalizationService());
+        var actionTypes = typeof(GameClientConstants.WizardActionTypes)
+            .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+            .Where(f => f.IsLiteral)
+            .Select(f => (string)f.GetRawConstantValue()!)
+            .ToList();
+
+        Assert.NotEmpty(actionTypes);
+        foreach (var actionType in actionTypes)
+        {
+            var item = new SetupWizardItemViewModel { ActionType = actionType };
+
+            service.ApplyDisplayLabels(item);
+
+            var expectedKey = actionType switch
+            {
+                GameClientConstants.WizardActionTypes.Update => GameClientConstants.WizardLocalizationKeys.UpdateReinstallAction,
+                GameClientConstants.WizardActionTypes.CreateProfile => GameClientConstants.WizardLocalizationKeys.CreateProfileAction,
+                GameClientConstants.WizardActionTypes.Install => GameClientConstants.WizardLocalizationKeys.DownloadAndInstallAction,
+                _ => GameClientConstants.WizardLocalizationKeys.DefaultAction,
+            };
+            Assert.Equal(MarkerLocalizationService.Marker(expectedKey), item.ActionLabel);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that without a localization service an unmapped action type still gets the English default label.
+    /// </summary>
+    [Fact]
+    public void ApplyDisplayLabels_WithoutLocalizationServiceForUnmappedActionType_UsesEnglishDefault()
+    {
+        var service = CreateService();
+        var item = new SetupWizardItemViewModel { ActionType = GameClientConstants.WizardActionTypes.None };
+
+        service.ApplyDisplayLabels(item);
+
+        Assert.Equal(GameClientConstants.WizardFallbackText.DefaultAction, item.ActionLabel);
     }
 
     private static byte[] HostNativeExecutableHeader() => OperatingSystem.IsLinux()
