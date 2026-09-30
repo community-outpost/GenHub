@@ -650,10 +650,7 @@ def generate_date_codes(
     if start_date is None:
         start_date = datetime.date(start_year, 1, 1)
     if end_date is None:
-        try:
-            end_date = min(datetime.date(end_year, 12, 31), datetime.date.today() + datetime.timedelta(days=7))
-        except (ValueError, OverflowError):
-            end_date = datetime.date.today() + datetime.timedelta(days=7)
+        end_date = datetime.date.today() + datetime.timedelta(days=7)
 
     for code in GENERALSONLINE_KNOWN_DATES:
         try:
@@ -875,6 +872,14 @@ def crawl_generalsonline_releases(
     end_date: datetime.date | None = None,
 ) -> list[dict]:
     """Probes and maps portable releases from the GeneralsOnline CDN."""
+    sentinel_url = f"{GENERALSONLINE_CDN}/GeneralsOnline_portable_092826.zip"
+    if not check_url_exists(sentinel_url, timeout=10):
+        print(
+            f"Error: GeneralsOnline CDN sentinel check failed ({sentinel_url}); CDN is unreachable or offline.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     candidates = generate_generalsonline_candidates(
         start_year=start_year,
         end_year=end_year,
@@ -1348,11 +1353,11 @@ def run_self_test() -> bool:
     # Test 1: SAGE Legacy CRC
     test_bytes = b"Hello, World!"
     crc = compute_buffer_crc(test_bytes)
-    assert crc.startswith("0x") and len(crc) == 10, f"Invalid CRC format: {crc}"
+    assert crc == "0x000AD4F9", f"Expected 0x000AD4F9, got {crc}"
 
     # Test 2: SAGE Transfer CRC
     xfer_crc = compute_sage_xfer_crc(test_bytes)
-    assert xfer_crc.startswith("0x") and len(xfer_crc) == 10, f"Invalid transfer CRC: {xfer_crc}"
+    assert xfer_crc == "0xA7BDC0DE", f"Expected 0xA7BDC0DE, got {xfer_crc}"
 
     # Test 3: Date range generation
     d_start = datetime.date(2026, 9, 25)

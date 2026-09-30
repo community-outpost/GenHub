@@ -125,7 +125,7 @@ jobs:
           git commit -m "chore(content): update GeneralsOnline CRC catalog"
           git push -u origin "$BRANCH" --force
 
-          EXISTING_PR=$(gh pr list --head "$BRANCH" --base development --state open --json number --jq '.[0].number')
+          EXISTING_PR=$(gh pr list --head "$BRANCH" --base development --state open --json number --jq '.[0].number // ""')
           if [ -n "$EXISTING_PR" ]; then
             echo "Updating existing PR #$EXISTING_PR"
             gh pr edit "$EXISTING_PR" --body "Automated update of GeneralsOnline game client CRC mappings from CDN scan."
