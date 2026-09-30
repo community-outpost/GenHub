@@ -696,7 +696,7 @@ public sealed partial class IniEditorViewModel(
     /// <summary>
     /// Gets the selected node when it wraps an editable block, or null for group headers.
     /// </summary>
-    private IniTreeNodeViewModel? EditableSelectedNode => SelectedNode?.IsGroupHeader == true ? null : SelectedNode;
+    private IniTreeNodeViewModel? EditableSelectedNode => SelectedNode is { IsGroupHeader: false } ? SelectedNode : null;
 
     /// <summary>
     /// Attaches the specified texture name to the currently selected block or active field row.
@@ -2325,44 +2325,39 @@ public sealed partial class IniEditorViewModel(
         }
     }
 
-    private void RebuildVisibleRootNodesCore(IniBlock? selectedBlock)
+    private void PopulateFlatVisibleNodes(int total)
     {
-        var expandedGroups = new HashSet<string>(
-            VisibleRootNodes.Where(node => node.IsGroupHeader && node.IsExpanded).Select(node => node.Block.BlockType),
-            StringComparer.OrdinalIgnoreCase);
-        var selectedGroupType = SelectedNode?.IsGroupHeader == true ? SelectedNode.Block.BlockType : null;
-        VisibleRootNodes.Clear();
-        var total = _document?.Blocks.Count ?? 0;
-        if (!IsGroupByTypeEnabled || RootNodes.Count <= IniConstants.Editor.BlockGroupThreshold)
+        foreach (var node in RootNodes)
         {
-            foreach (var node in RootNodes)
-            {
-                VisibleRootNodes.Add(node);
-            }
-
-            BlockCountText = Localization.GetString("Tools.IniEditor.Tree.CountFlat", VisibleRootNodes.Count, total);
-        }
-        else
-        {
-            var groups = RootNodes
-                .GroupBy(node => node.Block.BlockType, StringComparer.OrdinalIgnoreCase)
-                .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            foreach (var group in groups)
-            {
-                var header = IniTreeNodeViewModel.CreateGroupHeader(group.Key, group.Count());
-                header.IsExpanded = expandedGroups.Contains(group.Key);
-                foreach (var node in group)
-                {
-                    header.Children.Add(node);
-                }
-
-                VisibleRootNodes.Add(header);
-            }
-
-            BlockCountText = Localization.GetString("Tools.IniEditor.Tree.CountGrouped", RootNodes.Count, total, groups.Count);
+            VisibleRootNodes.Add(node);
         }
 
+        BlockCountText = Localization.GetString("Tools.IniEditor.Tree.CountFlat", VisibleRootNodes.Count, total);
+    }
+
+    private void PopulateGroupedVisibleNodes(HashSet<string> expandedGroups, int total)
+    {
+        var groups = RootNodes
+            .GroupBy(node => node.Block.BlockType, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        foreach (var group in groups)
+        {
+            var header = IniTreeNodeViewModel.CreateGroupHeader(group.Key, group.Count());
+            header.IsExpanded = expandedGroups.Contains(group.Key);
+            foreach (var node in group)
+            {
+                header.Children.Add(node);
+            }
+
+            VisibleRootNodes.Add(header);
+        }
+
+        BlockCountText = Localization.GetString("Tools.IniEditor.Tree.CountGrouped", RootNodes.Count, total, groups.Count);
+    }
+
+    private void RestoreTreeSelection(string? selectedGroupType, IniBlock? selectedBlock)
+    {
         if (selectedGroupType != null)
         {
             SelectedNode = VisibleRootNodes.FirstOrDefault(node =>
@@ -2390,6 +2385,26 @@ public sealed partial class IniEditorViewModel(
         }
     }
 
+    private void RebuildVisibleRootNodesCore(IniBlock? selectedBlock)
+    {
+        var expandedGroups = new HashSet<string>(
+            VisibleRootNodes.Where(node => node.IsGroupHeader && node.IsExpanded).Select(node => node.Block.BlockType),
+            StringComparer.OrdinalIgnoreCase);
+        var selectedGroupType = SelectedNode is { IsGroupHeader: true } ? SelectedNode.Block.BlockType : null;
+        VisibleRootNodes.Clear();
+        var total = _document?.Blocks.Count ?? 0;
+        if (!IsGroupByTypeEnabled || RootNodes.Count <= IniConstants.Editor.BlockGroupThreshold)
+        {
+            PopulateFlatVisibleNodes(total);
+        }
+        else
+        {
+            PopulateGroupedVisibleNodes(expandedGroups, total);
+        }
+
+        RestoreTreeSelection(selectedGroupType, selectedBlock);
+    }
+
     private void EnsureEditableSelection()
     {
         if (SelectedNode != null && !SelectedNode.IsGroupHeader)
@@ -2400,7 +2415,7 @@ public sealed partial class IniEditorViewModel(
         var candidate = RootNodes.FirstOrDefault();
         if (candidate == null)
         {
-            if (SelectedNode?.IsGroupHeader == true)
+            if (SelectedNode != null && SelectedNode.IsGroupHeader)
             {
                 SelectedNode = null;
             }
@@ -3536,6 +3551,59 @@ public sealed partial class IniEditorViewModel(
         return names.ToList();
     }
 
+    private Dictionary<string, Bitmap?> DecodeThumbnails(IReadOnlyDictionary<string, byte[]> data, IReadOnlyList<string> names)
+    {
+        var decoded = new Dictionary<string, Bitmap?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (name, png) in data)
+        {
+            try
+            {
+                using var stream = new MemoryStream(png);
+                decoded[name] = new Bitmap(stream);
+            }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or NotSupportedException)
+            {
+                logger.LogWarning(ex, "Failed to decode texture thumbnail {Name}", name);
+                decoded[name] = null;
+            }
+        }
+
+        foreach (var name in names)
+        {
+            decoded.TryAdd(name, null);
+        }
+
+        return decoded;
+    }
+
+    private void UpdateDecodedThumbnailsOnUI(Dictionary<string, Bitmap?> decoded, int generation, string installationPath)
+    {
+        var currentInstallation = SelectedInstallation ?? AvailableInstallations.FirstOrDefault();
+        var currentInstallationPath = currentInstallation?.Path;
+        if (string.IsNullOrEmpty(currentInstallationPath))
+        {
+            currentInstallationPath = string.IsNullOrEmpty(FilePath) ? FileExplorer.Directory : Path.GetDirectoryName(FilePath);
+        }
+
+        if (generation != _thumbnailGeneration || !string.Equals(currentInstallationPath, installationPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        foreach (var (name, bitmap) in decoded)
+        {
+            _textureThumbnails[name] = bitmap;
+            var match = _allTextureItems.FirstOrDefault(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
+            if (match != null)
+            {
+                match.Thumbnail = bitmap;
+            }
+        }
+
+        ApplyCachedThumbnails();
+        RebuildCanvasBlockCards();
+    }
+
     private async Task LoadThumbnailsAsync(IReadOnlyList<string> names, int generation, CancellationToken cancellationToken)
     {
         var installation = SelectedInstallation ?? AvailableInstallations.FirstOrDefault();
@@ -3570,61 +3638,16 @@ public sealed partial class IniEditorViewModel(
             return;
         }
 
-        var decoded = new Dictionary<string, Bitmap?>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (name, png) in result.Data)
-        {
-            try
-            {
-                using var stream = new MemoryStream(png);
-                decoded[name] = new Bitmap(stream);
-            }
-            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or NotSupportedException)
-            {
-                logger.LogWarning(ex, "Failed to decode texture thumbnail {Name}", name);
-                decoded[name] = null;
-            }
-        }
-
-        foreach (var name in names)
-        {
-            decoded.TryAdd(name, null);
-        }
-
+        var decoded = DecodeThumbnails(result.Data, names);
         if (cancellationToken.IsCancellationRequested)
         {
             return;
         }
 
-        await InvokeOnUIThreadAsync(() =>
-        {
-            var currentInstallation = SelectedInstallation ?? AvailableInstallations.FirstOrDefault();
-            var currentInstallationPath = currentInstallation?.Path;
-            if (string.IsNullOrEmpty(currentInstallationPath))
-            {
-                currentInstallationPath = string.IsNullOrEmpty(FilePath) ? FileExplorer.Directory : Path.GetDirectoryName(FilePath);
-            }
-
-            if (generation != _thumbnailGeneration || !string.Equals(currentInstallationPath, installationPath, StringComparison.OrdinalIgnoreCase))
-            {
-                return;
-            }
-
-            foreach (var (name, bitmap) in decoded)
-            {
-                _textureThumbnails[name] = bitmap;
-                var match = _allTextureItems.FirstOrDefault(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
-                if (match != null)
-                {
-                    match.Thumbnail = bitmap;
-                }
-            }
-
-            ApplyCachedThumbnails();
-            RebuildCanvasBlockCards();
-        }).ConfigureAwait(false);
+        await InvokeOnUIThreadAsync(() => UpdateDecodedThumbnailsOnUI(decoded, generation, installationPath)).ConfigureAwait(false);
     }
 
-    private void ApplyCachedThumbnails()
+    private void UpdateSelectedBlockPortraitFromCache()
     {
         if (EditableSelectedNode?.Block != null)
         {
@@ -3639,7 +3662,10 @@ public sealed partial class IniEditorViewModel(
                 SelectedBlockPortrait = null;
             }
         }
+    }
 
+    private void UpdateRowThumbnailsFromCache()
+    {
         foreach (var row in FieldRows)
         {
             if (row.IsTexture &&
@@ -3666,6 +3692,12 @@ public sealed partial class IniEditorViewModel(
                 row.TextureThumbnail = null;
             }
         }
+    }
+
+    private void ApplyCachedThumbnails()
+    {
+        UpdateSelectedBlockPortraitFromCache();
+        UpdateRowThumbnailsFromCache();
 
         var assetNode = EditableSelectedNode;
         if (assetNode?.Block != null)
@@ -3895,7 +3927,7 @@ public sealed partial class IniEditorViewModel(
             return;
         }
 
-        if (value?.IsGroupHeader == true)
+        if (value != null && value.IsGroupHeader)
         {
             value.IsExpanded = true;
             RestoreEditableSelection();
@@ -4358,6 +4390,7 @@ public sealed partial class IniEditorViewModel(
         PostToUIThread(() => ApplyPreviewResolved(model, generation, data, scene));
     }
 
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Kept as an instance helper to satisfy member ordering.")]
     private Dictionary<string, int> BoneMap(W3dModel model)
     {
         var map = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -4367,9 +4400,9 @@ public sealed partial class IniEditorViewModel(
             return map;
         }
 
-        foreach (var subObject in level.SubObjects)
+        foreach (var subObject in level.SubObjects.Where(s => !string.IsNullOrWhiteSpace(s.MeshName)))
         {
-            if (!string.IsNullOrWhiteSpace(subObject.MeshName) && !map.ContainsKey(subObject.MeshName))
+            if (!map.ContainsKey(subObject.MeshName))
             {
                 map[subObject.MeshName] = (int)subObject.BoneIndex;
             }
@@ -4585,6 +4618,7 @@ public sealed partial class IniEditorViewModel(
         }
     }
 
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Kept as an instance helper to satisfy member ordering.")]
     private bool ModuleReferencesMesh(IniBlock block, string fullName, string shortName)
     {
         foreach (var field in block.Fields)

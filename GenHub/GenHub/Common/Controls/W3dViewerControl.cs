@@ -8,7 +8,9 @@ using GenHub.Core.Models.Tools.ModelViewer;
 using GenHub.Core.Services.Tools.ModelViewer;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
+using System.Runtime.InteropServices;
 
 namespace GenHub.Common.Controls;
 
@@ -544,26 +546,37 @@ public sealed class W3dViewerControl : OpenGlControlBase
         return program;
     }
 
-    private static unsafe void UploadFloats(GlInterface gl, int target, float[] data)
+    private static void UploadFloats(GlInterface gl, int target, float[] data)
     {
-        fixed (float* pinned = data)
+        var handle = GCHandle.Alloc(data, GCHandleType.Pinned);
+        try
         {
-            gl.BufferData(target, (IntPtr)(data.Length * sizeof(float)), (IntPtr)pinned, GlConsts.GL_STATIC_DRAW);
+            gl.BufferData(target, (IntPtr)(data.Length * sizeof(float)), handle.AddrOfPinnedObject(), GlConsts.GL_STATIC_DRAW);
+        }
+        finally
+        {
+            handle.Free();
         }
     }
 
-    private static unsafe void UploadUInts(GlInterface gl, int target, uint[] data)
+    private static void UploadUInts(GlInterface gl, int target, uint[] data)
     {
-        fixed (uint* pinned = data)
+        var handle = GCHandle.Alloc(data, GCHandleType.Pinned);
+        try
         {
-            gl.BufferData(target, (IntPtr)(data.Length * sizeof(uint)), (IntPtr)pinned, GlConsts.GL_STATIC_DRAW);
+            gl.BufferData(target, (IntPtr)(data.Length * sizeof(uint)), handle.AddrOfPinnedObject(), GlConsts.GL_STATIC_DRAW);
+        }
+        finally
+        {
+            handle.Free();
         }
     }
 
-    private static unsafe void UploadTexture(GlInterface gl, int texture, W3dRenderTexture image)
+    private static void UploadTexture(GlInterface gl, int texture, W3dRenderTexture image)
     {
         gl.BindTexture(GlConsts.GL_TEXTURE_2D, texture);
-        fixed (byte* pinned = image.PixelData)
+        var handle = GCHandle.Alloc(image.PixelData, GCHandleType.Pinned);
+        try
         {
             gl.TexImage2D(
                 GlConsts.GL_TEXTURE_2D,
@@ -574,7 +587,11 @@ public sealed class W3dViewerControl : OpenGlControlBase
                 0,
                 GlConsts.GL_RGBA,
                 GlConsts.GL_UNSIGNED_BYTE,
-                (IntPtr)pinned);
+                handle.AddrOfPinnedObject());
+        }
+        finally
+        {
+            handle.Free();
         }
 
         gl.TexParameteri(GlConsts.GL_TEXTURE_2D, GlConsts.GL_TEXTURE_MIN_FILTER, GlConsts.GL_LINEAR);
@@ -583,6 +600,7 @@ public sealed class W3dViewerControl : OpenGlControlBase
         gl.TexParameteri(GlConsts.GL_TEXTURE_2D, GlTextureWrapT, GlClampToEdge);
     }
 
+    [SuppressMessage("Security", "S6640:Avoid using unsafe code blocks", Justification = "UniformMatrix4fv requires native float pointer for OpenGL interop.")]
     private static unsafe void SetMatrix(GlInterface gl, int location, Matrix4x4 matrix)
     {
         if (location < 0)
@@ -678,6 +696,25 @@ public sealed class W3dViewerControl : OpenGlControlBase
         }
 
         return pose[mesh.BoneIndex];
+    }
+
+    private static void AddGridLines(List<float> data, W3dRenderScene scene)
+    {
+        float extent = Math.Max(scene.Bounds.SphereRadius * 2, 4);
+        float step = GridStep(extent);
+        float z = scene.Bounds.Min.Z - (extent * 0.02f);
+        float half = (float)Math.Floor(extent / step) * step;
+        const float Line = 0.22f;
+
+        for (float line = -half; line <= half + (step / 2); line += step)
+        {
+            bool axis = Math.Abs(line) < step / 2;
+            float shade = axis ? Line + 0.12f : Line;
+            AddLineVertex(data, new Vector3(line, -half, z), shade, shade, shade + 0.03f, 1f);
+            AddLineVertex(data, new Vector3(line, half, z), shade, shade, shade + 0.03f, 1f);
+            AddLineVertex(data, new Vector3(-half, line, z), shade, shade, shade + 0.03f, 1f);
+            AddLineVertex(data, new Vector3(half, line, z), shade, shade, shade + 0.03f, 1f);
+        }
     }
 
     private void Fail(string message)
@@ -783,7 +820,7 @@ public sealed class W3dViewerControl : OpenGlControlBase
         bool wireframe = ShowWireframe;
         int selected = SelectedMeshIndex;
         int hovered = _hoveredMeshIndex;
-        DrawMeshes(gl, scene, pose, view, projection, wireframe, selected, hovered);
+        DrawMeshes(gl, scene, new MeshRenderContext(view, projection, pose, wireframe, selected, hovered));
 
         if (ShowSkeleton)
         {
@@ -853,34 +890,15 @@ public sealed class W3dViewerControl : OpenGlControlBase
         UploadFloats(gl, GlConsts.GL_ARRAY_BUFFER, [.. data]);
     }
 
-    private void AddGridLines(List<float> data, W3dRenderScene scene)
-    {
-        float extent = Math.Max(scene.Bounds.SphereRadius * 2, 4);
-        float step = GridStep(extent);
-        float z = scene.Bounds.Min.Z - (extent * 0.02f);
-        float half = (float)Math.Floor(extent / step) * step;
-        const float Line = 0.22f;
+    private readonly record struct MeshRenderContext(
+        Matrix4x4 View,
+        Matrix4x4 Projection,
+        IReadOnlyList<Matrix4x4>? Pose,
+        bool Wireframe,
+        int Selected,
+        int Hovered);
 
-        for (float line = -half; line <= half + (step / 2); line += step)
-        {
-            bool axis = Math.Abs(line) < step / 2;
-            float shade = axis ? Line + 0.12f : Line;
-            AddLineVertex(data, new Vector3(line, -half, z), shade, shade, shade + 0.03f, 1f);
-            AddLineVertex(data, new Vector3(line, half, z), shade, shade, shade + 0.03f, 1f);
-            AddLineVertex(data, new Vector3(-half, line, z), shade, shade, shade + 0.03f, 1f);
-            AddLineVertex(data, new Vector3(half, line, z), shade, shade, shade + 0.03f, 1f);
-        }
-    }
-
-    private void DrawMeshes(
-        GlInterface gl,
-        W3dRenderScene scene,
-        IReadOnlyList<Matrix4x4>? pose,
-        Matrix4x4 view,
-        Matrix4x4 projection,
-        bool wireframe,
-        int selected,
-        int hovered)
+    private void DrawMeshes(GlInterface gl, W3dRenderScene scene, MeshRenderContext context)
     {
         gl.UseProgram(_meshProgram);
         gl.EnableVertexAttribArray(PositionAttribute);
@@ -890,40 +908,48 @@ public sealed class W3dViewerControl : OpenGlControlBase
 
         for (int i = 0; i < scene.Meshes.Count && i < _meshBuffers.Count; i++)
         {
-            var mesh = scene.Meshes[i];
-            var buffers = _meshBuffers[i];
-            var model = MeshModel(mesh, pose);
-            var mvp = model * view * projection;
-            SetMatrix(gl, _meshMvpLocation, mvp);
-            SetMatrix(gl, _meshModelLocation, model);
-            gl.Uniform1f(_meshHasTextureLocation, mesh.TextureIndex >= 0 && mesh.TextureIndex < _textures.Count ? 1 : 0);
-            gl.Uniform1f(_meshAlphaTestLocation, mesh.AlphaTest ? 1 : 0);
-            gl.Uniform1f(_meshOpacityLocation, mesh.Opacity);
-            gl.Uniform1f(_meshSelectedLocation, i == selected ? 1 : 0);
-            gl.Uniform1f(_meshHoveredLocation, i == hovered ? 1 : 0);
+            RenderMeshElement(gl, scene.Meshes[i], _meshBuffers[i], i, context);
+        }
+    }
 
-            if (mesh.TextureIndex >= 0 && mesh.TextureIndex < _textures.Count)
-            {
-                gl.BindTexture(GlConsts.GL_TEXTURE_2D, _textures[mesh.TextureIndex]);
-            }
+    private void RenderMeshElement(
+        GlInterface gl,
+        W3dRenderMesh mesh,
+        W3dMeshBuffers buffers,
+        int meshIndex,
+        MeshRenderContext context)
+    {
+        var model = MeshModel(mesh, context.Pose);
+        var mvp = model * context.View * context.Projection;
+        SetMatrix(gl, _meshMvpLocation, mvp);
+        SetMatrix(gl, _meshModelLocation, model);
+        gl.Uniform1f(_meshHasTextureLocation, mesh.TextureIndex >= 0 && mesh.TextureIndex < _textures.Count ? 1 : 0);
+        gl.Uniform1f(_meshAlphaTestLocation, mesh.AlphaTest ? 1 : 0);
+        gl.Uniform1f(_meshOpacityLocation, mesh.Opacity);
+        gl.Uniform1f(_meshSelectedLocation, meshIndex == context.Selected ? 1 : 0);
+        gl.Uniform1f(_meshHoveredLocation, meshIndex == context.Hovered ? 1 : 0);
 
-            int stride = VertexFloats * sizeof(float);
-            gl.BindBuffer(GlConsts.GL_ARRAY_BUFFER, buffers.VertexBuffer);
-            gl.VertexAttribPointer(PositionAttribute, 3, GlConsts.GL_FLOAT, 0, stride, IntPtr.Zero);
-            gl.VertexAttribPointer(NormalAttribute, 3, GlConsts.GL_FLOAT, 0, stride, (IntPtr)(3 * sizeof(float)));
-            gl.VertexAttribPointer(UvAttribute, 2, GlConsts.GL_FLOAT, 0, stride, (IntPtr)(6 * sizeof(float)));
-            gl.VertexAttribPointer(ColorAttribute, 4, GlConsts.GL_FLOAT, 0, stride, (IntPtr)(8 * sizeof(float)));
+        if (mesh.TextureIndex >= 0 && mesh.TextureIndex < _textures.Count)
+        {
+            gl.BindTexture(GlConsts.GL_TEXTURE_2D, _textures[mesh.TextureIndex]);
+        }
 
-            if (wireframe)
-            {
-                gl.BindBuffer(GlConsts.GL_ELEMENT_ARRAY_BUFFER, buffers.EdgeBuffer);
-                gl.DrawElements(GlLines, buffers.EdgeCount, GlUnsignedInt, IntPtr.Zero);
-            }
-            else
-            {
-                gl.BindBuffer(GlConsts.GL_ELEMENT_ARRAY_BUFFER, buffers.IndexBuffer);
-                gl.DrawElements(GlConsts.GL_TRIANGLES, buffers.IndexCount, GlUnsignedInt, IntPtr.Zero);
-            }
+        int stride = VertexFloats * sizeof(float);
+        gl.BindBuffer(GlConsts.GL_ARRAY_BUFFER, buffers.VertexBuffer);
+        gl.VertexAttribPointer(PositionAttribute, 3, GlConsts.GL_FLOAT, 0, stride, IntPtr.Zero);
+        gl.VertexAttribPointer(NormalAttribute, 3, GlConsts.GL_FLOAT, 0, stride, (IntPtr)(3 * sizeof(float)));
+        gl.VertexAttribPointer(UvAttribute, 2, GlConsts.GL_FLOAT, 0, stride, (IntPtr)(6 * sizeof(float)));
+        gl.VertexAttribPointer(ColorAttribute, 4, GlConsts.GL_FLOAT, 0, stride, (IntPtr)(8 * sizeof(float)));
+
+        if (context.Wireframe)
+        {
+            gl.BindBuffer(GlConsts.GL_ELEMENT_ARRAY_BUFFER, buffers.EdgeBuffer);
+            gl.DrawElements(GlLines, buffers.EdgeCount, GlUnsignedInt, IntPtr.Zero);
+        }
+        else
+        {
+            gl.BindBuffer(GlConsts.GL_ELEMENT_ARRAY_BUFFER, buffers.IndexBuffer);
+            gl.DrawElements(GlConsts.GL_TRIANGLES, buffers.IndexCount, GlUnsignedInt, IntPtr.Zero);
         }
     }
 

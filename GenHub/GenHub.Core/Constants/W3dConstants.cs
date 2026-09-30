@@ -342,7 +342,7 @@ public static class W3dConstants
     }
 
     /// <summary>Shader field values.</summary>
-    public static class Shaders
+    public static class ShaderValues
     {
         /// <summary>Texturing disabled.</summary>
         public const byte TexturingDisable = 0;

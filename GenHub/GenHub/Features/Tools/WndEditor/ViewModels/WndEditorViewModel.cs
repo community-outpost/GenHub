@@ -2501,7 +2501,8 @@ public sealed partial class WndEditorViewModel(
             return true;
         }
 
-        var firstWnd = FileExplorer.FindFirstFile();
+        var firstWnd = await FileExplorer.FindFirstFileAsync(cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
         if (!string.IsNullOrEmpty(firstWnd))
         {
             return await OpenFileAsync(firstWnd, cancellationToken).ConfigureAwait(false);

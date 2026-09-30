@@ -16,10 +16,10 @@ public sealed record W3dShader(byte DepthCompare, byte DepthMask, byte DestBlend
     /// <summary>
     /// Gets a value indicating whether the shader enables texturing.
     /// </summary>
-    public bool EnablesTexturing => Texturing != W3dConstants.Shaders.TexturingDisable;
+    public bool EnablesTexturing => Texturing != W3dConstants.ShaderValues.TexturingDisable;
 
     /// <summary>
     /// Gets a value indicating whether the shader blends with the frame buffer.
     /// </summary>
-    public bool EnablesBlending => SrcBlend != W3dConstants.Shaders.SrcBlendOne || DestBlend != W3dConstants.Shaders.DestBlendZero;
+    public bool EnablesBlending => SrcBlend != W3dConstants.ShaderValues.SrcBlendOne || DestBlend != W3dConstants.ShaderValues.DestBlendZero;
 }

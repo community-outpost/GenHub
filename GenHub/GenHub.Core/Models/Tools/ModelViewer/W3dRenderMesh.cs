@@ -28,7 +28,7 @@ public sealed record W3dRenderMesh(
     /// <summary>
     /// Gets the number of floats per vertex.
     /// </summary>
-    public int Stride => 12;
+    public static int Stride => 12;
 
     /// <summary>
     /// Gets the vertex count.

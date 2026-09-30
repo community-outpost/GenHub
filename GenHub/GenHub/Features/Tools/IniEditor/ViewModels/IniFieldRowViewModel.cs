@@ -180,13 +180,10 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
 
         var parts = SplitFlags(Value).ToList();
         var added = false;
-        foreach (var token in SplitFlags(flag))
+        foreach (var token in SplitFlags(flag).Where(t => !parts.Contains(t, StringComparer.OrdinalIgnoreCase)))
         {
-            if (!parts.Contains(token, StringComparer.OrdinalIgnoreCase))
-            {
-                parts.Add(token);
-                added = true;
-            }
+            parts.Add(token);
+            added = true;
         }
 
         if (added)

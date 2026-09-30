@@ -76,13 +76,9 @@ public static class W3dSceneBuilder
             BuildFlatCorners(mesh, stage, material, vertices, indices);
         }
 
-        int boneIndex = -1;
-        if (boneByMeshName != null &&
-            (boneByMeshName.TryGetValue(mesh.DisplayName, out boneIndex) ||
-             boneByMeshName.TryGetValue(mesh.Name, out boneIndex)))
-        {
-        }
-        else
+        if (boneByMeshName == null ||
+            (!boneByMeshName.TryGetValue(mesh.DisplayName, out int boneIndex) &&
+             !boneByMeshName.TryGetValue(mesh.Name, out boneIndex)))
         {
             boneIndex = -1;
         }
@@ -106,7 +102,7 @@ public static class W3dSceneBuilder
             return null;
         }
 
-        return mesh.VertexMaterials[(int)Math.Min(id, (uint)mesh.VertexMaterials.Count - 1)];
+        return mesh.VertexMaterials[(int)Math.Clamp((long)id, 0L, mesh.VertexMaterials.Count - 1)];
     }
 
     private static W3dShader? SelectShader(W3dMesh mesh, W3dMaterialPass? pass)
@@ -117,7 +113,7 @@ public static class W3dSceneBuilder
             return null;
         }
 
-        return mesh.Shaders[(int)Math.Min(id, (uint)mesh.Shaders.Count - 1)];
+        return mesh.Shaders[(int)Math.Clamp((long)id, 0L, mesh.Shaders.Count - 1)];
     }
 
     private static int ResolveTextureIndex(
@@ -133,7 +129,7 @@ public static class W3dSceneBuilder
         }
 
         uint id = stage.TextureIds.FirstOrDefault();
-        var reference = mesh.Textures[(int)Math.Min(id, (uint)mesh.Textures.Count - 1)];
+        var reference = mesh.Textures[(int)Math.Clamp((long)id, 0L, mesh.Textures.Count - 1)];
         if (string.IsNullOrWhiteSpace(reference.Name))
         {
             return -1;
@@ -319,14 +315,14 @@ public static class W3dSceneBuilder
         float maxY = float.MinValue;
         float maxZ = float.MinValue;
 
-        foreach (var mesh in meshes)
+        foreach (var bounds in meshes.Select(m => m.Bounds))
         {
-            minX = Math.Min(minX, mesh.Bounds.Min.X);
-            minY = Math.Min(minY, mesh.Bounds.Min.Y);
-            minZ = Math.Min(minZ, mesh.Bounds.Min.Z);
-            maxX = Math.Max(maxX, mesh.Bounds.Max.X);
-            maxY = Math.Max(maxY, mesh.Bounds.Max.Y);
-            maxZ = Math.Max(maxZ, mesh.Bounds.Max.Z);
+            minX = Math.Min(minX, bounds.Min.X);
+            minY = Math.Min(minY, bounds.Min.Y);
+            minZ = Math.Min(minZ, bounds.Min.Z);
+            maxX = Math.Max(maxX, bounds.Max.X);
+            maxY = Math.Max(maxY, bounds.Max.Y);
+            maxZ = Math.Max(maxZ, bounds.Max.Z);
         }
 
         var min = new W3dVector3(minX, minY, minZ);

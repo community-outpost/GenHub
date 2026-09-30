@@ -48,29 +48,11 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
                 return OperationResult<W3dModel>.CreateFailure($"Too many top-level chunks: {name}", Stopwatch.GetElapsedTime(started));
             }
 
-            if (!TryReadChunkHeader(ref reader, name, out uint chunkType, out int payloadOffset, out int payloadLength, out string? error))
+            if (!ProcessTopLevelChunk(ref reader, data, name, meshes, hierarchies, animations, lods, warnings, out string? error))
             {
+                logger.LogWarning("Failed to process top-level chunk in {Source}: {Error}", name, error);
                 return OperationResult<W3dModel>.CreateFailure(error!, Stopwatch.GetElapsedTime(started));
             }
-
-            var payload = new W3dReader(data, payloadOffset, payloadLength);
-            string? failure = chunkType switch
-            {
-                W3dConstants.Chunks.Mesh => ParseMesh(payload, name, meshes.Count, warnings, out W3dMesh? mesh) ? AddMesh(meshes, mesh!) : "mesh",
-                W3dConstants.Chunks.Hierarchy => ParseHierarchy(payload, name, warnings, out W3dHierarchy? hierarchy) ? AddHierarchy(hierarchies, hierarchy!) : "hierarchy",
-                W3dConstants.Chunks.Animation => ParseAnimation(payload, name, false, 0, warnings, out W3dAnimationClip? clip) ? AddClip(animations, clip!) : "animation",
-                W3dConstants.Chunks.CompressedAnimation => ParseCompressedAnimation(payload, name, warnings, out W3dAnimationClip? compressed) ? AddClip(animations, compressed!) : "compressed animation",
-                W3dConstants.Chunks.HLod => ParseHLod(payload, name, warnings, out W3dModelLod? lod) ? AddLod(lods, lod!) : "hlod",
-                _ => SkipChunk(warnings, chunkType),
-            };
-
-            if (failure != null)
-            {
-                logger.LogWarning("Failed to parse {Kind} chunk in {Source}", failure, name);
-                return OperationResult<W3dModel>.CreateFailure($"Invalid {failure} chunk: {name}", Stopwatch.GetElapsedTime(started));
-            }
-
-            reader.Position = payloadOffset + payloadLength;
         }
 
         var model = new W3dModel(meshes, hierarchies, animations, lods, warnings);
@@ -95,10 +77,6 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
             cancellationToken.ThrowIfCancellationRequested();
             return Parse(data, path);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
         catch (IOException ex)
         {
             logger.LogWarning(ex, "Failed to read model file: {Path}", path);
@@ -111,34 +89,95 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
         }
     }
 
-    private static string? AddMesh(List<W3dMesh> meshes, W3dMesh mesh)
+    private static bool ProcessTopLevelChunk(
+        ref W3dReader reader,
+        byte[] data,
+        string name,
+        List<W3dMesh> meshes,
+        List<W3dHierarchy> hierarchies,
+        List<W3dAnimationClip> animations,
+        List<W3dModelLod> lods,
+        List<string> warnings,
+        out string? error)
     {
-        meshes.Add(mesh);
-        return null;
+        if (!TryReadChunkHeader(ref reader, name, out uint chunkType, out int payloadOffset, out int payloadLength, out error))
+        {
+            return false;
+        }
+
+        var payload = new W3dReader(data, payloadOffset, payloadLength);
+        string? failure = DispatchTopLevelChunk(chunkType, payload, name, meshes, hierarchies, animations, lods, warnings);
+        if (failure != null)
+        {
+            error = $"Invalid {failure} chunk: {name}";
+            return false;
+        }
+
+        reader.Position = payloadOffset + payloadLength;
+        return true;
     }
 
-    private static string? AddHierarchy(List<W3dHierarchy> hierarchies, W3dHierarchy hierarchy)
+    private static string? DispatchTopLevelChunk(
+        uint chunkType,
+        W3dReader payload,
+        string name,
+        List<W3dMesh> meshes,
+        List<W3dHierarchy> hierarchies,
+        List<W3dAnimationClip> animations,
+        List<W3dModelLod> lods,
+        List<string> warnings)
     {
-        hierarchies.Add(hierarchy);
-        return null;
-    }
+        switch (chunkType)
+        {
+            case W3dConstants.Chunks.Mesh:
+                if (!ParseMesh(payload, name, meshes.Count, warnings, out W3dMesh? mesh))
+                {
+                    return "mesh";
+                }
 
-    private static string? AddClip(List<W3dAnimationClip> animations, W3dAnimationClip clip)
-    {
-        animations.Add(clip);
-        return null;
-    }
+                meshes.Add(mesh!);
+                return null;
 
-    private static string? AddLod(List<W3dModelLod> lods, W3dModelLod lod)
-    {
-        lods.Add(lod);
-        return null;
-    }
+            case W3dConstants.Chunks.Hierarchy:
+                if (!ParseHierarchy(payload, name, warnings, out W3dHierarchy? hierarchy))
+                {
+                    return "hierarchy";
+                }
 
-    private static string? SkipChunk(List<string> warnings, uint chunkType)
-    {
-        AddWarning(warnings, $"Skipped unknown chunk 0x{chunkType:X8}.");
-        return null;
+                hierarchies.Add(hierarchy!);
+                return null;
+
+            case W3dConstants.Chunks.Animation:
+                if (!ParseAnimation(payload, name, false, 0, warnings, out W3dAnimationClip? clip))
+                {
+                    return "animation";
+                }
+
+                animations.Add(clip!);
+                return null;
+
+            case W3dConstants.Chunks.CompressedAnimation:
+                if (!ParseCompressedAnimation(payload, name, warnings, out W3dAnimationClip? compressed))
+                {
+                    return "compressed animation";
+                }
+
+                animations.Add(compressed!);
+                return null;
+
+            case W3dConstants.Chunks.HLod:
+                if (!ParseHLod(payload, name, warnings, out W3dModelLod? lod))
+                {
+                    return "hlod";
+                }
+
+                lods.Add(lod!);
+                return null;
+
+            default:
+                AddWarning(warnings, $"Skipped unknown chunk 0x{chunkType:X8}.");
+                return null;
+        }
     }
 
     private static void AddWarning(List<string> warnings, string warning)
@@ -660,12 +699,9 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
                 chunk.ReadUInt32();
                 maxScreenSize = chunk.ReadSingle();
             }
-            else if (chunkType == W3dConstants.Chunks.HLodSubObject)
+            else if (chunkType == W3dConstants.Chunks.HLodSubObject && !ReadSubObject(chunk, subObjects))
             {
-                if (!ReadSubObject(chunk, subObjects))
-                {
-                    return false;
-                }
+                return false;
             }
 
             reader.Position += size;
@@ -1093,12 +1129,9 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
                 {
                     ReadIdArray(chunk, shaderIds);
                 }
-                else if (chunkType == W3dConstants.Chunks.TextureStage)
+                else if (chunkType == W3dConstants.Chunks.TextureStage && !ReadTextureStage(chunk, stages))
                 {
-                    if (!ReadTextureStage(chunk, stages))
-                    {
-                        return Fail();
-                    }
+                    return Fail();
                 }
 
                 if (chunk.Failed)
@@ -1281,12 +1314,9 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
                         return Fail();
                     }
                 }
-                else if (chunkType == W3dConstants.Chunks.PerFaceTexCoordIds)
+                else if (chunkType == W3dConstants.Chunks.PerFaceTexCoordIds && !ReadFaceIds(chunk, faceIds, texCoords.Count))
                 {
-                    if (!ReadFaceIds(chunk, faceIds, texCoords.Count))
-                    {
-                        return Fail();
-                    }
+                    return Fail();
                 }
 
                 reader.Position += size;

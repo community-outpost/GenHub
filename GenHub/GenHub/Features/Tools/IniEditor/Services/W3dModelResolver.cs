@@ -52,10 +52,6 @@ public sealed class W3dModelResolver(
             var fileSystem = GetOrOpenFileSystem(installationPath, isZeroHour, projectDirectory, cancellationToken);
             return ResolveFromFileSystemAsync(modelName, fileSystem, cancellationToken);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
         catch (IOException ex)
         {
             logger.LogWarning(ex, "Failed to open game files at {Path}", installationPath);
@@ -179,17 +175,12 @@ public sealed class W3dModelResolver(
         SageVirtualFileSystem fileSystem,
         CancellationToken cancellationToken)
     {
-        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var mesh in model.Meshes)
-        {
-            foreach (var texture in mesh.Textures)
-            {
-                if (!string.IsNullOrWhiteSpace(texture.Name))
-                {
-                    names.Add(texture.Name.Trim());
-                }
-            }
-        }
+        var names = new HashSet<string>(
+            model.Meshes
+                .SelectMany(mesh => mesh.Textures)
+                .Where(texture => !string.IsNullOrWhiteSpace(texture.Name))
+                .Select(texture => texture.Name.Trim()),
+            StringComparer.OrdinalIgnoreCase);
 
         var textures = new List<W3dResolvedTexture>();
         var missing = new List<string>();
