@@ -2,7 +2,9 @@ using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
@@ -24,11 +26,13 @@ namespace GenHub.Features.Content.Services.GeneralsOnline;
 /// Downloads ZIP packages, extracts files, and creates variant manifests (60Hz).
 /// </summary>
 public class GeneralsOnlineDeliverer(
-   IDownloadService downloadService,
-   IContentManifestPool manifestPool,
-   GeneralsOnlineManifestFactory manifestFactory,
-   ILogger<GeneralsOnlineDeliverer> logger)
-   : IContentDeliverer
+    IDownloadService downloadService,
+    IContentManifestPool manifestPool,
+    GeneralsOnlineManifestFactory manifestFactory,
+    IGameInstallationService installationService,
+    IInstallationCasPoolService installationCasPoolService,
+    ILogger<GeneralsOnlineDeliverer> logger)
+    : IContentDeliverer
 {
     /// <inheritdoc />
     public string SourceName => GeneralsOnlineConstants.DelivererSourceName;
@@ -106,6 +110,19 @@ public class GeneralsOnlineDeliverer(
                 ProgressPercentage = 90,
                 CurrentOperation = "Registering all variant manifests to content library",
             });
+
+            // for GameClient content, ensure installation pool path is initialized before storing
+            var hasGameClientManifest = manifests.Any(m => m.ContentType == ContentType.GameClient);
+            if (hasGameClientManifest)
+            {
+                var poolPathReady = await EnsureInstallationPoolPathAsync(cancellationToken);
+                if (!poolPathReady)
+                {
+                    CleanupTempArtifacts(zipPath, extractPath, logger);
+                    return OperationResult<ContentManifest>.CreateFailure(
+                        "Could not ensure storage for GameClient content.");
+                }
+            }
 
             var registrationResult = await RegisterVariantManifestsAsync(manifests, extractPath, newlyRegisteredManifests, cancellationToken);
             if (!registrationResult.Success)
@@ -540,5 +557,36 @@ public class GeneralsOnlineDeliverer(
         }
 
         return rollbackErrors;
+    }
+
+    /// <summary>
+    /// Ensures the installation pool root path is set before storing GameClient content.
+    /// This prevents content from being stored in the wrong CAS pool.
+    /// </summary>
+    /// <returns>True when content acquisition may continue; otherwise, false.</returns>
+    private async Task<bool> EnsureInstallationPoolPathAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            logger.LogInformation("Forcing installation detection to ensure correct installation pool path");
+            installationService.InvalidateCache();
+
+            var installationsResult = await installationService.GetAllInstallationsAsync(cancellationToken);
+            if (!installationsResult.Success || installationsResult.Data == null)
+            {
+                logger.LogWarning(
+                    "Failed to get installations for CAS pool path resolution: {Error}; the primary CAS pool will be used",
+                    installationsResult.FirstError);
+                return true;
+            }
+
+            var installations = installationsResult.Data.ToList();
+            return await installationCasPoolService.EnsurePoolPathAsync(installations, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to ensure installation pool root path is set");
+            return false;
+        }
     }
 }

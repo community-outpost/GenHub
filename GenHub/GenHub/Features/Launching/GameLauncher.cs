@@ -57,6 +57,7 @@ public class GameLauncher(
     ISteamLauncher steamLauncher,
     IConfigurationProviderService configurationProvider,
     ILaunchReceiptService launchReceiptService,
+    IPublisherLaunchHandlerRegistry publisherLaunchHandlerRegistry,
     ILocalizationService? localizationService = null) : IGameLauncher
 {
     /// <summary>Serializes profile launch registration and destructive deletion for all callers.</summary>
@@ -1739,6 +1740,15 @@ public class GameLauncher(
             var receiptContext = BuildLaunchReceiptContext(profile, gameClient, workspaceInfo, launchConfig, manifests, launchId, installation);
             AppendConfigurationDrift(profile.Id, previousReceipt, receiptContext, receiptDriftWarnings);
 
+            var publisherHandler = publisherLaunchHandlerRegistry.GetHandler(profile);
+            var beforeStartResult = await publisherHandler.BeforeProcessStartAsync(profile, launchConfig, cancellationToken);
+            if (!beforeStartResult.Success)
+            {
+                logger.LogError("[GameLauncher] Publisher before-process start hook failed: {Error}", beforeStartResult.FirstError);
+                await launchRegistry.UnregisterLaunchAsync(launchId);
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(beforeStartResult.FirstError ?? "Publisher pre-launch hook failed", launchId, profile.Id);
+            }
+
             var processResult = await LaunchProcessAsync(
                 isSteamLaunch,
                 manifests,
@@ -2473,6 +2483,9 @@ public class GameLauncher(
             logger.LogInformation("[GameLauncher] Added {Argument} argument: {Height}", GameClientConstants.YResolutionArgument, profile.VideoResolutionHeight.Value);
         }
 
+        var publisherHandler = publisherLaunchHandlerRegistry.GetHandler(profile);
+        publisherHandler.ConfigureLaunchArguments(profile, arguments);
+
         return OperationResult<Dictionary<string, string>>.CreateSuccess(arguments);
     }
 
@@ -2850,69 +2863,18 @@ public class GameLauncher(
                 logger.LogInformation("[GameLauncher] Successfully wrote Options.ini for {GameType}", gameType);
             }
 
-            // Apply GeneralsOnline settings
-            await ApplyGeneralsOnlineSettingsAsync(profile);
+            // apply publisher-specific pre-launch settings
+            var publisherHandler = publisherLaunchHandlerRegistry.GetHandler(profile);
+            var beforeLaunchResult = await publisherHandler.BeforeLaunchAsync(profile);
+            if (!beforeLaunchResult.Success)
+            {
+                logger.LogWarning("[GameLauncher] Publisher launch handler '{PublisherType}' reported before-launch failure: {Error}", publisherHandler.PublisherType, beforeLaunchResult.FirstError);
+            }
         }
         catch (Exception ex)
         {
-            // Don't fail the launch if Options.ini writing fails - log and continue
+            // don't fail the launch if options writing fails - log and continue
             logger.LogError(ex, "Failed to apply profile settings to Options.ini, continuing with launch");
-        }
-    }
-
-    /// <summary>
-    /// Applies GeneralsOnline-specific settings to the settings.json file.
-    /// </summary>
-    /// <remarks>
-    /// settings.json is a single global file owned by the GeneralsOnline client, not a
-    /// per-profile one. Only a GeneralsOnline profile may rewrite it: a retail, TheSuperHackers
-    /// or CommunityOutpost Zero Hour profile has nothing to say about that client's settings,
-    /// and writing anyway replaced whatever the user had configured inside the client itself.
-    /// </remarks>
-    /// <param name="profile">The game profile containing the settings.</param>
-    private async Task ApplyGeneralsOnlineSettingsAsync(GameProfile profile)
-    {
-        if (profile.GameClient?.GameType != GameType.ZeroHour || !profile.IsGeneralsOnlineProfile())
-        {
-            return;
-        }
-
-        try
-        {
-            logger.LogInformation("[GameLauncher] Applying GeneralsOnline settings to settings.json for profile {ProfileId}", profile.Id);
-
-            // Loaded first so the settings the client owns and the profile says nothing about
-            // survive the rewrite; the mapper then overwrites only what the profile declares.
-            var loadResult = await gameSettingsService.LoadGeneralsOnlineSettingsAsync();
-            if (loadResult?.Success != true || loadResult.Data == null)
-            {
-                // A missing settings.json loads as defaults and reports success, so a failure here
-                // means the client's own file exists and could not be read. Rewriting it from
-                // defaults would discard every key the client owns.
-                logger.LogWarning(
-                    "[GameLauncher] Not writing GeneralsOnline settings because settings.json could not be read: {Error}",
-                    loadResult?.FirstError ?? "LoadGeneralsOnlineSettings result was null");
-                return;
-            }
-
-            var settings = loadResult.Data;
-
-            GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
-
-            var saveResult = await gameSettingsService.SaveGeneralsOnlineSettingsAsync(settings);
-            if (!saveResult.Success)
-            {
-                logger.LogWarning("[GameLauncher] Failed to save GeneralsOnline settings: {Error}", saveResult.FirstError);
-            }
-            else
-            {
-                logger.LogInformation("[GameLauncher] Successfully saved GeneralsOnline settings to settings.json");
-            }
-        }
-        catch (Exception ex)
-        {
-            // Log and continue
-            logger.LogError(ex, "[GameLauncher] Failed to apply GeneralsOnline settings, continuing with launch");
         }
     }
 
@@ -2941,8 +2903,8 @@ public class GameLauncher(
     }
 
     /// <summary>
-    /// Applies profile camera height and pitch settings to GameData.ini in the workspace for non-GeneralsOnline profiles.
-    /// If the profile has no custom camera settings, any previously generated GenHub camera override is cleaned up.
+    /// Applies profile camera height and pitch settings in the workspace.
+    /// If the profile has no custom camera settings, any previously generated camera override is cleaned up.
     /// </summary>
     private async Task ApplyCameraSettingsAsync(
         GameProfile profile,
@@ -2952,8 +2914,10 @@ public class GameLauncher(
     {
         try
         {
-            if (profile.IsGeneralsOnlineProfile())
+            var publisherHandler = publisherLaunchHandlerRegistry.GetHandler(profile);
+            if (!publisherHandler.SupportsCameraSettingsOverride(profile))
             {
+                logger.LogDebug("[GameLauncher] Camera settings override skipped by publisher launch handler for profile {ProfileId}", profile.Id);
                 return;
             }
 

@@ -19,7 +19,9 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.Launching;
+using GenHub.Features.Launching.Publishers;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -51,6 +53,7 @@ public class GameLauncherTests : IDisposable
     private readonly Mock<IProfileContentLinker> _profileContentLinkerMock = new();
     private readonly Mock<ISteamLauncher> _steamLauncherMock = new();
     private readonly Mock<ILaunchReceiptService> _launchReceiptServiceMock = new();
+    private readonly Mock<IPublisherLaunchHandlerRegistry> _publisherLaunchHandlerRegistryMock = new();
     private readonly GameLauncher _gameLauncher;
 
     private readonly string _retailRoot;
@@ -158,6 +161,17 @@ public class GameLauncherTests : IDisposable
                 return DependencyResolutionResult.CreateSuccess(idList, [], []);
             });
 
+        var generalsOnlineHandler = new GeneralsOnlineLaunchHandler(
+            _gameSettingsServiceMock.Object,
+            NullLogger<GeneralsOnlineLaunchHandler>.Instance);
+        var defaultHandler = new DefaultPublisherLaunchHandler();
+        var publisherRegistry = new PublisherLaunchHandlerRegistry(
+            [defaultHandler, generalsOnlineHandler],
+            NullLogger<PublisherLaunchHandlerRegistry>.Instance);
+
+        _publisherLaunchHandlerRegistryMock.Setup(r => r.GetHandler(It.IsAny<GameProfile>()))
+            .Returns<GameProfile>(p => publisherRegistry.GetHandler(p));
+
         var resources = new ResourceManager(LocalizationConstants.StringResourceBaseName, typeof(GameLauncher).Assembly);
         var localization = new Mock<ILocalizationService>();
         localization.Setup(m => m.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
@@ -178,6 +192,7 @@ public class GameLauncherTests : IDisposable
             _steamLauncherMock.Object,
             _configurationProviderServiceMock.Object,
             _launchReceiptServiceMock.Object,
+            _publisherLaunchHandlerRegistryMock.Object,
             localization.Object);
     }
 
