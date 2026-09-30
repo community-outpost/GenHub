@@ -72,6 +72,10 @@ public class GeneralsOnlineLaunchHandler(
 
             return OperationResult.CreateSuccess();
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "[GeneralsOnlineLaunchHandler] Failed to apply Generals Online settings, continuing with launch");

@@ -2869,6 +2869,10 @@ public class GameLauncher(
                 logger.LogWarning("[GameLauncher] Publisher launch handler '{PublisherType}' reported before-launch failure: {Error}", publisherHandler.PublisherType, beforeLaunchResult.FirstError);
             }
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             // don't fail the launch if options writing fails - log and continue

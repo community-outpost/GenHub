@@ -9,18 +9,18 @@ using System.Threading.Tasks;
 namespace GenHub.Features.Content.Services;
 
 /// <summary>
-/// helper to ensure the installation cas pool path is detected and initialized before storing content.
+/// Helper to ensure the installation cas pool path is detected and initialized before storing content.
 /// </summary>
 internal static class InstallationPoolPathHelper
 {
     /// <summary>
-    /// forces installation detection and resets the installation pool path.
+    /// Forces installation detection and resets the installation pool path.
     /// </summary>
-    /// <param name="installationService">the game installation service.</param>
-    /// <param name="installationCasPoolService">the installation cas pool service.</param>
-    /// <param name="logger">the logger instance.</param>
-    /// <param name="cancellationToken">cancellation token.</param>
-    /// <returns>true when content acquisition may continue; otherwise, false.</returns>
+    /// <param name="installationService">The game installation service.</param>
+    /// <param name="installationCasPoolService">The installation cas pool service.</param>
+    /// <param name="logger">The logger instance.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>True when content acquisition may continue; otherwise, false.</returns>
     public static async Task<bool> EnsureInstallationPoolPathAsync(
         IGameInstallationService installationService,
         IInstallationCasPoolService installationCasPoolService,

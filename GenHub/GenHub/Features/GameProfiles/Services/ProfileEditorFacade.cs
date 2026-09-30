@@ -136,7 +136,7 @@ public class ProfileEditorFacade(
                     workspaceConfig.Manifests = [.. resolutionResult.ResolvedManifests];
                     profile.EnabledContentIds = [.. resolutionResult.ResolvedContentIds];
 
-                    // resolve source paths for all manifests
+                    // Resolve source paths for all manifests
                     workspaceConfig.ManifestSourcePaths = await ManifestSourcePathResolver.ResolveManifestSourcePathsAsync(
                         workspaceConfig.Manifests,
                         profile,
