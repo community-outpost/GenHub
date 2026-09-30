@@ -10481,6 +10481,9 @@ GenHub связывает запуск модификаций со Steam, отк
   <data name="Tools.PublisherStudio.Hosting.GoogleDriveNotAuthenticated" xml:space="preserve">
     <value>Нет входа в Google Drive</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxNotAuthenticated" xml:space="preserve">
+    <value>Нет входа в Dropbox</value>
+  </data>
   <data name="Tools.PublisherStudio.Hosting.AssetsTrackedFormat" xml:space="preserve">
     <value>Отслеживаемых ресурсов: {0}</value>
   </data>

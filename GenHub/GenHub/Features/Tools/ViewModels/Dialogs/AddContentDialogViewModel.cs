@@ -526,10 +526,10 @@ public partial class AddContentDialogViewModel(
 
     private BundleComponentOption CreateBundleComponentOption(CatalogContentItem item)
     {
-        var existingDep = _existingItem?.BundledItems?.FirstOrDefault(b =>
+        var existingDep = _existingItem?.BundledItems.FirstOrDefault(b =>
                 string.Equals(b.ContentId, item.Id, StringComparison.OrdinalIgnoreCase) &&
                 (string.IsNullOrWhiteSpace(b.PublisherId) || string.Equals(b.PublisherId, catalog?.Publisher?.Id, StringComparison.OrdinalIgnoreCase)))
-            ?? _existingItem?.Releases?.SelectMany(r => r.Dependencies ?? []).FirstOrDefault(d =>
+            ?? _existingItem?.Releases.SelectMany(r => r.Dependencies ?? []).FirstOrDefault(d =>
                 string.Equals(d.ContentId, item.Id, StringComparison.OrdinalIgnoreCase) &&
                 (string.IsNullOrWhiteSpace(d.PublisherId) || string.Equals(d.PublisherId, catalog?.Publisher?.Id, StringComparison.OrdinalIgnoreCase)));
 
@@ -2510,8 +2510,7 @@ public partial class AddContentDialogViewModel(
         }
 
         if (contentItem.ContentType != ContentType.ContentBundle &&
-            _existingItem.ContentType != ContentType.ContentBundle &&
-            _existingItem.BundledItems != null)
+            _existingItem.ContentType != ContentType.ContentBundle)
         {
             foreach (var dependency in _existingItem.BundledItems)
             {
@@ -2519,12 +2518,9 @@ public partial class AddContentDialogViewModel(
             }
         }
 
-        if (_existingItem.Addons != null)
+        foreach (var addon in _existingItem.Addons)
         {
-            foreach (var addon in _existingItem.Addons)
-            {
-                contentItem.Addons.Add(CloneDependency(addon));
-            }
+            contentItem.Addons.Add(CloneDependency(addon));
         }
     }
 

@@ -40,7 +40,6 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     private const string PublisherFolderPath = HostingConstants.DropboxDefaultPublisherFolder;
     private const string MissingScopeTag = "missing_scope";
     private const string DropboxApiArgHeader = "Dropbox-API-Arg";
-    private const string NotAuthenticatedErrorMessage = "Not authenticated with Dropbox.";
 
     private readonly HttpClient _httpClient = InitializeHttpClient(httpClientFactory);
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
@@ -290,7 +289,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     {
         if (!IsAuthenticated)
         {
-            return OperationResult<HostingUploadResult>.CreateFailure(NotAuthenticatedErrorMessage);
+            return OperationResult<HostingUploadResult>.CreateFailure(GetNotAuthenticatedMessage());
         }
 
         try
@@ -368,7 +367,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     {
         if (!IsAuthenticated)
         {
-            return OperationResult<bool>.CreateFailure(NotAuthenticatedErrorMessage);
+            return OperationResult<bool>.CreateFailure(GetNotAuthenticatedMessage());
         }
 
         if (string.IsNullOrWhiteSpace(fileId))
@@ -429,7 +428,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     {
         if (!IsAuthenticated)
         {
-            return OperationResult<HostingState?>.CreateFailure(NotAuthenticatedErrorMessage);
+            return OperationResult<HostingState?>.CreateFailure(GetNotAuthenticatedMessage());
         }
 
         try
@@ -548,7 +547,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         _ = fileId;
         if (!IsAuthenticated)
         {
-            return OperationResult<string>.CreateFailure(NotAuthenticatedErrorMessage);
+            return OperationResult<string>.CreateFailure(GetNotAuthenticatedMessage());
         }
 
         if (string.IsNullOrWhiteSpace(fileName))
@@ -1559,6 +1558,11 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
 
         return null;
     }
+
+    private string GetNotAuthenticatedMessage() =>
+        localizationService != null && localizationService.TryGetString("Tools.PublisherStudio.Hosting.DropboxNotAuthenticated", out var localized)
+            ? localized
+            : HostingConstants.DropboxNotAuthenticated;
 
     private sealed record ChunkedSessionResult(bool Success, string FileId, long FileSize, bool IsExpiredToken, string? Error)
     {

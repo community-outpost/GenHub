@@ -299,6 +299,11 @@ public static class HostingConstants
     public const string GoogleDriveNotAuthenticated = "Not authenticated with Google Drive";
 
     /// <summary>
+    /// Error message returned when Dropbox provider is not authenticated.
+    /// </summary>
+    public const string DropboxNotAuthenticated = "Not authenticated with Dropbox";
+
+    /// <summary>
     /// Timeout in seconds for interactive browser-based OAuth authentication flows.
     /// </summary>
     public const int BrowserAuthTimeoutSeconds = 300;

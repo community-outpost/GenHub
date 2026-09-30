@@ -10539,6 +10539,9 @@ Then click the 'Submit' button at the bottom of the page! (GenHub requests exact
   <data name="Tools.PublisherStudio.Hosting.GoogleDriveNotAuthenticated" xml:space="preserve">
     <value>Not authenticated with Google Drive</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxNotAuthenticated" xml:space="preserve">
+    <value>Not authenticated with Dropbox</value>
+  </data>
   <data name="Tools.PublisherStudio.Hosting.AssetsTrackedFormat" xml:space="preserve">
     <value>{0} Assets Tracked</value>
   </data>
