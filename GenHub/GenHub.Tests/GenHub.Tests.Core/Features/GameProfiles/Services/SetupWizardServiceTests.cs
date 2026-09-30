@@ -1056,6 +1056,52 @@ public class SetupWizardServiceTests
     }
 
     /// <summary>
+    /// Verifies that a discovered latest version of "unknown" in any casing is treated as no version,
+    /// so the item gets the unversioned description instead of "Download and install Generals Online unknown.".
+    /// </summary>
+    /// <param name="unknownVersion">The unknown version string reported by discovery.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Theory]
+    [InlineData("unknown")]
+    [InlineData("UNKNOWN")]
+    public async Task RunSetupWizardAsync_WhenLatestVersionIsUnknownInAnyCase_UsesUnversionedDescriptionAsync(string unknownVersion)
+    {
+        // Arrange
+        _goDiscovererMock
+            .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
+            {
+                Items = [new ContentSearchResult { Version = unknownVersion }],
+            }));
+
+        _cpDiscovererMock
+            .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult { Items = [] }));
+
+        _manifestPoolMock
+            .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+        var service = CreateService(localizationService: new MarkerLocalizationService());
+
+        SetupWizardViewModel? capturedVm = null;
+        service.DialogShower = vm =>
+        {
+            capturedVm = vm;
+            return Task.FromResult(false);
+        };
+
+        // Act
+        await service.RunSetupWizardAsync([], CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(capturedVm);
+        var goTitle = MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.GeneralsOnlineTitle);
+        var goItem = Assert.Single(capturedVm.Items, i => Equals(i.Metadata, PublisherTypeConstants.GeneralsOnline));
+        Assert.Equal(MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.InstallDescription, goTitle), goItem.Description);
+    }
+
+    /// <summary>
     /// Verifies that every wizard localization key has an English fallback and that each fallback
     /// equals the neutral <c>Strings.resx</c> value, so the two cannot drift apart.
     /// </summary>

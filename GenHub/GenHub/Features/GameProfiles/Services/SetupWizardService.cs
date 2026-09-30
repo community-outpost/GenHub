@@ -143,7 +143,7 @@ public class SetupWizardService(
                             Title = config.Title,
                             Status = GameClientConstants.WizardStatuses.Detected,
                             Description = FormatCreateProfileDescription(config.Title, nativeVersion) + (config.DescriptionSuffix ?? string.Empty),
-                            Version = nativeVersion == GameClientConstants.UnknownVersion ? string.Empty : nativeVersion,
+                            Version = HasDisplayVersion(nativeVersion) ? nativeVersion : string.Empty,
                             ActionLabel = GameClientConstants.WizardActionLabels.CreateProfile,
                             ActionType = GameClientConstants.WizardActionTypes.CreateProfile,
                             IsSelected = true,
@@ -257,7 +257,7 @@ public class SetupWizardService(
             }
 
             var isDetected = componentGlobal.Count > 0;
-            var displayVersion = !string.IsNullOrEmpty(config.LatestVersion) && config.LatestVersion != GameClientConstants.UnknownVersion
+            var displayVersion = HasDisplayVersion(config.LatestVersion)
                 ? config.LatestVersion
                 : (managedManifests.FirstOrDefault()?.Version ?? config.LatestVersion);
 
@@ -503,7 +503,7 @@ public class SetupWizardService(
             .FirstOrDefault();
 
     private static bool HasDisplayVersion(string? version) =>
-        !string.IsNullOrEmpty(version) && version != GameClientConstants.UnknownVersion;
+        !string.IsNullOrEmpty(version) && !string.Equals(version, GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase);
 
     private static string CleanVersionString(string? version)
     {
