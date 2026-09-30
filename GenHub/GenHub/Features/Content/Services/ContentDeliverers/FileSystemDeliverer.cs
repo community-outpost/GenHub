@@ -62,6 +62,12 @@ public class FileSystemDeliverer(
     {
         try
         {
+            if (!ManifestVariantResolver.SupportsRuntime(packageManifest))
+            {
+                return OperationResult<ContentManifest>.CreateFailure(
+                    $"Manifest {packageManifest.Id} has no variant for runtime {ManifestVariantResolver.CurrentRuntimeIdentifier}.");
+            }
+
             var deliveredFiles = new List<ManifestFile>();
             var files = ManifestVariantResolver.ResolveFiles(packageManifest);
             var totalFiles = files.Count;
@@ -157,6 +163,14 @@ public class FileSystemDeliverer(
                     permissions: file.Permissions);
             }
 
+            // The delivered manifest is flat, so it carries the resolved variant's declared
+            // entry point in place of the variant list.
+            var variantEntryPoint = ManifestVariantResolver.ResolveVariant(packageManifest)?.EntryPoint;
+            if (!string.IsNullOrWhiteSpace(variantEntryPoint))
+            {
+                manifestBuilder.WithEntryPoint(variantEntryPoint);
+            }
+
             // Add required directories
             manifestBuilder.AddRequiredDirectories([.. packageManifest.RequiredDirectories]);
 
@@ -187,6 +201,11 @@ public class FileSystemDeliverer(
     {
         try
         {
+            if (!ManifestVariantResolver.SupportsRuntime(manifest))
+            {
+                return Task.FromResult(OperationResult<bool>.CreateSuccess(false));
+            }
+
             foreach (var file in ManifestVariantResolver.ResolveFiles(manifest).Where(f => f.IsRequired))
             {
                 var sourcePath = ResolveLocalPath(file, manifest.Id);

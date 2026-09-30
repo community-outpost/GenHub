@@ -1,4 +1,3 @@
-using GenHub.Tests.Core.Models.Manifest;
 using FluentAssertions;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
@@ -10,6 +9,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.ContentDeliverers;
+using GenHub.Tests.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
@@ -580,9 +580,42 @@ public class HttpContentDelivererTests
     {
         var manifest = VariantManifestFixture.Create(
             [CreateRemoteFile("host.dat", "https://example.com/host.dat")],
-            [CreateRemoteFile("foreign.dat", "https://example.com/foreign.dat")]);
+            [CreateRemoteFile("foreign.dat", "ftp://example.com/foreign.dat")]);
 
         CreateDeliverer(new Mock<IDownloadService>().Object).CanDeliver(manifest).Should().BeTrue();
+    }
+
+    /// <summary>
+    /// A variant manifest with no variant for this host is not a dependency-only bundle,
+    /// even when it declares dependencies, so it is neither deliverable nor delivered.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task VariantManifest_WithoutHostVariant_IsNotTreatedAsDependencyOnlyAsync()
+    {
+        var targetDirectory = CreateTargetDirectory();
+        var manifest = VariantManifestFixture.Create(
+            [],
+            [CreateRemoteFile("foreign.dat", "https://example.com/foreign.dat")]);
+        manifest.Variants.RemoveAt(1);
+        manifest.Dependencies.Add(new ContentDependency { Id = ManifestId.Create("1.0.test.mod.dependency"), Name = "Dependency" });
+        var downloadService = new Mock<IDownloadService>();
+        var deliverer = CreateDeliverer(downloadService.Object);
+
+        try
+        {
+            deliverer.CanDeliver(manifest).Should().BeFalse();
+
+            var result = await deliverer.DeliverContentAsync(manifest, targetDirectory);
+            result.Success.Should().BeFalse();
+
+            var validation = await deliverer.ValidateContentAsync(manifest);
+            validation.Data.Should().BeFalse();
+        }
+        finally
+        {
+            Directory.Delete(targetDirectory, recursive: true);
+        }
     }
 
     /// <summary>

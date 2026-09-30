@@ -44,7 +44,7 @@ public class HttpContentDeliverer(
     /// <inheritdoc />
     public bool CanDeliver(ContentManifest manifest)
     {
-        if (manifest == null)
+        if (manifest == null || !ManifestVariantResolver.SupportsRuntime(manifest))
         {
             return false;
         }
@@ -74,6 +74,12 @@ public class HttpContentDeliverer(
     {
         try
         {
+            if (!ManifestVariantResolver.SupportsRuntime(packageManifest))
+            {
+                return OperationResult<ContentManifest>.CreateFailure(
+                    $"Manifest {packageManifest.Id} has no variant for runtime {ManifestVariantResolver.CurrentRuntimeIdentifier}.");
+            }
+
             var filesToDownload = ManifestVariantResolver.ResolveFiles(packageManifest)
                 .Where(f => !string.IsNullOrEmpty(f.DownloadUrl))
                 .ToList();
@@ -114,6 +120,11 @@ public class HttpContentDeliverer(
     {
         try
         {
+            if (!ManifestVariantResolver.SupportsRuntime(manifest))
+            {
+                return Task.FromResult(OperationResult<bool>.CreateSuccess(false));
+            }
+
             // Validate that all required URLs are accessible
             foreach (var file in ManifestVariantResolver.ResolveFiles(manifest).Where(f => f.IsRequired && !string.IsNullOrEmpty(f.DownloadUrl)))
             {

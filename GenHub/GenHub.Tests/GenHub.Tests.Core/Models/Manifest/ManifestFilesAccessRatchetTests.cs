@@ -99,6 +99,18 @@ public class ManifestFilesAccessRatchetTests
         "GenHub.Features.Workspace.WorkspaceReconciler",
     ];
 
+    /// <summary>
+    /// Production assemblies the scan must cover, which are the ones this test project
+    /// references. See the class remarks for the platform hosts.
+    /// </summary>
+    private static readonly string[] ScannedAssemblies =
+    [
+        "GenHub",
+        "GenHub.Core",
+        "GenHub.ProxyLauncher",
+        "GenHub.Tools",
+    ];
+
     private static readonly MethodInfo FilesGetter =
         typeof(ContentManifest).GetProperty(nameof(ContentManifest.Files))!.GetMethod!;
 
@@ -152,7 +164,7 @@ public class ManifestFilesAccessRatchetTests
 
         foreach (var assembly in LoadProductionAssemblies())
         {
-            foreach (var type in assembly.GetTypes())
+            foreach (var type in LoadTypes(assembly))
             {
                 foreach (var method in DeclaredMethods(type))
                 {
@@ -169,19 +181,45 @@ public class ManifestFilesAccessRatchetTests
 
     private static List<Assembly> LoadProductionAssemblies()
     {
-        var assemblies = Directory
+        var names = Directory
             .EnumerateFiles(AppContext.BaseDirectory, "GenHub*.dll")
-            .Select(Path.GetFileNameWithoutExtension)
-            .Where(name => !name!.StartsWith("GenHub.Tests", StringComparison.Ordinal))
-            .Select(name => Assembly.Load(name!))
+            .Select(path => Path.GetFileNameWithoutExtension(path)!)
+            .Where(name => !name.StartsWith("GenHub.Tests", StringComparison.Ordinal))
+            .Order(StringComparer.Ordinal)
             .ToList();
 
-        // The scan is only meaningful if the assemblies that hold the content pipeline
-        // were found; an empty scan must not pass as "no direct reads".
-        Assert.Contains(typeof(ContentManifest).Assembly, assemblies);
-        Assert.Contains(typeof(GenHub.Features.Content.Services.ContentDeliverers.FileSystemDeliverer).Assembly, assemblies);
+        // Pinned so that coverage cannot shrink silently: dropping a project reference
+        // from this test project, or adding a production assembly, fails here.
+        Assert.Equal(ScannedAssemblies, names);
 
-        return assemblies;
+        return names.Select(LoadAssembly).ToList();
+    }
+
+    private static Assembly LoadAssembly(string name)
+    {
+        try
+        {
+            return Assembly.Load(name);
+        }
+        catch (Exception ex) when (ex is FileNotFoundException or FileLoadException or BadImageFormatException)
+        {
+            Assert.Fail($"Could not load production assembly '{name}' for the ContentManifest.Files scan: {ex.Message}");
+            throw;
+        }
+    }
+
+    private static Type[] LoadTypes(Assembly assembly)
+    {
+        try
+        {
+            return assembly.GetTypes();
+        }
+        catch (ReflectionTypeLoadException ex)
+        {
+            var reasons = string.Join("; ", ex.LoaderExceptions.Select(e => e?.Message).Distinct());
+            Assert.Fail($"Could not load every type in '{assembly.GetName().Name}' for the ContentManifest.Files scan: {reasons}");
+            throw;
+        }
     }
 
     private static IEnumerable<MethodBase> DeclaredMethods(Type type)
@@ -245,7 +283,7 @@ public class ManifestFilesAccessRatchetTests
                 && resolved.Module == FilesGetter.Module
                 && resolved.MetadataToken == FilesGetter.MetadataToken;
         }
-        catch (Exception ex) when (ex is ArgumentException or FileNotFoundException or TypeLoadException or BadImageFormatException)
+        catch (Exception ex) when (ex is ArgumentException or FileNotFoundException or FileLoadException or TypeLoadException or BadImageFormatException)
         {
             // A member whose declaring assembly is not loadable here (a platform-only
             // API) cannot be ContentManifest.Files, which lives in a loaded assembly.

@@ -24,6 +24,7 @@ public sealed class FileSystemDelivererTests
 {
     private readonly Mock<IConfigurationProviderService> _configProviderMock = new();
     private readonly List<string> _builtFilePaths = [];
+    private string? _builtEntryPoint;
 
     /// <summary>
     /// Verifies that CanDeliver returns false when the manifest has no files.
@@ -156,12 +157,15 @@ public sealed class FileSystemDelivererTests
             };
             _configProviderMock.Setup(c => c.GetWorkspacePath()).Returns(directory.FullName);
 
-            var result = await CreateDeliverer().DeliverContentAsync(
-                VariantManifestFixture.Create(hostFiles, foreignFiles),
-                directory.FullName);
+            var manifest = VariantManifestFixture.Create(hostFiles, foreignFiles);
+            manifest.Variants[0].EntryPoint = "generalszh.exe";
+            manifest.Variants[1].EntryPoint = "generalszh";
+
+            var result = await CreateDeliverer().DeliverContentAsync(manifest, directory.FullName);
 
             Assert.True(result.Success, result.FirstError);
             Assert.Equal(["generalszh", "libSDL3.dylib"], _builtFilePaths);
+            Assert.Equal("generalszh", _builtEntryPoint);
         }
         finally
         {
@@ -192,6 +196,7 @@ public sealed class FileSystemDelivererTests
 
             Assert.True(result.Success, result.FirstError);
             Assert.Equal(["a.big", "b.big"], _builtFilePaths);
+            Assert.Null(_builtEntryPoint);
         }
         finally
         {
@@ -252,6 +257,35 @@ public sealed class FileSystemDelivererTests
         }
     }
 
+    /// <summary>
+    /// A variant manifest with no variant for this host fails delivery and validation
+    /// instead of succeeding with nothing delivered.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task VariantManifest_WithoutHostVariant_FailsDeliveryAndValidationAsync()
+    {
+        var directory = Directory.CreateTempSubdirectory();
+        try
+        {
+            _configProviderMock.Setup(c => c.GetWorkspacePath()).Returns(directory.FullName);
+            var manifest = VariantManifestFixture.Create([], [CreateLocalFile(directory.FullName, "foreign.bin")]);
+            manifest.Variants.RemoveAt(1);
+            var deliverer = CreateDeliverer();
+
+            var result = await deliverer.DeliverContentAsync(manifest, directory.FullName);
+            var validation = await deliverer.ValidateContentAsync(manifest);
+
+            Assert.False(result.Success);
+            Assert.Empty(_builtFilePaths);
+            Assert.False(validation.Data);
+        }
+        finally
+        {
+            directory.Delete(recursive: true);
+        }
+    }
+
     private static ManifestFile CreateLocalFile(string directory, string relativePath)
     {
         var path = Path.Combine(directory, relativePath);
@@ -280,6 +314,10 @@ public sealed class FileSystemDelivererTests
             .Setup(b => b.AddContentAddressableFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>(), It.IsAny<bool>(), It.IsAny<FilePermissions?>()))
             .Callback<string, string, long, bool, FilePermissions?>((relativePath, _, _, _, _) => _builtFilePaths.Add(relativePath))
             .ReturnsAsync(builderMock.Object);
+        builderMock
+            .Setup(b => b.WithEntryPoint(It.IsAny<string?>()))
+            .Callback<string?>(entryPoint => _builtEntryPoint = entryPoint)
+            .Returns(builderMock.Object);
         builderMock.Setup(b => b.AddRequiredDirectories(It.IsAny<string[]>())).Returns(builderMock.Object);
         builderMock.Setup(b => b.Build()).Returns(() => new ContentManifest
         {
