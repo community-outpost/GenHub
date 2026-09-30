@@ -20,7 +20,7 @@ import zlib
 
 SUPERHACKERS_REPO = "TheSuperHackers/GeneralsGameCode"
 GENERALSONLINE_CDN = "https://cdn.playgenerals.online"
-GENERALSONLINE_KNOWN_DATES = ("021326", "032926", "042826", "060526", "062026", "081326")
+GENERALSONLINE_KNOWN_DATES = ("021326", "032926", "042826", "060526", "062026", "081326", "082826", "092226", "092526", "092826")
 RETAIL_ZERO_HOUR_MANIFEST_ID = "1.104.retail.gameclient.zerohour"
 VANILLA_104_INI = "Vanilla 1.04 INI"
 DEFAULT_OUTPUT_PATH = os.path.join(
@@ -196,6 +196,156 @@ BASELINE_ENTRIES = [
         "buildDate": "2026-08-28",
         "description": "GeneralsOnline 082826_QFE1",
         "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE1.zip",
+        "dataPatchCdnUrl": "https://strata.gamereplays.org/storage/versions/ini/500_900_CommunityPatch_CoreINI_81FB5632.big",
+    },
+    {
+        "exeCrc": "0xB044249B",
+        "iniCrc": "0x81FB5632",
+        "sha256": "5f36a6ff83dd26d50d45a9ab88ef8b8af9922ea04f044266d05bf56c19222287",
+        "manifestId": "1.828262.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": None,
+        "dataPatchName": "CommunityPatch Core INI (81FB5632)",
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "082826_QFE2",
+        "buildDate": "2026-08-28",
+        "description": "GeneralsOnline 082826_QFE2",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE2.zip",
+        "dataPatchCdnUrl": "https://strata.gamereplays.org/storage/versions/ini/500_900_CommunityPatch_CoreINI_81FB5632.big",
+    },
+    {
+        "exeCrc": "0xB044249B",
+        "iniCrc": "0x81FB5632",
+        "sha256": "5f36a6ff83dd26d50d45a9ab88ef8b8af9922ea04f044266d05bf56c19222287",
+        "manifestId": "1.828263.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": None,
+        "dataPatchName": "CommunityPatch Core INI (81FB5632)",
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "082826_QFE3",
+        "buildDate": "2026-08-28",
+        "description": "GeneralsOnline 082826_QFE3",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE3.zip",
+        "dataPatchCdnUrl": "https://strata.gamereplays.org/storage/versions/ini/500_900_CommunityPatch_CoreINI_81FB5632.big",
+    },
+    {
+        "exeCrc": "0xB044249B",
+        "iniCrc": "0x81FB5632",
+        "sha256": "5f36a6ff83dd26d50d45a9ab88ef8b8af9922ea04f044266d05bf56c19222287",
+        "manifestId": "1.828264.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": None,
+        "dataPatchName": "CommunityPatch Core INI (81FB5632)",
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "082826_QFE4",
+        "buildDate": "2026-08-28",
+        "description": "GeneralsOnline 082826_QFE4",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE4.zip",
+        "dataPatchCdnUrl": "https://strata.gamereplays.org/storage/versions/ini/500_900_CommunityPatch_CoreINI_81FB5632.big",
+    },
+    {
+        "exeCrc": "0x383205DC",
+        "iniCrc": "0x81FB5632",
+        "sha256": "895075b251175a5337d724fe6ae933ab4cd2edd314e0fdc8b0cf23dc96c4c001",
+        "manifestId": "1.92226.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": None,
+        "dataPatchName": "CommunityPatch Core INI (81FB5632)",
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "092226",
+        "buildDate": "2026-09-22",
+        "description": "GeneralsOnline 092226",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_092226.zip",
+        "dataPatchCdnUrl": "https://strata.gamereplays.org/storage/versions/ini/500_900_CommunityPatch_CoreINI_81FB5632.big",
+    },
+    {
+        "exeCrc": "0xC3F59DFA",
+        "iniCrc": "0x81FB5632",
+        "sha256": "eeb09472f6fd30cd2a623517ec69ac93423e17c38065624befdc45df9adf3fb9",
+        "manifestId": "1.922261.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": None,
+        "dataPatchName": "CommunityPatch Core INI (81FB5632)",
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "092226_QFE1",
+        "buildDate": "2026-09-22",
+        "description": "GeneralsOnline 092226_QFE1",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_092226_QFE1.zip",
+        "dataPatchCdnUrl": "https://strata.gamereplays.org/storage/versions/ini/500_900_CommunityPatch_CoreINI_81FB5632.big",
+    },
+    {
+        "exeCrc": "0xC4841747",
+        "iniCrc": "0x81FB5632",
+        "sha256": "ff21df13c5cb0f524e4d56585c1867467efbcff44a94ed2e1b2f30eef2aaca8b",
+        "manifestId": "1.922262.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": None,
+        "dataPatchName": "CommunityPatch Core INI (81FB5632)",
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "092226_QFE2",
+        "buildDate": "2026-09-22",
+        "description": "GeneralsOnline 092226_QFE2",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_092226_QFE2.zip",
+        "dataPatchCdnUrl": "https://strata.gamereplays.org/storage/versions/ini/500_900_CommunityPatch_CoreINI_81FB5632.big",
+    },
+    {
+        "exeCrc": "0xDB4E6D21",
+        "iniCrc": "0x81FB5632",
+        "sha256": "704a8d100acb7ffb3e5c8bfdb1c81cfd183dcacce0b9720ecd1d9e902ebb63fd",
+        "manifestId": "1.92526.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": None,
+        "dataPatchName": "CommunityPatch Core INI (81FB5632)",
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "092526",
+        "buildDate": "2026-09-25",
+        "description": "GeneralsOnline 092526",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_092526.zip",
+        "dataPatchCdnUrl": "https://strata.gamereplays.org/storage/versions/ini/500_900_CommunityPatch_CoreINI_81FB5632.big",
+    },
+    {
+        "exeCrc": "0x3F347AAC",
+        "iniCrc": "0x81FB5632",
+        "sha256": "eed0d118e6bdd0b06a75c6a903268badd87193dbbefc2369da2b3b280febe57f",
+        "manifestId": "1.925261.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": None,
+        "dataPatchName": "CommunityPatch Core INI (81FB5632)",
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "092526_QFE1",
+        "buildDate": "2026-09-25",
+        "description": "GeneralsOnline 092526_QFE1",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_092526_QFE1.zip",
+        "dataPatchCdnUrl": "https://strata.gamereplays.org/storage/versions/ini/500_900_CommunityPatch_CoreINI_81FB5632.big",
+    },
+    {
+        "exeCrc": "0xD83377F3",
+        "iniCrc": "0x81FB5632",
+        "sha256": "8ba835206919bbfe724514f10e3ecb665245ff9e4141ef842b67fe616214ba3f",
+        "manifestId": "1.92826.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": None,
+        "dataPatchName": "CommunityPatch Core INI (81FB5632)",
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "092826",
+        "buildDate": "2026-09-28",
+        "description": "GeneralsOnline 092826",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_092826.zip",
+        "dataPatchCdnUrl": "https://strata.gamereplays.org/storage/versions/ini/500_900_CommunityPatch_CoreINI_81FB5632.big",
+    },
+    {
+        "exeCrc": "0xD7AEF7C6",
+        "iniCrc": "0x81FB5632",
+        "sha256": "e07a579dc5fbe3a9ca8f12ab302906c45db9f33847b368f83890ee35404f58f0",
+        "manifestId": "1.928261.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": None,
+        "dataPatchName": "CommunityPatch Core INI (81FB5632)",
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "092826_QFE1",
+        "buildDate": "2026-09-28",
+        "description": "GeneralsOnline 092826_QFE1",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_092826_QFE1.zip",
         "dataPatchCdnUrl": "https://strata.gamereplays.org/storage/versions/ini/500_900_CommunityPatch_CoreINI_81FB5632.big",
     },
     {
@@ -575,9 +725,33 @@ def build_generalsonline_entry(cand: tuple[str, str, str, str], inspect_binaries
         "032926_QFE5": "0x1A5EF2C5",
         "082826": "0xB9DB8815",
         "082826_QFE1": "0xB9DB8815",
+        "082826_QFE2": "0xB044249B",
+        "082826_QFE3": "0xB044249B",
+        "082826_QFE4": "0xB044249B",
+        "092226": "0x383205DC",
+        "092226_QFE1": "0xC3F59DFA",
+        "092226_QFE2": "0xC4841747",
+        "092526": "0xDB4E6D21",
+        "092526_QFE1": "0x3F347AAC",
+        "092826": "0xD83377F3",
+        "092826_QFE1": "0xD7AEF7C6",
+    }
+    known_sha256s = {
+        "082826_QFE2": "5f36a6ff83dd26d50d45a9ab88ef8b8af9922ea04f044266d05bf56c19222287",
+        "082826_QFE3": "5f36a6ff83dd26d50d45a9ab88ef8b8af9922ea04f044266d05bf56c19222287",
+        "082826_QFE4": "5f36a6ff83dd26d50d45a9ab88ef8b8af9922ea04f044266d05bf56c19222287",
+        "092226": "895075b251175a5337d724fe6ae933ab4cd2edd314e0fdc8b0cf23dc96c4c001",
+        "092226_QFE1": "eeb09472f6fd30cd2a623517ec69ac93423e17c38065624befdc45df9adf3fb9",
+        "092226_QFE2": "ff21df13c5cb0f524e4d56585c1867467efbcff44a94ed2e1b2f30eef2aaca8b",
+        "092526": "704a8d100acb7ffb3e5c8bfdb1c81cfd183dcacce0b9720ecd1d9e902ebb63fd",
+        "092526_QFE1": "eed0d118e6bdd0b06a75c6a903268badd87193dbbefc2369da2b3b280febe57f",
+        "092826": "8ba835206919bbfe724514f10e3ecb665245ff9e4141ef842b67fe616214ba3f",
+        "092826_QFE1": "e07a579dc5fbe3a9ca8f12ab302906c45db9f33847b368f83890ee35404f58f0",
     }
     if version_str in known_sage_crcs:
         exe_crc = known_sage_crcs[version_str]
+    if version_str in known_sha256s and not sha256:
+        sha256 = known_sha256s[version_str]
 
     if inspect_binaries:
         c_exe, c_sha, c_ini = inspect_archive_binary(url, ["generalsonlinezh_60.exe", "generalsonlinezh.exe"])
@@ -597,7 +771,7 @@ def build_generalsonline_entry(cand: tuple[str, str, str, str], inspect_binaries
     day = date_code[2:4]
     build_date = f"{year}-{month}-{day}"
 
-    return {
+    entry = {
         "exeCrc": exe_crc,
         "iniCrc": ini_crc,
         "sha256": sha256,
@@ -606,9 +780,12 @@ def build_generalsonline_entry(cand: tuple[str, str, str, str], inspect_binaries
         "gameType": "ZeroHour",
         "version": version_str,
         "buildDate": build_date,
-        "description": f"GeneralsOnline {version_str} portable release",
+        "description": f"GeneralsOnline {version_str}",
         "cdnUrl": url,
     }
+    if ini_crc == "0x81FB5632":
+        entry["dataPatchName"] = "CommunityPatch Core INI (81FB5632)"
+    return entry
 
 
 def crawl_generalsonline_releases(inspect_binaries: bool = False, start_year: int = 2025, end_year: int = 2026) -> list[dict]:
