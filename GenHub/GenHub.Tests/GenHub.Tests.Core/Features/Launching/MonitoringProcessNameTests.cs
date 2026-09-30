@@ -72,8 +72,7 @@ public sealed class MonitoringProcessNameTests : IDisposable
         var result = Resolve(BuildGeneralsOnlineManifests(childHash: ChildHash), WorkspaceStrategy.SymlinkOnly);
 
         Assert.True(result.Success, result.FirstError);
-        Assert.Equal(ChildHash, result.Data.ProcessName);
-        Assert.Equal(_store, result.Data.ResidenceDirectory);
+        AssertIdentities(result, new GameProcessIdentity(ExpectedChildName, _workspace), new GameProcessIdentity(ChildHash, _store));
     }
 
     /// <summary>
@@ -92,34 +91,71 @@ public sealed class MonitoringProcessNameTests : IDisposable
         var result = Resolve(BuildGeneralsOnlineManifests(childHash: ChildHash), WorkspaceStrategy.SymlinkOnly);
 
         Assert.True(result.Success, result.FirstError);
-        Assert.Equal(ObjectName, result.Data.ProcessName);
-        Assert.Equal(_store, result.Data.ResidenceDirectory);
+        AssertIdentities(result, new GameProcessIdentity(ExpectedChildName, _workspace), new GameProcessIdentity(ObjectName, _store));
     }
 
     /// <summary>
-    /// The selector accepts the discovered child with the returned directory and rejects it with
-    /// the workspace path, which is what discovery used before.
+    /// Windows names a process started through a link after the target but reports the link as its
+    /// image. The returned identities select it, and the target identity alone would not.
     /// </summary>
     [Fact]
-    public void CasSymlinkedBootstrapper_ReturnedDirectoryLetsTheSelectorFindTheChild()
+    public void CasSymlinkedBootstrapper_IdentitiesSelectTheWindowsShape()
     {
-        File.WriteAllText(Path.Combine(_store, ChildHash), "client");
-        if (!TryCreateSymbolicLink(ChildWorkspacePath, Path.Combine(_store, ChildHash)))
+        var identities = ResolveLinkedChildIdentities();
+        if (identities is null)
         {
             return;
         }
 
-        var result = Resolve(BuildGeneralsOnlineManifests(childHash: ChildHash), WorkspaceStrategy.SymlinkOnly);
-        Assert.True(result.Success, result.FirstError);
+        var now = DateTime.UtcNow;
+        var candidates = new[] { new GameProcessCandidate(1, ChildHash, now, ChildWorkspacePath) };
+
+        Assert.NotNull(GameProcessSelector.SelectSpawnedGameProcess(candidates, identities, now));
+        Assert.Null(GameProcessSelector.SelectSpawnedGameProcess(candidates, [identities[1]], now));
+    }
+
+    /// <summary>
+    /// Linux names a process started through a link after the link but reports the target as its
+    /// image. The returned identities select it, and the link identity alone would not.
+    /// </summary>
+    [Fact]
+    public void CasSymlinkedBootstrapper_IdentitiesSelectTheLinuxShape()
+    {
+        var identities = ResolveLinkedChildIdentities();
+        if (identities is null)
+        {
+            return;
+        }
 
         var now = DateTime.UtcNow;
-        var imagePath = File.ResolveLinkTarget(ChildWorkspacePath, returnFinalTarget: true)!.FullName;
-        var candidates = new[] { new GameProcessCandidate(1, ChildHash, now, imagePath) };
+        var truncatedLinkName = ExpectedChildName[..ProcessConstants.UnixProcessNameMaxLength];
+        var candidates = new[] { new GameProcessCandidate(1, truncatedLinkName, now, Path.Combine(_store, ChildHash)) };
 
-        Assert.NotNull(GameProcessSelector.SelectSpawnedGameProcess(
-            candidates, result.Data.ProcessName, result.Data.ResidenceDirectory, now));
-        Assert.Null(GameProcessSelector.SelectSpawnedGameProcess(
-            candidates, result.Data.ProcessName, _workspace, now));
+        Assert.NotNull(GameProcessSelector.SelectSpawnedGameProcess(candidates, identities, now));
+        Assert.Null(GameProcessSelector.SelectSpawnedGameProcess(candidates, [identities[0]], now));
+    }
+
+    /// <summary>
+    /// A name match is never enough: a process carrying either name from another directory is rejected.
+    /// </summary>
+    [Fact]
+    public void CasSymlinkedBootstrapper_IdentitiesRejectANameMatchElsewhere()
+    {
+        var identities = ResolveLinkedChildIdentities();
+        if (identities is null)
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        var elsewhere = Directory.CreateDirectory(Path.Combine(_root, "elsewhere")).FullName;
+        var candidates = new[]
+        {
+            new GameProcessCandidate(1, ChildHash, now, Path.Combine(elsewhere, ChildHash)),
+            new GameProcessCandidate(2, ExpectedChildName, now, Path.Combine(elsewhere, GameClientConstants.GeneralsOnline60HzExecutable)),
+        };
+
+        Assert.Null(GameProcessSelector.SelectSpawnedGameProcess(candidates, identities, now));
     }
 
     /// <summary>
@@ -133,8 +169,7 @@ public sealed class MonitoringProcessNameTests : IDisposable
         var result = Resolve(BuildGeneralsOnlineManifests(childHash: ChildHash), WorkspaceStrategy.SymlinkOnly);
 
         Assert.True(result.Success, result.FirstError);
-        Assert.Equal(ChildHash, result.Data.ProcessName);
-        Assert.Equal(_workspace, result.Data.ResidenceDirectory);
+        AssertIdentities(result, new GameProcessIdentity(ChildHash, _workspace));
     }
 
     /// <summary>
@@ -202,8 +237,7 @@ public sealed class MonitoringProcessNameTests : IDisposable
             WorkspaceStrategy.SymlinkOnly);
 
         Assert.True(result.Success, result.FirstError);
-        Assert.Equal(ExpectedChildName, result.Data.ProcessName);
-        Assert.Equal(_workspace, result.Data.ResidenceDirectory);
+        AssertIdentities(result, new GameProcessIdentity(ExpectedChildName, _workspace));
     }
 
     /// <summary>
@@ -222,8 +256,7 @@ public sealed class MonitoringProcessNameTests : IDisposable
             localizationService: null);
 
         Assert.True(result.Success, result.FirstError);
-        Assert.Equal(BootstrapperHash, result.Data.ProcessName);
-        Assert.Equal(_workspace, result.Data.ResidenceDirectory);
+        AssertIdentities(result, new GameProcessIdentity(BootstrapperHash, _workspace));
     }
 
     /// <summary>
@@ -248,8 +281,10 @@ public sealed class MonitoringProcessNameTests : IDisposable
             localizationService: null);
 
         Assert.True(result.Success, result.FirstError);
-        Assert.Equal(BootstrapperHash, result.Data.ProcessName);
-        Assert.Equal(_store, result.Data.ResidenceDirectory);
+        AssertIdentities(
+            result,
+            new GameProcessIdentity(Path.GetFileNameWithoutExtension(GameClientConstants.GeneralsOnlineEacLauncherExecutable), _workspace),
+            new GameProcessIdentity(BootstrapperHash, _store));
     }
 
     /// <summary>
@@ -261,8 +296,7 @@ public sealed class MonitoringProcessNameTests : IDisposable
         var result = Resolve(BuildGeneralsOnlineManifests(childHash: string.Empty), WorkspaceStrategy.HardLink);
 
         Assert.True(result.Success, result.FirstError);
-        Assert.Equal(ExpectedChildName, result.Data.ProcessName);
-        Assert.Equal(_workspace, result.Data.ResidenceDirectory);
+        AssertIdentities(result, new GameProcessIdentity(ExpectedChildName, _workspace));
     }
 
     /// <summary>
@@ -285,7 +319,7 @@ public sealed class MonitoringProcessNameTests : IDisposable
         var result = Resolve(manifests, WorkspaceStrategy.SymlinkOnly);
 
         Assert.True(result.Success, result.FirstError);
-        Assert.Equal(ChildHash, result.Data.ProcessName);
+        AssertIdentities(result, new GameProcessIdentity(ChildHash, _workspace));
     }
 
     /// <summary>
@@ -323,7 +357,7 @@ public sealed class MonitoringProcessNameTests : IDisposable
         var result = Resolve(manifests, WorkspaceStrategy.SymlinkOnly);
 
         Assert.True(result.Success, result.FirstError);
-        Assert.Equal(ChildHash, result.Data.ProcessName);
+        AssertIdentities(result, new GameProcessIdentity(ChildHash, _workspace));
     }
 
     /// <summary>
@@ -341,7 +375,7 @@ public sealed class MonitoringProcessNameTests : IDisposable
         var result = Resolve(manifests, WorkspaceStrategy.SymlinkOnly);
 
         Assert.True(result.Success, result.FirstError);
-        Assert.Equal(ChildHash, result.Data.ProcessName);
+        AssertIdentities(result, new GameProcessIdentity(ChildHash, _workspace));
     }
 
     /// <summary>
@@ -385,8 +419,15 @@ public sealed class MonitoringProcessNameTests : IDisposable
             WorkspaceStrategy.SymlinkOnly);
 
         Assert.True(result.Success, result.FirstError);
-        Assert.Equal(ExpectedChildName, result.Data.ProcessName);
-        Assert.Equal(installation, result.Data.ResidenceDirectory);
+        AssertIdentities(result, new GameProcessIdentity(ExpectedChildName, _workspace), new GameProcessIdentity(ExpectedChildName, installation));
+    }
+
+    private static void AssertIdentities(
+        OperationResult<IReadOnlyList<GameProcessIdentity>> result,
+        params GameProcessIdentity[] expected)
+    {
+        Assert.True(result.Success, result.FirstError);
+        Assert.Equal(expected, result.Data);
     }
 
     private static bool TryCreateSymbolicLink(string path, string target)
@@ -467,7 +508,20 @@ public sealed class MonitoringProcessNameTests : IDisposable
         return [installation, client];
     }
 
-    private OperationResult<(string ProcessName, string ResidenceDirectory)> Resolve(
+    private IReadOnlyList<GameProcessIdentity>? ResolveLinkedChildIdentities()
+    {
+        File.WriteAllText(Path.Combine(_store, ChildHash), "client");
+        if (!TryCreateSymbolicLink(ChildWorkspacePath, Path.Combine(_store, ChildHash)))
+        {
+            return null;
+        }
+
+        var result = Resolve(BuildGeneralsOnlineManifests(childHash: ChildHash), WorkspaceStrategy.SymlinkOnly);
+        Assert.True(result.Success, result.FirstError);
+        return result.Data;
+    }
+
+    private OperationResult<IReadOnlyList<GameProcessIdentity>> Resolve(
         IReadOnlyList<ContentManifest> manifests,
         WorkspaceStrategy strategy) =>
         GameLauncher.DetermineMonitoringTarget(

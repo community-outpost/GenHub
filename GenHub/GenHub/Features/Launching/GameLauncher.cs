@@ -164,8 +164,8 @@ public class GameLauncher(
     }
 
     /// <summary>
-    /// Resolves the process to discover after a storefront launch: the name it runs under and the
-    /// directory its image must reside in.
+    /// Resolves the identities the process to discover after a storefront launch may present: the
+    /// names it can run under and the directories its image can reside in.
     /// </summary>
     /// <param name="manifests">The manifests selected for this launch.</param>
     /// <param name="finalExecutablePath">The executable the launch starts.</param>
@@ -175,7 +175,7 @@ public class GameLauncher(
     /// <param name="logger">The logger.</param>
     /// <param name="localizationService">Optional localization for the failure message.</param>
     /// <returns>The process to monitor, or a failure when it cannot be determined.</returns>
-    internal static OperationResult<(string ProcessName, string ResidenceDirectory)> DetermineMonitoringTarget(
+    internal static OperationResult<IReadOnlyList<GameProcessIdentity>> DetermineMonitoringTarget(
         IReadOnlyList<ContentManifest> manifests,
         string finalExecutablePath,
         string workspacePath,
@@ -212,7 +212,7 @@ public class GameLauncher(
                 logger.LogError(
                     "[GameLauncher] {Entry} is CAS symlinked, but its manifest carries no hash for it",
                     Path.GetFileName(finalExecutablePath));
-                return OperationResult<(string, string)>.CreateFailure(RunnerTargetResolver.Localize(
+                return OperationResult<IReadOnlyList<GameProcessIdentity>>.CreateFailure(RunnerTargetResolver.Localize(
                     localizationService,
                     LaunchMessageConstants.EntryPointHashMissingKey,
                     LaunchMessageConstants.EntryPointHashMissing,
@@ -220,17 +220,14 @@ public class GameLauncher(
             }
 
             var entryTarget = File.Exists(finalExecutablePath) ? TryResolveFinalLinkTarget(finalExecutablePath, logger) : null;
-            var target = (ProcessName: executableFileForMonitor.Hash, ResidenceDirectory: workspacePath);
-            if (entryTarget is { Exists: true })
-            {
-                target = ToMonitoringTarget(entryTarget);
-            }
+            IReadOnlyList<GameProcessIdentity> entryIdentities = entryTarget is { Exists: true }
+                ? GetLinkIdentities(finalExecutablePath, entryTarget)
+                : [new GameProcessIdentity(executableFileForMonitor.Hash, workspacePath)];
 
             logger.LogInformation(
-                "[GameLauncher] Monitoring for CAS symlinked process {ProcessName} in {Directory}",
-                target.ProcessName,
-                target.ResidenceDirectory);
-            return OperationResult<(string, string)>.CreateSuccess(target);
+                "[GameLauncher] Monitoring for CAS symlinked process as any of: {Identities}",
+                DescribeIdentities(entryIdentities));
+            return OperationResult<IReadOnlyList<GameProcessIdentity>>.CreateSuccess(entryIdentities);
         }
 
         var processName = executableFileForMonitor != null
@@ -243,7 +240,7 @@ public class GameLauncher(
         }
 
         logger.LogInformation("[GameLauncher] Monitoring for process: {ProcessName}", processName);
-        return OperationResult<(string, string)>.CreateSuccess((processName, workspacePath));
+        return OperationResult<IReadOnlyList<GameProcessIdentity>>.CreateSuccess([new GameProcessIdentity(processName, workspacePath)]);
     }
 
     /// <summary>
@@ -290,9 +287,9 @@ public class GameLauncher(
     }
 
     /// <summary>
-    /// Resolves the process a CAS-symlinked bootstrapper hands the session to. The operating system
-    /// names and places a process by its symlink's final target, so both come from the child's link
-    /// in the workspace. A child that is not a link keeps the name its manifest implies.
+    /// Resolves the process a CAS-symlinked bootstrapper hands the session to. A child linked into
+    /// the workspace may be reported under its link or its final target, so both identities are
+    /// returned. A child that is not a link keeps the name its manifest implies.
     /// </summary>
     /// <param name="manifests">The manifests selected for this launch.</param>
     /// <param name="entryManifest">The manifest that owns the entry point.</param>
@@ -303,7 +300,7 @@ public class GameLauncher(
     /// <param name="logger">The logger.</param>
     /// <param name="localizationService">Optional localization for the failure message.</param>
     /// <returns>The process to monitor, or a failure when the child cannot be identified.</returns>
-    private static OperationResult<(string ProcessName, string ResidenceDirectory)> ResolveWrappedChildMonitoringTarget(
+    private static OperationResult<IReadOnlyList<GameProcessIdentity>> ResolveWrappedChildMonitoringTarget(
         IReadOnlyList<ContentManifest> manifests,
         ContentManifest entryManifest,
         ManifestFile entryFile,
@@ -341,7 +338,7 @@ public class GameLauncher(
                 "[GameLauncher] {Entry} hands the session to {Child} under CAS symlinking, but the child is missing from the selected manifests or the workspace",
                 Path.GetFileName(finalExecutablePath),
                 expectedChildProcessName);
-            return OperationResult<(string, string)>.CreateFailure(RunnerTargetResolver.Localize(
+            return OperationResult<IReadOnlyList<GameProcessIdentity>>.CreateFailure(RunnerTargetResolver.Localize(
                 localizationService,
                 LaunchMessageConstants.BootstrapperChildUnresolvedKey,
                 LaunchMessageConstants.BootstrapperChildUnresolved,
@@ -349,24 +346,27 @@ public class GameLauncher(
                 expectedChildProcessName));
         }
 
-        var target = (ProcessName: isCasChild ? childFile.Hash : expectedChildProcessName, ResidenceDirectory: workspacePath);
+        IReadOnlyList<GameProcessIdentity> identities;
         if (childTarget is not null)
         {
-            target = ToMonitoringTarget(childTarget);
+            identities = GetLinkIdentities(childPath!, childTarget);
+        }
+        else
+        {
+            var fallbackName = isCasChild ? childFile.Hash : expectedChildProcessName;
+            identities = [new GameProcessIdentity(fallbackName, workspacePath)];
         }
 
         logger.LogInformation(
-            "[GameLauncher] Monitoring for {Child}, launched through {Entry} under CAS symlinking, as process {ProcessName} in {Directory}",
+            "[GameLauncher] Monitoring for {Child}, launched through {Entry} under CAS symlinking, as any of: {Identities}",
             expectedChildProcessName,
             Path.GetFileName(finalExecutablePath),
-            target.ProcessName,
-            target.ResidenceDirectory);
-        return OperationResult<(string, string)>.CreateSuccess(target);
+            DescribeIdentities(identities));
+        return OperationResult<IReadOnlyList<GameProcessIdentity>>.CreateSuccess(identities);
     }
 
     /// <summary>
-    /// Resolves a symlinked executable's final target, which the operating system names and places
-    /// the process by.
+    /// Resolves a symlinked executable's final target.
     /// </summary>
     /// <param name="path">The executable's path in the workspace.</param>
     /// <param name="logger">The logger.</param>
@@ -384,8 +384,23 @@ public class GameLauncher(
         }
     }
 
-    private static (string ProcessName, string ResidenceDirectory) ToMonitoringTarget(FileSystemInfo target) =>
-        (Path.GetFileNameWithoutExtension(target.FullName), Path.GetDirectoryName(target.FullName) ?? string.Empty);
+    /// <summary>
+    /// Builds both identities a process started through a symbolic link can present. Platforms
+    /// differ: Windows names the process after the target but reports the link as its image, Linux
+    /// names it after the link but reports the target as its image, and macOS reports the target
+    /// for both.
+    /// </summary>
+    /// <param name="linkPath">The link in the workspace.</param>
+    /// <param name="target">The link's final target.</param>
+    /// <returns>The link identity followed by the target identity.</returns>
+    private static IReadOnlyList<GameProcessIdentity> GetLinkIdentities(string linkPath, FileSystemInfo target) =>
+    [
+        new GameProcessIdentity(Path.GetFileNameWithoutExtension(linkPath), Path.GetDirectoryName(linkPath)),
+        new GameProcessIdentity(Path.GetFileNameWithoutExtension(target.FullName), Path.GetDirectoryName(target.FullName)),
+    ];
+
+    private static string DescribeIdentities(IReadOnlyList<GameProcessIdentity> identities) =>
+        string.Join(", ", identities.Select(identity => $"{identity.ProcessName} in {identity.Directory}"));
 
     private static string GetRelativeDirectory(string relativePath) =>
         Path.GetDirectoryName(relativePath.Replace('\\', '/'))?.Replace('\\', '/') ?? string.Empty;
@@ -2169,10 +2184,8 @@ public class GameLauncher(
             return OperationResult<GameProcessInfo>.CreateFailure($"Failed to launch via Steam: {ex.Message}");
         }
 
-        var (processName, residenceDirectory) = monitoringTargetResult.Data;
         return await processManager.DiscoverAndTrackProcessAsync(
-            processName,
-            residenceDirectory,
+            monitoringTargetResult.Data!,
             cancellationToken);
     }
 

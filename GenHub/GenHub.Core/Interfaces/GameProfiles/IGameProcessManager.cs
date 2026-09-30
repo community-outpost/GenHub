@@ -55,11 +55,10 @@ public interface IGameProcessManager
     /// Attempts to discover a running process by name and track it as a managed process.
     /// Useful for games launched via Steam.
     /// </summary>
-    /// <param name="processName">The name of the process (without extension).</param>
-    /// <param name="workingDirectory">The directory the process image must reside in. For a symlinked executable this is the link target's directory.</param>
+    /// <param name="identities">The identities the process may present: a name without extension and the directory its image must reside in. The first names the session.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A process operation result containing the discovered process info.</returns>
-    Task<OperationResult<GameProcessInfo>> DiscoverAndTrackProcessAsync(string processName, string workingDirectory, CancellationToken cancellationToken = default);
+    Task<OperationResult<GameProcessInfo>> DiscoverAndTrackProcessAsync(IReadOnlyList<GameProcessIdentity> identities, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Registers an existing process for tracking.

@@ -468,9 +468,20 @@ public class GameProcessManager(
     }
 
     /// <inheritdoc/>
-    public async Task<OperationResult<GameProcessInfo>> DiscoverAndTrackProcessAsync(string processName, string workingDirectory, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<GameProcessInfo>> DiscoverAndTrackProcessAsync(IReadOnlyList<GameProcessIdentity> identities, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("[Discover] Attempting to discover and track process: {Name} in {Directory}", processName, workingDirectory);
+        ArgumentNullException.ThrowIfNull(identities);
+        if (identities.Count == 0)
+        {
+            throw new ArgumentException("At least one identity is required.", nameof(identities));
+        }
+
+        // The first identity is the one the launch addresses the game by, so it names the session.
+        var processName = identities[0].ProcessName;
+        var workingDirectory = identities[0].Directory ?? string.Empty;
+        logger.LogInformation(
+            "[Discover] Attempting to discover and track process as any of: {Identities}",
+            string.Join(", ", identities.Select(identity => $"{identity.ProcessName} in {identity.Directory}")));
 
         // Poll for up to 45 seconds since Steam might need to start first, then launch the game
         // If Steam isn't running, steam:// URL will launch Steam (5-10s), then Steam launches the game (5-10s)
@@ -484,7 +495,7 @@ public class GameProcessManager(
                 return OperationResult<GameProcessInfo>.CreateFailure("Discovery cancelled");
             }
 
-            var process = FindSpawnedGameProcess(processName, workingDirectory);
+            var process = FindSpawnedGameProcess(identities);
             if (process != null)
             {
                 logger.LogInformation("[Discover] Successfully discovered and tracked process {ProcessId}", process.Id);
@@ -670,6 +681,71 @@ public class GameProcessManager(
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Enumerates the running processes that could carry any of <paramref name="executableNames"/>,
+    /// once per process even when several names find it.
+    /// </summary>
+    /// <param name="executableNames">The base executable names without extension.</param>
+    /// <returns>The processes found. The caller owns and disposes them.</returns>
+    internal static Process[] GetProcessesByNames(IEnumerable<string> executableNames)
+    {
+        var found = new Dictionary<int, Process>();
+        try
+        {
+            foreach (var discoveryName in executableNames.Select(GameProcessSelector.GetDiscoveryName).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                foreach (var process in Process.GetProcessesByName(discoveryName))
+                {
+                    if (!found.TryAdd(process.Id, process))
+                    {
+                        process.Dispose();
+                    }
+                }
+            }
+        }
+        catch
+        {
+            foreach (var process in found.Values)
+            {
+                process.Dispose();
+            }
+
+            throw;
+        }
+
+        return [.. found.Values];
+    }
+
+    /// <summary>
+    /// Reduces running processes to the facts the selection policy decides on. A process that cannot
+    /// be inspected cannot be shown to be ours, so it is left out.
+    /// </summary>
+    /// <param name="processes">The processes to inspect.</param>
+    /// <param name="logger">The logger.</param>
+    /// <returns>The candidates for selection.</returns>
+    internal static List<GameProcessCandidate> BuildCandidates(IEnumerable<Process> processes, ILogger logger)
+    {
+        var candidates = new List<GameProcessCandidate>();
+        foreach (var process in processes)
+        {
+            try
+            {
+                var executablePath = GetProcessExecutablePath(process);
+                candidates.Add(new GameProcessCandidate(
+                    process.Id,
+                    process.ProcessName,
+                    process.StartTime.ToUniversalTime(),
+                    string.IsNullOrEmpty(executablePath) ? null : executablePath));
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Skipping uninspectable process {ProcessId}", process.Id);
+            }
+        }
+
+        return candidates;
     }
 
     /// <summary>Bounds notification delivery so a missing callback cannot block future stops.</summary>
@@ -1840,14 +1916,12 @@ public class GameProcessManager(
     /// Finds a game process by executable name and working directory, without a launcher to bound
     /// the search. Used when discovering a game a storefront started on our behalf.
     /// </summary>
-    /// <param name="executableName">The base executable name without extension.</param>
-    /// <param name="workingDirectory">The expected working directory.</param>
+    /// <param name="identities">The identities the game may present.</param>
     /// <returns>The discovered process if found, null otherwise.</returns>
-    private Process? FindSpawnedGameProcess(string executableName, string workingDirectory) =>
+    private Process? FindSpawnedGameProcess(IReadOnlyList<GameProcessIdentity> identities) =>
         FindGameProcess(
-            executableName,
-            candidates => GameProcessSelector.SelectSpawnedGameProcess(
-                candidates, executableName, workingDirectory, DateTime.UtcNow));
+            [.. identities.Select(identity => identity.ProcessName)],
+            candidates => GameProcessSelector.SelectSpawnedGameProcess(candidates, identities, DateTime.UtcNow));
 
     /// <summary>
     /// Finds the process a launcher spawned, to be tracked and terminated in the launcher's place.
@@ -1867,24 +1941,25 @@ public class GameProcessManager(
         }
 
         return FindGameProcess(
-            executableName,
+            [executableName],
             candidates => GameProcessSelector.SelectAdoptableGameProcess(
                 candidates, executableName, workingDirectory, launcherStartTime.Value.ToUniversalTime()));
     }
 
     /// <summary>
-    /// Enumerates the processes that could carry <paramref name="executableName"/> and hands them
-    /// to a selection policy.
+    /// Enumerates the processes that could carry any of <paramref name="executableNames"/> and hands
+    /// them to a selection policy.
     /// </summary>
-    /// <param name="executableName">The base executable name without extension.</param>
+    /// <param name="executableNames">The base executable names without extension.</param>
     /// <param name="select">The policy deciding which candidate, if any, is ours.</param>
     /// <returns>The selected process if found, null otherwise.</returns>
-    private Process? FindGameProcess(string executableName, Func<List<GameProcessCandidate>, GameProcessCandidate?> select)
+    private Process? FindGameProcess(IReadOnlyCollection<string> executableNames, Func<List<GameProcessCandidate>, GameProcessCandidate?> select)
     {
+        var executableName = string.Join(", ", executableNames);
         Process[] processes = [];
         try
         {
-            processes = Process.GetProcessesByName(GameProcessSelector.GetDiscoveryName(executableName));
+            processes = GetProcessesByNames(executableNames);
         }
         catch (Exception ex)
         {
@@ -1894,25 +1969,7 @@ public class GameProcessManager(
 
         try
         {
-            var candidates = new List<GameProcessCandidate>();
-            foreach (var process in processes)
-            {
-                try
-                {
-                    var executablePath = GetProcessExecutablePath(process);
-                    candidates.Add(new GameProcessCandidate(
-                        process.Id,
-                        process.ProcessName,
-                        process.StartTime.ToUniversalTime(),
-                        string.IsNullOrEmpty(executablePath) ? null : executablePath));
-                }
-                catch (Exception ex)
-                {
-                    // A process that cannot be inspected cannot be shown to be ours.
-                    logger.LogDebug(ex, "Skipping uninspectable process {ProcessId}", process.Id);
-                }
-            }
-
+            var candidates = BuildCandidates(processes, logger);
             var selected = select(candidates);
 
             if (selected == null)
