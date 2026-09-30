@@ -836,7 +836,7 @@ def build_generalsonline_entry(cand: tuple[str, str, str, str], inspect_binaries
     month = int(date_code[:2])
     ini_crc = "0x81FB5632" if month >= 8 else "0xFEAAE3F3"
 
-    if inspect_binaries or (not exe_crc or not sha256):
+    if inspect_binaries or not exe_crc:
         inspected = _inspect_generalsonline_binary(url, version_str, exe_crc, ini_crc)
         if inspected is not None:
             exe_crc, sha256, ini_crc = inspected
@@ -1258,7 +1258,7 @@ def _crawl_and_merge(
             elif source == "generalsonline":
                 print("Notice: no new GeneralsOnline releases discovered on CDN; catalog is up to date.")
 
-        if not sh_crawled and not go_crawled and not from_latest and source == "all":
+        if not sh_crawled and not go_crawled and not from_latest and source in ("all", "superhackers"):
             print("Error: crawl failed to discover any entries from upstream sources; aborting generation to prevent publishing a stale catalog.", file=sys.stderr)
             sys.exit(1)
 
@@ -1393,8 +1393,8 @@ def main():
     parser.add_argument("--source", choices=["all", "generalsonline", "superhackers"], default="all", help="Source to crawl (all, generalsonline, superhackers)")
     parser.add_argument("--generalsonline-only", action="store_true", help="Crawl only GeneralsOnline (shortcut for --source generalsonline)")
     parser.add_argument("--from-latest", action="store_true", help="Crawl from latest known catalog date onward")
-    parser.add_argument("--start-date", help="Custom start date for crawling (YYYY-MM-DD or MMDDYY)")
-    parser.add_argument("--end-date", help="Custom end date for crawling (YYYY-MM-DD or MMDDYY)")
+    parser.add_argument("--start-date", type=parse_date_arg, help="Custom start date for crawling (YYYY-MM-DD or MMDDYY)")
+    parser.add_argument("--end-date", type=parse_date_arg, help="Custom end date for crawling (YYYY-MM-DD or MMDDYY)")
     parser.add_argument("--inspect-binaries", action="store_true", help="Download archives and calculate CRC32/SHA256 from binaries")
     parser.add_argument("--validate", action="store_true", help="Validate existing catalog")
     parser.add_argument("--self-test", action="store_true", help="Run self-test suite and exit")
@@ -1419,8 +1419,8 @@ def main():
             sys.exit(1)
 
     source = "generalsonline" if args.generalsonline_only else args.source
-    start_date = parse_date_arg(args.start_date) if args.start_date else None
-    end_date = parse_date_arg(args.end_date) if args.end_date else None
+    start_date = args.start_date
+    end_date = args.end_date
 
     build_catalog(
         output_path=args.output,
