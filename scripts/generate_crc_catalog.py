@@ -356,7 +356,7 @@ BASELINE_ENTRIES = [
         "exeCrc": "0xB9DB8815",
         "iniCrc": "0xFEAAE3F3",
         "sha256": "97288eb5979bb959a4be2da03d09a06144e05bbf2f07ff67dbf8c05769eb07ee",
-        "manifestId": "1.828261.generalsonline.gameclient.zerohour",
+        "manifestId": "1.828261.generalsonline.gameclient.vanilla-zerohour",
         "dataPatchManifestId": None,
         "dataPatchName": VANILLA_104_INI,
         "publisher": "generalsonline",
@@ -777,7 +777,7 @@ def build_generalsonline_entry(cand: tuple[str, str, str, str], inspect_binaries
     ini_crc = "0x81FB5632" if month >= 8 else "0xFEAAE3F3"
 
     if inspect_binaries:
-        inspected = _inspect_generalsonline_binary(url, version_str, exe_crc, sha256, ini_crc)
+        inspected = _inspect_generalsonline_binary(url, version_str, exe_crc, ini_crc)
         if inspected is None:
             return None
         exe_crc, sha256, ini_crc = inspected
@@ -1075,7 +1075,7 @@ def validate_catalog(catalog: dict) -> bool:
     return valid
 
 
-def _update_existing_entry(existing_entry: dict, base: dict) -> None:
+def _update_entry_from_base(existing_entry: dict, base: dict) -> None:
     """Updates missing fields on an existing entry from base mapping."""
     base_exe = base.get("exeCrc")
     if base_exe:
@@ -1087,6 +1087,14 @@ def _update_existing_entry(existing_entry: dict, base: dict) -> None:
         existing_entry["sha256"] = base.get("sha256")
     if base.get("dataPatchName") and not existing_entry.get("dataPatchName"):
         existing_entry["dataPatchName"] = base.get("dataPatchName")
+    if base.get("dataPatchCdnUrl") and not existing_entry.get("dataPatchCdnUrl"):
+        existing_entry["dataPatchCdnUrl"] = base.get("dataPatchCdnUrl")
+    if base.get("dataPatchManifestId") and not existing_entry.get("dataPatchManifestId"):
+        existing_entry["dataPatchManifestId"] = base.get("dataPatchManifestId")
+    return
+
+
+
 
 
 def _merge_base_mappings(existing: list[dict], base_mappings: list[dict]) -> list[dict]:
@@ -1107,7 +1115,7 @@ def _merge_base_mappings(existing: list[dict], base_mappings: list[dict]) -> lis
         )
         pair_key = (base.get("manifestId"), normalize_hex(base.get("iniCrc", "")))
         if pair_key in existing_map:
-            _update_existing_entry(existing_map[pair_key], base)
+            _update_entry_from_base(existing_map[pair_key], base)
         elif base_key not in existing_keys:
             existing.append(dict(base))
             existing_keys.add(base_key)
