@@ -174,7 +174,7 @@ public class GameLauncher(
     /// <param name="expectedChildProcessName">The process the entry point hands the session to, if any.</param>
     /// <param name="logger">The logger.</param>
     /// <param name="localizationService">Optional localization for the failure message.</param>
-    /// <returns>The process to monitor, or a failure when it cannot be determined.</returns>
+    /// <returns>The identities to monitor, or a failure when they cannot be determined.</returns>
     internal static OperationResult<IReadOnlyList<GameProcessIdentity>> DetermineMonitoringTarget(
         IReadOnlyList<ContentManifest> manifests,
         string finalExecutablePath,
@@ -220,13 +220,15 @@ public class GameLauncher(
             }
 
             var entryTarget = File.Exists(finalExecutablePath) ? TryResolveFinalLinkTarget(finalExecutablePath, logger) : null;
-            IReadOnlyList<GameProcessIdentity> entryIdentities = entryTarget is { Exists: true }
-                ? GetLinkIdentities(finalExecutablePath, entryTarget)
-                : [new GameProcessIdentity(executableFileForMonitor.Hash, workspacePath)];
+            IReadOnlyList<GameProcessIdentity> entryIdentities = [new GameProcessIdentity(executableFileForMonitor.Hash, workspacePath)];
+            if (File.Exists(finalExecutablePath) && entryTarget is null or { Exists: true })
+            {
+                entryIdentities = GetPathIdentities(finalExecutablePath, entryTarget);
+            }
 
             logger.LogInformation(
                 "[GameLauncher] Monitoring for CAS symlinked process as any of: {Identities}",
-                DescribeIdentities(entryIdentities));
+                string.Join(", ", entryIdentities));
             return OperationResult<IReadOnlyList<GameProcessIdentity>>.CreateSuccess(entryIdentities);
         }
 
@@ -289,7 +291,7 @@ public class GameLauncher(
     /// <summary>
     /// Resolves the process a CAS-symlinked bootstrapper hands the session to. A child linked into
     /// the workspace may be reported under its link or its final target, so both identities are
-    /// returned. A child that is not a link keeps the name its manifest implies.
+    /// returned. A child that is a regular file runs under its own file name.
     /// </summary>
     /// <param name="manifests">The manifests selected for this launch.</param>
     /// <param name="entryManifest">The manifest that owns the entry point.</param>
@@ -299,7 +301,7 @@ public class GameLauncher(
     /// <param name="expectedChildProcessName">The child process name, without extension.</param>
     /// <param name="logger">The logger.</param>
     /// <param name="localizationService">Optional localization for the failure message.</param>
-    /// <returns>The process to monitor, or a failure when the child cannot be identified.</returns>
+    /// <returns>The identities to monitor, or a failure when the child cannot be identified.</returns>
     private static OperationResult<IReadOnlyList<GameProcessIdentity>> ResolveWrappedChildMonitoringTarget(
         IReadOnlyList<ContentManifest> manifests,
         ContentManifest entryManifest,
@@ -346,22 +348,12 @@ public class GameLauncher(
                 expectedChildProcessName));
         }
 
-        IReadOnlyList<GameProcessIdentity> identities;
-        if (childTarget is not null)
-        {
-            identities = GetLinkIdentities(childPath!, childTarget);
-        }
-        else
-        {
-            var fallbackName = isCasChild ? childFile.Hash : expectedChildProcessName;
-            identities = [new GameProcessIdentity(fallbackName, workspacePath)];
-        }
-
+        var identities = GetPathIdentities(childPath!, childTarget);
         logger.LogInformation(
             "[GameLauncher] Monitoring for {Child}, launched through {Entry} under CAS symlinking, as any of: {Identities}",
             expectedChildProcessName,
             Path.GetFileName(finalExecutablePath),
-            DescribeIdentities(identities));
+            string.Join(", ", identities));
         return OperationResult<IReadOnlyList<GameProcessIdentity>>.CreateSuccess(identities);
     }
 
@@ -385,22 +377,35 @@ public class GameLauncher(
     }
 
     /// <summary>
-    /// Builds both identities a process started through a symbolic link can present. Platforms
-    /// differ: Windows names the process after the target but reports the link as its image, Linux
-    /// names it after the link but reports the target as its image, and macOS reports the target
-    /// for both.
+    /// Builds the identities a process started from <paramref name="path"/> can present. The
+    /// reported name may carry the file's extension or not, and a process started through a symbolic
+    /// link may be reported under the link or its target: Windows names it after the target but
+    /// reports the link as its image, Linux names it after the link but reports the target as its
+    /// image, and macOS reports the target for both.
     /// </summary>
-    /// <param name="linkPath">The link in the workspace.</param>
-    /// <param name="target">The link's final target.</param>
-    /// <returns>The link identity followed by the target identity.</returns>
-    private static IReadOnlyList<GameProcessIdentity> GetLinkIdentities(string linkPath, FileSystemInfo target) =>
-    [
-        new GameProcessIdentity(Path.GetFileNameWithoutExtension(linkPath), Path.GetDirectoryName(linkPath)),
-        new GameProcessIdentity(Path.GetFileNameWithoutExtension(target.FullName), Path.GetDirectoryName(target.FullName)),
-    ];
+    /// <param name="path">The executable in the workspace.</param>
+    /// <param name="finalTarget">The link's final target, or <see langword="null"/> when the path is not a link.</param>
+    /// <returns>The identities for the path, followed by those for its target.</returns>
+    private static IReadOnlyList<GameProcessIdentity> GetPathIdentities(string path, FileSystemInfo? finalTarget)
+    {
+        var identities = GetFileIdentities(path);
+        if (finalTarget is not null)
+        {
+            identities.AddRange(GetFileIdentities(finalTarget.FullName));
+        }
 
-    private static string DescribeIdentities(IReadOnlyList<GameProcessIdentity> identities) =>
-        string.Join(", ", identities.Select(identity => $"{identity.ProcessName} in {identity.Directory}"));
+        return identities;
+    }
+
+    private static List<GameProcessIdentity> GetFileIdentities(string path)
+    {
+        var directory = Path.GetDirectoryName(path);
+        var fileName = Path.GetFileName(path);
+        var stem = Path.GetFileNameWithoutExtension(path);
+        return stem.Equals(fileName, StringComparison.Ordinal)
+            ? [new GameProcessIdentity(stem, directory)]
+            : [new GameProcessIdentity(stem, directory), new GameProcessIdentity(fileName, directory)];
+    }
 
     private static string GetRelativeDirectory(string relativePath) =>
         Path.GetDirectoryName(relativePath.Replace('\\', '/'))?.Replace('\\', '/') ?? string.Empty;

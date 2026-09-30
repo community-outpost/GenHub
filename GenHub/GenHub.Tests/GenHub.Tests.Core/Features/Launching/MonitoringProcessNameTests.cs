@@ -16,6 +16,7 @@ namespace GenHub.Tests.Core.Features.Launching;
 public sealed class MonitoringProcessNameTests : IDisposable
 {
     private const string BootstrapperHash = "b00757a900000000000000000000000000000000000000000000000000000000";
+    private const string InstalledClientFileName = "installed-client.exe";
     private const string ChildHash = "c41d000000000000000000000000000000000000000000000000000000000000";
 
     private readonly string _root;
@@ -38,6 +39,12 @@ public sealed class MonitoringProcessNameTests : IDisposable
     private string BootstrapperPath => Path.Combine(_workspace, GameClientConstants.GeneralsOnlineEacLauncherExecutable);
 
     private string ChildWorkspacePath => Path.Combine(_workspace, GameClientConstants.GeneralsOnline60HzExecutable);
+
+    private GameProcessIdentity[] ChildWorkspaceIdentities =>
+    [
+        new GameProcessIdentity(ExpectedChildName, _workspace),
+        new GameProcessIdentity(GameClientConstants.GeneralsOnline60HzExecutable, _workspace),
+    ];
 
     /// <inheritdoc/>
     public void Dispose()
@@ -72,7 +79,7 @@ public sealed class MonitoringProcessNameTests : IDisposable
         var result = Resolve(BuildGeneralsOnlineManifests(childHash: ChildHash), WorkspaceStrategy.SymlinkOnly);
 
         Assert.True(result.Success, result.FirstError);
-        AssertIdentities(result, new GameProcessIdentity(ExpectedChildName, _workspace), new GameProcessIdentity(ChildHash, _store));
+        AssertIdentities(result, [.. ChildWorkspaceIdentities, new GameProcessIdentity(ChildHash, _store)]);
     }
 
     /// <summary>
@@ -91,7 +98,7 @@ public sealed class MonitoringProcessNameTests : IDisposable
         var result = Resolve(BuildGeneralsOnlineManifests(childHash: ChildHash), WorkspaceStrategy.SymlinkOnly);
 
         Assert.True(result.Success, result.FirstError);
-        AssertIdentities(result, new GameProcessIdentity(ExpectedChildName, _workspace), new GameProcessIdentity(ObjectName, _store));
+        AssertIdentities(result, [.. ChildWorkspaceIdentities, new GameProcessIdentity(ObjectName, _store)]);
     }
 
     /// <summary>
@@ -111,12 +118,13 @@ public sealed class MonitoringProcessNameTests : IDisposable
         var candidates = new[] { new GameProcessCandidate(1, ChildHash, now, ChildWorkspacePath) };
 
         Assert.NotNull(GameProcessSelector.SelectSpawnedGameProcess(candidates, identities, now));
-        Assert.Null(GameProcessSelector.SelectSpawnedGameProcess(candidates, [identities[1]], now));
+        Assert.Null(GameProcessSelector.SelectSpawnedGameProcess(candidates, [.. identities.Where(identity => identity.Directory == _store)], now));
     }
 
     /// <summary>
-    /// Linux names a process started through a link after the link but reports the target as its
-    /// image. The returned identities select it, and the link identity alone would not.
+    /// Linux names a process started through a link after the link, extension included, but reports
+    /// the target as its image. The returned identities select it, and the link identities alone
+    /// would not.
     /// </summary>
     [Fact]
     public void CasSymlinkedBootstrapper_IdentitiesSelectTheLinuxShape()
@@ -128,11 +136,26 @@ public sealed class MonitoringProcessNameTests : IDisposable
         }
 
         var now = DateTime.UtcNow;
-        var truncatedLinkName = ExpectedChildName[..ProcessConstants.UnixProcessNameMaxLength];
-        var candidates = new[] { new GameProcessCandidate(1, truncatedLinkName, now, Path.Combine(_store, ChildHash)) };
+        var candidates = new[] { new GameProcessCandidate(1, GameClientConstants.GeneralsOnline60HzExecutable, now, Path.Combine(_store, ChildHash)) };
 
         Assert.NotNull(GameProcessSelector.SelectSpawnedGameProcess(candidates, identities, now));
-        Assert.Null(GameProcessSelector.SelectSpawnedGameProcess(candidates, [identities[0]], now));
+        Assert.Null(GameProcessSelector.SelectSpawnedGameProcess(candidates, [.. identities.Where(identity => identity.Directory == _workspace)], now));
+    }
+
+    /// <summary>
+    /// Enumeration asks for the full name as well as the truncated one, because .NET on Linux can
+    /// report the full link name from the command line.
+    /// </summary>
+    [Fact]
+    public void DiscoveryNames_IncludeTheFullNameAndTheTruncatedOne()
+    {
+        var names = GameProcessSelector.GetDiscoveryNames(GameClientConstants.GeneralsOnline60HzExecutable);
+
+        Assert.Contains(GameClientConstants.GeneralsOnline60HzExecutable, names);
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Contains(GameClientConstants.GeneralsOnline60HzExecutable[..ProcessConstants.UnixProcessNameMaxLength], names);
+        }
     }
 
     /// <summary>
@@ -159,17 +182,16 @@ public sealed class MonitoringProcessNameTests : IDisposable
     }
 
     /// <summary>
-    /// A child that is a plain file in the workspace keeps its hash and the workspace directory.
+    /// A child materialized as a regular file runs under its own file name in the workspace.
     /// </summary>
     [Fact]
-    public void CasBootstrapper_WithAPlainChildFile_MonitorsTheChildHashInTheWorkspace()
+    public void CasBootstrapper_WithAPlainChildFile_MonitorsTheChildFileInTheWorkspace()
     {
         File.WriteAllText(ChildWorkspacePath, "client");
 
         var result = Resolve(BuildGeneralsOnlineManifests(childHash: ChildHash), WorkspaceStrategy.SymlinkOnly);
 
-        Assert.True(result.Success, result.FirstError);
-        AssertIdentities(result, new GameProcessIdentity(ChildHash, _workspace));
+        AssertIdentities(result, ChildWorkspaceIdentities);
     }
 
     /// <summary>
@@ -236,8 +258,7 @@ public sealed class MonitoringProcessNameTests : IDisposable
             BuildGeneralsOnlineManifests(childHash: ChildHash, childSource: ContentSourceType.GameInstallation),
             WorkspaceStrategy.SymlinkOnly);
 
-        Assert.True(result.Success, result.FirstError);
-        AssertIdentities(result, new GameProcessIdentity(ExpectedChildName, _workspace));
+        AssertIdentities(result, ChildWorkspaceIdentities);
     }
 
     /// <summary>
@@ -284,6 +305,7 @@ public sealed class MonitoringProcessNameTests : IDisposable
         AssertIdentities(
             result,
             new GameProcessIdentity(Path.GetFileNameWithoutExtension(GameClientConstants.GeneralsOnlineEacLauncherExecutable), _workspace),
+            new GameProcessIdentity(GameClientConstants.GeneralsOnlineEacLauncherExecutable, _workspace),
             new GameProcessIdentity(BootstrapperHash, _store));
     }
 
@@ -300,26 +322,25 @@ public sealed class MonitoringProcessNameTests : IDisposable
     }
 
     /// <summary>
-    /// A same-stem sibling such as a symbol file does not stand in for the wrapped client.
+    /// A same-stem sibling such as a symbol file does not stand in for the wrapped client. The
+    /// sibling carries no hash, so picking it would fail the launch.
     /// </summary>
     [Fact]
     public void CasBootstrapper_IgnoresASameStemSiblingOfTheChild()
     {
-        const string SiblingHash = "5b1b000000000000000000000000000000000000000000000000000000000000";
         File.WriteAllText(ChildWorkspacePath, "client");
         var manifests = BuildGeneralsOnlineManifests(childHash: ChildHash);
         var client = manifests.Single(m => m.ContentType == ContentType.GameClient);
         client.Files.Insert(1, new ManifestFile
         {
             RelativePath = Path.ChangeExtension(GameClientConstants.GeneralsOnline60HzExecutable, ".pdb"),
-            Hash = SiblingHash,
+            Hash = string.Empty,
             SourceType = ContentSourceType.ContentAddressable,
         });
 
         var result = Resolve(manifests, WorkspaceStrategy.SymlinkOnly);
 
-        Assert.True(result.Success, result.FirstError);
-        AssertIdentities(result, new GameProcessIdentity(ChildHash, _workspace));
+        AssertIdentities(result, ChildWorkspaceIdentities);
     }
 
     /// <summary>
@@ -356,26 +377,23 @@ public sealed class MonitoringProcessNameTests : IDisposable
 
         var result = Resolve(manifests, WorkspaceStrategy.SymlinkOnly);
 
-        Assert.True(result.Success, result.FirstError);
-        AssertIdentities(result, new GameProcessIdentity(ChildHash, _workspace));
+        AssertIdentities(result, ChildWorkspaceIdentities);
     }
 
     /// <summary>
     /// When several manifests list the child, the entry point's manifest wins, even when another
-    /// manifest comes first.
+    /// manifest comes first. The other copy carries no hash, so picking it would fail the launch.
     /// </summary>
     [Fact]
     public void CasBootstrapper_PrefersTheEntryManifestsChild()
     {
-        const string OtherHash = "0e4e000000000000000000000000000000000000000000000000000000000000";
         File.WriteAllText(ChildWorkspacePath, "client");
         var manifests = BuildGeneralsOnlineManifests(childHash: ChildHash);
-        manifests.Insert(0, BuildChildOnlyManifest(OtherHash));
+        manifests.Insert(0, BuildChildOnlyManifest(string.Empty));
 
         var result = Resolve(manifests, WorkspaceStrategy.SymlinkOnly);
 
-        Assert.True(result.Success, result.FirstError);
-        AssertIdentities(result, new GameProcessIdentity(ChildHash, _workspace));
+        AssertIdentities(result, ChildWorkspaceIdentities);
     }
 
     /// <summary>
@@ -407,7 +425,7 @@ public sealed class MonitoringProcessNameTests : IDisposable
     public void CasSymlinkedBootstrapper_WithASymlinkedNonCasChild_MonitorsTheLinkTarget()
     {
         var installation = Directory.CreateDirectory(Path.Combine(_root, "installation")).FullName;
-        var installedChild = Path.Combine(installation, GameClientConstants.GeneralsOnline60HzExecutable);
+        var installedChild = Path.Combine(installation, InstalledClientFileName);
         File.WriteAllText(installedChild, "client");
         if (!TryCreateSymbolicLink(ChildWorkspacePath, installedChild))
         {
@@ -419,7 +437,13 @@ public sealed class MonitoringProcessNameTests : IDisposable
             WorkspaceStrategy.SymlinkOnly);
 
         Assert.True(result.Success, result.FirstError);
-        AssertIdentities(result, new GameProcessIdentity(ExpectedChildName, _workspace), new GameProcessIdentity(ExpectedChildName, installation));
+        AssertIdentities(
+            result,
+            [
+                .. ChildWorkspaceIdentities,
+                new GameProcessIdentity(Path.GetFileNameWithoutExtension(InstalledClientFileName), installation),
+                new GameProcessIdentity(InstalledClientFileName, installation),
+            ]);
     }
 
     private static void AssertIdentities(

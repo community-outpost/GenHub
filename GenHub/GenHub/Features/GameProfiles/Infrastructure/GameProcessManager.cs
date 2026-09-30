@@ -481,7 +481,7 @@ public class GameProcessManager(
         var workingDirectory = identities[0].Directory ?? string.Empty;
         logger.LogInformation(
             "[Discover] Attempting to discover and track process as any of: {Identities}",
-            string.Join(", ", identities.Select(identity => $"{identity.ProcessName} in {identity.Directory}")));
+            string.Join(", ", identities));
 
         // Poll for up to 45 seconds since Steam might need to start first, then launch the game
         // If Steam isn't running, steam:// URL will launch Steam (5-10s), then Steam launches the game (5-10s)
@@ -694,7 +694,7 @@ public class GameProcessManager(
         var found = new Dictionary<int, Process>();
         try
         {
-            foreach (var discoveryName in executableNames.Select(GameProcessSelector.GetDiscoveryName).Distinct(StringComparer.OrdinalIgnoreCase))
+            foreach (var discoveryName in executableNames.SelectMany(GameProcessSelector.GetDiscoveryNames).Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 foreach (var process in Process.GetProcessesByName(discoveryName))
                 {

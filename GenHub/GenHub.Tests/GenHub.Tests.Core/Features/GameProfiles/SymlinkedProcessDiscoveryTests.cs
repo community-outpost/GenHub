@@ -158,9 +158,14 @@ public sealed class SymlinkedProcessDiscoveryTests(ITestOutputHelper output) : I
                 RedirectStandardError = true,
                 RedirectStandardOutput = true,
             })!;
-            codesign.StandardError.ReadToEnd();
-            codesign.StandardOutput.ReadToEnd();
-            return codesign.WaitForExit(ToolTimeoutMs) && codesign.ExitCode == 0;
+            var drain = Task.WhenAll(codesign.StandardError.ReadToEndAsync(), codesign.StandardOutput.ReadToEndAsync());
+            if (!codesign.WaitForExit(ToolTimeoutMs))
+            {
+                codesign.Kill();
+                return false;
+            }
+
+            return drain.Wait(ToolTimeoutMs) && codesign.ExitCode == 0;
         }
         catch (System.ComponentModel.Win32Exception)
         {

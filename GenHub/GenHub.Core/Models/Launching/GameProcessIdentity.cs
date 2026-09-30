@@ -6,5 +6,10 @@ namespace GenHub.Core.Models.Launching;
 /// the link or under its target depending on the platform, so discovery may carry both.
 /// </summary>
 /// <param name="ProcessName">The expected process name, without extension.</param>
-/// <param name="Directory">The directory the image must reside in, or <see langword="null"/> to skip the check.</param>
-public sealed record GameProcessIdentity(string ProcessName, string? Directory);
+/// <param name="Directory">The directory the image must reside in; when null or empty, the check is skipped.</param>
+public sealed record GameProcessIdentity(string ProcessName, string? Directory)
+{
+    /// <inheritdoc/>
+    public override string ToString() =>
+        string.IsNullOrEmpty(Directory) ? ProcessName : $"{ProcessName} in {Directory}";
+}

@@ -32,6 +32,21 @@ public static class GameProcessSelector
     }
 
     /// <summary>
+    /// Gets every name to enumerate by when looking for <paramref name="processName"/>. A Unix
+    /// kernel keeps a truncated name, but .NET may report the full name from the command line
+    /// instead, so both spellings are asked for.
+    /// </summary>
+    /// <param name="processName">The expected process name.</param>
+    /// <returns>The distinct names to ask the operating system for.</returns>
+    public static IReadOnlyList<string> GetDiscoveryNames(string processName)
+    {
+        var discoveryName = GetDiscoveryName(processName);
+        return discoveryName.Equals(processName, StringComparison.Ordinal)
+            ? [processName]
+            : [processName, discoveryName];
+    }
+
+    /// <summary>
     /// Selects the process matching <paramref name="processName"/> that this launch spawned, with
     /// no launcher of ours to date the launch by — the storefront started the game itself. A
     /// recency window is all that separates the new process from an instance of the same game that
