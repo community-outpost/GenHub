@@ -422,6 +422,7 @@ public sealed class ContentGridItemViewModelTests
     /// Verifies that RefreshVariantStatesAsync for an installed card whose state is adjusted to UpdateAvailable
     /// (because an update target is not downloaded) hydrates the installed manifest ID into SearchResult.Id.
     /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
     public async Task RefreshVariantStatesAsync_WhenUpdateTargetNotDownloaded_HydratesLocalManifestIdAsync()
     {
@@ -464,6 +465,7 @@ public sealed class ContentGridItemViewModelTests
     /// Verifies that RefreshVariantStatesAsync for a prospective un-acquired card whose raw state is UpdateAvailable
     /// does not overwrite the prospective SearchResult.Id with an older installed local manifest ID.
     /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
     public async Task RefreshVariantStatesAsync_WhenRawStateIsUpdateAvailable_DoesNotOverwriteProspectiveSearchResultIdAsync()
     {
