@@ -582,7 +582,7 @@ public sealed partial class ContentStateService(
         bool isGoLocal = (localSegments.Length == 5 && IsCompatiblePublisherAlias(localSegments[2], PublisherTypeConstants.GeneralsOnline)) ||
                          localId.StartsWith(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
                          localId.Contains($".{PublisherTypeConstants.GeneralsOnline}.", StringComparison.OrdinalIgnoreCase);
-        bool isGoPublisher = isGoProspective || isGoLocal;
+        bool isGoPublisher = isGoProspective && isGoLocal;
 
         // 1. If human-readable version strings are available on both sides, compare them first.
         if (CompareVersionStrings(prospectiveVersionStr, localVersionStr, out var stringCompareResult, isGoPublisher))

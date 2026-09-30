@@ -207,7 +207,7 @@ BASELINE_ENTRIES = [
         "iniCrc": "0x81FB5632",
         "sha256": "5f36a6ff83dd26d50d45a9ab88ef8b8af9922ea04f044266d05bf56c19222287",
         "manifestId": "1.828262.generalsonline.gameclient.zerohour",
-        "dataPatchManifestId": None,
+        "dataPatchManifestId": "1.828262.generalsonline.patch.gamedata",
         "dataPatchName": COMMUNITY_PATCH_CORE_INI_NAME,
         "publisher": "generalsonline",
         "gameType": "ZeroHour",
@@ -222,7 +222,7 @@ BASELINE_ENTRIES = [
         "iniCrc": "0x81FB5632",
         "sha256": "5f36a6ff83dd26d50d45a9ab88ef8b8af9922ea04f044266d05bf56c19222287",
         "manifestId": "1.828263.generalsonline.gameclient.zerohour",
-        "dataPatchManifestId": None,
+        "dataPatchManifestId": "1.828263.generalsonline.patch.gamedata",
         "dataPatchName": COMMUNITY_PATCH_CORE_INI_NAME,
         "publisher": "generalsonline",
         "gameType": "ZeroHour",
@@ -237,7 +237,7 @@ BASELINE_ENTRIES = [
         "iniCrc": "0x81FB5632",
         "sha256": "5f36a6ff83dd26d50d45a9ab88ef8b8af9922ea04f044266d05bf56c19222287",
         "manifestId": "1.828264.generalsonline.gameclient.zerohour",
-        "dataPatchManifestId": None,
+        "dataPatchManifestId": "1.828264.generalsonline.patch.gamedata",
         "dataPatchName": COMMUNITY_PATCH_CORE_INI_NAME,
         "publisher": "generalsonline",
         "gameType": "ZeroHour",
@@ -252,7 +252,7 @@ BASELINE_ENTRIES = [
         "iniCrc": "0x81FB5632",
         "sha256": "895075b251175a5337d724fe6ae933ab4cd2edd314e0fdc8b0cf23dc96c4c001",
         "manifestId": "1.92226.generalsonline.gameclient.zerohour",
-        "dataPatchManifestId": None,
+        "dataPatchManifestId": "1.92226.generalsonline.patch.gamedata",
         "dataPatchName": COMMUNITY_PATCH_CORE_INI_NAME,
         "publisher": "generalsonline",
         "gameType": "ZeroHour",
@@ -267,7 +267,7 @@ BASELINE_ENTRIES = [
         "iniCrc": "0x81FB5632",
         "sha256": "eeb09472f6fd30cd2a623517ec69ac93423e17c38065624befdc45df9adf3fb9",
         "manifestId": "1.922261.generalsonline.gameclient.zerohour",
-        "dataPatchManifestId": None,
+        "dataPatchManifestId": "1.922261.generalsonline.patch.gamedata",
         "dataPatchName": COMMUNITY_PATCH_CORE_INI_NAME,
         "publisher": "generalsonline",
         "gameType": "ZeroHour",
@@ -282,7 +282,7 @@ BASELINE_ENTRIES = [
         "iniCrc": "0x81FB5632",
         "sha256": "ff21df13c5cb0f524e4d56585c1867467efbcff44a94ed2e1b2f30eef2aaca8b",
         "manifestId": "1.922262.generalsonline.gameclient.zerohour",
-        "dataPatchManifestId": None,
+        "dataPatchManifestId": "1.922262.generalsonline.patch.gamedata",
         "dataPatchName": COMMUNITY_PATCH_CORE_INI_NAME,
         "publisher": "generalsonline",
         "gameType": "ZeroHour",
@@ -297,7 +297,7 @@ BASELINE_ENTRIES = [
         "iniCrc": "0x81FB5632",
         "sha256": "704a8d100acb7ffb3e5c8bfdb1c81cfd183dcacce0b9720ecd1d9e902ebb63fd",
         "manifestId": "1.92526.generalsonline.gameclient.zerohour",
-        "dataPatchManifestId": None,
+        "dataPatchManifestId": "1.92526.generalsonline.patch.gamedata",
         "dataPatchName": COMMUNITY_PATCH_CORE_INI_NAME,
         "publisher": "generalsonline",
         "gameType": "ZeroHour",
@@ -312,7 +312,7 @@ BASELINE_ENTRIES = [
         "iniCrc": "0x81FB5632",
         "sha256": "eed0d118e6bdd0b06a75c6a903268badd87193dbbefc2369da2b3b280febe57f",
         "manifestId": "1.925261.generalsonline.gameclient.zerohour",
-        "dataPatchManifestId": None,
+        "dataPatchManifestId": "1.925261.generalsonline.patch.gamedata",
         "dataPatchName": COMMUNITY_PATCH_CORE_INI_NAME,
         "publisher": "generalsonline",
         "gameType": "ZeroHour",
@@ -327,7 +327,7 @@ BASELINE_ENTRIES = [
         "iniCrc": "0x81FB5632",
         "sha256": "8ba835206919bbfe724514f10e3ecb665245ff9e4141ef842b67fe616214ba3f",
         "manifestId": "1.92826.generalsonline.gameclient.zerohour",
-        "dataPatchManifestId": None,
+        "dataPatchManifestId": "1.92826.generalsonline.patch.gamedata",
         "dataPatchName": COMMUNITY_PATCH_CORE_INI_NAME,
         "publisher": "generalsonline",
         "gameType": "ZeroHour",
@@ -342,7 +342,7 @@ BASELINE_ENTRIES = [
         "iniCrc": "0x81FB5632",
         "sha256": "e07a579dc5fbe3a9ca8f12ab302906c45db9f33847b368f83890ee35404f58f0",
         "manifestId": "1.928261.generalsonline.gameclient.zerohour",
-        "dataPatchManifestId": None,
+        "dataPatchManifestId": "1.928261.generalsonline.patch.gamedata",
         "dataPatchName": COMMUNITY_PATCH_CORE_INI_NAME,
         "publisher": "generalsonline",
         "gameType": "ZeroHour",
@@ -801,6 +801,7 @@ def build_generalsonline_entry(cand: tuple[str, str, str, str], inspect_binaries
     if ini_crc == "0x81FB5632":
         entry["dataPatchName"] = COMMUNITY_PATCH_CORE_INI_NAME
         entry["dataPatchCdnUrl"] = COMMUNITY_PATCH_CORE_INI_URL
+        entry["dataPatchManifestId"] = manifest_id.replace(".gameclient.zerohour", ".patch.gamedata")
     return entry
 
 
@@ -827,6 +828,12 @@ def _update_existing_entry(existing: dict, incoming: dict) -> None:
             existing[key] = normalize_hex(incoming[key])
     if not existing.get("sha256") and incoming.get("sha256"):
         existing["sha256"] = incoming["sha256"]
+    if incoming.get("dataPatchName") and not existing.get("dataPatchName"):
+        existing["dataPatchName"] = incoming["dataPatchName"]
+    if incoming.get("dataPatchCdnUrl") and not existing.get("dataPatchCdnUrl"):
+        existing["dataPatchCdnUrl"] = incoming["dataPatchCdnUrl"]
+    if incoming.get("dataPatchManifestId") and not existing.get("dataPatchManifestId"):
+        existing["dataPatchManifestId"] = incoming["dataPatchManifestId"]
 
 
 def _is_crc_field_compatible(item_crc: str, existing_crc: str) -> bool:
@@ -1091,7 +1098,6 @@ def _update_entry_from_base(existing_entry: dict, base: dict) -> None:
         existing_entry["dataPatchCdnUrl"] = base.get("dataPatchCdnUrl")
     if base.get("dataPatchManifestId") and not existing_entry.get("dataPatchManifestId"):
         existing_entry["dataPatchManifestId"] = base.get("dataPatchManifestId")
-    return
 
 
 
