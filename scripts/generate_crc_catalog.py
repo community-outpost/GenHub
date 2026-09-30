@@ -515,20 +515,19 @@ def _extract_archive_crcs(zf: zipfile.ZipFile, binary_patterns: list[str]) -> tu
     exe_crc = ""
     sha256 = ""
     ini_crc = ""
-    pattern_set = {p.lower() for p in binary_patterns}
+    names_by_base = {os.path.basename(name).lower(): name for name in zf.namelist()}
 
-    for name in zf.namelist():
-        base_name = os.path.basename(name).lower()
-        if not exe_crc and base_name in pattern_set:
-            binary_bytes = zf.read(name)
+    for pat in binary_patterns:
+        pat_lower = pat.lower()
+        if pat_lower in names_by_base:
+            binary_bytes = zf.read(names_by_base[pat_lower])
             exe_crc = compute_buffer_crc(binary_bytes)
             sha256 = compute_buffer_sha256(binary_bytes)
-        if not ini_crc and base_name == "generals.ini":
-            ini_bytes = zf.read(name)
-            ini_crc = compute_sage_xfer_crc(ini_bytes)
-
-        if exe_crc and ini_crc:
             break
+
+    if "generals.ini" in names_by_base:
+        ini_bytes = zf.read(names_by_base["generals.ini"])
+        ini_crc = compute_sage_xfer_crc(ini_bytes)
 
     return exe_crc, sha256, ini_crc
 
@@ -639,25 +638,39 @@ def crawl_superhackers_releases(token: str | None = None, inspect_binaries: bool
     return entries
 
 
-def generate_date_codes(start_year: int, end_year: int) -> set[str]:
-    """Generates all valid MMDDYY date codes within the given year range including known release dates."""
+def generate_date_codes(
+    start_year: int = 2025,
+    end_year: int = 2026,
+    start_date: datetime.date | None = None,
+    end_date: datetime.date | None = None,
+) -> set[str]:
+    """Generates valid MMDDYY date codes within the given year range or explicit date bounds."""
     date_set = set()
+
+    if start_date is None:
+        start_date = datetime.date(start_year, 1, 1)
+    if end_date is None:
+        try:
+            end_date = min(datetime.date(end_year, 12, 31), datetime.date.today() + datetime.timedelta(days=7))
+        except (ValueError, OverflowError):
+            end_date = datetime.date.today() + datetime.timedelta(days=7)
+
     for code in GENERALSONLINE_KNOWN_DATES:
         try:
+            month = int(code[0:2])
+            day = int(code[2:4])
             year = 2000 + int(code[4:6])
-            if start_year <= year <= end_year:
+            d = datetime.date(year, month, day)
+            if start_date <= d <= end_date:
                 date_set.add(code)
         except (ValueError, IndexError):
             continue
 
-    try:
-        curr_date = datetime.date(start_year, 1, 1)
-        target_end = min(datetime.date(end_year, 12, 31), datetime.date.today() + datetime.timedelta(days=7))
-        while curr_date <= target_end:
-            date_set.add(curr_date.strftime("%m%d%y"))
-            curr_date += datetime.timedelta(days=1)
-    except (ValueError, OverflowError):
-        pass
+    curr_date = start_date
+    while curr_date <= end_date:
+        date_set.add(curr_date.strftime("%m%d%y"))
+        curr_date += datetime.timedelta(days=1)
+
     return date_set
 
 
@@ -675,25 +688,73 @@ def _build_variant_candidate(date_code: str, qfe: int | None, is_eac: bool) -> t
     return (date_code, version_str, manifest_id, url)
 
 
-def build_candidates_for_date(date_code: str) -> list[tuple[str, str, str, str]]:
-    """Builds base and QFE candidate descriptors for a single date code."""
+def build_candidates_for_date(date_code: str, max_qfe: int = 15) -> list[tuple[str, str, str, str]]:
+    """Builds base and QFE candidate descriptors for a single date code up to max_qfe."""
     candidates = [
         _build_variant_candidate(date_code, qfe=None, is_eac=False),
         _build_variant_candidate(date_code, qfe=None, is_eac=True),
     ]
-    for qfe in range(1, 10):
+    for qfe in range(1, max_qfe + 1):
         candidates.append(_build_variant_candidate(date_code, qfe=qfe, is_eac=False))
         candidates.append(_build_variant_candidate(date_code, qfe=qfe, is_eac=True))
     return candidates
 
 
-def generate_generalsonline_candidates(start_year: int, end_year: int) -> list[tuple[str, str, str, str]]:
+def generate_generalsonline_candidates(
+    start_year: int = 2025,
+    end_year: int = 2026,
+    start_date: datetime.date | None = None,
+    end_date: datetime.date | None = None,
+) -> list[tuple[str, str, str, str]]:
     """Generates candidate (date_code, version_str, manifest_id, url) tuples for GeneralsOnline."""
-    date_set = generate_date_codes(start_year, end_year)
+    date_set = generate_date_codes(start_year, end_year, start_date=start_date, end_date=end_date)
     candidates = []
     for date_code in sorted(date_set):
         candidates.extend(build_candidates_for_date(date_code))
     return candidates
+
+
+def parse_date_arg(date_str: str) -> datetime.date:
+    """Parses a date string in YYYY-MM-DD or MMDDYY format."""
+    s = date_str.strip()
+    if re.match(r"^\d{4}-\d{2}-\d{2}$", s):
+        return datetime.date.fromisoformat(s)
+    if re.match(r"^\d{6}$", s):
+        month = int(s[0:2])
+        day = int(s[2:4])
+        year = 2000 + int(s[4:6])
+        return datetime.date(year, month, day)
+    raise ValueError(f"Invalid date format '{date_str}'. Expected YYYY-MM-DD or MMDDYY.")
+
+
+def get_latest_generalsonline_date(mappings: list[dict]) -> datetime.date | None:
+    """Extracts the most recent GeneralsOnline build date from existing catalog mappings."""
+    latest = None
+    for entry in mappings:
+        pub = entry.get("publisher", "").lower()
+        m_id = entry.get("manifestId", "").lower()
+        if pub == "generalsonline" or "generalsonline" in m_id:
+            bdate_str = entry.get("buildDate")
+            if bdate_str:
+                try:
+                    d = datetime.date.fromisoformat(bdate_str)
+                    if latest is None or d > latest:
+                        latest = d
+                except ValueError:
+                    pass
+            ver = entry.get("version", "")
+            m = re.match(r"^(\d{2})(\d{2})(\d{2})", ver)
+            if m:
+                try:
+                    month = int(m.group(1))
+                    day = int(m.group(2))
+                    year = 2000 + int(m.group(3))
+                    d = datetime.date(year, month, day)
+                    if latest is None or d > latest:
+                        latest = d
+                except ValueError:
+                    pass
+    return latest
 
 
 def filter_available_candidates(candidates: list[tuple[str, str, str, str]]) -> list[tuple[str, str, str, str]]:
@@ -775,16 +836,17 @@ def build_generalsonline_entry(cand: tuple[str, str, str, str], inspect_binaries
     month = int(date_code[:2])
     ini_crc = "0x81FB5632" if month >= 8 else "0xFEAAE3F3"
 
-    if inspect_binaries:
+    if inspect_binaries or (not exe_crc or not sha256):
         inspected = _inspect_generalsonline_binary(url, version_str, exe_crc, ini_crc)
-        if inspected is None:
+        if inspected is not None:
+            exe_crc, sha256, ini_crc = inspected
+        elif inspect_binaries and not exe_crc:
             return None
-        exe_crc, sha256, ini_crc = inspected
 
     year = f"20{date_code[4:6]}"
-    month = date_code[0:2]
+    month_str = date_code[0:2]
     day = date_code[2:4]
-    build_date = f"{year}-{month}-{day}"
+    build_date = f"{year}-{month_str}-{day}"
 
     entry = {
         "exeCrc": exe_crc,
@@ -805,9 +867,20 @@ def build_generalsonline_entry(cand: tuple[str, str, str, str], inspect_binaries
     return entry
 
 
-def crawl_generalsonline_releases(inspect_binaries: bool = False, start_year: int = 2025, end_year: int = 2026) -> list[dict]:
-    """Probes and maps portable releases from the GeneralsOnline CDN across 2025, 2026, and all QFE variants."""
-    candidates = generate_generalsonline_candidates(start_year, end_year)
+def crawl_generalsonline_releases(
+    inspect_binaries: bool = False,
+    start_year: int = 2025,
+    end_year: int = 2026,
+    start_date: datetime.date | None = None,
+    end_date: datetime.date | None = None,
+) -> list[dict]:
+    """Probes and maps portable releases from the GeneralsOnline CDN."""
+    candidates = generate_generalsonline_candidates(
+        start_year=start_year,
+        end_year=end_year,
+        start_date=start_date,
+        end_date=end_date,
+    )
     valid_candidates = filter_available_candidates(candidates)
 
     entries = []
@@ -1148,21 +1221,47 @@ def _load_existing_mappings(output_path: str, base_mappings: list[dict]) -> list
     return base_mappings
 
 
-def _crawl_and_merge(existing_mappings: list[dict], inspect_binaries: bool) -> list[dict]:
+def _crawl_and_merge(
+    existing_mappings: list[dict],
+    inspect_binaries: bool,
+    source: str = "all",
+    from_latest: bool = False,
+    start_date: datetime.date | None = None,
+    end_date: datetime.date | None = None,
+) -> list[dict]:
     """Crawls upstream release feeds and merges into existing mappings."""
     try:
-        sh_crawled = crawl_superhackers_releases(inspect_binaries=inspect_binaries)
-        go_crawled = crawl_generalsonline_releases(inspect_binaries=inspect_binaries)
+        sh_crawled = []
+        go_crawled = []
 
-        if not sh_crawled and not go_crawled:
+        if source in ("all", "superhackers"):
+            sh_crawled = crawl_superhackers_releases(inspect_binaries=inspect_binaries)
+            if sh_crawled:
+                existing_mappings = merge_catalogs(existing_mappings, sh_crawled)
+
+        if source in ("all", "generalsonline"):
+            go_start_date = start_date
+            go_end_date = end_date
+            if from_latest and go_start_date is None:
+                latest_date = get_latest_generalsonline_date(existing_mappings)
+                if latest_date:
+                    go_start_date = max(datetime.date(2025, 1, 1), latest_date - datetime.timedelta(days=1))
+                    print(f"Incremental crawl: probing GeneralsOnline CDN from {go_start_date} (latest catalog date: {latest_date})")
+
+            go_crawled = crawl_generalsonline_releases(
+                inspect_binaries=inspect_binaries,
+                start_date=go_start_date,
+                end_date=go_end_date,
+            )
+            if go_crawled:
+                existing_mappings = merge_catalogs(existing_mappings, go_crawled)
+            elif source == "generalsonline":
+                print("Notice: no new GeneralsOnline releases discovered on CDN; catalog is up to date.")
+
+        if not sh_crawled and not go_crawled and not from_latest and source == "all":
             print("Error: crawl failed to discover any entries from upstream sources; aborting generation to prevent publishing a stale catalog.", file=sys.stderr)
             sys.exit(1)
 
-        if sh_crawled:
-            existing_mappings = merge_catalogs(existing_mappings, sh_crawled)
-
-        if go_crawled:
-            existing_mappings = merge_catalogs(existing_mappings, go_crawled)
         return existing_mappings
     except CatalogConflictError as e:
         print(f"Error: Crawled catalog conflict detected: {e}", file=sys.stderr)
@@ -1181,16 +1280,51 @@ def _write_catalog_file(output_path: str, catalog: dict) -> None:
     os.replace(tmp_path, output_path)
 
 
-def build_catalog(output_path: str = DEFAULT_OUTPUT_PATH, crawl: bool = False, inspect_binaries: bool = False) -> dict:
+def build_catalog(
+    output_path: str = DEFAULT_OUTPUT_PATH,
+    crawl: bool = False,
+    inspect_binaries: bool = False,
+    source: str = "all",
+    from_latest: bool = False,
+    start_date: datetime.date | None = None,
+    end_date: datetime.date | None = None,
+) -> dict:
     """Builds and writes the complete CRC catalog."""
     existing_mappings = _load_existing_mappings(output_path, list(BASELINE_ENTRIES))
+    original_snapshot = json.dumps(existing_mappings, sort_keys=True)
+
+    original_last_updated = None
+    if os.path.exists(output_path):
+        try:
+            with open(output_path, "r", encoding="utf-8") as f:
+                raw = json.load(f)
+                if isinstance(raw, dict):
+                    original_last_updated = raw.get("lastUpdated")
+        except (OSError, ValueError):
+            pass
 
     if crawl:
-        existing_mappings = _crawl_and_merge(existing_mappings, inspect_binaries=inspect_binaries)
+        existing_mappings = _crawl_and_merge(
+            existing_mappings,
+            inspect_binaries=inspect_binaries,
+            source=source,
+            from_latest=from_latest,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+    new_snapshot = json.dumps(existing_mappings, sort_keys=True)
+    mappings_changed = (new_snapshot != original_snapshot)
+
+    last_updated = (
+        datetime.datetime.now(datetime.timezone.utc).isoformat()
+        if (mappings_changed or not original_last_updated)
+        else original_last_updated
+    )
 
     catalog = {
         "schemaVersion": 1,
-        "lastUpdated": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "lastUpdated": last_updated,
         "totalEntries": len(existing_mappings),
         "mappings": existing_mappings,
     }
@@ -1200,18 +1334,77 @@ def build_catalog(output_path: str = DEFAULT_OUTPUT_PATH, crawl: bool = False, i
         sys.exit(1)
 
     _write_catalog_file(output_path, catalog)
-    print(f"Successfully generated CRC mapping catalog at {output_path} with {len(existing_mappings)} entries.")
+    if mappings_changed:
+        print(f"Successfully updated catalog with {len(existing_mappings)} entries to {output_path} (changes detected).")
+    else:
+        print(f"Catalog is up to date ({len(existing_mappings)} entries, no changes detected).")
     return catalog
+
+
+def run_self_test() -> bool:
+    """Runs self-test assertions verifying hashing, date generation, and catalog structure."""
+    print("Running self-test suite...")
+
+    # Test 1: SAGE Legacy CRC
+    test_bytes = b"Hello, World!"
+    crc = compute_buffer_crc(test_bytes)
+    assert crc.startswith("0x") and len(crc) == 10, f"Invalid CRC format: {crc}"
+
+    # Test 2: SAGE Transfer CRC
+    xfer_crc = compute_sage_xfer_crc(test_bytes)
+    assert xfer_crc.startswith("0x") and len(xfer_crc) == 10, f"Invalid transfer CRC: {xfer_crc}"
+
+    # Test 3: Date range generation
+    d_start = datetime.date(2026, 9, 25)
+    d_end = datetime.date(2026, 9, 28)
+    codes = generate_date_codes(start_date=d_start, end_date=d_end)
+    expected_codes = {"092526", "092626", "092726", "092826"}
+    assert codes == expected_codes, f"Expected {expected_codes}, got {codes}"
+
+    # Test 4: Candidate generation includes QFE and EAC
+    cands = build_candidates_for_date("092826", max_qfe=3)
+    urls = [c[3] for c in cands]
+    assert f"{GENERALSONLINE_CDN}/GeneralsOnline_portable_092826.zip" in urls
+    assert f"{GENERALSONLINE_CDN}/GeneralsOnline_portable_092826_EAC.zip" in urls
+    assert f"{GENERALSONLINE_CDN}/GeneralsOnline_portable_092826_QFE1.zip" in urls
+    assert f"{GENERALSONLINE_CDN}/GeneralsOnline_portable_092826_QFE1_EAC.zip" in urls
+
+    # Test 5: Date argument parsing
+    assert parse_date_arg("2026-09-28") == datetime.date(2026, 9, 28)
+    assert parse_date_arg("092826") == datetime.date(2026, 9, 28)
+
+    # Test 6: get_latest_generalsonline_date
+    dummy_mappings = [
+        {"publisher": "generalsonline", "buildDate": "2026-08-28", "version": "082826"},
+        {"publisher": "generalsonline", "buildDate": "2026-09-28", "version": "092826_QFE1"},
+        {"publisher": "steam", "buildDate": "2003-09-16", "version": "1.04"},
+    ]
+    latest = get_latest_generalsonline_date(dummy_mappings)
+    assert latest == datetime.date(2026, 9, 28), f"Expected 2026-09-28, got {latest}"
+
+    print("All self-test assertions passed.")
+    return True
 
 
 def main():
     parser = argparse.ArgumentParser(description="GenHub GameClient CRC Catalog Generator")
     parser.add_argument("--output", "-o", default=DEFAULT_OUTPUT_PATH, help="Output path for crc-mapping.json")
     parser.add_argument("--crawl", action="store_true", help="Crawl upstream sources for latest releases")
+    parser.add_argument("--source", choices=["all", "generalsonline", "superhackers"], default="all", help="Source to crawl (all, generalsonline, superhackers)")
+    parser.add_argument("--generalsonline-only", action="store_true", help="Crawl only GeneralsOnline (shortcut for --source generalsonline)")
+    parser.add_argument("--from-latest", action="store_true", help="Crawl from latest known catalog date onward")
+    parser.add_argument("--start-date", help="Custom start date for crawling (YYYY-MM-DD or MMDDYY)")
+    parser.add_argument("--end-date", help="Custom end date for crawling (YYYY-MM-DD or MMDDYY)")
     parser.add_argument("--inspect-binaries", action="store_true", help="Download archives and calculate CRC32/SHA256 from binaries")
     parser.add_argument("--validate", action="store_true", help="Validate existing catalog")
+    parser.add_argument("--self-test", action="store_true", help="Run self-test suite and exit")
 
     args = parser.parse_args()
+
+    if args.self_test:
+        if run_self_test():
+            sys.exit(0)
+        sys.exit(1)
 
     if args.validate:
         if not os.path.exists(args.output):
@@ -1225,7 +1418,19 @@ def main():
         else:
             sys.exit(1)
 
-    build_catalog(output_path=args.output, crawl=args.crawl, inspect_binaries=args.inspect_binaries)
+    source = "generalsonline" if args.generalsonline_only else args.source
+    start_date = parse_date_arg(args.start_date) if args.start_date else None
+    end_date = parse_date_arg(args.end_date) if args.end_date else None
+
+    build_catalog(
+        output_path=args.output,
+        crawl=args.crawl,
+        inspect_binaries=args.inspect_binaries,
+        source=source,
+        from_latest=args.from_latest,
+        start_date=start_date,
+        end_date=end_date,
+    )
 
 
 if __name__ == "__main__":
