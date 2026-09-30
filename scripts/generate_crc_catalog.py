@@ -750,7 +750,6 @@ def _inspect_generalsonline_binary(
     url: str,
     version_str: str,
     exe_crc: str,
-    sha256: str,
     ini_crc: str,
 ) -> tuple[str, str, str] | None:
     """Inspects remote archive binary to determine exe CRC, SHA-256, and INI CRC."""
@@ -801,6 +800,7 @@ def build_generalsonline_entry(cand: tuple[str, str, str, str], inspect_binaries
     }
     if ini_crc == "0x81FB5632":
         entry["dataPatchName"] = COMMUNITY_PATCH_CORE_INI_NAME
+        entry["dataPatchCdnUrl"] = COMMUNITY_PATCH_CORE_INI_URL
     return entry
 
 
