@@ -11,10 +11,12 @@ namespace GenHub.Features.Tools.IniEditor.ViewModels;
 /// <param name="Suggestions">Autocomplete suggestions.</param>
 /// <param name="ReferenceBlockType">Block type referenced by field value.</param>
 /// <param name="IsTexture">Whether the field represents a texture reference.</param>
+/// <param name="PairTargets">Known target names for target plus percent pair values.</param>
 public sealed record IniFieldMetadata(
     string? Description = null,
     bool IsKnown = false,
     string? Tooltip = null,
     IReadOnlyList<string>? Suggestions = null,
     string? ReferenceBlockType = null,
-    bool IsTexture = false);
+    bool IsTexture = false,
+    IReadOnlyList<string>? PairTargets = null);

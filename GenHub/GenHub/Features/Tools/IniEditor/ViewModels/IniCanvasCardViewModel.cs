@@ -1,5 +1,6 @@
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Tools.IniEditor;
 using System.Collections.Generic;
 
@@ -34,6 +35,11 @@ public sealed class IniCanvasCardViewModel : ObservableObject
     /// Gets the portrait or icon image for the block.
     /// </summary>
     public IImage? Portrait { get; }
+
+    /// <summary>
+    /// Gets the fallback icon kind shown when no portrait thumbnail is available.
+    /// </summary>
+    public string IconKind => IniBlockIconHelper.GetIconKind(BlockType);
 
     /// <summary>
     /// Gets the list of vital statistics to display on the card.

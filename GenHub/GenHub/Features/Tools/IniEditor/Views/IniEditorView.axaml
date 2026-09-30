@@ -8,75 +8,97 @@
              xmlns:editors="clr-namespace:GenHub.Common.Editors"
              xmlns:controls="clr-namespace:GenHub.Common.Controls"
              xmlns:iniModels="clr-namespace:GenHub.Core.Models.Tools.IniEditor;assembly=GenHub.Core"
+             xmlns:modelViewer="clr-namespace:GenHub.Core.Models.Tools.ModelViewer;assembly=GenHub.Core"
              xmlns:modBuilderModels="clr-namespace:GenHub.Features.Tools.ModBuilder.Models"
              x:Class="GenHub.Features.Tools.IniEditor.Views.IniEditorView"
              x:DataType="vm:IniEditorViewModel">
   <UserControl.Resources>
     <DataTemplate x:Key="IniFieldRowTemplate" x:DataType="vm:IniFieldRowViewModel">
-      <Border Padding="6,5" Margin="0,0,0,4" CornerRadius="6"
+      <Border Padding="4,3" Margin="0,0,0,2" CornerRadius="5"
               Background="{DynamicResource CardBackground}"
               BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
               ToolTip.Tip="{Binding Tooltip}">
         <Grid RowDefinitions="Auto,Auto">
-          <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+          <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto">
             <Image Grid.Column="0"
                    Source="{Binding TextureThumbnail}"
-                   Width="22" Height="22" Margin="0,0,6,0"
+                   Width="18" Height="18" Margin="0,0,5,0"
                    Stretch="Uniform"
                    VerticalAlignment="Center"
                    IsVisible="{Binding TextureThumbnail, Converter={x:Static ObjectConverters.IsNotNull}}"/>
             <TextBlock Grid.Column="1"
                        Text="{Binding Key}"
-                       FontSize="11" FontWeight="SemiBold"
+                       FontSize="10" FontWeight="SemiBold"
                        Foreground="{DynamicResource TextPrimary}"
-                       VerticalAlignment="Center"/>
-            <Border Grid.Column="2"
+                       VerticalAlignment="Center"
+                       TextTrimming="CharacterEllipsis"
+                       MaxWidth="110" Margin="0,0,6,0"/>
+            <!-- Standard value edit when not KindOf or a pair -->
+            <Grid Grid.Column="2" IsVisible="{Binding IsPlainValue}" VerticalAlignment="Center">
+              <TextBox Text="{Binding Value, Mode=TwoWay}"
+                       IsVisible="{Binding !HasSuggestions}"
+                       FontSize="10" ToolTip.Tip="{Binding Description}"/>
+              <Grid IsVisible="{Binding HasSuggestions}">
+                <AutoCompleteBox x:CompileBindings="False"
+                                 Text="{Binding Value, Mode=TwoWay}"
+                                 ItemsSource="{Binding Suggestions}"
+                                 FilterMode="Contains" MinimumPrefixLength="0" MaxDropDownHeight="220"
+                                 FontSize="10" ToolTip.Tip="{Binding Description}"/>
+                <material:MaterialIcon Kind="ChevronDown" Width="13" Height="13"
+                                       Foreground="{DynamicResource TextSecondary}"
+                                       HorizontalAlignment="Right" VerticalAlignment="Center"
+                                       Margin="0,0,8,0" IsHitTestVisible="False"/>
+              </Grid>
+            </Grid>
+            <!-- Target plus percent pair edit, e.g. ProductionTimeChange -->
+            <Grid Grid.Column="2" ColumnDefinitions="*,Auto,Auto" IsVisible="{Binding IsPercentPair}" VerticalAlignment="Center">
+              <AutoCompleteBox Grid.Column="0" x:CompileBindings="False"
+                               Text="{Binding PairTarget, Mode=TwoWay}"
+                               ItemsSource="{Binding PairTargetSuggestions}"
+                               FilterMode="Contains" MinimumPrefixLength="0" MaxDropDownHeight="220"
+                               Watermark="{localization:Localize Tools.IniEditor.Fields.PairTargetWatermark}"
+                               ToolTip.Tip="{Binding Description}"
+                               FontSize="10" Margin="0,0,4,0"/>
+              <TextBox Grid.Column="1" Text="{Binding PairPercent, Mode=TwoWay}"
+                       Watermark="{localization:Localize Tools.IniEditor.Fields.PairPercentWatermark}"
+                       ToolTip.Tip="{Binding Description}"
+                       FontSize="10" MinWidth="44"/>
+              <TextBlock Grid.Column="2" Text="%" FontSize="10" FontWeight="SemiBold"
+                         Foreground="{DynamicResource TextSecondary}"
+                         VerticalAlignment="Center" Margin="2,0,0,0"/>
+            </Grid>
+            <!-- Spacer keeps the actions right-aligned for KindOf rows -->
+            <Border Grid.Column="2" IsVisible="{Binding IsKindOf}"/>
+            <Border Grid.Column="3"
                     IsVisible="{Binding IsKnown}"
                     Background="{DynamicResource AccentTintBackgroundBrush}"
                     BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
-                    CornerRadius="4" Padding="4,1" Margin="6,0,0,0"
+                    CornerRadius="3" Padding="2,0" Margin="5,0,0,0"
                     VerticalAlignment="Center">
-              <material:MaterialIcon Kind="Check" Width="10" Height="10"
+              <material:MaterialIcon Kind="Check" Width="9" Height="9"
                                      Foreground="{DynamicResource AccentBrush}"/>
             </Border>
-            <Button Grid.Column="3" x:CompileBindings="False"
+            <Button Grid.Column="4" x:CompileBindings="False"
                     Command="{Binding DataContext.GoToDefinitionCommand, ElementName=Root}"
                     CommandParameter="{Binding}"
                     IsVisible="{Binding CanGoToDefinition}"
-                    Padding="4,2" Margin="6,0,0,0"
+                    Padding="3,1" Margin="5,0,0,0"
                     Background="Transparent" BorderThickness="0"
                     ToolTip.Tip="{localization:Localize Tools.IniEditor.Properties.GoToDefinitionTooltip}"
                     VerticalAlignment="Center">
-              <material:MaterialIcon Kind="ArrowRightBoldCircleOutline" Width="13" Height="13"
+              <material:MaterialIcon Kind="ArrowRightBoldCircleOutline" Width="12" Height="12"
                                      Foreground="{DynamicResource AccentBrush}"/>
             </Button>
-            <Button Grid.Column="4" x:CompileBindings="False"
+            <Button Grid.Column="5" x:CompileBindings="False"
                     Command="{Binding DataContext.DeleteFieldCommand, ElementName=Root}"
                     CommandParameter="{Binding}"
-                    Padding="4,2" Margin="2,0,0,0"
+                    Padding="3,1" Margin="2,0,0,0"
                     Background="Transparent" BorderThickness="0"
                     ToolTip.Tip="{localization:Localize Tools.IniEditor.Properties.DeleteFieldTooltip}"
                     VerticalAlignment="Center">
-              <material:MaterialIcon Kind="DeleteOutline" Width="13" Height="13"
+              <material:MaterialIcon Kind="DeleteOutline" Width="12" Height="12"
                                      Foreground="{DynamicResource ErrorBrush}"/>
             </Button>
-          </Grid>
-          <!-- Standard value edit when not KindOf -->
-          <Grid Grid.Row="1" Margin="0,4,0,0" IsVisible="{Binding !IsKindOf}">
-            <TextBox Text="{Binding Value, Mode=TwoWay}"
-                     IsVisible="{Binding !HasSuggestions}"
-                     FontSize="11" ToolTip.Tip="{Binding Description}"/>
-            <Grid IsVisible="{Binding HasSuggestions}">
-              <AutoCompleteBox x:CompileBindings="False"
-                               Text="{Binding Value, Mode=TwoWay}"
-                               ItemsSource="{Binding Suggestions}"
-                               FilterMode="Contains" MinimumPrefixLength="0" MaxDropDownHeight="220"
-                               FontSize="11" ToolTip.Tip="{Binding Description}"/>
-              <material:MaterialIcon Kind="ChevronDown" Width="14" Height="14"
-                                     Foreground="{DynamicResource TextSecondary}"
-                                     HorizontalAlignment="Right" VerticalAlignment="Center"
-                                     Margin="0,0,8,0" IsHitTestVisible="False"/>
-            </Grid>
           </Grid>
 
           <!-- Multi-flag selector with chips when field is KindOf -->
@@ -337,14 +359,14 @@
                 CornerRadius="10" Padding="8,6" ClipToBounds="True" MinWidth="180">
           <Grid RowDefinitions="Auto,*">
             <TabStrip Grid.Row="0" SelectedIndex="{Binding LeftSidebarTabIndex, Mode=TwoWay}" Classes="compact-tabs" Margin="0,0,0,6">
-              <TabItem Header="{localization:Localize Tools.IniEditor.Tabs.Blocks}"/>
-              <TabItem Header="{localization:Localize Tools.IniEditor.Tabs.Files}"/>
-              <TabItem Header="{localization:Localize Tools.IniEditor.Tabs.Reference}"/>
-              <TabItem Header="{localization:Localize Tools.IniEditor.Tabs.Textures}"/>
+              <TabStripItem Content="{localization:Localize Tools.IniEditor.Tabs.Blocks}"/>
+              <TabStripItem Content="{localization:Localize Tools.IniEditor.Tabs.Files}"/>
+              <TabStripItem Content="{localization:Localize Tools.IniEditor.Tabs.Reference}"/>
+              <TabStripItem Content="{localization:Localize Tools.IniEditor.Tabs.Textures}"/>
             </TabStrip>
             <Grid Grid.Row="1">
               <!-- Blocks Tab -->
-              <Grid RowDefinitions="Auto,Auto,*,Auto" IsVisible="{Binding IsBlocksTabSelected}">
+              <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" IsVisible="{Binding IsBlocksTabSelected}">
                 <TextBox Grid.Row="0"
                          Text="{Binding BlockFilter, Mode=TwoWay}"
                          Watermark="{localization:Localize Tools.IniEditor.Tree.FilterWatermark}"
@@ -375,17 +397,46 @@
                           ToolTip.Tip="{localization:Localize Common.Editors.Files.CollapseAll}"
                           FontSize="10"/>
                 </Grid>
-                <Border Grid.Row="2"
+                <Grid Grid.Row="2" ColumnDefinitions="Auto,*" Margin="0,0,0,4">
+                  <CheckBox Grid.Column="0"
+                            IsChecked="{Binding IsGroupByTypeEnabled, Mode=TwoWay}"
+                            Content="{localization:Localize Tools.IniEditor.Tree.GroupByType}"
+                            ToolTip.Tip="{localization:Localize Tools.IniEditor.Tree.GroupByType}"
+                            FontSize="10" VerticalAlignment="Center"/>
+                  <TextBlock Grid.Column="1"
+                             Text="{Binding BlockCountText}"
+                             FontSize="10"
+                             Foreground="{DynamicResource TextSecondary}"
+                             VerticalAlignment="Center" HorizontalAlignment="Right"
+                             TextTrimming="CharacterEllipsis" Margin="6,0,0,0"/>
+                </Grid>
+                <Border Grid.Row="3"
                         BorderBrush="{DynamicResource BorderBrush}"
                         BorderThickness="1" CornerRadius="8"
                         Background="{DynamicResource SurfaceElevatedBrush}">
-                  <TreeView ItemsSource="{Binding RootNodes}"
+                  <TreeView ItemsSource="{Binding VisibleRootNodes}"
                             SelectedItem="{Binding SelectedNode, Mode=TwoWay}"
                             BorderThickness="0" Background="Transparent"
                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <TreeView.Styles>
                       <Style Selector="TreeViewItem" x:DataType="vm:IniTreeNodeViewModel">
                         <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="MinHeight" Value="0"/>
+                      </Style>
+                      <Style Selector="TreeViewItem /template/ Panel#PART_ExpandCollapseChevronContainer">
+                        <Setter Property="Margin" Value="0,0,1,0"/>
+                      </Style>
+                      <Style Selector="TreeViewItem /template/ ToggleButton#PART_ExpandCollapseChevron">
+                        <Setter Property="Width" Value="10"/>
+                        <Setter Property="Height" Value="10"/>
+                        <Setter Property="Margin" Value="0"/>
+                        <Setter Property="Padding" Value="0"/>
+                      </Style>
+                      <Style Selector="TreeViewItem /template/ ToggleButton#PART_ExpandCollapseChevron PathIcon">
+                        <Setter Property="Width" Value="8"/>
+                        <Setter Property="Height" Value="8"/>
                       </Style>
                       <Style Selector="TreeViewItem:empty /template/ Panel#PART_ExpandCollapseChevronContainer">
                         <Setter Property="Width" Value="10"/>
@@ -394,30 +445,49 @@
                     </TreeView.Styles>
                     <TreeView.ItemTemplate>
                       <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="vm:IniTreeNodeViewModel">
-                        <Border Margin="4,1" Padding="6,3" CornerRadius="6" Background="Transparent" ToolTip.Tip="{Binding DisplayName}" HorizontalAlignment="Stretch">
-                          <Grid ColumnDefinitions="Auto,Auto,*" VerticalAlignment="Center">
-                            <material:MaterialIcon Grid.Column="0" Kind="{Binding IconKind}" Width="14" Height="14" Margin="0,0,6,0" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
-                            <Border Grid.Column="1"
-                                    Background="{DynamicResource AccentTintBackgroundBrush}"
-                                    BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
-                                    CornerRadius="4" Padding="4,1" Margin="0,0,6,0">
-                              <TextBlock Text="{Binding Badge}"
-                                         FontSize="9" FontWeight="SemiBold"
-                                         Foreground="{DynamicResource AccentBrush}"/>
-                            </Border>
-                            <TextBlock Grid.Column="2"
-                                       Text="{Binding DisplayName}"
-                                       FontSize="11"
-                                       Foreground="{DynamicResource TextPrimary}"
-                                       VerticalAlignment="Center"
-                                       TextTrimming="CharacterEllipsis"/>
+                        <Border Margin="2,0" Padding="4,2" CornerRadius="5" Background="Transparent" ToolTip.Tip="{Binding DisplayName}" HorizontalAlignment="Stretch">
+                          <Grid>
+                            <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center" IsVisible="{Binding IsGroupHeader}">
+                              <material:MaterialIcon Grid.Column="0" Kind="FolderOutline" Width="12" Height="12" Margin="0,0,6,0" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                              <TextBlock Grid.Column="1"
+                                         Text="{Binding ShortName}"
+                                         FontSize="11" FontWeight="Bold"
+                                         Foreground="{DynamicResource TextPrimary}"
+                                         VerticalAlignment="Center"
+                                         TextTrimming="CharacterEllipsis"/>
+                              <Border Grid.Column="2"
+                                      Background="{DynamicResource AccentTintBackgroundBrush}"
+                                      BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
+                                      CornerRadius="4" Padding="4,0" Margin="6,0,0,0">
+                                <TextBlock Text="{Binding GroupCount}"
+                                           FontSize="9" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AccentBrush}"/>
+                              </Border>
+                            </Grid>
+                            <Grid ColumnDefinitions="Auto,Auto,*" VerticalAlignment="Center" IsVisible="{Binding !IsGroupHeader}">
+                              <material:MaterialIcon Grid.Column="0" Kind="{Binding IconKind}" Width="12" Height="12" Margin="0,0,5,0" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                              <Border Grid.Column="1"
+                                      Background="{DynamicResource AccentTintBackgroundBrush}"
+                                      BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
+                                      CornerRadius="3" Padding="3,0" Margin="0,0,5,0">
+                                <TextBlock Text="{Binding Badge}"
+                                           FontSize="8" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AccentBrush}"/>
+                              </Border>
+                              <TextBlock Grid.Column="2"
+                                         Text="{Binding ShortName}"
+                                         FontSize="11"
+                                         Foreground="{DynamicResource TextPrimary}"
+                                         VerticalAlignment="Center"
+                                         TextTrimming="CharacterEllipsis"/>
+                            </Grid>
                           </Grid>
                         </Border>
                       </TreeDataTemplate>
                     </TreeView.ItemTemplate>
                   </TreeView>
                 </Border>
-                <Grid Grid.Row="3" RowDefinitions="Auto,Auto" Margin="0,10,0,0">
+                <Grid Grid.Row="4" RowDefinitions="Auto,Auto" Margin="0,10,0,0">
                   <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,6">
                     <TextBox Grid.Column="0"
                              Text="{Binding NewBlockName, Mode=TwoWay}"
@@ -782,6 +852,159 @@
                     </ItemsControl>
                   </StackPanel>
                 </Border>
+                <!-- 3D Model Preview -->
+                <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                        CornerRadius="10" Padding="12"
+                        IsVisible="{Binding HasSelectedBlock}">
+                  <StackPanel Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <material:MaterialIcon Kind="CubeOutline" Width="14" Height="14" Foreground="{DynamicResource AccentBrush}"/>
+                        <TextBlock Text="{localization:Localize Tools.IniEditor.Preview3D.Title}"
+                                   FontWeight="Bold" FontSize="12" Foreground="{DynamicResource TextPrimary}"/>
+                        <Border Background="{DynamicResource AccentTintBackgroundBrush}"
+                                BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
+                                CornerRadius="4" Padding="6,1"
+                                IsVisible="{Binding PreviewModelName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                          <TextBlock Text="{Binding PreviewModelName}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
+                        </Border>
+                      </StackPanel>
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <CheckBox Content="{localization:Localize Tools.IniEditor.Preview3D.Skeleton}"
+                                  IsChecked="{Binding PreviewShowSkeleton, Mode=TwoWay}" FontSize="10"/>
+                        <CheckBox Content="{localization:Localize Tools.IniEditor.Preview3D.Wireframe}"
+                                  IsChecked="{Binding PreviewShowWireframe, Mode=TwoWay}" FontSize="10"/>
+                      </StackPanel>
+                    </Grid>
+                    <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                            CornerRadius="8" ClipToBounds="True" Background="{DynamicResource CardBackground}">
+                      <Panel Height="300">
+                        <controls:W3dViewerControl Scene="{Binding PreviewScene}"
+                                                   SelectedMeshIndex="{Binding PreviewSelectedMeshIndex, Mode=TwoWay}"
+                                                   ShowSkeleton="{Binding PreviewShowSkeleton}"
+                                                   ShowWireframe="{Binding PreviewShowWireframe}"
+                                                   Pose="{Binding PreviewPose}"
+                                                   IsVisible="{Binding HasPreviewScene}"/>
+                        <StackPanel IsVisible="{Binding !HasPreviewScene}"
+                                    VerticalAlignment="Center" HorizontalAlignment="Center"
+                                    Spacing="8" Margin="16">
+                          <material:MaterialIcon Kind="CubeOutline" Width="28" Height="28"
+                                                 Foreground="{DynamicResource TextSecondary}"
+                                                 HorizontalAlignment="Center"/>
+                          <TextBlock Text="{Binding PreviewStatusText}" FontSize="11"
+                                     Foreground="{DynamicResource TextSecondary}"
+                                     TextAlignment="Center" TextWrapping="Wrap"/>
+                          <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsPreviewLoading}"
+                                       Width="160" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                      </Panel>
+                    </Border>
+                    <TextBlock Text="{Binding PreviewStatusText}" IsVisible="{Binding HasPreviewScene}"
+                               FontSize="10" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                    <TextBlock Text="{localization:Localize Tools.IniEditor.Preview3D.DoubleClickHint}"
+                               IsVisible="{Binding HasPreviewScene}"
+                               FontSize="9" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                    <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto"
+                          IsVisible="{Binding HasPreviewClips}" VerticalAlignment="Center">
+                      <TextBlock Grid.Column="0" Text="{localization:Localize Tools.IniEditor.Preview3D.ClipLabel}"
+                                 FontSize="10" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"
+                                 Margin="0,0,6,0"/>
+                      <ComboBox Grid.Column="1" ItemsSource="{Binding PreviewClips}"
+                                SelectedItem="{Binding SelectedPreviewClip, Mode=TwoWay}"
+                                FontSize="10" HorizontalAlignment="Stretch" Margin="0,0,6,0">
+                        <ComboBox.ItemTemplate>
+                          <DataTemplate x:DataType="modelViewer:W3dAnimationClip">
+                            <TextBlock Text="{Binding Name}" FontSize="10"/>
+                          </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                      </ComboBox>
+                      <Button Grid.Column="2" Command="{Binding TogglePreviewPlaybackCommand}"
+                              Padding="6,3" Background="Transparent" Margin="0,0,6,0"
+                              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6"
+                              ToolTip.Tip="{localization:Localize Tools.IniEditor.Preview3D.Play}">
+                        <Panel>
+                          <material:MaterialIcon Kind="Play" Width="13" Height="13" IsVisible="{Binding !IsPreviewPlaying}"/>
+                          <material:MaterialIcon Kind="Pause" Width="13" Height="13" IsVisible="{Binding IsPreviewPlaying}"/>
+                        </Panel>
+                      </Button>
+                      <Slider Grid.Column="3" Minimum="0" Maximum="{Binding PreviewFrameCount}"
+                              Value="{Binding PreviewFrame, Mode=TwoWay}" Width="110" VerticalAlignment="Center"
+                              Margin="0,0,6,0"/>
+                      <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+                        <TextBlock Text="{localization:Localize Tools.IniEditor.Preview3D.FrameLabel}"
+                                   FontSize="9" Foreground="{DynamicResource TextSecondary}"/>
+                        <TextBlock Text="{Binding PreviewFrame, StringFormat={}{0:F0}}" FontSize="9" MinWidth="20"/>
+                        <TextBlock Text="/" FontSize="9" Foreground="{DynamicResource TextSecondary}"/>
+                        <TextBlock Text="{Binding PreviewFrameCount}" FontSize="9" MinWidth="20"/>
+                      </StackPanel>
+                    </Grid>
+                    <TextBlock Text="{localization:Localize Tools.IniEditor.Preview3D.Subobjects}"
+                               IsVisible="{Binding HasPreviewScene}"
+                               FontWeight="SemiBold" FontSize="11" Foreground="{DynamicResource TextPrimary}"/>
+                    <ListBox ItemsSource="{Binding PreviewMeshes}"
+                             SelectedItem="{Binding SelectedPreviewMesh, Mode=TwoWay}"
+                             IsVisible="{Binding HasPreviewScene}"
+                             MaxHeight="120" Background="Transparent" BorderThickness="0" Padding="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                      <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:W3dPreviewMeshItem">
+                          <Border Margin="0,1" Padding="6,3" CornerRadius="5"
+                                  Background="{DynamicResource CardBackground}"
+                                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                            <StackPanel Spacing="1">
+                              <TextBlock Text="{Binding Name}" FontSize="10" FontWeight="SemiBold"
+                                         Foreground="{DynamicResource TextPrimary}"
+                                         TextTrimming="CharacterEllipsis"/>
+                              <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="{Binding TriangleCount}" FontSize="9" Foreground="{DynamicResource TextSecondary}"/>
+                                <TextBlock Text="{localization:Localize Tools.IniEditor.Preview3D.SubobjectDetails}"
+                                           FontSize="9" Foreground="{DynamicResource TextSecondary}"/>
+                                <TextBlock Text="•" FontSize="9" Foreground="{DynamicResource TextSecondary}"
+                                           IsVisible="{Binding BoneName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                <TextBlock Text="{localization:Localize Tools.IniEditor.Preview3D.MeshBoneLabel}"
+                                           FontSize="9" Foreground="{DynamicResource TextSecondary}"
+                                           IsVisible="{Binding BoneName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                <TextBlock Text="{Binding BoneName}" FontSize="9" Foreground="{DynamicResource TextSecondary}"
+                                           IsVisible="{Binding BoneName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                <TextBlock Text="•" FontSize="9" Foreground="{DynamicResource TextSecondary}"
+                                           IsVisible="{Binding TextureName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                <TextBlock Text="{localization:Localize Tools.IniEditor.Preview3D.MeshTextureLabel}"
+                                           FontSize="9" Foreground="{DynamicResource TextSecondary}"
+                                           IsVisible="{Binding TextureName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                <TextBlock Text="{Binding TextureName}" FontSize="9" Foreground="{DynamicResource TextSecondary}"
+                                           TextTrimming="CharacterEllipsis"
+                                           IsVisible="{Binding TextureName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                              </StackPanel>
+                            </StackPanel>
+                          </Border>
+                        </DataTemplate>
+                      </ListBox.ItemTemplate>
+                    </ListBox>
+                    <TextBlock Text="{localization:Localize Tools.IniEditor.Preview3D.ReferencedBy}"
+                               IsVisible="{Binding HasPreviewMeshModules}"
+                               FontWeight="SemiBold" FontSize="11" Foreground="{DynamicResource TextPrimary}"/>
+                    <ItemsControl ItemsSource="{Binding PreviewMeshModules}"
+                                  IsVisible="{Binding HasPreviewMeshModules}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:IniTreeNodeViewModel">
+                          <Button x:CompileBindings="False"
+                                  Command="{Binding DataContext.GoToPreviewModuleCommand, ElementName=Root}"
+                                  CommandParameter="{Binding}"
+                                  Padding="6,2" Margin="0,1" Background="Transparent"
+                                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                  CornerRadius="4" HorizontalAlignment="Stretch"
+                                  HorizontalContentAlignment="Left"
+                                  ToolTip.Tip="{Binding DisplayName}">
+                            <TextBlock Text="{Binding DisplayName}" FontSize="10"
+                                       TextTrimming="CharacterEllipsis"/>
+                          </Button>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                </Border>
+
                 <!-- Multi-Object Overview Canvas Grid -->
                 <Border Background="{DynamicResource SurfaceElevatedBrush}"
                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
@@ -823,7 +1046,7 @@
                                 <Panel>
                                   <Image Source="{Binding Portrait}" Stretch="UniformToFill"
                                          IsVisible="{Binding Portrait, Converter={x:Static ObjectConverters.IsNotNull}}"/>
-                                  <material:MaterialIcon Kind="CubeOutline" Width="18" Height="18"
+                                  <material:MaterialIcon Kind="{Binding IconKind}" Width="18" Height="18"
                                                          Foreground="{DynamicResource AccentBrush}"
                                                          HorizontalAlignment="Center" VerticalAlignment="Center"
                                                          IsVisible="{Binding Portrait, Converter={x:Static ObjectConverters.IsNull}}"/>
@@ -860,7 +1083,7 @@
                         <Grid>
                           <Image Source="{Binding SelectedBlockPortrait}" Stretch="UniformToFill"
                                  IsVisible="{Binding SelectedBlockPortrait, Converter={x:Static ObjectConverters.IsNotNull}}"/>
-                          <material:MaterialIcon Kind="CubeOutline" Width="24" Height="24"
+                          <material:MaterialIcon Kind="{Binding SelectedBlockIconKind}" Width="24" Height="24"
                                                  Foreground="{DynamicResource AccentBrush}"
                                                  HorizontalAlignment="Center" VerticalAlignment="Center"
                                                  IsVisible="{Binding SelectedBlockPortrait, Converter={x:Static ObjectConverters.IsNull}}"/>
@@ -975,6 +1198,42 @@
                         </ItemsControl.ItemTemplate>
                       </ItemsControl>
                     </StackPanel>
+
+                    <!-- Linked Model & Assets (Clickable!) -->
+                    <StackPanel Spacing="4" IsVisible="{Binding HasSelectedBlockAssets}">
+                      <TextBlock Text="{localization:Localize Tools.IniEditor.Assets.Title}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}"/>
+                      <ItemsControl ItemsSource="{Binding SelectedBlockAssets}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:IniAssetLinkItem">
+                            <Button x:CompileBindings="False"
+                                    Command="{Binding DataContext.SelectModuleNodeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    CommandParameter="{Binding OwnerNode}"
+                                    IsEnabled="{Binding CanNavigate}"
+                                    Padding="6,4" Margin="0,0,0,3"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                                    Background="{DynamicResource CardBackground}"
+                                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                    CornerRadius="6"
+                                    ToolTip.Tip="{Binding Detail}">
+                              <Grid ColumnDefinitions="Auto,*,Auto">
+                                <Panel Grid.Column="0" Width="20" Height="20" Margin="0,0,6,0" VerticalAlignment="Center">
+                                  <Image Source="{Binding Thumbnail}" Stretch="UniformToFill"
+                                         IsVisible="{Binding Thumbnail, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                                  <material:MaterialIcon Kind="{Binding IconKind}" Width="13" Height="13"
+                                                         Foreground="{DynamicResource AccentBrush}"
+                                                         HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                         IsVisible="{Binding Thumbnail, Converter={x:Static ObjectConverters.IsNull}}"/>
+                                </Panel>
+                                <TextBlock Grid.Column="1" Text="{Binding Label}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                <Border Grid.Column="2" Background="{DynamicResource AccentTintBackgroundBrush}" CornerRadius="4" Padding="4,1" Margin="6,0,0,0">
+                                  <TextBlock Text="{Binding Detail}" FontSize="8" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
+                                </Border>
+                              </Grid>
+                            </Button>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </StackPanel>
                   </StackPanel>
                 </Border>
 
@@ -1052,7 +1311,13 @@
                   <StackPanel Spacing="0">
                     <ItemsControl ItemsSource="{Binding GlobalFieldRows}"
                                   ItemTemplate="{StaticResource IniFieldRowTemplate}"
-                                  Margin="4,4,4,0"/>
+                                  Margin="4,4,4,0">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <controls:TwoColumnPanel ColumnSpacing="6" RowSpacing="2"/>
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                    </ItemsControl>
                     <Grid ColumnDefinitions="*,*" Margin="4,4,4,0">
                       <TextBox Grid.Column="0"
                                Text="{Binding NewGlobalFieldKey, Mode=TwoWay}"
@@ -1081,7 +1346,7 @@
                                 ItemTemplate="{StaticResource IniFieldRowTemplate}">
                     <ItemsControl.ItemsPanel>
                       <ItemsPanelTemplate>
-                        <VirtualizingStackPanel />
+                        <controls:TwoColumnPanel ColumnSpacing="6" RowSpacing="2"/>
                       </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                   </ItemsControl>

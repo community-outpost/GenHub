@@ -2,10 +2,12 @@ using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using GenHub.Common.Controls;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.IniEditor;
+using GenHub.Core.Interfaces.Tools.ModelViewer;
 using GenHub.Core.Interfaces.Tools.TextureEditor;
 using GenHub.Core.Interfaces.Tools.WndEditor;
 using GenHub.Core.Models.Results;
@@ -467,6 +469,131 @@ public class IniEditorViewTests
         }
     }
 
+    /// <summary>
+    /// Verifies that opening a file with blocks auto-selects the first block so the
+    /// properties panel is populated instead of showing an empty sidebar.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task OpenFile_WithBlocks_AutoSelectsFirstBlockAndPopulatesFieldsAsync()
+    {
+        var filePath = Path.Combine(Path.GetTempPath(), $"GenHubAutoSelect{Guid.NewGuid():N}.ini");
+        await File.WriteAllTextAsync(filePath, "Object FirstObject\n  Health = 100.0\nEnd\nObject SecondObject\n  Health = 50.0\nEnd\n");
+        try
+        {
+            using var viewModel = CreateViewModel();
+            var opened = await viewModel.OpenFileAsync(filePath);
+
+            Assert.True(opened);
+            Assert.NotNull(viewModel.SelectedNode);
+            Assert.False(viewModel.SelectedNode.IsGroupHeader);
+            Assert.Equal("FirstObject", viewModel.SelectedNode.Block.Name);
+            Assert.NotEmpty(viewModel.FieldRows);
+        }
+        finally
+        {
+            File.Delete(filePath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that toggling block grouping with a live view attached preserves the
+    /// editable selection and its fields instead of clearing the properties panel.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task GroupedDocument_GroupToggle_PreservesSelectionAndFieldsAsync()
+    {
+        using var viewModel = CreateViewModel();
+        await viewModel.NewDocumentCommand.ExecuteAsync(null);
+        for (var i = 0; i < 14; i++)
+        {
+            viewModel.NewBlockType = "Object";
+            viewModel.NewBlockName = $"Obj{i}";
+            viewModel.AddBlockCommand.Execute(null);
+        }
+
+        viewModel.NewFieldKey = "Health";
+        viewModel.NewFieldValue = "100.0";
+        viewModel.AddFieldCommand.Execute(null);
+
+        var header = viewModel.VisibleRootNodes.First(node => node.IsGroupHeader);
+        header.IsExpanded = true;
+        var nested = header.Children[0];
+        viewModel.SelectedNode = nested;
+
+        Assert.NotEmpty(viewModel.FieldRows);
+
+        var view = new IniEditorView { DataContext = viewModel };
+        var window = new Window { Width = 1600, Height = 900, Content = view };
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs(null);
+
+            viewModel.IsGroupByTypeEnabled = false;
+            Dispatcher.UIThread.RunJobs(null);
+
+            viewModel.IsGroupByTypeEnabled = true;
+            Dispatcher.UIThread.RunJobs(null);
+
+            Assert.NotNull(viewModel.SelectedNode);
+            Assert.False(viewModel.SelectedNode.IsGroupHeader);
+            Assert.NotEmpty(viewModel.FieldRows);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// Verifies that the properties panel renders field cards in a two-column grid
+    /// with realized side-by-side items.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task PropertiesPanel_RendersFieldsInTwoColumnsAsync()
+    {
+        using var viewModel = CreateViewModel();
+        await viewModel.NewDocumentCommand.ExecuteAsync(null);
+        viewModel.NewBlockType = "Object";
+        viewModel.NewBlockName = "TwoColumn";
+        viewModel.AddBlockCommand.Execute(null);
+        viewModel.NewFieldKey = "Health";
+        viewModel.NewFieldValue = "100.0";
+        viewModel.AddFieldCommand.Execute(null);
+        viewModel.NewFieldKey = "BuildCost";
+        viewModel.NewFieldValue = "500";
+        viewModel.AddFieldCommand.Execute(null);
+
+        Assert.True(viewModel.FieldRows.Count >= 2);
+
+        var view = new IniEditorView { DataContext = viewModel };
+        var window = new Window { Width = 1600, Height = 900, Content = view };
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs(null);
+
+            var fieldPanel = view.GetVisualDescendants()
+                .OfType<ItemsControl>()
+                .FirstOrDefault(control => ReferenceEquals(control.ItemsSource, viewModel.FieldRows));
+
+            Assert.NotNull(fieldPanel);
+            Assert.IsType<TwoColumnPanel>(fieldPanel.ItemsPanelRoot);
+
+            var first = Assert.IsAssignableFrom<Control>(fieldPanel.ContainerFromIndex(0));
+            var second = Assert.IsAssignableFrom<Control>(fieldPanel.ContainerFromIndex(1));
+            Assert.NotEqual(first.Bounds.X, second.Bounds.X);
+            Assert.True(first.Bounds.Height < 56, $"Field card too tall for single-row density: {first.Bounds.Height}");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
     private static IniEditorViewModel CreateViewModel(INotificationService? notificationService = null)
     {
         var mockLocalization = new Mock<ILocalizationService>();
@@ -496,6 +623,7 @@ public class IniEditorViewTests
             Mock.Of<ISageMappedImageParser>(),
             Mock.Of<IWndImageAssetService>(),
             Mock.Of<IGameInstallationService>(),
+            Mock.Of<IW3dModelResolver>(),
             notificationService ?? Mock.Of<INotificationService>(),
             mockLocalization.Object,
             Mock.Of<IDialogService>(),

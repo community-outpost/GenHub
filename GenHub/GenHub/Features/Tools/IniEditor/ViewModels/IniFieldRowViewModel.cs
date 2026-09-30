@@ -20,6 +20,7 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
     private readonly int _fieldIndex;
     private readonly Action _onChanged;
     private readonly Action<string, string> _onEditCommitted;
+    private bool _isSyncingPair;
 
     [ObservableProperty]
     private string _selectedFlagToAdd = string.Empty;
@@ -29,6 +30,12 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
 
     [ObservableProperty]
     private string _value;
+
+    [ObservableProperty]
+    private string _pairTarget = string.Empty;
+
+    [ObservableProperty]
+    private string _pairPercent = string.Empty;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="IniFieldRowViewModel"/> class.
@@ -54,9 +61,16 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
         Suggestions = metadata.Suggestions;
         ReferenceBlockType = metadata.ReferenceBlockType;
         IsTexture = metadata.IsTexture;
+        PairTargetSuggestions = metadata.PairTargets;
         _onChanged = onChanged;
         _onEditCommitted = onEditCommitted;
         _value = fields[fieldIndex].Value;
+        if (IsPercentPair)
+        {
+            SplitPercentPair(_value, out var target, out var percent);
+            _pairTarget = target;
+            _pairPercent = percent;
+        }
     }
 
     /// <summary>
@@ -118,6 +132,27 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
     /// Gets a value indicating whether this field is KindOf flags.
     /// </summary>
     public bool IsKindOf => string.Equals(Key, IniConstants.FieldKeys.KindOf, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets a value indicating whether this field holds a target plus percent pair
+    /// such as <c>AmericaCommandCenter -80%</c>.
+    /// </summary>
+    public bool IsPercentPair => string.Equals(Key, IniConstants.FieldKeys.ProductionTimeChange, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets a value indicating whether the row uses the plain single value editor.
+    /// </summary>
+    public bool IsPlainValue => !IsKindOf && !IsPercentPair;
+
+    /// <summary>
+    /// Gets known target names offered by the pair target dropdown.
+    /// </summary>
+    public IReadOnlyList<string>? PairTargetSuggestions { get; }
+
+    /// <summary>
+    /// Gets a value indicating whether the pair target dropdown has entries.
+    /// </summary>
+    public bool HasPairTargets => PairTargetSuggestions != null && PairTargetSuggestions.Count > 0;
 
     /// <summary>
     /// Gets available KindOf flags.
@@ -198,6 +233,16 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
         }
     }
 
+    partial void OnPairTargetChanged(string value)
+    {
+        RecomposePercentPair();
+    }
+
+    partial void OnPairPercentChanged(string value)
+    {
+        RecomposePercentPair();
+    }
+
     partial void OnValueChanged(string value)
     {
         var current = _fields[_fieldIndex];
@@ -205,9 +250,73 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
         _onChanged();
         _onEditCommitted(current.Value, value);
         OnPropertyChanged(nameof(ActiveFlags));
+        if (IsPercentPair && !_isSyncingPair)
+        {
+            SplitPercentPair(value, out var target, out var percent);
+            _isSyncingPair = true;
+            try
+            {
+                PairTarget = target;
+                PairPercent = percent;
+            }
+            finally
+            {
+                _isSyncingPair = false;
+            }
+        }
+    }
+
+    private void RecomposePercentPair()
+    {
+        if (!IsPercentPair || _isSyncingPair)
+        {
+            return;
+        }
+
+        var target = PairTarget?.Trim() ?? string.Empty;
+        var percent = PairPercent?.Trim().TrimEnd('%').Trim() ?? string.Empty;
+        var recomposed = string.IsNullOrEmpty(percent) ? target : $"{target} {percent}%";
+        if (!string.Equals(Value, recomposed, StringComparison.Ordinal))
+        {
+            _isSyncingPair = true;
+            try
+            {
+                Value = recomposed;
+            }
+            finally
+            {
+                _isSyncingPair = false;
+            }
+        }
     }
 
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Shared flag splitter kept as an instance helper to satisfy member ordering.")]
     private string[] SplitFlags(string? value) => (value ?? string.Empty)
         .Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Shared pair splitter kept as an instance helper to satisfy member ordering.")]
+    private void SplitPercentPair(string? value, out string target, out string percent)
+    {
+        target = string.Empty;
+        percent = string.Empty;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        var parts = value.Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length == 0)
+        {
+            return;
+        }
+
+        if (parts.Length == 1)
+        {
+            target = parts[0];
+            return;
+        }
+
+        percent = parts[^1].TrimEnd('%').Trim();
+        target = string.Join(" ", parts[..^1]);
+    }
 }

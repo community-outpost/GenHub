@@ -169,7 +169,7 @@ public class EditorCanvasControl : ContentControl
         var zoom = Zoom;
         var min = Math.Min(MinZoom, MaxZoom);
         var max = Math.Max(MinZoom, MaxZoom);
-        if (!double.IsFinite(zoom) || zoom <= 0 || max <= 0 || !double.IsFinite(max))
+        if (!double.IsFinite(zoom) || zoom <= 0 || max <= 0 || !double.IsFinite(max) || min <= 0 || !double.IsFinite(min))
         {
             Zoom = EditorConstants.ZoomDefault;
             return;

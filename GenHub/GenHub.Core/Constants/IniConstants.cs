@@ -112,6 +112,9 @@ public static class IniConstants
             ExperienceLevels,
             Veterancy,
             MappedImage,
+            SubBlockTypes.AudioEvent,
+            SubBlockTypes.DialogEvent,
+            SubBlockTypes.ParticleSystem,
         ];
     }
 
@@ -495,6 +498,24 @@ public static class IniConstants
         /// <summary>Sound stealth on key.</summary>
         public const string SoundStealthOn = "SoundStealthOn";
 
+        /// <summary>Production time change key used by upgrade-style effect blocks.</summary>
+        public const string ProductionTimeChange = "ProductionTimeChange";
+
+        /// <summary>Academy classify key used by upgrade blocks.</summary>
+        public const string AcademyClassify = "AcademyClassify";
+
+        /// <summary>Unit specific sound key used by upgrade blocks.</summary>
+        public const string UnitSpecificSound = "UnitSpecificSound";
+
+        /// <summary>Radar priority key used by object blocks.</summary>
+        public const string RadarPriority = "RadarPriority";
+
+        /// <summary>Sub-objects shown by a draw state.</summary>
+        public const string ShowSubObjects = "ShowSubObjects";
+
+        /// <summary>Sub-objects hidden by a draw state.</summary>
+        public const string HideSubObjects = "HideSubObjects";
+
         /// <summary>Commonly referenced field keys.</summary>
         public static readonly IReadOnlyList<string> All =
         [
@@ -531,7 +552,13 @@ public static class IniConstants
             VoiceAttack,
             VoiceFear,
             VoiceGuard,
-            SoundStealthOn
+            SoundStealthOn,
+            ProductionTimeChange,
+            AcademyClassify,
+            UnitSpecificSound,
+            RadarPriority,
+            ShowSubObjects,
+            HideSubObjects
         ];
     }
 
@@ -631,6 +658,9 @@ public static class IniConstants
         /// <summary>Debounce delay before refreshing texture thumbnails, in milliseconds.</summary>
         public const int ThumbnailDebounceMs = 150;
 
+        /// <summary>Debounce delay before resolving the 3D model preview, in milliseconds.</summary>
+        public const int ModelPreviewDebounceMs = 350;
+
         /// <summary>Maximum reference results shown in the reference browser.</summary>
         public const int MaxReferenceResults = 500;
 
@@ -648,5 +678,11 @@ public static class IniConstants
 
         /// <summary>Maximum characters rendered in the raw text preview.</summary>
         public const int MaxRawPreviewChars = 100000;
+
+        /// <summary>Maximum overview cards preloaded with portrait thumbnails.</summary>
+        public const int MaxCardThumbnails = 60;
+
+        /// <summary>Block count above which the explorer groups blocks by type.</summary>
+        public const int BlockGroupThreshold = 12;
     }
 }
