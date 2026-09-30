@@ -1098,6 +1098,9 @@
   <data name="Launch.Steam.NonWindowsExecutable" xml:space="preserve">
     <value>Steam Proxy Launcher не может запустить исполняемый файл формата, отличного от Windows '{0}'. Для интеграции со Steam требуется исполняемый файл Windows.</value>
   </data>
+  <data name="Launch.Monitoring.BootstrapperChildUnresolved" xml:space="preserve">
+    <value>Не удалось запустить '{0}': он запускает '{1}', но выбранное содержимое не включает этот файл с хешем содержимого, поэтому GenHub не может отслеживать игру. Обновите или переустановите игровой клиент либо выберите для этого профиля стратегию рабочего пространства, отличную от SymlinkOnly.</value>
+  </data>
   <data name="Manifest.EntryPoint.NotFoundInPayload" xml:space="preserve">
     <value>Игровой клиент '{0}' объявляет точку входа '{1}', которая не найдена в его содержимом.</value>
   </data>

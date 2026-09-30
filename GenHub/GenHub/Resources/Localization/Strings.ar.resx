@@ -1098,6 +1098,9 @@
   <data name="Launch.Steam.NonWindowsExecutable" xml:space="preserve">
     <value>لا يمكن لمشغل وكيل Steam تشغيل ملف بتنسيق غير تابع لـ Windows '{0}'. يتطلب تكامل Steam وجود ملف تنفيذي لـ Windows.</value>
   </data>
+  <data name="Launch.Monitoring.BootstrapperChildUnresolved" xml:space="preserve">
+    <value>لا يمكن تشغيل '{0}': فهو يشغّل '{1}'، والمحتوى المحدد لا يتضمنه مع بصمة محتوى، لذلك لا يستطيع GenHub تتبع اللعبة. حدّث عميل اللعبة أو أعد تثبيته، أو غيّر استراتيجية مساحة العمل لهذا الملف الشخصي إلى استراتيجية غير SymlinkOnly.</value>
+  </data>
   <data name="Manifest.EntryPoint.NotFoundInPayload" xml:space="preserve">
     <value>يعلن عميل اللعبة '{0}' عن نقطة إدخال '{1}'، والتي لم يتم العثور عليها في حمولتها.</value>
   </data>

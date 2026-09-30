@@ -164,6 +164,64 @@ public class GameLauncher(
     }
 
     /// <summary>
+    /// Resolves the process name to discover after a storefront launch.
+    /// </summary>
+    /// <param name="manifests">The manifests selected for this launch.</param>
+    /// <param name="finalExecutablePath">The executable the launch starts.</param>
+    /// <param name="effectiveStrategy">The workspace strategy the workspace was prepared with.</param>
+    /// <param name="expectedChildProcessName">The process the entry point hands the session to, if any.</param>
+    /// <param name="logger">The logger.</param>
+    /// <param name="localizationService">Optional localization for the failure message.</param>
+    /// <returns>The process name to monitor, or a failure when it cannot be determined.</returns>
+    internal static OperationResult<string> DetermineMonitoringProcessName(
+        IReadOnlyList<ContentManifest> manifests,
+        string finalExecutablePath,
+        WorkspaceStrategy effectiveStrategy,
+        string? expectedChildProcessName,
+        ILogger logger,
+        ILocalizationService? localizationService)
+    {
+        var executableManifestForMonitor = manifests.FirstOrDefault(m =>
+            m.ContentType == ContentType.GameClient ||
+            m.ContentType == ContentType.Executable ||
+            m.ContentType == ContentType.ModdingTool);
+        var executableFileForMonitor = executableManifestForMonitor?.Files?.FirstOrDefault(f => f.IsExecutable);
+
+        if (executableFileForMonitor is { SourceType: ContentSourceType.ContentAddressable } &&
+            effectiveStrategy == WorkspaceStrategy.SymlinkOnly)
+        {
+            if (!string.IsNullOrEmpty(expectedChildProcessName))
+            {
+                // The entry point's hash names the bootstrapper, so discover the binary it hands the session to.
+                return ResolveWrappedChildMonitoringName(
+                    manifests,
+                    executableManifestForMonitor!,
+                    executableFileForMonitor,
+                    finalExecutablePath,
+                    expectedChildProcessName,
+                    logger,
+                    localizationService);
+            }
+
+            var gameProcessName = executableFileForMonitor.Hash;
+            logger.LogInformation("[GameLauncher] Monitoring for CAS symlinked process with hash: {Hash}", gameProcessName);
+            return OperationResult<string>.CreateSuccess(gameProcessName);
+        }
+
+        var processName = executableFileForMonitor != null
+            ? Path.GetFileNameWithoutExtension(executableFileForMonitor.RelativePath)
+            : Path.GetFileNameWithoutExtension(finalExecutablePath);
+
+        if (!string.IsNullOrEmpty(expectedChildProcessName))
+        {
+            processName = expectedChildProcessName;
+        }
+
+        logger.LogInformation("[GameLauncher] Monitoring for process: {ProcessName}", processName);
+        return OperationResult<string>.CreateSuccess(processName);
+    }
+
+    /// <summary>
     /// Inspects and sanitizes the user data MapCache.ini file if it contains corrupted, NaN, or non-finite float values.
     /// SAGE engine (Generals / Zero Hour) crashes with "A serious error has occurred" on startup
     /// if MapCache.ini contains invalid floats (-nan, nan, 1.#INF, -1.#IND, 1.#J) or corrupted entries.
@@ -205,6 +263,63 @@ public class GameLauncher(
 
         return false;
     }
+
+    /// <summary>
+    /// Resolves the process name of the binary a CAS-symlinked bootstrapper hands the session to.
+    /// A CAS child runs under its hash, while a child linked from elsewhere keeps its own name.
+    /// </summary>
+    /// <param name="manifests">The manifests selected for this launch.</param>
+    /// <param name="entryManifest">The manifest that owns the entry point.</param>
+    /// <param name="entryFile">The entry point file.</param>
+    /// <param name="finalExecutablePath">The executable the launch starts.</param>
+    /// <param name="expectedChildProcessName">The child process name, without extension.</param>
+    /// <param name="logger">The logger.</param>
+    /// <param name="localizationService">Optional localization for the failure message.</param>
+    /// <returns>The process name to monitor, or a failure when the child cannot be identified.</returns>
+    private static OperationResult<string> ResolveWrappedChildMonitoringName(
+        IReadOnlyList<ContentManifest> manifests,
+        ContentManifest entryManifest,
+        ManifestFile entryFile,
+        string finalExecutablePath,
+        string expectedChildProcessName,
+        ILogger logger,
+        ILocalizationService? localizationService)
+    {
+        var entryDirectory = GetRelativeDirectory(entryFile.RelativePath);
+        var childFile = manifests
+            .Where(m => !ReferenceEquals(m, entryManifest))
+            .Prepend(entryManifest)
+            .SelectMany(m => m.Files ?? [])
+            .FirstOrDefault(f =>
+                Path.GetFileNameWithoutExtension(f.RelativePath.Replace('\\', '/')).Equals(expectedChildProcessName, StringComparison.OrdinalIgnoreCase) &&
+                GetRelativeDirectory(f.RelativePath).Equals(entryDirectory, StringComparison.OrdinalIgnoreCase));
+
+        var isCasChild = childFile?.SourceType == ContentSourceType.ContentAddressable;
+        if (childFile is null || (isCasChild && string.IsNullOrEmpty(childFile.Hash)))
+        {
+            logger.LogError(
+                "[GameLauncher] {Entry} hands the session to {Child} under CAS symlinking, but the selected manifests carry no hash for it",
+                Path.GetFileName(finalExecutablePath),
+                expectedChildProcessName);
+            return OperationResult<string>.CreateFailure(RunnerTargetResolver.Localize(
+                localizationService,
+                LaunchMessageConstants.BootstrapperChildUnresolvedKey,
+                LaunchMessageConstants.BootstrapperChildUnresolved,
+                Path.GetFileName(finalExecutablePath),
+                expectedChildProcessName));
+        }
+
+        var processName = isCasChild ? childFile.Hash : expectedChildProcessName;
+        logger.LogInformation(
+            "[GameLauncher] Monitoring for {Child}, launched through {Entry} under CAS symlinking, as process: {ProcessName}",
+            expectedChildProcessName,
+            Path.GetFileName(finalExecutablePath),
+            processName);
+        return OperationResult<string>.CreateSuccess(processName);
+    }
+
+    private static string GetRelativeDirectory(string relativePath) =>
+        Path.GetDirectoryName(relativePath.Replace('\\', '/'))?.Replace('\\', '/') ?? string.Empty;
 
     private static bool BackupAndPurgeCorruptMapCache(string mapCachePath, ILogger? logger)
     {
@@ -1955,6 +2070,18 @@ public class GameLauncher(
             return OperationResult<GameProcessInfo>.CreateFailure("Steam AppId missing");
         }
 
+        var monitoringNameResult = DetermineMonitoringProcessName(
+            manifests,
+            finalExecutablePath,
+            effectiveStrategy,
+            launchConfig.ExpectedChildProcessName,
+            logger,
+            localizationService);
+        if (!monitoringNameResult.Success)
+        {
+            return OperationResult<GameProcessInfo>.CreateFailure(monitoringNameResult);
+        }
+
         var steamUrl = $"{SteamConstants.RunGameIdUrlPrefix}{steamAppId}";
         logger.LogInformation("[GameLauncher] Launching via Steam URL: {SteamUrl}", steamUrl);
 
@@ -1972,14 +2099,8 @@ public class GameLauncher(
             return OperationResult<GameProcessInfo>.CreateFailure($"Failed to launch via Steam: {ex.Message}");
         }
 
-        var gameProcessName = DetermineMonitoringProcessName(
-            manifests,
-            finalExecutablePath,
-            effectiveStrategy,
-            launchConfig.ExpectedChildProcessName);
-
         return await processManager.DiscoverAndTrackProcessAsync(
-            gameProcessName,
+            monitoringNameResult.Data!,
             workspaceInfo.WorkspacePath,
             cancellationToken);
     }
@@ -2245,47 +2366,6 @@ public class GameLauncher(
             steamLaunchResult.Data.ExecutablePath);
 
         return OperationResult<(SteamLaunchPrepResult, string)>.CreateSuccess((steamLaunchResult.Data, steamAppId));
-    }
-
-    private string DetermineMonitoringProcessName(
-        IReadOnlyList<ContentManifest> manifests,
-        string finalExecutablePath,
-        WorkspaceStrategy effectiveStrategy,
-        string? expectedChildProcessName)
-    {
-        var executableManifestForMonitor = manifests.FirstOrDefault(m =>
-            m.ContentType == ContentType.GameClient ||
-            m.ContentType == ContentType.Executable ||
-            m.ContentType == ContentType.ModdingTool);
-        var executableFileForMonitor = executableManifestForMonitor?.Files?.FirstOrDefault(f => f.IsExecutable);
-
-        if (executableFileForMonitor is { SourceType: ContentSourceType.ContentAddressable } &&
-            effectiveStrategy == WorkspaceStrategy.SymlinkOnly)
-        {
-            var gameProcessName = executableFileForMonitor.Hash;
-            logger.LogInformation("[GameLauncher] Monitoring for CAS symlinked process with hash: {Hash}", gameProcessName);
-
-            if (!string.IsNullOrEmpty(expectedChildProcessName))
-            {
-                logger.LogWarning(
-                    "[GameLauncher] Launching {Entry} through a bootstrapper under CAS symlinking; monitoring may track the wrong process",
-                    Path.GetFileName(finalExecutablePath));
-            }
-
-            return gameProcessName;
-        }
-
-        var processName = executableFileForMonitor != null
-            ? Path.GetFileNameWithoutExtension(executableFileForMonitor.RelativePath)
-            : Path.GetFileNameWithoutExtension(finalExecutablePath);
-
-        if (!string.IsNullOrEmpty(expectedChildProcessName))
-        {
-            processName = expectedChildProcessName;
-        }
-
-        logger.LogInformation("[GameLauncher] Monitoring for process: {ProcessName}", processName);
-        return processName;
     }
 
     /// <summary>
