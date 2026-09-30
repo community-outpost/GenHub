@@ -49,17 +49,17 @@ public class HttpContentDeliverer(
             return false;
         }
 
-        var files = manifest.Files;
+        var files = ManifestVariantResolver.ResolveFiles(manifest);
 
         // Dependency-only packages (bundles or meta-packages) have no remote files to fetch,
         // but must declare dependencies to be deliverable.
-        if ((files?.Count ?? 0) == 0)
+        if (files.Count == 0)
         {
             return manifest.Dependencies is { Count: > 0 };
         }
 
         // Can deliver if files have HTTP download URLs
-        return files!.Any(f =>
+        return files.Any(f =>
             !string.IsNullOrEmpty(f.DownloadUrl) &&
             Uri.TryCreate(f.DownloadUrl, UriKind.Absolute, out var uri) &&
             (uri.Scheme == "http" || uri.Scheme == "https"));
@@ -74,7 +74,9 @@ public class HttpContentDeliverer(
     {
         try
         {
-            var filesToDownload = packageManifest.Files?.Where(f => !string.IsNullOrEmpty(f.DownloadUrl)).ToList() ?? [];
+            var filesToDownload = ManifestVariantResolver.ResolveFiles(packageManifest)
+                .Where(f => !string.IsNullOrEmpty(f.DownloadUrl))
+                .ToList();
             if (filesToDownload.Count == 0)
             {
                 logger.LogInformation(
@@ -113,7 +115,7 @@ public class HttpContentDeliverer(
         try
         {
             // Validate that all required URLs are accessible
-            foreach (var file in manifest.Files.Where(f => f.IsRequired && !string.IsNullOrEmpty(f.DownloadUrl)))
+            foreach (var file in ManifestVariantResolver.ResolveFiles(manifest).Where(f => f.IsRequired && !string.IsNullOrEmpty(f.DownloadUrl)))
             {
                 if (!Uri.TryCreate(file.DownloadUrl, UriKind.Absolute, out var uri) ||
                     !(uri.Scheme == "http" || uri.Scheme == "https") ||

@@ -118,7 +118,9 @@ public class GameClientValidator(
         }
 
         // Unexpected file detection
-        var expectedRelativePaths = manifest.Files.Select(f => f.RelativePath).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var expectedRelativePaths = ManifestVariantResolver.ResolveFiles(manifest)
+            .Select(f => f.RelativePath)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         foreach (var actualRelativePath in actualFiles)
         {

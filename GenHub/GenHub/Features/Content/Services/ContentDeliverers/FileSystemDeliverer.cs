@@ -44,13 +44,13 @@ public class FileSystemDeliverer(
     /// <inheritdoc />
     public bool CanDeliver(ContentManifest manifest)
     {
-        if (manifest?.Files == null || manifest.Files.Count == 0)
+        if (manifest == null)
         {
             return false;
         }
 
-        return manifest.Files.All(f =>
-            f.SourceType == ContentSourceType.ContentAddressable);
+        var files = ManifestVariantResolver.ResolveFiles(manifest);
+        return files.Count > 0 && files.All(f => f.SourceType == ContentSourceType.ContentAddressable);
     }
 
     /// <inheritdoc />
@@ -63,10 +63,11 @@ public class FileSystemDeliverer(
         try
         {
             var deliveredFiles = new List<ManifestFile>();
-            var totalFiles = packageManifest.Files.Count;
+            var files = ManifestVariantResolver.ResolveFiles(packageManifest);
+            var totalFiles = files.Count;
             var processedFiles = 0;
 
-            foreach (var file in packageManifest.Files)
+            foreach (var file in files)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -186,7 +187,7 @@ public class FileSystemDeliverer(
     {
         try
         {
-            foreach (var file in manifest.Files.Where(f => f.IsRequired))
+            foreach (var file in ManifestVariantResolver.ResolveFiles(manifest).Where(f => f.IsRequired))
             {
                 var sourcePath = ResolveLocalPath(file, manifest.Id);
                 if (!File.Exists(sourcePath))

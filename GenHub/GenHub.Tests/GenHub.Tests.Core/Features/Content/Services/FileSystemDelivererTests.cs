@@ -5,6 +5,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Features.Content.Services.ContentDeliverers;
+using GenHub.Tests.Core.Models.Manifest;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
@@ -22,6 +23,7 @@ namespace GenHub.Tests.Core.Features.Content.Services;
 public sealed class FileSystemDelivererTests
 {
     private readonly Mock<IConfigurationProviderService> _configProviderMock = new();
+    private readonly List<string> _builtFilePaths = [];
 
     /// <summary>
     /// Verifies that CanDeliver returns false when the manifest has no files.
@@ -117,6 +119,152 @@ public sealed class FileSystemDelivererTests
         }
     }
 
+    /// <summary>
+    /// A variant manifest carries no root files, so the deliverer must judge the host
+    /// variant's files rather than reject the manifest as empty.
+    /// </summary>
+    [Fact]
+    public void CanDeliver_VariantManifest_UsesHostVariantFiles()
+    {
+        var deliverer = CreateDeliverer();
+        var manifest = VariantManifestFixture.Create(
+            [new ManifestFile { RelativePath = "host.bin", SourceType = ContentSourceType.ContentAddressable }],
+            [new ManifestFile { RelativePath = "foreign.bin", SourceType = ContentSourceType.RemoteDownload }]);
+
+        Assert.True(deliverer.CanDeliver(manifest));
+    }
+
+    /// <summary>
+    /// Delivering a variant manifest delivers exactly the host variant's files. Only the
+    /// host files exist on disk, so touching the foreign variant would fail delivery.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_VariantManifest_DeliversHostVariantFilesAsync()
+    {
+        var directory = Directory.CreateTempSubdirectory();
+        try
+        {
+            var hostFiles = new List<ManifestFile>
+            {
+                CreateLocalFile(directory.FullName, "generalszh"),
+                CreateLocalFile(directory.FullName, "libSDL3.dylib"),
+            };
+            var foreignFiles = new List<ManifestFile>
+            {
+                new() { RelativePath = "generalszh.exe", SourceType = ContentSourceType.ContentAddressable, SourcePath = Path.Combine(directory.FullName, "generalszh.exe") },
+            };
+            _configProviderMock.Setup(c => c.GetWorkspacePath()).Returns(directory.FullName);
+
+            var result = await CreateDeliverer().DeliverContentAsync(
+                VariantManifestFixture.Create(hostFiles, foreignFiles),
+                directory.FullName);
+
+            Assert.True(result.Success, result.FirstError);
+            Assert.Equal(["generalszh", "libSDL3.dylib"], _builtFilePaths);
+        }
+        finally
+        {
+            directory.Delete(recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// A flat manifest still delivers its root files unchanged.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_FlatManifest_DeliversRootFilesAsync()
+    {
+        var directory = Directory.CreateTempSubdirectory();
+        try
+        {
+            _configProviderMock.Setup(c => c.GetWorkspacePath()).Returns(directory.FullName);
+            var manifest = new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.test.gameclient.zerohour"),
+                Name = "Test",
+                ContentType = ContentType.GameClient,
+                Files = [CreateLocalFile(directory.FullName, "a.big"), CreateLocalFile(directory.FullName, "b.big")],
+            };
+
+            var result = await CreateDeliverer().DeliverContentAsync(manifest, directory.FullName);
+
+            Assert.True(result.Success, result.FirstError);
+            Assert.Equal(["a.big", "b.big"], _builtFilePaths);
+        }
+        finally
+        {
+            directory.Delete(recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Validation of a variant manifest checks the host variant's required files, so a
+    /// missing host file is reported instead of passing over an empty root list.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ValidateContentAsync_VariantManifest_ChecksHostVariantFilesAsync()
+    {
+        var directory = Directory.CreateTempSubdirectory();
+        try
+        {
+            _configProviderMock.Setup(c => c.GetWorkspacePath()).Returns(directory.FullName);
+            var manifest = VariantManifestFixture.Create(
+                [new ManifestFile { RelativePath = "missing-host.bin", IsRequired = true, SourceType = ContentSourceType.ContentAddressable }],
+                [CreateLocalFile(directory.FullName, "present-foreign.bin")]);
+
+            var result = await CreateDeliverer().ValidateContentAsync(manifest);
+
+            Assert.True(result.Success, result.FirstError);
+            Assert.False(result.Data);
+        }
+        finally
+        {
+            directory.Delete(recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Files of a variant for another platform are not required on this host.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ValidateContentAsync_VariantManifest_IgnoresForeignVariantFilesAsync()
+    {
+        var directory = Directory.CreateTempSubdirectory();
+        try
+        {
+            _configProviderMock.Setup(c => c.GetWorkspacePath()).Returns(directory.FullName);
+            var manifest = VariantManifestFixture.Create(
+                [CreateLocalFile(directory.FullName, "present-host.bin")],
+                [new ManifestFile { RelativePath = "missing-foreign.bin", IsRequired = true, SourceType = ContentSourceType.ContentAddressable }]);
+
+            var result = await CreateDeliverer().ValidateContentAsync(manifest);
+
+            Assert.True(result.Success, result.FirstError);
+            Assert.True(result.Data);
+        }
+        finally
+        {
+            directory.Delete(recursive: true);
+        }
+    }
+
+    private static ManifestFile CreateLocalFile(string directory, string relativePath)
+    {
+        var path = Path.Combine(directory, relativePath);
+        File.WriteAllText(path, relativePath);
+        return new ManifestFile
+        {
+            RelativePath = relativePath,
+            SourceType = ContentSourceType.ContentAddressable,
+            SourcePath = path,
+            IsRequired = true,
+        };
+    }
+
     private FileSystemDeliverer CreateDeliverer(IContentManifestBuilder? manifestBuilder = null)
     {
         var builderMock = new Mock<IContentManifestBuilder>();
@@ -128,7 +276,10 @@ public sealed class FileSystemDelivererTests
         builderMock.Setup(b => b.WithContentType(It.IsAny<ContentType>(), It.IsAny<GameType>())).Returns(builderMock.Object);
         builderMock.Setup(b => b.WithPublisher(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).Returns(builderMock.Object);
         builderMock.Setup(b => b.WithMetadata(It.IsAny<string>(), It.IsAny<List<string>?>(), It.IsAny<string>(), It.IsAny<List<string>?>(), It.IsAny<string>())).Returns(builderMock.Object);
-        builderMock.Setup(b => b.AddContentAddressableFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>(), It.IsAny<bool>(), It.IsAny<FilePermissions?>())).ReturnsAsync(builderMock.Object);
+        builderMock
+            .Setup(b => b.AddContentAddressableFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>(), It.IsAny<bool>(), It.IsAny<FilePermissions?>()))
+            .Callback<string, string, long, bool, FilePermissions?>((relativePath, _, _, _, _) => _builtFilePaths.Add(relativePath))
+            .ReturnsAsync(builderMock.Object);
         builderMock.Setup(b => b.AddRequiredDirectories(It.IsAny<string[]>())).Returns(builderMock.Object);
         builderMock.Setup(b => b.Build()).Returns(() => new ContentManifest
         {

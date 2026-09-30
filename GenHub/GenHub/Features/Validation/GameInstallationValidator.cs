@@ -299,7 +299,7 @@ public class GameInstallationValidator(
             issues.AddRange(contentIssues);
             totalFiles = fullValidation.TotalFilesValidated > 0
                 ? fullValidation.TotalFilesValidated
-                : manifest.Files?.Count ?? 0;
+                : ManifestVariantResolver.ResolveFiles(manifest).Count;
         }
         catch (OperationCanceledException)
         {

@@ -14,6 +14,7 @@ using GenHub.Core.Models.Results.Content;
 using GenHub.Core.Models.Validation;
 using GenHub.Features.Content.Services;
 using GenHub.Features.Validation;
+using GenHub.Tests.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
@@ -606,6 +607,50 @@ public class GameInstallationValidatorTests
             mockContentProvider.Verify(
                 p => p.SearchAsync(It.Is<ContentSearchQuery>(q => q.TargetGame == GameType.ZeroHour && q.Language == CsvConstants.LanguageZhCn), It.IsAny<CancellationToken>()),
                 Times.Once);
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// When the content pass reports no count, the fallback counts the host variant's
+    /// files of a variant manifest rather than its empty root list.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateInstallationAsync_VariantManifest_CountsHostVariantFilesAsync()
+    {
+        var tempDir = Directory.CreateTempSubdirectory();
+        try
+        {
+            var manifest = VariantManifestFixture.Create(
+                [new ManifestFile { RelativePath = "a.big" }, new ManifestFile { RelativePath = "b.big" }],
+                [new ManifestFile { RelativePath = "c.big" }, new ManifestFile { RelativePath = "d.big" }, new ManifestFile { RelativePath = "e.big" }]);
+            manifest.ContentType = ContentType.GameInstallation;
+
+            var searchResult = new ContentSearchResult { Id = manifest.Id.Value };
+            searchResult.SetData(manifest);
+
+            var mockContentProvider = new Mock<IContentProvider>();
+            mockContentProvider.Setup(p => p.SourceName).Returns(PublisherTypeConstants.CsvRegistry);
+            mockContentProvider
+                .Setup(p => p.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([searchResult]));
+
+            var validator = new GameInstallationValidator(
+                _loggerMock.Object,
+                null,
+                _contentValidatorMock.Object,
+                _hashProviderMock.Object,
+                new LanguageDetector(),
+                null,
+                [mockContentProvider.Object]);
+
+            var result = await validator.ValidateInstallationAsync(tempDir.FullName, GameType.ZeroHour, "zh-cn");
+
+            Assert.Equal(2, result.TotalFilesValidated);
         }
         finally
         {

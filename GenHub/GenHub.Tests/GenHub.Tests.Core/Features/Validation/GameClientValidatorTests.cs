@@ -6,6 +6,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Validation;
 using GenHub.Features.Validation;
+using GenHub.Tests.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -132,6 +133,35 @@ public class GameClientValidatorTests
         Assert.Contains(result.Issues, i => i.IssueType == ValidationIssueType.UnexpectedFile && i.Path == relPath);
 
         tempDir.Delete(true);
+    }
+
+    /// <summary>
+    /// A variant manifest's host files are expected in the working directory, while a
+    /// file from the variant for another platform is still reported as unexpected.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ValidateAsync_VariantManifest_ExpectsHostVariantFilesAsync()
+    {
+        var tempDir = Directory.CreateTempSubdirectory();
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(tempDir.FullName, "generalszh"), "host");
+            await File.WriteAllTextAsync(Path.Combine(tempDir.FullName, "generalszh.exe"), "foreign");
+            var manifest = VariantManifestFixture.Create(
+                [new ManifestFile { RelativePath = "generalszh" }],
+                [new ManifestFile { RelativePath = "generalszh.exe" }]);
+            _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameClient>(), default)).ReturnsAsync(manifest);
+
+            var result = await _validator.ValidateAsync(new GameClient { WorkingDirectory = tempDir.FullName }, null, default);
+
+            var unexpected = result.Issues.Where(i => i.IssueType == ValidationIssueType.UnexpectedFile).Select(i => i.Path).ToList();
+            Assert.Equal(["generalszh.exe"], unexpected);
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
     }
 
     /// <summary>

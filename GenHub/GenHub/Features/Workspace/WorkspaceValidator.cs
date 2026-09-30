@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Validation;
 using GenHub.Core.Models.Workspace;
@@ -101,7 +102,7 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
 
         // Validate that manifests have files (required for workspace preparation)
         if (configuration.Manifests.Count > 0 &&
-            configuration.Manifests.All(m => m.Files?.Count == 0))
+            configuration.Manifests.All(m => ManifestVariantResolver.ResolveFiles(m).Count == 0))
         {
             issues.Add(new ValidationIssue
             {

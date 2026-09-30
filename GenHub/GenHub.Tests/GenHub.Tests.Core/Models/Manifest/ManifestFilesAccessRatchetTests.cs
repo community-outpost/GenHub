@@ -66,8 +66,6 @@ public class ManifestFilesAccessRatchetTests
         "GenHub.Features.Content.Services.Catalog.GenericCatalogResolver",
         "GenHub.Features.Content.Services.CommunityOutpost.CommunityOutpostDeliverer",
         "GenHub.Features.Content.Services.CommunityOutpost.CommunityOutpostResolver",
-        "GenHub.Features.Content.Services.ContentDeliverers.FileSystemDeliverer",
-        "GenHub.Features.Content.Services.ContentDeliverers.HttpContentDeliverer",
         "GenHub.Features.Content.Services.ContentDiscoverers.DownloadedContentDiscoverer",
         "GenHub.Features.Content.Services.ContentDiscoverers.FileSystemDiscoverer",
         "GenHub.Features.Content.Services.ContentProviders.BaseContentProvider",
@@ -92,8 +90,6 @@ public class ManifestFilesAccessRatchetTests
         "GenHub.Features.Tools.GenHotkeys.ViewModels.GenHotkeysViewModel",
         "GenHub.Features.Tools.MapManager.Services.MapPackService",
         "GenHub.Features.Tools.MapManager.ViewModels.MapManagerViewModel",
-        "GenHub.Features.Validation.GameClientValidator",
-        "GenHub.Features.Validation.GameInstallationValidator",
         "GenHub.Features.Workspace.Strategies.FullCopyStrategy",
         "GenHub.Features.Workspace.Strategies.HardLinkStrategy",
         "GenHub.Features.Workspace.Strategies.HybridCopySymlinkStrategy",
@@ -101,7 +97,6 @@ public class ManifestFilesAccessRatchetTests
         "GenHub.Features.Workspace.Strategies.WorkspaceCompatibilityHelper",
         "GenHub.Features.Workspace.Strategies.WorkspaceStrategyBase`1",
         "GenHub.Features.Workspace.WorkspaceReconciler",
-        "GenHub.Features.Workspace.WorkspaceValidator",
     ];
 
     private static readonly MethodInfo FilesGetter =

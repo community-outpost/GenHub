@@ -6,6 +6,7 @@ using GenHub.Core.Models.Validation;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.Workspace;
 using GenHub.Features.Workspace.Strategies;
+using GenHub.Tests.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System.Runtime.InteropServices;
@@ -127,6 +128,38 @@ public partial class WorkspaceValidatorTests : IDisposable
 
         // Assert
         Assert.Contains(result.Issues, i => i.Severity == ValidationSeverity.Error);
+    }
+
+    /// <summary>
+    /// A variant manifest whose host variant carries files is not empty, although its
+    /// root file list is.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateConfigurationAsync_VariantManifestWithHostFiles_IsNotEmptyAsync()
+    {
+        var config = CreateValidConfiguration();
+        config.Manifests = [VariantManifestFixture.Create([new ManifestFile { RelativePath = "generalszh" }], [])];
+
+        var result = await _validator.ValidateConfigurationAsync(config);
+
+        Assert.DoesNotContain(result.Issues, i => i.IssueType == ValidationIssueType.MissingFile);
+    }
+
+    /// <summary>
+    /// A variant manifest with files only for another platform has nothing to prepare on
+    /// this host, so it is rejected as empty.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateConfigurationAsync_VariantManifestWithOnlyForeignFiles_IsEmptyAsync()
+    {
+        var config = CreateValidConfiguration();
+        config.Manifests = [VariantManifestFixture.Create([], [new ManifestFile { RelativePath = "generalszh.exe" }])];
+
+        var result = await _validator.ValidateConfigurationAsync(config);
+
+        Assert.Contains(result.Issues, i => i.IssueType == ValidationIssueType.MissingFile && i.Severity == ValidationSeverity.Error);
     }
 
     /// <summary>

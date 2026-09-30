@@ -1,3 +1,4 @@
+using GenHub.Tests.Core.Models.Manifest;
 using FluentAssertions;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
@@ -569,6 +570,81 @@ public class HttpContentDelivererTests
             Directory.Delete(targetDirectory, recursive: true);
         }
     }
+
+    /// <summary>
+    /// A variant manifest is deliverable when the host variant carries HTTP files, even
+    /// though its root file list is empty.
+    /// </summary>
+    [Fact]
+    public void CanDeliver_VariantManifest_UsesHostVariantFiles()
+    {
+        var manifest = VariantManifestFixture.Create(
+            [CreateRemoteFile("host.dat", "https://example.com/host.dat")],
+            [CreateRemoteFile("foreign.dat", "https://example.com/foreign.dat")]);
+
+        CreateDeliverer(new Mock<IDownloadService>().Object).CanDeliver(manifest).Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Delivering a variant manifest downloads the host variant's files and nothing from
+    /// the variant for another platform.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_VariantManifest_DownloadsHostVariantFilesAsync()
+    {
+        var targetDirectory = CreateTargetDirectory();
+        var manifest = VariantManifestFixture.Create(
+            [CreateRemoteFile("host.dat", "https://example.com/host.dat")],
+            [CreateRemoteFile("foreign.dat", "https://example.com/foreign.dat")]);
+        var downloadService = CreateSuccessfulDownloadService();
+        var deliverer = CreateDeliverer(downloadService.Object);
+
+        try
+        {
+            var result = await deliverer.DeliverContentAsync(manifest, targetDirectory);
+
+            result.Success.Should().BeTrue();
+            File.Exists(Path.Combine(targetDirectory, "host.dat")).Should().BeTrue();
+            File.Exists(Path.Combine(targetDirectory, "foreign.dat")).Should().BeFalse();
+            downloadService.Verify(
+                d => d.DownloadFileAsync(
+                    It.IsAny<DownloadConfiguration>(),
+                    It.IsAny<IProgress<DownloadProgress>?>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+        finally
+        {
+            Directory.Delete(targetDirectory, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Validation of a variant manifest checks the host variant's URLs, so an unusable
+    /// host URL fails validation instead of passing over an empty root list.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ValidateContentAsync_VariantManifest_ChecksHostVariantUrlsAsync()
+    {
+        var manifest = VariantManifestFixture.Create(
+            [CreateRemoteFile("host.dat", "ftp://example.com/host.dat")],
+            [CreateRemoteFile("foreign.dat", "https://example.com/foreign.dat")]);
+
+        var result = await CreateDeliverer(new Mock<IDownloadService>().Object).ValidateContentAsync(manifest);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().BeFalse();
+    }
+
+    private static ManifestFile CreateRemoteFile(string relativePath, string downloadUrl) => new()
+    {
+        RelativePath = relativePath,
+        SourceType = ContentSourceType.RemoteDownload,
+        DownloadUrl = downloadUrl,
+        IsRequired = true,
+    };
 
     private static HttpContentDeliverer CreateDeliverer(IDownloadService downloadService) =>
         new(downloadService, Mock.Of<ILogger<HttpContentDeliverer>>());
