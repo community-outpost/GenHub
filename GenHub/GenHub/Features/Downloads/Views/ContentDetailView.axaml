@@ -119,7 +119,7 @@
                             BorderThickness="1"
                             CornerRadius="8"
                             Padding="{TemplateBinding Padding}"
-                            BoxShadow="0 2 8 0 #33000000">
+                            BoxShadow="{DynamicResource CardBoxShadow}">
                         <Border.Transitions>
                             <Transitions>
                                 <BrushTransition Property="Background" Duration="0:0:0.15" />
@@ -135,23 +135,26 @@
                 </ControlTemplate>
             </Setter>
         </Style>
+        <Style Selector="Button.back-to-browse-btn PathIcon">
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+        </Style>
         <Style Selector="Button.back-to-browse-btn.over-banner">
             <Setter Property="Margin" Value="12,12,0,0" />
         </Style>
         <Style Selector="Button.back-to-browse-btn.over-banner /template/ Border#PART_RootBorder">
-            <Setter Property="Background" Value="#E6101018" />
-            <Setter Property="BorderBrush" Value="#4DFFFFFF" />
-            <Setter Property="BoxShadow" Value="0 4 14 0 #80000000" />
+            <Setter Property="Background" Value="{DynamicResource BannerPillBackgroundRestBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}" />
+            <Setter Property="BoxShadow" Value="{DynamicResource BannerPillRestBoxShadow}" />
         </Style>
         <Style Selector="Button.back-to-browse-btn:pointerover /template/ Border#PART_RootBorder">
             <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-            <Setter Property="BoxShadow" Value="0 4 14 0 #50000000" />
+            <Setter Property="BoxShadow" Value="{DynamicResource DialogBoxShadow}" />
         </Style>
         <Style Selector="Button.back-to-browse-btn.over-banner:pointerover /template/ Border#PART_RootBorder">
-            <Setter Property="Background" Value="#F8181824" />
+            <Setter Property="Background" Value="{DynamicResource BannerPillBackgroundHoverBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-            <Setter Property="BoxShadow" Value="0 6 20 0 #A0000000" />
+            <Setter Property="BoxShadow" Value="{DynamicResource BannerPillHoverBoxShadow}" />
         </Style>
         <Style Selector="Button.back-to-browse-btn:pointerover PathIcon">
             <Setter Property="Foreground" Value="{DynamicResource AccentLightBrush}" />
@@ -163,7 +166,7 @@
             <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}" />
         </Style>
         <Style Selector="Button.back-to-browse-btn.over-banner:pressed /template/ Border#PART_RootBorder">
-            <Setter Property="Background" Value="#FF0D0D14" />
+            <Setter Property="Background" Value="{DynamicResource BannerPillBackgroundPressedBrush}" />
         </Style>
     </UserControl.Styles>
 
@@ -182,8 +185,8 @@
                             <Border VerticalAlignment="Top" Height="72" IsHitTestVisible="False">
                                 <Border.Background>
                                     <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-                                        <GradientStop Offset="0" Color="#80000000" />
-                                        <GradientStop Offset="0.5" Color="#33000000" />
+                                        <GradientStop Offset="0" Color="{DynamicResource BannerTopScrimDeepColor}" />
+                                        <GradientStop Offset="0.5" Color="{DynamicResource BannerTopScrimSubtleColor}" />
                                         <GradientStop Offset="1" Color="Transparent" />
                                     </LinearGradientBrush>
                                 </Border.Background>
@@ -200,8 +203,7 @@
                     </Border>
 
                     <!-- Back to Browse Button -->
-                    <Button x:Name="BackToBrowseButton"
-                            Command="{Binding CloseCommand}"
+                    <Button Command="{Binding CloseCommand}"
                             Classes="back-to-browse-btn"
                             Classes.over-banner="{Binding BackdropBitmap, Converter={x:Static ObjectConverters.IsNotNull}}"
                             HorizontalAlignment="Left"
@@ -211,7 +213,6 @@
                         <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                             <PathIcon Data="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"
                                       Width="11" Height="11"
-                                      Foreground="{DynamicResource AccentBrush}"
                                       VerticalAlignment="Center" />
                             <TextBlock Text="{localization:Localize Downloads.ContentDetail.BackToBrowse}"
                                        FontSize="13"

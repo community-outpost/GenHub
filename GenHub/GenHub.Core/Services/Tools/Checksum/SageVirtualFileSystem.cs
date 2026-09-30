@@ -582,7 +582,7 @@ public sealed class SageVirtualFileSystem
     private static bool IsPatchArchive(string path)
     {
         string fileName = Path.GetFileName(path);
-        return fileName.Contains("patch", StringComparison.OrdinalIgnoreCase);
+        return fileName.StartsWith(SageChecksumConstants.PatchArchivePrefix, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsTierInBand(SageFileTier tier, SageFileTier? minTier, SageFileTier? maxTier)
