@@ -649,7 +649,9 @@ def generate_date_codes(
 
     if start_date is None:
         start_date = datetime.date(start_year, 1, 1)
-    if end_date is None:
+        if end_date is None:
+            end_date = min(datetime.date(end_year, 12, 31), datetime.date.today() + datetime.timedelta(days=7))
+    elif end_date is None:
         end_date = datetime.date.today() + datetime.timedelta(days=7)
 
     for code in GENERALSONLINE_KNOWN_DATES:
@@ -837,7 +839,7 @@ def build_generalsonline_entry(cand: tuple[str, str, str, str], inspect_binaries
         inspected = _inspect_generalsonline_binary(url, version_str, exe_crc, ini_crc)
         if inspected is not None:
             exe_crc, sha256, ini_crc = inspected
-        elif inspect_binaries and not exe_crc:
+        elif not exe_crc:
             return None
 
     year = f"20{date_code[4:6]}"
@@ -1386,6 +1388,11 @@ def run_self_test() -> bool:
     ]
     latest = get_latest_generalsonline_date(dummy_mappings)
     assert latest == datetime.date(2026, 9, 28), f"Expected 2026-09-28, got {latest}"
+
+    # Test 7: generate_date_codes year range bounding
+    codes_2025 = generate_date_codes(start_year=2025, end_year=2025)
+    for c in codes_2025:
+        assert c.endswith("25"), f"Expected 2025 date code, got {c}"
 
     print("All self-test assertions passed.")
     return True
