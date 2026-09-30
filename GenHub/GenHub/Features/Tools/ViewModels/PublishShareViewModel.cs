@@ -5090,7 +5090,10 @@ public partial class PublishShareViewModel(
         try
         {
             await LoadDefinitionToProjectAsync(target);
-            return true;
+
+            // Download and validation failures inside the loader return normally, so only
+            // report a restore when the publisher profile was actually populated.
+            return !string.IsNullOrWhiteSpace(project.Catalog?.Publisher?.Id);
         }
         catch (Exception ex) when (ex is HttpRequestException
             or System.Text.Json.JsonException

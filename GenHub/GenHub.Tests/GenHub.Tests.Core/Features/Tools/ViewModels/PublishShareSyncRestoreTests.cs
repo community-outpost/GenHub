@@ -34,10 +34,16 @@ public sealed class PublishShareSyncRestoreTests : IDisposable
     private readonly Mock<ILogger<PublishShareViewModel>> _mockPublishLogger = new();
     private readonly Mock<IHostingStateManager> _mockHostingStateManager = new();
     private readonly Mock<INotificationService> _mockNotificationService = new();
+    private HttpMessageHandler? _httpHandler;
+    private HttpClient? _httpClient;
 
     /// <inheritdoc />
     public void Dispose()
     {
+        _httpClient?.Dispose();
+        _httpHandler?.Dispose();
+        _httpClient = null;
+        _httpHandler = null;
         PublishShareViewModel.HttpClientOverrideForTesting = null;
         CatalogDocumentReader.AllowUnresolvableDnsForTesting = false;
     }
@@ -261,9 +267,13 @@ public sealed class PublishShareSyncRestoreTests : IDisposable
         _mockStudioService.Setup(m => m.ValidateCatalogAsync(It.IsAny<PublisherCatalog>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
-        using var handler = new ServeDefinitionAndCatalogHandler(serveValidContent);
-        using var client = new HttpClient(handler);
-        PublishShareViewModel.HttpClientOverrideForTesting = client;
+        // The view model holds the override across scans, so the handler and client stay
+        // alive for the whole test and are disposed in Dispose.
+        _httpClient?.Dispose();
+        _httpHandler?.Dispose();
+        _httpHandler = new ServeDefinitionAndCatalogHandler(serveValidContent);
+        _httpClient = new HttpClient(_httpHandler);
+        PublishShareViewModel.HttpClientOverrideForTesting = _httpClient;
         CatalogDocumentReader.AllowUnresolvableDnsForTesting = true;
 
         var vm = new PublishShareViewModel(
