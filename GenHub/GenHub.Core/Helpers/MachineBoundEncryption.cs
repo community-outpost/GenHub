@@ -132,7 +132,7 @@ public static class MachineBoundEncryption
         ArgumentNullException.ThrowIfNull(key);
 
         plainBytes = null;
-        if (encryptedBytes.Length <= HeaderLength || encryptedBytes[0] != MachineBoundEncryptionConstants.FormatVersion)
+        if (encryptedBytes.Length < HeaderLength || encryptedBytes[0] != MachineBoundEncryptionConstants.FormatVersion)
         {
             return false;
         }

@@ -16,10 +16,10 @@ public interface IPublicKeyVerifier
     PublicKeyAlgorithm Algorithm { get; }
 
     /// <summary>
-    /// Imports a PEM-encoded public key. Private keys, multiple keys, keys of another
-    /// algorithm, and keys below the minimum size are rejected.
+    /// Imports a PEM-encoded public key. Private keys, multiple PEM blocks, keys of another
+    /// algorithm, keys below the minimum size, and EC keys outside P-256, P-384 and P-521 are rejected.
     /// </summary>
-    /// <param name="pem">The PEM text holding exactly one public key.</param>
+    /// <param name="pem">The PEM text holding exactly one PEM block, a public key. Text outside the block is ignored.</param>
     /// <returns>The normalised public key, or a failure describing why it was rejected.</returns>
     OperationResult<PublisherPublicKey> ImportPublicKey(string pem);
 

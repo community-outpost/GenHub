@@ -122,23 +122,110 @@ public sealed class PublisherKeyStoreTests : IDisposable
     }
 
     /// <summary>
-    /// A cancelled save leaves the existing store file untouched.
+    /// A save cancelled after the store was loaded and the new content encrypted leaves the existing
+    /// file untouched and no temporary file behind.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task SaveKeyAsync_Cancelled_LeavesExistingFileIntact()
+    public async Task SaveKeyAsync_CancelledAfterEncryption_LeavesExistingFileIntact()
     {
-        var store = CreateStore();
-        await store.SaveKeyAsync(CreateTrustedKey("publisher", PublicKeyAlgorithm.Rsa));
+        await CreateStore().SaveKeyAsync(CreateTrustedKey("publisher", PublicKeyAlgorithm.Rsa));
         var before = await File.ReadAllBytesAsync(StorePath);
         using var cts = new CancellationTokenSource();
-        await cts.CancelAsync();
+        var resolveCount = 0;
+        var store = CreateStore(() =>
+        {
+            // The first resolve decrypts the existing store; the second encrypts the new content.
+            if (Interlocked.Increment(ref resolveCount) == 2)
+            {
+                cts.Cancel();
+            }
+
+            return new MachineSecret(TestMachineSecret, true);
+        });
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => store.SaveKeyAsync(CreateTrustedKey("other", PublicKeyAlgorithm.Ecdsa), cts.Token));
 
+        Assert.Equal(2, resolveCount);
         Assert.Equal(before, await File.ReadAllBytesAsync(StorePath));
         Assert.Equal([StorePath], Directory.GetFiles(_appDataPath));
+    }
+
+    /// <summary>
+    /// A crypto failure while encrypting or decrypting is reported through the result, not thrown,
+    /// and the existing file is left unchanged.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CryptoFailure_ReturnsFailureAndIsNotOverwritten()
+    {
+        var failingStore = CreateStore(() => throw new CryptographicException("simulated"));
+
+        var saveWithoutFile = await failingStore.SaveKeyAsync(CreateTrustedKey("publisher", PublicKeyAlgorithm.Rsa));
+        Assert.False(saveWithoutFile.Success);
+        Assert.False(File.Exists(StorePath));
+
+        await CreateStore().SaveKeyAsync(CreateTrustedKey("publisher", PublicKeyAlgorithm.Rsa));
+        var before = await File.ReadAllBytesAsync(StorePath);
+
+        var read = await failingStore.GetKeysAsync();
+        var save = await failingStore.SaveKeyAsync(CreateTrustedKey("other", PublicKeyAlgorithm.Rsa));
+
+        Assert.False(read.Success);
+        Assert.Contains("encryption", read.FirstError, StringComparison.Ordinal);
+        Assert.False(save.Success);
+        Assert.Equal(before, await File.ReadAllBytesAsync(StorePath));
+    }
+
+    /// <summary>
+    /// A store whose directory cannot be read is reported as a failure, not treated as empty.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task UnreadableStoreDirectory_ReturnsFailureInsteadOfEmpty()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        await CreateStore().SaveKeyAsync(CreateTrustedKey("publisher", PublicKeyAlgorithm.Rsa));
+        File.SetUnixFileMode(_appDataPath, UnixFileMode.None);
+        try
+        {
+            var keys = await CreateStore().GetKeysAsync();
+
+            Assert.False(keys.Success);
+        }
+        finally
+        {
+            File.SetUnixFileMode(_appDataPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+    }
+
+    /// <summary>
+    /// Re-saving the same key keeps the original trust date; a different key takes the new date.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task SaveKeyAsync_SameKey_PreservesOriginalTrustedAt()
+    {
+        var store = CreateStore();
+        var original = CreateTrustedKey("publisher", PublicKeyAlgorithm.Rsa);
+        var later = TrustedAt.AddDays(3);
+        await store.SaveKeyAsync(original);
+
+        await store.SaveKeyAsync(original with { PublisherId = "PUBLISHER", TrustedAt = later });
+        var afterSameKey = await CreateStore().GetKeyAsync("publisher");
+
+        var replacement = CreateTrustedKey("publisher", PublicKeyAlgorithm.Rsa) with { TrustedAt = later };
+        await store.SaveKeyAsync(replacement);
+        var afterNewKey = await CreateStore().GetKeyAsync("publisher");
+
+        Assert.Equal(TrustedAt, afterSameKey.Data!.TrustedAt);
+        Assert.Equal("PUBLISHER", afterSameKey.Data.PublisherId);
+        Assert.Equal(replacement, afterNewKey.Data);
     }
 
     /// <summary>
@@ -180,7 +267,7 @@ public sealed class PublisherKeyStoreTests : IDisposable
         Assert.DoesNotContain(key.PublicKey.Fingerprint, fileText, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain(key.PublisherId, fileText, StringComparison.Ordinal);
         Assert.DoesNotContain("BEGIN", fileText, StringComparison.Ordinal);
-        Assert.Equal(-1, fileBytes.AsSpan().IndexOf(spki.AsSpan(0, 32)));
+        Assert.Equal(-1, fileBytes.AsSpan().IndexOf(spki));
     }
 
     /// <summary>
@@ -245,7 +332,7 @@ public sealed class PublisherKeyStoreTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task DuplicatePublisherEntries_ReturnFailure()
+    public async Task DuplicatePublisherEntries_ReturnFailureAndAreNotOverwritten()
     {
         await CreateStore().SaveKeyAsync(CreateTrustedKey("publisher", PublicKeyAlgorithm.Rsa));
         var json = await ReadDecryptedAsync();
@@ -254,7 +341,7 @@ public sealed class PublisherKeyStoreTests : IDisposable
         var entry = json[entryStart..entryEnd].TrimEnd();
         await WriteEncryptedAsync(json.Insert(entryEnd, "," + entry));
 
-        Assert.False((await CreateStore().GetKeysAsync()).Success);
+        await AssertUnreadableAndUntouchedAsync(CreateStore());
     }
 
     /// <summary>
@@ -315,12 +402,14 @@ public sealed class PublisherKeyStoreTests : IDisposable
 
     private PublisherKeyStore CreateStore(string machineSecret = TestMachineSecret, bool fromPrimarySource = true)
     {
+        return CreateStore(() => new MachineSecret(machineSecret, fromPrimarySource));
+    }
+
+    private PublisherKeyStore CreateStore(Func<MachineSecret> resolveMachineSecret)
+    {
         var configuration = new Mock<IConfigurationProviderService>();
         configuration.Setup(c => c.GetApplicationDataPath()).Returns(_appDataPath);
-        return new PublisherKeyStore(
-            configuration.Object,
-            _logger,
-            () => new MachineSecret(machineSecret, fromPrimarySource));
+        return new PublisherKeyStore(configuration.Object, _logger, resolveMachineSecret);
     }
 
     private async Task WriteEncryptedAsync(string contents)

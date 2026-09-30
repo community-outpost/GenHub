@@ -44,4 +44,24 @@ public static class PublisherKeyConstants
     /// Smallest accepted ECDSA curve size in bits.
     /// </summary>
     public const int MinimumEcdsaKeySizeBits = 256;
+
+    /// <summary>
+    /// OID of the id-ecPublicKey algorithm in an EC SubjectPublicKeyInfo.
+    /// </summary>
+    public const string EcPublicKeyOid = "1.2.840.10045.2.1";
+
+    /// <summary>
+    /// OID of the NIST P-256 (secp256r1) named curve.
+    /// </summary>
+    public const string NistP256Oid = "1.2.840.10045.3.1.7";
+
+    /// <summary>
+    /// OID of the NIST P-384 (secp384r1) named curve.
+    /// </summary>
+    public const string NistP384Oid = "1.3.132.0.34";
+
+    /// <summary>
+    /// OID of the NIST P-521 (secp521r1) named curve.
+    /// </summary>
+    public const string NistP521Oid = "1.3.132.0.35";
 }

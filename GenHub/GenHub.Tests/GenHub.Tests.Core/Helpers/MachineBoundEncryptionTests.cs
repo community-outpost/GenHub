@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
+using GenHub.Core.Models.Security;
 using System.Text;
 
 namespace GenHub.Tests.Core.Helpers;
@@ -79,6 +80,45 @@ public sealed class MachineBoundEncryptionTests
         Assert.False(MachineBoundEncryption.TryDecrypt(encrypted[..^1], key, out _));
         Assert.False(MachineBoundEncryption.TryDecrypt([], key, out _));
         Assert.False(MachineBoundEncryption.TryDecrypt(Plaintext, key, out _));
+    }
+
+    /// <summary>
+    /// A zero-length plaintext round-trips.
+    /// </summary>
+    [Fact]
+    public void EncryptThenDecrypt_EmptyPlaintext_RoundTrips()
+    {
+        var key = MachineBoundEncryption.DeriveKey("machine-a", Salt);
+
+        var encrypted = MachineBoundEncryption.Encrypt([], key);
+
+        Assert.True(MachineBoundEncryption.TryDecrypt(encrypted, key, out var decrypted));
+        Assert.Empty(decrypted!);
+    }
+
+    /// <summary>
+    /// Data saved under the fallback secret decrypts when the reader's secret came from the primary source.
+    /// </summary>
+    [Fact]
+    public void TryDecryptWithSecret_PrimarySource_RetriesFallbackSecret()
+    {
+        var encrypted = MachineBoundEncryption.EncryptWithSecret(Plaintext, MachineBoundEncryption.GetFallbackMachineSecret(), Salt);
+
+        Assert.True(MachineBoundEncryption.TryDecryptWithSecret(encrypted, new MachineSecret("primary-id", true), Salt, out var decrypted));
+        Assert.Equal(Plaintext, decrypted);
+    }
+
+    /// <summary>
+    /// The fallback is only retried for a primary-sourced secret, and data from another primary secret never decrypts.
+    /// </summary>
+    [Fact]
+    public void TryDecryptWithSecret_WithoutMatchingSecret_Fails()
+    {
+        var fromFallback = MachineBoundEncryption.EncryptWithSecret(Plaintext, MachineBoundEncryption.GetFallbackMachineSecret(), Salt);
+        var fromOtherMachine = MachineBoundEncryption.EncryptWithSecret(Plaintext, "primary-id-b", Salt);
+
+        Assert.False(MachineBoundEncryption.TryDecryptWithSecret(fromFallback, new MachineSecret("not-the-fallback", false), Salt, out _));
+        Assert.False(MachineBoundEncryption.TryDecryptWithSecret(fromOtherMachine, new MachineSecret("primary-id-a", true), Salt, out _));
     }
 
     /// <summary>

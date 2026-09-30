@@ -1,6 +1,9 @@
 using GenHub.Core.Interfaces.Security;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Security;
 using GenHub.Core.Services.Security;
+using System.Formats.Asn1;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -11,6 +14,10 @@ namespace GenHub.Tests.Core.Services.Security;
 /// </summary>
 public sealed class PublicKeyVerifierTests
 {
+    private const string SignatureMismatch = "signature does not match";
+
+    private const string EcPublicKeyOid = "1.2.840.10045.2.1";
+
     private static readonly byte[] Payload = Encoding.UTF8.GetBytes("{\"publisher\":{\"id\":\"test-publisher\"}}");
 
     private readonly CapturingLogger<RsaPublicKeyVerifier> _rsaLogger = new();
@@ -105,8 +112,8 @@ public sealed class PublicKeyVerifierTests
             ecdsa.ExportSubjectPublicKeyInfoPem() + "\n" + ecdsa.ExportECPrivateKeyPem(),
         ];
 
-        Assert.All(rsaPrivatePems, pem => Assert.False(CreateRsaVerifier().ImportPublicKey(pem).Success));
-        Assert.All(ecdsaPrivatePems, pem => Assert.False(CreateEcdsaVerifier().ImportPublicKey(pem).Success));
+        Assert.All(rsaPrivatePems, pem => AssertFailsWith(CreateRsaVerifier().ImportPublicKey(pem), "Private keys"));
+        Assert.All(ecdsaPrivatePems, pem => AssertFailsWith(CreateEcdsaVerifier().ImportPublicKey(pem), "Private keys"));
     }
 
     /// <summary>
@@ -120,7 +127,7 @@ public sealed class PublicKeyVerifierTests
 
         var pem = first.ExportSubjectPublicKeyInfoPem() + "\n" + second.ExportSubjectPublicKeyInfoPem();
 
-        Assert.False(CreateRsaVerifier().ImportPublicKey(pem).Success);
+        AssertFailsWith(CreateRsaVerifier().ImportPublicKey(pem), "more than one");
     }
 
     /// <summary>
@@ -131,7 +138,7 @@ public sealed class PublicKeyVerifierTests
     {
         using var rsa = RSA.Create(1024);
 
-        Assert.False(CreateRsaVerifier().ImportPublicKey(rsa.ExportSubjectPublicKeyInfoPem()).Success);
+        AssertFailsWith(CreateRsaVerifier().ImportPublicKey(rsa.ExportSubjectPublicKeyInfoPem()), "at least 2048 bits");
     }
 
     /// <summary>
@@ -143,9 +150,9 @@ public sealed class PublicKeyVerifierTests
         using var rsa = RSA.Create(2048);
         using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
 
-        Assert.False(CreateRsaVerifier().ImportPublicKey(ecdsa.ExportSubjectPublicKeyInfoPem()).Success);
-        Assert.False(CreateEcdsaVerifier().ImportPublicKey(rsa.ExportSubjectPublicKeyInfoPem()).Success);
-        Assert.False(CreateEcdsaVerifier().ImportPublicKey(rsa.ExportRSAPublicKeyPem()).Success);
+        AssertFailsWith(CreateRsaVerifier().ImportPublicKey(ecdsa.ExportSubjectPublicKeyInfoPem()), "does not hold a valid Rsa public key");
+        AssertFailsWith(CreateEcdsaVerifier().ImportPublicKey(rsa.ExportSubjectPublicKeyInfoPem()), "not an EC public key");
+        AssertFailsWith(CreateEcdsaVerifier().ImportPublicKey(rsa.ExportRSAPublicKeyPem()), "PEM block type is not a supported Ecdsa public key");
     }
 
     /// <summary>
@@ -195,11 +202,11 @@ public sealed class PublicKeyVerifierTests
         var rsaSignature = rsa.SignData(Payload, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         var ecdsaSignature = ecdsa.SignData(Payload, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence);
 
-        Assert.False(rsaVerifier.Verify(Tamper(Payload), rsaSignature, rsaKey).Success);
-        Assert.False(rsaVerifier.Verify(Payload, Tamper(rsaSignature), rsaKey).Success);
-        Assert.False(ecdsaVerifier.Verify(Tamper(Payload), ecdsaSignature, ecdsaKey).Success);
-        Assert.False(ecdsaVerifier.Verify(Payload, Tamper(ecdsaSignature), ecdsaKey).Success);
-        Assert.False(ecdsaVerifier.Verify(Payload, [], ecdsaKey).Success);
+        AssertFailsWith(rsaVerifier.Verify(Tamper(Payload), rsaSignature, rsaKey), SignatureMismatch);
+        AssertFailsWith(rsaVerifier.Verify(Payload, Tamper(rsaSignature), rsaKey), SignatureMismatch);
+        AssertFailsWith(ecdsaVerifier.Verify(Tamper(Payload), ecdsaSignature, ecdsaKey), SignatureMismatch);
+        AssertFailsWith(ecdsaVerifier.Verify(Payload, Tamper(ecdsaSignature), ecdsaKey), SignatureMismatch);
+        AssertFailsWith(ecdsaVerifier.Verify(Payload, [], ecdsaKey), SignatureMismatch);
     }
 
     /// <summary>
@@ -214,7 +221,7 @@ public sealed class PublicKeyVerifierTests
         var key = verifier.ImportPublicKey(trusted.ExportSubjectPublicKeyInfoPem()).Data!;
         var signature = signer.SignData(Payload, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
 
-        Assert.False(verifier.Verify(Payload, signature, key).Success);
+        AssertFailsWith(verifier.Verify(Payload, signature, key), SignatureMismatch);
     }
 
     /// <summary>
@@ -230,8 +237,8 @@ public sealed class PublicKeyVerifierTests
         var pssSignature = rsa.SignData(Payload, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
         var sha512Signature = rsa.SignData(Payload, HashAlgorithmName.SHA512, RSASignaturePadding.Pkcs1);
 
-        Assert.False(verifier.Verify(Payload, pssSignature, key).Success);
-        Assert.False(verifier.Verify(Payload, sha512Signature, key).Success);
+        AssertFailsWith(verifier.Verify(Payload, pssSignature, key), SignatureMismatch);
+        AssertFailsWith(verifier.Verify(Payload, sha512Signature, key), SignatureMismatch);
     }
 
     /// <summary>
@@ -245,8 +252,8 @@ public sealed class PublicKeyVerifierTests
         var signature = ecdsa.SignData(Payload, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence);
         var relabelled = ecdsaKey with { Algorithm = PublicKeyAlgorithm.Rsa };
 
-        Assert.False(CreateRsaVerifier().Verify(Payload, signature, ecdsaKey).Success);
-        Assert.False(CreateRsaVerifier().Verify(Payload, signature, relabelled).Success);
+        AssertFailsWith(CreateRsaVerifier().Verify(Payload, signature, ecdsaKey), "this verifier handles Rsa");
+        AssertFailsWith(CreateRsaVerifier().Verify(Payload, signature, relabelled), "not a valid Rsa key");
     }
 
     /// <summary>
@@ -260,8 +267,125 @@ public sealed class PublicKeyVerifierTests
         var key = verifier.ImportPublicKey(rsa.ExportSubjectPublicKeyInfoPem()).Data!;
         var signature = rsa.SignData(Payload, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
 
-        Assert.False(verifier.Verify(Payload, signature, key with { Fingerprint = new string('0', 64) }).Success);
-        Assert.False(verifier.Verify(Payload, signature, key with { SubjectPublicKeyInfo = "@@not-base64@@" }).Success);
+        AssertFailsWith(verifier.Verify(Payload, signature, key with { Fingerprint = new string('0', 64) }), "corrupt");
+        AssertFailsWith(verifier.Verify(Payload, signature, key with { SubjectPublicKeyInfo = "@@not-base64@@" }), "corrupt");
+    }
+
+    /// <summary>
+    /// Keys on each allowed NIST curve import and verify SHA-256 signatures.
+    /// </summary>
+    /// <param name="curveName">The curve friendly name.</param>
+    [Theory]
+    [InlineData("nistP256")]
+    [InlineData("nistP384")]
+    [InlineData("nistP521")]
+    public void ImportAndVerify_AllowedCurves_Succeed(string curveName)
+    {
+        using var ecdsa = ECDsa.Create(ECCurve.CreateFromFriendlyName(curveName));
+        var verifier = CreateEcdsaVerifier();
+        var imported = verifier.ImportPublicKey(ecdsa.ExportSubjectPublicKeyInfoPem());
+        var signature = ecdsa.SignData(Payload, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence);
+
+        Assert.True(imported.Success, imported.FirstError);
+        var verified = verifier.Verify(Payload, signature, imported.Data!);
+        Assert.True(verified.Success, verified.FirstError);
+    }
+
+    /// <summary>
+    /// A hand-built SubjectPublicKeyInfo naming P-256 imports, which proves the builder used by the
+    /// rejection tests produces valid keys.
+    /// </summary>
+    [Fact]
+    public void ImportPublicKey_BuiltP256SubjectPublicKeyInfo_Succeeds()
+    {
+        var result = CreateEcdsaVerifier().ImportPublicKey(ToPem(BuildEcSubjectPublicKeyInfo("1.2.840.10045.3.1.7")));
+
+        Assert.True(result.Success, result.FirstError);
+    }
+
+    /// <summary>
+    /// Curves outside P-256, P-384 and P-521 are rejected at import on every platform, through
+    /// the result rather than a platform exception. This covers secp256k1, which OpenSSL imports
+    /// and macOS rejects, and the 224-bit P-224, which is below the minimum size.
+    /// </summary>
+    /// <param name="curveOid">The named curve OID.</param>
+    [Theory]
+    [InlineData("1.3.132.0.10")]
+    [InlineData("1.3.132.0.33")]
+    [InlineData("1.3.36.3.3.2.8.1.1.7")]
+    public void ImportPublicKey_DisallowedCurve_FailsOnEveryPlatform(string curveOid)
+    {
+        var result = CreateEcdsaVerifier().ImportPublicKey(ToPem(BuildEcSubjectPublicKeyInfo(curveOid)));
+
+        AssertFailsWith(result, "curve is not supported");
+    }
+
+    /// <summary>
+    /// Explicit curve parameters are rejected: only named curves are accepted.
+    /// </summary>
+    [Fact]
+    public void ImportPublicKey_ExplicitCurveParameters_Fails()
+    {
+        var writer = new AsnWriter(AsnEncodingRules.DER);
+        using (writer.PushSequence())
+        {
+            using (writer.PushSequence())
+            {
+                writer.WriteObjectIdentifier(EcPublicKeyOid);
+                using (writer.PushSequence())
+                {
+                    writer.WriteInteger(1);
+                }
+            }
+
+            writer.WriteBitString(CreateP256Point());
+        }
+
+        AssertFailsWith(CreateEcdsaVerifier().ImportPublicKey(ToPem(writer.Encode())), "named curve");
+    }
+
+    /// <summary>
+    /// A stored key record on a disallowed curve fails verification even when its fingerprint matches.
+    /// </summary>
+    [Fact]
+    public void Verify_DisallowedCurveRecord_Fails()
+    {
+        var spki = BuildEcSubjectPublicKeyInfo("1.3.132.0.10");
+
+        AssertFailsWith(CreateEcdsaVerifier().Verify(Payload, [1, 2, 3], CreateRecord(PublicKeyAlgorithm.Ecdsa, spki)), "curve is not supported");
+    }
+
+    /// <summary>
+    /// The PEM label of an unsupported block is never echoed, because a caller can place key material in it.
+    /// </summary>
+    [Fact]
+    public void ImportPublicKey_UnsupportedLabel_IsNotEchoed()
+    {
+        const string label = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA";
+        var pem = $"-----BEGIN {label}-----\nAAAA\n-----END {label}-----";
+
+        var result = CreateRsaVerifier().ImportPublicKey(pem);
+
+        AssertFailsWith(result, "PEM block type is not a supported Rsa public key");
+        Assert.DoesNotContain(label, string.Join("\n", result.Errors.Concat(_rsaLogger.Entries)), StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Stored key records that pass the fingerprint check but are otherwise invalid fail at verify time.
+    /// </summary>
+    [Fact]
+    public void Verify_InvalidRecordsWithMatchingFingerprint_Fail()
+    {
+        using var rsa = RSA.Create(2048);
+        using var weak = RSA.Create(1024);
+        var verifier = CreateRsaVerifier();
+        var signature = rsa.SignData(Payload, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        byte[] trailing = [.. rsa.ExportSubjectPublicKeyInfo(), 0x00];
+
+        AssertFailsWith(verifier.Verify(Payload, signature, CreateRecord(PublicKeyAlgorithm.Rsa, trailing)), "trailing bytes");
+        AssertFailsWith(verifier.Verify(Payload, signature, CreateRecord(PublicKeyAlgorithm.Rsa, weak.ExportSubjectPublicKeyInfo())), "at least 2048 bits");
+        AssertFailsWith(verifier.Verify(Payload, signature, CreateRecord(PublicKeyAlgorithm.Rsa, [0x30, 0x03, 0x01, 0x02, 0x03])), "not a valid Rsa key");
+        AssertFailsWith(verifier.Verify(Payload, signature, CreateRecord(PublicKeyAlgorithm.Rsa, [])), "corrupt");
     }
 
     /// <summary>
@@ -295,6 +419,49 @@ public sealed class PublicKeyVerifierTests
         }
 
         Assert.DoesNotContain(rsaKey.SubjectPublicKeyInfo[..24], output, StringComparison.Ordinal);
+    }
+
+    private static void AssertFailsWith(ResultBase result, string expectedReason)
+    {
+        Assert.False(result.Success);
+        Assert.Contains(expectedReason, result.FirstError, StringComparison.Ordinal);
+    }
+
+    private static PublisherPublicKey CreateRecord(PublicKeyAlgorithm algorithm, byte[] subjectPublicKeyInfo)
+    {
+        return new PublisherPublicKey(
+            algorithm,
+            Convert.ToBase64String(subjectPublicKeyInfo),
+            Convert.ToHexString(SHA256.HashData(subjectPublicKeyInfo)).ToLowerInvariant());
+    }
+
+    private static byte[] CreateP256Point()
+    {
+        using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var parameters = ecdsa.ExportParameters(false);
+        return [0x04, .. parameters.Q.X!, .. parameters.Q.Y!];
+    }
+
+    private static byte[] BuildEcSubjectPublicKeyInfo(string curveOid)
+    {
+        var writer = new AsnWriter(AsnEncodingRules.DER);
+        using (writer.PushSequence())
+        {
+            using (writer.PushSequence())
+            {
+                writer.WriteObjectIdentifier(EcPublicKeyOid);
+                writer.WriteObjectIdentifier(curveOid);
+            }
+
+            writer.WriteBitString(CreateP256Point());
+        }
+
+        return writer.Encode();
+    }
+
+    private static string ToPem(byte[] subjectPublicKeyInfo)
+    {
+        return new string(PemEncoding.Write("PUBLIC KEY", subjectPublicKeyInfo));
     }
 
     private static byte[] Tamper(byte[] source)

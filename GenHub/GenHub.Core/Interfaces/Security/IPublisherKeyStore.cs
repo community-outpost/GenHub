@@ -25,7 +25,8 @@ public interface IPublisherKeyStore
     Task<OperationResult<TrustedPublisherKey?>> GetKeyAsync(string publisherId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Saves a trusted key, replacing any key already stored for the same publisher.
+    /// Saves a trusted key, replacing any key already stored for the same publisher. Re-saving the
+    /// same key keeps its original <see cref="TrustedPublisherKey.TrustedAt"/>.
     /// </summary>
     /// <param name="key">The key to trust.</param>
     /// <param name="cancellationToken">The cancellation token.</param>

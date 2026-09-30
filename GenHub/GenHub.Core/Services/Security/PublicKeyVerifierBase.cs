@@ -61,6 +61,10 @@ public abstract class PublicKeyVerifierBase<TKey>(ILogger logger) : IPublicKeyVe
         {
             return RejectImport($"The PEM does not hold a valid {Algorithm} public key.");
         }
+        catch (PlatformNotSupportedException)
+        {
+            return RejectImport($"The {Algorithm} public key is not supported on this platform.");
+        }
     }
 
     /// <inheritdoc />
@@ -79,6 +83,12 @@ public abstract class PublicKeyVerifierBase<TKey>(ILogger logger) : IPublicKeyVe
         if (subjectPublicKeyInfo is null)
         {
             return RejectVerification("The stored public key is corrupt.");
+        }
+
+        var allowed = ValidateSubjectPublicKeyInfo(subjectPublicKeyInfo);
+        if (allowed.Failed)
+        {
+            return RejectVerification(allowed.FirstError!);
         }
 
         try
@@ -102,6 +112,10 @@ public abstract class PublicKeyVerifierBase<TKey>(ILogger logger) : IPublicKeyVe
         {
             return RejectVerification($"The stored public key is not a valid {Algorithm} key.");
         }
+        catch (PlatformNotSupportedException)
+        {
+            return RejectVerification($"The stored {Algorithm} public key is not supported on this platform.");
+        }
     }
 
     /// <summary>
@@ -118,6 +132,17 @@ public abstract class PublicKeyVerifierBase<TKey>(ILogger logger) : IPublicKeyVe
     /// <param name="signature">The signature bytes.</param>
     /// <returns>True when the signature is valid.</returns>
     protected abstract bool VerifyData(TKey key, byte[] payload, byte[] signature);
+
+    /// <summary>
+    /// Checks algorithm-specific policy on a SubjectPublicKeyInfo before it is imported,
+    /// so acceptance does not depend on what the platform crypto library supports.
+    /// </summary>
+    /// <param name="subjectPublicKeyInfo">The DER SubjectPublicKeyInfo.</param>
+    /// <returns>A success when the key is acceptable.</returns>
+    protected virtual OperationResult ValidateSubjectPublicKeyInfo(byte[] subjectPublicKeyInfo)
+    {
+        return OperationResult.CreateSuccess();
+    }
 
     /// <summary>
     /// Imports a key encoding other than SubjectPublicKeyInfo that the algorithm supports.
@@ -166,11 +191,18 @@ public abstract class PublicKeyVerifierBase<TKey>(ILogger logger) : IPublicKeyVe
         int bytesRead;
         if (string.Equals(label, PublisherKeyConstants.SubjectPublicKeyInfoPemLabel, StringComparison.Ordinal))
         {
+            var allowed = ValidateSubjectPublicKeyInfo(der);
+            if (allowed.Failed)
+            {
+                return allowed;
+            }
+
             key.ImportSubjectPublicKeyInfo(der, out bytesRead);
         }
         else if (!TryImportAlternateFormat(key, label, der, out bytesRead))
         {
-            return OperationResult.CreateFailure($"PEM blocks labelled '{label}' are not supported {Algorithm} public keys.");
+            // The label is caller-controlled and may carry key material, so it is never echoed.
+            return OperationResult.CreateFailure($"The PEM block type is not a supported {Algorithm} public key.");
         }
 
         return ValidateKey(key, bytesRead, der.Length);

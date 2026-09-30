@@ -5,6 +5,7 @@ using GenHub.Core.Interfaces.Security;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Security;
 using Microsoft.Extensions.Logging;
+using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace GenHub.Core.Services.Security;
@@ -120,8 +121,9 @@ public sealed class PublisherKeyStore : IPublisherKeyStore
             }
 
             var keys = loaded.Data!;
+            var existing = keys.Find(k => IsPublisher(k, key.PublisherId));
             keys.RemoveAll(k => IsPublisher(k, key.PublisherId));
-            keys.Add(key);
+            keys.Add(IsSameKey(existing, key) ? key with { TrustedAt = existing!.TrustedAt } : key);
 
             var written = await WriteAsync(keys, cancellationToken).ConfigureAwait(false);
             if (written.Success)
@@ -180,6 +182,13 @@ public sealed class PublisherKeyStore : IPublisherKeyStore
         return string.Equals(key.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool IsSameKey(TrustedPublisherKey? existing, TrustedPublisherKey incoming)
+    {
+        return existing is not null
+            && existing.PublicKey.Algorithm == incoming.PublicKey.Algorithm
+            && string.Equals(existing.PublicKey.Fingerprint, incoming.PublicKey.Fingerprint, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static bool IsWellFormed(TrustedPublisherKey? key)
     {
         return key is not null
@@ -226,15 +235,20 @@ public sealed class PublisherKeyStore : IPublisherKeyStore
 
     private async Task<OperationResult<List<TrustedPublisherKey>>> LoadAsync(CancellationToken cancellationToken)
     {
-        if (!File.Exists(_storeFilePath))
-        {
-            return OperationResult<List<TrustedPublisherKey>>.CreateSuccess([]);
-        }
-
+        // The file is opened directly instead of probed with File.Exists, which also returns false
+        // when the file cannot be accessed. Only a genuinely absent file counts as an empty store.
         byte[] encryptedBytes;
         try
         {
             encryptedBytes = await File.ReadAllBytesAsync(_storeFilePath, cancellationToken).ConfigureAwait(false);
+        }
+        catch (FileNotFoundException)
+        {
+            return OperationResult<List<TrustedPublisherKey>>.CreateSuccess([]);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return OperationResult<List<TrustedPublisherKey>>.CreateSuccess([]);
         }
         catch (IOException ex)
         {
@@ -245,13 +259,13 @@ public sealed class PublisherKeyStore : IPublisherKeyStore
             return ReadFailed(ex);
         }
 
-        // Resolving the secret can spawn a process and key derivation is deliberately slow, so both run off the caller's thread.
-        var plainBytes = await Task.Run(
-            () => MachineBoundEncryption.TryDecryptWithSecret(encryptedBytes, _resolveMachineSecret(), PublisherKeyConstants.StoreKeySalt, out var decrypted)
-                ? decrypted
-                : null,
-            cancellationToken).ConfigureAwait(false);
-        if (plainBytes is null)
+        var decrypted = await DecryptAsync(encryptedBytes, cancellationToken).ConfigureAwait(false);
+        if (decrypted.Failed)
+        {
+            return OperationResult<List<TrustedPublisherKey>>.CreateFailure(decrypted);
+        }
+
+        if (decrypted.Data is null)
         {
             return Corrupt("the file cannot be decrypted on this machine or was modified");
         }
@@ -259,7 +273,7 @@ public sealed class PublisherKeyStore : IPublisherKeyStore
         PublisherKeyStoreDocument? document;
         try
         {
-            document = JsonSerializer.Deserialize<PublisherKeyStoreDocument>(plainBytes, JsonOptions);
+            document = JsonSerializer.Deserialize<PublisherKeyStoreDocument>(decrypted.Data, JsonOptions);
         }
         catch (JsonException)
         {
@@ -273,6 +287,28 @@ public sealed class PublisherKeyStore : IPublisherKeyStore
         }
 
         return OperationResult<List<TrustedPublisherKey>>.CreateSuccess(document!.Keys!);
+    }
+
+    private async Task<OperationResult<byte[]?>> DecryptAsync(byte[] encryptedBytes, CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Resolving the secret can spawn a process and key derivation is deliberately slow, so both run off the caller's thread.
+            var plainBytes = await Task.Run(
+                () => MachineBoundEncryption.TryDecryptWithSecret(encryptedBytes, _resolveMachineSecret(), PublisherKeyConstants.StoreKeySalt, out var decrypted)
+                    ? decrypted
+                    : null,
+                cancellationToken).ConfigureAwait(false);
+            return OperationResult<byte[]?>.CreateSuccess(plainBytes);
+        }
+        catch (CryptographicException ex)
+        {
+            return OperationResult<byte[]?>.CreateFailure(EncryptionUnavailable(ex));
+        }
+        catch (PlatformNotSupportedException ex)
+        {
+            return OperationResult<byte[]?>.CreateFailure(EncryptionUnavailable(ex));
+        }
     }
 
     private async Task<OperationResult> WriteAsync(List<TrustedPublisherKey> keys, CancellationToken cancellationToken)
@@ -298,6 +334,14 @@ public sealed class PublisherKeyStore : IPublisherKeyStore
             await AtomicFile.WriteAllBytesAsync(_storeFilePath, encryptedBytes, cancellationToken).ConfigureAwait(false);
             return OperationResult.CreateSuccess();
         }
+        catch (CryptographicException ex)
+        {
+            return OperationResult.CreateFailure(EncryptionUnavailable(ex));
+        }
+        catch (PlatformNotSupportedException ex)
+        {
+            return OperationResult.CreateFailure(EncryptionUnavailable(ex));
+        }
         catch (IOException ex)
         {
             return WriteFailed(ex);
@@ -313,6 +357,12 @@ public sealed class PublisherKeyStore : IPublisherKeyStore
         _logger.LogWarning("Publisher key store {StoreFilePath} is unreadable: {Problem}", _storeFilePath, problem);
         return OperationResult<List<TrustedPublisherKey>>.CreateFailure(
             $"The publisher key store is unreadable: {problem}. It was left unchanged.");
+    }
+
+    private string EncryptionUnavailable(Exception ex)
+    {
+        _logger.LogError(ex, "Publisher key store encryption failed for {StoreFilePath}", _storeFilePath);
+        return "The publisher key store encryption is unavailable on this system. The store was left unchanged.";
     }
 
     private OperationResult<List<TrustedPublisherKey>> ReadFailed(Exception ex)
