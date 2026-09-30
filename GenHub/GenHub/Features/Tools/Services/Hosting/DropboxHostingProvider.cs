@@ -557,6 +557,8 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
 
         try
         {
+            await EnsureFreshAccessTokenAsync(cancellationToken);
+
             // Discovery lists the publisher folder non-recursively, so every discovered file
             // is a direct child and its path rebuilds exactly from the folder plus file name.
             var path = $"{PublisherFolderPath}/{fileName}".ToLowerInvariant();

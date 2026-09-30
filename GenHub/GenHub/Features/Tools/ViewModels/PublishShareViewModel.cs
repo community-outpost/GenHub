@@ -5094,7 +5094,7 @@ public partial class PublishShareViewModel(
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <param name="resolveShareableUrl">True to resolve a shareable URL on demand when the
     /// discovered definition has none yet; false keeps background scans side-effect free.</param>
-    /// <returns>True when a cloud definition restore was attempted.</returns>
+    /// <returns>True when the cloud publisher definition was successfully restored and populated the local profile; false otherwise.</returns>
     private async Task<bool> TryAutoRestoreCloudDefinitionAsync(CancellationToken cancellationToken, bool resolveShareableUrl)
     {
         if (!string.IsNullOrWhiteSpace(project.Catalog?.Publisher?.Id))
