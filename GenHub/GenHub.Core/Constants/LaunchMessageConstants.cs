@@ -70,5 +70,5 @@ public static class LaunchMessageConstants
     public const string BootstrapperChildUnresolvedKey = "Launch.Monitoring.BootstrapperChildUnresolved";
 
     /// <summary>English fallback for the unresolved bootstrapper child message ({0} entry point, {1} child process).</summary>
-    public const string BootstrapperChildUnresolved = "Cannot launch '{0}': it starts '{1}', which the selected content does not include with a content hash, so GenHub cannot track the game. Update or reinstall the game client, or switch this profile to a workspace strategy other than SymlinkOnly.";
+    public const string BootstrapperChildUnresolved = "Cannot launch '{0}': it starts '{1}', which is missing from the selected content or the workspace, so GenHub cannot track the game. Update or reinstall the game client, or switch this profile to a workspace strategy other than SymlinkOnly.";
 }

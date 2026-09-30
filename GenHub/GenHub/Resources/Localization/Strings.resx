@@ -1099,7 +1099,7 @@
     <value>Steam Proxy Launcher cannot run non-Windows executable format '{0}'. Steam integration requires a Windows executable.</value>
   </data>
   <data name="Launch.Monitoring.BootstrapperChildUnresolved" xml:space="preserve">
-    <value>Cannot launch '{0}': it starts '{1}', which the selected content does not include with a content hash, so GenHub cannot track the game. Update or reinstall the game client, or switch this profile to a workspace strategy other than SymlinkOnly.</value>
+    <value>Cannot launch '{0}': it starts '{1}', which is missing from the selected content or the workspace, so GenHub cannot track the game. Update or reinstall the game client, or switch this profile to a workspace strategy other than SymlinkOnly.</value>
   </data>
   <data name="Manifest.EntryPoint.NotFoundInPayload" xml:space="preserve">
     <value>Game client '{0}' declares entry point '{1}', which was not found in its payload.</value>
