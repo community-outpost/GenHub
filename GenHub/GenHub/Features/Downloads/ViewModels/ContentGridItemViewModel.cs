@@ -1091,7 +1091,7 @@ public sealed partial class ContentGridItemViewModel(
 
             IsDownloaded = mainState is ContentState.Downloaded or ContentState.UpdateAvailable;
 
-            if (IsDownloaded && (string.IsNullOrEmpty(SearchResult.Id) || !ManifestIdValidator.IsValid(SearchResult.Id, out _)))
+            if (mainState == ContentState.Downloaded && (string.IsNullOrEmpty(SearchResult.Id) || !ManifestIdValidator.IsValid(SearchResult.Id, out _)))
             {
                 var manifestId = await contentStateService.GetLocalManifestIdAsync(SearchResult);
                 if (!string.IsNullOrEmpty(manifestId))

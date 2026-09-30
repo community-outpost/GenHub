@@ -419,6 +419,81 @@ public sealed class ContentGridItemViewModelTests
     }
 
     /// <summary>
+    /// Verifies that RefreshVariantStatesAsync for an installed card whose state is adjusted to UpdateAvailable
+    /// (because an update target is not downloaded) hydrates the installed manifest ID into SearchResult.Id.
+    /// </summary>
+    [Fact]
+    public async Task RefreshVariantStatesAsync_WhenUpdateTargetNotDownloaded_HydratesLocalManifestIdAsync()
+    {
+        // Arrange
+        var searchResult = new ContentSearchResult
+        {
+            Id = "catalog-unvalidated-id",
+            Name = "Installed Item",
+            Version = "1.0",
+        };
+        var targetResult = new ContentSearchResult
+        {
+            Id = "1.0.target.content.update",
+            Name = "Target Item",
+            Version = "2.0",
+        };
+
+        var stateService = new Mock<IContentStateService>();
+        stateService.Setup(s => s.GetStateAsync(searchResult, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentState.Downloaded);
+        stateService.Setup(s => s.GetStateAsync(targetResult, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentState.NotDownloaded);
+        stateService.Setup(s => s.GetLocalManifestIdAsync(searchResult, It.IsAny<CancellationToken>()))
+            .ReturnsAsync("1.0.publisher.content.installed");
+
+        var viewModel = CreateViewModel(searchResult, stateService.Object);
+        var targetVm = CreateViewModel(targetResult, stateService.Object);
+        viewModel.UpdateTargetVm = targetVm;
+
+        // Act
+        await viewModel.RefreshVariantStatesAsync();
+
+        // Assert
+        Assert.Equal(ContentState.UpdateAvailable, viewModel.CurrentState);
+        Assert.True(viewModel.IsDownloaded);
+        Assert.Equal("1.0.publisher.content.installed", viewModel.SearchResult.Id);
+    }
+
+    /// <summary>
+    /// Verifies that RefreshVariantStatesAsync for a prospective un-acquired card whose raw state is UpdateAvailable
+    /// does not overwrite the prospective SearchResult.Id with an older installed local manifest ID.
+    /// </summary>
+    [Fact]
+    public async Task RefreshVariantStatesAsync_WhenRawStateIsUpdateAvailable_DoesNotOverwriteProspectiveSearchResultIdAsync()
+    {
+        // Arrange
+        var searchResult = new ContentSearchResult
+        {
+            Id = "prospective-catalog-id",
+            Name = "Newer Release",
+            Version = "2.0",
+        };
+
+        var stateService = new Mock<IContentStateService>();
+        stateService.Setup(s => s.GetStateAsync(searchResult, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentState.UpdateAvailable);
+        stateService.Setup(s => s.GetLocalManifestIdAsync(searchResult, It.IsAny<CancellationToken>()))
+            .ReturnsAsync("1.0.publisher.content.olderinstalled");
+
+        var viewModel = CreateViewModel(searchResult, stateService.Object);
+
+        // Act
+        await viewModel.RefreshVariantStatesAsync();
+
+        // Assert
+        Assert.Equal(ContentState.UpdateAvailable, viewModel.CurrentState);
+        Assert.True(viewModel.IsDownloaded);
+        Assert.Equal("prospective-catalog-id", viewModel.SearchResult.Id);
+        stateService.Verify(s => s.GetLocalManifestIdAsync(It.IsAny<ContentSearchResult>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
     /// Verifies that OnContentStateChanged handles CNC Labs manifest downloads initiated from detail view,
     /// updating CurrentState, IsDownloaded, rewriting SearchResult.Id, and showing Add to Profile button.
     /// </summary>

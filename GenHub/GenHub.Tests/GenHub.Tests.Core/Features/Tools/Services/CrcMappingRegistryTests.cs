@@ -250,7 +250,9 @@ public sealed class CrcMappingRegistryTests
     }
 
     /// <summary>
-    /// Verifies that duplicate IniCrc entries are disambiguated in favor of entries with DataPatchManifestId or newer version.
+    /// Verifies that duplicate IniCrc entries are disambiguated deterministically:
+    /// entries with DataPatchManifestId win over those without, newer BuildDates win,
+    /// equal BuildDates are resolved by CompareVersions, and later non-patch or older entries do not displace winners.
     /// </summary>
     [Fact]
     public void LoadCatalog_DuplicateIniCrc_DisambiguatesToDataPatchOrNewest()
@@ -259,7 +261,7 @@ public sealed class CrcMappingRegistryTests
         var catalog = new CrcCatalog
         {
             SchemaVersion = 1,
-            TotalEntries = 3,
+            TotalEntries = 5,
             Mappings =
             [
                 new()
@@ -274,17 +276,6 @@ public sealed class CrcMappingRegistryTests
                 },
                 new()
                 {
-                    ExeCrc = "0x22222222",
-                    IniCrc = "0x99999999",
-                    ManifestId = "1.1.withdatapatch.gameclient.zerohour",
-                    DataPatchManifestId = "1.1.patch.gamedata",
-                    Publisher = "generalsonline",
-                    GameType = "ZeroHour",
-                    BuildDate = "2026-08-02",
-                    Version = "1.1",
-                },
-                new()
-                {
                     ExeCrc = "0x33333333",
                     IniCrc = "0x99999999",
                     ManifestId = "1.2.withdatapatchnewer.gameclient.zerohour",
@@ -294,6 +285,38 @@ public sealed class CrcMappingRegistryTests
                     BuildDate = "2026-08-03",
                     Version = "1.2",
                 },
+                new()
+                {
+                    ExeCrc = "0x44444444",
+                    IniCrc = "0x99999999",
+                    ManifestId = "1.2.1.withdatapatchhigherver.gameclient.zerohour",
+                    DataPatchManifestId = "1.2.1.patch.gamedata",
+                    Publisher = "generalsonline",
+                    GameType = "ZeroHour",
+                    BuildDate = "2026-08-03",
+                    Version = "1.2.1",
+                },
+                new()
+                {
+                    ExeCrc = "0x22222222",
+                    IniCrc = "0x99999999",
+                    ManifestId = "1.1.withdatapatcholder.gameclient.zerohour",
+                    DataPatchManifestId = "1.1.patch.gamedata",
+                    Publisher = "generalsonline",
+                    GameType = "ZeroHour",
+                    BuildDate = "2026-08-02",
+                    Version = "1.1",
+                },
+                new()
+                {
+                    ExeCrc = "0x55555555",
+                    IniCrc = "0x99999999",
+                    ManifestId = "1.3.nodatapatchnewer.gameclient.zerohour",
+                    Publisher = "generalsonline",
+                    GameType = "ZeroHour",
+                    BuildDate = "2026-08-05",
+                    Version = "1.3",
+                },
             ],
         };
 
@@ -301,7 +324,9 @@ public sealed class CrcMappingRegistryTests
 
         Assert.True(registry.TryGetEntryByIniCrc("0x99999999", out var found));
         Assert.NotNull(found);
-        Assert.Equal("1.2.patch.gamedata", found.DataPatchManifestId);
+        Assert.Equal("1.2.1.patch.gamedata", found.DataPatchManifestId);
+        Assert.Equal("1.2.1", found.Version);
+        Assert.Equal("0x44444444", found.ExeCrc);
     }
 
     /// <summary>
