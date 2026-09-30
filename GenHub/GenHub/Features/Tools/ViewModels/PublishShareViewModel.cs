@@ -1411,6 +1411,35 @@ public partial class PublishShareViewModel(
         return null;
     }
 
+    private static bool IsMatchingDefinition(HostedFileInfo d, HostedFileInfo cloudDef)
+    {
+        return (!string.IsNullOrEmpty(d.FileName) && !string.IsNullOrEmpty(cloudDef.FileName) && string.Equals(d.FileName, cloudDef.FileName, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(d.FileId) && !string.IsNullOrEmpty(cloudDef.FileId) && string.Equals(d.FileId, cloudDef.FileId, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(d.Url) && !string.IsNullOrEmpty(cloudDef.Url) && string.Equals(d.Url, cloudDef.Url, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static void UpdateExistingDefinition(HostedFileInfo existing, HostedFileInfo cloudDef)
+    {
+        if (cloudDef.LastUpdated < existing.LastUpdated)
+        {
+            return;
+        }
+
+        // Never clobber a resolved shareable URL with an empty scan result: providers
+        // such as Dropbox report unshared files without a URL on every scan.
+        if (!string.IsNullOrEmpty(cloudDef.Url))
+        {
+            existing.Url = cloudDef.Url;
+        }
+
+        existing.FileSize = cloudDef.FileSize;
+        existing.LastUpdated = cloudDef.LastUpdated;
+        if (!string.IsNullOrEmpty(cloudDef.FileName))
+        {
+            existing.FileName = cloudDef.FileName;
+        }
+    }
+
     private (string Name, string Url, long Size)? FindInHostedAssets(string sha256)
     {
         var hosted = HostedAssets.FirstOrDefault(a =>
@@ -5079,12 +5108,10 @@ public partial class PublishShareViewModel(
             return false;
         }
 
-        if (string.IsNullOrWhiteSpace(target.Url))
+        if (string.IsNullOrWhiteSpace(target.Url) &&
+            (!resolveShareableUrl || !await EnsureAssetDownloadUrlAsync(target, cancellationToken)))
         {
-            if (!resolveShareableUrl || !await EnsureAssetDownloadUrlAsync(target, cancellationToken))
-            {
-                return false;
-            }
+            return false;
         }
 
         try
@@ -5326,29 +5353,11 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        var existing = _currentHostingState.Definitions.FirstOrDefault(d =>
-            (!string.IsNullOrEmpty(d.FileName) && !string.IsNullOrEmpty(cloudDef.FileName) && string.Equals(d.FileName, cloudDef.FileName, StringComparison.OrdinalIgnoreCase)) ||
-            (!string.IsNullOrEmpty(d.FileId) && !string.IsNullOrEmpty(cloudDef.FileId) && string.Equals(d.FileId, cloudDef.FileId, StringComparison.OrdinalIgnoreCase)) ||
-            (!string.IsNullOrEmpty(d.Url) && !string.IsNullOrEmpty(cloudDef.Url) && string.Equals(d.Url, cloudDef.Url, StringComparison.OrdinalIgnoreCase)));
+        var existing = _currentHostingState.Definitions.FirstOrDefault(d => IsMatchingDefinition(d, cloudDef));
 
         if (existing != null)
         {
-            if (cloudDef.LastUpdated >= existing.LastUpdated)
-            {
-                // Never clobber a resolved shareable URL with an empty scan result: providers
-                // such as Dropbox report unshared files without a URL on every scan.
-                if (!string.IsNullOrEmpty(cloudDef.Url))
-                {
-                    existing.Url = cloudDef.Url;
-                }
-
-                existing.FileSize = cloudDef.FileSize;
-                existing.LastUpdated = cloudDef.LastUpdated;
-                if (!string.IsNullOrEmpty(cloudDef.FileName))
-                {
-                    existing.FileName = cloudDef.FileName;
-                }
-            }
+            UpdateExistingDefinition(existing, cloudDef);
         }
         else
         {

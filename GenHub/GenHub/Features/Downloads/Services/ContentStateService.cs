@@ -1988,9 +1988,10 @@ public sealed partial class ContentStateService(
 
     private static ContentManifest? FindFileRowRepositoryMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item, ILogger? logger = null)
     {
-        if (item.ResolverMetadata?.TryGetValue(GitHubConstants.OwnerMetadataKey, out var owner) != true ||
+        if (item.ResolverMetadata == null ||
+            !item.ResolverMetadata.TryGetValue(GitHubConstants.OwnerMetadataKey, out var owner) ||
             string.IsNullOrWhiteSpace(owner) ||
-            item.ResolverMetadata.TryGetValue(GitHubConstants.RepoMetadataKey, out var repo) != true ||
+            !item.ResolverMetadata.TryGetValue(GitHubConstants.RepoMetadataKey, out var repo) ||
             string.IsNullOrWhiteSpace(repo))
         {
             return null;

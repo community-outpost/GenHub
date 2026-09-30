@@ -40,6 +40,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     private const string PublisherFolderPath = HostingConstants.DropboxDefaultPublisherFolder;
     private const string MissingScopeTag = "missing_scope";
     private const string DropboxApiArgHeader = "Dropbox-API-Arg";
+    private const string NotAuthenticatedErrorMessage = "Not authenticated with Dropbox.";
 
     private readonly HttpClient _httpClient = InitializeHttpClient(httpClientFactory);
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
@@ -289,7 +290,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     {
         if (!IsAuthenticated)
         {
-            return OperationResult<HostingUploadResult>.CreateFailure("Not authenticated with Dropbox.");
+            return OperationResult<HostingUploadResult>.CreateFailure(NotAuthenticatedErrorMessage);
         }
 
         try
@@ -367,7 +368,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     {
         if (!IsAuthenticated)
         {
-            return OperationResult<bool>.CreateFailure("Not authenticated with Dropbox.");
+            return OperationResult<bool>.CreateFailure(NotAuthenticatedErrorMessage);
         }
 
         if (string.IsNullOrWhiteSpace(fileId))
@@ -428,7 +429,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     {
         if (!IsAuthenticated)
         {
-            return OperationResult<HostingState?>.CreateFailure("Not authenticated with Dropbox.");
+            return OperationResult<HostingState?>.CreateFailure(NotAuthenticatedErrorMessage);
         }
 
         try
@@ -547,7 +548,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         _ = fileId;
         if (!IsAuthenticated)
         {
-            return OperationResult<string>.CreateFailure("Not authenticated with Dropbox.");
+            return OperationResult<string>.CreateFailure(NotAuthenticatedErrorMessage);
         }
 
         if (string.IsNullOrWhiteSpace(fileName))

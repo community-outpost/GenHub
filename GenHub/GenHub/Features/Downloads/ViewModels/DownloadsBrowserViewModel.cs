@@ -3408,9 +3408,9 @@ public sealed partial class DownloadsBrowserViewModel(
         {
             // Best-effort persistence; results were already delivered.
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {
-            logger.LogDebug(ex, "Failed to persist refreshed subscription data for {PublisherId}", publisherId);
+            logger.LogWarning(ex, "Failed to persist refreshed subscription data for {PublisherId}", publisherId);
         }
     }
 

@@ -526,10 +526,10 @@ public partial class AddContentDialogViewModel(
 
     private BundleComponentOption CreateBundleComponentOption(CatalogContentItem item)
     {
-        var existingDep = _existingItem?.BundledItems.FirstOrDefault(b =>
+        var existingDep = _existingItem?.BundledItems?.FirstOrDefault(b =>
                 string.Equals(b.ContentId, item.Id, StringComparison.OrdinalIgnoreCase) &&
                 (string.IsNullOrWhiteSpace(b.PublisherId) || string.Equals(b.PublisherId, catalog?.Publisher?.Id, StringComparison.OrdinalIgnoreCase)))
-            ?? _existingItem?.Releases.SelectMany(r => r.Dependencies ?? []).FirstOrDefault(d =>
+            ?? _existingItem?.Releases?.SelectMany(r => r.Dependencies ?? []).FirstOrDefault(d =>
                 string.Equals(d.ContentId, item.Id, StringComparison.OrdinalIgnoreCase) &&
                 (string.IsNullOrWhiteSpace(d.PublisherId) || string.Equals(d.PublisherId, catalog?.Publisher?.Id, StringComparison.OrdinalIgnoreCase)));
 
@@ -2501,15 +2501,21 @@ public partial class AddContentDialogViewModel(
 
         if (contentItem.ContentType != ContentType.ContentBundle && _existingItem.ContentType != ContentType.ContentBundle)
         {
-            foreach (var dependency in _existingItem.BundledItems)
+            if (_existingItem.BundledItems != null)
             {
-                contentItem.BundledItems.Add(CloneDependency(dependency));
+                foreach (var dependency in _existingItem.BundledItems)
+                {
+                    contentItem.BundledItems.Add(CloneDependency(dependency));
+                }
             }
         }
 
-        foreach (var addon in _existingItem.Addons)
+        if (_existingItem.Addons != null)
         {
-            contentItem.Addons.Add(CloneDependency(addon));
+            foreach (var addon in _existingItem.Addons)
+            {
+                contentItem.Addons.Add(CloneDependency(addon));
+            }
         }
     }
 
