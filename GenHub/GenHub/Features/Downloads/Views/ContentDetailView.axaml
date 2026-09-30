@@ -100,34 +100,70 @@
         </Style>
         <!-- Back to Browse Button -->
         <Style Selector="Button.back-to-browse-btn">
-            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Padding" Value="12,6" />
             <Setter Property="Margin" Value="0,0,0,8" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+            <Setter Property="RenderTransform" Value="none" />
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.15" />
-                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1" />
                 </Transitions>
+            </Setter>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border x:Name="PART_RootBorder"
+                            Background="{DynamicResource SurfaceElevatedBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="{TemplateBinding Padding}"
+                            BoxShadow="0 2 8 0 #33000000">
+                        <Border.Transitions>
+                            <Transitions>
+                                <BrushTransition Property="Background" Duration="0:0:0.15" />
+                                <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                                <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.15" />
+                            </Transitions>
+                        </Border.Transitions>
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    </Border>
+                </ControlTemplate>
             </Setter>
         </Style>
         <Style Selector="Button.back-to-browse-btn.over-banner">
-            <Setter Property="Background" Value="#CC14141E" />
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
             <Setter Property="Margin" Value="12,12,0,0" />
         </Style>
-        <Style Selector="Button.back-to-browse-btn:pointerover">
+        <Style Selector="Button.back-to-browse-btn.over-banner /template/ Border#PART_RootBorder">
+            <Setter Property="Background" Value="#E6101018" />
+            <Setter Property="BorderBrush" Value="#4DFFFFFF" />
+            <Setter Property="BoxShadow" Value="0 4 14 0 #80000000" />
+        </Style>
+        <Style Selector="Button.back-to-browse-btn:pointerover /template/ Border#PART_RootBorder">
             <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BoxShadow" Value="0 4 14 0 #50000000" />
         </Style>
-        <Style Selector="Button.back-to-browse-btn.over-banner:pointerover">
-            <Setter Property="Background" Value="#E61E1E2C" />
+        <Style Selector="Button.back-to-browse-btn.over-banner:pointerover /template/ Border#PART_RootBorder">
+            <Setter Property="Background" Value="#F8181824" />
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BoxShadow" Value="0 6 20 0 #A0000000" />
+        </Style>
+        <Style Selector="Button.back-to-browse-btn:pointerover PathIcon">
+            <Setter Property="Foreground" Value="{DynamicResource AccentLightBrush}" />
         </Style>
         <Style Selector="Button.back-to-browse-btn:pressed">
             <Setter Property="RenderTransform" Value="scale(0.97)" />
+        </Style>
+        <Style Selector="Button.back-to-browse-btn:pressed /template/ Border#PART_RootBorder">
+            <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}" />
+        </Style>
+        <Style Selector="Button.back-to-browse-btn.over-banner:pressed /template/ Border#PART_RootBorder">
+            <Setter Property="Background" Value="#FF0D0D14" />
         </Style>
     </UserControl.Styles>
 
@@ -143,10 +179,11 @@
                             IsVisible="{Binding BackdropBitmap, Converter={x:Static ObjectConverters.IsNotNull}}">
                         <Panel>
                             <Image Source="{Binding BackdropBitmap}" Stretch="UniformToFill" />
-                            <Border VerticalAlignment="Top" Height="56" IsHitTestVisible="False">
+                            <Border VerticalAlignment="Top" Height="72" IsHitTestVisible="False">
                                 <Border.Background>
                                     <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-                                        <GradientStop Offset="0" Color="#66000000" />
+                                        <GradientStop Offset="0" Color="#80000000" />
+                                        <GradientStop Offset="0.5" Color="#33000000" />
                                         <GradientStop Offset="1" Color="Transparent" />
                                     </LinearGradientBrush>
                                 </Border.Background>
