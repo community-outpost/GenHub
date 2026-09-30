@@ -207,6 +207,18 @@ public class GameLauncher(
                     localizationService);
             }
 
+            if (string.IsNullOrEmpty(executableFileForMonitor.Hash))
+            {
+                logger.LogError(
+                    "[GameLauncher] {Entry} is CAS symlinked, but its manifest carries no hash for it",
+                    Path.GetFileName(finalExecutablePath));
+                return OperationResult<(string, string)>.CreateFailure(RunnerTargetResolver.Localize(
+                    localizationService,
+                    LaunchMessageConstants.EntryPointHashMissingKey,
+                    LaunchMessageConstants.EntryPointHashMissing,
+                    Path.GetFileName(finalExecutablePath)));
+            }
+
             var entryTarget = File.Exists(finalExecutablePath) ? TryResolveFinalLinkTarget(finalExecutablePath, logger) : null;
             var target = (ProcessName: executableFileForMonitor.Hash, ResidenceDirectory: workspacePath);
             if (entryTarget is { Exists: true })
@@ -302,13 +314,16 @@ public class GameLauncher(
         ILocalizationService? localizationService)
     {
         var entryDirectory = GetRelativeDirectory(entryFile.RelativePath);
-        var childFile = manifests
-            .Where(m => !ReferenceEquals(m, entryManifest))
-            .Prepend(entryManifest)
-            .SelectMany(m => m.Files ?? [])
-            .FirstOrDefault(f =>
-                Path.GetFileNameWithoutExtension(f.RelativePath.Replace('\\', '/')).Equals(expectedChildProcessName, StringComparison.OrdinalIgnoreCase) &&
-                GetRelativeDirectory(f.RelativePath).Equals(entryDirectory, StringComparison.OrdinalIgnoreCase));
+        var childFileName = LaunchEntryPointResolver.ResolveExpectedChildFileName(finalExecutablePath);
+        var childFile = childFileName is null
+            ? null
+            : manifests
+                .Where(m => !ReferenceEquals(m, entryManifest))
+                .Prepend(entryManifest)
+                .SelectMany(m => m.Files ?? [])
+                .FirstOrDefault(f =>
+                    Path.GetFileName(f.RelativePath.Replace('\\', '/')).Equals(childFileName, StringComparison.OrdinalIgnoreCase) &&
+                    GetRelativeDirectory(f.RelativePath).Equals(entryDirectory, StringComparison.OrdinalIgnoreCase));
 
         var isCasChild = childFile?.SourceType == ContentSourceType.ContentAddressable;
         var childPath = childFile is null

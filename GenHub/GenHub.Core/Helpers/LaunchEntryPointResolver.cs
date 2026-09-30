@@ -20,6 +20,21 @@ public static class LaunchEntryPointResolver
     /// </returns>
     public static string? ResolveExpectedChildProcessName(string? executablePath)
     {
+        var childFileName = ResolveExpectedChildFileName(executablePath);
+        return childFileName is null ? null : Path.GetFileNameWithoutExtension(childFileName);
+    }
+
+    /// <summary>
+    /// Resolves the file name of the binary that <paramref name="executablePath"/> is expected to
+    /// spawn and hand the session to. It sits next to the launched executable.
+    /// </summary>
+    /// <param name="executablePath">The executable being launched.</param>
+    /// <returns>
+    /// The expected child's file name, or <see langword="null"/> when the launched executable is
+    /// itself the game.
+    /// </returns>
+    public static string? ResolveExpectedChildFileName(string? executablePath)
+    {
         if (string.IsNullOrEmpty(executablePath))
         {
             return null;
@@ -28,7 +43,7 @@ public static class LaunchEntryPointResolver
         var fileName = Path.GetFileName(executablePath);
         if (fileName.Equals(GameClientConstants.GeneralsOnlineEacLauncherExecutable, StringComparison.OrdinalIgnoreCase))
         {
-            return Path.GetFileNameWithoutExtension(GameClientConstants.GeneralsOnline60HzExecutable);
+            return GameClientConstants.GeneralsOnline60HzExecutable;
         }
 
         if (fileName.Equals(GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase))
@@ -43,7 +58,7 @@ public static class LaunchEntryPointResolver
                 }
             }
 
-            return GameClientConstants.GameProcessName;
+            return GameClientConstants.SteamGameDatExecutable;
         }
 
         return null;

@@ -190,7 +190,7 @@ public sealed class MonitoringProcessNameTests : IDisposable
     }
 
     /// <summary>
-    /// A wrapped client from outside CAS, present as a plain file, keeps its own name.
+    /// A wrapped client from outside CAS that fell back to a plain file keeps its own name.
     /// </summary>
     [Fact]
     public void CasSymlinkedBootstrapper_WithANonCasChild_MonitorsTheChildName()
@@ -265,6 +265,130 @@ public sealed class MonitoringProcessNameTests : IDisposable
         Assert.Equal(_workspace, result.Data.ResidenceDirectory);
     }
 
+    /// <summary>
+    /// A same-stem sibling such as a symbol file does not stand in for the wrapped client.
+    /// </summary>
+    [Fact]
+    public void CasBootstrapper_IgnoresASameStemSiblingOfTheChild()
+    {
+        const string SiblingHash = "5b1b000000000000000000000000000000000000000000000000000000000000";
+        File.WriteAllText(ChildWorkspacePath, "client");
+        var manifests = BuildGeneralsOnlineManifests(childHash: ChildHash);
+        var client = manifests.Single(m => m.ContentType == ContentType.GameClient);
+        client.Files.Insert(1, new ManifestFile
+        {
+            RelativePath = Path.ChangeExtension(GameClientConstants.GeneralsOnline60HzExecutable, ".pdb"),
+            Hash = SiblingHash,
+            SourceType = ContentSourceType.ContentAddressable,
+        });
+
+        var result = Resolve(manifests, WorkspaceStrategy.SymlinkOnly);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.Equal(ChildHash, result.Data.ProcessName);
+    }
+
+    /// <summary>
+    /// A CAS entry point without a hash fails the launch instead of monitoring an empty name.
+    /// </summary>
+    [Fact]
+    public void CasDirectExecutable_WithoutAHash_Fails()
+    {
+        var manifests = BuildGeneralsOnlineManifests(childHash: ChildHash);
+        manifests.Single(m => m.ContentType == ContentType.GameClient).Files[0].Hash = string.Empty;
+
+        var result = GameLauncher.DetermineMonitoringTarget(
+            manifests,
+            BootstrapperPath,
+            _workspace,
+            WorkspaceStrategy.SymlinkOnly,
+            expectedChildProcessName: null,
+            NullLogger.Instance,
+            localizationService: null);
+
+        Assert.False(result.Success);
+        Assert.Contains(GameClientConstants.GeneralsOnlineEacLauncherExecutable, result.FirstError, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// The child is found when only another selected manifest carries it.
+    /// </summary>
+    [Fact]
+    public void CasBootstrapper_FindsTheChildInAnotherManifest()
+    {
+        File.WriteAllText(ChildWorkspacePath, "client");
+        var manifests = BuildGeneralsOnlineManifests(childHash: null);
+        manifests.Add(BuildChildOnlyManifest(ChildHash));
+
+        var result = Resolve(manifests, WorkspaceStrategy.SymlinkOnly);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.Equal(ChildHash, result.Data.ProcessName);
+    }
+
+    /// <summary>
+    /// When several manifests list the child, the entry point's manifest wins, even when another
+    /// manifest comes first.
+    /// </summary>
+    [Fact]
+    public void CasBootstrapper_PrefersTheEntryManifestsChild()
+    {
+        const string OtherHash = "0e4e000000000000000000000000000000000000000000000000000000000000";
+        File.WriteAllText(ChildWorkspacePath, "client");
+        var manifests = BuildGeneralsOnlineManifests(childHash: ChildHash);
+        manifests.Insert(0, BuildChildOnlyManifest(OtherHash));
+
+        var result = Resolve(manifests, WorkspaceStrategy.SymlinkOnly);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.Equal(ChildHash, result.Data.ProcessName);
+    }
+
+    /// <summary>
+    /// A child listed only in another directory is not the one the bootstrapper starts.
+    /// </summary>
+    [Fact]
+    public void CasBootstrapper_IgnoresAChildInAnotherDirectory()
+    {
+        var subdirectory = Directory.CreateDirectory(Path.Combine(_workspace, "bin")).FullName;
+        File.WriteAllText(Path.Combine(subdirectory, GameClientConstants.GeneralsOnline60HzExecutable), "client");
+        var manifests = BuildGeneralsOnlineManifests(childHash: null);
+        manifests.Single(m => m.ContentType == ContentType.GameClient).Files.Add(new ManifestFile
+        {
+            RelativePath = "bin/" + GameClientConstants.GeneralsOnline60HzExecutable,
+            Hash = ChildHash,
+            SourceType = ContentSourceType.ContentAddressable,
+        });
+
+        var result = Resolve(manifests, WorkspaceStrategy.SymlinkOnly);
+
+        Assert.False(result.Success);
+    }
+
+    /// <summary>
+    /// A non-CAS child is symlinked into the workspace like any other file, so it is discovered
+    /// under its link target's name in the link target's directory.
+    /// </summary>
+    [Fact]
+    public void CasSymlinkedBootstrapper_WithASymlinkedNonCasChild_MonitorsTheLinkTarget()
+    {
+        var installation = Directory.CreateDirectory(Path.Combine(_root, "installation")).FullName;
+        var installedChild = Path.Combine(installation, GameClientConstants.GeneralsOnline60HzExecutable);
+        File.WriteAllText(installedChild, "client");
+        if (!TryCreateSymbolicLink(ChildWorkspacePath, installedChild))
+        {
+            return;
+        }
+
+        var result = Resolve(
+            BuildGeneralsOnlineManifests(childHash: ChildHash, childSource: ContentSourceType.GameInstallation),
+            WorkspaceStrategy.SymlinkOnly);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.Equal(ExpectedChildName, result.Data.ProcessName);
+        Assert.Equal(installation, result.Data.ResidenceDirectory);
+    }
+
     private static bool TryCreateSymbolicLink(string path, string target)
     {
         try
@@ -278,6 +402,22 @@ public sealed class MonitoringProcessNameTests : IDisposable
             return false;
         }
     }
+
+    private static ContentManifest BuildChildOnlyManifest(string childHash) =>
+        new()
+        {
+            Name = "GeneralsOnline client files",
+            ContentType = ContentType.Addon,
+            Files =
+            [
+                new ManifestFile
+                {
+                    RelativePath = GameClientConstants.GeneralsOnline60HzExecutable,
+                    Hash = childHash,
+                    SourceType = ContentSourceType.ContentAddressable,
+                },
+            ],
+        };
 
     private static List<ContentManifest> BuildGeneralsOnlineManifests(
         string? childHash,

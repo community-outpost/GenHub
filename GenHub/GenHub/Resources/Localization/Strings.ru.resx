@@ -1101,6 +1101,9 @@
   <data name="Launch.Monitoring.BootstrapperChildUnresolved" xml:space="preserve">
     <value>Не удалось запустить '{0}': он запускает '{1}', но этот файл отсутствует в выбранном содержимом или в рабочем пространстве, поэтому GenHub не может отслеживать игру. Обновите или переустановите игровой клиент либо выберите для этого профиля стратегию рабочего пространства, отличную от SymlinkOnly.</value>
   </data>
+  <data name="Launch.Monitoring.EntryPointHashMissing" xml:space="preserve">
+    <value>Не удалось запустить '{0}': в выбранном содержимом нет хеша содержимого для этого файла, поэтому GenHub не может отслеживать игру. Обновите или переустановите игровой клиент либо выберите для этого профиля стратегию рабочего пространства, отличную от SymlinkOnly.</value>
+  </data>
   <data name="Manifest.EntryPoint.NotFoundInPayload" xml:space="preserve">
     <value>Игровой клиент '{0}' объявляет точку входа '{1}', которая не найдена в его содержимом.</value>
   </data>

@@ -1101,6 +1101,9 @@
   <data name="Launch.Monitoring.BootstrapperChildUnresolved" xml:space="preserve">
     <value>Cannot launch '{0}': it starts '{1}', which is missing from the selected content or the workspace, so GenHub cannot track the game. Update or reinstall the game client, or switch this profile to a workspace strategy other than SymlinkOnly.</value>
   </data>
+  <data name="Launch.Monitoring.EntryPointHashMissing" xml:space="preserve">
+    <value>Cannot launch '{0}': the selected content has no content hash for it, so GenHub cannot track the game. Update or reinstall the game client, or switch this profile to a workspace strategy other than SymlinkOnly.</value>
+  </data>
   <data name="Manifest.EntryPoint.NotFoundInPayload" xml:space="preserve">
     <value>Game client '{0}' declares entry point '{1}', which was not found in its payload.</value>
   </data>

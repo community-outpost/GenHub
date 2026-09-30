@@ -27,6 +27,39 @@ public class LaunchEntryPointResolverTests
     }
 
     /// <summary>
+    /// The bootstrapper's child is identified by its full file name, not only its stem.
+    /// </summary>
+    [Fact]
+    public void ResolveExpectedChildFileName_ForTheAntiCheatBootstrapper_ReturnsTheSixtyHertzExecutable()
+    {
+        var path = Path.Combine("/workspace", GameClientConstants.GeneralsOnlineEacLauncherExecutable);
+
+        Assert.Equal(GameClientConstants.GeneralsOnline60HzExecutable, LaunchEntryPointResolver.ResolveExpectedChildFileName(path));
+    }
+
+    /// <summary>
+    /// The retail launcher hands the session to game.dat.
+    /// </summary>
+    [Fact]
+    public void ResolveExpectedChildFileName_ForGeneralsExecutable_ReturnsGameDat()
+    {
+        var path = Path.Combine("/nonexistent-genhub-dir", GameClientConstants.GeneralsExecutable);
+
+        Assert.Equal(GameClientConstants.SteamGameDatExecutable, LaunchEntryPointResolver.ResolveExpectedChildFileName(path));
+    }
+
+    /// <summary>
+    /// An executable that is itself the game has no child.
+    /// </summary>
+    [Fact]
+    public void ResolveExpectedChildFileName_ForTheSixtyHertzClientItself_ReturnsNull()
+    {
+        var path = Path.Combine("/workspace", GameClientConstants.GeneralsOnline60HzExecutable);
+
+        Assert.Null(LaunchEntryPointResolver.ResolveExpectedChildFileName(path));
+    }
+
+    /// <summary>
     /// The bootstrapper ships with mixed-case naming; matching must not depend on it.
     /// </summary>
     [Fact]
