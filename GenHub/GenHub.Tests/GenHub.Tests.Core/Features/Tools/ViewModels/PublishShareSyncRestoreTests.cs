@@ -138,6 +138,29 @@ public sealed class PublishShareSyncRestoreTests : IDisposable
     }
 
     /// <summary>
+    /// Restoring cloud catalogs must only drop the migrated empty "default" placeholder,
+    /// never a legitimate empty catalog with its own identity.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ScanCloudStorage_AutoRestore_PreservesNonDefaultEmptyCatalogAsync()
+    {
+        var project = new PublisherStudioProject { ProjectPath = "/test/path/project.json" };
+        project.Catalogs.Add(new NamedCatalog
+        {
+            Id = "custom-empty",
+            Name = "Custom Empty",
+            FileName = "catalog-custom.json",
+            Catalog = project.Catalog,
+        });
+        await CreateScannedViewModelAsync(project, serveValidContent: true);
+
+        Assert.Equal("restored-pub", project.Catalog.Publisher.Id);
+        Assert.Contains(project.Catalogs, c => c.Id == "custom-empty");
+        Assert.NotNull(project.Catalogs.Find(c => c.Id == "main"));
+    }
+
+    /// <summary>
     /// A resolved definition URL must survive a rescan that again reports the definition
     /// without a URL, so the restore does not flap between scans.
     /// </summary>

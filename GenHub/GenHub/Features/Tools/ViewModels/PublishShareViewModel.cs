@@ -6004,6 +6004,7 @@ public partial class PublishShareViewModel(
             var candidate = project.Catalogs[i];
             if (candidate != null &&
                 ReferenceEquals(candidate.Catalog, project.Catalog) &&
+                string.Equals(candidate.Id, CatalogConstants.DefaultCatalogId, StringComparison.OrdinalIgnoreCase) &&
                 (candidate.Catalog.Content == null || candidate.Catalog.Content.Count == 0))
             {
                 project.Catalogs.RemoveAt(i);
