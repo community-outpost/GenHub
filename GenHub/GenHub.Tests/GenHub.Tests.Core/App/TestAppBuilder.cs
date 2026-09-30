@@ -19,10 +19,11 @@ namespace GenHub.Tests.Core.App;
 /// </summary>
 internal static class TestAppBuilder
 {
-    private const string ResetForUnitTestsMethod = "ResetForUnitTests";
-
     private static readonly Mock<ILocalizationService> LocalizationServiceMock = new();
     private static readonly IServiceProvider ServiceProvider = CreateServiceProvider();
+    private static readonly MethodInfo ResetDispatcher =
+        typeof(Dispatcher).GetMethod("ResetForUnitTests", BindingFlags.NonPublic | BindingFlags.Static)
+        ?? throw new InvalidOperationException("Avalonia no longer exposes Dispatcher.ResetForUnitTests.");
 
     /// <summary>
     /// Gets the localization service registered in the headless application.
@@ -34,34 +35,42 @@ internal static class TestAppBuilder
     /// </summary>
     /// <returns>The configured application builder.</returns>
     public static AppBuilder BuildAvaloniaApp()
-        => AppBuilder.Configure(() => new global::GenHub.App(ServiceProvider))
-            .UseHeadless(new AvaloniaHeadlessPlatformOptions())
-            .AfterPlatformServicesSetup(_ => EnsureHeadlessDispatcher());
+    {
+        var builder = AppBuilder.Configure(() => new global::GenHub.App(ServiceProvider))
+            .UseHeadless(new AvaloniaHeadlessPlatformOptions());
+        var initializeHeadless = builder.WindowingSubsystemInitializer
+            ?? throw new InvalidOperationException("The headless platform did not register a windowing subsystem.");
+
+        return builder
+            .UseWindowingSubsystem(
+                () =>
+                {
+                    DiscardStaleDispatcher();
+                    initializeHeadless();
+                },
+                builder.WindowingSubsystemName!)
+            .AfterPlatformServicesSetup(_ => VerifyHeadlessDispatcher());
+    }
 
     /// <summary>
-    /// Replaces a UI dispatcher that a leaked background thread created before the headless platform registered its own.
+    /// Discards a UI dispatcher that leaked background work created after the session reset it.
     /// </summary>
     /// <remarks>
-    /// The headless session resets the process-wide <see cref="Dispatcher.UIThread"/> before each test and lets the
-    /// headless platform create it again. Background work left over from an earlier test that reads
-    /// <see cref="Dispatcher.UIThread"/> inside that gap creates a dispatcher without a run loop, and the next awaited
-    /// UI test then fails in <see cref="Dispatcher.PushFrame"/> with <see cref="PlatformNotSupportedException"/>.
-    /// This runs on the session thread once the headless dispatcher is registered, so the test always starts on it.
+    /// The headless session resets the process-wide <see cref="Dispatcher.UIThread"/> before each test and the
+    /// headless platform creates it again. Background work left over from an earlier test that reads
+    /// <see cref="Dispatcher.UIThread"/> inside that gap creates a dispatcher without a run loop. The platform
+    /// would then build its compositor and render context on that dispatcher, and the next awaited UI test fails in
+    /// <see cref="Dispatcher.PushFrame"/> with <see cref="PlatformNotSupportedException"/>. Resetting again right
+    /// before the platform initializes means everything is built on the headless dispatcher.
     /// </remarks>
-    private static void EnsureHeadlessDispatcher()
+    private static void DiscardStaleDispatcher() => ResetDispatcher.Invoke(null, null);
+
+    private static void VerifyHeadlessDispatcher()
     {
-        if (Dispatcher.UIThread.SupportsRunLoops)
-        {
-            return;
-        }
-
-        var reset = typeof(Dispatcher).GetMethod(ResetForUnitTestsMethod, BindingFlags.NonPublic | BindingFlags.Static)
-            ?? throw new InvalidOperationException($"Avalonia no longer exposes {nameof(Dispatcher)}.{ResetForUnitTestsMethod}.");
-        reset.Invoke(null, null);
-
         if (!Dispatcher.UIThread.SupportsRunLoops)
         {
-            throw new InvalidOperationException("The headless UI dispatcher could not be restored.");
+            throw new InvalidOperationException(
+                "Background work replaced the headless UI dispatcher while the headless platform initialized.");
         }
     }
 
