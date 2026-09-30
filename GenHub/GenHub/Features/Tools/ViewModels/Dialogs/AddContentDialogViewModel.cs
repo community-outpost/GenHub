@@ -2499,14 +2499,23 @@ public partial class AddContentDialogViewModel(
             }
         }
 
-        if (contentItem.ContentType != ContentType.ContentBundle && _existingItem.ContentType != ContentType.ContentBundle)
+        CopyExistingDependencies(contentItem);
+    }
+
+    private void CopyExistingDependencies(CatalogContentItem contentItem)
+    {
+        if (_existingItem == null)
         {
-            if (_existingItem.BundledItems != null)
+            return;
+        }
+
+        if (contentItem.ContentType != ContentType.ContentBundle &&
+            _existingItem.ContentType != ContentType.ContentBundle &&
+            _existingItem.BundledItems != null)
+        {
+            foreach (var dependency in _existingItem.BundledItems)
             {
-                foreach (var dependency in _existingItem.BundledItems)
-                {
-                    contentItem.BundledItems.Add(CloneDependency(dependency));
-                }
+                contentItem.BundledItems.Add(CloneDependency(dependency));
             }
         }
 
