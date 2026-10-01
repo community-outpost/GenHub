@@ -321,6 +321,47 @@ public sealed class PublicKeyVerifierTests
     }
 
     /// <summary>
+    /// Trailing ASN.1 values are rejected by the policy gate before platform key import.
+    /// </summary>
+    /// <param name="location">The sequence containing an unexpected value.</param>
+    [Theory]
+    [InlineData("algorithm")]
+    [InlineData("subject")]
+    [InlineData("outer")]
+    public void ImportAndVerify_TrailingEcData_FailsPolicyValidation(string location)
+    {
+        var writer = new AsnWriter(AsnEncodingRules.DER);
+        using (writer.PushSequence())
+        {
+            using (writer.PushSequence())
+            {
+                writer.WriteObjectIdentifier(EcPublicKeyOid);
+                writer.WriteObjectIdentifier("1.2.840.10045.3.1.7");
+                if (location == "algorithm")
+                {
+                    writer.WriteNull();
+                }
+            }
+
+            writer.WriteBitString(CreateP256Point());
+            if (location == "subject")
+            {
+                writer.WriteNull();
+            }
+        }
+
+        if (location == "outer")
+        {
+            writer.WriteNull();
+        }
+
+        var spki = writer.Encode();
+        var verifier = CreateEcdsaVerifier();
+        AssertFailsWith(verifier.ImportPublicKey(ToPem(spki)), "not a valid EC SubjectPublicKeyInfo");
+        AssertFailsWith(verifier.Verify(Payload, [1, 2, 3], CreateRecord(PublicKeyAlgorithm.Ecdsa, spki)), "not a valid EC SubjectPublicKeyInfo");
+    }
+
+    /// <summary>
     /// Explicit curve parameters are rejected: only named curves are accepted.
     /// </summary>
     [Fact]

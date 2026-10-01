@@ -45,7 +45,9 @@ public sealed class EcdsaPublicKeyVerifier(ILogger<EcdsaPublicKeyVerifier> logge
         try
         {
             var reader = new AsnReader(subjectPublicKeyInfo, AsnEncodingRules.DER);
-            var algorithmIdentifier = reader.ReadSequence().ReadSequence();
+            var subjectPublicKey = reader.ReadSequence();
+            reader.ThrowIfNotEmpty();
+            var algorithmIdentifier = subjectPublicKey.ReadSequence();
             if (algorithmIdentifier.ReadObjectIdentifier() != PublisherKeyConstants.EcPublicKeyOid)
             {
                 return OperationResult.CreateFailure("The key is not an EC public key.");
@@ -56,7 +58,12 @@ public sealed class EcdsaPublicKeyVerifier(ILogger<EcdsaPublicKeyVerifier> logge
                 return OperationResult.CreateFailure("The EC key must use a named curve.");
             }
 
-            return AllowedCurveOids.Contains(algorithmIdentifier.ReadObjectIdentifier())
+            var curveOid = algorithmIdentifier.ReadObjectIdentifier();
+            algorithmIdentifier.ThrowIfNotEmpty();
+            subjectPublicKey.ReadBitString(out _);
+            subjectPublicKey.ThrowIfNotEmpty();
+
+            return AllowedCurveOids.Contains(curveOid)
                 ? OperationResult.CreateSuccess()
                 : OperationResult.CreateFailure("The EC curve is not supported. Use P-256, P-384 or P-521.");
         }

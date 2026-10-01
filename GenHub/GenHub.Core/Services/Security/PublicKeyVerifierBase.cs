@@ -136,6 +136,8 @@ public abstract class PublicKeyVerifierBase<TKey>(ILogger logger) : IPublicKeyVe
     /// <summary>
     /// Checks algorithm-specific policy on a SubjectPublicKeyInfo before it is imported,
     /// so acceptance does not depend on what the platform crypto library supports.
+    /// Overrides must return a failure for malformed or unsupported input instead of throwing
+    /// parsing exceptions; both import and verification rely on this non-throwing contract.
     /// </summary>
     /// <param name="subjectPublicKeyInfo">The DER SubjectPublicKeyInfo.</param>
     /// <returns>A success when the key is acceptable.</returns>
