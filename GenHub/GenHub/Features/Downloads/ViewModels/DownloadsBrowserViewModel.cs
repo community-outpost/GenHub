@@ -2631,7 +2631,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 NotificationType.Info,
                 title,
                 message,
-                autoDismissMilliseconds: 10000,
+                autoDismissMilliseconds: NotificationDurations.VeryLong,
                 actionText: actionText,
                 action: () => RunOnUi(() =>
                 {
@@ -2653,7 +2653,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 NotificationType.Info,
                 title,
                 message,
-                autoDismissMilliseconds: 10000,
+                autoDismissMilliseconds: NotificationDurations.VeryLong,
                 actionText: actionText,
                 action: () => RunOnUi(() =>
                 {

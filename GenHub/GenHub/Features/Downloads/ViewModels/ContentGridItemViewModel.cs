@@ -155,24 +155,7 @@ public sealed partial class ContentGridItemViewModel(
         LoadBundleComponents();
 
         // Check memory cache synchronously first so there is no visual flash on refresh
-        var publisherLogoUrl = ContentCardBadgeHelper.GetPublisherLogoUrl(SearchResult);
-        if (string.Equals(publisherLogoUrl, ThumbnailUrl, StringComparison.OrdinalIgnoreCase))
-        {
-            publisherLogoUrl = null;
-        }
-
-        _loadedPublisherLogoUrl = publisherLogoUrl;
-        if (!string.IsNullOrEmpty(publisherLogoUrl) && PublisherLogoBitmap == null)
-        {
-            PublisherLogoBitmap = ImageCacheService.Instance.GetBitmapFromMemory(publisherLogoUrl);
-        }
-
-        var thumbnailUrl = ThumbnailUrl;
-        _loadedThumbnailUrl = thumbnailUrl;
-        if (!string.IsNullOrEmpty(thumbnailUrl) && IconBitmap == null)
-        {
-            IconBitmap = ImageCacheService.Instance.GetBitmapFromMemory(thumbnailUrl);
-        }
+        HydrateBitmapsFromMemoryCache();
 
         _ = LoadIconAsync();
         _ = RefreshBundleComponentStatesAsync();
@@ -1002,6 +985,17 @@ public sealed partial class ContentGridItemViewModel(
         });
     }
 
+    private void HydrateBitmapsFromMemoryCache()
+    {
+        var publisherLogoUrl = ContentCardBadgeHelper.GetPublisherLogoUrl(SearchResult);
+        if (string.Equals(publisherLogoUrl, ThumbnailUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            publisherLogoUrl = null;
+        }
+
+        SynchronizeCardUrls(publisherLogoUrl, ThumbnailUrl);
+    }
+
     private void SynchronizeCardUrls(string? publisherLogoUrl, string? thumbnailUrl)
     {
         if (!string.Equals(_loadedPublisherLogoUrl, publisherLogoUrl, StringComparison.OrdinalIgnoreCase))
@@ -1039,17 +1033,10 @@ public sealed partial class ContentGridItemViewModel(
             PublisherLogoBitmap = logoResult;
         }
 
-        if (thumbTask is { IsCompletedSuccessfully: true } &&
+        if (thumbTask is { IsCompletedSuccessfully: true, Result: { } thumbResult } &&
             string.Equals(_loadedThumbnailUrl, thumbnailUrl, StringComparison.OrdinalIgnoreCase))
         {
-            if (thumbTask.Result != null)
-            {
-                IconBitmap = thumbTask.Result;
-            }
-            else if (string.IsNullOrEmpty(thumbnailUrl))
-            {
-                IconBitmap = null;
-            }
+            IconBitmap = thumbResult;
         }
     }
 
@@ -1061,15 +1048,10 @@ public sealed partial class ContentGridItemViewModel(
         }
 
         var currentVersion = ++_iconLoadVersion;
+        HydrateBitmapsFromMemoryCache();
 
-        var publisherLogoUrl = ContentCardBadgeHelper.GetPublisherLogoUrl(SearchResult);
-        if (string.Equals(publisherLogoUrl, ThumbnailUrl, StringComparison.OrdinalIgnoreCase))
-        {
-            publisherLogoUrl = null;
-        }
-
-        var thumbnailUrl = ThumbnailUrl;
-        SynchronizeCardUrls(publisherLogoUrl, thumbnailUrl);
+        var publisherLogoUrl = _loadedPublisherLogoUrl;
+        var thumbnailUrl = _loadedThumbnailUrl;
 
         var logoTask = (!string.IsNullOrEmpty(publisherLogoUrl) && PublisherLogoBitmap == null)
             ? SafeGetBitmapAsync(publisherLogoUrl)
