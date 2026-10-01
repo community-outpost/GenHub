@@ -664,7 +664,22 @@ public static class PathHelper
             target = info.LinkTarget ?? new DirectoryInfo(prefix).LinkTarget;
             return true;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        catch (IOException)
+        {
+            failed = true;
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            failed = true;
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            failed = true;
+            return false;
+        }
+        catch (NotSupportedException)
         {
             failed = true;
             return false;
@@ -685,7 +700,22 @@ public static class PathHelper
 
             return Path.Combine([resolvedPrefix, .. segments[(currentIndex + 1)..]]);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        catch (IOException)
+        {
+            failed = true;
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            failed = true;
+            return null;
+        }
+        catch (ArgumentException)
+        {
+            failed = true;
+            return null;
+        }
+        catch (NotSupportedException)
         {
             failed = true;
             return null;

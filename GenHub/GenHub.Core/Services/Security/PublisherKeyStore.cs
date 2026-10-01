@@ -351,30 +351,44 @@ public sealed class PublisherKeyStore : IPublisherKeyStore
         return null;
     }
 
+    private async Task<(byte[]? Data, OperationResult<List<TrustedPublisherKey>>? Error)> TryReadStoreFileAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var bytes = await File.ReadAllBytesAsync(_storeFilePath, cancellationToken).ConfigureAwait(false);
+            return (bytes, null);
+        }
+        catch (FileNotFoundException)
+        {
+            return (null, OperationResult<List<TrustedPublisherKey>>.CreateSuccess([]));
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return (null, OperationResult<List<TrustedPublisherKey>>.CreateSuccess([]));
+        }
+        catch (IOException ex)
+        {
+            return (null, ReadFailed(ex));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return (null, ReadFailed(ex));
+        }
+    }
+
     private async Task<OperationResult<List<TrustedPublisherKey>>> LoadAsync(CancellationToken cancellationToken)
     {
         // The file is opened directly instead of probed with File.Exists, which also returns false
         // when the file cannot be accessed. Only a genuinely absent file counts as an empty store.
-        byte[] encryptedBytes;
-        try
+        var (encryptedBytes, readError) = await TryReadStoreFileAsync(cancellationToken).ConfigureAwait(false);
+        if (readError != null)
         {
-            encryptedBytes = await File.ReadAllBytesAsync(_storeFilePath, cancellationToken).ConfigureAwait(false);
+            return readError;
         }
-        catch (FileNotFoundException)
+
+        if (encryptedBytes == null)
         {
             return OperationResult<List<TrustedPublisherKey>>.CreateSuccess([]);
-        }
-        catch (DirectoryNotFoundException)
-        {
-            return OperationResult<List<TrustedPublisherKey>>.CreateSuccess([]);
-        }
-        catch (IOException ex)
-        {
-            return ReadFailed(ex);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return ReadFailed(ex);
         }
 
         var decrypted = await DecryptAsync(encryptedBytes, cancellationToken).ConfigureAwait(false);
