@@ -251,6 +251,12 @@ public partial class WorldBuilderView : UserControl
 
     private void OnRequestResetView(WorldBuilderMap map)
     {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(() => OnRequestResetView(map));
+            return;
+        }
+
         if (_glViewport != null && DataContext is WorldBuilderViewModel vm)
         {
             _glViewport.Map = map;
@@ -268,6 +274,12 @@ public partial class WorldBuilderView : UserControl
 
     private void OnRequestRefreshView()
     {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(OnRequestRefreshView);
+            return;
+        }
+
         if (_skipTerrainRefresh)
         {
             _skipTerrainRefresh = false;
@@ -433,9 +445,15 @@ public partial class WorldBuilderView : UserControl
 
     private void OnGlAvailabilityChanged(bool available)
     {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(() => OnGlAvailabilityChanged(available));
+            return;
+        }
+
         if (!available && DataContext is WorldBuilderViewModel vm)
         {
-            vm.OnRendererFallback();
+            vm.OnRendererFallback(_glViewport?.GlInitError);
         }
     }
 
@@ -460,6 +478,12 @@ public partial class WorldBuilderView : UserControl
 
     private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(() => OnViewModelPropertyChanged(sender, e));
+            return;
+        }
+
         if (_syncingCamera || _glViewport == null || DataContext is not WorldBuilderViewModel vm)
         {
             return;

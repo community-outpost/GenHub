@@ -384,7 +384,8 @@ public sealed partial class WorldBuilderViewModel
     /// Handles the GL viewport reporting no usable context: falls back to the
     /// 2D canvas with a one-time warning toast.
     /// </summary>
-    public void OnRendererFallback()
+    /// <param name="detail">The GL init failure detail, when known.</param>
+    public void OnRendererFallback(string? detail = null)
     {
         if (!Renderer3DAvailable)
         {
@@ -392,6 +393,15 @@ public sealed partial class WorldBuilderViewModel
         }
 
         Renderer3DAvailable = false;
+        if (!string.IsNullOrWhiteSpace(detail))
+        {
+            logger.LogWarning("WorldBuilder 3D renderer unavailable, falling back to 2D: {Detail}", detail);
+        }
+        else
+        {
+            logger.LogWarning("WorldBuilder 3D renderer unavailable, falling back to 2D");
+        }
+
         notificationService.ShowWarning(
             localizationService.GetString("Tools.WorldBuilder.Renderer.Fallback.Title"),
             localizationService.GetString("Tools.WorldBuilder.Renderer.Fallback.Message"),
@@ -432,8 +442,20 @@ public sealed partial class WorldBuilderViewModel
     {
         if (_map == null || _map.Terrain.Width <= 0 || _map.Terrain.Height <= 0)
         {
-            CanvasBitmap?.Dispose();
-            CanvasBitmap = null;
+            if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+            {
+                CanvasBitmap?.Dispose();
+                CanvasBitmap = null;
+            }
+            else
+            {
+                Dispatcher.UIThread.Post(() =>
+                {
+                    CanvasBitmap?.Dispose();
+                    CanvasBitmap = null;
+                });
+            }
+
             return;
         }
 
@@ -467,19 +489,36 @@ public sealed partial class WorldBuilderViewModel
 
     private async Task ExecuteRenderPassAsync()
     {
-        if (_map == null)
+        var map = _map;
+        if (map == null)
         {
             Interlocked.Exchange(ref _isRendering, 0);
             return;
         }
 
         Interlocked.Exchange(ref _renderPending, 0);
-        var options = BuildRenderOptions();
-        var map = _map;
+
+        // BuildRenderOptions reads bound properties and RenderOptions raises
+        // PropertyChanged into Avalonia controls, so both must run on the UI
+        // thread. Re-queued passes run on the thread pool after ConfigureAwait(false).
+        MapCanvasRenderOptions options;
+        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            options = BuildRenderOptions();
+            RenderOptions = options;
+        }
+        else
+        {
+            options = await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                var built = BuildRenderOptions();
+                RenderOptions = built;
+                return built;
+            });
+        }
 
         try
         {
-            RenderOptions = options;
             var (pixels, width, height) = await Task.Run(() =>
             {
                 var (p, w, h) = WbFallbackPreview.RenderTopDown(map, options);
@@ -552,7 +591,7 @@ public sealed partial class WorldBuilderViewModel
             return;
         }
 
-        if (Dispatcher.UIThread.CheckAccess())
+        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
         {
             RequestRefreshView?.Invoke();
         }

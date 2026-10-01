@@ -704,14 +704,20 @@ public sealed class WbRenderer : IDisposable
     {
         error = string.Empty;
         var version = GetVersionString(gl);
-        var directive = version.Contains("OpenGL ES", StringComparison.OrdinalIgnoreCase) ? "#version 300 es" : "#version 330 core";
+        var isEs = version.Contains("OpenGL ES", StringComparison.OrdinalIgnoreCase);
+        var directive = isEs ? "#version 300 es" : "#version 330 core";
+
+        // Avalonia uses ANGLE (OpenGL ES) on Windows. ES fragment shaders
+        // require an explicit float precision or compilation fails and the
+        // viewport silently falls back to the 2D canvas.
+        var precision = isEs ? "precision mediump float;\nprecision mediump sampler2D;\n" : string.Empty;
         var vertex = CompileShader(gl, ShaderType.VertexShader, directive + "\n" + vertexBody, out error);
         if (vertex == 0)
         {
             return 0;
         }
 
-        var fragment = CompileShader(gl, ShaderType.FragmentShader, directive + "\n" + fragmentBody, out error);
+        var fragment = CompileShader(gl, ShaderType.FragmentShader, directive + "\n" + precision + fragmentBody, out error);
         if (fragment == 0)
         {
             gl.DeleteShader(vertex);

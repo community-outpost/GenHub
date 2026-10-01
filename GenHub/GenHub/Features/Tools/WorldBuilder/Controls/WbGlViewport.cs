@@ -124,6 +124,11 @@ public sealed class WbGlViewport : OpenGlControlBase, IDisposable
     public bool GlAvailable => _glAvailable;
 
     /// <summary>
+    /// Gets the GL init failure detail when <see cref="GlAvailable"/> is false.
+    /// </summary>
+    public string? GlInitError { get; private set; }
+
+    /// <summary>
     /// Fits the whole map into the viewport.
     /// </summary>
     public void ZoomToFit()
@@ -299,15 +304,20 @@ public sealed class WbGlViewport : OpenGlControlBase, IDisposable
             if (created.Success && created.Data != null)
             {
                 _renderer = created.Data;
+                GlInitError = null;
                 ReportGlAvailability(true);
             }
             else
             {
+                GlInitError = created.FirstError ?? "Renderer creation failed.";
+                System.Diagnostics.Debug.WriteLine($"WorldBuilder GL init failed: {GlInitError}");
                 ReportGlAvailability(false);
             }
         }
         catch (Exception ex) when (ex is InvalidOperationException || ex is NotSupportedException || ex is ArgumentException)
         {
+            GlInitError = ex.Message;
+            System.Diagnostics.Debug.WriteLine($"WorldBuilder GL init threw: {ex}");
             ReportGlAvailability(false);
         }
     }
