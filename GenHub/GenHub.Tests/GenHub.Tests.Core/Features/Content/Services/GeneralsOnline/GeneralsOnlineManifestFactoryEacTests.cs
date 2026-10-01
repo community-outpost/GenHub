@@ -388,9 +388,10 @@ public class GeneralsOnlineManifestFactoryEacTests : IDisposable
     [Fact]
     public async Task CreateManifestsFromLocalInstallAsync_BootstrapperOnly_ImportsAsync()
     {
+        const string wrappedBinary = "GeneralsOnlineZH_Wrapped.exe";
         WriteFile(GameClientConstants.GeneralsOnlineEacLauncherExecutable);
-        WriteFile("GeneralsOnlineZH_TestEnvironment.exe");
-        WriteSettingsJson("GeneralsOnlineZH_TestEnvironment.exe");
+        WriteFile(wrappedBinary);
+        WriteSettingsJson(wrappedBinary);
 
         var providerLoader = new Mock<IProviderDefinitionLoader>();
         var factory = new GeneralsOnlineManifestFactory(
@@ -401,7 +402,7 @@ public class GeneralsOnlineManifestFactoryEacTests : IDisposable
 
         var gameClient = Assert.Single(manifests, manifest => manifest.ContentType == ContentType.GameClient);
         Assert.NotNull(gameClient.LaunchRelationship);
-        Assert.Equal("GeneralsOnlineZH_TestEnvironment", gameClient.LaunchRelationship!.ProcessName);
+        Assert.Equal("GeneralsOnlineZH_Wrapped", gameClient.LaunchRelationship!.ProcessName);
     }
 
     /// <summary>

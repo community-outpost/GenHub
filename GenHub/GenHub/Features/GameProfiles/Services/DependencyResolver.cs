@@ -469,60 +469,58 @@ public class DependencyResolver(
         typeOrName.Equals(ContentType.Patch.ToManifestIdString(), StringComparison.OrdinalIgnoreCase) ||
         typeOrName.Equals(ManifestConstants.GameDataContentTypeName, StringComparison.OrdinalIgnoreCase);
 
-    private static bool MatchesContentKeyword(string contentId, ContentManifest manifest)
+    private static bool MatchesGameDataKeyword(string contentId, ContentManifest manifest) =>
+        contentId.Contains(ManifestConstants.GameDataContentTypeName, StringComparison.OrdinalIgnoreCase) &&
+        (manifest.Id.Value.Contains(ManifestConstants.GameDataContentTypeName, StringComparison.OrdinalIgnoreCase) ||
+         manifest.Name.Contains(ManifestConstants.GameDataDisplayKeyword, StringComparison.OrdinalIgnoreCase));
+
+    private static bool MatchesMapPackKeyword(string contentId, ContentManifest manifest) =>
+        (contentId.Contains(ManifestConstants.QuickMatchMapsKeyword, StringComparison.OrdinalIgnoreCase) ||
+         contentId.Contains(ManifestConstants.MapPackKeyword, StringComparison.OrdinalIgnoreCase)) &&
+        (manifest.ContentType == ContentType.MapPack ||
+         manifest.Id.Value.Contains(ManifestConstants.MapPackKeyword, StringComparison.OrdinalIgnoreCase) ||
+         manifest.Id.Value.Contains(ManifestConstants.QuickMatchMapsKeyword, StringComparison.OrdinalIgnoreCase));
+
+    private static bool HasTestVariantSegment(string id) =>
+        id.Split('.').Any(segment =>
+            segment.Equals(GeneralsOnlineConstants.VariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase) ||
+            segment.Equals(GeneralsOnlineConstants.LegacyVariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase));
+
+    private static bool MatchesGameClientKeyword(string contentId, ContentManifest manifest)
     {
-        if (contentId.Contains(ManifestConstants.GameDataContentTypeName, StringComparison.OrdinalIgnoreCase) &&
-            (manifest.Id.Value.Contains(ManifestConstants.GameDataContentTypeName, StringComparison.OrdinalIgnoreCase) ||
-             manifest.Name.Contains(ManifestConstants.GameDataDisplayKeyword, StringComparison.OrdinalIgnoreCase)))
+        if (manifest.ContentType != ContentType.GameClient)
         {
-            return true;
+            return false;
         }
 
-        if ((contentId.Contains(ManifestConstants.QuickMatchMapsKeyword, StringComparison.OrdinalIgnoreCase) ||
-             contentId.Contains(ManifestConstants.MapPackKeyword, StringComparison.OrdinalIgnoreCase)) &&
-            (manifest.ContentType == ContentType.MapPack ||
-             manifest.Id.Value.Contains(ManifestConstants.MapPackKeyword, StringComparison.OrdinalIgnoreCase) ||
-             manifest.Id.Value.Contains(ManifestConstants.QuickMatchMapsKeyword, StringComparison.OrdinalIgnoreCase)))
+        var isContentTest = HasTestVariantSegment(contentId);
+        var isManifestTest = HasTestVariantSegment(manifest.Id.Value) ||
+                             (manifest.Name is not null && manifest.Name.Contains(GeneralsOnlineConstants.TestEnvironmentDisplayName, StringComparison.OrdinalIgnoreCase));
+
+        if (isContentTest != isManifestTest)
         {
-            return true;
+            return false;
         }
 
-        if (manifest.ContentType == ContentType.GameClient)
+        var isContent60Hz = contentId.Contains(ManifestConstants.SixtyHzKeyword, StringComparison.OrdinalIgnoreCase);
+        var isManifest60Hz = manifest.Id.Value.Contains(ManifestConstants.SixtyHzKeyword, StringComparison.OrdinalIgnoreCase) ||
+                             (manifest.Name is not null && manifest.Name.Contains(ManifestConstants.SixtyHzKeyword, StringComparison.OrdinalIgnoreCase));
+
+        if (isContent60Hz && !isManifest60Hz)
         {
-            static bool HasTestVariantSegment(string id) =>
-                id.Split('.').Any(segment =>
-                    segment.Equals(GeneralsOnlineConstants.VariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase) ||
-                    segment.Equals(GeneralsOnlineConstants.LegacyVariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase));
-
-            var isContentTest = HasTestVariantSegment(contentId);
-            var isManifestTest = HasTestVariantSegment(manifest.Id.Value) ||
-                                 (manifest.Name is not null && manifest.Name.Contains(GeneralsOnlineConstants.TestEnvironmentDisplayName, StringComparison.OrdinalIgnoreCase));
-
-            if (isContentTest != isManifestTest)
-            {
-                return false;
-            }
-
-            var isContent60Hz = contentId.Contains(ManifestConstants.SixtyHzKeyword, StringComparison.OrdinalIgnoreCase);
-            var isManifest60Hz = manifest.Id.Value.Contains(ManifestConstants.SixtyHzKeyword, StringComparison.OrdinalIgnoreCase) ||
-                                 (manifest.Name is not null && manifest.Name.Contains(ManifestConstants.SixtyHzKeyword, StringComparison.OrdinalIgnoreCase));
-
-            if (isContent60Hz && !isManifest60Hz)
-            {
-                return false;
-            }
-
-            if (isContent60Hz ||
-                (contentId.Contains(ManifestConstants.GameClientContentTypeName, StringComparison.OrdinalIgnoreCase) &&
-                 !contentId.Contains(ManifestConstants.GameDataContentTypeName, StringComparison.OrdinalIgnoreCase) &&
-                 !contentId.Contains(ManifestConstants.MapPackKeyword, StringComparison.OrdinalIgnoreCase)))
-            {
-                return true;
-            }
+            return false;
         }
 
-        return false;
+        return isContent60Hz ||
+            (contentId.Contains(ManifestConstants.GameClientContentTypeName, StringComparison.OrdinalIgnoreCase) &&
+             !contentId.Contains(ManifestConstants.GameDataContentTypeName, StringComparison.OrdinalIgnoreCase) &&
+             !contentId.Contains(ManifestConstants.MapPackKeyword, StringComparison.OrdinalIgnoreCase));
     }
+
+    private static bool MatchesContentKeyword(string contentId, ContentManifest manifest) =>
+        MatchesGameDataKeyword(contentId, manifest) ||
+        MatchesMapPackKeyword(contentId, manifest) ||
+        MatchesGameClientKeyword(contentId, manifest);
 
     private async Task<ContentManifest?> FindManifestInPoolAsync(string contentId, CancellationToken cancellationToken)
     {

@@ -14,11 +14,20 @@ public static class GeneralsOnlineConstants
     /// <summary>Publisher identifier for Generals Online.</summary>
     public const string PublisherName = "GeneralsOnline";
 
+    /// <summary>Publisher ID for the Generals Online service.</summary>
+    public const string PublisherId = PublisherType;
+
     /// <summary>Publisher type identifier used in manifest IDs and routing.</summary>
     public const string PublisherType = PublisherTypeConstants.GeneralsOnline;
 
-    /// <summary>Publisher type enum value for typed comparisons.</summary>
-    public const PublisherType PublisherTypeValue = Models.Enums.PublisherType.GeneralsOnline;
+    /// <summary>Client name and identifier prefix for GeneralsOnline.</summary>
+    public const string ClientName = "GeneralsOnline";
+
+    /// <summary>Default executable file name for Generals Online clients.</summary>
+    public const string DefaultExecutableFileName = "GeneralsOnline.exe";
+
+    /// <summary>Content type for GeneralsOnline game clients.</summary>
+    public const string ContentType = "gameclient";
 
     /// <summary>Display name for the publisher shown in UI.</summary>
     public const string PublisherDisplayName = "Generals Online";
@@ -33,6 +42,9 @@ public static class GeneralsOnlineConstants
     public const string Description = "Generals Online is a modernized version of Command & Conquer Generals: Zero Hour featuring smooth 60 FPS gameplay, reliable peer-to-peer and relayed networking via GameNetworkingSockets, integrated QuickMatch matchmaking, and active anti-cheat protection. Built by the community for competitive and casual play.";
 
     // ===== URLs and Endpoints =====
+
+    /// <summary>Content icon URL.</summary>
+    public const string IconUrl = UriConstants.GeneralsOnlineLogoUri;
 
     /// <summary>Main website URL.</summary>
     public const string WebsiteUrl = "https://generalsonline.com";
@@ -49,6 +61,12 @@ public static class GeneralsOnlineConstants
     /// <summary>Changelog and release notes URL template.</summary>
     public const string ChangelogUrl = "https://generalsonline.com/changelog";
 
+    /// <summary>Patch notes URL for Generals Online.</summary>
+    public const string PatchNotesUrl = "https://www.playgenerals.online/patchnotes";
+
+    /// <summary>Default releases endpoint URL for Generals Online portable downloads.</summary>
+    public const string ReleasesUrl = "https://cdn.playgenerals.online/releases";
+
     // ===== UI and Branding =====
 
     /// <summary>Theme color for Generals Online branding (hex format, GO orange/gold).</summary>
@@ -61,6 +79,27 @@ public static class GeneralsOnlineConstants
     public const string CoverSource = "avares://GenHub/Assets/Images/Publishers/generalsonline_cover.png";
 
     // ===== Versioning and Sync =====
+
+    /// <summary>Format for parsing version dates (MMddyy).</summary>
+    public const string VersionDateFormat = "MMddyy";
+
+    /// <summary>Separator between date and QFE number in versions.</summary>
+    public const string QfeSeparator = "_QFE";
+
+    /// <summary>Prefix for QFE markers in version strings.</summary>
+    public const string QfeMarkerPrefix = "QFE";
+
+    /// <summary>Prefix for portable archive filenames.</summary>
+    public const string PortableFilePrefix = "GeneralsOnline_portable_";
+
+    /// <summary>File extension for portable downloads.</summary>
+    public const string PortableExtension = ".zip";
+
+    /// <summary>CRC catalog content name for Easy Anti-Cheat Zero Hour game clients.</summary>
+    public const string EacZeroHourContentName = "eac-zerohour";
+
+    /// <summary>Content name suffix for compound detector game client ids such as "zerohour-generalsonline-60hz".</summary>
+    public const string Compound60HzContentNameSuffix = "-" + PublisherType + "-" + Variant60HzSuffix;
 
     /// <summary>Update check interval in hours.</summary>
     public const int UpdateCheckIntervalHours = 24;
@@ -80,7 +119,7 @@ public static class GeneralsOnlineConstants
     public const string ManifestIdPrefix = "generalsonline-";
 
     /// <summary>Prefix used for Generals Online content IDs from the API.</summary>
-    public const string ContentIdPrefix = "generalsonline_";
+    public const string ContentIdPrefix = "GeneralsOnline_";
 
     // ===== Game Client Variants =====
 
@@ -89,6 +128,9 @@ public static class GeneralsOnlineConstants
 
     /// <summary>Variant suffix for the Test Environment client (direct execution, no EAC).</summary>
     public const string VariantTestEnvironmentSuffix = "test";
+
+    /// <summary>Legacy variant suffix for the Test Environment client.</summary>
+    public const string LegacyVariantTestEnvironmentSuffix = "testenvironment";
 
     /// <summary>Variant suffix for the QuickMatch MapPack.</summary>
     public const string QuickMatchMapPackSuffix = "quickmatchmaps";

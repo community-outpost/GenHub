@@ -381,6 +381,44 @@ public partial class GeneralsOnlineProfileReconciler(
     }
 
     /// <summary>
+    /// Extracts the variant suffix from tags, checking known variant tags.
+    /// </summary>
+    /// <param name="tags">The tags collection.</param>
+    /// <returns>The variant suffix, or null if not detected.</returns>
+    private static string? ExtractVariantFromTags(IEnumerable<string>? tags)
+    {
+        if (tags == null)
+        {
+            return null;
+        }
+
+        foreach (var tag in tags)
+        {
+            if (tag.Equals(GeneralsOnlineVariantTags.Tag60Hz, StringComparison.OrdinalIgnoreCase))
+            {
+                return GeneralsOnlineConstants.Variant60HzSuffix;
+            }
+
+            if (tag.Equals(GeneralsOnlineVariantTags.TagTestEnvironment, StringComparison.OrdinalIgnoreCase))
+            {
+                return GeneralsOnlineConstants.VariantTestEnvironmentSuffix;
+            }
+
+            if (tag.Equals(GeneralsOnlineVariantTags.TagQuickMatchMaps, StringComparison.OrdinalIgnoreCase))
+            {
+                return GeneralsOnlineConstants.QuickMatchMapPackSuffix;
+            }
+
+            if (tag.Equals(GeneralsOnlineVariantTags.TagGameData, StringComparison.OrdinalIgnoreCase))
+            {
+                return GeneralsOnlineConstants.GameDataPatchSuffix;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Extracts the variant suffix from a manifest, checking tags first for explicit variant detection.
     /// </summary>
     /// <param name="manifest">The manifest to extract variant from.</param>
@@ -388,30 +426,10 @@ public partial class GeneralsOnlineProfileReconciler(
     private static string? ExtractVariant(ContentManifest manifest)
     {
         // First, check for explicit variant tags in metadata (preferred method for new manifests)
-        if (manifest.Metadata?.Tags != null)
+        var tagVariant = ExtractVariantFromTags(manifest.Metadata?.Tags);
+        if (tagVariant != null)
         {
-            foreach (var tag in manifest.Metadata.Tags)
-            {
-                if (tag.Equals(GeneralsOnlineVariantTags.Tag60Hz, StringComparison.OrdinalIgnoreCase))
-                {
-                    return GeneralsOnlineConstants.Variant60HzSuffix;
-                }
-
-                if (tag.Equals(GeneralsOnlineVariantTags.TagTestEnvironment, StringComparison.OrdinalIgnoreCase))
-                {
-                    return GeneralsOnlineConstants.VariantTestEnvironmentSuffix;
-                }
-
-                if (tag.Equals(GeneralsOnlineVariantTags.TagQuickMatchMaps, StringComparison.OrdinalIgnoreCase))
-                {
-                    return GeneralsOnlineConstants.QuickMatchMapPackSuffix;
-                }
-
-                if (tag.Equals(GeneralsOnlineVariantTags.TagGameData, StringComparison.OrdinalIgnoreCase))
-                {
-                    return GeneralsOnlineConstants.GameDataPatchSuffix;
-                }
-            }
+            return tagVariant;
         }
 
         // Fallback to ID-based detection for manifests

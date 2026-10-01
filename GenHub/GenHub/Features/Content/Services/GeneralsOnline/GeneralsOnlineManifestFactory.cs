@@ -474,6 +474,15 @@ public class GeneralsOnlineManifestFactory(
         return manifest.Metadata?.Tags is not null && manifest.Metadata.Tags.Any(t => t.Equals(GeneralsOnlineVariantTags.TagTestEnvironment, StringComparison.OrdinalIgnoreCase));
     }
 
+    private static async Task<string> ComputeFileHashAsync(
+        string filePath,
+        CancellationToken cancellationToken)
+    {
+        using var stream = File.OpenRead(filePath);
+        var hashBytes = await SHA256.HashDataAsync(stream, cancellationToken);
+        return Convert.ToHexString(hashBytes).ToLowerInvariant();
+    }
+
     /// <summary>
     /// Creates a content manifest for the GeneralsOnlineGameData data patch.
     /// This manifest contains game data files (community balance patch and core INI configuration).
@@ -691,8 +700,8 @@ public class GeneralsOnlineManifestFactory(
                 Tags = [.. GeneralsOnlineConstants.Tags, .. GetVariantTags(GeneralsOnlineConstants.VariantTestEnvironmentSuffix)],
                 ChangelogUrl = changelogUrl,
                 CoverUrl = GeneralsOnlineConstants.CoverSource,
-                VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(version),
-                VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(version),
+                VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(ContentType.GameClient, version),
+                VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(ContentType.GameClient, version),
             },
             Files = [],
             Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesForTestEnvironment(userVersion),
@@ -1145,20 +1154,11 @@ public class GeneralsOnlineManifestFactory(
             if (m.Dependencies.Any(matchPredicate))
             {
                 logger.LogWarning(
-                    "Removing {DependencyDescription} dependency from manifest '{Name}' because {DependencyDescription} was not found in archive",
+                    "Removing {DependencyDescription} dependency from manifest '{Name}' because it was not found in archive",
                     dependencyDescription,
                     m.Name);
                 m.Dependencies = m.Dependencies.Where(d => !matchPredicate(d)).ToList();
             }
         }
-    }
-
-    private static async Task<string> ComputeFileHashAsync(
-        string filePath,
-        CancellationToken cancellationToken)
-    {
-        using var stream = File.OpenRead(filePath);
-        var hashBytes = await SHA256.HashDataAsync(stream, cancellationToken);
-        return Convert.ToHexString(hashBytes).ToLowerInvariant();
     }
 }
