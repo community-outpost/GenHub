@@ -192,7 +192,7 @@ public class ProfileContentLoader(
             // Note: RequireExisting GameInstallation dependencies are handled separately in the ViewModel
             // by selecting from AvailableGameInstallations (detected system installations)
             var autoInstallDeps = manifest.Dependencies
-                .Where(d => !d.IsOptional && d.InstallBehavior == DependencyInstallBehavior.AutoInstall)
+                .Where(d => d.InstallBehavior == DependencyInstallBehavior.AutoInstall)
                 .ToList();
 
             if (autoInstallDeps.Count == 0)

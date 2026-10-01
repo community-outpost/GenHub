@@ -105,6 +105,9 @@ public static class GeneralsOnlineConstants
     /// <summary>Manifest name suffix for 60Hz variant.</summary>
     public const string Variant60HzSuffix = "60hz";
 
+    /// <summary>Manifest name suffix for test environment game client variant.</summary>
+    public const string VariantTestEnvironmentSuffix = "test";
+
     /// <summary>CRC catalog content name for Easy Anti-Cheat Zero Hour game clients.</summary>
     public const string EacZeroHourContentName = "eac-zerohour";
 
@@ -119,6 +122,12 @@ public static class GeneralsOnlineConstants
 
     /// <summary>The default tick rate variant suffix.</summary>
     public const string DefaultVariantSuffix = Variant60HzSuffix;
+
+    /// <summary>Display name for GeneralsOnline Test Environment variant.</summary>
+    public const string TestEnvironmentDisplayName = "GeneralsOnline Test Environment";
+
+    /// <summary>Description for GeneralsOnline Test Environment variant.</summary>
+    public const string TestEnvironmentDescription = "Direct execution client for testing and debugging without Easy Anti-Cheat.";
 
     /// <summary>Display name for QuickMatch MapPack.</summary>
     public const string QuickMatchMapPackDisplayName = "GeneralsOnline QuickMatch Maps";

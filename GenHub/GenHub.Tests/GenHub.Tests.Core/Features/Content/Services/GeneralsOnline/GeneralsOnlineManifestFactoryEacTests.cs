@@ -238,6 +238,29 @@ public class GeneralsOnlineManifestFactoryEacTests : IDisposable
         Assert.Null(eacStep);
     }
 
+    /// <summary>
+    /// Verifies that EAC portable layout configures the Test Environment client without EAC post-install steps
+    /// and marks the default binary as executable.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_EacLayout_ConfiguresTestEnvironmentClientWithoutEacAsync()
+    {
+        WriteEacPortableLayout();
+
+        var testClient = await CreateGameClientManifestAsync(variantSuffix: GeneralsOnlineConstants.VariantTestEnvironmentSuffix);
+
+        Assert.NotNull(testClient);
+        Assert.Equal(GameClientConstants.GeneralsOnlineTestEnvironmentDisplayName, testClient.Name);
+        var executable = Assert.Single(testClient.Files, f => f.IsExecutable);
+        Assert.Equal(GameClientConstants.GeneralsOnlineDefaultExecutable, executable.RelativePath, ignoreCase: true);
+
+        // Test environment must NOT configure EAC installer
+        var eacStep = testClient.InstallationInstructions?.PostInstallSteps.FirstOrDefault(s =>
+            string.Equals(s.TargetRelativePath, GameClientConstants.GeneralsOnlineEacSetupExecutable, StringComparison.OrdinalIgnoreCase));
+        Assert.Null(eacStep);
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {
@@ -279,7 +302,9 @@ public class GeneralsOnlineManifestFactoryEacTests : IDisposable
         File.WriteAllText(fullPath, relativePath);
     }
 
-    private async Task<ContentManifest> CreateGameClientManifestAsync(ContentManifest? originalManifest = null)
+    private async Task<ContentManifest> CreateGameClientManifestAsync(
+        ContentManifest? originalManifest = null,
+        string variantSuffix = GeneralsOnlineConstants.Variant60HzSuffix)
     {
         var providerLoader = new Mock<IProviderDefinitionLoader>();
         var factory = new GeneralsOnlineManifestFactory(
@@ -291,6 +316,8 @@ public class GeneralsOnlineManifestFactoryEacTests : IDisposable
             _extractedDirectory);
 
         Assert.True(result.Success);
-        return result.Data!.Single(manifest => manifest.ContentType == ContentType.GameClient);
+        return result.Data!.First(manifest =>
+            manifest.ContentType == ContentType.GameClient &&
+            manifest.Id.Value.EndsWith(variantSuffix, StringComparison.OrdinalIgnoreCase));
     }
 }

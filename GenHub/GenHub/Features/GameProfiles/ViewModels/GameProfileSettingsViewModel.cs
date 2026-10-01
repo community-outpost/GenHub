@@ -1860,7 +1860,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         HashSet<string> warnedLockedNames,
         CancellationToken cancellationToken = default)
     {
-        if (IsDependencyAlreadyEnabled(dependency, EnabledContent) || dependency.IsOptional || _profileContentLoader == null)
+        if (IsDependencyAlreadyEnabled(dependency, EnabledContent) || (dependency.IsOptional && dependency.InstallBehavior != DependencyInstallBehavior.AutoInstall) || _profileContentLoader == null)
         {
             return;
         }

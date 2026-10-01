@@ -170,6 +170,9 @@ public static class GameClientConstants
     /// <summary>Display name for GeneralsOnline 60Hz variant.</summary>
     public const string GeneralsOnline60HzDisplayName = "GeneralsOnline 60Hz";
 
+    /// <summary>Display name for GeneralsOnline Test Environment variant.</summary>
+    public const string GeneralsOnlineTestEnvironmentDisplayName = "GeneralsOnline Test Environment";
+
     /// <summary>Default display name for GeneralsOnline variants.</summary>
     public const string GeneralsOnlineDefaultDisplayName = "GeneralsOnline";
 
@@ -341,6 +344,7 @@ public static class GameClientConstants
     [
         GeneralsOnlineEacLauncherExecutable,
         GeneralsOnline60HzExecutable,
+        GeneralsOnlineDefaultExecutable,
         GeneralsOnlineUnixExecutable,
     ];
 
