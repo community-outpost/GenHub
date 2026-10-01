@@ -197,6 +197,16 @@ public sealed class PublisherKeyStore : IPublisherKeyStore
         await _fileLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            // A temporarily unavailable encryption provider is not evidence of corruption.
+            // Recheck on each explicit quarantine request rather than relying on a prior read.
+            var encryptedBytes = await File.ReadAllBytesAsync(_storeFilePath, cancellationToken).ConfigureAwait(false);
+            var decrypted = await DecryptAsync(encryptedBytes, cancellationToken).ConfigureAwait(false);
+            if (decrypted.Failed)
+            {
+                return OperationResult<string?>.CreateFailure(decrypted);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
             var quarantinePath = CreateQuarantinePath();
             File.Move(_storeFilePath, quarantinePath, overwrite: false);
             _logger.LogWarning(
@@ -252,17 +262,7 @@ public sealed class PublisherKeyStore : IPublisherKeyStore
     /// </summary>
     /// <param name="protectedBytes">The bytes read from the store file.</param>
     /// <returns>The serialized store document, or null when the bytes do not decrypt or were modified.</returns>
-    internal byte[]? Unprotect(byte[] protectedBytes)
-    {
-        if (OperatingSystem.IsWindows())
-        {
-            return UnprotectWithDpapi(protectedBytes);
-        }
-
-        return MachineBoundEncryption.TryDecryptWithSecret(protectedBytes, _resolveMachineSecret(), PublisherKeyConstants.StoreKeySalt, out var plainBytes)
-            ? plainBytes
-            : null;
-    }
+    internal byte[]? Unprotect(byte[] protectedBytes) => Unprotect(protectedBytes, out _);
 
     [SupportedOSPlatform("windows")]
     private static byte[]? UnprotectWithDpapi(byte[] protectedBytes)
@@ -333,6 +333,24 @@ public sealed class PublisherKeyStore : IPublisherKeyStore
         return null;
     }
 
+    private byte[]? Unprotect(byte[] protectedBytes, out bool machineIdUnavailable)
+    {
+        machineIdUnavailable = false;
+        if (OperatingSystem.IsWindows())
+        {
+            return UnprotectWithDpapi(protectedBytes);
+        }
+
+        var secret = _resolveMachineSecret();
+        if (MachineBoundEncryption.TryDecryptWithSecret(protectedBytes, secret, PublisherKeyConstants.StoreKeySalt, out var plainBytes))
+        {
+            return plainBytes;
+        }
+
+        machineIdUnavailable = !secret.FromPrimarySource;
+        return null;
+    }
+
     private async Task<OperationResult<List<TrustedPublisherKey>>> LoadAsync(CancellationToken cancellationToken)
     {
         // The file is opened directly instead of probed with File.Exists, which also returns false
@@ -394,8 +412,16 @@ public sealed class PublisherKeyStore : IPublisherKeyStore
         try
         {
             // Resolving the secret can spawn a process and key derivation is deliberately slow, so both run off the caller's thread.
-            var plainBytes = await Task.Run(() => Unprotect(encryptedBytes), cancellationToken).ConfigureAwait(false);
-            return OperationResult<byte[]?>.CreateSuccess(plainBytes);
+            return await Task.Run(
+                () =>
+                {
+                    var plainBytes = Unprotect(encryptedBytes, out var machineIdUnavailable);
+                    return machineIdUnavailable
+                        ? OperationResult<byte[]?>.CreateFailure(
+                            "The machine ID is unavailable, so the publisher key store may be temporarily unreadable. Retry later; the store was left unchanged and must not be quarantined now.")
+                        : OperationResult<byte[]?>.CreateSuccess(plainBytes);
+                },
+                cancellationToken).ConfigureAwait(false);
         }
         catch (CryptographicException ex)
         {

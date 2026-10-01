@@ -462,6 +462,79 @@ public sealed class PublisherKeyStoreTests : IDisposable
     }
 
     /// <summary>
+    /// A transient primary-secret lookup failure cannot discard a healthy store, and a retry recovers.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [UnixFact]
+    public async Task PrimarySecretUnavailable_PreservesStoreAndBlocksQuarantineUntilRecovery()
+    {
+        var key = CreateTrustedKey("publisher", PublicKeyAlgorithm.Rsa);
+        await CreateStore().SaveKeyAsync(key);
+        var before = await File.ReadAllBytesAsync(StorePath);
+        var available = false;
+        var store = CreateStore(() => available
+            ? new MachineSecret(TestMachineSecret, true)
+            : new MachineSecret(MachineBoundEncryption.GetFallbackMachineSecret(), false));
+
+        var read = await store.GetKeysAsync();
+        var save = await store.SaveKeyAsync(CreateTrustedKey("other", PublicKeyAlgorithm.Ecdsa));
+        var quarantine = await store.QuarantineAsync();
+
+        Assert.False(read.Success);
+        Assert.Contains("temporarily unreadable", read.FirstError, StringComparison.Ordinal);
+        Assert.False(save.Success);
+        Assert.False(quarantine.Success);
+        Assert.Equal(before, await File.ReadAllBytesAsync(StorePath));
+        Assert.Equal([StorePath], Directory.GetFiles(_appDataPath));
+
+        available = true;
+        var recovered = await store.GetKeysAsync().WaitAsync(TimeSpan.FromSeconds(30));
+        Assert.True(recovered.Success, recovered.FirstError);
+        Assert.Equal([key], recovered.Data!);
+    }
+
+    /// <summary>
+    /// Cancellation during quarantine's decryption check leaves the original file in place.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [UnixFact]
+    public async Task QuarantineAsync_CancelledDuringDecryption_LeavesStoreIntact()
+    {
+        await CreateStore().SaveKeyAsync(CreateTrustedKey("publisher", PublicKeyAlgorithm.Rsa));
+        var before = await File.ReadAllBytesAsync(StorePath);
+        using var cancellation = new CancellationTokenSource();
+        var store = CreateStore(() =>
+        {
+            cancellation.Cancel();
+            return new MachineSecret(TestMachineSecret, true);
+        });
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => store.QuarantineAsync(cancellation.Token));
+
+        Assert.Equal(before, await File.ReadAllBytesAsync(StorePath));
+        Assert.Equal([StorePath], Directory.GetFiles(_appDataPath));
+        Assert.True((await store.GetKeysAsync().WaitAsync(TimeSpan.FromSeconds(30))).Success);
+    }
+
+    /// <summary>
+    /// A store written with the fallback secret remains readable when only that secret is available.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [UnixFact]
+    public async Task FallbackSecretStore_RemainsReadableWithoutPrimarySecret()
+    {
+        var key = CreateTrustedKey("publisher", PublicKeyAlgorithm.Rsa);
+        var store = CreateStore(MachineBoundEncryption.GetFallbackMachineSecret(), fromPrimarySource: false);
+        Assert.True((await store.SaveKeyAsync(key)).Success);
+
+        var loaded = await store.GetKeysAsync();
+
+        Assert.True(loaded.Success, loaded.FirstError);
+        Assert.Equal([key], loaded.Data!);
+    }
+
+    /// <summary>
     /// Duplicate publisher entries on disk are treated as corruption.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>

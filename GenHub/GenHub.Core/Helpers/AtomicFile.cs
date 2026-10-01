@@ -8,7 +8,8 @@ namespace GenHub.Core.Helpers;
 
 /// <summary>
 /// Writes files atomically through a temporary sibling plus move, so a failed,
-/// cancelled, or crashed write never leaves a truncated destination behind.
+/// cancelled, or interrupted write does not expose a partially written destination.
+/// Atomic replacement does not guarantee that the rename survives power loss.
 /// </summary>
 public static class AtomicFile
 {
@@ -126,6 +127,7 @@ public static class AtomicFile
         await using var stream = new FileStream(tempPath, options);
         await stream.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
         await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+        stream.Flush(flushToDisk: true);
     }
 
     private static string CreateTempPath(string path)

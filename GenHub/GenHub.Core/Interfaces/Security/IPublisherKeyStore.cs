@@ -44,7 +44,8 @@ public interface IPublisherKeyStore
     /// <summary>
     /// Moves the current store file aside, unchanged, to a uniquely named file next to it, so a store
     /// that can no longer be decrypted or parsed stops blocking new trust decisions. The store then
-    /// starts empty. The moved file is never deleted or overwritten.
+    /// starts empty. The moved file is never deleted or overwritten. A temporary machine-ID or
+    /// encryption-provider failure blocks quarantine so a healthy store can recover on retry.
     /// </summary>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The path of the moved file, null when there was no store file, or a failure.</returns>
