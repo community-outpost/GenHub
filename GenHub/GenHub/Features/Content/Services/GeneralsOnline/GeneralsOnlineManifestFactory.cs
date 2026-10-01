@@ -902,7 +902,8 @@ public class GeneralsOnlineManifestFactory(
     /// <param name="extractPath">The extracted package directory.</param>
     private void DeclareGameClientLaunch(ContentManifest manifest, string extractPath)
     {
-        var entry = manifest.Files.FirstOrDefault(file => file.IsExecutable);
+        var files = ManifestVariantResolver.ResolveFiles(manifest);
+        var entry = files.FirstOrDefault(file => file.IsExecutable);
         if (entry is null)
         {
             return;
@@ -943,8 +944,9 @@ public class GeneralsOnlineManifestFactory(
             return;
         }
 
+        var files = ManifestVariantResolver.ResolveFiles(manifest);
         var configuredFile = GeneralsOnlineEacSettings.NormalizeExecutableName(settings.Executable);
-        if (manifest.Files.All(file => !IsArchiveRootFile(file.RelativePath, configuredFile)))
+        if (files.All(file => !IsArchiveRootFile(file.RelativePath, configuredFile)))
         {
             logger.LogWarning(
                 "Bootstrapper settings name '{Executable}', which is not in the package; launch will guess the child process",

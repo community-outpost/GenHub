@@ -704,16 +704,8 @@ public class GameClientDetector(
     /// <returns>The entry point name, or <see langword="null"/> when no publisher claims one.</returns>
     private string? ResolvePublisherDirectoryEntryPoint(string directory)
     {
-        List<string> fileNames;
-        try
-        {
-            fileNames = Directory.EnumerateFiles(directory).Select(Path.GetFileName).OfType<string>().ToList();
-        }
-        catch (IOException)
-        {
-            return null;
-        }
-        catch (UnauthorizedAccessException)
+        var fileNames = GetFileNames(directory);
+        if (fileNames is null)
         {
             return null;
         }
@@ -739,6 +731,22 @@ public class GameClientDetector(
         }
 
         return null;
+
+        static List<string>? GetFileNames(string dir)
+        {
+            try
+            {
+                return Directory.EnumerateFiles(dir).Select(Path.GetFileName).OfType<string>().ToList();
+            }
+            catch (IOException)
+            {
+                return null;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return null;
+            }
+        }
     }
 
     /// <summary>
