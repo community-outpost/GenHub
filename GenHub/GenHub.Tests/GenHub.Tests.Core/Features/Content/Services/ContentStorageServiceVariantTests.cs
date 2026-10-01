@@ -220,6 +220,69 @@ public class ContentStorageServiceVariantTests : IDisposable
         Assert.Equal(HostFileName, Assert.Single(missing).RelativePath);
     }
 
+    /// <summary>The missing-object check skips a null host entry instead of throwing.</summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetMissingRequiredCasFilesAsync_WithNullHostEntry_SkipsItAsync()
+    {
+        var manifest = VariantManifestFixture.Create(
+            [null!, new() { RelativePath = HostFileName, Hash = HostHash, SourceType = ContentSourceType.ContentAddressable, IsRequired = true }],
+            []);
+
+        var missing = await _casServiceMock.Object.GetMissingRequiredCasFilesAsync(manifest);
+
+        Assert.Equal(HostFileName, Assert.Single(missing).RelativePath);
+    }
+
+    /// <summary>
+    /// Physical storage does not validate the staging source path of a foreign CAS entry,
+    /// which it never reads, and clears it before persisting.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task StoreContentAsync_PhysicalWithForeignStagingPathOutsideSource_SucceedsAsync()
+    {
+        var sourceDir = Path.Combine(_tempRoot, "Source");
+        Directory.CreateDirectory(sourceDir);
+        var hostPath = Path.Combine(sourceDir, HostFileName);
+        await File.WriteAllTextAsync(hostPath, "host-binary");
+        _casServiceMock
+            .Setup(c => c.StoreContentAsync(hostPath, ContentType.GameClient, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateSuccess(HostHash));
+
+        var manifest = VariantManifestFixture.Create(
+            [new() { RelativePath = HostFileName, SourcePath = hostPath, SourceType = ContentSourceType.LocalFile, IsRequired = true }],
+            [new() { RelativePath = ForeignFileName, Hash = ForeignHash, SourceType = ContentSourceType.ContentAddressable, SourcePath = Path.Combine(_tempRoot, "Staging", ForeignFileName), IsRequired = true }]);
+
+        var result = await _service.StoreContentAsync(manifest, sourceDir);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.Null(Assert.Single(ManifestVariantResolver.ResolveFiles(result.Data!, VariantManifestFixture.ForeignRuntimeIdentifier)).SourcePath);
+    }
+
+    /// <summary>A host CAS entry whose staging source path escapes the source directory is still rejected.</summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task StoreContentAsync_PhysicalWithHostCasStagingPathOutsideSource_FailsAsync()
+    {
+        var sourceDir = Path.Combine(_tempRoot, "Source");
+        Directory.CreateDirectory(sourceDir);
+        var hostPath = Path.Combine(sourceDir, HostFileName);
+        await File.WriteAllTextAsync(hostPath, "host-binary");
+
+        var manifest = VariantManifestFixture.Create(
+            [
+                new() { RelativePath = HostFileName, SourcePath = hostPath, SourceType = ContentSourceType.LocalFile, IsRequired = true },
+                new() { RelativePath = "extra.big", Hash = HostHash, SourceType = ContentSourceType.ContentAddressable, SourcePath = Path.Combine(_tempRoot, "Staging", "extra.big") },
+            ],
+            []);
+
+        var result = await _service.StoreContentAsync(manifest, sourceDir);
+
+        Assert.False(result.Success);
+        Assert.Contains("traverses outside base directory", result.FirstError);
+    }
+
     /// <summary>
     /// Retrieving a stored variant manifest materializes the host variant's files only.
     /// </summary>

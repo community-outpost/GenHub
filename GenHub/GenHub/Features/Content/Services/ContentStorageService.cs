@@ -53,6 +53,7 @@ public class ContentStorageService : IContentStorageService
     private static OperationResult<bool> ValidateManifestSecurity(ContentManifest manifest, string baseDirectory)
     {
         var metadataOnly = !RequiresPhysicalStorage(manifest);
+        var hostFiles = new HashSet<ManifestFile>(ManifestVariantResolver.ResolveFiles(manifest), ReferenceEqualityComparer.Instance);
         var normalizedBase = Path.GetFullPath(baseDirectory);
         foreach (var file in ManifestVariantResolver.EnumerateAllFiles(manifest))
         {
@@ -80,8 +81,11 @@ public class ContentStorageService : IContentStorageService
             // For now, we enforce that if SourcePath IS set, it must check for traversal if relative,
             // and we warn on absolute paths if they look suspicious (though we can't easily distinguish
             // legitimate local imports from malicious ones without more context).
-            if (!string.IsNullOrEmpty(file.SourcePath)
-                && !(metadataOnly && file.SourceType == ContentSourceType.ContentAddressable))
+            // A CAS entry's staging SourcePath is never read when storage is metadata-only or the
+            // entry belongs to another platform's variant, and it is cleared before persisting.
+            var stagingPathUnread = file.SourceType == ContentSourceType.ContentAddressable
+                && (metadataOnly || !hostFiles.Contains(file));
+            if (!string.IsNullOrEmpty(file.SourcePath) && !stagingPathUnread)
             {
                 try
                 {
@@ -370,8 +374,8 @@ public class ContentStorageService : IContentStorageService
         IProgress<ContentStorageProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        if (ManifestVariantResolver.GetDeclaredFileLists(manifest).Any(files => files is null || files.Any(f => f is null))
-            || manifest.Variants.Any(v => v is null))
+        // A null variant surfaces as a null list, so this also rejects null variants.
+        if (ManifestVariantResolver.GetDeclaredFileLists(manifest).Any(files => files is null || files.Any(f => f is null)))
         {
             return OperationResult<ContentManifest>.CreateFailure("Manifest contains a null variant or file entry or file collection");
         }
