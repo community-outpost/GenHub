@@ -715,7 +715,8 @@ def generate_date_codes(
     for code in GENERALSONLINE_KNOWN_DATES:
         d = _parse_known_date_code(code)
         if d and (include_all_known_dates or (start <= d <= end)):
-            date_set.add(code)
+            if end_date is None or d <= end:
+                date_set.add(code)
 
     curr_date = start
     while curr_date <= end:
@@ -1338,7 +1339,7 @@ def _crawl_generalsonline_source(
         inspect_binaries=inspect_binaries,
         start_date=go_start_date,
         end_date=end_date,
-        include_all_known_dates=from_latest,
+        include_all_known_dates=from_latest and end_date is None,
     )
 
 
@@ -1528,8 +1529,44 @@ def run_self_test() -> bool:
         exe_crc, sha256, _ = _extract_archive_crcs(zf, ["generals.exe"])
         expect(exe_crc == compute_buffer_crc(b"FIRST"), "Expected first archive member match")
 
-    # Test 9: check_cdn_reachable succeeds for responsive CDN
-    expect(check_cdn_reachable(GENERALSONLINE_CDN), f"Expected {GENERALSONLINE_CDN} to be reachable")
+    # Test 9: check_cdn_reachable unit test with mock response and exception handling
+    class _MockHTTPResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+    original_urlopen = urllib.request.urlopen
+    try:
+        urllib.request.urlopen = lambda req, timeout=10: _MockHTTPResponse()
+        expect(check_cdn_reachable("https://example.com/cdn"), "Expected reachable for 200 mock")
+
+        def _raise_http_error(req, timeout=10):
+            raise urllib.error.HTTPError("https://example.com/cdn", 404, "Not Found", {}, None)
+
+        urllib.request.urlopen = _raise_http_error
+        expect(check_cdn_reachable("https://example.com/cdn"), "Expected reachable for HTTP 404 error")
+
+        def _raise_url_error(req, timeout=10):
+            raise urllib.error.URLError("Network unreachable")
+
+        urllib.request.urlopen = _raise_url_error
+        expect(not check_cdn_reachable("https://example.com/cdn"), "Expected unreachable for URLError")
+    finally:
+        urllib.request.urlopen = original_urlopen
+
+    # Test 10: include_all_known_dates respects explicit end_date
+    early_end = datetime.date(2026, 2, 1)
+    bounded_codes = generate_date_codes(
+        start_date=datetime.date(2026, 1, 1),
+        end_date=early_end,
+        include_all_known_dates=True,
+    )
+    for c in bounded_codes:
+        d = _parse_known_date_code(c)
+        if d:
+            expect(d <= early_end, f"Code {c} exceeds explicit end_date {early_end}")
 
     print("All self-test assertions passed.")
     return True
