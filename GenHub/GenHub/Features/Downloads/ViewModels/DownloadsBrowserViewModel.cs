@@ -2197,7 +2197,14 @@ public sealed partial class DownloadsBrowserViewModel(
         var publisherId = SelectedPublisher.PublisherId;
         lock (_cacheLock)
         {
-            _browseCache.Remove(publisherId);
+            if (_browseCache.Remove(publisherId, out var cachedState))
+            {
+                cachedState.ActiveDetailViewModel?.Dispose();
+                foreach (var item in cachedState.Items)
+                {
+                    item.Dispose();
+                }
+            }
         }
 
         if (IsSubscribedPublisher)

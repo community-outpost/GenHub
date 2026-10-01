@@ -407,7 +407,7 @@
                             ToolTip.Tip="{localization:Localize Downloads.Browser.ReloadCatalog}"
                             AutomationProperties.Name="{localization:Localize Downloads.Browser.ReloadCatalog}"
                             VerticalAlignment="Center"
-                            IsVisible="{Binding HasMultipleCatalogs}">
+                            IsVisible="{Binding CanShowCatalogSwitcher}">
                         <PathIcon Data="{StaticResource RefreshIcon}"
                                   Width="13" Height="13"
                                   RenderTransformOrigin="50%,50%">
