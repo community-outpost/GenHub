@@ -332,7 +332,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
                     continue;
                 }
 
-                AddFileStructureIssues(variant.Files ?? [], $" in variant {variantIndex}", issues);
+                AddFileStructureIssues(variant.Files, $" in variant {variantIndex}", issues);
             }
         }
 
@@ -344,8 +344,14 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
         return issues;
     }
 
-    private static void AddFileStructureIssues(IReadOnlyList<ManifestFile> files, string location, List<ValidationIssue> issues)
+    private static void AddFileStructureIssues(IReadOnlyList<ManifestFile>? files, string location, List<ValidationIssue> issues)
     {
+        if (files is null)
+        {
+            issues.Add(new ValidationIssue($"Manifest Files collection{location} is null.", ValidationSeverity.Error));
+            return;
+        }
+
         for (var fileIndex = 0; fileIndex < files.Count; fileIndex++)
         {
             var file = files[fileIndex];

@@ -2,6 +2,7 @@ using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Validation;
 using GenHub.Features.Content.Services;
 using GenHub.Tests.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
@@ -97,6 +98,26 @@ public sealed class ContentValidatorVariantTests : IDisposable
 
         var issue = Assert.Single(result.Issues, issue => issue.Message.Contains("RelativePath", StringComparison.Ordinal));
         Assert.Equal("File at index 1 in variant 0 is missing its RelativePath.", issue.Message);
+    }
+
+    /// <summary>Explicit null file collections must remain structural errors.</summary>
+    /// <param name="withVariants">Whether valid platform variants are present.</param>
+    /// <returns>The asynchronous test.</returns>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ValidateManifestAsync_NullFiles_ReportsErrorAsync(bool withVariants)
+    {
+        var manifest = CreateManifest();
+        if (!withVariants)
+        {
+            manifest.Variants.Clear();
+        }
+
+        manifest.Files = null!;
+        var result = await _validator.ValidateManifestAsync(manifest);
+        Assert.Contains(result.Issues, issue => issue.Message == "Manifest Files collection is null."
+            && issue.Severity == ValidationSeverity.Error);
     }
 
     /// <inheritdoc/>
