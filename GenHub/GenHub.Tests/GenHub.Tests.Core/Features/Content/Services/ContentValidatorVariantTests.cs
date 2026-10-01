@@ -159,6 +159,49 @@ public sealed class ContentValidatorVariantTests : IDisposable
         Assert.Equal(0, result.TotalFilesValidated);
     }
 
+    /// <summary>Without a host variant, files on disk are not reported as unexpected.</summary>
+    /// <param name="fullValidation">Whether all validation phases are run.</param>
+    /// <returns>The asynchronous test.</returns>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DetectExtraneous_UnsupportedRuntime_ReportsOnlyHostErrorAsync(bool fullValidation)
+    {
+        await File.WriteAllTextAsync(Path.Combine(_contentDirectory, ForeignFileName), "foreign");
+        var manifest = CreateManifest();
+        manifest.Variants.RemoveAt(1);
+
+        var result = fullValidation
+            ? await _validator.ValidateAllAsync(_contentDirectory, manifest)
+            : await _validator.DetectExtraneousFilesAsync(_contentDirectory, manifest);
+
+        Assert.DoesNotContain(result.Issues, issue => issue.IssueType == ValidationIssueType.UnexpectedFile);
+        Assert.Single(result.Issues, issue => issue.Message.Contains("no variant supporting this host", StringComparison.Ordinal));
+    }
+
+    /// <summary>A null variant entry is reported as a structural error instead of throwing.</summary>
+    /// <param name="fullValidation">Whether all validation phases are run.</param>
+    /// <returns>The asynchronous test.</returns>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Validate_NullVariant_ReportsErrorAsync(bool fullValidation)
+    {
+        var manifest = CreateManifest();
+        manifest.Variants.Insert(0, null!);
+
+        var result = fullValidation
+            ? await _validator.ValidateAllAsync(_contentDirectory, manifest)
+            : await _validator.ValidateContentIntegrityAsync(_contentDirectory, manifest);
+
+        Assert.Equal(1, result.TotalFilesValidated);
+        if (fullValidation)
+        {
+            Assert.Contains(result.Issues, issue => issue.Message == "Variant at index 0 is null."
+                && issue.Severity == ValidationSeverity.Error);
+        }
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {

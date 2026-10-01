@@ -76,10 +76,14 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
         issues.AddRange(integrityResult.Issues);
         progress?.Report(new ValidationProgress(2, 3, "Content Integrity Complete"));
 
-        // Step 3: Extraneous files
-        progress?.Report(new ValidationProgress(2, 3, "Detecting Extraneous Files"));
-        var extraneousResult = await DetectExtraneousFilesAsync(contentPath, manifest, cancellationToken);
-        issues.AddRange(extraneousResult.Issues);
+        // Step 3: Extraneous files. Without a host variant there is no expected file set,
+        // and the integrity step has already reported the unsupported host.
+        if (ManifestVariantResolver.SupportsRuntime(manifest))
+        {
+            progress?.Report(new ValidationProgress(2, 3, "Detecting Extraneous Files"));
+            var extraneousResult = await DetectExtraneousFilesAsync(contentPath, manifest, cancellationToken);
+            issues.AddRange(extraneousResult.Issues);
+        }
 
         progress?.Report(new ValidationProgress(3, 3, "Validation Complete"));
 
@@ -106,9 +110,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
         cancellationToken.ThrowIfCancellationRequested();
         if (!ManifestVariantResolver.SupportsRuntime(manifest))
         {
-            return new ValidationResult(
-                manifest.Id,
-                [new ValidationIssue($"Manifest has no variant supporting this host ({ManifestVariantResolver.CurrentRuntimeIdentifier}).", ValidationSeverity.Error)]);
+            return CreateUnsupportedHostResult(manifest);
         }
 
         var issues = new List<ValidationIssue>();
@@ -219,6 +221,11 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
 
         ArgumentNullException.ThrowIfNull(manifest);
 
+        if (!ManifestVariantResolver.SupportsRuntime(manifest))
+        {
+            return CreateUnsupportedHostResult(manifest);
+        }
+
         var issues = new List<ValidationIssue>();
 
         if (!Directory.Exists(contentPath))
@@ -306,6 +313,11 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
 
         return new ValidationResult(manifest.Id, issues);
     }
+
+    private static ValidationResult CreateUnsupportedHostResult(ContentManifest manifest) =>
+        new(
+            manifest.Id,
+            [new ValidationIssue($"Manifest has no variant supporting this host ({ManifestVariantResolver.CurrentRuntimeIdentifier}).", ValidationSeverity.Error)]);
 
     private static List<ValidationIssue> ValidateManifestStructure(ContentManifest manifest)
     {
