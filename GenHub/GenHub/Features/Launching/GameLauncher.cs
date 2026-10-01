@@ -2987,16 +2987,9 @@ public class GameLauncher(
         string actualInstallationPath,
         CancellationToken cancellationToken)
     {
-        string? iniContent = null;
-        if (File.Exists(iniPath))
-        {
-            iniContent = await File.ReadAllTextAsync(iniPath, cancellationToken);
-        }
-        else
-        {
-            iniContent = TryExtractGameDataIniFromBig(workspacePath) ??
-                         TryExtractGameDataIniFromBig(actualInstallationPath);
-        }
+        var iniContent = File.Exists(iniPath)
+            ? await File.ReadAllTextAsync(iniPath, cancellationToken)
+            : (TryExtractGameDataIniFromBig(workspacePath) ?? TryExtractGameDataIniFromBig(actualInstallationPath));
 
         if (string.IsNullOrEmpty(iniContent))
         {

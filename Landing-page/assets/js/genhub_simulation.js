@@ -2426,6 +2426,10 @@
         return html.replace(/\n/g, "<br>");
     }
 
+    function isSummaryLine(lineText) {
+        return Boolean(lineText) && !/^([#*!-]|\s*$)/.test(lineText);
+    }
+
     function formatChangelogSummary(rawBody) {
         if (!rawBody) {
             return "Official GenHub release with updated assets and dependencies.";
@@ -2433,15 +2437,17 @@
         const lines = rawBody.split("\n");
         const cleanLines = [];
         for (const rawLine of lines) {
-            const l = rawLine.trim();
-            if (l && !l.startsWith("#") && !l.startsWith("*") && !l.startsWith("-") && !l.startsWith("!")) {
-                cleanLines.push(l);
+            const trimmedLine = rawLine.trim();
+            if (isSummaryLine(trimmedLine)) {
+                cleanLines.push(trimmedLine);
                 if (cleanLines.length === 2) {
                     break;
                 }
             }
         }
-        return cleanLines.join(" ") || "Official GenHub release with updated assets and dependencies.";
+        return cleanLines.length > 0
+            ? cleanLines.join(" ")
+            : "Official GenHub release with updated assets and dependencies.";
     }
 
     function formatReleaseDate(publishedAt) {
@@ -2472,7 +2478,7 @@
     function createPatchNotesCard(note) {
         let detailsList = "* Stability and performance improvements.";
         if (Array.isArray(note.details) && note.details.length > 0) {
-            detailsList = note.details.map(d => `* ${d}`).join("\n");
+            detailsList = note.details.map(detailItem => `* ${detailItem}`).join("\n");
         } else if (note.summary) {
             detailsList = `* ${note.summary}`;
         }
