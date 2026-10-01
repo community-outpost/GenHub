@@ -536,6 +536,24 @@ public class ManifestVariantResolverTests
         Assert.Equal("assets.big", Assert.Single(ManifestVariantResolver.ResolveFiles(manifest, "osx-arm64")).RelativePath);
     }
 
+    /// <summary>Declared lists keep the flat list first and preserve null lists and null variants.</summary>
+    [Fact]
+    public void GetDeclaredFileLists_PreservesOrderAndNullEntries()
+    {
+        var flat = new List<ManifestFile> { File("readme.txt") };
+        var first = new ArtifactVariant { RuntimeIdentifiers = ["win-x64"], Files = [File("generals.exe")] };
+        var nullFiles = new ArtifactVariant { RuntimeIdentifiers = ["osx-arm64"], Files = null! };
+        var manifest = new ContentManifest { Files = flat, Variants = [first, null!, nullFiles] };
+
+        var lists = ManifestVariantResolver.GetDeclaredFileLists(manifest);
+
+        Assert.Equal(4, lists.Count);
+        Assert.Same(flat, lists[0]);
+        Assert.Same(first.Files, lists[1]);
+        Assert.Null(lists[2]);
+        Assert.Null(lists[3]);
+    }
+
     private static ManifestFile File(string path, bool isExecutable = false) =>
         new() { RelativePath = path, IsExecutable = isExecutable };
 }
