@@ -17755,6 +17755,9 @@ Error: не удалось: {3}
   <data name="Tools.IniEditor.Canvas.CardHpLabel" xml:space="preserve">
     <value>HP</value>
   </data>
+  <data name="Tools.IniEditor.Canvas.OverviewCount" xml:space="preserve">
+    <value>Показано {0} из {1}</value>
+  </data>
   <data name="Tools.IniEditor.Canvas.CardCmdLabel" xml:space="preserve">
     <value>Ком.</value>
   </data>
@@ -17964,6 +17967,9 @@ Error: не удалось: {3}
   </data>
   <data name="Tools.IniEditor.Preview3D.ReferencedBy" xml:space="preserve">
     <value>Состояния отрисовки, использующие этот меш</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.RelatedObjects" xml:space="preserve">
+    <value>Связанные объекты</value>
   </data>
   <data name="Tools.IniEditor.Preview3D.DoubleClickHint" xml:space="preserve">
     <value>Перетаскивание — поворот • Колесо — масштаб • Правая кнопка или Shift — панорама • WASD — движение • Двойной щелчок — сброс</value>

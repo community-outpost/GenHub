@@ -268,6 +268,103 @@ public sealed class IniEditorPreviewTests
         Assert.Equal("Tools.IniEditor.Preview3D.Empty", viewModel.PreviewStatusText);
     }
 
+    /// <summary>
+    /// Verifies that selecting a command set lists its related objects and previews the first model.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task SelectingCommandSet_ListsRelatedObjectsAndPreviewsModelAsync()
+    {
+        var mockResolver = ResolverReturning(ResolvedModel());
+        using var viewModel = CreateViewModel(mockResolver.Object);
+        viewModel.FileExplorer.Directory = Path.GetTempPath();
+        var filePath = Path.Combine(Path.GetTempPath(), $"GenHubCommandSet{Guid.NewGuid():N}.ini");
+        await File.WriteAllTextAsync(filePath, CommandSetIni());
+        try
+        {
+            Assert.True(await viewModel.OpenFileAsync(filePath));
+            var setNode = FindNodeByName(viewModel, "SetBuildTank");
+            Assert.NotNull(setNode);
+            viewModel.SelectedNode = setNode;
+
+            Assert.True(viewModel.HasPreviewRelatedObjects);
+            var card = Assert.Single(viewModel.PreviewRelatedObjects);
+            Assert.Equal("TestTank", card.Title);
+            Assert.Equal("TestUnit", viewModel.SelectedBlockModel);
+
+            bool loaded = await WaitForAsync(() => viewModel.HasPreviewScene, TimeSpan.FromSeconds(5));
+            Assert.True(loaded);
+            Assert.Equal("TestUnit", viewModel.PreviewModelName);
+        }
+        finally
+        {
+            File.Delete(filePath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that selecting a command button resolves its object model and related card.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task SelectingCommandButton_ResolvesObjectModelAsync()
+    {
+        var mockResolver = ResolverReturning(ResolvedModel());
+        using var viewModel = CreateViewModel(mockResolver.Object);
+        viewModel.FileExplorer.Directory = Path.GetTempPath();
+        var filePath = Path.Combine(Path.GetTempPath(), $"GenHubCommandButton{Guid.NewGuid():N}.ini");
+        await File.WriteAllTextAsync(filePath, CommandSetIni());
+        try
+        {
+            Assert.True(await viewModel.OpenFileAsync(filePath));
+            var buttonNode = FindNodeByName(viewModel, "ButtonBuildTank");
+            Assert.NotNull(buttonNode);
+            viewModel.SelectedNode = buttonNode;
+
+            Assert.True(viewModel.HasPreviewRelatedObjects);
+            Assert.Single(viewModel.PreviewRelatedObjects);
+            Assert.Equal("TestUnit", viewModel.SelectedBlockModel);
+        }
+        finally
+        {
+            File.Delete(filePath);
+        }
+    }
+
+    private static IniTreeNodeViewModel? FindNodeByName(IniEditorViewModel viewModel, string name)
+    {
+        var queue = new Queue<IniTreeNodeViewModel>(viewModel.RootNodes);
+        while (queue.Count > 0)
+        {
+            var node = queue.Dequeue();
+            if (string.Equals(node.Block.Name, name, StringComparison.OrdinalIgnoreCase))
+            {
+                return node;
+            }
+
+            foreach (var child in node.Children)
+            {
+                queue.Enqueue(child);
+            }
+        }
+
+        return null;
+    }
+
+    private static string CommandSetIni()
+    {
+        return "Object TestTank\n" +
+            "  Model = TestUnit\n" +
+            "End\n" +
+            "CommandButton ButtonBuildTank\n" +
+            "  Object = TestTank\n" +
+            "End\n" +
+            "CommandSet SetBuildTank\n" +
+            "  1 = ButtonBuildTank\n" +
+            "  2 = ButtonBuildTank\n" +
+            "End\n";
+    }
+
     private static Mock<IW3dModelResolver> ResolverReturning(W3dResolvedModel resolved)
     {
         var mockResolver = new Mock<IW3dModelResolver>();

@@ -232,6 +232,12 @@ public sealed partial class IniEditorViewModel(
     /// </summary>
     public ObservableCollection<IniCanvasCardViewModel> CanvasBlockCards { get; } = [];
 
+    /// <summary>
+    /// Gets or sets the localized overview count shown above the canvas cards.
+    /// </summary>
+    [ObservableProperty]
+    private string _canvasOverviewCountText = string.Empty;
+
     [ObservableProperty]
     private IniTreeNodeViewModel? _selectedNode;
 
@@ -521,6 +527,16 @@ public sealed partial class IniEditorViewModel(
     /// Gets the draw module nodes referencing the selected preview mesh.
     /// </summary>
     public ObservableCollection<IniTreeNodeViewModel> PreviewMeshModules { get; } = [];
+
+    /// <summary>
+    /// Gets a value indicating whether the preview has related objects.
+    /// </summary>
+    public bool HasPreviewRelatedObjects => PreviewRelatedObjects.Count > 0;
+
+    /// <summary>
+    /// Gets the related object cards for reference blocks such as command sets.
+    /// </summary>
+    public ObservableCollection<IniCanvasCardViewModel> PreviewRelatedObjects { get; } = [];
 
     /// <summary>
     /// Gets or sets the portrait image for the selected block.
@@ -1784,13 +1800,79 @@ public sealed partial class IniEditorViewModel(
         // templates, preview the model of the object they point at.
         var target = FindFieldValue(block, IniConstants.FieldKeys.Object)
             ?? FindFieldValue(block, IniConstants.FieldKeys.StartingBuilding);
-        if (string.IsNullOrWhiteSpace(target))
+        if (!string.IsNullOrWhiteSpace(target))
         {
-            return string.Empty;
+            var referenced = FindBlocks(IniConstants.BlockTypes.Object, target.Trim()).FirstOrDefault();
+            return referenced == null ? string.Empty : ResolveBlockModelRecursive(referenced, depth + 1);
         }
 
-        var referenced = FindBlocks(IniConstants.BlockTypes.Object, target.Trim()).FirstOrDefault();
-        return referenced == null ? string.Empty : ResolveBlockModelRecursive(referenced, depth + 1);
+        // Command sets point at buttons rather than objects, so preview the
+        // model of the first related object behind the set.
+        foreach (var related in ResolveRelatedObjectBlocks(block))
+        {
+            var model = ResolveBlockModelRecursive(related, depth + 1);
+            if (!string.IsNullOrEmpty(model))
+            {
+                return model;
+            }
+        }
+
+        return string.Empty;
+    }
+
+    /// <summary>
+    /// Resolves the object blocks behind a reference block such as a command
+    /// set or command button, following the button chain to its objects.
+    /// </summary>
+    /// <param name="block">The reference block.</param>
+    /// <returns>The related object blocks, deduplicated and capped.</returns>
+    private IReadOnlyList<IniBlock> ResolveRelatedObjectBlocks(IniBlock block)
+    {
+        if (string.Equals(block.BlockType, IniConstants.BlockTypes.CommandSet, StringComparison.OrdinalIgnoreCase))
+        {
+            return ResolveCommandSetObjects(block);
+        }
+
+        if (string.Equals(block.BlockType, IniConstants.BlockTypes.CommandButton, StringComparison.OrdinalIgnoreCase))
+        {
+            var target = FindFieldValue(block, IniConstants.FieldKeys.Object);
+            return string.IsNullOrWhiteSpace(target)
+                ? []
+                : FindBlocks(IniConstants.BlockTypes.Object, target.Trim()).ToList();
+        }
+
+        return [];
+    }
+
+    private IReadOnlyList<IniBlock> ResolveCommandSetObjects(IniBlock block)
+    {
+        var related = new List<IniBlock>();
+        foreach (var field in block.Fields)
+        {
+            if (string.IsNullOrWhiteSpace(field.Value) || related.Count >= IniConstants.Editor.MaxRelatedObjects)
+            {
+                continue;
+            }
+
+            foreach (var button in FindBlocks(IniConstants.BlockTypes.CommandButton, field.Value.Trim()))
+            {
+                var target = FindFieldValue(button, IniConstants.FieldKeys.Object);
+                if (string.IsNullOrWhiteSpace(target))
+                {
+                    continue;
+                }
+
+                foreach (var referenced in FindBlocks(IniConstants.BlockTypes.Object, target.Trim()))
+                {
+                    if (!related.Contains(referenced) && related.Count < IniConstants.Editor.MaxRelatedObjects)
+                    {
+                        related.Add(referenced);
+                    }
+                }
+            }
+        }
+
+        return related;
     }
 
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Kept as an instance helper to satisfy member ordering.")]
@@ -4398,15 +4480,12 @@ public sealed partial class IniEditorViewModel(
 
     private void UpdateCanvasBlockCardPortraits()
     {
-        foreach (var card in CanvasBlockCards)
+        foreach (var card in CanvasBlockCards.Concat(PreviewRelatedObjects))
         {
-            var portraitName = (FindFieldValue(card.Block, IniConstants.FieldKeys.SelectPortrait) ??
-                                FindFieldValue(card.Block, IniConstants.FieldKeys.ButtonImage))?.Trim();
-            if (!string.IsNullOrWhiteSpace(portraitName) &&
-                _textureThumbnails.TryGetValue(portraitName, out var thumb) &&
-                card.Portrait != thumb)
+            var portrait = TryGetPortrait(card.Block);
+            if (portrait != null && card.Portrait != portrait)
             {
-                card.Portrait = thumb;
+                card.Portrait = portrait;
             }
         }
     }
@@ -4416,9 +4495,11 @@ public sealed partial class IniEditorViewModel(
         CanvasBlockCards.Clear();
         if (_document == null)
         {
+            CanvasOverviewCountText = string.Empty;
             return;
         }
 
+        var total = _document.Blocks.Count;
         var hpLabel = Localization.GetString("Tools.IniEditor.Canvas.CardHpLabel");
         var costLabel = Localization.GetString("Tools.IniEditor.Vitals.Cost");
         var cmdLabel = Localization.GetString("Tools.IniEditor.Canvas.CardCmdLabel");
@@ -4456,6 +4537,8 @@ public sealed partial class IniEditorViewModel(
 
             CanvasBlockCards.Add(new IniCanvasCardViewModel(block, title, block.BlockType, side, portrait, vitals));
         }
+
+        CanvasOverviewCountText = Localization.GetString("Tools.IniEditor.Canvas.OverviewCount", CanvasBlockCards.Count, total);
     }
 
     [RelayCommand]
@@ -4638,6 +4721,7 @@ public sealed partial class IniEditorViewModel(
         SelectedBlockModel = ResolveBlockModel(block);
         ApplyVisualObjectPortrait(block);
         ApplyVisualObjectLists(block, node);
+        RebuildPreviewRelatedObjects(block);
         RebuildSelectedBlockAssets(block, node);
         RebuildPreviewHiddenMeshes(EditableSelectedNode?.Block ?? block);
 
@@ -4667,6 +4751,8 @@ public sealed partial class IniEditorViewModel(
         SelectedBlockPortrait = null;
         SelectedBlockKindOfList.Clear();
         SelectedBlockModules.Clear();
+        PreviewRelatedObjects.Clear();
+        OnPropertyChanged(nameof(HasPreviewRelatedObjects));
         SelectedBlockAssets.Clear();
         PreviewHiddenMeshNames = null;
         HasSelectedBlockAssets = false;
@@ -5035,6 +5121,37 @@ public sealed partial class IniEditorViewModel(
         {
             CollectMeshModuleMatches(child, fullName, shortName);
         }
+    }
+
+    /// <summary>
+    /// Rebuilds the related object cards for the selected reference block.
+    /// </summary>
+    /// <param name="block">The selected block.</param>
+    private void RebuildPreviewRelatedObjects(IniBlock block)
+    {
+        PreviewRelatedObjects.Clear();
+        foreach (var related in ResolveRelatedObjectBlocks(block))
+        {
+            var title = !string.IsNullOrWhiteSpace(related.Name) ? related.Name : related.BlockType;
+            PreviewRelatedObjects.Add(new IniCanvasCardViewModel(
+                related,
+                title,
+                related.BlockType,
+                FindFieldValue(related, IniConstants.FieldKeys.Side),
+                TryGetPortrait(related),
+                []));
+        }
+
+        OnPropertyChanged(nameof(HasPreviewRelatedObjects));
+    }
+
+    private IImage? TryGetPortrait(IniBlock block)
+    {
+        var portraitName = (FindFieldValue(block, IniConstants.FieldKeys.SelectPortrait) ??
+                            FindFieldValue(block, IniConstants.FieldKeys.ButtonImage))?.Trim();
+        return !string.IsNullOrWhiteSpace(portraitName) && _textureThumbnails.TryGetValue(portraitName, out var thumb)
+            ? thumb
+            : null;
     }
 
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Kept as an instance helper to satisfy member ordering.")]

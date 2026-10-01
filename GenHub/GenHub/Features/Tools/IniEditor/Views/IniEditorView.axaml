@@ -1055,6 +1055,42 @@
                         </DataTemplate>
                       </ItemsControl.ItemTemplate>
                     </ItemsControl>
+                    <TextBlock Text="{localization:Localize Tools.IniEditor.Preview3D.RelatedObjects}"
+                               IsVisible="{Binding HasPreviewRelatedObjects}"
+                               FontWeight="SemiBold" FontSize="11" Foreground="{DynamicResource TextPrimary}"/>
+                    <ItemsControl ItemsSource="{Binding PreviewRelatedObjects}"
+                                  IsVisible="{Binding HasPreviewRelatedObjects}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <WrapPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:IniCanvasCardViewModel">
+                          <Button x:CompileBindings="False"
+                                  Command="{Binding DataContext.SelectBlockCardCommand, ElementName=Root}"
+                                  CommandParameter="{Binding Block}"
+                                  Padding="6,3" Margin="0,1,4,1" Background="Transparent"
+                                  BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
+                                  CornerRadius="6" Cursor="Hand"
+                                  ToolTip.Tip="{Binding Title}">
+                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                              <material:MaterialIcon Kind="{Binding IconKind}" Width="14" Height="14"
+                                                     Foreground="{DynamicResource AccentBrush}"
+                                                     VerticalAlignment="Center"/>
+                              <StackPanel Spacing="0" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Title}" FontSize="10" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimary}"
+                                           TextTrimming="CharacterEllipsis" MaxWidth="160"/>
+                                <TextBlock Text="{Binding BlockType}" FontSize="9"
+                                           Foreground="{DynamicResource TextSecondary}"
+                                           TextTrimming="CharacterEllipsis" MaxWidth="160"/>
+                              </StackPanel>
+                            </StackPanel>
+                          </Button>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                   </StackPanel>
                 </Border>
 
@@ -1076,6 +1112,8 @@
                         <material:MaterialIcon Kind="Close" Width="12" Height="12"/>
                       </Button>
                     </Grid>
+                    <TextBlock Text="{Binding CanvasOverviewCountText}" FontSize="10"
+                               Foreground="{DynamicResource TextSecondary}"/>
                     <ItemsControl ItemsSource="{Binding CanvasBlockCards}">
                       <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>

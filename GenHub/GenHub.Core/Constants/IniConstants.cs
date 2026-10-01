@@ -975,5 +975,8 @@ public static class IniConstants
 
         /// <summary>Block count above which the explorer groups blocks by type.</summary>
         public const int BlockGroupThreshold = 12;
+
+        /// <summary>Maximum related objects shown on the preview canvas for reference blocks.</summary>
+        public const int MaxRelatedObjects = 12;
     }
 }

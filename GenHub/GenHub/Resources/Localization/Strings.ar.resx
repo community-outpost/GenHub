@@ -17755,6 +17755,9 @@ Error: فشل: {3}
   <data name="Tools.IniEditor.Canvas.CardHpLabel" xml:space="preserve">
     <value>HP</value>
   </data>
+  <data name="Tools.IniEditor.Canvas.OverviewCount" xml:space="preserve">
+    <value>عرض {0} من {1} كتلة</value>
+  </data>
   <data name="Tools.IniEditor.Canvas.CardCmdLabel" xml:space="preserve">
     <value>أمر</value>
   </data>
@@ -17964,6 +17967,9 @@ Error: فشل: {3}
   </data>
   <data name="Tools.IniEditor.Preview3D.ReferencedBy" xml:space="preserve">
     <value>حالات الرسم التي تستخدم هذه الشبكة</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.RelatedObjects" xml:space="preserve">
+    <value>الكائنات المرتبطة</value>
   </data>
   <data name="Tools.IniEditor.Preview3D.DoubleClickHint" xml:space="preserve">
     <value>اسحب للتدوير • العجلة للتقريب • السحب بالزر الأيمن أو Shift للتحريك • WASD للحركة • نقرة مزدوجة لإعادة الضبط</value>
