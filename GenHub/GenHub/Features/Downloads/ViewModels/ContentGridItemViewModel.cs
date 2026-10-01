@@ -633,17 +633,24 @@ public sealed partial class ContentGridItemViewModel(
 
     private static async Task AwaitIconLoadTasksAsync(Task? task1, Task? task2)
     {
-        if (task1 != null && task2 != null)
+        try
         {
-            await Task.WhenAll(task1, task2);
+            if (task1 != null && task2 != null)
+            {
+                await Task.WhenAll(task1, task2);
+            }
+            else if (task1 != null)
+            {
+                await task1;
+            }
+            else if (task2 != null)
+            {
+                await task2;
+            }
         }
-        else if (task1 != null)
+        catch (OperationCanceledException)
         {
-            await task1;
-        }
-        else if (task2 != null)
-        {
-            await task2;
+            // Expected cancellation from supersession or disposal
         }
     }
 
@@ -1071,7 +1078,15 @@ public sealed partial class ContentGridItemViewModel(
             string.Equals(_inFlightPublisherLogoUrl, publisherLogoUrl, StringComparison.Ordinal) &&
             string.Equals(_inFlightThumbnailUrl, thumbnailUrl, StringComparison.Ordinal))
         {
-            await inFlightTask;
+            try
+            {
+                await inFlightTask;
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected cancellation from supersession or disposal
+            }
+
             return;
         }
 
@@ -1444,17 +1459,26 @@ public sealed partial class ContentGridItemViewModel(
     /// <summary>
     /// Loads icon and logo bitmaps if not already loaded.
     /// </summary>
+    /// <param name="cancellationToken">An optional token to cancel waiting for or loading the icons.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public async Task EnsureIconsLoadedAsync()
+    public async Task EnsureIconsLoadedAsync(CancellationToken cancellationToken = default)
     {
-        if (_disposed)
+        if (_disposed || cancellationToken.IsCancellationRequested)
         {
             return;
         }
 
         if (_activeIconLoadTask is { IsCompleted: false } inFlightTask)
         {
-            await inFlightTask;
+            try
+            {
+                await inFlightTask.WaitAsync(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                // Consumed
+            }
+
             return;
         }
 

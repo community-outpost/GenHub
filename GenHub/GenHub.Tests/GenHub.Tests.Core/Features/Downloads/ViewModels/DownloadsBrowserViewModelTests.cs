@@ -2947,10 +2947,30 @@ public class DownloadsBrowserViewModelTests
     }
 
     /// <summary>
-    /// Verifies that CanShowCatalogSwitcher returns false for a single catalog when not loading.
+    /// Verifies that CanShowCatalogSwitcher returns false for a non-subscribed publisher with a single catalog.
     /// </summary>
     [Fact]
-    public void CanShowCatalogSwitcher_WhenSingleCatalogAndNotLoading_ReturnsFalse()
+    public void CanShowCatalogSwitcher_WhenNonSubscribedSingleCatalog_ReturnsFalse()
+    {
+        // Arrange
+        using var viewModel = CreateViewModel();
+        var pub = new PublisherItemViewModel("std-1", "Standard Publisher", null, "Standard");
+        viewModel.Publishers.Add(pub);
+        viewModel.SelectedPublisher = pub;
+        viewModel.AvailableCatalogs.Add(new CatalogEntry { Id = "c1", Name = "Catalog 1", Url = "https://example.com/1.json" });
+        viewModel.IsLoadingCatalogs = false;
+
+        // Act & Assert
+        Assert.False(viewModel.HasMultipleCatalogs);
+        Assert.False(viewModel.IsSubscribedPublisher);
+        Assert.False(viewModel.CanShowCatalogSwitcher);
+    }
+
+    /// <summary>
+    /// Verifies that CanShowCatalogSwitcher returns true for a subscribed publisher even with a single catalog.
+    /// </summary>
+    [Fact]
+    public void CanShowCatalogSwitcher_WhenSubscribedPublisherSingleCatalog_ReturnsTrue()
     {
         // Arrange
         using var viewModel = CreateViewModel();
@@ -2962,7 +2982,8 @@ public class DownloadsBrowserViewModelTests
 
         // Act & Assert
         Assert.False(viewModel.HasMultipleCatalogs);
-        Assert.False(viewModel.CanShowCatalogSwitcher);
+        Assert.True(viewModel.IsSubscribedPublisher);
+        Assert.True(viewModel.CanShowCatalogSwitcher);
     }
 
     /// <summary>

@@ -304,7 +304,7 @@ public sealed partial class DownloadsBrowserViewModel(
     /// <summary>
     /// Gets a value indicating whether the catalog switcher and reload bar should be visible in the toolbar.
     /// </summary>
-    public bool CanShowCatalogSwitcher => HasMultipleCatalogs || (IsSubscribedPublisher && IsLoadingCatalogs);
+    public bool CanShowCatalogSwitcher => HasMultipleCatalogs || IsSubscribedPublisher;
 
     /// <summary>
     /// Gets a value indicating whether the catalog can currently be reloaded.
@@ -1440,7 +1440,7 @@ public sealed partial class DownloadsBrowserViewModel(
         var replaced = Interlocked.Exchange(ref _catalogsCts, newCts);
         replaced?.Cancel();
         replaced?.Dispose();
-        _ = LoadAvailableCatalogsAsync(publisher.PublisherId, newCts.Token, loadId);
+        _ = LoadAvailableCatalogsAsync(publisher.PublisherId, loadId, newCts.Token);
     }
 
     private void ClearCatalogSelection()
@@ -1484,7 +1484,7 @@ public sealed partial class DownloadsBrowserViewModel(
             c.Url.Equals(subscription.CatalogUrl, StringComparison.OrdinalIgnoreCase));
     }
 
-    private async Task LoadAvailableCatalogsAsync(string publisherId, CancellationToken cancellationToken, int loadId)
+    private async Task LoadAvailableCatalogsAsync(string publisherId, int loadId, CancellationToken cancellationToken)
     {
         RunOnUi(() =>
         {
@@ -1592,6 +1592,51 @@ public sealed partial class DownloadsBrowserViewModel(
         }
     }
 
+    private void CheckAndNotifyNewCatalogs(
+        string publisherId,
+        Core.Models.Providers.PublisherSubscription subscription,
+        List<CatalogEntry> catalogs)
+    {
+        if (!_knownCatalogIds.TryGetValue(publisherId, out var prevCatalogIds) || !subscription.NotifyNewReleases)
+        {
+            return;
+        }
+
+        var newCatalogs = catalogs.Where(c => !prevCatalogIds.Contains(c.Id)).ToList();
+        if (newCatalogs.Count == 0)
+        {
+            return;
+        }
+
+        var title = _localizationService?.GetString("Downloads.Browser.NewCatalogNotificationTitle") ?? "New Catalog Available";
+        var actionText = _localizationService?.GetString("Downloads.Browser.ViewCatalogAction") ?? "View Catalog";
+
+        var targetCat = newCatalogs[0];
+        var message = newCatalogs.Count == 1
+            ? string.Format(
+                _localizationService?.GetString("Downloads.Browser.NewCatalogNotificationFormat") ?? "Publisher '{0}' released a new catalog: '{1}'",
+                subscription.PublisherName ?? publisherId,
+                targetCat.Name)
+            : string.Format(
+                _localizationService?.GetString("Downloads.Browser.NewCatalogsNotificationFormat") ?? "Publisher '{0}' released {1} new catalogs.",
+                subscription.PublisherName ?? publisherId,
+                newCatalogs.Count);
+
+        notificationService.Show(new NotificationMessage(
+            NotificationType.Info,
+            title,
+            message,
+            autoDismissMilliseconds: NotificationDurations.VeryLong,
+            actionText: actionText,
+            action: () => RunOnUi(() =>
+            {
+                if (string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
+                {
+                    SelectedCatalog = targetCat;
+                }
+            })));
+    }
+
     private void PopulateCatalogs(
         string publisherId,
         Core.Models.Providers.PublisherSubscription subscription,
@@ -1605,61 +1650,7 @@ public sealed partial class DownloadsBrowserViewModel(
             return;
         }
 
-        if (_knownCatalogIds.TryGetValue(publisherId, out var prevCatalogIds))
-        {
-            var newCatalogs = catalogs.Where(c => !prevCatalogIds.Contains(c.Id)).ToList();
-            if (newCatalogs.Count > 0 && subscription.NotifyNewReleases)
-            {
-                var title = _localizationService?.GetString("Downloads.Browser.NewCatalogNotificationTitle") ?? "New Catalog Available";
-                var actionText = _localizationService?.GetString("Downloads.Browser.ViewCatalogAction") ?? "View Catalog";
-
-                if (newCatalogs.Count == 1)
-                {
-                    var cat = newCatalogs[0];
-                    var message = string.Format(
-                        _localizationService?.GetString("Downloads.Browser.NewCatalogNotificationFormat") ?? "Publisher '{0}' released a new catalog: '{1}'",
-                        subscription.PublisherName ?? publisherId,
-                        cat.Name);
-
-                    notificationService.Show(new NotificationMessage(
-                        NotificationType.Info,
-                        title,
-                        message,
-                        autoDismissMilliseconds: NotificationDurations.VeryLong,
-                        actionText: actionText,
-                        action: () => RunOnUi(() =>
-                        {
-                            if (string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
-                            {
-                                SelectedCatalog = cat;
-                            }
-                        })));
-                }
-                else
-                {
-                    var message = string.Format(
-                        _localizationService?.GetString("Downloads.Browser.NewCatalogsNotificationFormat") ?? "Publisher '{0}' released {1} new catalogs.",
-                        subscription.PublisherName ?? publisherId,
-                        newCatalogs.Count);
-
-                    var firstCat = newCatalogs[0];
-                    notificationService.Show(new NotificationMessage(
-                        NotificationType.Info,
-                        title,
-                        message,
-                        autoDismissMilliseconds: NotificationDurations.VeryLong,
-                        actionText: actionText,
-                        action: () => RunOnUi(() =>
-                        {
-                            if (string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
-                            {
-                                SelectedCatalog = firstCat;
-                            }
-                        })));
-                }
-            }
-        }
-
+        CheckAndNotifyNewCatalogs(publisherId, subscription, catalogs);
         _knownCatalogIds[publisherId] = new HashSet<string>(catalogs.Select(c => c.Id), StringComparer.OrdinalIgnoreCase);
 
         _suppressCatalogChanged = true;
@@ -2246,7 +2237,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 replaced.Dispose();
             }
 
-            await LoadAvailableCatalogsAsync(publisherId, newCts.Token, loadId);
+            await LoadAvailableCatalogsAsync(publisherId, loadId, newCts.Token);
         }
 
         if (!string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
@@ -2339,7 +2330,7 @@ public sealed partial class DownloadsBrowserViewModel(
                         replaced.Dispose();
                     }
 
-                    _ = LoadAvailableCatalogsAsync(publisherId, newCts.Token, loadId);
+                    _ = LoadAvailableCatalogsAsync(publisherId, loadId, newCts.Token);
                 }
             }
 
@@ -3074,7 +3065,7 @@ public sealed partial class DownloadsBrowserViewModel(
             }
 
             variantVm.NotifyStateChanged();
-            await Task.WhenAny(variantVm.EnsureIconsLoadedAsync(ct), Task.Delay(UiConstants.ProgressiveItemRenderDelayMs, CancellationToken.None));
+            await Task.WhenAny(variantVm.EnsureIconsLoadedAsync(ct), Task.Delay(UiConstants.ProgressiveItemRenderDelayMs, ct));
             return variantVm;
         }
         catch
@@ -3103,7 +3094,7 @@ public sealed partial class DownloadsBrowserViewModel(
             }
 
             vm.NotifyStateChanged();
-            await Task.WhenAny(vm.EnsureIconsLoadedAsync(ct), Task.Delay(UiConstants.ProgressiveItemRenderDelayMs, CancellationToken.None));
+            await Task.WhenAny(vm.EnsureIconsLoadedAsync(ct), Task.Delay(UiConstants.ProgressiveItemRenderDelayMs, ct));
             return vm;
         }
         catch

@@ -400,6 +400,16 @@
                         </ComboBox.SelectionBoxItemTemplate>
                     </ComboBox>
 
+                    <!-- Single-catalog name (displayed when only one catalog exists) -->
+                    <TextBlock Text="{Binding SelectedCatalog.Name}"
+                               FontSize="13"
+                               FontWeight="Medium"
+                               Foreground="{DynamicResource TextPrimary}"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"
+                               MaxWidth="260"
+                               IsVisible="{Binding !HasMultipleCatalogs}" />
+
                     <!-- Reload catalog button with animated spin on loading -->
                     <Button Classes="catalog-reload-btn"
                             Classes.spinning="{Binding IsLoadingCatalogs}"
