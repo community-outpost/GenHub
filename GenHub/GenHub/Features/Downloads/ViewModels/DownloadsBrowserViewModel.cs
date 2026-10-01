@@ -174,6 +174,7 @@ public sealed partial class DownloadsBrowserViewModel(
     private CancellationTokenSource? _searchCts;
     private CancellationTokenSource? _catalogsCts;
     private int _activeRequestId;
+    private int _activeCatalogLoadId;
     private string? _lastPopulatedPublisherId;
     private string? _lastCatalogPublisherId;
     private bool _hasCustomQuery;
@@ -308,7 +309,7 @@ public sealed partial class DownloadsBrowserViewModel(
     /// <summary>
     /// Gets a value indicating whether the catalog can currently be reloaded.
     /// </summary>
-    public bool CanReloadCatalog => !IsLoadingCatalogs && !IsLoading && SelectedPublisher != null;
+    public bool CanReloadCatalog => !IsLoadingCatalogs && !IsLoading && IsSubscribedPublisher;
 
     /// <summary>
     /// Gets the localized status text displayed while catalogs are loading or updating.
@@ -1423,9 +1424,9 @@ public sealed partial class DownloadsBrowserViewModel(
 
     private void BeginLoadCatalogsForPublisher(PublisherItemViewModel publisher)
     {
-        _catalogsCts?.Cancel();
-        _catalogsCts?.Dispose();
-        _catalogsCts = null;
+        var oldCts = Interlocked.Exchange(ref _catalogsCts, null);
+        oldCts?.Cancel();
+        oldCts?.Dispose();
         ClearCatalogSelection();
 
         if (!publisher.PublisherType.Equals(CatalogConstants.SubscribedPublisherCategory, StringComparison.OrdinalIgnoreCase))
@@ -1433,13 +1434,18 @@ public sealed partial class DownloadsBrowserViewModel(
             return;
         }
 
+        var loadId = Interlocked.Increment(ref _activeCatalogLoadId);
         _lastCatalogPublisherId = publisher.PublisherId;
-        _catalogsCts = CancellationTokenSource.CreateLinkedTokenSource(_vmCts.Token);
-        _ = LoadAvailableCatalogsAsync(publisher.PublisherId, _catalogsCts.Token);
+        var newCts = CancellationTokenSource.CreateLinkedTokenSource(_vmCts.Token);
+        var replaced = Interlocked.Exchange(ref _catalogsCts, newCts);
+        replaced?.Cancel();
+        replaced?.Dispose();
+        _ = LoadAvailableCatalogsAsync(publisher.PublisherId, newCts.Token, loadId);
     }
 
     private void ClearCatalogSelection()
     {
+        Interlocked.Increment(ref _activeCatalogLoadId);
         _lastCatalogPublisherId = null;
         _suppressCatalogChanged = true;
         try
@@ -1478,8 +1484,16 @@ public sealed partial class DownloadsBrowserViewModel(
             c.Url.Equals(subscription.CatalogUrl, StringComparison.OrdinalIgnoreCase));
     }
 
-    private async Task LoadAvailableCatalogsAsync(string publisherId, CancellationToken cancellationToken)
+    private async Task LoadAvailableCatalogsAsync(string publisherId, CancellationToken cancellationToken, int loadId)
     {
+        RunOnUi(() =>
+        {
+            if (string.Equals(_lastCatalogPublisherId, publisherId, StringComparison.OrdinalIgnoreCase) && _activeCatalogLoadId == loadId)
+            {
+                IsLoadingCatalogs = true;
+            }
+        });
+
         try
         {
             var subscriptionResult = await subscriptionStore.GetSubscriptionAsync(publisherId, cancellationToken);
@@ -1494,14 +1508,6 @@ public sealed partial class DownloadsBrowserViewModel(
             {
                 return;
             }
-
-            RunOnUi(() =>
-            {
-                if (string.Equals(_lastCatalogPublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
-                {
-                    IsLoadingCatalogs = true;
-                }
-            });
 
             var definitionResult = await definitionService.FetchDefinitionAsync(subscription.DefinitionUrl, cancellationToken);
             if (definitionResult.Success && definitionResult.Data != null)
@@ -1548,6 +1554,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 ? definitionResult.Data?.Catalogs.Where(c => !string.IsNullOrWhiteSpace(c.Url)).ToList()
                 : null;
             if (cancellationToken.IsCancellationRequested
+                || _activeCatalogLoadId != loadId
                 || !string.Equals(_lastCatalogPublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
             {
                 return;
@@ -1561,7 +1568,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 return;
             }
 
-            RunOnUi(() => PopulateCatalogs(publisherId, subscription, catalogs));
+            RunOnUi(() => PopulateCatalogs(publisherId, subscription, catalogs, loadId));
         }
         catch (OperationCanceledException)
         {
@@ -1576,7 +1583,8 @@ public sealed partial class DownloadsBrowserViewModel(
             RunOnUi(() =>
             {
                 if (!cancellationToken.IsCancellationRequested &&
-                    string.Equals(_lastCatalogPublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
+                    string.Equals(_lastCatalogPublisherId, publisherId, StringComparison.OrdinalIgnoreCase) &&
+                    _activeCatalogLoadId == loadId)
                 {
                     IsLoadingCatalogs = false;
                 }
@@ -1587,9 +1595,11 @@ public sealed partial class DownloadsBrowserViewModel(
     private void PopulateCatalogs(
         string publisherId,
         Core.Models.Providers.PublisherSubscription subscription,
-        List<CatalogEntry> catalogs)
+        List<CatalogEntry> catalogs,
+        int loadId)
     {
-        if (!string.Equals(_lastCatalogPublisherId, publisherId, StringComparison.OrdinalIgnoreCase)
+        if (_activeCatalogLoadId != loadId
+            || !string.Equals(_lastCatalogPublisherId, publisherId, StringComparison.OrdinalIgnoreCase)
             || !string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
         {
             return;
@@ -2183,17 +2193,27 @@ public sealed partial class DownloadsBrowserViewModel(
     [RelayCommand(CanExecute = nameof(CanReloadCatalog))]
     private async Task ReloadCatalogAsync()
     {
-        if (SelectedPublisher == null)
+        if (SelectedPublisher == null || !IsSubscribedPublisher)
         {
             return;
         }
 
+        Interlocked.Increment(ref _activeRequestId);
         var publisherId = SelectedPublisher.PublisherId;
         lock (_cacheLock)
         {
             if (_browseCache.Remove(publisherId, out var cachedState))
             {
-                cachedState.ActiveDetailViewModel?.Dispose();
+                if (cachedState.ActiveDetailViewModel != null)
+                {
+                    if (ReferenceEquals(SelectedContent, cachedState.ActiveDetailViewModel))
+                    {
+                        SelectedContent = null;
+                    }
+
+                    cachedState.ActiveDetailViewModel.Dispose();
+                }
+
                 var currentItems = new HashSet<ContentGridItemViewModel>(ContentItems);
                 foreach (var item in cachedState.Items.Where(item => !currentItems.Contains(item)))
                 {
@@ -2211,15 +2231,19 @@ public sealed partial class DownloadsBrowserViewModel(
                 previousCts.Dispose();
             }
 
-            if (!string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase) || !IsSubscribedPublisher)
             {
                 return;
             }
 
+            var loadId = Interlocked.Increment(ref _activeCatalogLoadId);
             _lastCatalogPublisherId = publisherId;
-            _catalogsCts = CancellationTokenSource.CreateLinkedTokenSource(_vmCts.Token);
+            var newCts = CancellationTokenSource.CreateLinkedTokenSource(_vmCts.Token);
+            var replaced = Interlocked.Exchange(ref _catalogsCts, newCts);
+            replaced?.Cancel();
+            replaced?.Dispose();
 
-            await LoadAvailableCatalogsAsync(publisherId, _catalogsCts.Token);
+            await LoadAvailableCatalogsAsync(publisherId, newCts.Token, loadId);
         }
 
         if (!string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
@@ -2295,7 +2319,18 @@ public sealed partial class DownloadsBrowserViewModel(
                 PrepareContentCollectionForRefresh(publisherId, isCustomQuery);
                 if (reloadCatalogs && SelectedPublisher.PublisherType.Equals(CatalogConstants.SubscribedPublisherCategory, StringComparison.OrdinalIgnoreCase))
                 {
-                    _ = LoadAvailableCatalogsAsync(publisherId, _vmCts.Token);
+                    var oldCts = Interlocked.Exchange(ref _catalogsCts, null);
+                    oldCts?.Cancel();
+                    oldCts?.Dispose();
+
+                    var loadId = Interlocked.Increment(ref _activeCatalogLoadId);
+                    _lastCatalogPublisherId = publisherId;
+                    var newCts = CancellationTokenSource.CreateLinkedTokenSource(_vmCts.Token);
+                    var replaced = Interlocked.Exchange(ref _catalogsCts, newCts);
+                    replaced?.Cancel();
+                    replaced?.Dispose();
+
+                    _ = LoadAvailableCatalogsAsync(publisherId, newCts.Token, loadId);
                 }
             }
 
@@ -3030,7 +3065,7 @@ public sealed partial class DownloadsBrowserViewModel(
             }
 
             variantVm.NotifyStateChanged();
-            await Task.WhenAny(variantVm.EnsureIconsLoadedAsync(), Task.Delay(UiConstants.ProgressiveItemRenderDelayMs, ct));
+            await Task.WhenAny(variantVm.EnsureIconsLoadedAsync(), Task.Delay(UiConstants.ProgressiveItemRenderDelayMs));
             return variantVm;
         }
         catch
@@ -3059,7 +3094,7 @@ public sealed partial class DownloadsBrowserViewModel(
             }
 
             vm.NotifyStateChanged();
-            await Task.WhenAny(vm.EnsureIconsLoadedAsync(), Task.Delay(UiConstants.ProgressiveItemRenderDelayMs, ct));
+            await Task.WhenAny(vm.EnsureIconsLoadedAsync(), Task.Delay(UiConstants.ProgressiveItemRenderDelayMs));
             return vm;
         }
         catch
@@ -3285,6 +3320,7 @@ public sealed partial class DownloadsBrowserViewModel(
         var strategy = promptResult?.Strategy ?? UpdateStrategy.CreateNewProfile;
         var shouldDelete = promptResult?.DeleteOldVersions == true;
 
+        var fromVersion = string.Empty;
         try
         {
             var (oldManifests, newManifests, mapping) = await LoadReconciliationManifestsAsync(
@@ -3292,6 +3328,11 @@ public sealed partial class DownloadsBrowserViewModel(
                 oldManifestId,
                 newManifestId,
                 ct);
+
+            if (oldManifests.Count > 0)
+            {
+                fromVersion = oldManifests[0].Version;
+            }
 
             var helperContext = new PublisherReconciliationContext(
                 activeProfileManager,
@@ -3319,7 +3360,6 @@ public sealed partial class DownloadsBrowserViewModel(
                 await reconciliationService.ScheduleGarbageCollectionAsync(false, ct);
             }
 
-            var fromVersion = oldManifests.Count > 0 ? oldManifests[0].Version : string.Empty;
             var toVersion = targetItem.SearchResult?.Version ?? string.Empty;
 
             if (!updateOutcome.Proceed)
@@ -3364,7 +3404,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 targetPublisherId,
                 targetItem,
                 newManifestId,
-                string.Empty,
+                fromVersion,
                 targetItem.SearchResult?.Version ?? string.Empty,
                 strategy.ToString(),
                 errorMessage: ex.Message);
@@ -4394,7 +4434,7 @@ public sealed partial class DownloadsBrowserViewModel(
     /// Adds the content to a compatible profile. Shows a profile selection dialog.
     /// </summary>
     [RelayCommand]
-    private async Task AddContentToProfileAsync(ContentGridItemViewModel item)
+    private async Task AddContentToProfileAsync(ContentGridItemViewModel item, CancellationToken cancellationToken = default)
     {
         if (item == null)
         {
@@ -4416,9 +4456,12 @@ public sealed partial class DownloadsBrowserViewModel(
             return;
         }
 
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(_vmCts.Token, cancellationToken);
+        var ct = cts.Token;
+
         try
         {
-            var (manifestId, additionalManifestIds, errorHandled) = await ResolveProfileManifestIdsAsync(item);
+            var (manifestId, additionalManifestIds, errorHandled) = await ResolveProfileManifestIdsAsync(item, ct);
             if (errorHandled || string.IsNullOrEmpty(manifestId))
             {
                 return;
@@ -4447,7 +4490,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 manifestId,
                 item.Name,
                 additionalManifestIds,
-                _vmCts.Token);
+                ct);
 
             // Show the dialog
             var dialog = new Views.ProfileSelectionView(profileSelectionVm);
@@ -4470,7 +4513,7 @@ public sealed partial class DownloadsBrowserViewModel(
 
             await HandleProfileSelectionResultAsync(item, profileSelectionVm);
         }
-        catch (OperationCanceledException) when (_vmCts.IsCancellationRequested)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             // View disposal/cancellation is expected.
         }
@@ -4485,14 +4528,15 @@ public sealed partial class DownloadsBrowserViewModel(
     }
 
     private async Task<(string? PrimaryManifestId, IReadOnlyList<string> AdditionalManifestIds, bool ErrorHandled)> ResolveProfileManifestIdsAsync(
-        ContentGridItemViewModel item)
+        ContentGridItemViewModel item,
+        CancellationToken ct)
     {
         if (item.HasBundleComponents)
         {
             var bundleIds = await BundleComponentViewModel.GetRequiredProfileManifestIdsAsync(
                 item.BundleComponents,
                 contentStateService,
-                _vmCts.Token);
+                ct);
             if (bundleIds.Count == 0)
             {
                 item.DownloadStatus = ContentConstants.PleaseDownloadFirstStatusMessage;
@@ -4524,19 +4568,19 @@ public sealed partial class DownloadsBrowserViewModel(
 
         var trustSearchResultId = !string.IsNullOrEmpty(manifestId)
             && ManifestIdValidator.IsValid(manifestId, out _)
-            && await contentStateService.GetStateByManifestIdAsync(manifestId, _vmCts.Token) == ContentState.Downloaded;
+            && await contentStateService.GetStateByManifestIdAsync(manifestId, ct) == ContentState.Downloaded;
 
         if (!trustSearchResultId && !string.IsNullOrEmpty(item.SelectedVariant?.ManifestId))
         {
             manifestId = item.SelectedVariant.ManifestId;
             trustSearchResultId = ManifestIdValidator.IsValid(manifestId, out _)
-                && await contentStateService.GetStateByManifestIdAsync(manifestId, _vmCts.Token) == ContentState.Downloaded;
+                && await contentStateService.GetStateByManifestIdAsync(manifestId, ct) == ContentState.Downloaded;
         }
 
         if (!trustSearchResultId)
         {
             logger.LogDebug("SearchResult ID '{Id}' is not an acquired manifest, looking up from pool", searchResultToMatch.Id);
-            manifestId = await contentStateService.GetLocalManifestIdAsync(searchResultToMatch, _vmCts.Token);
+            manifestId = await contentStateService.GetLocalManifestIdAsync(searchResultToMatch, ct);
         }
 
         if (string.IsNullOrEmpty(manifestId))
