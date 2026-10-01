@@ -664,6 +664,53 @@ public class GameProfileManagerHotswapTests
         _profileRepositoryMock.Verify(r => r.SaveProfileAsync(It.IsAny<GameProfile>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    /// <summary>
+    /// Verifies that a running profile accepts environment variable changes, matching launch arguments.
+    /// The new variables apply from the next launch.
+    /// </summary>
+    /// <returns>A task representing the test operation.</returns>
+    [Fact]
+    public async Task UpdateProfileAsync_WhenProfileRunning_WithEnvironmentVariableChanges_SavesNewVariablesAsync()
+    {
+        // Arrange
+        const string profileId = "profile-running-env";
+        const string workspaceId = "workspace-live-123";
+        const string variableName = "NEW_VARIABLE";
+        const string variableValue = "new";
+        var existingProfile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Running Profile",
+            ActiveWorkspaceId = workspaceId,
+            EnvironmentVariables = new Dictionary<string, string> { ["OLD_VARIABLE"] = "old" },
+        };
+        GameProfile? savedProfile = null;
+
+        _profileRepositoryMock.Setup(r => r.LoadProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(existingProfile));
+        _profileRepositoryMock.Setup(r => r.SaveProfileAsync(It.IsAny<GameProfile>(), It.IsAny<CancellationToken>()))
+            .Callback<GameProfile, CancellationToken>((profile, _) => savedProfile = profile)
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(existingProfile));
+        _launchRegistryMock.Setup(l => l.GetAllActiveLaunchesAsync())
+            .ReturnsAsync([CreateActiveLaunch(profileId)]);
+
+        var request = new UpdateProfileRequest
+        {
+            EnvironmentVariables = new Dictionary<string, string> { [variableName] = variableValue },
+        };
+
+        // Act
+        var result = await _profileManager.UpdateProfileAsync(profileId, request);
+
+        // Assert
+        Assert.True(result.Success, result.FirstError);
+        Assert.NotNull(savedProfile);
+        var variable = Assert.Single(savedProfile.EnvironmentVariables);
+        Assert.Equal(variableName, variable.Key);
+        Assert.Equal(variableValue, variable.Value);
+        Assert.Equal(workspaceId, savedProfile.ActiveWorkspaceId);
+    }
+
     private static GameLaunchInfo CreateActiveLaunch(string profileId, string launchId = "launch-1", string workspaceId = "ws-1") => new()
     {
         LaunchId = launchId,
