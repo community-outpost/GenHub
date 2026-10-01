@@ -687,7 +687,7 @@ public class GameProcessManager(
     /// Enumerates the running processes that could carry any of <paramref name="executableNames"/>,
     /// once per process even when several names find it.
     /// </summary>
-    /// <param name="executableNames">The base executable names without extension.</param>
+    /// <param name="executableNames">The executable identity names, which may include file extensions.</param>
     /// <returns>The processes found. The caller owns and disposes them.</returns>
     internal static Process[] GetProcessesByNames(IEnumerable<string> executableNames)
     {
@@ -1950,7 +1950,7 @@ public class GameProcessManager(
     /// Enumerates the processes that could carry any of <paramref name="executableNames"/> and hands
     /// them to a selection policy.
     /// </summary>
-    /// <param name="executableNames">The base executable names without extension.</param>
+    /// <param name="executableNames">The executable identity names, which may include file extensions.</param>
     /// <param name="select">The policy deciding which candidate, if any, is ours.</param>
     /// <returns>The selected process if found, null otherwise.</returns>
     private Process? FindGameProcess(IReadOnlyCollection<string> executableNames, Func<List<GameProcessCandidate>, GameProcessCandidate?> select)

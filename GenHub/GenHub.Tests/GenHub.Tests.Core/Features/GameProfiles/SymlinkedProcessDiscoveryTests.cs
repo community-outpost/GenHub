@@ -159,15 +159,36 @@ public sealed class SymlinkedProcessDiscoveryTests(ITestOutputHelper output) : I
                 RedirectStandardOutput = true,
             })!;
             var drain = Task.WhenAll(codesign.StandardError.ReadToEndAsync(), codesign.StandardOutput.ReadToEndAsync());
+
+            // Observe late faults too if the bounded wait expires before stream disposal completes.
+            _ = drain.ContinueWith(
+                completed => { _ = completed.Exception; },
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
             if (!codesign.WaitForExit(ToolTimeoutMs))
             {
                 codesign.Kill();
+                codesign.WaitForExit(KillWaitMs);
+                ObserveDrain(drain);
                 return false;
             }
 
-            return drain.Wait(ToolTimeoutMs) && codesign.ExitCode == 0;
+            return ObserveDrain(drain) && codesign.ExitCode == 0;
         }
-        catch (System.ComponentModel.Win32Exception)
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    private static bool ObserveDrain(Task drain)
+    {
+        try
+        {
+            return drain.Wait(KillWaitMs);
+        }
+        catch (AggregateException)
         {
             return false;
         }

@@ -19,7 +19,7 @@ public static class GameProcessSelector
     /// against that truncated value, so asking for a longer name finds nothing at all. Windows
     /// reports names in full and is asked for them unchanged.
     /// </summary>
-    /// <param name="processName">The expected process name, without extension.</param>
+    /// <param name="processName">The expected process name, which may include its file extension.</param>
     /// <returns>The name to ask the operating system for.</returns>
     public static string GetDiscoveryName(string processName)
     {
@@ -53,7 +53,7 @@ public static class GameProcessSelector
     /// was already running, so it is this path's only bound on age.
     /// </summary>
     /// <param name="candidates">The processes currently observed on the machine. Each candidate's <see cref="GameProcessCandidate.StartTime"/> must be a UTC <see cref="DateTime"/> with <see cref="DateTimeKind.Utc"/>.</param>
-    /// <param name="processName">The expected process name, without extension.</param>
+    /// <param name="processName">The expected process name, which may include its file extension.</param>
     /// <param name="workingDirectory">The directory the game must run from, or <see langword="null"/> to skip the check.</param>
     /// <param name="now">The current time, used to apply the recency window. Must be a UTC <see cref="DateTime"/> with <see cref="DateTimeKind.Utc"/>.</param>
     /// <returns>The selected candidate, or <see langword="null"/> when none qualifies.</returns>
@@ -103,7 +103,7 @@ public static class GameProcessSelector
     /// </para>
     /// </summary>
     /// <param name="candidates">The processes currently observed on the machine. Each candidate's <see cref="GameProcessCandidate.StartTime"/> must be a UTC <see cref="DateTime"/> with <see cref="DateTimeKind.Utc"/>.</param>
-    /// <param name="processName">The expected process name, without extension.</param>
+    /// <param name="processName">The expected process name, which may include its file extension.</param>
     /// <param name="workingDirectory">The directory the game must run from, or <see langword="null"/> to skip the check.</param>
     /// <param name="launcherStartTime">The start time of the launcher process. Must be a UTC <see cref="DateTime"/> with <see cref="DateTimeKind.Utc"/> when supplied.</param>
     /// <returns>The candidate to adopt, or <see langword="null"/> when none qualifies or the launcher's start time is unknown.</returns>
@@ -157,7 +157,7 @@ public static class GameProcessSelector
     /// The reported name is the fallback for a process whose image path cannot be read.
     /// </summary>
     /// <param name="candidate">The candidate to test.</param>
-    /// <param name="processName">The expected process name, without extension.</param>
+    /// <param name="processName">The expected process name, which may include its file extension.</param>
     /// <returns><see langword="true"/> when the candidate carries the expected name.</returns>
     private static bool NameMatches(GameProcessCandidate candidate, string processName)
     {

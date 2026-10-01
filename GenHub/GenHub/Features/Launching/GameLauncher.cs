@@ -219,12 +219,11 @@ public class GameLauncher(
                     Path.GetFileName(finalExecutablePath)));
             }
 
-            var entryTarget = File.Exists(finalExecutablePath) ? TryResolveFinalLinkTarget(finalExecutablePath, logger) : null;
-            IReadOnlyList<GameProcessIdentity> entryIdentities = [new GameProcessIdentity(executableFileForMonitor.Hash, workspacePath)];
-            if (File.Exists(finalExecutablePath) && entryTarget is null or { Exists: true })
-            {
-                entryIdentities = GetPathIdentities(finalExecutablePath, entryTarget);
-            }
+            var entryExists = File.Exists(finalExecutablePath);
+            var entryTarget = entryExists ? TryResolveFinalLinkTarget(finalExecutablePath, logger) : null;
+            IReadOnlyList<GameProcessIdentity> entryIdentities = entryExists && entryTarget is null or { Exists: true }
+                ? GetPathIdentities(finalExecutablePath, entryTarget)
+                : [new GameProcessIdentity(executableFileForMonitor.Hash, workspacePath)];
 
             logger.LogInformation(
                 "[GameLauncher] Monitoring for CAS symlinked process as any of: {Identities}",

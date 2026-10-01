@@ -122,12 +122,11 @@ public sealed class MonitoringProcessNameTests : IDisposable
     }
 
     /// <summary>
-    /// Linux names a process started through a link after the link, extension included, but reports
-    /// the target as its image. The returned identities select it, and the link identities alone
-    /// would not.
+    /// A readable target image path selects the target identity regardless of the reported name.
+    /// The workspace identities alone cannot select a process whose image is in the store.
     /// </summary>
     [Fact]
-    public void CasSymlinkedBootstrapper_IdentitiesSelectTheLinuxShape()
+    public void CasSymlinkedBootstrapper_TargetImageSelectsTargetIdentity()
     {
         var identities = ResolveLinkedChildIdentities();
         if (identities is null)
@@ -154,6 +153,7 @@ public sealed class MonitoringProcessNameTests : IDisposable
         Assert.Contains(GameClientConstants.GeneralsOnline60HzExecutable, names);
         if (!OperatingSystem.IsWindows())
         {
+            Assert.True(GameClientConstants.GeneralsOnline60HzExecutable.Length > ProcessConstants.UnixProcessNameMaxLength);
             Assert.Contains(GameClientConstants.GeneralsOnline60HzExecutable[..ProcessConstants.UnixProcessNameMaxLength], names);
         }
     }
@@ -262,10 +262,10 @@ public sealed class MonitoringProcessNameTests : IDisposable
     }
 
     /// <summary>
-    /// A CAS executable that is itself the game and is not a link keeps monitoring its own hash.
+    /// A missing direct CAS entry point retains the manifest-hash fallback.
     /// </summary>
     [Fact]
-    public void CasDirectExecutable_MonitorsItsOwnHash()
+    public void CasDirectExecutable_MissingFileFallsBackToItsHash()
     {
         var result = GameLauncher.DetermineMonitoringTarget(
             BuildGeneralsOnlineManifests(childHash: ChildHash),
@@ -278,6 +278,28 @@ public sealed class MonitoringProcessNameTests : IDisposable
 
         Assert.True(result.Success, result.FirstError);
         AssertIdentities(result, new GameProcessIdentity(BootstrapperHash, _workspace));
+    }
+
+    /// <summary>
+    /// An existing direct CAS entry that is a plain file uses workspace file identities.
+    /// </summary>
+    [Fact]
+    public void CasDirectExecutable_PlainFileMonitorsItsWorkspaceIdentities()
+    {
+        File.WriteAllText(BootstrapperPath, "client");
+        var result = GameLauncher.DetermineMonitoringTarget(
+            BuildGeneralsOnlineManifests(childHash: ChildHash),
+            BootstrapperPath,
+            _workspace,
+            WorkspaceStrategy.SymlinkOnly,
+            expectedChildProcessName: null,
+            NullLogger.Instance,
+            localizationService: null);
+
+        AssertIdentities(
+            result,
+            new GameProcessIdentity(Path.GetFileNameWithoutExtension(BootstrapperPath), _workspace),
+            new GameProcessIdentity(Path.GetFileName(BootstrapperPath), _workspace));
     }
 
     /// <summary>
@@ -322,8 +344,7 @@ public sealed class MonitoringProcessNameTests : IDisposable
     }
 
     /// <summary>
-    /// A same-stem sibling such as a symbol file does not stand in for the wrapped client. The
-    /// sibling carries no hash, so picking it would fail the launch.
+    /// A same-stem sibling with a valid hash does not stand in for the wrapped client.
     /// </summary>
     [Fact]
     public void CasBootstrapper_IgnoresASameStemSiblingOfTheChild()
@@ -334,7 +355,7 @@ public sealed class MonitoringProcessNameTests : IDisposable
         client.Files.Insert(1, new ManifestFile
         {
             RelativePath = Path.ChangeExtension(GameClientConstants.GeneralsOnline60HzExecutable, ".pdb"),
-            Hash = string.Empty,
+            Hash = BootstrapperHash,
             SourceType = ContentSourceType.ContentAddressable,
         });
 
