@@ -68,6 +68,51 @@ public sealed class W3dModelResolverTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that a texture referenced with a .tga extension falls back to
+    /// the shipped .dds file, matching engine behavior.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveFromFileSystem_TgaReferenceWithDdsFile_ResolvesFallbackAsync()
+    {
+        File.WriteAllBytes(Path.Combine(_gameRoot, "Art", "Fallback.w3d"), ModelWithTexture("alias.tga"));
+        File.WriteAllBytes(Path.Combine(_gameRoot, "Art", "alias.dds"), Dxt1Red());
+        var fileSystem = new SageVirtualFileSystem(_gameRoot, false, NullLogger.Instance);
+
+        var result = await _resolver.ResolveFromFileSystemAsync("Fallback", fileSystem);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var texture = Assert.Single(result.Data.Textures);
+        Assert.Equal("alias.tga", texture.Name);
+        Assert.Equal(4, texture.Texture.Width);
+        Assert.Empty(result.Data.MissingTextures);
+    }
+
+    /// <summary>
+    /// Verifies that a texture referenced with a .dds extension falls back to
+    /// the shipped .tga file, matching engine behavior.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveFromFileSystem_DdsReferenceWithTgaFile_ResolvesFallbackAsync()
+    {
+        File.WriteAllBytes(Path.Combine(_gameRoot, "Art", "FallbackTga.w3d"), ModelWithTexture("alias2.dds"));
+        File.WriteAllBytes(Path.Combine(_gameRoot, "Art", "alias2.tga"), Tga24Red());
+        var fileSystem = new SageVirtualFileSystem(_gameRoot, false, NullLogger.Instance);
+
+        var result = await _resolver.ResolveFromFileSystemAsync("FallbackTga", fileSystem);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var texture = Assert.Single(result.Data.Textures);
+        Assert.Equal("alias2.dds", texture.Name);
+        Assert.Equal(2, texture.Texture.Width);
+        Assert.Equal(2, texture.Texture.Height);
+        Assert.Empty(result.Data.MissingTextures);
+    }
+
+    /// <summary>
     /// Verifies that a missing model fails without throwing.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
@@ -109,6 +154,24 @@ public sealed class W3dModelResolverTests : IDisposable
         var result = await _resolver.ResolveAsync("TestUnit", Path.Combine(_gameRoot, "NoDir"), false);
 
         Assert.False(result.Success);
+    }
+
+    /// <summary>
+    /// Verifies that model names containing traversal or rooted paths are rejected safely.
+    /// </summary>
+    /// <param name="invalidName">The invalid model name candidate.</param>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Theory]
+    [InlineData("../Secret/Model")]
+    [InlineData("..\\Secret\\Model")]
+    [InlineData("/etc/passwd")]
+    [InlineData("C:\\Windows\\System32\\model")]
+    public async Task ResolveAsync_InvalidModelPath_ReturnsFailureAsync(string invalidName)
+    {
+        var result = await _resolver.ResolveAsync(invalidName, _gameRoot, false);
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Errors, err => err.Contains("not found", StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
@@ -196,6 +259,24 @@ public sealed class W3dModelResolverTests : IDisposable
         BitConverter.GetBytes((ushort)0xF800).CopyTo(block, 0);
         BitConverter.GetBytes((ushort)0x001F).CopyTo(block, 2);
         return [.. header, .. block];
+    }
+
+    private static byte[] Tga24Red()
+    {
+        byte[] header = new byte[18];
+        header[2] = 2;
+        BitConverter.GetBytes((ushort)2).CopyTo(header, 12);
+        BitConverter.GetBytes((ushort)2).CopyTo(header, 14);
+        header[16] = 24;
+        byte[] pixels = new byte[2 * 2 * 3];
+        for (int i = 0; i < pixels.Length; i += 3)
+        {
+            pixels[i] = 0;
+            pixels[i + 1] = 0;
+            pixels[i + 2] = 255;
+        }
+
+        return [.. header, .. pixels];
     }
 
     private static byte[] Chunk(uint type, byte[] payload)

@@ -595,4 +595,77 @@ public class IniEditorViewTests
             window.Close();
         }
     }
+
+    /// <summary>
+    /// Verifies that selecting a child block keeps the parent object on the
+    /// canvas while the fields panel follows the selection.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task SelectingChildBlock_KeepsObjectOnCanvasAsync()
+    {
+        using var viewModel = CreateViewModel();
+        var filePath = Path.Combine(Path.GetTempPath(), $"GenHubCanvas{Guid.NewGuid():N}.ini");
+        await File.WriteAllTextAsync(filePath, CanvasFixtureIni());
+        try
+        {
+            Assert.True(await viewModel.OpenFileAsync(filePath));
+            var state = viewModel.RootNodes[0].Children[0].Children[0];
+            Assert.Equal("ModelConditionState", state.Block.BlockType);
+
+            viewModel.SelectedNode = state;
+
+            Assert.Equal("TestTank", viewModel.SelectedBlockTitle);
+            Assert.Equal("Object", viewModel.SelectedBlockType);
+            Assert.Equal(["Model", "ShowSubObjects"], viewModel.FieldRows.Select(row => row.Key).ToList());
+            Assert.Equal(3, viewModel.SelectedNodeTrail.Count);
+        }
+        finally
+        {
+            File.Delete(filePath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that clearing the selection falls back to the first object on
+    /// the canvas instead of leaving it empty.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task ClearedSelection_ShowsFirstObjectOnCanvasAsync()
+    {
+        using var viewModel = CreateViewModel();
+        var filePath = Path.Combine(Path.GetTempPath(), $"GenHubCanvas{Guid.NewGuid():N}.ini");
+        await File.WriteAllTextAsync(filePath, CanvasFixtureIni());
+        try
+        {
+            Assert.True(await viewModel.OpenFileAsync(filePath));
+            viewModel.SelectedNode = viewModel.RootNodes[0];
+            Assert.Equal("TestTank", viewModel.SelectedBlockTitle);
+
+            viewModel.SelectedNode = null;
+
+            Assert.True(viewModel.HasSelectedBlock);
+            Assert.Equal("TestTank", viewModel.SelectedBlockTitle);
+            Assert.Equal("Object", viewModel.SelectedBlockType);
+            Assert.Empty(viewModel.FieldRows);
+        }
+        finally
+        {
+            File.Delete(filePath);
+        }
+    }
+
+    private static string CanvasFixtureIni()
+    {
+        return "Object TestTank\n" +
+            "  Side = USA\n" +
+            "  Draw = W3DTankDraw ModuleTag_01\n" +
+            "    ModelConditionState = NONE\n" +
+            "      Model = TestUnit\n" +
+            "      ShowSubObjects = TURRET\n" +
+            "    End\n" +
+            "  End\n" +
+            "End\n";
+    }
 }

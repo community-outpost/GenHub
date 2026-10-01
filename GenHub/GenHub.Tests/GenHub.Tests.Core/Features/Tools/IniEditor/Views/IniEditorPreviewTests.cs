@@ -195,6 +195,63 @@ public sealed class IniEditorPreviewTests
     }
 
     /// <summary>
+    /// Verifies that a static preview without animation clips still exposes
+    /// the bind pose so rigid meshes render at their pivots.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task StaticPreviewWithoutClips_ExposesBindPoseAsync()
+    {
+        var mockResolver = ResolverReturning(ResolvedModel(false));
+        using var viewModel = CreateViewModel(mockResolver.Object);
+        viewModel.FileExplorer.Directory = Path.GetTempPath();
+        await viewModel.NewDocumentCommand.ExecuteAsync(null);
+        viewModel.NewBlockType = "Object";
+        viewModel.NewBlockName = "Tank";
+        viewModel.AddBlockCommand.Execute(null);
+        viewModel.NewFieldKey = "Model";
+        viewModel.NewFieldValue = "TestUnit";
+        viewModel.AddFieldCommand.Execute(null);
+
+        bool loaded = await WaitForAsync(() => viewModel.HasPreviewScene, TimeSpan.FromSeconds(5));
+
+        Assert.True(loaded);
+        Assert.Null(viewModel.PreviewPose);
+        Assert.NotNull(viewModel.PreviewBindPose);
+        var bindPose = Assert.Single(viewModel.PreviewBindPose);
+        Assert.Equal(1, bindPose.Translation.X);
+    }
+
+    /// <summary>
+    /// Verifies that selecting a draw state highlights the referenced mesh in the 3D preview.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task SelectingDrawState_HighlightsReferencedPreviewMeshAsync()
+    {
+        var mockResolver = ResolverReturning(ResolvedModel());
+        using var viewModel = CreateViewModel(mockResolver.Object);
+        viewModel.FileExplorer.Directory = Path.GetTempPath();
+        var filePath = Path.Combine(Path.GetTempPath(), $"GenHubPreview{Guid.NewGuid():N}.ini");
+        await File.WriteAllTextAsync(filePath, PreviewIni());
+        try
+        {
+            Assert.True(await viewModel.OpenFileAsync(filePath));
+            bool loaded = await WaitForAsync(() => viewModel.HasPreviewScene, TimeSpan.FromSeconds(5));
+            Assert.True(loaded);
+
+            viewModel.SelectedNode = viewModel.RootNodes[0].Children[0].Children[0];
+
+            Assert.Equal(0, viewModel.PreviewSelectedMeshIndex);
+            Assert.NotNull(viewModel.SelectedPreviewMesh);
+        }
+        finally
+        {
+            File.Delete(filePath);
+        }
+    }
+
+    /// <summary>
     /// Verifies that blocks without a model clear the preview.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
@@ -225,7 +282,7 @@ public sealed class IniEditorPreviewTests
         return mockResolver;
     }
 
-    private static W3dResolvedModel ResolvedModel()
+    private static W3dResolvedModel ResolvedModel(bool includeClip = true)
     {
         var origin = new W3dVector3(0, 0, 0);
         var mesh = new W3dMesh(
@@ -255,7 +312,8 @@ public sealed class IniEditorPreviewTests
             0,
             [new W3dAnimationChannel(0, 0, 0, 1, 1, [new W3dAnimationKey(0, [0]), new W3dAnimationKey(1, [5])], false)]);
         var lod = new W3dModelLod("L", "H", [new W3dLevelOfDetail(100, [new W3dSubObject(0, "C.TURRET")])]);
-        var model = new W3dModel([mesh], [hierarchy], [clip], [lod], []);
+        List<W3dAnimationClip> clips = includeClip ? [clip] : [];
+        var model = new W3dModel([mesh], [hierarchy], clips, [lod], []);
         return new W3dResolvedModel("TestUnit", "Art/TestUnit.w3d", model, [], []);
     }
 

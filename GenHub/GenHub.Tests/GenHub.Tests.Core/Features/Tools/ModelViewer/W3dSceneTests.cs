@@ -297,6 +297,26 @@ public sealed class W3dSceneTests
         Assert.Equal(new Vector3(10, 0, 0), transform.Translation);
     }
 
+    /// <summary>
+    /// Verifies that the viewer yields middle-drag and pan-mode left-drag
+    /// presses to the surrounding canvas instead of capturing them.
+    /// </summary>
+    /// <param name="isCanvasPanMode">Whether the surrounding canvas is in pan mode.</param>
+    /// <param name="isMiddlePressed">Whether the middle button is pressed.</param>
+    /// <param name="isLeftPressed">Whether the left button is pressed.</param>
+    /// <param name="expected">The expected yield decision.</param>
+    [Theory]
+    [InlineData(false, false, true, false)]
+    [InlineData(true, false, true, true)]
+    [InlineData(false, true, false, true)]
+    [InlineData(true, true, false, true)]
+    [InlineData(false, false, false, false)]
+    [InlineData(true, false, false, false)]
+    public void ShouldYieldPressToCanvas_ReservesCanvasGestures(bool isCanvasPanMode, bool isMiddlePressed, bool isLeftPressed, bool expected)
+    {
+        Assert.Equal(expected, W3dViewerControl.ShouldYieldPressToCanvas(isCanvasPanMode, isMiddlePressed, isLeftPressed));
+    }
+
     private static W3dMesh MeshWithTriangle(IReadOnlyList<W3dMaterialPass>? passes = null)
     {
         var origin = new W3dVector3(0, 0, 0);

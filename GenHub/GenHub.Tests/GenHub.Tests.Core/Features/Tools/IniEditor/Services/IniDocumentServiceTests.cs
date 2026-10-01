@@ -1114,4 +1114,188 @@ public sealed class IniDocumentServiceTests : IDisposable
         child.BlockType.Should().Be("ReplaceModule");
         child.Name.Should().Be("ModuleTag_02");
     }
+
+    /// <summary>
+    /// Verifies that nested Animation blocks inside a TransitionState parse as
+    /// nested blocks instead of cascading End mismatches.
+    /// </summary>
+    [Fact]
+    public void ParseText_TransitionStateAnimationBlocks_ParseAsNestedBlocks()
+    {
+        const string content =
+            "Object AmericaVehicleDozer\n" +
+            "  Draw = W3DModelDraw ModuleTag_01\n" +
+            "    DefaultConditionState\n" +
+            "      Model = AVDOZER_SKN\n" +
+            "    End\n" +
+            "    TransitionState = TRANS_Opening TRANS_Opened\n" +
+            "      Model = AVDOZER_SKN\n" +
+            "      Animation = AVDOZER_BLD1\n" +
+            "        AnimationName = AVDozer_BLD1.AVDozer_Bone\n" +
+            "        AnimationMode = ONCE\n" +
+            "      End\n" +
+            "    End\n" +
+            "    ConditionState = FIRING_A\n" +
+            "      Model = AVDOZER_SKN\n" +
+            "    End\n" +
+            "  End\n" +
+            "End\n";
+
+        var result = _service.ParseText(content);
+
+        result.Success.Should().BeTrue();
+        result.Data!.ParseErrors.Should().BeEmpty();
+        var gameObject = result.Data.Blocks.Should().ContainSingle().Subject;
+        var draw = gameObject.Children.Should().ContainSingle().Subject;
+        draw.Children.Should().HaveCount(3);
+        var transition = draw.Children[1];
+        transition.DisplayHeader.Should().Be("TransitionState = TRANS_Opening TRANS_Opened");
+        var animation = transition.Children.Should().ContainSingle().Subject;
+        animation.DisplayHeader.Should().Be("Animation = AVDOZER_BLD1");
+        animation.Fields.Select(field => field.Key).Should().Equal("AnimationName", "AnimationMode");
+    }
+
+    /// <summary>
+    /// Verifies that nested Animation blocks inside an AnimationState parse as nested blocks.
+    /// </summary>
+    [Fact]
+    public void ParseText_AnimationStateAnimationBlocks_ParseAsNestedBlocks()
+    {
+        const string content =
+            "Object AmericaVehicleHumvee\n" +
+            "  Draw = W3DTruckDraw ModuleTag_01\n" +
+            "    AnimationState = FIRING_A\n" +
+            "      Animation = Hmmvee_Turret\n" +
+            "        AnimationName = AVHUMVEE_A.AVHUMVEE\n" +
+            "        AnimationMode = LOOP\n" +
+            "      End\n" +
+            "    End\n" +
+            "  End\n" +
+            "End\n";
+
+        var result = _service.ParseText(content);
+
+        result.Success.Should().BeTrue();
+        result.Data!.ParseErrors.Should().BeEmpty();
+        var state = result.Data.Blocks[0].Children[0].Children.Should().ContainSingle().Subject;
+        state.DisplayHeader.Should().Be("AnimationState = FIRING_A");
+        var animation = state.Children.Should().ContainSingle().Subject;
+        animation.DisplayHeader.Should().Be("Animation = Hmmvee_Turret");
+        animation.Fields.Select(field => field.Key).Should().Equal("AnimationName", "AnimationMode");
+    }
+
+    /// <summary>
+    /// Verifies that field style Animation lines inside a ConditionState stay
+    /// fields, matching shipped infantry draw modules.
+    /// </summary>
+    [Fact]
+    public void ParseText_ConditionStateAnimationFields_StayFields()
+    {
+        const string content =
+            "Object AmericanInfantryRanger\n" +
+            "  Draw = W3DModelDraw ModuleTag_01\n" +
+            "    ConditionState = FIRING_A\n" +
+            "      Model = AVRNGR_SKN\n" +
+            "      Animation = AVRNGR_AF1A AVRNGR_SKL\n" +
+            "      Animation = AVRNGR_AF1B AVRNGR_SKL\n" +
+            "      AnimationMode = ONCE\n" +
+            "    End\n" +
+            "  End\n" +
+            "End\n";
+
+        var result = _service.ParseText(content);
+
+        result.Success.Should().BeTrue();
+        result.Data!.ParseErrors.Should().BeEmpty();
+        var state = result.Data.Blocks[0].Children[0].Children.Should().ContainSingle().Subject;
+        state.Children.Should().BeEmpty();
+        state.Fields.Select(field => field.Key).Should().Equal("Model", "Animation", "Animation", "AnimationMode");
+    }
+
+    /// <summary>
+    /// Verifies that a lone field style Animation line inside a TransitionState
+    /// stays a field and round-trips without injecting an End.
+    /// </summary>
+    [Fact]
+    public void ParseText_TransitionStateAnimationField_StayField()
+    {
+        const string content =
+            "Object AmericaVehicleHumvee\n" +
+            "  Draw = W3DModelDraw ModuleTag_01\n" +
+            "    TransitionState = TRANS_Stand TRANS_StandInjured\n" +
+            "      Animation = Anim\n" +
+            "    End\n" +
+            "  End\n" +
+            "End\n";
+
+        var result = _service.ParseText(content);
+
+        result.Success.Should().BeTrue();
+        result.Data!.ParseErrors.Should().BeEmpty();
+        var state = result.Data.Blocks[0].Children[0].Children.Should().ContainSingle().Subject;
+        state.Children.Should().BeEmpty();
+        state.Fields.Should().ContainSingle().Which.Key.Should().Be("Animation");
+        var canonical = _service.WriteDocument(result.Data);
+        canonical.Should().Contain("      Animation = Anim\r\n    End\r\n");
+    }
+
+    /// <summary>
+    /// Verifies that the Die sub-block inside SlowDeathBehavior parses as a
+    /// nested block instead of cascading End mismatches.
+    /// </summary>
+    [Fact]
+    public void ParseText_SlowDeathDieBlock_ParsesAsNestedBlock()
+    {
+        const string content =
+            "Object AmericanInfantryRanger\n" +
+            "  Behavior = SlowDeathBehavior ModuleTag_Death\n" +
+            "    DeathTypes = ALL\n" +
+            "    Die\n" +
+            "      Model = AVRNGR_D\n" +
+            "    End\n" +
+            "  End\n" +
+            "  Draw = W3DModelDraw ModuleTag_01\n" +
+            "    DefaultConditionState\n" +
+            "      Model = AVRNGR_SKN\n" +
+            "    End\n" +
+            "  End\n" +
+            "End\n";
+
+        var result = _service.ParseText(content);
+
+        result.Success.Should().BeTrue();
+        result.Data!.ParseErrors.Should().BeEmpty();
+        var gameObject = result.Data.Blocks.Should().ContainSingle().Subject;
+        gameObject.Children.Should().HaveCount(2);
+        var behavior = gameObject.Children[0];
+        var die = behavior.Children.Should().ContainSingle().Subject;
+        die.BlockType.Should().Be("Die");
+        die.Fields.Should().ContainSingle().Which.Key.Should().Be("Model");
+    }
+
+    /// <summary>
+    /// Verifies that weapon damage nugget sub-blocks parse as nested blocks
+    /// instead of cascading End mismatches.
+    /// </summary>
+    [Fact]
+    public void ParseText_WeaponDamageNuggets_ParseAsNestedBlocks()
+    {
+        const string content =
+            "Weapon RangerPistolWeapon\n" +
+            "  DamageNugget\n" +
+            "    Damage = 25.0\n" +
+            "    Radius = 0.0\n" +
+            "  End\n" +
+            "  DOTNugget\n" +
+            "    Damage = 5.0\n" +
+            "  End\n" +
+            "End\n";
+
+        var result = _service.ParseText(content);
+
+        result.Success.Should().BeTrue();
+        result.Data!.ParseErrors.Should().BeEmpty();
+        var weapon = result.Data.Blocks.Should().ContainSingle().Subject;
+        weapon.Children.Select(child => child.BlockType).Should().Equal("DamageNugget", "DOTNugget");
+    }
 }
