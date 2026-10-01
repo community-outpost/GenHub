@@ -767,14 +767,14 @@ public sealed partial class IniEditorViewModel(
                     }
                     else
                     {
-                        block.Fields.Add(newField);
+                        block.Fields.Add(new(expectedPortraitKey, textureName));
                     }
 
                     RebuildAll();
                 },
                 Undo: () =>
                 {
-                    block.Fields.Remove(newField);
+                    RemoveFieldByKey(block.Fields, expectedPortraitKey);
                     RebuildAll();
                 }));
         }
@@ -865,7 +865,7 @@ public sealed partial class IniEditorViewModel(
         cancellationToken.ThrowIfCancellationRequested();
         if (!string.IsNullOrEmpty(first))
         {
-            var opened = await OpenFileAsync(first, cancellationToken).ConfigureAwait(false);
+            var opened = await InvokeOnUIThreadAsync(() => OpenFileAsync(first, cancellationToken)).ConfigureAwait(false);
             if (opened)
             {
                 await InvokeOnUIThreadAsync(() => LeftSidebarTabIndex = 1).ConfigureAwait(false);
@@ -1623,12 +1623,18 @@ public sealed partial class IniEditorViewModel(
         return $"{command} → {target}";
     }
 
-    private static void ScheduleDeferred(ref CancellationTokenSource? slot, int delayMs, Action refresh)
+    private static void ScheduleDeferred(ref CancellationTokenSource? slot, int delayMs, Action<CancellationToken> refresh)
     {
         slot?.Cancel();
+        slot?.Dispose();
         var cts = new CancellationTokenSource();
         slot = cts;
-        _ = Task.Run(() => RunDeferredRefreshAsync(cts, delayMs, refresh), CancellationToken.None);
+        _ = Task.Run(() => RunDeferredRefreshAsync(cts, delayMs, () => refresh(cts.Token)), CancellationToken.None);
+    }
+
+    private static void ScheduleDeferred(ref CancellationTokenSource? slot, int delayMs, Action refresh)
+    {
+        ScheduleDeferred(ref slot, delayMs, _ => refresh());
     }
 
     private static string? ResolveHealthValue(IniBlock block)
@@ -1763,13 +1769,42 @@ public sealed partial class IniEditorViewModel(
 
         var hidden = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var shown = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        CollectSubObjectVisibility(block, hidden, shown);
+        var defaultState = FindDefaultConditionState(block);
+        if (defaultState != null)
+        {
+            CollectStateSubObjectVisibility(defaultState, hidden, shown);
+        }
+        else
+        {
+            CollectStateSubObjectVisibility(block, hidden, shown);
+        }
+
         hidden.ExceptWith(shown);
         PreviewHiddenMeshNames = hidden.Count > 0 ? hidden : null;
     }
 
+    private static IniBlock? FindDefaultConditionState(IniBlock block)
+    {
+        foreach (var child in block.Children)
+        {
+            if (string.Equals(child.BlockType, "DefaultConditionState", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(child.Name, "DefaultConditionState", StringComparison.OrdinalIgnoreCase))
+            {
+                return child;
+            }
+
+            var nested = FindDefaultConditionState(child);
+            if (nested != null)
+            {
+                return nested;
+            }
+        }
+
+        return null;
+    }
+
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Kept as an instance helper to satisfy member ordering.")]
-    private void CollectSubObjectVisibility(IniBlock block, HashSet<string> hidden, HashSet<string> shown)
+    private void CollectStateSubObjectVisibility(IniBlock block, HashSet<string> hidden, HashSet<string> shown)
     {
         foreach (var field in block.Fields)
         {
@@ -1781,11 +1816,6 @@ public sealed partial class IniEditorViewModel(
             {
                 AddSubObjectTokens(hidden, field.Value);
             }
-        }
-
-        foreach (var child in block.Children)
-        {
-            CollectSubObjectVisibility(child, hidden, shown);
         }
     }
 
@@ -2124,7 +2154,20 @@ public sealed partial class IniEditorViewModel(
             return;
         }
 
-        if (await OpenFileAsync(entry.FilePath, cancellationToken).ConfigureAwait(false))
+        if (string.Equals(entry.FilePath, FilePath, StringComparison.OrdinalIgnoreCase))
+        {
+            var localTarget = _document?.Blocks.FirstOrDefault(block =>
+                string.Equals(block.BlockType, entry.BlockType, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(block.Name, entry.Name, StringComparison.OrdinalIgnoreCase));
+            if (localTarget != null)
+            {
+                SelectBlock(localTarget);
+            }
+
+            return;
+        }
+
+        if (await OpenFileAsync(entry.FilePath, cancellationToken).ConfigureAwait(true))
         {
             var target = _document?.Blocks.FirstOrDefault(block =>
                 string.Equals(block.BlockType, entry.BlockType, StringComparison.OrdinalIgnoreCase) &&
@@ -3276,7 +3319,7 @@ public sealed partial class IniEditorViewModel(
             return;
         }
 
-        await OpenFileAsync(first, cancellationToken).ConfigureAwait(false);
+        await InvokeOnUIThreadAsync(() => OpenFileAsync(first, cancellationToken)).ConfigureAwait(false);
         await LoadTexturePickerItemsAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -3730,7 +3773,7 @@ public sealed partial class IniEditorViewModel(
         }
 
         ApplyCachedThumbnails();
-        RebuildCanvasBlockCards();
+        UpdateCanvasBlockCardPortraits();
     }
 
     private async Task LoadThumbnailsAsync(IReadOnlyList<string> names, int generation, CancellationToken cancellationToken)
@@ -4253,6 +4296,21 @@ public sealed partial class IniEditorViewModel(
         return known;
     }
 
+    private void UpdateCanvasBlockCardPortraits()
+    {
+        foreach (var card in CanvasBlockCards)
+        {
+            var portraitName = (FindFieldValue(card.Block, IniConstants.FieldKeys.SelectPortrait) ??
+                                FindFieldValue(card.Block, IniConstants.FieldKeys.ButtonImage))?.Trim();
+            if (!string.IsNullOrWhiteSpace(portraitName) &&
+                _textureThumbnails.TryGetValue(portraitName, out var thumb) &&
+                card.Portrait != thumb)
+            {
+                card.Portrait = thumb;
+            }
+        }
+    }
+
     private void RebuildCanvasBlockCards()
     {
         CanvasBlockCards.Clear();
@@ -4260,6 +4318,10 @@ public sealed partial class IniEditorViewModel(
         {
             return;
         }
+
+        var hpLabel = Localization.GetString("Tools.IniEditor.Canvas.CardHpLabel");
+        var costLabel = Localization.GetString("Tools.IniEditor.Vitals.Cost");
+        var cmdLabel = Localization.GetString("Tools.IniEditor.Canvas.CardCmdLabel");
 
         foreach (var block in _document.Blocks)
         {
@@ -4277,19 +4339,19 @@ public sealed partial class IniEditorViewModel(
             var health = ResolveHealthValue(block);
             if (!string.IsNullOrWhiteSpace(health))
             {
-                vitals.Add(new(Localization.GetString("Tools.IniEditor.Canvas.CardHpLabel"), health, SuccessBrushKey));
+                vitals.Add(new(hpLabel, health, SuccessBrushKey));
             }
 
             var cost = FindFieldValue(block, IniConstants.FieldKeys.BuildCost);
             if (!string.IsNullOrWhiteSpace(cost))
             {
-                vitals.Add(new(Localization.GetString("Tools.IniEditor.Vitals.Cost"), $"${cost}", WarningBrushKey));
+                vitals.Add(new(costLabel, $"${cost}", WarningBrushKey));
             }
 
             var cmd = FindFieldValue(block, IniConstants.FieldKeys.Command);
             if (!string.IsNullOrWhiteSpace(cmd))
             {
-                vitals.Add(new(Localization.GetString("Tools.IniEditor.Canvas.CardCmdLabel"), cmd, AccentBrushKey));
+                vitals.Add(new(cmdLabel, cmd, AccentBrushKey));
             }
 
             CanvasBlockCards.Add(new IniCanvasCardViewModel(block, title, block.BlockType, side, portrait, vitals));
@@ -4463,11 +4525,12 @@ public sealed partial class IniEditorViewModel(
 
         SetPreviewStatus("Tools.IniEditor.Preview3D.Loading", model);
         IsPreviewLoading = true;
-        ScheduleDeferred(ref _modelPreviewCts, IniConstants.Editor.ModelPreviewDebounceMs, () => _ = RefreshModelPreviewAsync(model, installationPath, isZeroHour, projectDirectory));
+        ScheduleDeferred(ref _modelPreviewCts, IniConstants.Editor.ModelPreviewDebounceMs, token => _ = RefreshModelPreviewAsync(model, installationPath, isZeroHour, projectDirectory, token));
     }
 
     private void ClearModelPreview()
     {
+        _modelPreviewGeneration++;
         CancelDeferred(ref _modelPreviewCts);
         StopPreviewPlayback();
         _previewResolved = null;
@@ -4492,7 +4555,12 @@ public sealed partial class IniEditorViewModel(
         SetPreviewStatus("Tools.IniEditor.Preview3D.Empty");
     }
 
-    private async Task RefreshModelPreviewAsync(string model, string? installationPath, bool isZeroHour, string? projectDirectory)
+    private async Task RefreshModelPreviewAsync(
+        string model,
+        string? installationPath,
+        bool isZeroHour,
+        string? projectDirectory,
+        CancellationToken cancellationToken)
     {
         var generation = ++_modelPreviewGeneration;
         if (string.IsNullOrEmpty(installationPath))
@@ -4501,8 +4569,19 @@ public sealed partial class IniEditorViewModel(
             return;
         }
 
-        var resolved = await modelResolver.ResolveAsync(model, installationPath, isZeroHour, projectDirectory, CancellationToken.None).ConfigureAwait(false);
-        if (generation != _modelPreviewGeneration)
+        OperationResult<W3dResolvedModel>? resolved = null;
+        try
+        {
+            resolved = await Task.Run(
+                () => modelResolver.ResolveAsync(model, installationPath, isZeroHour, projectDirectory, cancellationToken),
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (generation != _modelPreviewGeneration || cancellationToken.IsCancellationRequested)
         {
             return;
         }

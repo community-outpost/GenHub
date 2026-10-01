@@ -560,6 +560,23 @@ public abstract class EditorToolViewModelBase : ObservableObject, IDisposable
     }
 
     /// <summary>
+    /// Executes the provided asynchronous function on the UI thread.
+    /// </summary>
+    /// <typeparam name="T">The result type.</typeparam>
+    /// <param name="action">The function to execute on the UI thread.</param>
+    /// <returns>The result of the action.</returns>
+    protected static async Task<T> InvokeOnUIThreadAsync<T>(Func<Task<T>> action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            return await action().ConfigureAwait(false);
+        }
+
+        return await Dispatcher.UIThread.InvokeAsync(action).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Asks the user to confirm discarding unsaved changes.
     /// </summary>
     /// <param name="cancellationToken">The cancellation token.</param>
@@ -572,11 +589,11 @@ public abstract class EditorToolViewModelBase : ObservableObject, IDisposable
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        return await Dialogs.ShowConfirmationAsync(
+        return await InvokeOnUIThreadAsync(() => Dialogs.ShowConfirmationAsync(
             Localize(UnsavedChangesTitleKey, "Unsaved changes"),
             Localize(UnsavedChangesMessageKey, "Discard unsaved changes?"),
             Localize(UnsavedChangesDiscardKey, "Discard"),
-            Localize(UnsavedChangesCancelKey, "Cancel")).ConfigureAwait(true);
+            Localize(UnsavedChangesCancelKey, "Cancel"))).ConfigureAwait(false);
     }
 
     /// <summary>

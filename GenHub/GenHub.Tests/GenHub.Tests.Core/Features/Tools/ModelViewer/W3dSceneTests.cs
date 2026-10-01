@@ -1,3 +1,5 @@
+using GenHub.Common.Controls;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Tools.ModelViewer;
 using GenHub.Core.Models.Tools.TextureEditor;
 using GenHub.Core.Services.Tools.ModelViewer;
@@ -233,4 +235,84 @@ public sealed class W3dSceneTests
             passes ?? [],
             []);
     }
+    /// <summary>
+    /// Verifies that meshes with GeometryTypeSkin attribute are marked as skin in render meshes.
+    /// </summary>
+    [Fact]
+    public void Build_MeshWithSkinAttributes_SetsIsSkinOnRenderMesh()
+    {
+        var origin = new W3dVector3(0, 0, 0);
+        var rigidMesh = MeshWithTriangle();
+        var skinMesh = new W3dMesh(
+            "Skin",
+            "C",
+            0,
+            W3dConstants.MeshFlags.GeometryTypeSkin,
+            new W3dBoundingBox(origin, new W3dVector3(1, 1, 0), origin, 1),
+            [new W3dVector3(0, 0, 0), new W3dVector3(1, 0, 0), new W3dVector3(0, 1, 0)],
+            [new W3dVector3(0, 0, 1), new W3dVector3(0, 0, 1), new W3dVector3(0, 0, 1)],
+            [new W3dTriangle(0, 1, 2, 0)],
+            [],
+            [],
+            [],
+            [],
+            []);
+
+        var model = new W3dModel([rigidMesh, skinMesh], [], [], [], []);
+        var scene = W3dSceneBuilder.Build(model, new Dictionary<string, DecodedTexture>());
+
+        Assert.Equal(2, scene.Meshes.Count);
+        Assert.False(scene.Meshes[0].IsSkin);
+        Assert.True(scene.Meshes[1].IsSkin);
+    }
+
+    /// <summary>
+    /// Verifies that rigid sub-object meshes use the animated pivot pose directly,
+    /// avoiding collapse when inverse bind transforms are applied to object-space vertices.
+    /// </summary>
+    [Fact]
+    public void ComputeMeshModelTransform_RigidMesh_UsesPoseDirectly()
+    {
+        var rigidMesh = new W3dRenderMesh("Turret", [], [], -1, 1f, false, false, 1, IsSkin: false);
+        var bindPose = new[] { Matrix4x4.Identity, Matrix4x4.CreateTranslation(10, 0, 0) };
+        var inverseBind = new[] { Matrix4x4.Identity, Matrix4x4.CreateTranslation(-10, 0, 0) };
+        var currentPose = new[] { Matrix4x4.Identity, Matrix4x4.CreateTranslation(25, 0, 0) };
+
+        var transform = W3dViewerControl.ComputeMeshModelTransform(rigidMesh, currentPose, bindPose, inverseBind);
+
+        Assert.Equal(new Vector3(25, 0, 0), transform.Translation);
+    }
+
+    /// <summary>
+    /// Verifies that skin meshes relativize the animated pivot pose by the inverse bind pose.
+    /// </summary>
+    [Fact]
+    public void ComputeMeshModelTransform_SkinMesh_UsesInverseBindMultipliedByPose()
+    {
+        var skinMesh = new W3dRenderMesh("Skin", [], [], -1, 1f, false, false, 1, IsSkin: true);
+        var bindPose = new[] { Matrix4x4.Identity, Matrix4x4.CreateTranslation(10, 0, 0) };
+        var inverseBind = new[] { Matrix4x4.Identity, Matrix4x4.CreateTranslation(-10, 0, 0) };
+        var currentPose = new[] { Matrix4x4.Identity, Matrix4x4.CreateTranslation(25, 0, 0) };
+
+        var transform = W3dViewerControl.ComputeMeshModelTransform(skinMesh, currentPose, bindPose, inverseBind);
+
+        // inverseBind * pose = (-10) + 25 = 15
+        Assert.Equal(new Vector3(15, 0, 0), transform.Translation);
+    }
+
+    /// <summary>
+    /// Verifies that rigid meshes without an active pose return their rest bind pose.
+    /// </summary>
+    [Fact]
+    public void ComputeMeshModelTransform_RigidMeshWithoutPose_UsesBindPose()
+    {
+        var rigidMesh = new W3dRenderMesh("Turret", [], [], -1, 1f, false, false, 1, IsSkin: false);
+        var bindPose = new[] { Matrix4x4.Identity, Matrix4x4.CreateTranslation(10, 0, 0) };
+        var inverseBind = new[] { Matrix4x4.Identity, Matrix4x4.CreateTranslation(-10, 0, 0) };
+
+        var transform = W3dViewerControl.ComputeMeshModelTransform(rigidMesh, null, bindPose, inverseBind);
+
+        Assert.Equal(new Vector3(10, 0, 0), transform.Translation);
+    }
+
 }

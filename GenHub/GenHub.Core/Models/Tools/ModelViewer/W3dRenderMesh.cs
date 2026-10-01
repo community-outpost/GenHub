@@ -15,6 +15,7 @@ namespace GenHub.Core.Models.Tools.ModelViewer;
 /// <param name="AlphaTest">Whether alpha-tested cutout applies.</param>
 /// <param name="TwoSided">Whether both faces render.</param>
 /// <param name="BoneIndex">The pivot index the mesh attaches to, or -1.</param>
+/// <param name="IsSkin">Whether the mesh is a deformable skin whose vertices are exported in world bind-pose space.</param>
 public sealed record W3dRenderMesh(
     string Name,
     IReadOnlyList<float> Vertices,
@@ -23,7 +24,8 @@ public sealed record W3dRenderMesh(
     float Opacity,
     bool AlphaTest,
     bool TwoSided,
-    int BoneIndex)
+    int BoneIndex,
+    bool IsSkin = false)
 {
     /// <summary>
     /// Gets the number of floats per vertex.

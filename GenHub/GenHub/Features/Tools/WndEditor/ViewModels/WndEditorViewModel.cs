@@ -2505,7 +2505,7 @@ public sealed partial class WndEditorViewModel(
         cancellationToken.ThrowIfCancellationRequested();
         if (!string.IsNullOrEmpty(firstWnd))
         {
-            return await OpenFileAsync(firstWnd, cancellationToken).ConfigureAwait(false);
+            return await InvokeOnUIThreadAsync(() => OpenFileAsync(firstWnd, cancellationToken)).ConfigureAwait(false);
         }
 
         Notifications.ShowInfo(

@@ -91,7 +91,8 @@ public static class W3dSceneBuilder
             material?.Opacity ?? 1,
             alphaTest,
             mesh.IsTwoSided,
-            boneIndex);
+            boneIndex,
+            mesh.IsSkin);
     }
 
     private static W3dVertexMaterial? SelectMaterial(W3dMesh mesh, W3dMaterialPass? pass)

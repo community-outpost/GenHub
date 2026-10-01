@@ -9,8 +9,11 @@ namespace GenHub.Features.Tools.IniEditor.ViewModels;
 /// <summary>
 /// An overview card representation of a block on the shared editor canvas.
 /// </summary>
-public sealed class IniCanvasCardViewModel : ObservableObject
+public sealed partial class IniCanvasCardViewModel : ObservableObject
 {
+    [ObservableProperty]
+    private IImage? _portrait;
+
     /// <summary>
     /// Gets the underlying INI block.
     /// </summary>
@@ -30,11 +33,6 @@ public sealed class IniCanvasCardViewModel : ObservableObject
     /// Gets the faction or side of the block, if available.
     /// </summary>
     public string? Side { get; }
-
-    /// <summary>
-    /// Gets the portrait or icon image for the block.
-    /// </summary>
-    public IImage? Portrait { get; }
 
     /// <summary>
     /// Gets the fallback icon kind shown when no portrait thumbnail is available.
@@ -61,7 +59,7 @@ public sealed class IniCanvasCardViewModel : ObservableObject
         Title = title;
         BlockType = blockType;
         Side = side;
-        Portrait = portrait;
+        _portrait = portrait;
         Vitals = vitals;
     }
 }

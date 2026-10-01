@@ -605,6 +605,7 @@ public sealed class W3dViewerControl : OpenGlControlBase
         if (!string.IsNullOrEmpty(fragmentError))
         {
             gl.DeleteShader(vertexShader);
+            gl.DeleteShader(fragmentShader);
             throw new InvalidOperationException($"Fragment shader failed: {fragmentError}");
         }
 
@@ -752,6 +753,11 @@ public sealed class W3dViewerControl : OpenGlControlBase
             return pose[pivotIndex].Translation;
         }
 
+        if (parentEnd && segment.ParentIndex < 0 && pose != null && segment.PivotIndex >= 0 && segment.PivotIndex < pose.Count)
+        {
+            return pose[segment.PivotIndex].Translation;
+        }
+
         var stored = parentEnd ? segment.Start : segment.End;
         return new Vector3(stored.X, stored.Y, stored.Z);
     }
@@ -812,16 +818,32 @@ public sealed class W3dViewerControl : OpenGlControlBase
 
     private Matrix4x4 MeshModel(W3dRenderMesh mesh, IReadOnlyList<Matrix4x4>? pose)
     {
+        return ComputeMeshModelTransform(mesh, pose, BindPose, _inverseBind);
+    }
+
+    internal static Matrix4x4 ComputeMeshModelTransform(
+        W3dRenderMesh mesh,
+        IReadOnlyList<Matrix4x4>? pose,
+        IReadOnlyList<Matrix4x4>? bindPose,
+        IReadOnlyList<Matrix4x4>? inverseBind)
+    {
         if (pose == null || mesh.BoneIndex < 0 || mesh.BoneIndex >= pose.Count)
         {
+            if (!mesh.IsSkin && bindPose != null && mesh.BoneIndex >= 0 && mesh.BoneIndex < bindPose.Count)
+            {
+                return bindPose[mesh.BoneIndex];
+            }
+
             return Matrix4x4.Identity;
         }
 
-        // Mesh vertices already sit in bind-pose world space, so animation applies
+        // Deformable skin mesh vertices sit in bind-pose world space, so animation applies
         // the pivot motion relative to the bind pose instead of the absolute pose.
-        if (mesh.BoneIndex < _inverseBind.Length)
+        // Rigid meshes (turrets, wheels, chassis) sit in object space relative to their pivot
+        // and must use the plain animated pivot transform.
+        if (mesh.IsSkin && inverseBind != null && mesh.BoneIndex < inverseBind.Count)
         {
-            return _inverseBind[mesh.BoneIndex] * pose[mesh.BoneIndex];
+            return inverseBind[mesh.BoneIndex] * pose[mesh.BoneIndex];
         }
 
         return pose[mesh.BoneIndex];
@@ -955,10 +977,13 @@ public sealed class W3dViewerControl : OpenGlControlBase
 
     private void PanByPixels(double dx, double dy)
     {
-        var (right, up) = CameraAxes();
-        float scale = (float)(_distance / Math.Max(Bounds.Height, 1));
-        _target -= right * (float)(dx * scale);
-        _target += up * (float)(dy * scale);
+        lock (_cameraLock)
+        {
+            var (right, up) = CameraAxes();
+            float scale = (float)(_distance / Math.Max(Bounds.Height, 1));
+            _target -= right * (float)(dx * scale);
+            _target += up * (float)(dy * scale);
+        }
     }
 
     private (Vector3 Right, Vector3 Up) CameraAxes()
