@@ -50,6 +50,67 @@ public static class ManifestVariantResolver
     }
 
     /// <summary>
+    /// Enumerates every file the manifest declares: the flat list followed by each
+    /// variant's files, whichever runtime they target.
+    /// </summary>
+    /// <param name="manifest">The manifest to enumerate.</param>
+    /// <returns>All declared files.</returns>
+    public static IEnumerable<ManifestFile> EnumerateAllFiles(ContentManifest manifest)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+
+        var variantFiles = manifest.Variants.SelectMany(v => v?.Files ?? []);
+        return (manifest.Files ?? []).Concat(variantFiles);
+    }
+
+    /// <summary>
+    /// Replaces the files <see cref="ResolveFiles"/> returns for the given runtime.
+    /// <para>
+    /// The matching variant's list is replaced, or the flat list when the manifest
+    /// declares no variants. Other variants are left untouched. Nothing changes when
+    /// variants are declared but none matches.
+    /// </para>
+    /// </summary>
+    /// <param name="manifest">The manifest to update.</param>
+    /// <param name="files">The new files.</param>
+    /// <param name="runtimeIdentifier">Host runtime identifier; defaults to the current host.</param>
+    public static void ReplaceResolvedFiles(
+        ContentManifest manifest,
+        List<ManifestFile> files,
+        string? runtimeIdentifier = null)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+        ArgumentNullException.ThrowIfNull(files);
+
+        var variant = ResolveVariant(manifest, runtimeIdentifier);
+        if (variant is not null)
+        {
+            variant.Files = files;
+        }
+        else if (manifest.Variants.Count == 0)
+        {
+            manifest.Files = files;
+        }
+    }
+
+    /// <summary>
+    /// Rewrites every file the manifest declares, in the flat list and in each variant.
+    /// </summary>
+    /// <param name="manifest">The manifest to update.</param>
+    /// <param name="rewrite">Returns the replacement for a file, or the file itself to keep it.</param>
+    public static void RewriteAllFiles(ContentManifest manifest, Func<ManifestFile, ManifestFile> rewrite)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+        ArgumentNullException.ThrowIfNull(rewrite);
+
+        manifest.Files = (manifest.Files ?? []).Select(rewrite).ToList();
+        foreach (var variant in manifest.Variants.Where(v => v is not null))
+        {
+            variant.Files = (variant.Files ?? []).Select(rewrite).ToList();
+        }
+    }
+
+    /// <summary>
     /// Selects the variant that applies on the given runtime.
     /// </summary>
     /// <param name="manifest">The manifest to resolve.</param>

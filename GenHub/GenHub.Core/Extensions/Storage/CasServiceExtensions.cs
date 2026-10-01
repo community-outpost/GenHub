@@ -43,8 +43,9 @@ public static class CasServiceExtensions
 
     /// <summary>
     /// Returns the required content-addressable files whose objects are missing from CAS.
-    /// A required entry counts as missing when its hash is empty or its object is absent
-    /// from every pool.
+    /// Only the files the manifest contributes on this host are checked, so a variant for
+    /// another platform never counts as missing. A required entry counts as missing when
+    /// its hash is empty or its object is absent from every pool.
     /// </summary>
     /// <param name="casService">The CAS service.</param>
     /// <param name="manifest">The manifest to check.</param>
@@ -56,12 +57,7 @@ public static class CasServiceExtensions
         CancellationToken cancellationToken = default)
     {
         var missingFiles = new List<ManifestFile>();
-        if (manifest.Files == null)
-        {
-            return missingFiles;
-        }
-
-        foreach (var file in manifest.Files.Where(f => f.SourceType == ContentSourceType.ContentAddressable && f.IsRequired))
+        foreach (var file in ManifestVariantResolver.ResolveFiles(manifest).Where(f => f.SourceType == ContentSourceType.ContentAddressable && f.IsRequired))
         {
             var exists = !string.IsNullOrEmpty(file.Hash) &&
                 await casService.ExistsInAnyPoolAsync(file.Hash, manifest.ContentType, cancellationToken).ConfigureAwait(false);
