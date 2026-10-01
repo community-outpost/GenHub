@@ -224,7 +224,7 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
                 return false;
             }
 
-            var chunk = new W3dReader(reader.Data, payloadOffset, payloadLength);
+            var chunk = reader.Slice(payloadOffset, payloadLength);
             if (!ParseMeshChunk(chunkType, chunk, builder, warnings))
             {
                 return false;
@@ -291,7 +291,7 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
                 return false;
             }
 
-            var chunk = new W3dReader(reader.Data, payloadOffset, payloadLength);
+            var chunk = reader.Slice(payloadOffset, payloadLength);
             if (chunkType == W3dConstants.Chunks.HierarchyHeader)
             {
                 if (!ReadHierarchyHeader(chunk, out hierarchyName, out center))
@@ -387,7 +387,7 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
                 return false;
             }
 
-            var chunk = new W3dReader(reader.Data, payloadOffset, payloadLength);
+            var chunk = reader.Slice(payloadOffset, payloadLength);
             if (chunkType == W3dConstants.Chunks.AnimationHeader)
             {
                 if (!ReadAnimationHeader(chunk, out clipName, out hierarchyName, out frameCount, out frameRate))
@@ -432,7 +432,7 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
                 return false;
             }
 
-            var chunk = new W3dReader(reader.Data, payloadOffset, payloadLength);
+            var chunk = reader.Slice(payloadOffset, payloadLength);
             if (chunkType == W3dConstants.Chunks.CompressedAnimationHeader)
             {
                 if (!ReadCompressedAnimationHeader(chunk, out clipName, out hierarchyName, out frameCount, out frameRate, out flavor))
@@ -630,7 +630,7 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
                 return false;
             }
 
-            var chunk = new W3dReader(reader.Data, payloadOffset, payloadLength);
+            var chunk = reader.Slice(payloadOffset, payloadLength);
             if (chunkType == W3dConstants.Chunks.HLodHeader)
             {
                 if (!ReadHLodHeader(chunk, out lodName, out hierarchyName))
@@ -688,7 +688,7 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
                 return false;
             }
 
-            var chunk = new W3dReader(reader.Data, reader.Position, size);
+            var chunk = reader.Slice(reader.Position, size);
             if (chunkType == W3dConstants.Chunks.HLodSubObjectArrayHeader)
             {
                 if (chunk.Remaining < W3dConstants.HLodArrayHeaderSize)
@@ -731,14 +731,14 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
 
     private struct W3dReader
     {
+        private readonly byte[] _data;
+
         public W3dReader(byte[] data, int position, int length)
         {
-            Data = data;
+            _data = data;
             Position = position;
             End = position + length;
         }
-
-        public byte[] Data { get; }
 
         public int Position { get; set; }
 
@@ -748,6 +748,11 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
 
         public int Remaining => Math.Max(0, End - Position);
 
+        public W3dReader Slice(int position, int length)
+        {
+            return new W3dReader(_data, position, length);
+        }
+
         public uint ReadUInt32()
         {
             if (Remaining < 4)
@@ -756,7 +761,7 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
                 return 0;
             }
 
-            uint value = BinaryPrimitives.ReadUInt32LittleEndian(Data.AsSpan(Position, 4));
+            uint value = BinaryPrimitives.ReadUInt32LittleEndian(_data.AsSpan(Position, 4));
             Position += 4;
             return value;
         }
@@ -769,7 +774,7 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
                 return 0;
             }
 
-            ushort value = BinaryPrimitives.ReadUInt16LittleEndian(Data.AsSpan(Position, 2));
+            ushort value = BinaryPrimitives.ReadUInt16LittleEndian(_data.AsSpan(Position, 2));
             Position += 2;
             return value;
         }
@@ -782,7 +787,7 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
                 return 0;
             }
 
-            return Data[Position++];
+            return _data[Position++];
         }
 
         public float ReadSingle()
@@ -793,7 +798,7 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
                 return 0;
             }
 
-            float value = BinaryPrimitives.ReadSingleLittleEndian(Data.AsSpan(Position, 4));
+            float value = BinaryPrimitives.ReadSingleLittleEndian(_data.AsSpan(Position, 4));
             Position += 4;
             return value;
         }
@@ -824,12 +829,12 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
             }
 
             int end = Position;
-            while (end < Position + length && Data[end] != 0)
+            while (end < Position + length && _data[end] != 0)
             {
                 end++;
             }
 
-            string value = Encoding.ASCII.GetString(Data, Position, end - Position);
+            string value = Encoding.ASCII.GetString(_data, Position, end - Position);
             Position += length;
             return value;
         }
@@ -1064,7 +1069,7 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
 
                 if (chunkType == W3dConstants.Chunks.VertexMaterial)
                 {
-                    var chunk = new W3dReader(reader.Data, reader.Position, size);
+                    var chunk = reader.Slice(reader.Position, size);
                     if (!ReadSingleVertexMaterial(chunk))
                     {
                         return Fail();
@@ -1091,7 +1096,7 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
 
                 if (chunkType == W3dConstants.Chunks.Texture)
                 {
-                    var chunk = new W3dReader(reader.Data, reader.Position, size);
+                    var chunk = reader.Slice(reader.Position, size);
                     if (!ReadSingleTexture(chunk))
                     {
                         return Fail();
@@ -1120,7 +1125,7 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
                     return Fail();
                 }
 
-                var chunk = new W3dReader(reader.Data, reader.Position, size);
+                var chunk = reader.Slice(reader.Position, size);
                 if (chunkType == W3dConstants.Chunks.VertexMaterialIds)
                 {
                     ReadIdArray(chunk, vertexMaterialIds);
@@ -1191,7 +1196,7 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
                     return Fail();
                 }
 
-                var chunk = new W3dReader(reader.Data, reader.Position, size);
+                var chunk = reader.Slice(reader.Position, size);
                 if (chunkType == W3dConstants.Chunks.VertexMaterialName)
                 {
                     materialName = chunk.ReadFixedString(size);
@@ -1261,7 +1266,7 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
                     return Fail();
                 }
 
-                var chunk = new W3dReader(reader.Data, reader.Position, size);
+                var chunk = reader.Slice(reader.Position, size);
                 if (chunkType == W3dConstants.Chunks.TextureName)
                 {
                     textureName = chunk.ReadFixedString(size);
@@ -1302,7 +1307,7 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
                     return Fail();
                 }
 
-                var chunk = new W3dReader(reader.Data, reader.Position, size);
+                var chunk = reader.Slice(reader.Position, size);
                 if (chunkType == W3dConstants.Chunks.TextureIds)
                 {
                     ReadIdArray(chunk, textureIds);

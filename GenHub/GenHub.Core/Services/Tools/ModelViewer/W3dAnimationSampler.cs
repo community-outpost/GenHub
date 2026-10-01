@@ -120,7 +120,7 @@ public static class W3dAnimationSampler
         var translation = new Vector3(pivot.Translation.X, pivot.Translation.Y, pivot.Translation.Z);
         var rotation = ToNumerics(Normalize(pivot.Rotation));
 
-        if (channelsByPivot != null && channelsByPivot.TryGetValue(pivotIndex, out var channels))
+        if (channelsByPivot?.TryGetValue(pivotIndex, out var channels) == true)
         {
             ApplyChannels(channels, frame, ref translation, ref rotation);
         }
@@ -174,6 +174,7 @@ public static class W3dAnimationSampler
 
                     break;
                 default:
+                    // Unknown or unsupported animation channel type; ignore.
                     break;
             }
         }

@@ -484,7 +484,7 @@ public sealed class W3dViewerControl : OpenGlControlBase
                 gl.DeleteProgram(_lineProgram);
             }
         }
-        catch (Exception)
+        catch (InvalidOperationException)
         {
             // Context teardown must never throw.
         }
@@ -757,12 +757,13 @@ public sealed class W3dViewerControl : OpenGlControlBase
             uint a = indices[t];
             uint b = indices[t + 1];
             uint c = indices[t + 2];
-            edges[edge++] = a;
-            edges[edge++] = b;
-            edges[edge++] = b;
-            edges[edge++] = c;
-            edges[edge++] = c;
-            edges[edge++] = a;
+            edges[edge] = a;
+            edges[edge + 1] = b;
+            edges[edge + 2] = b;
+            edges[edge + 3] = c;
+            edges[edge + 4] = c;
+            edges[edge + 5] = a;
+            edge += 6;
         }
 
         return edges;
@@ -1043,8 +1044,8 @@ public sealed class W3dViewerControl : OpenGlControlBase
             _linesDirty = false;
         }
 
-        Matrix4x4 view;
-        Matrix4x4 projection;
+        Matrix4x4 view = Matrix4x4.Identity;
+        Matrix4x4 projection = Matrix4x4.Identity;
         lock (_cameraLock)
         {
             var eye = CameraEye();
@@ -1294,8 +1295,8 @@ public sealed class W3dViewerControl : OpenGlControlBase
             return null;
         }
 
-        Matrix4x4 view;
-        Matrix4x4 projection;
+        Matrix4x4 view = Matrix4x4.Identity;
+        Matrix4x4 projection = Matrix4x4.Identity;
         lock (_cameraLock)
         {
             var eye = CameraEye();
