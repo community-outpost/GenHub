@@ -217,7 +217,7 @@ public sealed partial class IniEditorViewModel(
     /// Gets a value indicating whether the selected block has vitals to display.
     /// </summary>
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads source-generated vitals instance state and is bound from XAML.")]
-    public bool HasSelectedBlockVitals => SelectedBlockVitals != null && SelectedBlockVitals.Count > 0;
+    public bool HasSelectedBlockVitals => SelectedBlockVitals?.Count > 0;
 
     /// <summary>
     /// Gets or sets whether to show all document blocks on the canvas in an overview.
@@ -1232,7 +1232,19 @@ public sealed partial class IniEditorViewModel(
             return normalizedPath.StartsWith(normalizedBase + Path.DirectorySeparatorChar, comparison)
                 || string.Equals(normalizedPath, normalizedBase, comparison);
         }
-        catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException or SecurityException)
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (NotSupportedException)
+        {
+            return false;
+        }
+        catch (SecurityException)
         {
             return false;
         }
@@ -1258,7 +1270,15 @@ public sealed partial class IniEditorViewModel(
         {
             return Path.GetFullPath(filePath.Trim().Trim('"'));
         }
-        catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException)
+        catch (ArgumentException)
+        {
+            return filePath;
+        }
+        catch (IOException)
+        {
+            return filePath;
+        }
+        catch (NotSupportedException)
         {
             return filePath;
         }
@@ -1272,7 +1292,19 @@ public sealed partial class IniEditorViewModel(
             var fullDirectory = Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             return fullFile.StartsWith(fullDirectory + Path.DirectorySeparatorChar, PathHelper.PathComparison);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (NotSupportedException)
         {
             return false;
         }
@@ -1504,7 +1536,11 @@ public sealed partial class IniEditorViewModel(
 
             PostToUIThread(refresh);
         }
-        catch (Exception ex) when (ex is OperationCanceledException or ObjectDisposedException)
+        catch (OperationCanceledException)
+        {
+            // Superseded by a newer edit, or the view model was disposed.
+        }
+        catch (ObjectDisposedException)
         {
             // Superseded by a newer edit, or the view model was disposed.
         }
@@ -3263,7 +3299,15 @@ public sealed partial class IniEditorViewModel(
                 await topLevel.Clipboard.SetTextAsync(text).ConfigureAwait(true);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to copy INI text to the clipboard");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Failed to copy INI text to the clipboard");
+        }
+        catch (InvalidOperationException ex)
         {
             logger.LogWarning(ex, "Failed to copy INI text to the clipboard");
         }
@@ -3311,19 +3355,28 @@ public sealed partial class IniEditorViewModel(
         await LoadTexturePickerItemsAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private async void OnExplorerFileActivated(object? sender, EditorFileTreeNodeViewModel node)
+    private void OnExplorerFileActivated(object? sender, EditorFileTreeNodeViewModel node)
+    {
+        _ = OpenExplorerFileAsync(node.FullPath);
+    }
+
+    private async Task OpenExplorerFileAsync(string fullPath)
     {
         try
         {
-            await OpenFileAsync(node.FullPath, CancellationToken.None).ConfigureAwait(false);
+            await OpenFileAsync(fullPath, CancellationToken.None).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
             // Discard confirmation was cancelled.
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
         {
-            logger.LogWarning(ex, "Failed to open INI file {Path} from the explorer", node.FullPath);
+            logger.LogWarning(ex, "Failed to open INI file {Path} from the explorer", fullPath);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Failed to open INI file {Path} from the explorer", fullPath);
         }
     }
 
@@ -3661,7 +3714,15 @@ public sealed partial class IniEditorViewModel(
         {
             // Superseded by a newer refresh.
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to refresh INI texture thumbnails");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Failed to refresh INI texture thumbnails");
+        }
+        catch (InvalidOperationException ex)
         {
             logger.LogWarning(ex, "Failed to refresh INI texture thumbnails");
         }
@@ -3721,7 +3782,17 @@ public sealed partial class IniEditorViewModel(
                 using var stream = new MemoryStream(png);
                 decoded[name] = new Bitmap(stream);
             }
-            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or NotSupportedException)
+            catch (ArgumentException ex)
+            {
+                logger.LogWarning(ex, "Failed to decode texture thumbnail {Name}", name);
+                decoded[name] = null;
+            }
+            catch (InvalidOperationException ex)
+            {
+                logger.LogWarning(ex, "Failed to decode texture thumbnail {Name}", name);
+                decoded[name] = null;
+            }
+            catch (NotSupportedException ex)
             {
                 logger.LogWarning(ex, "Failed to decode texture thumbnail {Name}", name);
                 decoded[name] = null;
@@ -3772,7 +3843,7 @@ public sealed partial class IniEditorViewModel(
         // Without a detected installation there is no tier signal, so fall back to the
         // platform default. Zero Hour mode enforces strict per-game isolation while the
         // base tier stays permissive about loose project files.
-        var isZeroHour = installation?.IsZeroHour ?? false;
+        var isZeroHour = installation?.IsZeroHour == true;
 
         var projectDirectory = string.IsNullOrEmpty(FilePath) ? FileExplorer.Directory : Path.GetDirectoryName(FilePath);
         if (string.IsNullOrEmpty(installationPath))
@@ -3813,14 +3884,9 @@ public sealed partial class IniEditorViewModel(
         {
             var portrait = FindFieldValue(EditableSelectedNode.Block, IniConstants.FieldKeys.SelectPortrait) ??
                            FindFieldValue(EditableSelectedNode.Block, IniConstants.FieldKeys.ButtonImage);
-            if (!string.IsNullOrWhiteSpace(portrait) && _textureThumbnails.TryGetValue(portrait.Trim(), out var thumb))
-            {
-                SelectedBlockPortrait = thumb;
-            }
-            else
-            {
-                SelectedBlockPortrait = null;
-            }
+            SelectedBlockPortrait = (!string.IsNullOrWhiteSpace(portrait) && _textureThumbnails.TryGetValue(portrait.Trim(), out var thumb))
+                ? thumb
+                : null;
         }
     }
 
@@ -3906,7 +3972,11 @@ public sealed partial class IniEditorViewModel(
                 .Where(file => file.Contains("MappedImages", StringComparison.OrdinalIgnoreCase))
                 .Take(IniConstants.Editor.MaxMappedImageFiles));
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to enumerate mapped image files in {Directory}", directory);
+        }
+        catch (UnauthorizedAccessException ex)
         {
             logger.LogWarning(ex, "Failed to enumerate mapped image files in {Directory}", directory);
         }
@@ -4034,7 +4104,31 @@ public sealed partial class IniEditorViewModel(
                 Localization.GetString("Tools.IniEditor.Save.SuccessMessage", DocumentTitle),
                 NotificationDurations.Medium);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        catch (IOException ex)
+        {
+            logger.LogError(ex, "Failed to save INI file {Path}", filePath);
+            Notifications.ShowError(
+                Localization.GetString("Tools.IniEditor.Save.FailureTitle"),
+                Localization.GetString("Tools.IniEditor.Save.FailureMessage", ex.Message),
+                NotificationDurations.Long);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogError(ex, "Failed to save INI file {Path}", filePath);
+            Notifications.ShowError(
+                Localization.GetString("Tools.IniEditor.Save.FailureTitle"),
+                Localization.GetString("Tools.IniEditor.Save.FailureMessage", ex.Message),
+                NotificationDurations.Long);
+        }
+        catch (ArgumentException ex)
+        {
+            logger.LogError(ex, "Failed to save INI file {Path}", filePath);
+            Notifications.ShowError(
+                Localization.GetString("Tools.IniEditor.Save.FailureTitle"),
+                Localization.GetString("Tools.IniEditor.Save.FailureMessage", ex.Message),
+                NotificationDurations.Long);
+        }
+        catch (NotSupportedException ex)
         {
             logger.LogError(ex, "Failed to save INI file {Path}", filePath);
             Notifications.ShowError(
@@ -4504,7 +4598,7 @@ public sealed partial class IniEditorViewModel(
 
         var installation = SelectedInstallation ?? AvailableInstallations.FirstOrDefault();
         var installationPath = installation?.Path;
-        var isZeroHour = installation?.IsZeroHour ?? false;
+        var isZeroHour = installation?.IsZeroHour == true;
         var projectDirectory = string.IsNullOrEmpty(FilePath) ? FileExplorer.Directory : Path.GetDirectoryName(FilePath);
         if (string.IsNullOrEmpty(installationPath))
         {
@@ -5005,14 +5099,9 @@ public sealed partial class IniEditorViewModel(
     private void ApplyVisualObjectPortrait(IniBlock block)
     {
         var portraitName = (FindFieldValue(block, IniConstants.FieldKeys.SelectPortrait) ?? FindFieldValue(block, IniConstants.FieldKeys.ButtonImage))?.Trim();
-        if (!string.IsNullOrWhiteSpace(portraitName) && _textureThumbnails.TryGetValue(portraitName, out var thumb))
-        {
-            SelectedBlockPortrait = thumb;
-        }
-        else
-        {
-            SelectedBlockPortrait = null;
-        }
+        SelectedBlockPortrait = (!string.IsNullOrWhiteSpace(portraitName) && _textureThumbnails.TryGetValue(portraitName, out var thumb))
+            ? thumb
+            : null;
     }
 
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Populates instance-bound visual object collections.")]

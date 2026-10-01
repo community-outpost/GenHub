@@ -676,7 +676,7 @@ public sealed partial class WndEditorViewModel(
 
         // 2. Check for copied raw image bytes (PNG, JPEG, BMP, DIB, Bitmap)
         var imageBytes = await ExtractClipboardImageBytesAsync(clipboard).ConfigureAwait(false);
-        if (imageBytes != null && imageBytes.Length > 0)
+        if (imageBytes?.Length > 0)
         {
             return await ApplyClipboardImageBytesAsync(imageBytes, targetWindow, cancellationToken).ConfigureAwait(false);
         }
@@ -870,7 +870,17 @@ public sealed partial class WndEditorViewModel(
                 ?? TryMapBuildPath(filePath, normalized)
                 ?? filePath;
         }
-        catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException)
+        catch (ArgumentException)
+        {
+            // Ignore path inspection errors and return original path
+            return filePath;
+        }
+        catch (IOException)
+        {
+            // Ignore path inspection errors and return original path
+            return filePath;
+        }
+        catch (NotSupportedException)
         {
             // Ignore path inspection errors and return original path
             return filePath;

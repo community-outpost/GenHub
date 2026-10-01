@@ -118,7 +118,7 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
     /// <summary>
     /// Gets a value indicating whether the row offers a searchable value dropdown.
     /// </summary>
-    public bool HasSuggestions => Suggestions != null && Suggestions.Count > 0;
+    public bool HasSuggestions => Suggestions?.Count > 0;
 
     /// <summary>
     /// Gets a value indicating whether the row renders a searchable dropdown editor.
@@ -130,11 +130,18 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
     /// <summary>
     /// Gets the icon kind for the value picker button.
     /// </summary>
-    public string FieldIconKind => ReferenceBlockType != null
-        ? IniBlockIconHelper.GetIconKind(ReferenceBlockType)
-        : IsTexture
-            ? "ImageOutline"
-            : "ChevronDown";
+    public string FieldIconKind
+    {
+        get
+        {
+            if (ReferenceBlockType != null)
+            {
+                return IniBlockIconHelper.GetIconKind(ReferenceBlockType);
+            }
+
+            return IsTexture ? "ImageOutline" : "ChevronDown";
+        }
+    }
 
     /// <summary>
     /// Gets the icon kind for the pair target picker button.
@@ -181,7 +188,7 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
     /// <summary>
     /// Gets a value indicating whether the pair target dropdown has entries.
     /// </summary>
-    public bool HasPairTargets => PairTargetSuggestions != null && PairTargetSuggestions.Count > 0;
+    public bool HasPairTargets => PairTargetSuggestions?.Count > 0;
 
     /// <summary>
     /// Gets available KindOf flags.

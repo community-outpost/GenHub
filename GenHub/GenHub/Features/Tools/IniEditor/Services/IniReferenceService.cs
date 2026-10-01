@@ -74,7 +74,12 @@ public sealed class IniReferenceService(
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to rebuild the INI reference index");
+            return OperationResult<int>.CreateFailure($"Failed to rebuild the reference index: {ex.Message}", stopwatch.Elapsed);
+        }
+        catch (UnauthorizedAccessException ex)
         {
             logger.LogWarning(ex, "Failed to rebuild the INI reference index");
             return OperationResult<int>.CreateFailure($"Failed to rebuild the reference index: {ex.Message}", stopwatch.Elapsed);
@@ -407,7 +412,17 @@ public sealed class IniReferenceService(
             var content = File.ReadAllText(file);
             return ScanBlockHeaders(content);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Skipping unreadable INI file {File} during reference indexing", file);
+            return [];
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Skipping unreadable INI file {File} during reference indexing", file);
+            return [];
+        }
+        catch (ArgumentException ex)
         {
             logger.LogWarning(ex, "Skipping unreadable INI file {File} during reference indexing", file);
             return [];
