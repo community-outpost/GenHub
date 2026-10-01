@@ -2320,6 +2320,11 @@ public sealed partial class DownloadsBrowserViewModel(
                         oldCts.Dispose();
                     }
 
+                    if (!string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return false;
+                    }
+
                     var loadId = Interlocked.Increment(ref _activeCatalogLoadId);
                     _lastCatalogPublisherId = publisherId;
                     var newCts = CancellationTokenSource.CreateLinkedTokenSource(_vmCts.Token);
@@ -2328,6 +2333,11 @@ public sealed partial class DownloadsBrowserViewModel(
                     {
                         await replaced.CancelAsync();
                         replaced.Dispose();
+                    }
+
+                    if (!string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return false;
                     }
 
                     _ = LoadAvailableCatalogsAsync(publisherId, loadId, newCts.Token);
