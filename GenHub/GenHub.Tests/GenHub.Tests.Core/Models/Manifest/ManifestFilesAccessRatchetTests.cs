@@ -201,7 +201,17 @@ public class ManifestFilesAccessRatchetTests
         {
             return Assembly.Load(name);
         }
-        catch (Exception ex) when (ex is FileNotFoundException or FileLoadException or BadImageFormatException)
+        catch (FileNotFoundException ex)
+        {
+            Assert.Fail($"Could not load production assembly '{name}' for the ContentManifest.Files scan: {ex.Message}");
+            throw;
+        }
+        catch (FileLoadException ex)
+        {
+            Assert.Fail($"Could not load production assembly '{name}' for the ContentManifest.Files scan: {ex.Message}");
+            throw;
+        }
+        catch (BadImageFormatException ex)
         {
             Assert.Fail($"Could not load production assembly '{name}' for the ContentManifest.Files scan: {ex.Message}");
             throw;
@@ -270,6 +280,7 @@ public class ManifestFilesAccessRatchetTests
         return false;
     }
 
+    // Unresolvable platform-only members cannot be ContentManifest.Files, whose assembly is loaded.
     private static bool IsFilesGetter(MethodBase method, int token)
     {
         try
@@ -283,10 +294,24 @@ public class ManifestFilesAccessRatchetTests
                 && resolved.Module == FilesGetter.Module
                 && resolved.MetadataToken == FilesGetter.MetadataToken;
         }
-        catch (Exception ex) when (ex is ArgumentException or FileNotFoundException or FileLoadException or TypeLoadException or BadImageFormatException)
+        catch (ArgumentException)
         {
-            // A member whose declaring assembly is not loadable here (a platform-only
-            // API) cannot be ContentManifest.Files, which lives in a loaded assembly.
+            return false;
+        }
+        catch (FileNotFoundException)
+        {
+            return false;
+        }
+        catch (FileLoadException)
+        {
+            return false;
+        }
+        catch (TypeLoadException)
+        {
+            return false;
+        }
+        catch (BadImageFormatException)
+        {
             return false;
         }
     }
