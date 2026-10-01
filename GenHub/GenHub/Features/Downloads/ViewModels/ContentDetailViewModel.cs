@@ -667,7 +667,7 @@ public partial class ContentDetailViewModel(
     /// </summary>
     public bool CanChangeContentType =>
         !IsDownloading &&
-        !(SelectedDownloadableItem?.IsDownloading ?? false) &&
+        SelectedDownloadableItem?.IsDownloading != true &&
         !HasBundleComponents &&
         ContentCardBadgeHelper.CanChangeContentType(searchResult);
 
@@ -1501,7 +1501,7 @@ public partial class ContentDetailViewModel(
 
         if (profileManager != null && !string.IsNullOrEmpty(oldManifestId))
         {
-            bool profilesUpdated;
+            bool profilesUpdated = false;
             try
             {
                 profilesUpdated = await ApplyBundleProfileUpdatesAsync(target, oldManifestId, newManifest, promptResult, cancellationToken);
@@ -2565,6 +2565,46 @@ public partial class ContentDetailViewModel(
         SelectedVariant = value;
     }
 
+    private void SyncSelectedReleaseWithVariant(ReleaseItemViewModel currentRel, InstallableVariant value)
+    {
+        if (!string.IsNullOrWhiteSpace(value.DownloadUrl))
+        {
+            currentRel.DownloadUrl = value.DownloadUrl;
+        }
+
+        if (!string.IsNullOrWhiteSpace(value.File))
+        {
+            currentRel.Filename = value.File;
+        }
+
+        if (value.Size.HasValue && value.Size.Value > 0)
+        {
+            currentRel.FileSize = value.Size.Value;
+        }
+
+        if (!string.IsNullOrWhiteSpace(value.Sha256))
+        {
+            currentRel.Sha256Hash = value.Sha256;
+        }
+
+        if (currentRel.File != null)
+        {
+            currentRel.File = new DownloadableFile(
+                Name: !string.IsNullOrWhiteSpace(currentRel.Filename) ? currentRel.Filename : currentRel.Name,
+                DownloadUrl: currentRel.DownloadUrl,
+                SizeBytes: currentRel.FileSize > 0 ? currentRel.FileSize : null,
+                UploadDate: currentRel.ReleaseDate,
+                Version: currentRel.Version,
+                Category: currentRel.Category,
+                Uploader: currentRel.Uploader,
+                Filename: currentRel.Filename,
+                Description: currentRel.FullDescription,
+                FileSectionType: FileSectionType.Downloads);
+        }
+
+        RefreshSelectedTargetProperties();
+    }
+
     partial void OnSelectedVariantChanged(InstallableVariant? value)
     {
         VariantAxisGrouping.SyncSelections(VariantAxes, value);
@@ -2577,42 +2617,7 @@ public partial class ContentDetailViewModel(
 
         if (SelectedDownloadableItem is ReleaseItemViewModel currentRel && value != null && IsCatalogContent)
         {
-            if (!string.IsNullOrWhiteSpace(value.DownloadUrl))
-            {
-                currentRel.DownloadUrl = value.DownloadUrl;
-            }
-
-            if (!string.IsNullOrWhiteSpace(value.File))
-            {
-                currentRel.Filename = value.File;
-            }
-
-            if (value.Size.HasValue && value.Size.Value > 0)
-            {
-                currentRel.FileSize = value.Size.Value;
-            }
-
-            if (!string.IsNullOrWhiteSpace(value.Sha256))
-            {
-                currentRel.Sha256Hash = value.Sha256;
-            }
-
-            if (currentRel.File != null)
-            {
-                currentRel.File = new DownloadableFile(
-                    Name: !string.IsNullOrWhiteSpace(currentRel.Filename) ? currentRel.Filename : currentRel.Name,
-                    DownloadUrl: currentRel.DownloadUrl,
-                    SizeBytes: currentRel.FileSize > 0 ? currentRel.FileSize : null,
-                    UploadDate: currentRel.ReleaseDate,
-                    Version: currentRel.Version,
-                    Category: currentRel.Category,
-                    Uploader: currentRel.Uploader,
-                    Filename: currentRel.Filename,
-                    Description: currentRel.FullDescription,
-                    FileSectionType: FileSectionType.Downloads);
-            }
-
-            RefreshSelectedTargetProperties();
+            SyncSelectedReleaseWithVariant(currentRel, value);
         }
 
         if (value != null &&
@@ -2958,11 +2963,11 @@ public partial class ContentDetailViewModel(
 
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
-            var anyVariantMatches = variantSearchResults != null && variantSearchResults.Any(pair =>
+            var anyVariantMatches = variantSearchResults?.Any(pair =>
                 string.Equals(pair.Key, contentId, StringComparison.OrdinalIgnoreCase) ||
                 (!string.IsNullOrEmpty(manifestId) && string.Equals(pair.Key, manifestId, StringComparison.OrdinalIgnoreCase)) ||
                 string.Equals(pair.Value.Id, contentId, StringComparison.OrdinalIgnoreCase) ||
-                (!string.IsNullOrEmpty(manifestId) && string.Equals(pair.Value.Id, manifestId, StringComparison.OrdinalIgnoreCase)));
+                (!string.IsNullOrEmpty(manifestId) && string.Equals(pair.Value.Id, manifestId, StringComparison.OrdinalIgnoreCase))) == true;
 
             foreach (var row in EnumerateRows())
             {
@@ -7070,7 +7075,17 @@ public partial class ContentDetailViewModel(
 
                 if (!isStillDependedOn && !isUsedInProfile)
                 {
-                    names.Add(!string.IsNullOrWhiteSpace(companion.Name) ? companion.Name : (!string.IsNullOrWhiteSpace(dep.Name) ? dep.Name : depId));
+                    string companionDisplayName = depId;
+                    if (!string.IsNullOrWhiteSpace(companion.Name))
+                    {
+                        companionDisplayName = companion.Name;
+                    }
+                    else if (!string.IsNullOrWhiteSpace(dep.Name))
+                    {
+                        companionDisplayName = dep.Name;
+                    }
+
+                    names.Add(companionDisplayName);
                     manifestList.Remove(companion);
                     if (companion.Dependencies != null)
                     {
@@ -7153,9 +7168,16 @@ public partial class ContentDetailViewModel(
                 if (removeResult.Success)
                 {
                     manifestList.Remove(companionManifest);
-                    var displayName = !string.IsNullOrWhiteSpace(companionManifest.Name)
-                        ? companionManifest.Name
-                        : (!string.IsNullOrWhiteSpace(dep.Name) ? dep.Name : depId);
+                    string displayName = depId;
+                    if (!string.IsNullOrWhiteSpace(companionManifest.Name))
+                    {
+                        displayName = companionManifest.Name;
+                    }
+                    else if (!string.IsNullOrWhiteSpace(dep.Name))
+                    {
+                        displayName = dep.Name;
+                    }
+
                     removedCompanions.Add(displayName);
 
                     if (artworkService != null)

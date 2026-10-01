@@ -773,109 +773,9 @@ public sealed partial class ContentStateService(
             return null;
         }
 
-        // 1. Check for trailing parentheses like "(English)" or "(1080p)" or "(RU)"
-        var parenMatch = GitHubTopicsDiscoverer.VariantPatterns.TrailingParenthesesPattern().Match(input);
-        if (parenMatch.Success)
-        {
-            var token = parenMatch.Groups[1].Value.Trim().ToLowerInvariant();
-            if (!string.IsNullOrEmpty(token))
-            {
-                if (IsoLanguageCodeMap.TryGetValue(token, out var isoLang))
-                {
-                    return isoLang;
-                }
-
-                if (GitHubTopicsDiscoverer.VariantPatterns.LanguageDisplayNames.ContainsKey(token))
-                {
-                    return token;
-                }
-
-                if (token switch
-                {
-                    "720" or "720p" or "900" or "900p" or "1080" or "1080p" or "1440" or "1440p" or "2160" or "4k" or "5k" or "8k" => true,
-                    _ => false,
-                })
-                {
-                    return token switch
-                    {
-                        "720" => "720p",
-                        "900" => "900p",
-                        "1080" => "1080p",
-                        "1440" => "1440p",
-                        "2160" => "4k",
-                        _ => token,
-                    };
-                }
-            }
-        }
-
-        // 2. Check resolution patterns like 1920x1080 or 1080p
-        var resMatch = GitHubTopicsDiscoverer.VariantPatterns.ResolutionPattern().Match(input);
-        if (resMatch.Success && GitHubTopicsDiscoverer.VariantPatterns.ResolutionDisplayNames.TryGetValue(resMatch.Value, out var disp))
-        {
-            return disp.ToLowerInvariant();
-        }
-
-        var match = Regex.Match(input, @"\b(720p?|900p?|1080p?|1440p?|2160p?|4k)\b", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
-        if (match.Success)
-        {
-            var token = match.Value.ToLowerInvariant();
-            return token switch
-            {
-                "720" => "720p",
-                "900" => "900p",
-                "1080" => "1080p",
-                "1440" => "1440p",
-                "2160" => "4k",
-                _ => token,
-            };
-        }
-
-        var inlineMatch = Regex.Match(input, @"(720p|900p|1080p|1440p|2160p|4k)", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
-        if (inlineMatch.Success)
-        {
-            return inlineMatch.Value.ToLowerInvariant();
-        }
-
-        // 3. Check language patterns (e.g. english, russian, spanish)
-        foreach (var (pattern, _) in GitHubTopicsDiscoverer.VariantPatterns.LanguageDisplayNames)
-        {
-            if (input.Contains(pattern, StringComparison.OrdinalIgnoreCase))
-            {
-                return pattern.ToLowerInvariant();
-            }
-        }
-
-        // 4. Check ISO language code tokens in hyphenated / structured identifiers (e.g. zerohour-ru, hlei-zerohour-de)
-        var langTokenMatch = LanguageCodePattern().Match(input);
-        if (langTokenMatch.Success && IsoLanguageCodeMap.TryGetValue(langTokenMatch.Groups[1].Value, out var isoMatched))
-        {
-            return isoMatched;
-        }
-
-        // 5. Check if input ends with a known ISO code in compound/registered formats (e.g. enzh, ruzh, or registered content codes like hleizerohourru)
-        if (input.Length == 4 && input.EndsWith("zh", StringComparison.OrdinalIgnoreCase) &&
-            IsoLanguageCodeMap.TryGetValue(input[..2], out var zhLang))
-        {
-            return zhLang;
-        }
-
-        var registeredCode = GenPatcherContentRegistry.GetKnownContentCodes()
-            .FirstOrDefault(c => input.StartsWith(c, StringComparison.OrdinalIgnoreCase));
-        if (!string.IsNullOrEmpty(registeredCode) && input.Length > registeredCode.Length)
-        {
-            var remainder = input[registeredCode.Length..];
-            foreach (var (isoCode, langName) in IsoLanguageCodeMap)
-            {
-                if (remainder.EndsWith(isoCode, StringComparison.OrdinalIgnoreCase) ||
-                    remainder.EndsWith($"{isoCode}zh", StringComparison.OrdinalIgnoreCase))
-                {
-                    return langName;
-                }
-            }
-        }
-
-        return null;
+        return ExtractTrailingParenthesesVariant(input)
+            ?? ExtractResolutionVariant(input)
+            ?? ExtractLanguageVariant(input);
     }
 
     /// <summary>
@@ -929,6 +829,114 @@ public sealed partial class ContentStateService(
         }
 
         return tokens;
+    }
+
+    private static string? ExtractTrailingParenthesesVariant(string input)
+    {
+        var parenMatch = GitHubTopicsDiscoverer.VariantPatterns.TrailingParenthesesPattern().Match(input);
+        if (!parenMatch.Success)
+        {
+            return null;
+        }
+
+        var token = parenMatch.Groups[1].Value.Trim().ToLowerInvariant();
+        if (string.IsNullOrEmpty(token))
+        {
+            return null;
+        }
+
+        if (IsoLanguageCodeMap.TryGetValue(token, out var isoLang))
+        {
+            return isoLang;
+        }
+
+        if (GitHubTopicsDiscoverer.VariantPatterns.LanguageDisplayNames.ContainsKey(token))
+        {
+            return token;
+        }
+
+        return token switch
+        {
+            "720" => "720p",
+            "720p" => "720p",
+            "900" => "900p",
+            "900p" => "900p",
+            "1080" => "1080p",
+            "1080p" => "1080p",
+            "1440" => "1440p",
+            "1440p" => "1440p",
+            "2160" or "4k" => "4k",
+            "5k" => "5k",
+            "8k" => "8k",
+            _ => null,
+        };
+    }
+
+    private static string? ExtractResolutionVariant(string input)
+    {
+        var resMatch = GitHubTopicsDiscoverer.VariantPatterns.ResolutionPattern().Match(input);
+        if (resMatch.Success && GitHubTopicsDiscoverer.VariantPatterns.ResolutionDisplayNames.TryGetValue(resMatch.Value, out var disp))
+        {
+            return disp.ToLowerInvariant();
+        }
+
+        var match = Regex.Match(input, @"\b(720p?|900p?|1080p?|1440p?|2160p?|4k)\b", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
+        if (match.Success)
+        {
+            var token = match.Value.ToLowerInvariant();
+            return token switch
+            {
+                "720" => "720p",
+                "900" => "900p",
+                "1080" => "1080p",
+                "1440" => "1440p",
+                "2160" => "4k",
+                _ => token,
+            };
+        }
+
+        var inlineMatch = Regex.Match(input, @"(720p|900p|1080p|1440p|2160p|4k)", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
+        return inlineMatch.Success ? inlineMatch.Value.ToLowerInvariant() : null;
+    }
+
+    private static string? ExtractLanguageVariant(string input)
+    {
+        foreach (var (pattern, _) in GitHubTopicsDiscoverer.VariantPatterns.LanguageDisplayNames)
+        {
+            if (input.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+            {
+                return pattern.ToLowerInvariant();
+            }
+        }
+
+        var langTokenMatch = LanguageCodePattern().Match(input);
+        if (langTokenMatch.Success && IsoLanguageCodeMap.TryGetValue(langTokenMatch.Groups[1].Value, out var isoMatched))
+        {
+            return isoMatched;
+        }
+
+        if (input.Length == 4 && input.EndsWith("zh", StringComparison.OrdinalIgnoreCase) &&
+            IsoLanguageCodeMap.TryGetValue(input[..2], out var zhLang))
+        {
+            return zhLang;
+        }
+
+        var registeredCode = GenPatcherContentRegistry.GetKnownContentCodes()
+            .FirstOrDefault(c => input.StartsWith(c, StringComparison.OrdinalIgnoreCase));
+        if (!string.IsNullOrEmpty(registeredCode) && input.Length > registeredCode.Length)
+        {
+            var remainder = input[registeredCode.Length..];
+            foreach (var (isoCode, langName) in IsoLanguageCodeMap)
+            {
+                if (remainder.EndsWith(isoCode, StringComparison.OrdinalIgnoreCase) ||
+                    remainder.EndsWith($"{isoCode}zh", StringComparison.OrdinalIgnoreCase))
+                {
+                    return langName;
+                }
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -1433,7 +1441,7 @@ public sealed partial class ContentStateService(
 
         var itemVariant = ExtractVariantToken(item.Name)
             ?? ExtractVariantToken(item.Id)
-            ?? (item.ResolverMetadata != null && item.ResolverMetadata.TryGetValue(CatalogConstants.SelectedVariantMetadataKey, out var selVar) ? ExtractVariantToken(selVar) : null);
+            ?? (item.ResolverMetadata?.TryGetValue(CatalogConstants.SelectedVariantMetadataKey, out var selVar) is true ? ExtractVariantToken(selVar) : null);
 
         if (!string.IsNullOrEmpty(itemVariant))
         {
@@ -1554,42 +1562,19 @@ public sealed partial class ContentStateService(
         return itemType == manifestType;
     }
 
-    private static bool IsExactManifestMatch(ContentManifest manifest, ContentSearchResult item)
+    private static bool VariantsConflict(ContentManifest manifest, ContentSearchResult item)
     {
-        if (!IsContentTypeCompatible(item.ContentType, manifest))
-        {
-            return false;
-        }
-
         var itemVariant = ExtractVariantToken(item.Name) ?? ExtractVariantToken(item.Id);
         var manifestVariant = ExtractVariantToken(manifest.Metadata?.SelectedVariantId)
             ?? ExtractVariantToken(manifest.Name)
             ?? ExtractVariantToken(manifest.Id.Value);
 
-        if (!string.IsNullOrEmpty(itemVariant) && !string.IsNullOrEmpty(manifestVariant) &&
-            !string.Equals(itemVariant, manifestVariant, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
+        return !string.IsNullOrEmpty(itemVariant) && !string.IsNullOrEmpty(manifestVariant) &&
+            !string.Equals(itemVariant, manifestVariant, StringComparison.OrdinalIgnoreCase);
+    }
 
-        if (!string.IsNullOrWhiteSpace(item.Id) &&
-            (string.Equals(manifest.Id.Value, item.Id, StringComparison.OrdinalIgnoreCase) ||
-             (!string.IsNullOrWhiteSpace(manifest.OriginalContentId) &&
-              string.Equals(manifest.OriginalContentId, item.Id, StringComparison.OrdinalIgnoreCase))))
-        {
-            return true;
-        }
-
-        if (IsSameContentSource(manifest, item))
-        {
-            return true;
-        }
-
-        if (VersionsDiffer(item, manifest))
-        {
-            return false;
-        }
-
+    private static bool VersionAndNameMatch(ContentManifest manifest, ContentSearchResult item)
+    {
         if (!string.IsNullOrWhiteSpace(item.Version) && !string.IsNullOrWhiteSpace(manifest.Version))
         {
             var cleanedItemVer = item.Version.Trim().TrimStart('v', 'V');
@@ -1622,6 +1607,34 @@ public sealed partial class ContentStateService(
         }
 
         return false;
+    }
+
+    private static bool IsExactManifestMatch(ContentManifest manifest, ContentSearchResult item)
+    {
+        if (!IsContentTypeCompatible(item.ContentType, manifest) || VariantsConflict(manifest, item))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.Id) &&
+            (string.Equals(manifest.Id.Value, item.Id, StringComparison.OrdinalIgnoreCase) ||
+             (!string.IsNullOrWhiteSpace(manifest.OriginalContentId) &&
+              string.Equals(manifest.OriginalContentId, item.Id, StringComparison.OrdinalIgnoreCase))))
+        {
+            return true;
+        }
+
+        if (IsSameContentSource(manifest, item))
+        {
+            return true;
+        }
+
+        if (VersionsDiffer(item, manifest))
+        {
+            return false;
+        }
+
+        return VersionAndNameMatch(manifest, item);
     }
 
     private static int CompareCandidateManifests(ContentManifest a, ContentManifest b)
@@ -1772,7 +1785,7 @@ public sealed partial class ContentStateService(
             !string.IsNullOrWhiteSpace(item.SelectedDownloadUrl);
     }
 
-    private static bool FileRowMatchesManifest(ContentManifest manifest, ContentSearchResult item)
+    private static bool FileRowMatchesUrlOrModDb(ContentManifest manifest, ContentSearchResult item)
     {
         var checkUrl = !string.IsNullOrWhiteSpace(item.SelectedDownloadUrl) ? item.SelectedDownloadUrl : item.SourceUrl;
         if (!string.IsNullOrWhiteSpace(checkUrl) &&
@@ -1784,21 +1797,17 @@ public sealed partial class ContentStateService(
             return true;
         }
 
-        // ModDB release rows resolve per-file detail URLs into per-release manifests whose
-        // OriginalContentId is the resolve-time SourceUrl. Link them exactly, but only when the
-        // row and manifest also agree on name or version so sibling releases sharing a parent
-        // page URL can never match each other.
-        if (!string.IsNullOrWhiteSpace(item.SourceUrl) &&
+        return !string.IsNullOrWhiteSpace(item.SourceUrl) &&
             !string.IsNullOrWhiteSpace(manifest.OriginalContentId) &&
             string.Equals(
                 manifest.OriginalContentId.TrimEnd('/'),
                 item.SourceUrl.TrimEnd('/'),
                 StringComparison.OrdinalIgnoreCase) &&
-            (NamesAgree(item.Name, manifest.Name) || VersionsAgree(item.Version, manifest.Version)))
-        {
-            return true;
-        }
+            (NamesAgree(item.Name, manifest.Name) || VersionsAgree(item.Version, manifest.Version));
+    }
 
+    private static bool FileRowMatchesNameOrSlug(ContentManifest manifest, ContentSearchResult item)
+    {
         if (!string.IsNullOrWhiteSpace(item.Name) && !string.IsNullOrWhiteSpace(manifest.Name) &&
             string.Equals(item.Name, manifest.Name, StringComparison.OrdinalIgnoreCase))
         {
@@ -1861,6 +1870,9 @@ public sealed partial class ContentStateService(
 
         return false;
     }
+
+    private static bool FileRowMatchesManifest(ContentManifest manifest, ContentSearchResult item) =>
+        FileRowMatchesUrlOrModDb(manifest, item) || FileRowMatchesNameOrSlug(manifest, item);
 
     private static bool IsSameContentSource(ContentManifest manifest, ContentSearchResult item)
     {

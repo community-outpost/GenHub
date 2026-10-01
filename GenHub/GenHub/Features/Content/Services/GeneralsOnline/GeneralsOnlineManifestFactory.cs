@@ -944,7 +944,7 @@ public class GeneralsOnlineManifestFactory(
         }
 
         var configuredFile = GeneralsOnlineEacSettings.NormalizeExecutableName(settings.Executable);
-        if (!manifest.Files.Any(file => IsArchiveRootFile(file.RelativePath, configuredFile)))
+        if (manifest.Files.All(file => !IsArchiveRootFile(file.RelativePath, configuredFile)))
         {
             logger.LogWarning(
                 "Bootstrapper settings name '{Executable}', which is not in the package; launch will guess the child process",

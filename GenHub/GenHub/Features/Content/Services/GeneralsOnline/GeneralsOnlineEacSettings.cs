@@ -73,7 +73,19 @@ public sealed record GeneralsOnlineEacSettings(string Executable, string? Produc
             settingsPath = resolved;
             return true;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (NotSupportedException)
         {
             return false;
         }
@@ -98,7 +110,19 @@ public sealed record GeneralsOnlineEacSettings(string Executable, string? Produc
 
             return TryExtractSettingsProperties(document.RootElement, out settings);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or ArgumentException)
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
         {
             return false;
         }

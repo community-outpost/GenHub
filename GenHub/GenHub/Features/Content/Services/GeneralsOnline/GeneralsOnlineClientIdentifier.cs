@@ -44,49 +44,10 @@ public class GeneralsOnlineClientIdentifier : IGameClientIdentifier
     /// <inheritdoc/>
     public string? ResolveDirectoryEntryPoint(string directory, IEnumerable<string> fileNames)
     {
-        string? eacLauncher = null;
-        string? sixtyHertz = null;
-        string? unixClient = null;
-
-        foreach (var fileName in fileNames)
-        {
-            if (fileName.Equals(GameClientConstants.GeneralsOnlineEacLauncherExecutable, StringComparison.OrdinalIgnoreCase))
-            {
-                eacLauncher = fileName;
-            }
-
-            if (fileName.Equals(GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase))
-            {
-                sixtyHertz = fileName;
-            }
-
-            if (fileName.Equals(GameClientConstants.GeneralsOnlineUnixExecutable, StringComparison.OrdinalIgnoreCase))
-            {
-                unixClient = fileName;
-            }
-        }
-
+        var (eacLauncher, sixtyHertz, unixClient) = CategorizeExecutables(fileNames);
         if (eacLauncher is not null)
         {
-            if (!string.IsNullOrEmpty(directory)
-                && GeneralsOnlineEacSettings.TryRead(directory, out var settings)
-                && settings is not null)
-            {
-                var configured = Path.GetFileName(settings.Executable.Replace('\\', '/'));
-                if (configured.Equals(GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase))
-                {
-                    return eacLauncher;
-                }
-
-                // If EAC settings target something other than 60Hz (e.g. TestEnvironment),
-                // the live 60Hz client takes precedence if present.
-                if (sixtyHertz is not null)
-                {
-                    return sixtyHertz;
-                }
-            }
-
-            return eacLauncher;
+            return ResolveEacEntryPoint(directory, eacLauncher, sixtyHertz);
         }
 
         return sixtyHertz ?? unixClient;
@@ -159,9 +120,61 @@ public class GeneralsOnlineClientIdentifier : IGameClientIdentifier
                     GameClientConstants.GeneralsOnlineEacLauncherExecutable,
                     StringComparison.OrdinalIgnoreCase));
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
         {
             return false;
         }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    private static (string? EacLauncher, string? SixtyHertz, string? UnixClient) CategorizeExecutables(IEnumerable<string> fileNames)
+    {
+        string? eacLauncher = null;
+        string? sixtyHertz = null;
+        string? unixClient = null;
+
+        foreach (var fileName in fileNames)
+        {
+            if (fileName.Equals(GameClientConstants.GeneralsOnlineEacLauncherExecutable, StringComparison.OrdinalIgnoreCase))
+            {
+                eacLauncher = fileName;
+            }
+            else if (fileName.Equals(GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase))
+            {
+                sixtyHertz = fileName;
+            }
+            else if (fileName.Equals(GameClientConstants.GeneralsOnlineUnixExecutable, StringComparison.OrdinalIgnoreCase))
+            {
+                unixClient = fileName;
+            }
+        }
+
+        return (eacLauncher, sixtyHertz, unixClient);
+    }
+
+    private static string ResolveEacEntryPoint(string directory, string eacLauncher, string? sixtyHertz)
+    {
+        if (!string.IsNullOrEmpty(directory)
+            && GeneralsOnlineEacSettings.TryRead(directory, out var settings)
+            && settings is not null)
+        {
+            var configured = Path.GetFileName(settings.Executable.Replace('\\', '/'));
+            if (configured.Equals(GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase))
+            {
+                return eacLauncher;
+            }
+
+            // If EAC settings target something other than 60Hz (e.g. TestEnvironment),
+            // the live 60Hz client takes precedence if present.
+            if (sixtyHertz is not null)
+            {
+                return sixtyHertz;
+            }
+        }
+
+        return eacLauncher;
     }
 }

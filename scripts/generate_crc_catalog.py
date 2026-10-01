@@ -24,6 +24,10 @@ GENERALSONLINE_CDN = "https://cdn.playgenerals.online"
 GENERALSONLINE_KNOWN_DATES = ("021326", "032926", "042826", "060526", "062026", "081326", "082826", "092226", "092526", "092826")
 RETAIL_ZERO_HOUR_MANIFEST_ID = "1.104.retail.gameclient.zerohour"
 VANILLA_104_INI = "Vanilla 1.04 INI"
+GENERALSONLINE_092826_MANIFEST_ID = "1.92826.generalsonline.gameclient.zerohour"
+GENERALSONLINE_092826_PORTABLE_ZIP = (
+    f"{GENERALSONLINE_CDN}/GeneralsOnline_portable_092826.zip"
+)
 COMMUNITY_PATCH_CORE_INI_NAME = "CommunityPatch Core INI (81FB5632)"
 COMMUNITY_PATCH_CORE_INI_URL = (
     "https://strata.gamereplays.org/storage/versions/ini/500_900_CommunityPatch_CoreINI_81FB5632.big"
@@ -332,7 +336,7 @@ BASELINE_ENTRIES = [
         "exeCrc": "0xD83377F3",
         "iniCrc": "0x81FB5632",
         "sha256": "8ba835206919bbfe724514f10e3ecb665245ff9e4141ef842b67fe616214ba3f",
-        "manifestId": "1.92826.generalsonline.gameclient.zerohour",
+        "manifestId": GENERALSONLINE_092826_MANIFEST_ID,
         "dataPatchManifestId": "1.92826.generalsonline.patch.gamedata",
         "dataPatchName": COMMUNITY_PATCH_CORE_INI_NAME,
         "publisher": "generalsonline",
@@ -340,7 +344,7 @@ BASELINE_ENTRIES = [
         "version": "092826",
         "buildDate": "2026-09-28",
         "description": "GeneralsOnline 092826",
-        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_092826.zip",
+        "cdnUrl": GENERALSONLINE_092826_PORTABLE_ZIP,
         "dataPatchCdnUrl": COMMUNITY_PATCH_CORE_INI_URL,
     },
     {
@@ -377,7 +381,7 @@ BASELINE_ENTRIES = [
         "exeCrc": "0x088DE24A",
         "iniCrc": "0x81FB5632",
         "sha256": "318acb621775093abcac3c74484f7ccb034f8df17d1e91ee860a0713e8a6dfbc",
-        "manifestId": "1.92826.generalsonline.gameclient.zerohour",
+        "manifestId": GENERALSONLINE_092826_MANIFEST_ID,
         "dataPatchManifestId": "1.92826.generalsonline.patch.gamedata",
         "dataPatchName": "CommunityPatch Core INI (81FB5632)",
         "publisher": "generalsonline",
@@ -385,14 +389,14 @@ BASELINE_ENTRIES = [
         "version": "092826",
         "buildDate": "2026-09-28",
         "description": "GeneralsOnline 092826 portable release",
-        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_092826.zip",
+        "cdnUrl": GENERALSONLINE_092826_PORTABLE_ZIP,
         "dataPatchCdnUrl": "https://strata.gamereplays.org/storage/versions/ini/500_900_CommunityPatch_CoreINI_81FB5632.big",
     },
     {
         "exeCrc": "0x088DE24A",
         "iniCrc": "0xFEAAE3F3",
         "sha256": "318acb621775093abcac3c74484f7ccb034f8df17d1e91ee860a0713e8a6dfbc",
-        "manifestId": "1.92826.generalsonline.gameclient.zerohour",
+        "manifestId": GENERALSONLINE_092826_MANIFEST_ID,
         "dataPatchManifestId": None,
         "dataPatchName": VANILLA_104_INI,
         "publisher": "generalsonline",
@@ -400,7 +404,7 @@ BASELINE_ENTRIES = [
         "version": "092826",
         "buildDate": "2026-09-28",
         "description": "GeneralsOnline 092826 portable release",
-        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_092826.zip",
+        "cdnUrl": GENERALSONLINE_092826_PORTABLE_ZIP,
         "dataPatchCdnUrl": None,
     },
     {

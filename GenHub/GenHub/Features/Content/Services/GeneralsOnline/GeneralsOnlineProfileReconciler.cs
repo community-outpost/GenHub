@@ -867,6 +867,32 @@ public partial class GeneralsOnlineProfileReconciler(
         return OperationResult<(int, bool, Dictionary<string, string>?, string?)>.CreateSuccess((profilesUpdated, anyFailure, manifestMapping, targetProfileId));
     }
 
+    private async Task<List<ContentManifest>> ResolveDeletableManifestsAsync(
+        List<ContentManifest> candidateManifests,
+        CancellationToken cancellationToken)
+    {
+        if (retentionPolicy == null)
+        {
+            return candidateManifests;
+        }
+
+        var deletableManifests = new List<ContentManifest>();
+        var groupedCandidates = GroupManifestsByVariant(candidateManifests);
+        var unvarianted = candidateManifests.Where(m => ExtractVariant(m) == null).ToList();
+        if (unvarianted.Count > 0)
+        {
+            groupedCandidates[string.Empty] = unvarianted;
+        }
+
+        foreach (var group in groupedCandidates.Values)
+        {
+            var groupDeletables = await retentionPolicy.FilterDeletableManifestsAsync(group, cancellationToken);
+            deletableManifests.AddRange(groupDeletables);
+        }
+
+        return deletableManifests;
+    }
+
     private async Task HandleOldManifestsAndCleanupAsync(
         bool shouldDeleteOldVersions,
         bool anyFailure,
@@ -874,62 +900,51 @@ public partial class GeneralsOnlineProfileReconciler(
         List<ContentManifest> oldManifests,
         CancellationToken cancellationToken)
     {
-        if (shouldDeleteOldVersions && !anyFailure && manifestMapping != null)
+        if (!shouldDeleteOldVersions)
         {
-            logger.LogInformation("[GO Reconciler] Filtering old manifests with retention policy");
-            var candidateManifests = oldManifests
-                .Where(m => manifestMapping.ContainsKey(m.Id.Value))
-                .ToList();
-
-            List<ContentManifest> deletableManifests;
-            if (retentionPolicy != null)
-            {
-                deletableManifests = [];
-                var groupedCandidates = GroupManifestsByVariant(candidateManifests);
-                var unvarianted = candidateManifests.Where(m => ExtractVariant(m) == null).ToList();
-                if (unvarianted.Count > 0)
-                {
-                    groupedCandidates[string.Empty] = unvarianted;
-                }
-
-                foreach (var group in groupedCandidates.Values)
-                {
-                    var groupDeletables = await retentionPolicy.FilterDeletableManifestsAsync(group, cancellationToken);
-                    deletableManifests.AddRange(groupDeletables);
-                }
-            }
-            else
-            {
-                deletableManifests = candidateManifests;
-            }
-
-            var oldManifestIds = deletableManifests
-                .Select(m => m.Id)
-                .ToList();
-
-            if (oldManifestIds.Count > 0)
-            {
-                var removalResult = await reconciliationService.OrchestrateBulkRemovalAsync(oldManifestIds, cancellationToken);
-                if (!removalResult.Success)
-                {
-                    logger.LogWarning("[GO Reconciler] Failed to remove old manifests: {Error}", removalResult.FirstError);
-                }
-            }
-
-            if (oldManifestIds.Count < candidateManifests.Count)
-            {
-                logger.LogInformation(
-                    "[GO Reconciler] Retained {RetainedCount} older manifests per retention policy; removed {RemovedCount}",
-                    candidateManifests.Count - oldManifestIds.Count,
-                    oldManifestIds.Count);
-            }
-
-            await reconciliationService.ScheduleGarbageCollectionAsync(false, cancellationToken);
+            return;
         }
-        else if (shouldDeleteOldVersions && anyFailure)
+
+        if (anyFailure)
         {
             logger.LogWarning("[GO Reconciler] Skipping old manifest deletion and scheduled GC due to previous failures to preserve content integrity.");
+            return;
         }
+
+        if (manifestMapping == null)
+        {
+            return;
+        }
+
+        logger.LogInformation("[GO Reconciler] Filtering old manifests with retention policy");
+        var candidateManifests = oldManifests
+            .Where(m => manifestMapping.ContainsKey(m.Id.Value))
+            .ToList();
+
+        var deletableManifests = await ResolveDeletableManifestsAsync(candidateManifests, cancellationToken);
+
+        var oldManifestIds = deletableManifests
+            .Select(m => m.Id)
+            .ToList();
+
+        if (oldManifestIds.Count > 0)
+        {
+            var removalResult = await reconciliationService.OrchestrateBulkRemovalAsync(oldManifestIds, cancellationToken);
+            if (!removalResult.Success)
+            {
+                logger.LogWarning("[GO Reconciler] Failed to remove old manifests: {Error}", removalResult.FirstError);
+            }
+        }
+
+        if (oldManifestIds.Count < candidateManifests.Count)
+        {
+            logger.LogInformation(
+                "[GO Reconciler] Retained {RetainedCount} older manifests per retention policy; removed {RemovedCount}",
+                candidateManifests.Count - oldManifestIds.Count,
+                oldManifestIds.Count);
+        }
+
+        await reconciliationService.ScheduleGarbageCollectionAsync(false, cancellationToken);
     }
 
     /// <summary>

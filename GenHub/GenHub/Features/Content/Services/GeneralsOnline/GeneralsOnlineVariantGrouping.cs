@@ -41,23 +41,17 @@ internal static class GeneralsOnlineVariantGrouping
     /// <returns>The family display name.</returns>
     internal static string BuildVariantFamilyName(ContentType contentType, string? version, ILocalizationService? localizationService = null)
     {
-        string typeDisplay;
-        if (localizationService != null &&
+        string typeDisplay = localizationService is not null &&
             localizationService.TryGetString($"ContentType.{contentType}", out var localized) &&
-            !string.IsNullOrWhiteSpace(localized))
-        {
-            typeDisplay = localized;
-        }
-        else
-        {
-            typeDisplay = contentType switch
+            !string.IsNullOrWhiteSpace(localized)
+            ? localized
+            : contentType switch
             {
                 ContentType.GameClient => "Game Client",
                 ContentType.MapPack => "Map Pack",
                 ContentType.Patch => "Patch",
                 _ => contentType.GetDisplayName(),
             };
-        }
 
         var normalized = NormalizeVersion(version);
         return normalized == null
