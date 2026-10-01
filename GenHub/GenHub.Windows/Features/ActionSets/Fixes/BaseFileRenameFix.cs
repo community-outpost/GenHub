@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
 using System;
@@ -11,8 +12,12 @@ using System.Threading.Tasks;
 namespace GenHub.Windows.Features.ActionSets.Fixes;
 
 /// <summary>
-/// Abstract base class for fixes that disable problematic DLLs/files by renaming them to a backup extension.
+/// Abstract base class for fixes that disable problematic DLLs/files by renaming them to a GenHub-owned backup name.
 /// </summary>
+/// <remarks>
+/// The backup name is never a generic <c>.bak</c>, so a backup the user already keeps is never overwritten or consumed.
+/// Neither apply nor undo deletes a file whose content is not preserved in another file.
+/// </remarks>
 public abstract class BaseFileRenameFix(
     ILogger logger,
     string targetFileName,
@@ -59,136 +64,164 @@ public abstract class BaseFileRenameFix(
     }
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken ct)
+    protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken ct)
     {
-        var details = new List<string>();
+        var details = new List<string> { $"Starting {Title}..." };
+        var allSucceeded = true;
 
-        try
+        foreach (var (gameName, directory) in GetGameDirectories(installation))
         {
-            details.Add($"Starting {Title}...");
-
-            if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
-            {
-                details.Add($"Processing Generals: {installation.GeneralsPath}");
-                if (!RenameFile(installation.GeneralsPath, details))
-                {
-                    details.Add($"  Warning: {targetFileName} not found (may already be fixed)");
-                }
-            }
-
-            if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
-            {
-                details.Add($"Processing Zero Hour: {installation.ZeroHourPath}");
-                if (!RenameFile(installation.ZeroHourPath, details))
-                {
-                    details.Add($"  Warning: {targetFileName} not found (may already be fixed)");
-                }
-            }
-
-            details.Add($"OK: {Title} completed successfully");
-            return Task.FromResult(new ActionSetResult(true, null, details));
+            details.Add($"Processing {gameName}: {directory}");
+            allSucceeded &= await DisableTargetAsync(directory, details, ct);
         }
-        catch (Exception ex)
+
+        if (!allSucceeded)
         {
-            Logger.LogError(ex, "Error applying {Title}", Title);
-            AddFailureDetail(details, ex);
-            return Task.FromResult(new ActionSetResult(false, ex.Message, details));
+            return new ActionSetResult(false, $"{Title} could not disable {targetFileName} in every game directory.", details);
         }
+
+        details.Add($"OK: {Title} completed successfully");
+        return new ActionSetResult(true, null, details);
     }
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
+    protected override async Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
     {
-        var details = new List<string>();
+        var details = new List<string> { $"Restoring {targetFileName}..." };
+        var allSucceeded = true;
 
-        try
+        foreach (var (gameName, directory) in GetGameDirectories(installation))
         {
-            details.Add($"Restoring {targetFileName}...");
-
-            if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
-            {
-                details.Add($"Processing Generals: {installation.GeneralsPath}");
-                if (!RestoreFile(installation.GeneralsPath, details))
-                {
-                    details.Add($"  Warning: {backupFileName} not found (nothing to restore)");
-                }
-            }
-
-            if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
-            {
-                details.Add($"Processing Zero Hour: {installation.ZeroHourPath}");
-                if (!RestoreFile(installation.ZeroHourPath, details))
-                {
-                    details.Add($"  Warning: {backupFileName} not found (nothing to restore)");
-                }
-            }
-
-            details.Add($"OK: {targetFileName} restoration completed successfully");
-            return Task.FromResult(new ActionSetResult(true, null, details));
+            details.Add($"Processing {gameName}: {directory}");
+            allSucceeded &= await RestoreTargetAsync(directory, details, ct);
         }
-        catch (Exception ex)
+
+        if (!allSucceeded)
         {
-            Logger.LogError(ex, "Error restoring {TargetFileName}", targetFileName);
-            AddFailureDetail(details, ex);
-            return Task.FromResult(new ActionSetResult(false, ex.Message, details));
+            return new ActionSetResult(false, $"Could not restore {targetFileName} in every game directory.", details);
         }
+
+        details.Add($"OK: {targetFileName} restoration completed successfully");
+        return new ActionSetResult(true, null, details);
     }
 
-    private bool RenameFile(string directory, List<string> details)
+    private static List<(string GameName, string Directory)> GetGameDirectories(GameInstallation installation)
+    {
+        var directories = new List<(string GameName, string Directory)>();
+        if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
+        {
+            directories.Add((GameClientConstants.GeneralsShortName, installation.GeneralsPath));
+        }
+
+        if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
+        {
+            directories.Add((GameClientConstants.ZeroHourShortName, installation.ZeroHourPath));
+        }
+
+        return directories;
+    }
+
+    private static async Task<bool> HaveSameContentAsync(string firstPath, string secondPath, CancellationToken ct)
+    {
+        if (new FileInfo(firstPath).Length != new FileInfo(secondPath).Length)
+        {
+            return false;
+        }
+
+        var firstHash = await DownloadSecurityValidator.ComputeSha256Async(firstPath, ct);
+        var secondHash = await DownloadSecurityValidator.ComputeSha256Async(secondPath, ct);
+        return string.Equals(firstHash, secondHash, StringComparison.Ordinal);
+    }
+
+    private async Task<bool> DisableTargetAsync(string directory, List<string> details, CancellationToken ct)
     {
         var originalPath = Path.Combine(directory, targetFileName);
         var backupPath = Path.Combine(directory, backupFileName);
 
         if (!File.Exists(originalPath))
         {
-            return false;
+            details.Add($"  OK: {targetFileName} not present, nothing to disable");
+            return true;
         }
 
         try
         {
-            if (File.Exists(backupPath))
+            if (!File.Exists(backupPath))
             {
-                File.Delete(backupPath);
+                File.Move(originalPath, backupPath);
+                details.Add($"  OK: Renamed: {targetFileName} -> {backupFileName}");
+                Logger.LogInformation("Renamed {OriginalPath} to {BackupPath}", originalPath, backupPath);
+                return true;
             }
 
-            File.Move(originalPath, backupPath);
-            details.Add($"  OK: Renamed: {targetFileName} -> {backupFileName}");
-            Logger.LogInformation("Renamed {OriginalPath} to {BackupPath}", originalPath, backupPath);
+            if (!await HaveSameContentAsync(originalPath, backupPath, ct))
+            {
+                details.Add($"  Error: {backupFileName} already exists with different content. Both files were left unchanged.");
+                Logger.LogWarning("Not disabling {OriginalPath}: {BackupPath} exists with different content", originalPath, backupPath);
+                return false;
+            }
+
+            File.Delete(originalPath);
+            details.Add($"  OK: {backupFileName} already holds an identical copy, removed {targetFileName}");
+            Logger.LogInformation("Removed {OriginalPath}: identical backup already at {BackupPath}", originalPath, backupPath);
             return true;
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
-            Logger.LogError(ex, "Failed to rename {OriginalPath}", originalPath);
+            Logger.LogError(ex, "Failed to disable {OriginalPath}", originalPath);
+            AddFailureDetail(details, ex, $"renaming {targetFileName}", indent: "  ");
+            return false;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Logger.LogError(ex, "Access denied disabling {OriginalPath}", originalPath);
             AddFailureDetail(details, ex, $"renaming {targetFileName}", indent: "  ");
             return false;
         }
     }
 
-    private bool RestoreFile(string directory, List<string> details)
+    private async Task<bool> RestoreTargetAsync(string directory, List<string> details, CancellationToken ct)
     {
         var originalPath = Path.Combine(directory, targetFileName);
         var backupPath = Path.Combine(directory, backupFileName);
 
         if (!File.Exists(backupPath))
         {
-            return false;
+            details.Add($"  OK: {backupFileName} not present, nothing to restore");
+            return true;
         }
 
         try
         {
-            if (File.Exists(originalPath))
+            if (!File.Exists(originalPath))
             {
-                File.Delete(originalPath);
+                File.Move(backupPath, originalPath);
+                details.Add($"  OK: Restored: {backupFileName} -> {targetFileName}");
+                Logger.LogInformation("Restored {BackupPath} to {OriginalPath}", backupPath, originalPath);
+                return true;
             }
 
-            File.Move(backupPath, originalPath);
-            details.Add($"  OK: Restored: {backupFileName} -> {targetFileName}");
-            Logger.LogInformation("Restored {BackupPath} to {OriginalPath}", backupPath, originalPath);
+            if (!await HaveSameContentAsync(originalPath, backupPath, ct))
+            {
+                details.Add($"  Error: {targetFileName} already exists and differs from {backupFileName}. Both files were left unchanged.");
+                Logger.LogWarning("Not restoring {BackupPath}: {OriginalPath} exists with different content", backupPath, originalPath);
+                return false;
+            }
+
+            File.Delete(backupPath);
+            details.Add($"  OK: {targetFileName} already present with identical content, removed {backupFileName}");
+            Logger.LogInformation("Removed {BackupPath}: identical {OriginalPath} already present", backupPath, originalPath);
             return true;
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             Logger.LogError(ex, "Failed to restore {BackupPath}", backupPath);
+            AddFailureDetail(details, ex, $"restoring {backupFileName}", indent: "  ");
+            return false;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Logger.LogError(ex, "Access denied restoring {BackupPath}", backupPath);
             AddFailureDetail(details, ex, $"restoring {backupFileName}", indent: "  ");
             return false;
         }

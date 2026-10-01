@@ -248,14 +248,14 @@ public static class GameClientConstants
     /// <summary>BrowserEngine.dll filename.</summary>
     public const string BrowserEngineDll = "BrowserEngine.dll";
 
-    /// <summary>BrowserEngine.dll backup filename.</summary>
-    public const string BrowserEngineDllBak = "BrowserEngine.dll.bak";
+    /// <summary>GenHub-owned backup filename for BrowserEngine.dll, distinct from any user BrowserEngine.dll.bak.</summary>
+    public const string BrowserEngineDllBak = BrowserEngineDll + FileTypes.BackupExtension;
 
     /// <summary>dbghelp.dll filename.</summary>
     public const string DbgHelpDll = "dbghelp.dll";
 
-    /// <summary>dbghelp.dll backup filename.</summary>
-    public const string DbgHelpDllBak = "dbghelp.dll.bak";
+    /// <summary>GenHub-owned backup filename for dbghelp.dll, distinct from any user dbghelp.dll.bak.</summary>
+    public const string DbgHelpDllBak = DbgHelpDll + FileTypes.BackupExtension;
 
     /// <summary>Direct3D 8 wrapper DLL filename.</summary>
     public const string Direct3D8WrapperDll = "d3d8.dll";
