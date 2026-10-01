@@ -13998,18 +13998,6 @@ https://example.com/screenshot2.png</value>
   <data name="Downloads.Browser.NewContentsNotificationFormat" xml:space="preserve">
     <value>В каталоге «{1}» выпущено новых загрузок: {0}</value>
   </data>
-  <data name="Downloads.Browser.NewDownloadNotificationFormat" xml:space="preserve">
-    <value>Новая загрузка «{0}» доступна от {1}</value>
-  </data>
-  <data name="Downloads.Browser.NewDownloadsNotificationFormat" xml:space="preserve">
-    <value>Количество новых загрузок от {1}: {0}</value>
-  </data>
-  <data name="Downloads.Browser.NewDownloadGenericNotificationFormat" xml:space="preserve">
-    <value>Новая загрузка «{0}» доступна</value>
-  </data>
-  <data name="Downloads.Browser.NewDownloadsGenericNotificationFormat" xml:space="preserve">
-    <value>Доступно {0} новых загрузок</value>
-  </data>
   <data name="Tools.PublisherStudio.Common.Catalog" xml:space="preserve">
     <value>Каталог</value>
   </data>

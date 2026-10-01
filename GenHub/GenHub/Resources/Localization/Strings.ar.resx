@@ -13998,18 +13998,6 @@ https://example.com/screenshot2.png</value>
   <data name="Downloads.Browser.NewContentsNotificationFormat" xml:space="preserve">
     <value>تم إصدار {0} تنزيلات جديدة في الكتالوج '{1}'</value>
   </data>
-  <data name="Downloads.Browser.NewDownloadNotificationFormat" xml:space="preserve">
-    <value>تنزيل جديد '{0}' متاح من {1}</value>
-  </data>
-  <data name="Downloads.Browser.NewDownloadsNotificationFormat" xml:space="preserve">
-    <value>{0} تنزيلات جديدة متاحة من {1}</value>
-  </data>
-  <data name="Downloads.Browser.NewDownloadGenericNotificationFormat" xml:space="preserve">
-    <value>تنزيل جديد '{0}' متاح</value>
-  </data>
-  <data name="Downloads.Browser.NewDownloadsGenericNotificationFormat" xml:space="preserve">
-    <value>{0} تنزيلات جديدة متاحة</value>
-  </data>
   <data name="Tools.PublisherStudio.Common.Catalog" xml:space="preserve">
     <value>الكتالوج</value>
   </data>

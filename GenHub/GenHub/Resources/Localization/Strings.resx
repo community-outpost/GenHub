@@ -14059,18 +14059,6 @@ Would you like to add this catalog to your provider project?</value>
   <data name="Downloads.Browser.NewContentsNotificationFormat" xml:space="preserve">
     <value>{0} new downloads released in catalog '{1}'</value>
   </data>
-  <data name="Downloads.Browser.NewDownloadNotificationFormat" xml:space="preserve">
-    <value>New download '{0}' available from {1}</value>
-  </data>
-  <data name="Downloads.Browser.NewDownloadsNotificationFormat" xml:space="preserve">
-    <value>{0} new downloads available from {1}</value>
-  </data>
-  <data name="Downloads.Browser.NewDownloadGenericNotificationFormat" xml:space="preserve">
-    <value>New download '{0}' available</value>
-  </data>
-  <data name="Downloads.Browser.NewDownloadsGenericNotificationFormat" xml:space="preserve">
-    <value>{0} new downloads available</value>
-  </data>
   <data name="Tools.PublisherStudio.Common.Catalog" xml:space="preserve">
     <value>Catalog</value>
   </data>
