@@ -360,11 +360,11 @@ public sealed class PublisherKeyStore : IPublisherKeyStore
         }
         catch (FileNotFoundException)
         {
-            return (null, OperationResult<List<TrustedPublisherKey>>.CreateSuccess([]));
+            return ([], null);
         }
         catch (DirectoryNotFoundException)
         {
-            return (null, OperationResult<List<TrustedPublisherKey>>.CreateSuccess([]));
+            return ([], null);
         }
         catch (IOException ex)
         {
@@ -386,7 +386,7 @@ public sealed class PublisherKeyStore : IPublisherKeyStore
             return readError;
         }
 
-        if (encryptedBytes == null)
+        if (encryptedBytes == null || encryptedBytes.Length == 0)
         {
             return OperationResult<List<TrustedPublisherKey>>.CreateSuccess([]);
         }
