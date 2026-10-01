@@ -90,13 +90,18 @@ public sealed class WorkspaceVariantTests : IDisposable
         Assert.Same(manifest, entry.Manifest);
     }
 
-    /// <summary>The estimate counts only unique files that will become workspace links.</summary>
-    [Fact]
-    public void EstimateDiskUsage_SymlinkOnly_ExcludesNonWorkspaceAndDuplicateFiles()
+    /// <summary>Every strategy estimates only the unique files it will place in the workspace.</summary>
+    /// <param name="strategyType">The strategy under test.</param>
+    [Theory]
+    [InlineData(WorkspaceStrategy.FullCopy)]
+    [InlineData(WorkspaceStrategy.SymlinkOnly)]
+    [InlineData(WorkspaceStrategy.HybridCopySymlink)]
+    [InlineData(WorkspaceStrategy.HardLink)]
+    public void EstimateDiskUsage_ExcludesNonWorkspaceAndDuplicateFiles(WorkspaceStrategy strategyType)
     {
         var manifest = CreateManifest();
-        var configuration = CreateConfiguration(WorkspaceStrategy.SymlinkOnly, manifest);
-        var strategy = CreateStrategy(WorkspaceStrategy.SymlinkOnly);
+        var configuration = CreateConfiguration(strategyType, manifest);
+        var strategy = CreateStrategy(strategyType);
         var expected = strategy.EstimateDiskUsage(configuration);
         Assert.True(expected > 0);
         configuration.Manifests.Add(manifest);

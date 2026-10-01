@@ -52,16 +52,13 @@ public sealed class FullCopyStrategy(
             return 0;
 
         long totalSize = 0;
-        foreach (var manifest in configuration.Manifests)
+        foreach (var file in configuration.GetWorkspaceUniqueFiles())
         {
-            foreach (var file in ManifestVariantResolver.ResolveFiles(manifest).Where(f => f.InstallTarget == ContentInstallTarget.Workspace))
-            {
-                // Prevent negative sizes and overflow
-                long safeSize = Math.Max(0, file.Size);
-                if (long.MaxValue - totalSize < safeSize)
-                    return long.MaxValue; // Indicate overflow
-                totalSize += safeSize;
-            }
+            // Prevent negative sizes and overflow
+            long safeSize = Math.Max(0, file.Size);
+            if (long.MaxValue - totalSize < safeSize)
+                return long.MaxValue; // Indicate overflow
+            totalSize += safeSize;
         }
 
         return totalSize;
