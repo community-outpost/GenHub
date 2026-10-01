@@ -197,9 +197,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private bool _allowBackgroundDownloads = true;
 
     [ObservableProperty]
-    private string _steamWorkshopApiKeyInput = string.Empty;
-
-    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SteamAccountStatusText))]
     [NotifyPropertyChangedFor(nameof(SteamAccountStatusColor))]
     [NotifyPropertyChangedFor(nameof(CanSignInToSteam))]

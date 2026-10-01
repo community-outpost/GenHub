@@ -213,7 +213,90 @@ public sealed class SteamWorkshopClientDownloader : ISteamWorkshopClientDownload
         while (!task.IsCompleted && !cancellationToken.IsCancellationRequested)
         {
             manager.RunWaitCallbacks(TimeSpan.FromMilliseconds(50));
-            await Task.Delay(20).ConfigureAwait(false);
+            await Task.Delay(20, CancellationToken.None).ConfigureAwait(false);
+        }
+    }
+
+    private static string ValidateAndPrepareTargetPath(string fullTargetDir, string relativeFileName)
+    {
+        var cleanFileName = relativeFileName.Replace('\\', Path.DirectorySeparatorChar)
+            .Replace('/', Path.DirectorySeparatorChar)
+            .TrimStart(Path.DirectorySeparatorChar);
+
+        var fullPath = Path.GetFullPath(Path.Combine(fullTargetDir, cleanFileName));
+        if (!fullPath.StartsWith(fullTargetDir + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+            && !string.Equals(fullPath, fullTargetDir, StringComparison.Ordinal))
+        {
+            throw new IOException($"Manifest entry escapes target directory: {relativeFileName}");
+        }
+
+        var dir = Path.GetDirectoryName(fullPath);
+        if (!string.IsNullOrEmpty(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+
+        return fullPath;
+    }
+
+    private static async Task<int> DownloadSingleChunkAsync(
+        CdnDownloadSession session,
+        DepotManifest.ChunkData chunk,
+        byte[] chunkBuffer,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await session.CdnClient
+                .DownloadDepotChunkAsync(session.DepotId, chunk, session.Server, chunkBuffer, session.DepotKey)
+                .WaitAsync(cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            throw;
+        }
+        catch (ObjectDisposedException) when (cancellationToken.IsCancellationRequested)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            throw;
+        }
+        catch (IOException) when (cancellationToken.IsCancellationRequested)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            throw;
+        }
+    }
+
+    private static void CommitTempFile(string tempFilePath, string fullPath)
+    {
+        if (File.Exists(fullPath))
+        {
+            File.Replace(tempFilePath, fullPath, destinationBackupFileName: null);
+        }
+        else
+        {
+            File.Move(tempFilePath, fullPath);
+        }
+    }
+
+    private static void CleanupTempFile(string tempFilePath)
+    {
+        if (File.Exists(tempFilePath))
+        {
+            try
+            {
+                File.Delete(tempFilePath);
+            }
+            catch (IOException)
+            {
+                // Best effort cleanup of temp staging file
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Best effort cleanup of temp staging file
+            }
         }
     }
 
@@ -703,28 +786,6 @@ public sealed class SteamWorkshopClientDownloader : ISteamWorkshopClientDownload
         }
     }
 
-    private string ValidateAndPrepareTargetPath(string fullTargetDir, string relativeFileName)
-    {
-        var cleanFileName = relativeFileName.Replace('\\', Path.DirectorySeparatorChar)
-            .Replace('/', Path.DirectorySeparatorChar)
-            .TrimStart(Path.DirectorySeparatorChar);
-
-        var fullPath = Path.GetFullPath(Path.Combine(fullTargetDir, cleanFileName));
-        if (!fullPath.StartsWith(fullTargetDir + Path.DirectorySeparatorChar, StringComparison.Ordinal)
-            && !string.Equals(fullPath, fullTargetDir, StringComparison.Ordinal))
-        {
-            throw new IOException($"Manifest entry escapes target directory: {relativeFileName}");
-        }
-
-        var dir = Path.GetDirectoryName(fullPath);
-        if (!string.IsNullOrEmpty(dir))
-        {
-            Directory.CreateDirectory(dir);
-        }
-
-        return fullPath;
-    }
-
     private async Task<long> WriteManifestFileChunksAsync(
         CdnDownloadSession session,
         DepotManifest.FileData file,
@@ -762,67 +823,6 @@ public sealed class SteamWorkshopClientDownloader : ISteamWorkshopClientDownload
         }
 
         return fileBytesRead;
-    }
-
-    private async Task<int> DownloadSingleChunkAsync(
-        CdnDownloadSession session,
-        DepotManifest.ChunkData chunk,
-        byte[] chunkBuffer,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await session.CdnClient
-                .DownloadDepotChunkAsync(session.DepotId, chunk, session.Server, chunkBuffer, session.DepotKey)
-                .WaitAsync(cancellationToken)
-                .ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            throw;
-        }
-        catch (ObjectDisposedException) when (cancellationToken.IsCancellationRequested)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            throw;
-        }
-        catch (IOException) when (cancellationToken.IsCancellationRequested)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            throw;
-        }
-    }
-
-    private void CommitTempFile(string tempFilePath, string fullPath)
-    {
-        if (File.Exists(fullPath))
-        {
-            File.Replace(tempFilePath, fullPath, destinationBackupFileName: null);
-        }
-        else
-        {
-            File.Move(tempFilePath, fullPath);
-        }
-    }
-
-    private void CleanupTempFile(string tempFilePath)
-    {
-        if (File.Exists(tempFilePath))
-        {
-            try
-            {
-                File.Delete(tempFilePath);
-            }
-            catch (IOException)
-            {
-                // Best effort cleanup of temp staging file
-            }
-            catch (UnauthorizedAccessException)
-            {
-                // Best effort cleanup of temp staging file
-            }
-        }
     }
 
     private sealed record CdnDownloadSession(

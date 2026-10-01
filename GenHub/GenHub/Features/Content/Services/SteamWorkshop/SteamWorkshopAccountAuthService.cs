@@ -134,7 +134,7 @@ public sealed class SteamWorkshopAccountAuthService : ISteamWorkshopAccountAuthS
             cancellationToken);
     }
 
-    private (CancellationTokenSource Cts, Task Task) StartCallbackPump(CallbackManager manager)
+    private static (CancellationTokenSource Cts, Task Task) StartCallbackPump(CallbackManager manager)
     {
         var pumpCts = new CancellationTokenSource();
         var pumpTask = Task.Run(
@@ -156,6 +156,34 @@ public sealed class SteamWorkshopAccountAuthService : ISteamWorkshopAccountAuthS
             pumpCts.Token);
 
         return (pumpCts, pumpTask);
+    }
+
+    private static byte[] GenerateQrBytes(string url)
+    {
+        using var qrGenerator = new QRCodeGenerator();
+        using var qrCodeData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.M);
+        using var qrCode = new PngByteQRCode(qrCodeData);
+        return qrCode.GetGraphic(20);
+    }
+
+    private static async Task ConnectSteamClientAsync(
+        SteamClient steamClient,
+        TaskCompletionSource<bool> tcsConnect,
+        CancellationToken cancellationToken)
+    {
+        steamClient.Connect();
+
+        using var ctsTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, ctsTimeout.Token);
+
+        try
+        {
+            await tcsConnect.Task.WaitAsync(linked.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (ctsTimeout.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            throw new TimeoutException("Timed out connecting to the Steam network.");
+        }
     }
 
     private async Task<SteamAccountInfo?> WaitForQrApprovalAsync(
@@ -215,34 +243,6 @@ public sealed class SteamWorkshopAccountAuthService : ISteamWorkshopAccountAuthS
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogWarning(ex, "Failed to regenerate Steam QR code after challenge renewal.");
-        }
-    }
-
-    private byte[] GenerateQrBytes(string url)
-    {
-        using var qrGenerator = new QRCodeGenerator();
-        using var qrCodeData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.M);
-        using var qrCode = new PngByteQRCode(qrCodeData);
-        return qrCode.GetGraphic(20);
-    }
-
-    private async Task ConnectSteamClientAsync(
-        SteamClient steamClient,
-        TaskCompletionSource<bool> tcsConnect,
-        CancellationToken cancellationToken)
-    {
-        steamClient.Connect();
-
-        using var ctsTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, ctsTimeout.Token);
-
-        try
-        {
-            await tcsConnect.Task.WaitAsync(linked.Token).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (ctsTimeout.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
-        {
-            throw new TimeoutException("Timed out connecting to the Steam network.");
         }
     }
 
