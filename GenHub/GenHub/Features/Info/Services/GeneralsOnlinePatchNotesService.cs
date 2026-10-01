@@ -4,7 +4,9 @@ using GenHub.Core.Constants;
 using GenHub.Core.Models.Info;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -21,6 +23,10 @@ public class GeneralsOnlinePatchNotesService(IHttpClientFactory httpClientFactor
 {
     private const string BaseUrl = "https://www.playgenerals.online";
     private const string PatchNotesUrl = BaseUrl + "/patchnotes";
+
+    private readonly ConcurrentDictionary<string, string> _formattedCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly SemaphoreSlim _patchNotesLock = new(1, 1);
+    private IReadOnlyList<PatchNote>? _cachedPatchNotes;
 
     /// <summary>
     /// Formats patch notes from a parsed HTML document.
@@ -74,16 +80,32 @@ public class GeneralsOnlinePatchNotesService(IHttpClientFactory httpClientFactor
     }
 
     /// <inheritdoc/>
-    public async Task<IEnumerable<PatchNote>> GetPatchNotesAsync()
+    public Task<IEnumerable<PatchNote>> GetPatchNotesAsync() => GetPatchNotesAsync(CancellationToken.None);
+
+    /// <inheritdoc/>
+    public async Task<IEnumerable<PatchNote>> GetPatchNotesAsync(CancellationToken cancellationToken)
     {
+        if (_cachedPatchNotes != null)
+        {
+            return _cachedPatchNotes;
+        }
+
+        await _patchNotesLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            if (_cachedPatchNotes != null)
+            {
+                return _cachedPatchNotes;
+            }
+
             using var client = httpClientFactory.CreateClient();
             AddDefaultHeaders(client);
-            var html = await client.GetStringAsync(PatchNotesUrl);
+            using var response = await client.GetAsync(PatchNotesUrl, cancellationToken).ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+            var html = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
             var context = BrowsingContext.New(Configuration.Default);
-            var document = await context.OpenAsync(req => req.Content(html));
+            var document = await context.OpenAsync(req => req.Content(html), cancellationToken).ConfigureAwait(false);
 
             var patchNotes = new List<PatchNote>();
             var rows = document.QuerySelectorAll(".row.g-4 .col-lg-4.col-md-6.mb10");
@@ -103,21 +125,30 @@ public class GeneralsOnlinePatchNotesService(IHttpClientFactory httpClientFactor
                 patchNote.Summary = summaryElement?.TextContent.Trim() ?? string.Empty;
                 patchNote.DetailsUrl = titleElement?.GetAttribute("href") ?? string.Empty;
 
-                if (!string.IsNullOrEmpty(patchNote.DetailsUrl) && !patchNote.DetailsUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                if (!string.IsNullOrEmpty(patchNote.DetailsUrl))
                 {
-                    patchNote.Id = patchNote.DetailsUrl.Split('/').LastOrDefault() ?? string.Empty;
-                    patchNote.DetailsUrl = BaseUrl + patchNote.DetailsUrl;
+                    patchNote.Id = patchNote.DetailsUrl.TrimEnd('/').Split('/').LastOrDefault() ?? string.Empty;
+                    if (!patchNote.DetailsUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                    {
+                        patchNote.DetailsUrl = BaseUrl + patchNote.DetailsUrl;
+                    }
                 }
 
                 patchNotes.Add(patchNote);
             }
 
-            return patchNotes.OrderByDescending(p => p.Id);
+            var result = patchNotes.OrderByDescending(p => p.Id).ToList();
+            _cachedPatchNotes = result;
+            return result;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error fetching patch notes from {Url}", PatchNotesUrl);
             return [];
+        }
+        finally
+        {
+            _patchNotesLock.Release();
         }
     }
 
@@ -131,10 +162,10 @@ public class GeneralsOnlinePatchNotesService(IHttpClientFactory httpClientFactor
             patchNote.IsLoadingDetails = true;
             using var client = httpClientFactory.CreateClient();
             AddDefaultHeaders(client);
-            var html = await client.GetStringAsync(patchNote.DetailsUrl);
+            var html = await client.GetStringAsync(patchNote.DetailsUrl, CancellationToken.None).ConfigureAwait(false);
 
             var context = BrowsingContext.New(Configuration.Default);
-            var document = await context.OpenAsync(req => req.Content(html));
+            var document = await context.OpenAsync(req => req.Content(html), CancellationToken.None).ConfigureAwait(false);
 
             var postText = document.QuerySelector(".blog-read .post-text");
             if (postText != null)
@@ -167,10 +198,21 @@ public class GeneralsOnlinePatchNotesService(IHttpClientFactory httpClientFactor
             return null;
         }
 
-        var datePart = version.Split('_', StringSplitOptions.TrimEntries)[0];
-        if (datePart.Length != 6 || !datePart.All(char.IsAsciiDigit))
+        var normalizedKey = version.Trim();
+        if (_formattedCache.TryGetValue(normalizedKey, out var cached))
+        {
+            return cached;
+        }
+
+        if (!TryExtractDatePart(normalizedKey, out var datePart))
         {
             return null;
+        }
+
+        if (_formattedCache.TryGetValue(datePart, out var dateCached))
+        {
+            _formattedCache[normalizedKey] = dateCached;
+            return dateCached;
         }
 
         var detailsUrl = $"{PatchNotesUrl}/{datePart}";
@@ -179,12 +221,25 @@ public class GeneralsOnlinePatchNotesService(IHttpClientFactory httpClientFactor
         {
             using var client = httpClientFactory.CreateClient();
             AddDefaultHeaders(client);
-            var html = await client.GetStringAsync(detailsUrl, cancellationToken);
+            var html = await client.GetStringAsync(detailsUrl, cancellationToken).ConfigureAwait(false);
 
             var context = BrowsingContext.New(Configuration.Default);
-            var document = await context.OpenAsync(req => req.Content(html), cancellationToken);
+            var document = await context.OpenAsync(req => req.Content(html), cancellationToken).ConfigureAwait(false);
 
-            return FormatPatchNotesDocument(document, datePart);
+            var formatted = FormatPatchNotesDocument(document, datePart);
+            if (string.IsNullOrWhiteSpace(formatted))
+            {
+                formatted = await FetchFallbackPatchNotesAsync(datePart, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (!string.IsNullOrWhiteSpace(formatted))
+            {
+                _formattedCache[datePart] = formatted;
+                _formattedCache[normalizedKey] = formatted;
+                return formatted;
+            }
+
+            return null;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -193,10 +248,119 @@ public class GeneralsOnlinePatchNotesService(IHttpClientFactory httpClientFactor
         }
     }
 
+    private static bool TryExtractDatePart(string version, out string datePart)
+    {
+        var clean = version;
+        if (clean.StartsWith('v') || clean.StartsWith('V'))
+        {
+            clean = clean[1..];
+        }
+
+        datePart = clean.Split('_', StringSplitOptions.TrimEntries)[0];
+        return datePart.Length == 6 && datePart.All(char.IsAsciiDigit);
+    }
+
+    private static bool TryParseVersionDate(string datePart, out DateTime date)
+    {
+        date = default;
+        if (datePart.Length != 6 || !datePart.All(char.IsAsciiDigit))
+        {
+            return false;
+        }
+
+        if (!int.TryParse(datePart.AsSpan(0, 2), CultureInfo.InvariantCulture, out var month) ||
+            !int.TryParse(datePart.AsSpan(2, 2), CultureInfo.InvariantCulture, out var day) ||
+            !int.TryParse(datePart.AsSpan(4, 2), CultureInfo.InvariantCulture, out var shortYear))
+        {
+            return false;
+        }
+
+        var year = 2000 + shortYear;
+
+        try
+        {
+            date = new DateTime(year, month, day, 0, 0, 0, DateTimeKind.Utc);
+            return true;
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return false;
+        }
+    }
+
+    private static PatchNote? FindBestMatchingPatchNote(IEnumerable<PatchNote> patchNotes, DateTime targetDate)
+    {
+        PatchNote? bestCandidate = null;
+        var minDiff = TimeSpan.MaxValue;
+        var bestIsFutureOrEqual = false;
+
+        foreach (var note in patchNotes)
+        {
+            if (!TryParseVersionDate(note.Id, out var noteDate))
+            {
+                continue;
+            }
+
+            if (IsBetterCandidate(noteDate, targetDate, bestCandidate != null, bestIsFutureOrEqual, minDiff))
+            {
+                bestCandidate = note;
+                bestIsFutureOrEqual = noteDate >= targetDate;
+                minDiff = (noteDate - targetDate).Duration();
+            }
+        }
+
+        return bestCandidate;
+    }
+
+    private static bool IsBetterCandidate(
+        DateTime candidateDate,
+        DateTime targetDate,
+        bool hasBestCandidate,
+        bool bestIsFutureOrEqual,
+        TimeSpan minDiff)
+    {
+        var diff = candidateDate - targetDate;
+        var absDiff = diff.Duration();
+        if (absDiff > TimeSpan.FromDays(14))
+        {
+            return false;
+        }
+
+        var isFutureOrEqual = diff >= TimeSpan.Zero;
+        if (!hasBestCandidate)
+        {
+            return true;
+        }
+
+        if (isFutureOrEqual && !bestIsFutureOrEqual)
+        {
+            return true;
+        }
+
+        return isFutureOrEqual == bestIsFutureOrEqual && absDiff < minDiff;
+    }
+
     private static void AddDefaultHeaders(HttpClient client)
     {
         client.DefaultRequestHeaders.UserAgent.ParseAdd(ApiConstants.BrowserUserAgent);
         client.DefaultRequestHeaders.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8");
         client.DefaultRequestHeaders.Add("Referer", BaseUrl);
+    }
+
+private async Task<string?> FetchFallbackPatchNotesAsync(string datePart, CancellationToken cancellationToken)
+    {
+        if (!TryParseVersionDate(datePart, out var targetDate))
+        {
+            return null;
+        }
+
+        var allNotes = await GetPatchNotesAsync(cancellationToken).ConfigureAwait(false);
+        var bestMatch = FindBestMatchingPatchNote(allNotes, targetDate);
+        if (bestMatch == null || string.IsNullOrWhiteSpace(bestMatch.Id) || string.Equals(bestMatch.Id, datePart, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return await GetPatchNotesFormattedAsync(bestMatch.Id, cancellationToken).ConfigureAwait(false);
     }
 }

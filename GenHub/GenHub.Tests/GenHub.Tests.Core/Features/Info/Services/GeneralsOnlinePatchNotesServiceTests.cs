@@ -45,6 +45,8 @@ public class GeneralsOnlinePatchNotesServiceTests
     [Theory]
     [InlineData("082826")]
     [InlineData("082826_QFE1")]
+    [InlineData("v082826")]
+    [InlineData("V082826_QFE1")]
     public async Task GetPatchNotesFormattedAsync_ParsesDayReleaseAndQfeCorrectlyAsync(string version)
     {
         // Arrange
@@ -127,6 +129,274 @@ public class GeneralsOnlinePatchNotesServiceTests
 
         // Assert
         Assert.Null(result);
+    }
+
+    /// <summary>
+    /// Tests that <see cref="GeneralsOnlinePatchNotesService.GetPatchNotesFormattedAsync"/> caches results and avoids duplicate HTTP calls.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetPatchNotesFormattedAsync_CachesResult_DoesNotRepeatHttpCallsAsync()
+    {
+        var callCount = 0;
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            callCount++;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(SamplePatchNotesHtml),
+            };
+        });
+
+        var factoryMock = new Mock<IHttpClientFactory>();
+        factoryMock.Setup(f => f.CreateClient(It.IsAny<string>()))
+            .Returns(() => new HttpClient(handler));
+
+        var service = new GeneralsOnlinePatchNotesService(
+            factoryMock.Object,
+            NullLogger<GeneralsOnlinePatchNotesService>.Instance);
+
+        var first = await service.GetPatchNotesFormattedAsync("082826");
+        var second = await service.GetPatchNotesFormattedAsync("082826");
+        var third = await service.GetPatchNotesFormattedAsync("v082826");
+
+        Assert.NotNull(first);
+        Assert.Equal(first, second);
+        Assert.Equal(first, third);
+        Assert.Equal(1, callCount);
+    }
+
+    /// <summary>
+    /// Tests that <see cref="GeneralsOnlinePatchNotesService.GetPatchNotesFormattedAsync"/> falls back to the release cycle patch note when direct page has no details.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetPatchNotesFormattedAsync_IntermediateBuild_FallsBackToReleaseCycleNotesAsync()
+    {
+        const string indexHtml = @"<!DOCTYPE html>
+<html><body>
+    <div class=""row g-4"">
+        <div class=""col-lg-4 col-md-6 mb10"">
+            <div class=""post-text"">
+                <div class=""d-date"">28th September 2026</div>
+                <h4><a href=""/patchnotes/092826"">Update 092826</a></h4>
+                <p>Summary</p>
+            </div>
+        </div>
+    </div>
+</body></html>";
+
+        const string update092826Html = @"<!DOCTYPE html>
+<html><body>
+    <section id=""subheader"">
+        <div class=""center-y text-center"">
+            <h2>Update 092826</h2>
+            <div class=""subtitle"">28th September 2026</div>
+        </div>
+    </section>
+    <div class=""blog-read"">
+        <div class=""post-text"">
+            <ul>
+                <li>Camera controls - Page Up/Down</li>
+                <li>Fixed GenHub loading</li>
+            </ul>
+        </div>
+    </div>
+</body></html>";
+
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            var uri = req.RequestUri!.ToString();
+            if (uri.EndsWith("/patchnotes/092526", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("<html><body>No details</body></html>"),
+                };
+            }
+
+            if (uri.EndsWith("/patchnotes", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(indexHtml),
+                };
+            }
+
+            if (uri.EndsWith("/patchnotes/092826", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(update092826Html),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        var factoryMock = new Mock<IHttpClientFactory>();
+        factoryMock.Setup(f => f.CreateClient(It.IsAny<string>()))
+            .Returns(() => new HttpClient(handler));
+
+        var service = new GeneralsOnlinePatchNotesService(
+            factoryMock.Object,
+            NullLogger<GeneralsOnlinePatchNotesService>.Instance);
+
+        var notes = await service.GetPatchNotesFormattedAsync("092526");
+
+        Assert.NotNull(notes);
+        Assert.Contains("Update 092826 (28th September 2026)", notes);
+        Assert.Contains("- Camera controls - Page Up/Down", notes);
+        Assert.Contains("- Fixed GenHub loading", notes);
+    }
+
+    /// <summary>
+    /// Verifies that FindBestMatchingPatchNote prefers a future covering release over a past release across year boundaries.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetPatchNotesFormattedAsync_YearBoundary_PrefersCoveringReleaseOverPastReleaseAsync()
+    {
+        const string indexHtml = @"<!DOCTYPE html>
+<html><body>
+    <div class=""row g-4"">
+        <div class=""col-lg-4 col-md-6 mb10"">
+            <div class=""post-text"">
+                <span class=""d-date"">30th December 2025</span>
+                <h4><a href=""https://www.playgenerals.online/patchnotes/123025"">Update 123025</a></h4>
+                <p>Past release</p>
+            </div>
+        </div>
+        <div class=""col-lg-4 col-md-6 mb10"">
+            <div class=""post-text"">
+                <span class=""d-date"">2nd January 2026</span>
+                <h4><a href=""https://www.playgenerals.online/patchnotes/010226"">Update 010226</a></h4>
+                <p>New year covering release</p>
+            </div>
+        </div>
+    </div>
+</body></html>";
+
+        const string update010226Html = @"<!DOCTYPE html>
+<html><body>
+    <section id=""subheader"">
+        <div class=""center-y text-center"">
+            <h2>Update 010226</h2>
+            <div class=""subtitle"">2nd January 2026</div>
+        </div>
+    </section>
+    <div class=""blog-read"">
+        <div class=""post-text"">
+            <ul>
+                <li>New Year Bugfixes</li>
+            </ul>
+        </div>
+    </div>
+</body></html>";
+
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            var uri = req.RequestUri!.ToString();
+            if (uri.EndsWith("/patchnotes/123125", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("<html><body>No details</body></html>"),
+                };
+            }
+
+            if (uri.EndsWith("/patchnotes", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(indexHtml),
+                };
+            }
+
+            if (uri.EndsWith("/patchnotes/010226", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(update010226Html),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        var factoryMock = new Mock<IHttpClientFactory>();
+        factoryMock.Setup(f => f.CreateClient(It.IsAny<string>()))
+            .Returns(() => new HttpClient(handler));
+
+        var service = new GeneralsOnlinePatchNotesService(
+            factoryMock.Object,
+            NullLogger<GeneralsOnlinePatchNotesService>.Instance);
+
+        var notes = await service.GetPatchNotesFormattedAsync("123125");
+
+        Assert.NotNull(notes);
+        Assert.Contains("Update 010226 (2nd January 2026)", notes);
+        Assert.Contains("- New Year Bugfixes", notes);
+    }
+
+    /// <summary>
+    /// Tests that <see cref="GeneralsOnlinePatchNotesService.GetPatchNotesAsync()"/> correctly extracts Id and normalizes DetailsUrl for both relative and absolute links.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetPatchNotesAsync_ParsesRelativeAndAbsoluteUrlsCorrectlyAsync()
+    {
+        const string indexHtml = @"<!DOCTYPE html>
+<html><body>
+    <div class=""row g-4"">
+        <div class=""col-lg-4 col-md-6 mb10"">
+            <div class=""post-text"">
+                <span class=""d-date"">28th August 2026</span>
+                <h4><a href=""/patchnotes/082826"">Update 082826</a></h4>
+                <p>Relative URL</p>
+            </div>
+        </div>
+        <div class=""col-lg-4 col-md-6 mb10"">
+            <div class=""post-text"">
+                <span class=""d-date"">29th August 2026</span>
+                <h4><a href=""https://www.playgenerals.online/patchnotes/082926/"">Update 082926</a></h4>
+                <p>Absolute URL with trailing slash</p>
+            </div>
+        </div>
+    </div>
+</body></html>";
+
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            if (req.RequestUri!.ToString().EndsWith("/patchnotes", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(indexHtml),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        var factoryMock = new Mock<IHttpClientFactory>();
+        factoryMock.Setup(f => f.CreateClient(It.IsAny<string>()))
+            .Returns(() => new HttpClient(handler));
+
+        var service = new GeneralsOnlinePatchNotesService(
+            factoryMock.Object,
+            NullLogger<GeneralsOnlinePatchNotesService>.Instance);
+
+        var notes = (await service.GetPatchNotesAsync()).ToList();
+
+        Assert.Equal(2, notes.Count);
+        var note082926 = notes.First(n => n.Id == "082926");
+        Assert.Equal("082926", note082926.Id);
+        Assert.Equal("https://www.playgenerals.online/patchnotes/082926/", note082926.DetailsUrl);
+
+        var note082826 = notes.First(n => n.Id == "082826");
+        Assert.Equal("082826", note082826.Id);
+        Assert.Equal("https://www.playgenerals.online/patchnotes/082826", note082826.DetailsUrl);
     }
 
     private sealed class TestHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> handler) : HttpMessageHandler

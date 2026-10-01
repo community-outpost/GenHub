@@ -208,6 +208,30 @@ public sealed partial class ContentGridItemViewModel(
     public bool HasShortDescription => !HasBundleComponents && !string.IsNullOrWhiteSpace(ShortDescription);
 
     /// <summary>
+    /// Updates the description and refreshes card description properties.
+    /// </summary>
+    /// <param name="newDescription">The updated description or changelog.</param>
+    public void UpdateDescription(string newDescription)
+    {
+        if (string.IsNullOrWhiteSpace(newDescription))
+        {
+            return;
+        }
+
+        SearchResult.Description = newDescription;
+
+        var release = SearchResult.GetData<GenHub.Core.Models.GeneralsOnline.GeneralsOnlineRelease>();
+        if (release != null)
+        {
+            SearchResult.SetData(GenHub.Features.Content.Services.GeneralsOnline.GeneralsOnlinePatchNotesHelper.WithChangelog(release, newDescription));
+        }
+
+        OnPropertyChanged(nameof(Description));
+        OnPropertyChanged(nameof(ShortDescription));
+        OnPropertyChanged(nameof(HasShortDescription));
+    }
+
+    /// <summary>
     /// Gets a value indicating whether this content item is featured.
     /// </summary>
     public bool IsFeatured => SearchResult.IsFeatured;
