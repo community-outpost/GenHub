@@ -667,7 +667,7 @@ public partial class ContentDetailViewModel(
     /// </summary>
     public bool CanChangeContentType =>
         !IsDownloading &&
-        SelectedDownloadableItem?.IsDownloading != true &&
+        SelectedDownloadableItem is not { IsDownloading: true } &&
         !HasBundleComponents &&
         ContentCardBadgeHelper.CanChangeContentType(searchResult);
 

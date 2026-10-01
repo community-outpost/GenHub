@@ -44,6 +44,11 @@ public sealed partial class ContentStateService(
     private const string PlatformWindows = "windows";
     private const string PlatformLinux = "linux";
     private const string PlatformMacOS = "macos";
+    private const string Resolution720p = "720p";
+    private const string Resolution900p = "900p";
+    private const string Resolution1080p = "1080p";
+    private const string Resolution1440p = "1440p";
+    private const string Resolution4k = "4k";
     private static readonly MmddyyQfeVersionScheme GeneralsOnlineVersionScheme = new();
 
     /// <summary>Matches any non-alphanumeric character, mirroring ManifestIdGenerator.Normalize.</summary>
@@ -857,15 +862,11 @@ public sealed partial class ContentStateService(
 
         return token switch
         {
-            "720" => "720p",
-            "720p" => "720p",
-            "900" => "900p",
-            "900p" => "900p",
-            "1080" => "1080p",
-            "1080p" => "1080p",
-            "1440" => "1440p",
-            "1440p" => "1440p",
-            "2160" or "4k" => "4k",
+            "720" or "720p" => Resolution720p,
+            "900" or "900p" => Resolution900p,
+            "1080" or "1080p" => Resolution1080p,
+            "1440" or "1440p" => Resolution1440p,
+            "2160" or "4k" => Resolution4k,
             "5k" => "5k",
             "8k" => "8k",
             _ => null,
@@ -886,11 +887,11 @@ public sealed partial class ContentStateService(
             var token = match.Value.ToLowerInvariant();
             return token switch
             {
-                "720" => "720p",
-                "900" => "900p",
-                "1080" => "1080p",
-                "1440" => "1440p",
-                "2160" => "4k",
+                "720" => Resolution720p,
+                "900" => Resolution900p,
+                "1080" => Resolution1080p,
+                "1440" => Resolution1440p,
+                "2160" => Resolution4k,
                 _ => token,
             };
         }
