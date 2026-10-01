@@ -196,7 +196,11 @@ public sealed class SymlinkedProcessDiscoveryTests(ITestOutputHelper output) : I
 
             return ObserveDrain(drain) && codesign.ExitCode == 0;
         }
-        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        catch (System.ComponentModel.Win32Exception)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
         {
             return false;
         }
@@ -221,7 +225,11 @@ public sealed class SymlinkedProcessDiscoveryTests(ITestOutputHelper output) : I
             File.CreateSymbolicLink(path, target);
             return true;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
         {
             // Windows without Developer Mode or elevation cannot create symbolic links.
             return false;

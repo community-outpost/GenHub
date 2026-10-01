@@ -328,7 +328,7 @@ public class GameLauncher(
             ? null
             : Path.Combine(workspacePath, childFile.RelativePath.Replace('\\', '/').Replace('/', Path.DirectorySeparatorChar));
 
-        // A dangling link can still count as an existing file on Unix, so the target is checked separately.
+        // The target can disappear after File.Exists succeeds, so check the resolved target too.
         var childTarget = childPath is not null && File.Exists(childPath) ? TryResolveFinalLinkTarget(childPath, logger) : null;
         if (childFile is null ||
             (isCasChild && string.IsNullOrEmpty(childFile.Hash)) ||

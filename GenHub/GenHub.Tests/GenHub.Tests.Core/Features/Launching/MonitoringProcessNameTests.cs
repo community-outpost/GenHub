@@ -482,7 +482,11 @@ public sealed class MonitoringProcessNameTests : IDisposable
             File.CreateSymbolicLink(path, target);
             return true;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
         {
             // Windows without Developer Mode or elevation cannot create symbolic links.
             return false;
