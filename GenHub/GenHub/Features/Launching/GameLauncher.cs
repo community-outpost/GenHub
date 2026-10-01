@@ -296,6 +296,54 @@ public class GameLauncher(
     }
 
     /// <summary>
+    /// Resolves the child process the launched entry is expected to spawn.
+    /// The game client manifest's declared launch relationship wins; manifests that
+    /// predate declarations fall back to legacy filename guessing.
+    /// </summary>
+    /// <param name="manifests">The manifests resolved for the launch.</param>
+    /// <param name="finalExecutablePath">The workspace executable being started.</param>
+    /// <param name="logger">Receives the resolution source for diagnostics.</param>
+    /// <returns>The expected child name and discovery timeout, both null for direct launches.</returns>
+    internal static (string? ChildName, TimeSpan? DiscoveryTimeout) ResolveExpectedChildProcess(
+        IReadOnlyList<ContentManifest> manifests,
+        string finalExecutablePath,
+        ILogger? logger = null)
+    {
+        var executableManifest = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient);
+        var declared = executableManifest is null
+            ? null
+            : ManifestVariantResolver.ResolveLaunchRelationship(executableManifest);
+        if (declared is null)
+        {
+            executableManifest = manifests.FirstOrDefault(m => m.ContentType == ContentType.Executable);
+            declared = executableManifest is null
+                ? null
+                : ManifestVariantResolver.ResolveLaunchRelationship(executableManifest);
+        }
+
+        if (declared is not null)
+        {
+            logger?.LogInformation(
+                "[GameLauncher] Using declared launch relationship from manifest '{ManifestId}': entry spawns '{Child}'",
+                executableManifest!.Id.Value,
+                declared.ProcessName);
+            return (declared.ProcessName, declared.DiscoveryTimeoutMs is > 0
+                ? TimeSpan.FromMilliseconds(declared.DiscoveryTimeoutMs.Value)
+                : null);
+        }
+
+        var legacy = LaunchEntryPointResolver.ResolveExpectedChildProcessName(finalExecutablePath);
+        if (legacy is not null)
+        {
+            logger?.LogInformation(
+                "[GameLauncher] No declared launch relationship; using legacy filename fallback: '{Child}'",
+                legacy);
+        }
+
+        return (legacy, null);
+    }
+
+    /// <summary>
     /// Resolves the process a CAS-symlinked bootstrapper hands the session to. A child linked into
     /// the workspace may be reported under its link or its final target, so both identities are
     /// returned. A child that is a regular file runs under its own file name.
@@ -428,54 +476,6 @@ public class GameLauncher(
 
     private static string GetRelativeDirectory(string relativePath) =>
         Path.GetDirectoryName(relativePath.Replace('\\', '/'))?.Replace('\\', '/') ?? string.Empty;
-
-    /// <summary>
-    /// Resolves the child process the launched entry is expected to spawn.
-    /// The game client manifest's declared launch relationship wins; manifests that
-    /// predate declarations fall back to legacy filename guessing.
-    /// </summary>
-    /// <param name="manifests">The manifests resolved for the launch.</param>
-    /// <param name="finalExecutablePath">The workspace executable being started.</param>
-    /// <param name="logger">Receives the resolution source for diagnostics.</param>
-    /// <returns>The expected child name and discovery timeout, both null for direct launches.</returns>
-    internal static (string? ChildName, TimeSpan? DiscoveryTimeout) ResolveExpectedChildProcess(
-        IReadOnlyList<ContentManifest> manifests,
-        string finalExecutablePath,
-        ILogger? logger = null)
-    {
-        var executableManifest = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient);
-        var declared = executableManifest is null
-            ? null
-            : ManifestVariantResolver.ResolveLaunchRelationship(executableManifest);
-        if (declared is null)
-        {
-            executableManifest = manifests.FirstOrDefault(m => m.ContentType == ContentType.Executable);
-            declared = executableManifest is null
-                ? null
-                : ManifestVariantResolver.ResolveLaunchRelationship(executableManifest);
-        }
-
-        if (declared is not null)
-        {
-            logger?.LogInformation(
-                "[GameLauncher] Using declared launch relationship from manifest '{ManifestId}': entry spawns '{Child}'",
-                executableManifest!.Id.Value,
-                declared.ProcessName);
-            return (declared.ProcessName, declared.DiscoveryTimeoutMs is > 0
-                ? TimeSpan.FromMilliseconds(declared.DiscoveryTimeoutMs.Value)
-                : null);
-        }
-
-        var legacy = LaunchEntryPointResolver.ResolveExpectedChildProcessName(finalExecutablePath);
-        if (legacy is not null)
-        {
-            logger?.LogInformation(
-                "[GameLauncher] No declared launch relationship; using legacy filename fallback: '{Child}'",
-                legacy);
-        }
-
-        return (legacy, null);
-    }
 
     private static bool BackupAndPurgeCorruptMapCache(string mapCachePath, ILogger? logger)
     {

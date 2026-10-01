@@ -704,7 +704,7 @@ public class GameClientDetector(
     /// <returns>The entry point name, or <see langword="null"/> when no publisher claims one.</returns>
     private string? ResolvePublisherDirectoryEntryPoint(string directory)
     {
-        List<string> fileNames = [];
+        List<string> fileNames;
         try
         {
             fileNames = Directory.EnumerateFiles(directory).Select(Path.GetFileName).OfType<string>().ToList();
