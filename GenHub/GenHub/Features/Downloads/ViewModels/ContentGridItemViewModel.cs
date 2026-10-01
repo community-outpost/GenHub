@@ -631,6 +631,22 @@ public sealed partial class ContentGridItemViewModel(
         }
     }
 
+    private static async Task AwaitIconLoadTasksAsync(Task? task1, Task? task2)
+    {
+        if (task1 != null && task2 != null)
+        {
+            await Task.WhenAll(task1, task2);
+        }
+        else if (task1 != null)
+        {
+            await task1;
+        }
+        else if (task2 != null)
+        {
+            await task2;
+        }
+    }
+
     private async Task<Bitmap?> SafeGetBitmapAsync(string url, CancellationToken cancellationToken)
     {
         try
@@ -645,22 +661,6 @@ public sealed partial class ContentGridItemViewModel(
         {
             logger.LogDebug(ex, "Failed to load bitmap from {Url}", url);
             return null;
-        }
-    }
-
-    private static async Task AwaitIconLoadTasksAsync(Task? task1, Task? task2)
-    {
-        if (task1 != null && task2 != null)
-        {
-            await Task.WhenAll(task1, task2);
-        }
-        else if (task1 != null)
-        {
-            await task1;
-        }
-        else if (task2 != null)
-        {
-            await task2;
         }
     }
 
