@@ -804,9 +804,9 @@ public sealed class SteamWorkshopClientDownloader : ISteamWorkshopClientDownload
                 var chunkBuffer = new byte[chunk.UncompressedLength];
                 var bytesWritten = await DownloadSingleChunkAsync(session, chunk, chunkBuffer, cancellationToken).ConfigureAwait(false);
 
-                if (bytesWritten <= 0)
+                if (bytesWritten != chunk.UncompressedLength)
                 {
-                    throw new IOException($"Failed to download or decrypt chunk {chunk.ChunkID} for file {file.FileName}.");
+                    throw new IOException($"Failed to download or decrypt the complete chunk {chunk.ChunkID} for file {file.FileName}.");
                 }
 
                 fileStream.Seek((long)chunk.Offset, SeekOrigin.Begin);
