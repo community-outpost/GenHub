@@ -3853,7 +3853,7 @@ public sealed partial class IniEditorViewModel(
         // Without a detected installation there is no tier signal, so fall back to the
         // platform default. Zero Hour mode enforces strict per-game isolation while the
         // base tier stays permissive about loose project files.
-        var isZeroHour = installation?.IsZeroHour == true;
+        var isZeroHour = installation is { IsZeroHour: true };
 
         var projectDirectory = string.IsNullOrEmpty(FilePath) ? FileExplorer.Directory : Path.GetDirectoryName(FilePath);
         if (string.IsNullOrEmpty(installationPath))
@@ -4608,7 +4608,7 @@ public sealed partial class IniEditorViewModel(
 
         var installation = SelectedInstallation ?? AvailableInstallations.FirstOrDefault();
         var installationPath = installation?.Path;
-        var isZeroHour = installation?.IsZeroHour == true;
+        var isZeroHour = installation is { IsZeroHour: true };
         var projectDirectory = string.IsNullOrEmpty(FilePath) ? FileExplorer.Directory : Path.GetDirectoryName(FilePath);
         if (string.IsNullOrEmpty(installationPath))
         {
@@ -4670,7 +4670,7 @@ public sealed partial class IniEditorViewModel(
         }
         catch (OperationCanceledException)
         {
-            return;
+            // Cancelled previews are discarded silently.
         }
 
         if (generation != _modelPreviewGeneration || cancellationToken.IsCancellationRequested)
@@ -5410,7 +5410,7 @@ public sealed partial class IniEditorViewModel(
         _lastPreviewErrorToast = null;
         _textureThumbnails.Clear();
         QueueThumbnailRefresh();
-        Task.Run(() => modelResolver.ClearCache());
+        modelResolver.ClearCache();
         _lastPreviewModel = null;
         QueueModelPreviewRefresh();
     }

@@ -70,10 +70,6 @@ public sealed class IniReferenceService(
             cancellationToken.ThrowIfCancellationRequested();
             await AddCachedVanillaEntriesAsync(forceRescan, entries, cancellationToken).ConfigureAwait(false);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
         catch (IOException ex)
         {
             logger.LogWarning(ex, "Failed to rebuild the INI reference index");
