@@ -1,7 +1,7 @@
 version = 1
 
 test_patterns = [
-  "GenHub/GenHub.Tests/**",
+  "GenHub/GenHub.Tests*/**",
   "GenHub/**/Tests/**"
 ]
 

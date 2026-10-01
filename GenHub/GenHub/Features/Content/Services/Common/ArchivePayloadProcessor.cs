@@ -454,13 +454,21 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             return true;
         }
 
-        string? target;
+        string? target = null;
         try
         {
             FileSystemInfo info = isDirectory ? new DirectoryInfo(entry) : new FileInfo(entry);
             target = info.LinkTarget;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
         {
             return false;
         }

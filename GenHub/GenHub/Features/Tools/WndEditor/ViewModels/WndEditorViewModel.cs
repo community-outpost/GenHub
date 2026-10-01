@@ -2211,7 +2211,7 @@ public sealed partial class WndEditorViewModel(
     private void UpdateLinkedAssetsSummary()
     {
         string? modFolder = null;
-        List<string> bigFiles;
+        List<string> bigFiles = [];
         lock (_linkedAssetsSync)
         {
             modFolder = LinkedModFolder;
@@ -3638,11 +3638,11 @@ public sealed partial class WndEditorViewModel(
 
     private void RefreshAssetPreviews()
     {
-        CancellationTokenSource? toCancel;
-        CancellationTokenSource cts;
+        CancellationTokenSource? toCancel = null;
+        CancellationTokenSource cts = null!;
         int generation = 0;
         string? linkedModFolderSnapshot = null;
-        List<string>? linkedBigFilesSnapshot;
+        List<string>? linkedBigFilesSnapshot = null;
         lock (_previewSync)
         {
             toCancel = _previewCts;
@@ -4121,7 +4121,7 @@ public sealed partial class WndEditorViewModel(
         var linkedBigs = LinkedBigFiles.ToList();
 
         CancellationTokenSource cts = new();
-        CancellationTokenSource? toCancel;
+        CancellationTokenSource? toCancel = null;
         lock (_thumbnailSync)
         {
             toCancel = _thumbnailCts;

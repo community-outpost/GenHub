@@ -678,13 +678,28 @@ public static class PathHelper
         for (var i = 0; i < segments.Length; i++)
         {
             prefix = Path.Combine(prefix, segments[i]);
-            string? target;
+            string? target = null;
             try
             {
                 FileSystemInfo info = new FileInfo(prefix);
                 target = info.LinkTarget ?? new DirectoryInfo(prefix).LinkTarget;
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+            catch (IOException)
+            {
+                failed = true;
+                return null;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                failed = true;
+                return null;
+            }
+            catch (ArgumentException)
+            {
+                failed = true;
+                return null;
+            }
+            catch (NotSupportedException)
             {
                 failed = true;
                 return null;
