@@ -1,6 +1,8 @@
 using GenHub.Core.Helpers;
+using GenHub.Tests.Core.Features.GameProfiles;
 using System;
 using System.IO;
+using System.Runtime.Versioning;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -26,6 +28,55 @@ public sealed class AtomicFileTests
             await AtomicFile.WriteAllBytesAsync(path, [1, 2, 3, 4]);
 
             Assert.Equal([1, 2, 3, 4], await File.ReadAllBytesAsync(path));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that a restricted byte write creates the destination with only the requested
+    /// permissions, even when it replaces a more permissive file, and leaves no temp file.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [UnixFact]
+    [UnsupportedOSPlatform("windows")]
+    public async Task WriteAllBytesAsync_WithUnixCreateMode_AppliesModeAsync()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        string path = Path.Combine(directory, "restricted.bin");
+        Directory.CreateDirectory(directory);
+        try
+        {
+            await File.WriteAllBytesAsync(path, [9]);
+            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.GroupRead | UnixFileMode.OtherRead);
+
+            await AtomicFile.WriteAllBytesAsync(path, [1, 2, 3], UnixFileMode.UserRead | UnixFileMode.UserWrite);
+
+            Assert.Equal([1, 2, 3], await File.ReadAllBytesAsync(path));
+            Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(path));
+            Assert.Equal([path], Directory.GetFiles(directory));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that the restricted overload still writes content on every platform.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task WriteAllBytesAsync_WithUnixCreateMode_WritesContentAsync()
+    {
+        string path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".bin");
+        try
+        {
+            await AtomicFile.WriteAllBytesAsync(path, [4, 5], UnixFileMode.UserRead | UnixFileMode.UserWrite);
+
+            Assert.Equal([4, 5], await File.ReadAllBytesAsync(path));
         }
         finally
         {

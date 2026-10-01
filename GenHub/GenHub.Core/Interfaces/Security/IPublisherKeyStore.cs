@@ -40,4 +40,13 @@ public interface IPublisherKeyStore
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>True when a key was removed, false when none was stored, or a failure.</returns>
     Task<OperationResult<bool>> RemoveKeyAsync(string publisherId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Moves the current store file aside, unchanged, to a uniquely named file next to it, so a store
+    /// that can no longer be decrypted or parsed stops blocking new trust decisions. The store then
+    /// starts empty. The moved file is never deleted or overwritten.
+    /// </summary>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The path of the moved file, null when there was no store file, or a failure.</returns>
+    Task<OperationResult<string?>> QuarantineAsync(CancellationToken cancellationToken = default);
 }

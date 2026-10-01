@@ -1526,7 +1526,7 @@ Constants for content pipeline component identifiers used in dependency injectio
 - **ManifestConstants**: Manifest ID and validation constants
 - **ProcessConstants**: System process and exit code constants
 - **PublisherInfoConstants**: Publisher display names, websites, and support URLs
-- **PublisherKeyConstants**: Trusted publisher key store file name, encryption salt and schema version, accepted PEM labels, minimum RSA and ECDSA key sizes, and the allowed EC curve OIDs (P-256, P-384, P-521)
+- **PublisherKeyConstants**: Trusted publisher key store file name, encryption salt (DPAPI entropy on Windows), schema version, quarantine file naming, accepted PEM labels, minimum RSA and ECDSA key sizes, and the allowed EC curve OIDs (P-256, P-384, P-521)
 - **PublisherTypeConstants**: Publisher type identifiers for content sources
 - **StorageConstants**: Storage and CAS operation constants
 - **TimeIntervals**: Time spans and intervals

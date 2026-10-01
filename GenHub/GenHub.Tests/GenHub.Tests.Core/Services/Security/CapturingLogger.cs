@@ -15,7 +15,7 @@ internal sealed class CapturingLogger<T> : ILogger<T>
     /// <summary>
     /// Gets the captured log entries, including any exception text.
     /// </summary>
-    public IReadOnlyCollection<string> Entries => _entries.ToArray();
+    public IReadOnlyCollection<string> Entries => _entries;
 
     /// <inheritdoc />
     public IDisposable? BeginScope<TState>(TState state)

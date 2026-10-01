@@ -4,7 +4,9 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Security;
 using GenHub.Core.Services.Security;
+using GenHub.Tests.Core.Features.GameProfiles;
 using Moq;
+using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -126,7 +128,7 @@ public sealed class PublisherKeyStoreTests : IDisposable
     /// file untouched and no temporary file behind.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
-    [Fact]
+    [UnixFact]
     public async Task SaveKeyAsync_CancelledAfterEncryption_LeavesExistingFileIntact()
     {
         await CreateStore().SaveKeyAsync(CreateTrustedKey("publisher", PublicKeyAlgorithm.Rsa));
@@ -157,7 +159,7 @@ public sealed class PublisherKeyStoreTests : IDisposable
     /// and the existing file is left unchanged.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
-    [Fact]
+    [UnixFact]
     public async Task CryptoFailure_ReturnsFailureAndIsNotOverwritten()
     {
         var failingStore = CreateStore(() => throw new CryptographicException("simulated"));
@@ -182,14 +184,10 @@ public sealed class PublisherKeyStoreTests : IDisposable
     /// A store whose directory cannot be read is reported as a failure, not treated as empty.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
-    [Fact]
+    [UnixFact]
+    [UnsupportedOSPlatform("windows")]
     public async Task UnreadableStoreDirectory_ReturnsFailureInsteadOfEmpty()
     {
-        if (OperatingSystem.IsWindows())
-        {
-            return;
-        }
-
         await CreateStore().SaveKeyAsync(CreateTrustedKey("publisher", PublicKeyAlgorithm.Rsa));
         File.SetUnixFileMode(_appDataPath, UnixFileMode.None);
         try
@@ -232,20 +230,22 @@ public sealed class PublisherKeyStoreTests : IDisposable
     /// A corrupt store file is reported through the result, and a save does not overwrite it.
     /// </summary>
     /// <param name="contents">The corrupt file contents.</param>
+    /// <param name="expectedReason">The fragment of the failure that identifies the check that fired.</param>
     /// <returns>A task representing the asynchronous test.</returns>
     [Theory]
-    [InlineData("{ not json")]
-    [InlineData("null")]
-    [InlineData("{\"schemaVersion\":99,\"keys\":[]}")]
-    [InlineData("{\"schemaVersion\":1}")]
-    [InlineData("{\"schemaVersion\":1,\"keys\":[{\"publisherId\":\"\",\"publicKey\":null}]}")]
-    [InlineData("{\"schemaVersion\":1,\"keys\":[{\"publisherId\":\"a\",\"publicKey\":{\"algorithm\":\"Rsa\",\"subjectPublicKeyInfo\":\"\",\"fingerprint\":\"f\"}}]}")]
-    [InlineData("{\"schemaVersion\":1,\"keys\":[{\"publisherId\":\"a\",\"publicKey\":{\"algorithm\":\"Dsa\",\"subjectPublicKeyInfo\":\"AA==\",\"fingerprint\":\"f\"}}]}")]
-    public async Task CorruptFile_ReturnsFailureAndIsNotOverwritten(string contents)
+    [InlineData("{ not json", "not valid JSON")]
+    [InlineData("null", "the file is empty")]
+    [InlineData("{\"schemaVersion\":99,\"keys\":[]}", "schema version 99")]
+    [InlineData("{\"schemaVersion\":1}", "key list is missing")]
+    [InlineData("{\"schemaVersion\":1,\"keys\":[{\"publisherId\":\"\",\"publicKey\":null}]}", "an entry is malformed")]
+    [InlineData("{\"schemaVersion\":1,\"keys\":[{\"publisherId\":\"a\",\"publicKey\":{\"algorithm\":\"Rsa\",\"subjectPublicKeyInfo\":\"\",\"fingerprint\":\"f\"}}]}", "an entry is malformed")]
+    [InlineData("{\"schemaVersion\":1,\"keys\":[{\"publisherId\":\"a\",\"publicKey\":{\"algorithm\":\"Dsa\",\"subjectPublicKeyInfo\":\"AA==\",\"fingerprint\":\"f\"}}]}", "not valid JSON")]
+    [InlineData("{\"schemaVersion\":1,\"keys\":[{\"publisherId\":\"a\",\"publicKey\":{\"algorithm\":99,\"subjectPublicKeyInfo\":\"AA==\",\"fingerprint\":\"f\"}}]}", "an entry is malformed")]
+    public async Task CorruptFile_ReturnsFailureAndIsNotOverwritten(string contents, string expectedReason)
     {
         await WriteEncryptedAsync(contents);
 
-        await AssertUnreadableAndUntouchedAsync(CreateStore());
+        await AssertUnreadableAndUntouchedAsync(CreateStore(), expectedReason);
     }
 
     /// <summary>
@@ -262,12 +262,99 @@ public sealed class PublisherKeyStoreTests : IDisposable
 
         var fileBytes = await File.ReadAllBytesAsync(StorePath);
         var fileText = Encoding.UTF8.GetString(fileBytes);
-        Assert.Equal(MachineBoundEncryptionConstants.FormatVersion, fileBytes[0]);
         Assert.DoesNotContain(key.PublicKey.SubjectPublicKeyInfo[..24], fileText, StringComparison.Ordinal);
         Assert.DoesNotContain(key.PublicKey.Fingerprint, fileText, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain(key.PublisherId, fileText, StringComparison.Ordinal);
         Assert.DoesNotContain("BEGIN", fileText, StringComparison.Ordinal);
         Assert.Equal(-1, fileBytes.AsSpan().IndexOf(spki));
+    }
+
+    /// <summary>
+    /// On Linux and macOS the store uses the machine-bound AES-GCM format and is readable by the owner only.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [UnixFact]
+    [UnsupportedOSPlatform("windows")]
+    public async Task SaveKeyAsync_OnUnix_UsesMachineBoundFormatAndOwnerOnlyMode()
+    {
+        await CreateStore().SaveKeyAsync(CreateTrustedKey("publisher", PublicKeyAlgorithm.Rsa));
+        File.SetUnixFileMode(StorePath, File.GetUnixFileMode(StorePath) | UnixFileMode.GroupRead | UnixFileMode.OtherRead);
+
+        await CreateStore().SaveKeyAsync(CreateTrustedKey("other", PublicKeyAlgorithm.Ecdsa));
+
+        var fileBytes = await File.ReadAllBytesAsync(StorePath);
+        Assert.Equal(MachineBoundEncryptionConstants.FormatVersion, fileBytes[0]);
+        Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(StorePath));
+    }
+
+    /// <summary>
+    /// On Windows the store is protected with DPAPI for the current user, not the machine-name derived key.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [WindowsFact]
+    [SupportedOSPlatform("windows")]
+    public async Task SaveKeyAsync_OnWindows_UsesCurrentUserDpapi()
+    {
+        var key = CreateTrustedKey("publisher", PublicKeyAlgorithm.Rsa);
+        await CreateStore().SaveKeyAsync(key);
+
+        var fileBytes = await File.ReadAllBytesAsync(StorePath);
+        var entropy = Encoding.UTF8.GetBytes(PublisherKeyConstants.StoreKeySalt);
+        var json = Encoding.UTF8.GetString(ProtectedData.Unprotect(fileBytes, entropy, DataProtectionScope.CurrentUser));
+        var machineKey = MachineBoundEncryption.DeriveKey(MachineBoundEncryption.GetFallbackMachineSecret(), PublisherKeyConstants.StoreKeySalt);
+
+        Assert.Contains(key.PublicKey.Fingerprint, json, StringComparison.Ordinal);
+        Assert.False(MachineBoundEncryption.TryDecrypt(fileBytes, machineKey, out _));
+    }
+
+    /// <summary>
+    /// Quarantining an unreadable store moves the file aside intact, and the store starts empty and writable.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task QuarantineAsync_UnreadableStore_MovesFileAsideAndStartsEmpty()
+    {
+        await CreateStore().SaveKeyAsync(CreateTrustedKey("publisher", PublicKeyAlgorithm.Rsa));
+        var fileBytes = await File.ReadAllBytesAsync(StorePath);
+        fileBytes[^1] ^= 0x01;
+        await File.WriteAllBytesAsync(StorePath, fileBytes);
+        var store = CreateStore();
+        Assert.False((await store.GetKeysAsync()).Success);
+
+        var quarantined = await store.QuarantineAsync();
+
+        Assert.True(quarantined.Success, quarantined.FirstError);
+        Assert.Equal(_appDataPath, Path.GetDirectoryName(quarantined.Data));
+        Assert.EndsWith(PublisherKeyConstants.QuarantinedFileExtension, quarantined.Data, StringComparison.Ordinal);
+        Assert.Equal(fileBytes, await File.ReadAllBytesAsync(quarantined.Data!));
+        Assert.False(File.Exists(StorePath));
+        var empty = await store.GetKeysAsync();
+        Assert.True(empty.Success, empty.FirstError);
+        Assert.Empty(empty.Data!);
+        Assert.True((await store.SaveKeyAsync(CreateTrustedKey("publisher", PublicKeyAlgorithm.Ecdsa))).Success);
+        Assert.True(File.Exists(quarantined.Data));
+    }
+
+    /// <summary>
+    /// Quarantining twice keeps both files, and quarantining with no store file is a no-op.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task QuarantineAsync_RepeatedOrMissing_NeverOverwrites()
+    {
+        var store = CreateStore();
+        var missing = await store.QuarantineAsync();
+
+        await store.SaveKeyAsync(CreateTrustedKey("first", PublicKeyAlgorithm.Rsa));
+        var first = await store.QuarantineAsync();
+        await store.SaveKeyAsync(CreateTrustedKey("second", PublicKeyAlgorithm.Rsa));
+        var second = await store.QuarantineAsync();
+
+        Assert.True(missing.Success, missing.FirstError);
+        Assert.Null(missing.Data);
+        Assert.True(first.Success && second.Success);
+        Assert.NotEqual(first.Data, second.Data);
+        Assert.True(File.Exists(first.Data) && File.Exists(second.Data));
     }
 
     /// <summary>
@@ -282,14 +369,14 @@ public sealed class PublisherKeyStoreTests : IDisposable
         fileBytes[^1] ^= 0x01;
         await File.WriteAllBytesAsync(StorePath, fileBytes);
 
-        await AssertUnreadableAndUntouchedAsync(CreateStore());
+        await AssertUnreadableAndUntouchedAsync(CreateStore(), "cannot be decrypted");
     }
 
     /// <summary>
     /// A store written on another machine cannot be decrypted and is left unchanged.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
-    [Fact]
+    [UnixFact]
     public async Task FileFromOtherMachine_ReturnsFailureAndIsNotOverwritten()
     {
         await CreateStore("other-machine-secret").SaveKeyAsync(CreateTrustedKey("publisher", PublicKeyAlgorithm.Rsa));
@@ -315,7 +402,7 @@ public sealed class PublisherKeyStoreTests : IDisposable
     /// still loads once the machine ID is back.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
-    [Fact]
+    [UnixFact]
     public async Task FileWrittenWithFallbackSecret_LoadsWithPrimarySecret()
     {
         var key = CreateTrustedKey("publisher", PublicKeyAlgorithm.Ecdsa);
@@ -415,18 +502,17 @@ public sealed class PublisherKeyStoreTests : IDisposable
     private async Task WriteEncryptedAsync(string contents)
     {
         Directory.CreateDirectory(_appDataPath);
-        var key = MachineBoundEncryption.DeriveKey(TestMachineSecret, PublisherKeyConstants.StoreKeySalt);
-        await File.WriteAllBytesAsync(StorePath, MachineBoundEncryption.Encrypt(Encoding.UTF8.GetBytes(contents), key));
+        await File.WriteAllBytesAsync(StorePath, CreateStore().Protect(Encoding.UTF8.GetBytes(contents)));
     }
 
     private async Task<string> ReadDecryptedAsync()
     {
-        var key = MachineBoundEncryption.DeriveKey(TestMachineSecret, PublisherKeyConstants.StoreKeySalt);
-        Assert.True(MachineBoundEncryption.TryDecrypt(await File.ReadAllBytesAsync(StorePath), key, out var plainBytes));
-        return Encoding.UTF8.GetString(plainBytes!);
+        var plainBytes = CreateStore().Unprotect(await File.ReadAllBytesAsync(StorePath));
+        Assert.NotNull(plainBytes);
+        return Encoding.UTF8.GetString(plainBytes);
     }
 
-    private async Task AssertUnreadableAndUntouchedAsync(PublisherKeyStore store)
+    private async Task AssertUnreadableAndUntouchedAsync(PublisherKeyStore store, string? expectedReason = null)
     {
         var before = await File.ReadAllBytesAsync(StorePath);
 
@@ -436,6 +522,11 @@ public sealed class PublisherKeyStoreTests : IDisposable
         var remove = await store.RemoveKeyAsync("a");
 
         Assert.False(keys.Success);
+        if (expectedReason is not null)
+        {
+            Assert.Contains(expectedReason, keys.FirstError, StringComparison.Ordinal);
+        }
+
         Assert.False(key.Success);
         Assert.False(save.Success);
         Assert.False(remove.Success);

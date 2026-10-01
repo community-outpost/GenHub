@@ -11,9 +11,25 @@ public static class PublisherKeyConstants
     public const string StoreFileName = "publisher-keys.dat";
 
     /// <summary>
-    /// Domain separation salt for the key store encryption key; the machine secret provides uniqueness.
+    /// Domain separation for the key store encryption: the PBKDF2 salt on Linux and macOS, and the
+    /// DPAPI optional entropy on Windows.
     /// </summary>
     public const string StoreKeySalt = "GenHub.PublisherKeyStore.v1";
+
+    /// <summary>
+    /// Extension appended to a key store file that was moved aside by quarantine.
+    /// </summary>
+    public const string QuarantinedFileExtension = ".quarantined";
+
+    /// <summary>
+    /// UTC timestamp format used in quarantined key store file names.
+    /// </summary>
+    public const string QuarantineTimestampFormat = "yyyyMMdd'T'HHmmss'Z'";
+
+    /// <summary>
+    /// Number of random hex characters that keep quarantined file names unique within one second.
+    /// </summary>
+    public const int QuarantineSuffixLength = 8;
 
     /// <summary>
     /// Current schema version of the trusted publisher key store file.

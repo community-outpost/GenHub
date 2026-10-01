@@ -5,26 +5,40 @@ using GenHub.Core.Interfaces.Security;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Security;
 using Microsoft.Extensions.Logging;
+using System.Globalization;
+using System.Runtime.Versioning;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 
 namespace GenHub.Core.Services.Security;
 
 /// <summary>
 /// Stores trusted publisher public keys in <see cref="PublisherKeyConstants.StoreFileName"/> under the
-/// application data directory. The JSON document is encrypted at rest with AES-256-GCM under a key
-/// derived from the machine-bound secret (<see cref="MachineBoundEncryption"/>), so a copied or
-/// modified file does not decrypt. Writes are atomic, and a store that cannot be decrypted or parsed
-/// is reported through the result and never overwritten, so a bad file cannot silently drop trust.
+/// application data directory, encrypted at rest.
+/// <list type="bullet">
+/// <item>On Windows the JSON document is protected with DPAPI for the current user, so another
+/// account or machine cannot decrypt it, and renaming the PC or account does not lock it.</item>
+/// <item>On Linux and macOS it is encrypted with AES-256-GCM under a key derived from the machine ID
+/// (<see cref="MachineBoundEncryption"/>) and written readable by the owner only. A copied file does
+/// not decrypt elsewhere, but a process running as the same user on the same machine can derive the
+/// key, so this protects against copies and edits, not against that user's own processes.</item>
+/// </list>
+/// Writes are atomic. A store that cannot be decrypted or parsed is reported through the result and
+/// never overwritten; <see cref="QuarantineAsync"/> moves it aside so a new store can start.
 /// </summary>
 public sealed class PublisherKeyStore : IPublisherKeyStore
 {
+    private const UnixFileMode OwnerOnlyFileMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         WriteIndented = true,
     };
+
+    private static readonly byte[] DpapiEntropy = Encoding.UTF8.GetBytes(PublisherKeyConstants.StoreKeySalt);
 
     private readonly ILogger<PublisherKeyStore> _logger;
     private readonly Func<MachineSecret> _resolveMachineSecret;
@@ -177,6 +191,88 @@ public sealed class PublisherKeyStore : IPublisherKeyStore
         }
     }
 
+    /// <inheritdoc />
+    public async Task<OperationResult<string?>> QuarantineAsync(CancellationToken cancellationToken = default)
+    {
+        await _fileLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var quarantinePath = CreateQuarantinePath();
+            File.Move(_storeFilePath, quarantinePath, overwrite: false);
+            _logger.LogWarning(
+                "Moved publisher key store {StoreFilePath} aside to {QuarantinePath}",
+                _storeFilePath,
+                quarantinePath);
+            return OperationResult<string?>.CreateSuccess(quarantinePath);
+        }
+        catch (FileNotFoundException)
+        {
+            return OperationResult<string?>.CreateSuccess(null);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return OperationResult<string?>.CreateSuccess(null);
+        }
+        catch (IOException ex)
+        {
+            return QuarantineFailed(ex);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return QuarantineFailed(ex);
+        }
+        finally
+        {
+            _fileLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Encrypts store content for this platform: DPAPI for the current user on Windows, machine-bound
+    /// AES-GCM elsewhere.
+    /// </summary>
+    /// <param name="plainBytes">The serialized store document.</param>
+    /// <returns>The protected bytes.</returns>
+    internal byte[] Protect(byte[] plainBytes)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return ProtectedData.Protect(plainBytes, DpapiEntropy, DataProtectionScope.CurrentUser);
+        }
+
+        return MachineBoundEncryption.EncryptWithSecret(plainBytes, _resolveMachineSecret().Secret, PublisherKeyConstants.StoreKeySalt);
+    }
+
+    /// <summary>
+    /// Decrypts store content written by <see cref="Protect"/>.
+    /// </summary>
+    /// <param name="protectedBytes">The bytes read from the store file.</param>
+    /// <returns>The serialized store document, or null when the bytes do not decrypt or were modified.</returns>
+    internal byte[]? Unprotect(byte[] protectedBytes)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return UnprotectWithDpapi(protectedBytes);
+        }
+
+        return MachineBoundEncryption.TryDecryptWithSecret(protectedBytes, _resolveMachineSecret(), PublisherKeyConstants.StoreKeySalt, out var plainBytes)
+            ? plainBytes
+            : null;
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static byte[]? UnprotectWithDpapi(byte[] protectedBytes)
+    {
+        try
+        {
+            return ProtectedData.Unprotect(protectedBytes, DpapiEntropy, DataProtectionScope.CurrentUser);
+        }
+        catch (CryptographicException)
+        {
+            return null;
+        }
+    }
+
     private static bool IsPublisher(TrustedPublisherKey key, string publisherId)
     {
         return string.Equals(key.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase);
@@ -237,7 +333,7 @@ public sealed class PublisherKeyStore : IPublisherKeyStore
     {
         // The file is opened directly instead of probed with File.Exists, which also returns false
         // when the file cannot be accessed. Only a genuinely absent file counts as an empty store.
-        byte[] encryptedBytes;
+        byte[] encryptedBytes = [];
         try
         {
             encryptedBytes = await File.ReadAllBytesAsync(_storeFilePath, cancellationToken).ConfigureAwait(false);
@@ -270,7 +366,7 @@ public sealed class PublisherKeyStore : IPublisherKeyStore
             return Corrupt("the file cannot be decrypted on this machine or was modified");
         }
 
-        PublisherKeyStoreDocument? document;
+        PublisherKeyStoreDocument? document = null;
         try
         {
             document = JsonSerializer.Deserialize<PublisherKeyStoreDocument>(decrypted.Data, JsonOptions);
@@ -294,11 +390,7 @@ public sealed class PublisherKeyStore : IPublisherKeyStore
         try
         {
             // Resolving the secret can spawn a process and key derivation is deliberately slow, so both run off the caller's thread.
-            var plainBytes = await Task.Run(
-                () => MachineBoundEncryption.TryDecryptWithSecret(encryptedBytes, _resolveMachineSecret(), PublisherKeyConstants.StoreKeySalt, out var decrypted)
-                    ? decrypted
-                    : null,
-                cancellationToken).ConfigureAwait(false);
+            var plainBytes = await Task.Run(() => Unprotect(encryptedBytes), cancellationToken).ConfigureAwait(false);
             return OperationResult<byte[]?>.CreateSuccess(plainBytes);
         }
         catch (CryptographicException ex)
@@ -328,10 +420,8 @@ public sealed class PublisherKeyStore : IPublisherKeyStore
             }
 
             var plainBytes = JsonSerializer.SerializeToUtf8Bytes(document, JsonOptions);
-            var encryptedBytes = await Task.Run(
-                () => MachineBoundEncryption.EncryptWithSecret(plainBytes, _resolveMachineSecret().Secret, PublisherKeyConstants.StoreKeySalt),
-                cancellationToken).ConfigureAwait(false);
-            await AtomicFile.WriteAllBytesAsync(_storeFilePath, encryptedBytes, cancellationToken).ConfigureAwait(false);
+            var encryptedBytes = await Task.Run(() => Protect(plainBytes), cancellationToken).ConfigureAwait(false);
+            await AtomicFile.WriteAllBytesAsync(_storeFilePath, encryptedBytes, OwnerOnlyFileMode, cancellationToken).ConfigureAwait(false);
             return OperationResult.CreateSuccess();
         }
         catch (CryptographicException ex)
@@ -357,6 +447,19 @@ public sealed class PublisherKeyStore : IPublisherKeyStore
         _logger.LogWarning("Publisher key store {StoreFilePath} is unreadable: {Problem}", _storeFilePath, problem);
         return OperationResult<List<TrustedPublisherKey>>.CreateFailure(
             $"The publisher key store is unreadable: {problem}. It was left unchanged.");
+    }
+
+    private string CreateQuarantinePath()
+    {
+        var timestamp = DateTime.UtcNow.ToString(PublisherKeyConstants.QuarantineTimestampFormat, CultureInfo.InvariantCulture);
+        var suffix = Convert.ToHexString(RandomNumberGenerator.GetBytes(PublisherKeyConstants.QuarantineSuffixLength / 2)).ToLowerInvariant();
+        return $"{_storeFilePath}.{timestamp}-{suffix}{PublisherKeyConstants.QuarantinedFileExtension}";
+    }
+
+    private OperationResult<string?> QuarantineFailed(Exception ex)
+    {
+        _logger.LogError(ex, "Failed to move publisher key store {StoreFilePath} aside", _storeFilePath);
+        return OperationResult<string?>.CreateFailure($"Failed to move the publisher key store aside: {ex.Message}");
     }
 
     private string EncryptionUnavailable(Exception ex)

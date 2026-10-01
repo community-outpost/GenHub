@@ -92,9 +92,9 @@ public static class MachineBoundEncryption
 
         var encrypted = new byte[HeaderLength + cipherBytes.Length];
         encrypted[0] = MachineBoundEncryptionConstants.FormatVersion;
-        Buffer.BlockCopy(nonce, 0, encrypted, 1, nonce.Length);
-        Buffer.BlockCopy(tag, 0, encrypted, 1 + nonce.Length, tag.Length);
-        Buffer.BlockCopy(cipherBytes, 0, encrypted, HeaderLength, cipherBytes.Length);
+        nonce.CopyTo(encrypted.AsSpan(1));
+        tag.CopyTo(encrypted.AsSpan(1 + nonce.Length));
+        cipherBytes.CopyTo(encrypted.AsSpan(HeaderLength));
         return encrypted;
     }
 

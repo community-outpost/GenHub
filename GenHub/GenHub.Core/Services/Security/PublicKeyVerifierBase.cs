@@ -172,15 +172,13 @@ public abstract class PublicKeyVerifierBase<TKey>(ILogger logger) : IPublicKeyVe
             return null;
         }
 
-        byte[] subjectPublicKeyInfo;
-        try
-        {
-            subjectPublicKeyInfo = Convert.FromBase64String(publicKey.SubjectPublicKeyInfo);
-        }
-        catch (FormatException)
+        var subjectPublicKeyInfo = new byte[publicKey.SubjectPublicKeyInfo.Length];
+        if (!Convert.TryFromBase64String(publicKey.SubjectPublicKeyInfo, subjectPublicKeyInfo, out var written))
         {
             return null;
         }
+
+        subjectPublicKeyInfo = subjectPublicKeyInfo[..written];
 
         var fingerprint = ComputeFingerprint(subjectPublicKeyInfo);
         return string.Equals(fingerprint, publicKey.Fingerprint, StringComparison.OrdinalIgnoreCase)
@@ -190,7 +188,7 @@ public abstract class PublicKeyVerifierBase<TKey>(ILogger logger) : IPublicKeyVe
 
     private OperationResult ImportBlock(TKey key, string label, byte[] der)
     {
-        int bytesRead;
+        var bytesRead = 0;
         if (string.Equals(label, PublisherKeyConstants.SubjectPublicKeyInfoPemLabel, StringComparison.Ordinal))
         {
             var allowed = ValidateSubjectPublicKeyInfo(der);

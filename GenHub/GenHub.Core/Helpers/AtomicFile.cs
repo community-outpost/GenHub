@@ -1,4 +1,5 @@
 using System.IO;
+using System.Runtime.Versioning;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,25 +21,24 @@ public static class AtomicFile
     /// <param name="bytes">The bytes to write.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public static async Task WriteAllBytesAsync(string path, byte[] bytes, CancellationToken cancellationToken = default)
+    public static Task WriteAllBytesAsync(string path, byte[] bytes, CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        ArgumentNullException.ThrowIfNull(bytes);
+        return WriteAllBytesCoreAsync(path, bytes, null, cancellationToken);
+    }
 
-        string? tempPath = null;
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            tempPath = CreateTempPath(path);
-            await File.WriteAllBytesAsync(tempPath, bytes, cancellationToken).ConfigureAwait(false);
-            cancellationToken.ThrowIfCancellationRequested();
-            File.Move(tempPath, path, overwrite: true);
-            tempPath = null;
-        }
-        finally
-        {
-            DeleteQuietly(tempPath);
-        }
+    /// <summary>
+    /// Writes bytes to a file atomically, creating it with the given permissions on Linux and macOS.
+    /// The temporary file is created with those permissions, so the content is never exposed more
+    /// widely, and the destination takes them when it is replaced. The mode is ignored on Windows.
+    /// </summary>
+    /// <param name="path">The destination path.</param>
+    /// <param name="bytes">The bytes to write.</param>
+    /// <param name="unixCreateMode">The permissions for the file on Linux and macOS.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public static Task WriteAllBytesAsync(string path, byte[] bytes, UnixFileMode unixCreateMode, CancellationToken cancellationToken = default)
+    {
+        return WriteAllBytesCoreAsync(path, bytes, unixCreateMode, cancellationToken);
     }
 
     /// <summary>
@@ -81,6 +81,51 @@ public static class AtomicFile
         {
             DeleteQuietly(tempPath);
         }
+    }
+
+    private static async Task WriteAllBytesCoreAsync(string path, byte[] bytes, UnixFileMode? unixCreateMode, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentNullException.ThrowIfNull(bytes);
+
+        string? tempPath = null;
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            tempPath = CreateTempPath(path);
+            if (unixCreateMode is { } mode && !OperatingSystem.IsWindows())
+            {
+                await WriteRestrictedAsync(tempPath, bytes, mode, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await File.WriteAllBytesAsync(tempPath, bytes, cancellationToken).ConfigureAwait(false);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            File.Move(tempPath, path, overwrite: true);
+            tempPath = null;
+        }
+        finally
+        {
+            DeleteQuietly(tempPath);
+        }
+    }
+
+    [UnsupportedOSPlatform("windows")]
+    private static async Task WriteRestrictedAsync(string tempPath, byte[] bytes, UnixFileMode mode, CancellationToken cancellationToken)
+    {
+        var options = new FileStreamOptions
+        {
+            Mode = FileMode.CreateNew,
+            Access = FileAccess.Write,
+            Share = FileShare.None,
+            Options = FileOptions.Asynchronous,
+            UnixCreateMode = mode,
+        };
+        await using var stream = new FileStream(tempPath, options);
+        await stream.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
+        await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private static string CreateTempPath(string path)
