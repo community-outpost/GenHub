@@ -2194,25 +2194,40 @@ public sealed partial class DownloadsBrowserViewModel(
             if (_browseCache.Remove(publisherId, out var cachedState))
             {
                 cachedState.ActiveDetailViewModel?.Dispose();
+                var currentItems = new HashSet<ContentGridItemViewModel>(ContentItems);
                 foreach (var item in cachedState.Items)
                 {
-                    item.Dispose();
+                    if (!currentItems.Contains(item))
+                    {
+                        item.Dispose();
+                    }
                 }
             }
         }
 
         if (IsSubscribedPublisher)
         {
-            _lastCatalogPublisherId = publisherId;
-            if (_catalogsCts != null)
+            var previousCts = Interlocked.Exchange(ref _catalogsCts, null);
+            if (previousCts != null)
             {
-                await _catalogsCts.CancelAsync();
-                _catalogsCts.Dispose();
+                await previousCts.CancelAsync();
+                previousCts.Dispose();
             }
 
+            if (!string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            _lastCatalogPublisherId = publisherId;
             _catalogsCts = CancellationTokenSource.CreateLinkedTokenSource(_vmCts.Token);
 
             await LoadAvailableCatalogsAsync(publisherId, _catalogsCts.Token);
+        }
+
+        if (!string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
         }
 
         await RefreshContentAsync(reloadCatalogs: false);
@@ -2325,6 +2340,7 @@ public sealed partial class DownloadsBrowserViewModel(
     {
         if (isCustomQuery)
         {
+            List<ContentGridItemViewModel> itemsToDispose;
             lock (_cacheLock)
             {
                 var cachedItemSet = new HashSet<ContentGridItemViewModel>(_browseCache.Values.SelectMany(s => s.Items));
@@ -2333,16 +2349,14 @@ public sealed partial class DownloadsBrowserViewModel(
                     cachedItemSet.UnionWith(inFlight.ResolvedItems);
                 }
 
-                foreach (var item in ContentItems)
-                {
-                    if (!cachedItemSet.Contains(item))
-                    {
-                        item.Dispose();
-                    }
-                }
+                itemsToDispose = ContentItems.Where(item => !cachedItemSet.Contains(item)).ToList();
             }
 
             ContentItems.Clear();
+            foreach (var item in itemsToDispose)
+            {
+                item.Dispose();
+            }
         }
         else
         {
@@ -2381,16 +2395,13 @@ public sealed partial class DownloadsBrowserViewModel(
                     retainedItems.UnionWith(inFlightSnapshot);
                 }
 
-                foreach (var item in ContentItems)
+                var itemsToDispose = ContentItems.Where(item => !retainedItems.Contains(item)).ToList();
+                ContentItems.Clear();
+                foreach (var item in itemsToDispose)
                 {
-                    if (!retainedItems.Contains(item))
-                    {
-                        item.Dispose();
-                    }
+                    item.Dispose();
                 }
             }
-
-            ContentItems.Clear();
         }
     }
 
@@ -3022,6 +3033,7 @@ public sealed partial class DownloadsBrowserViewModel(
             }
 
             variantVm.NotifyStateChanged();
+            await Task.WhenAny(variantVm.EnsureIconsLoadedAsync(), Task.Delay(UiConstants.ProgressiveItemRenderDelayMs, ct));
             return variantVm;
         }
         catch
@@ -3050,6 +3062,7 @@ public sealed partial class DownloadsBrowserViewModel(
             }
 
             vm.NotifyStateChanged();
+            await Task.WhenAny(vm.EnsureIconsLoadedAsync(), Task.Delay(UiConstants.ProgressiveItemRenderDelayMs, ct));
             return vm;
         }
         catch
