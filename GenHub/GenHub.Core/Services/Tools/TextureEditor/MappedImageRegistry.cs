@@ -396,7 +396,7 @@ public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<M
         Dictionary<string, MappedImageDefinition> staged,
         List<string> errors)
     {
-        byte[] bytes = [];
+        byte[] bytes;
         try
         {
             bytes = BigArchiveReader.ReadEntryData(entry);

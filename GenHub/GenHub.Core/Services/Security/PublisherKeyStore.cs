@@ -119,7 +119,7 @@ public sealed class PublisherKeyStore : IPublisherKeyStore
     public async Task<OperationResult> SaveKeyAsync(TrustedPublisherKey key, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(key);
-        ArgumentException.ThrowIfNullOrWhiteSpace(key.PublisherId, nameof(key));
+        ArgumentException.ThrowIfNullOrWhiteSpace(key.PublisherId);
         if (!IsWellFormed(key))
         {
             throw new ArgumentException("The trusted key is missing its algorithm, key data, or fingerprint.", nameof(key));
@@ -355,7 +355,7 @@ public sealed class PublisherKeyStore : IPublisherKeyStore
     {
         // The file is opened directly instead of probed with File.Exists, which also returns false
         // when the file cannot be accessed. Only a genuinely absent file counts as an empty store.
-        byte[] encryptedBytes = [];
+        byte[] encryptedBytes;
         try
         {
             encryptedBytes = await File.ReadAllBytesAsync(_storeFilePath, cancellationToken).ConfigureAwait(false);

@@ -96,7 +96,13 @@ public sealed class MapImportService(
 
             var fileName = ExtractFileName(finalUri, response);
             Directory.CreateDirectory(tempDir);
-            var tempPath = Path.Combine(tempDir, fileName);
+            var safeFileName = Path.GetFileName(fileName);
+            var tempPath = Path.Combine(tempDir, safeFileName);
+            if (string.IsNullOrWhiteSpace(safeFileName) || !PathHelper.IsPathWithinDirectory(tempDir, tempPath))
+            {
+                safeFileName = $"import_{Guid.NewGuid():N}.bin";
+                tempPath = Path.Combine(tempDir, safeFileName);
+            }
 
             await using (var fileStream = File.Create(tempPath))
             await using (var httpStream = await response.Content.ReadAsStreamAsync(ct))
