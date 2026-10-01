@@ -80,7 +80,7 @@ public sealed class SymlinkOnlyStrategy(
             // Create workspace directory
             Directory.CreateDirectory(workspacePath);
 
-            var manifestFiles = configuration.GetWorkspaceUniqueFileEntries().ToList();
+            var manifestFiles = configuration.GetWorkspaceUniqueFileEntries();
             var totalFiles = manifestFiles.Count;
             var processedFiles = 0;
 

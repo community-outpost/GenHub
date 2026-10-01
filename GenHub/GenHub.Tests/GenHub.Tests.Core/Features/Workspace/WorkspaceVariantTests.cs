@@ -90,6 +90,18 @@ public sealed class WorkspaceVariantTests : IDisposable
         Assert.Same(manifest, entry.Manifest);
     }
 
+    /// <summary>A null file entry in the host variant is skipped instead of throwing.</summary>
+    [Fact]
+    public void GetWorkspaceUniqueFileEntries_WithNullHostEntry_SkipsIt()
+    {
+        var manifest = CreateManifest();
+        ManifestVariantResolver.ResolveVariant(manifest)!.Files.Insert(0, null!);
+        var configuration = CreateConfiguration(WorkspaceStrategy.SymlinkOnly, manifest);
+
+        Assert.Equal(HostFileName, Assert.Single(configuration.GetWorkspaceUniqueFileEntries()).File.RelativePath);
+        Assert.Equal(HostFileName, Assert.Single(configuration.GetAllUniqueFiles()).RelativePath);
+    }
+
     /// <summary>Every strategy estimates only the unique files it will place in the workspace.</summary>
     /// <param name="strategyType">The strategy under test.</param>
     [Theory]

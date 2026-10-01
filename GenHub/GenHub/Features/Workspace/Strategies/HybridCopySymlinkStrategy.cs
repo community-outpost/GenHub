@@ -83,7 +83,7 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
 
             // Deduplicate files by RelativePath - multiple manifests may contain the same file
             // include files where InstallTarget is Workspace.
-            var entries = configuration.GetWorkspaceUniqueFileEntries().ToList();
+            var entries = configuration.GetWorkspaceUniqueFileEntries();
             var allFiles = entries.Select(entry => entry.File).ToList();
             var totalFiles = allFiles.Count;
             var processedFiles = 0;

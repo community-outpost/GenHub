@@ -20,7 +20,7 @@ public static class WorkspaceConfigurationExtensions
         this WorkspaceConfiguration configuration)
     {
         return configuration.Manifests
-            .SelectMany(m => ManifestVariantResolver.ResolveFiles(m).Select(f => new { File = f, Manifest = m }))
+            .SelectMany(m => ManifestVariantResolver.ResolveFiles(m).Where(f => f is not null).Select(f => new { File = f, Manifest = m }))
             .GroupBy(x => x.File.RelativePath, StringComparer.OrdinalIgnoreCase)
             .Select(g => g.OrderByDescending(x => ContentTypePriority.GetPriority(x.Manifest.ContentType))
                           .First().File);
@@ -43,15 +43,16 @@ public static class WorkspaceConfigurationExtensions
     /// Deduplication and ordering match <see cref="GetWorkspaceUniqueFiles"/>.
     /// </summary>
     /// <param name="configuration">The workspace configuration to get files from.</param>
-    /// <returns>An enumerable of unique workspace-specific files and their owning manifests.</returns>
-    public static IEnumerable<(ManifestFile File, ContentManifest Manifest)> GetWorkspaceUniqueFileEntries(
+    /// <returns>The unique workspace-specific files and their owning manifests. Null file entries are skipped.</returns>
+    public static IReadOnlyList<(ManifestFile File, ContentManifest Manifest)> GetWorkspaceUniqueFileEntries(
         this WorkspaceConfiguration configuration)
     {
         return configuration.Manifests
-            .SelectMany(m => ManifestVariantResolver.ResolveFiles(m).Select(f => (File: f, Manifest: m)))
+            .SelectMany(m => ManifestVariantResolver.ResolveFiles(m).Where(f => f is not null).Select(f => (File: f, Manifest: m)))
             .Where(x => x.File.InstallTarget == GenHub.Core.Models.Enums.ContentInstallTarget.Workspace)
             .GroupBy(x => x.File.RelativePath, StringComparer.OrdinalIgnoreCase)
             .Select(g => g.OrderByDescending(x => ContentTypePriority.GetPriority(x.Manifest.ContentType))
-                          .First());
+                          .First())
+            .ToList();
     }
 }
