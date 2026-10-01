@@ -102,6 +102,8 @@ public sealed partial class IniEditorViewModel(
     private object[] _previewStatusArgs = [];
     private W3dResolvedModel? _previewResolved;
     private bool _isSyncingPreviewSelection;
+    private IniBlock? _lastHighlightBlock;
+    private int _lastHighlightMeshCount = -1;
     private CancellationTokenSource? _filterCts;
     private CancellationTokenSource? _thumbnailCts;
     private CancellationTokenSource? _rawEditCts;
@@ -2708,7 +2710,7 @@ public sealed partial class IniEditorViewModel(
     private void RebuildCanvasSummary()
     {
         CanvasSummary.Clear();
-        var block = EditableSelectedNode?.Block;
+        var block = ResolveCanvasRootNode()?.Block;
         if (block == null || _document == null)
         {
             return;
@@ -2748,7 +2750,7 @@ public sealed partial class IniEditorViewModel(
     private void RebuildAssembledRows()
     {
         AssembledRows.Clear();
-        var block = EditableSelectedNode?.Block;
+        var block = ResolveCanvasRootNode()?.Block;
         if (block == null || _document == null)
         {
             return;
@@ -4216,6 +4218,7 @@ public sealed partial class IniEditorViewModel(
         RefreshRawPreviewText();
         RebuildTrail();
         RebuildValidationIssues();
+        UpdatePreviewSelectionHighlight();
         QueueThumbnailRefresh();
     }
 
@@ -4526,9 +4529,85 @@ public sealed partial class IniEditorViewModel(
             NotificationDurations.Medium);
     }
 
-    private void RebuildVisualObjectCard()
+    /// <summary>
+    /// Resolves the canvas root node: the nearest enclosing object for child
+    /// selections, the selected root itself for object-level selections, or the
+    /// first object in the document when nothing is selected, so the canvas and
+    /// the 3D preview always keep their object context.
+    /// </summary>
+    /// <returns>The canvas root node, or null when the document has no blocks.</returns>
+    private IniTreeNodeViewModel? ResolveCanvasRootNode()
     {
         var node = EditableSelectedNode;
+        if (node == null)
+        {
+            return RootNodes.FirstOrDefault(candidate =>
+                    string.Equals(candidate.Block.BlockType, IniConstants.BlockTypes.Object, StringComparison.OrdinalIgnoreCase))
+                ?? RootNodes.FirstOrDefault();
+        }
+
+        var current = node;
+        while (current.Parent != null &&
+            !string.Equals(current.Block.BlockType, IniConstants.BlockTypes.Object, StringComparison.OrdinalIgnoreCase))
+        {
+            current = current.Parent;
+        }
+
+        return current;
+    }
+
+    /// <summary>
+    /// Highlights the preview mesh referenced by the selected sidebar block, if any.
+    /// Skips work when neither the selection nor the mesh list changed so manual
+    /// 3D picks survive unrelated rebuilds.
+    /// </summary>
+    private void UpdatePreviewSelectionHighlight()
+    {
+        if (_previewResolved == null || PreviewMeshes.Count == 0)
+        {
+            return;
+        }
+
+        var selected = EditableSelectedNode?.Block;
+        if (ReferenceEquals(selected, _lastHighlightBlock) && PreviewMeshes.Count == _lastHighlightMeshCount)
+        {
+            return;
+        }
+
+        _lastHighlightBlock = selected;
+        _lastHighlightMeshCount = PreviewMeshes.Count;
+        PreviewSelectedMeshIndex = FindReferencedPreviewMeshIndex(selected);
+    }
+
+    /// <summary>
+    /// Finds the first preview mesh referenced by a sidebar block through its
+    /// sub-object visibility tokens.
+    /// </summary>
+    /// <param name="selected">The selected sidebar block, or null.</param>
+    /// <returns>The scene mesh index, or -1 when nothing matches.</returns>
+    private int FindReferencedPreviewMeshIndex(IniBlock? selected)
+    {
+        if (selected == null)
+        {
+            return -1;
+        }
+
+        for (var i = 0; i < PreviewMeshes.Count; i++)
+        {
+            string fullName = PreviewMeshes[i].Name;
+            string shortName = fullName.Contains('.') ? fullName[(fullName.LastIndexOf('.') + 1)..] : fullName;
+            if (ModuleReferencesMesh(selected, fullName, shortName))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private void RebuildVisualObjectCard()
+    {
+        var node = ResolveCanvasRootNode();
         var block = node?.Block;
         if (block == null)
         {
@@ -4555,7 +4634,7 @@ public sealed partial class IniEditorViewModel(
         ApplyVisualObjectPortrait(block);
         ApplyVisualObjectLists(block, node);
         RebuildSelectedBlockAssets(block, node);
-        RebuildPreviewHiddenMeshes(block);
+        RebuildPreviewHiddenMeshes(EditableSelectedNode?.Block ?? block);
 
         HasSelectedBlockKindOf = SelectedBlockKindOfList.Count > 0;
         HasSelectedBlockModules = SelectedBlockModules.Count > 0;
@@ -4642,6 +4721,8 @@ public sealed partial class IniEditorViewModel(
         PreviewSelectedMeshIndex = -1;
         PreviewFrame = 0;
         PreviewFrameCount = 0;
+        _lastHighlightBlock = null;
+        _lastHighlightMeshCount = -1;
         OnPropertyChanged(nameof(HasPreviewClips));
         OnPropertyChanged(nameof(HasPreviewMeshModules));
         SetPreviewStatus("Tools.IniEditor.Preview3D.Empty");
@@ -4746,6 +4827,7 @@ public sealed partial class IniEditorViewModel(
         PreviewFrame = 0;
         SamplePreviewPose();
         RebuildPreviewMeshModules();
+        UpdatePreviewSelectionHighlight();
         if (SelectedPreviewClip == null || !SelectedPreviewClip.IsSamplable)
         {
             IsPreviewPlaying = false;
@@ -4794,6 +4876,8 @@ public sealed partial class IniEditorViewModel(
         SelectedPreviewMesh = null;
         PreviewSelectedMeshIndex = -1;
         PreviewFrameCount = 0;
+        _lastHighlightBlock = null;
+        _lastHighlightMeshCount = -1;
         OnPropertyChanged(nameof(HasPreviewClips));
         OnPropertyChanged(nameof(HasPreviewMeshModules));
         SetPreviewStatus(statusKey, model);
@@ -4845,18 +4929,20 @@ public sealed partial class IniEditorViewModel(
 
     private void SamplePreviewPose()
     {
-        var clip = SelectedPreviewClip;
         var resolved = _previewResolved;
-        if (clip == null || resolved == null || !clip.IsSamplable)
+        if (resolved == null)
         {
             PreviewPose = null;
             PreviewBindPose = null;
             return;
         }
 
-        var hierarchy = resolved.Model.Hierarchies.FirstOrDefault(h =>
-                string.Equals(h.Name, clip.HierarchyName, StringComparison.OrdinalIgnoreCase))
-            ?? resolved.Model.Hierarchies.FirstOrDefault();
+        var clip = SelectedPreviewClip;
+        var hierarchy = clip == null
+            ? null
+            : resolved.Model.Hierarchies.FirstOrDefault(h =>
+                string.Equals(h.Name, clip.HierarchyName, StringComparison.OrdinalIgnoreCase));
+        hierarchy ??= resolved.Model.Hierarchies.FirstOrDefault();
         if (hierarchy == null)
         {
             PreviewPose = null;
@@ -4864,7 +4950,15 @@ public sealed partial class IniEditorViewModel(
             return;
         }
 
+        // The bind pose always applies so rigid sub-objects render at their
+        // pivots even when no animation clip is selected.
         PreviewBindPose = W3dAnimationSampler.BindPoseWorlds(hierarchy);
+        if (clip == null || !clip.IsSamplable)
+        {
+            PreviewPose = null;
+            return;
+        }
+
         int frame = (int)Math.Round(PreviewFrame);
         PreviewPose = W3dAnimationSampler.SampleFrame(hierarchy, clip, frame);
     }
@@ -4909,7 +5003,7 @@ public sealed partial class IniEditorViewModel(
     {
         PreviewMeshModules.Clear();
         var mesh = SelectedPreviewMesh;
-        var node = EditableSelectedNode;
+        var node = ResolveCanvasRootNode();
         if (mesh == null || node == null)
         {
             OnPropertyChanged(nameof(HasPreviewMeshModules));

@@ -151,10 +151,31 @@ public sealed class W3dModelResolver(
             return [];
         }
 
-        if (clean.EndsWith(ModBuilderConstants.FileExtensions.Dds, StringComparison.OrdinalIgnoreCase) ||
-            clean.EndsWith(ModBuilderConstants.FileExtensions.Tga, StringComparison.OrdinalIgnoreCase))
+        // Shipped models often reference one image extension while the game
+        // ships the other, so names carrying an extension also try the sibling
+        // extension the same way the engine does.
+        if (clean.EndsWith(ModBuilderConstants.FileExtensions.Dds, StringComparison.OrdinalIgnoreCase))
         {
-            return [clean, $"{W3dConstants.ArtDirectory}/{clean}"];
+            string stem = clean[..^ModBuilderConstants.FileExtensions.Dds.Length];
+            return
+            [
+                clean,
+                $"{W3dConstants.ArtDirectory}/{clean}",
+                stem + ModBuilderConstants.FileExtensions.Tga,
+                $"{W3dConstants.ArtDirectory}/{stem}{ModBuilderConstants.FileExtensions.Tga}",
+            ];
+        }
+
+        if (clean.EndsWith(ModBuilderConstants.FileExtensions.Tga, StringComparison.OrdinalIgnoreCase))
+        {
+            string stem = clean[..^ModBuilderConstants.FileExtensions.Tga.Length];
+            return
+            [
+                clean,
+                $"{W3dConstants.ArtDirectory}/{clean}",
+                stem + ModBuilderConstants.FileExtensions.Dds,
+                $"{W3dConstants.ArtDirectory}/{stem}{ModBuilderConstants.FileExtensions.Dds}",
+            ];
         }
 
         return
@@ -224,8 +245,10 @@ public sealed class W3dModelResolver(
         source = null;
         foreach (string candidate in TextureCandidates(textureName))
         {
+            // Normalize separators before extracting the file name: Path.GetFileName
+            // only treats backslash as a separator on Windows.
             var bytes = fileSystem.Read(candidate)
-                ?? fileSystem.TryReadArchiveFileByName(Path.GetFileName(candidate));
+                ?? fileSystem.TryReadArchiveFileByName(Path.GetFileName(candidate.Replace('\\', '/')));
             if (bytes == null)
             {
                 continue;

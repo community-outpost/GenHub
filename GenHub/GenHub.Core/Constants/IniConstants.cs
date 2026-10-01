@@ -152,6 +152,9 @@ public static class IniConstants
         /// <summary>Alt turret sub-block.</summary>
         public const string AltTurret = "AltTurret";
 
+        /// <summary>Death definition sub-block inside slow death behaviors.</summary>
+        public const string Die = "Die";
+
         /// <summary>Create object sub-block.</summary>
         public const string CreateObject = "CreateObject";
 
@@ -167,8 +170,26 @@ public static class IniConstants
         /// <summary>Fire weapon sub-block.</summary>
         public const string FireWeapon = "FireWeapon";
 
+        /// <summary>Damage nugget sub-block inside weapons.</summary>
+        public const string DamageNugget = "DamageNugget";
+
+        /// <summary>Damage over time nugget sub-block inside weapons.</summary>
+        public const string DOTNugget = "DOTNugget";
+
+        /// <summary>Paralyze nugget sub-block inside weapons.</summary>
+        public const string ParalyzeNugget = "ParalyzeNugget";
+
+        /// <summary>Steal money nugget sub-block inside weapons.</summary>
+        public const string StealMoneyNugget = "StealMoneyNugget";
+
+        /// <summary>Meta impact nugget sub-block inside weapons.</summary>
+        public const string MetaImpactNugget = "MetaImpactNugget";
+
         /// <summary>FXList at bone pos sub-block.</summary>
         public const string FXListAtBonePos = "FXListAtBonePos";
+
+        /// <summary>Damage event sub-block inside damage effects.</summary>
+        public const string DamageFXEvent = "DamageFXEvent";
 
         /// <summary>Unit specific sounds sub-block.</summary>
         public const string UnitSpecificSounds = "UnitSpecificSounds";
@@ -214,12 +235,19 @@ public static class IniConstants
             Prerequisites,
             Turret,
             AltTurret,
+            Die,
             CreateObject,
             CreateDebris,
             DeliverPayload,
             ApplyRandomForce,
             FireWeapon,
+            DamageNugget,
+            DOTNugget,
+            ParalyzeNugget,
+            StealMoneyNugget,
+            MetaImpactNugget,
             FXListAtBonePos,
+            DamageFXEvent,
             UnitSpecificSounds,
             WaterTransparency,
             Weather,
@@ -277,6 +305,14 @@ public static class IniConstants
         public const string AddModule = "AddModule";
 
         /// <summary>
+        /// Animation key. Deliberately excluded from <see cref="All"/>: it opens a
+        /// nested block only inside AnimationState and TransitionState parents when
+        /// followed by animation block fields, and stays a plain field elsewhere
+        /// (notably inside ConditionState modules, which list several Animation fields).
+        /// </summary>
+        public const string Animation = "Animation";
+
+        /// <summary>
         /// All keys that always open a module sub-block.
         /// </summary>
         public static readonly string[] All =
@@ -284,6 +320,57 @@ public static class IniConstants
             Body, Behavior, Draw, ClientUpdate, ConditionState,
             ModelConditionState, TransitionState, AnimationState, IdleAnimationState,
             DefaultConditionState, ReplaceModule, AddModule,
+        ];
+    }
+
+    /// <summary>
+    /// Field keys found inside nested <c>Animation = Name ... End</c> sub-blocks.
+    /// The parser uses them to tell animation sub-blocks apart from lone
+    /// field style <c>Animation = Name</c> lines.
+    /// </summary>
+    public static class AnimationBlockFields
+    {
+        /// <summary>Animation asset name key.</summary>
+        public const string AnimationName = "AnimationName";
+
+        /// <summary>Animation playback mode key.</summary>
+        public const string AnimationMode = "AnimationMode";
+
+        /// <summary>Animation blend time key.</summary>
+        public const string AnimationBlendTime = "AnimationBlendTime";
+
+        /// <summary>Animation speed factor range key.</summary>
+        public const string AnimationSpeedFactorRange = "AnimationSpeedFactorRange";
+
+        /// <summary>Animation priority key.</summary>
+        public const string AnimationPriority = "AnimationPriority";
+
+        /// <summary>Animation must complete blend key.</summary>
+        public const string AnimationMustCompleteBlend = "AnimationMustCompleteBlend";
+
+        /// <summary>Fade begin frame key.</summary>
+        public const string FadeBeginFrame = "FadeBeginFrame";
+
+        /// <summary>Fade end frame key.</summary>
+        public const string FadeEndFrame = "FadeEndFrame";
+
+        /// <summary>Use weapon timing key.</summary>
+        public const string UseWeaponTiming = "UseWeaponTiming";
+
+        /// <summary>
+        /// All field keys identifying a nested Animation sub-block.
+        /// </summary>
+        public static readonly string[] All =
+        [
+            AnimationName,
+            AnimationMode,
+            AnimationBlendTime,
+            AnimationSpeedFactorRange,
+            AnimationPriority,
+            AnimationMustCompleteBlend,
+            FadeBeginFrame,
+            FadeEndFrame,
+            UseWeaponTiming,
         ];
     }
 

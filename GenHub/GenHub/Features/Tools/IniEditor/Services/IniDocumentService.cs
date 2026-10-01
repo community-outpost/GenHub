@@ -508,7 +508,7 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger, ILoca
         }
 
         var indent = GetIndent(context.Lines[index]);
-        if (OpensModuleBlock(key))
+        if (OpensModuleBlock(key) || OpensAnimationBlock(key, context, index, indent))
         {
             OpenModuleBlock(key, value, indent, lineNumber, comment, context.Stack, context.PendingComments);
             return;
@@ -518,6 +518,85 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger, ILoca
         field.LeadingComments.AddRange(context.PendingComments);
         context.PendingComments.Clear();
         context.Stack.Peek().Block.Fields.Add(field);
+    }
+
+    /// <summary>
+    /// Determines whether an <c>Animation = Name</c> line opens a nested animation
+    /// sub-block. Animation lines are only structural inside AnimationState and
+    /// TransitionState parents that continue with animation block fields; everywhere
+    /// else (notably ConditionState modules) they stay plain fields.
+    /// </summary>
+    /// <param name="key">The key of the current line.</param>
+    /// <param name="context">The parsing context.</param>
+    /// <param name="index">The zero-based index of the current line.</param>
+    /// <param name="indent">The indentation of the current line.</param>
+    /// <returns>True if the line opens an animation sub-block; otherwise, false.</returns>
+    private static bool OpensAnimationBlock(string key, IniParseContext context, int index, int indent)
+    {
+        if (!string.Equals(key, IniConstants.ModuleKeys.Animation, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (context.Stack.Count == 0)
+        {
+            return false;
+        }
+
+        var parentType = context.Stack.Peek().Block.BlockType;
+        var isAnimationParent =
+            string.Equals(parentType, IniConstants.ModuleKeys.AnimationState, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(parentType, IniConstants.ModuleKeys.TransitionState, StringComparison.OrdinalIgnoreCase);
+        if (!isAnimationParent)
+        {
+            return false;
+        }
+
+        return HasAnimationBlockFields(context.Lines, index, indent);
+    }
+
+    /// <summary>
+    /// Looks ahead past blank lines and comments to decide whether an Animation
+    /// line heads a nested sub-block: the next significant line must be deeper
+    /// indented and carry an animation block field key.
+    /// </summary>
+    /// <param name="lines">All document lines.</param>
+    /// <param name="index">The zero-based index of the Animation line.</param>
+    /// <param name="indent">The indentation of the Animation line.</param>
+    /// <returns>True when a nested animation sub-block follows; otherwise, false.</returns>
+    private static bool HasAnimationBlockFields(string[] lines, int index, int indent)
+    {
+        for (var j = index + 1; j < lines.Length; j++)
+        {
+            var (code, _) = SplitComment(lines[j]);
+            var candidate = code.Trim();
+            if (candidate.Length == 0 || candidate.StartsWith('#'))
+            {
+                continue;
+            }
+
+            if (string.Equals(candidate, IniConstants.BlockTags.End, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if (GetIndent(lines[j]) <= indent)
+            {
+                return false;
+            }
+
+            var separatorIndex = candidate.IndexOf(IniConstants.Syntax.KeyValueSeparator);
+            if (separatorIndex < 0)
+            {
+                return false;
+            }
+
+            var nextKey = candidate[..separatorIndex].Trim();
+            return IniConstants.AnimationBlockFields.All.Any(field =>
+                string.Equals(field, nextKey, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return false;
     }
 
     private static void OpenModuleBlock(

@@ -562,7 +562,7 @@ public sealed class W3dViewerControl : OpenGlControlBase
         }
 
         Focus();
-        _pressing = point.Properties.IsLeftButtonPressed || point.Properties.IsMiddleButtonPressed || point.Properties.IsRightButtonPressed;
+        _pressing = point.Properties.IsLeftButtonPressed || point.Properties.IsRightButtonPressed;
         _panning = point.Properties.IsRightButtonPressed ||
             (point.Properties.IsLeftButtonPressed && e.KeyModifiers.HasFlag(KeyModifiers.Shift));
         _dragging = false;
