@@ -2340,7 +2340,7 @@ public sealed partial class DownloadsBrowserViewModel(
     {
         if (isCustomQuery)
         {
-            List<ContentGridItemViewModel> itemsToDispose;
+            List<ContentGridItemViewModel> itemsToDispose = [];
             lock (_cacheLock)
             {
                 var cachedItemSet = new HashSet<ContentGridItemViewModel>(_browseCache.Values.SelectMany(s => s.Items));

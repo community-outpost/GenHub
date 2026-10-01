@@ -1000,13 +1000,13 @@ public sealed partial class ContentGridItemViewModel(
         Task<Bitmap?>? logoTask = null;
         if (!string.IsNullOrEmpty(publisherLogoUrl) && PublisherLogoBitmap == null)
         {
-            logoTask = ImageCacheService.Instance.GetBitmapAsync(publisherLogoUrl);
+            logoTask = SafeGetBitmapAsync(publisherLogoUrl);
         }
 
         Task<Bitmap?>? thumbTask = null;
         if (!string.IsNullOrEmpty(thumbnailUrl) && IconBitmap == null)
         {
-            thumbTask = ImageCacheService.Instance.GetBitmapAsync(thumbnailUrl);
+            thumbTask = SafeGetBitmapAsync(thumbnailUrl);
         }
 
         if (logoTask == null && thumbTask == null)
@@ -1019,37 +1019,54 @@ public sealed partial class ContentGridItemViewModel(
             return;
         }
 
-        try
+        if (logoTask != null && thumbTask != null)
         {
-            if (logoTask != null && thumbTask != null)
-            {
-                await Task.WhenAll(logoTask, thumbTask);
-            }
-            else if (logoTask != null)
-            {
-                await logoTask;
-            }
-            else if (thumbTask != null)
-            {
-                await thumbTask;
-            }
+            await Task.WhenAll(logoTask, thumbTask);
+        }
+        else if (logoTask != null)
+        {
+            await logoTask;
+        }
+        else if (thumbTask != null)
+        {
+            await thumbTask;
+        }
 
-            if (currentVersion == _iconLoadVersion)
+        if (currentVersion == _iconLoadVersion)
+        {
+            if (logoTask != null && PublisherLogoBitmap == null)
             {
-                if (logoTask != null && PublisherLogoBitmap == null)
+                var logoResult = await logoTask;
+                if (logoResult != null)
                 {
-                    PublisherLogoBitmap = await logoTask;
+                    PublisherLogoBitmap = logoResult;
                 }
+            }
 
-                if (thumbTask != null && IconBitmap == null)
+            if (thumbTask != null && IconBitmap == null)
+            {
+                var thumbResult = await thumbTask;
+                if (thumbResult != null)
                 {
-                    IconBitmap = await thumbTask;
+                    IconBitmap = thumbResult;
+                }
+                else if (string.IsNullOrEmpty(thumbnailUrl))
+                {
+                    IconBitmap = null;
                 }
             }
         }
+    }
+
+    private static async Task<Bitmap?> SafeGetBitmapAsync(string url)
+    {
+        try
+        {
+            return await ImageCacheService.Instance.GetBitmapAsync(url);
+        }
         catch
         {
-            // ignore load failure
+            return null;
         }
     }
 
