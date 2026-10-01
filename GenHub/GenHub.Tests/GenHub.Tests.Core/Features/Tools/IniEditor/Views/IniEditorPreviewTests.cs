@@ -21,6 +21,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
+using static GenHub.Tests.Core.Features.Tools.IniEditor.IniEditorTestFactory;
 
 namespace GenHub.Tests.Core.Features.Tools.IniEditor.Views;
 
@@ -270,57 +271,5 @@ public sealed class IniEditorPreviewTests
             "End\n";
     }
 
-    private static async Task<bool> WaitForAsync(Func<bool> condition, TimeSpan timeout)
-    {
-        var started = DateTime.UtcNow;
-        while (DateTime.UtcNow - started < timeout)
-        {
-            await Dispatcher.UIThread.InvokeAsync(() => { }).GetTask().ConfigureAwait(false);
-            if (condition())
-            {
-                return true;
-            }
 
-            await Task.Delay(50).ConfigureAwait(false);
-        }
-
-        await Dispatcher.UIThread.InvokeAsync(() => { }).GetTask().ConfigureAwait(false);
-        return condition();
-    }
-
-    private static IniEditorViewModel CreateViewModel(IW3dModelResolver modelResolver, INotificationService? notificationService = null)
-    {
-        var mockLocalization = new Mock<ILocalizationService>();
-        mockLocalization
-            .Setup(service => service.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
-            .Returns((string key, object?[] args) => key);
-
-        var mockReferenceService = new Mock<IIniReferenceService>();
-        mockReferenceService
-            .Setup(service => service.RebuildIndexAsync(
-                It.IsAny<IniDocument?>(),
-                It.IsAny<string?>(),
-                It.IsAny<bool>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<int>.CreateSuccess(0, TimeSpan.Zero));
-        mockReferenceService
-            .Setup(service => service.Entries)
-            .Returns(new List<IniReferenceEntry>());
-        mockReferenceService
-            .Setup(service => service.GetNames(It.IsAny<string>()))
-            .Returns(new List<string>());
-
-        return new IniEditorViewModel(
-            new IniDocumentService(Mock.Of<ILogger<IniDocumentService>>(), mockLocalization.Object),
-            new IniSchemaService(mockLocalization.Object),
-            mockReferenceService.Object,
-            Mock.Of<ISageMappedImageParser>(),
-            Mock.Of<IWndImageAssetService>(),
-            Mock.Of<IGameInstallationService>(),
-            modelResolver,
-            notificationService ?? Mock.Of<INotificationService>(),
-            mockLocalization.Object,
-            Mock.Of<IDialogService>(),
-            Mock.Of<ILogger<IniEditorViewModel>>());
-    }
 }

@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.VisualTree;
 using Avalonia.Media;
 using GenHub.Core.Models.Tools.TextureEditor;
 using System;
@@ -57,9 +58,11 @@ public partial class MappedImagePickerControl : UserControl
         InitializeComponent();
         SearchBox.TextChanged += (_, _) => RefreshFilter();
         ImagesList.SelectionChanged += OnListSelectionChanged;
-        ImagesList.DoubleTapped += (_, _) =>
+        ImagesList.DoubleTapped += (sender, e) =>
         {
-            if (SelectedImage is not null)
+            if (e.Source is Visual visual &&
+                visual.FindAncestorOfType<ListBoxItem>() is not null &&
+                SelectedImage is not null)
             {
                 if (ImageActivated is not null)
                 {

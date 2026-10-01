@@ -694,6 +694,11 @@ public sealed class W3dViewerControl : OpenGlControlBase
 
     private static void UploadTexture(GlInterface gl, int texture, W3dRenderTexture image)
     {
+        if (image.Width <= 0 || image.Height <= 0 || image.PixelData.Length < image.Width * image.Height * 4)
+        {
+            return;
+        }
+
         gl.BindTexture(GlConsts.GL_TEXTURE_2D, texture);
         var handle = GCHandle.Alloc(image.PixelData, GCHandleType.Pinned);
         try
@@ -850,7 +855,14 @@ public sealed class W3dViewerControl : OpenGlControlBase
     private void Fail(string message)
     {
         _glFailed = true;
-        GlError = message;
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            GlError = message;
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(() => GlError = message);
+        }
     }
 
     private Matrix4x4 MeshModel(W3dRenderMesh mesh, IReadOnlyList<Matrix4x4>? pose)
@@ -1148,7 +1160,7 @@ public sealed class W3dViewerControl : OpenGlControlBase
 
         for (int i = 0; i < scene.Meshes.Count && i < _meshBuffers.Count; i++)
         {
-            if (IsMeshHidden(scene.Meshes[i].Name))
+            if (scene.Meshes[i].IsHidden || IsMeshHidden(scene.Meshes[i].Name))
             {
                 continue;
             }
@@ -1234,7 +1246,7 @@ public sealed class W3dViewerControl : OpenGlControlBase
         }
 
         var hit = W3dRayPicker.Pick(scene, ray.Value.Origin, ray.Value.Direction, CurrentMeshModels(scene), IsMeshHidden);
-        if (hit == null || IsMeshHidden(scene.Meshes[hit.MeshIndex].Name))
+        if (hit == null || scene.Meshes[hit.MeshIndex].IsHidden || IsMeshHidden(scene.Meshes[hit.MeshIndex].Name))
         {
             SetHover(-1, null);
             return;

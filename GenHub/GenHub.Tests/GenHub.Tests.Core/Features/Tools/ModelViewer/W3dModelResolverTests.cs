@@ -111,6 +111,56 @@ public sealed class W3dModelResolverTests : IDisposable
         Assert.False(result.Success);
     }
 
+    /// <summary>
+    /// Verifies that resolving a model from a valid installation succeeds and populates the cache.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_ValidInstallation_ResolvesModelAndCachesAsync()
+    {
+        File.WriteAllBytes(Path.Combine(_gameRoot, "Art", "Tank.w3d"), ModelWithTexture("track"));
+
+        var firstResult = await _resolver.ResolveAsync("Tank", _gameRoot, false);
+
+        Assert.True(firstResult.Success);
+        Assert.NotNull(firstResult.Data);
+        Assert.Single(firstResult.Data.Model.Meshes);
+
+        // Second call exercises cache hit
+        var cachedResult = await _resolver.ResolveAsync("Tank", _gameRoot, false);
+
+        Assert.True(cachedResult.Success);
+        Assert.NotNull(cachedResult.Data);
+    }
+
+    /// <summary>
+    /// Verifies that clearing the cache allows subsequent resolves and cache eviction at capacity works.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_ClearCacheAndEviction_WorksCorrectlyAsync()
+    {
+        File.WriteAllBytes(Path.Combine(_gameRoot, "Art", "Jeep.w3d"), ModelWithTexture("wheel"));
+
+        var initialResult = await _resolver.ResolveAsync("Jeep", _gameRoot, false);
+        Assert.True(initialResult.Success);
+
+        _resolver.ClearCache();
+
+        var afterClear = await _resolver.ResolveAsync("Jeep", _gameRoot, false);
+        Assert.True(afterClear.Success);
+
+        // Exercise cache capacity / eviction by creating 5 distinct directories
+        for (int i = 1; i <= 5; i++)
+        {
+            var dir = Path.Combine(_gameRoot, $"CacheDir_{i}");
+            Directory.CreateDirectory(Path.Combine(dir, "Art"));
+            File.WriteAllBytes(Path.Combine(dir, "Art", "Jeep.w3d"), ModelWithTexture("wheel"));
+            var res = await _resolver.ResolveAsync("Jeep", dir, false);
+            Assert.True(res.Success);
+        }
+    }
+
     private static byte[] ModelWithTexture(string textureName)
     {
         byte[] texture = Chunk(W3dConstants.Chunks.Texture, Chunk(W3dConstants.Chunks.TextureName, AsciiZ(textureName)));

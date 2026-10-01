@@ -58,11 +58,11 @@ public sealed partial class IniEditorViewModel(
     : EditorToolViewModelBase(notificationService, localizationService, dialogService)
 {
     private const string ImmortalMarker = "Immortal";
-    private const string AccentBrushKey = "AccentBrush";
-    private const string TextPrimaryBrushKey = "TextPrimary";
-    private const string TextSecondaryBrushKey = "TextSecondary";
-    private const string SuccessBrushKey = "SuccessBrush";
-    private const string WarningBrushKey = "WarningBrush";
+    private const string AccentBrushKey = ThemeResourceKeys.AccentBrush;
+    private const string TextPrimaryBrushKey = ThemeResourceKeys.TextPrimary;
+    private const string TextSecondaryBrushKey = ThemeResourceKeys.TextSecondary;
+    private const string SuccessBrushKey = ThemeResourceKeys.SuccessBrush;
+    private const string WarningBrushKey = ThemeResourceKeys.WarningBrush;
 
     private static readonly (string Key, string Value)[] UpgradeHookupTemplate =
     [
@@ -1425,7 +1425,7 @@ public sealed partial class IniEditorViewModel(
             return IniConstants.BlockTypes.Upgrade;
         }
 
-        if (string.Equals(key, IniConstants.FieldKeys.Object, StringComparison.OrdinalIgnoreCase) || string.Equals(key, "TargetObject", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(key, IniConstants.FieldKeys.Object, StringComparison.OrdinalIgnoreCase) || string.Equals(key, IniConstants.FieldKeys.TargetObject, StringComparison.OrdinalIgnoreCase))
         {
             return IniConstants.BlockTypes.Object;
         }
@@ -1524,17 +1524,24 @@ public sealed partial class IniEditorViewModel(
         SetFieldValueByKey(fields, key, value);
     }
 
-    private static async Task RunDeferredRefreshAsync(CancellationTokenSource source, int delayMs, Action refresh)
+    private static async Task RunDeferredRefreshAsync(CancellationTokenSource source, int delayMs, Action<CancellationToken> refresh)
     {
         try
         {
-            await Task.Delay(delayMs, source.Token).ConfigureAwait(false);
-            if (source.IsCancellationRequested)
+            var token = source.Token;
+            await Task.Delay(delayMs, token).ConfigureAwait(false);
+            if (token.IsCancellationRequested)
             {
                 return;
             }
 
-            PostToUIThread(refresh);
+            PostToUIThread(() =>
+            {
+                if (!token.IsCancellationRequested)
+                {
+                    refresh(token);
+                }
+            });
         }
         catch (OperationCanceledException)
         {
@@ -1653,7 +1660,7 @@ public sealed partial class IniEditorViewModel(
         slot?.Dispose();
         var cts = new CancellationTokenSource();
         slot = cts;
-        _ = Task.Run(() => RunDeferredRefreshAsync(cts, delayMs, () => refresh(cts.Token)), CancellationToken.None);
+        _ = Task.Run(() => RunDeferredRefreshAsync(cts, delayMs, refresh), CancellationToken.None);
     }
 
     private static void ScheduleDeferred(ref CancellationTokenSource? slot, int delayMs, Action refresh)
@@ -1663,7 +1670,9 @@ public sealed partial class IniEditorViewModel(
 
     private static string? ResolveHealthValue(IniBlock block)
     {
-        var health = FindFieldValue(block, IniConstants.FieldKeys.Health) ?? FindFieldValue(block, "MaxHealth") ?? FindFieldValue(block, "InitialHealth");
+        var health = FindFieldValue(block, IniConstants.FieldKeys.Health) ??
+                     FindFieldValue(block, IniConstants.FieldKeys.MaxHealth) ??
+                     FindFieldValue(block, IniConstants.FieldKeys.InitialHealth);
         if (!string.IsNullOrWhiteSpace(health))
         {
             return health;
@@ -1671,10 +1680,11 @@ public sealed partial class IniEditorViewModel(
 
         foreach (var child in block.Children)
         {
-            if (child.BlockType.Contains("Body", StringComparison.OrdinalIgnoreCase) ||
-                child.AssignmentValue?.Contains("Body", StringComparison.OrdinalIgnoreCase) == true)
+            if (child.BlockType.Contains(IniConstants.FieldKeys.Body, StringComparison.OrdinalIgnoreCase) ||
+                child.AssignmentValue?.Contains(IniConstants.FieldKeys.Body, StringComparison.OrdinalIgnoreCase) == true)
             {
-                var childHealth = FindFieldValue(child, "MaxHealth") ?? FindFieldValue(child, "InitialHealth");
+                var childHealth = FindFieldValue(child, IniConstants.FieldKeys.MaxHealth) ??
+                                  FindFieldValue(child, IniConstants.FieldKeys.InitialHealth);
                 if (!string.IsNullOrWhiteSpace(childHealth))
                 {
                     return childHealth;
@@ -1688,7 +1698,7 @@ public sealed partial class IniEditorViewModel(
             }
         }
 
-        var bodyField = block.Fields.FirstOrDefault(f => string.Equals(f.Key, "Body", StringComparison.OrdinalIgnoreCase));
+        var bodyField = block.Fields.FirstOrDefault(f => string.Equals(f.Key, IniConstants.FieldKeys.Body, StringComparison.OrdinalIgnoreCase));
         if (bodyField != null && bodyField.Value.Contains(ImmortalMarker, StringComparison.OrdinalIgnoreCase))
         {
             return ImmortalMarker;
@@ -1875,7 +1885,7 @@ public sealed partial class IniEditorViewModel(
     private void AddCommandButtonVitals(IniBlock block, List<CanvasVitalItem> vitals)
     {
         AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Command"), FindFieldValue(block, IniConstants.FieldKeys.Command), AccentBrushKey);
-        AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Border"), FindFieldValue(block, "ButtonBorderType"), TextSecondaryBrushKey);
+        AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Border"), FindFieldValue(block, IniConstants.FieldKeys.ButtonBorderType), TextSecondaryBrushKey);
         AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Target"), FindFieldValue(block, IniConstants.FieldKeys.Object) ?? FindFieldValue(block, "Upgrade"), AccentBrushKey);
         AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Image"), FindFieldValue(block, IniConstants.FieldKeys.ButtonImage), TextPrimaryBrushKey);
     }
@@ -1885,7 +1895,7 @@ public sealed partial class IniEditorViewModel(
         AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Damage"), FindFieldValue(block, IniConstants.FieldKeys.PrimaryDamage), AccentBrushKey);
         AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Range"), FindFieldValue(block, IniConstants.FieldKeys.AttackRange), TextPrimaryBrushKey);
         AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Type"), FindFieldValue(block, IniConstants.FieldKeys.DamageType), TextSecondaryBrushKey);
-        AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Delay"), FindFieldValue(block, "DelayBetweenShots"), TextSecondaryBrushKey);
+        AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Delay"), FindFieldValue(block, IniConstants.FieldKeys.DelayBetweenShots), TextSecondaryBrushKey);
     }
 
     private void AddUpgradeVitals(IniBlock block, List<CanvasVitalItem> vitals)
@@ -1921,8 +1931,8 @@ public sealed partial class IniEditorViewModel(
             vitals.Add(new(Localization.GetString("Tools.IniEditor.Vitals.BuildTime"), $"{time}s", TextPrimaryBrushKey));
         }
 
-        AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Vision"), FindFieldValue(block, "VisionRange"), TextSecondaryBrushKey);
-        AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Shroud"), FindFieldValue(block, "ShroudClearingRange"), TextSecondaryBrushKey);
+        AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Vision"), FindFieldValue(block, IniConstants.FieldKeys.VisionRange), TextSecondaryBrushKey);
+        AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Shroud"), FindFieldValue(block, IniConstants.FieldKeys.ShroudClearingRange), TextSecondaryBrushKey);
     }
 
     /// <summary>
@@ -2778,7 +2788,7 @@ public sealed partial class IniEditorViewModel(
             var set = FindBlocks(IniConstants.BlockTypes.WeaponSet, weaponSetName).FirstOrDefault();
             if (set != null)
             {
-                foreach (var field in set.Fields.Where(field => string.Equals(field.Key, "Weapon", StringComparison.OrdinalIgnoreCase)))
+                foreach (var field in set.Fields.Where(field => string.Equals(field.Key, IniConstants.FieldKeys.Weapon, StringComparison.OrdinalIgnoreCase)))
                 {
                     AddWeaponSlotRow(field.Value);
                 }
@@ -2896,7 +2906,7 @@ public sealed partial class IniEditorViewModel(
     private void AddArmorSetRow(string armorSetName)
     {
         var set = FindBlocks(IniConstants.BlockTypes.ArmorSet, armorSetName).FirstOrDefault();
-        var tableName = set == null ? null : FindFieldValue(set, "Armor");
+        var tableName = set == null ? null : FindFieldValue(set, IniConstants.FieldKeys.Armor);
         var table = tableName == null ? null : FindBlocks(IniConstants.BlockTypes.Armor, tableName).FirstOrDefault();
         if (table == null)
         {
@@ -4405,7 +4415,7 @@ public sealed partial class IniEditorViewModel(
         var costLabel = Localization.GetString("Tools.IniEditor.Vitals.Cost");
         var cmdLabel = Localization.GetString("Tools.IniEditor.Canvas.CardCmdLabel");
 
-        foreach (var block in _document.Blocks)
+        foreach (var block in _document.Blocks.Take(IniConstants.Editor.MaxCardThumbnails))
         {
             var title = !string.IsNullOrWhiteSpace(block.Name) ? block.Name : block.BlockType;
             var side = FindFieldValue(block, IniConstants.FieldKeys.Side);

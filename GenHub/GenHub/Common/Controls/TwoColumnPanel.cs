@@ -1,6 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.VisualTree;
+using GenHub.Core.Constants;
 using System;
 
 namespace GenHub.Common.Controls;
@@ -48,10 +48,11 @@ public sealed class TwoColumnPanel : Panel
         double[] heights = [0, 0];
         bool[] started = [false, false];
 
-        foreach (var child in Children)
+        for (int i = 0; i < Children.Count; i++)
         {
+            var child = Children[i];
             child.Measure(new Size(columnWidth, double.PositiveInfinity));
-            int column = ColumnFor(child);
+            int column = i % 2;
             if (started[column])
             {
                 heights[column] += RowSpacing;
@@ -71,9 +72,10 @@ public sealed class TwoColumnPanel : Panel
         double columnWidth = ColumnWidth(finalSize.Width, false);
         double[] tops = [0, 0];
 
-        foreach (var child in Children)
+        for (int i = 0; i < Children.Count; i++)
         {
-            int column = ColumnFor(child);
+            var child = Children[i];
+            int column = i % 2;
             double left = column == 0 ? 0 : columnWidth + ColumnSpacing;
             double height = child.DesiredSize.Height;
             child.Arrange(new Rect(left, tops[column], columnWidth, height));
@@ -81,16 +83,6 @@ public sealed class TwoColumnPanel : Panel
         }
 
         return finalSize;
-    }
-
-    private static int ColumnFor(Control child)
-    {
-        if (child.GetVisualParent() is Panel panel)
-        {
-            return panel.Children.IndexOf(child) % 2;
-        }
-
-        return 0;
     }
 
     private double ColumnWidth(double availableWidth, bool measure)
@@ -102,16 +94,17 @@ public sealed class TwoColumnPanel : Panel
 
         if (!measure)
         {
-            return 240;
+            return EditorConstants.TwoColumnDefaultWidth;
         }
 
         double widest = 0;
-        foreach (var child in Children)
+        for (int i = 0; i < Children.Count; i++)
         {
+            var child = Children[i];
             child.Measure(Size.Infinity);
             widest = Math.Max(widest, child.DesiredSize.Width);
         }
 
-        return widest;
+        return widest > 0 ? widest : EditorConstants.TwoColumnDefaultWidth;
     }
 }

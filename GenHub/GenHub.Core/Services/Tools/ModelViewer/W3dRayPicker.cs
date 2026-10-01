@@ -57,7 +57,7 @@ public static class W3dRayPicker
 
         for (int m = 0; m < scene.Meshes.Count; m++)
         {
-            if (isHidden != null && isHidden(scene.Meshes[m].Name))
+            if (scene.Meshes[m].IsHidden || (isHidden != null && isHidden(scene.Meshes[m].Name)))
             {
                 continue;
             }

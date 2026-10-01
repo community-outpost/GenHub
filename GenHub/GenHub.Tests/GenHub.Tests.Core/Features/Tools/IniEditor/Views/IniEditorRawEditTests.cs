@@ -19,6 +19,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
+using static GenHub.Tests.Core.Features.Tools.IniEditor.IniEditorTestFactory;
 
 namespace GenHub.Tests.Core.Features.Tools.IniEditor.Views;
 
@@ -134,39 +135,5 @@ public sealed class IniEditorRawEditTests
         return condition();
     }
 
-    private static IniEditorViewModel CreateViewModel(INotificationService notificationService)
-    {
-        var mockLocalization = new Mock<ILocalizationService>();
-        mockLocalization
-            .Setup(service => service.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
-            .Returns((string key, object?[] args) => key);
 
-        var mockReferenceService = new Mock<IIniReferenceService>();
-        mockReferenceService
-            .Setup(service => service.RebuildIndexAsync(
-                It.IsAny<IniDocument?>(),
-                It.IsAny<string?>(),
-                It.IsAny<bool>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<int>.CreateSuccess(0, TimeSpan.Zero));
-        mockReferenceService
-            .Setup(service => service.Entries)
-            .Returns(new List<IniReferenceEntry>());
-        mockReferenceService
-            .Setup(service => service.GetNames(It.IsAny<string>()))
-            .Returns(new List<string>());
-
-        return new IniEditorViewModel(
-            new IniDocumentService(Mock.Of<ILogger<IniDocumentService>>(), mockLocalization.Object),
-            new IniSchemaService(mockLocalization.Object),
-            mockReferenceService.Object,
-            Mock.Of<ISageMappedImageParser>(),
-            Mock.Of<IWndImageAssetService>(),
-            Mock.Of<IGameInstallationService>(),
-            Mock.Of<IW3dModelResolver>(),
-            notificationService,
-            mockLocalization.Object,
-            Mock.Of<IDialogService>(),
-            Mock.Of<ILogger<IniEditorViewModel>>());
-    }
 }

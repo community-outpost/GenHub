@@ -3680,10 +3680,7 @@ public sealed partial class WndEditorViewModel(
         }
 
         CancelAndDisposeCts(toCancel);
-        if (cts != null)
-        {
-            _ = LoadAssetPreviewsAsync(generation, linkedModFolderSnapshot, linkedBigFilesSnapshot, cts.Token);
-        }
+        _ = LoadAssetPreviewsAsync(generation, linkedModFolderSnapshot, linkedBigFilesSnapshot, cts.Token);
     }
 
     private static void CancelAndDisposeCts(CancellationTokenSource? cts)

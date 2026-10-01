@@ -1,5 +1,7 @@
 namespace GenHub.Core.Constants;
 
+using System.Collections.Generic;
+
 /// <summary>
 /// Constants for Generals and Zero Hour INI data files
 /// (game objects, weapons, upgrades, damage, armor, command sets).
@@ -486,6 +488,12 @@ public static class IniConstants
         /// <summary>Health key.</summary>
         public const string Health = "Health";
 
+        /// <summary>Max health key.</summary>
+        public const string MaxHealth = "MaxHealth";
+
+        /// <summary>Initial health key.</summary>
+        public const string InitialHealth = "InitialHealth";
+
         /// <summary>Side key.</summary>
         public const string Side = "Side";
 
@@ -503,6 +511,30 @@ public static class IniConstants
 
         /// <summary>Object key.</summary>
         public const string Object = "Object";
+
+        /// <summary>Armor key.</summary>
+        public const string Armor = "Armor";
+
+        /// <summary>Weapon key.</summary>
+        public const string Weapon = "Weapon";
+
+        /// <summary>Vision range key.</summary>
+        public const string VisionRange = "VisionRange";
+
+        /// <summary>Shroud clearing range key.</summary>
+        public const string ShroudClearingRange = "ShroudClearingRange";
+
+        /// <summary>Delay between shots key.</summary>
+        public const string DelayBetweenShots = "DelayBetweenShots";
+
+        /// <summary>Button border type key.</summary>
+        public const string ButtonBorderType = "ButtonBorderType";
+
+        /// <summary>Target object key.</summary>
+        public const string TargetObject = "TargetObject";
+
+        /// <summary>Body key.</summary>
+        public const string Body = "Body";
 
         /// <summary>Text label key.</summary>
         public const string TextLabel = "TextLabel";
@@ -596,16 +628,16 @@ public static class IniConstants
             TriggeredBy,
             Health,
             Side,
-            "MaxHealth",
-            "Model",
+            MaxHealth,
+            Model,
             Speed,
-            "Armor",
+            Armor,
             Command,
             Object,
             AttackRange,
-            "Weapon",
-            "VisionRange",
-            "ShroudClearingRange",
+            Weapon,
+            VisionRange,
+            ShroudClearingRange,
             ExperienceRequired,
             IsTrainable,
             CrushableLevel,

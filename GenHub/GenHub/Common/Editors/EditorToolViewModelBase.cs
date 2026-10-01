@@ -371,7 +371,7 @@ public abstract class EditorToolViewModelBase : ObservableObject, IDisposable
             return;
         }
 
-        await Dispatcher.UIThread.InvokeAsync(action);
+        await Dispatcher.UIThread.InvokeAsync(action).ConfigureAwait(false);
     }
 
     /// <summary>
