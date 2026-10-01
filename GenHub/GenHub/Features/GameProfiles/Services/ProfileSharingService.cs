@@ -2189,7 +2189,7 @@ public class ProfileSharingService(
         bool allowCloudUpload,
         CancellationToken cancellationToken)
     {
-        var dependencyFiles = (manifest.Files ?? []).Select(f => ToSharedManifestFile(f)).ToList();
+        var dependencyFiles = ManifestVariantResolver.ResolveFiles(manifest).Select(f => ToSharedManifestFile(f)).ToList();
 
         string? packageUrl = null;
         string? packageHash = null;
@@ -2243,7 +2243,7 @@ public class ProfileSharingService(
         ContentManifest manifest,
         CancellationToken cancellationToken)
     {
-        if (uploadThingService == null || casService == null || manifest.Files is not { Count: > 0 })
+        if (uploadThingService == null || casService == null || ManifestVariantResolver.ResolveFiles(manifest).Count == 0)
         {
             return OperationResult<(string? Url, string? Hash)>.CreateFailure(
                 $"Cannot package local manifest '{manifest.Name}': missing files or upload services.");
@@ -2285,12 +2285,12 @@ public class ProfileSharingService(
         ContentManifest manifest,
         CancellationToken cancellationToken)
     {
-        if (casService == null || manifest.Files == null)
+        if (casService == null)
         {
             return null;
         }
 
-        var sortedFiles = manifest.Files.OrderBy(f => f.RelativePath, StringComparer.Ordinal).ToList();
+        var sortedFiles = ManifestVariantResolver.ResolveFiles(manifest).OrderBy(f => f.RelativePath, StringComparer.Ordinal).ToList();
         var written = await WriteLocalManifestArchiveEntriesAsync(tempZipPath, manifest, sortedFiles, cancellationToken);
         if (!written)
         {
