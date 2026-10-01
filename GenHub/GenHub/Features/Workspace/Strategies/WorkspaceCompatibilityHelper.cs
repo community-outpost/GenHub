@@ -685,20 +685,20 @@ public static class WorkspaceCompatibilityHelper
     }
 
     /// <summary>
-    /// Resolves the host variant's files, falling back to the Windows variants when no
-    /// variant matches the host, since a Windows client may run through a compatibility runner.
+    /// Resolves the host variant's files, falling back to the Windows variants only when no
+    /// variant supports the host, since a Windows client may run through a compatibility runner.
+    /// A host variant that matches but declares no files is kept as it is.
     /// </summary>
     /// <param name="manifest">The manifest to resolve.</param>
     /// <returns>The host files, or the first non-empty Windows variant's files.</returns>
     private static IReadOnlyList<ManifestFile> ResolveFilesOrWindowsVariant(ContentManifest manifest)
     {
-        var files = ManifestVariantResolver.ResolveFiles(manifest);
-        if (files.Count > 0 || manifest.Variants.Count == 0)
+        if (ManifestVariantResolver.SupportsRuntime(manifest))
         {
-            return files;
+            return ManifestVariantResolver.ResolveFiles(manifest);
         }
 
-        files = ManifestVariantResolver.ResolveFiles(manifest, GameClientConstants.WindowsX86RuntimeIdentifier);
+        var files = ManifestVariantResolver.ResolveFiles(manifest, GameClientConstants.WindowsX86RuntimeIdentifier);
         return files.Count > 0
             ? files
             : ManifestVariantResolver.ResolveFiles(manifest, GameClientConstants.WindowsX64RuntimeIdentifier);

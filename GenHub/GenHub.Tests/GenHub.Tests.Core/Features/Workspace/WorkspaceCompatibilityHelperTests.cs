@@ -133,6 +133,46 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that a matching host variant with no files is not replaced by a Windows
+    /// variant, so a native workspace on macOS or Linux is not treated as a Windows target.
+    /// </summary>
+    [Fact]
+    public void EnsureDrmAndAssetCompatibility_WithEmptyMatchingHostVariant_DoesNotUseWindowsVariant()
+    {
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "test-workspace",
+            BaseInstallationPath = _gameInstallDir,
+            Manifests =
+            [
+                new ContentManifest
+                {
+                    Variants =
+                    [
+                        new ArtifactVariant
+                        {
+                            RuntimeIdentifiers = [GameClientConstants.WindowsX64RuntimeIdentifier],
+                            Files = [new ManifestFile { RelativePath = GameClientConstants.GeneralsExecutable }],
+                        },
+                        new ArtifactVariant { RuntimeIdentifiers = [ManifestVariantResolver.CurrentRuntimeIdentifier] },
+                    ],
+                },
+            ],
+        };
+
+        WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(workspaceInfo, config, NullLogger.Instance);
+
+        var parentDir = Path.GetDirectoryName(_workspaceDir)!;
+        Directory.Exists(Path.Combine(parentDir, GameClientConstants.SteamDrmMarkerDirectory)).Should().Be(OperatingSystem.IsWindows());
+    }
+
+    /// <summary>
     /// Verifies that d3d8.dll is materialized into workspace when present in source manifest.
     /// </summary>
     [Fact]
