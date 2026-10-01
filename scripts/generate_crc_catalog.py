@@ -1538,22 +1538,23 @@ def run_self_test() -> bool:
         def __exit__(self, *args):
             pass
 
+    test_cdn = "https://example.com/cdn"
     original_urlopen = urllib.request.urlopen
     try:
         urllib.request.urlopen = lambda req, timeout=10: _MockHTTPResponse()
-        expect(check_cdn_reachable("https://example.com/cdn"), "Expected reachable for 200 mock")
+        expect(check_cdn_reachable(test_cdn), "Expected reachable for 200 mock")
 
         def _raise_http_error(req, timeout=10):
-            raise urllib.error.HTTPError("https://example.com/cdn", 404, "Not Found", {}, None)
+            raise urllib.error.HTTPError(test_cdn, 404, "Not Found", {}, None)
 
         urllib.request.urlopen = _raise_http_error
-        expect(check_cdn_reachable("https://example.com/cdn"), "Expected reachable for HTTP 404 error")
+        expect(check_cdn_reachable(test_cdn), "Expected reachable for HTTP 404 error")
 
         def _raise_url_error(req, timeout=10):
             raise urllib.error.URLError("Network unreachable")
 
         urllib.request.urlopen = _raise_url_error
-        expect(not check_cdn_reachable("https://example.com/cdn"), "Expected unreachable for URLError")
+        expect(not check_cdn_reachable(test_cdn), "Expected unreachable for URLError")
     finally:
         urllib.request.urlopen = original_urlopen
 
