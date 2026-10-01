@@ -104,9 +104,21 @@ public sealed class W3dModelResolver(
         }
     }
 
+    private static bool IsInvalidAssetPath(string name)
+    {
+        return string.IsNullOrWhiteSpace(name) ||
+            name.Contains("..", StringComparison.Ordinal) ||
+            Path.IsPathRooted(name);
+    }
+
     private static byte[]? FindModelBytes(string modelName, SageVirtualFileSystem fileSystem, out string? sourceName)
     {
         sourceName = null;
+        if (IsInvalidAssetPath(modelName))
+        {
+            return null;
+        }
+
         string fileName = modelName.EndsWith(W3dConstants.FileExtension, StringComparison.OrdinalIgnoreCase)
             ? modelName
             : modelName + W3dConstants.FileExtension;
@@ -134,6 +146,11 @@ public sealed class W3dModelResolver(
     private static IReadOnlyList<string> TextureCandidates(string textureName)
     {
         string clean = textureName.Trim();
+        if (IsInvalidAssetPath(clean))
+        {
+            return [];
+        }
+
         if (clean.EndsWith(ModBuilderConstants.FileExtensions.Dds, StringComparison.OrdinalIgnoreCase) ||
             clean.EndsWith(ModBuilderConstants.FileExtensions.Tga, StringComparison.OrdinalIgnoreCase))
         {
@@ -162,7 +179,8 @@ public sealed class W3dModelResolver(
             var fileSystem = WndGameFileSystem.Open(installationPath, null, projectDirectory, logger, null, isZeroHour, cancellationToken);
             if (_fileSystemCache.Count >= 4)
             {
-                _fileSystemCache.Clear();
+                var oldestKey = _fileSystemCache.Keys.First();
+                _fileSystemCache.Remove(oldestKey);
             }
 
             _fileSystemCache[key] = fileSystem;

@@ -15,7 +15,6 @@ using GenHub.Core.Models.Tools.IniEditor;
 using GenHub.Features.Tools.IniEditor.Services;
 using GenHub.Features.Tools.IniEditor.ViewModels;
 using GenHub.Features.Tools.IniEditor.Views;
-using static GenHub.Tests.Core.Features.Tools.IniEditor.IniEditorTestFactory;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
@@ -24,6 +23,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using static GenHub.Tests.Core.Features.Tools.IniEditor.IniEditorTestFactory;
 
 namespace GenHub.Tests.Core.Features.Tools.IniEditor.Views;
 
@@ -595,6 +595,4 @@ public class IniEditorViewTests
             window.Close();
         }
     }
-
-
 }

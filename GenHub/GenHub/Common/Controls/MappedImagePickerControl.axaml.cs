@@ -1,7 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.VisualTree;
 using Avalonia.Media;
+using Avalonia.VisualTree;
 using GenHub.Core.Models.Tools.TextureEditor;
 using System;
 using System.Collections.Generic;

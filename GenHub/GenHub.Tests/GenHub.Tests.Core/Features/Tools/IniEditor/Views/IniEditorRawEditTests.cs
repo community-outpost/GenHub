@@ -134,6 +134,4 @@ public sealed class IniEditorRawEditTests
         await Dispatcher.UIThread.InvokeAsync(() => { }).GetTask().ConfigureAwait(false);
         return condition();
     }
-
-
 }

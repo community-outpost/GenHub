@@ -4686,11 +4686,23 @@ public sealed partial class IniEditorViewModel(
             return;
         }
 
-        var data = resolved.Data;
-        var textures = data.Textures.ToDictionary(texture => texture.Name, texture => texture.Texture, StringComparer.OrdinalIgnoreCase);
-        var bones = BoneMap(data.Model);
-        var scene = W3dSceneBuilder.Build(data.Model, textures, bones);
-        PostToUIThread(() => ApplyPreviewResolved(model, generation, data, scene));
+        try
+        {
+            var data = resolved.Data;
+            var textures = data.Textures.ToDictionary(texture => texture.Name, texture => texture.Texture, StringComparer.OrdinalIgnoreCase);
+            var bones = BoneMap(data.Model);
+            var scene = W3dSceneBuilder.Build(data.Model, textures, bones);
+            PostToUIThread(() => ApplyPreviewResolved(model, generation, data, scene));
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to build 3D preview scene for {Model}", model);
+            PostToUIThread(() => ApplyPreviewFailure(model, generation, "Tools.IniEditor.Preview3D.ParseError", true));
+        }
     }
 
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Kept as an instance helper to satisfy member ordering.")]
@@ -4863,6 +4875,7 @@ public sealed partial class IniEditorViewModel(
         var clip = SelectedPreviewClip;
         if (clip == null || !clip.IsSamplable || PreviewFrameCount < 1)
         {
+            IsPreviewPlaying = false;
             return;
         }
 
@@ -5390,12 +5403,14 @@ public sealed partial class IniEditorViewModel(
 
     partial void OnSelectedInstallationChanged(GameInstallationOption? value)
     {
-        // Invalidate in-flight thumbnail loads synchronously so a stale decode
+        // Invalidate in-flight thumbnail loads and previews synchronously so a stale decode
         // cannot repopulate the cleared cache before the debounced refresh runs.
         _thumbnailGeneration++;
+        _modelPreviewGeneration++;
+        _lastPreviewErrorToast = null;
         _textureThumbnails.Clear();
         QueueThumbnailRefresh();
-        modelResolver.ClearCache();
+        Task.Run(() => modelResolver.ClearCache());
         _lastPreviewModel = null;
         QueueModelPreviewRefresh();
     }

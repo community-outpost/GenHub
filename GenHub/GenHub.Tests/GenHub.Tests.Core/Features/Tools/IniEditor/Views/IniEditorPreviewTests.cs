@@ -270,6 +270,4 @@ public sealed class IniEditorPreviewTests
             "  End\n" +
             "End\n";
     }
-
-
 }

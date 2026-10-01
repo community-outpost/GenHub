@@ -4,6 +4,7 @@ using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.OpenGL;
 using Avalonia.OpenGL.Controls;
+using Avalonia.Threading;
 using GenHub.Core.Models.Tools.ModelViewer;
 using GenHub.Core.Services.Tools.ModelViewer;
 using System;
@@ -184,6 +185,8 @@ public sealed class W3dViewerControl : OpenGlControlBase
             gl_FragColor = vColor;
         }
         """;
+
+    private static readonly Cursor HandCursor = new(StandardCursorType.Hand);
 
     private readonly object _cameraLock = new();
     private readonly List<W3dMeshBuffers> _meshBuffers = [];
@@ -392,7 +395,7 @@ public sealed class W3dViewerControl : OpenGlControlBase
             }
 
             SelectedMeshIndex = -1;
-            _hoveredMeshIndex = -1;
+            SetHover(-1, null);
             _hasLastRootTranslation = false;
             RequestNextFrameRendering();
         }
@@ -1264,7 +1267,7 @@ public sealed class W3dViewerControl : OpenGlControlBase
 
         _hoveredMeshIndex = meshIndex;
         ToolTip.SetTip(this, meshName);
-        Cursor = meshIndex >= 0 ? new Cursor(StandardCursorType.Hand) : Cursor.Default;
+        Cursor = meshIndex >= 0 ? HandCursor : Cursor.Default;
         RequestNextFrameRendering();
     }
 

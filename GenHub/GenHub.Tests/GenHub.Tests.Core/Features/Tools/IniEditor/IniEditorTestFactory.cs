@@ -27,11 +27,20 @@ public static class IniEditorTestFactory
     /// <summary>
     /// Creates an <see cref="IniEditorViewModel"/> instance configured with standard mock dependencies.
     /// </summary>
+    /// <param name="notificationService">Optional notification service override.</param>
+    /// <returns>A new <see cref="IniEditorViewModel"/>.</returns>
+    public static IniEditorViewModel CreateViewModel(
+        INotificationService? notificationService = null) =>
+        CreateViewModel(null, notificationService);
+
+    /// <summary>
+    /// Creates an <see cref="IniEditorViewModel"/> instance configured with standard mock dependencies.
+    /// </summary>
     /// <param name="modelResolver">Optional model resolver override.</param>
     /// <param name="notificationService">Optional notification service override.</param>
     /// <returns>A new <see cref="IniEditorViewModel"/>.</returns>
     public static IniEditorViewModel CreateViewModel(
-        IW3dModelResolver? modelResolver = null,
+        IW3dModelResolver? modelResolver,
         INotificationService? notificationService = null)
     {
         var mockLocalization = new Mock<ILocalizationService>();
@@ -72,17 +81,17 @@ public static class IniEditorTestFactory
     /// Pumps the UI dispatcher and polls until the specified condition is met or the timeout expires.
     /// </summary>
     /// <param name="condition">Condition predicate to check.</param>
-    /// <param name="timeoutMs">Timeout in milliseconds.</param>
-    /// <returns>True if the condition evaluated to true before timeout, otherwise false.</returns>
-    /// <summary>
-    /// Pumps the UI dispatcher and polls until the specified condition is met or the timeout expires.
-    /// </summary>
-    /// <param name="condition">Condition predicate to check.</param>
     /// <param name="timeout">Timeout duration.</param>
     /// <returns>True if the condition evaluated to true before timeout, otherwise false.</returns>
     public static Task<bool> WaitForAsync(Func<bool> condition, TimeSpan timeout) =>
         WaitForAsync(condition, (int)timeout.TotalMilliseconds);
 
+    /// <summary>
+    /// Pumps the UI dispatcher and polls until the specified condition is met or the timeout expires.
+    /// </summary>
+    /// <param name="condition">Condition predicate to check.</param>
+    /// <param name="timeoutMs">Timeout in milliseconds.</param>
+    /// <returns>True if the condition evaluated to true before timeout, otherwise false.</returns>
     public static async Task<bool> WaitForAsync(Func<bool> condition, int timeoutMs = 2000)
     {
         ArgumentNullException.ThrowIfNull(condition);
