@@ -169,7 +169,7 @@ public static class ToolConstants
         /// <summary>
         /// The tags associated with the ModBuilder tool.
         /// </summary>
-        public static readonly string[] Tags = ["modding", "build-automation", "development"];
+        public static readonly string[] Tags = [ModdingTag, "build-automation", "development"];
     }
 
     /// <summary>
@@ -215,7 +215,7 @@ public static class ToolConstants
         /// <summary>
         /// The tags associated with the INI Editor tool.
         /// </summary>
-        public static readonly string[] Tags = ["modding", "ini", "data"];
+        public static readonly string[] Tags = [ModdingTag, "ini", "data"];
     }
 
     /// <summary>
@@ -261,7 +261,7 @@ public static class ToolConstants
         /// <summary>
         /// The tags associated with the WND Editor tool.
         /// </summary>
-        public static readonly string[] Tags = ["modding", "ui-layout", "wnd"];
+        public static readonly string[] Tags = [ModdingTag, "ui-layout", "wnd"];
     }
 
     /// <summary>

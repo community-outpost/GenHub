@@ -215,6 +215,18 @@ public sealed partial class WorldBuilderViewModel(
         }
     }
 
+    private static async Task<T> InvokeOnUIThreadAsync<T>(Func<T> function)
+    {
+        if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            var result = function();
+            await Task.CompletedTask.ConfigureAwait(false);
+            return result;
+        }
+
+        return await Dispatcher.UIThread.InvokeAsync(function);
+    }
+
     /// <summary>
     /// Opens a map chosen with a file dialog.
     /// </summary>
@@ -548,12 +560,11 @@ public sealed partial class WorldBuilderViewModel(
             return;
         }
 
-        var applied = false;
-        await InvokeOnUIThreadAsync(() =>
+        var applied = await InvokeOnUIThreadAsync(() =>
         {
             if (_map == null || _map != map)
             {
-                return;
+                return false;
             }
 
             _undoService.Checkpoint(_map);
@@ -567,7 +578,7 @@ public sealed partial class WorldBuilderViewModel(
             map.IsDirty = true;
             IsDirty = true;
             UpdateUndoState();
-            applied = true;
+            return true;
         }).ConfigureAwait(false);
 
         if (!applied)

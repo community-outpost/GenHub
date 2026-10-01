@@ -217,7 +217,7 @@ public partial class WorldBuilderView : UserControl
         e.Handled = true;
         try
         {
-            await viewModel.OpenMapAsync(paths[0]).ConfigureAwait(false);
+            await viewModel.OpenMapAsync(paths[0], CancellationToken.None).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

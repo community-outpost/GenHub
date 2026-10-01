@@ -6,6 +6,7 @@ using GenHub.Core.Models.Tools.WorldBuilder;
 using Silk.NET.OpenGL;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.InteropServices;
 
@@ -286,7 +287,7 @@ public sealed class WbRenderer : IDisposable
     /// </summary>
     /// <param name="gl">The Silk.NET bindings for the current context.</param>
     /// <returns>The renderer, or a failure describing the missing requirement.</returns>
-    public static unsafe OperationResult<WbRenderer> Create(GL gl)
+    public static OperationResult<WbRenderer> Create(GL gl)
     {
         ArgumentNullException.ThrowIfNull(gl);
         var version = GetVersionString(gl);
@@ -344,7 +345,7 @@ public sealed class WbRenderer : IDisposable
         var vbo = gl.GenBuffer();
         gl.BindVertexArray(vao);
         gl.BindBuffer(BufferTargetARB.ArrayBuffer, vbo);
-        gl.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 3 * (uint)sizeof(float), (void*)0);
+        gl.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 3 * (uint)sizeof(float), IntPtr.Zero);
         gl.EnableVertexAttribArray(0);
         gl.BindVertexArray(0);
         var terrainVao = gl.GenVertexArray();
@@ -451,7 +452,7 @@ public sealed class WbRenderer : IDisposable
     /// <param name="viewportPixels">The viewport size in pixels.</param>
     /// <param name="terrain">The terrain data, or null for an empty scene.</param>
     /// <param name="options">The render options.</param>
-    public unsafe void Render(WbCamera camera, Vector2 viewportPixels, MapTerrainData? terrain, MapCanvasRenderOptions options)
+    public void Render(WbCamera camera, Vector2 viewportPixels, MapTerrainData? terrain, MapCanvasRenderOptions options)
     {
         ArgumentNullException.ThrowIfNull(camera);
         ArgumentNullException.ThrowIfNull(options);
@@ -496,7 +497,7 @@ public sealed class WbRenderer : IDisposable
     /// </summary>
     /// <param name="data">The render data, or null to clear the terrain.</param>
     /// <param name="version">The data version token.</param>
-    public unsafe void SetTerrainData(WbTerrainRenderData? data, long version)
+    public void SetTerrainData(WbTerrainRenderData? data, long version)
     {
         ThrowIfDisposed();
         if (version == _terrainVersion)
@@ -522,10 +523,7 @@ public sealed class WbRenderer : IDisposable
             Array.Copy(data.ExtraVertices, 0, upload, data.Vertices.Length, data.ExtraVertices.Length);
         }
 
-        fixed (float* vertexData = upload)
-        {
-            _gl.BufferData(BufferTargetARB.ArrayBuffer, (nuint)(upload.Length * sizeof(float)), vertexData, BufferUsageARB.StaticDraw);
-        }
+        _gl.BufferData<float>(BufferTargetARB.ArrayBuffer, upload, BufferUsageARB.StaticDraw);
 
         var combined = new uint[data.Indices.Length + data.ExtraIndices.Length];
         Array.Copy(data.Indices, combined, data.Indices.Length);
@@ -535,25 +533,21 @@ public sealed class WbRenderer : IDisposable
             combined[data.Indices.Length + i] = extraBase + data.ExtraIndices[i];
         }
 
-        fixed (uint* indexData = combined)
-        {
-            _gl.BufferData(BufferTargetARB.ElementArrayBuffer, (nuint)(combined.Length * sizeof(uint)), indexData, BufferUsageARB.StaticDraw);
-        }
+        _gl.BufferData<uint>(BufferTargetARB.ElementArrayBuffer, combined, BufferUsageARB.StaticDraw);
 
         _gl.BindTexture(TextureTarget.Texture2D, _terrainTexture);
-        fixed (byte* pixels = data.AtlasPixels)
-        {
-            _gl.TexImage2D(
-                TextureTarget.Texture2D,
-                0,
-                (int)InternalFormat.Rgba8,
-                (uint)data.AtlasWidth,
-                (uint)data.AtlasHeight,
-                0,
-                PixelFormat.Rgba,
-                PixelType.UnsignedByte,
-                pixels);
-        }
+
+        // GetPinnableReference yields a null pointer for empty input, matching the previous fixed behavior.
+        _gl.TexImage2D(
+            TextureTarget.Texture2D,
+            0,
+            (int)InternalFormat.Rgba8,
+            (uint)data.AtlasWidth,
+            (uint)data.AtlasHeight,
+            0,
+            PixelFormat.Rgba,
+            PixelType.UnsignedByte,
+            in data.AtlasPixels.AsSpan().GetPinnableReference());
 
         _gl.GenerateMipmap(TextureTarget.Texture2D);
         _gl.BindVertexArray(0);
@@ -567,7 +561,7 @@ public sealed class WbRenderer : IDisposable
     /// </summary>
     /// <param name="data">The render data, or null to clear the models.</param>
     /// <param name="version">The data version token.</param>
-    public unsafe void SetModels(WbModelRenderData? data, long version)
+    public void SetModels(WbModelRenderData? data, long version)
     {
         ThrowIfDisposed();
         if (version == _modelsVersion)
@@ -601,7 +595,7 @@ public sealed class WbRenderer : IDisposable
     /// </summary>
     /// <param name="data">The render data, or null to clear the water.</param>
     /// <param name="version">The data version token.</param>
-    public unsafe void SetWater(WbWaterData? data, long version)
+    public void SetWater(WbWaterData? data, long version)
     {
         ThrowIfDisposed();
         if (version == _waterVersion)
@@ -617,15 +611,9 @@ public sealed class WbRenderer : IDisposable
         }
 
         _gl.BindVertexArray(_waterVao);
-        fixed (float* vertexData = data.Vertices)
-        {
-            _gl.BufferData(BufferTargetARB.ArrayBuffer, (nuint)(data.Vertices.Length * sizeof(float)), vertexData, BufferUsageARB.StaticDraw);
-        }
+        _gl.BufferData<float>(BufferTargetARB.ArrayBuffer, data.Vertices, BufferUsageARB.StaticDraw);
 
-        fixed (uint* indexData = data.Indices)
-        {
-            _gl.BufferData(BufferTargetARB.ElementArrayBuffer, (nuint)(data.Indices.Length * sizeof(uint)), indexData, BufferUsageARB.StaticDraw);
-        }
+        _gl.BufferData<uint>(BufferTargetARB.ElementArrayBuffer, data.Indices, BufferUsageARB.StaticDraw);
 
         _gl.BindVertexArray(0);
         _waterIndexCount = (uint)data.Indices.Length;
@@ -637,7 +625,7 @@ public sealed class WbRenderer : IDisposable
     /// </summary>
     /// <param name="data">The render data, or null to clear the lines.</param>
     /// <param name="version">The data version token.</param>
-    public unsafe void SetOverlayLines(WbOverlayLines? data, long version)
+    public void SetOverlayLines(WbOverlayLines? data, long version)
     {
         ThrowIfDisposed();
         if (version == _linesVersion)
@@ -653,10 +641,7 @@ public sealed class WbRenderer : IDisposable
         }
 
         _gl.BindVertexArray(_linesVao);
-        fixed (float* vertexData = data.Vertices)
-        {
-            _gl.BufferData(BufferTargetARB.ArrayBuffer, (nuint)(data.Vertices.Length * sizeof(float)), vertexData, BufferUsageARB.StaticDraw);
-        }
+        _gl.BufferData<float>(BufferTargetARB.ArrayBuffer, data.Vertices, BufferUsageARB.StaticDraw);
 
         _gl.BindVertexArray(0);
         _linesVertexCount = data.Vertices.Length / WbOverlayLines.StrideFloats;
@@ -695,25 +680,24 @@ public sealed class WbRenderer : IDisposable
         _gl.DeleteProgram(_overlayProgram);
     }
 
-    private static unsafe void SetupTerrainAttribs(GL gl)
+    private static void SetupTerrainAttribs(GL gl)
     {
         const uint stride = 12 * sizeof(float);
-        gl.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, stride, (void*)0);
+        gl.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, stride, IntPtr.Zero);
         gl.EnableVertexAttribArray(0);
-        gl.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, stride, (void*)(3 * sizeof(float)));
+        gl.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, stride, (IntPtr)(3 * sizeof(float)));
         gl.EnableVertexAttribArray(1);
-        gl.VertexAttribPointer(2, 2, VertexAttribPointerType.Float, false, stride, (void*)(6 * sizeof(float)));
+        gl.VertexAttribPointer(2, 2, VertexAttribPointerType.Float, false, stride, (IntPtr)(6 * sizeof(float)));
         gl.EnableVertexAttribArray(2);
-        gl.VertexAttribPointer(3, 2, VertexAttribPointerType.Float, false, stride, (void*)(8 * sizeof(float)));
+        gl.VertexAttribPointer(3, 2, VertexAttribPointerType.Float, false, stride, (IntPtr)(8 * sizeof(float)));
         gl.EnableVertexAttribArray(3);
-        gl.VertexAttribPointer(4, 2, VertexAttribPointerType.Float, false, stride, (void*)(10 * sizeof(float)));
+        gl.VertexAttribPointer(4, 2, VertexAttribPointerType.Float, false, stride, (IntPtr)(10 * sizeof(float)));
         gl.EnableVertexAttribArray(4);
     }
 
-    private static unsafe string GetVersionString(GL gl)
+    private static string GetVersionString(GL gl)
     {
-        var native = gl.GetString(StringName.Version);
-        return native == null ? string.Empty : Marshal.PtrToStringAnsi((nint)native) ?? string.Empty;
+        return gl.GetStringS(StringName.Version) ?? string.Empty;
     }
 
     private static uint CompileProgram(GL gl, string vertexBody, string fragmentBody, out string error)
@@ -846,56 +830,67 @@ public sealed class WbRenderer : IDisposable
             MathF.Sin(pitch));
     }
 
-    private static unsafe void SetupOverlayAttribs(GL gl)
+    private static void SetupOverlayAttribs(GL gl)
     {
         const uint stride = (uint)WbWaterData.StrideFloats * sizeof(float);
-        gl.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, stride, (void*)0);
+        gl.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, stride, IntPtr.Zero);
         gl.EnableVertexAttribArray(0);
-        gl.VertexAttribPointer(1, 4, VertexAttribPointerType.Float, false, stride, (void*)(3 * sizeof(float)));
+        gl.VertexAttribPointer(1, 4, VertexAttribPointerType.Float, false, stride, (IntPtr)(3 * sizeof(float)));
         gl.EnableVertexAttribArray(1);
     }
 
-    private static unsafe void SetupModelAttribs(GL gl)
+    private static void SetupModelAttribs(GL gl)
     {
         const uint stride = (uint)WbModelDraw.StrideFloats * sizeof(float);
-        gl.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, stride, (void*)0);
+        gl.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, stride, IntPtr.Zero);
         gl.EnableVertexAttribArray(0);
-        gl.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, stride, (void*)(3 * sizeof(float)));
+        gl.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, stride, (IntPtr)(3 * sizeof(float)));
         gl.EnableVertexAttribArray(1);
-        gl.VertexAttribPointer(2, 2, VertexAttribPointerType.Float, false, stride, (void*)(6 * sizeof(float)));
+        gl.VertexAttribPointer(2, 2, VertexAttribPointerType.Float, false, stride, (IntPtr)(6 * sizeof(float)));
         gl.EnableVertexAttribArray(2);
-        gl.VertexAttribPointer(3, 4, VertexAttribPointerType.Float, false, stride, (void*)(8 * sizeof(float)));
+        gl.VertexAttribPointer(3, 4, VertexAttribPointerType.Float, false, stride, (IntPtr)(8 * sizeof(float)));
         gl.EnableVertexAttribArray(3);
     }
 
-    private unsafe void DrawTerrain(Matrix4x4 viewProj)
+    /// <summary>
+    /// Draws indexed triangles from a byte offset into the bound element buffer.
+    /// Silk.NET 2.22 exposes no safe offset overload for DrawElements, so the
+    /// offset cast is isolated here. No managed memory is pinned or dereferenced.
+    /// </summary>
+    /// <param name="gl">The GL bindings.</param>
+    /// <param name="mode">The primitive mode.</param>
+    /// <param name="count">The index count.</param>
+    /// <param name="byteOffset">The byte offset into the bound element buffer.</param>
+    [SuppressMessage("Major Vulnerability", "S6640", Justification = "Byte offset into GL-owned index buffer; Silk.NET 2.22 offers no safe DrawElements offset overload, and no managed memory is pinned or dereferenced.")]
+    private static void DrawElementsAtOffset(GL gl, PrimitiveType mode, uint count, nint byteOffset)
+    {
+        unsafe
+        {
+            gl.DrawElements(mode, count, DrawElementsType.UnsignedInt, (void*)byteOffset);
+        }
+    }
+
+    private void DrawTerrain(Matrix4x4 viewProj)
     {
         _gl.UseProgram(_terrainProgram);
         var columnMajor = ToColumnMajor(viewProj);
-        fixed (float* matrix = columnMajor)
-        {
-            _gl.UniformMatrix4(_terrainViewProjLocation, 1, false, matrix);
-        }
+        _gl.UniformMatrix4(_terrainViewProjLocation, false, columnMajor.AsSpan());
 
         _gl.ActiveTexture(TextureUnit.Texture0);
         _gl.BindTexture(TextureTarget.Texture2D, _terrainTexture);
         _gl.Uniform1(_terrainTilesLocation, 0);
         _gl.BindVertexArray(_terrainVao);
-        _gl.DrawElements(PrimitiveType.Triangles, _terrainIndexCount, DrawElementsType.UnsignedInt, (void*)0);
+        DrawElementsAtOffset(_gl, PrimitiveType.Triangles, _terrainIndexCount, 0);
         if (_terrainExtraIndexCount > 0)
         {
-            _gl.DrawElements(
-                PrimitiveType.Triangles,
-                _terrainExtraIndexCount,
-                DrawElementsType.UnsignedInt,
-                (void*)(_terrainIndexCount * sizeof(uint)));
+            DrawElementsAtOffset(_gl, PrimitiveType.Triangles, _terrainExtraIndexCount, (nint)(_terrainIndexCount * sizeof(uint)));
         }
 
         _gl.BindVertexArray(0);
         _gl.UseProgram(0);
     }
 
-    private unsafe void DrawGrid(Matrix4x4 viewProj, MapTerrainData terrain, int gridStep)
+    private void DrawGrid(Matrix4x4 viewProj, MapTerrainData terrain, int gridStep)
     {
         var step = Math.Max(1, gridStep);
         var minX = -terrain.BorderSize * 10.0f;
@@ -918,10 +913,7 @@ public sealed class WbRenderer : IDisposable
 
         _gl.UseProgram(_program);
         var columnMajor = ToColumnMajor(viewProj);
-        fixed (float* matrix = columnMajor)
-        {
-            _gl.UniformMatrix4(_viewProjLocation, 1, false, matrix);
-        }
+        _gl.UniformMatrix4(_viewProjLocation, false, columnMajor.AsSpan());
 
         _gl.Uniform4(_colorLocation, 1.0f, 1.0f, 1.0f, 0.35f);
         _gl.BindVertexArray(_gridVao);
@@ -930,16 +922,13 @@ public sealed class WbRenderer : IDisposable
         _gl.UseProgram(0);
     }
 
-    private unsafe void UploadGridBuffer(float[] vertices)
+    private void UploadGridBuffer(float[] vertices)
     {
         _gl.BindBuffer(BufferTargetARB.ArrayBuffer, _gridVbo);
-        fixed (float* data = vertices)
-        {
-            _gl.BufferData(BufferTargetARB.ArrayBuffer, (nuint)(vertices.Length * sizeof(float)), data, BufferUsageARB.StaticDraw);
-        }
+        _gl.BufferData<float>(BufferTargetARB.ArrayBuffer, vertices, BufferUsageARB.StaticDraw);
     }
 
-    private unsafe ModelUpload? UploadDraw(WbModelDraw draw, HashSet<string> usedTextures)
+    private ModelUpload? UploadDraw(WbModelDraw draw, HashSet<string> usedTextures)
     {
         if (draw.Vertices.Length == 0 || draw.Indices.Length == 0)
         {
@@ -954,21 +943,15 @@ public sealed class WbRenderer : IDisposable
         _gl.BindBuffer(BufferTargetARB.ArrayBuffer, vbo);
         _gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, ibo);
         SetupModelAttribs(_gl);
-        fixed (float* vertexData = draw.Vertices)
-        {
-            _gl.BufferData(BufferTargetARB.ArrayBuffer, (nuint)(draw.Vertices.Length * sizeof(float)), vertexData, BufferUsageARB.StaticDraw);
-        }
+        _gl.BufferData<float>(BufferTargetARB.ArrayBuffer, draw.Vertices, BufferUsageARB.StaticDraw);
 
-        fixed (uint* indexData = draw.Indices)
-        {
-            _gl.BufferData(BufferTargetARB.ElementArrayBuffer, (nuint)(draw.Indices.Length * sizeof(uint)), indexData, BufferUsageARB.StaticDraw);
-        }
+        _gl.BufferData<uint>(BufferTargetARB.ElementArrayBuffer, draw.Indices, BufferUsageARB.StaticDraw);
 
         _gl.BindVertexArray(0);
         return new ModelUpload(vao, vbo, ibo, (uint)draw.Indices.Length, texture, draw.State, draw.TwoSided);
     }
 
-    private unsafe uint UploadModelTexture(WbModelDraw draw, HashSet<string> usedTextures)
+    private uint UploadModelTexture(WbModelDraw draw, HashSet<string> usedTextures)
     {
         if (draw.TextureName == null || draw.Texture == null)
         {
@@ -993,19 +976,18 @@ public sealed class WbRenderer : IDisposable
         _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
         _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
         _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
-        fixed (byte* pixels = decoded.PixelData)
-        {
-            _gl.TexImage2D(
-                TextureTarget.Texture2D,
-                0,
-                (int)InternalFormat.Rgba8,
-                (uint)decoded.Width,
-                (uint)decoded.Height,
-                0,
-                PixelFormat.Rgba,
-                PixelType.UnsignedByte,
-                pixels);
-        }
+
+        // GetPinnableReference yields a null pointer for empty input, matching the previous fixed behavior.
+        _gl.TexImage2D(
+            TextureTarget.Texture2D,
+            0,
+            (int)InternalFormat.Rgba8,
+            (uint)decoded.Width,
+            (uint)decoded.Height,
+            0,
+            PixelFormat.Rgba,
+            PixelType.UnsignedByte,
+            in decoded.PixelData.AsSpan().GetPinnableReference());
 
         _gl.GenerateMipmap(TextureTarget.Texture2D);
         _modelTextures[draw.TextureName] = texture;
@@ -1042,14 +1024,11 @@ public sealed class WbRenderer : IDisposable
         _modelUploads.Clear();
     }
 
-    private unsafe void DrawModels(Matrix4x4 viewProj, Vector3 sunDirection)
+    private void DrawModels(Matrix4x4 viewProj, Vector3 sunDirection)
     {
         _gl.UseProgram(_modelProgram);
         var columnMajor = ToColumnMajor(viewProj);
-        fixed (float* matrix = columnMajor)
-        {
-            _gl.UniformMatrix4(_modelViewProjLocation, 1, false, matrix);
-        }
+        _gl.UniformMatrix4(_modelViewProjLocation, false, columnMajor.AsSpan());
 
         _gl.Uniform3(_modelSunLocation, sunDirection.X, sunDirection.Y, sunDirection.Z);
         _gl.Uniform1(_modelAlphaRefLocation, W3dShaderMap.AlphaReference);
@@ -1070,7 +1049,7 @@ public sealed class WbRenderer : IDisposable
         _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
     }
 
-    private unsafe void DrawModelUpload(ModelUpload upload)
+    private void DrawModelUpload(ModelUpload upload)
     {
         var state = upload.State;
         _gl.DepthFunc(MapDepthFunction(state.DepthFunction));
@@ -1100,37 +1079,31 @@ public sealed class WbRenderer : IDisposable
         _gl.Uniform1(_modelAlphaTestLocation, state.AlphaTest ? 1 : 0);
         _gl.Uniform1(_modelCombineLocation, (int)state.Combine);
         _gl.BindVertexArray(upload.Vao);
-        _gl.DrawElements(PrimitiveType.Triangles, upload.IndexCount, DrawElementsType.UnsignedInt, (void*)0);
+        DrawElementsAtOffset(_gl, PrimitiveType.Triangles, upload.IndexCount, 0);
     }
 
-    private unsafe void DrawWater(Matrix4x4 viewProj)
+    private void DrawWater(Matrix4x4 viewProj)
     {
         _gl.UseProgram(_overlayProgram);
         var columnMajor = ToColumnMajor(viewProj);
-        fixed (float* matrix = columnMajor)
-        {
-            _gl.UniformMatrix4(_overlayViewProjLocation, 1, false, matrix);
-        }
+        _gl.UniformMatrix4(_overlayViewProjLocation, false, columnMajor.AsSpan());
 
         _gl.Enable(EnableCap.Blend);
         _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
         _gl.DepthMask(false);
         _gl.Disable(EnableCap.CullFace);
         _gl.BindVertexArray(_waterVao);
-        _gl.DrawElements(PrimitiveType.Triangles, _waterIndexCount, DrawElementsType.UnsignedInt, (void*)0);
+        DrawElementsAtOffset(_gl, PrimitiveType.Triangles, _waterIndexCount, 0);
         _gl.BindVertexArray(0);
         _gl.DepthMask(true);
         _gl.UseProgram(0);
     }
 
-    private unsafe void DrawLines(Matrix4x4 viewProj)
+    private void DrawLines(Matrix4x4 viewProj)
     {
         _gl.UseProgram(_overlayProgram);
         var columnMajor = ToColumnMajor(viewProj);
-        fixed (float* matrix = columnMajor)
-        {
-            _gl.UniformMatrix4(_overlayViewProjLocation, 1, false, matrix);
-        }
+        _gl.UniformMatrix4(_overlayViewProjLocation, false, columnMajor.AsSpan());
 
         _gl.Enable(EnableCap.Blend);
         _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
