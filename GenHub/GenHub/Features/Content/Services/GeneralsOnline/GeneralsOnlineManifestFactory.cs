@@ -1126,7 +1126,7 @@ public class GeneralsOnlineManifestFactory(
 
     private void ReconcileMissingExtractedDependencies(List<ContentManifest> manifests)
     {
-        if (!manifests.Any(m => m.ContentType == ContentType.MapPack))
+        if (manifests.All(m => m.ContentType != ContentType.MapPack))
         {
             RemoveMissingDependencies(
                 manifests,
@@ -1134,7 +1134,7 @@ public class GeneralsOnlineManifestFactory(
                 "MapPack");
         }
 
-        if (!manifests.Any(m => m.ContentType == ContentType.Patch))
+        if (manifests.All(m => m.ContentType != ContentType.Patch))
         {
             RemoveMissingDependencies(
                 manifests,
