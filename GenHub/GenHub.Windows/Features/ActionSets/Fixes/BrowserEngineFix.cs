@@ -7,7 +7,7 @@ namespace GenHub.Windows.Features.ActionSets.Fixes;
 /// Fix for the BrowserEngine.dll which causes crashes on modern systems.
 /// </summary>
 public class BrowserEngineFix(ILogger<BrowserEngineFix> logger)
-    : BaseFileRenameFix(logger, GameClientConstants.BrowserEngineDll, GameClientConstants.BrowserEngineDllBak)
+    : BaseFileRenameFix(logger, GameClientConstants.BrowserEngineDll)
 {
     /// <inheritdoc/>
     public override string Id => "BrowserEngineFix";

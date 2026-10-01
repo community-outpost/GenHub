@@ -16,22 +16,22 @@ These fixes are essential for the games to run properly on modern Windows system
 
 **What It Does**:
 
-- Renames `BrowserEngine.dll` to `BrowserEngine.dll.ghbak` in game directories
+- Renames `BrowserEngine.dll` to `BrowserEngine.dll.genpatcher.ghbak` in game directories
 - Prevents crashes and errors caused by outdated browser components
 - Applies to both Generals and Zero Hour
 
 **How It Works**:
 
 1. Checks if `BrowserEngine.dll` exists in game installation directories
-2. If found, renames it to `BrowserEngine.dll.ghbak` to disable it
+2. If found, renames it to `BrowserEngine.dll.genpatcher.ghbak` to disable it
 3. The game will run without the browser engine (which is rarely used)
 
 **Files Modified**:
 
-- `{GeneralsPath}\BrowserEngine.dll` → `BrowserEngine.dll.ghbak`
-- `{ZeroHourPath}\BrowserEngine.dll` → `BrowserEngine.dll.ghbak`
+- `{GeneralsPath}\BrowserEngine.dll` → `BrowserEngine.dll.genpatcher.ghbak`
+- `{ZeroHourPath}\BrowserEngine.dll` → `BrowserEngine.dll.genpatcher.ghbak`
 
-**Reversible**: Yes. Undo renames `.ghbak` back to `.dll`.
+**Reversible**: Yes. Undo renames the newest backup back to `.dll`.
 
 ---
 
@@ -41,23 +41,23 @@ These fixes are essential for the games to run properly on modern Windows system
 
 **What It Does**:
 
-- Renames `dbghelp.dll` to `dbghelp.dll.ghbak` in both Generals and Zero Hour directories
+- Renames `dbghelp.dll` to `dbghelp.dll.genpatcher.ghbak` in both Generals and Zero Hour directories
 - Lets the game fall back to the stable system `dbghelp.dll`
 - Prevents crashes during error reporting and debugging
 
 **How It Works**:
 
 1. Checks for an existing `dbghelp.dll` in game directories
-2. If found, renames it to `dbghelp.dll.ghbak` to disable it
+2. If found, renames it to `dbghelp.dll.genpatcher.ghbak` to disable it
 
 **Files Modified**:
 
-- `{GeneralsPath}\dbghelp.dll` → `dbghelp.dll.ghbak`
-- `{ZeroHourPath}\dbghelp.dll` → `dbghelp.dll.ghbak`
+- `{GeneralsPath}\dbghelp.dll` → `dbghelp.dll.genpatcher.ghbak`
+- `{ZeroHourPath}\dbghelp.dll` → `dbghelp.dll.genpatcher.ghbak`
 
-**Reversible**: Yes. Undo renames `.ghbak` back to `.dll`.
+**Reversible**: Yes. Undo renames the newest backup back to `.dll`.
 
-**Backups (both fixes)**: Neither fix reads or writes a user's own `.bak` file during apply. If a game repair restores the target while a `.ghbak` exists, apply moves the restored file to the next free numbered backup (`.ghbak.1`, `.ghbak.2`, and so on), preserving all earlier backups. Undo restores the highest numbered backup when the target is absent. If the target already exists, undo succeeds without changing it or any backups. Renames never overwrite an existing destination. Undo restores a `.bak` left by earlier GenHub builds only when the `.dll` is missing.
+**Backups (both fixes)**: Neither fix reads or writes a user's own `.bak` file during apply. If a game repair brings the `.dll` back while a backup exists, apply moves it to the next free numbered backup (`.genpatcher.1.ghbak`, `.genpatcher.2.ghbak`, and so on) and keeps every earlier backup. Renames never overwrite an existing file or directory. Undo restores the highest numbered backup when the `.dll` is missing. If the `.dll` is present, undo changes nothing. Undo restores a `.bak` left by earlier GenHub builds only when the `.dll` is missing and no GenPatcher backup exists. Every backup name ends in `.ghbak`, so installation scans skip it, but none is `<file>.ghbak`, which the scanner would read in place of the live `.dll`.
 
 ---
 

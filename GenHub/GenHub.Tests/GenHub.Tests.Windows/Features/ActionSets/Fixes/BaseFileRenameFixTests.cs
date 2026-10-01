@@ -2,6 +2,7 @@ using FluentAssertions;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
+using GenHub.Features.Manifest;
 using GenHub.Windows.Features.ActionSets.Fixes;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
@@ -23,6 +24,9 @@ public sealed class BaseFileRenameFixTests : IDisposable
     private const string UserBackupSuffix = ".bak";
     private const string OriginalContent = "original dll bytes";
     private const string DifferentContent = "an older dll the user kept";
+    private const string UnrelatedSuffix = ".notes";
+    private const string FirstRepairContent = "first repair";
+    private const string SecondRepairContent = "second repair";
 
     private readonly string _root;
 
@@ -252,11 +256,11 @@ public sealed class BaseFileRenameFixTests : IDisposable
         foreach (var dir in new[] { generalsDir, zeroHourDir })
         {
             File.Exists(Path.Combine(dir, target)).Should().BeFalse();
-            File.ReadAllText(Path.Combine(dir, genHubBackup + ".1")).Should().Be(OriginalContent);
+            File.ReadAllText(Path.Combine(dir, BaseFileRenameFix.GetBackupFileName(target, 1))).Should().Be(OriginalContent);
         }
 
         (await fix.UndoAsync(installation)).Success.Should().BeTrue();
-        result.Details.Should().Contain(d => d.Contains(genHubBackup, StringComparison.Ordinal));
+        result.Details.Should().Contain(d => d.Contains(BaseFileRenameFix.GetBackupFileName(target, 1), StringComparison.Ordinal));
         Snapshot().Should().BeEquivalentTo(before);
     }
 
@@ -280,7 +284,7 @@ public sealed class BaseFileRenameFixTests : IDisposable
 
         apply.Success.Should().BeTrue();
         File.Exists(Path.Combine(generalsDir, target)).Should().BeFalse();
-        File.ReadAllText(Path.Combine(generalsDir, genHubBackup + ".1")).Should().Be(OriginalContent);
+        File.ReadAllText(Path.Combine(generalsDir, BaseFileRenameFix.GetBackupFileName(target, 1))).Should().Be(OriginalContent);
         (await fix.UndoAsync(installation)).Success.Should().BeTrue();
         Snapshot().Should().BeEquivalentTo(before);
     }
@@ -343,17 +347,17 @@ public sealed class BaseFileRenameFixTests : IDisposable
         installation.HasZeroHour = false;
         File.WriteAllText(Path.Combine(directory, target), OriginalContent);
         (await fix.ApplyAsync(installation)).Success.Should().BeTrue();
-        File.WriteAllText(Path.Combine(directory, target), "first repair");
+        File.WriteAllText(Path.Combine(directory, target), FirstRepairContent);
         (await fix.ApplyAsync(installation)).Success.Should().BeTrue();
-        File.WriteAllText(Path.Combine(directory, target), "second repair");
+        File.WriteAllText(Path.Combine(directory, target), SecondRepairContent);
         (await fix.ApplyAsync(installation)).Success.Should().BeTrue();
         (await fix.ApplyAsync(installation)).Success.Should().BeTrue();
         (await fix.UndoAsync(installation)).Success.Should().BeTrue();
         (await fix.UndoAsync(installation)).Success.Should().BeTrue();
-        File.ReadAllText(Path.Combine(directory, target)).Should().Be("second repair");
+        File.ReadAllText(Path.Combine(directory, target)).Should().Be(SecondRepairContent);
         File.ReadAllText(Path.Combine(directory, backup)).Should().Be(OriginalContent);
-        File.ReadAllText(Path.Combine(directory, backup + ".1")).Should().Be("first repair");
-        File.Exists(Path.Combine(directory, backup + ".2")).Should().BeFalse();
+        File.ReadAllText(Path.Combine(directory, BaseFileRenameFix.GetBackupFileName(target, 1))).Should().Be(FirstRepairContent);
+        File.Exists(Path.Combine(directory, BaseFileRenameFix.GetBackupFileName(target, 2))).Should().BeFalse();
     }
 
     /// <summary>Numbered backups sort numerically and unrelated suffixes remain untouched.</summary>
@@ -367,16 +371,77 @@ public sealed class BaseFileRenameFixTests : IDisposable
         var installation = CreateInstallation(out var directory, out _);
         installation.HasZeroHour = false;
         File.WriteAllText(Path.Combine(directory, target), OriginalContent);
-        File.WriteAllText(Path.Combine(directory, backup + ".9"), "old repair");
-        Directory.CreateDirectory(Path.Combine(directory, backup + ".10"));
-        File.WriteAllText(Path.Combine(directory, backup + ".notes"), "user notes");
+        File.WriteAllText(Path.Combine(directory, BaseFileRenameFix.GetBackupFileName(target, 9)), "old repair");
+        Directory.CreateDirectory(Path.Combine(directory, BaseFileRenameFix.GetBackupFileName(target, 10)));
+        File.WriteAllText(Path.Combine(directory, UnrelatedBackupName(target)), "user notes");
         (await fix.ApplyAsync(installation)).Success.Should().BeTrue();
-        File.ReadAllText(Path.Combine(directory, backup + ".11")).Should().Be(OriginalContent);
+        File.ReadAllText(Path.Combine(directory, BaseFileRenameFix.GetBackupFileName(target, 11))).Should().Be(OriginalContent);
         (await fix.UndoAsync(installation)).Success.Should().BeTrue();
         File.ReadAllText(Path.Combine(directory, target)).Should().Be(OriginalContent);
-        File.ReadAllText(Path.Combine(directory, backup + ".9")).Should().Be("old repair");
-        Directory.Exists(Path.Combine(directory, backup + ".10")).Should().BeTrue();
-        File.ReadAllText(Path.Combine(directory, backup + ".notes")).Should().Be("user notes");
+        File.ReadAllText(Path.Combine(directory, BaseFileRenameFix.GetBackupFileName(target, 9))).Should().Be("old repair");
+        Directory.Exists(Path.Combine(directory, BaseFileRenameFix.GetBackupFileName(target, 10))).Should().BeTrue();
+        File.ReadAllText(Path.Combine(directory, UnrelatedBackupName(target))).Should().Be("user notes");
+    }
+
+    /// <summary>
+    /// Verifies a directory at the first backup path is left alone and apply uses the next numbered name.
+    /// </summary>
+    /// <param name="fixId">The fix under test.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
+    [Theory]
+    [MemberData(nameof(FixIds))]
+    public async Task Apply_WhenDirectoryOccupiesBaseBackupPath_UsesNumberedBackupAsync(string fixId)
+    {
+        var (fix, target, backup) = CreateFix(fixId);
+        var installation = CreateInstallation(out var directory, out _);
+        installation.HasZeroHour = false;
+        File.WriteAllText(Path.Combine(directory, target), OriginalContent);
+        Directory.CreateDirectory(Path.Combine(directory, backup));
+
+        var apply = await fix.ApplyAsync(installation);
+
+        apply.Success.Should().BeTrue(string.Join(Environment.NewLine, apply.Details));
+        Directory.Exists(Path.Combine(directory, backup)).Should().BeTrue();
+        File.ReadAllText(Path.Combine(directory, BaseFileRenameFix.GetBackupFileName(target, 1))).Should().Be(OriginalContent);
+
+        var undo = await fix.UndoAsync(installation);
+
+        undo.Success.Should().BeTrue(string.Join(Environment.NewLine, undo.Details));
+        File.ReadAllText(Path.Combine(directory, target)).Should().Be(OriginalContent);
+        Directory.Exists(Path.Combine(directory, backup)).Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Verifies that after apply, repair, apply, repair, apply and undo, installation scans skip every backup
+    /// and read the live file, not a stale backup.
+    /// </summary>
+    /// <param name="fixId">The fix under test.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
+    [Theory]
+    [MemberData(nameof(FixIds))]
+    public async Task ScanRules_AfterRepairsAndUndo_SkipBackupsAndReadLiveFileAsync(string fixId)
+    {
+        var (fix, target, _) = CreateFix(fixId);
+        var installation = CreateInstallation(out var directory, out _);
+        installation.HasZeroHour = false;
+        var targetPath = Path.Combine(directory, target);
+        File.WriteAllText(targetPath, OriginalContent);
+        (await fix.ApplyAsync(installation)).Success.Should().BeTrue();
+        File.WriteAllText(targetPath, FirstRepairContent);
+        (await fix.ApplyAsync(installation)).Success.Should().BeTrue();
+        File.WriteAllText(targetPath, SecondRepairContent);
+        (await fix.ApplyAsync(installation)).Success.Should().BeTrue();
+        (await fix.UndoAsync(installation)).Success.Should().BeTrue();
+
+        var scanned = Directory.EnumerateFiles(directory)
+            .Select(Path.GetFileName)
+            .Where(name => !GameInstallationScanRules.ShouldSkipFile(name!))
+            .ToList();
+
+        Directory.EnumerateFiles(directory).Should().HaveCount(3);
+        scanned.Should().Equal(target);
+        GameInstallationScanRules.ResolveSourcePathWithBackup(targetPath).Should().Be(targetPath);
+        File.ReadAllText(targetPath).Should().Be(SecondRepairContent);
     }
 
     private static (BaseFileRenameFix Fix, string Target, string GenHubBackup) CreateFix(string fixId) => fixId switch
@@ -384,13 +449,16 @@ public sealed class BaseFileRenameFixTests : IDisposable
         nameof(BrowserEngineFix) => (
             new BrowserEngineFix(NullLogger<BrowserEngineFix>.Instance),
             GameClientConstants.BrowserEngineDll,
-            GameClientConstants.BrowserEngineDllBak),
+            BaseFileRenameFix.GetBackupFileName(GameClientConstants.BrowserEngineDll, 0)),
         nameof(DbgHelpFix) => (
             new DbgHelpFix(NullLogger<DbgHelpFix>.Instance),
             GameClientConstants.DbgHelpDll,
-            GameClientConstants.DbgHelpDllBak),
+            BaseFileRenameFix.GetBackupFileName(GameClientConstants.DbgHelpDll, 0)),
         _ => throw new ArgumentOutOfRangeException(nameof(fixId), fixId, null),
     };
+
+    private static string UnrelatedBackupName(string target) =>
+        target + FileTypes.GenPatcherBackupInfix + UnrelatedSuffix + FileTypes.BackupExtension;
 
     private static void Seed(string dir, string target, bool hasOriginal, string? userBackupContent)
     {

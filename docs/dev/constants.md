@@ -316,6 +316,7 @@ File and directory name constants to prevent typos and ensure consistency.
 | `ManifestFileExtension`     | `".manifest.json"`  | File extension for manifest files |
 | `UserDataManifestExtension` | `".userdata.json"`  | File extension for user data manifest files |
 | `BackupExtension`           | `".ghbak"`          | File extension for backup files   |
+| `GenPatcherBackupInfix`     | `".genpatcher"`     | Infix for GenPatcher rename backups, as in `dbghelp.dll.genpatcher.ghbak` |
 
 ### JSON Files
 

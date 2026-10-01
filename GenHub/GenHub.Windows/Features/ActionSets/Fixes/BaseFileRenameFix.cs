@@ -12,19 +12,21 @@ using System.Threading.Tasks;
 namespace GenHub.Windows.Features.ActionSets.Fixes;
 
 /// <summary>
-/// Abstract base class for fixes that disable problematic DLLs/files by renaming them to a GenHub-owned backup name.
+/// Abstract base class for fixes that disable problematic DLLs/files by renaming them to a GenPatcher backup name.
 /// </summary>
 /// <remarks>
-/// The backup name is never a generic <c>.bak</c>, so apply never overwrites or consumes a backup the user already keeps.
+/// Backups are named <c>&lt;file&gt;.genpatcher.ghbak</c>, then <c>&lt;file&gt;.genpatcher.N.ghbak</c> when a game repair
+/// brings the file back. Apply never overwrites or consumes a <c>.bak</c> the user already keeps.
 /// Undo falls back to a <c>.bak</c> left by earlier builds only when the target file is absent, so no bytes are lost.
 /// Neither apply nor undo deletes a file whose content is not preserved in another file.
 /// </remarks>
 public abstract class BaseFileRenameFix(
     ILogger logger,
-    string targetFileName,
-    string backupFileName)
+    string targetFileName)
     : BaseActionSet(logger)
 {
+    private readonly string _backupStem = targetFileName + FileTypes.GenPatcherBackupInfix;
+
     /// <inheritdoc/>
     public override string Category => ActionSetConstants.Categories.CoreAndStability;
 
@@ -63,6 +65,16 @@ public abstract class BaseFileRenameFix(
 
         return Task.FromResult(generalsApplied && zeroHourApplied);
     }
+
+    /// <summary>
+    /// Builds the backup file name for a target: index 0 is the first backup, higher indexes follow game repairs.
+    /// </summary>
+    /// <param name="targetFileName">The file the fix disables.</param>
+    /// <param name="index">The backup sequence number.</param>
+    /// <returns>The backup file name.</returns>
+    internal static string GetBackupFileName(string targetFileName, long index) => index == 0
+        ? targetFileName + FileTypes.GenPatcherBackupInfix + FileTypes.BackupExtension
+        : targetFileName + FileTypes.GenPatcherBackupInfix + "." + index.ToString(CultureInfo.InvariantCulture) + FileTypes.BackupExtension;
 
     /// <inheritdoc/>
     protected override Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken ct)
@@ -131,10 +143,27 @@ public abstract class BaseFileRenameFix(
         Path.TrimEndingDirectorySeparator(second),
         StringComparison.OrdinalIgnoreCase);
 
+    private static long ParseBackupIndex(string name, string prefix)
+    {
+        if (name.Length <= prefix.Length + FileTypes.BackupExtension.Length
+            || !name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+            || !name.EndsWith(FileTypes.BackupExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            return -1;
+        }
+
+        var digits = name[prefix.Length..^FileTypes.BackupExtension.Length];
+        return long.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out var index)
+            && index > 0
+            && digits == index.ToString(CultureInfo.InvariantCulture)
+                ? index
+                : -1;
+    }
+
     private bool DisableTarget(string directory, List<string> details)
     {
         var originalPath = Path.Combine(directory, targetFileName);
-        var backupPath = Path.Combine(directory, backupFileName);
+        var backupPath = Path.Combine(directory, GetBackupFileName(targetFileName, 0));
 
         if (!File.Exists(originalPath))
         {
@@ -152,7 +181,7 @@ public abstract class BaseFileRenameFix(
                     throw new IOException("No more backup sequence numbers are available.");
                 }
 
-                backupPath += "." + (Math.Max(0, latest.Index) + 1).ToString(CultureInfo.InvariantCulture);
+                backupPath = Path.Combine(directory, GetBackupFileName(targetFileName, Math.Max(0, latest.Index) + 1));
             }
 
             // The non-overwriting rename preserves both files, even if another process wins the name.
@@ -178,7 +207,7 @@ public abstract class BaseFileRenameFix(
     private bool RestoreTarget(string directory, List<string> details)
     {
         var originalPath = Path.Combine(directory, targetFileName);
-        var backupPath = Path.Combine(directory, backupFileName);
+        var backupPath = Path.Combine(directory, GetBackupFileName(targetFileName, 0));
 
         try
         {
@@ -194,54 +223,39 @@ public abstract class BaseFileRenameFix(
                 return RestoreLegacyBackup(directory, originalPath, details);
             }
 
-            if (!File.Exists(originalPath))
-            {
-                File.Move(backupPath, originalPath);
-                details.Add($"  OK: Restored: {Path.GetFileName(backupPath)} -> {targetFileName}");
-                Logger.LogInformation("Restored {BackupPath} to {OriginalPath}", backupPath, originalPath);
-                return true;
-            }
-
-            details.Add($"  Error: {targetFileName} already exists. Both files were left unchanged.");
-            Logger.LogWarning("Not restoring {BackupPath}: target already exists at {OriginalPath}", backupPath, originalPath);
-            return false;
+            File.Move(backupPath, originalPath);
+            details.Add($"  OK: Restored: {Path.GetFileName(backupPath)} -> {targetFileName}");
+            Logger.LogInformation("Restored {BackupPath} to {OriginalPath}", backupPath, originalPath);
+            return true;
         }
         catch (IOException ex)
         {
             Logger.LogError(ex, "Failed to restore {BackupPath}", backupPath);
-            AddFailureDetail(details, ex, $"restoring {backupFileName}", indent: "  ");
+            AddFailureDetail(details, ex, $"restoring {Path.GetFileName(backupPath)}", indent: "  ");
             return false;
         }
         catch (UnauthorizedAccessException ex)
         {
             Logger.LogError(ex, "Access denied restoring {BackupPath}", backupPath);
-            AddFailureDetail(details, ex, $"restoring {backupFileName}", indent: "  ");
+            AddFailureDetail(details, ex, $"restoring {Path.GetFileName(backupPath)}", indent: "  ");
             return false;
         }
     }
 
     private (long Index, string Path) GetLatestBackup(string directory, bool filesOnly = false)
     {
-        var basePath = Path.Combine(directory, backupFileName);
+        var basePath = Path.Combine(directory, GetBackupFileName(targetFileName, 0));
         var latest = (Index: File.Exists(basePath) ? 0L : -1L, Path: File.Exists(basePath) ? basePath : string.Empty);
         if (!Directory.Exists(directory))
         {
             return latest;
         }
 
-        foreach (var path in Directory.EnumerateFileSystemEntries(directory, backupFileName + ".*"))
+        var prefix = _backupStem + ".";
+        foreach (var path in Directory.EnumerateFileSystemEntries(directory, prefix + "*" + FileTypes.BackupExtension))
         {
-            var name = Path.GetFileName(path);
-            if (!name.StartsWith(backupFileName + ".", StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            var suffix = name[(backupFileName.Length + 1)..];
-            if (long.TryParse(suffix, NumberStyles.None, CultureInfo.InvariantCulture, out var index)
-                && index > latest.Index && index > 0
-                && suffix == index.ToString(CultureInfo.InvariantCulture)
-                && (!filesOnly || File.Exists(path)))
+            var index = ParseBackupIndex(Path.GetFileName(path), prefix);
+            if (index > latest.Index && (!filesOnly || File.Exists(path)))
             {
                 latest = (index, path);
             }
@@ -257,7 +271,7 @@ public abstract class BaseFileRenameFix(
 
         if (File.Exists(originalPath) || !File.Exists(legacyPath))
         {
-            details.Add($"  OK: {backupFileName} not present, nothing to restore");
+            details.Add($"  OK: no backup of {targetFileName} present, nothing to restore");
             return true;
         }
 
