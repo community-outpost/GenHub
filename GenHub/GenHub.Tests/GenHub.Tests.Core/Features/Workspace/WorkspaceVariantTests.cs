@@ -130,6 +130,21 @@ public sealed class WorkspaceVariantTests : IDisposable
             Times.Once);
     }
 
+    /// <summary>Hybrid preparation copies a duplicate host file only once.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task PrepareAsync_Hybrid_DeduplicatesActualFileOperationsAsync()
+    {
+        var manifest = CreateManifest();
+        var configuration = CreateConfiguration(WorkspaceStrategy.HybridCopySymlink, manifest);
+        configuration.Manifests.Add(manifest);
+        var result = await CreateStrategy(WorkspaceStrategy.HybridCopySymlink).PrepareAsync(configuration, null, CancellationToken.None);
+        Assert.True(result.IsPrepared);
+        _fileOperations.Verify(
+            f => f.CopyFileAsync(It.Is<string>(p => p.EndsWith(HostFileName)), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {
