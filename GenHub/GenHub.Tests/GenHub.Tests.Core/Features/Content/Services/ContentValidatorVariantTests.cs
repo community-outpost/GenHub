@@ -155,8 +155,10 @@ public sealed class ContentValidatorVariantTests : IDisposable
             ? await _validator.ValidateAllAsync(_contentDirectory, manifest)
             : await _validator.ValidateContentIntegrityAsync(_contentDirectory, manifest);
         Assert.Contains(result.Issues, issue => issue.Message.Contains("no variant supporting this host", StringComparison.Ordinal)
-            && issue.Severity == ValidationSeverity.Error);
+            && issue.Severity == ValidationSeverity.Error
+            && issue.IssueType == ValidationIssueType.ValidationUnavailable);
         Assert.Equal(0, result.TotalFilesValidated);
+        Assert.Equal(0, result.MissingFilesCount);
     }
 
     /// <summary>Without a host variant, files on disk are not reported as unexpected.</summary>

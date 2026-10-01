@@ -128,13 +128,13 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
                 var fileIssues = new List<ValidationIssue>();
                 if (file is null)
                 {
-                    fileIssues.Add(new ValidationIssue("Manifest contains a null file entry.", ValidationSeverity.Error));
+                    fileIssues.Add(new ValidationIssue("Manifest contains a null file entry.", ValidationSeverity.Error) { IssueType = ValidationIssueType.ValidationUnavailable });
                     return fileIssues;
                 }
 
                 if (string.IsNullOrWhiteSpace(file.RelativePath))
                 {
-                    fileIssues.Add(new ValidationIssue("Manifest file is missing its RelativePath.", ValidationSeverity.Error));
+                    fileIssues.Add(new ValidationIssue("Manifest file is missing its RelativePath.", ValidationSeverity.Error) { IssueType = ValidationIssueType.ValidationUnavailable });
                     return fileIssues;
                 }
 
@@ -317,7 +317,12 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
     private static ValidationResult CreateUnsupportedHostResult(ContentManifest manifest) =>
         new(
             manifest.Id,
-            [new ValidationIssue($"Manifest has no variant supporting this host ({ManifestVariantResolver.CurrentRuntimeIdentifier}).", ValidationSeverity.Error)]);
+            [
+                new ValidationIssue($"Manifest has no variant supporting this host ({ManifestVariantResolver.CurrentRuntimeIdentifier}).", ValidationSeverity.Error)
+                {
+                    IssueType = ValidationIssueType.ValidationUnavailable,
+                },
+            ]);
 
     private static List<ValidationIssue> ValidateManifestStructure(ContentManifest manifest)
     {
