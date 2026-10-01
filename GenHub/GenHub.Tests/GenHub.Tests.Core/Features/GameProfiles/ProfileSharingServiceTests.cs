@@ -444,8 +444,11 @@ public class ProfileSharingServiceTests
     /// Verifies that exporting a variant manifest shares the host variant's files.
     /// </summary>
     /// <returns>A task representing the test.</returns>
-    [Fact]
-    public async Task ExportProfile_WithVariantManifest_SharesHostVariantFilesAsync()
+    /// <param name="supportsHost">Whether the manifest declares a matching host variant.</param>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ExportProfile_WithVariantManifest_SharesHostVariantFilesAsync(bool supportsHost)
     {
         var profile = CreateTestProfile("profile-export-variants", "Variant Test");
         profile.EnabledContentIds = ["1.0.test.gameclient.variants"];
@@ -457,10 +460,21 @@ public class ProfileSharingServiceTests
             [new ManifestFile { RelativePath = "client-host.zip", DownloadUrl = "https://example.invalid/client-host.zip", SourceType = ContentSourceType.RemoteDownload }],
             [new ManifestFile { RelativePath = "client-foreign.zip", DownloadUrl = "https://example.invalid/client-foreign.zip", SourceType = ContentSourceType.RemoteDownload }]);
 
+        if (!supportsHost)
+        {
+            clientManifest.Variants.Remove(ManifestVariantResolver.ResolveVariant(clientManifest)!);
+        }
+
         _manifestPoolMock.Setup(m => m.GetManifestAsync("1.0.test.gameclient.variants", It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(clientManifest));
 
         var uriResult = await _service.ExportProfileToUriAsync("profile-export-variants");
+        if (!supportsHost)
+        {
+            Assert.False(uriResult.Success);
+            Assert.Contains("no variant supports this host", uriResult.FirstError);
+            return;
+        }
 
         Assert.True(uriResult.Success, uriResult.FirstError);
         var dataParam = uriResult.Data!.Replace($"{CommandLineConstants.ProfileImportUriPrefix}?{CommandLineConstants.DataQueryParam}", string.Empty);

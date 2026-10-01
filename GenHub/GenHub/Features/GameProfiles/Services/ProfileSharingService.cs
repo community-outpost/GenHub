@@ -2189,6 +2189,12 @@ public class ProfileSharingService(
         bool allowCloudUpload,
         CancellationToken cancellationToken)
     {
+        if (!ManifestVariantResolver.SupportsRuntime(manifest))
+        {
+            return OperationResult<SharedManifestDependency>.CreateFailure(
+                $"Cannot export '{manifest.Name}': no variant supports this host ({ManifestVariantResolver.CurrentRuntimeIdentifier}).");
+        }
+
         var dependencyFiles = ManifestVariantResolver.ResolveFiles(manifest).Select(f => ToSharedManifestFile(f)).ToList();
 
         string? packageUrl = null;
