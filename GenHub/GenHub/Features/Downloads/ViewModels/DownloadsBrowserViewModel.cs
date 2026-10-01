@@ -3271,28 +3271,17 @@ public sealed partial class DownloadsBrowserViewModel(
             return true;
         }
 
+        var targetPublisherId = publisherId ?? targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? DefaultPublisherName;
+        var strategy = promptResult?.Strategy ?? UpdateStrategy.CreateNewProfile;
+        var shouldDelete = promptResult?.DeleteOldVersions == true;
+
         try
         {
-            var oldManifest = !string.IsNullOrEmpty(oldManifestId)
-                ? await manifestPool.GetManifestAsync(oldManifestId, ct)
-                : null;
-            var newManifest = !string.IsNullOrEmpty(newManifestId)
-                ? await manifestPool.GetManifestAsync(newManifestId, ct)
-                : null;
-
-            var oldManifests = oldManifest is { Success: true, Data: not null }
-                ? new List<ContentManifest> { oldManifest.Data }
-                : new List<ContentManifest>();
-            var newManifests = newManifest is { Success: true, Data: not null }
-                ? new List<ContentManifest> { newManifest.Data }
-                : new List<ContentManifest>();
-
-            var mapping = (!string.IsNullOrEmpty(oldManifestId) && !string.IsNullOrEmpty(newManifestId))
-                ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { [oldManifestId] = newManifestId }
-                : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-            var strategy = promptResult?.Strategy ?? UpdateStrategy.CreateNewProfile;
-            var shouldDelete = promptResult?.DeleteOldVersions == true;
+            var (oldManifests, newManifests, mapping) = await LoadReconciliationManifestsAsync(
+                manifestPool,
+                oldManifestId,
+                newManifestId,
+                ct);
 
             var helperContext = new PublisherReconciliationContext(
                 activeProfileManager,
@@ -3320,37 +3309,35 @@ public sealed partial class DownloadsBrowserViewModel(
                 await reconciliationService.ScheduleGarbageCollectionAsync(false, ct);
             }
 
-            var targetPublisherId = publisherId ?? targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? DefaultPublisherName;
+            var fromVersion = oldManifests.Count > 0 ? oldManifests[0].Version : string.Empty;
+            var toVersion = targetItem.SearchResult?.Version ?? string.Empty;
 
             if (!updateOutcome.Proceed)
             {
-                targetItem.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{updateOutcome.Error ?? ContentConstants.UpdateFailedStatusMessage}";
-                _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
-                {
-                    [TelemetryConstants.Properties.PublisherId] = targetPublisherId,
-                    [TelemetryConstants.Properties.ContentName] = targetItem.Name,
-                    [TelemetryConstants.Properties.ContentId] = newManifestId ?? targetItem.Id,
-                    [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName ?? TelemetryConstants.DownloadAttribution.Unknown,
-                    [TelemetryConstants.Properties.FromVersion] = oldManifest?.Data?.Version ?? string.Empty,
-                    [TelemetryConstants.Properties.ToVersion] = targetItem.SearchResult?.Version ?? string.Empty,
-                    [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
-                    [TelemetryConstants.Properties.ErrorMessage] = updateOutcome.Error ?? ContentConstants.UpdateFailedStatusMessage,
-                });
+                var error = updateOutcome.Error ?? ContentConstants.UpdateFailedStatusMessage;
+                targetItem.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{error}";
+                TrackUpdateTelemetry(
+                    TelemetryConstants.Events.ContentUpdateFailed,
+                    targetPublisherId,
+                    targetItem,
+                    newManifestId,
+                    fromVersion,
+                    toVersion,
+                    strategy.ToString(),
+                    errorMessage: error);
                 return false;
             }
 
-            _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateApplied, new Dictionary<string, object?>
-            {
-                [TelemetryConstants.Properties.PublisherId] = targetPublisherId,
-                [TelemetryConstants.Properties.ContentName] = targetItem.Name,
-                [TelemetryConstants.Properties.ContentId] = newManifestId ?? targetItem.Id,
-                [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName ?? TelemetryConstants.DownloadAttribution.Unknown,
-                [TelemetryConstants.Properties.FromVersion] = oldManifest?.Data?.Version ?? string.Empty,
-                [TelemetryConstants.Properties.ToVersion] = targetItem.SearchResult?.Version ?? string.Empty,
-                [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
-                [TelemetryConstants.Properties.ProfilesUpdated] = updateOutcome.ProfilesUpdated,
-                [TelemetryConstants.Properties.Success] = !updateOutcome.AnyFailure,
-            });
+            TrackUpdateTelemetry(
+                TelemetryConstants.Events.ContentUpdateApplied,
+                targetPublisherId,
+                targetItem,
+                newManifestId,
+                fromVersion,
+                toVersion,
+                strategy.ToString(),
+                profilesUpdated: updateOutcome.ProfilesUpdated,
+                success: !updateOutcome.AnyFailure);
 
             return true;
         }
@@ -3362,17 +3349,81 @@ public sealed partial class DownloadsBrowserViewModel(
         {
             logger.LogWarning(ex, "Failed to apply update strategy for {OldManifestId} -> {NewManifestId}", oldManifestId, newManifestId);
             targetItem.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{ex.Message}";
-            var targetPublisherId = publisherId ?? targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? DefaultPublisherName;
-            _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
-            {
-                [TelemetryConstants.Properties.PublisherId] = targetPublisherId,
-                [TelemetryConstants.Properties.ContentName] = targetItem.Name,
-                [TelemetryConstants.Properties.ContentId] = newManifestId ?? targetItem.Id,
-                [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName ?? TelemetryConstants.DownloadAttribution.Unknown,
-                [TelemetryConstants.Properties.ErrorMessage] = ex.Message,
-            });
+            TrackUpdateTelemetry(
+                TelemetryConstants.Events.ContentUpdateFailed,
+                targetPublisherId,
+                targetItem,
+                newManifestId,
+                string.Empty,
+                targetItem.SearchResult?.Version ?? string.Empty,
+                strategy.ToString(),
+                errorMessage: ex.Message);
             return false;
         }
+    }
+
+    private async Task<(List<ContentManifest> OldManifests, List<ContentManifest> NewManifests, Dictionary<string, string> Mapping)> LoadReconciliationManifestsAsync(
+        IContentManifestPool manifestPool,
+        string? oldManifestId,
+        string? newManifestId,
+        CancellationToken ct)
+    {
+        var oldManifest = !string.IsNullOrEmpty(oldManifestId)
+            ? await manifestPool.GetManifestAsync(oldManifestId, ct)
+            : null;
+        var newManifest = !string.IsNullOrEmpty(newManifestId)
+            ? await manifestPool.GetManifestAsync(newManifestId, ct)
+            : null;
+
+        var oldManifests = oldManifest is { Success: true, Data: not null }
+            ? new List<ContentManifest> { oldManifest.Data }
+            : new List<ContentManifest>();
+        var newManifests = newManifest is { Success: true, Data: not null }
+            ? new List<ContentManifest> { newManifest.Data }
+            : new List<ContentManifest>();
+
+        var mapping = (!string.IsNullOrEmpty(oldManifestId) && !string.IsNullOrEmpty(newManifestId))
+            ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { [oldManifestId] = newManifestId }
+            : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        return (oldManifests, newManifests, mapping);
+    }
+
+    private void TrackUpdateTelemetry(
+        string eventName,
+        string publisherId,
+        ContentGridItemViewModel targetItem,
+        string? manifestId,
+        string fromVersion,
+        string toVersion,
+        string strategy,
+        string? errorMessage = null,
+        int profilesUpdated = 0,
+        bool success = true)
+    {
+        var props = new Dictionary<string, object?>
+        {
+            [TelemetryConstants.Properties.PublisherId] = publisherId,
+            [TelemetryConstants.Properties.ContentName] = targetItem.Name,
+            [TelemetryConstants.Properties.ContentId] = manifestId ?? targetItem.Id,
+            [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName ?? TelemetryConstants.DownloadAttribution.Unknown,
+            [TelemetryConstants.Properties.FromVersion] = fromVersion,
+            [TelemetryConstants.Properties.ToVersion] = toVersion,
+            [TelemetryConstants.Properties.Strategy] = strategy,
+        };
+
+        if (!string.IsNullOrEmpty(errorMessage))
+        {
+            props[TelemetryConstants.Properties.ErrorMessage] = errorMessage;
+        }
+
+        if (eventName == TelemetryConstants.Events.ContentUpdateApplied)
+        {
+            props[TelemetryConstants.Properties.ProfilesUpdated] = profilesUpdated;
+            props[TelemetryConstants.Properties.Success] = success;
+        }
+
+        _telemetryService?.TrackEvent(eventName, props);
     }
 
     private async Task RefreshAndReconcileItemsAsync(IReadOnlyList<ContentGridItemViewModel> items, string publisherId)
