@@ -110,13 +110,28 @@ public static class InstallationArgumentBindingResolver
             return OperationResult<string>.CreateFailure($"Installation step '{step.Name}' declares a binding with no file path.");
         }
 
-        string fullPath;
+        string fullPath = string.Empty;
         try
         {
             var relative = binding.RelativePath.Replace('/', Path.DirectorySeparatorChar);
             fullPath = Path.GetFullPath(Path.Combine(workingDirectory, relative));
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        catch (IOException)
+        {
+            return OperationResult<string>.CreateFailure(
+                $"Installation step '{step.Name}' declares an unusable binding path '{binding.RelativePath}'.");
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return OperationResult<string>.CreateFailure(
+                $"Installation step '{step.Name}' declares an unusable binding path '{binding.RelativePath}'.");
+        }
+        catch (ArgumentException)
+        {
+            return OperationResult<string>.CreateFailure(
+                $"Installation step '{step.Name}' declares an unusable binding path '{binding.RelativePath}'.");
+        }
+        catch (NotSupportedException)
         {
             return OperationResult<string>.CreateFailure(
                 $"Installation step '{step.Name}' declares an unusable binding path '{binding.RelativePath}'.");
@@ -128,10 +143,9 @@ public static class InstallationArgumentBindingResolver
                 $"Installation step '{step.Name}' binding path '{binding.RelativePath}' escapes the content directory.");
         }
 
-        FileInfo info;
         try
         {
-            info = new FileInfo(fullPath);
+            var info = new FileInfo(fullPath);
             if (!info.Exists)
             {
                 return OperationResult<string>.CreateFailure(
@@ -144,7 +158,22 @@ public static class InstallationArgumentBindingResolver
                     $"Installation step '{step.Name}' binding file '{binding.RelativePath}' exceeds the {ManifestConstants.InstallationBindingMaxFileSizeBytes} byte limit.");
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        catch (IOException)
+        {
+            return OperationResult<string>.CreateFailure(
+                $"Installation step '{step.Name}' cannot access binding file '{binding.RelativePath}'.");
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return OperationResult<string>.CreateFailure(
+                $"Installation step '{step.Name}' cannot access binding file '{binding.RelativePath}'.");
+        }
+        catch (ArgumentException)
+        {
+            return OperationResult<string>.CreateFailure(
+                $"Installation step '{step.Name}' cannot access binding file '{binding.RelativePath}'.");
+        }
+        catch (NotSupportedException)
         {
             return OperationResult<string>.CreateFailure(
                 $"Installation step '{step.Name}' cannot access binding file '{binding.RelativePath}'.");
@@ -207,7 +236,22 @@ public static class InstallationArgumentBindingResolver
             return OperationResult<string>.CreateFailure(
                 $"Installation step '{step.Name}' binding key '{binding.Key}' has no usable string value in '{binding.RelativePath}'.");
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or ArgumentException)
+        catch (IOException)
+        {
+            return OperationResult<string>.CreateFailure(
+                $"Installation step '{step.Name}' cannot read binding file '{binding.RelativePath}'.");
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return OperationResult<string>.CreateFailure(
+                $"Installation step '{step.Name}' cannot read binding file '{binding.RelativePath}'.");
+        }
+        catch (JsonException)
+        {
+            return OperationResult<string>.CreateFailure(
+                $"Installation step '{step.Name}' cannot read binding file '{binding.RelativePath}'.");
+        }
+        catch (ArgumentException)
         {
             return OperationResult<string>.CreateFailure(
                 $"Installation step '{step.Name}' cannot read binding file '{binding.RelativePath}'.");

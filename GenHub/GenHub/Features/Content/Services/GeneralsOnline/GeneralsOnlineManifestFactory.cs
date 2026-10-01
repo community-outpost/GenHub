@@ -263,9 +263,16 @@ public class GeneralsOnlineManifestFactory(
     /// <returns>The EAC install step.</returns>
     private static InstallationStep CreateEacInstallStep(string extractPath)
     {
+        var hasLive60HzBinary = !string.IsNullOrEmpty(extractPath) &&
+            File.Exists(Path.Combine(extractPath, GameClientConstants.GeneralsOnline60HzExecutable));
+
         var isTestEnvironment = GeneralsOnlineEacSettings.TryRead(extractPath, out var settings)
             && settings is not null
-            && !IsArchiveRootFile(settings.Executable, GameClientConstants.GeneralsOnline60HzExecutable);
+            && !string.Equals(
+                GeneralsOnlineEacSettings.NormalizeExecutableName(settings.Executable),
+                GameClientConstants.GeneralsOnline60HzExecutable,
+                StringComparison.OrdinalIgnoreCase)
+            && hasLive60HzBinary;
 
         if (isTestEnvironment)
         {
@@ -826,7 +833,10 @@ public class GeneralsOnlineManifestFactory(
 
         if (hasEacLauncher && GeneralsOnlineEacSettings.TryRead(extractPath, out var settings) && settings is not null)
         {
-            if (IsArchiveRootFile(settings.Executable, GameClientConstants.GeneralsOnline60HzExecutable))
+            if (string.Equals(
+                GeneralsOnlineEacSettings.NormalizeExecutableName(settings.Executable),
+                GameClientConstants.GeneralsOnline60HzExecutable,
+                StringComparison.OrdinalIgnoreCase))
             {
                 return GameClientConstants.GeneralsOnlineEacLauncherExecutable;
             }
@@ -840,11 +850,6 @@ public class GeneralsOnlineManifestFactory(
                 return GameClientConstants.GeneralsOnline60HzExecutable;
             }
 
-            return GameClientConstants.GeneralsOnlineEacLauncherExecutable;
-        }
-
-        if (hasEacLauncher && !has60Hz)
-        {
             return GameClientConstants.GeneralsOnlineEacLauncherExecutable;
         }
 
@@ -929,7 +934,7 @@ public class GeneralsOnlineManifestFactory(
             return;
         }
 
-        var childName = Path.GetFileNameWithoutExtension(settings.Executable.Replace('\\', '/'));
+        var childName = Path.GetFileNameWithoutExtension(GeneralsOnlineEacSettings.NormalizeExecutableName(settings.Executable));
         if (!LaunchRelationship.IsValidProcessName(childName))
         {
             logger.LogWarning(
@@ -938,7 +943,8 @@ public class GeneralsOnlineManifestFactory(
             return;
         }
 
-        if (!manifest.Files.Any(file => IsArchiveRootFile(file.RelativePath, settings.Executable)))
+        var configuredFile = GeneralsOnlineEacSettings.NormalizeExecutableName(settings.Executable);
+        if (!manifest.Files.Any(file => IsArchiveRootFile(file.RelativePath, configuredFile)))
         {
             logger.LogWarning(
                 "Bootstrapper settings name '{Executable}', which is not in the package; launch will guess the child process",

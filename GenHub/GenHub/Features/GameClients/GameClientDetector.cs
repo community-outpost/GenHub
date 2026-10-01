@@ -1409,6 +1409,7 @@ public class GameClientDetector(
             try
             {
                 // Process files in current directory
+                var resolvedEntryPoint = ResolvePublisherDirectoryEntryPoint(currentDir);
                 var files = Directory.EnumerateFiles(currentDir).ToList();
 
                 foreach (var file in files)
@@ -1429,8 +1430,9 @@ public class GameClientDetector(
                     }
 
                     // A publisher directory can hold several runnable binaries that form one
-                    // client, so publisher-claimed companion content never counts.
-                    if (IsPublisherCompanionFile(file))
+                    // client, so publisher-claimed companion content never counts unless it is
+                    // the publisher-selected directory entry point.
+                    if (!string.Equals(fileName, resolvedEntryPoint, StringComparison.OrdinalIgnoreCase) && IsPublisherCompanionFile(file))
                     {
                         continue;
                     }

@@ -1,4 +1,6 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using System;
@@ -35,16 +37,27 @@ internal static class GeneralsOnlineVariantGrouping
     /// </summary>
     /// <param name="contentType">The content type.</param>
     /// <param name="version">The full release version, QFE suffix included.</param>
+    /// <param name="localizationService">Optional localization service.</param>
     /// <returns>The family display name.</returns>
-    internal static string BuildVariantFamilyName(ContentType contentType, string? version)
+    internal static string BuildVariantFamilyName(ContentType contentType, string? version, ILocalizationService? localizationService = null)
     {
-        var typeDisplay = contentType switch
+        string typeDisplay;
+        if (localizationService != null &&
+            localizationService.TryGetString($"ContentType.{contentType}", out var localized) &&
+            !string.IsNullOrWhiteSpace(localized))
         {
-            ContentType.GameClient => "Game Client",
-            ContentType.MapPack => "Map Pack",
-            ContentType.Patch => "Patch",
-            _ => contentType.ToString(),
-        };
+            typeDisplay = localized;
+        }
+        else
+        {
+            typeDisplay = contentType switch
+            {
+                ContentType.GameClient => "Game Client",
+                ContentType.MapPack => "Map Pack",
+                ContentType.Patch => "Patch",
+                _ => contentType.GetDisplayName(),
+            };
+        }
 
         var normalized = NormalizeVersion(version);
         return normalized == null

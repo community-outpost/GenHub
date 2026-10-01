@@ -27,7 +27,7 @@ public sealed class DefaultContentRetentionPolicyTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task FilterDeletableManifestsAsync_EmptyCandidates_ReturnsEmpty()
+    public async Task FilterDeletableManifestsAsync_EmptyCandidates_ReturnsEmptyAsync()
     {
         var policy = new DefaultContentRetentionPolicy(NullLogger<DefaultContentRetentionPolicy>.Instance);
         var result = await policy.FilterDeletableManifestsAsync([]);
@@ -39,7 +39,7 @@ public sealed class DefaultContentRetentionPolicyTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task FilterDeletableManifestsAsync_WithinRecentQuota_RetainsAll()
+    public async Task FilterDeletableManifestsAsync_WithinRecentQuota_RetainsAllAsync()
     {
         var policy = new DefaultContentRetentionPolicy(
             NullLogger<DefaultContentRetentionPolicy>.Instance,
@@ -60,7 +60,7 @@ public sealed class DefaultContentRetentionPolicyTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task FilterDeletableManifestsAsync_ExceedsQuota_DeletesOldestUnpinned()
+    public async Task FilterDeletableManifestsAsync_ExceedsQuota_DeletesOldestUnpinnedAsync()
     {
         var policy = new DefaultContentRetentionPolicy(
             NullLogger<DefaultContentRetentionPolicy>.Instance,
@@ -82,7 +82,7 @@ public sealed class DefaultContentRetentionPolicyTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task FilterDeletableManifestsAsync_PinnedManifests_AreNeverDeleted()
+    public async Task FilterDeletableManifestsAsync_PinnedManifests_AreNeverDeletedAsync()
     {
         var pinnedMock = new Mock<IPinnedManifestProvider>();
         pinnedMock.Setup(p => p.GetPinnedManifestIdsAsync(It.IsAny<CancellationToken>()))
@@ -109,7 +109,7 @@ public sealed class DefaultContentRetentionPolicyTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task FilterDeletableManifestsAsync_ProviderThrows_DoesNotCrashAndContinues()
+    public async Task FilterDeletableManifestsAsync_ProviderThrows_DoesNotCrashAndContinuesAsync()
     {
         var throwingMock = new Mock<IPinnedManifestProvider>();
         throwingMock.Setup(p => p.GetPinnedManifestIdsAsync(It.IsAny<CancellationToken>()))
@@ -134,7 +134,7 @@ public sealed class DefaultContentRetentionPolicyTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task FilterDeletableManifestsAsync_ProviderCanceled_PropagatesCancellation()
+    public async Task FilterDeletableManifestsAsync_ProviderCanceled_PropagatesCancellationAsync()
     {
         using var cts = new CancellationTokenSource();
         cts.Cancel();
@@ -159,7 +159,7 @@ public sealed class DefaultContentRetentionPolicyTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task FilterDeletableManifestsAsync_SameReleaseDate_UsesVersionComparison()
+    public async Task FilterDeletableManifestsAsync_SameReleaseDate_UsesVersionComparisonAsync()
     {
         var policy = new DefaultContentRetentionPolicy(
             NullLogger<DefaultContentRetentionPolicy>.Instance,

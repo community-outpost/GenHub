@@ -1553,7 +1553,6 @@ public sealed partial class ContentStateService(
 
         return itemType == manifestType;
     }
-    }
 
     private static bool IsExactManifestMatch(ContentManifest manifest, ContentSearchResult item)
     {

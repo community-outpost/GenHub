@@ -105,11 +105,11 @@ public sealed class CrcMappingRegistryTests
 
         Assert.True(registry.TryGetEntryByIniCrc("0x88888888", out var foundWithPrefix));
         Assert.NotNull(foundWithPrefix);
-        Assert.Equal("1.92826.generalsonline.patch.gamedata", foundWithPrefix.DataPatchManifestId);
+        Assert.Equal("1.828261.generalsonline.patch.gamedata", foundWithPrefix.DataPatchManifestId);
 
         Assert.True(registry.TryGetEntryByIniCrc("88888888", out var foundWithoutPrefix));
         Assert.NotNull(foundWithoutPrefix);
-        Assert.Equal("1.92826.generalsonline.patch.gamedata", foundWithoutPrefix.DataPatchManifestId);
+        Assert.Equal("1.828261.generalsonline.patch.gamedata", foundWithoutPrefix.DataPatchManifestId);
 
         Assert.False(registry.TryGetEntryByIniCrc("0x11111111", out _));
         Assert.False(registry.TryGetEntryByIniCrc(string.Empty, out _));

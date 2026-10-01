@@ -2981,6 +2981,184 @@ public sealed class ContentDetailViewModelTests
         artworkService.Verify(
             service => service.PurgeArtworkAsync(companionId, It.IsAny<CancellationToken>()),
             Times.Once);
+        notifications.Verify(
+            n => n.ShowSuccess(It.IsAny<string>(), It.Is<string>(msg => msg.Contains("Custom MapPack")), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that orphan companion cleanup recursively evaluates transitive dependency chains.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteDownloadCommand_WithTransitiveOrphanCompanion_CleansUpEntireChainAsync()
+    {
+        // Arrange
+        const string manifestId = "1.20260901.custom.gameclient.test";
+        const string companionId = "1.20260901.custom.mappack.test";
+        const string childCompanionId = "1.20260901.custom.addon.test";
+
+        var manifest = CreateDownloadedManifest(manifestId, "Custom GameClient", ContentType.GameClient);
+        manifest.Dependencies =
+        [
+            new ContentDependency
+            {
+                Id = ManifestId.Create(companionId),
+                Name = "Custom MapPack",
+                InstallBehavior = DependencyInstallBehavior.AutoInstall,
+            },
+        ];
+
+        var companionManifest = CreateDownloadedManifest(companionId, "Custom MapPack", ContentType.MapPack);
+        companionManifest.Dependencies =
+        [
+            new ContentDependency
+            {
+                Id = ManifestId.Create(childCompanionId),
+                Name = "Custom Addon",
+                InstallBehavior = DependencyInstallBehavior.AutoInstall,
+            },
+        ];
+
+        var childCompanionManifest = CreateDownloadedManifest(childCompanionId, "Custom Addon", ContentType.Addon);
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = manifestId,
+            Name = "Custom GameClient",
+            ProviderName = "custom",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var manifestPool = CreateManifestPoolMock(manifest);
+        manifestPool
+            .Setup(pool => pool.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([companionManifest, childCompanionManifest]));
+        var removedIds = new List<string>();
+        manifestPool
+            .Setup(pool => pool.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .Callback<ManifestId, bool, CancellationToken>((id, _, _) => removedIds.Add(id.Value))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var profileManager = new Mock<IGameProfileManager>();
+        profileManager
+            .Setup(manager => manager.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+        profileManager
+            .Setup(manager => manager.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateSuccess(new ProfileScrubResult(0, 0, [])));
+
+        var dialogService = new Mock<IDialogService>();
+        dialogService
+            .Setup(dialog => dialog.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var notifications = new Mock<INotificationService>();
+        var artworkService = new Mock<IContentArtworkService>();
+        artworkService
+            .Setup(service => service.PurgeArtworkAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var viewModel = CreateViewModel(
+            searchResult,
+            new Mock<IContentDownloadCoordinator>().Object,
+            manifestPool: manifestPool.Object,
+            notificationService: notifications.Object,
+            profileManager: profileManager.Object,
+            dialogService: dialogService.Object,
+            artworkService: artworkService.Object);
+        viewModel.IsDownloaded = true;
+
+        // Act
+        await viewModel.DeleteDownloadCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.Contains(manifestId, removedIds);
+        Assert.Contains(companionId, removedIds);
+        Assert.Contains(childCompanionId, removedIds);
+    }
+
+    /// <summary>
+    /// Verifies that when an AutoInstall dependency is not present in the pool, cleanup skips it safely.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteDownloadCommand_WithUnacquiredCompanion_SkipsSafelyAsync()
+    {
+        // Arrange
+        const string manifestId = "1.20260901.custom.gameclient.test";
+        const string companionId = "1.20260901.custom.unacquired.test";
+
+        var manifest = CreateDownloadedManifest(manifestId, "Custom GameClient", ContentType.GameClient);
+        manifest.Dependencies =
+        [
+            new ContentDependency
+            {
+                Id = ManifestId.Create(companionId),
+                Name = "Unacquired Companion",
+                InstallBehavior = DependencyInstallBehavior.AutoInstall,
+            },
+        ];
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = manifestId,
+            Name = "Custom GameClient",
+            ProviderName = "custom",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var manifestPool = CreateManifestPoolMock(manifest);
+        manifestPool
+            .Setup(pool => pool.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+        var removedIds = new List<string>();
+        manifestPool
+            .Setup(pool => pool.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .Callback<ManifestId, bool, CancellationToken>((id, _, _) => removedIds.Add(id.Value))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var profileManager = new Mock<IGameProfileManager>();
+        profileManager
+            .Setup(manager => manager.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+        profileManager
+            .Setup(manager => manager.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateSuccess(new ProfileScrubResult(0, 0, [])));
+
+        var dialogService = new Mock<IDialogService>();
+        dialogService
+            .Setup(dialog => dialog.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var notifications = new Mock<INotificationService>();
+        var viewModel = CreateViewModel(
+            searchResult,
+            new Mock<IContentDownloadCoordinator>().Object,
+            manifestPool: manifestPool.Object,
+            notificationService: notifications.Object,
+            profileManager: profileManager.Object,
+            dialogService: dialogService.Object);
+        viewModel.IsDownloaded = true;
+
+        // Act
+        await viewModel.DeleteDownloadCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.Contains(manifestId, removedIds);
+        Assert.DoesNotContain(companionId, removedIds);
     }
 
     /// <summary>
@@ -3030,6 +3208,7 @@ public sealed class ContentDetailViewModelTests
         profileManager
             .SetupSequence(manager => manager.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]))
             .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateFailure("Database locked"));
         profileManager
             .Setup(manager => manager.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
@@ -3065,6 +3244,7 @@ public sealed class ContentDetailViewModelTests
         await viewModel.DeleteDownloadCommand.ExecuteAsync(null);
 
         // Assert: Main manifest deleted, but companion cleanup was skipped
+        profileManager.Verify(manager => manager.GetAllProfilesAsync(It.IsAny<CancellationToken>()), Times.Exactly(3));
         Assert.Contains(manifestId, removedIds);
         Assert.DoesNotContain(companionId, removedIds);
         artworkService.Verify(

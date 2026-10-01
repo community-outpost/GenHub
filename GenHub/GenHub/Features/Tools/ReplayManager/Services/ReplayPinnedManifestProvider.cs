@@ -57,22 +57,6 @@ public class ReplayPinnedManifestProvider(
         }
     }
 
-    private static string NormalizeHex(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return string.Empty;
-        }
-
-        var trimmed = value.Trim();
-        if (trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-        {
-            trimmed = trimmed[2..];
-        }
-
-        return trimmed.ToUpperInvariant();
-    }
-
     private void CollectPinnedIdsForReplay(ReplayFile replay, HashSet<string> pinnedIds)
     {
         if (!replay.ExeCrc.HasValue)
@@ -127,8 +111,8 @@ public class ReplayPinnedManifestProvider(
             return;
         }
 
-        var normalizedExe = NormalizeHex(exeHex);
-        foreach (var candidate in allEntries.Where(c => string.Equals(NormalizeHex(c.ExeCrc), normalizedExe, StringComparison.OrdinalIgnoreCase)))
+        var normalizedExe = CrcMappingRegistry.NormalizeHex(exeHex);
+        foreach (var candidate in allEntries.Where(c => string.Equals(CrcMappingRegistry.NormalizeHex(c.ExeCrc), normalizedExe, StringComparison.OrdinalIgnoreCase)))
         {
             AddEntryManifests(candidate, pinnedIds);
         }

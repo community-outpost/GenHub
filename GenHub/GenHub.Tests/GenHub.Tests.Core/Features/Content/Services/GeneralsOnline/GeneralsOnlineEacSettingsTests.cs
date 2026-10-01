@@ -99,6 +99,26 @@ public class GeneralsOnlineEacSettingsTests : IDisposable
         Assert.Null(settings);
     }
 
+    /// <summary>
+    /// Normalizes executable paths with forward or backslashes to just the file name.
+    /// </summary>
+    /// <param name="input">The raw executable path input.</param>
+    /// <param name="expected">The expected normalized file name.</param>
+    [Theory]
+    [InlineData(null, "")]
+    [InlineData("", "")]
+    [InlineData("   ", "")]
+    [InlineData("generalsonlinezh_60.exe", "generalsonlinezh_60.exe")]
+    [InlineData(@"bin\generalsonlinezh_60.exe", "generalsonlinezh_60.exe")]
+    [InlineData("bin/generalsonlinezh_60.exe", "generalsonlinezh_60.exe")]
+    [InlineData(@"C:\Games\ZeroHour\generalsonlinezh_60.exe", "generalsonlinezh_60.exe")]
+    [InlineData("  bin/generalsonlinezh_60.exe  ", "generalsonlinezh_60.exe")]
+    public void NormalizeExecutableName_ReturnsNormalizedFileName(string? input, string expected)
+    {
+        var result = GeneralsOnlineEacSettings.NormalizeExecutableName(input);
+        Assert.Equal(expected, result);
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {

@@ -16,6 +16,23 @@ namespace GenHub.Features.Content.Services.GeneralsOnline;
 public sealed record GeneralsOnlineEacSettings(string Executable, string? ProductId)
 {
     /// <summary>
+    /// Normalizes an executable path or file name from settings to just its file name.
+    /// Handles forward/back slashes and whitespace.
+    /// </summary>
+    /// <param name="executable">The executable path or file name to normalize.</param>
+    /// <returns>The normalized file name.</returns>
+    public static string NormalizeExecutableName(string? executable)
+    {
+        if (string.IsNullOrWhiteSpace(executable))
+        {
+            return string.Empty;
+        }
+
+        var normalized = executable.Trim().Replace('\\', '/');
+        return Path.GetFileName(normalized);
+    }
+
+    /// <summary>
     /// Reads the bootstrapper settings from a package root.
     /// </summary>
     /// <param name="packageRoot">The extracted package directory.</param>
@@ -109,13 +126,14 @@ public sealed record GeneralsOnlineEacSettings(string Executable, string? Produc
             }
         }
 
-        if (string.IsNullOrWhiteSpace(executable))
+        var normalizedExe = NormalizeExecutableName(executable);
+        if (string.IsNullOrWhiteSpace(normalizedExe))
         {
             return false;
         }
 
         settings = new GeneralsOnlineEacSettings(
-            executable.Trim(),
+            normalizedExe,
             string.IsNullOrWhiteSpace(productId) ? null : productId.Trim());
         return true;
     }

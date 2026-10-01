@@ -881,9 +881,27 @@ public partial class GeneralsOnlineProfileReconciler(
                 .Where(m => manifestMapping.ContainsKey(m.Id.Value))
                 .ToList();
 
-            var deletableManifests = retentionPolicy != null
-                ? await retentionPolicy.FilterDeletableManifestsAsync(candidateManifests, cancellationToken)
-                : candidateManifests;
+            List<ContentManifest> deletableManifests;
+            if (retentionPolicy != null)
+            {
+                deletableManifests = [];
+                var groupedCandidates = GroupManifestsByVariant(candidateManifests);
+                var unvarianted = candidateManifests.Where(m => ExtractVariant(m) == null).ToList();
+                if (unvarianted.Count > 0)
+                {
+                    groupedCandidates[string.Empty] = unvarianted;
+                }
+
+                foreach (var group in groupedCandidates.Values)
+                {
+                    var groupDeletables = await retentionPolicy.FilterDeletableManifestsAsync(group, cancellationToken);
+                    deletableManifests.AddRange(groupDeletables);
+                }
+            }
+            else
+            {
+                deletableManifests = candidateManifests;
+            }
 
             var oldManifestIds = deletableManifests
                 .Select(m => m.Id)

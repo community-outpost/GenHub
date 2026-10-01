@@ -117,19 +117,20 @@ public class GeneralsOnlineClientIdentifier : IGameClientIdentifier
             return false;
         }
 
-        if (fileName.Equals(GameClientConstants.GeneralsOnlineDefaultExecutable, StringComparison.OrdinalIgnoreCase))
+        if (fileName.Equals(GameClientConstants.GeneralsOnlineDefaultExecutable, StringComparison.OrdinalIgnoreCase) ||
+            fileName.Equals(GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase) ||
+            fileName.Equals(GameClientConstants.GeneralsOnlineUnixExecutable, StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
 
         if (GeneralsOnlineEacSettings.TryRead(directory, out var settings) && settings is not null)
         {
-            var configured = Path.GetFileName(settings.Executable.Replace('\\', '/'));
+            var configured = GeneralsOnlineEacSettings.NormalizeExecutableName(settings.Executable);
             return fileName.Equals(configured, StringComparison.OrdinalIgnoreCase);
         }
 
-        return fileName.Equals(GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase)
-            || fileName.Equals(GameClientConstants.GeneralsOnlineUnixExecutable, StringComparison.OrdinalIgnoreCase);
+        return false;
     }
 
     /// <summary>

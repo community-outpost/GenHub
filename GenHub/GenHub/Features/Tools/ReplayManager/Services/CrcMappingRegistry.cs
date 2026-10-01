@@ -145,11 +145,11 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
         }
     }
 
-    private static string CreateCrcPairKey(string exeCrc, string iniCrc)
-    {
-        return $"{NormalizeHex(exeCrc)}:{NormalizeHex(iniCrc)}";
-    }
-
+    /// <summary>
+    /// Normalizes a hexadecimal string by trimming whitespace and stripping any leading "0x" prefix.
+    /// </summary>
+    /// <param name="value">The hexadecimal string to normalize.</param>
+    /// <returns>An uppercase hexadecimal string without prefix, or an empty string.</returns>
     internal static string NormalizeHex(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -164,6 +164,11 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
         }
 
         return trimmed.ToUpperInvariant();
+    }
+
+    private static string CreateCrcPairKey(string exeCrc, string iniCrc)
+    {
+        return $"{NormalizeHex(exeCrc)}:{NormalizeHex(iniCrc)}";
     }
 
     private static void AddOrUpdatePairEntry(ImmutableDictionary<string, CrcMappingEntry>.Builder pairBuilder, CrcMappingEntry entry)
@@ -284,6 +289,7 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
 
         return string.Compare(entry.ManifestId, existing.ManifestId, StringComparison.OrdinalIgnoreCase) > 0;
     }
+
     private static void AddOrUpdateIniEntry(ImmutableDictionary<string, CrcMappingEntry>.Builder iniBuilder, CrcMappingEntry entry)
     {
         var normalizedIni = NormalizeHex(entry.IniCrc);

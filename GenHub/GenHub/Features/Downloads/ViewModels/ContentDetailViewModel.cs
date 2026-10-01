@@ -6766,8 +6766,9 @@ public partial class ContentDetailViewModel(
 
             var usingProfiles = profilesResult.Data ?? [];
             var typeDependents = dependentsResult.Data ?? [];
+            var companionNames = await FindOrphanCompanionNamesAsync(manifestId);
 
-            if (!await ConfirmDeleteAsync(usingProfiles, typeDependents))
+            if (!await ConfirmDeleteAsync(usingProfiles, typeDependents, companionNames))
             {
                 return;
             }
@@ -6837,7 +6838,10 @@ public partial class ContentDetailViewModel(
             (dep.CompatibleGameTypes.Count == 0 || target.TargetGame == GameType.Unknown || dep.CompatibleGameTypes.Contains(target.TargetGame)));
     }
 
-    private async Task<bool> ConfirmDeleteAsync(IReadOnlyList<string> usingProfiles, IReadOnlyList<string> typeDependents)
+    private async Task<bool> ConfirmDeleteAsync(
+        IReadOnlyList<string> usingProfiles,
+        IReadOnlyList<string> typeDependents,
+        IReadOnlyList<string>? companionNames = null)
     {
         if (dialogService == null)
         {
@@ -6864,6 +6868,14 @@ public partial class ContentDetailViewModel(
                 "Downloads.ContentDetail.DeleteConfirmDependentsNote",
                 "Other downloaded content may also need this: {0}.",
                 string.Join(", ", typeDependents));
+        }
+
+        if (companionNames != null && companionNames.Count > 0)
+        {
+            message += " " + FormatLocalizedString(
+                "Downloads.ContentDetail.DeleteConfirmCompanionsNote",
+                "The following companion content will also be removed: {0}.",
+                string.Join(", ", companionNames));
         }
 
         return await dialogService.ShowConfirmationAsync(
@@ -6899,6 +6911,8 @@ public partial class ContentDetailViewModel(
                 }
             }
 
+            var removedCompanionNames = new List<string>();
+
             // Clean up any AutoInstall companion dependencies (such as QuickMatch MapPack) that are now orphaned
             if (manifestToDelete?.Dependencies != null && manifestToDelete.Dependencies.Count > 0)
             {
@@ -6918,7 +6932,7 @@ public partial class ContentDetailViewModel(
                 }
                 else
                 {
-                    await CleanupOrphanCompanionDependenciesAsync(manifestToDelete.Dependencies, allManifestsResult.Data!, profilesResult?.Data);
+                    removedCompanionNames = await CleanupOrphanCompanionDependenciesAsync(manifestToDelete.Dependencies, allManifestsResult.Data!, profilesResult?.Data);
                 }
             }
 
@@ -6954,9 +6968,17 @@ public partial class ContentDetailViewModel(
                 }
             }
 
+            var deleteMessage = removedCompanionNames.Count > 0
+                ? FormatLocalizedString(
+                    "Downloads.ContentDetail.DeletedMessageWithCompanions",
+                    "Deleted '{0}' and companion content ({1}) and freed unused storage.",
+                    Name,
+                    string.Join(", ", removedCompanionNames))
+                : FormatLocalizedString("Downloads.ContentDetail.DeletedMessage", "Deleted '{0}' and freed unused storage.", Name);
+
             notificationService.ShowSuccess(
                 GetLocalizedString("Downloads.ContentDetail.DeletedTitle", "Download Deleted"),
-                FormatLocalizedString("Downloads.ContentDetail.DeletedMessage", "Deleted '{0}' and freed unused storage.", Name),
+                deleteMessage,
                 NotificationDurations.Medium);
 
             contentStateService.NotifyStateChanged(searchResult.Id, ContentState.NotDownloaded, manifestId);
@@ -6983,23 +7005,114 @@ public partial class ContentDetailViewModel(
         }
     }
 
+    private async Task<List<string>> FindOrphanCompanionNamesAsync(string manifestId)
+    {
+        try
+        {
+            var manifestResult = await manifestPool.GetManifestAsync(ManifestId.Create(manifestId), _cts.Token);
+            if (!manifestResult.Success || manifestResult.Data?.Dependencies is null || manifestResult.Data.Dependencies.Count == 0)
+            {
+                return [];
+            }
+
+            var allManifestsResult = await manifestPool.GetAllManifestsAsync(_cts.Token);
+            if (!allManifestsResult.Success || allManifestsResult.Data is null)
+            {
+                return [];
+            }
+
+            var profilesResult = profileManager != null
+                ? await profileManager.GetAllProfilesAsync(_cts.Token)
+                : null;
+            var profiles = profilesResult?.Data;
+
+            var manifestList = allManifestsResult.Data
+                .Where(m => !string.Equals(m.Id.Value, manifestId, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            var names = new List<string>();
+            var queue = new Queue<ContentDependency>(manifestResult.Data.Dependencies);
+            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            while (queue.Count > 0)
+            {
+                var dep = queue.Dequeue();
+                if (dep.InstallBehavior != DependencyInstallBehavior.AutoInstall ||
+                    string.IsNullOrWhiteSpace(dep.Id.Value) ||
+                    dep.Id.Value == ManifestConstants.DefaultContentDependencyId)
+                {
+                    continue;
+                }
+
+                var depId = dep.Id.Value;
+                if (!visited.Add(depId))
+                {
+                    continue;
+                }
+
+                var companion = manifestList.FirstOrDefault(m =>
+                    string.Equals(m.Id.Value, depId, StringComparison.OrdinalIgnoreCase));
+                if (companion == null)
+                {
+                    continue;
+                }
+
+                bool isStillDependedOn = manifestList.Any(m =>
+                    !string.Equals(m.Id.Value, depId, StringComparison.OrdinalIgnoreCase) &&
+                    m.Dependencies != null &&
+                    m.Dependencies.Any(d => string.Equals(d.Id.Value, depId, StringComparison.OrdinalIgnoreCase)));
+
+                bool isUsedInProfile = profiles != null &&
+                    profiles.Any(p =>
+                        (p.EnabledContentIds != null && p.EnabledContentIds.Contains(depId, StringComparer.OrdinalIgnoreCase)) ||
+                        string.Equals(p.GameClient?.Id, depId, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(p.ToolContentId, depId, StringComparison.OrdinalIgnoreCase));
+
+                if (!isStillDependedOn && !isUsedInProfile)
+                {
+                    names.Add(!string.IsNullOrWhiteSpace(companion.Name) ? companion.Name : (!string.IsNullOrWhiteSpace(dep.Name) ? dep.Name : depId));
+                    manifestList.Remove(companion);
+                    if (companion.Dependencies != null)
+                    {
+                        foreach (var child in companion.Dependencies)
+                        {
+                            queue.Enqueue(child);
+                        }
+                    }
+                }
+            }
+
+            return names;
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
     /// <summary>
     /// Cleans up any <see cref="DependencyInstallBehavior.AutoInstall"/> companion dependencies
-    /// that are no longer referenced by any remaining manifest or active profile.
+    /// that are no longer referenced by any remaining manifest or active profile, evaluating
+    /// transitive chains recursively.
     /// </summary>
-    /// <param name="dependencies">The dependencies of the deleted manifest to evaluate.</param>
+    /// <param name="initialDependencies">The dependencies of the deleted manifest to evaluate.</param>
     /// <param name="remainingManifests">The remaining manifests in the pool.</param>
     /// <param name="profiles">The existing profiles, or null if profile manager is not configured.</param>
-    private async Task CleanupOrphanCompanionDependenciesAsync(
-        IReadOnlyList<ContentDependency> dependencies,
+    /// <returns>The list of display names of removed companion content.</returns>
+    private async Task<List<string>> CleanupOrphanCompanionDependenciesAsync(
+        IReadOnlyList<ContentDependency> initialDependencies,
         IEnumerable<ContentManifest> remainingManifests,
         IEnumerable<GameProfile>? profiles)
     {
-        var manifestList = remainingManifests as IList<ContentManifest> ?? remainingManifests.ToList();
-        var profileList = profiles != null ? (profiles as IList<GameProfile> ?? profiles.ToList()) : null;
+        var manifestList = remainingManifests.ToList();
+        var profileList = profiles?.ToList();
+        var removedCompanions = new List<string>();
+        var queue = new Queue<ContentDependency>(initialDependencies);
+        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var dep in dependencies)
+        while (queue.Count > 0)
         {
+            var dep = queue.Dequeue();
             if (dep.InstallBehavior != DependencyInstallBehavior.AutoInstall ||
                 string.IsNullOrWhiteSpace(dep.Id.Value) ||
                 dep.Id.Value == ManifestConstants.DefaultContentDependencyId)
@@ -7008,8 +7121,25 @@ public partial class ContentDetailViewModel(
             }
 
             var depId = dep.Id.Value;
+            if (!visited.Add(depId))
+            {
+                continue;
+            }
+
+            // Treat not-found/unacquired as skip instead of attempting remove and logging failure
+            var companionManifest = manifestList.FirstOrDefault(m =>
+                string.Equals(m.Id.Value, depId, StringComparison.OrdinalIgnoreCase));
+            if (companionManifest == null)
+            {
+                logger.LogDebug("Companion dependency {DependencyId} is not installed; skipping cleanup", depId);
+                continue;
+            }
+
             bool isStillDependedOn = manifestList.Any(m =>
-                m.Dependencies != null && m.Dependencies.Any(d => string.Equals(d.Id.Value, depId, StringComparison.OrdinalIgnoreCase)));
+                !string.Equals(m.Id.Value, depId, StringComparison.OrdinalIgnoreCase) &&
+                m.Dependencies != null &&
+                m.Dependencies.Any(d => string.Equals(d.Id.Value, depId, StringComparison.OrdinalIgnoreCase)));
+
             bool isUsedInProfile = profileList != null &&
                 profileList.Any(p =>
                     (p.EnabledContentIds != null && p.EnabledContentIds.Contains(depId, StringComparer.OrdinalIgnoreCase)) ||
@@ -7020,26 +7150,45 @@ public partial class ContentDetailViewModel(
             {
                 logger.LogInformation("Cleaning up orphaned companion dependency {DependencyId}", depId);
                 var removeResult = await manifestPool.RemoveManifestAsync(ManifestId.Create(depId), cancellationToken: _cts.Token);
-                if (!removeResult.Success)
+                if (removeResult.Success)
+                {
+                    manifestList.Remove(companionManifest);
+                    var displayName = !string.IsNullOrWhiteSpace(companionManifest.Name)
+                        ? companionManifest.Name
+                        : (!string.IsNullOrWhiteSpace(dep.Name) ? dep.Name : depId);
+                    removedCompanions.Add(displayName);
+
+                    if (artworkService != null)
+                    {
+                        var purgeResult = await artworkService.PurgeArtworkAsync(depId, _cts.Token);
+                        if (!purgeResult.Success)
+                        {
+                            logger.LogWarning(
+                                "Removed orphaned companion dependency {DependencyId} but failed to purge its artwork: {Error}",
+                                depId,
+                                purgeResult.FirstError);
+                        }
+                    }
+
+                    if (companionManifest.Dependencies != null)
+                    {
+                        foreach (var childDep in companionManifest.Dependencies)
+                        {
+                            queue.Enqueue(childDep);
+                        }
+                    }
+                }
+                else
                 {
                     logger.LogWarning(
                         "Failed to remove orphaned companion dependency {DependencyId}: {Error}",
                         depId,
                         removeResult.FirstError);
                 }
-                else if (artworkService != null)
-                {
-                    var purgeResult = await artworkService.PurgeArtworkAsync(depId, _cts.Token);
-                    if (!purgeResult.Success)
-                    {
-                        logger.LogWarning(
-                            "Removed orphaned companion dependency {DependencyId} but failed to purge its artwork: {Error}",
-                            depId,
-                            purgeResult.FirstError);
-                    }
-                }
             }
         }
+
+        return removedCompanions;
     }
 
     /// <summary>

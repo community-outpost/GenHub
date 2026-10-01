@@ -435,11 +435,18 @@ public class GameLauncher(
         string finalExecutablePath,
         ILogger? logger = null)
     {
-        var executableManifest = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient)
-            ?? manifests.FirstOrDefault(m => m.ContentType == ContentType.Executable);
+        var executableManifest = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient);
         var declared = executableManifest is null
             ? null
             : ManifestVariantResolver.ResolveLaunchRelationship(executableManifest);
+        if (declared is null)
+        {
+            executableManifest = manifests.FirstOrDefault(m => m.ContentType == ContentType.Executable);
+            declared = executableManifest is null
+                ? null
+                : ManifestVariantResolver.ResolveLaunchRelationship(executableManifest);
+        }
+
         if (declared is not null)
         {
             logger?.LogInformation(
