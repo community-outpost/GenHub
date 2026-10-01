@@ -1193,6 +1193,25 @@ public partial class FileManagerViewModel(
         WeakReferenceMessenger.Default.Send(new OpenFileInToolMessage(ToolConstants.IniEditor.Id, iniFiles[0]));
     }
 
+    /// <summary>
+    /// Opens the first selected map (.map) file in the WorldBuilder tool.
+    /// </summary>
+    [RelayCommand]
+    private void EditMapFile()
+    {
+        var mapFiles = CollectSelectedFilesByExtension(WorldBuilderConstants.FileExtensions.Map);
+        if (mapFiles.Count == 0)
+        {
+            notificationService.ShowInfo(
+                localizationService.GetString("Tools.ModBuilder.Map.NoSelectionTitle"),
+                localizationService.GetString("Tools.ModBuilder.Map.NoSelectionMessage"),
+                NotificationDurations.Short);
+            return;
+        }
+
+        WeakReferenceMessenger.Default.Send(new OpenFileInToolMessage(ToolConstants.WorldBuilder.Id, mapFiles[0]));
+    }
+
     private List<string> CollectSelectedFilesByExtension(string extension)
     {
         var selected = GetSelectedProjectFiles();

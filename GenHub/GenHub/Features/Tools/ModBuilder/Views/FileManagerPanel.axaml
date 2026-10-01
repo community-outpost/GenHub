@@ -253,6 +253,17 @@
                   <TextBlock Text="{localization:Localize Tools.ModBuilder.FileManager.ButtonEditWnd}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
+              <Button Command="{Binding EditMapFileCommand}"
+                      Padding="8,4" Margin="0,0,6,6"
+                      Background="{DynamicResource SurfaceElevatedBrush}"
+                      BorderBrush="{DynamicResource BorderBrush}"
+                      BorderThickness="1" CornerRadius="6"
+                      VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                      ToolTip.Tip="{localization:Localize Tools.ModBuilder.FileManager.TooltipEditMap}">
+                <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.FileManager.ButtonEditMap}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
               <Button Command="{Binding ValidateIniFilesCommand}"
                       Padding="8,4" Margin="0,0,6,6"
                       Background="{DynamicResource SurfaceElevatedBrush}"
