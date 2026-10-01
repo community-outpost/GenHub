@@ -249,6 +249,42 @@ public class FileManagerViewModelTests : IDisposable
     }
 
     [Fact]
+    public void EditMapFileCommand_WithMapSelected_SendsOpenMessage()
+    {
+        var mapPath = Path.Combine(_projectDir, "GameFilesEdited", "Edit.map");
+        File.WriteAllText(mapPath, "placeholder");
+
+        var recipient = new OpenFileMessageRecipient();
+        try
+        {
+            WeakReferenceMessenger.Default.Register<OpenFileInToolMessage>(recipient);
+
+            var viewModel = CreateViewModelWithRealWndService();
+            viewModel.SelectedProjectFile = new FileTreeNode { Name = "Edit.map", FullPath = mapPath, IsDirectory = false };
+            viewModel.EditMapFileCommand.Execute(null);
+
+            Assert.Single(recipient.Received);
+            Assert.Equal(ToolConstants.WorldBuilder.Id, recipient.Received[0].ToolId);
+            Assert.Equal(mapPath, recipient.Received[0].FilePath);
+        }
+        finally
+        {
+            WeakReferenceMessenger.Default.UnregisterAll(recipient);
+        }
+    }
+
+    [Fact]
+    public void EditMapFileCommand_WithNoSelection_ShowsInfo()
+    {
+        var viewModel = CreateViewModelWithRealWndService();
+        viewModel.EditMapFileCommand.Execute(null);
+
+        _mockNotificationService.Verify(
+            n => n.ShowInfo(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    [Fact]
     public async Task ValidateIniFilesCommand_WithValidIniFile_ShowsSuccess()
     {
         var iniPath = Path.Combine(_projectDir, "GameFilesEdited", "GameData.ini");
