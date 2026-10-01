@@ -416,7 +416,7 @@ public class InstallationInstructionsService(
         CancellationToken cancellationToken)
     {
         var normalizedRelativePath = PathHelper.NormalizeRelativePath(step.TargetRelativePath ?? string.Empty);
-        var manifestFile = manifest.Files?.FirstOrDefault(f =>
+        var manifestFile = ManifestVariantResolver.ResolveFiles(manifest).FirstOrDefault(f =>
             string.Equals(
                 PathHelper.NormalizeRelativePath(f.RelativePath),
                 normalizedRelativePath,

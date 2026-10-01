@@ -1362,7 +1362,7 @@ public class GameClientDetector(
         foreach (var manifest in manifests)
         {
             // Find the executable file in the manifest
-            var executableFile = manifest.Files?.FirstOrDefault(f =>
+            var executableFile = ManifestVariantResolver.ResolveFiles(manifest).FirstOrDefault(f =>
                 f.IsExecutable ||
                 (f.RelativePath?.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) == true));
 

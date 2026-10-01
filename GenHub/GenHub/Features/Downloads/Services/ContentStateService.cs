@@ -1790,8 +1790,8 @@ public sealed partial class ContentStateService(
     {
         var checkUrl = !string.IsNullOrWhiteSpace(item.SelectedDownloadUrl) ? item.SelectedDownloadUrl : item.SourceUrl;
         if (!string.IsNullOrWhiteSpace(checkUrl) &&
-            ((manifest.Files?.Any(f => !string.IsNullOrWhiteSpace(f.DownloadUrl) &&
-                                       string.Equals(f.DownloadUrl, checkUrl, StringComparison.OrdinalIgnoreCase)) == true) ||
+            (ManifestVariantResolver.EnumerateAllFiles(manifest).Any(f => !string.IsNullOrWhiteSpace(f.DownloadUrl) &&
+                                       string.Equals(f.DownloadUrl, checkUrl, StringComparison.OrdinalIgnoreCase)) ||
              (!string.IsNullOrWhiteSpace(manifest.Publisher?.ContentIndexUrl) &&
               string.Equals(manifest.Publisher.ContentIndexUrl, checkUrl, StringComparison.OrdinalIgnoreCase))))
         {
@@ -1908,8 +1908,8 @@ public sealed partial class ContentStateService(
         }
 
         if (!string.IsNullOrWhiteSpace(item.SelectedDownloadUrl) && (
-            (manifest.Files?.Any(f => !string.IsNullOrWhiteSpace(f.DownloadUrl) &&
-                                     string.Equals(f.DownloadUrl, item.SelectedDownloadUrl, StringComparison.OrdinalIgnoreCase)) == true) ||
+            ManifestVariantResolver.EnumerateAllFiles(manifest).Any(f => !string.IsNullOrWhiteSpace(f.DownloadUrl) &&
+                                     string.Equals(f.DownloadUrl, item.SelectedDownloadUrl, StringComparison.OrdinalIgnoreCase)) ||
             (!string.IsNullOrWhiteSpace(manifest.Publisher?.ContentIndexUrl) &&
              string.Equals(manifest.Publisher.ContentIndexUrl, item.SelectedDownloadUrl, StringComparison.OrdinalIgnoreCase))))
         {
@@ -2111,9 +2111,9 @@ public sealed partial class ContentStateService(
                  string.Equals(manifest.OriginalContentId.TrimEnd('/'), item.SourceUrl.TrimEnd('/'), StringComparison.OrdinalIgnoreCase) &&
                  FileRowMatchesManifest(manifest, item)))) ||
             (!string.IsNullOrWhiteSpace(item.SelectedDownloadUrl) && (
-                (manifest.Files?.Any(file =>
+                ManifestVariantResolver.EnumerateAllFiles(manifest).Any(file =>
                     !string.IsNullOrWhiteSpace(file.DownloadUrl) &&
-                    string.Equals(file.DownloadUrl, item.SelectedDownloadUrl, StringComparison.OrdinalIgnoreCase)) == true) ||
+                    string.Equals(file.DownloadUrl, item.SelectedDownloadUrl, StringComparison.OrdinalIgnoreCase)) ||
                 (!string.IsNullOrWhiteSpace(manifest.Publisher?.ContentIndexUrl) &&
                     string.Equals(manifest.Publisher.ContentIndexUrl, item.SelectedDownloadUrl, StringComparison.OrdinalIgnoreCase))))));
 
@@ -2245,7 +2245,8 @@ public sealed partial class ContentStateService(
     /// <returns>True when the item identifies the manifest's asset, or carries no asset identity.</returns>
     private static bool IsSameGitHubAsset(ContentManifest manifest, ContentSearchResult item)
     {
-        if (manifest.Files is null || manifest.Files.Count == 0)
+        var files = ManifestVariantResolver.EnumerateAllFiles(manifest).ToList();
+        if (files.Count == 0)
         {
             return false;
         }
@@ -2253,14 +2254,14 @@ public sealed partial class ContentStateService(
         if (item.ResolverMetadata?.TryGetValue(GitHubConstants.AssetNameMetadataKey, out var assetName) == true &&
             !string.IsNullOrWhiteSpace(assetName))
         {
-            return manifest.Files.Any(file =>
+            return files.Any(file =>
                 string.Equals(file.RelativePath, assetName, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(Path.GetFileName(file.RelativePath), assetName, StringComparison.OrdinalIgnoreCase));
         }
 
         if (!string.IsNullOrWhiteSpace(item.SelectedDownloadUrl))
         {
-            return manifest.Files.Any(file =>
+            return files.Any(file =>
                 !string.IsNullOrWhiteSpace(file.DownloadUrl) &&
                 string.Equals(file.DownloadUrl, item.SelectedDownloadUrl, StringComparison.OrdinalIgnoreCase));
         }
@@ -2363,9 +2364,9 @@ public sealed partial class ContentStateService(
         var itemVariant = ExtractVariantToken(item.Name) ?? ExtractVariantToken(item.Id);
         var manifestVariant = ExtractVariantToken(manifest.Name) ?? ExtractVariantToken(manifest.Id.Value);
 
-        if (string.IsNullOrEmpty(manifestVariant) && !string.IsNullOrEmpty(itemVariant) && manifest.Files?.Count > 0)
+        if (string.IsNullOrEmpty(manifestVariant) && !string.IsNullOrEmpty(itemVariant))
         {
-            manifestVariant = manifest.Files
+            manifestVariant = ManifestVariantResolver.EnumerateAllFiles(manifest)
                 .Select(f => ExtractVariantToken(f.RelativePath))
                 .FirstOrDefault(v => !string.IsNullOrEmpty(v));
         }
@@ -2402,9 +2403,9 @@ public sealed partial class ContentStateService(
         }
 
         var matches = manifests.Where(manifest =>
-            manifest.Files?.Any(file =>
+            ManifestVariantResolver.EnumerateAllFiles(manifest).Any(file =>
                 !string.IsNullOrWhiteSpace(file.DownloadUrl) &&
-                string.Equals(file.DownloadUrl, selectedDownloadUrl, StringComparison.OrdinalIgnoreCase)) == true);
+                string.Equals(file.DownloadUrl, selectedDownloadUrl, StringComparison.OrdinalIgnoreCase)));
 
         return SelectBestMatchingManifest(matches, item, logger);
     }

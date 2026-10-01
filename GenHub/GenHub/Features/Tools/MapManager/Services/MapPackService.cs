@@ -195,7 +195,7 @@ public sealed class MapPackService : IMapPackService
                     Name = m.Name,
                     Description = m.Metadata.Description,
                     TargetGame = m.TargetGame,
-                    MapFilePaths = m.Files.Select(f => f.RelativePath).ToList(),
+                    MapFilePaths = ManifestVariantResolver.ResolveFiles(m).Select(f => f.RelativePath).ToList(),
                     CreatedDate = m.Metadata.ReleaseDate,
                     IsLoaded = false, // Managed by Profile system
                 }));

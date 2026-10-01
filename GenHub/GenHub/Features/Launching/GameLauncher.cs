@@ -196,7 +196,9 @@ public class GameLauncher(
             m.ContentType == ContentType.GameClient ||
             m.ContentType == ContentType.Executable ||
             m.ContentType == ContentType.ModdingTool);
-        var executableFileForMonitor = executableManifestForMonitor?.Files?.FirstOrDefault(f => f.IsExecutable);
+        var executableFileForMonitor = executableManifestForMonitor is null
+            ? null
+            : ManifestVariantResolver.ResolveFiles(executableManifestForMonitor).FirstOrDefault(f => f.IsExecutable);
 
         if (executableFileForMonitor is { SourceType: ContentSourceType.ContentAddressable } &&
             effectiveStrategy == WorkspaceStrategy.SymlinkOnly)
@@ -374,7 +376,7 @@ public class GameLauncher(
             : manifests
                 .Where(m => !ReferenceEquals(m, entryManifest))
                 .Prepend(entryManifest)
-                .SelectMany(m => m.Files ?? [])
+                .SelectMany(m => ManifestVariantResolver.ResolveFiles(m))
                 .FirstOrDefault(f =>
                     Path.GetFileName(f.RelativePath.Replace('\\', '/')).Equals(childFileName, StringComparison.OrdinalIgnoreCase) &&
                     GetRelativeDirectory(f.RelativePath).Equals(entryDirectory, StringComparison.OrdinalIgnoreCase));
@@ -2319,7 +2321,7 @@ public class GameLauncher(
                 manifest.Id.Value,
                 manifest.Name,
                 manifest.ContentType,
-                manifest.Files?.Count ?? 0);
+                ManifestVariantResolver.ResolveFiles(manifest).Count);
         }
 
         return OperationResult<List<ContentManifest>>.CreateSuccess(manifests);
@@ -2648,7 +2650,7 @@ public class GameLauncher(
             }
 
             var drift = InstallationManifestDriftDetector.DetectDrift(
-                gameDir, manifest.TargetGame, manifest.Version, manifest.Files, cancellationToken: cancellationToken);
+                gameDir, manifest.TargetGame, manifest.Version, ManifestVariantResolver.ResolveFiles(manifest), cancellationToken: cancellationToken);
             if (drift.HasDrift)
             {
                 driftedManifests.Add((manifest, drift));

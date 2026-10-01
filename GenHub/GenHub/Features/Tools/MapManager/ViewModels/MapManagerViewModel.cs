@@ -15,6 +15,7 @@ using GenHub.Core.Interfaces.Tools.MapManager;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Tools.MapManager;
 using GenHub.Core.Models.Tools.UploadThing;
 using GenHub.Features.Downloads.ViewModels;
@@ -1398,7 +1399,7 @@ public partial class MapManagerViewModel(
                     Id = manifest.Id,
                     Name = manifest.Name,
                     TargetGame = manifest.TargetGame,
-                    MapFilePaths = manifest.Files.Select(f => f.RelativePath).ToList(),
+                    MapFilePaths = ManifestVariantResolver.ResolveFiles(manifest).Select(f => f.RelativePath).ToList(),
                     CreatedDate = manifest.Metadata.ReleaseDate,
                 };
 
