@@ -134,10 +134,9 @@ public class SteamManifestPatcher(
             changed = true;
         }
 
-        if (manifest.EntryPoint != null && generalsExe != null && !string.Equals(manifest.EntryPoint, generalsExe.RelativePath, StringComparison.OrdinalIgnoreCase))
+        if (generalsExe != null)
         {
-            manifest.EntryPoint = generalsExe.RelativePath;
-            changed = true;
+            changed |= UpdateEntryPoint(manifest, generalsExe.RelativePath);
         }
 
         var supportsLaunch = manifest.ContentType is ContentType.GameClient or ContentType.Executable;
@@ -177,11 +176,7 @@ public class SteamManifestPatcher(
                 changed = true;
             }
 
-            if (manifest.EntryPoint != null && !string.Equals(manifest.EntryPoint, gameDat.RelativePath, StringComparison.OrdinalIgnoreCase))
-            {
-                manifest.EntryPoint = gameDat.RelativePath;
-                changed = true;
-            }
+            changed |= UpdateEntryPoint(manifest, gameDat.RelativePath);
         }
         else if (generalsExe is { IsExecutable: false })
         {
@@ -189,11 +184,7 @@ public class SteamManifestPatcher(
             generalsExe.IsExecutable = true;
             changed = true;
 
-            if (manifest.EntryPoint != null && !string.Equals(manifest.EntryPoint, generalsExe.RelativePath, StringComparison.OrdinalIgnoreCase))
-            {
-                manifest.EntryPoint = generalsExe.RelativePath;
-                changed = true;
-            }
+            changed |= UpdateEntryPoint(manifest, generalsExe.RelativePath);
         }
 
         if (manifest.LaunchRelationship is not null)
@@ -203,5 +194,26 @@ public class SteamManifestPatcher(
         }
 
         return changed;
+    }
+
+    private static bool UpdateEntryPoint(ContentManifest manifest, string path)
+    {
+        var variant = ManifestVariantResolver.ResolveVariant(manifest);
+        var current = variant is null ? manifest.EntryPoint : variant.EntryPoint;
+        if (current is null || string.Equals(current, path, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (variant is not null)
+        {
+            variant.EntryPoint = path;
+        }
+        else
+        {
+            manifest.EntryPoint = path;
+        }
+
+        return true;
     }
 }

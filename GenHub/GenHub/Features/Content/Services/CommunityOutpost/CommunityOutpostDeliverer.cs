@@ -503,7 +503,7 @@ public class CommunityOutpostDeliverer(
                 registeredManifestIds.Add(manifest.Id);
 
                 // Ensure registered manifest entries reflect clean CAS state
-                foreach (var file in ManifestVariantResolver.EnumerateAllFiles(manifest))
+                foreach (var file in ManifestVariantResolver.ResolveFiles(manifest))
                 {
                     file.SourceType = ContentSourceType.ContentAddressable;
                     file.SourcePath = null;

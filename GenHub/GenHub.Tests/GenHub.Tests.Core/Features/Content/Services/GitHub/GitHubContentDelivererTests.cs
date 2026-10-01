@@ -181,6 +181,11 @@ public class GitHubContentDelivererTests
                 Files = [new ManifestFile { RelativePath = "data.big" }],
             };
 
+            variantRu.Variants = VariantManifestFixture.Create(
+                [new ManifestFile { RelativePath = "data.big", SourceType = ContentSourceType.LocalFile }],
+                [new ManifestFile { RelativePath = "foreign.big", SourceType = ContentSourceType.RemoteDownload }]).Variants;
+            variantRu.Files = [];
+
             var factoryMock = new Mock<IPublisherManifestFactory>();
             factoryMock.Setup(f => f.CanHandle(It.IsAny<ContentManifest>())).Returns(true);
             factoryMock
@@ -235,6 +240,9 @@ public class GitHubContentDelivererTests
             result.Data!.Id.Value.Should().Be("1.0.github.addon.item-ru");
             result.Data.Name.Should().Be("Item (RU)");
             result.Data.Metadata?.SelectedVariantId.Should().Be("ru");
+            ManifestVariantResolver.ResolveFiles(variantRu).Single().SourceType.Should().Be(ContentSourceType.ContentAddressable);
+            ManifestVariantResolver.EnumerateAllFiles(variantRu).Single(f => f.RelativePath == "foreign.big")
+                .SourceType.Should().Be(ContentSourceType.RemoteDownload);
         }
         finally
         {

@@ -356,7 +356,7 @@ public class GitHubContentDeliverer(
 
                     // Update file source types to ContentAddressable since files are now in CAS
                     // This ensures validation checks CAS instead of filesystem paths
-                    foreach (var file in ManifestVariantResolver.EnumerateAllFiles(manifest))
+                    foreach (var file in ManifestVariantResolver.ResolveFiles(manifest))
                     {
                         file.SourceType = ContentSourceType.ContentAddressable;
                     }
