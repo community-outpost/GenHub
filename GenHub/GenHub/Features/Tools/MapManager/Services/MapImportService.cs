@@ -868,7 +868,7 @@ public sealed class MapImportService(
         {
             var trimmed = rawName.Trim('"', '\'');
             var fileName = Path.GetFileName(trimmed);
-            if (!string.IsNullOrWhiteSpace(fileName))
+            if (!string.IsNullOrWhiteSpace(fileName) && fileName.IndexOfAny(Path.GetInvalidFileNameChars()) < 0)
             {
                 return fileName;
             }
@@ -877,7 +877,7 @@ public sealed class MapImportService(
         try
         {
             var localName = Path.GetFileName(uri.LocalPath);
-            if (!string.IsNullOrWhiteSpace(localName))
+            if (!string.IsNullOrWhiteSpace(localName) && localName.IndexOfAny(Path.GetInvalidFileNameChars()) < 0)
             {
                 return localName;
             }
