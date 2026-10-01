@@ -185,11 +185,13 @@ public static class GameProcessSelector
 
         if (!string.IsNullOrEmpty(imageName))
         {
-            // A Unix binary carries no extension and may legitimately contain dots, so the full
-            // names and the stems on both sides have to be compared before the candidate is rejected.
+            // Preserve distinct executable suffixes and dotted native names. Only an extensionless
+            // native image may match the Windows .exe spelling of the same client.
             return imageName.Equals(processName, StringComparison.OrdinalIgnoreCase)
                 || Path.GetFileNameWithoutExtension(imageName).Equals(processName, StringComparison.OrdinalIgnoreCase)
-                || Path.GetFileNameWithoutExtension(imageName).Equals(Path.GetFileNameWithoutExtension(processName), StringComparison.OrdinalIgnoreCase);
+                || (!Path.HasExtension(imageName)
+                    && Path.GetExtension(processName).Equals(".exe", StringComparison.OrdinalIgnoreCase)
+                    && imageName.Equals(Path.GetFileNameWithoutExtension(processName), StringComparison.OrdinalIgnoreCase));
         }
 
         return candidate.ProcessName.Equals(processName, StringComparison.OrdinalIgnoreCase)
