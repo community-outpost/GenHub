@@ -23,6 +23,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.Downloads.ViewModels;
@@ -51,6 +52,7 @@ public sealed partial class ContentGridItemViewModel(
     private int _iconLoadVersion;
     private string? _loadedPublisherLogoUrl;
     private string? _loadedThumbnailUrl;
+    private CancellationTokenSource? _iconLoadCts;
 
     /// <summary>
     /// Gets the underlying content search result.
@@ -554,6 +556,20 @@ public sealed partial class ContentGridItemViewModel(
                 component.PropertyChanged -= OnBundleComponentPropertyChanged;
             }
 
+            var cts = Interlocked.Exchange(ref _iconLoadCts, null);
+            if (cts != null)
+            {
+                try
+                {
+                    cts.Cancel();
+                }
+                catch (ObjectDisposedException)
+                {
+                }
+
+                cts.Dispose();
+            }
+
             _disposed = true;
             GC.SuppressFinalize(this);
         }
@@ -622,11 +638,15 @@ public sealed partial class ContentGridItemViewModel(
         }
     }
 
-    private static async Task<Bitmap?> SafeGetBitmapAsync(string url)
+    private static async Task<Bitmap?> SafeGetBitmapAsync(string url, CancellationToken cancellationToken)
     {
         try
         {
-            return await ImageCacheService.Instance.GetBitmapAsync(url);
+            return await ImageCacheService.Instance.GetBitmapAsync(url, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch
         {
@@ -988,7 +1008,7 @@ public sealed partial class ContentGridItemViewModel(
     private void HydrateBitmapsFromMemoryCache()
     {
         var publisherLogoUrl = ContentCardBadgeHelper.GetPublisherLogoUrl(SearchResult);
-        if (string.Equals(publisherLogoUrl, ThumbnailUrl, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(publisherLogoUrl, ThumbnailUrl, StringComparison.Ordinal))
         {
             publisherLogoUrl = null;
         }
@@ -998,7 +1018,7 @@ public sealed partial class ContentGridItemViewModel(
 
     private void SynchronizeCardUrls(string? publisherLogoUrl, string? thumbnailUrl)
     {
-        if (!string.Equals(_loadedPublisherLogoUrl, publisherLogoUrl, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(_loadedPublisherLogoUrl, publisherLogoUrl, StringComparison.Ordinal))
         {
             _loadedPublisherLogoUrl = publisherLogoUrl;
             PublisherLogoBitmap = !string.IsNullOrEmpty(publisherLogoUrl)
@@ -1006,7 +1026,7 @@ public sealed partial class ContentGridItemViewModel(
                 : null;
         }
 
-        if (!string.Equals(_loadedThumbnailUrl, thumbnailUrl, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(_loadedThumbnailUrl, thumbnailUrl, StringComparison.Ordinal))
         {
             _loadedThumbnailUrl = thumbnailUrl;
             IconBitmap = !string.IsNullOrEmpty(thumbnailUrl)
@@ -1028,51 +1048,97 @@ public sealed partial class ContentGridItemViewModel(
         }
 
         if (logoTask is { IsCompletedSuccessfully: true, Result: { } logoResult } &&
-            string.Equals(_loadedPublisherLogoUrl, publisherLogoUrl, StringComparison.OrdinalIgnoreCase))
+            string.Equals(_loadedPublisherLogoUrl, publisherLogoUrl, StringComparison.Ordinal))
         {
             PublisherLogoBitmap = logoResult;
         }
 
         if (thumbTask is { IsCompletedSuccessfully: true, Result: { } thumbResult } &&
-            string.Equals(_loadedThumbnailUrl, thumbnailUrl, StringComparison.OrdinalIgnoreCase))
+            string.Equals(_loadedThumbnailUrl, thumbnailUrl, StringComparison.Ordinal))
         {
             IconBitmap = thumbResult;
         }
     }
 
-    private async Task LoadIconAsync()
+    private CancellationToken PrepareIconLoadCancellationToken(CancellationToken cancellationToken, out IDisposable? cleanup)
+    {
+        var cts = new CancellationTokenSource();
+        var oldCts = Interlocked.Exchange(ref _iconLoadCts, cts);
+        if (oldCts != null)
+        {
+            try
+            {
+                oldCts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+
+            oldCts.Dispose();
+        }
+
+        if (cancellationToken.CanBeCanceled)
+        {
+            var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, cancellationToken);
+            cleanup = linkedCts;
+            return linkedCts.Token;
+        }
+
+        cleanup = null;
+        return cts.Token;
+    }
+
+    private async Task LoadIconAsync(CancellationToken cancellationToken = default)
     {
         if (_disposed)
         {
             return;
         }
 
-        var currentVersion = ++_iconLoadVersion;
-        HydrateBitmapsFromMemoryCache();
-
-        var publisherLogoUrl = _loadedPublisherLogoUrl;
-        var thumbnailUrl = _loadedThumbnailUrl;
-
-        var logoTask = (!string.IsNullOrEmpty(publisherLogoUrl) && PublisherLogoBitmap == null)
-            ? SafeGetBitmapAsync(publisherLogoUrl)
-            : null;
-
-        var thumbTask = (!string.IsNullOrEmpty(thumbnailUrl) && IconBitmap == null)
-            ? SafeGetBitmapAsync(thumbnailUrl)
-            : null;
-
-        if (logoTask == null && thumbTask == null)
+        var token = PrepareIconLoadCancellationToken(cancellationToken, out var cleanup);
+        using (cleanup)
         {
-            if (string.IsNullOrEmpty(thumbnailUrl) && currentVersion == _iconLoadVersion)
+            var currentVersion = ++_iconLoadVersion;
+            HydrateBitmapsFromMemoryCache();
+
+            var publisherLogoUrl = _loadedPublisherLogoUrl;
+            var thumbnailUrl = _loadedThumbnailUrl;
+
+            var logoTask = (!string.IsNullOrEmpty(publisherLogoUrl) && PublisherLogoBitmap == null)
+                ? SafeGetBitmapAsync(publisherLogoUrl, token)
+                : null;
+
+            var thumbTask = (!string.IsNullOrEmpty(thumbnailUrl) && IconBitmap == null)
+                ? SafeGetBitmapAsync(thumbnailUrl, token)
+                : null;
+
+            if (logoTask == null && thumbTask == null)
             {
-                IconBitmap = null;
+                if (string.IsNullOrEmpty(thumbnailUrl) && currentVersion == _iconLoadVersion)
+                {
+                    IconBitmap = null;
+                }
+
+                return;
             }
 
-            return;
+            try
+            {
+                await AwaitIconLoadTasksAsync(logoTask, thumbTask);
+                if (!token.IsCancellationRequested)
+                {
+                    ApplyLoadedIconBitmaps(currentVersion, logoTask, publisherLogoUrl, thumbTask, thumbnailUrl);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Disposed or superseded by a newer icon load
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to load icons for {ContentId}", SearchResult.Id);
+            }
         }
-
-        await AwaitIconLoadTasksAsync(logoTask, thumbTask);
-        ApplyLoadedIconBitmaps(currentVersion, logoTask, publisherLogoUrl, thumbTask, thumbnailUrl);
     }
 
     /// <summary>
@@ -1380,8 +1446,9 @@ public sealed partial class ContentGridItemViewModel(
     /// <summary>
     /// Loads icon and logo bitmaps if not already loaded.
     /// </summary>
+    /// <param name="cancellationToken">An optional cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public async Task EnsureIconsLoadedAsync()
+    public async Task EnsureIconsLoadedAsync(CancellationToken cancellationToken = default)
     {
         if (_disposed)
         {
@@ -1390,7 +1457,7 @@ public sealed partial class ContentGridItemViewModel(
 
         if (PublisherLogoBitmap == null || (IconBitmap == null && !string.IsNullOrEmpty(ThumbnailUrl)))
         {
-            await LoadIconAsync();
+            await LoadIconAsync(cancellationToken);
         }
     }
 

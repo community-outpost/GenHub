@@ -3033,7 +3033,7 @@ public sealed partial class DownloadsBrowserViewModel(
             }
 
             variantVm.NotifyStateChanged();
-            await Task.WhenAny(variantVm.EnsureIconsLoadedAsync(), Task.Delay(UiConstants.ProgressiveItemRenderDelayMs, ct));
+            await Task.WhenAny(variantVm.EnsureIconsLoadedAsync(ct), Task.Delay(UiConstants.ProgressiveItemRenderDelayMs, ct));
             return variantVm;
         }
         catch
@@ -3062,7 +3062,7 @@ public sealed partial class DownloadsBrowserViewModel(
             }
 
             vm.NotifyStateChanged();
-            await Task.WhenAny(vm.EnsureIconsLoadedAsync(), Task.Delay(UiConstants.ProgressiveItemRenderDelayMs, ct));
+            await Task.WhenAny(vm.EnsureIconsLoadedAsync(ct), Task.Delay(UiConstants.ProgressiveItemRenderDelayMs, ct));
             return vm;
         }
         catch
