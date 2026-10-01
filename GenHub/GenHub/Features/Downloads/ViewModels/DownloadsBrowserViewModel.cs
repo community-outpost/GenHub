@@ -33,6 +33,7 @@ using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.Content.Services.Reconciliation;
+using GenHub.Features.Content.Services.SteamWorkshop;
 using GenHub.Features.Downloads.Services;
 using GenHub.Features.Downloads.ViewModels.Filters;
 using GenHub.Features.Downloads.Views;
@@ -1182,6 +1183,11 @@ public sealed partial class DownloadsBrowserViewModel(
                 ModDBConstants.PublisherType,
                 PublisherInfoConstants.ModDB.Name,
                 PublisherInfoConstants.ModDB.LogoSource,
+                ContentConstants.CategoryDynamic),
+            new PublisherItemViewModel(
+                SteamWorkshopConstants.PublisherType,
+                PublisherInfoConstants.SteamWorkshop.Name,
+                PublisherInfoConstants.SteamWorkshop.LogoSource,
                 ContentConstants.CategoryDynamic),
         ];
     }
@@ -3681,6 +3687,7 @@ public sealed partial class DownloadsBrowserViewModel(
             CNCLabsConstants.PublisherType => contentDiscoverers.OfType<CNCLabsMapDiscoverer>().FirstOrDefault(),
             AODMapsConstants.PublisherType => contentDiscoverers.OfType<AODMapsDiscoverer>().FirstOrDefault(),
             ModDBConstants.PublisherType => contentDiscoverers.OfType<ModDBDiscoverer>().FirstOrDefault(),
+            SteamWorkshopConstants.PublisherType => contentDiscoverers.OfType<SteamWorkshopDiscoverer>().FirstOrDefault(),
 
             // User-subscribed GenHub catalogs (and later definition-resolved endpoints)
             _ => _subscribedDiscoverers.TryGetValue(publisherId, out var subscribed) ? subscribed : null,
@@ -3955,6 +3962,7 @@ public sealed partial class DownloadsBrowserViewModel(
         _filterViewModels[CNCLabsConstants.PublisherType] = new CNCLabsFilterViewModel();
         _filterViewModels[AODMapsConstants.PublisherType] = new AODMapsFilterViewModel();
         _filterViewModels[ModDBConstants.PublisherType] = new ModDBFilterViewModel();
+        _filterViewModels[SteamWorkshopConstants.PublisherType] = new SteamWorkshopFilterViewModel(_localizationService);
         _filterViewModels[PublisherTypeConstants.GenLauncher] = new StaticPublisherFilterViewModel(PublisherTypeConstants.GenLauncher)
         {
             LocalizationService = _localizationService,

@@ -376,6 +376,14 @@ public sealed partial class ContentGridItemViewModel(
     public string ProviderName => SearchResult.ProviderName ?? string.Empty;
 
     /// <summary>
+    /// Gets the tooltip to display on the publisher / creator logo badge.
+    /// </summary>
+    public string PublisherBadgeToolTip =>
+        !string.IsNullOrWhiteSpace(AuthorName) && HasAuthor
+            ? AuthorName
+            : ProviderName;
+
+    /// <summary>
     /// Gets the icon URL for the content, falling back to a placeholder when missing.
     /// </summary>
     public string IconUrl => ContentCardBadgeHelper.OrDefaultImage(SearchResult.IconUrl);
@@ -1482,8 +1490,16 @@ public sealed partial class ContentGridItemViewModel(
             return;
         }
 
+        var publisherLogoUrl = ContentCardBadgeHelper.GetPublisherLogoUrl(SearchResult);
+        if (string.Equals(publisherLogoUrl, ThumbnailUrl, StringComparison.Ordinal))
+        {
+            publisherLogoUrl = null;
+        }
+
         // Note: ThumbnailUrl is guaranteed non-empty via ContentCardBadgeHelper.OrDefaultImage fallback.
-        if (PublisherLogoBitmap == null || IconBitmap == null)
+        if (PublisherLogoBitmap == null ||
+            IconBitmap == null ||
+            !string.Equals(_loadedPublisherLogoUrl, publisherLogoUrl, StringComparison.Ordinal))
         {
             await LoadIconAsync();
         }
@@ -1570,6 +1586,7 @@ public sealed partial class ContentGridItemViewModel(
         OnPropertyChanged(nameof(ShowAddToProfileButton));
         OnPropertyChanged(nameof(EffectiveCurrentState));
         OnPropertyChanged(nameof(EffectiveIsDownloaded));
+        OnPropertyChanged(nameof(PublisherBadgeToolTip));
         OnPropertyChanged(nameof(IsFeatured));
         OnPropertyChanged(nameof(HasFeaturedBadge));
         OnPropertyChanged(nameof(FeaturedBadge));

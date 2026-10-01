@@ -267,7 +267,7 @@
                                     BorderBrush="{DynamicResource BorderBrush}"
                                     BorderThickness="1"
                                     ClipToBounds="True"
-                                    ToolTip.Tip="{Binding ProviderName}">
+                                    ToolTip.Tip="{Binding PublisherBadgeToolTip}">
                                 <Image Source="{Binding PublisherLogoBitmap}" Stretch="Uniform" />
                             </Border>
 

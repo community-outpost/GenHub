@@ -4594,6 +4594,30 @@
   <data name="Downloads.Filter.Timeframe" xml:space="preserve">
     <value>الإطار الزمني</value>
   </data>
+  <data name="Downloads.Filter.Tags" xml:space="preserve">
+    <value>الوسوم</value>
+  </data>
+  <data name="Downloads.Filter.SteamWorkshop.Sort.Trending" xml:space="preserve">
+    <value>الرائج</value>
+  </data>
+  <data name="Downloads.Filter.SteamWorkshop.Sort.MostRecent" xml:space="preserve">
+    <value>الأحدث</value>
+  </data>
+  <data name="Downloads.Filter.SteamWorkshop.Sort.LastUpdated" xml:space="preserve">
+    <value>آخر تحديث</value>
+  </data>
+  <data name="Downloads.Filter.SteamWorkshop.Sort.MostSubscribed" xml:space="preserve">
+    <value>الأكثر اشتراكاً</value>
+  </data>
+  <data name="Downloads.Filter.SteamWorkshop.Sort.TopRated" xml:space="preserve">
+    <value>الأعلى تقييماً</value>
+  </data>
+  <data name="Downloads.Filter.SteamWorkshop.Tags" xml:space="preserve">
+    <value>وسوم الخرائط</value>
+  </data>
+  <data name="Downloads.SteamWorkshop.Description.PendingResolution" xml:space="preserve">
+    <value>خريطة من ورشة عمل Steam - التفاصيل الكاملة متاحة بعد الاسترداد</value>
+  </data>
   <data name="Tools.ReplayManager.Column.Map" xml:space="preserve">
     <value>الخريطة</value>
   </data>
@@ -9690,6 +9714,51 @@
   </data>
   <data name="Settings.GitHubAuth.Toast.BrowserOpenFailed" xml:space="preserve">
     <value>تم نسخ الرمز إلى الحافظة، ولكن تعذر فتح GitHub تلقائيًا. أدخل الرمز يدويًا.</value>
+  </data>
+  <data name="Settings.SteamWorkshop.Toast.Title" xml:space="preserve">
+    <value>ورشة عمل Steam</value>
+  </data>
+  <data name="Settings.SteamAccount.Label" xml:space="preserve">
+    <value>حساب ستيم (تنزيلات ورشة العمل بنقرة واحدة)</value>
+  </data>
+  <data name="Settings.SteamAccount.Description" xml:space="preserve">
+    <value>قم بتسجيل الدخول باستخدام حساب ستيم الخاص بك لتمكين التنزيل السريع للخرائط داخل التطبيق بنقرة واحدة دون الحاجة إلى تشغيل تطبيق ستيم الخارجي.</value>
+  </data>
+  <data name="Settings.SteamAccount.SignInQrCode" xml:space="preserve">
+    <value>تسجيل الدخول عبر ستيم (رمز الاستجابة السريعة)</value>
+  </data>
+  <data name="Settings.SteamAccount.Disconnect" xml:space="preserve">
+    <value>قطع اتصال حساب ستيم</value>
+  </data>
+  <data name="Settings.SteamAccount.ScanQrPrompt" xml:space="preserve">
+    <value>امسح رمز الاستجابة السريعة هذا ضوئيًا باستخدام تطبيق ستيم على هاتفك لتأكيد تسجيل الدخول:</value>
+  </data>
+  <data name="Settings.SteamAccount.Cancel" xml:space="preserve">
+    <value>إلغاء</value>
+  </data>
+  <data name="Settings.SteamAccount.ConnectedAs" xml:space="preserve">
+    <value>متصل باسم: {0}</value>
+  </data>
+  <data name="Settings.SteamAccount.Status.Connected" xml:space="preserve">
+    <value>متصل باسم {0}</value>
+  </data>
+  <data name="Settings.SteamAccount.Status.NotConnected" xml:space="preserve">
+    <value>غير متصل</value>
+  </data>
+  <data name="Settings.SteamAccount.Toast.Connected" xml:space="preserve">
+    <value>تم ربط حساب ستيم: {0}</value>
+  </data>
+  <data name="Settings.SteamAccount.Toast.NotApproved" xml:space="preserve">
+    <value>لم تتم الموافقة على تسجيل الدخول عبر ستيم.</value>
+  </data>
+  <data name="Settings.SteamAccount.Toast.Failed" xml:space="preserve">
+    <value>فشل تسجيل الدخول عبر ستيم: {0}</value>
+  </data>
+  <data name="Settings.SteamAccount.Toast.Disconnected" xml:space="preserve">
+    <value>تم قطع اتصال حساب ستيم.</value>
+  </data>
+  <data name="Settings.SteamAccount.Toast.DisconnectFailed" xml:space="preserve">
+    <value>فشل قطع اتصال حساب ستيم: {0}</value>
   </data>
   <data name="Info.Demo.AppUpdates.AuthTitle" xml:space="preserve">
     <value>تسجيل الدخول باستخدام GitHub</value>

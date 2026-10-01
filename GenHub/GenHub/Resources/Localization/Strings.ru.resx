@@ -4594,6 +4594,30 @@
   <data name="Downloads.Filter.Timeframe" xml:space="preserve">
     <value>Временные рамки</value>
   </data>
+  <data name="Downloads.Filter.Tags" xml:space="preserve">
+    <value>Теги</value>
+  </data>
+  <data name="Downloads.Filter.SteamWorkshop.Sort.Trending" xml:space="preserve">
+    <value>Популярное</value>
+  </data>
+  <data name="Downloads.Filter.SteamWorkshop.Sort.MostRecent" xml:space="preserve">
+    <value>Самые новые</value>
+  </data>
+  <data name="Downloads.Filter.SteamWorkshop.Sort.LastUpdated" xml:space="preserve">
+    <value>Недавно обновлённые</value>
+  </data>
+  <data name="Downloads.Filter.SteamWorkshop.Sort.MostSubscribed" xml:space="preserve">
+    <value>По подпискам</value>
+  </data>
+  <data name="Downloads.Filter.SteamWorkshop.Sort.TopRated" xml:space="preserve">
+    <value>С высоким рейтингом</value>
+  </data>
+  <data name="Downloads.Filter.SteamWorkshop.Tags" xml:space="preserve">
+    <value>Теги карт</value>
+  </data>
+  <data name="Downloads.SteamWorkshop.Description.PendingResolution" xml:space="preserve">
+    <value>Карта из Мастерской Steam — подробное описание появится после загрузки данных</value>
+  </data>
   <data name="Tools.ReplayManager.Column.Map" xml:space="preserve">
     <value>Карта</value>
   </data>
@@ -9690,6 +9714,51 @@ GenHub связывает запуск модификаций со Steam, отк
   </data>
   <data name="Settings.GitHubAuth.Toast.BrowserOpenFailed" xml:space="preserve">
     <value>Код скопирован в буфер обмена, но GitHub не удалось открыть автоматически. Введите код вручную.</value>
+  </data>
+  <data name="Settings.SteamWorkshop.Toast.Title" xml:space="preserve">
+    <value>Мастерская Steam</value>
+  </data>
+  <data name="Settings.SteamAccount.Label" xml:space="preserve">
+    <value>Аккаунт Steam (загрузка из Мастерской в 1 клик)</value>
+  </data>
+  <data name="Settings.SteamAccount.Description" xml:space="preserve">
+    <value>Войдите в аккаунт Steam для быстрой загрузки карт в приложении в один клик без необходимости запуска внешнего клиента Steam.</value>
+  </data>
+  <data name="Settings.SteamAccount.SignInQrCode" xml:space="preserve">
+    <value>Войти через Steam (QR-код)</value>
+  </data>
+  <data name="Settings.SteamAccount.Disconnect" xml:space="preserve">
+    <value>Отключить аккаунт Steam</value>
+  </data>
+  <data name="Settings.SteamAccount.ScanQrPrompt" xml:space="preserve">
+    <value>Отсканируйте этот QR-код в мобильном приложении Steam на телефоне для подтверждения входа:</value>
+  </data>
+  <data name="Settings.SteamAccount.Cancel" xml:space="preserve">
+    <value>Отмена</value>
+  </data>
+  <data name="Settings.SteamAccount.ConnectedAs" xml:space="preserve">
+    <value>Подключено как: {0}</value>
+  </data>
+  <data name="Settings.SteamAccount.Status.Connected" xml:space="preserve">
+    <value>Подключено как {0}</value>
+  </data>
+  <data name="Settings.SteamAccount.Status.NotConnected" xml:space="preserve">
+    <value>Не подключено</value>
+  </data>
+  <data name="Settings.SteamAccount.Toast.Connected" xml:space="preserve">
+    <value>Подключен аккаунт Steam: {0}</value>
+  </data>
+  <data name="Settings.SteamAccount.Toast.NotApproved" xml:space="preserve">
+    <value>Вход через Steam не был подтвержден.</value>
+  </data>
+  <data name="Settings.SteamAccount.Toast.Failed" xml:space="preserve">
+    <value>Ошибка входа через Steam: {0}</value>
+  </data>
+  <data name="Settings.SteamAccount.Toast.Disconnected" xml:space="preserve">
+    <value>Аккаунт Steam отключен.</value>
+  </data>
+  <data name="Settings.SteamAccount.Toast.DisconnectFailed" xml:space="preserve">
+    <value>Не удалось отключить аккаунт Steam: {0}</value>
   </data>
   <data name="Info.Demo.AppUpdates.AuthTitle" xml:space="preserve">
     <value>Войти через GitHub</value>

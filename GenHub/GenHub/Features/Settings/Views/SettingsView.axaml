@@ -323,6 +323,51 @@
               <TextBlock Text="{localization:Localize Settings.Downloads.AllowBackground.Description}"
                          Classes="setting-description" Margin="24,0,0,0" />
             </StackPanel>
+
+            <Separator Margin="0,8" />
+
+            <!-- Steam Account Sign-in (1-Click Direct Workshop Downloads) -->
+            <StackPanel Spacing="8">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="{localization:Localize Settings.SteamAccount.Label}"
+                           Classes="setting-label" VerticalAlignment="Center" Margin="0" />
+                <Ellipse Width="8" Height="8" VerticalAlignment="Center"
+                         Fill="{Binding SteamAccountStatusColor, Converter={StaticResource ColorToBrushConverter}}"
+                         ToolTip.Tip="{Binding SteamAccountStatusText}"
+                         AutomationProperties.Name="{Binding SteamAccountStatusText}" />
+              </StackPanel>
+              <TextBlock Text="{localization:Localize Settings.SteamAccount.Description}"
+                         Classes="setting-description" TextWrapping="Wrap" />
+
+              <!-- When Not Connected and Not Authenticating -->
+              <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding CanSignInToSteam}">
+                <Button Content="{localization:Localize Settings.SteamAccount.SignInQrCode}"
+                        Command="{Binding SignInWithSteamCommand}"
+                        Background="{DynamicResource AccentBrush}"
+                        Foreground="{DynamicResource PrimaryButtonForeground}"
+                        Padding="16,8" FontWeight="SemiBold" />
+              </StackPanel>
+
+              <!-- When Connected -->
+              <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsSteamAccountConnected}">
+                <TextBlock Text="{Binding SteamConnectedAsText}" VerticalAlignment="Center" FontWeight="SemiBold" />
+                <Button Content="{localization:Localize Settings.SteamAccount.Disconnect}"
+                        Command="{Binding SignOutSteamAccountCommand}"
+                        Classes="secondary-button" />
+              </StackPanel>
+
+              <!-- When Authenticating (QR Code Display) -->
+              <StackPanel Spacing="8" IsVisible="{Binding IsSteamAuthenticating}">
+                <TextBlock Text="{localization:Localize Settings.SteamAccount.ScanQrPrompt}"
+                           Classes="setting-description" />
+                <Border Width="200" Height="200" HorizontalAlignment="Left" Background="White" CornerRadius="8" Padding="8">
+                  <Image Source="{Binding SteamQrCodeBitmap}" Width="184" Height="184" />
+                </Border>
+                <Button Content="{localization:Localize Settings.SteamAccount.Cancel}"
+                        Command="{Binding CancelSteamSignInCommand}"
+                        Classes="secondary-button" HorizontalAlignment="Left" />
+              </StackPanel>
+            </StackPanel>
           </StackPanel>
         </Border>
       </Expander>

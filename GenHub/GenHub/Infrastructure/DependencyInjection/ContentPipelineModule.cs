@@ -8,6 +8,7 @@ using GenHub.Core.Interfaces.Parsers;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Interfaces.Security;
+using GenHub.Core.Interfaces.Steam;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Storage;
@@ -31,6 +32,7 @@ using GenHub.Features.Content.Services.LocalContent;
 using GenHub.Features.Content.Services.Parsers;
 using GenHub.Features.Content.Services.Publishers;
 using GenHub.Features.Content.Services.Reconciliation;
+using GenHub.Features.Content.Services.SteamWorkshop;
 using GenHub.Features.Content.Services.SuperHackers;
 using GenHub.Features.Content.Services.Tools;
 using GenHub.Features.Downloads.Services;
@@ -80,6 +82,7 @@ public static class ContentPipelineModule
         AddLocalFileSystemPipeline(services);
         AddCsvPipeline(services);
         AddDownloadedContentPipeline(services);
+        AddSteamWorkshopPipeline(services);
         AddSharedComponents(services);
 
         return services;
@@ -547,6 +550,43 @@ public static class ContentPipelineModule
         // Reads the manifest pool only, so the "My Downloads" view works offline.
         services.AddSingleton<DownloadedContentDiscoverer>();
         services.AddSingleton<IContentDiscoverer>(sp => sp.GetRequiredService<DownloadedContentDiscoverer>());
+    }
+
+    /// <summary>
+    /// Registers Steam Workshop content pipeline services.
+    /// </summary>
+    private static void AddSteamWorkshopPipeline(IServiceCollection services)
+    {
+        // Register named HTTP client for Steam Workshop. Default HTTP loggers are removed so
+        // key-bearing request URIs never reach the file logs; English is pinned so page markers parse.
+        services.AddHttpClient(SteamWorkshopConstants.PublisherType, httpClient =>
+        {
+            httpClient.Timeout = TimeSpan.FromSeconds(SteamWorkshopConstants.HttpTimeoutSeconds);
+            httpClient.DefaultRequestHeaders.Add(UserAgentHeader, ApiConstants.DefaultUserAgent);
+            httpClient.DefaultRequestHeaders.AcceptLanguage.ParseAdd(SteamWorkshopConstants.BrowseRequestLanguage);
+        }).RemoveAllLoggers();
+
+        // Register Steam Workshop content provider
+        services.AddTransient<IContentProvider, SteamWorkshopContentProvider>();
+
+        // Register Steam Workshop discoverer (concrete and interface)
+        services.AddSingleton<SteamWorkshopDiscoverer>();
+        services.AddSingleton<IContentDiscoverer>(sp => sp.GetRequiredService<SteamWorkshopDiscoverer>());
+
+        // Register Steam Workshop resolver
+        services.AddTransient<IContentResolver, SteamWorkshopResolver>();
+
+        // Register Steam Workshop deliverer
+        services.AddTransient<IContentDeliverer, SteamWorkshopDeliverer>();
+
+        // Register Steam Workshop manifest factory
+        services.AddTransient<SteamWorkshopManifestFactory>();
+        services.AddTransient<IPublisherManifestFactory, SteamWorkshopManifestFactory>();
+
+        // Register Steam Web API client and authentication service
+        services.AddSingleton<SteamWorkshopApiClient>();
+        services.AddSingleton<ISteamWorkshopAccountAuthService, SteamWorkshopAccountAuthService>();
+        services.AddSingleton<ISteamWorkshopClientDownloader, SteamWorkshopClientDownloader>();
     }
 
     /// <summary>

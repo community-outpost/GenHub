@@ -71,4 +71,22 @@ public static class SteamConstants
 
     /// <summary>Steam common directory name.</summary>
     public const string CommonDirectoryName = "common";
+
+    /// <summary>Legacy Steam data directory name under the Unix home folder.</summary>
+    public const string DotSteamDirectoryName = ".steam";
+
+    /// <summary>Steam client directory name under the legacy Unix data folder.</summary>
+    public const string SteamClientLinkName = "steam";
+
+    /// <summary>Local data directory name under the Unix home folder.</summary>
+    public const string DotLocalDirectoryName = ".local";
+
+    /// <summary>Shared data directory name under the Unix local folder.</summary>
+    public const string ShareDirectoryName = "share";
+
+    /// <summary>Library directory name under the macOS home folder.</summary>
+    public const string MacLibraryDirectoryName = "Library";
+
+    /// <summary>Application Support directory name under the macOS Library folder.</summary>
+    public const string MacApplicationSupportDirectoryName = "Application Support";
 }

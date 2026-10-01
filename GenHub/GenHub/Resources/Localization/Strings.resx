@@ -4594,6 +4594,30 @@ This will modify game files and configuration settings at:
   <data name="Downloads.Filter.Timeframe" xml:space="preserve">
     <value>Timeframe</value>
   </data>
+  <data name="Downloads.Filter.Tags" xml:space="preserve">
+    <value>Tags</value>
+  </data>
+  <data name="Downloads.Filter.SteamWorkshop.Sort.Trending" xml:space="preserve">
+    <value>Trending</value>
+  </data>
+  <data name="Downloads.Filter.SteamWorkshop.Sort.MostRecent" xml:space="preserve">
+    <value>Most recent</value>
+  </data>
+  <data name="Downloads.Filter.SteamWorkshop.Sort.LastUpdated" xml:space="preserve">
+    <value>Last updated</value>
+  </data>
+  <data name="Downloads.Filter.SteamWorkshop.Sort.MostSubscribed" xml:space="preserve">
+    <value>Most subscribed</value>
+  </data>
+  <data name="Downloads.Filter.SteamWorkshop.Sort.TopRated" xml:space="preserve">
+    <value>Top rated</value>
+  </data>
+  <data name="Downloads.Filter.SteamWorkshop.Tags" xml:space="preserve">
+    <value>Map tags</value>
+  </data>
+  <data name="Downloads.SteamWorkshop.Description.PendingResolution" xml:space="preserve">
+    <value>Map from Steam Workshop - full details available after resolution</value>
+  </data>
   <data name="Tools.ReplayManager.Column.Map" xml:space="preserve">
     <value>Map</value>
   </data>
@@ -9748,6 +9772,51 @@ Install location:
   </data>
   <data name="Settings.GitHubAuth.Toast.BrowserOpenFailed" xml:space="preserve">
     <value>Code copied to clipboard, but GitHub could not be opened automatically. Enter the code manually.</value>
+  </data>
+  <data name="Settings.SteamWorkshop.Toast.Title" xml:space="preserve">
+    <value>Steam Workshop</value>
+  </data>
+  <data name="Settings.SteamAccount.Label" xml:space="preserve">
+    <value>Steam Account (1-Click Workshop Downloads)</value>
+  </data>
+  <data name="Settings.SteamAccount.Description" xml:space="preserve">
+    <value>Sign in with your Steam account to enable fast 1-click in-app map downloads without needing the external Steam client.</value>
+  </data>
+  <data name="Settings.SteamAccount.SignInQrCode" xml:space="preserve">
+    <value>Sign in with Steam (QR Code)</value>
+  </data>
+  <data name="Settings.SteamAccount.Disconnect" xml:space="preserve">
+    <value>Disconnect Steam Account</value>
+  </data>
+  <data name="Settings.SteamAccount.ScanQrPrompt" xml:space="preserve">
+    <value>Scan this QR code using the Steam Mobile App on your phone to approve sign-in:</value>
+  </data>
+  <data name="Settings.SteamAccount.Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Settings.SteamAccount.ConnectedAs" xml:space="preserve">
+    <value>Connected as: {0}</value>
+  </data>
+  <data name="Settings.SteamAccount.Status.Connected" xml:space="preserve">
+    <value>Connected as {0}</value>
+  </data>
+  <data name="Settings.SteamAccount.Status.NotConnected" xml:space="preserve">
+    <value>Not connected</value>
+  </data>
+  <data name="Settings.SteamAccount.Toast.Connected" xml:space="preserve">
+    <value>Connected Steam account: {0}</value>
+  </data>
+  <data name="Settings.SteamAccount.Toast.NotApproved" xml:space="preserve">
+    <value>Steam sign-in was not approved.</value>
+  </data>
+  <data name="Settings.SteamAccount.Toast.Failed" xml:space="preserve">
+    <value>Steam sign-in failed: {0}</value>
+  </data>
+  <data name="Settings.SteamAccount.Toast.Disconnected" xml:space="preserve">
+    <value>Steam account disconnected.</value>
+  </data>
+  <data name="Settings.SteamAccount.Toast.DisconnectFailed" xml:space="preserve">
+    <value>Failed to disconnect Steam account: {0}</value>
   </data>
   <data name="Info.Demo.AppUpdates.AuthTitle" xml:space="preserve">
     <value>Sign in with GitHub</value>
