@@ -178,13 +178,11 @@ public class GitHubContentDelivererTests
                 Name = "Item (RU)",
                 ContentType = ContentType.Addon,
                 Metadata = new ContentMetadata { SelectedVariantId = "ru" },
-                Files = [new ManifestFile { RelativePath = "data.big" }],
+                Files = [],
+                Variants = VariantManifestFixture.Create(
+                    [new ManifestFile { RelativePath = "data.big", SourceType = ContentSourceType.LocalFile }],
+                    [new ManifestFile { RelativePath = "foreign.big", SourceType = ContentSourceType.RemoteDownload }]).Variants,
             };
-
-            variantRu.Variants = VariantManifestFixture.Create(
-                [new ManifestFile { RelativePath = "data.big", SourceType = ContentSourceType.LocalFile }],
-                [new ManifestFile { RelativePath = "foreign.big", SourceType = ContentSourceType.RemoteDownload }]).Variants;
-            variantRu.Files = [];
 
             var factoryMock = new Mock<IPublisherManifestFactory>();
             factoryMock.Setup(f => f.CanHandle(It.IsAny<ContentManifest>())).Returns(true);
