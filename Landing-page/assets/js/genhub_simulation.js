@@ -704,11 +704,11 @@
         const cat = document.getElementById('ghCatalogFilter')?.value || 'all';
 
         // ModDB direct URL search parsing (PR #481)
-        if (q.includes('moddb.com/')) {
-            const cleanUrl = q.split('?')[0].replace(/\/+$/, '');
+        if (searchFilterQuery.includes('moddb.com/')) {
+            const cleanUrl = searchFilterQuery.split('?')[0].replace(/\/+$/, '');
             const slug = cleanUrl.split('/').pop();
             if (slug) {
-                q = slug.replace(/[-_]/g, ' ');
+                searchFilterQuery = slug.replace(/[-_]/g, ' ');
             }
         }
 
@@ -718,7 +718,7 @@
             const cardCat = card.getAttribute('data-category') || '';
 
             const matchesPub = cardPub === activePublisherKey;
-            const matchesQuery = !q || cardTitle.includes(q);
+            const matchesQuery = !searchFilterQuery || cardTitle.includes(searchFilterQuery);
             const matchesCat = cat === 'all' || cardCat === cat;
 
             card.style.display = (matchesPub && matchesQuery && matchesCat) ? '' : 'none';
@@ -943,7 +943,7 @@
             const rowGame = row.getAttribute('data-game') || 'zerohour';
             const name = (row.querySelector('.map-name')?.textContent || '').toLowerCase();
             const matchesGame = !selectedGame || rowGame === selectedGame;
-            const matchesQuery = !q || name.includes(q);
+            const matchesQuery = !mapSearchQuery || name.includes(mapSearchQuery);
             const show = matchesGame && matchesQuery;
             row.style.display = show ? '' : 'none';
             if (show) count++;
@@ -2420,7 +2420,7 @@
             .replace(/`([^`]+)`/g, "<code style=\"background: rgba(255,255,255,0.08); padding: 1px 4px; border-radius: 3px; font-family: monospace; font-size: 12px; color: #cbd5e1;\">$1</code>")
             .replace(/^###\s+(.*)$/gm, "<h5 style=\"color: #f1f5f9; margin: 10px 0 4px 0; font-size: 13px; font-weight: 600;\">$1</h5>")
             .replace(/^##\s+(.*)$/gm, "<h4 style=\"color: #f1f5f9; margin: 12px 0 6px 0; font-size: 14px; font-weight: 700;\">$1</h4>")
-            .replace(/^\s*[*\-]\s+(.*)$/gm, "<li>$1</li>");
+            .replace(/^\s*[*-]\s+(.*)$/gm, "<li>$1</li>");
         html = html.replace(/((?:<li>.*?<\/li>\s*)+)/g, "<ul style=\"margin: 8px 0; padding-left: 20px;\">$1</ul>");
         html = html.replace(/<br>\s*<(ul|li|\/ul|\/li|h4|h5)/g, "<$1").replace(/<\/(ul|li|h4|h5)>\s*<br>/g, "</$1>");
         return html.replace(/\n/g, "<br>");

@@ -53,8 +53,8 @@ if [ "$PULL_REQUEST" = "true" ] || [ "$CONTEXT" = "deploy-preview" ]; then
   git fetch origin main --depth=50 2>/dev/null || true
   if git rev-parse --verify origin/main >/dev/null 2>&1; then
     echo "Checking diff against origin/main for: $MONITORED_PATHS"
-    # shellcheck disable=SC2086
-    if git diff --quiet origin/main...HEAD -- docs package.json pnpm-lock.yaml; then
+    # shellcheck disable=SC2086 # Intentional word-splitting for path arguments
+    if git diff --quiet origin/main...HEAD -- $MONITORED_PATHS; then
       echo "No docs changes in PR. Cancelling Netlify build."
       exit 0
     else
@@ -79,8 +79,8 @@ fi
 TARGET_REF="${CACHED_COMMIT_REF:-HEAD~1}"
 if git rev-parse --verify "$TARGET_REF" >/dev/null 2>&1; then
   echo "Checking diff between $TARGET_REF and $COMMIT_REF for: $MONITORED_PATHS"
-  # shellcheck disable=SC2086
-  if git diff --quiet "$TARGET_REF" "$COMMIT_REF" -- docs package.json pnpm-lock.yaml; then
+  # shellcheck disable=SC2086 # Intentional word-splitting for path arguments
+  if git diff --quiet "$TARGET_REF" "$COMMIT_REF" -- $MONITORED_PATHS; then
     echo "No docs changes detected on main. Cancelling Netlify build."
     exit 0
   else
