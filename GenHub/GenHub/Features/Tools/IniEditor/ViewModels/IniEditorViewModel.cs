@@ -4342,6 +4342,11 @@ public sealed partial class IniEditorViewModel(
             return false;
         }
 
+        if (string.Equals(value, IniConstants.ReferenceSentinels.NoSound, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
         var cacheKey = (referenceType, row.IsTexture);
         if (!cache.TryGetValue(cacheKey, out var known))
         {

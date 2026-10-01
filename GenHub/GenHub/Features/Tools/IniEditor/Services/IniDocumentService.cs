@@ -275,14 +275,36 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger, ILoca
         IniConstants.ModuleKeys.All.Any(moduleKey => string.Equals(moduleKey, key, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
-    /// Checks if a token represents a recognized block type or module key.
+    /// Checks if a token represents a recognized block type, module key, or
+    /// parameterized engine sub-block.
     /// </summary>
     /// <param name="token">The token to check.</param>
     /// <returns>True if the token is a recognized block or module keyword; otherwise, false.</returns>
     internal static bool IsBlockType(string token) =>
         IniConstants.BlockTypes.All.Any(blockType => string.Equals(blockType, token, StringComparison.OrdinalIgnoreCase)) ||
         IniConstants.SubBlockTypes.All.Any(subType => string.Equals(subType, token, StringComparison.OrdinalIgnoreCase)) ||
-        IsModuleKey(token);
+        IsModuleKey(token) ||
+        IsChallengePersonaBlock(token) ||
+        IsRadiusCursorBlock(token);
+
+    /// <summary>
+    /// Checks if a token is a numbered challenge mode general persona block.
+    /// </summary>
+    /// <param name="token">The token to check.</param>
+    /// <returns>True for GeneralPersona followed by digits; otherwise, false.</returns>
+    internal static bool IsChallengePersonaBlock(string token) =>
+        token.StartsWith(IniConstants.SubBlockTypePatterns.GeneralPersonaPrefix, StringComparison.OrdinalIgnoreCase) &&
+        token.Length > IniConstants.SubBlockTypePatterns.GeneralPersonaPrefix.Length &&
+        token[IniConstants.SubBlockTypePatterns.GeneralPersonaPrefix.Length..].All(char.IsAsciiDigit);
+
+    /// <summary>
+    /// Checks if a token is an interface radius cursor block.
+    /// </summary>
+    /// <param name="token">The token to check.</param>
+    /// <returns>True for tokens ending in RadiusCursor with a non-empty stem; otherwise, false.</returns>
+    internal static bool IsRadiusCursorBlock(string token) =>
+        token.EndsWith(IniConstants.SubBlockTypePatterns.RadiusCursorSuffix, StringComparison.OrdinalIgnoreCase) &&
+        token.Length > IniConstants.SubBlockTypePatterns.RadiusCursorSuffix.Length;
 
     /// <summary>
     /// Calculates the number of leading spaces in a line.

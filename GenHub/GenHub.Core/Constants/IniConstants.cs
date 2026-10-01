@@ -121,6 +121,15 @@ public static class IniConstants
     }
 
     /// <summary>
+    /// Reference values the engine accepts without a matching definition.
+    /// </summary>
+    public static class ReferenceSentinels
+    {
+        /// <summary>Null audio marker accepted anywhere an audio event is referenced.</summary>
+        public const string NoSound = "NoSound";
+    }
+
+    /// <summary>
     /// Additional sub-block and map.ini directive block types.
     /// </summary>
     public static class SubBlockTypes
@@ -191,6 +200,72 @@ public static class IniConstants
         /// <summary>Damage event sub-block inside damage effects.</summary>
         public const string DamageFXEvent = "DamageFXEvent";
 
+        /// <summary>Unit specific effects sub-block inside objects.</summary>
+        public const string UnitSpecificFX = "UnitSpecificFX";
+
+        /// <summary>Attack area decal sub-block inside objects.</summary>
+        public const string AttackAreaDecal = "AttackAreaDecal";
+
+        /// <summary>Targeting reticle decal sub-block inside objects.</summary>
+        public const string TargetingReticleDecal = "TargetingReticleDecal";
+
+        /// <summary>Grid decal template sub-block inside objects.</summary>
+        public const string GridDecalTemplate = "GridDecalTemplate";
+
+        /// <summary>Delivery decal sub-block inside objects and creation lists.</summary>
+        public const string DeliveryDecal = "DeliveryDecal";
+
+        /// <summary>Sound sub-block inside effect lists.</summary>
+        public const string Sound = "Sound";
+
+        /// <summary>Light pulse sub-block inside effect lists.</summary>
+        public const string LightPulse = "LightPulse";
+
+        /// <summary>View shake sub-block inside effect lists.</summary>
+        public const string ViewShake = "ViewShake";
+
+        /// <summary>Terrain scorch sub-block inside effect lists.</summary>
+        public const string TerrainScorch = "TerrainScorch";
+
+        /// <summary>Tracer sub-block inside effect lists.</summary>
+        public const string Tracer = "Tracer";
+
+        /// <summary>Attack sub-block inside object creation lists.</summary>
+        public const string Attack = "Attack";
+
+        /// <summary>Mission sub-block inside campaigns.</summary>
+        public const string Mission = "Mission";
+
+        /// <summary>Image part sub-block inside command bar schemes.</summary>
+        public const string ImagePart = "ImagePart";
+
+        /// <summary>Side info sub-block inside AI data.</summary>
+        public const string SideInfo = "SideInfo";
+
+        /// <summary>First AI skill set sub-block inside side info.</summary>
+        public const string SkillSet1 = "SkillSet1";
+
+        /// <summary>Second AI skill set sub-block inside side info.</summary>
+        public const string SkillSet2 = "SkillSet2";
+
+        /// <summary>Skirmish build list sub-block inside AI data.</summary>
+        public const string SkirmishBuildList = "SkirmishBuildList";
+
+        /// <summary>Structure sub-block inside skirmish build lists.</summary>
+        public const string Structure = "Structure";
+
+        /// <summary>Inheritable module sub-block inside object defaults.</summary>
+        public const string InheritableModule = "InheritableModule";
+
+        /// <summary>Overrideable by like kind sub-block inside object defaults.</summary>
+        public const string OverrideableByLikeKind = "OverrideableByLikeKind";
+
+        /// <summary>Side sounds sub-block inside EVA events.</summary>
+        public const string SideSounds = "SideSounds";
+
+        /// <summary>Window sub-block inside window transitions.</summary>
+        public const string Window = "Window";
+
         /// <summary>Unit specific sounds sub-block.</summary>
         public const string UnitSpecificSounds = "UnitSpecificSounds";
 
@@ -248,6 +323,28 @@ public static class IniConstants
             MetaImpactNugget,
             FXListAtBonePos,
             DamageFXEvent,
+            UnitSpecificFX,
+            AttackAreaDecal,
+            TargetingReticleDecal,
+            GridDecalTemplate,
+            DeliveryDecal,
+            Sound,
+            LightPulse,
+            ViewShake,
+            TerrainScorch,
+            Tracer,
+            Attack,
+            Mission,
+            ImagePart,
+            SideInfo,
+            SkillSet1,
+            SkillSet2,
+            SkirmishBuildList,
+            Structure,
+            InheritableModule,
+            OverrideableByLikeKind,
+            SideSounds,
+            Window,
             UnitSpecificSounds,
             WaterTransparency,
             Weather,
@@ -259,6 +356,18 @@ public static class IniConstants
             ParticleSystem,
             ObjectReskin,
         ];
+    }
+
+    /// <summary>
+    /// Name patterns for parameterized engine sub-blocks that cannot be enumerated.
+    /// </summary>
+    public static class SubBlockTypePatterns
+    {
+        /// <summary>Prefix for numbered challenge mode general persona blocks.</summary>
+        public const string GeneralPersonaPrefix = "GeneralPersona";
+
+        /// <summary>Suffix for interface radius cursor blocks.</summary>
+        public const string RadiusCursorSuffix = "RadiusCursor";
     }
 
     /// <summary>

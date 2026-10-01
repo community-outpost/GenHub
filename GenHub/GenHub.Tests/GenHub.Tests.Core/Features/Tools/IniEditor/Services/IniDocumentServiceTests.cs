@@ -1298,4 +1298,355 @@ public sealed class IniDocumentServiceTests : IDisposable
         var weapon = result.Data.Blocks.Should().ContainSingle().Subject;
         weapon.Children.Select(child => child.BlockType).Should().Equal("DamageNugget", "DOTNugget");
     }
+
+    /// <summary>
+    /// Verifies that a UnitSpecificFX sub-block inside an object parses as a
+    /// nested block instead of closing the object early.
+    /// </summary>
+    [Fact]
+    public void ParseText_ObjectUnitSpecificFXBlock_ParsesAsNestedBlock()
+    {
+        const string content =
+            "Object AmericaInfantryBiohazardTech\n" +
+            "  Draw = W3DModelDraw ModuleTag_01\n" +
+            "    DefaultConditionState\n" +
+            "      Model = AITECH_SKN\n" +
+            "    End\n" +
+            "  End\n" +
+            "  UnitSpecificFX\n" +
+            "    CombatDropKillFX = FX_RangerCombatDropKill\n" +
+            "  End\n" +
+            "  Body = ActiveBody ModuleTag_02\n" +
+            "    MaxHealth = 100.0\n" +
+            "  End\n" +
+            "  Behavior = CleanupHazardUpdate ModuleTag_03\n" +
+            "    ScanRate = 1000\n" +
+            "  End\n" +
+            "End\n";
+
+        var result = _service.ParseText(content);
+
+        result.Success.Should().BeTrue();
+        result.Data!.ParseErrors.Should().BeEmpty();
+        var gameObject = result.Data.Blocks.Should().ContainSingle().Subject;
+        gameObject.Children.Select(child => child.BlockType).Should().Equal("Draw", "UnitSpecificFX", "Body", "Behavior");
+        gameObject.Children[1].Fields.Should().ContainSingle().Which.Key.Should().Be("CombatDropKillFX");
+    }
+
+    /// <summary>
+    /// Verifies that object decal sub-blocks parse as nested blocks.
+    /// </summary>
+    [Fact]
+    public void ParseText_ObjectDecalBlocks_ParseAsNestedBlocks()
+    {
+        const string content =
+            "Object AmericaJetSpectreGunship\n" +
+            "  AttackAreaDecal\n" +
+            "    Texture = SCCSpecTarg\n" +
+            "  End\n" +
+            "  TargetingReticleDecal\n" +
+            "    Texture = SCCSpecTarg\n" +
+            "  End\n" +
+            "  GridDecalTemplate\n" +
+            "    Texture = EXGrid\n" +
+            "  End\n" +
+            "  DeliveryDecal\n" +
+            "    Texture = SCCNuclearMissile_China\n" +
+            "  End\n" +
+            "End\n";
+
+        var result = _service.ParseText(content);
+
+        result.Success.Should().BeTrue();
+        result.Data!.ParseErrors.Should().BeEmpty();
+        var gameObject = result.Data.Blocks.Should().ContainSingle().Subject;
+        gameObject.Children.Select(child => child.BlockType).Should().Equal(
+            "AttackAreaDecal", "TargetingReticleDecal", "GridDecalTemplate", "DeliveryDecal");
+    }
+
+    /// <summary>
+    /// Verifies that effect list sub-blocks parse as nested blocks.
+    /// </summary>
+    [Fact]
+    public void ParseText_FXListSubBlocks_ParseAsNestedBlocks()
+    {
+        const string content =
+            "FXList FX_GIDie\n" +
+            "  Sound\n" +
+            "    Name = CarMount\n" +
+            "  End\n" +
+            "  LightPulse\n" +
+            "    Radius = 30.0\n" +
+            "  End\n" +
+            "  ViewShake\n" +
+            "    Type = SEVERE\n" +
+            "  End\n" +
+            "  TerrainScorch\n" +
+            "    Radius = 15.0\n" +
+            "  End\n" +
+            "  Tracer\n" +
+            "    Length = 20.0\n" +
+            "  End\n" +
+            "End\n";
+
+        var result = _service.ParseText(content);
+
+        result.Success.Should().BeTrue();
+        result.Data!.ParseErrors.Should().BeEmpty();
+        var list = result.Data.Blocks.Should().ContainSingle().Subject;
+        list.Children.Select(child => child.BlockType).Should().Equal(
+            "Sound", "LightPulse", "ViewShake", "TerrainScorch", "Tracer");
+    }
+
+    /// <summary>
+    /// Verifies that mission sub-blocks inside campaigns parse as nested blocks.
+    /// </summary>
+    [Fact]
+    public void ParseText_CampaignMissionBlocks_ParseAsNestedBlocks()
+    {
+        const string content =
+            "Campaign TRAINING\n" +
+            "  FirstMission = Mission01\n" +
+            "  Mission Mission01\n" +
+            "    Map = Maps\\Training01\\Training01.map\n" +
+            "  End\n" +
+            "End\n";
+
+        var result = _service.ParseText(content);
+
+        result.Success.Should().BeTrue();
+        result.Data!.ParseErrors.Should().BeEmpty();
+        var campaign = result.Data.Blocks.Should().ContainSingle().Subject;
+        var mission = campaign.Children.Should().ContainSingle().Subject;
+        mission.BlockType.Should().Be("Mission");
+        mission.Name.Should().Be("Mission01");
+    }
+
+    /// <summary>
+    /// Verifies that numbered challenge persona blocks parse as nested blocks.
+    /// </summary>
+    [Fact]
+    public void ParseText_ChallengePersonaBlocks_ParseAsNestedBlocks()
+    {
+        const string content =
+            "ChallengeGenerals\n" +
+            "  GeneralPersona0\n" +
+            "    PlayerTemplate = FactionAmericaAirForceGeneral\n" +
+            "  End\n" +
+            "  GeneralPersona11\n" +
+            "    PlayerTemplate = FactionBossGeneral\n" +
+            "  End\n" +
+            "End\n";
+
+        var result = _service.ParseText(content);
+
+        result.Success.Should().BeTrue();
+        result.Data!.ParseErrors.Should().BeEmpty();
+        var roster = result.Data.Blocks.Should().ContainSingle().Subject;
+        roster.Children.Select(child => child.BlockType).Should().Equal("GeneralPersona0", "GeneralPersona11");
+    }
+
+    /// <summary>
+    /// Verifies that interface radius cursor blocks parse as nested blocks.
+    /// </summary>
+    [Fact]
+    public void ParseText_InGameUICursorBlocks_ParseAsNestedBlocks()
+    {
+        const string content =
+            "InGameUI\n" +
+            "  MaxSelectionSize = 0\n" +
+            "  SpyDroneRadiusCursor\n" +
+            "    Texture = SccSpyDrone_USA\n" +
+            "  End\n" +
+            "  ArtilleryRadiusCursor\n" +
+            "    Texture = SCCArtilleryBarrage_China\n" +
+            "  End\n" +
+            "End\n";
+
+        var result = _service.ParseText(content);
+
+        result.Success.Should().BeTrue();
+        result.Data!.ParseErrors.Should().BeEmpty();
+        var ui = result.Data.Blocks.Should().ContainSingle().Subject;
+        ui.Children.Select(child => child.BlockType).Should().Equal("SpyDroneRadiusCursor", "ArtilleryRadiusCursor");
+    }
+
+    /// <summary>
+    /// Verifies that AI data sub-blocks parse as nested blocks.
+    /// </summary>
+    [Fact]
+    public void ParseText_AIDataSubBlocks_ParseAsNestedBlocks()
+    {
+        const string content =
+            "AIData\n" +
+            "  SideInfo America\n" +
+            "    SkillSet1\n" +
+            "      Science = SCIENCE_PaladinTank\n" +
+            "    End\n" +
+            "    SkillSet2\n" +
+            "      Science = SCIENCE_Pathfinder\n" +
+            "    End\n" +
+            "  End\n" +
+            "  SkirmishBuildList America\n" +
+            "    Structure AmericaCommandCenter\n" +
+            "      Rebuilds = 0\n" +
+            "    End\n" +
+            "  End\n" +
+            "End\n";
+
+        var result = _service.ParseText(content);
+
+        result.Success.Should().BeTrue();
+        result.Data!.ParseErrors.Should().BeEmpty();
+        var data = result.Data.Blocks.Should().ContainSingle().Subject;
+        data.Children.Select(child => child.BlockType).Should().Equal("SideInfo", "SkirmishBuildList");
+        data.Children[0].Children.Select(child => child.BlockType).Should().Equal("SkillSet1", "SkillSet2");
+        data.Children[1].Children.Should().ContainSingle().Subject.BlockType.Should().Be("Structure");
+    }
+
+    /// <summary>
+    /// Verifies that side sounds inside EVA events parse as nested blocks.
+    /// </summary>
+    [Fact]
+    public void ParseText_EvaSideSounds_ParseAsNestedBlocks()
+    {
+        const string content =
+            "EvaEvent LowPower\n" +
+            "  Priority = 2\n" +
+            "  SideSounds\n" +
+            "    Side = America\n" +
+            "    Sounds = EvaUSA_LowPower\n" +
+            "  End\n" +
+            "End\n";
+
+        var result = _service.ParseText(content);
+
+        result.Success.Should().BeTrue();
+        result.Data!.ParseErrors.Should().BeEmpty();
+        var evt = result.Data.Blocks.Should().ContainSingle().Subject;
+        var sounds = evt.Children.Should().ContainSingle().Subject;
+        sounds.BlockType.Should().Be("SideSounds");
+        sounds.Fields.Should().HaveCount(2);
+    }
+
+    /// <summary>
+    /// Verifies that window sub-blocks inside transitions parse as nested blocks.
+    /// </summary>
+    [Fact]
+    public void ParseText_WindowTransitionBlocks_ParseAsNestedBlocks()
+    {
+        const string content =
+            "WindowTransition MainMenuFade\n" +
+            "  Window\n" +
+            "    WinName = MainMenu.wnd:MainMenuRuler\n" +
+            "    FrameDelay = 0\n" +
+            "  End\n" +
+            "  FireOnce = YES\n" +
+            "End\n";
+
+        var result = _service.ParseText(content);
+
+        result.Success.Should().BeTrue();
+        result.Data!.ParseErrors.Should().BeEmpty();
+        var transition = result.Data.Blocks.Should().ContainSingle().Subject;
+        transition.Children.Should().ContainSingle().Subject.BlockType.Should().Be("Window");
+    }
+
+    /// <summary>
+    /// Verifies that attack sub-blocks inside creation lists parse as nested blocks.
+    /// </summary>
+    [Fact]
+    public void ParseText_ObjectCreationListAttack_ParseAsNestedBlocks()
+    {
+        const string content =
+            "ObjectCreationList OCL_Test\n" +
+            "  Attack\n" +
+            "    WeaponSlot = PRIMARY\n" +
+            "    DeliveryDecal\n" +
+            "      Texture = SCCNuclearMissile_China\n" +
+            "    End\n" +
+            "  End\n" +
+            "End\n";
+
+        var result = _service.ParseText(content);
+
+        result.Success.Should().BeTrue();
+        result.Data!.ParseErrors.Should().BeEmpty();
+        var list = result.Data.Blocks.Should().ContainSingle().Subject;
+        var attack = list.Children.Should().ContainSingle().Subject;
+        attack.BlockType.Should().Be("Attack");
+        attack.Children.Should().ContainSingle().Subject.BlockType.Should().Be("DeliveryDecal");
+    }
+
+    /// <summary>
+    /// Verifies that image parts inside command bar schemes parse as nested blocks.
+    /// </summary>
+    [Fact]
+    public void ParseText_ControlBarImagePart_ParseAsNestedBlock()
+    {
+        const string content =
+            "ControlBarScheme America8x6\n" +
+            "  Side = America\n" +
+            "  ImagePart\n" +
+            "    Position = X:0 Y:408\n" +
+            "  End\n" +
+            "End\n";
+
+        var result = _service.ParseText(content);
+
+        result.Success.Should().BeTrue();
+        result.Data!.ParseErrors.Should().BeEmpty();
+        var scheme = result.Data.Blocks.Should().ContainSingle().Subject;
+        scheme.Children.Should().ContainSingle().Subject.BlockType.Should().Be("ImagePart");
+    }
+
+    /// <summary>
+    /// Verifies that inheritable module blocks parse as nested blocks.
+    /// </summary>
+    [Fact]
+    public void ParseText_InheritableModuleBlocks_ParseAsNestedBlocks()
+    {
+        const string content =
+            "Object TestObject\n" +
+            "  InheritableModule\n" +
+            "    Behavior = AutoHealBehavior ModuleTag_Heal\n" +
+            "      HealingAmount = 10\n" +
+            "    End\n" +
+            "  End\n" +
+            "  OverrideableByLikeKind\n" +
+            "    Behavior = StealthUpdate ModuleTag_Stealth\n" +
+            "      StealthDelay = 2000\n" +
+            "    End\n" +
+            "  End\n" +
+            "End\n";
+
+        var result = _service.ParseText(content);
+
+        result.Success.Should().BeTrue();
+        result.Data!.ParseErrors.Should().BeEmpty();
+        var gameObject = result.Data.Blocks.Should().ContainSingle().Subject;
+        gameObject.Children.Select(child => child.BlockType).Should().Equal("InheritableModule", "OverrideableByLikeKind");
+    }
+
+    /// <summary>
+    /// Verifies that parameterized pattern guards reject prefix-only and
+    /// suffix-only tokens instead of opening phantom blocks.
+    /// </summary>
+    [Fact]
+    public void ParseText_ParameterizedPatternGuards_StayFields()
+    {
+        const string content =
+            "ChallengeGenerals\n" +
+            "  GeneralPersona\n" +
+            "  RadiusCursor\n" +
+            "End\n";
+
+        var result = _service.ParseText(content);
+
+        result.Success.Should().BeTrue();
+        result.Data!.ParseErrors.Should().BeEmpty();
+        var roster = result.Data.Blocks.Should().ContainSingle().Subject;
+        roster.Children.Should().BeEmpty();
+        roster.Fields.Should().HaveCount(2);
+    }
 }

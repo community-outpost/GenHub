@@ -656,6 +656,45 @@ public class IniEditorViewTests
         }
     }
 
+    /// <summary>
+    /// Verifies that the engine null audio marker does not raise an unknown
+    /// reference warning while genuinely unknown audio still does.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task NoSoundReference_DoesNotWarnAsync()
+    {
+        var mockReferenceService = new Mock<IIniReferenceService>();
+        mockReferenceService
+            .Setup(service => service.RebuildIndexAsync(
+                It.IsAny<IniDocument?>(),
+                It.IsAny<string?>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<int>.CreateSuccess(0, TimeSpan.Zero));
+        mockReferenceService
+            .Setup(service => service.Entries)
+            .Returns(new List<IniReferenceEntry>());
+        mockReferenceService
+            .Setup(service => service.GetNames(It.IsAny<string>()))
+            .Returns(new List<string> { "ExistingSound" });
+        using var viewModel = CreateViewModel(null, null, mockReferenceService.Object);
+        var filePath = Path.Combine(Path.GetTempPath(), $"GenHubNoSound{Guid.NewGuid():N}.ini");
+        await File.WriteAllTextAsync(filePath, "Object TestInfantry\n  VoiceSelect = NoSound\n  VoiceMove = BogusSound\nEnd\n");
+        try
+        {
+            Assert.True(await viewModel.OpenFileAsync(filePath));
+
+            Assert.Equal(1, viewModel.ValidationIssueCount);
+            var row = Assert.Single(viewModel.ValidationIssues);
+            Assert.False(row.IsError);
+        }
+        finally
+        {
+            File.Delete(filePath);
+        }
+    }
+
     private static string CanvasFixtureIni()
     {
         return "Object TestTank\n" +

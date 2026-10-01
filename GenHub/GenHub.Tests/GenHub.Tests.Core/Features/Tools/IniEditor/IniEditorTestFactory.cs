@@ -38,10 +38,12 @@ public static class IniEditorTestFactory
     /// </summary>
     /// <param name="modelResolver">Optional model resolver override.</param>
     /// <param name="notificationService">Optional notification service override.</param>
+    /// <param name="referenceService">Optional reference service override.</param>
     /// <returns>A new <see cref="IniEditorViewModel"/>.</returns>
     public static IniEditorViewModel CreateViewModel(
         IW3dModelResolver? modelResolver,
-        INotificationService? notificationService = null)
+        INotificationService? notificationService = null,
+        IIniReferenceService? referenceService = null)
     {
         var mockLocalization = new Mock<ILocalizationService>();
         mockLocalization
@@ -66,7 +68,7 @@ public static class IniEditorTestFactory
         return new IniEditorViewModel(
             new IniDocumentService(Mock.Of<ILogger<IniDocumentService>>(), mockLocalization.Object),
             new IniSchemaService(mockLocalization.Object),
-            mockReferenceService.Object,
+            referenceService ?? mockReferenceService.Object,
             Mock.Of<ISageMappedImageParser>(),
             Mock.Of<IWndImageAssetService>(),
             Mock.Of<IGameInstallationService>(),
