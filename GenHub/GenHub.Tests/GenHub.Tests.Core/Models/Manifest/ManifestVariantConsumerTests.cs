@@ -123,6 +123,34 @@ public class ManifestVariantConsumerTests
         Assert.False((bool)method.Invoke(null, [manifest, new ContentSearchResult { Name = "client-4k" }])!);
     }
 
+    /// <summary>A flat package keeps its first language identity despite incidental later payloads.</summary>
+    [Fact]
+    public void GitHubVariantMatch_FlatManifest_UsesFirstToken()
+    {
+        var manifest = new ContentManifest
+        {
+            Name = "client",
+            Files = [new() { RelativePath = "client-english.zip" }, new() { RelativePath = "Data/Russian/text.big" }],
+        };
+        var method = typeof(ContentStateService).GetMethod("IsGitHubVariantMatch", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        Assert.True((bool)method.Invoke(null, [manifest, new ContentSearchResult { Name = "client-english" }])!);
+        Assert.False((bool)method.Invoke(null, [manifest, new ContentSearchResult { Name = "client-russian" }])!);
+    }
+
+    /// <summary>The host variant's hotkey payload satisfies addon detection.</summary>
+    [Fact]
+    public void HotkeyAddonMatch_MatchesHostPayload()
+    {
+        var manifest = VariantManifestFixture.Create(
+            [new() { RelativePath = "hotkeys.big" }],
+            [new() { RelativePath = "unrelated.big" }]);
+        manifest.ContentType = ContentType.Addon;
+        manifest.TargetGame = GameType.ZeroHour;
+        var type = typeof(GenHub.Features.Tools.GenHotkeys.ViewModels.GenHotkeysViewModel);
+        var method = type.GetMethod("IsAddonMatch", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        Assert.True((bool)method.Invoke(null, [manifest, null, GameType.ZeroHour, "expected-addon", "hotkeys.big", "legacy.big"])!);
+    }
+
     /// <summary>A foreign-only hotkey payload cannot satisfy the current host's addon.</summary>
     [Fact]
     public void HotkeyAddonMatch_IgnoresForeignPayload()

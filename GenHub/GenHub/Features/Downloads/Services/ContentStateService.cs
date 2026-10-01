@@ -2366,8 +2366,14 @@ public sealed partial class ContentStateService(
 
         if (string.IsNullOrEmpty(manifestVariant) && !string.IsNullOrEmpty(itemVariant))
         {
-            return ManifestVariantResolver.EnumerateAllFiles(manifest)
-                .Any(f => string.Equals(ExtractVariantToken(f.RelativePath), itemVariant, StringComparison.OrdinalIgnoreCase));
+            var files = ManifestVariantResolver.EnumerateAllFiles(manifest);
+            if (manifest.Variants.Count > 0)
+            {
+                return files.Any(f => string.Equals(ExtractVariantToken(f.RelativePath), itemVariant, StringComparison.OrdinalIgnoreCase));
+            }
+
+            manifestVariant = files.Select(f => ExtractVariantToken(f.RelativePath))
+                .FirstOrDefault(token => !string.IsNullOrEmpty(token));
         }
 
         if (!string.IsNullOrEmpty(itemVariant) && !string.IsNullOrEmpty(manifestVariant))
