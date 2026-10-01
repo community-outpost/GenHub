@@ -56,6 +56,22 @@ public class GeneralsOnlineClientIdentifierTests : IDisposable
     }
 
     /// <summary>
+    /// The default executable (generalsonlinezh.exe) is the Test Environment game client.
+    /// </summary>
+    [Fact]
+    public void Identify_DefaultExecutable_ReturnsTestEnvironmentClient()
+    {
+        var identifier = new GeneralsOnlineClientIdentifier();
+        var path = Path.Combine("C:", "GO", GameClientConstants.GeneralsOnlineDefaultExecutable);
+
+        Assert.True(identifier.CanIdentify(path));
+        var identification = identifier.Identify(path);
+        Assert.NotNull(identification);
+        Assert.Equal(GameClientConstants.GeneralsOnlineTestEnvironmentDisplayName, identification!.DisplayName);
+        Assert.Equal(GeneralsOnlineConstants.VariantTestEnvironmentSuffix, identification.Variant);
+    }
+
+    /// <summary>
     /// Wrapped binaries beside a bootstrapper are companions, never scan candidates.
     /// </summary>
     [Fact]

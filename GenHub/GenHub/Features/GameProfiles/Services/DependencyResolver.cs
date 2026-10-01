@@ -105,7 +105,7 @@ public class DependencyResolver(
 
                 if (manifest.Dependencies != null)
                 {
-                    var relevantDeps = manifest.Dependencies.Where(d => d.InstallBehavior == DependencyInstallBehavior.RequireExisting || d.InstallBehavior == DependencyInstallBehavior.AutoInstall);
+                    var relevantDeps = manifest.Dependencies.Where(d => !d.IsOptional && (d.InstallBehavior == DependencyInstallBehavior.RequireExisting || d.InstallBehavior == DependencyInstallBehavior.AutoInstall));
                     foreach (var dep in relevantDeps)
                     {
                         // Skip default/placeholder IDs - these are generic type-based constraints validated separately
@@ -149,28 +149,28 @@ public class DependencyResolver(
     /// <inheritdoc/>
     public async Task<DependencyResolutionResult> ResolveDependenciesWithManifestsAsync(IEnumerable<string> contentIds, CancellationToken cancellationToken = default)
     {
-        var idList = contentIds as IList<string> ?? contentIds.ToList();
         var resolvedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var resolvedManifests = new List<ContentManifest>();
+        var toProcess = new Queue<string>(contentIds);
+        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var missingContentIds = new List<string>();
         var warnings = new List<string>();
-        var toProcess = new Queue<string>(idList);
-        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // Tracks dependency chains to detect true circular dependencies (A -> B -> A)
+        // Key: contentId, Value: set of contentIds that are ancestors of this content
         var ancestorMap = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var id in idList)
+        // Initialize root items with empty ancestor sets
+        foreach (var rootId in contentIds)
         {
-            ancestorMap[id] = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            ancestorMap.TryAdd(rootId, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
         }
 
         while (toProcess.Count > 0)
         {
             var contentId = toProcess.Dequeue();
-
             if (!visited.Add(contentId))
                 continue;
-
-            resolvedIds.Add(contentId);
 
             try
             {
@@ -182,7 +182,7 @@ public class DependencyResolver(
 
                     if (manifest.Dependencies != null)
                     {
-                        var relevantDeps = manifest.Dependencies.Where(d => d.InstallBehavior == DependencyInstallBehavior.RequireExisting || d.InstallBehavior == DependencyInstallBehavior.AutoInstall);
+                        var relevantDeps = manifest.Dependencies.Where(d => !d.IsOptional && (d.InstallBehavior == DependencyInstallBehavior.RequireExisting || d.InstallBehavior == DependencyInstallBehavior.AutoInstall));
                         ancestorMap.TryGetValue(contentId, out var currentAncestors);
                         var currentChain = currentAncestors ?? [];
 
@@ -487,13 +487,38 @@ public class DependencyResolver(
             return true;
         }
 
-        if ((contentId.Contains(ManifestConstants.SixtyHzKeyword, StringComparison.OrdinalIgnoreCase) ||
-             (contentId.Contains(ManifestConstants.GameClientContentTypeName, StringComparison.OrdinalIgnoreCase) &&
-              !contentId.Contains(ManifestConstants.GameDataContentTypeName, StringComparison.OrdinalIgnoreCase) &&
-              !contentId.Contains(ManifestConstants.MapPackKeyword, StringComparison.OrdinalIgnoreCase))) &&
-            manifest.ContentType == ContentType.GameClient)
+        if (manifest.ContentType == ContentType.GameClient)
         {
-            return true;
+            static bool HasTestVariantSegment(string id) =>
+                id.Split('.').Any(segment =>
+                    segment.Equals(GeneralsOnlineConstants.VariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase) ||
+                    segment.Equals(GeneralsOnlineConstants.LegacyVariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase));
+
+            var isContentTest = HasTestVariantSegment(contentId);
+            var isManifestTest = HasTestVariantSegment(manifest.Id.Value) ||
+                                 (manifest.Name is not null && manifest.Name.Contains(GeneralsOnlineConstants.TestEnvironmentDisplayName, StringComparison.OrdinalIgnoreCase));
+
+            if (isContentTest != isManifestTest)
+            {
+                return false;
+            }
+
+            var isContent60Hz = contentId.Contains(ManifestConstants.SixtyHzKeyword, StringComparison.OrdinalIgnoreCase);
+            var isManifest60Hz = manifest.Id.Value.Contains(ManifestConstants.SixtyHzKeyword, StringComparison.OrdinalIgnoreCase) ||
+                                 (manifest.Name is not null && manifest.Name.Contains(ManifestConstants.SixtyHzKeyword, StringComparison.OrdinalIgnoreCase));
+
+            if (isContent60Hz && !isManifest60Hz)
+            {
+                return false;
+            }
+
+            if (isContent60Hz ||
+                (contentId.Contains(ManifestConstants.GameClientContentTypeName, StringComparison.OrdinalIgnoreCase) &&
+                 !contentId.Contains(ManifestConstants.GameDataContentTypeName, StringComparison.OrdinalIgnoreCase) &&
+                 !contentId.Contains(ManifestConstants.MapPackKeyword, StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
         }
 
         return false;

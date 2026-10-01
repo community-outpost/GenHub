@@ -307,7 +307,7 @@ public partial class GeneralsOnlineProfileReconciler(
     private static partial Regex VersionSuffixRegex();
 
     /// <summary>
-    /// Checks if two manifests refer to the same variant (30hz, 60hz, quickmatch-maps, or gamedata).
+    /// Checks if two manifests refer to the same variant (60hz, test, quickmatch-maps, or gamedata).
     /// </summary>
     private static bool MatchesByVariant(ContentManifest oldManifest, ContentManifest newManifest)
     {
@@ -327,10 +327,24 @@ public partial class GeneralsOnlineProfileReconciler(
         var lastPart = parts[^1];
 
         if (lastPart.Equals(GeneralsOnlineConstants.Variant60HzSuffix, StringComparison.OrdinalIgnoreCase) ||
+            lastPart.Equals(GeneralsOnlineConstants.VariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase) ||
+            lastPart.Equals(GeneralsOnlineConstants.LegacyVariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase) ||
             lastPart.Equals(GeneralsOnlineConstants.QuickMatchMapPackSuffix, StringComparison.OrdinalIgnoreCase) ||
             lastPart.Equals(GeneralsOnlineConstants.GameDataPatchSuffix, StringComparison.OrdinalIgnoreCase))
         {
+            if (lastPart.Equals(GeneralsOnlineConstants.LegacyVariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase))
+            {
+                return GeneralsOnlineConstants.VariantTestEnvironmentSuffix;
+            }
+
             return lastPart.ToLowerInvariant();
+        }
+
+        // Check if any segment is test environment
+        if (parts.Any(p => p.Equals(GeneralsOnlineConstants.VariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase) ||
+                           p.Equals(GeneralsOnlineConstants.LegacyVariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase)))
+        {
+            return GeneralsOnlineConstants.VariantTestEnvironmentSuffix;
         }
 
         // Check if any segment is gamedata
@@ -383,6 +397,11 @@ public partial class GeneralsOnlineProfileReconciler(
                     return GeneralsOnlineConstants.Variant60HzSuffix;
                 }
 
+                if (tag.Equals(GeneralsOnlineVariantTags.TagTestEnvironment, StringComparison.OrdinalIgnoreCase))
+                {
+                    return GeneralsOnlineConstants.VariantTestEnvironmentSuffix;
+                }
+
                 if (tag.Equals(GeneralsOnlineVariantTags.TagQuickMatchMaps, StringComparison.OrdinalIgnoreCase))
                 {
                     return GeneralsOnlineConstants.QuickMatchMapPackSuffix;
@@ -395,14 +414,20 @@ public partial class GeneralsOnlineProfileReconciler(
             }
         }
 
+        // Fallback to ID-based detection for manifests
+        var idVariant = ExtractVariant(manifest.Id.Value);
+        if (idVariant != null)
+        {
+            return idVariant;
+        }
+
         // Fallback to explicit metadata if available (Check TargetGame for default variant association)
         if (manifest.TargetGame == GameType.ZeroHour && manifest.ContentType == ContentType.GameClient)
         {
             return GeneralsOnlineConstants.DefaultVariantSuffix;
         }
 
-        // Fallback to ID-based detection for legacy manifests
-        return ExtractVariant(manifest.Id.Value);
+        return null;
     }
 
     /// <summary>
@@ -560,7 +585,7 @@ public partial class GeneralsOnlineProfileReconciler(
 
     /// <summary>
     /// Builds a mapping from old manifest IDs to new manifest IDs based on variant matching.
-    /// Handles 30hz, 60hz, quickmatch-maps, and gamedata variants.
+    /// Handles 60hz, test, quickmatch-maps, and gamedata variants.
     /// </summary>
     private Dictionary<string, string> BuildManifestMapping(
         List<ContentManifest> oldManifests,

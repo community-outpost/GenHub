@@ -13987,16 +13987,28 @@ https://example.com/screenshot2.png</value>
     <value>Издатель «{0}» выпустил новых каталогов: {1}.</value>
   </data>
   <data name="Downloads.Browser.NewContentNotificationTitle" xml:space="preserve">
-    <value>Доступен новый контент</value>
+    <value>Доступны новые загрузки</value>
   </data>
   <data name="Downloads.Browser.ViewContentAction" xml:space="preserve">
     <value>Просмотр</value>
   </data>
   <data name="Downloads.Browser.NewContentNotificationFormat" xml:space="preserve">
-    <value>В каталоге «{1}» опубликован новый контент: «{0}»</value>
+    <value>В каталоге «{1}» выпущена новая загрузка: «{0}»</value>
   </data>
   <data name="Downloads.Browser.NewContentsNotificationFormat" xml:space="preserve">
-    <value>В каталоге «{1}» опубликовано новых материалов: {0}</value>
+    <value>В каталоге «{1}» выпущено новых загрузок: {0}</value>
+  </data>
+  <data name="Downloads.Browser.NewDownloadNotificationFormat" xml:space="preserve">
+    <value>Новая загрузка «{0}» доступна от {1}</value>
+  </data>
+  <data name="Downloads.Browser.NewDownloadsNotificationFormat" xml:space="preserve">
+    <value>Количество новых загрузок от {1}: {0}</value>
+  </data>
+  <data name="Downloads.Browser.NewDownloadGenericNotificationFormat" xml:space="preserve">
+    <value>Новая загрузка «{0}» доступна</value>
+  </data>
+  <data name="Downloads.Browser.NewDownloadsGenericNotificationFormat" xml:space="preserve">
+    <value>Доступно {0} новых загрузок</value>
   </data>
   <data name="Tools.PublisherStudio.Common.Catalog" xml:space="preserve">
     <value>Каталог</value>

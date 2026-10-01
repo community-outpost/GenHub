@@ -423,6 +423,36 @@ public class GeneralsOnlineManifestFactoryEacTests : IDisposable
         Assert.Empty(manifests);
     }
 
+    /// <summary>
+    /// Verifies that EAC portable layout configures the Test Environment client without EAC post-install steps
+    /// and marks the default binary as executable.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_EacLayout_ConfiguresTestEnvironmentClientWithoutEacAsync()
+    {
+        WriteEacPortableLayout();
+
+        var testClient = await CreateGameClientManifestAsync(variantSuffix: GeneralsOnlineConstants.VariantTestEnvironmentSuffix);
+
+        Assert.NotNull(testClient);
+        Assert.Equal(GameClientConstants.GeneralsOnlineTestEnvironmentDisplayName, testClient.Name);
+        var executable = Assert.Single(testClient.Files, f => f.IsExecutable);
+        Assert.Equal(GameClientConstants.GeneralsOnlineDefaultExecutable, executable.RelativePath, ignoreCase: true);
+
+        // Test environment must NOT configure EAC installer
+        var eacStep = testClient.InstallationInstructions?.PostInstallSteps.FirstOrDefault(s =>
+            string.Equals(s.TargetRelativePath, GameClientConstants.GeneralsOnlineEacSetupExecutable, StringComparison.OrdinalIgnoreCase));
+        Assert.Null(eacStep);
+
+        // Test environment must NOT contain 60Hz binary or EAC files
+        Assert.DoesNotContain(testClient.Files, f => f.RelativePath.Equals(GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(testClient.Files, f => f.RelativePath.Equals(GameClientConstants.GeneralsOnlineEacLauncherExecutable, StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(testClient.Files, f => f.RelativePath.Equals(GameClientConstants.GeneralsOnlineEacSetupExecutable, StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(testClient.Files, f => f.RelativePath.Equals("EOSSDK-Win32-Shipping.dll", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(testClient.Files, f => f.RelativePath.Contains("EasyAntiCheat", StringComparison.OrdinalIgnoreCase));
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {
@@ -435,8 +465,8 @@ public class GeneralsOnlineManifestFactoryEacTests : IDisposable
 
     private static ContentManifest CreateOriginalManifest() => new()
     {
-        Id = "1.605261.generalsonline.gameclient.60hz",
-        Name = "GeneralsOnline",
+        Id = ManifestId.Create("1.1015255.generalsonline.gameclient.60hz"),
+        Name = "GeneralsOnline 60Hz",
         Version = "060526_QFE1",
         ContentType = ContentType.GameClient,
         TargetGame = GameType.ZeroHour,
@@ -471,7 +501,9 @@ public class GeneralsOnlineManifestFactoryEacTests : IDisposable
         File.WriteAllText(settingsPath, "{\"executable\": \"" + executable + "\"}");
     }
 
-    private async Task<ContentManifest> CreateGameClientManifestAsync(ContentManifest? originalManifest = null)
+    private async Task<ContentManifest> CreateGameClientManifestAsync(
+        ContentManifest? originalManifest = null,
+        string variantSuffix = GeneralsOnlineConstants.Variant60HzSuffix)
     {
         var providerLoader = new Mock<IProviderDefinitionLoader>();
         var factory = new GeneralsOnlineManifestFactory(
@@ -483,6 +515,8 @@ public class GeneralsOnlineManifestFactoryEacTests : IDisposable
             _extractedDirectory);
 
         Assert.True(result.Success);
-        return result.Data!.Single(manifest => manifest.ContentType == ContentType.GameClient);
+        return result.Data!.First(manifest =>
+            manifest.ContentType == ContentType.GameClient &&
+            manifest.Id.Value.EndsWith(variantSuffix, StringComparison.OrdinalIgnoreCase));
     }
 }

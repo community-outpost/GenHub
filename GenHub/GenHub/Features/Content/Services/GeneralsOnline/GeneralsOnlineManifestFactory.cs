@@ -21,7 +21,7 @@ namespace GenHub.Features.Content.Services.GeneralsOnline;
 
 /// <summary>
 /// Post-extraction factory for Generals Online content manifests.
-/// Computes file hashes, updates manifest entries, and creates variant manifests (60Hz, MapPack)
+/// Computes file hashes, updates manifest entries, and creates variant manifests (60Hz, Test Environment, MapPack, GameData)
 /// from the extracted archive content.
 /// </summary>
 public class GeneralsOnlineManifestFactory(
@@ -52,7 +52,7 @@ public class GeneralsOnlineManifestFactory(
     /// Creates a content manifest for a specific Generals Online variant.
     /// </summary>
     /// <param name="release">The Generals Online release information.</param>
-    /// <param name="variantSuffix">The suffix for the manifest ID (e.g., "60hz").</param>
+    /// <param name="variantSuffix">The suffix for the manifest ID (e.g., "60hz", "test").</param>
     /// <param name="displayName">The display name for this variant (e.g., "GeneralsOnline 60Hz").</param>
     /// <returns>A content manifest for the specified variant.</returns>
     public ContentManifest CreateVariantManifest(
@@ -66,7 +66,6 @@ public class GeneralsOnlineManifestFactory(
         var downloadPageUrl = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.DownloadPageUrl) ?? GeneralsOnlineConstants.DownloadPageUrl;
         var iconUrl = GeneralsOnlineConstants.LogoSource;
         var coverSource = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.CoverUrl) ?? GeneralsOnlineConstants.CoverSource;
-        var description = provider?.Description ?? GeneralsOnlineConstants.ShortDescription;
         var tags = provider?.DefaultTags ?? [.. GeneralsOnlineConstants.Tags];
 
         // Parse version to extract numeric version (remove dots and QFE markers)
@@ -81,6 +80,20 @@ public class GeneralsOnlineManifestFactory(
             ContentType.GameClient,
             contentName,
             userVersion));
+
+        var isTestEnv = variantSuffix.Equals(GeneralsOnlineConstants.VariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase);
+
+        var description = isTestEnv
+            ? GeneralsOnlineConstants.TestEnvironmentDescription
+            : (provider?.Description ?? GeneralsOnlineConstants.ShortDescription);
+
+        var dependencies = isTestEnv
+            ? GeneralsOnlineDependencyBuilder.GetDependenciesForTestEnvironment(userVersion)
+            : GeneralsOnlineDependencyBuilder.GetDependenciesFor60Hz(userVersion);
+
+        var postInstallSteps = isTestEnv
+            ? new List<InstallationStep>()
+            : new List<InstallationStep> { CreateEacInstallStep() };
 
         return new ContentManifest
         {
@@ -123,12 +136,12 @@ public class GeneralsOnlineManifestFactory(
                     Hash = release.Sha256 ?? string.Empty,
                 },
             ],
-            Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesFor60Hz(userVersion),
+            Dependencies = dependencies,
             InstallationInstructions = new InstallationInstructions
             {
                 WorkspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy,
                 DownloadHash = release.Sha256,
-                PostInstallSteps = [CreateEacInstallStep()],
+                PostInstallSteps = postInstallSteps,
             },
         };
     }
@@ -136,8 +149,9 @@ public class GeneralsOnlineManifestFactory(
     /// <summary>
     /// Creates content manifests from a GeneralsOnline release:
     /// - 60Hz game client variant
+    /// - Test Environment game client variant
     /// - QuickMatch MapPack (required for multiplayer)
-    /// - GeneralsOnlineGameData data patch (optional patch, depends on 60Hz game client)
+    /// - GeneralsOnlineGameData data patch (optional patch, auto-installed for game client)
     /// This creates the initial manifests with download URLs.
     /// </summary>
     /// <param name="release">The GeneralsOnlineRelease to create the manifests from.</param>
@@ -149,10 +163,13 @@ public class GeneralsOnlineManifestFactory(
         // Create manifest for 60Hz variant
         manifests.Add(CreateVariantManifest(release, GeneralsOnlineConstants.Variant60HzSuffix, GameClientConstants.GeneralsOnline60HzDisplayName));
 
+        // Create manifest for Test Environment variant
+        manifests.Add(CreateVariantManifest(release, GeneralsOnlineConstants.VariantTestEnvironmentSuffix, GameClientConstants.GeneralsOnlineTestEnvironmentDisplayName));
+
         // Create manifest for QuickMatch MapPack (required dependency for game client)
         manifests.Add(CreateQuickMatchMapPackManifest(release));
 
-        // Create manifest for GeneralsOnlineGameData data patch (optional patch, depends on 60Hz game client)
+        // Create manifest for GeneralsOnlineGameData data patch (optional patch, auto-installed for game client)
         manifests.Add(CreateGameDataPatchManifest(release));
 
         return manifests;
@@ -176,15 +193,39 @@ public class GeneralsOnlineManifestFactory(
     {
         logger.LogInformation("Creating GeneralsOnline manifests from extracted content in: {Directory}", extractedDirectory);
 
-        // Create all variant manifests (60Hz, QuickMatch MapPack, and GeneralsOnlineGameData data patch) from extracted files
-        var manifests = CreateVariantManifestsFromOriginal(originalManifest);
+        cancellationToken.ThrowIfCancellationRequested();
 
-        // Update manifests with extracted files (compute hashes, set file entries)
-        return await UpdateManifestsWithExtractedFiles(manifests, extractedDirectory, cancellationToken);
+        try
+        {
+            // Step 1: Create variant manifests with basic info from original manifest
+            var variants = CreateVariantManifestsFromOriginal(originalManifest);
+
+            // Step 2: Scan extracted files and update manifests with actual files and hashes
+            var updateResult = await UpdateManifestsWithExtractedFiles(variants, extractedDirectory, cancellationToken);
+            if (!updateResult.Success)
+            {
+                return OperationResult<List<ContentManifest>>.CreateFailure(
+                    updateResult.FirstError ?? "Failed to update manifests with extracted files");
+            }
+
+            return OperationResult<List<ContentManifest>>.CreateSuccess(updateResult.Data ?? []);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to create GeneralsOnline manifests from extracted content");
+            return OperationResult<List<ContentManifest>>.CreateFailure(
+                $"Failed to create manifests: {ex.Message}");
+        }
     }
 
     /// <inheritdoc />
-    public string GetManifestDirectory(ContentManifest manifest, string extractedDirectory)
+    public string GetManifestDirectory(
+        ContentManifest manifest,
+        string extractedDirectory)
     {
         // GeneralsOnline uses the root extracted directory for all variants
         return extractedDirectory;
@@ -333,6 +374,24 @@ public class GeneralsOnlineManifestFactory(
             fileName,
             StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Determines whether a manifest-relative path belongs to Easy Anti-Cheat binaries, services, or plugin directories.
+    /// </summary>
+    private static bool IsEasyAntiCheatFile(string relativePath)
+    {
+        var normalized = relativePath.Replace('\\', '/').TrimStart('/');
+        if (IsArchiveRootFile(relativePath, GameClientConstants.GeneralsOnlineEacLauncherExecutable) ||
+            IsArchiveRootFile(relativePath, GameClientConstants.GeneralsOnlineEacSetupExecutable) ||
+            IsArchiveRootFile(relativePath, GameClientConstants.GeneralsOnlineEosSdkDll))
+        {
+            return true;
+        }
+
+        return normalized.StartsWith("EasyAntiCheat/", StringComparison.OrdinalIgnoreCase) ||
+               normalized.StartsWith("plugins/easyanticheat/", StringComparison.OrdinalIgnoreCase) ||
+               normalized.StartsWith("plugins/goanticheat/", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static ManifestFile CreateMapManifestFile(string relativePath, FileInfo fileInfo, string hash)
     {
         // For maps, the relative path should be relative to the Maps directory
@@ -373,13 +432,18 @@ public class GeneralsOnlineManifestFactory(
     /// <summary>
     /// Gets variant-specific tags for a given variant suffix.
     /// </summary>
-    /// <param name="variantSuffix">The variant suffix (e.g., "60hz").</param>
+    /// <param name="variantSuffix">The variant suffix (e.g., "60hz", "test").</param>
     /// <returns>A list of variant-specific tags.</returns>
     private static List<string> GetVariantTags(string variantSuffix)
     {
         if (variantSuffix.Equals(GeneralsOnlineConstants.Variant60HzSuffix, StringComparison.OrdinalIgnoreCase))
         {
             return [GeneralsOnlineVariantTags.Tag60Hz];
+        }
+
+        if (variantSuffix.Equals(GeneralsOnlineConstants.VariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase))
+        {
+            return [GeneralsOnlineVariantTags.TagTestEnvironment];
         }
 
         if (variantSuffix.Equals(GeneralsOnlineConstants.QuickMatchMapPackSuffix, StringComparison.OrdinalIgnoreCase))
@@ -393,6 +457,21 @@ public class GeneralsOnlineManifestFactory(
         }
 
         return [];
+    }
+
+    private static bool IsTestEnvironmentManifest(ContentManifest manifest)
+    {
+        if (manifest.ContentType != ContentType.GameClient)
+        {
+            return false;
+        }
+
+        if (manifest.Id.Value.EndsWith($".{GeneralsOnlineConstants.VariantTestEnvironmentSuffix}", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return manifest.Metadata?.Tags is not null && manifest.Metadata.Tags.Any(t => t.Equals(GeneralsOnlineVariantTags.TagTestEnvironment, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
@@ -513,10 +592,10 @@ public class GeneralsOnlineManifestFactory(
     }
 
     /// <summary>
-    /// Creates variant manifests (60Hz, QuickMatch MapPack, and GeneralsOnlineGameData data patch) from an original manifest.
+    /// Creates variant manifests (60Hz, Test Environment, QuickMatch MapPack, and GeneralsOnlineGameData data patch) from an original manifest.
     /// This is used after downloading and extracting the portable ZIP.
     /// </summary>
-    /// <param name="originalManifest">The original manifest (can be 60Hz or generic).</param>
+    /// <param name="originalManifest">The original manifest.</param>
     /// <returns>List of variant manifests with basic information populated.</returns>
     private List<ContentManifest> CreateVariantManifestsFromOriginal(ContentManifest originalManifest)
     {
@@ -583,6 +662,41 @@ public class GeneralsOnlineManifestFactory(
             Files = [],
             Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesFor60Hz(userVersion),
             InstallationInstructions = originalManifest.InstallationInstructions ?? new InstallationInstructions
+            {
+                WorkspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy,
+            },
+        });
+
+        // Create Test Environment variant
+        manifests.Add(new ContentManifest
+        {
+            Id = ManifestId.Create(ManifestIdGenerator.GeneratePublisherContentId(
+                PublisherTypeConstants.GeneralsOnline,
+                ContentType.GameClient,
+                GeneralsOnlineConstants.VariantTestEnvironmentSuffix,
+                userVersion)),
+            Name = GameClientConstants.GeneralsOnlineTestEnvironmentDisplayName,
+            Version = version,
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = originalProviderName,
+            OriginalContentId = originalContentId,
+            Publisher = publisherInfo,
+            Metadata = new ContentMetadata
+            {
+                Description = GeneralsOnlineConstants.TestEnvironmentDescription,
+                ReleaseDate = releaseDate,
+                IconUrl = iconUrl,
+                ThemeColor = GeneralsOnlineConstants.ThemeColor,
+                Tags = [.. GeneralsOnlineConstants.Tags, .. GetVariantTags(GeneralsOnlineConstants.VariantTestEnvironmentSuffix)],
+                ChangelogUrl = changelogUrl,
+                CoverUrl = GeneralsOnlineConstants.CoverSource,
+                VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(version),
+                VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(version),
+            },
+            Files = [],
+            Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesForTestEnvironment(userVersion),
+            InstallationInstructions = new InstallationInstructions
             {
                 WorkspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy,
             },
@@ -656,26 +770,11 @@ public class GeneralsOnlineManifestFactory(
         return manifests;
     }
 
-    /// <summary>
-    /// Updates manifests (60Hz, QuickMatch MapPack, and GeneralsOnlineGameData data patch) with extracted file information.
-    /// Computes SHA-256 hashes for all files for CAS integration.
-    /// Each variant gets only the files it needs plus shared files.
-    /// Maps are extracted to the MapPack manifest with UserMapsDirectory install target.
-    /// Game data files are extracted to the Patch manifest with UserDataDirectory install target.
-    /// </summary>
-    /// <param name="manifests">The original content manifests to update.</param>
-    /// <param name="extractPath">The path to the directory containing extracted files.</param>
-    /// <param name="cancellationToken">Token to cancel the operation if needed.</param>
-    /// <returns>Updated content manifests with file hashes and details.</returns>
     private async Task<OperationResult<List<ContentManifest>>> UpdateManifestsWithExtractedFiles(
         List<ContentManifest> manifests,
         string extractPath,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
-        logger.LogInformation("Updating manifests with extracted files from: {Path}", extractPath);
-
-        cancellationToken.ThrowIfCancellationRequested();
-
         var filesWithHashes = await ScanExtractedFilesAsync(extractPath, cancellationToken);
         var updatedManifests = new List<ContentManifest>();
 
@@ -685,7 +784,7 @@ public class GeneralsOnlineManifestFactory(
 
             if (manifestFiles.Count == 0)
             {
-                if (manifest.ContentType is ContentType.MapPack or ContentType.Patch)
+                if (manifest.ContentType is ContentType.MapPack or ContentType.Patch || IsTestEnvironmentManifest(manifest))
                 {
                     logger.LogInformation(
                         "Skipping empty {Type} manifest '{Name}' because no matching files were found in extract path",
@@ -718,7 +817,7 @@ public class GeneralsOnlineManifestFactory(
             updatedManifests.Add(updated);
         }
 
-        ReconcileMissingMapPackDependencies(updatedManifests);
+        ReconcileMissingExtractedDependencies(updatedManifests);
 
         return OperationResult<List<ContentManifest>>.CreateSuccess(updatedManifests);
     }
@@ -745,15 +844,10 @@ public class GeneralsOnlineManifestFactory(
             var isGameData = relativePath.StartsWith(GeneralsOnlineConstants.GameDataSubdirectory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
                              relativePath.StartsWith(GeneralsOnlineConstants.GameDataSubdirectory + "/", StringComparison.OrdinalIgnoreCase);
 
-            var hash = string.Empty;
-            using (var stream = File.OpenRead(filePath))
-            {
-                var hashBytes = await SHA256.HashDataAsync(stream, cancellationToken);
-                hash = Convert.ToHexString(hashBytes).ToLowerInvariant();
-            }
+            // Compute hash for each file
+            var hash = await ComputeFileHashAsync(filePath, cancellationToken);
 
             filesWithHashes.Add(new ExtractedFileInfo(relativePath, fileInfo, hash, isMap, isGameData));
-            logger.LogDebug("Processed file: {File} ({Size} bytes, hash: {Hash}, isMap: {IsMap}, isGameData: {IsGameData})", relativePath, fileInfo.Length, hash[..8], isMap, isGameData);
         }
 
         return filesWithHashes;
@@ -776,7 +870,7 @@ public class GeneralsOnlineManifestFactory(
                 }
             }
 
-            logger.LogInformation("MapPack manifest '{Name}' updated with {Count} map files", manifest.Name, manifestFiles.Count);
+            logger.LogInformation("MapPack manifest '{Name}' updated with {Count} files", manifest.Name, manifestFiles.Count);
         }
         else if (manifest.ContentType == ContentType.Patch)
         {
@@ -790,6 +884,55 @@ public class GeneralsOnlineManifestFactory(
 
             logger.LogInformation("GameData patch manifest '{Name}' updated with {Count} files", manifest.Name, manifestFiles.Count);
         }
+        else if (IsTestEnvironmentManifest(manifest))
+        {
+            var hasDedicatedTestExe = filesWithHashes.Any(file =>
+                !file.IsMap && !file.IsGameData && IsArchiveRootFile(file.RelativePath, GameClientConstants.GeneralsOnlineTestEnvironmentExecutable));
+
+            var hasDefaultExe = filesWithHashes.Any(file =>
+                !file.IsMap && !file.IsGameData && IsArchiveRootFile(file.RelativePath, GameClientConstants.GeneralsOnlineDefaultExecutable));
+
+            if (!hasDedicatedTestExe && !hasDefaultExe)
+            {
+                logger.LogInformation(
+                    "Test environment executable not found in extract path; skipping test env files");
+                return manifestFiles;
+            }
+
+            var targetExecutable = hasDedicatedTestExe
+                ? GameClientConstants.GeneralsOnlineTestEnvironmentExecutable
+                : GameClientConstants.GeneralsOnlineDefaultExecutable;
+
+            foreach (var file in filesWithHashes)
+            {
+                if (file.IsMap || file.IsGameData)
+                {
+                    continue;
+                }
+
+                // Exclude 60Hz executable and Easy Anti-Cheat components from Test Environment client
+                if (IsArchiveRootFile(file.RelativePath, GameClientConstants.GeneralsOnline60HzExecutable) ||
+                    IsEasyAntiCheatFile(file.RelativePath))
+                {
+                    continue;
+                }
+
+                var isExecutable = IsArchiveRootFile(file.RelativePath, targetExecutable);
+
+                manifestFiles.Add(new ManifestFile
+                {
+                    RelativePath = file.RelativePath,
+                    Size = file.FileInfo.Length,
+                    Hash = file.Hash,
+                    SourceType = ContentSourceType.ContentAddressable,
+                    SourcePath = file.FileInfo.FullName,
+                    InstallTarget = ContentInstallTarget.Workspace,
+                    IsExecutable = isExecutable,
+                });
+            }
+
+            logger.LogInformation("Test Environment GameClient manifest '{Name}' updated with {Count} files", manifest.Name, manifestFiles.Count);
+        }
         else
         {
             var targetExecutable = DetermineGameClientTargetExecutable(filesWithHashes, extractPath);
@@ -797,6 +940,12 @@ public class GeneralsOnlineManifestFactory(
             foreach (var file in filesWithHashes)
             {
                 if (file.IsMap || file.IsGameData)
+                {
+                    continue;
+                }
+
+                // Exclude Test Environment dedicated executable from 60Hz GameClient
+                if (IsArchiveRootFile(file.RelativePath, GameClientConstants.GeneralsOnlineTestEnvironmentExecutable))
                 {
                     continue;
                 }
@@ -863,15 +1012,15 @@ public class GeneralsOnlineManifestFactory(
         List<ExtractedFileInfo> filesWithHashes,
         string extractPath)
     {
-        var hasEacSetup = filesWithHashes.Any(file =>
+        var isTestEnv = IsTestEnvironmentManifest(manifest);
+        var hasEacSetup = !isTestEnv && filesWithHashes.Any(file =>
             !file.IsMap && !file.IsGameData &&
             IsArchiveRootFile(file.RelativePath, GameClientConstants.GeneralsOnlineEacSetupExecutable));
 
         var inheritedPostSteps = (manifest.InstallationInstructions?.PostInstallSteps ?? [])
-            .Where(s => s != null && (hasEacSetup || !string.Equals(
-                s.TargetRelativePath,
-                GameClientConstants.GeneralsOnlineEacSetupExecutable,
-                StringComparison.OrdinalIgnoreCase)));
+            .Where(s => s != null &&
+                (!isTestEnv || !string.Equals(s.TargetRelativePath, GameClientConstants.GeneralsOnlineEacSetupExecutable, StringComparison.OrdinalIgnoreCase)) &&
+                (hasEacSetup || !string.Equals(s.TargetRelativePath, GameClientConstants.GeneralsOnlineEacSetupExecutable, StringComparison.OrdinalIgnoreCase)));
 
         var instructions = new InstallationInstructions
         {
@@ -880,12 +1029,13 @@ public class GeneralsOnlineManifestFactory(
             PostInstallSteps = [.. inheritedPostSteps],
         };
 
-        if (manifest.ContentType == ContentType.GameClient &&
+        if (!isTestEnv &&
+            manifest.ContentType == ContentType.GameClient &&
             hasEacSetup &&
-            instructions.PostInstallSteps.All(s => s == null || !string.Equals(
+            instructions.PostInstallSteps.All(s => s == null || (!string.Equals(
                 s.TargetRelativePath,
                 GameClientConstants.GeneralsOnlineEacSetupExecutable,
-                StringComparison.OrdinalIgnoreCase)))
+                StringComparison.OrdinalIgnoreCase) && !string.Equals(s.StepKey, GeneralsOnlineConstants.EacStepKey, StringComparison.OrdinalIgnoreCase))))
         {
             instructions.PostInstallSteps.Add(CreateEacInstallStep(extractPath));
         }
@@ -965,23 +1115,50 @@ public class GeneralsOnlineManifestFactory(
             childName);
     }
 
-    private void ReconcileMissingMapPackDependencies(List<ContentManifest> manifests)
+    private void ReconcileMissingExtractedDependencies(List<ContentManifest> manifests)
     {
-        var hasMapPack = manifests.Any(m => m.ContentType == ContentType.MapPack);
-        if (hasMapPack)
+        if (!manifests.Any(m => m.ContentType == ContentType.MapPack))
         {
-            return;
+            RemoveMissingDependencies(
+                manifests,
+                d => d.DependencyType == ContentType.MapPack,
+                "MapPack");
         }
 
+        if (!manifests.Any(m => m.ContentType == ContentType.Patch))
+        {
+            RemoveMissingDependencies(
+                manifests,
+                d => d.DependencyType == ContentType.Patch &&
+                    (d.Id.Value.Contains(GeneralsOnlineConstants.GameDataPatchSuffix, StringComparison.OrdinalIgnoreCase) || d.PublisherType == PublisherTypeConstants.GeneralsOnline),
+                "GameData patch");
+        }
+    }
+
+    private void RemoveMissingDependencies(
+        List<ContentManifest> manifests,
+        Func<ContentDependency, bool> matchPredicate,
+        string dependencyDescription)
+    {
         foreach (var m in manifests)
         {
-            if (m.Dependencies.Any(d => d.DependencyType == ContentType.MapPack))
+            if (m.Dependencies.Any(matchPredicate))
             {
                 logger.LogWarning(
-                    "Removing MapPack dependency from manifest '{Name}' because MapPack was not found in archive",
+                    "Removing {DependencyDescription} dependency from manifest '{Name}' because {DependencyDescription} was not found in archive",
+                    dependencyDescription,
                     m.Name);
-                m.Dependencies = m.Dependencies.Where(d => d.DependencyType != ContentType.MapPack).ToList();
+                m.Dependencies = m.Dependencies.Where(d => !matchPredicate(d)).ToList();
             }
         }
+    }
+
+    private static async Task<string> ComputeFileHashAsync(
+        string filePath,
+        CancellationToken cancellationToken)
+    {
+        using var stream = File.OpenRead(filePath);
+        var hashBytes = await SHA256.HashDataAsync(stream, cancellationToken);
+        return Convert.ToHexString(hashBytes).ToLowerInvariant();
     }
 }
