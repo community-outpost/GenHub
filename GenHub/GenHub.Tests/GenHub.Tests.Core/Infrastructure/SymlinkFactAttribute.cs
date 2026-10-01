@@ -27,7 +27,11 @@ public sealed class SymlinkFactAttribute : FactAttribute
             File.CreateSymbolicLink(Path.Combine(directory.FullName, "link"), target);
             return true;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
         {
             return false;
         }
@@ -37,7 +41,11 @@ public sealed class SymlinkFactAttribute : FactAttribute
             {
                 directory.Delete(recursive: true);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (IOException)
+            {
+                // Best-effort cleanup of the probe directory.
+            }
+            catch (UnauthorizedAccessException)
             {
                 // Best-effort cleanup of the probe directory.
             }

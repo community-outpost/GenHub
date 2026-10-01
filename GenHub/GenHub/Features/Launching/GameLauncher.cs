@@ -368,7 +368,12 @@ public class GameLauncher(
         {
             return File.ResolveLinkTarget(path, returnFinalTarget: true);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "[GameLauncher] Could not resolve the link target of {Path}", path);
+            return null;
+        }
+        catch (UnauthorizedAccessException ex)
         {
             logger.LogWarning(ex, "[GameLauncher] Could not resolve the link target of {Path}", path);
             return null;

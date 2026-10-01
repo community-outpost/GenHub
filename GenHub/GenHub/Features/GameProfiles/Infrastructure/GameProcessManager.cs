@@ -762,8 +762,19 @@ public class GameProcessManager(
                     process.StartTime.ToUniversalTime(),
                     string.IsNullOrEmpty(executablePath) ? null : executablePath));
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
+                // The process exited, so it cannot be shown to be ours.
+                logger.LogDebug(ex, "Skipping uninspectable process {ProcessId}", process.Id);
+            }
+            catch (Win32Exception ex)
+            {
+                // The process denied access, so it cannot be shown to be ours.
+                logger.LogDebug(ex, "Skipping uninspectable process {ProcessId}", process.Id);
+            }
+            catch (NotSupportedException ex)
+            {
+                // The platform cannot report this process, so it cannot be shown to be ours.
                 logger.LogDebug(ex, "Skipping uninspectable process {ProcessId}", process.Id);
             }
         }
