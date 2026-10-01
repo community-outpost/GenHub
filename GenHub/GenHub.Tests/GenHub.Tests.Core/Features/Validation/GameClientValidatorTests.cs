@@ -302,7 +302,7 @@ public class GameClientValidatorTests
         var progress = new SynchronousProgress<ValidationProgress>(p => progressReports.Add(p));
 
         // Act
-        var result = await _validator.ValidateAsync(client, progress, default);
+        await _validator.ValidateAsync(client, progress, default);
 
         Assert.NotEmpty(progressReports);
         Assert.Contains(progressReports, p => p.PercentComplete == 100);

@@ -48,7 +48,6 @@ public class GameInstallationValidatorTests
     {
         _loggerMock = new Mock<ILogger<GameInstallationValidator>>();
         _manifestProviderMock = new Mock<IManifestProvider>();
-        _contentValidatorMock = new Mock<IContentValidator>();
 
         // Setup ContentValidator mocks to return valid results
         _contentValidatorMock.Setup(c => c.ValidateManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
