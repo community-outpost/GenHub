@@ -42,8 +42,7 @@ public static class ManifestHelper
 
         // Check if files in any variant indicate downloaded content (ContentAddressable source type with hashes)
         return ManifestVariantResolver.EnumerateAllFiles(manifest).Any(f =>
-            f != null &&
-            f.SourceType == ContentSourceType.ContentAddressable &&
+            f?.SourceType == ContentSourceType.ContentAddressable &&
             !string.IsNullOrEmpty(f.Hash));
     }
 
