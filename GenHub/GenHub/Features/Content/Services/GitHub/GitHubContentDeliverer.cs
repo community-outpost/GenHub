@@ -48,7 +48,7 @@ public class GitHubContentDeliverer(
     public bool CanDeliver(ContentManifest manifest)
     {
         // Can deliver if files have GitHub download URLs
-        return manifest.Files.Any(f =>
+        return ManifestVariantResolver.ResolveFiles(manifest).Any(f =>
             !string.IsNullOrEmpty(f.DownloadUrl) &&
             IsGitHubUrl(f.DownloadUrl));
     }
@@ -63,7 +63,7 @@ public class GitHubContentDeliverer(
         try
         {
             // Download all files (validate no duplicate paths to prevent data loss)
-            var filesToDownload = packageManifest.Files
+            var filesToDownload = ManifestVariantResolver.ResolveFiles(packageManifest)
                 .Where(f => !string.IsNullOrEmpty(f.DownloadUrl))
                 .ToList();
 
@@ -216,7 +216,7 @@ public class GitHubContentDeliverer(
         try
         {
             // Validate that all required URLs are GitHub URLs
-            foreach (var file in manifest.Files.Where(f => f.IsRequired && !string.IsNullOrEmpty(f.DownloadUrl)))
+            foreach (var file in ManifestVariantResolver.ResolveFiles(manifest).Where(f => f.IsRequired && !string.IsNullOrEmpty(f.DownloadUrl)))
             {
                 if (file.DownloadUrl != null && !IsGitHubUrl(file.DownloadUrl))
                 {
@@ -356,7 +356,7 @@ public class GitHubContentDeliverer(
 
                     // Update file source types to ContentAddressable since files are now in CAS
                     // This ensures validation checks CAS instead of filesystem paths
-                    foreach (var file in manifest.Files)
+                    foreach (var file in ManifestVariantResolver.EnumerateAllFiles(manifest))
                     {
                         file.SourceType = ContentSourceType.ContentAddressable;
                     }

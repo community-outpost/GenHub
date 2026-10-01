@@ -505,7 +505,9 @@ public partial class GeneralsOnlineProfileReconciler(
             ? profile.GameClient.WorkingDirectory
             : string.Empty;
 
-        var executableFile = newClientManifest?.Files?.FirstOrDefault(f =>
+        var executableFile = newClientManifest is null
+            ? null
+            : ManifestVariantResolver.ResolveFiles(newClientManifest).FirstOrDefault(f =>
             f.RelativePath?.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) == true);
         var relativeExe = executableFile?.RelativePath ?? GeneralsOnlineConstants.DefaultExecutableFileName;
         var exePath = !string.IsNullOrEmpty(workingDir)
@@ -1298,7 +1300,9 @@ public partial class GeneralsOnlineProfileReconciler(
         }
 
         var installationPath = installation?.ZeroHourPath ?? string.Empty;
-        var executableFile = newClientManifest?.Files?.FirstOrDefault(f =>
+        var executableFile = newClientManifest is null
+            ? null
+            : ManifestVariantResolver.ResolveFiles(newClientManifest).FirstOrDefault(f =>
             f.RelativePath?.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) == true);
         var relativeExe = executableFile?.RelativePath ?? GeneralsOnlineConstants.DefaultExecutableFileName;
         var exePath = !string.IsNullOrEmpty(installationPath)

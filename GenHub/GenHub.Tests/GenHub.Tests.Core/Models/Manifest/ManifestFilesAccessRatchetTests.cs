@@ -43,6 +43,7 @@ public class ManifestFilesAccessRatchetTests
         "GenHub.Core.Models.Workspace.ContentHotswapClassification",
         "GenHub.Features.Content.Services.CommunityOutpost.CommunityOutpostManifestFactory",
         "GenHub.Features.Content.Services.GenLauncher.GenLauncherManifestFactory",
+        "GenHub.Features.Content.Services.GenLauncher.GenLauncherResolver",
         "GenHub.Features.Content.Services.Publishers.ModDBManifestFactory",
         "GenHub.Features.Content.Services.Publishers.SuperHackersManifestFactory",
         "GenHub.Features.Manifest.ContentManifestBuilder",
@@ -59,24 +60,7 @@ public class ManifestFilesAccessRatchetTests
     /// </summary>
     private static readonly string[] PendingMigration =
     [
-        "GenHub.Core.Services.Content.LocalContentService",
-        "GenHub.Features.Content.Services.Catalog.GenericCatalogResolver",
-        "GenHub.Features.Content.Services.CommunityOutpost.CommunityOutpostDeliverer",
-        "GenHub.Features.Content.Services.CommunityOutpost.CommunityOutpostResolver",
-        "GenHub.Features.Content.Services.ContentDiscoverers.DownloadedContentDiscoverer",
-        "GenHub.Features.Content.Services.ContentDiscoverers.FileSystemDiscoverer",
-        "GenHub.Features.Content.Services.ContentProviders.BaseContentProvider",
-        "GenHub.Features.Content.Services.ContentResolvers.CsvResolver",
-        "GenHub.Features.Content.Services.ContentResolvers.LocalManifestResolver",
-        "GenHub.Features.Content.Services.GeneralsOnline.GeneralsOnlineDeliverer",
-        "GenHub.Features.Content.Services.GeneralsOnline.GeneralsOnlineProfileReconciler",
-        "GenHub.Features.Content.Services.GenLauncher.GenLauncherDeliverer",
-        "GenHub.Features.Content.Services.GenLauncher.GenLauncherResolver",
-        "GenHub.Features.Content.Services.GitHub.GitHubContentDeliverer",
         "GenHub.Features.GameProfiles.Services.ProfileSharingService",
-        "GenHub.Features.Manifest.ContentManifestPool",
-        "GenHub.Features.Manifest.ManifestProvider",
-        "GenHub.Features.Manifest.SteamManifestPatcher",
     ];
 
     /// <summary>

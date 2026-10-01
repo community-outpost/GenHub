@@ -450,7 +450,7 @@ public abstract class BaseContentProvider : IContentProvider
                 "Successfully prepared {SourceName} content {ManifestId} with {FileCount} files",
                 SourceName,
                 resultManifest.Id,
-                resultManifest.Files.Count);
+                ManifestVariantResolver.ResolveFiles(resultManifest).Count);
 
             return OperationResult<ContentManifest>.CreateSuccess(resultManifest);
         }
@@ -668,7 +668,7 @@ public abstract class BaseContentProvider : IContentProvider
             AuthorName = manifest.Publisher?.Name ?? discovered.AuthorName,
             IconUrl = manifest.Metadata?.IconUrl ?? discovered.IconUrl,
             LastUpdated = manifest.Metadata?.ReleaseDate ?? discovered.LastUpdated,
-            DownloadSize = manifest.Files?.Sum(f => f.Size) ?? discovered.DownloadSize,
+            DownloadSize = ManifestVariantResolver.ResolveFiles(manifest).Sum(f => f.Size),
             RequiresResolution = false,
             VariantGroupId = discovered.VariantGroupId,
             VariantFamilyName = discovered.VariantFamilyName,

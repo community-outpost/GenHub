@@ -159,7 +159,7 @@ public class LocalContentService(
                         $"Entry point '{entryPoint}' is invalid. It must be a relative path without parent directory traversal ('..').");
                 }
 
-                var matchedFile = manifest.Files.FirstOrDefault(f =>
+                var matchedFile = ManifestVariantResolver.ResolveFiles(manifest).FirstOrDefault(f =>
                     ManifestVariantResolver.PathsMatch(f.RelativePath, normalizedEntryPoint));
 
                 if (matchedFile == null)

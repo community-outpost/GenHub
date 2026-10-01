@@ -333,7 +333,7 @@ public sealed class DownloadedContentDiscoverer(
             IconUrl = ResolveIconUrl(manifest),
             BannerUrl = ResolveCoverUrl(manifest),
             LastUpdated = releaseDate is null || releaseDate.Value == default ? null : releaseDate,
-            DownloadSize = manifest.Files?.Sum(file => file.Size) ?? 0,
+            DownloadSize = ManifestVariantResolver.ResolveFiles(manifest).Sum(file => file.Size),
             Data = manifest,
             RequiresResolution = false,
             SourceUrl = manifest.SourcePath,

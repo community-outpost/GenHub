@@ -103,8 +103,8 @@ public class SteamManifestPatcher(
 
     private static bool ApplyLaunchMode(ContentManifest manifest, bool useSteamLaunch, string manifestId, ILogger logger)
     {
-        var generalsExe = manifest.Files.FirstOrDefault(f => f.RelativePath.Equals(GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase));
-        var gameDat = manifest.Files.FirstOrDefault(f => f.RelativePath.Equals(GameClientConstants.SteamGameDatExecutable, StringComparison.OrdinalIgnoreCase));
+        var generalsExe = ManifestVariantResolver.ResolveFiles(manifest).FirstOrDefault(f => f.RelativePath.Equals(GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase));
+        var gameDat = ManifestVariantResolver.ResolveFiles(manifest).FirstOrDefault(f => f.RelativePath.Equals(GameClientConstants.SteamGameDatExecutable, StringComparison.OrdinalIgnoreCase));
 
         if (generalsExe == null && gameDat == null)
         {

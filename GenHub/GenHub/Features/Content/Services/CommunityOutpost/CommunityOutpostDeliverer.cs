@@ -294,7 +294,7 @@ public class CommunityOutpostDeliverer(
         return manifest.Publisher?.PublisherType?.Equals(
                    CommunityOutpostConstants.PublisherType,
                    StringComparison.OrdinalIgnoreCase) == true &&
-               manifest.Files.Any(f =>
+               ManifestVariantResolver.ResolveFiles(manifest).Any(f =>
                    !string.IsNullOrEmpty(f.DownloadUrl) &&
                    (f.DownloadUrl.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
                     f.DownloadUrl.EndsWith(".dat", StringComparison.OrdinalIgnoreCase) ||
@@ -320,7 +320,7 @@ public class CommunityOutpostDeliverer(
                 packageManifest.Version);
 
             // Step 1: Download archive file
-            var archiveFile = packageManifest.Files.FirstOrDefault(f =>
+            var archiveFile = ManifestVariantResolver.ResolveFiles(packageManifest).FirstOrDefault(f =>
                 !string.IsNullOrEmpty(f.DownloadUrl) &&
                 (f.DownloadUrl.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
                  f.DownloadUrl.EndsWith(".dat", StringComparison.OrdinalIgnoreCase) ||
@@ -503,7 +503,7 @@ public class CommunityOutpostDeliverer(
                 registeredManifestIds.Add(manifest.Id);
 
                 // Ensure registered manifest entries reflect clean CAS state
-                foreach (var file in manifest.Files)
+                foreach (var file in ManifestVariantResolver.EnumerateAllFiles(manifest))
                 {
                     file.SourceType = ContentSourceType.ContentAddressable;
                     file.SourcePath = null;
@@ -568,7 +568,7 @@ public class CommunityOutpostDeliverer(
     {
         try
         {
-            var hasArchiveFile = manifest.Files.Any(f =>
+            var hasArchiveFile = ManifestVariantResolver.ResolveFiles(manifest).Any(f =>
                 !string.IsNullOrEmpty(f.DownloadUrl) &&
                 (f.DownloadUrl.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
                  f.DownloadUrl.EndsWith(".dat", StringComparison.OrdinalIgnoreCase) ||

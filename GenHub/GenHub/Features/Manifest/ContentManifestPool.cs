@@ -371,7 +371,7 @@ public class ContentManifestPool(
         if (string.IsNullOrEmpty(manifest.Version))
             errors.Add("Manifest version is required");
 
-        var hasFiles = manifest.Files is { Count: > 0 };
+        var hasFiles = ManifestVariantResolver.EnumerateAllFiles(manifest).Any();
         var hasDirs = manifest.RequiredDirectories is { Count: > 0 };
         var isBase = manifest.ContentType == ContentType.GameInstallation || manifest.ContentType == ContentType.GameClient;
 
@@ -379,37 +379,34 @@ public class ContentManifestPool(
             errors.Add("Manifest must contain at least one file");
 
         // Validate file entries
-        if (manifest.Files != null)
+        foreach (var file in ManifestVariantResolver.EnumerateAllFiles(manifest))
         {
-            foreach (var file in manifest.Files)
+            if (string.IsNullOrEmpty(file.RelativePath))
             {
-                if (string.IsNullOrEmpty(file.RelativePath))
-                {
-                    errors.Add("File entries must have a relative path");
-                    continue;
-                }
-
-                // Check for path traversal attacks or rooted paths
-                if (Path.IsPathRooted(file.RelativePath) || file.RelativePath.Contains(".."))
-                {
-                    errors.Add($"File {file.RelativePath} contains illegal path traversal or is rooted");
-                }
-
-                if (file.SourceType == ContentSourceType.Unknown)
-                    errors.Add($"File {file.RelativePath} has unknown source type");
-
-                // Validate file properties based on source type
-                // For content-addressable files we require a hash (the file will be stored in CAS)
-                if (file.SourceType == ContentSourceType.ContentAddressable && string.IsNullOrEmpty(file.Hash))
-                    errors.Add($"Content file {file.RelativePath} must have a hash for content-addressable storage");
-
-                // Remote downloads must include a DownloadUrl
-                if (file.SourceType == ContentSourceType.RemoteDownload && string.IsNullOrEmpty(file.DownloadUrl))
-                    errors.Add($"Remote download file {file.RelativePath} must have a DownloadUrl");
-
-                if (file.SourceType == ContentSourceType.PatchFile && string.IsNullOrEmpty(file.PatchSourceFile))
-                    errors.Add($"Patch file {file.RelativePath} must have a patch source file");
+                errors.Add("File entries must have a relative path");
+                continue;
             }
+
+            // Check for path traversal attacks or rooted paths
+            if (Path.IsPathRooted(file.RelativePath) || file.RelativePath.Contains(".."))
+            {
+                errors.Add($"File {file.RelativePath} contains illegal path traversal or is rooted");
+            }
+
+            if (file.SourceType == ContentSourceType.Unknown)
+                errors.Add($"File {file.RelativePath} has unknown source type");
+
+            // Validate file properties based on source type
+            // For content-addressable files we require a hash (the file will be stored in CAS)
+            if (file.SourceType == ContentSourceType.ContentAddressable && string.IsNullOrEmpty(file.Hash))
+                errors.Add($"Content file {file.RelativePath} must have a hash for content-addressable storage");
+
+            // Remote downloads must include a DownloadUrl
+            if (file.SourceType == ContentSourceType.RemoteDownload && string.IsNullOrEmpty(file.DownloadUrl))
+                errors.Add($"Remote download file {file.RelativePath} must have a DownloadUrl");
+
+            if (file.SourceType == ContentSourceType.PatchFile && string.IsNullOrEmpty(file.PatchSourceFile))
+                errors.Add($"Patch file {file.RelativePath} must have a patch source file");
         }
 
         return errors.Count > 0
