@@ -937,6 +937,7 @@
                                                    BindPose="{Binding PreviewBindPose}"
                                                    TrackTarget="{Binding PreviewTrackTarget}"
                                                    HiddenMeshNames="{Binding PreviewHiddenMeshNames}"
+                                                   IsCanvasPanMode="{Binding IsPanMode}"
                                                    IsVisible="{Binding HasPreviewScene}"/>
                         <StackPanel IsVisible="{Binding !HasPreviewScene}"
                                     VerticalAlignment="Center" HorizontalAlignment="Center"

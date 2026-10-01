@@ -74,6 +74,12 @@ public sealed class W3dViewerControl : OpenGlControlBase
         AvaloniaProperty.Register<W3dViewerControl, IReadOnlySet<string>?>(nameof(HiddenMeshNames));
 
     /// <summary>
+    /// Whether the surrounding canvas is in pan mode, in which case left-drag pans the canvas.
+    /// </summary>
+    public static readonly StyledProperty<bool> IsCanvasPanModeProperty =
+        AvaloniaProperty.Register<W3dViewerControl, bool>(nameof(IsCanvasPanMode), defaultValue: false);
+
+    /// <summary>
     /// The last GL failure message, or null when healthy.
     /// </summary>
     public static readonly DirectProperty<W3dViewerControl, string?> GlErrorProperty =
@@ -312,6 +318,15 @@ public sealed class W3dViewerControl : OpenGlControlBase
     }
 
     /// <summary>
+    /// Gets or sets a value indicating whether the surrounding canvas is in pan mode.
+    /// </summary>
+    public bool IsCanvasPanMode
+    {
+        get => GetValue(IsCanvasPanModeProperty);
+        set => SetValue(IsCanvasPanModeProperty, value);
+    }
+
+    /// <summary>
     /// Gets the last GL failure message, or null when healthy.
     /// </summary>
     public string? GlError
@@ -374,6 +389,18 @@ public sealed class W3dViewerControl : OpenGlControlBase
 
         return pose[mesh.BoneIndex];
     }
+
+    /// <summary>
+    /// Determines whether a pointer press belongs to the surrounding canvas.
+    /// Middle-drag always pans the canvas, and left-drag pans the canvas while
+    /// pan mode is set, so the viewer must not capture those gestures.
+    /// </summary>
+    /// <param name="isCanvasPanMode">Whether the surrounding canvas is in pan mode.</param>
+    /// <param name="isMiddlePressed">Whether the middle button is pressed.</param>
+    /// <param name="isLeftPressed">Whether the left button is pressed.</param>
+    /// <returns>True when the press must bubble to the canvas; otherwise, false.</returns>
+    internal static bool ShouldYieldPressToCanvas(bool isCanvasPanMode, bool isMiddlePressed, bool isLeftPressed) =>
+        isMiddlePressed || (isCanvasPanMode && isLeftPressed);
 
     /// <inheritdoc />
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -528,11 +555,15 @@ public sealed class W3dViewerControl : OpenGlControlBase
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
-        Focus();
         var point = e.GetCurrentPoint(this);
+        if (ShouldYieldPressToCanvas(IsCanvasPanMode, point.Properties.IsMiddleButtonPressed, point.Properties.IsLeftButtonPressed))
+        {
+            return;
+        }
+
+        Focus();
         _pressing = point.Properties.IsLeftButtonPressed || point.Properties.IsMiddleButtonPressed || point.Properties.IsRightButtonPressed;
-        _panning = point.Properties.IsMiddleButtonPressed ||
-            point.Properties.IsRightButtonPressed ||
+        _panning = point.Properties.IsRightButtonPressed ||
             (point.Properties.IsLeftButtonPressed && e.KeyModifiers.HasFlag(KeyModifiers.Shift));
         _dragging = false;
         _pressPosition = e.GetPosition(this);
