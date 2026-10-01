@@ -28,6 +28,7 @@ COMMUNITY_PATCH_CORE_INI_NAME = "CommunityPatch Core INI (81FB5632)"
 COMMUNITY_PATCH_CORE_INI_URL = (
     "https://strata.gamereplays.org/storage/versions/ini/500_900_CommunityPatch_CoreINI_81FB5632.big"
 )
+GENERALS_EXE_NAME = "generals.exe"
 DEFAULT_OUTPUT_PATH = os.path.join(
     os.path.dirname(__file__), "..", "GenHub", "GenHub", "Resources", "crc-mapping.json"
 )
@@ -519,13 +520,13 @@ def check_cdn_reachable(cdn_url: str, timeout: int = 10) -> bool:
     """Checks whether the CDN host is reachable by probing it and verifying an HTTP response."""
     req = urllib.request.Request(cdn_url, method="HEAD", headers={"User-Agent": "GenHub-Replay-Crawler"})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with urllib.request.urlopen(req, timeout=timeout):
             return True
     except urllib.error.HTTPError:
         # Received HTTP status code (e.g. 200, 400, 403, 404); CDN host is online and responsive
         return True
-    except (urllib.error.URLError, OSError, http.client.HTTPException):
-        # Transport, network, DNS, or socket error
+    except (OSError, http.client.HTTPException):
+        # Transport, network, DNS, or socket error (URLError is an OSError subclass)
         return False
 
 
@@ -623,7 +624,7 @@ def parse_superhackers_asset(date_str: str, version_num: str, asset: dict, inspe
     ini_crc = default_ini
 
     if inspect_binaries and download_url:
-        target_bin = ["generalszh.exe"] if game_type == "ZeroHour" else ["generals.exe"]
+        target_bin = ["generalszh.exe"] if game_type == "ZeroHour" else [GENERALS_EXE_NAME]
         c_exe, c_sha, c_ini = inspect_archive_binary(download_url, target_bin)
         if c_exe:
             exe_crc = c_exe
@@ -1522,11 +1523,11 @@ def run_self_test() -> bool:
     # Test 8: _extract_archive_crcs preserves first-match for duplicate basenames
     zip_buf = io.BytesIO()
     with zipfile.ZipFile(zip_buf, "w") as zf:
-        zf.writestr("generals.exe", b"FIRST")
-        zf.writestr("subfolder/generals.exe", b"SECOND")
+        zf.writestr(GENERALS_EXE_NAME, b"FIRST")
+        zf.writestr(f"subfolder/{GENERALS_EXE_NAME}", b"SECOND")
     zip_buf.seek(0)
     with zipfile.ZipFile(zip_buf, "r") as zf:
-        exe_crc, sha256, _ = _extract_archive_crcs(zf, ["generals.exe"])
+        exe_crc, _, _ = _extract_archive_crcs(zf, [GENERALS_EXE_NAME])
         expect(exe_crc == compute_buffer_crc(b"FIRST"), "Expected first archive member match")
 
     # Test 9: check_cdn_reachable unit test with mock response and exception handling
