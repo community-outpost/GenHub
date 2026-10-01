@@ -69,11 +69,11 @@ public class LaunchExitMessagesTests
     /// <param name="exitCode">The NTSTATUS value as reported by Process.ExitCode.</param>
     /// <param name="expectedKey">The resource key that explains it.</param>
     [Theory]
-    [InlineData(-1073741515, StartupExitCodeConstants.DllNotFoundKey)]
-    [InlineData(-1073741701, StartupExitCodeConstants.InvalidImageFormatKey)]
-    [InlineData(-1073741502, StartupExitCodeConstants.DllInitFailedKey)]
-    [InlineData(-1073741819, StartupExitCodeConstants.AccessViolationKey)]
-    [InlineData(-1073740791, StartupExitCodeConstants.StackBufferOverrunKey)]
+    [InlineData(-1_073_741_515, StartupExitCodeConstants.DllNotFoundKey)]
+    [InlineData(-1_073_741_701, StartupExitCodeConstants.InvalidImageFormatKey)]
+    [InlineData(-1_073_741_502, StartupExitCodeConstants.DllInitFailedKey)]
+    [InlineData(-1_073_741_819, StartupExitCodeConstants.AccessViolationKey)]
+    [InlineData(-1_073_740_791, StartupExitCodeConstants.StackBufferOverrunKey)]
     public void GetExplanationKey_MapsKnownStartupCodes(int exitCode, string expectedKey)
     {
         Assert.Equal(expectedKey, LaunchExitMessages.GetExplanationKey(exitCode));
@@ -86,7 +86,7 @@ public class LaunchExitMessagesTests
     [InlineData(1)]
     [InlineData(127)]
     [InlineData(-1)]
-    [InlineData(-1073741510)]
+    [InlineData(-1_073_741_510)]
     public void UnknownCodes_HaveNoExplanation(int exitCode)
     {
         Assert.Null(LaunchExitMessages.GetExplanationKey(exitCode));
@@ -134,7 +134,7 @@ public class LaunchExitMessagesTests
         var launch = new GameLaunchInfo
         {
             LaunchId = "early-exit", ProfileId = "profile", WorkspaceId = "workspace",
-            ProcessInfo = new GameProcessInfo(), ExitCode = -1073741515,
+            ProcessInfo = new GameProcessInfo(), ExitCode = -1_073_741_515,
         };
 
         var message = LaunchExitMessages.Describe(launch, localization);
