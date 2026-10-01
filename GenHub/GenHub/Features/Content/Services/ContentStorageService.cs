@@ -272,6 +272,15 @@ public class ContentStorageService : IContentStorageService
     }
 
     /// <summary>
+    /// Determines whether the manifest declares a null variant, file list or file entry.
+    /// A null variant surfaces as a null list, so one check covers all three.
+    /// </summary>
+    /// <param name="manifest">The manifest to inspect.</param>
+    /// <returns><c>true</c> when any declared list or entry is null.</returns>
+    private static bool HasNullFileEntries(ContentManifest manifest) =>
+        ManifestVariantResolver.GetDeclaredFileLists(manifest).Any(files => files is null || files.Any(f => f is null));
+
+    /// <summary>
     /// Clears transient staging source paths from every CAS-backed file, in the flat list and
     /// in each variant, so a stored manifest never retains them.
     /// </summary>
@@ -374,8 +383,7 @@ public class ContentStorageService : IContentStorageService
         IProgress<ContentStorageProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        // A null variant surfaces as a null list, so this also rejects null variants.
-        if (ManifestVariantResolver.GetDeclaredFileLists(manifest).Any(files => files is null || files.Any(f => f is null)))
+        if (HasNullFileEntries(manifest))
         {
             return OperationResult<ContentManifest>.CreateFailure("Manifest contains a null variant or file entry or file collection");
         }
