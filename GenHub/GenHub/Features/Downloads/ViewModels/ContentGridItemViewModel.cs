@@ -636,6 +636,18 @@ public sealed partial class ContentGridItemViewModel(
         }
     }
 
+    private static async Task<Bitmap?> SafeGetBitmapAsync(string url)
+    {
+        try
+        {
+            return await ImageCacheService.Instance.GetBitmapAsync(url);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private bool IsMatchingDownloadMessage(
         string contentKey,
         string? contentId,
@@ -1067,18 +1079,6 @@ public sealed partial class ContentGridItemViewModel(
                     IconBitmap = null;
                 }
             }
-        }
-    }
-
-    private async Task<Bitmap?> SafeGetBitmapAsync(string url)
-    {
-        try
-        {
-            return await ImageCacheService.Instance.GetBitmapAsync(url);
-        }
-        catch
-        {
-            return null;
         }
     }
 
