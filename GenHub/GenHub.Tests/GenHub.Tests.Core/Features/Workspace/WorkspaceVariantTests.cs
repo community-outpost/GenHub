@@ -106,6 +106,28 @@ public sealed class WorkspaceVariantTests : IDisposable
         Assert.Equal(expected, strategy.EstimateDiskUsage(configuration));
     }
 
+    /// <summary>Progress completes using the same unique workspace entries that are processed.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task PrepareAsync_SymlinkProgress_ExcludesDuplicatesAndNonWorkspaceFilesAsync()
+    {
+        var manifest = CreateManifest();
+        var configuration = CreateConfiguration(WorkspaceStrategy.SymlinkOnly, manifest);
+        configuration.Manifests.Add(manifest);
+        ManifestVariantResolver.ResolveVariant(manifest)!.Files.Add(new ManifestFile
+        {
+            RelativePath = "user-data.txt",
+            InstallTarget = ContentInstallTarget.UserDataDirectory,
+        });
+        var progress = new Mock<IProgress<WorkspacePreparationProgress>>();
+        var result = await CreateStrategy(WorkspaceStrategy.SymlinkOnly).PrepareAsync(configuration, progress.Object, CancellationToken.None);
+        Assert.True(result.IsPrepared);
+        progress.Verify(
+            p => p.Report(It.Is<WorkspacePreparationProgress>(v =>
+                v.CurrentOperation == "Creating symlinks" && v.TotalFiles == 1 && v.FilesProcessed == 1)),
+            Times.Once);
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {

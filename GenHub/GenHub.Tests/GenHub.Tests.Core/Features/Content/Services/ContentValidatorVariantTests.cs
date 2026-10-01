@@ -120,6 +120,23 @@ public sealed class ContentValidatorVariantTests : IDisposable
             && issue.Severity == ValidationSeverity.Error);
     }
 
+    /// <summary>Malformed paths produce validation issues rather than aborting validation.</summary>
+    /// <param name="path">The invalid relative path.</param>
+    /// <returns>The asynchronous test.</returns>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" ")]
+    public async Task ValidateAllAsync_MissingRelativePath_ReturnsErrorAsync(string? path)
+    {
+        var manifest = CreateManifest();
+        ManifestVariantResolver.ResolveVariant(manifest)!.Files[0].RelativePath = path!;
+        var result = await _validator.ValidateAllAsync(_contentDirectory, manifest);
+        Assert.Contains(result.Issues, issue => issue.Message == "Manifest file is missing its RelativePath."
+            && issue.Severity == ValidationSeverity.Error);
+        Assert.DoesNotContain(result.Issues, issue => issue.Message.Contains("Unexpected error", StringComparison.Ordinal));
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {

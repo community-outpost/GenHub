@@ -80,8 +80,8 @@ public sealed class SymlinkOnlyStrategy(
             // Create workspace directory
             Directory.CreateDirectory(workspacePath);
 
-            var allFiles = configuration.Manifests.SelectMany(m => ManifestVariantResolver.ResolveFiles(m)).ToList();
-            var totalFiles = allFiles.Count;
+            var manifestFiles = configuration.GetWorkspaceUniqueFileEntries().ToList();
+            var totalFiles = manifestFiles.Count;
             var processedFiles = 0;
 
             Logger.LogDebug("Processing {TotalFiles} files in parallel", totalFiles);
@@ -104,12 +104,6 @@ public sealed class SymlinkOnlyStrategy(
                 Logger.LogWarning(ex, "[Workspace] Failed to detect drive type, using default parallelism");
                 degreeOfParallelism = Environment.ProcessorCount * 2;
             }
-
-            // Deduplicate files by RelativePath - multiple manifests may contain the same file
-            // (e.g., GameClient and GameInstallation both contain the executable)
-            // Group by path and take the first occurrence to avoid parallel creation conflicts
-            // include files where InstallTarget is Workspace.
-            var manifestFiles = configuration.GetWorkspaceUniqueFileEntries().ToList();
 
             await Parallel.ForEachAsync(
                 manifestFiles,
