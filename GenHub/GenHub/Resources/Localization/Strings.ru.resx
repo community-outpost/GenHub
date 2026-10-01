@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+﻿<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -182,6 +182,18 @@
   </data>
   <data name="Common.Tooltip.Clear" xml:space="preserve">
     <value>Очистить поле</value>
+  </data>
+  <data name="Common.Tooltip.PickBuiltInAsset" xml:space="preserve">
+    <value>Выбрать встроенный ресурс GenHub (обложка или логотип)</value>
+  </data>
+  <data name="Common.AssetPicker.Title" xml:space="preserve">
+    <value>Встроенные ресурсы GenHub</value>
+  </data>
+  <data name="Common.AssetPicker.CoversAndBanners" xml:space="preserve">
+    <value>Обложки и баннеры</value>
+  </data>
+  <data name="Common.AssetPicker.LogosAndIcons" xml:space="preserve">
+    <value>Логотипы и значки</value>
   </data>
   <data name="Common.Tooltip.PasteClipboard" xml:space="preserve">
     <value>Вставить изображение или файл из буфера обмена (Ctrl+V)</value>
@@ -4135,6 +4147,9 @@
   <data name="Downloads.Card.AddToProfile" xml:space="preserve">
     <value>Добавить в профиль</value>
   </data>
+  <data name="Downloads.Card.DownloadedSelectedContent" xml:space="preserve">
+    <value>Выбранное содержимое загружено</value>
+  </data>
   <data name="Color.Amber" xml:space="preserve">
     <value>Янтарный</value>
   </data>
@@ -4614,6 +4629,21 @@
   </data>
   <data name="Downloads.ContentDetail.BundleComponentsCountFormat" xml:space="preserve">
     <value>{0} элементов</value>
+  </data>
+  <data name="Downloads.ContentDetail.BundleUpdateGameClientMessageFormat" xml:space="preserve">
+    <value>Доступна новая версия игрового клиента **{0}**{1}.
+
+Хотите обновить его в рамках установки этого набора?
+
+*(Примечание: для игровых клиентов отключение опции «Удалить старые версии» позволяет сохранить предыдущие версии клиента рядом)*</value>
+  </data>
+  <data name="Downloads.ContentDetail.BundleUpdateComponentMessageFormat" xml:space="preserve">
+    <value>Доступна новая версия {0} **{1}**{2}.
+
+Хотите обновить и заменить ее в профиле в рамках установки этого набора?</value>
+  </data>
+  <data name="Downloads.ContentDetail.BundleProfileUpdateFailed.Message" xml:space="preserve">
+    <value>Не удалось обновить один или несколько профилей, поэтому предыдущая версия сохранена.</value>
   </data>
   <data name="Downloads.ContentDetail.ByAuthorFormat" xml:space="preserve">
     <value>Автор: {0}</value>
@@ -9694,6 +9724,30 @@ GenHub связывает запуск модификаций со Steam, отк
   <data name="Tools.PublisherStudio.Artifact.PrimaryArtifactTooltip" xml:space="preserve">
     <value>Это основной файл, который должны загружать пользователи.</value>
   </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantHeader" xml:space="preserve">
+    <value>Вариант</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantAxis" xml:space="preserve">
+    <value>Ось вариантов</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantLabel" xml:space="preserve">
+    <value>Метка варианта</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantLabelPlaceholder" xml:space="preserve">
+    <value>например, 1080p, English, Zero Hour</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantLabelHint" xml:space="preserve">
+    <value>Отображается в выборе вариантов. Файлы с общей осью становятся выбираемыми опциями.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.DefaultVariant" xml:space="preserve">
+    <value>Вариант по умолчанию</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.DefaultVariantTooltip" xml:space="preserve">
+    <value>Предвыбирать этот вариант.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantAxisRequired" xml:space="preserve">
+    <value>Выберите ось вариантов, если задана метка варианта.</value>
+  </data>
   <data name="Tools.PublisherStudio.Artifact.Sha256Hash" xml:space="preserve">
     <value>Хэш SHA256 (необязательно)</value>
   </data>
@@ -9798,6 +9852,9 @@ GenHub связывает запуск модификаций со Steam, отк
   </data>
   <data name="Tools.PublisherStudio.Content.IdHint" xml:space="preserve">
     <value>Уникальный идентификатор контента. Только буквы, цифры и дефисы.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamIdHint" xml:space="preserve">
+    <value>Происходит из вышестоящего репозитория, чтобы один и тот же контент имел единый стабильный идентификатор у всех издателей.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.IdPlaceholder" xml:space="preserve">
     <value>например: generals-online</value>
@@ -10424,6 +10481,9 @@ GenHub связывает запуск модификаций со Steam, отк
   <data name="Tools.PublisherStudio.Hosting.GoogleDriveNotAuthenticated" xml:space="preserve">
     <value>Нет входа в Google Drive</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxNotAuthenticated" xml:space="preserve">
+    <value>Нет входа в Dropbox</value>
+  </data>
   <data name="Tools.PublisherStudio.Hosting.AssetsTrackedFormat" xml:space="preserve">
     <value>Отслеживаемых ресурсов: {0}</value>
   </data>
@@ -10624,6 +10684,9 @@ GenHub связывает запуск модификаций со Steam, отк
   </data>
   <data name="Tools.PublisherStudio.Library.ReleasesSuffix" xml:space="preserve">
     <value> релизов</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UpstreamSuffix" xml:space="preserve">
+    <value>апстрим</value>
   </data>
   <data name="Tools.PublisherStudio.Library.Remove" xml:space="preserve">
     <value>Удалить</value>
@@ -13207,7 +13270,7 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>Название каталога не должно быть пустым</value>
   </data>
   <data name="Tools.PublisherStudio.Validation.ValidHttpUrlFormat" xml:space="preserve">
-    <value>{0} должен быть допустимым URL-адресом http или https.</value>
+    <value>{0} должен быть допустимым URL-адресом http, https или avares.</value>
   </data>
   <data name="Tools.PublisherStudio.Validation.ValidContactEmail" xml:space="preserve">
     <value>Контактный адрес должен быть допустимым адресом электронной почты.</value>
@@ -13362,6 +13425,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Content.AutoDescriptionFormat" xml:space="preserve">
     <value>Пакет {0} для {1}.</value>
   </data>
+  <data name="Tools.PublisherStudio.Validation.BundleComponentRequired" xml:space="preserve">
+    <value>Требуется хотя бы один компонент пакета.</value>
+  </data>
   <data name="Tools.PublisherStudio.Validation.ReleaseItemRequired" xml:space="preserve">
     <value>Требуется элемент выпуска. Пожалуйста, укажите действительный URL-адрес для загрузки или локальный файл.</value>
   </data>
@@ -13497,6 +13563,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Hosting.DownloadEmptyError" xml:space="preserve">
     <value>Загруженный файл оказался пустым.</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.NoShareableUrlError" xml:space="preserve">
+    <value>Нет доступной общей ссылки для скачивания.</value>
+  </data>
   <data name="Tools.PublisherStudio.Hosting.DeserializeDefinitionErrorFormat" xml:space="preserve">
     <value>Неверный формат JSON манифеста: {0}</value>
   </data>
@@ -13529,6 +13598,12 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Tools.PublisherStudio.Release.VariantsModeDesc" xml:space="preserve">
     <value>Каждый файл представляет отдельный вариант на выбор пользователя (напр., русский, английский или 720p, 1080p, 4K).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.EditArtifactTooltip" xml:space="preserve">
+    <value>Изменить файл</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.EditTitle" xml:space="preserve">
+    <value>Изменить файл</value>
   </data>
   <data name="Tools.PublisherStudio.Release.BundleMode" xml:space="preserve">
     <value>Установить все файлы вместе (пакет)</value>
@@ -13957,8 +14032,31 @@ https://example.com/screenshot2.png</value>
   <data name="Tools.PublisherStudio.Library.NoClipboardImageMessage" xml:space="preserve">
     <value>В буфере обмена не найдено изображение, файл или URL.</value>
   </data>
+  <data name="Tools.PublisherStudio.Library.UpstreamReleasesNote" xml:space="preserve">
+    <value>Релизы ниже синхронизируются из источника и недоступны для редактирования. Редактируйте сводку, медиа и дополнения.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UpstreamReleasesLoading" xml:space="preserve">
+    <value>Загрузка релизов из источника…</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ReleasesFallbackNote" xml:space="preserve">
+    <value>Актуальные релизы из источника показаны ниже. Сохранённые резервные релизы (на случай недоступности источника) свёрнуты внизу.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UpstreamSyncFailedHint" xml:space="preserve">
+    <value>Проверьте настройки провайдера (репозиторий, код контента, канал) и соединение, затем выберите элемент заново. Статичные релизы ниже используются как резервные.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ManualFallbackPrefix" xml:space="preserve">
+    <value>Вручную:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.DefaultVariantBadge" xml:space="preserve">
+    <value>По умолчанию</value>
+  </data>
   <data name="Downloads.UpdateDialog.Title" xml:space="preserve">
     <value>Доступно обновление для {0}</value>
+  </data>
+  <data name="Downloads.UpdateDialog.BundleMessage" xml:space="preserve">
+    <value>В пакете {0} доступны обновления для {1} элементов.
+
+Как применить эти обновления?</value>
   </data>
   <data name="Downloads.UpdateDialog.MessageWithVersion" xml:space="preserve">
     <value>Для {0} доступно обновление ({1}).
@@ -17169,6 +17267,99 @@ Error: не удалось: {3}
   <data name="Tools.ModBuilder.View.TooltipEditManifests" xml:space="preserve">
     <value>Редактировать манифесты сборки в редакторе конфигурации</value>
   </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedMark" xml:space="preserve">
+    <value>Отметить как избранное</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedBadgeLabel" xml:space="preserve">
+    <value>Текст значка избранного</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedBadgePlaceholder" xml:space="preserve">
+    <value>★ ИЗБРАННЫЙ НАБОР</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedColor" xml:space="preserve">
+    <value>Цвет избранного</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedColorHint" xml:space="preserve">
+    <value>Выберите цвет подсветки для этой избранной карточки. По умолчанию — золотой.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedColorPick" xml:space="preserve">
+    <value>Выбрать</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BundleComponentMatrix" xml:space="preserve">
+    <value>Матрица компонентов набора</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BundleComponentMatrixDesc" xml:space="preserve">
+    <value>Выберите элементы каталога для объединения с опциональными вариантами по умолчанию.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DefaultVariant" xml:space="preserve">
+    <value>Вариант по умолчанию:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamTrack" xml:space="preserve">
+    <value>Отслеживать апстрим-источник (автономные релизы)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamProvider" xml:space="preserve">
+    <value>Апстрим-провайдер</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamRepo" xml:space="preserve">
+    <value>Репозиторий (владелец/репозиторий для GitHub)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamRepoPlaceholder" xml:space="preserve">
+    <value>TheSuperHackers/GeneralsGameCode</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamChannel" xml:space="preserve">
+    <value>Канал релиза</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamChannelPlaceholder" xml:space="preserve">
+    <value>stable</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamContentCode" xml:space="preserve">
+    <value>Код контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamContentCodePlaceholder" xml:space="preserve">
+    <value>например, hlei</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamContentCodeHint" xml:space="preserve">
+    <value>Точная запись в каталоге провайдера, например код GenPatcher hlei для хоткеев Leikeze. Оставьте пустым для сопоставления по имени.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.None" xml:space="preserve">
+    <value>(Нет)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.NoneDescription" xml:space="preserve">
+    <value>Без вариантов. Все файлы релиза устанавливаются вместе.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.GameTypeDescription" xml:space="preserve">
+    <value>Один релиз для разных игр, например сборки Zero Hour и Generals.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.ResolutionDescription" xml:space="preserve">
+    <value>Один релиз в разных разрешениях, например панели управления 720p, 1080p или 4K.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.LanguageDescription" xml:space="preserve">
+    <value>Один релиз на разных языках, например раскладки хоткеев на английском или немецком.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.EditionDescription" xml:space="preserve">
+    <value>Один релиз в разных изданиях, например Standard или HD.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.Custom" xml:space="preserve">
+    <value>Свой...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.CustomDescription" xml:space="preserve">
+    <value>Используйте своё имя оси, например compatibility или platform.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamVariantAxisCustomPlaceholder" xml:space="preserve">
+    <value>например, compatibility</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UpstreamSyncFailedTitle" xml:space="preserve">
+    <value>Источник не вернул релизов</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamVariantAxis" xml:space="preserve">
+    <value>Ось вариантов</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamVariantAxisPlaceholder" xml:space="preserve">
+    <value>game-type</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamVariantAxisHint" xml:space="preserve">
+    <value>Определяет параметр, по которому различаются выпуски (например, тип игры, разрешение, редакция). Оставьте пустым, если не применимо.</value>
+  </data>
   <data name="Tools.IniEditor.Assembled.ArmorLabel" xml:space="preserve">
     <value>Набор брони</value>
   </data>
@@ -17320,4 +17511,7 @@ Error: не удалось: {3}
   <data name="TextureEditor.Notify.PasteFailed.Title" xml:space="preserve"><value>Ошибка вставки</value></data>
   <data name="TextureEditor.Notify.PasteFailed.Message" xml:space="preserve"><value>Буфер обмена не содержит допустимых определений MappedImage.</value></data>
   <data name="TextureEditor.Notify.OpenFailed.Message" xml:space="preserve"><value>Не удалось открыть целевую текстуру.</value></data>
+  <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
+    <value>Резервные выпуски вручную (переопределения)</value>
+  </data>
 </root>

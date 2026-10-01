@@ -52,6 +52,9 @@ public partial class HostedAssetItemViewModel : ObservableObject
     private string? _contentName;
 
     [ObservableProperty]
+    private string _fileId = string.Empty;
+
+    [ObservableProperty]
     private string? _releaseVersion;
 
     [ObservableProperty]

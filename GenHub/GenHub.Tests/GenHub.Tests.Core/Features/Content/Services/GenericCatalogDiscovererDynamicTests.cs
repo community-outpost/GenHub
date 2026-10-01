@@ -98,6 +98,62 @@ public sealed class GenericCatalogDiscovererDynamicTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that catalog cards tracking a GitHub upstream carry the repository
+    /// identity so install-state detection can match the same files acquired
+    /// through another publisher.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_GitHubUpstreamItem_StampsRepositoryIdentityAsync()
+    {
+        var catalog = CreateTestCatalog();
+        var catalogParserMock = new Mock<IPublisherCatalogParser>();
+        catalogParserMock
+            .Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
+
+        var gitHubClientMock = new Mock<IGitHubApiClient>();
+        gitHubClientMock
+            .Setup(c => c.GetLatestReleaseAsync(
+                SuperHackersConstants.GeneralsGameCodeOwner,
+                SuperHackersConstants.GeneralsGameCodeRepo,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateSampleGitHubRelease());
+
+        var discoverer = new GenericCatalogDiscoverer(
+            NullLogger<GenericCatalogDiscoverer>.Instance,
+            CreateHttpClientFactory(JsonSerializer.Serialize(catalog)),
+            catalogParserMock.Object,
+            new VersionSelector(NullLogger<VersionSelector>.Instance),
+            gitHubClientMock.Object);
+
+        discoverer.Configure(new PublisherSubscription
+        {
+            PublisherId = "test-pub",
+            PublisherName = "Test Publisher",
+            CatalogUrl = "https://example.com/catalog.json",
+        });
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.NotNull(result.Data);
+
+        var zhCard = Assert.Single(
+            result.Data.Items,
+            i => i.Name.Contains("TheSuperHackers Zero Hour Game Code", StringComparison.OrdinalIgnoreCase) &&
+                i.TargetGame == GameType.ZeroHour &&
+                i.ContentType == ContentType.GameClient);
+        Assert.Equal(
+            $"https://github.com/{SuperHackersConstants.GeneralsGameCodeOwner}/{SuperHackersConstants.GeneralsGameCodeRepo}",
+            zhCard.SourceUrl);
+        Assert.True(zhCard.ResolverMetadata.TryGetValue(GitHubConstants.OwnerMetadataKey, out var owner));
+        Assert.Equal(SuperHackersConstants.GeneralsGameCodeOwner, owner);
+        Assert.True(zhCard.ResolverMetadata.TryGetValue(GitHubConstants.RepoMetadataKey, out var repo));
+        Assert.Equal(SuperHackersConstants.GeneralsGameCodeRepo, repo);
+    }
+
+    /// <summary>
     /// Verifies that ContentBundle dependencies targeting dynamic SuperHackers components are synchronized.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>

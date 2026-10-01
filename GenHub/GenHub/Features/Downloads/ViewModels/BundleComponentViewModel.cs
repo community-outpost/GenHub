@@ -58,12 +58,14 @@ public sealed partial class BundleComponentViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSelectedDownloaded))]
+    [NotifyPropertyChangedFor(nameof(RequiresUpdate))]
     [NotifyPropertyChangedFor(nameof(EffectiveState))]
     [NotifyPropertyChangedFor(nameof(SelectedDisplayName))]
     private InstallableVariant? _selectedVariant;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSelectedDownloaded))]
+    [NotifyPropertyChangedFor(nameof(RequiresUpdate))]
     [NotifyPropertyChangedFor(nameof(EffectiveState))]
     private ContentState _currentState = ContentState.NotDownloaded;
 
@@ -78,6 +80,13 @@ public sealed partial class BundleComponentViewModel : ObservableObject
     /// Gets a value indicating whether this required component still needs to be downloaded.
     /// </summary>
     public bool RequiresDownload => !IsBaseGame && !IsOptional && !IsSelectedDownloaded;
+
+    /// <summary>
+    /// Gets a value indicating whether this required component is acquired but a newer
+    /// version is available. Unlike <see cref="RequiresDownload"/>, these members count
+    /// as ready for profiles but should surface a bundle-level update action.
+    /// </summary>
+    public bool RequiresUpdate => !IsBaseGame && !IsOptional && EffectiveState == ContentState.UpdateAvailable;
 
     /// <summary>Gets the name shown on the component row (variant label when present).</summary>
     public string SelectedDisplayName =>
@@ -157,6 +166,27 @@ public sealed partial class BundleComponentViewModel : ObservableObject
     {
         var targets = new List<ContentSearchResult>();
         foreach (var component in components.Where(c => c.RequiresDownload))
+        {
+            var searchResult = component.GetSelectedSearchResult();
+            if (searchResult != null)
+            {
+                targets.Add(searchResult);
+            }
+        }
+
+        return targets;
+    }
+
+    /// <summary>
+    /// Returns search results for acquired members that have a newer version available.
+    /// </summary>
+    /// <param name="components">Bundle components.</param>
+    /// <returns>Update targets for the current selections.</returns>
+    public static IReadOnlyList<ContentSearchResult> GetRequiredUpdateTargets(
+        IEnumerable<BundleComponentViewModel> components)
+    {
+        var targets = new List<ContentSearchResult>();
+        foreach (var component in components.Where(c => c.RequiresUpdate))
         {
             var searchResult = component.GetSelectedSearchResult();
             if (searchResult != null)
@@ -306,6 +336,7 @@ public sealed partial class BundleComponentViewModel : ObservableObject
         OnPropertyChanged(nameof(IsSelectedDownloaded));
         OnPropertyChanged(nameof(EffectiveState));
         OnPropertyChanged(nameof(RequiresDownload));
+        OnPropertyChanged(nameof(RequiresUpdate));
     }
 
     /// <summary>
@@ -322,6 +353,7 @@ public sealed partial class BundleComponentViewModel : ObservableObject
         OnPropertyChanged(nameof(IsSelectedDownloaded));
         OnPropertyChanged(nameof(EffectiveState));
         OnPropertyChanged(nameof(RequiresDownload));
+        OnPropertyChanged(nameof(RequiresUpdate));
     }
 
     /// <summary>
@@ -364,6 +396,46 @@ public sealed partial class BundleComponentViewModel : ObservableObject
         OnPropertyChanged(nameof(IsSelectedDownloaded));
         OnPropertyChanged(nameof(EffectiveState));
         OnPropertyChanged(nameof(RequiresDownload));
+        OnPropertyChanged(nameof(RequiresUpdate));
+    }
+
+    /// <summary>
+    /// Sets the download URL from the artifact matching the selected variant,
+    /// falling back to the release primary and then the first downloadable artifact.
+    /// </summary>
+    /// <param name="searchResult">The component search result to update.</param>
+    /// <param name="variant">The selected component variant.</param>
+    /// <param name="releaseJson">The serialized release holding every artifact.</param>
+    internal static void ApplyReleaseDownloadUrl(
+        ContentSearchResult searchResult,
+        CatalogBundleComponentVariantDescriptor variant,
+        string? releaseJson)
+    {
+        if (string.IsNullOrWhiteSpace(releaseJson) || !string.IsNullOrWhiteSpace(searchResult.SelectedDownloadUrl))
+        {
+            return;
+        }
+
+        try
+        {
+            var release = JsonSerializer.Deserialize<ContentRelease>(releaseJson);
+            var downloadable = release?.Artifacts?.Where(a => !string.IsNullOrWhiteSpace(a.DownloadUrl)).ToList();
+            var artifact = (!string.IsNullOrWhiteSpace(variant.Label)
+                ? downloadable?.FirstOrDefault(a => string.Equals(a.Variant, variant.Label, StringComparison.OrdinalIgnoreCase) &&
+                    (string.IsNullOrWhiteSpace(variant.Axis) || string.Equals(a.VariantAxis, variant.Axis, StringComparison.OrdinalIgnoreCase))) ??
+                    downloadable?.FirstOrDefault(a => string.Equals(a.Variant, variant.Label, StringComparison.OrdinalIgnoreCase))
+                : null) ??
+                release?.Artifacts?.FirstOrDefault(a => a.IsPrimary && !string.IsNullOrWhiteSpace(a.DownloadUrl)) ??
+                downloadable?.FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(artifact?.DownloadUrl))
+            {
+                searchResult.SelectedDownloadUrl = artifact.DownloadUrl;
+            }
+        }
+        catch (JsonException)
+        {
+            // Fall back to catalog IDs when the embedded release cannot be parsed.
+        }
     }
 
     private static BundleComponentViewModel? CreateComponentFromDescriptor(
@@ -459,7 +531,88 @@ public sealed partial class BundleComponentViewModel : ObservableObject
         }
 
         searchResult.ResolverMetadata[CatalogConstants.CatalogContentIdMetadataKey] = descriptor.ContentId;
+
+        ApplyUpstreamIdentity(searchResult, descriptor.CatalogItemJson, variant);
         return searchResult;
+    }
+
+    /// <summary>
+    /// Propagates upstream GitHub identity and the selected artifact URL from the
+    /// referenced catalog item so install-state detection can match the same files
+    /// acquired through another publisher.
+    /// </summary>
+    private static void ApplyUpstreamIdentity(
+        ContentSearchResult searchResult,
+        string? catalogItemJson,
+        CatalogBundleComponentVariantDescriptor variant)
+    {
+        ApplyCatalogItemUpstreamIdentity(searchResult, catalogItemJson);
+        ApplyReleaseDownloadUrl(searchResult, variant, variant.ReleaseJson);
+    }
+
+    private static void ApplyCatalogItemUpstreamIdentity(ContentSearchResult searchResult, string? catalogItemJson)
+    {
+        if (string.IsNullOrWhiteSpace(catalogItemJson))
+        {
+            return;
+        }
+
+        CatalogContentItem? sibling;
+        try
+        {
+            sibling = JsonSerializer.Deserialize<CatalogContentItem>(catalogItemJson);
+        }
+        catch (JsonException)
+        {
+            // Fall back to catalog IDs when the embedded item cannot be parsed.
+            return;
+        }
+
+        if (sibling == null)
+        {
+            return;
+        }
+
+        var repository = ResolveSiblingRepository(sibling);
+        if (repository == null)
+        {
+            return;
+        }
+
+        ApplyGitHubCoordinates(searchResult, repository[0], repository[1]);
+    }
+
+    private static string[]? ResolveSiblingRepository(CatalogContentItem sibling)
+    {
+        var declaredProvider = CatalogConstants.UpstreamProviders.DeclaredProvider(sibling.UpstreamSync?.Provider, sibling.PublisherType);
+        if (!CatalogConstants.UpstreamProviders.TryResolveGitHubRepository(
+            declaredProvider,
+            sibling.UpstreamSync?.Repository,
+            out var owner,
+            out var repo))
+        {
+            return null;
+        }
+
+        return [owner, repo];
+    }
+
+    private static void ApplyGitHubCoordinates(ContentSearchResult searchResult, string owner, string repo)
+    {
+        if (!searchResult.ResolverMetadata.ContainsKey(GitHubConstants.OwnerMetadataKey))
+        {
+            searchResult.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = owner.Trim();
+        }
+
+        if (!searchResult.ResolverMetadata.ContainsKey(GitHubConstants.RepoMetadataKey))
+        {
+            searchResult.ResolverMetadata[GitHubConstants.RepoMetadataKey] = repo.Trim();
+        }
+
+        if (string.IsNullOrWhiteSpace(searchResult.SourceUrl))
+        {
+            searchResult.SourceUrl = $"https://github.com/{owner.Trim()}/{repo.Trim()}";
+        }
     }
 
     private static (string Version, DateTime? LastUpdated) ResolveReleaseTiming(ContentSearchResult bundleResult, string? releaseJson)
@@ -525,6 +678,7 @@ public sealed partial class BundleComponentViewModel : ObservableObject
         OnPropertyChanged(nameof(IsSelectedDownloaded));
         OnPropertyChanged(nameof(EffectiveState));
         OnPropertyChanged(nameof(RequiresDownload));
+        OnPropertyChanged(nameof(RequiresUpdate));
     }
 
     private void RebuildVariantAxes()

@@ -101,6 +101,94 @@ public sealed class SuperHackersBundleIntegrationTests
     }
 
     /// <summary>
+    /// Verifies that bundle components referencing a GitHub upstream item propagate
+    /// the repository identity and selected artifact URL so install-state detection
+    /// can match the same files acquired through another publisher.
+    /// </summary>
+    [Fact]
+    public void BundleComponent_GitHubUpstreamItem_PropagatesIdentityAndDownloadUrl()
+    {
+        // arrange
+        var sibling = new CatalogContentItem
+        {
+            Id = "l3m-controlbar",
+            Name = "L3M Modern HD Control Bar",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            PublisherType = "undead2146",
+            UpstreamSync = new CatalogUpstreamSync
+            {
+                Provider = CatalogConstants.UpstreamProviders.GitHubReleases,
+                Repository = "L3-M/GeneralsControlBar",
+            },
+        };
+        var variantRelease = new ContentRelease
+        {
+            Version = "v1.3",
+            Artifacts =
+            [
+                new ReleaseArtifact
+                {
+                    Filename = "ControlBar_1920x1080.zip",
+                    DownloadUrl = "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBar_1920x1080.zip",
+                    Size = 1100000,
+                    IsPrimary = true,
+                },
+            ],
+        };
+        var descriptors = new List<CatalogBundleComponentDescriptor>
+        {
+            new CatalogBundleComponentDescriptor
+            {
+                ContentId = "l3m-controlbar",
+                Name = "L3M Modern HD Control Bar",
+                PublisherId = "undead2146",
+                ContentType = ContentType.Addon.ToString(),
+                CatalogItemJson = JsonSerializer.Serialize(sibling),
+                Variants =
+                [
+                    new CatalogBundleComponentVariantDescriptor
+                    {
+                        Axis = "resolution",
+                        Label = "1080p",
+                        CatalogId = "1.103.undead2146.addon.l3mcontrolbarresolution1080p",
+                        IsDefault = true,
+                        ReleaseJson = JsonSerializer.Serialize(variantRelease),
+                        DownloadSize = 1100000,
+                    },
+                ],
+            },
+        };
+
+        var bundleResult = new ContentSearchResult
+        {
+            Id = "1.0.undead2146.contentbundle.testbundle",
+            Name = "Test Bundle",
+            ContentType = ContentType.ContentBundle,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = "undead2146",
+        };
+        bundleResult.ResolverMetadata[CatalogConstants.BundleComponentsJsonMetadataKey] =
+            JsonSerializer.Serialize(descriptors);
+
+        // act
+        var components = BundleComponentViewModel.CreateFromSearchResult(bundleResult);
+
+        // assert
+        var component = Assert.Single(components);
+        var selected = component.GetSelectedSearchResult();
+        Assert.NotNull(selected);
+        Assert.Equal("https://github.com/L3-M/GeneralsControlBar", selected.SourceUrl);
+        Assert.Equal(
+            "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBar_1920x1080.zip",
+            selected.SelectedDownloadUrl);
+        Assert.True(selected.ResolverMetadata.TryGetValue(GitHubConstants.OwnerMetadataKey, out var owner));
+        Assert.Equal("L3-M", owner);
+        Assert.True(selected.ResolverMetadata.TryGetValue(GitHubConstants.RepoMetadataKey, out var repo));
+        Assert.Equal("GeneralsControlBar", repo);
+    }
+
+    /// <summary>
     /// Verifies that ContentStateService matches a SuperHackers Zero Hour manifest by catalog content ID and target game.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
@@ -322,10 +410,11 @@ public sealed class SuperHackersBundleIntegrationTests
     }
 
     /// <summary>
-    /// Verifies that CatalogBundleComponentBuilder filters out incompatible game variants when building a Zero Hour bundle.
+    /// Verifies that CatalogBundleComponentBuilder shows all game variants for bundle
+    /// components so users can pick, with the default variant guiding selection.
     /// </summary>
     [Fact]
-    public void CatalogBundleComponentBuilder_ZeroHourBundle_FiltersOutIncompatibleGeneralsVariant()
+    public void CatalogBundleComponentBuilder_ZeroHourBundle_ShowsAllGameVariants()
     {
         // arrange
         var shContent = new CatalogContentItem
@@ -401,8 +490,9 @@ public sealed class SuperHackersBundleIntegrationTests
         // assert
         Assert.Single(components);
         var shComponent = components[0];
-        Assert.Single(shComponent.Variants);
-        Assert.Equal("Zero Hour", shComponent.Variants[0].Label);
+        Assert.Equal(2, shComponent.Variants.Count);
+        Assert.Contains(shComponent.Variants, v => v.Label == "Zero Hour" && v.IsDefault);
+        Assert.Contains(shComponent.Variants, v => v.Label == "Generals");
     }
 
     /// <summary>

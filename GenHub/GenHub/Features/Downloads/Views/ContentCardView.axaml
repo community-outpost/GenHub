@@ -21,6 +21,9 @@
         <converters:ContentTypeToBrushConverter x:Key="ContentTypeToBrushConverter" />
         <converters:ContentTypeToBadgeBackgroundConverter x:Key="ContentTypeToBadgeBackgroundConverter" />
         <converters:ContentTypeDisplayConverter x:Key="ContentTypeDisplayConverter" />
+        <converters:ContrastTextColorConverter x:Key="ContrastTextColorConverter" />
+        <converters:FeaturedColorToBrushConverter x:Key="FeaturedColorToBrushConverter" />
+        <converters:FeaturedColorToBoxShadowConverter x:Key="FeaturedColorToBoxShadowConverter" />
     </UserControl.Resources>
 
     <UserControl.Styles>
@@ -50,6 +53,27 @@
             <Setter Property="Height" Value="NaN" />
             <Setter Property="MinHeight" Value="385" />
             <Setter Property="MaxHeight" Value="560" />
+        </Style>
+
+        <!-- Featured frame. The bindings resolve the publisher featured color (or default
+             gold) and override these fallbacks whenever set; keeping them in styles (rather
+             than local values on the Border) lets the pointerover setters below still apply. -->
+        <Style Selector="Border.content-card.featured-card">
+            <Setter Property="BorderThickness" Value="2" />
+            <Setter Property="BorderBrush" Value="{Binding FeaturedColor, Converter={StaticResource FeaturedColorToBrushConverter}, FallbackValue={DynamicResource WarningHighlightBrush}}" />
+            <Setter Property="BoxShadow" Value="{Binding FeaturedColor, Converter={StaticResource FeaturedColorToBoxShadowConverter}, FallbackValue='0 10 35 0 #59F59E0B'}" />
+        </Style>
+
+        <Style Selector="Border.content-card.featured-card:pointerover">
+            <Setter Property="BorderBrush" Value="{Binding FeaturedColor, Converter={StaticResource FeaturedColorToBrushConverter}, FallbackValue={DynamicResource PendingActionHoverBrush}}" />
+            <Setter Property="BoxShadow" Value="{Binding FeaturedColor, Converter={StaticResource FeaturedColorToBoxShadowConverter}, ConverterParameter={x:Static converters:FeaturedColorToBoxShadowConverter.HoverParameter}, FallbackValue='0 14 42 0 #80F59E0B'}" />
+        </Style>
+
+        <Style Selector="Border.featured-badge">
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="7,3" />
+            <Setter Property="BoxShadow" Value="0 2 6 0 #80000000" />
         </Style>
 
         <Style Selector="Border.content-card:pointerover">
@@ -166,7 +190,7 @@
         </Style>
     </UserControl.Styles>
 
-    <Border Classes="content-card" Classes.bundle-card="{Binding HasBundleComponents}">
+    <Border Classes="content-card" Classes.bundle-card="{Binding HasBundleComponents}" Classes.featured-card="{Binding IsFeatured}">
         <Panel>
             <!-- 1. Acrylic blur -->
             <ExperimentalAcrylicBorder CornerRadius="12" IsHitTestVisible="False">
@@ -267,15 +291,38 @@
                                        VerticalAlignment="Top"
                                        Margin="6"
                                        MaxWidth="228">
+                                <Border Classes="type-badge featured-badge"
+                                        Background="{Binding FeaturedColor, Converter={StaticResource ColorToBrushConverter}}"
+                                        BorderBrush="{Binding FeaturedColor, Converter={StaticResource FeaturedColorToBrushConverter}, FallbackValue={DynamicResource PendingActionHoverBrush}}"
+                                        IsVisible="{Binding HasFeaturedBadge}"
+                                        Margin="0,0,4,4"
+                                        ToolTip.Tip="{Binding FeaturedBadge}">
+                                    <TextBlock Text="{Binding FeaturedBadge}"
+                                               FontSize="10"
+                                               FontWeight="Bold"
+                                               Foreground="{Binding FeaturedColor, Converter={StaticResource ContrastTextColorConverter}}" />
+                                </Border>
                                 <Border Classes="type-badge"
                                         Background="{DynamicResource CardBackground}"
                                         BorderBrush="{Binding ContentType, Converter={StaticResource ContentTypeToBrushConverter}}"
                                         Margin="0,0,4,4"
+                                        IsVisible="{Binding !HasAccentColor}"
                                         ToolTip.Tip="{Binding ContentType, Converter={StaticResource ContentTypeDisplayConverter}}">
                                     <TextBlock Text="{Binding ContentType, Converter={StaticResource ContentTypeDisplayConverter}}"
                                                FontSize="10"
                                                FontWeight="Bold"
                                                Foreground="{Binding ContentType, Converter={StaticResource ContentTypeToBrushConverter}}" />
+                                </Border>
+                                <Border Classes="type-badge"
+                                        Background="{DynamicResource CardBackground}"
+                                        BorderBrush="{Binding AccentColor, Converter={StaticResource ColorToBrushConverter}}"
+                                        Margin="0,0,4,4"
+                                        IsVisible="{Binding HasAccentColor}"
+                                        ToolTip.Tip="{Binding ContentType, Converter={StaticResource ContentTypeDisplayConverter}}">
+                                    <TextBlock Text="{Binding ContentType, Converter={StaticResource ContentTypeDisplayConverter}}"
+                                               FontSize="10"
+                                               FontWeight="Bold"
+                                               Foreground="{Binding AccentColor, Converter={StaticResource ColorToBrushConverter}}" />
                                 </Border>
                                 <Border Classes="type-badge variant-count-badge"
                                         IsVisible="{Binding HasVariantCountBadge}"

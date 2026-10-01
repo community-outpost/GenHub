@@ -17,7 +17,15 @@ public interface IPublisherCatalogParser
     Task<OperationResult<PublisherCatalog>> ParseCatalogAsync(string catalogJson, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Applies import-time defaults to a catalog (display names, same-catalog
+    /// dependency publisher ids). This mutates the catalog; validation never does.
+    /// </summary>
+    /// <param name="catalog">The catalog to normalize.</param>
+    void NormalizeCatalog(PublisherCatalog catalog);
+
+    /// <summary>
     /// Validates that a catalog conforms to the expected schema version.
+    /// This is a pure check and never mutates the catalog.
     /// </summary>
     /// <param name="catalog">The catalog to validate.</param>
     /// <returns>Validation result with any errors.</returns>

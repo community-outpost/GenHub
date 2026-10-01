@@ -24,6 +24,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
+using CatalogEntry = GenHub.Core.Models.Providers.CatalogEntry;
 using ContentState = GenHub.Core.Models.Enums.ContentState;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 using GameType = GenHub.Core.Models.Enums.GameType;
@@ -1030,6 +1031,35 @@ public class DownloadsBrowserViewModelTests
     }
 
     /// <summary>
+    /// Verifies that DisposeUnretainedViewModels does not dispose view models retained in ContentItems or cache.
+    /// </summary>
+    [Fact]
+    public void DisposeUnretainedViewModels_RetainsItemsInContentItemsAndCache()
+    {
+        // Arrange
+        using var viewModel = CreateViewModel();
+
+        var contentItem = new ContentGridItemViewModel(
+            new ContentSearchResult { Id = "content1", Name = "Content Item 1" },
+            new Mock<IContentStateService>().Object,
+            new Mock<ILogger<ContentGridItemViewModel>>().Object);
+
+        var orphanItem = new ContentGridItemViewModel(
+            new ContentSearchResult { Id = "orphan1", Name = "Orphan Item" },
+            new Mock<IContentStateService>().Object,
+            new Mock<ILogger<ContentGridItemViewModel>>().Object);
+
+        viewModel.ContentItems.Add(contentItem);
+
+        // Act
+        viewModel.DisposeUnretainedViewModels([contentItem, orphanItem]);
+
+        // Assert
+        Assert.False(contentItem.IsDisposed, "Items present in ContentItems must NOT be disposed.");
+        Assert.True(orphanItem.IsDisposed, "Orphan items must be disposed.");
+    }
+
+    /// <summary>
     /// Verifies that when switching away from an in-flight publisher and switching back,
     /// the active request ID is updated on the in-flight operation so it doesn't get stuck in loading state.
     /// </summary>
@@ -1067,6 +1097,152 @@ public class DownloadsBrowserViewModelTests
         Assert.Equal("mod-a", viewModel.ContentItems[0].Id);
         Assert.True(viewModel.IsLoading);
         Assert.Equal(viewModel.ActiveRequestId, inFlightOp.ActiveRequestId);
+    }
+
+    /// <summary>
+    /// Verifies that when an in-flight operation for an older publisher completes after switching
+    /// publishers, the captured in-flight catalog ID is preserved in the cache instead of being
+    /// overwritten by the active publisher's catalog ID.
+    /// </summary>
+    [Fact]
+    public void CommitBrowseResultsToCache_WhenInFlightOperationCompletesForOldPublisher_PreservesInFlightCatalogIdInCache()
+    {
+        // Arrange
+        using var viewModel = CreateViewModel();
+
+        var publisherA = new PublisherItemViewModel("pub-a", "Publisher A");
+        var publisherB = new PublisherItemViewModel("pub-b", "Publisher B");
+        viewModel.Publishers.Add(publisherA);
+        viewModel.Publishers.Add(publisherB);
+
+        var itemA = new ContentGridItemViewModel(
+            new ContentSearchResult { Id = "mod-a", Name = "Mod A" },
+            new Mock<IContentStateService>().Object,
+            new Mock<ILogger<ContentGridItemViewModel>>().Object);
+
+        using var cts = new CancellationTokenSource();
+        var inFlightOpA = new DownloadsBrowserViewModel.PublisherInFlightOperation(
+            "pub-a",
+            new ContentSearchQuery(),
+            cts,
+            catalogId: "catalog-a")
+        {
+            ActiveRequestId = 1,
+            IsCompleted = false,
+        };
+
+        viewModel.SetInFlightOperationForTesting("pub-a", inFlightOpA);
+
+        // Simulate user currently on Publisher B with Catalog B selected
+        viewModel.SelectedPublisher = publisherB;
+        viewModel.SelectedCatalog = new CatalogEntry { Id = "catalog-b", Name = "Catalog B" };
+
+        // Act: in-flight request for Publisher A finishes and commits to cache
+        viewModel.CommitBrowseResultsToCacheForTesting(
+            "pub-a",
+            new ContentSearchQuery(),
+            hasMoreItems: false,
+            isCustomQuery: false,
+            append: false,
+            inFlightOp: inFlightOpA,
+            newVms: [itemA]);
+
+        // Assert: Publisher A's cache must store "catalog-a", not the active "catalog-b"
+        var cachedCatalogId = viewModel.GetCachedCatalogIdForTesting("pub-a");
+        Assert.Equal("catalog-a", cachedCatalogId);
+    }
+
+    /// <summary>
+    /// Verifies that CommitBrowseResultsToCache returns false and disposes uncommitted view models
+    /// when the in-flight operation cancellation token is cancelled, and CleanupInFlight cleans up in-flight entries.
+    /// </summary>
+    [Fact]
+    public void CommitBrowseResultsToCache_WhenInFlightOperationIsCancelled_ReturnsFalseAndDisposesViewModels()
+    {
+        // Arrange
+        using var viewModel = CreateViewModel();
+
+        var publisherA = new PublisherItemViewModel("pub-a", "Publisher A");
+        viewModel.Publishers.Add(publisherA);
+
+        var itemA = new ContentGridItemViewModel(
+            new ContentSearchResult { Id = "mod-a", Name = "Mod A" },
+            new Mock<IContentStateService>().Object,
+            new Mock<ILogger<ContentGridItemViewModel>>().Object);
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var inFlightOpA = new DownloadsBrowserViewModel.PublisherInFlightOperation(
+            "pub-a",
+            new ContentSearchQuery(),
+            cts,
+            catalogId: "catalog-a")
+        {
+            ActiveRequestId = 1,
+            IsCompleted = false,
+        };
+
+        viewModel.SetInFlightOperationForTesting("pub-a", inFlightOpA);
+
+        // Act
+        var committed = viewModel.CommitBrowseResultsToCacheForTesting(
+            "pub-a",
+            new ContentSearchQuery(),
+            hasMoreItems: false,
+            isCustomQuery: false,
+            append: false,
+            inFlightOp: inFlightOpA,
+            newVms: [itemA]);
+
+        if (!committed)
+        {
+            viewModel.CleanupInFlight("pub-a", inFlightOpA);
+        }
+
+        // Assert
+        Assert.False(committed);
+        Assert.True(itemA.IsDisposed);
+        Assert.False(viewModel.HasInFlightOperationForTesting("pub-a"));
+    }
+
+    /// <summary>
+    /// Verifies that SaveOutgoingPublisherState preserves the publisher's own catalog ID
+    /// and does not overwrite it with another publisher's catalog ID.
+    /// </summary>
+    [Fact]
+    public void SaveOutgoingPublisherState_WhenSwitchingPublishers_PreservesOutgoingCatalogId()
+    {
+        // Arrange
+        using var viewModel = CreateViewModel();
+
+        var publisherA = new PublisherItemViewModel("pub-a", "Publisher A");
+        var publisherB = new PublisherItemViewModel("pub-b", "Publisher B");
+        viewModel.Publishers.Add(publisherA);
+        viewModel.Publishers.Add(publisherB);
+
+        var itemA = new ContentGridItemViewModel(
+            new ContentSearchResult { Id = "mod-a", Name = "Mod A" },
+            new Mock<IContentStateService>().Object,
+            new Mock<ILogger<ContentGridItemViewModel>>().Object);
+
+        viewModel.SelectedPublisher = publisherA;
+        viewModel.SelectedCatalog = new CatalogEntry { Id = "catalog-a", Name = "Catalog A" };
+        viewModel.ContentItems.Add(itemA);
+
+        // Act: save state for pub-a with catalog-a before switching
+        viewModel.SaveOutgoingPublisherStateForTesting("pub-a", "catalog-a");
+
+        // Now simulate switching to pub-b with catalog-b
+        viewModel.SelectedPublisher = publisherB;
+        viewModel.SelectedCatalog = new CatalogEntry { Id = "catalog-b", Name = "Catalog B" };
+
+        // Even if SaveOutgoingPublisherState is called for pub-a without catalogId parameter
+        viewModel.SaveOutgoingPublisherStateForTesting("pub-a");
+
+        // Assert: Pub A's cached catalog ID is still catalog-a, not catalog-b
+        var cachedCatalogId = viewModel.GetCachedCatalogIdForTesting("pub-a");
+        Assert.Equal("catalog-a", cachedCatalogId);
     }
 
     /// <summary>
@@ -1777,6 +1953,116 @@ public class DownloadsBrowserViewModelTests
     }
 
     /// <summary>
+    /// Verifies that same-release variant siblings with different display names do not mark
+    /// a downloaded variant as UpdateAvailable. Variant labels are not versions and must
+    /// never drive the newer-version comparison.
+    /// </summary>
+    [Fact]
+    public void ReconcileItemVariants_WhenSameReleaseSiblingsHaveDifferentDisplayNames_DownloadedVariantStaysDownloaded()
+    {
+        // Arrange: three variants of one release (equal manifest-ID version segments).
+        var stateServiceMock = new Mock<IContentStateService>();
+        var loggerMock = new Mock<ILogger<ContentGridItemViewModel>>();
+        var searchResult = new ContentSearchResult
+        {
+            Id = "genericcatalog.genhub-test-publishers.addon.eliorataimprovedmenus",
+            Name = "ImprovedMenus",
+            Version = "v1.3_h1",
+            ProviderName = "genhub-test-publishers",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+        };
+        var item = new ContentGridItemViewModel(searchResult, stateServiceMock.Object, loggerMock.Object)
+        {
+            CurrentState = ContentState.Downloaded,
+            IsDownloaded = true,
+        };
+        var spanish = new InstallableVariant
+        {
+            Name = "ImprovedMenus (Spanish)",
+            ManifestId = "1.103.genericcatalog.addon.eliorataimprovedmenuslanguagespanish",
+            CurrentState = ContentState.NotDownloaded,
+        };
+        var russian = new InstallableVariant
+        {
+            Name = "ImprovedMenus (Russian)",
+            ManifestId = "1.103.genericcatalog.addon.eliorataimprovedmenuslanguagerussian",
+            CurrentState = ContentState.NotDownloaded,
+        };
+        var english = new InstallableVariant
+        {
+            Name = "ImprovedMenus (English)",
+            ManifestId = "1.103.genericcatalog.addon.eliorataimprovedmenuslanguageenglish",
+            CurrentState = ContentState.Downloaded,
+        };
+        item.Variants.Add(spanish);
+        item.Variants.Add(russian);
+        item.Variants.Add(english);
+        item.SelectedVariant = english;
+
+        // Act
+        DownloadsBrowserViewModel.ReconcileItemVariants(item);
+
+        // Assert
+        Assert.Equal(ContentState.Downloaded, english.CurrentState);
+        Assert.Equal(ContentState.Downloaded, item.CurrentState);
+        Assert.True(item.IsDownloaded);
+        Assert.Null(item.UpdateTargetVm);
+    }
+
+    /// <summary>
+    /// Verifies that same-version sibling cards from one multi-asset release (e.g. language
+    /// variants surfaced as separate cards) never mark each other as updates: the downloaded
+    /// sibling stays Downloaded with no update target.
+    /// </summary>
+    [Fact]
+    public void ReconcileReleaseUpdateStates_WhenFamilySharesOneVersion_DownloadedSiblingStaysDownloaded()
+    {
+        // Arrange: three cards from ElTioRata/ImprovedMenus v1.3, English downloaded.
+        var stateServiceMock = new Mock<IContentStateService>();
+        var loggerMock = new Mock<ILogger<ContentGridItemViewModel>>();
+
+        ContentGridItemViewModel CreateSiblingCard(string language, ContentState state)
+        {
+            var sr = new ContentSearchResult
+            {
+                Id = $"github.ElTioRata.ImprovedMenus.v1.3.{language}",
+                Name = $"ImprovedMenus ({language})",
+                Version = "v1.3_h1",
+                ProviderName = "github",
+                ContentType = ContentType.Addon,
+                TargetGame = GameType.ZeroHour,
+                LastUpdated = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc),
+                ResolverMetadata =
+                {
+                    [GitHubConstants.OwnerMetadataKey] = "ElTioRata",
+                    [GitHubConstants.RepoMetadataKey] = "ImprovedMenus",
+                },
+            };
+            return new ContentGridItemViewModel(sr, stateServiceMock.Object, loggerMock.Object)
+            {
+                CurrentState = state,
+                IsDownloaded = state is ContentState.Downloaded or ContentState.UpdateAvailable,
+            };
+        }
+
+        var english = CreateSiblingCard("English", ContentState.Downloaded);
+        var russian = CreateSiblingCard("Russian", ContentState.NotDownloaded);
+        var spanish = CreateSiblingCard("Spanish", ContentState.NotDownloaded);
+
+        // Act
+        DownloadsBrowserViewModel.ReconcileReleaseUpdateStates([english, russian, spanish]);
+
+        // Assert: no card offers an update to a same-version sibling.
+        Assert.Equal(ContentState.Downloaded, english.CurrentState);
+        Assert.True(english.IsDownloaded);
+        Assert.Null(english.UpdateTargetVm);
+        Assert.False(english.ShowUpdateButton);
+        Assert.Equal(ContentState.NotDownloaded, russian.CurrentState);
+        Assert.Equal(ContentState.NotDownloaded, spanish.CurrentState);
+    }
+
+    /// <summary>
     /// Verifies that UpdateContentCommand invokes the publisher reconciler when one is registered.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
@@ -1883,11 +2169,13 @@ public class DownloadsBrowserViewModelTests
     }
 
     /// <summary>
-    /// Verifies that UpdateContentCommand does not download the target item when publisher reconciler reports no reconciliation or user skips.
+    /// Verifies that UpdateContentCommand falls through to the explicit update flow (download
+    /// plus reconcile) when the publisher reconciler reports success-but-noop, so an
+    /// acknowledged update is never silently swallowed.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task UpdateContentCommand_WhenPublisherReconcilerReturnsNoReconciliation_DoesNotDownloadAsync()
+    public async Task UpdateContentCommand_WhenPublisherReconcilerReturnsNoReconciliation_FallsBackToDownloadAsync()
     {
         // Arrange
         var orchestratorMock = new Mock<IContentOrchestrator>();
@@ -1941,7 +2229,7 @@ public class DownloadsBrowserViewModelTests
         // Act
         await viewModel.UpdateContentCommand.ExecuteAsync(currentVm);
 
-        // Assert: Reconciler was invoked and handled the update; since it returned false, no download was performed
+        // Assert: Reconciler was invoked but reported noop, so the explicit update flow downloaded the target
         reconcilerMock.Verify(
             r => r.CheckAndReconcileIfNeededAsync(string.Empty, It.IsAny<CancellationToken>()),
             Times.Once);
@@ -1950,7 +2238,7 @@ public class DownloadsBrowserViewModelTests
                 It.IsAny<ContentSearchResult>(),
                 It.IsAny<IProgress<ContentAcquisitionProgress>?>(),
                 It.IsAny<CancellationToken>()),
-            Times.Never);
+            Times.Once);
     }
 
     /// <summary>

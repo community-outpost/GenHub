@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+﻿<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -182,6 +182,18 @@
   </data>
   <data name="Common.Tooltip.Clear" xml:space="preserve">
     <value>مسح الإدخال</value>
+  </data>
+  <data name="Common.Tooltip.PickBuiltInAsset" xml:space="preserve">
+    <value>اختيار أصل GenHub مدمج (غلاف أو شعار)</value>
+  </data>
+  <data name="Common.AssetPicker.Title" xml:space="preserve">
+    <value>أصول GenHub المدمجة</value>
+  </data>
+  <data name="Common.AssetPicker.CoversAndBanners" xml:space="preserve">
+    <value>الأغلفة واللافتات</value>
+  </data>
+  <data name="Common.AssetPicker.LogosAndIcons" xml:space="preserve">
+    <value>الشعارات والأيقونات</value>
   </data>
   <data name="Common.Tooltip.PasteClipboard" xml:space="preserve">
     <value>لصق صورة أو ملف من الحافظة (Ctrl+V)</value>
@@ -4135,6 +4147,9 @@
   <data name="Downloads.Card.AddToProfile" xml:space="preserve">
     <value>إضافة إلى الملف الشخصي</value>
   </data>
+  <data name="Downloads.Card.DownloadedSelectedContent" xml:space="preserve">
+    <value>تم تنزيل المحتوى المحدد</value>
+  </data>
   <data name="Color.Amber" xml:space="preserve">
     <value>كهرماني</value>
   </data>
@@ -4614,6 +4629,21 @@
   </data>
   <data name="Downloads.ContentDetail.BundleComponentsCountFormat" xml:space="preserve">
     <value>{0} عناصر</value>
+  </data>
+  <data name="Downloads.ContentDetail.BundleUpdateGameClientMessageFormat" xml:space="preserve">
+    <value>يتوفر إصدار جديد من عميل اللعبة **{0}**{1}.
+
+هل ترغب في تحديثه كجزء من تثبيت هذه الحزمة؟
+
+*(ملاحظة: بالنسبة لعملاء اللعبة، يؤدي إلغاء تحديد 'حذف الإصدارات القديمة' إلى الاحتفاظ بإصدارات العميل السابقة جنباً إلى جنب)*</value>
+  </data>
+  <data name="Downloads.ContentDetail.BundleUpdateComponentMessageFormat" xml:space="preserve">
+    <value>يتوفر إصدار جديد من {0} **{1}**{2}.
+
+هل ترغب في تحديثه واستبداله في ملف التعريف كجزء من تثبيت هذه الحزمة؟</value>
+  </data>
+  <data name="Downloads.ContentDetail.BundleProfileUpdateFailed.Message" xml:space="preserve">
+    <value>تعذر تحديث ملف تعريف واحد أو أكثر، لذلك تم الاحتفاظ بالإصدار السابق.</value>
   </data>
   <data name="Downloads.ContentDetail.ByAuthorFormat" xml:space="preserve">
     <value>بواسطة: {0}</value>
@@ -9694,6 +9724,30 @@
   <data name="Tools.PublisherStudio.Artifact.PrimaryArtifactTooltip" xml:space="preserve">
     <value>هذا هو الملف الرئيسي الذي يجب على المستخدمين تنزيله.</value>
   </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantHeader" xml:space="preserve">
+    <value>المتغير</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantAxis" xml:space="preserve">
+    <value>محور المتغير</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantLabel" xml:space="preserve">
+    <value>تسمية المتغير</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantLabelPlaceholder" xml:space="preserve">
+    <value>مثال: 1080p أو English أو Zero Hour</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantLabelHint" xml:space="preserve">
+    <value>يُعرض في منتقي المتغيرات. الملفات التي تشترك في محور واحد تصبح خيارات قابلة للاختيار.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.DefaultVariant" xml:space="preserve">
+    <value>المتغير الافتراضي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.DefaultVariantTooltip" xml:space="preserve">
+    <value>تحديد هذا المتغير مسبقًا في المنتقي.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantAxisRequired" xml:space="preserve">
+    <value>اختر محور متغير عند تعيين تسمية متغير.</value>
+  </data>
   <data name="Tools.PublisherStudio.Artifact.Sha256Hash" xml:space="preserve">
     <value>تجزئة SHA256 (اختياري)</value>
   </data>
@@ -9798,6 +9852,9 @@
   </data>
   <data name="Tools.PublisherStudio.Content.IdHint" xml:space="preserve">
     <value>معرف فريد لعنصر المحتوى هذا. أحرف وأرقام وشرطات فقط.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamIdHint" xml:space="preserve">
+    <value>مشتق من مستودع المصدر حتى يشارك نفس المحتوى معرفًا ثابتًا واحدًا عبر الناشرين.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.IdPlaceholder" xml:space="preserve">
     <value>مثلاً: generals-online</value>
@@ -10424,6 +10481,9 @@
   <data name="Tools.PublisherStudio.Hosting.GoogleDriveNotAuthenticated" xml:space="preserve">
     <value>غير مسجل الدخول إلى Google Drive</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxNotAuthenticated" xml:space="preserve">
+    <value>غير مسجل الدخول إلى Dropbox</value>
+  </data>
   <data name="Tools.PublisherStudio.Hosting.AssetsTrackedFormat" xml:space="preserve">
     <value>{0} من الأصول المتعقبة</value>
   </data>
@@ -10624,6 +10684,9 @@
   </data>
   <data name="Tools.PublisherStudio.Library.ReleasesSuffix" xml:space="preserve">
     <value> إصدارات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UpstreamSuffix" xml:space="preserve">
+    <value>من المصدر</value>
   </data>
   <data name="Tools.PublisherStudio.Library.Remove" xml:space="preserve">
     <value>إزالة</value>
@@ -13207,7 +13270,7 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>لا يمكن أن يكون اسم الكتالوج فارغًا</value>
   </data>
   <data name="Tools.PublisherStudio.Validation.ValidHttpUrlFormat" xml:space="preserve">
-    <value>يجب أن يكون {0} رابط http أو https صالحًا.</value>
+    <value>يجب أن يكون {0} رابط http أو https أو avares صالحًا.</value>
   </data>
   <data name="Tools.PublisherStudio.Validation.ValidContactEmail" xml:space="preserve">
     <value>يجب أن يكون البريد الإلكتروني للتواصل عنوانًا صالحًا.</value>
@@ -13362,6 +13425,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Content.AutoDescriptionFormat" xml:space="preserve">
     <value>{0} حزمة لـ {1}.</value>
   </data>
+  <data name="Tools.PublisherStudio.Validation.BundleComponentRequired" xml:space="preserve">
+    <value>مطلوب مكون حزمة واحد على الأقل.</value>
+  </data>
   <data name="Tools.PublisherStudio.Validation.ReleaseItemRequired" xml:space="preserve">
     <value>عنصر الإصدار مطلوب. يرجى توفير عنوان URL صالح للتنزيل أو ملف محلي.</value>
   </data>
@@ -13497,6 +13563,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Hosting.DownloadEmptyError" xml:space="preserve">
     <value>الملف الذي تم تنزيله كان فارغاً.</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.NoShareableUrlError" xml:space="preserve">
+    <value>لا يتوفر رابط تنزيل قابل للمشاركة.</value>
+  </data>
   <data name="Tools.PublisherStudio.Hosting.DeserializeDefinitionErrorFormat" xml:space="preserve">
     <value>تنسيق JSON لتعريف الناشر غير صالح: {0}</value>
   </data>
@@ -13529,6 +13598,12 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Tools.PublisherStudio.Release.VariantsModeDesc" xml:space="preserve">
     <value>كل ملف هو خيار مميز يختاره المستخدم (مثل الإنجليزية، الروسية، العربية أو 720p، 1080p، 4K).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.EditArtifactTooltip" xml:space="preserve">
+    <value>تحرير الملف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.EditTitle" xml:space="preserve">
+    <value>تحرير الملف</value>
   </data>
   <data name="Tools.PublisherStudio.Release.BundleMode" xml:space="preserve">
     <value>تثبيت كافة الملفات معاً (حزمة)</value>
@@ -13957,8 +14032,31 @@ https://example.com/screenshot2.png</value>
   <data name="Tools.PublisherStudio.Library.NoClipboardImageMessage" xml:space="preserve">
     <value>لم يتم العثور على صورة أو ملف أو رابط صورة في الحافظة.</value>
   </data>
+  <data name="Tools.PublisherStudio.Library.UpstreamReleasesNote" xml:space="preserve">
+    <value>تتم مزامنة الإصدارات أدناه من المصدر ولا يمكن تحريرها هنا. حرّر ملخص المحتوى والوسائط والإضافات بدلاً من ذلك.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UpstreamReleasesLoading" xml:space="preserve">
+    <value>جارٍ تحميل إصدارات المصدر…</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ReleasesFallbackNote" xml:space="preserve">
+    <value>إصدارات المصدر المباشرة معروضة أدناه. الإصدارات الاحتياطية المخزنة (تُستخدم عند تعذّر الوصول إلى المصدر) مطوية في الأسفل.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UpstreamSyncFailedHint" xml:space="preserve">
+    <value>تحقق من إعدادات المزود (المستودع، رمز المحتوى، القناة) واتصالك، ثم أعد تحديد العنصر لإعادة المحاولة. تُستخدم الإصدارات الثابتة أدناه كاحتياطي.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ManualFallbackPrefix" xml:space="preserve">
+    <value>احتياطي يدوي:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.DefaultVariantBadge" xml:space="preserve">
+    <value>افتراضي</value>
+  </data>
   <data name="Downloads.UpdateDialog.Title" xml:space="preserve">
     <value>تحديث متوفر لـ {0}</value>
+  </data>
+  <data name="Downloads.UpdateDialog.BundleMessage" xml:space="preserve">
+    <value>يتوفر تحديث لـ {1} من عناصر الحزمة في {0}.
+
+كيف ترغب في تطبيق هذه التحديثات؟</value>
   </data>
   <data name="Downloads.UpdateDialog.MessageWithVersion" xml:space="preserve">
     <value>يتوفر تحديث لـ {0} ({1}).
@@ -14486,6 +14584,99 @@ https://example.com/screenshot2.png</value>
   </data>
   <data name="Settings.Profiles.DeletedMessage" xml:space="preserve">
     <value>عدد ملفات التعريف المحذوفة بنجاح: {0}.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedMark" xml:space="preserve">
+    <value>تمييز كعنصر مميز</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedBadgeLabel" xml:space="preserve">
+    <value>تسمية شارة التميز</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedBadgePlaceholder" xml:space="preserve">
+    <value>★ حزمة مميزة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedColor" xml:space="preserve">
+    <value>لون التمييز</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedColorHint" xml:space="preserve">
+    <value>اختر لون التمييز لهذه البطاقة المميزة. الافتراضي هو الذهبي.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedColorPick" xml:space="preserve">
+    <value>اختيار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BundleComponentMatrix" xml:space="preserve">
+    <value>مصفوفة مكونات الحزمة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BundleComponentMatrixDesc" xml:space="preserve">
+    <value>حدد عناصر الدليل لتضمينها مع متغيرات افتراضية اختيارية.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DefaultVariant" xml:space="preserve">
+    <value>المتغير الافتراضي:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamTrack" xml:space="preserve">
+    <value>تتبع مزود المصدر المباشر (إصدارات تلقائية)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamProvider" xml:space="preserve">
+    <value>مزود المصدر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamRepo" xml:space="preserve">
+    <value>المستودع (المالك/المستودع لـ GitHub)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamRepoPlaceholder" xml:space="preserve">
+    <value>TheSuperHackers/GeneralsGameCode</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamChannel" xml:space="preserve">
+    <value>قناة الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamChannelPlaceholder" xml:space="preserve">
+    <value>stable</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamContentCode" xml:space="preserve">
+    <value>رمز المحتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamContentCodePlaceholder" xml:space="preserve">
+    <value>مثال: hlei</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamContentCodeHint" xml:space="preserve">
+    <value>الإدخال الدقيق في فهرس المزود، مثل رمز GenPatcher ‏hlei‏ الخاص بمفاتيح Leikeze. اتركه فارغًا للمطابقة بالاسم.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.None" xml:space="preserve">
+    <value>(لا شيء)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.NoneDescription" xml:space="preserve">
+    <value>لا توجد متغيرات. يتم تثبيت جميع ملفات الإصدار معًا.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.GameTypeDescription" xml:space="preserve">
+    <value>نفس الإصدار لألعاب مختلفة، مثل نسختي Zero Hour وGenerals.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.ResolutionDescription" xml:space="preserve">
+    <value>نفس الإصدار بدقات مختلفة، مثل أشرطة تحكم 720p أو 1080p أو 4K.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.LanguageDescription" xml:space="preserve">
+    <value>نفس الإصدار بلغات مختلفة، مثل تخطيطات مفاتيح بالإنجليزية أو الألمانية.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.EditionDescription" xml:space="preserve">
+    <value>نفس الإصدار بإصدارات مختلفة، مثل Standard أو HD.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.Custom" xml:space="preserve">
+    <value>مخصص...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.CustomDescription" xml:space="preserve">
+    <value>استخدم اسم محور خاص بك، مثل compatibility أو platform.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamVariantAxisCustomPlaceholder" xml:space="preserve">
+    <value>مثال: compatibility</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UpstreamSyncFailedTitle" xml:space="preserve">
+    <value>لم يُرجع المصدر أي إصدارات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamVariantAxis" xml:space="preserve">
+    <value>محور المتغير</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamVariantAxisPlaceholder" xml:space="preserve">
+    <value>game-type</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamVariantAxisHint" xml:space="preserve">
+    <value>يحدد البُعد الذي تختلف عبره الإصدارات (مثل نوع اللعبة، الدقة، الإصدار). اتركه فارغاً إذا لم ينطبق.</value>
   </data>
   <data name="Info.Card.tools.publisher-studio-authoring.Action.NAV_Tools" xml:space="preserve">
     <value>فتح استوديو الناشر</value>
@@ -17320,4 +17511,7 @@ Error: فشل: {3}
   <data name="TextureEditor.Notify.PasteFailed.Title" xml:space="preserve"><value>فشل اللصق</value></data>
   <data name="TextureEditor.Notify.PasteFailed.Message" xml:space="preserve"><value>لا تحتوي الحافظة على تعريفات MappedImage صالحة.</value></data>
   <data name="TextureEditor.Notify.OpenFailed.Message" xml:space="preserve"><value>فشل فتح النسيج الهدف.</value></data>
+  <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
+    <value>إصدارات احتياطية يدوية (تجاوزات)</value>
+  </data>
 </root>

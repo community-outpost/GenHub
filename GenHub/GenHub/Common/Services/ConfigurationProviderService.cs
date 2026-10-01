@@ -320,7 +320,7 @@ public class ConfigurationProviderService(
 
         return
         [
-            $"{SuperHackersConstants.GeneralsGameCodeOwner}/{SuperHackersConstants.GeneralsGameCodeRepo}",
+            CatalogConstants.UpstreamProviders.DefaultSuperHackersRepository,
             $"{SuperHackersConstants.GeneralsGamePatch2Owner}/{SuperHackersConstants.GeneralsGamePatch2Repo}",
         ];
     }

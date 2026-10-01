@@ -495,6 +495,13 @@ public class ContentOrchestrator : IContentOrchestrator
                         $"Content preparation failed: {prepareResult.FirstError}");
                 }
 
+                // Publisher factories rebuild manifests from extracted content and drop the
+                // origin linkage stamped above. Re-apply it so sibling cards from other
+                // publishers (e.g. a catalog bundle member for the same upstream asset)
+                // recognize this download instead of reporting NotDownloaded.
+                PopulateOriginalMetadata(prepareResult.Data, searchResult);
+                PopulateOriginDownloadUrl(prepareResult.Data, searchResult);
+
                 // Step 5: Full validation (manifest + files)
                 // Always validate to ensure content integrity, even if nominally in CAS
                 progress?.Report(new ContentAcquisitionProgress
@@ -709,6 +716,22 @@ public class ContentOrchestrator : IContentOrchestrator
             string? parentId = null;
             searchResult.ResolverMetadata?.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out parentId);
             manifest.OriginalContentId = !string.IsNullOrEmpty(parentId) ? parentId : searchResult.Id;
+        }
+    }
+
+    private static void PopulateOriginDownloadUrl(ContentManifest manifest, ContentSearchResult searchResult)
+    {
+        if (manifest.Publisher == null || !string.IsNullOrEmpty(manifest.Publisher.ContentIndexUrl))
+        {
+            return;
+        }
+
+        var originUrl = !string.IsNullOrWhiteSpace(searchResult.SelectedDownloadUrl)
+            ? searchResult.SelectedDownloadUrl
+            : searchResult.SourceUrl;
+        if (!string.IsNullOrWhiteSpace(originUrl))
+        {
+            manifest.Publisher.ContentIndexUrl = originUrl;
         }
     }
 

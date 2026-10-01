@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+﻿<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -182,6 +182,18 @@
   </data>
   <data name="Common.Tooltip.Clear" xml:space="preserve">
     <value>Clear input</value>
+  </data>
+  <data name="Common.Tooltip.PickBuiltInAsset" xml:space="preserve">
+    <value>Pick built-in GenHub asset (cover or logo)</value>
+  </data>
+  <data name="Common.AssetPicker.Title" xml:space="preserve">
+    <value>Built-in GenHub Assets</value>
+  </data>
+  <data name="Common.AssetPicker.CoversAndBanners" xml:space="preserve">
+    <value>Covers &amp; Banners</value>
+  </data>
+  <data name="Common.AssetPicker.LogosAndIcons" xml:space="preserve">
+    <value>Logos &amp; Icons</value>
   </data>
   <data name="Common.Tooltip.PasteClipboard" xml:space="preserve">
     <value>Paste image or file from clipboard (Ctrl+V)</value>
@@ -4135,6 +4147,9 @@ This will modify game files and configuration settings at:
   <data name="Downloads.Card.AddToProfile" xml:space="preserve">
     <value>Add to Profile</value>
   </data>
+  <data name="Downloads.Card.DownloadedSelectedContent" xml:space="preserve">
+    <value>Downloaded selected content</value>
+  </data>
   <data name="Color.Amber" xml:space="preserve">
     <value>Amber</value>
   </data>
@@ -4614,6 +4629,21 @@ This will modify game files and configuration settings at:
   </data>
   <data name="Downloads.ContentDetail.BundleComponentsCountFormat" xml:space="preserve">
     <value>{0} items</value>
+  </data>
+  <data name="Downloads.ContentDetail.BundleUpdateGameClientMessageFormat" xml:space="preserve">
+    <value>A new version of GameClient **{0}** is available{1}.
+
+Would you like to update it as part of this bundle installation?
+
+*(Note: For GameClients, unchecking 'Delete older versions' lets you keep previous client versions installed side-by-side)*</value>
+  </data>
+  <data name="Downloads.ContentDetail.BundleUpdateComponentMessageFormat" xml:space="preserve">
+    <value>A new version of {0} **{1}** is available{2}.
+
+Would you like to update and replace it in the profile as part of this bundle installation?</value>
+  </data>
+  <data name="Downloads.ContentDetail.BundleProfileUpdateFailed.Message" xml:space="preserve">
+    <value>One or more profiles could not be updated, so the previous version was kept.</value>
   </data>
   <data name="Downloads.ContentDetail.ByAuthorFormat" xml:space="preserve">
     <value>By: {0}</value>
@@ -9752,6 +9782,30 @@ Install location:
   <data name="Tools.PublisherStudio.Artifact.PrimaryArtifactTooltip" xml:space="preserve">
     <value>This is the main file users should download.</value>
   </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantHeader" xml:space="preserve">
+    <value>Variant</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantAxis" xml:space="preserve">
+    <value>Variant Axis</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantLabel" xml:space="preserve">
+    <value>Variant Label</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantLabelPlaceholder" xml:space="preserve">
+    <value>e.g. 1080p, English, Zero Hour</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantLabelHint" xml:space="preserve">
+    <value>Shown in the variant picker. Artifacts sharing one axis become selectable options.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.DefaultVariant" xml:space="preserve">
+    <value>Default variant</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.DefaultVariantTooltip" xml:space="preserve">
+    <value>Pre-select this variant in the picker.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.VariantAxisRequired" xml:space="preserve">
+    <value>Select a variant axis when a variant label is set.</value>
+  </data>
   <data name="Tools.PublisherStudio.Artifact.Sha256Hash" xml:space="preserve">
     <value>SHA256 Hash (Optional)</value>
   </data>
@@ -9856,6 +9910,9 @@ Install location:
   </data>
   <data name="Tools.PublisherStudio.Content.IdHint" xml:space="preserve">
     <value>Unique identifier for this content item. Alphanumeric and hyphens only.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamIdHint" xml:space="preserve">
+    <value>Derived from the upstream repository so the same content shares one stable ID across publishers.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.IdPlaceholder" xml:space="preserve">
     <value>e.g. generals-online</value>
@@ -10482,6 +10539,9 @@ Then click the 'Submit' button at the bottom of the page! (GenHub requests exact
   <data name="Tools.PublisherStudio.Hosting.GoogleDriveNotAuthenticated" xml:space="preserve">
     <value>Not authenticated with Google Drive</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxNotAuthenticated" xml:space="preserve">
+    <value>Not authenticated with Dropbox</value>
+  </data>
   <data name="Tools.PublisherStudio.Hosting.AssetsTrackedFormat" xml:space="preserve">
     <value>{0} Assets Tracked</value>
   </data>
@@ -10682,6 +10742,9 @@ Then click the 'Submit' button at the bottom of the page! (GenHub requests exact
   </data>
   <data name="Tools.PublisherStudio.Library.ReleasesSuffix" xml:space="preserve">
     <value> releases</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UpstreamSuffix" xml:space="preserve">
+    <value>upstream</value>
   </data>
   <data name="Tools.PublisherStudio.Library.Remove" xml:space="preserve">
     <value>Remove</value>
@@ -13268,7 +13331,7 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
     <value>Catalog name cannot be empty</value>
   </data>
   <data name="Tools.PublisherStudio.Validation.ValidHttpUrlFormat" xml:space="preserve">
-    <value>{0} must be a valid http or https URL.</value>
+    <value>{0} must be a valid http, https, or avares URL.</value>
   </data>
   <data name="Tools.PublisherStudio.Validation.ValidContactEmail" xml:space="preserve">
     <value>Contact email must be a valid email address.</value>
@@ -13423,6 +13486,9 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.PublisherStudio.Content.AutoDescriptionFormat" xml:space="preserve">
     <value>{0} package for {1}.</value>
   </data>
+  <data name="Tools.PublisherStudio.Validation.BundleComponentRequired" xml:space="preserve">
+    <value>At least one bundle component is required.</value>
+  </data>
   <data name="Tools.PublisherStudio.Validation.ReleaseItemRequired" xml:space="preserve">
     <value>A release item is required. Please provide a valid download URL or local file.</value>
   </data>
@@ -13558,6 +13624,9 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.PublisherStudio.Hosting.DownloadEmptyError" xml:space="preserve">
     <value>Downloaded file was empty.</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.NoShareableUrlError" xml:space="preserve">
+    <value>No shareable download URL is available.</value>
+  </data>
   <data name="Tools.PublisherStudio.Hosting.DeserializeDefinitionErrorFormat" xml:space="preserve">
     <value>Invalid publisher definition JSON: {0}</value>
   </data>
@@ -13590,6 +13659,12 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   </data>
   <data name="Tools.PublisherStudio.Release.VariantsModeDesc" xml:space="preserve">
     <value>Each file is a distinct variant the user chooses from (e.g. English, Russian, Arabic or 720p, 1080p, 4K).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.EditArtifactTooltip" xml:space="preserve">
+    <value>Edit artifact</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.EditTitle" xml:space="preserve">
+    <value>Edit Artifact</value>
   </data>
   <data name="Tools.PublisherStudio.Release.BundleMode" xml:space="preserve">
     <value>Install all files together (Bundle)</value>
@@ -14015,8 +14090,31 @@ Would you like to use this existing hosted file instead of uploading a new copy?
   <data name="Tools.PublisherStudio.Library.NoClipboardImageMessage" xml:space="preserve">
     <value>No image, file, or image URL was found on the clipboard.</value>
   </data>
+  <data name="Tools.PublisherStudio.Library.UpstreamReleasesNote" xml:space="preserve">
+    <value>Releases below are synced from upstream and cannot be edited here. Edit the content summary, media, and addons instead.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UpstreamReleasesLoading" xml:space="preserve">
+    <value>Loading upstream releases…</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ReleasesFallbackNote" xml:space="preserve">
+    <value>Live upstream releases are shown below. Stored fallback releases (used when upstream is unreachable) are collapsed at the bottom.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UpstreamSyncFailedHint" xml:space="preserve">
+    <value>Check the provider settings (repository, content code, channel) and your connection, then re-select the item to retry. Static releases below are used as fallback.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ManualFallbackPrefix" xml:space="preserve">
+    <value>Manual fallback:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.DefaultVariantBadge" xml:space="preserve">
+    <value>Default</value>
+  </data>
   <data name="Downloads.UpdateDialog.Title" xml:space="preserve">
     <value>{0} Update Available</value>
+  </data>
+  <data name="Downloads.UpdateDialog.BundleMessage" xml:space="preserve">
+    <value>{0} has {1} bundle member(s) with updates available.
+
+How do you want to apply these updates?</value>
   </data>
   <data name="Downloads.UpdateDialog.MessageWithVersion" xml:space="preserve">
     <value>{0} has an update available ({1}).
@@ -14545,6 +14643,99 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   </data>
   <data name="Settings.Profiles.DeletedMessage" xml:space="preserve">
     <value>Deleted {0} profile(s) successfully.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedMark" xml:space="preserve">
+    <value>Mark as Featured</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedBadgeLabel" xml:space="preserve">
+    <value>Featured Badge Label</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedBadgePlaceholder" xml:space="preserve">
+    <value>★ FEATURED BUNDLE</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedColor" xml:space="preserve">
+    <value>Featured Color</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedColorHint" xml:space="preserve">
+    <value>Pick the highlight color for this featured card. Defaults to gold.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedColorPick" xml:space="preserve">
+    <value>Pick</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BundleComponentMatrix" xml:space="preserve">
+    <value>Bundle Component Matrix</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BundleComponentMatrixDesc" xml:space="preserve">
+    <value>Select catalog items to bundle together with optional default variants.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DefaultVariant" xml:space="preserve">
+    <value>Default Variant:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamTrack" xml:space="preserve">
+    <value>Track Live Upstream Provider (Autonomous Releases)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamProvider" xml:space="preserve">
+    <value>Upstream Provider</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamRepo" xml:space="preserve">
+    <value>Repository (owner/repo for GitHub)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamRepoPlaceholder" xml:space="preserve">
+    <value>TheSuperHackers/GeneralsGameCode</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamChannel" xml:space="preserve">
+    <value>Release Channel</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamChannelPlaceholder" xml:space="preserve">
+    <value>stable</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamContentCode" xml:space="preserve">
+    <value>Content Code</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamContentCodePlaceholder" xml:space="preserve">
+    <value>e.g. hlei</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamContentCodeHint" xml:space="preserve">
+    <value>Exact entry in the provider catalog, e.g. the GenPatcher code hlei for Leikeze's Hotkeys. Leave blank to match by name.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.None" xml:space="preserve">
+    <value>(None)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.NoneDescription" xml:space="preserve">
+    <value>No variants. Every artifact in the release is installed together.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.GameTypeDescription" xml:space="preserve">
+    <value>Same release for different games, e.g. Zero Hour and Generals builds.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.ResolutionDescription" xml:space="preserve">
+    <value>Same release in different resolutions, e.g. 720p, 1080p or 4K control bars.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.LanguageDescription" xml:space="preserve">
+    <value>Same release in different languages, e.g. English or German hotkey layouts.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.EditionDescription" xml:space="preserve">
+    <value>Same release in different editions, e.g. Standard or HD.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.Custom" xml:space="preserve">
+    <value>Custom...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantAxis.CustomDescription" xml:space="preserve">
+    <value>Use your own axis name, e.g. compatibility or platform.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamVariantAxisCustomPlaceholder" xml:space="preserve">
+    <value>e.g. compatibility</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UpstreamSyncFailedTitle" xml:space="preserve">
+    <value>Upstream returned no releases</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamVariantAxis" xml:space="preserve">
+    <value>Variant Axis</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamVariantAxisPlaceholder" xml:space="preserve">
+    <value>game-type</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamVariantAxisHint" xml:space="preserve">
+    <value>Specifies the dimension along which releases vary (e.g. game-type, resolution, edition). Leave blank if not applicable.</value>
   </data>
   <data name="Info.Card.tools.publisher-studio-authoring.Action.NAV_Tools" xml:space="preserve">
     <value>Open Publisher Studio</value>
@@ -17379,4 +17570,7 @@ Mapped image texture reference</value>
   <data name="TextureEditor.Notify.PasteFailed.Title" xml:space="preserve"><value>Paste failed</value></data>
   <data name="TextureEditor.Notify.PasteFailed.Message" xml:space="preserve"><value>Clipboard does not contain valid MappedImage definitions.</value></data>
   <data name="TextureEditor.Notify.OpenFailed.Message" xml:space="preserve"><value>Failed to open target texture.</value></data>
+  <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
+    <value>Manual Fallback Releases (Overrides)</value>
+  </data>
 </root>

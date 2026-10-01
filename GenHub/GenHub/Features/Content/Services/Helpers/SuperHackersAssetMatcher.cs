@@ -50,17 +50,47 @@ public static class SuperHackersAssetMatcher
         return FindAsset(assets, gameType)?.Name;
     }
 
+    /// <summary>
+    /// Determines whether an asset filename targets Zero Hour by naming convention.
+    /// </summary>
+    /// <param name="assetName">The asset filename to classify.</param>
+    /// <returns>True when the name carries a Zero Hour marker; otherwise, false.</returns>
+    public static bool IsZeroHourAssetName(string? assetName)
+    {
+        if (string.IsNullOrWhiteSpace(assetName))
+        {
+            return false;
+        }
+
+        return assetName.Contains(SuperHackersConstants.GeneralsZhAssetMarker, StringComparison.OrdinalIgnoreCase)
+            || assetName.Contains(SuperHackersConstants.ZeroHourHyphenAssetMarker, StringComparison.OrdinalIgnoreCase)
+            || assetName.Contains(SuperHackersConstants.ZeroHourAssetMarker, StringComparison.OrdinalIgnoreCase)
+            || assetName.Contains(SuperHackersConstants.ZeroHourShortAssetMarker, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Determines whether an asset filename targets Generals (without a Zero Hour marker).
+    /// </summary>
+    /// <param name="assetName">The asset filename to classify.</param>
+    /// <returns>True when the name targets Generals; otherwise, false.</returns>
+    public static bool IsGeneralsAssetName(string? assetName)
+    {
+        if (string.IsNullOrWhiteSpace(assetName))
+        {
+            return false;
+        }
+
+        return assetName.Contains(SuperHackersConstants.GeneralsAssetMarker, StringComparison.OrdinalIgnoreCase)
+            && !IsZeroHourAssetName(assetName);
+    }
+
     private static bool IsZeroHourAsset(GitHubReleaseAsset asset)
     {
-        return asset.Name.Contains(SuperHackersConstants.GeneralsZhAssetMarker, StringComparison.OrdinalIgnoreCase)
-            || asset.Name.Contains(SuperHackersConstants.ZeroHourHyphenAssetMarker, StringComparison.OrdinalIgnoreCase)
-            || asset.Name.Contains(SuperHackersConstants.ZeroHourAssetMarker, StringComparison.OrdinalIgnoreCase)
-            || asset.Name.Contains(SuperHackersConstants.ZeroHourShortAssetMarker, StringComparison.OrdinalIgnoreCase);
+        return IsZeroHourAssetName(asset.Name);
     }
 
     private static bool IsGeneralsAsset(GitHubReleaseAsset asset)
     {
-        return asset.Name.Contains(SuperHackersConstants.GeneralsAssetMarker, StringComparison.OrdinalIgnoreCase)
-            && !IsZeroHourAsset(asset);
+        return IsGeneralsAssetName(asset.Name);
     }
 }

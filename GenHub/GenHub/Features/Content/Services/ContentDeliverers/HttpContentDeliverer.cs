@@ -8,8 +8,10 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -24,7 +26,8 @@ namespace GenHub.Features.Content.Services.ContentDeliverers;
 public class HttpContentDeliverer(
     IDownloadService downloadService,
     ILogger<HttpContentDeliverer> logger,
-    IPlaywrightService? playwrightService = null) : IContentDeliverer
+    IPlaywrightService? playwrightService = null,
+    IArchivePayloadProcessor? archivePayloadProcessor = null) : IContentDeliverer
 {
     /// <inheritdoc />
     public string SourceName => ContentSourceNames.HttpDeliverer;
@@ -72,10 +75,7 @@ public class HttpContentDeliverer(
         try
         {
             var filesToDownload = packageManifest.Files?.Where(f => !string.IsNullOrEmpty(f.DownloadUrl)).ToList() ?? [];
-            var totalFiles = filesToDownload.Count;
-            var processedFiles = 0;
-
-            if (totalFiles == 0)
+            if (filesToDownload.Count == 0)
             {
                 logger.LogInformation(
                     "Manifest {ManifestId} has no remote files to download (dependency-only bundle); delivery succeeded",
@@ -83,43 +83,13 @@ public class HttpContentDeliverer(
                 return OperationResult<ContentManifest>.CreateSuccess(packageManifest);
             }
 
-            // Download and add files
-            foreach (var file in filesToDownload)
+            var downloadResult = await DownloadAllFilesAsync(packageManifest, filesToDownload, targetDirectory, progress, cancellationToken);
+            if (!downloadResult.Success)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var localPath = ResolveTargetPath(targetDirectory, file.RelativePath);
-
-                // Ensure directory exists
-                var directory = Path.GetDirectoryName(localPath);
-                if (!string.IsNullOrEmpty(directory))
-                {
-                    Directory.CreateDirectory(directory);
-                }
-
-                // Report progress
-                progress?.Report(new ContentAcquisitionProgress
-                {
-                    Phase = ContentAcquisitionPhase.Downloading,
-                    ProgressPercentage = (double)processedFiles / totalFiles * 100,
-                    CurrentOperation = $"Downloading {file.RelativePath}",
-                    CurrentFile = file.RelativePath,
-                    FilesProcessed = processedFiles,
-                    TotalFiles = totalFiles,
-                });
-
-                // Download the file
-                var downloadResult = await DownloadFileAsync(packageManifest, file, localPath, cancellationToken);
-
-                if (!downloadResult.Success)
-                {
-                    return OperationResult<ContentManifest>.CreateFailure(
-                        $"Failed to download {file.RelativePath}: {downloadResult.FirstError}");
-                }
-
-                cancellationToken.ThrowIfCancellationRequested();
-                processedFiles++;
+                return downloadResult;
             }
+
+            await ExtractArchivesAsync(packageManifest, filesToDownload, targetDirectory, progress, cancellationToken);
 
             // Delivery changes filesystem state only. The resolved manifest remains authoritative
             // for identity, version, hashes, source types, and installation metadata.
@@ -162,6 +132,84 @@ public class HttpContentDeliverer(
         }
     }
 
+    private static IProgress<DownloadProgress>? CreateFileDownloadProgress(
+        IProgress<ContentAcquisitionProgress>? progress,
+        string relativePath,
+        int currentFileIndex,
+        int totalFiles)
+    {
+        if (progress == null)
+        {
+            return null;
+        }
+
+        return new Progress<DownloadProgress>(dp =>
+        {
+            double fileProgressRange = 100.0 / totalFiles;
+            double baseProgress = (currentFileIndex - 1) * fileProgressRange;
+            double currentProgress = Math.Clamp(baseProgress + (dp.Percentage / 100.0 * fileProgressRange), 0, 100);
+
+            progress.Report(new ContentAcquisitionProgress
+            {
+                Phase = ContentAcquisitionPhase.Downloading,
+                ProgressPercentage = currentProgress,
+                CurrentOperation = totalFiles > 1
+                    ? $"{relativePath} ({currentFileIndex}/{totalFiles}) - {dp.Percentage:F0}% ({dp.FormattedSpeed})"
+                    : $"{relativePath} - {dp.Percentage:F0}% ({dp.FormattedSpeed})",
+                FilesProcessed = currentFileIndex - 1,
+                TotalFiles = totalFiles,
+                TotalBytes = dp.TotalBytes,
+                BytesProcessed = dp.BytesReceived,
+                CurrentFile = relativePath,
+            });
+        });
+    }
+
+    private static void ExtractArchivesFallback(
+        IEnumerable<ManifestFile> filesToDownload,
+        string targetDirectory,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken,
+        ILogger logger)
+    {
+        foreach (var relativePath in filesToDownload.Select(file => file.RelativePath))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var localPath = ResolveTargetPath(targetDirectory, relativePath);
+            if (!IsArchive(localPath) || !File.Exists(localPath))
+            {
+                continue;
+            }
+
+            // The fallback extractor only handles zip archives: anything else would be
+            // left packed while delivery reports success, so surface it explicitly.
+            if (!ZipValidation.IsValidZipFile(localPath))
+            {
+                logger.LogWarning("Skipping extraction of non-zip archive '{Path}': no archive processor is configured", localPath);
+                continue;
+            }
+
+            progress?.Report(new ContentAcquisitionProgress
+            {
+                Phase = ContentAcquisitionPhase.Extracting,
+                ProgressPercentage = 0,
+                CurrentOperation = $"Extracting {relativePath}...",
+                CurrentFile = relativePath,
+            });
+
+            var destDir = Path.GetDirectoryName(localPath) ?? targetDirectory;
+            ZipArchiveGuard.ExtractToDirectory(localPath, destDir, cancellationToken);
+            File.Delete(localPath);
+        }
+    }
+
+    private static bool IsArchive(string filePath)
+    {
+        var extension = Path.GetExtension(filePath).ToLowerInvariant();
+        return extension is ".zip" or ".tar" or ".gz" or ".7z" or ".rar";
+    }
+
     private static string ResolveTargetPath(string targetDirectory, string relativePath)
     {
         var targetRoot = Path.GetFullPath(targetDirectory);
@@ -180,10 +228,116 @@ public class HttpContentDeliverer(
         return targetPath;
     }
 
+    private async Task<OperationResult<ContentManifest>> DownloadAllFilesAsync(
+        ContentManifest packageManifest,
+        IReadOnlyList<ManifestFile> filesToDownload,
+        string targetDirectory,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var totalFiles = filesToDownload.Count;
+        var processedFiles = 0;
+
+        foreach (var file in filesToDownload)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var currentFileIndex = processedFiles + 1;
+            var downloadResult = await DownloadSingleFileWithProgressAsync(
+                packageManifest,
+                file,
+                targetDirectory,
+                currentFileIndex,
+                totalFiles,
+                progress,
+                cancellationToken);
+
+            if (!downloadResult.Success)
+            {
+                logger.LogError(
+                    "Failed to download file {File}: {Error}",
+                    file.RelativePath,
+                    downloadResult.FirstError);
+                return OperationResult<ContentManifest>.CreateFailure(
+                    $"Failed to download file: {downloadResult.FirstError}");
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            processedFiles++;
+
+            var currentPercentage = (double)processedFiles / totalFiles * 100;
+            progress?.Report(new ContentAcquisitionProgress
+            {
+                Phase = ContentAcquisitionPhase.Downloading,
+                ProgressPercentage = currentPercentage,
+                CurrentOperation = $"Downloaded {file.RelativePath} ({processedFiles}/{totalFiles})",
+                CurrentFile = file.RelativePath,
+                FilesProcessed = processedFiles,
+                TotalFiles = totalFiles,
+            });
+        }
+
+        return OperationResult<ContentManifest>.CreateSuccess(packageManifest);
+    }
+
+    private async Task<DownloadResult> DownloadSingleFileWithProgressAsync(
+        ContentManifest packageManifest,
+        ManifestFile file,
+        string targetDirectory,
+        int currentFileIndex,
+        int totalFiles,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var localPath = ResolveTargetPath(targetDirectory, file.RelativePath);
+        var directory = Path.GetDirectoryName(localPath);
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        var downloadProgress = CreateFileDownloadProgress(progress, file.RelativePath, currentFileIndex, totalFiles);
+
+        progress?.Report(new ContentAcquisitionProgress
+        {
+            Phase = ContentAcquisitionPhase.Downloading,
+            ProgressPercentage = (double)(currentFileIndex - 1) / totalFiles * 100,
+            CurrentOperation = totalFiles > 1
+                ? $"Downloading {file.RelativePath} ({currentFileIndex}/{totalFiles})..."
+                : $"Downloading {file.RelativePath}...",
+            CurrentFile = file.RelativePath,
+            FilesProcessed = currentFileIndex - 1,
+            TotalFiles = totalFiles,
+        });
+
+        return await DownloadFileAsync(packageManifest, file, localPath, downloadProgress, cancellationToken);
+    }
+
+    private async Task ExtractArchivesAsync(
+        ContentManifest packageManifest,
+        IReadOnlyList<ManifestFile> filesToDownload,
+        string targetDirectory,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        if (archivePayloadProcessor != null)
+        {
+            await archivePayloadProcessor.ExtractArchivesSafelyAsync(
+                targetDirectory,
+                packageManifest.ContentType,
+                progress,
+                cancellationToken);
+            return;
+        }
+
+        ExtractArchivesFallback(filesToDownload, targetDirectory, progress, cancellationToken, logger);
+    }
+
     private async Task<DownloadResult> DownloadFileAsync(
         ContentManifest manifest,
         ManifestFile file,
         string localPath,
+        IProgress<DownloadProgress>? progress,
         CancellationToken cancellationToken)
     {
         if (Uri.TryCreate(file.DownloadUrl, UriKind.Absolute, out var fileUri) &&
@@ -208,10 +362,10 @@ public class HttpContentDeliverer(
                 return await playwrightService.DownloadFileAsync(playwrightConfig, cancellationToken);
             }
 
-            return await DownloadAttributedFileAsync(manifest, fileUri, localPath, file.Hash, cancellationToken);
+            return await DownloadAttributedFileAsync(manifest, fileUri, localPath, file.Hash, progress, cancellationToken);
         }
 
-        return await DownloadAttributedFileAsync(manifest, new Uri(file.DownloadUrl!), localPath, file.Hash, cancellationToken);
+        return await DownloadAttributedFileAsync(manifest, new Uri(file.DownloadUrl!), localPath, file.Hash, progress, cancellationToken);
     }
 
     private async Task<DownloadResult> DownloadAttributedFileAsync(
@@ -219,6 +373,7 @@ public class HttpContentDeliverer(
         Uri fileUri,
         string localPath,
         string? expectedHash,
+        IProgress<DownloadProgress>? progress,
         CancellationToken cancellationToken)
     {
         var downloadConfig = new DownloadConfiguration
@@ -228,6 +383,6 @@ public class HttpContentDeliverer(
             ExpectedHash = expectedHash,
         };
         DownloadTelemetryHelper.ApplyManifestAttribution(downloadConfig, manifest);
-        return await downloadService.DownloadFileAsync(downloadConfig, null, cancellationToken);
+        return await downloadService.DownloadFileAsync(downloadConfig, progress, cancellationToken);
     }
 }

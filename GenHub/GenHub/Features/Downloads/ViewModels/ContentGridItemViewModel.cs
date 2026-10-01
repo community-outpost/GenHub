@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Content;
@@ -13,6 +14,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Downloads.Services;
+using GenHub.Infrastructure.Converters;
 using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using System;
@@ -32,16 +34,19 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <param name="contentStateService">The content state service.</param>
 /// <param name="logger">The logger.</param>
 /// <param name="downloadCoordinator">The optional download coordinator.</param>
+/// <param name="localizationService">The optional localization service.</param>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel instance methods and properties bound to UI and MVVM bindings.")]
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "Content grid item VM coordinates download, installation, and multi-component bundle state.")]
 public sealed partial class ContentGridItemViewModel(
     ContentSearchResult searchResult,
     IContentStateService contentStateService,
     ILogger<ContentGridItemViewModel> logger,
-    IContentDownloadCoordinator? downloadCoordinator = null) : ObservableObject, IDisposable
+    IContentDownloadCoordinator? downloadCoordinator = null,
+    ILocalizationService? localizationService = null) : ObservableObject, IDisposable
 {
     private const string UnknownValue = "Unknown";
 
+    private readonly ILocalizationService? _localizationService = localizationService ?? LocalizationConverterHelper.ResolveLocalizationService();
     private bool _disposed;
 
     /// <summary>
@@ -53,6 +58,7 @@ public sealed partial class ContentGridItemViewModel(
     [NotifyPropertyChangedFor(nameof(CanDownload))]
     [NotifyPropertyChangedFor(nameof(CanUpdate))]
     [NotifyPropertyChangedFor(nameof(ShowDownloadButton))]
+    [NotifyPropertyChangedFor(nameof(ShowUpdateButton))]
     private bool _isDownloading;
 
     [ObservableProperty]
@@ -188,6 +194,34 @@ public sealed partial class ContentGridItemViewModel(
     /// Gets a value indicating whether a short description should be shown on the card.
     /// </summary>
     public bool HasShortDescription => !HasBundleComponents && !string.IsNullOrWhiteSpace(ShortDescription);
+
+    /// <summary>
+    /// Gets a value indicating whether this content item is featured.
+    /// </summary>
+    public bool IsFeatured => SearchResult.IsFeatured;
+
+    /// <summary>
+    /// Gets the custom badge text for a featured item.
+    /// </summary>
+    public string FeaturedBadge => !string.IsNullOrWhiteSpace(SearchResult.FeaturedBadge)
+        ? SearchResult.FeaturedBadge
+        : LocalizationConverterHelper.GetLocalizedOrDefault(_localizationService, "Tools.PublisherStudio.Content.FeaturedBadgePlaceholder", "★ FEATURED BUNDLE");
+
+    /// <summary>
+    /// Gets a value indicating whether the featured badge should be displayed.
+    /// </summary>
+    public bool HasFeaturedBadge => IsFeatured;
+
+    /// <summary>
+    /// Gets the effective featured color hex: the publisher accent color when valid,
+    /// otherwise the default featured gold. Null when the item is not featured.
+    /// </summary>
+    public string? FeaturedColor => ContentCardBadgeHelper.GetFeaturedColor(SearchResult);
+
+    /// <summary>
+    /// Gets a value indicating whether a featured color is available for card border, badge, and glow highlights.
+    /// </summary>
+    public bool HasFeaturedColor => FeaturedColor != null;
 
     /// <summary>
     /// Gets the content version.
@@ -401,7 +435,9 @@ public sealed partial class ContentGridItemViewModel(
     /// Gets a value indicating whether the Update button should be shown. Reflects the
     /// currently selected variant when the card represents a variant group.
     /// </summary>
-    public bool ShowUpdateButton => !HasBundleComponents && EffectiveCurrentState == ContentState.UpdateAvailable;
+    public bool ShowUpdateButton => HasBundleComponents
+        ? BundleComponentsNeedUpdate && !IsDownloading
+        : EffectiveCurrentState == ContentState.UpdateAvailable && !IsDownloading;
 
     /// <summary>
     /// Gets a value indicating whether the Add to Profile button should be shown.
@@ -476,6 +512,14 @@ public sealed partial class ContentGridItemViewModel(
     public bool AreBundleComponentsReadyForProfile =>
         HasBundleComponents && BundleComponentViewModel.AreRequiredSelectionsDownloaded(BundleComponents);
 
+    /// <summary>
+    /// Gets a value indicating whether any acquired required bundle member has a newer
+    /// version available. Ready bundles with member updates surface an update action
+    /// instead of silently keeping stale members.
+    /// </summary>
+    public bool BundleComponentsNeedUpdate =>
+        HasBundleComponents && BundleComponents.Any(c => c.RequiresUpdate);
+
     private Action? _unsubscribeAxisHandlers;
 
     /// <summary>
@@ -520,6 +564,46 @@ public sealed partial class ContentGridItemViewModel(
         {
             DownloadStatus = string.Empty;
         }
+    }
+
+    /// <summary>
+    /// Determines whether a manifest event matches this card via shared GitHub upstream identity.
+    /// </summary>
+    /// <param name="manifestSegments">The dot-separated manifest ID segments.</param>
+    /// <returns>True when owner, repo, and compatible type match; otherwise, false.</returns>
+    internal bool MatchesGitHubUpstreamIdentity(string[] manifestSegments)
+    {
+        if (SearchResult?.ResolverMetadata == null || manifestSegments.Length != 5)
+        {
+            return false;
+        }
+
+        if (!SearchResult.ResolverMetadata.TryGetValue(GitHubConstants.OwnerMetadataKey, out var owner) ||
+            string.IsNullOrWhiteSpace(owner) ||
+            !SearchResult.ResolverMetadata.TryGetValue(GitHubConstants.RepoMetadataKey, out var repo) ||
+            string.IsNullOrWhiteSpace(repo))
+        {
+            return false;
+        }
+
+        if (!Enum.TryParse<ContentType>(manifestSegments[3], ignoreCase: true, out var manifestType) ||
+            !ContentStateService.IsCompatibleGitHubContentType(manifestType, SearchResult.ContentType))
+        {
+            return false;
+        }
+
+        var manifestPublisher = ContentStateService.NormalizeSegment(manifestSegments[2]);
+        var expectedOwner = ContentStateService.NormalizeSegment(owner);
+        if (!string.Equals(manifestPublisher, "github", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(manifestPublisher, expectedOwner, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var manifestName = ContentStateService.NormalizeSegment(manifestSegments[4]);
+        var expectedRepo = ContentStateService.NormalizeSegment(repo);
+        return manifestName.StartsWith(expectedRepo, StringComparison.OrdinalIgnoreCase) ||
+            expectedRepo.StartsWith(manifestName, StringComparison.OrdinalIgnoreCase);
     }
 
     private static void RunOnUi(Action action)
@@ -641,6 +725,7 @@ public sealed partial class ContentGridItemViewModel(
 
             OnPropertyChanged(nameof(EffectiveCurrentState));
             OnPropertyChanged(nameof(EffectiveIsDownloaded));
+            OnPropertyChanged(nameof(BundleComponentsNeedUpdate));
             OnPropertyChanged(nameof(ShowDownloadButton));
             OnPropertyChanged(nameof(ShowUpdateButton));
             NotifyStateChanged();
@@ -655,9 +740,14 @@ public sealed partial class ContentGridItemViewModel(
         }
 
         var segments = e.ManifestId.Split('.');
-        if (segments.Length != 5 ||
-            (!string.Equals(segments[2], SearchResult.ProviderName, StringComparison.OrdinalIgnoreCase) &&
-             !ContentStateService.IsCompatiblePublisherAlias(segments[2], SearchResult.ProviderName)))
+        if (segments.Length != 5)
+        {
+            return false;
+        }
+
+        if (!string.Equals(segments[2], SearchResult.ProviderName, StringComparison.OrdinalIgnoreCase) &&
+            !ContentStateService.IsCompatiblePublisherAlias(segments[2], SearchResult.ProviderName) &&
+            !MatchesGitHubUpstreamIdentity(segments))
         {
             return false;
         }
@@ -822,7 +912,9 @@ public sealed partial class ContentGridItemViewModel(
                 }
 
                 OnPropertyChanged(nameof(AreBundleComponentsReadyForProfile));
+                OnPropertyChanged(nameof(BundleComponentsNeedUpdate));
                 OnPropertyChanged(nameof(ShowDownloadButton));
+                OnPropertyChanged(nameof(ShowUpdateButton));
                 OnPropertyChanged(nameof(ShowAddToProfileButton));
             }
 
@@ -980,10 +1072,25 @@ public sealed partial class ContentGridItemViewModel(
     /// <see cref="IsDownloaded"/> flag, which would keep "Add to Profile" visible after
     /// downloading a sibling and switching to an undownloaded variant.
     /// </summary>
-    public bool EffectiveIsDownloaded => SelectedVariant != null
-        ? SelectedVariant.CurrentState == ContentState.Downloaded ||
-          (SelectedVariant.CurrentState == ContentState.UpdateAvailable && (IsDownloaded || !string.IsNullOrEmpty(SelectedVariant.ManifestId)))
-        : IsDownloaded || CurrentState is ContentState.Downloaded or ContentState.UpdateAvailable;
+    public bool EffectiveIsDownloaded
+    {
+        get
+        {
+            if (HasBundleComponents)
+            {
+                return AreBundleComponentsReadyForProfile;
+            }
+
+            if (SelectedVariant != null)
+            {
+                return SelectedVariant.CurrentState == ContentState.Downloaded ||
+                       (SelectedVariant.CurrentState == ContentState.UpdateAvailable &&
+                        (IsDownloaded || !string.IsNullOrEmpty(SelectedVariant.ManifestId)));
+            }
+
+            return IsDownloaded || CurrentState is ContentState.Downloaded or ContentState.UpdateAvailable;
+        }
+    }
 
     /// <summary>
     /// Adds a variant and optionally maps its <see cref="ContentSearchResult"/> for
@@ -1041,7 +1148,9 @@ public sealed partial class ContentGridItemViewModel(
 
         OnPropertyChanged(nameof(HasBundleComponents));
         OnPropertyChanged(nameof(AreBundleComponentsReadyForProfile));
+        OnPropertyChanged(nameof(BundleComponentsNeedUpdate));
         OnPropertyChanged(nameof(ShowDownloadButton));
+        OnPropertyChanged(nameof(ShowUpdateButton));
         OnPropertyChanged(nameof(ShowAddToProfileButton));
         OnPropertyChanged(nameof(HasIncludesSummary));
     }
@@ -1063,7 +1172,9 @@ public sealed partial class ContentGridItemViewModel(
         }
 
         OnPropertyChanged(nameof(AreBundleComponentsReadyForProfile));
+        OnPropertyChanged(nameof(BundleComponentsNeedUpdate));
         OnPropertyChanged(nameof(ShowDownloadButton));
+        OnPropertyChanged(nameof(ShowUpdateButton));
         OnPropertyChanged(nameof(ShowAddToProfileButton));
     }
 
@@ -1301,6 +1412,11 @@ public sealed partial class ContentGridItemViewModel(
         OnPropertyChanged(nameof(ShowAddToProfileButton));
         OnPropertyChanged(nameof(EffectiveCurrentState));
         OnPropertyChanged(nameof(EffectiveIsDownloaded));
+        OnPropertyChanged(nameof(IsFeatured));
+        OnPropertyChanged(nameof(HasFeaturedBadge));
+        OnPropertyChanged(nameof(FeaturedBadge));
+        OnPropertyChanged(nameof(FeaturedColor));
+        OnPropertyChanged(nameof(HasFeaturedColor));
 
         _ = LoadIconAsync();
     }
@@ -1309,11 +1425,15 @@ public sealed partial class ContentGridItemViewModel(
     {
         if (e.PropertyName is nameof(BundleComponentViewModel.SelectedVariant)
             or nameof(BundleComponentViewModel.IsSelectedDownloaded)
+            or nameof(BundleComponentViewModel.RequiresUpdate)
+            or nameof(BundleComponentViewModel.EffectiveState)
             or nameof(BundleComponentViewModel.CurrentState)
             or nameof(BundleComponentViewModel.RequiresDownload))
         {
             OnPropertyChanged(nameof(AreBundleComponentsReadyForProfile));
+            OnPropertyChanged(nameof(BundleComponentsNeedUpdate));
             OnPropertyChanged(nameof(ShowDownloadButton));
+            OnPropertyChanged(nameof(ShowUpdateButton));
             OnPropertyChanged(nameof(ShowAddToProfileButton));
         }
     }

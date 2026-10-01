@@ -284,6 +284,32 @@ public sealed class ContentGridItemViewModelTests
     }
 
     /// <summary>
+    /// A ContentBundle card with every member acquired but one member reporting a newer
+    /// version must surface the Update action while staying ready for profiles.
+    /// </summary>
+    [Fact]
+    public void BundleCard_WithOutdatedMember_ShowsUpdateButton()
+    {
+        var viewModel = CreateViewModel(CreateBundleSearchResult());
+        viewModel.LoadBundleComponents();
+        MarkAllSelectedDownloaded(viewModel);
+
+        Assert.False(viewModel.BundleComponentsNeedUpdate);
+        Assert.False(viewModel.ShowUpdateButton);
+
+        var lemon = Assert.Single(viewModel.BundleComponents, c => c.CatalogContentId == "lemon-controlbar");
+        Assert.NotNull(lemon.SelectedVariant);
+        lemon.SelectedVariant.CurrentState = ContentState.UpdateAvailable;
+
+        Assert.True(lemon.RequiresUpdate);
+        Assert.True(viewModel.BundleComponentsNeedUpdate);
+        Assert.True(viewModel.ShowUpdateButton);
+        Assert.True(viewModel.AreBundleComponentsReadyForProfile);
+        Assert.True(viewModel.ShowAddToProfileButton);
+        Assert.False(viewModel.ShowDownloadButton);
+    }
+
+    /// <summary>
     /// Verifies Description strips HTML tags and decodes entities.
     /// </summary>
     [Fact]
@@ -763,6 +789,119 @@ public sealed class ContentGridItemViewModelTests
         Assert.True(viewModel.ShowDownloadButton);
         Assert.False(viewModel.ShowAddToProfileButton);
         Assert.False(viewModel.ShowUpdateButton);
+    }
+
+    /// <summary>
+    /// Verifies featured cards expose the publisher accent as the border and badge color.
+    /// </summary>
+    [Fact]
+    public void FeaturedColor_FeaturedWithCustomAccent_ReturnsAccent()
+    {
+        var viewModel = CreateViewModel(new ContentSearchResult
+        {
+            Id = "bundle",
+            Name = "Bundle",
+            IsFeatured = true,
+            AccentColor = "#76F525",
+        });
+
+        Assert.Equal("#76F525", viewModel.FeaturedColor);
+        Assert.True(viewModel.HasFeaturedColor);
+    }
+
+    /// <summary>
+    /// Verifies featured cards without an accent fall back to default gold.
+    /// </summary>
+    [Fact]
+    public void FeaturedColor_FeaturedWithoutAccent_ReturnsDefaultGold()
+    {
+        var viewModel = CreateViewModel(new ContentSearchResult
+        {
+            Id = "bundle",
+            Name = "Bundle",
+            IsFeatured = true,
+        });
+
+        Assert.Equal(CatalogConstants.FeaturedDefaultColor, viewModel.FeaturedColor);
+        Assert.True(viewModel.HasFeaturedColor);
+    }
+
+    /// <summary>
+    /// Verifies non-featured cards expose no featured color.
+    /// </summary>
+    [Fact]
+    public void FeaturedColor_NotFeatured_ReturnsNull()
+    {
+        var viewModel = CreateViewModel(new ContentSearchResult
+        {
+            Id = "mod",
+            Name = "Mod",
+            AccentColor = "#76F525",
+        });
+
+        Assert.Null(viewModel.FeaturedColor);
+        Assert.False(viewModel.HasFeaturedColor);
+    }
+
+    /// <summary>
+    /// A manifest from an unrelated repository must not match the card even
+    /// when the publisher segment is the generic github provider.
+    /// </summary>
+    [Fact]
+    public void MatchesGitHubUpstreamIdentity_UnrelatedRepo_ReturnsFalse()
+    {
+        var searchResult = new ContentSearchResult
+        {
+            Id = "testwidget",
+            Name = "TestWidget",
+            ContentType = ContentType.Addon,
+        };
+        searchResult.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = "Owner";
+        searchResult.ResolverMetadata[GitHubConstants.RepoMetadataKey] = "Repo";
+
+        var viewModel = CreateViewModel(searchResult);
+
+        Assert.False(viewModel.MatchesGitHubUpstreamIdentity(["1", "0", "github", "addon", "unrelated"]));
+    }
+
+    /// <summary>
+    /// A generic github manifest whose name matches the repository matches.
+    /// </summary>
+    [Fact]
+    public void MatchesGitHubUpstreamIdentity_MatchingRepo_ReturnsTrue()
+    {
+        var searchResult = new ContentSearchResult
+        {
+            Id = "testwidget",
+            Name = "TestWidget",
+            ContentType = ContentType.Addon,
+        };
+        searchResult.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = "Owner";
+        searchResult.ResolverMetadata[GitHubConstants.RepoMetadataKey] = "Repo";
+
+        var viewModel = CreateViewModel(searchResult);
+
+        Assert.True(viewModel.MatchesGitHubUpstreamIdentity(["1", "0", "github", "addon", "repoextra"]));
+    }
+
+    /// <summary>
+    /// A manifest published under the owning account matches by owner and repo.
+    /// </summary>
+    [Fact]
+    public void MatchesGitHubUpstreamIdentity_OwnerPublisher_ReturnsTrue()
+    {
+        var searchResult = new ContentSearchResult
+        {
+            Id = "testwidget",
+            Name = "TestWidget",
+            ContentType = ContentType.Addon,
+        };
+        searchResult.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = "Owner";
+        searchResult.ResolverMetadata[GitHubConstants.RepoMetadataKey] = "Repo";
+
+        var viewModel = CreateViewModel(searchResult);
+
+        Assert.True(viewModel.MatchesGitHubUpstreamIdentity(["1", "0", "owner", "addon", "repoextra"]));
     }
 
     private static void MarkAllSelectedDownloaded(ContentGridItemViewModel viewModel)

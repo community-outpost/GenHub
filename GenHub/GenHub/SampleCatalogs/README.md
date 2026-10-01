@@ -51,9 +51,10 @@ reference **each other** as dependencies, which exercises dependency resolution:
 | `lemon-controlbar`                 | L3-M               | Addon          | Zero Hour (1) | No  | EA ZH 1.04 (5 resolution variants) |
 | `gent`                             | Community Outpost  | Addon          | Zero Hour (1) | No  | EA ZH 1.04 |
 | `hleg`                             | Community Outpost  | Addon          | Zero Hour (1) | No  | EA ZH 1.04 |
-| `bundle-thesuperhackers-latest-stack` | (bundle)        | ContentBundle  | Zero Hour (1) | Yes | EA ZH 1.04 + TSH ZH Client (`zerohour` latest) + GenTool (`gent` >=8.9) + Lemon Control Bar (`lemon-controlbar` >=1.3) + Legionnaire Hotkeys (`hleg` >=2026.07.01) |
-| `bundle-community-outpost-stack`     | (bundle)        | ContentBundle  | Zero Hour (1) | Yes | EA ZH 1.04 + Community Outpost Client (`community-patch` >=2026.08.02) + GenTool (`gent` >=8.9) + Lemon Control Bar (`lemon-controlbar` >=1.3) + Legionnaire Hotkeys (`hleg` >=2026.07.01) |
-| `bundle-generalsonline-complete-pack` | (bundle)        | ContentBundle  | Zero Hour (1) | Yes | EA ZH 1.04 + GO 60Hz Client (`60hz` >=081326) + QuickMatch Maps (`quickmatch-maps` >=081326) + GenTool (`gent` >=8.9) + Lemon Control Bar (`lemon-controlbar` >=1.3) + Legionnaire Hotkeys (`hleg` >=2026.07.01) |
+| `bundle-thesuperhackers-latest-stack` | (bundle)        | ContentBundle  | Zero Hour (1) | Yes | EA ZH 1.04 + TSH ZH Client (`zerohour` latest) + GenTool + L3M HD Control Bar (`l3m-controlbar` 5 resolutions) + Hotkeys + Menus |
+| `bundle-community-outpost-retail-stack` | (bundle)      | ContentBundle  | Zero Hour (1) | Yes | EA ZH 1.04 + Community Outpost Retail Client (`community-patch-retail` latest) + L3M HD Control Bar + Hotkeys + Menus |
+| `bundle-community-outpost-nonretail-stack` | (bundle)   | ContentBundle  | Zero Hour (1) | Yes | EA ZH 1.04 + Community Outpost Non-Retail Client (`community-patch-nonretail` latest) + L3M HD Control Bar + Hotkeys + Menus |
+| `bundle-generalsonline-complete-pack` | (bundle)        | ContentBundle  | Zero Hour (1) | Yes | EA ZH 1.04 + GO 60Hz Client (`60hz` latest) + L3M HD Control Bar + Hotkeys + Menus |
 
 `lemon-controlbar` is the multi-variant fixture: one card, five resolution artifacts (`720p` /
 `900p` / `1080p` default / `1440p` / `4K`) on the `resolution` axis.

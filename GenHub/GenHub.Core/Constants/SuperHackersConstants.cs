@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace GenHub.Core.Constants;
 
@@ -77,6 +78,21 @@ public static class SuperHackersConstants
     /// Filename marker identifying Zero Hour release archives.
     /// </summary>
     public const string ZeroHourShortAssetMarker = "_zh";
+
+    /// <summary>
+    /// Filename marker identifying full-client game-code release archives.
+    /// </summary>
+    public const string FullClientAssetMarker = "full-client";
+
+    /// <summary>
+    /// Filename marker identifying Zero Hour client release archives.
+    /// </summary>
+    public const string ZeroHourClientAssetMarker = "zh-client";
+
+    /// <summary>
+    /// Filename marker identifying Generals client release archives.
+    /// </summary>
+    public const string GeneralsClientAssetMarker = "gen-client";
 
     /// <summary>
     /// The resolver ID used for GitHub releases.
@@ -157,6 +173,8 @@ public static class SuperHackersConstants
     /// <summary>Default page size for discovery (10 items = 5 release cards).</summary>
     public const int PageSize = 10;
 
+    private static readonly Regex IsoDateRegex = new(@"\b(19\d\d|20\d\d)[-._](0[1-9]|1[0-2])[-._](0[1-9]|[12]\d|3[01])\b", RegexOptions.Compiled, TimeSpan.FromMilliseconds(250));
+
     /// <summary>
     /// Gets the standard variant group ID for a SuperHackers game client release.
     /// </summary>
@@ -192,5 +210,42 @@ public static class SuperHackersConstants
         }
 
         return int.TryParse(digits, out var version) ? version : 0;
+    }
+
+    /// <summary>
+    /// Tries to extract a release date from an ISO date string or a SuperHackers release tag.
+    /// </summary>
+    /// <param name="input">The input string containing a date or tag.</param>
+    /// <returns>The parsed DateTime in UTC, or null if no valid date could be extracted.</returns>
+    public static DateTime? TryExtractDate(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return null;
+        }
+
+        var match = IsoDateRegex.Match(input);
+        if (match.Success &&
+            int.TryParse(match.Groups[1].Value, out var y) &&
+            int.TryParse(match.Groups[2].Value, out var m) &&
+            int.TryParse(match.Groups[3].Value, out var d) &&
+            m >= 1 && m <= 12 && d >= 1 && d <= DateTime.DaysInMonth(y, m))
+        {
+            return new DateTime(y, m, d, 0, 0, 0, DateTimeKind.Utc);
+        }
+
+        var versionNum = ExtractVersionFromReleaseTag(input);
+        if (versionNum is >= 19900101 and <= 21001231)
+        {
+            var year = versionNum / 10000;
+            var month = (versionNum % 10000) / 100;
+            var day = versionNum % 100;
+            if (month is >= 1 and <= 12 && day >= 1 && day <= DateTime.DaysInMonth(year, month))
+            {
+                return new DateTime(year, month, day, 0, 0, 0, DateTimeKind.Utc);
+            }
+        }
+
+        return null;
     }
 }

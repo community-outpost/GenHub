@@ -2035,6 +2035,54 @@ public sealed class GenericCatalogResolverBundleTests
         Assert.Empty(result);
     }
 
+    /// <summary>
+    /// A non-primary bundle variant must resolve its own artifact URL instead
+    /// of the release-wide primary, otherwise the wrong game or resolution installs.
+    /// </summary>
+    [Fact]
+    public void ApplyReleaseDownloadUrl_NonPrimaryVariant_SelectsVariantArtifact()
+    {
+        var release = new ContentRelease
+        {
+            Version = "1.3",
+            Artifacts =
+            [
+                new ReleaseArtifact { Filename = "cb-720p-game.zip", DownloadUrl = "https://example.com/game-720.zip", Variant = "720p", VariantAxis = "game" },
+                new ReleaseArtifact { Filename = "cb-720p.zip", DownloadUrl = "https://example.com/720.zip", Variant = "720p", VariantAxis = "resolution" },
+                new ReleaseArtifact { Filename = "cb-1080p.zip", DownloadUrl = "https://example.com/1080.zip", Variant = "1080p", VariantAxis = "resolution", IsPrimary = true },
+            ],
+        };
+        var searchResult = new ContentSearchResult { Id = "cb", Name = "Control Bar" };
+        var variant = new CatalogBundleComponentVariantDescriptor { Label = "720p", Axis = "resolution" };
+
+        BundleComponentViewModel.ApplyReleaseDownloadUrl(searchResult, variant, JsonSerializer.Serialize(release));
+
+        Assert.Equal("https://example.com/720.zip", searchResult.SelectedDownloadUrl);
+    }
+
+    /// <summary>
+    /// A variant without a label falls back to the release primary artifact.
+    /// </summary>
+    [Fact]
+    public void ApplyReleaseDownloadUrl_BlankLabel_FallsBackToPrimary()
+    {
+        var release = new ContentRelease
+        {
+            Version = "1.3",
+            Artifacts =
+            [
+                new ReleaseArtifact { Filename = "cb-720p.zip", DownloadUrl = "https://example.com/720.zip", Variant = "720p" },
+                new ReleaseArtifact { Filename = "cb-1080p.zip", DownloadUrl = "https://example.com/1080.zip", Variant = "1080p", IsPrimary = true },
+            ],
+        };
+        var searchResult = new ContentSearchResult { Id = "cb", Name = "Control Bar" };
+        var variant = new CatalogBundleComponentVariantDescriptor { Label = string.Empty, Axis = string.Empty };
+
+        BundleComponentViewModel.ApplyReleaseDownloadUrl(searchResult, variant, JsonSerializer.Serialize(release));
+
+        Assert.Equal("https://example.com/1080.zip", searchResult.SelectedDownloadUrl);
+    }
+
     private static Mock<IContentManifestBuilder> CreateBuilderMock(ContentManifest builtManifest)
     {
         var builderMock = new Mock<IContentManifestBuilder>();

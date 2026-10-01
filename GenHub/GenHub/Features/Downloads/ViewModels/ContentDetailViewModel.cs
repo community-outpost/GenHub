@@ -12,9 +12,13 @@ using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Parsers;
+using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Dialogs;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
+using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GeneralsOnline;
 using GenHub.Core.Models.GenLauncher;
 using GenHub.Core.Models.GitHub;
@@ -71,6 +75,7 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <param name="deletedAction">Optional callback invoked with the deleted manifest ID after a successful delete.</param>
 /// <param name="artworkService">Optional artwork service for purging persisted icons and covers on delete.</param>
 /// <param name="gitHubApiClient">Optional GitHub API client for README and release-notes hydration.</param>
+/// <param name="workspaceManager">Optional workspace manager for cleaning stale workspaces on bundle updates.</param>
 [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "ContentDetailViewModel coordinates rich media, downloads, profile binding, and custom tabs.")]
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Properties and methods access CommunityToolkit MVVM generated instance properties.")]
 [SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "Content detail ViewModel coordinates complex UI state, downloads, and multiple catalog sources.")]
@@ -96,7 +101,8 @@ public partial class ContentDetailViewModel(
     IDialogService? dialogService = null,
     Func<string, Task>? deletedAction = null,
     IContentArtworkService? artworkService = null,
-    IGitHubApiClient? gitHubApiClient = null) : ObservableObject, IDisposable
+    IGitHubApiClient? gitHubApiClient = null,
+    IWorkspaceManager? workspaceManager = null) : ObservableObject, IDisposable
 {
     // ===== Constants =====
     private const string UnknownValue = "Unknown";
@@ -105,6 +111,14 @@ public partial class ContentDetailViewModel(
     private const string DeleteFailedTitleFallback = "Delete Failed";
     private const string DeleteFailedMessageKey = "Downloads.ContentDetail.DeleteFailedMessage";
     private const string DeleteFailedMessageFallback = "Could not delete '{0}': {1}";
+    private const string ScrubFailedTitleKey = "Settings.Manifests.ScrubFailed.Title";
+    private const string ScrubFailedTitleFallback = "Profile Update Incomplete";
+    private const string ScrubFailedEnumerationKey = "Settings.Manifests.ScrubFailed.EnumerationMessage";
+    private const string ScrubFailedEnumerationFallback = "The profile list could not be loaded, so deleted manifests may still be referenced by profiles.";
+    private const string BundleProfileUpdateFailedMessageKey = "Downloads.ContentDetail.BundleProfileUpdateFailed.Message";
+    private const string BundleProfileUpdateFailedMessageFallback = "One or more profiles could not be updated, so the previous version was kept.";
+    private const string ScrubFailedMessageKey = "Settings.Manifests.ScrubFailed.Message";
+    private const string ScrubFailedMessageFallback = "Deleted manifests could not be removed from {0} profile(s): {1}.";
 
     // ===== Static Fields =====
     // The SSRF-safe handler disables auto-redirect (required so the size probe validates
@@ -354,6 +368,10 @@ public partial class ContentDetailViewModel(
     /// <summary>
     /// Gets the collection of custom tabs from publishers.
     /// </summary>
+    /// <remarks>
+    /// Deferred pending per-item tab authoring support. Re-introduce publisher-defined custom tabs per content item once supported.
+    /// See GitHub issue #621 (https://github.com/community-outpost/GenHub/issues/621).
+    /// </remarks>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasCustomTabs))]
     [NotifyPropertyChangedFor(nameof(HasPublisherInfo))]
@@ -1456,6 +1474,146 @@ public partial class ContentDetailViewModel(
 
             _preloadTask = PreloadRecentItemDetailsCoreAsync(cancellationToken);
             return _preloadTask;
+        }
+    }
+
+    /// <summary>
+    /// Applies the bundle-component update strategy: updates referencing profiles,
+    /// notifies open profile settings of the replacement, and optionally deletes
+    /// the superseded manifest.
+    /// </summary>
+    /// <param name="target">The bundle component search result being updated.</param>
+    /// <param name="originalContentId">The original content ID mapped to the old manifest.</param>
+    /// <param name="oldManifestId">The superseded manifest ID, or null for new installs.</param>
+    /// <param name="newManifest">The replacement content manifest.</param>
+    /// <param name="promptResult">The update strategy chosen by the user.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    internal async Task ApplyBundleComponentUpdateStrategyAsync(
+        ContentSearchResult target,
+        string originalContentId,
+        string? oldManifestId,
+        ContentManifest newManifest,
+        UpdateDialogResult promptResult,
+        CancellationToken cancellationToken)
+    {
+        var newManifestId = newManifest.Id.Value;
+
+        if (profileManager != null && !string.IsNullOrEmpty(oldManifestId))
+        {
+            bool profilesUpdated;
+            try
+            {
+                profilesUpdated = await ApplyBundleProfileUpdatesAsync(target, oldManifestId, newManifest, promptResult, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to apply profile update strategy for bundle component {Name}", target.Name);
+                notificationService.ShowWarning(
+                    GetLocalizedString(ScrubFailedTitleKey, ScrubFailedTitleFallback),
+                    GetLocalizedString(BundleProfileUpdateFailedMessageKey, BundleProfileUpdateFailedMessageFallback));
+                return;
+            }
+
+            if (!profilesUpdated)
+            {
+                logger.LogWarning(
+                    "Skipping deletion of old manifest {OldManifestId} for bundle component {Name} because one or more profile updates failed",
+                    oldManifestId,
+                    target.Name);
+                notificationService.ShowWarning(
+                    GetLocalizedString(ScrubFailedTitleKey, ScrubFailedTitleFallback),
+                    GetLocalizedString(BundleProfileUpdateFailedMessageKey, BundleProfileUpdateFailedMessageFallback));
+                return;
+            }
+
+            // Mirror the shared bulk-update path: open profile settings listen for
+            // this broadcast to swap the replaced manifest without losing UI state.
+            if (promptResult.Strategy == UpdateStrategy.ReplaceCurrent &&
+                !string.Equals(oldManifestId, newManifestId, StringComparison.OrdinalIgnoreCase))
+            {
+                WeakReferenceMessenger.Default.Send(new ManifestReplacedMessage(oldManifestId, newManifestId));
+            }
+        }
+
+        // Creating a new profile leaves the original profile on the old manifest, so the
+        // old manifest must stay installed regardless of the delete-old-versions option.
+        if (promptResult.DeleteOldVersions && !string.IsNullOrEmpty(oldManifestId) &&
+            !string.Equals(oldManifestId, newManifestId, StringComparison.OrdinalIgnoreCase) &&
+            promptResult.Strategy != UpdateStrategy.CreateNewProfile)
+        {
+            try
+            {
+                var removeResult = await manifestPool.RemoveManifestAsync(ManifestId.Create(oldManifestId), cancellationToken: cancellationToken);
+                if (removeResult.Success)
+                {
+                    try
+                    {
+                        if (artworkService != null)
+                        {
+                            await artworkService.PurgeArtworkAsync(oldManifestId, cancellationToken);
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Failed to purge artwork for old manifest {OldManifestId} for bundle component {Name}", oldManifestId, target.Name);
+                    }
+
+                    if (profileManager != null)
+                    {
+                        var scrubResult = await profileManager.ScrubDeletedManifestReferencesAsync([oldManifestId], cancellationToken);
+                        if (!scrubResult.Success || scrubResult.Data == null)
+                        {
+                            logger.LogWarning(
+                                "Failed to scrub deleted manifest {OldManifestId} from profiles for bundle component {Name}: {Error}",
+                                oldManifestId,
+                                target.Name,
+                                scrubResult.FirstError);
+                            notificationService.ShowWarning(
+                                GetLocalizedString(ScrubFailedTitleKey, ScrubFailedTitleFallback),
+                                GetLocalizedString(ScrubFailedEnumerationKey, ScrubFailedEnumerationFallback));
+                        }
+                        else if (scrubResult.Data.FailedProfileNames.Count > 0)
+                        {
+                            logger.LogWarning(
+                                "Failed to scrub deleted manifest {OldManifestId} from {ProfileCount} profile(s) for bundle component {Name}: {Profiles}",
+                                oldManifestId,
+                                scrubResult.Data.FailedProfileNames.Count,
+                                target.Name,
+                                string.Join(", ", scrubResult.Data.FailedProfileNames));
+                            notificationService.ShowWarning(
+                                GetLocalizedString(ScrubFailedTitleKey, ScrubFailedTitleFallback),
+                                string.Format(
+                                    CultureInfo.InvariantCulture,
+                                    GetLocalizedString(ScrubFailedMessageKey, ScrubFailedMessageFallback),
+                                    scrubResult.Data.FailedProfileNames.Count,
+                                    string.Join(", ", scrubResult.Data.FailedProfileNames)));
+                        }
+                    }
+
+                    // The replacement manifest is already downloaded and mapped to the original
+                    // content ID, so re-affirm Downloaded instead of broadcasting NotDownloaded:
+                    // the latter would drop the fresh session mapping and flip open views bound
+                    // to the old manifest even though the replacement is installed.
+                    contentStateService.NotifyStateChanged(originalContentId, ContentState.Downloaded, newManifestId);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to delete old manifest {OldManifestId} for bundle component {Name}", oldManifestId, target.Name);
+            }
         }
     }
 
@@ -4799,13 +4957,21 @@ public partial class ContentDetailViewModel(
         {
             if (dialogService != null)
             {
-                var versionText = !string.IsNullOrWhiteSpace(_updateTargetSearchResult.Version)
-                    ? $" ({_updateTargetSearchResult.Version})"
-                    : string.Empty;
+                var promptTitle = FormatLocalizedString("Downloads.UpdateDialog.Title", "{0} Update Available", Name);
+                var promptMessage = !string.IsNullOrWhiteSpace(_updateTargetSearchResult.Version)
+                    ? FormatLocalizedString(
+                        "Downloads.UpdateDialog.MessageWithVersion",
+                        "{0} has an update available ({1}).\n\nHow do you want to apply this update?",
+                        Name,
+                        _updateTargetSearchResult.Version)
+                    : FormatLocalizedString(
+                        "Downloads.UpdateDialog.Message",
+                        "{0} has an update available.\n\nHow do you want to apply this update?",
+                        Name);
 
                 var promptResult = await dialogService.ShowUpdateOptionDialogAsync(
-                    $"{Name} Update Available",
-                    $"A new version of **{Name}** is available{versionText}.\n\nHow do you want to apply this update?",
+                    promptTitle,
+                    promptMessage,
                     initialDeleteOldVersions: true);
 
                 if (promptResult == null || string.Equals(promptResult.Action, "Skip", StringComparison.OrdinalIgnoreCase))
@@ -4922,7 +5088,82 @@ public partial class ContentDetailViewModel(
 
     private async Task DownloadBundleComponentsAsync(CancellationToken cancellationToken)
     {
-        var targets = BundleComponentViewModel.GetRequiredDownloadTargets(BundleComponents);
+        var targets = BundleComponentViewModel.GetRequiredDownloadTargets(BundleComponents).ToList();
+
+        // Prompt user if any bundled components have an update available
+        var updateCandidates = BundleComponents
+            .Where(c => !c.IsBaseGame && c.EffectiveState == ContentState.UpdateAvailable)
+            .ToList();
+
+        var componentUpdates = new Dictionary<string, (UpdateDialogResult PromptResult, string? OldManifestId)>(StringComparer.OrdinalIgnoreCase);
+
+        if (updateCandidates.Count > 0 && dialogService != null)
+        {
+            foreach (var updateComp in updateCandidates)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var candidateResult = updateComp.GetSelectedSearchResult();
+                if (candidateResult == null)
+                {
+                    continue;
+                }
+
+                var isGameClient = candidateResult.ContentType == ContentType.GameClient;
+                var versionText = !string.IsNullOrWhiteSpace(candidateResult.Version)
+                    ? $" ({candidateResult.Version})"
+                    : string.Empty;
+
+                var message = isGameClient
+                    ? FormatLocalizedString(
+                        "Downloads.ContentDetail.BundleUpdateGameClientMessageFormat",
+                        "A new version of GameClient **{0}** is available{1}.\n\nWould you like to update it as part of this bundle installation?\n\n*(Note: For GameClients, unchecking 'Delete older versions' lets you keep previous client versions installed side-by-side)*",
+                        updateComp.SelectedDisplayName,
+                        versionText)
+                    : FormatLocalizedString(
+                        "Downloads.ContentDetail.BundleUpdateComponentMessageFormat",
+                        "A new version of {0} **{1}** is available{2}.\n\nWould you like to update and replace it in the profile as part of this bundle installation?",
+                        GetLocalizedString($"ContentType.{candidateResult.ContentType}", candidateResult.ContentType.GetDisplayName()),
+                        updateComp.SelectedDisplayName,
+                        versionText);
+
+                var promptResult = await dialogService.ShowUpdateOptionDialogAsync(
+                    FormatLocalizedString("Downloads.UpdateDialog.Title", "{0} Update Available", updateComp.Name),
+                    message,
+                    initialDeleteOldVersions: !isGameClient);
+
+                if (promptResult == null || string.Equals(promptResult.Action, "Skip", StringComparison.OrdinalIgnoreCase))
+                {
+                    targets.RemoveAll(t => string.Equals(t.Id, candidateResult.Id, StringComparison.OrdinalIgnoreCase));
+                    continue;
+                }
+
+                var oldManifestId = await updateComp.GetAcquiredManifestIdAsync(contentStateService, cancellationToken)
+                    ?? await contentStateService.GetLocalManifestIdAsync(candidateResult, cancellationToken);
+
+                if (!string.IsNullOrEmpty(candidateResult.Id))
+                {
+                    componentUpdates[candidateResult.Id] = (promptResult, oldManifestId);
+                }
+
+                if (!targets.Any(t => string.Equals(t.Id, candidateResult.Id, StringComparison.OrdinalIgnoreCase)))
+                {
+                    targets.Add(candidateResult);
+                }
+            }
+        }
+        else if (dialogService == null)
+        {
+            foreach (var updateComp in updateCandidates)
+            {
+                var candidateResult = updateComp.GetSelectedSearchResult();
+                if (candidateResult != null &&
+                    !targets.Any(t => string.Equals(t.Id, candidateResult.Id, StringComparison.OrdinalIgnoreCase)))
+                {
+                    targets.Add(candidateResult);
+                }
+            }
+        }
+
         if (targets.Count == 0)
         {
             if (!_disposed)
@@ -4983,9 +5224,18 @@ public partial class ContentDetailViewModel(
                     return;
                 }
 
+                var newManifest = result.Data;
+                var newManifestId = newManifest.Id.Value;
+
                 foreach (var component in BundleComponents)
                 {
-                    component.MarkDownloaded(originalContentId, result.Data.Id.Value);
+                    component.MarkDownloaded(originalContentId, newManifestId);
+                }
+
+                if (componentUpdates.TryGetValue(originalContentId, out var updateInfo) ||
+                    (!string.IsNullOrEmpty(target.Id) && componentUpdates.TryGetValue(target.Id, out updateInfo)))
+                {
+                    await ApplyBundleComponentUpdateStrategyAsync(target, originalContentId, updateInfo.OldManifestId, newManifest, updateInfo.PromptResult, cancellationToken);
                 }
 
                 completed++;
@@ -5032,6 +5282,227 @@ public partial class ContentDetailViewModel(
                 });
             }
         }
+    }
+
+    /// <summary>
+    /// Applies the bundle update strategy to every profile referencing the old manifest.
+    /// </summary>
+    /// <returns>True when all referencing profiles were updated, false when any update failed.</returns>
+    private async Task<bool> ApplyBundleProfileUpdatesAsync(
+        ContentSearchResult target,
+        string oldManifestId,
+        ContentManifest newManifest,
+        UpdateDialogResult promptResult,
+        CancellationToken cancellationToken)
+    {
+        var profilesResult = await profileManager.GetAllProfilesAsync(cancellationToken);
+        if (!profilesResult.Success || profilesResult.Data == null)
+        {
+            logger.LogWarning(
+                "Failed to list profiles for bundle component {Name}: {Error}. Keeping old manifest {OldManifestId}",
+                target.Name,
+                profilesResult.FirstError,
+                oldManifestId);
+            return false;
+        }
+
+        var replacedProfiles = new List<GameProfile>();
+        var createdProfileIds = new List<string>();
+
+        async Task RollbackPartialUpdatesAsync()
+        {
+            foreach (var rollbackProfile in replacedProfiles)
+            {
+                try
+                {
+                    var rollbackRequest = new UpdateProfileRequest
+                    {
+                        Name = rollbackProfile.Name,
+                        Description = rollbackProfile.Description,
+                        WorkspaceStrategy = rollbackProfile.WorkspaceStrategy,
+                        EnabledContentIds = rollbackProfile.EnabledContentIds.ToList(),
+                        GameClient = rollbackProfile.GameClient,
+                        ActiveWorkspaceId = string.Empty,
+                    };
+                    await profileManager.UpdateProfileAsync(rollbackProfile.Id, rollbackRequest, CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to rollback profile {ProfileId} during failed bundle update", rollbackProfile.Id);
+                }
+            }
+
+            foreach (var createdId in createdProfileIds)
+            {
+                try
+                {
+                    await profileManager.DeleteProfileAsync(createdId, CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to delete cloned profile {ProfileId} during failed bundle update rollback", createdId);
+                }
+            }
+        }
+
+        foreach (var profile in profilesResult.Data)
+        {
+            bool updated;
+            bool wasModified;
+            string? createdProfileId;
+            try
+            {
+                (updated, wasModified, createdProfileId) = await ApplyBundleProfileUpdateAsync(profile, target, oldManifestId, newManifest, promptResult, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                await RollbackPartialUpdatesAsync();
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to apply profile update strategy for bundle component {Name}", target.Name);
+                await RollbackPartialUpdatesAsync();
+                return false;
+            }
+
+            if (!updated)
+            {
+                await RollbackPartialUpdatesAsync();
+                return false;
+            }
+
+            if (wasModified)
+            {
+                if (createdProfileId != null)
+                {
+                    createdProfileIds.Add(createdProfileId);
+                }
+                else
+                {
+                    replacedProfiles.Add(profile);
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Applies the bundle update strategy to a single profile when it references the old manifest.
+    /// </summary>
+    /// <returns>True when the profile did not reference the old manifest or was updated, false on failure.</returns>
+    private async Task<(bool Success, bool WasModified, string? CreatedProfileId)> ApplyBundleProfileUpdateAsync(
+        GameProfile profile,
+        ContentSearchResult target,
+        string oldManifestId,
+        ContentManifest newManifest,
+        UpdateDialogResult promptResult,
+        CancellationToken cancellationToken)
+    {
+        var newManifestId = newManifest.Id.Value;
+        var isGameClientMatch = profile.GameClient != null &&
+            string.Equals(profile.GameClient.Id, oldManifestId, StringComparison.OrdinalIgnoreCase);
+        var hasContentMatch = profile.EnabledContentIds.Contains(oldManifestId, StringComparer.OrdinalIgnoreCase);
+
+        if (!isGameClientMatch && !hasContentMatch)
+        {
+            return (true, false, null);
+        }
+
+        GameClient? updatedClient = profile.GameClient;
+        if (isGameClientMatch && profile.GameClient != null)
+        {
+            updatedClient = profile.GameClient.Clone();
+            updatedClient.Id = newManifest.Id.Value;
+            updatedClient.Name = newManifest.Name;
+            updatedClient.Version = newManifest.Version ?? string.Empty;
+            updatedClient.GameType = newManifest.TargetGame;
+            updatedClient.SourceType = newManifest.ContentType;
+            if (newManifest.Publisher?.PublisherType != null)
+            {
+                updatedClient.PublisherType = newManifest.Publisher.PublisherType;
+            }
+        }
+
+        var updatedContentIds = profile.EnabledContentIds
+            .Select(id => string.Equals(id, oldManifestId, StringComparison.OrdinalIgnoreCase) ? newManifestId : id)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (promptResult.Strategy == UpdateStrategy.ReplaceCurrent)
+        {
+            var updateRequest = new UpdateProfileRequest
+            {
+                Name = profile.Name,
+                Description = profile.Description,
+                WorkspaceStrategy = profile.WorkspaceStrategy,
+                EnabledContentIds = updatedContentIds,
+                GameClient = updatedClient,
+                ActiveWorkspaceId = string.Empty,
+            };
+
+            var updateResult = await profileManager.UpdateProfileAsync(profile.Id, updateRequest, cancellationToken);
+            if (!updateResult.Success)
+            {
+                logger.LogWarning(
+                    "Failed to update profile {ProfileName} for bundle component {Name}: {Error}",
+                    profile.Name,
+                    target.Name,
+                    updateResult.FirstError);
+                return (false, false, null);
+            }
+
+            // Drop the stale workspace only after the profile update succeeds, so a
+            // failed update keeps pointing at its intact workspace.
+            if (!string.IsNullOrEmpty(profile.ActiveWorkspaceId) && workspaceManager != null)
+            {
+                var cleanupResult = await workspaceManager.CleanupWorkspaceAsync(profile.ActiveWorkspaceId, cancellationToken);
+                if (!cleanupResult.Success)
+                {
+                    logger.LogWarning(
+                        "Failed to cleanup workspace '{WorkspaceId}' for profile '{ProfileName}': {Error}",
+                        profile.ActiveWorkspaceId,
+                        profile.Name,
+                        cleanupResult.FirstError);
+                }
+            }
+
+            return (true, true, null);
+        }
+
+        if (promptResult.Strategy == UpdateStrategy.CreateNewProfile)
+        {
+            var versionText = "Updated";
+            if (!string.IsNullOrWhiteSpace(newManifest.Version))
+            {
+                versionText = newManifest.Version;
+            }
+            else if (!string.IsNullOrWhiteSpace(target.Version))
+            {
+                versionText = target.Version;
+            }
+
+            var createRequest = GameSettingsMapper.CreateCloneRequest(
+                profile,
+                $"{profile.Name} ({versionText})",
+                updatedClient,
+                updatedContentIds);
+
+            var createResult = await profileManager.CreateProfileAsync(createRequest, cancellationToken);
+            if (!createResult.Success)
+            {
+                logger.LogWarning(
+                    "Failed to create profile for bundle component {Name}: {Error}",
+                    target.Name,
+                    createResult.FirstError);
+                return (false, false, null);
+            }
+
+            return (true, true, createResult.Data?.Id);
+        }
+
+        return (true, false, null);
     }
 
     /// <summary>
@@ -6431,10 +6902,10 @@ public partial class ContentDetailViewModel(
                 {
                     logger.LogWarning("Failed to scrub profile references after deleting {ManifestId}: {Error}", manifestId, scrubResult.FirstError);
                     var enumerationFormat = GetLocalizedString(
-                        "Settings.Manifests.ScrubFailed.EnumerationMessage",
+                        ScrubFailedEnumerationKey,
                         "The profile list could not be loaded, so deleted manifests may still be referenced by profiles. Those profiles may fail to launch until updated.");
                     notificationService.ShowWarning(
-                        GetLocalizedString("Settings.Manifests.ScrubFailed.Title", "Profile Update Incomplete"),
+                        GetLocalizedString(ScrubFailedTitleKey, ScrubFailedTitleFallback),
                         enumerationFormat,
                         NotificationDurations.Medium);
                 }
@@ -6447,10 +6918,10 @@ public partial class ContentDetailViewModel(
                         manifestId,
                         string.Join(", ", failedProfileNames));
                     var scrubFailedFormat = GetLocalizedString(
-                        "Settings.Manifests.ScrubFailed.Message",
+                        ScrubFailedMessageKey,
                         "Deleted manifests could not be removed from {0} profile(s): {1}. Those profiles may fail to launch until updated.");
                     notificationService.ShowWarning(
-                        GetLocalizedString("Settings.Manifests.ScrubFailed.Title", "Profile Update Incomplete"),
+                        GetLocalizedString(ScrubFailedTitleKey, ScrubFailedTitleFallback),
                         string.Format(CultureInfo.InvariantCulture, scrubFailedFormat, failedProfileNames.Count, string.Join(", ", failedProfileNames)),
                         NotificationDurations.Medium);
                 }
@@ -7046,6 +7517,10 @@ public partial class ContentDetailViewModel(
     /// <summary>
     /// Loads custom tabs from registered tab providers.
     /// </summary>
+    /// <remarks>
+    /// Deferred pending per-item tab authoring support. Re-introduce publisher-defined custom tabs per content item once supported.
+    /// See GitHub issue #621 (https://github.com/community-outpost/GenHub/issues/621).
+    /// </remarks>
     private async Task LoadCustomTabsAsync()
     {
         try

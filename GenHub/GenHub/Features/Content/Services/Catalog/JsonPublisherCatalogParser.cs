@@ -50,7 +50,8 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
                 return OperationResult<PublisherCatalog>.CreateFailure("Failed to deserialize catalog JSON");
             }
 
-            // Validate after parsing
+            // Normalize import-time defaults, then validate the normalized model
+            NormalizeCatalog(catalog);
             var validationResult = ValidateCatalog(catalog);
             if (!validationResult.Success)
             {
@@ -86,11 +87,17 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
     }
 
     /// <inheritdoc />
-    public OperationResult<bool> ValidateCatalog(PublisherCatalog catalog)
+    public void NormalizeCatalog(PublisherCatalog catalog)
     {
         ArgumentNullException.ThrowIfNull(catalog);
 
         NormalizeCatalogCollections(catalog, logger);
+    }
+
+    /// <inheritdoc />
+    public OperationResult<bool> ValidateCatalog(PublisherCatalog catalog)
+    {
+        ArgumentNullException.ThrowIfNull(catalog);
 
         var errors = new List<string>();
 
@@ -235,10 +242,77 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
     {
         catalog.Content ??= [];
         var seenNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var itemsById = catalog.Content
+            .Where(c => c != null && !string.IsNullOrWhiteSpace(c.Id))
+            .GroupBy(c => c.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+        var hostPubId = catalog.Publisher?.Id;
 
         foreach (var content in catalog.Content.Where(content => content != null))
         {
             NormalizeContentItem(content, seenNames, logger);
+
+            if (!string.IsNullOrWhiteSpace(hostPubId))
+            {
+                NormalizeBundledItemPublishers(content, hostPubId, itemsById);
+                NormalizeReleaseDependencyPublishers(content, hostPubId, itemsById);
+            }
+        }
+    }
+
+    private static bool ShouldRewriteDependencyPublisher(
+        string? publisherId,
+        string contentId,
+        string hostPubId,
+        Dictionary<string, CatalogContentItem> itemsById)
+    {
+        if (string.IsNullOrWhiteSpace(contentId) || !itemsById.TryGetValue(contentId, out var sibling))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(publisherId) &&
+            !string.Equals(publisherId, CatalogConstants.GenericCatalogResolverId, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        // Upstream-tracked siblings resolve through their provider identity, which the
+        // bundle resolver matches canonically. Rewriting them to the host slug would
+        // resolve to generic-catalog and break the match, so leave them untouched.
+        var declared = CatalogManifestIdentity.ResolveDeclaredPublisherType(sibling);
+        return string.Equals(declared, CatalogConstants.GenericCatalogResolverId, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(declared, hostPubId, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void NormalizeBundledItemPublishers(CatalogContentItem content, string hostPubId, Dictionary<string, CatalogContentItem> itemsById)
+    {
+        if (content.BundledItems == null)
+        {
+            return;
+        }
+
+        foreach (var bundled in content.BundledItems.Where(b =>
+            b != null && ShouldRewriteDependencyPublisher(b.PublisherId, b.ContentId, hostPubId, itemsById)))
+        {
+            bundled.PublisherId = hostPubId;
+        }
+    }
+
+    private static void NormalizeReleaseDependencyPublishers(CatalogContentItem content, string hostPubId, Dictionary<string, CatalogContentItem> itemsById)
+    {
+        if (content.Releases == null)
+        {
+            return;
+        }
+
+        foreach (var dep in content.Releases
+            .Where(r => r?.Dependencies != null)
+            .SelectMany(r => r.Dependencies)
+            .Where(dep =>
+                dep != null && ShouldRewriteDependencyPublisher(dep.PublisherId, dep.ContentId, hostPubId, itemsById)))
+        {
+            dep.PublisherId = hostPubId;
         }
     }
 
@@ -283,6 +357,97 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         }
     }
 
+    private static void ValidateBasicProperties(CatalogContentItem content, int index, List<string> errors)
+    {
+        if (string.IsNullOrWhiteSpace(content.Id))
+        {
+            errors.Add($"Content item {index} is missing ID");
+        }
+
+        if (string.IsNullOrWhiteSpace(content.Name))
+        {
+            errors.Add($"Content item '{content.Id}' is missing name");
+        }
+    }
+
+    private static void ValidatePublisherType(CatalogContentItem content, List<string> errors)
+    {
+        if (string.IsNullOrWhiteSpace(content.PublisherType))
+        {
+            return;
+        }
+
+        var declaredPublisher = CatalogManifestIdentity.ResolveDeclaredPublisherType(content);
+        if (!content.PublisherType.Equals(declaredPublisher, StringComparison.OrdinalIgnoreCase))
+        {
+            errors.Add($"Content item '{content.Id}' has unknown publisherType '{content.PublisherType}'");
+        }
+    }
+
+    private static void ValidateBundleItem(
+        CatalogContentItem content,
+        Dictionary<string, CatalogContentItem> itemsById,
+        string? hostPublisherId,
+        List<string> errors)
+    {
+        if (content.ContentType != ContentType.ContentBundle)
+        {
+            return;
+        }
+
+        var hasBundledItems = content.BundledItems != null && content.BundledItems.Count > 0;
+        var hasReleaseDependencies = content.Releases != null && content.Releases.Any(r => r?.Dependencies is { Count: > 0 });
+
+        if (!hasBundledItems && !hasReleaseDependencies)
+        {
+            errors.Add($"Content bundle '{content.Id}' has no bundled items");
+        }
+        else if (content.BundledItems != null && content.BundledItems.Any(d => d == null || string.IsNullOrWhiteSpace(d.ContentId)))
+        {
+            errors.Add($"Content bundle '{content.Id}' has bundled items with missing content IDs");
+        }
+
+        if (content.BundledItems == null)
+        {
+            return;
+        }
+
+        foreach (var dep in content.BundledItems)
+        {
+            if (dep == null || string.IsNullOrWhiteSpace(dep.ContentId))
+            {
+                continue;
+            }
+
+            if (!ValidateDependencyContentType(content, dep, errors))
+            {
+                continue;
+            }
+
+            ValidateDependencyPublisher(content, dep, itemsById, hostPublisherId, errors);
+        }
+    }
+
+    private static void ValidateUpstreamItem(CatalogContentItem content, List<string> errors)
+    {
+        if (!CatalogConstants.UpstreamProviders.IsConfiguredUpstreamSource(content) || content.UpstreamSync == null)
+        {
+            return;
+        }
+
+        var provider = CatalogConstants.UpstreamProviders.Normalize(
+            !string.IsNullOrWhiteSpace(content.UpstreamSync.Provider) ? content.UpstreamSync.Provider : content.PublisherType);
+
+        if (string.Equals(provider, CatalogConstants.UpstreamProviders.GitHubReleases, StringComparison.OrdinalIgnoreCase))
+        {
+            var repo = content.UpstreamSync.Repository;
+            if (string.IsNullOrWhiteSpace(repo) || !CatalogConstants.UpstreamProviders.IsValidOwnerRepo(repo))
+            {
+                errors.Add($"Upstream GitHub item '{content.Id}' must declare a valid repository in 'owner/repo' format");
+            }
+        }
+    }
+
     private void ValidateContentItems(PublisherCatalog catalog, List<string> errors)
     {
         if (catalog.Content == null || catalog.Content.Count == 0)
@@ -324,28 +489,29 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         string? hostPublisherId,
         List<string> errors)
     {
-        if (string.IsNullOrWhiteSpace(content.Id))
-        {
-            errors.Add($"Content item {index} is missing ID");
-        }
+        ValidateBasicProperties(content, index, errors);
+        ValidatePublisherType(content, errors);
+        ValidateBundleItem(content, itemsById, hostPublisherId, errors);
+        ValidateUpstreamItem(content, errors);
+        ValidateItemReleases(content, itemsById, hostPublisherId, errors);
+    }
 
-        if (string.IsNullOrWhiteSpace(content.Name))
-        {
-            errors.Add($"Content item '{content.Id}' is missing name");
-        }
-
-        if (!string.IsNullOrWhiteSpace(content.PublisherType))
-        {
-            var declaredPublisher = CatalogManifestIdentity.ResolveDeclaredPublisherType(content);
-            if (!content.PublisherType.Equals(declaredPublisher, StringComparison.OrdinalIgnoreCase))
-            {
-                errors.Add($"Content item '{content.Id}' has unknown publisherType '{content.PublisherType}'");
-            }
-        }
+    private void ValidateItemReleases(
+        CatalogContentItem content,
+        Dictionary<string, CatalogContentItem> itemsById,
+        string? hostPublisherId,
+        List<string> errors)
+    {
+        var isUpstreamTracked = CatalogConstants.UpstreamProviders.IsConfiguredUpstreamSource(content);
+        var isBundle = content.ContentType == ContentType.ContentBundle;
 
         if (content.Releases == null || content.Releases.Count == 0)
         {
-            errors.Add($"Content item '{content.Id}' has no releases");
+            if (!isUpstreamTracked && !isBundle)
+            {
+                errors.Add($"Content item '{content.Id}' has no releases");
+            }
+
             return;
         }
 
@@ -373,10 +539,12 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
             errors.Add($"Content '{content.Id}' has release with missing version");
         }
 
+        var isBundle = content.ContentType == ContentType.ContentBundle;
         var hasArtifacts = release.Artifacts is { Count: > 0 };
-        var hasDependencies = release.Dependencies is { Count: > 0 };
+        var hasDependencies = release.Dependencies is { Count: > 0 } ||
+            (isBundle && content.BundledItems is { Count: > 0 });
 
-        if (hasDependencies)
+        if (release.Dependencies is { Count: > 0 })
         {
             ValidateDependencies(content, release, itemsById, hostPublisherId, errors);
         }

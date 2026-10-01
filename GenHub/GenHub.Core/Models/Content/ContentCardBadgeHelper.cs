@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results.Content;
 using System;
 using System.Collections.Generic;
@@ -278,6 +279,54 @@ public static partial class ContentCardBadgeHelper
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Resolves the effective featured color for a content item: the publisher accent color
+    /// when valid, otherwise the default featured gold. Returns null when not featured.
+    /// Single source for featured borders, badges, and glows across download cards and
+    /// Publisher Studio, so future publisher styling options only need to change here.
+    /// </summary>
+    /// <param name="isFeatured">Whether the content is featured.</param>
+    /// <param name="accentColor">The publisher accent color hex, if any.</param>
+    /// <returns>The effective featured color hex, or null when not featured.</returns>
+    public static string? GetFeaturedColor(bool isFeatured, string? accentColor)
+    {
+        if (!isFeatured)
+        {
+            return null;
+        }
+
+        if (IsValidAccentColor(accentColor))
+        {
+            return accentColor!.Trim();
+        }
+
+        return CatalogConstants.FeaturedDefaultColor;
+    }
+
+    /// <summary>
+    /// Resolves the effective featured color for a download search result.
+    /// </summary>
+    /// <param name="result">The search result.</param>
+    /// <returns>The effective featured color hex, or null when not featured.</returns>
+    public static string? GetFeaturedColor(ContentSearchResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        return GetFeaturedColor(result.IsFeatured, result.AccentColor);
+    }
+
+    /// <summary>
+    /// Resolves the effective featured color for a publisher catalog content item.
+    /// Checks both the item-level and metadata-level featured flags, mirroring catalog discovery.
+    /// </summary>
+    /// <param name="item">The catalog content item.</param>
+    /// <returns>The effective featured color hex, or null when not featured.</returns>
+    public static string? GetFeaturedColor(CatalogContentItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        var isFeatured = item.IsFeatured || (item.Metadata?.IsFeatured ?? false);
+        return GetFeaturedColor(isFeatured, item.Metadata?.AccentColor);
     }
 
     /// <summary>

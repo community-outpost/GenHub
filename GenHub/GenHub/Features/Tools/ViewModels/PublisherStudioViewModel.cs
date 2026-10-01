@@ -10,6 +10,7 @@ using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Core.Utilities;
+using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Tools.Interfaces;
 using GenHub.Features.Tools.Services;
 using GenHub.Features.Tools.Services.Hosting;
@@ -47,7 +48,8 @@ public partial class PublisherStudioViewModel(
     IHostingCredentialStore? credentialStore = null,
     IPublisherCatalogParser? catalogParser = null,
     IPublisherSubscriptionStore? subscriptionStore = null,
-    ITelemetryService? telemetryService = null) : ObservableObject, IDisposable
+    ITelemetryService? telemetryService = null,
+    ICatalogUpstreamIngestionService? upstreamIngestionService = null) : ObservableObject, IDisposable
 {
     /// <summary>Tab index for the Profile tab.</summary>
     public const int TabProfile = 0;
@@ -423,7 +425,7 @@ public partial class PublisherStudioViewModel(
 
         if (SelectedCatalog != null)
         {
-            ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, SelectedCatalog, this, logger, dialogService, notificationService, localizationService);
+            ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, SelectedCatalog, this, logger, dialogService, notificationService, localizationService, upstreamIngestionService);
         }
 
         SyncPublishShareCatalogs();
@@ -486,7 +488,7 @@ public partial class PublisherStudioViewModel(
         SelectedCatalog = selectedCatalog;
 
         PublisherProfileViewModel = new GenHub.Features.Tools.ViewModels.PublisherProfileViewModel(CurrentProject, this, logger, notificationService, localizationService, subscriptionStore);
-        ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, selectedCatalog, this, logger, dialogService, notificationService, localizationService);
+        ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, selectedCatalog, this, logger, dialogService, notificationService, localizationService, upstreamIngestionService);
         PublishShareViewModel?.Dispose();
         PublishShareViewModel = new GenHub.Features.Tools.ViewModels.PublishShareViewModel(CurrentProject, publisherStudioService, logger, hostingProviderFactory, hostingStateManager, notificationService, localizationService, credentialStore, subscriptionStore: subscriptionStore, telemetryService: telemetryService);
         PublishShareViewModel.SaveProjectCallback = SaveProjectAfterPublishAsync;
@@ -650,6 +652,7 @@ public partial class PublisherStudioViewModel(
 
         if (catalogParser != null)
         {
+            catalogParser.NormalizeCatalog(catalog);
             var validation = catalogParser.ValidateCatalog(catalog);
             if (!validation.Success)
             {
@@ -977,7 +980,7 @@ public partial class PublisherStudioViewModel(
     {
         if (value != null && CurrentProject != null)
         {
-            ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, value, this, logger, dialogService, notificationService, localizationService);
+            ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, value, this, logger, dialogService, notificationService, localizationService, upstreamIngestionService);
         }
     }
 

@@ -138,9 +138,54 @@ public sealed class GenericCatalogDiscovererDefinitionRefreshTests
         Assert.Null(discoverer.TakeRefreshedCatalogUrl());
     }
 
+    /// <summary>
+    /// A sibling catalog succeeding after the selected catalog 404s is a
+    /// fallback, not a redirect: the subscription URL must stay pinned to the
+    /// selected catalog so the browser does not show the wrong catalog's items.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_SelectedCatalogFailsSiblingSucceeds_DoesNotClobberSubscriptionUrlAsync()
+    {
+        const string selectedUrl = "https://example.com/catalog-dominator.json";
+        const string siblingUrl = "https://example.com/catalog-main.json";
+        const string definitionUrl = "https://example.com/publisher.json";
+        var catalog = CreateCatalog();
+        var routes = new Dictionary<string, HttpResponseMessage>(StringComparer.OrdinalIgnoreCase)
+        {
+            [definitionUrl] = JsonResponse(CreateDefinitionJson([("dominator", selectedUrl), ("main", siblingUrl)])),
+            [siblingUrl] = JsonResponse(JsonSerializer.Serialize(catalog)),
+        };
+
+        var subscription = new PublisherSubscription
+        {
+            PublisherId = "test-pub",
+            PublisherName = "Test Publisher",
+            CatalogUrl = selectedUrl,
+            DefinitionUrl = definitionUrl,
+            SelectedCatalogId = "dominator",
+        };
+        var requestedUrls = new List<string>();
+        var discoverer = CreateDiscoverer(catalog, routes, requestedUrls);
+        discoverer.Configure(subscription);
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.Equal(selectedUrl, subscription.CatalogUrl);
+        Assert.Null(discoverer.TakeRefreshedCatalogUrl());
+
+        var selectedIndex = requestedUrls.IndexOf(selectedUrl);
+        var siblingIndex = requestedUrls.IndexOf(siblingUrl);
+        Assert.True(selectedIndex >= 0, $"Expected {selectedUrl} to be requested.");
+        Assert.True(siblingIndex >= 0, $"Expected {siblingUrl} to be requested.");
+        Assert.True(selectedIndex < siblingIndex, "Expected selectedUrl to be requested before siblingUrl.");
+    }
+
     private static GenericCatalogDiscoverer CreateDiscoverer(
         PublisherCatalog catalog,
-        Dictionary<string, HttpResponseMessage> routes)
+        Dictionary<string, HttpResponseMessage> routes,
+        List<string>? requestedUrls = null)
     {
         var catalogParserMock = new Mock<IPublisherCatalogParser>();
         catalogParserMock
@@ -149,7 +194,7 @@ public sealed class GenericCatalogDiscovererDefinitionRefreshTests
 
         return new GenericCatalogDiscoverer(
             NullLogger<GenericCatalogDiscoverer>.Instance,
-            CreateRoutingHttpClientFactory(routes),
+            CreateRoutingHttpClientFactory(routes, requestedUrls),
             catalogParserMock.Object,
             new VersionSelector(NullLogger<VersionSelector>.Instance),
             Mock.Of<IGitHubApiClient>());
@@ -202,7 +247,9 @@ public sealed class GenericCatalogDiscovererDefinitionRefreshTests
         };
     }
 
-    private static IHttpClientFactory CreateRoutingHttpClientFactory(Dictionary<string, HttpResponseMessage> routes)
+    private static IHttpClientFactory CreateRoutingHttpClientFactory(
+        Dictionary<string, HttpResponseMessage> routes,
+        List<string>? requestedUrls = null)
     {
         var mockHandler = new Mock<HttpMessageHandler>();
         mockHandler
@@ -213,9 +260,13 @@ public sealed class GenericCatalogDiscovererDefinitionRefreshTests
                 ItExpr.IsAny<CancellationToken>())
             .ReturnsAsync((HttpRequestMessage request, CancellationToken _) =>
             {
-                if (request.RequestUri != null && routes.TryGetValue(request.RequestUri.ToString(), out var response))
+                if (request.RequestUri != null)
                 {
-                    return response;
+                    requestedUrls?.Add(request.RequestUri.ToString());
+                    if (routes.TryGetValue(request.RequestUri.ToString(), out var response))
+                    {
+                        return response;
+                    }
                 }
 
                 return new HttpResponseMessage

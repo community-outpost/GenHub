@@ -14,7 +14,8 @@ using Xunit;
 namespace GenHub.Tests.Core.Features.Tools.Services;
 
 /// <summary>
-/// Unit tests for <see cref="DropboxHostingProvider"/> upload retry behavior.
+/// Unit tests for <see cref="DropboxHostingProvider"/> upload retry behavior
+/// and on-demand shareable URL resolution.
 /// </summary>
 public sealed class DropboxHostingProviderTests
 {
@@ -178,6 +179,45 @@ public sealed class DropboxHostingProviderTests
         Assert.False(result.Success);
         Assert.Contains("150 MB", result.FirstError, StringComparison.Ordinal);
         Assert.Equal(0, handler.UploadCalls);
+    }
+
+    /// <summary>
+    /// Resolving a shareable URL without authentication must fail fast without HTTP traffic.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task EnsureShareableDownloadUrlAsync_Unauthenticated_ReturnsFailureAsync()
+    {
+        var handler = new DropboxStubHandler();
+        using var provider = CreateProvider(handler);
+
+        var result = await provider.EnsureShareableDownloadUrlAsync("id:abc", "publisher.json", CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(0, handler.UploadCalls);
+    }
+
+    /// <summary>
+    /// A discovered file with an existing shared link must resolve to a direct download URL.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task EnsureShareableDownloadUrlAsync_ExistingSharedLink_ReturnsDirectUrlAsync()
+    {
+        var handler = new DropboxStubHandler();
+        using var provider = CreateProvider(handler);
+        provider.SetOAuthCredentials(new DropboxOAuthCredential(
+            "test-app-key",
+            "stale-access-token",
+            "test-refresh-token",
+            DateTime.UtcNow.AddHours(1)));
+
+        var result = await provider.EnsureShareableDownloadUrlAsync("id:abc", "publisher.json", CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Equal(
+            provider.GetDirectDownloadUrl("https://www.dropbox.com/s/abc123/file.zip?dl=0"),
+            result.Data);
     }
 
     private static DropboxHostingProvider CreateProvider(DropboxStubHandler handler)

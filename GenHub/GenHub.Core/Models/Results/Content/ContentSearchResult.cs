@@ -79,6 +79,12 @@ public class ContentSearchResult
     /// <summary>Gets or sets a value indicating whether this is a partial result that needs resolution to get full details.</summary>
     public bool RequiresResolution { get; set; }
 
+    /// <summary>Gets or sets a value indicating whether this content is featured.</summary>
+    public bool IsFeatured { get; set; }
+
+    /// <summary>Gets or sets a custom badge label shown on featured cards.</summary>
+    public string? FeaturedBadge { get; set; }
+
     /// <summary>Gets or sets the resolver ID needed to get full content details (if RequiresResolution is true).</summary>
     public string? ResolverId { get; set; }
 

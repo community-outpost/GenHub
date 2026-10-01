@@ -112,8 +112,17 @@ public interface IPublisherStudioDialogService
     /// <summary>
     /// Shows the add artifact dialog to attach a file to a release.
     /// </summary>
+    /// <param name="allowVariants">True to expose variant fields; false for bundle-mode releases whose artifacts install together.</param>
     /// <returns>The created release artifact, or null if cancelled.</returns>
-    Task<ReleaseArtifact?> ShowAddArtifactDialogAsync();
+    Task<ReleaseArtifact?> ShowAddArtifactDialogAsync(bool allowVariants = true);
+
+    /// <summary>
+    /// Shows the edit artifact dialog for an existing release artifact.
+    /// </summary>
+    /// <param name="existing">The existing artifact to edit.</param>
+    /// <param name="allowVariants">True to expose variant fields; false for bundle-mode releases whose artifacts install together.</param>
+    /// <returns>The updated release artifact, or null if cancelled.</returns>
+    Task<ReleaseArtifact?> ShowEditArtifactDialogAsync(ReleaseArtifact existing, bool allowVariants = true);
 
     /// <summary>
     /// Shows the add dependency dialog for a content item.

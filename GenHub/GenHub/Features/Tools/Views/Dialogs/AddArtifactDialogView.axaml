@@ -55,7 +55,7 @@
     <Grid RowDefinitions="Auto,*,Auto" Margin="24">
         <!-- Header -->
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,24">
-            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.AddTitle}"
+            <TextBlock Text="{Binding DialogTitle}"
                        FontSize="22" FontWeight="Bold"
                        Foreground="{DynamicResource TextPrimary}"/>
             <Button Grid.Column="1"
@@ -208,6 +208,49 @@
 
                 <CheckBox Content="{localization:Localize Tools.PublisherStudio.Artifact.PrimaryArtifact}" IsChecked="{Binding IsPrimary}"
                           ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Artifact.PrimaryArtifactTooltip}"/>
+
+                <!-- Divider -->
+                <Rectangle Height="1" Fill="{DynamicResource GlassStrongBrush}" Margin="0,4"
+                           IsVisible="{Binding AllowVariants}"/>
+
+                <!-- Variant (hidden for bundle-mode releases whose artifacts install together) -->
+                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.VariantHeader}" Classes="label"
+                           IsVisible="{Binding AllowVariants}"/>
+
+                <StackPanel Spacing="8" IsVisible="{Binding AllowVariants}">
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.VariantAxis}" Classes="label"/>
+                    <ComboBox ItemsSource="{Binding VariantAxisSelector.Options}"
+                              SelectedItem="{Binding VariantAxisSelector.SelectedOption}"
+                              HorizontalAlignment="Stretch">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate DataType="vm:VariantAxisOption">
+                                <StackPanel Spacing="2" Margin="0,4">
+                                    <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimary}"/>
+                                    <TextBlock Text="{Binding Description}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <TextBox Text="{Binding VariantAxisSelector.CustomValue}"
+                             Watermark="{localization:Localize Tools.PublisherStudio.Content.UpstreamVariantAxisCustomPlaceholder}"
+                             IsVisible="{Binding VariantAxisSelector.ShowCustomValue}"/>
+                    <TextBlock Text="{Binding VariantAxisSelector.SelectedDescription}"
+                               Classes="hint"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <StackPanel Spacing="8" IsVisible="{Binding AllowVariants}">
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.VariantLabel}" Classes="label"/>
+                    <TextBox Text="{Binding Variant}"
+                             Watermark="{localization:Localize Tools.PublisherStudio.Artifact.VariantLabelPlaceholder}"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.VariantLabelHint}"
+                               Classes="hint"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <CheckBox Content="{localization:Localize Tools.PublisherStudio.Artifact.DefaultVariant}" IsChecked="{Binding IsDefaultVariant}"
+                          IsVisible="{Binding AllowVariants}"
+                          ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Artifact.DefaultVariantTooltip}"/>
             </StackPanel>
         </ScrollViewer>
 
@@ -220,7 +263,7 @@
                         MaxWidth="300"
                         Margin="0,0,12,0"/>
 
-             <Button Content="{localization:Localize Tools.PublisherStudio.Artifact.AddTitle}"
+             <Button Content="{Binding SubmitButtonText}"
                      Command="{Binding CreateArtifactCommand}"
                      Background="{DynamicResource PrimaryGradientBrush}"
                      Foreground="{DynamicResource TextPrimary}"

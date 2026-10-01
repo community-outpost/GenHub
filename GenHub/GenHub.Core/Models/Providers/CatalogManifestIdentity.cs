@@ -22,6 +22,17 @@ public static class CatalogManifestIdentity
     private const string WeeklyPrefix = "weekly-";
     private static readonly NumericVersionScheme VersionScheme = new();
 
+    private static readonly Dictionary<string, string> PublisherTypeAliases = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["communityoutpost"] = CommunityOutpostConstants.PublisherType,
+        ["generalsonline"] = PublisherTypeConstants.GeneralsOnline,
+        ["thesuperhackers"] = PublisherTypeConstants.TheSuperHackers,
+        ["github"] = PublisherTypeConstants.GitHub,
+        ["githubreleases"] = PublisherTypeConstants.GitHub,
+        ["moddb"] = PublisherTypeConstants.ModDB,
+        ["generic"] = CatalogConstants.GenericCatalogResolverId,
+    };
+
     private static readonly string[] KnownVariantPrefixes =
     [
         "resolution",
@@ -159,31 +170,51 @@ public static class CatalogManifestIdentity
     /// <returns>The normalized publisher type string.</returns>
     public static string ResolveDeclaredPublisherType(string? publisherType)
     {
-        if (!string.IsNullOrWhiteSpace(publisherType))
+        if (string.IsNullOrWhiteSpace(publisherType))
         {
-            var raw = publisherType.Trim();
-            if (raw.Equals(CatalogConstants.GenericCatalogResolverId, StringComparison.OrdinalIgnoreCase) ||
-                raw.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
-                raw.Equals(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase) ||
-                raw.Equals(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
-                raw.Equals(PublisherTypeConstants.GitHub, StringComparison.OrdinalIgnoreCase) ||
-                raw.Equals(PublisherTypeConstants.ModDB, StringComparison.OrdinalIgnoreCase))
+            return CatalogConstants.GenericCatalogResolverId;
+        }
+
+        var normalized = publisherType.Trim().ToLowerInvariant().Replace("-", string.Empty).Replace(" ", string.Empty).Replace("_", string.Empty);
+        return PublisherTypeAliases.TryGetValue(normalized, out var canonical)
+            ? canonical
+            : CatalogConstants.GenericCatalogResolverId;
+    }
+
+    /// <summary>
+    /// Resolves the declared publisher type / native pipeline for a catalog item.
+    /// Checks the item's declared publisher type, falling back to upstream provider if present.
+    /// Returns an allowlisted publisher type or defaults to <see cref="CatalogConstants.GenericCatalogResolverId"/>.
+    /// </summary>
+    /// <param name="item">The catalog content item.</param>
+    /// <returns>The normalized publisher type string.</returns>
+    public static string ResolveDeclaredPublisherType(CatalogContentItem? item)
+    {
+        if (item == null)
+        {
+            return CatalogConstants.GenericCatalogResolverId;
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.PublisherType))
+        {
+            var resolved = ResolveDeclaredPublisherType(item.PublisherType);
+            if (resolved != CatalogConstants.GenericCatalogResolverId)
             {
-                return raw.ToLowerInvariant();
+                return resolved;
+            }
+        }
+
+        if (item.UpstreamSync != null && !string.IsNullOrWhiteSpace(item.UpstreamSync.Provider))
+        {
+            var resolvedFromProvider = ResolveDeclaredPublisherType(item.UpstreamSync.Provider);
+            if (resolvedFromProvider != CatalogConstants.GenericCatalogResolverId)
+            {
+                return resolvedFromProvider;
             }
         }
 
         return CatalogConstants.GenericCatalogResolverId;
     }
-
-    /// <summary>
-    /// Resolves the declared publisher type / native pipeline for a catalog item.
-    /// Returns an allowlisted publisher type or defaults to <see cref="CatalogConstants.GenericCatalogResolverId"/>.
-    /// </summary>
-    /// <param name="item">The catalog content item.</param>
-    /// <returns>The normalized publisher type string.</returns>
-    public static string ResolveDeclaredPublisherType(CatalogContentItem? item) =>
-        ResolveDeclaredPublisherType(item?.PublisherType);
 
     /// <summary>
     /// Converts a hyphen- or dot-separated slug into a human-readable title.
