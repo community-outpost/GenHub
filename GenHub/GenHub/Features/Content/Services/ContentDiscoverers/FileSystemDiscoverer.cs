@@ -66,13 +66,9 @@ public class FileSystemDiscoverer : IContentDiscoverer
         var discoveredItems = new List<ContentSearchResult>();
 
         // Use ManifestDiscoveryService for comprehensive discovery
-        var discoveryResult = await DiscoverManifestsAsync(cancellationToken);
-        if (!discoveryResult.Success || discoveryResult.Data is null)
-        {
-            return OperationResult<ContentDiscoveryResult>.CreateFailure(discoveryResult.FirstError ?? "Failed to discover manifests");
-        }
+        var discoveredManifests = await _manifestDiscoveryService.DiscoverManifestsAsync(_contentDirectories, cancellationToken);
 
-        foreach (var manifestEntry in discoveryResult.Data)
+        foreach (var manifestEntry in discoveredManifests)
         {
             var manifest = manifestEntry.Value;
 
@@ -129,20 +125,6 @@ public class FileSystemDiscoverer : IContentDiscoverer
             TotalItems = discoveredItems.Count,
         };
         return OperationResult<ContentDiscoveryResult>.CreateSuccess(result);
-    }
-
-    private async Task<OperationResult<Dictionary<string, ContentManifest>>> DiscoverManifestsAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            var manifests = await _manifestDiscoveryService.DiscoverManifestsAsync(_contentDirectories, cancellationToken);
-            return OperationResult<Dictionary<string, ContentManifest>>.CreateSuccess(manifests);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to discover manifests from content directories");
-            return OperationResult<Dictionary<string, ContentManifest>>.CreateFailure($"Failed to discover manifests {ex.Message}");
-        }
     }
 
     private void InitializeContentDirectories()
