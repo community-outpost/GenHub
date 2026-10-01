@@ -810,7 +810,11 @@ public class ContentStorageServiceTests : IDisposable
                     Directory.Delete(_tempRoot, true);
                 }
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (IOException)
+            {
+                // Ignore cleanup errors
+            }
+            catch (UnauthorizedAccessException)
             {
                 // Ignore cleanup errors
             }

@@ -55,12 +55,12 @@ public static class ManifestVariantResolver
     /// </summary>
     /// <param name="manifest">The manifest to enumerate.</param>
     /// <returns>All declared files.</returns>
-    public static IEnumerable<ManifestFile> EnumerateAllFiles(ContentManifest manifest)
+    public static IReadOnlyList<ManifestFile> EnumerateAllFiles(ContentManifest manifest)
     {
         ArgumentNullException.ThrowIfNull(manifest);
 
         var variantFiles = manifest.Variants.SelectMany(v => v?.Files ?? []);
-        return (manifest.Files ?? []).Concat(variantFiles);
+        return (manifest.Files ?? []).Concat(variantFiles).Where(f => f is not null).ToList();
     }
 
     /// <summary>
@@ -131,8 +131,8 @@ public static class ManifestVariantResolver
 
         // Prefer an explicit match over a platform-neutral one, so a manifest carrying
         // both a native build and a neutral asset bundle resolves to the native build.
-        return manifest.Variants.FirstOrDefault(v => v.RuntimeIdentifiers.Count > 0 && v.SupportsRuntime(rid))
-            ?? manifest.Variants.FirstOrDefault(v => v.RuntimeIdentifiers.Count == 0);
+        return manifest.Variants.FirstOrDefault(v => v is not null && v.RuntimeIdentifiers is { Count: > 0 } && v.SupportsRuntime(rid))
+            ?? manifest.Variants.FirstOrDefault(v => v is not null && v.RuntimeIdentifiers is { Count: 0 });
     }
 
     /// <summary>

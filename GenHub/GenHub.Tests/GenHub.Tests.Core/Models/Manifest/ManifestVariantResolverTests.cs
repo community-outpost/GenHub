@@ -501,6 +501,18 @@ public class ManifestVariantResolverTests
             ManifestVariantResolver.EnumerateAllFiles(manifest).Select(f => f.RelativePath));
     }
 
+    /// <summary>Malformed entries do not prevent valid variants from being resolved.</summary>
+    [Fact]
+    public void ResolveVariant_SkipsNullEntries()
+    {
+        var variant = new ArtifactVariant { RuntimeIdentifiers = ["osx-arm64"], Files = [File("generalszh")] };
+        var manifest = new ContentManifest { Variants = [null!, variant], Files = [null!] };
+
+        Assert.Same(variant, ManifestVariantResolver.ResolveVariant(manifest, "osx-arm64"));
+        Assert.Equal("generalszh", Assert.Single(ManifestVariantResolver.EnumerateAllFiles(manifest)).RelativePath);
+        Assert.Null(ManifestVariantResolver.ResolveVariant(manifest, "linux-x64"));
+    }
+
     private static ManifestFile File(string path, bool isExecutable = false) =>
         new() { RelativePath = path, IsExecutable = isExecutable };
 }
