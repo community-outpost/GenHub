@@ -23,6 +23,7 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services;
 using GenHub.Features.Downloads.ViewModels;
+using GenHub.Features.Info.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
@@ -3910,6 +3911,103 @@ public sealed class ContentDetailViewModelTests
         Assert.DoesNotContain("No description available.", formatted, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Verifies that expanding a Generals Online release row requiring patch notes invokes FetchDetailsAsync,
+    /// updates the row and sibling changelog, and fires onDescriptionEnriched.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task PopulateReleases_GeneralsOnlineRow_FetchDetailsEnrichesDescriptionAsync()
+    {
+        // Arrange
+        const string version = "092826";
+        const string fetchedNotes = "Update 092826\n- Fixed multiplayer lag";
+
+        var releaseData = new GeneralsOnlineRelease
+        {
+            Version = version,
+            PortableUrl = "https://example.com/portable.zip",
+        };
+
+        var parent = new ContentSearchResult
+        {
+            Id = "GO_Test",
+            Name = "Generals Online",
+            ProviderName = GeneralsOnlineConstants.PublisherType,
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            ResolverId = GeneralsOnlineConstants.ResolverId,
+            RequiresResolution = true,
+            Data = releaseData,
+        };
+
+        var patchNotesMock = new Mock<IGeneralsOnlinePatchNotesService>();
+        patchNotesMock
+            .Setup(s => s.GetPatchNotesFormattedAsync(version, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(fetchedNotes);
+
+        string? enrichedVersion = null;
+        string? enrichedDescription = null;
+
+        var siblingResult = new ContentSearchResult
+        {
+            Id = "GO_Sibling",
+            Version = version,
+            Description = "Generals Online 092826",
+            Data = new GeneralsOnlineRelease { Version = version, PortableUrl = releaseData.PortableUrl },
+        };
+
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        var viewModel = new CapturingContentDetailViewModel(
+            parent,
+            [],
+            new Mock<IProfileContentService>().Object,
+            new Mock<IGameProfileManager>().Object,
+            new Mock<INotificationService>().Object,
+            new Mock<ITabProviderRegistry>().Object,
+            new Mock<IContentStateService>().Object,
+            coordinator.Object,
+            new Mock<IContentManifestPool>().Object,
+            new Mock<ILoggerFactory>().Object,
+            new Mock<ILogger<ContentDetailViewModel>>().Object,
+            variantSearchResults: new Dictionary<string, ContentSearchResult>(StringComparer.OrdinalIgnoreCase)
+            {
+                [siblingResult.Id] = siblingResult,
+                [version] = siblingResult,
+            },
+            patchNotesService: patchNotesMock.Object,
+            onDescriptionEnriched: (v, desc) =>
+            {
+                enrichedVersion = v;
+                enrichedDescription = desc;
+            })
+        {
+            Variants =
+            [
+                new InstallableVariant { ManifestId = siblingResult.Id, Name = "Generals Online" },
+            ],
+        };
+
+        // Act
+        viewModel.PopulateReleasesFromVariants();
+        var row = Assert.Single(viewModel.Releases);
+
+        Assert.False(row.IsDetailsLoaded);
+        Assert.NotNull(row.FetchDetailsAsync);
+
+        await row.FetchDetailsAsync(row, CancellationToken.None);
+
+        // Assert
+        Assert.True(row.IsDetailsLoaded);
+        Assert.Equal(fetchedNotes, row.FullDescription);
+        Assert.Equal(fetchedNotes, siblingResult.Description);
+        var siblingData = siblingResult.GetData<GeneralsOnlineRelease>();
+        Assert.NotNull(siblingData);
+        Assert.Equal(fetchedNotes, siblingData.Changelog);
+        Assert.Equal(version, enrichedVersion);
+        Assert.Equal(fetchedNotes, enrichedDescription);
+    }
+
     private static Mock<IContentManifestPool> CreateManifestPoolMock(ContentManifest doomedManifest, IReadOnlyList<ContentManifest>? allManifests = null)
     {
         var manifestPool = new Mock<IContentManifestPool>();
@@ -4064,7 +4162,9 @@ public sealed class ContentDetailViewModelTests
         IDialogService? dialogService = null,
         Func<string, Task>? deletedAction = null,
         IContentArtworkService? artworkService = null,
-        IGitHubApiClient? gitHubApiClient = null)
+        IGitHubApiClient? gitHubApiClient = null,
+        IGeneralsOnlinePatchNotesService? patchNotesService = null,
+        Action<string, string>? onDescriptionEnriched = null)
         : ContentDetailViewModel(
             searchResult,
             parsers,
@@ -4085,7 +4185,9 @@ public sealed class ContentDetailViewModelTests
             dialogService: dialogService,
             deletedAction: deletedAction,
             artworkService: artworkService,
-            gitHubApiClient: gitHubApiClient)
+            gitHubApiClient: gitHubApiClient,
+            patchNotesService: patchNotesService,
+            onDescriptionEnriched: onDescriptionEnriched)
     {
         /// <summary>
         /// Gets the manifest ID sent to the profile selection flow.

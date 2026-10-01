@@ -61,7 +61,7 @@ public class GeneralsOnlinePatchNotesServiceTests
 
         var factoryMock = new Mock<IHttpClientFactory>();
         factoryMock.Setup(f => f.CreateClient(It.IsAny<string>()))
-            .Returns(() => new HttpClient(handler));
+            .Returns(() => new HttpClient(handler, disposeHandler: false));
 
         var service = new GeneralsOnlinePatchNotesService(
             factoryMock.Object,
@@ -118,7 +118,7 @@ public class GeneralsOnlinePatchNotesServiceTests
         var handler = new TestHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
         var factoryMock = new Mock<IHttpClientFactory>();
         factoryMock.Setup(f => f.CreateClient(It.IsAny<string>()))
-            .Returns(() => new HttpClient(handler));
+            .Returns(() => new HttpClient(handler, disposeHandler: false));
 
         var service = new GeneralsOnlinePatchNotesService(
             factoryMock.Object,
@@ -150,7 +150,7 @@ public class GeneralsOnlinePatchNotesServiceTests
 
         var factoryMock = new Mock<IHttpClientFactory>();
         factoryMock.Setup(f => f.CreateClient(It.IsAny<string>()))
-            .Returns(() => new HttpClient(handler));
+            .Returns(() => new HttpClient(handler, disposeHandler: false));
 
         var service = new GeneralsOnlinePatchNotesService(
             factoryMock.Object,
@@ -236,7 +236,7 @@ public class GeneralsOnlinePatchNotesServiceTests
 
         var factoryMock = new Mock<IHttpClientFactory>();
         factoryMock.Setup(f => f.CreateClient(It.IsAny<string>()))
-            .Returns(() => new HttpClient(handler));
+            .Returns(() => new HttpClient(handler, disposeHandler: false));
 
         var service = new GeneralsOnlinePatchNotesService(
             factoryMock.Object,
@@ -326,7 +326,7 @@ public class GeneralsOnlinePatchNotesServiceTests
 
         var factoryMock = new Mock<IHttpClientFactory>();
         factoryMock.Setup(f => f.CreateClient(It.IsAny<string>()))
-            .Returns(() => new HttpClient(handler));
+            .Returns(() => new HttpClient(handler, disposeHandler: false));
 
         var service = new GeneralsOnlinePatchNotesService(
             factoryMock.Object,
@@ -381,7 +381,7 @@ public class GeneralsOnlinePatchNotesServiceTests
 
         var factoryMock = new Mock<IHttpClientFactory>();
         factoryMock.Setup(f => f.CreateClient(It.IsAny<string>()))
-            .Returns(() => new HttpClient(handler));
+            .Returns(() => new HttpClient(handler, disposeHandler: false));
 
         var service = new GeneralsOnlinePatchNotesService(
             factoryMock.Object,
@@ -397,6 +397,105 @@ public class GeneralsOnlinePatchNotesServiceTests
         var note082826 = notes.First(n => n.Id == "082826");
         Assert.Equal("082826", note082826.Id);
         Assert.Equal("https://www.playgenerals.online/patchnotes/082826", note082826.DetailsUrl);
+    }
+
+    /// <summary>
+    /// Tests that <see cref="GeneralsOnlinePatchNotesService.GetPatchNotesFormattedAsync"/> does not cache HTTP failures, allowing subsequent retries to succeed.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetPatchNotesFormattedAsync_HttpFailure_DoesNotCacheAndAllowsRetryAsync()
+    {
+        var callCount = 0;
+        var handler = new TestHttpMessageHandler(_ =>
+        {
+            callCount++;
+            if (callCount == 1)
+            {
+                return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(SamplePatchNotesHtml),
+            };
+        });
+
+        var factoryMock = new Mock<IHttpClientFactory>();
+        factoryMock.Setup(f => f.CreateClient(It.IsAny<string>()))
+            .Returns(() => new HttpClient(handler, disposeHandler: false));
+
+        var service = new GeneralsOnlinePatchNotesService(
+            factoryMock.Object,
+            NullLogger<GeneralsOnlinePatchNotesService>.Instance);
+
+        var firstResult = await service.GetPatchNotesFormattedAsync("082826");
+        Assert.Null(firstResult);
+
+        var secondResult = await service.GetPatchNotesFormattedAsync("082826");
+        Assert.NotNull(secondResult);
+        Assert.Contains("Update 082826", secondResult);
+        Assert.Equal(2, callCount);
+    }
+
+    /// <summary>
+    /// Tests that <see cref="GeneralsOnlinePatchNotesService.GetPatchNotesFormattedAsync"/> rethrows when the cancellation token is cancelled.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetPatchNotesFormattedAsync_CancelledToken_RethrowsOperationCanceledExceptionAsync()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var handler = new TestHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(SamplePatchNotesHtml),
+        });
+
+        var factoryMock = new Mock<IHttpClientFactory>();
+        factoryMock.Setup(f => f.CreateClient(It.IsAny<string>()))
+            .Returns(() => new HttpClient(handler, disposeHandler: false));
+
+        var service = new GeneralsOnlinePatchNotesService(
+            factoryMock.Object,
+            NullLogger<GeneralsOnlinePatchNotesService>.Instance);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            service.GetPatchNotesFormattedAsync("082826", cts.Token));
+    }
+
+    /// <summary>
+    /// Tests that <see cref="GeneralsOnlinePatchNotesService.GetPatchDetailsAsync"/> rethrows when the cancellation token is cancelled.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetPatchDetailsAsync_CancelledToken_RethrowsOperationCanceledExceptionAsync()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var handler = new TestHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(SamplePatchNotesHtml),
+        });
+
+        var factoryMock = new Mock<IHttpClientFactory>();
+        factoryMock.Setup(f => f.CreateClient(It.IsAny<string>()))
+            .Returns(() => new HttpClient(handler, disposeHandler: false));
+
+        var service = new GeneralsOnlinePatchNotesService(
+            factoryMock.Object,
+            NullLogger<GeneralsOnlinePatchNotesService>.Instance);
+
+        var patchNote = new GenHub.Core.Models.Info.PatchNote
+        {
+            Id = "082826",
+            DetailsUrl = "https://www.playgenerals.online/patchnotes/082826",
+        };
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            service.GetPatchDetailsAsync(patchNote, cts.Token));
     }
 
     private sealed class TestHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> handler) : HttpMessageHandler

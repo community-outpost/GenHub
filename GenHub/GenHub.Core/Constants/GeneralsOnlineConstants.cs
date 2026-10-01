@@ -62,6 +62,27 @@ public static class GeneralsOnlineConstants
     /// <summary>Changelog and release notes URL template.</summary>
     public const string ChangelogUrl = "https://generalsonline.com/changelog";
 
+    /// <summary>Base website URL for Play Generals Online.</summary>
+    public const string PlayGeneralsOnlineBaseUrl = "https://www.playgenerals.online";
+
+    /// <summary>Play Generals Online domain host name.</summary>
+    public const string PlayGeneralsOnlineDomain = "www.playgenerals.online";
+
+    /// <summary>Play Generals Online apex domain host name.</summary>
+    public const string PlayGeneralsOnlineApexDomain = "playgenerals.online";
+
+    /// <summary>Play Generals Online legacy .com domain host name.</summary>
+    public const string PlayGeneralsOnlineComDomain = "playgeneralsonline.com";
+
+    /// <summary>Play Generals Online legacy www .com domain host name.</summary>
+    public const string PlayGeneralsOnlineWwwComDomain = "www.playgeneralsonline.com";
+
+    /// <summary>Generals Online website domain host name.</summary>
+    public const string GeneralsOnlineDomain = "generalsonline.com";
+
+    /// <summary>Generals Online www website domain host name.</summary>
+    public const string GeneralsOnlineWwwDomain = "www.generalsonline.com";
+
     /// <summary>Patch notes URL for Generals Online.</summary>
     public const string PatchNotesUrl = "https://www.playgenerals.online/patchnotes";
 
@@ -78,6 +99,9 @@ public static class GeneralsOnlineConstants
 
     /// <summary>Path to publisher cover asset.</summary>
     public const string CoverSource = "avares://GenHub/Assets/Images/Publishers/generalsonline_cover.png";
+
+    /// <summary>Portable release description suffix.</summary>
+    public const string PortableReleaseSuffix = " portable release";
 
     // ===== Versioning and Sync =====
 
@@ -211,6 +235,19 @@ public static class GeneralsOnlineConstants
 
     /// <summary>Unique step key identifying Easy Anti-Cheat installation for Generals Online.</summary>
     public const string EacStepKey = PublisherType + ":eac:" + EacProductId;
+
+    // ===== Known Domains =====
+
+    /// <summary>Known domain host names for Generals Online services and websites.</summary>
+    public static readonly string[] KnownDomains =
+    [
+        PlayGeneralsOnlineDomain,
+        PlayGeneralsOnlineApexDomain,
+        PlayGeneralsOnlineComDomain,
+        PlayGeneralsOnlineWwwComDomain,
+        GeneralsOnlineDomain,
+        GeneralsOnlineWwwDomain,
+    ];
 
     // ===== Content Tags =====
 

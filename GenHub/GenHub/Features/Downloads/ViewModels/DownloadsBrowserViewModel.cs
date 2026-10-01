@@ -3742,9 +3742,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 patchNotesService: serviceProvider.GetService(typeof(IGeneralsOnlinePatchNotesService)) as IGeneralsOnlinePatchNotesService,
                 onDescriptionEnriched: (version, desc) =>
                 {
-                    var currentCardVersion = item.SearchResult.Version;
-                    if (string.Equals(currentCardVersion, version, StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(currentCardVersion?.TrimStart('v', 'V'), version.TrimStart('v', 'V'), StringComparison.OrdinalIgnoreCase))
+                    if (GeneralsOnlinePatchNotesHelper.VersionsMatch(item.SearchResult.Version, version))
                     {
                         item.UpdateDescription(desc);
                     }

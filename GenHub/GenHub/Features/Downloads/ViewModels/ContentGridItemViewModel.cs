@@ -11,8 +11,10 @@ using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GeneralsOnline;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.Downloads.Services;
 using GenHub.Infrastructure.Converters;
 using GenHub.Infrastructure.Services;
@@ -220,10 +222,10 @@ public sealed partial class ContentGridItemViewModel(
 
         SearchResult.Description = newDescription;
 
-        var release = SearchResult.GetData<GenHub.Core.Models.GeneralsOnline.GeneralsOnlineRelease>();
+        var release = SearchResult.GetData<GeneralsOnlineRelease>();
         if (release != null)
         {
-            SearchResult.SetData(GenHub.Features.Content.Services.GeneralsOnline.GeneralsOnlinePatchNotesHelper.WithChangelog(release, newDescription));
+            SearchResult.SetData(release.WithChangelog(newDescription));
         }
 
         OnPropertyChanged(nameof(Description));

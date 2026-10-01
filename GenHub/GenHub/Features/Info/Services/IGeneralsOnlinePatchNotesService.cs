@@ -27,8 +27,9 @@ public interface IGeneralsOnlinePatchNotesService
     /// Fetches the detailed changes for a specific patch note.
     /// </summary>
     /// <param name="patchNote">The patch note to fetch details for.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task GetPatchDetailsAsync(PatchNote patchNote);
+    Task GetPatchDetailsAsync(PatchNote patchNote, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Fetches and formats the patch notes for a given release version into plain text.

@@ -140,6 +140,7 @@ public partial class ContentDetailViewModel(
     private readonly object _basicContentLoadLock = new();
     private readonly object _preloadLock = new();
     private readonly object _contentTypePersistLock = new();
+    private readonly object _generalsOnlineSync = new();
     private readonly CancellationTokenSource _cts = new();
     private readonly List<Task> _pendingRowStateTasks = [];
     private readonly object _gitHubNotesLock = new();
@@ -1031,7 +1032,7 @@ public partial class ContentDetailViewModel(
             GeneralsOnlinePatchNotesHelper.NeedsPatchNotes(searchResult.Description, searchResult.Version) &&
             !string.IsNullOrWhiteSpace(searchResult.Version))
         {
-            _generalsOnlineNotesTask = LoadGeneralsOnlinePatchNotesAsync(searchResult.Version);
+            StartGeneralsOnlineNotesTask(searchResult.Version);
         }
     }
 
@@ -1161,9 +1162,12 @@ public partial class ContentDetailViewModel(
             tasks.Add(_variantsTask);
         }
 
-        if (_generalsOnlineNotesTask != null)
+        lock (_generalsOnlineSync)
         {
-            tasks.Add(_generalsOnlineNotesTask);
+            if (_generalsOnlineNotesTask != null)
+            {
+                tasks.Add(_generalsOnlineNotesTask);
+            }
         }
 
         await Task.WhenAll(tasks);
@@ -1532,11 +1536,14 @@ public partial class ContentDetailViewModel(
         {
             if (disposing)
             {
-                _cts.Cancel();
-                _cts.Dispose();
-                _generalsOnlineCts?.Cancel();
-                _generalsOnlineCts?.Dispose();
-                _generalsOnlineCts = null;
+                lock (_generalsOnlineSync)
+                {
+                    _cts.Cancel();
+                    _cts.Dispose();
+                    _generalsOnlineCts?.Cancel();
+                    _generalsOnlineCts?.Dispose();
+                    _generalsOnlineCts = null;
+                }
 
                 // Unsubscribe from state changes
                 contentStateService.ContentStateChanged -= OnContentStateChanged;
@@ -2705,7 +2712,7 @@ public partial class ContentDetailViewModel(
                 GeneralsOnlinePatchNotesHelper.NeedsPatchNotes(searchResult.Description, searchResult.Version) &&
                 !string.IsNullOrWhiteSpace(searchResult.Version))
             {
-                _generalsOnlineNotesTask = LoadGeneralsOnlinePatchNotesAsync(searchResult.Version);
+                StartGeneralsOnlineNotesTask(searchResult.Version);
             }
 
             OnPropertyChanged(nameof(Name));
@@ -4259,6 +4266,17 @@ public partial class ContentDetailViewModel(
         }
     }
 
+    private void StartGeneralsOnlineNotesTask(string expectedVersion)
+    {
+        lock (_generalsOnlineSync)
+        {
+            var newTask = LoadGeneralsOnlinePatchNotesAsync(expectedVersion);
+            _generalsOnlineNotesTask = _generalsOnlineNotesTask == null || _generalsOnlineNotesTask.IsCompleted
+                ? newTask
+                : Task.WhenAll(_generalsOnlineNotesTask, newTask);
+        }
+    }
+
     private async Task LoadGeneralsOnlinePatchNotesAsync(string expectedVersion)
     {
         if (patchNotesService == null || _disposed || string.IsNullOrWhiteSpace(expectedVersion))
@@ -4266,15 +4284,42 @@ public partial class ContentDetailViewModel(
             return;
         }
 
-        if (_generalsOnlineCts != null)
+        CancellationToken token = default;
+        CancellationTokenSource? ctsToDispose = null;
+        lock (_generalsOnlineSync)
         {
-            await _generalsOnlineCts.CancelAsync().ConfigureAwait(false);
-            _generalsOnlineCts.Dispose();
-            _generalsOnlineCts = null;
+            if (_disposed)
+            {
+                return;
+            }
+
+            ctsToDispose = _generalsOnlineCts;
+            try
+            {
+                _generalsOnlineCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
+                token = _generalsOnlineCts.Token;
+            }
+            catch (ObjectDisposedException)
+            {
+                return;
+            }
         }
 
-        _generalsOnlineCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
-        var token = _generalsOnlineCts.Token;
+        if (ctsToDispose != null)
+        {
+            try
+            {
+                await ctsToDispose.CancelAsync().ConfigureAwait(false);
+            }
+            catch (ObjectDisposedException)
+            {
+                // Already disposed by a concurrent caller.
+            }
+            finally
+            {
+                ctsToDispose.Dispose();
+            }
+        }
 
         try
         {
@@ -4292,8 +4337,7 @@ public partial class ContentDetailViewModel(
                 }
 
                 var currentVersion = searchResult.Version;
-                if (!string.Equals(currentVersion, expectedVersion, StringComparison.OrdinalIgnoreCase) &&
-                    !string.Equals(currentVersion?.TrimStart('v', 'V'), expectedVersion.TrimStart('v', 'V'), StringComparison.OrdinalIgnoreCase))
+                if (!GeneralsOnlinePatchNotesHelper.VersionsMatch(currentVersion, expectedVersion))
                 {
                     return;
                 }
@@ -4336,9 +4380,26 @@ public partial class ContentDetailViewModel(
 
     private void AttachGeneralsOnlinePatchNotesFetcher(ReleaseItemViewModel releaseItem, ContentSearchResult contentResult, ContentSearchResult? sibling = null)
     {
-        if (patchNotesService != null && GeneralsOnlinePatchNotesHelper.IsGeneralsOnline(contentResult))
+        if (patchNotesService != null &&
+            GeneralsOnlinePatchNotesHelper.IsGeneralsOnline(contentResult) &&
+            GeneralsOnlinePatchNotesHelper.NeedsPatchNotes(releaseItem.FullDescription, releaseItem.Version))
         {
+            releaseItem.IsDetailsLoaded = false;
             var capturedSibling = sibling;
+            if (capturedSibling == null && variantSearchResults != null)
+            {
+                if (!string.IsNullOrWhiteSpace(releaseItem.DownloadedManifestId) &&
+                    variantSearchResults.TryGetValue(releaseItem.DownloadedManifestId, out var matchByManifest))
+                {
+                    capturedSibling = matchByManifest;
+                }
+                else if (!string.IsNullOrWhiteSpace(releaseItem.Version) &&
+                    variantSearchResults.TryGetValue(releaseItem.Version, out var matchByVersion))
+                {
+                    capturedSibling = matchByVersion;
+                }
+            }
+
             releaseItem.FetchDetailsAsync = async (row, ct) =>
             {
                 if (!string.IsNullOrWhiteSpace(row.Version))
@@ -4353,9 +4414,20 @@ public partial class ContentDetailViewModel(
                             if (capturedSibling != null)
                             {
                                 capturedSibling.Description = notes;
+                                var release = capturedSibling.GetData<GeneralsOnlineRelease>();
+                                if (release != null)
+                                {
+                                    capturedSibling.SetData(release.WithChangelog(notes));
+                                }
                             }
+
+                            onDescriptionEnriched?.Invoke(row.Version, notes);
                         }).ConfigureAwait(false);
                     }
+                }
+                else
+                {
+                    await RunOnUiThreadAsync(() => row.IsDetailsLoaded = true).ConfigureAwait(false);
                 }
             };
         }

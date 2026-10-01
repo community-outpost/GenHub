@@ -21,8 +21,8 @@ namespace GenHub.Features.Info.Services;
 /// </summary>
 public class GeneralsOnlinePatchNotesService(IHttpClientFactory httpClientFactory, ILogger<GeneralsOnlinePatchNotesService> logger) : IGeneralsOnlinePatchNotesService
 {
-    private const string BaseUrl = "https://www.playgenerals.online";
-    private const string PatchNotesUrl = BaseUrl + "/patchnotes";
+    private const string BaseUrl = GeneralsOnlineConstants.PlayGeneralsOnlineBaseUrl;
+    private const string PatchNotesUrl = GeneralsOnlineConstants.PatchNotesUrl;
 
     private readonly ConcurrentDictionary<string, string> _formattedCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _patchNotesLock = new(1, 1);
@@ -141,11 +141,6 @@ public class GeneralsOnlinePatchNotesService(IHttpClientFactory httpClientFactor
             _cachedPatchNotes = result;
             return result;
         }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error fetching patch notes from {Url}", PatchNotesUrl);
-            return [];
-        }
         finally
         {
             _patchNotesLock.Release();
@@ -153,7 +148,7 @@ public class GeneralsOnlinePatchNotesService(IHttpClientFactory httpClientFactor
     }
 
     /// <inheritdoc/>
-    public async Task GetPatchDetailsAsync(PatchNote patchNote)
+    public async Task GetPatchDetailsAsync(PatchNote patchNote, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(patchNote.DetailsUrl) || patchNote.IsDetailsLoaded || patchNote.IsLoadingDetails) return;
 
@@ -162,10 +157,10 @@ public class GeneralsOnlinePatchNotesService(IHttpClientFactory httpClientFactor
             patchNote.IsLoadingDetails = true;
             using var client = httpClientFactory.CreateClient();
             AddDefaultHeaders(client);
-            var html = await client.GetStringAsync(patchNote.DetailsUrl, CancellationToken.None).ConfigureAwait(false);
+            var html = await client.GetStringAsync(patchNote.DetailsUrl, cancellationToken).ConfigureAwait(false);
 
             var context = BrowsingContext.New(Configuration.Default);
-            var document = await context.OpenAsync(req => req.Content(html), CancellationToken.None).ConfigureAwait(false);
+            var document = await context.OpenAsync(req => req.Content(html), cancellationToken).ConfigureAwait(false);
 
             var postText = document.QuerySelector(".blog-read .post-text");
             if (postText != null)
@@ -179,6 +174,10 @@ public class GeneralsOnlinePatchNotesService(IHttpClientFactory httpClientFactor
 
                 patchNote.IsDetailsLoaded = true;
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -201,7 +200,7 @@ public class GeneralsOnlinePatchNotesService(IHttpClientFactory httpClientFactor
         var normalizedKey = version.Trim();
         if (_formattedCache.TryGetValue(normalizedKey, out var cached))
         {
-            return cached;
+            return string.IsNullOrEmpty(cached) ? null : cached;
         }
 
         if (!TryExtractDatePart(normalizedKey, out var datePart))
@@ -212,7 +211,7 @@ public class GeneralsOnlinePatchNotesService(IHttpClientFactory httpClientFactor
         if (_formattedCache.TryGetValue(datePart, out var dateCached))
         {
             _formattedCache[normalizedKey] = dateCached;
-            return dateCached;
+            return string.IsNullOrEmpty(dateCached) ? null : dateCached;
         }
 
         var detailsUrl = $"{PatchNotesUrl}/{datePart}";
@@ -239,9 +238,15 @@ public class GeneralsOnlinePatchNotesService(IHttpClientFactory httpClientFactor
                 return formatted;
             }
 
+            _formattedCache[datePart] = string.Empty;
+            _formattedCache[normalizedKey] = string.Empty;
             return null;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
         {
             logger.LogWarning(ex, "Error fetching formatted patch notes for version {Version} from {Url}", version, detailsUrl);
             return null;
@@ -276,16 +281,13 @@ public class GeneralsOnlinePatchNotesService(IHttpClientFactory httpClientFactor
         }
 
         var year = 2000 + shortYear;
-
-        try
-        {
-            date = new DateTime(year, month, day, 0, 0, 0, DateTimeKind.Utc);
-            return true;
-        }
-        catch (ArgumentOutOfRangeException)
+        if (month is < 1 or > 12 || day < 1 || day > DateTime.DaysInMonth(year, month))
         {
             return false;
         }
+
+        date = new DateTime(year, month, day, 0, 0, 0, DateTimeKind.Utc);
+        return true;
     }
 
     private static PatchNote? FindBestMatchingPatchNote(IEnumerable<PatchNote> patchNotes, DateTime targetDate)
@@ -347,7 +349,7 @@ public class GeneralsOnlinePatchNotesService(IHttpClientFactory httpClientFactor
         client.DefaultRequestHeaders.Add("Referer", BaseUrl);
     }
 
-private async Task<string?> FetchFallbackPatchNotesAsync(string datePart, CancellationToken cancellationToken)
+    private async Task<string?> FetchFallbackPatchNotesAsync(string datePart, CancellationToken cancellationToken)
     {
         if (!TryParseVersionDate(datePart, out var targetDate))
         {
@@ -361,6 +363,25 @@ private async Task<string?> FetchFallbackPatchNotesAsync(string datePart, Cancel
             return null;
         }
 
-        return await GetPatchNotesFormattedAsync(bestMatch.Id, cancellationToken).ConfigureAwait(false);
+        if (_formattedCache.TryGetValue(bestMatch.Id, out var cachedFallback) && !string.IsNullOrEmpty(cachedFallback))
+        {
+            return cachedFallback;
+        }
+
+        var fallbackDetailsUrl = $"{PatchNotesUrl}/{bestMatch.Id}";
+        using var client = httpClientFactory.CreateClient();
+        AddDefaultHeaders(client);
+        var html = await client.GetStringAsync(fallbackDetailsUrl, cancellationToken).ConfigureAwait(false);
+
+        var context = BrowsingContext.New(Configuration.Default);
+        var document = await context.OpenAsync(req => req.Content(html), cancellationToken).ConfigureAwait(false);
+
+        var fallbackFormatted = FormatPatchNotesDocument(document, bestMatch.Id);
+        if (!string.IsNullOrWhiteSpace(fallbackFormatted))
+        {
+            _formattedCache[bestMatch.Id] = fallbackFormatted;
+        }
+
+        return fallbackFormatted;
     }
 }

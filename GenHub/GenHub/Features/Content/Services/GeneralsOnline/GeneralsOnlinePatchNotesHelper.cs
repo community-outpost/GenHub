@@ -43,9 +43,13 @@ public static class GeneralsOnlinePatchNotesHelper
 
         var trimmed = description.Trim();
 
-        if (string.Equals(trimmed, "www.playgenerals.online", StringComparison.OrdinalIgnoreCase) ||
-            trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-            trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        if (IsGeneralsOnlineDomainOrUrl(trimmed))
+        {
+            return true;
+        }
+
+        if (string.Equals(trimmed, GeneralsOnlineConstants.PublisherDisplayName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(trimmed, GeneralsOnlineConstants.PublisherName, StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
@@ -53,28 +57,50 @@ public static class GeneralsOnlinePatchNotesHelper
         if (!string.IsNullOrWhiteSpace(version))
         {
             var rawVersion = version.Trim();
-            var noPrefix = rawVersion.TrimStart('v', 'V');
+            var noPrefix = StripVersionPrefix(rawVersion);
 
-            if (string.Equals(trimmed, $"Generals Online {rawVersion}", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(trimmed, $"Generals Online {noPrefix}", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(trimmed, $"GeneralsOnline {rawVersion}", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(trimmed, $"GeneralsOnline {noPrefix}", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(trimmed, $"GeneralsOnline {rawVersion} portable release", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(trimmed, $"GeneralsOnline {noPrefix} portable release", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(trimmed, $"{GeneralsOnlineConstants.PublisherDisplayName} {rawVersion}", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(trimmed, $"{GeneralsOnlineConstants.PublisherDisplayName} {noPrefix}", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(trimmed, $"{GeneralsOnlineConstants.PublisherName} {rawVersion}", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(trimmed, $"{GeneralsOnlineConstants.PublisherName} {noPrefix}", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(trimmed, $"{GeneralsOnlineConstants.PublisherName} {rawVersion} (portable)", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(trimmed, $"{GeneralsOnlineConstants.PublisherName} {noPrefix} (portable)", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(trimmed, $"{GeneralsOnlineConstants.PublisherDisplayName} {rawVersion} (portable)", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(trimmed, $"{GeneralsOnlineConstants.PublisherDisplayName} {noPrefix} (portable)", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(trimmed, $"{GeneralsOnlineConstants.PublisherName} {rawVersion}{GeneralsOnlineConstants.PortableReleaseSuffix}", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(trimmed, $"{GeneralsOnlineConstants.PublisherName} {noPrefix}{GeneralsOnlineConstants.PortableReleaseSuffix}", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(trimmed, $"{GeneralsOnlineConstants.PublisherDisplayName} {rawVersion}{GeneralsOnlineConstants.PortableReleaseSuffix}", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(trimmed, $"{GeneralsOnlineConstants.PublisherDisplayName} {noPrefix}{GeneralsOnlineConstants.PortableReleaseSuffix}", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
         }
 
-        // Generic single-line placeholder without changelog bullets or details
-        if (trimmed.StartsWith("Generals Online", StringComparison.OrdinalIgnoreCase) &&
-            !trimmed.Contains('\n') &&
-            trimmed.Length < 60)
+        return false;
+    }
+
+    /// <summary>
+    /// Checks whether two version strings match, ignoring single 'v' or 'V' prefix and case.
+    /// </summary>
+    /// <param name="versionA">The first version string.</param>
+    /// <param name="versionB">The second version string.</param>
+    /// <returns><c>true</c> if both versions match; otherwise, <c>false</c>.</returns>
+    public static bool VersionsMatch(string? versionA, string? versionB)
+    {
+        if (string.IsNullOrWhiteSpace(versionA) || string.IsNullOrWhiteSpace(versionB))
         {
-            return true;
+            return false;
         }
 
-        return false;
+        var cleanA = StripVersionPrefix(versionA.Trim());
+        var cleanB = StripVersionPrefix(versionB.Trim());
+
+        if (string.IsNullOrEmpty(cleanA) || string.IsNullOrEmpty(cleanB))
+        {
+            return false;
+        }
+
+        return string.Equals(cleanA, cleanB, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -97,5 +123,41 @@ public static class GeneralsOnlinePatchNotesHelper
             Sha256 = release.Sha256,
             Changelog = changelog,
         };
+    }
+
+    private static bool IsGeneralsOnlineDomainOrUrl(string value)
+    {
+        foreach (var domain in GeneralsOnlineConstants.KnownDomains)
+        {
+            if (string.Equals(value, domain, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        if (Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+        {
+            var host = uri.Host;
+            foreach (var domain in GeneralsOnlineConstants.KnownDomains)
+            {
+                if (host.Equals(domain, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static string StripVersionPrefix(string version)
+    {
+        if (version.StartsWith('v') || version.StartsWith('V'))
+        {
+            return version[1..];
+        }
+
+        return version;
     }
 }
