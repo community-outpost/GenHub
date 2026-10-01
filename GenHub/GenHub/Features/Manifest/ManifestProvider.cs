@@ -62,7 +62,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
 
         // 2. Try embedded resources
         var manifestName = $"GenHub.Manifests.{gameClient.Id}.json";
-        var assembly = Assembly.GetExecutingAssembly();
+        var assembly = typeof(ManifestProvider).Assembly;
         using var stream = assembly.GetManifestResourceStream(manifestName);
         if (stream != null)
         {
@@ -87,9 +87,14 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
                     string? embeddedSourceDir = null;
                     try
                     {
-                        embeddedSourceDir = !string.IsNullOrEmpty(gameClient.WorkingDirectory)
-                            ? gameClient.WorkingDirectory
-                            : (!string.IsNullOrEmpty(gameClient.ExecutablePath) ? Path.GetDirectoryName(gameClient.ExecutablePath) : null);
+                        if (!string.IsNullOrEmpty(gameClient.WorkingDirectory))
+                        {
+                            embeddedSourceDir = gameClient.WorkingDirectory;
+                        }
+                        else if (!string.IsNullOrEmpty(gameClient.ExecutablePath))
+                        {
+                            embeddedSourceDir = Path.GetDirectoryName(gameClient.ExecutablePath);
+                        }
                     }
                     catch
                     {
@@ -146,9 +151,14 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
             string? gameDir = null;
             try
             {
-                gameDir = !string.IsNullOrEmpty(gameClient.WorkingDirectory)
-                    ? gameClient.WorkingDirectory
-                    : (!string.IsNullOrEmpty(gameClient.ExecutablePath) ? Path.GetDirectoryName(gameClient.ExecutablePath) : null);
+                if (!string.IsNullOrEmpty(gameClient.WorkingDirectory))
+                {
+                    gameDir = gameClient.WorkingDirectory;
+                }
+                else if (!string.IsNullOrEmpty(gameClient.ExecutablePath))
+                {
+                    gameDir = Path.GetDirectoryName(gameClient.ExecutablePath);
+                }
             }
             catch
             {
@@ -334,7 +344,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
     private async Task<ContentManifest?> LoadEmbeddedInstallationManifestAsync(GameInstallation gameInstallation, string deterministicId, CancellationToken cancellationToken)
     {
         var manifestName = $"GenHub.Manifests.{deterministicId}.json";
-        var assembly = Assembly.GetExecutingAssembly();
+        var assembly = typeof(ManifestProvider).Assembly;
         using var stream = assembly.GetManifestResourceStream(manifestName);
         if (stream != null)
         {

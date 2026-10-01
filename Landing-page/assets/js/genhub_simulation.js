@@ -2426,6 +2426,67 @@
         return html.replace(/\n/g, "<br>");
     }
 
+    function formatChangelogSummary(rawBody) {
+        if (!rawBody) {
+            return "Official GenHub release with updated assets and dependencies.";
+        }
+        const lines = rawBody.split("\n");
+        const cleanLines = [];
+        for (const rawLine of lines) {
+            const l = rawLine.trim();
+            if (l && !l.startsWith("#") && !l.startsWith("*") && !l.startsWith("-") && !l.startsWith("!")) {
+                cleanLines.push(l);
+                if (cleanLines.length === 2) {
+                    break;
+                }
+            }
+        }
+        return cleanLines.join(" ") || "Official GenHub release with updated assets and dependencies.";
+    }
+
+    function formatReleaseDate(publishedAt) {
+        if (!publishedAt) {
+            return "";
+        }
+        return new Date(publishedAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+    }
+
+    function createChangelogCard(release) {
+        const tag = release.tag_name || "";
+        const name = release.name || `GenHub ${tag}`;
+        const dateStr = formatReleaseDate(release.published_at);
+        const rawBody = release.body || "No release notes provided.";
+        const summaryText = formatChangelogSummary(rawBody);
+        const content = dateStr ? `Released on ${dateStr}. ${summaryText}` : summaryText;
+        const releaseUrl = release.html_url || "https://github.com/community-outpost/GenHub/releases";
+        const dateBlock = dateStr ? `**Published:** ${dateStr}\n\n` : "\n";
+
+        return {
+            title: name,
+            type: release.prerelease ? "Pre-release" : "Release",
+            content,
+            detailed: `**Release:** [${tag}](${releaseUrl})\n${dateBlock}${rawBody}`
+        };
+    }
+
+    function createPatchNotesCard(note) {
+        let detailsList = "* Stability and performance improvements.";
+        if (Array.isArray(note.details) && note.details.length > 0) {
+            detailsList = note.details.map(d => `* ${d}`).join("\n");
+        } else if (note.summary) {
+            detailsList = `* ${note.summary}`;
+        }
+
+        const detailedMd = `**Official Patch Notes:** [${note.title} on playgenerals.online](${note.url})\n**Date:** ${note.date}\n\n**Changes & Fixes:**\n${detailsList}`;
+
+        return {
+            title: `${note.title} (${note.date})`,
+            type: "Patch Notes",
+            content: note.summary || "Generals Online service updates and gameplay improvements.",
+            detailed: detailedMd
+        };
+    }
+
     const changelogState = {
         "changelog": { status: "idle", promise: null },
         "gochange": { status: "idle", promise: null }
@@ -2484,25 +2545,7 @@
                     }
 
                     if (Array.isArray(releases) && releases.length > 0) {
-                        infoData.changelog.cards = releases.map(r => {
-                            const tag = r.tag_name || "";
-                            const name = r.name || `GenHub ${tag}`;
-                            const dateStr = r.published_at ? new Date(r.published_at).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "";
-                            const rawBody = r.body || "No release notes provided.";
-
-                            const cleanLines = rawBody.split("\n")
-                                .map(l => l.trim())
-                                .filter(l => l && !l.startsWith("#") && !l.startsWith("*") && !l.startsWith("-") && !l.startsWith("!"));
-                            const summaryText = cleanLines.slice(0, 2).join(" ") || "Official GenHub release with updated assets and dependencies.";
-                            const content = dateStr ? `Released on ${dateStr}. ${summaryText}` : summaryText;
-
-                            return {
-                                title: name,
-                                type: r.prerelease ? "Pre-release" : "Release",
-                                content,
-                                detailed: `**Release:** [${tag}](${r.html_url || "https://github.com/community-outpost/GenHub/releases"})\n${dateStr ? `**Published:** ${dateStr}\n\n` : "\n"}${rawBody}`
-                            };
-                        });
+                        infoData.changelog.cards = releases.map(createChangelogCard);
                         changelogState.changelog.status = "loaded";
                     } else {
                         throw new Error("No release data found");
@@ -2526,20 +2569,7 @@
                     }
 
                     if (Array.isArray(notes) && notes.length > 0) {
-                        infoData.gochange.cards = notes.map(n => {
-                            const detailsList = Array.isArray(n.details) && n.details.length > 0
-                                ? n.details.map(d => `* ${d}`).join("\n")
-                                : (n.summary ? `* ${n.summary}` : "* Stability and performance improvements.");
-
-                            const detailedMd = `**Official Patch Notes:** [${n.title} on playgenerals.online](${n.url})\n**Date:** ${n.date}\n\n**Changes & Fixes:**\n${detailsList}`;
-
-                            return {
-                                title: `${n.title} (${n.date})`,
-                                type: "Patch Notes",
-                                content: n.summary || "Generals Online service updates and gameplay improvements.",
-                                detailed: detailedMd
-                            };
-                        });
+                        infoData.gochange.cards = notes.map(createPatchNotesCard);
                         changelogState.gochange.status = "loaded";
                     } else {
                         throw new Error("No patch notes data found");
