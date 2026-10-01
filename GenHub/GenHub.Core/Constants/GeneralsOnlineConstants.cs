@@ -7,6 +7,7 @@ namespace GenHub.Core.Constants;
 /// Constants for Generals Online integration.
 /// Contains provider metadata, URLs, content types, and default values.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized URI constants / mock demo paths")]
 public static class GeneralsOnlineConstants
 {
     // ===== Provider Metadata =====

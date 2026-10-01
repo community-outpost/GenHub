@@ -381,6 +381,36 @@ public partial class GeneralsOnlineProfileReconciler(
     }
 
     /// <summary>
+    /// Extracts the variant suffix from a manifest, checking tags first for explicit variant detection.
+    /// </summary>
+    /// <param name="manifest">The manifest to extract variant from.</param>
+    /// <returns>The variant suffix, or null if not detected.</returns>
+    private static string? ExtractVariant(ContentManifest manifest)
+    {
+        // First, check for explicit variant tags in metadata (preferred method for new manifests)
+        var tagVariant = ExtractVariantFromTags(manifest.Metadata?.Tags);
+        if (tagVariant != null)
+        {
+            return tagVariant;
+        }
+
+        // Fallback to ID-based detection for manifests
+        var idVariant = ExtractVariant(manifest.Id.Value);
+        if (idVariant != null)
+        {
+            return idVariant;
+        }
+
+        // Fallback to explicit metadata if available (Check TargetGame for default variant association)
+        if (manifest.TargetGame == GameType.ZeroHour && manifest.ContentType == ContentType.GameClient)
+        {
+            return GeneralsOnlineConstants.DefaultVariantSuffix;
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Extracts the variant suffix from tags, checking known variant tags.
     /// </summary>
     /// <param name="tags">The tags collection.</param>
@@ -413,36 +443,6 @@ public partial class GeneralsOnlineProfileReconciler(
             {
                 return GeneralsOnlineConstants.GameDataPatchSuffix;
             }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Extracts the variant suffix from a manifest, checking tags first for explicit variant detection.
-    /// </summary>
-    /// <param name="manifest">The manifest to extract variant from.</param>
-    /// <returns>The variant suffix, or null if not detected.</returns>
-    private static string? ExtractVariant(ContentManifest manifest)
-    {
-        // First, check for explicit variant tags in metadata (preferred method for new manifests)
-        var tagVariant = ExtractVariantFromTags(manifest.Metadata?.Tags);
-        if (tagVariant != null)
-        {
-            return tagVariant;
-        }
-
-        // Fallback to ID-based detection for manifests
-        var idVariant = ExtractVariant(manifest.Id.Value);
-        if (idVariant != null)
-        {
-            return idVariant;
-        }
-
-        // Fallback to explicit metadata if available (Check TargetGame for default variant association)
-        if (manifest.TargetGame == GameType.ZeroHour && manifest.ContentType == ContentType.GameClient)
-        {
-            return GeneralsOnlineConstants.DefaultVariantSuffix;
         }
 
         return null;

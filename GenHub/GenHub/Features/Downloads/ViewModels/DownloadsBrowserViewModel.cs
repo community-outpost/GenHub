@@ -4688,5 +4688,4 @@ public sealed partial class DownloadsBrowserViewModel(
 
         return await contentStateService.GetLocalManifestIdAsync(targetResult, cancellationToken).ConfigureAwait(false);
     }
-
 }
