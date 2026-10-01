@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GitHub;
@@ -2966,20 +2967,27 @@ public class DownloadsBrowserViewModelTests
 
     /// <summary>
     /// Verifies that CatalogLoadingStatusText reflects updating state when catalogs exist,
-    /// and loading state when no catalogs exist.
+    /// and loading state when no catalogs exist, using localized resources.
     /// </summary>
     [Fact]
     public void CatalogLoadingStatusText_ReflectsUpdateVsInitialLoadState()
     {
         // Arrange
-        using var viewModel = CreateViewModel();
+        var localizationMock = new Mock<ILocalizationService>();
+        localizationMock.Setup(l => l.GetString("Downloads.Browser.LoadingCatalogs")).Returns("Localized Loading Catalogs");
+        localizationMock.Setup(l => l.GetString("Downloads.Browser.UpdatingCatalog")).Returns("Localized Updating Catalog");
+
+        var serviceProviderMock = new Mock<IServiceProvider>();
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(ILocalizationService))).Returns(localizationMock.Object);
+
+        using var viewModel = CreateViewModel(serviceProvider: serviceProviderMock.Object);
 
         // Empty catalog list -> initial loading text
-        Assert.Equal("Loading catalogs...", viewModel.CatalogLoadingStatusText);
+        Assert.Equal("Localized Loading Catalogs", viewModel.CatalogLoadingStatusText);
 
         // Populated catalog list -> updating text
         viewModel.AvailableCatalogs.Add(new CatalogEntry { Id = "c1", Name = "Catalog 1", Url = "https://example.com/1.json" });
-        Assert.Equal("Updating catalog...", viewModel.CatalogLoadingStatusText);
+        Assert.Equal("Localized Updating Catalog", viewModel.CatalogLoadingStatusText);
     }
 
     /// <summary>

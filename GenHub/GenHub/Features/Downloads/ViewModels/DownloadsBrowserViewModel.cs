@@ -161,6 +161,9 @@ public sealed partial class DownloadsBrowserViewModel(
     private readonly ITelemetryService? _telemetryService =
         serviceProvider.GetService<ITelemetryService>();
 
+    private readonly ILocalizationService? _localizationService =
+        serviceProvider.GetService<ILocalizationService>();
+
     // GenericCatalogDiscoverer instances mapped by publisher ID for subscriber feeds.
     private readonly Dictionary<string, GenericCatalogDiscoverer> _subscribedDiscoverers =
         new(StringComparer.OrdinalIgnoreCase);
@@ -178,7 +181,6 @@ public sealed partial class DownloadsBrowserViewModel(
     private bool _suppressCatalogChanged;
     private bool _disposed;
     private bool _builtInPublishersInitialized;
-    private ILocalizationService? _localizationService;
 
     [ObservableProperty]
     private string _searchTerm = string.Empty;
@@ -337,7 +339,6 @@ public sealed partial class DownloadsBrowserViewModel(
     {
         if (!_builtInPublishersInitialized)
         {
-            _localizationService = serviceProvider.GetService<ILocalizationService>();
             if (_localizationService != null)
             {
                 _localizationService.PropertyChanged += OnLocalizationChanged;
@@ -1574,7 +1575,8 @@ public sealed partial class DownloadsBrowserViewModel(
         {
             RunOnUi(() =>
             {
-                if (string.Equals(_lastCatalogPublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
+                if (!cancellationToken.IsCancellationRequested &&
+                    string.Equals(_lastCatalogPublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
                 {
                     IsLoadingCatalogs = false;
                 }
@@ -2201,8 +2203,12 @@ public sealed partial class DownloadsBrowserViewModel(
         if (IsSubscribedPublisher)
         {
             _lastCatalogPublisherId = publisherId;
-            _catalogsCts?.Cancel();
-            _catalogsCts?.Dispose();
+            if (_catalogsCts != null)
+            {
+                await _catalogsCts.CancelAsync();
+                _catalogsCts.Dispose();
+            }
+
             _catalogsCts = CancellationTokenSource.CreateLinkedTokenSource(_vmCts.Token);
 
             await LoadAvailableCatalogsAsync(publisherId, _catalogsCts.Token);
