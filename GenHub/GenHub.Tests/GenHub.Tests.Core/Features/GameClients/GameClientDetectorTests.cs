@@ -73,6 +73,37 @@ public class GameClientDetectorTests : IDisposable
         Directory.CreateDirectory(_tempDirectory);
     }
 
+    /// <summary>A foreign-only pooled manifest must not suppress local publisher detection.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task DetectPublisherClientsFromPoolAsync_UnsupportedRuntime_AllowsLocalFallbackAsync()
+    {
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.1.generalsonline.gameclient.zerohour"),
+            ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GeneralsOnline },
+            Variants =
+            [
+                new()
+                {
+                    RuntimeIdentifiers = ["unsupported-runtime"],
+                    Files = [new ManifestFile { RelativePath = "generals.exe", SourceType = ContentSourceType.ContentAddressable, Hash = "test-hash" }],
+                },
+            ],
+        };
+        _contentManifestPoolMock.Setup(pool => pool.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest]));
+        var method = typeof(GameClientDetector).GetMethod("DetectPublisherClientsFromPoolAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var clients = new List<GameClient>();
+        var handled = await (Task<HashSet<string>>)method.Invoke(
+            _detector, [new GameInstallation(_tempDirectory, GameInstallationType.Steam), _tempDirectory, GameType.ZeroHour,
+                new HashSet<string> { PublisherTypeConstants.GeneralsOnline }, clients, CancellationToken.None])!;
+        Assert.Empty(clients);
+        Assert.DoesNotContain(PublisherTypeConstants.GeneralsOnline, handled);
+    }
+
     /// <summary>Pooled publisher manifests are scoped to the requested game.</summary>
     /// <param name="gameType">The requested game or all-game sentinel.</param>
     /// <param name="expectedCount">The expected number of manifests.</param>

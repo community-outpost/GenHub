@@ -1135,7 +1135,10 @@ public class GameClientDetector(
             {
                 var clientsFromManifests = CreateGameClientsFromManifests(existingManifests, installation, installationPath);
                 detectedClients.AddRange(clientsFromManifests);
-                publishersHandledFromPool.Add(publisherId);
+                if (clientsFromManifests.Count > 0)
+                {
+                    publishersHandledFromPool.Add(publisherId);
+                }
 
                 logger.LogInformation(
                     "Found {Count} existing {Publisher} manifests in pool, created {ClientCount} game clients for {GameType}",
