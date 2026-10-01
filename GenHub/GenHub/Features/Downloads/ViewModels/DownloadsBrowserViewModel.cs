@@ -388,7 +388,7 @@ public sealed partial class DownloadsBrowserViewModel(
 
         foreach (var item in ContentItems)
         {
-            _ = item.EnsureIconsLoadedAsync();
+            _ = item.EnsureIconsLoadedAsync(_vmCts.Token);
         }
     }
 
@@ -3533,7 +3533,7 @@ public sealed partial class DownloadsBrowserViewModel(
             {
                 foreach (var item in items)
                 {
-                    _ = item.EnsureIconsLoadedAsync();
+                    _ = item.EnsureIconsLoadedAsync(_vmCts.Token);
                 }
 
                 ReconcileReleaseUpdateStates(ContentItems);
