@@ -51,7 +51,9 @@ public sealed class WorkspaceVariantTests : IDisposable
     {
         var configuration = CreateConfiguration(strategyType, CreateManifest());
 
-        await CreateStrategy(strategyType).PrepareAsync(configuration, null, CancellationToken.None);
+        var result = await CreateStrategy(strategyType).PrepareAsync(configuration, null, CancellationToken.None);
+
+        Assert.True(result.IsPrepared);
 
         Assert.True(FileOperationsTouched(HostFileName), $"{strategyType} did not materialize the host variant's file.");
         Assert.False(FileOperationsTouched(ForeignFileName), $"{strategyType} materialized the foreign variant's file.");

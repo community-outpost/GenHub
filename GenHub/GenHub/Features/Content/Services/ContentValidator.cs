@@ -103,6 +103,14 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
 
         ArgumentNullException.ThrowIfNull(manifest);
 
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!ManifestVariantResolver.SupportsRuntime(manifest))
+        {
+            return new ValidationResult(
+                manifest.Id,
+                [new ValidationIssue($"Manifest has no variant supporting this host ({ManifestVariantResolver.CurrentRuntimeIdentifier}).", ValidationSeverity.Error)]);
+        }
+
         var issues = new List<ValidationIssue>();
         var files = ManifestVariantResolver.ResolveFiles(manifest);
         var totalFiles = files.Count;

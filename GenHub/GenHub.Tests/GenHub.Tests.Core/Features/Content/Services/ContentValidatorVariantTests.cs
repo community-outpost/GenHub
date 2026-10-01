@@ -137,6 +137,28 @@ public sealed class ContentValidatorVariantTests : IDisposable
         Assert.DoesNotContain(result.Issues, issue => issue.Message.Contains("Unexpected error", StringComparison.Ordinal));
     }
 
+    /// <summary>Unsupported variants cannot pass host integrity validation as an empty manifest.</summary>
+    /// <param name="fullValidation">Whether all validation phases are run.</param>
+    /// <returns>The asynchronous test.</returns>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ValidateIntegrity_UnsupportedRuntime_ReturnsErrorAsync(bool fullValidation)
+    {
+        var manifest = CreateManifest();
+        foreach (var variant in manifest.Variants)
+        {
+            variant.RuntimeIdentifiers = ["unsupported-runtime"];
+        }
+
+        var result = fullValidation
+            ? await _validator.ValidateAllAsync(_contentDirectory, manifest)
+            : await _validator.ValidateContentIntegrityAsync(_contentDirectory, manifest);
+        Assert.Contains(result.Issues, issue => issue.Message.Contains("no variant supporting this host", StringComparison.Ordinal)
+            && issue.Severity == ValidationSeverity.Error);
+        Assert.Equal(0, result.TotalFilesValidated);
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {
