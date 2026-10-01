@@ -158,12 +158,14 @@ public sealed partial class ContentGridItemViewModel(
             publisherLogoUrl = null;
         }
 
+        _loadedPublisherLogoUrl = publisherLogoUrl;
         if (!string.IsNullOrEmpty(publisherLogoUrl) && PublisherLogoBitmap == null)
         {
             PublisherLogoBitmap = ImageCacheService.Instance.GetBitmapFromMemory(publisherLogoUrl);
         }
 
         var thumbnailUrl = ThumbnailUrl;
+        _loadedThumbnailUrl = thumbnailUrl;
         if (!string.IsNullOrEmpty(thumbnailUrl) && IconBitmap == null)
         {
             IconBitmap = ImageCacheService.Instance.GetBitmapFromMemory(thumbnailUrl);
@@ -970,6 +972,8 @@ public sealed partial class ContentGridItemViewModel(
     }
 
     private int _iconLoadVersion;
+    private string? _loadedPublisherLogoUrl;
+    private string? _loadedThumbnailUrl;
 
     private async Task LoadIconAsync()
     {
@@ -986,15 +990,23 @@ public sealed partial class ContentGridItemViewModel(
             publisherLogoUrl = null;
         }
 
-        if (!string.IsNullOrEmpty(publisherLogoUrl) && PublisherLogoBitmap == null)
+        var thumbnailUrl = ThumbnailUrl;
+
+        // When switching variants or when URLs change, synchronize loaded URLs and bitmaps
+        if (!string.Equals(_loadedPublisherLogoUrl, publisherLogoUrl, StringComparison.OrdinalIgnoreCase))
         {
-            PublisherLogoBitmap = ImageCacheService.Instance.GetBitmapFromMemory(publisherLogoUrl);
+            _loadedPublisherLogoUrl = publisherLogoUrl;
+            PublisherLogoBitmap = !string.IsNullOrEmpty(publisherLogoUrl)
+                ? ImageCacheService.Instance.GetBitmapFromMemory(publisherLogoUrl)
+                : null;
         }
 
-        var thumbnailUrl = ThumbnailUrl;
-        if (!string.IsNullOrEmpty(thumbnailUrl) && IconBitmap == null)
+        if (!string.Equals(_loadedThumbnailUrl, thumbnailUrl, StringComparison.OrdinalIgnoreCase))
         {
-            IconBitmap = ImageCacheService.Instance.GetBitmapFromMemory(thumbnailUrl);
+            _loadedThumbnailUrl = thumbnailUrl;
+            IconBitmap = !string.IsNullOrEmpty(thumbnailUrl)
+                ? ImageCacheService.Instance.GetBitmapFromMemory(thumbnailUrl)
+                : null;
         }
 
         Task<Bitmap?>? logoTask = null;
@@ -1034,7 +1046,7 @@ public sealed partial class ContentGridItemViewModel(
 
         if (currentVersion == _iconLoadVersion)
         {
-            if (logoTask != null && PublisherLogoBitmap == null)
+            if (logoTask != null && string.Equals(_loadedPublisherLogoUrl, publisherLogoUrl, StringComparison.OrdinalIgnoreCase))
             {
                 var logoResult = await logoTask;
                 if (logoResult != null)
@@ -1043,7 +1055,7 @@ public sealed partial class ContentGridItemViewModel(
                 }
             }
 
-            if (thumbTask != null && IconBitmap == null)
+            if (thumbTask != null && string.Equals(_loadedThumbnailUrl, thumbnailUrl, StringComparison.OrdinalIgnoreCase))
             {
                 var thumbResult = await thumbTask;
                 if (thumbResult != null)
