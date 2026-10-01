@@ -268,6 +268,17 @@ public class ContentStorageService : IContentStorageService
     }
 
     /// <summary>
+    /// Clears transient staging source paths from every CAS-backed file, in the flat list and
+    /// in each variant, so a stored manifest never retains them.
+    /// </summary>
+    /// <param name="manifest">The manifest to sanitize.</param>
+    private static void ClearCasStagingSourcePaths(ContentManifest manifest) =>
+        ManifestVariantResolver.RewriteAllFiles(manifest, f =>
+            f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.SourcePath)
+                ? CloneManifestFileForCas(f)
+                : f);
+
+    /// <summary>
     /// Resolves the source path for a manifest file, preferring its explicit source path when available.
     /// </summary>
     /// <param name="manifestFile">The manifest file entry.</param>
@@ -474,6 +485,12 @@ public class ContentStorageService : IContentStorageService
         {
             var manifestJson = await File.ReadAllTextAsync(manifestPath, cancellationToken);
             var manifest = JsonSerializer.Deserialize<ContentManifest>(manifestJson, JsonOptions);
+            if (manifest != null && !ManifestVariantResolver.SupportsRuntime(manifest))
+            {
+                return OperationResult<string>.CreateFailure(
+                    $"Manifest {manifestId} has no variant for this host ({ManifestVariantResolver.CurrentRuntimeIdentifier})");
+            }
+
             var files = manifest == null ? [] : ManifestVariantResolver.ResolveFiles(manifest);
             if (manifest == null || files.Count == 0)
             {
@@ -659,10 +676,7 @@ public class ContentStorageService : IContentStorageService
         string manifestPath,
         CancellationToken cancellationToken)
     {
-        ManifestVariantResolver.RewriteAllFiles(updatedManifest, f =>
-            f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.SourcePath)
-                ? CloneManifestFileForCas(f)
-                : f);
+        ClearCasStagingSourcePaths(updatedManifest);
 
         // Track CAS references to ensure files are not prematurely garbage collected
         var trackResult = await _referenceTracker.TrackManifestReferencesAsync(updatedManifest.Id, updatedManifest, cancellationToken);
@@ -714,17 +728,8 @@ public class ContentStorageService : IContentStorageService
 
         try
         {
-            // Sanitize file entries first: CAS files must never retain transient staging source paths,
-            // and metadata-only storage never reads them, so they must not fail validation either
-            ManifestVariantResolver.RewriteAllFiles(manifest, f =>
-            {
-                if (f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.SourcePath))
-                {
-                    return CloneManifestFileForCas(f);
-                }
-
-                return f;
-            });
+            // Metadata-only storage never reads staging source paths, so they must not fail validation either
+            ClearCasStagingSourcePaths(manifest);
 
             // Validate manifest for security issues
             // Use sourceDirectory if available, otherwise fallback to storage root (though typically sourceDirectory should be provided)

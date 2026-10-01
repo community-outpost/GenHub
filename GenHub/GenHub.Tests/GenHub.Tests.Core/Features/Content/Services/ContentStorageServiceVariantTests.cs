@@ -258,6 +258,24 @@ public class ContentStorageServiceVariantTests : IDisposable
         Assert.False(File.Exists(Path.Combine(target, ForeignFileName)));
     }
 
+    /// <summary>Retrieving a stored manifest with no host variant names the host, not a corrupt manifest.</summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task RetrieveContentAsync_WithoutHostVariant_ReportsUnsupportedHostAsync()
+    {
+        var manifest = VariantManifestFixture.Create(
+            [],
+            [new() { RelativePath = ForeignFileName, Hash = ForeignHash, SourceType = ContentSourceType.ContentAddressable, IsRequired = true }]);
+        manifest.Variants.RemoveAt(1);
+        var storeResult = await _service.StoreContentAsync(manifest, Path.Combine(_tempRoot, "Missing"));
+        Assert.True(storeResult.Success, storeResult.FirstError);
+
+        var result = await _service.RetrieveContentAsync(manifest.Id, Path.Combine(_tempRoot, "Target"));
+
+        Assert.False(result.Success);
+        Assert.Contains("has no variant for this host", result.FirstError);
+    }
+
     /// <summary>Existing source directories do not make foreign CAS staging paths required.</summary>
     /// <returns>The asynchronous test.</returns>
     [Fact]
