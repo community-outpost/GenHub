@@ -234,7 +234,7 @@ public sealed class BaseFileRenameFixTests : IDisposable
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Theory]
     [MemberData(nameof(FixIds))]
-    public async Task Apply_WhenDifferentGenHubBackupExists_KeepsBothFilesAndFailsAsync(string fixId)
+    public async Task Apply_WhenDifferentGenHubBackupExists_PreservesBackupAndDisablesTargetAsync(string fixId)
     {
         var (fix, target, genHubBackup) = CreateFix(fixId);
         var installation = CreateInstallation(out var generalsDir, out var zeroHourDir);
@@ -248,7 +248,14 @@ public sealed class BaseFileRenameFixTests : IDisposable
 
         var result = await fix.ApplyAsync(installation);
 
-        result.Success.Should().BeFalse();
+        result.Success.Should().BeTrue();
+        foreach (var dir in new[] { generalsDir, zeroHourDir })
+        {
+            File.Exists(Path.Combine(dir, target)).Should().BeFalse();
+            File.ReadAllText(Path.Combine(dir, genHubBackup + ".1")).Should().Be(OriginalContent);
+        }
+
+        (await fix.UndoAsync(installation)).Success.Should().BeTrue();
         result.Details.Should().Contain(d => d.Contains(genHubBackup, StringComparison.Ordinal));
         Snapshot().Should().BeEquivalentTo(before);
     }
@@ -260,7 +267,7 @@ public sealed class BaseFileRenameFixTests : IDisposable
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Theory]
     [MemberData(nameof(FixIds))]
-    public async Task Apply_WhenIdenticalGenHubBackupExists_PreservesBothAndFailsAsync(string fixId)
+    public async Task Apply_WhenIdenticalGenHubBackupExists_PreservesBackupAndDisablesTargetAsync(string fixId)
     {
         var (fix, target, genHubBackup) = CreateFix(fixId);
         var installation = CreateInstallation(out var generalsDir, out _);
@@ -271,7 +278,10 @@ public sealed class BaseFileRenameFixTests : IDisposable
 
         var apply = await fix.ApplyAsync(installation);
 
-        apply.Success.Should().BeFalse();
+        apply.Success.Should().BeTrue();
+        File.Exists(Path.Combine(generalsDir, target)).Should().BeFalse();
+        File.ReadAllText(Path.Combine(generalsDir, genHubBackup + ".1")).Should().Be(OriginalContent);
+        (await fix.UndoAsync(installation)).Success.Should().BeTrue();
         Snapshot().Should().BeEquivalentTo(before);
     }
 
@@ -282,7 +292,7 @@ public sealed class BaseFileRenameFixTests : IDisposable
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Theory]
     [MemberData(nameof(FixIds))]
-    public async Task Undo_WhenTargetReappearedWithDifferentContent_KeepsBothFilesAndFailsAsync(string fixId)
+    public async Task Undo_WhenTargetReappearedWithDifferentContent_KeepsBothFilesAndSucceedsAsync(string fixId)
     {
         var (fix, target, _) = CreateFix(fixId);
         var installation = CreateInstallation(out var generalsDir, out _);
@@ -294,7 +304,7 @@ public sealed class BaseFileRenameFixTests : IDisposable
 
         var undo = await fix.UndoAsync(installation);
 
-        undo.Success.Should().BeFalse();
+        undo.Success.Should().BeTrue();
         Snapshot().Should().BeEquivalentTo(before);
     }
 
@@ -305,7 +315,7 @@ public sealed class BaseFileRenameFixTests : IDisposable
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Theory]
     [MemberData(nameof(FixIds))]
-    public async Task Undo_WhenTargetReappearedWithIdenticalContent_PreservesBothAndFailsAsync(string fixId)
+    public async Task Undo_WhenTargetReappearedWithIdenticalContent_PreservesBothAndSucceedsAsync(string fixId)
     {
         var (fix, target, genHubBackup) = CreateFix(fixId);
         var installation = CreateInstallation(out var generalsDir, out _);
@@ -317,8 +327,56 @@ public sealed class BaseFileRenameFixTests : IDisposable
         var before = Snapshot();
         var undo = await fix.UndoAsync(installation);
 
-        undo.Success.Should().BeFalse();
+        undo.Success.Should().BeTrue();
         Snapshot().Should().BeEquivalentTo(before);
+    }
+
+    /// <summary>Repeated repairs preserve old backups and undo restores the latest repair.</summary>
+    /// <param name="fixId">The fix under test.</param>
+    /// <returns>The asynchronous test.</returns>
+    [Theory]
+    [MemberData(nameof(FixIds))]
+    public async Task Apply_AfterRepeatedRepairs_UndoRestoresNewestBackupAsync(string fixId)
+    {
+        var (fix, target, backup) = CreateFix(fixId);
+        var installation = CreateInstallation(out var directory, out _);
+        installation.HasZeroHour = false;
+        File.WriteAllText(Path.Combine(directory, target), OriginalContent);
+        (await fix.ApplyAsync(installation)).Success.Should().BeTrue();
+        File.WriteAllText(Path.Combine(directory, target), "first repair");
+        (await fix.ApplyAsync(installation)).Success.Should().BeTrue();
+        File.WriteAllText(Path.Combine(directory, target), "second repair");
+        (await fix.ApplyAsync(installation)).Success.Should().BeTrue();
+        (await fix.ApplyAsync(installation)).Success.Should().BeTrue();
+        (await fix.UndoAsync(installation)).Success.Should().BeTrue();
+        (await fix.UndoAsync(installation)).Success.Should().BeTrue();
+        File.ReadAllText(Path.Combine(directory, target)).Should().Be("second repair");
+        File.ReadAllText(Path.Combine(directory, backup)).Should().Be(OriginalContent);
+        File.ReadAllText(Path.Combine(directory, backup + ".1")).Should().Be("first repair");
+        File.Exists(Path.Combine(directory, backup + ".2")).Should().BeFalse();
+    }
+
+    /// <summary>Numbered backups sort numerically and unrelated suffixes remain untouched.</summary>
+    /// <param name="fixId">The fix under test.</param>
+    /// <returns>The asynchronous test.</returns>
+    [Theory]
+    [MemberData(nameof(FixIds))]
+    public async Task Apply_WithBackupGapsAndOccupiedDirectory_PreservesExistingEntriesAsync(string fixId)
+    {
+        var (fix, target, backup) = CreateFix(fixId);
+        var installation = CreateInstallation(out var directory, out _);
+        installation.HasZeroHour = false;
+        File.WriteAllText(Path.Combine(directory, target), OriginalContent);
+        File.WriteAllText(Path.Combine(directory, backup + ".9"), "old repair");
+        Directory.CreateDirectory(Path.Combine(directory, backup + ".10"));
+        File.WriteAllText(Path.Combine(directory, backup + ".notes"), "user notes");
+        (await fix.ApplyAsync(installation)).Success.Should().BeTrue();
+        File.ReadAllText(Path.Combine(directory, backup + ".11")).Should().Be(OriginalContent);
+        (await fix.UndoAsync(installation)).Success.Should().BeTrue();
+        File.ReadAllText(Path.Combine(directory, target)).Should().Be(OriginalContent);
+        File.ReadAllText(Path.Combine(directory, backup + ".9")).Should().Be("old repair");
+        Directory.Exists(Path.Combine(directory, backup + ".10")).Should().BeTrue();
+        File.ReadAllText(Path.Combine(directory, backup + ".notes")).Should().Be("user notes");
     }
 
     private static (BaseFileRenameFix Fix, string Target, string GenHubBackup) CreateFix(string fixId) => fixId switch

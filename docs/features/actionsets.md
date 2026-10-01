@@ -57,7 +57,7 @@ These fixes are essential for the games to run properly on modern Windows system
 
 **Reversible**: Yes. Undo renames `.ghbak` back to `.dll`.
 
-**Backups (both fixes)**: Neither fix reads or writes a user's own `.bak` file during apply. If both the target and a `.ghbak` exist, both files are kept and the action fails, even when their bytes currently match. This prevents concurrent file replacement from causing data loss. Undo restores a `.bak` left by earlier GenHub builds only when the `.dll` is missing.
+**Backups (both fixes)**: Neither fix reads or writes a user's own `.bak` file during apply. If a game repair restores the target while a `.ghbak` exists, apply moves the restored file to the next free numbered backup (`.ghbak.1`, `.ghbak.2`, and so on), preserving all earlier backups. Undo restores the highest numbered backup when the target is absent. If the target already exists, undo succeeds without changing it or any backups. Renames never overwrite an existing destination. Undo restores a `.bak` left by earlier GenHub builds only when the `.dll` is missing.
 
 ---
 

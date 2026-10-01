@@ -4,6 +4,7 @@ using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -143,19 +144,22 @@ public abstract class BaseFileRenameFix(
 
         try
         {
-            if (!File.Exists(backupPath))
+            var latest = GetLatestBackup(directory);
+            if (latest.Index >= 0 || Directory.Exists(backupPath))
             {
-                File.Move(originalPath, backupPath);
-                details.Add($"  OK: Renamed: {targetFileName} -> {backupFileName}");
-                Logger.LogInformation("Renamed {OriginalPath} to {BackupPath}", originalPath, backupPath);
-                return true;
+                if (latest.Index == long.MaxValue)
+                {
+                    throw new IOException("No more backup sequence numbers are available.");
+                }
+
+                backupPath += "." + (Math.Max(0, latest.Index) + 1).ToString(CultureInfo.InvariantCulture);
             }
 
-            // Never delete a path after comparing its bytes: another process can replace it
-            // between the comparison and deletion. Preserve both files for explicit recovery.
-            details.Add($"  Error: {backupFileName} already exists. Both files were left unchanged.");
-            Logger.LogWarning("Not disabling {OriginalPath}: backup already exists at {BackupPath}", originalPath, backupPath);
-            return false;
+            // The non-overwriting rename preserves both files, even if another process wins the name.
+            File.Move(originalPath, backupPath);
+            details.Add($"  OK: Renamed: {targetFileName} -> {Path.GetFileName(backupPath)}");
+            Logger.LogInformation("Renamed {OriginalPath} to {BackupPath}", originalPath, backupPath);
+            return true;
         }
         catch (IOException ex)
         {
@@ -176,17 +180,24 @@ public abstract class BaseFileRenameFix(
         var originalPath = Path.Combine(directory, targetFileName);
         var backupPath = Path.Combine(directory, backupFileName);
 
-        if (!File.Exists(backupPath))
-        {
-            return RestoreLegacyBackup(directory, originalPath, details);
-        }
-
         try
         {
+            if (File.Exists(originalPath))
+            {
+                details.Add($"  OK: {targetFileName} already present; backups preserved");
+                return true;
+            }
+
+            backupPath = GetLatestBackup(directory, filesOnly: true).Path;
+            if (string.IsNullOrEmpty(backupPath))
+            {
+                return RestoreLegacyBackup(directory, originalPath, details);
+            }
+
             if (!File.Exists(originalPath))
             {
                 File.Move(backupPath, originalPath);
-                details.Add($"  OK: Restored: {backupFileName} -> {targetFileName}");
+                details.Add($"  OK: Restored: {Path.GetFileName(backupPath)} -> {targetFileName}");
                 Logger.LogInformation("Restored {BackupPath} to {OriginalPath}", backupPath, originalPath);
                 return true;
             }
@@ -207,6 +218,36 @@ public abstract class BaseFileRenameFix(
             AddFailureDetail(details, ex, $"restoring {backupFileName}", indent: "  ");
             return false;
         }
+    }
+
+    private (long Index, string Path) GetLatestBackup(string directory, bool filesOnly = false)
+    {
+        var basePath = Path.Combine(directory, backupFileName);
+        var latest = (Index: File.Exists(basePath) ? 0L : -1L, Path: File.Exists(basePath) ? basePath : string.Empty);
+        if (!Directory.Exists(directory))
+        {
+            return latest;
+        }
+
+        foreach (var path in Directory.EnumerateFileSystemEntries(directory, backupFileName + ".*"))
+        {
+            var name = Path.GetFileName(path);
+            if (!name.StartsWith(backupFileName + ".", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var suffix = name[(backupFileName.Length + 1)..];
+            if (long.TryParse(suffix, NumberStyles.None, CultureInfo.InvariantCulture, out var index)
+                && index > latest.Index && index > 0
+                && suffix == index.ToString(CultureInfo.InvariantCulture)
+                && (!filesOnly || File.Exists(path)))
+            {
+                latest = (index, path);
+            }
+        }
+
+        return latest;
     }
 
     private bool RestoreLegacyBackup(string directory, string originalPath, List<string> details)
