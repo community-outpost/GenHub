@@ -66,18 +66,13 @@ public class FileSystemDiscoverer : IContentDiscoverer
         var discoveredItems = new List<ContentSearchResult>();
 
         // Use ManifestDiscoveryService for comprehensive discovery
-        Dictionary<string, ContentManifest> discoveredManifests = [];
-        try
+        var discoveryResult = await DiscoverManifestsAsync(cancellationToken);
+        if (!discoveryResult.Success || discoveryResult.Data is null)
         {
-            discoveredManifests = await _manifestDiscoveryService.DiscoverManifestsAsync(_contentDirectories, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to discover manifests from content directories");
-            return OperationResult<ContentDiscoveryResult>.CreateFailure($"Failed to discover manifests {ex.Message}");
+            return OperationResult<ContentDiscoveryResult>.CreateFailure(discoveryResult.FirstError ?? "Failed to discover manifests");
         }
 
-        foreach (var manifestEntry in discoveredManifests)
+        foreach (var manifestEntry in discoveryResult.Data)
         {
             var manifest = manifestEntry.Value;
 
@@ -134,6 +129,20 @@ public class FileSystemDiscoverer : IContentDiscoverer
             TotalItems = discoveredItems.Count,
         };
         return OperationResult<ContentDiscoveryResult>.CreateSuccess(result);
+    }
+
+    private async Task<OperationResult<Dictionary<string, ContentManifest>>> DiscoverManifestsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var manifests = await _manifestDiscoveryService.DiscoverManifestsAsync(_contentDirectories, cancellationToken);
+            return OperationResult<Dictionary<string, ContentManifest>>.CreateSuccess(manifests);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to discover manifests from content directories");
+            return OperationResult<Dictionary<string, ContentManifest>>.CreateFailure($"Failed to discover manifests {ex.Message}");
+        }
     }
 
     private void InitializeContentDirectories()
