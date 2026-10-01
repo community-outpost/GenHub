@@ -60,6 +60,11 @@ public class GitHubContentDeliverer(
         IProgress<ContentAcquisitionProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
+        if (!ManifestVariantResolver.SupportsRuntime(packageManifest))
+        {
+            return OperationResult<ContentManifest>.CreateFailure(CreateUnsupportedRuntimeMessage(packageManifest));
+        }
+
         try
         {
             // Download all files (validate no duplicate paths to prevent data loss)
@@ -213,6 +218,11 @@ public class GitHubContentDeliverer(
     public Task<OperationResult<bool>> ValidateContentAsync(
         ContentManifest manifest, CancellationToken cancellationToken = default)
     {
+        if (!ManifestVariantResolver.SupportsRuntime(manifest))
+        {
+            return Task.FromResult(OperationResult<bool>.CreateFailure(CreateUnsupportedRuntimeMessage(manifest)));
+        }
+
         try
         {
             // Validate that all required URLs are GitHub URLs
@@ -232,6 +242,9 @@ public class GitHubContentDeliverer(
             return Task.FromResult(OperationResult<bool>.CreateFailure($"Validation failed: {ex.Message}"));
         }
     }
+
+    private static string CreateUnsupportedRuntimeMessage(ContentManifest manifest) =>
+        $"Manifest {manifest.Id} has no variant for this host ({ManifestVariantResolver.CurrentRuntimeIdentifier})";
 
     /// <summary>
     /// Validates that a URL is a legitimate GitHub URL.

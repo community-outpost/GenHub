@@ -120,6 +120,29 @@ public class GitHubContentDelivererTests
     }
 
     /// <summary>
+    /// A manifest with no variant for this host fails delivery and validation without downloading.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeliverAndValidate_WithoutHostVariant_FailWithoutDownloadingAsync()
+    {
+        var requested = VariantDownloadRecorder.Record(_downloadService);
+        var deliverer = new GitHubContentDeliverer(_downloadService.Object, _manifestPool.Object, _factoryResolver.Object, _logger.Object);
+        var manifest = VariantManifestFixture.Create(
+            [],
+            [new ManifestFile { RelativePath = "variant-foreign.zip", DownloadUrl = VariantDownloadRecorder.ForeignUrl, SourceType = ContentSourceType.RemoteDownload }]);
+        manifest.Variants.RemoveAt(1);
+
+        var delivery = await deliverer.DeliverContentAsync(manifest, Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")), null, CancellationToken.None);
+        var validation = await deliverer.ValidateContentAsync(manifest, CancellationToken.None);
+
+        delivery.Success.Should().BeFalse();
+        delivery.FirstError.Should().Contain("has no variant for this host");
+        validation.Success.Should().BeFalse();
+        requested.Should().BeEmpty();
+    }
+
+    /// <summary>
     /// Tests that DeliverContentAsync extracts ZIP files for matching content types.
     /// </summary>
     /// <param name="contentType">The type of content being delivered.</param>
