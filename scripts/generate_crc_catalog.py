@@ -1536,6 +1536,7 @@ def run_self_test() -> bool:
             return self
 
         def __exit__(self, *args):
+            # No cleanup needed for in-memory mock context manager
             pass
 
     test_cdn = "https://example.com/cdn"
