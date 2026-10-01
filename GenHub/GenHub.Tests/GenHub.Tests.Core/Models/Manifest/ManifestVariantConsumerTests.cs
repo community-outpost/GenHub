@@ -109,4 +109,31 @@ public class ManifestVariantConsumerTests
         Assert.Equal(ContentState.Downloaded, await service.GetStateAsync(row));
         Assert.Equal(manifest.Id.Value, await service.GetLocalManifestIdAsync(row));
     }
+
+    /// <summary>File identity can match a token in a later variant.</summary>
+    [Fact]
+    public void GitHubVariantMatch_MatchesLaterVariant()
+    {
+        var manifest = VariantManifestFixture.Create(
+            [new() { RelativePath = "client-720p.zip" }],
+            [new() { RelativePath = "client-1080p.zip" }]);
+        manifest.Name = "client";
+        var method = typeof(ContentStateService).GetMethod("IsGitHubVariantMatch", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        Assert.True((bool)method.Invoke(null, [manifest, new ContentSearchResult { Name = "client-1080p" }])!);
+        Assert.False((bool)method.Invoke(null, [manifest, new ContentSearchResult { Name = "client-4k" }])!);
+    }
+
+    /// <summary>A foreign-only hotkey payload cannot satisfy the current host's addon.</summary>
+    [Fact]
+    public void HotkeyAddonMatch_IgnoresForeignPayload()
+    {
+        var manifest = VariantManifestFixture.Create(
+            [new() { RelativePath = "unrelated.big" }],
+            [new() { RelativePath = "hotkeys.big" }]);
+        manifest.ContentType = ContentType.Addon;
+        manifest.TargetGame = GameType.ZeroHour;
+        var type = typeof(GenHub.Features.Tools.GenHotkeys.ViewModels.GenHotkeysViewModel);
+        var method = type.GetMethod("IsAddonMatch", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        Assert.False((bool)method.Invoke(null, [manifest, null, GameType.ZeroHour, "expected-addon", "hotkeys.big", "legacy.big"])!);
+    }
 }

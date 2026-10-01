@@ -1545,7 +1545,7 @@ public partial class GenHotkeysViewModel(
             return true;
         }
 
-        return ManifestVariantResolver.EnumerateAllFiles(m).Any(f =>
+        return ManifestVariantResolver.ResolveFiles(m).Any(f =>
             f.RelativePath?.EndsWith(expectedBigFileName, StringComparison.OrdinalIgnoreCase) == true ||
             f.RelativePath?.EndsWith(legacyBigFileName, StringComparison.OrdinalIgnoreCase) == true);
     }
