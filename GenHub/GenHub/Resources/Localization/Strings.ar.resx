@@ -13996,7 +13996,7 @@ https://example.com/screenshot2.png</value>
     <value>تم إصدار تنزيل جديد '{0}' في الكتالوج '{1}'</value>
   </data>
   <data name="Downloads.Browser.NewContentsNotificationFormat" xml:space="preserve">
-    <value>تم إصدار {0} تنزيلات جديدة في الكتالوج '{1}'</value>
+    <value>تم إصدار تنزيلات جديدة في الكتالوج '{1}' (العدد: {0})</value>
   </data>
   <data name="Tools.PublisherStudio.Common.Catalog" xml:space="preserve">
     <value>الكتالوج</value>
