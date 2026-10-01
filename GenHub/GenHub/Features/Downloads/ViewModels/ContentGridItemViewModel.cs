@@ -1070,7 +1070,7 @@ public sealed partial class ContentGridItemViewModel(
         }
     }
 
-    private static async Task<Bitmap?> SafeGetBitmapAsync(string url)
+    private async Task<Bitmap?> SafeGetBitmapAsync(string url)
     {
         try
         {
