@@ -5,6 +5,7 @@ using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Manifest;
 using GenHub.Features.GameProfiles.Infrastructure;
 using GenHub.Features.Launching;
+using GenHub.Tests.Core.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Diagnostics;
 using Xunit.Abstractions;
@@ -68,7 +69,7 @@ public sealed class SymlinkedProcessDiscoveryTests(ITestOutputHelper output) : I
     /// <summary>
     /// A game started through a CAS symlink is discovered with the identities the launcher resolves.
     /// </summary>
-    [Fact]
+    [SymlinkFact]
     public void ProcessStartedThroughACasSymlink_IsDiscoveredWithTheResolvedIdentities()
     {
         var store = Directory.CreateDirectory(Path.Combine(_root, "objects", "ab")).FullName;
@@ -78,11 +79,8 @@ public sealed class SymlinkedProcessDiscoveryTests(ITestOutputHelper output) : I
 
         var (source, arguments) = GetLongRunningExecutable();
         File.Copy(source, blob);
-        if (!PrepareCopiedExecutable(blob) || !TryCreateSymbolicLink(link, blob))
-        {
-            output.WriteLine("Skipped: this host cannot run a copied executable through a symbolic link.");
-            return;
-        }
+        Assert.True(PrepareCopiedExecutable(blob), "The copied executable could not be prepared to run.");
+        File.CreateSymbolicLink(link, blob);
 
         File.WriteAllText(Path.Combine(workspace, GameClientConstants.GeneralsOnlineEacLauncherExecutable), "bootstrapper");
         var identitiesResult = GameLauncher.DetermineMonitoringTarget(
@@ -214,24 +212,6 @@ public sealed class SymlinkedProcessDiscoveryTests(ITestOutputHelper output) : I
         }
         catch (AggregateException)
         {
-            return false;
-        }
-    }
-
-    private static bool TryCreateSymbolicLink(string path, string target)
-    {
-        try
-        {
-            File.CreateSymbolicLink(path, target);
-            return true;
-        }
-        catch (IOException)
-        {
-            return false;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            // Windows without Developer Mode or elevation cannot create symbolic links.
             return false;
         }
     }

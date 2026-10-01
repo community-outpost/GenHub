@@ -73,7 +73,7 @@ public static class GameProcessSelector
     /// residence both match the same identity.
     /// </summary>
     /// <param name="candidates">The processes currently observed on the machine. Each candidate's <see cref="GameProcessCandidate.StartTime"/> must be a UTC <see cref="DateTime"/> with <see cref="DateTimeKind.Utc"/>.</param>
-    /// <param name="identities">The identities the game may present.</param>
+    /// <param name="identities">The identities the game may present, in order of preference.</param>
     /// <param name="now">The current time, used to apply the recency window. Must be a UTC <see cref="DateTime"/> with <see cref="DateTimeKind.Utc"/>.</param>
     /// <returns>The selected candidate, or <see langword="null"/> when none qualifies.</returns>
     public static GameProcessCandidate? SelectSpawnedGameProcess(
@@ -138,12 +138,32 @@ public static class GameProcessSelector
         Func<GameProcessCandidate, bool> startedWithThisLaunch)
     {
         // Residence is required whenever a directory is known, including for a lone match:
-        // a same-named process elsewhere on the machine is somebody else's.
+        // a same-named process elsewhere on the machine is somebody else's. Earlier identities are
+        // preferred, so a match through a workspace link beats one through a shared target.
         return candidates
             .Where(startedWithThisLaunch)
-            .Where(candidate => identities.Any(identity => Matches(candidate, identity)))
-            .OrderByDescending(candidate => candidate.StartTime)
+            .Select(candidate => (Candidate: candidate, Rank: FindFirstMatch(candidate, identities)))
+            .Where(match => match.Rank >= 0)
+            .OrderBy(match => match.Rank)
+            .ThenByDescending(match => match.Candidate.StartTime)
+            .Select(match => match.Candidate)
             .FirstOrDefault();
+    }
+
+    private static int FindFirstMatch(GameProcessCandidate candidate, IReadOnlyCollection<GameProcessIdentity> identities)
+    {
+        var rank = 0;
+        foreach (var identity in identities)
+        {
+            if (Matches(candidate, identity))
+            {
+                return rank;
+            }
+
+            rank++;
+        }
+
+        return -1;
     }
 
     private static bool Matches(GameProcessCandidate candidate, GameProcessIdentity identity) =>

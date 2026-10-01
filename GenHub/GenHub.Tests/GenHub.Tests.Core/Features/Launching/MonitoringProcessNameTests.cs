@@ -4,7 +4,9 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Features.GameProfiles.Infrastructure;
 using GenHub.Features.Launching;
+using GenHub.Tests.Core.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
@@ -42,8 +44,8 @@ public sealed class MonitoringProcessNameTests : IDisposable
 
     private GameProcessIdentity[] ChildWorkspaceIdentities =>
     [
-        new GameProcessIdentity(ExpectedChildName, _workspace),
         new GameProcessIdentity(GameClientConstants.GeneralsOnline60HzExecutable, _workspace),
+        new GameProcessIdentity(ExpectedChildName, _workspace),
     ];
 
     /// <inheritdoc/>
@@ -67,14 +69,11 @@ public sealed class MonitoringProcessNameTests : IDisposable
     /// A CAS-symlinked bootstrapper launch discovers the wrapped client under its link target's
     /// name, in the link target's directory.
     /// </summary>
-    [Fact]
+    [SymlinkFact]
     public void CasSymlinkedBootstrapper_MonitorsTheChildLinkTarget()
     {
         File.WriteAllText(Path.Combine(_store, ChildHash), "client");
-        if (!TryCreateSymbolicLink(ChildWorkspacePath, Path.Combine(_store, ChildHash)))
-        {
-            return;
-        }
+        File.CreateSymbolicLink(ChildWorkspacePath, Path.Combine(_store, ChildHash));
 
         var result = Resolve(BuildGeneralsOnlineManifests(childHash: ChildHash), WorkspaceStrategy.SymlinkOnly);
 
@@ -85,15 +84,12 @@ public sealed class MonitoringProcessNameTests : IDisposable
     /// <summary>
     /// The link target, not the manifest hash, names the process: the filesystem is the authority.
     /// </summary>
-    [Fact]
+    [SymlinkFact]
     public void CasSymlinkedBootstrapper_TakesTheNameFromTheLinkTarget()
     {
         const string ObjectName = "differently-named-object";
         File.WriteAllText(Path.Combine(_store, ObjectName), "client");
-        if (!TryCreateSymbolicLink(ChildWorkspacePath, Path.Combine(_store, ObjectName)))
-        {
-            return;
-        }
+        File.CreateSymbolicLink(ChildWorkspacePath, Path.Combine(_store, ObjectName));
 
         var result = Resolve(BuildGeneralsOnlineManifests(childHash: ChildHash), WorkspaceStrategy.SymlinkOnly);
 
@@ -105,14 +101,10 @@ public sealed class MonitoringProcessNameTests : IDisposable
     /// Windows names a process started through a link after the target but reports the link as its
     /// image. The returned identities select it, and the target identity alone would not.
     /// </summary>
-    [Fact]
+    [SymlinkFact]
     public void CasSymlinkedBootstrapper_IdentitiesSelectTheWindowsShape()
     {
         var identities = ResolveLinkedChildIdentities();
-        if (identities is null)
-        {
-            return;
-        }
 
         var now = DateTime.UtcNow;
         var candidates = new[] { new GameProcessCandidate(1, ChildHash, now, ChildWorkspacePath) };
@@ -125,14 +117,10 @@ public sealed class MonitoringProcessNameTests : IDisposable
     /// A readable target image path selects the target identity regardless of the reported name.
     /// The workspace identities alone cannot select a process whose image is in the store.
     /// </summary>
-    [Fact]
+    [SymlinkFact]
     public void CasSymlinkedBootstrapper_TargetImageSelectsTargetIdentity()
     {
         var identities = ResolveLinkedChildIdentities();
-        if (identities is null)
-        {
-            return;
-        }
 
         var now = DateTime.UtcNow;
         var candidates = new[] { new GameProcessCandidate(1, GameClientConstants.GeneralsOnline60HzExecutable, now, Path.Combine(_store, ChildHash)) };
@@ -159,16 +147,80 @@ public sealed class MonitoringProcessNameTests : IDisposable
     }
 
     /// <summary>
-    /// A name match is never enough: a process carrying either name from another directory is rejected.
+    /// A process matched through the link is preferred over a newer one that only matches the shared
+    /// CAS target, which another profile running the same object would also match.
+    /// </summary>
+    [SymlinkFact]
+    public void CasSymlinkedBootstrapper_PrefersALinkMatchOverANewerTargetOnlyMatch()
+    {
+        var identities = ResolveLinkedChildIdentities();
+        var now = DateTime.UtcNow;
+        var candidates = new[]
+        {
+            new GameProcessCandidate(1, ChildHash, now.AddSeconds(-2), ChildWorkspacePath),
+            new GameProcessCandidate(2, ChildHash, now.AddSeconds(-1), Path.Combine(_store, ChildHash)),
+        };
+
+        Assert.Equal(1, GameProcessSelector.SelectSpawnedGameProcess(candidates, identities, now)?.ProcessId);
+    }
+
+    /// <summary>
+    /// The retail launcher hands the session to game.dat. When the discovered process's image path
+    /// cannot be read, the recorded executable must be game.dat, not a reconstructed game.exe.
     /// </summary>
     [Fact]
+    public void RetailLauncher_WithAPlainGameDatChild_FallsBackToTheGameDatPath()
+    {
+        var entryPath = Path.Combine(_workspace, GameClientConstants.GeneralsExecutable);
+        var gameDatPath = Path.Combine(_workspace, GameClientConstants.SteamGameDatExecutable);
+        File.WriteAllText(entryPath, "launcher");
+        File.WriteAllText(gameDatPath, "game");
+        var manifests = new List<ContentManifest>
+        {
+            new()
+            {
+                Name = "Generals",
+                ContentType = ContentType.GameClient,
+                Files =
+                [
+                    new ManifestFile
+                    {
+                        RelativePath = GameClientConstants.GeneralsExecutable,
+                        Hash = BootstrapperHash,
+                        SourceType = ContentSourceType.ContentAddressable,
+                        IsExecutable = true,
+                    },
+                    new ManifestFile
+                    {
+                        RelativePath = GameClientConstants.SteamGameDatExecutable,
+                        Hash = ChildHash,
+                        SourceType = ContentSourceType.ContentAddressable,
+                    },
+                ],
+            },
+        };
+
+        var result = GameLauncher.DetermineMonitoringTarget(
+            manifests,
+            entryPath,
+            _workspace,
+            WorkspaceStrategy.SymlinkOnly,
+            LaunchEntryPointResolver.ResolveExpectedChildProcessName(entryPath),
+            NullLogger.Instance,
+            localizationService: null);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.Equal(gameDatPath, GameProcessManager.BuildDiscoveryFallbackPath(result.Data!, isWindows: true));
+        Assert.Equal(gameDatPath, GameProcessManager.BuildDiscoveryFallbackPath(result.Data!, isWindows: false));
+    }
+
+    /// <summary>
+    /// A name match is never enough: a process carrying either name from another directory is rejected.
+    /// </summary>
+    [SymlinkFact]
     public void CasSymlinkedBootstrapper_IdentitiesRejectANameMatchElsewhere()
     {
         var identities = ResolveLinkedChildIdentities();
-        if (identities is null)
-        {
-            return;
-        }
 
         var now = DateTime.UtcNow;
         var elsewhere = Directory.CreateDirectory(Path.Combine(_root, "elsewhere")).FullName;
@@ -209,14 +261,17 @@ public sealed class MonitoringProcessNameTests : IDisposable
     }
 
     /// <summary>
-    /// A manifest that omits the wrapped client fails the launch rather than monitoring the bootstrapper.
+    /// A manifest that omits the wrapped client fails the launch even when the workspace has the file.
     /// </summary>
     [Fact]
     public void CasSymlinkedBootstrapper_WithoutTheChildFile_Fails()
     {
+        File.WriteAllText(ChildWorkspacePath, "client");
+
         var result = Resolve(BuildGeneralsOnlineManifests(childHash: null), WorkspaceStrategy.SymlinkOnly);
 
         Assert.False(result.Success);
+        Assert.Contains(ExpectedChildName, result.FirstError, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -233,13 +288,10 @@ public sealed class MonitoringProcessNameTests : IDisposable
     /// <summary>
     /// A child link whose target is gone fails the launch.
     /// </summary>
-    [Fact]
+    [SymlinkFact]
     public void CasSymlinkedBootstrapper_WithADanglingChildLink_Fails()
     {
-        if (!TryCreateSymbolicLink(ChildWorkspacePath, Path.Combine(_store, "missing-object")))
-        {
-            return;
-        }
+        File.CreateSymbolicLink(ChildWorkspacePath, Path.Combine(_store, "missing-object"));
 
         var result = Resolve(BuildGeneralsOnlineManifests(childHash: ChildHash), WorkspaceStrategy.SymlinkOnly);
 
@@ -298,21 +350,18 @@ public sealed class MonitoringProcessNameTests : IDisposable
 
         AssertIdentities(
             result,
-            new GameProcessIdentity(Path.GetFileNameWithoutExtension(BootstrapperPath), _workspace),
-            new GameProcessIdentity(Path.GetFileName(BootstrapperPath), _workspace));
+            new GameProcessIdentity(Path.GetFileName(BootstrapperPath), _workspace),
+            new GameProcessIdentity(Path.GetFileNameWithoutExtension(BootstrapperPath), _workspace));
     }
 
     /// <summary>
     /// A CAS-symlinked executable that is itself the game is discovered in its link target's directory.
     /// </summary>
-    [Fact]
+    [SymlinkFact]
     public void CasSymlinkedDirectExecutable_MonitorsItsLinkTarget()
     {
         File.WriteAllText(Path.Combine(_store, BootstrapperHash), "client");
-        if (!TryCreateSymbolicLink(BootstrapperPath, Path.Combine(_store, BootstrapperHash)))
-        {
-            return;
-        }
+        File.CreateSymbolicLink(BootstrapperPath, Path.Combine(_store, BootstrapperHash));
 
         var result = GameLauncher.DetermineMonitoringTarget(
             BuildGeneralsOnlineManifests(childHash: ChildHash),
@@ -326,8 +375,8 @@ public sealed class MonitoringProcessNameTests : IDisposable
         Assert.True(result.Success, result.FirstError);
         AssertIdentities(
             result,
-            new GameProcessIdentity(Path.GetFileNameWithoutExtension(GameClientConstants.GeneralsOnlineEacLauncherExecutable), _workspace),
             new GameProcessIdentity(GameClientConstants.GeneralsOnlineEacLauncherExecutable, _workspace),
+            new GameProcessIdentity(Path.GetFileNameWithoutExtension(GameClientConstants.GeneralsOnlineEacLauncherExecutable), _workspace),
             new GameProcessIdentity(BootstrapperHash, _store));
     }
 
@@ -442,16 +491,13 @@ public sealed class MonitoringProcessNameTests : IDisposable
     /// A non-CAS child is symlinked into the workspace like any other file, so it is discovered
     /// under its link target's name in the link target's directory.
     /// </summary>
-    [Fact]
+    [SymlinkFact]
     public void CasSymlinkedBootstrapper_WithASymlinkedNonCasChild_MonitorsTheLinkTarget()
     {
         var installation = Directory.CreateDirectory(Path.Combine(_root, "installation")).FullName;
         var installedChild = Path.Combine(installation, InstalledClientFileName);
         File.WriteAllText(installedChild, "client");
-        if (!TryCreateSymbolicLink(ChildWorkspacePath, installedChild))
-        {
-            return;
-        }
+        File.CreateSymbolicLink(ChildWorkspacePath, installedChild);
 
         var result = Resolve(
             BuildGeneralsOnlineManifests(childHash: ChildHash, childSource: ContentSourceType.GameInstallation),
@@ -462,8 +508,8 @@ public sealed class MonitoringProcessNameTests : IDisposable
             result,
             [
                 .. ChildWorkspaceIdentities,
-                new GameProcessIdentity(Path.GetFileNameWithoutExtension(InstalledClientFileName), installation),
                 new GameProcessIdentity(InstalledClientFileName, installation),
+                new GameProcessIdentity(Path.GetFileNameWithoutExtension(InstalledClientFileName), installation),
             ]);
     }
 
@@ -473,24 +519,6 @@ public sealed class MonitoringProcessNameTests : IDisposable
     {
         Assert.True(result.Success, result.FirstError);
         Assert.Equal(expected, result.Data);
-    }
-
-    private static bool TryCreateSymbolicLink(string path, string target)
-    {
-        try
-        {
-            File.CreateSymbolicLink(path, target);
-            return true;
-        }
-        catch (IOException)
-        {
-            return false;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            // Windows without Developer Mode or elevation cannot create symbolic links.
-            return false;
-        }
     }
 
     private static ContentManifest BuildChildOnlyManifest(string childHash) =>
@@ -557,17 +585,14 @@ public sealed class MonitoringProcessNameTests : IDisposable
         return [installation, client];
     }
 
-    private IReadOnlyList<GameProcessIdentity>? ResolveLinkedChildIdentities()
+    private IReadOnlyList<GameProcessIdentity> ResolveLinkedChildIdentities()
     {
         File.WriteAllText(Path.Combine(_store, ChildHash), "client");
-        if (!TryCreateSymbolicLink(ChildWorkspacePath, Path.Combine(_store, ChildHash)))
-        {
-            return null;
-        }
+        File.CreateSymbolicLink(ChildWorkspacePath, Path.Combine(_store, ChildHash));
 
         var result = Resolve(BuildGeneralsOnlineManifests(childHash: ChildHash), WorkspaceStrategy.SymlinkOnly);
         Assert.True(result.Success, result.FirstError);
-        return result.Data;
+        return result.Data!;
     }
 
     private OperationResult<IReadOnlyList<GameProcessIdentity>> Resolve(

@@ -328,7 +328,7 @@ public class GameLauncher(
             ? null
             : Path.Combine(workspacePath, childFile.RelativePath.Replace('\\', '/').Replace('/', Path.DirectorySeparatorChar));
 
-        // The target can disappear after File.Exists succeeds, so check the resolved target too.
+        // On Unix File.Exists returns true for a dangling link, so the resolved target is checked too.
         var childTarget = childPath is not null && File.Exists(childPath) ? TryResolveFinalLinkTarget(childPath, logger) : null;
         if (childFile is null ||
             (isCasChild && string.IsNullOrEmpty(childFile.Hash)) ||
@@ -384,12 +384,16 @@ public class GameLauncher(
     /// </summary>
     /// <param name="path">The executable in the workspace.</param>
     /// <param name="finalTarget">The link's final target, or <see langword="null"/> when the path is not a link.</param>
-    /// <returns>The identities for the path, followed by those for its target.</returns>
+    /// <returns>The identities for the path, followed by those for its target, in order of preference.</returns>
     private static IReadOnlyList<GameProcessIdentity> GetPathIdentities(string path, FileSystemInfo? finalTarget)
     {
         var identities = GetFileIdentities(path);
         if (finalTarget is not null)
         {
+            // The target usually sits in the shared CAS store, so another profile running the same
+            // object matches it as well. The selector prefers the earlier link identities and bounds
+            // every match by the launch's recency window. On Linux and macOS the image path is the
+            // target, so only that window separates two such processes.
             identities.AddRange(GetFileIdentities(finalTarget.FullName));
         }
 
@@ -401,9 +405,12 @@ public class GameLauncher(
         var directory = Path.GetDirectoryName(path);
         var fileName = Path.GetFileName(path);
         var stem = Path.GetFileNameWithoutExtension(path);
+
+        // The full file name comes first: discovery records it as the executable when the process
+        // image cannot be read, and a stem would lose an extension such as game.dat.
         return stem.Equals(fileName, StringComparison.Ordinal)
-            ? [new GameProcessIdentity(stem, directory)]
-            : [new GameProcessIdentity(stem, directory), new GameProcessIdentity(fileName, directory)];
+            ? [new GameProcessIdentity(fileName, directory)]
+            : [new GameProcessIdentity(fileName, directory), new GameProcessIdentity(stem, directory)];
     }
 
     private static string GetRelativeDirectory(string relativePath) =>

@@ -478,7 +478,6 @@ public class GameProcessManager(
 
         // The first identity is the one the launch addresses the game by, so it names the session.
         var processName = identities[0].ProcessName;
-        var workingDirectory = identities[0].Directory ?? string.Empty;
         logger.LogInformation(
             "[Discover] Attempting to discover and track process as any of: {Identities}",
             string.Join(", ", identities));
@@ -507,7 +506,7 @@ public class GameProcessManager(
                 // BuildProcessInfo assigns the fallback to GameProcessInfo.ExecutablePath, which
                 // GameLauncher persists. Passing the directory alone would store a folder where a
                 // file path is expected, so rebuild the executable path from what we were given.
-                var fallbackExecutable = BuildDiscoveryFallbackPath(processName, workingDirectory, OperatingSystem.IsWindows());
+                var fallbackExecutable = BuildDiscoveryFallbackPath(identities, OperatingSystem.IsWindows());
 
                 var processInfo = BuildProcessInfo(process, fallbackExecutable);
                 RegisterProcessEventHandlers(process);
@@ -682,6 +681,15 @@ public class GameProcessManager(
     }
 
     /// <summary>
+    /// Reconstructs the discovery fallback from the identity the launch addresses the game by.
+    /// </summary>
+    /// <param name="identities">The identities the game may present. The first is used.</param>
+    /// <param name="isWindows">Whether extensionless names use the Windows executable suffix.</param>
+    /// <returns>The fallback executable path.</returns>
+    internal static string BuildDiscoveryFallbackPath(IReadOnlyList<GameProcessIdentity> identities, bool isWindows) =>
+        BuildDiscoveryFallbackPath(identities[0].ProcessName, identities[0].Directory ?? string.Empty, isWindows);
+
+    /// <summary>
     /// Reconstructs the discovery fallback without duplicating an explicit executable extension.
     /// </summary>
     /// <param name="processName">The identity name, with or without an extension.</param>
@@ -703,6 +711,7 @@ public class GameProcessManager(
     internal static Process[] GetProcessesByNames(IEnumerable<string> executableNames)
     {
         var found = new Dictionary<int, Process>();
+        var completed = false;
         try
         {
             foreach (var discoveryName in executableNames.SelectMany(GameProcessSelector.GetDiscoveryNames).Distinct(StringComparer.OrdinalIgnoreCase))
@@ -715,15 +724,18 @@ public class GameProcessManager(
                     }
                 }
             }
-        }
-        catch
-        {
-            foreach (var process in found.Values)
-            {
-                process.Dispose();
-            }
 
-            throw;
+            completed = true;
+        }
+        finally
+        {
+            if (!completed)
+            {
+                foreach (var process in found.Values)
+                {
+                    process.Dispose();
+                }
+            }
         }
 
         return [.. found.Values];
