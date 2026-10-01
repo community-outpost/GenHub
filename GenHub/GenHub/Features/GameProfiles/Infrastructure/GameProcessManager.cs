@@ -1705,7 +1705,10 @@ public class GameProcessManager(
                     exitCode,
                     archiveNames);
                 return OperationResult<GameProcessInfo>.CreateFailure(
-                    localizationService.GetString("GameProfiles.Notification.UnexpectedExit.Archives", archiveNames, exitCode));
+                    LaunchExitMessages.AppendExplanation(
+                        localizationService.GetString("GameProfiles.Notification.UnexpectedExit.Archives", archiveNames, exitCode),
+                        exitCode,
+                        localizationService));
             }
 
             var explained = LaunchExitMessages.DescribeImmediateExit(exitCode, stderrTail, localizationService);

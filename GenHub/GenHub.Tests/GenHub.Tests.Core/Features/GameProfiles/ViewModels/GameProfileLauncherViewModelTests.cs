@@ -1185,8 +1185,11 @@ public class GameProfileLauncherViewModelTests
     /// explanation that a DLL is missing.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    [AvaloniaFact]
-    public async Task ProcessExitedWithDllNotFound_ExplainsTheMissingDllAsync()
+    /// <param name="includeArchives">Whether archive diagnostics accompany the exit code.</param>
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ProcessExitedWithDllNotFound_ExplainsTheMissingDllAsync(bool includeArchives)
     {
         var gameProcessManager = new Mock<IGameProcessManager>();
         var notificationService = new Mock<INotificationService>();
@@ -1201,7 +1204,13 @@ public class GameProfileLauncherViewModelTests
         {
             ProcessId = 4251,
             ExitCode = StartupExitCodeConstants.StatusDllNotFound,
+            UnmountableArchives = includeArchives ? ["TexturesZH.big"] : [],
         });
+
+        if (includeArchives)
+        {
+            Assert.Contains("TexturesZH.big", vm.StatusMessage);
+        }
 
         Assert.Contains("-1073741515", vm.StatusMessage);
         Assert.Contains("DLL", vm.StatusMessage);
