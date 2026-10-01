@@ -37,7 +37,7 @@ public class CasService(
             }
 
             // Compute hash if not provided
-            string hash;
+            string hash = string.Empty;
             if (!string.IsNullOrEmpty(expectedHash))
             {
                 // Verify the expected hash matches the actual file
@@ -337,7 +337,7 @@ public class CasService(
             var storage = poolManager.GetStorage(contentType);
 
             // Compute hash
-            string hash;
+            string hash = string.Empty;
             if (!string.IsNullOrEmpty(expectedHash))
             {
                 var actualHash = await fileHashProvider.ComputeFileHashAsync(sourcePath, cancellationToken);

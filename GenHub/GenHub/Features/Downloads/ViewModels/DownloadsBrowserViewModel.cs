@@ -996,7 +996,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 composedName = $"{baseContentCode}-{ContentConstants.DefaultContentFallbackId}";
             }
 
-            string manifestId;
+            string manifestId = string.Empty;
             if (!string.IsNullOrEmpty(v.ManifestId) && ManifestIdValidator.IsValid(v.ManifestId, out _))
             {
                 manifestId = v.ManifestId;

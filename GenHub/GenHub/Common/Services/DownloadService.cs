@@ -410,7 +410,7 @@ public class DownloadService(
         await TryWriteETagSidecarAsync(configuration, cts.Token);
 
         var receivedContentBytes = 0L;
-        int bytesRead;
+        int bytesRead = 0;
         while ((bytesRead = await contentStream.ReadAsync(buffer, cts.Token)) > 0)
         {
             if (connection.ExpectedContentBytes is long expectedContentBytes &&
@@ -490,7 +490,7 @@ public class DownloadService(
         await using var chunkStream = await chunkResponse.Content.ReadAsStreamAsync(token).ConfigureAwait(false);
         var buffer = new byte[bufferSize];
         var chunkBytesRead = 0L;
-        int bytesRead;
+        int bytesRead = 0;
 
         while ((bytesRead = await chunkStream.ReadAsync(buffer.AsMemory(0, buffer.Length), token).ConfigureAwait(false)) > 0)
         {

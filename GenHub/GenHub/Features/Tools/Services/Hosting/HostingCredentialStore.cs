@@ -64,7 +64,7 @@ public class HostingCredentialStore(
             }
 
             plainBytes = Encoding.UTF8.GetBytes(credential);
-            byte[] encryptedBytes;
+            byte[] encryptedBytes = [];
 
             if (OperatingSystem.IsWindows())
             {

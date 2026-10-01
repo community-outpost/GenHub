@@ -307,7 +307,7 @@ public class ProfileContentLoader(
         var isLocal = manifest.Publisher?.PublisherType?.Equals(LocalContentService.LocalPublisherType, StringComparison.OrdinalIgnoreCase) == true
             || !string.IsNullOrEmpty(manifest.SourcePath);
         var normalizedVersion = isLocal ? string.Empty : displayFormatter.NormalizeVersion(manifest.Version);
-        string displayName;
+        string displayName = string.Empty;
         if (manifest.ContentType == ContentType.GameInstallation)
         {
             if (displayFormatter.GetInstallationTypeFromManifest(manifest) == GameInstallationType.Custom)

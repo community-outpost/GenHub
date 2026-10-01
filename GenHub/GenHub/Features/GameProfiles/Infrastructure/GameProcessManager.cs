@@ -987,7 +987,7 @@ public class GameProcessManager(
             return;
         }
 
-        string fullRoot;
+        string fullRoot = string.Empty;
         try
         {
             fullRoot = Path.GetFullPath(dirPath);
@@ -1426,7 +1426,7 @@ public class GameProcessManager(
             return;
         }
 
-        int processId;
+        int processId = 0;
         try
         {
             processId = process.Id;

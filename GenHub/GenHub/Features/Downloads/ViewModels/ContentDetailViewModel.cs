@@ -4487,7 +4487,7 @@ public partial class ContentDetailViewModel(
             Description: description,
             FileSectionType: FileSectionType.Downloads);
 
-        string releaseName;
+        string releaseName = string.Empty;
         if (!string.IsNullOrWhiteSpace(rel.Title))
         {
             releaseName = rel.Title;
@@ -4841,7 +4841,7 @@ public partial class ContentDetailViewModel(
             Variants.Clear();
             foreach (var art in rel.Artifacts)
             {
-                string varName;
+                string varName = string.Empty;
                 if (!string.IsNullOrWhiteSpace(art.Variant))
                 {
                     varName = art.Variant;

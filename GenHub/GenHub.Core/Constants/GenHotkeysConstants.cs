@@ -443,7 +443,7 @@ public static class GenHotkeysConstants
             sanitizedName = "Hotkeys";
         }
 
-        string idSuffix;
+        string idSuffix = string.Empty;
         if (!string.IsNullOrWhiteSpace(profileId))
         {
             var sanitizedId = Regex.Replace(profileId, @"[^a-zA-Z0-9_\-]", "_", RegexOptions.None, TimeSpan.FromSeconds(1));

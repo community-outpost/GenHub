@@ -1860,7 +1860,7 @@ public sealed partial class WndEditorViewModel(
             return;
         }
 
-        int initialCount;
+        int initialCount = 0;
         lock (_linkedAssetsSync)
         {
             initialCount = LinkedBigFiles.Count;
@@ -1912,7 +1912,7 @@ public sealed partial class WndEditorViewModel(
             return;
         }
 
-        bool removed;
+        bool removed = false;
         lock (_linkedAssetsSync)
         {
             removed = LinkedBigFiles.Remove(path);
@@ -2210,7 +2210,7 @@ public sealed partial class WndEditorViewModel(
 
     private void UpdateLinkedAssetsSummary()
     {
-        string? modFolder;
+        string? modFolder = null;
         List<string> bigFiles;
         lock (_linkedAssetsSync)
         {
@@ -2384,7 +2384,7 @@ public sealed partial class WndEditorViewModel(
 
         var selected = SelectedNode;
         List<WndWindow> siblings;
-        int insertIndex;
+        int insertIndex = 0;
         if (!_isCutOperation && selected is not null && (ReferenceEquals(selected.Window, _copySourceWindow) || ReferenceEquals(selected.Window, _lastPastedClone)))
         {
             // Pasting onto the copied window itself (or the clone from the last
@@ -3640,8 +3640,8 @@ public sealed partial class WndEditorViewModel(
     {
         CancellationTokenSource? toCancel;
         CancellationTokenSource cts;
-        int generation;
-        string? linkedModFolderSnapshot;
+        int generation = 0;
+        string? linkedModFolderSnapshot = null;
         List<string>? linkedBigFilesSnapshot;
         lock (_previewSync)
         {

@@ -143,7 +143,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
             // Determine a sensible source directory for the generated manifest.
             // Prefer the working directory if present, otherwise fall back to the directory
             // containing the configured executable path.
-            string? gameDir;
+            string? gameDir = null;
             try
             {
                 gameDir = !string.IsNullOrEmpty(gameClient.WorkingDirectory)

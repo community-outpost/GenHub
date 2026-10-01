@@ -127,7 +127,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
 
                 // Check file existence based on source type
                 bool isMaterializedLocally = File.Exists(resolvedFilePath);
-                bool fileExists;
+                bool fileExists = false;
 
                 if (isMaterializedLocally)
                 {

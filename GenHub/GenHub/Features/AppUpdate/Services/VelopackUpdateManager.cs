@@ -962,7 +962,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                     },
                     cancellationToken);
 
-                string artifactChannel;
+                string artifactChannel = string.Empty;
                 if (artifactInfo.PullRequestNumber.HasValue)
                 {
                     artifactChannel = $"{TelemetryConstants.PullRequestChannelPrefix}{artifactInfo.PullRequestNumber.Value}";

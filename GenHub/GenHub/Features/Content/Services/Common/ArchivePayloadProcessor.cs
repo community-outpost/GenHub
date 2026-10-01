@@ -285,7 +285,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         var fileNameWithoutExt = Path.GetFileNameWithoutExtension(destinationPath);
         var ext = Path.GetExtension(destinationPath);
         var counter = 1;
-        string? newDestPath;
+        string? newDestPath = null;
         do
         {
             newDestPath = Path.Combine(dir, $"{fileNameWithoutExt}_{counter}{ext}");
@@ -398,7 +398,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         }
 
         Span<byte> header = stackalloc byte[1024];
-        int read;
+        int read = 0;
         using (var stream = File.OpenRead(archivePath))
         {
             read = stream.Read(header);
@@ -471,7 +471,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         }
 
         var entryDirectory = Path.GetDirectoryName(entry) ?? context.RootFull;
-        string targetFull;
+        string targetFull = string.Empty;
         try
         {
             targetFull = Path.GetFullPath(Path.Combine(entryDirectory, target));
@@ -983,7 +983,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         var pending = new Queue<string>();
         pending.Enqueue(rootDirectory);
 
-        string rootCanonical;
+        string rootCanonical = string.Empty;
         try
         {
             rootCanonical = CanonicalizePath(rootDirectory) ?? Path.GetFullPath(rootDirectory);
@@ -1027,7 +1027,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                     continue;
                 }
 
-                string fullSubDir;
+                string fullSubDir = string.Empty;
                 try
                 {
                     fullSubDir = Path.GetFullPath(subDir);
@@ -1877,7 +1877,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
 
     private static void CopyStreamWithCap(Stream source, Stream destination, byte[] copyBuffer, ref long totalBytesWritten)
     {
-        int read;
+        int read = 0;
         while ((read = source.Read(copyBuffer, 0, copyBuffer.Length)) > 0)
         {
             totalBytesWritten += read;
@@ -2902,8 +2902,8 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
     private string GetUniqueMapDirectory(string parentDirectory, string mapBase, ISet<string> reservedNames)
     {
         var counter = 1;
-        string candidateName;
-        string candidateFolder;
+        string candidateName = string.Empty;
+        string candidateFolder = string.Empty;
         do
         {
             candidateName = $"{mapBase} ({counter})";

@@ -286,8 +286,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         var activeInstallation = EnabledContent.FirstOrDefault(c => c.ContentType == ContentType.GameInstallation)
             ?? (SelectedGameInstallation is { IsEnabled: true } ? SelectedGameInstallation : null);
 
-        bool hasGo;
-        bool hasTsh;
+        bool hasGo = false;
+        bool hasTsh = false;
 
         if (enabledClients.Count > 0)
         {

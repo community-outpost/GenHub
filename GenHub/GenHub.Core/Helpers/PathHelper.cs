@@ -489,7 +489,7 @@ public static class PathHelper
     /// <returns>The canonicalized path, or <c>null</c> if resolution fails or a loop is detected.</returns>
     public static string? CanonicalizePath(string path)
     {
-        string current;
+        string current = string.Empty;
         try
         {
             current = Path.GetFullPath(path);
@@ -569,7 +569,7 @@ public static class PathHelper
 
         if (OperatingSystem.IsLinux())
         {
-            string? targetDir;
+            string? targetDir = null;
             if (File.Exists(filePath))
             {
                 targetDir = Path.GetDirectoryName(filePath);

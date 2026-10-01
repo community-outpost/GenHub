@@ -3200,7 +3200,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             var preferredInstallation = await _storageLocationService.GetPreferredInstallationAsync();
-            string path;
+            string path = string.Empty;
 
             if (preferredInstallation != null)
             {
@@ -3246,7 +3246,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             var preferredInstallation = await _storageLocationService.GetPreferredInstallationAsync();
-            string path;
+            string path = string.Empty;
 
             if (preferredInstallation != null)
             {

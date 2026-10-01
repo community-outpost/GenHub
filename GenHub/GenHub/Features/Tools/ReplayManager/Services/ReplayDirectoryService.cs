@@ -119,8 +119,8 @@ public sealed class ReplayDirectoryService(
         }
 
         var availableForNames = maxLength - overhead;
-        int titleLen;
-        int replayLen;
+        int titleLen = 0;
+        int replayLen = 0;
 
         if (title.Length + replayBaseName.Length <= availableForNames)
         {
@@ -2945,7 +2945,7 @@ public sealed class ReplayDirectoryService(
         if (match == null && !string.IsNullOrWhiteSpace(matchedClient.CdnUrl))
         {
             var isGeneralsOnline = string.Equals(matchedClient.Publisher, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase);
-            string contentId;
+            string contentId = string.Empty;
             if (isGeneralsOnline)
             {
                 contentId = string.Format(CultureInfo.InvariantCulture, ReplayManagerConstants.GeneralsOnlineContentIdPattern, matchedClient.Version);

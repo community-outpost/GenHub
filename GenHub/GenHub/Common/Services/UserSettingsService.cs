@@ -211,7 +211,7 @@ public class UserSettingsService : IUserSettingsService
 
                 var initialSettings = LoadSettings(sourcePath, out var outcome);
 
-                string writePath;
+                string writePath = string.Empty;
                 if (!string.IsNullOrWhiteSpace(initialSettings.SettingsFilePath) &&
                     !PathHelper.AreSamePath(initialSettings.SettingsFilePath, targetPath))
                 {
