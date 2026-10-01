@@ -1,6 +1,7 @@
 using GenHub.Core.Models.Manifest;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using Xunit;
 
 namespace GenHub.Tests.Core.Models.Manifest;
@@ -513,15 +514,26 @@ public class ManifestVariantResolverTests
         Assert.Null(ManifestVariantResolver.ResolveVariant(manifest, "linux-x64"));
     }
 
-    /// <summary>A variant whose runtime list was deserialized as null is platform-neutral.</summary>
+    /// <summary>A variant whose runtime list is explicitly null in JSON is platform-neutral and never null.</summary>
     [Fact]
-    public void ResolveVariant_NullRuntimeIdentifiers_FallsBackAsNeutral()
+    public void ResolveVariant_NullRuntimeIdentifiersInJson_FallsBackAsNeutral()
     {
-        var neutral = new ArtifactVariant { RuntimeIdentifiers = null!, Files = [File("assets.big")] };
-        var manifest = new ContentManifest { Variants = [new ArtifactVariant { RuntimeIdentifiers = ["win-x64"] }, neutral] };
+        const string json = """
+            {
+              "variants": [
+                { "runtimeIdentifiers": ["win-x64"], "files": [{ "relativePath": "generals.exe" }] },
+                { "runtimeIdentifiers": null, "files": [{ "relativePath": "assets.big" }] }
+              ]
+            }
+            """;
+        var manifest = JsonSerializer.Deserialize<ContentManifest>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
 
-        Assert.Same(neutral, ManifestVariantResolver.ResolveVariant(manifest, "osx-arm64"));
-        Assert.True(ManifestVariantResolver.SupportsRuntime(manifest, "osx-arm64"));
+        var neutral = ManifestVariantResolver.ResolveVariant(manifest, "osx-arm64");
+
+        Assert.NotNull(neutral);
+        Assert.Empty(neutral.RuntimeIdentifiers);
+        Assert.True(neutral.SupportsRuntime("osx-arm64"));
+        Assert.Equal("assets.big", Assert.Single(ManifestVariantResolver.ResolveFiles(manifest, "osx-arm64")).RelativePath);
     }
 
     private static ManifestFile File(string path, bool isExecutable = false) =>

@@ -19,6 +19,8 @@ namespace GenHub.Core.Models.Manifest;
 /// </summary>
 public class ArtifactVariant
 {
+    private List<string> _runtimeIdentifiers = [];
+
     /// <summary>
     /// Gets or sets the runtime identifiers this variant can run on, for example
     /// <c>osx-arm64</c> or <c>win-x64</c>.
@@ -29,11 +31,16 @@ public class ArtifactVariant
     /// </para>
     /// <para>
     /// An empty list means the variant is platform-neutral, which is correct for map
-    /// packs, INI tweaks and <c>.big</c> content that contains no native code.
+    /// packs, INI tweaks and <c>.big</c> content that contains no native code. A null
+    /// value, such as an explicit JSON <c>null</c>, is stored as an empty list.
     /// </para>
     /// </summary>
     [JsonPropertyName("runtimeIdentifiers")]
-    public List<string> RuntimeIdentifiers { get; set; } = [];
+    public List<string> RuntimeIdentifiers
+    {
+        get => _runtimeIdentifiers;
+        set => _runtimeIdentifiers = value ?? [];
+    }
 
     /// <summary>
     /// Gets or sets the relative path of the file to launch for this variant.
