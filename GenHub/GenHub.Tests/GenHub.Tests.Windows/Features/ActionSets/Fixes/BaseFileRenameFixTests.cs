@@ -254,31 +254,25 @@ public sealed class BaseFileRenameFixTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies apply disables the target when an identical GenHub backup already holds its bytes, and undo brings it back.
+    /// Verifies apply preserves both paths even when their current contents are identical.
     /// </summary>
     /// <param name="fixId">The fix under test.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Theory]
     [MemberData(nameof(FixIds))]
-    public async Task Apply_WhenIdenticalGenHubBackupExists_DisablesTargetAndUndoRestoresItAsync(string fixId)
+    public async Task Apply_WhenIdenticalGenHubBackupExists_PreservesBothAndFailsAsync(string fixId)
     {
         var (fix, target, genHubBackup) = CreateFix(fixId);
         var installation = CreateInstallation(out var generalsDir, out _);
         installation.HasZeroHour = false;
         File.WriteAllText(Path.Combine(generalsDir, target), OriginalContent);
         File.WriteAllText(Path.Combine(generalsDir, genHubBackup), OriginalContent);
-        var originalHash = HashFile(Path.Combine(generalsDir, target));
+        var before = Snapshot();
 
         var apply = await fix.ApplyAsync(installation);
 
-        apply.Success.Should().BeTrue(string.Join(Environment.NewLine, apply.Details));
-        File.Exists(Path.Combine(generalsDir, target)).Should().BeFalse();
-        HashFile(Path.Combine(generalsDir, genHubBackup)).Should().Be(originalHash);
-
-        var undo = await fix.UndoAsync(installation);
-
-        undo.Success.Should().BeTrue(string.Join(Environment.NewLine, undo.Details));
-        HashFile(Path.Combine(generalsDir, target)).Should().Be(originalHash);
+        apply.Success.Should().BeFalse();
+        Snapshot().Should().BeEquivalentTo(before);
     }
 
     /// <summary>
@@ -305,25 +299,25 @@ public sealed class BaseFileRenameFixTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies undo discards only a redundant GenHub backup when the target reappeared with identical content.
+    /// Verifies undo preserves both paths even when the target reappeared with identical content.
     /// </summary>
     /// <param name="fixId">The fix under test.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Theory]
     [MemberData(nameof(FixIds))]
-    public async Task Undo_WhenTargetReappearedWithIdenticalContent_RemovesRedundantBackupAsync(string fixId)
+    public async Task Undo_WhenTargetReappearedWithIdenticalContent_PreservesBothAndFailsAsync(string fixId)
     {
         var (fix, target, genHubBackup) = CreateFix(fixId);
         var installation = CreateInstallation(out var generalsDir, out _);
         installation.HasZeroHour = false;
         Seed(generalsDir, target, hasOriginal: true, DifferentContent);
-        var before = Snapshot();
         (await fix.ApplyAsync(installation)).Success.Should().BeTrue();
         File.Copy(Path.Combine(generalsDir, genHubBackup), Path.Combine(generalsDir, target));
 
+        var before = Snapshot();
         var undo = await fix.UndoAsync(installation);
 
-        undo.Success.Should().BeTrue(string.Join(Environment.NewLine, undo.Details));
+        undo.Success.Should().BeFalse();
         Snapshot().Should().BeEquivalentTo(before);
     }
 

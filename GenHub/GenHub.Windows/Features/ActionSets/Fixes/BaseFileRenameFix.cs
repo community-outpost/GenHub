@@ -1,6 +1,5 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
-using GenHub.Core.Helpers;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
 using System;
@@ -65,7 +64,7 @@ public abstract class BaseFileRenameFix(
     }
 
     /// <inheritdoc/>
-    protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken ct)
+    protected override Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         var details = new List<string> { $"Starting {Title}..." };
         var allSucceeded = true;
@@ -73,20 +72,21 @@ public abstract class BaseFileRenameFix(
         foreach (var (gameName, directory) in GetGameDirectories(installation))
         {
             details.Add($"Processing {gameName}: {directory}");
-            allSucceeded &= await DisableTargetAsync(directory, details, ct);
+            ct.ThrowIfCancellationRequested();
+            allSucceeded &= DisableTarget(directory, details);
         }
 
         if (!allSucceeded)
         {
-            return new ActionSetResult(false, $"{Title} could not disable {targetFileName} in every game directory.", details);
+            return Task.FromResult(new ActionSetResult(false, $"{Title} could not disable {targetFileName} in every game directory.", details));
         }
 
         details.Add($"OK: {Title} completed successfully");
-        return new ActionSetResult(true, null, details);
+        return Task.FromResult(new ActionSetResult(true, null, details));
     }
 
     /// <inheritdoc/>
-    protected override async Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
+    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         var details = new List<string> { $"Restoring {targetFileName}..." };
         var allSucceeded = true;
@@ -94,16 +94,17 @@ public abstract class BaseFileRenameFix(
         foreach (var (gameName, directory) in GetGameDirectories(installation))
         {
             details.Add($"Processing {gameName}: {directory}");
-            allSucceeded &= await RestoreTargetAsync(directory, details, ct);
+            ct.ThrowIfCancellationRequested();
+            allSucceeded &= RestoreTarget(directory, details);
         }
 
         if (!allSucceeded)
         {
-            return new ActionSetResult(false, $"Could not restore {targetFileName} in every game directory.", details);
+            return Task.FromResult(new ActionSetResult(false, $"Could not restore {targetFileName} in every game directory.", details));
         }
 
         details.Add($"OK: {targetFileName} restoration completed successfully");
-        return new ActionSetResult(true, null, details);
+        return Task.FromResult(new ActionSetResult(true, null, details));
     }
 
     private static List<(string GameName, string Directory)> GetGameDirectories(GameInstallation installation)
@@ -129,19 +130,7 @@ public abstract class BaseFileRenameFix(
         Path.TrimEndingDirectorySeparator(second),
         StringComparison.OrdinalIgnoreCase);
 
-    private static async Task<bool> HaveSameContentAsync(string firstPath, string secondPath, CancellationToken ct)
-    {
-        if (new FileInfo(firstPath).Length != new FileInfo(secondPath).Length)
-        {
-            return false;
-        }
-
-        var firstHash = await DownloadSecurityValidator.ComputeSha256Async(firstPath, ct);
-        var secondHash = await DownloadSecurityValidator.ComputeSha256Async(secondPath, ct);
-        return string.Equals(firstHash, secondHash, StringComparison.Ordinal);
-    }
-
-    private async Task<bool> DisableTargetAsync(string directory, List<string> details, CancellationToken ct)
+    private bool DisableTarget(string directory, List<string> details)
     {
         var originalPath = Path.Combine(directory, targetFileName);
         var backupPath = Path.Combine(directory, backupFileName);
@@ -162,17 +151,11 @@ public abstract class BaseFileRenameFix(
                 return true;
             }
 
-            if (!await HaveSameContentAsync(originalPath, backupPath, ct))
-            {
-                details.Add($"  Error: {backupFileName} already exists with different content. Both files were left unchanged.");
-                Logger.LogWarning("Not disabling {OriginalPath}: {BackupPath} exists with different content", originalPath, backupPath);
-                return false;
-            }
-
-            File.Delete(originalPath);
-            details.Add($"  OK: {backupFileName} already holds an identical copy, removed {targetFileName}");
-            Logger.LogInformation("Removed {OriginalPath}: identical backup already at {BackupPath}", originalPath, backupPath);
-            return true;
+            // Never delete a path after comparing its bytes: another process can replace it
+            // between the comparison and deletion. Preserve both files for explicit recovery.
+            details.Add($"  Error: {backupFileName} already exists. Both files were left unchanged.");
+            Logger.LogWarning("Not disabling {OriginalPath}: backup already exists at {BackupPath}", originalPath, backupPath);
+            return false;
         }
         catch (IOException ex)
         {
@@ -188,7 +171,7 @@ public abstract class BaseFileRenameFix(
         }
     }
 
-    private async Task<bool> RestoreTargetAsync(string directory, List<string> details, CancellationToken ct)
+    private bool RestoreTarget(string directory, List<string> details)
     {
         var originalPath = Path.Combine(directory, targetFileName);
         var backupPath = Path.Combine(directory, backupFileName);
@@ -208,17 +191,9 @@ public abstract class BaseFileRenameFix(
                 return true;
             }
 
-            if (!await HaveSameContentAsync(originalPath, backupPath, ct))
-            {
-                details.Add($"  Error: {targetFileName} already exists and differs from {backupFileName}. Both files were left unchanged.");
-                Logger.LogWarning("Not restoring {BackupPath}: {OriginalPath} exists with different content", backupPath, originalPath);
-                return false;
-            }
-
-            File.Delete(backupPath);
-            details.Add($"  OK: {targetFileName} already present with identical content, removed {backupFileName}");
-            Logger.LogInformation("Removed {BackupPath}: identical {OriginalPath} already present", backupPath, originalPath);
-            return true;
+            details.Add($"  Error: {targetFileName} already exists. Both files were left unchanged.");
+            Logger.LogWarning("Not restoring {BackupPath}: target already exists at {OriginalPath}", backupPath, originalPath);
+            return false;
         }
         catch (IOException ex)
         {
