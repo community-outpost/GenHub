@@ -162,6 +162,30 @@ public class ContentStorageServiceVariantTests : IDisposable
     }
 
     /// <summary>
+    /// With the source gone, a foreign CAS entry whose staging source path lies outside
+    /// the storage root does not fail validation, because metadata-only storage clears it.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task StoreContentAsync_WithMissingSourceAndAbsoluteForeignStagingPath_SucceedsAsync()
+    {
+        _casServiceMock
+            .Setup(c => c.ExistsAsync(HostHash, ContentType.GameClient, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var stagingPath = Path.Combine(_tempRoot, "Staging", ForeignFileName);
+        var manifest = VariantManifestFixture.Create(
+            [new() { RelativePath = HostFileName, Hash = HostHash, SourceType = ContentSourceType.ContentAddressable, IsRequired = true }],
+            [new() { RelativePath = ForeignFileName, Hash = ForeignHash, SourcePath = stagingPath, SourceType = ContentSourceType.ContentAddressable, IsRequired = true }]);
+
+        var result = await _service.StoreContentAsync(manifest, Path.Combine(_tempRoot, "Missing"));
+
+        Assert.True(result.Success, result.FirstError);
+        var foreignFile = Assert.Single(ManifestVariantResolver.ResolveFiles(result.Data!, VariantManifestFixture.ForeignRuntimeIdentifier));
+        Assert.Null(foreignFile.SourcePath);
+    }
+
+    /// <summary>
     /// Metadata-only storage fails when the host variant's required object is missing.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
@@ -243,7 +267,11 @@ public class ContentStorageServiceVariantTests : IDisposable
                 Directory.Delete(_tempRoot, true);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Ignore cleanup errors
+        }
+        catch (UnauthorizedAccessException)
         {
             // Ignore cleanup errors
         }

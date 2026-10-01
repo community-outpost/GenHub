@@ -701,6 +701,18 @@ public class ContentStorageService : IContentStorageService
 
         try
         {
+            // Sanitize file entries first: CAS files must never retain transient staging source paths,
+            // and metadata-only storage never reads them, so they must not fail validation either
+            ManifestVariantResolver.RewriteAllFiles(manifest, f =>
+            {
+                if (f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.SourcePath))
+                {
+                    return CloneManifestFileForCas(f);
+                }
+
+                return f;
+            });
+
             // Validate manifest for security issues
             // Use sourceDirectory if available, otherwise fallback to storage root (though typically sourceDirectory should be provided)
             var validationBase = !string.IsNullOrEmpty(sourceDirectory) && Directory.Exists(sourceDirectory)
@@ -750,17 +762,6 @@ public class ContentStorageService : IContentStorageService
                 _logger.LogError("Failed to track CAS references for metadata-only manifest {ManifestId}: {Error}", manifest.Id, trackResult.FirstError);
                 return OperationResult<ContentManifest>.CreateFailure($"Failed to track CAS references: {trackResult.FirstError}");
             }
-
-            // Sanitize file entries: CAS files must never retain transient staging source paths
-            ManifestVariantResolver.RewriteAllFiles(manifest, f =>
-            {
-                if (f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.SourcePath))
-                {
-                    return CloneManifestFileForCas(f);
-                }
-
-                return f;
-            });
 
             // Store manifest metadata only
             var manifestJson = JsonSerializer.Serialize(manifest, JsonOptions);
