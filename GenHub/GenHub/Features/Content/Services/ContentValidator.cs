@@ -320,11 +320,8 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
             issues.Add(new ValidationIssue("Manifest Version is missing.", ValidationSeverity.Warning));
         }
 
-        if (manifest.Variants.Count == 0)
-        {
-            AddFileStructureIssues(ManifestVariantResolver.ResolveFiles(manifest), string.Empty, issues);
-        }
-        else
+        AddFileStructureIssues(ManifestVariantResolver.GetDeclaredFileLists(manifest)[0], string.Empty, issues);
+        if (manifest.Variants.Count > 0)
         {
             for (var variantIndex = 0; variantIndex < manifest.Variants.Count; variantIndex++)
             {

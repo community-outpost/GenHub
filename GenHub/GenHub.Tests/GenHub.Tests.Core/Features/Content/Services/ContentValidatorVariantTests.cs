@@ -129,6 +129,17 @@ public sealed class ContentValidatorVariantTests : IDisposable
         Assert.Contains(result.Issues, issue => issue.Message.Contains("null file"));
     }
 
+    /// <summary>Root entries are validated even when runtime variants supply the payload.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateManifestAsync_VariantsWithNullRootFile_ReportsErrorAsync()
+    {
+        var manifest = CreateManifest();
+        manifest.Files = [null!];
+        var result = await _validator.ValidateManifestAsync(manifest);
+        Assert.Contains(result.Issues, issue => issue.Message.Contains("File at index 0 is null"));
+    }
+
     private static ContentManifest CreateManifest() => VariantManifestFixture.Create(
         [new() { RelativePath = HostFileName, SourceType = ContentSourceType.GameInstallation }],
         [new() { RelativePath = ForeignFileName, SourceType = ContentSourceType.GameInstallation }]);
