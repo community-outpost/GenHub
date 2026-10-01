@@ -98,9 +98,9 @@ public class LaunchExitMessagesTests
     /// <param name="cultureName">The requested UI culture.</param>
     /// <param name="expected">A translated phrase about the missing DLL.</param>
     [Theory]
-    [InlineData("en", "A required DLL is missing")]
-    [InlineData("ar", "مكتبة DLL مطلوبة مفقودة")]
-    [InlineData("ru", "Отсутствует необходимая библиотека DLL")]
+    [InlineData("en", "A required DLL could not be found")]
+    [InlineData("ar", "تعذر العثور على مكتبة DLL مطلوبة")]
+    [InlineData("ru", "Не удалось найти необходимую библиотеку DLL")]
     public void DescribeImmediateExit_ForDllNotFound_NamesTheMissingDll(string cultureName, string expected)
     {
         var localization = CreateLocalization(CultureInfo.GetCultureInfo(cultureName));
@@ -141,7 +141,7 @@ public class LaunchExitMessagesTests
 
         Assert.Contains("before launch completed", message);
         Assert.Contains("-1073741515", message);
-        Assert.Contains("A required DLL is missing", message);
+        Assert.Contains("A required DLL could not be found", message);
     }
 
     /// <summary>An early exit with an unknown code keeps the existing message exactly.</summary>

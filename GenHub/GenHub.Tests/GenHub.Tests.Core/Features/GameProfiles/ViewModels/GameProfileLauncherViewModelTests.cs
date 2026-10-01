@@ -1208,7 +1208,7 @@ public class GameProfileLauncherViewModelTests
         notificationService.Verify(
             n => n.ShowError(
                 "Game Exited Unexpectedly",
-                It.Is<string>(s => s.Contains("-1073741515") && s.Contains("A required DLL is missing")),
+                It.Is<string>(s => s.Contains("-1073741515") && s.Contains("A required DLL could not be found")),
                 It.IsAny<int?>(),
                 It.IsAny<bool>()),
             Times.Once());

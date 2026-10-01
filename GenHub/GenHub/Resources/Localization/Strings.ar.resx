@@ -14056,19 +14056,19 @@ https://example.com/screenshot2.png</value>
     <value>خرجت اللعبة فورًا برمز الخروج {0} (0x{1}). {2}</value>
   </data>
   <data name="Launch.ExitCode.DllNotFound" xml:space="preserve">
-    <value>مكتبة DLL مطلوبة مفقودة. تأكد من وجود جميع ملفات DLL المرفقة بعميل اللعبة في مجلده.</value>
+    <value>تعذر العثور على مكتبة DLL مطلوبة. تأكد من وجود جميع ملفات DLL المرفقة بالملف التنفيذي في مجلده.</value>
   </data>
   <data name="Launch.ExitCode.InvalidImageFormat" xml:space="preserve">
-    <value>اللعبة أو إحدى مكتبات DLL الخاصة بها ليست برنامجًا صالحًا لهذا النظام، وغالبًا ما يكون السبب خلط ملفات 32 بت و64 بت.</value>
+    <value>البرنامج أو إحدى مكتبات DLL الخاصة به غير صالح لهذا النظام، وغالبًا ما يكون السبب خلط ملفات 32 بت و64 بت.</value>
   </data>
   <data name="Launch.ExitCode.DllInitFailed" xml:space="preserve">
-    <value>فشلت تهيئة مكتبة DLL تحتاجها اللعبة.</value>
+    <value>فشلت تهيئة مكتبة DLL مطلوبة.</value>
   </data>
   <data name="Launch.ExitCode.AccessViolation" xml:space="preserve">
-    <value>تعطلت اللعبة بسبب انتهاك في الوصول إلى الذاكرة.</value>
+    <value>تعطلت العملية بسبب انتهاك في الوصول إلى الذاكرة.</value>
   </data>
   <data name="Launch.ExitCode.StackBufferOverrun" xml:space="preserve">
-    <value>أوقفت اللعبة نفسها بعد خطأ فادح (تجاوز سعة المخزن المؤقت للمكدس أو إنهاء فوري).</value>
+    <value>أوقفت العملية نفسها بعد خطأ فادح (تجاوز سعة المخزن المؤقت للمكدس أو إنهاء فوري).</value>
   </data>
   <data name="GameProfiles.Notification.ToolLaunchSuccess.Title" xml:space="preserve">
     <value>تم تشغيل الأداة</value>

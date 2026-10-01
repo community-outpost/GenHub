@@ -14056,19 +14056,19 @@ https://example.com/screenshot2.png</value>
     <value>Игра завершилась сразу после запуска с кодом {0} (0x{1}). {2}</value>
   </data>
   <data name="Launch.ExitCode.DllNotFound" xml:space="preserve">
-    <value>Отсутствует необходимая библиотека DLL. Убедитесь, что все DLL, поставляемые с игровым клиентом, находятся в его папке.</value>
+    <value>Не удалось найти необходимую библиотеку DLL. Убедитесь, что все DLL, поставляемые с исполняемым файлом, находятся в его папке.</value>
   </data>
   <data name="Launch.ExitCode.InvalidImageFormat" xml:space="preserve">
-    <value>Игра или одна из её библиотек DLL не является допустимой программой для этой системы. Часто причина в смешении 32-битных и 64-битных файлов.</value>
+    <value>Программа или одна из её библиотек DLL недопустима для этой системы. Часто причина в смешении 32-битных и 64-битных файлов.</value>
   </data>
   <data name="Launch.ExitCode.DllInitFailed" xml:space="preserve">
-    <value>Не удалось инициализировать библиотеку DLL, необходимую игре.</value>
+    <value>Не удалось инициализировать необходимую библиотеку DLL.</value>
   </data>
   <data name="Launch.ExitCode.AccessViolation" xml:space="preserve">
-    <value>Игра аварийно завершилась из-за нарушения доступа к памяти.</value>
+    <value>Процесс аварийно завершился из-за нарушения доступа к памяти.</value>
   </data>
   <data name="Launch.ExitCode.StackBufferOverrun" xml:space="preserve">
-    <value>Игра остановила себя после критической ошибки (переполнение буфера стека или аварийное завершение fail-fast).</value>
+    <value>Процесс остановил себя после критической ошибки (переполнение буфера стека или аварийное завершение fail-fast).</value>
   </data>
   <data name="GameProfiles.Notification.ToolLaunchSuccess.Title" xml:space="preserve">
     <value>Инструмент запущен</value>
