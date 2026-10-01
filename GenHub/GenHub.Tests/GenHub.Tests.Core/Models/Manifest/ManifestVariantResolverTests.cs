@@ -536,6 +536,20 @@ public class ManifestVariantResolverTests
         Assert.Equal("assets.big", Assert.Single(ManifestVariantResolver.ResolveFiles(manifest, "osx-arm64")).RelativePath);
     }
 
+    /// <summary>Resolved files skip null entries in a variant and in the flat list.</summary>
+    [Fact]
+    public void ResolveFiles_SkipsNullEntries()
+    {
+        var variantManifest = new ContentManifest
+        {
+            Variants = [new ArtifactVariant { RuntimeIdentifiers = ["osx-arm64"], Files = [null!, File("generalszh")] }],
+        };
+        var flatManifest = new ContentManifest { Files = [File("generals.exe"), null!] };
+
+        Assert.Equal("generalszh", Assert.Single(ManifestVariantResolver.ResolveFiles(variantManifest, "osx-arm64")).RelativePath);
+        Assert.Equal("generals.exe", Assert.Single(ManifestVariantResolver.ResolveFiles(flatManifest)).RelativePath);
+    }
+
     /// <summary>Declared lists keep the flat list first and preserve null lists and null variants.</summary>
     [Fact]
     public void GetDeclaredFileLists_PreservesOrderAndNullEntries()

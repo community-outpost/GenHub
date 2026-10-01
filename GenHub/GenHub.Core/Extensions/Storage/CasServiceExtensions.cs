@@ -57,7 +57,7 @@ public static class CasServiceExtensions
         CancellationToken cancellationToken = default)
     {
         var missingFiles = new List<ManifestFile>();
-        foreach (var file in ManifestVariantResolver.ResolveFiles(manifest).Where(f => f is { SourceType: ContentSourceType.ContentAddressable, IsRequired: true }))
+        foreach (var file in ManifestVariantResolver.ResolveFiles(manifest).Where(f => f.SourceType == ContentSourceType.ContentAddressable && f.IsRequired))
         {
             var exists = !string.IsNullOrEmpty(file.Hash) &&
                 await casService.ExistsInAnyPoolAsync(file.Hash, manifest.ContentType, cancellationToken).ConfigureAwait(false);

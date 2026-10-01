@@ -31,7 +31,8 @@ public static class ManifestVariantResolver
     /// <returns>
     /// The matching variant's files, or the flat <see cref="ContentManifest.Files"/> list
     /// when the manifest declares no variants. Empty when variants are declared but none
-    /// matches, which means the content genuinely cannot run here.
+    /// matches, which means the content genuinely cannot run here. Null entries are
+    /// skipped; structural validation reports them through <see cref="GetDeclaredFileLists"/>.
     /// </returns>
     public static IReadOnlyList<ManifestFile> ResolveFiles(
         ContentManifest manifest,
@@ -40,13 +41,17 @@ public static class ManifestVariantResolver
         ArgumentNullException.ThrowIfNull(manifest);
 
         var variant = ResolveVariant(manifest, runtimeIdentifier);
-
+        IReadOnlyList<ManifestFile>? files = null;
         if (variant is not null)
         {
-            return variant.Files ?? [];
+            files = variant.Files;
+        }
+        else if (manifest.Variants.Count == 0)
+        {
+            files = manifest.Files;
         }
 
-        return manifest.Variants.Count == 0 ? (manifest.Files ?? []) : [];
+        return files is null ? [] : files.Where(f => f is not null).ToList();
     }
 
     /// <summary>
