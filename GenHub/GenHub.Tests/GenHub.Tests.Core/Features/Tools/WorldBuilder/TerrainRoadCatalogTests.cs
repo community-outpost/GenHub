@@ -52,7 +52,7 @@ public sealed class TerrainRoadCatalogTests : IDisposable
         var dirt = sut.FindByName("dirt");
 
         // Assert
-        sut.All.Should().HaveCount(2);
+        sut.GetAll().Should().HaveCount(2);
         dirt.Should().NotBeNull();
         dirt!.Texture.Should().Be("dirt.tga");
         dirt.IsBlendEdge.Should().BeFalse();
@@ -98,7 +98,7 @@ public sealed class TerrainRoadCatalogTests : IDisposable
         var sut = new TerrainTypeCatalog(database, NullLogger<TerrainTypeCatalog>.Instance);
 
         // Act
-        var palette = sut.PaletteEntries;
+        var palette = sut.GetPaletteEntries();
 
         // Assert
         palette.Select(terrain => terrain.Name).Should().ContainInOrder("AlphaDirt", "ZebraGrass");
@@ -165,8 +165,8 @@ public sealed class TerrainRoadCatalogTests : IDisposable
         bridge.DamagedToSound.Should().Be("BridgeCreak");
         bridge.RepairedToSound.Should().BeNull();
         bridge.BridgeHoleAreaPercentage.Should().BeApproximately(0.25f, 0.001f);
-        sut.Roads.Should().ContainSingle();
-        sut.Bridges.Should().ContainSingle();
+        sut.GetRoads().Should().ContainSingle();
+        sut.GetBridges().Should().ContainSingle();
         sut.FindRoad("Ghost").Should().BeNull();
         sut.FindBridge("Ghost").Should().BeNull();
     }

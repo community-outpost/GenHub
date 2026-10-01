@@ -797,25 +797,19 @@ public sealed partial class WorldBuilderViewModel
         var count = 0;
         foreach (var cond in script.OrConditions.SelectMany(branch => branch.Conditions))
         {
-            foreach (var p in cond.Parameters)
+            foreach (var p in cond.Parameters.Where(p => ValueMatches(p, find, comparison)))
             {
-                if (ValueMatches(p, find, comparison))
-                {
-                    p.StringValue = replace;
-                    count++;
-                }
+                p.StringValue = replace;
+                count++;
             }
         }
 
         foreach (var act in script.ActionsTrue.Concat(script.ActionsFalse))
         {
-            foreach (var p in act.Parameters)
+            foreach (var p in act.Parameters.Where(p => ValueMatches(p, find, comparison)))
             {
-                if (ValueMatches(p, find, comparison))
-                {
-                    p.StringValue = replace;
-                    count++;
-                }
+                p.StringValue = replace;
+                count++;
             }
         }
 
@@ -854,29 +848,13 @@ public sealed partial class WorldBuilderViewModel
 
     private static bool ScriptHasBrokenReference(ScriptModel script, ScriptReferenceSets sets)
     {
-        foreach (var cond in script.OrConditions.SelectMany(branch => branch.Conditions))
-        {
-            foreach (var p in cond.Parameters)
-            {
-                if (IsBrokenReference(p, sets.Objects, sets.Waypoints, sets.Teams))
-                {
-                    return true;
-                }
-            }
-        }
-
-        foreach (var act in script.ActionsTrue.Concat(script.ActionsFalse))
-        {
-            foreach (var p in act.Parameters)
-            {
-                if (IsBrokenReference(p, sets.Objects, sets.Waypoints, sets.Teams))
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
+        return script.OrConditions
+            .SelectMany(branch => branch.Conditions)
+            .SelectMany(cond => cond.Parameters)
+            .Any(p => IsBrokenReference(p, sets.Objects, sets.Waypoints, sets.Teams))
+            || script.ActionsTrue.Concat(script.ActionsFalse)
+            .SelectMany(act => act.Parameters)
+            .Any(p => IsBrokenReference(p, sets.Objects, sets.Waypoints, sets.Teams));
     }
 
     private static bool ScriptMatchesText(ScriptModel script, string filter)
@@ -889,25 +867,13 @@ public sealed partial class WorldBuilderViewModel
             return true;
         }
 
-        foreach (var cond in script.OrConditions.SelectMany(branch => branch.Conditions))
-        {
-            if (cond.InternalName.Contains(filter, StringComparison.OrdinalIgnoreCase)
+        return script.OrConditions
+            .SelectMany(branch => branch.Conditions)
+            .Any(cond => cond.InternalName.Contains(filter, StringComparison.OrdinalIgnoreCase)
                 || cond.Parameters.Any(p => p.StringValue.Contains(filter, StringComparison.OrdinalIgnoreCase)))
-            {
-                return true;
-            }
-        }
-
-        foreach (var act in script.ActionsTrue.Concat(script.ActionsFalse))
-        {
-            if (act.InternalName.Contains(filter, StringComparison.OrdinalIgnoreCase)
-                || act.Parameters.Any(p => p.StringValue.Contains(filter, StringComparison.OrdinalIgnoreCase)))
-            {
-                return true;
-            }
-        }
-
-        return false;
+            || script.ActionsTrue.Concat(script.ActionsFalse)
+            .Any(act => act.InternalName.Contains(filter, StringComparison.OrdinalIgnoreCase)
+                || act.Parameters.Any(p => p.StringValue.Contains(filter, StringComparison.OrdinalIgnoreCase)));
     }
 
     private static void CollectScriptReplacements(
@@ -1335,7 +1301,7 @@ public sealed partial class WorldBuilderViewModel
 
         if (ScriptSides.Count == 0)
         {
-            ScriptSides.Add("Player");
+            ScriptSides.Add(localizationService.GetString("Tools.WorldBuilder.Scripts.DefaultSideName"));
         }
 
         SelectedScriptSide = ScriptSides[0];
@@ -1377,33 +1343,7 @@ public sealed partial class WorldBuilderViewModel
         var filter = ScriptSearchText?.Trim();
         var sets = ScriptFilterWarnings ? BuildReferenceSets() : null;
 
-        var matchingScripts = scripts.Where(script =>
-        {
-            if (!ScriptFilterActive && script.IsActive)
-            {
-                return false;
-            }
-
-            if (!ScriptFilterInactive && !script.IsActive)
-            {
-                return false;
-            }
-
-            var difficultyVisible = (ScriptFilterEasy && script.Easy)
-                || (ScriptFilterNormal && script.Normal)
-                || (ScriptFilterHard && script.Hard);
-            if (!difficultyVisible)
-            {
-                return false;
-            }
-
-            if (sets != null && !ScriptHasBrokenReference(script, sets))
-            {
-                return false;
-            }
-
-            return string.IsNullOrEmpty(filter) || ScriptMatchesText(script, filter);
-        }).ToList();
+        var matchingScripts = scripts.Where(script => ScriptPassesFilter(script, filter, sets)).ToList();
 
         foreach (var script in matchingScripts)
         {
@@ -1414,6 +1354,34 @@ public sealed partial class WorldBuilderViewModel
         {
             SelectedScript = matchingScripts[0];
         }
+    }
+
+    private bool ScriptPassesFilter(ScriptModel script, string? filter, ScriptReferenceSets? sets)
+    {
+        if (!ScriptFilterActive && script.IsActive)
+        {
+            return false;
+        }
+
+        if (!ScriptFilterInactive && !script.IsActive)
+        {
+            return false;
+        }
+
+        var difficultyVisible = (ScriptFilterEasy && script.Easy)
+            || (ScriptFilterNormal && script.Normal)
+            || (ScriptFilterHard && script.Hard);
+        if (!difficultyVisible)
+        {
+            return false;
+        }
+
+        if (sets != null && !ScriptHasBrokenReference(script, sets))
+        {
+            return false;
+        }
+
+        return string.IsNullOrEmpty(filter) || ScriptMatchesText(script, filter);
     }
 
     partial void OnSelectedScriptSideChanged(string? value) => RefreshScriptGroups();

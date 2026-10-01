@@ -7,6 +7,7 @@ using Silk.NET.OpenGL;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices;
 
@@ -31,6 +32,35 @@ public sealed class WbRenderer : IDisposable
         W3dGlState State,
         bool TwoSided);
 
+    private sealed record GridHandles(uint Program, uint Vao, uint Vbo, int ViewProjLocation, int ColorLocation);
+
+    private sealed record TerrainHandles(
+        uint Program,
+        uint Vao,
+        uint Vbo,
+        uint Ibo,
+        uint Texture,
+        int ViewProjLocation,
+        int TilesLocation);
+
+    private sealed record ModelHandles(uint Program, int ViewProjLocation, int SunLocation);
+
+    private sealed record ModelSamplingHandles(
+        int TexLocation,
+        int TexturedLocation,
+        int AlphaTestLocation,
+        int AlphaRefLocation,
+        int CombineLocation);
+
+    private sealed record OverlayHandles(
+        uint Program,
+        uint WaterVao,
+        uint WaterVbo,
+        uint WaterIbo,
+        uint LinesVao,
+        uint LinesVbo,
+        int ViewProjLocation);
+
     /// <summary>
     /// Minimum desktop GL major version.
     /// </summary>
@@ -45,6 +75,8 @@ public sealed class WbRenderer : IDisposable
     /// Minimum OpenGL ES major version.
     /// </summary>
     public const int MinEsMajor = 3;
+
+    private const string ViewProjUniformName = "uViewProj";
 
     private const string VertexShaderBody = """
         layout(location = 0) in vec3 aPos;
@@ -224,62 +256,40 @@ public sealed class WbRenderer : IDisposable
 
     private WbRenderer(
         GL gl,
-        uint program,
-        uint gridVao,
-        uint gridVbo,
-        uint terrainProgram,
-        uint terrainVao,
-        uint terrainVbo,
-        uint terrainIbo,
-        uint terrainTexture,
-        int viewProjLocation,
-        int colorLocation,
-        int terrainViewProjLocation,
-        int terrainTilesLocation,
-        uint modelProgram,
-        int modelViewProjLocation,
-        int modelSunLocation,
-        int modelTexLocation,
-        int modelTexturedLocation,
-        int modelAlphaTestLocation,
-        int modelAlphaRefLocation,
-        int modelCombineLocation,
-        uint overlayProgram,
-        uint waterVao,
-        uint waterVbo,
-        uint waterIbo,
-        uint linesVao,
-        uint linesVbo,
-        int overlayViewProjLocation)
+        GridHandles grid,
+        TerrainHandles terrain,
+        ModelHandles model,
+        ModelSamplingHandles sampling,
+        OverlayHandles overlay)
     {
         _gl = gl;
-        _program = program;
-        _gridVao = gridVao;
-        _gridVbo = gridVbo;
-        _terrainProgram = terrainProgram;
-        _terrainVao = terrainVao;
-        _terrainVbo = terrainVbo;
-        _terrainIbo = terrainIbo;
-        _terrainTexture = terrainTexture;
-        _viewProjLocation = viewProjLocation;
-        _colorLocation = colorLocation;
-        _terrainViewProjLocation = terrainViewProjLocation;
-        _terrainTilesLocation = terrainTilesLocation;
-        _modelProgram = modelProgram;
-        _modelViewProjLocation = modelViewProjLocation;
-        _modelSunLocation = modelSunLocation;
-        _modelTexLocation = modelTexLocation;
-        _modelTexturedLocation = modelTexturedLocation;
-        _modelAlphaTestLocation = modelAlphaTestLocation;
-        _modelAlphaRefLocation = modelAlphaRefLocation;
-        _modelCombineLocation = modelCombineLocation;
-        _overlayProgram = overlayProgram;
-        _waterVao = waterVao;
-        _waterVbo = waterVbo;
-        _waterIbo = waterIbo;
-        _linesVao = linesVao;
-        _linesVbo = linesVbo;
-        _overlayViewProjLocation = overlayViewProjLocation;
+        _program = grid.Program;
+        _gridVao = grid.Vao;
+        _gridVbo = grid.Vbo;
+        _terrainProgram = terrain.Program;
+        _terrainVao = terrain.Vao;
+        _terrainVbo = terrain.Vbo;
+        _terrainIbo = terrain.Ibo;
+        _terrainTexture = terrain.Texture;
+        _viewProjLocation = grid.ViewProjLocation;
+        _colorLocation = grid.ColorLocation;
+        _terrainViewProjLocation = terrain.ViewProjLocation;
+        _terrainTilesLocation = terrain.TilesLocation;
+        _modelProgram = model.Program;
+        _modelViewProjLocation = model.ViewProjLocation;
+        _modelSunLocation = model.SunLocation;
+        _modelTexLocation = sampling.TexLocation;
+        _modelTexturedLocation = sampling.TexturedLocation;
+        _modelAlphaTestLocation = sampling.AlphaTestLocation;
+        _modelAlphaRefLocation = sampling.AlphaRefLocation;
+        _modelCombineLocation = sampling.CombineLocation;
+        _overlayProgram = overlay.Program;
+        _waterVao = overlay.WaterVao;
+        _waterVbo = overlay.WaterVbo;
+        _waterIbo = overlay.WaterIbo;
+        _linesVao = overlay.LinesVao;
+        _linesVbo = overlay.LinesVbo;
+        _overlayViewProjLocation = overlay.ViewProjLocation;
     }
 
     /// <summary>
@@ -365,47 +375,27 @@ public sealed class WbRenderer : IDisposable
         gl.Enable(EnableCap.DepthTest);
         gl.Enable(EnableCap.Blend);
         gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-        var viewProjLocation = gl.GetUniformLocation(program, "uViewProj");
+        var viewProjLocation = gl.GetUniformLocation(program, ViewProjUniformName);
         var colorLocation = gl.GetUniformLocation(program, "uColor");
-        var terrainViewProjLocation = gl.GetUniformLocation(terrainProgram, "uViewProj");
+        var terrainViewProjLocation = gl.GetUniformLocation(terrainProgram, ViewProjUniformName);
         var terrainTilesLocation = gl.GetUniformLocation(terrainProgram, "uTiles");
-        var modelViewProjLocation = gl.GetUniformLocation(modelProgram, "uViewProj");
+        var modelViewProjLocation = gl.GetUniformLocation(modelProgram, ViewProjUniformName);
         var modelSunLocation = gl.GetUniformLocation(modelProgram, "uSunDir");
         var modelTexLocation = gl.GetUniformLocation(modelProgram, "uTex");
         var modelTexturedLocation = gl.GetUniformLocation(modelProgram, "uTextured");
         var modelAlphaTestLocation = gl.GetUniformLocation(modelProgram, "uAlphaTest");
         var modelAlphaRefLocation = gl.GetUniformLocation(modelProgram, "uAlphaRef");
         var modelCombineLocation = gl.GetUniformLocation(modelProgram, "uCombine");
-        var overlayViewProjLocation = gl.GetUniformLocation(overlayProgram, "uViewProj");
-        return OperationResult<WbRenderer>.CreateSuccess(new WbRenderer(
-            gl,
-            program,
-            vao,
-            vbo,
-            terrainProgram,
-            terrainVao,
-            terrainVbo,
-            terrainIbo,
-            terrainTexture,
-            viewProjLocation,
-            colorLocation,
-            terrainViewProjLocation,
-            terrainTilesLocation,
-            modelProgram,
-            modelViewProjLocation,
-            modelSunLocation,
-            modelTexLocation,
-            modelTexturedLocation,
-            modelAlphaTestLocation,
-            modelAlphaRefLocation,
-            modelCombineLocation,
-            overlayProgram,
-            waterVao,
-            waterVbo,
-            waterIbo,
-            linesVao,
-            linesVbo,
-            overlayViewProjLocation));
+        var overlayViewProjLocation = gl.GetUniformLocation(overlayProgram, ViewProjUniformName);
+        var grid = new GridHandles(program, vao, vbo, viewProjLocation, colorLocation);
+        var terrain = new TerrainHandles(
+            terrainProgram, terrainVao, terrainVbo, terrainIbo, terrainTexture, terrainViewProjLocation, terrainTilesLocation);
+        var model = new ModelHandles(modelProgram, modelViewProjLocation, modelSunLocation);
+        var sampling = new ModelSamplingHandles(
+            modelTexLocation, modelTexturedLocation, modelAlphaTestLocation, modelAlphaRefLocation, modelCombineLocation);
+        var overlay = new OverlayHandles(
+            overlayProgram, waterVao, waterVbo, waterIbo, linesVao, linesVbo, overlayViewProjLocation);
+        return OperationResult<WbRenderer>.CreateSuccess(new WbRenderer(gl, grid, terrain, model, sampling, overlay));
     }
 
     /// <summary>
@@ -1002,16 +992,7 @@ public sealed class WbRenderer : IDisposable
 
     private void EvictUnusedModelTextures(HashSet<string> usedTextures)
     {
-        var evicted = new List<string>();
-        foreach (var name in _modelTextures.Keys)
-        {
-            if (!usedTextures.Contains(name))
-            {
-                evicted.Add(name);
-            }
-        }
-
-        foreach (var name in evicted)
+        foreach (var name in _modelTextures.Keys.Where(name => !usedTextures.Contains(name)).ToList())
         {
             _gl.DeleteTexture(_modelTextures[name]);
             _modelTextures.Remove(name);

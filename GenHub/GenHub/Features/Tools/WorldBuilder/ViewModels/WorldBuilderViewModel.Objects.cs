@@ -246,52 +246,10 @@ public sealed partial class WorldBuilderViewModel
         SelectedObject.Z = SelectedObjectZ;
         SelectedObject.Angle = SelectedObjectAngle;
 
-        SelectedObjectAggressiveness = SelectedObjectAggressivenessIndex switch
-        {
-            0 => "Passive",
-            2 => "Aggressive",
-            _ => NormalSetting,
-        };
-        SelectedObjectVeterancy = SelectedObjectVeterancyIndex switch
-        {
-            1 => "Veteran",
-            2 => "Elite",
-            3 => "Heroic",
-            _ => "Regular",
-        };
-
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.TeamName, WorldBuilderConstants.DictValueType.AsciiString, StringValue: SelectedObjectTeam));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectScript, WorldBuilderConstants.DictValueType.AsciiString, StringValue: SelectedObjectScript));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectHealth, WorldBuilderConstants.DictValueType.Int, IntValue: SelectedObjectHealthPercent));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectHitPoints, WorldBuilderConstants.DictValueType.Int, IntValue: SelectedObjectHitPoints));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectAggressiveness, WorldBuilderConstants.DictValueType.AsciiString, StringValue: SelectedObjectAggressiveness));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectVeterancy, WorldBuilderConstants.DictValueType.AsciiString, StringValue: SelectedObjectVeterancy));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectEnabled, WorldBuilderConstants.DictValueType.Bool, IntValue: SelectedObjectEnabled ? 1 : 0));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectUnsellable, WorldBuilderConstants.DictValueType.Bool, IntValue: SelectedObjectUnsellable ? 1 : 0));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectTargetable, WorldBuilderConstants.DictValueType.Bool, IntValue: SelectedObjectTargetable ? 1 : 0));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectIndestructible, WorldBuilderConstants.DictValueType.Bool, IntValue: SelectedObjectIndestructible ? 1 : 0));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectRecruitableAI, WorldBuilderConstants.DictValueType.Bool, IntValue: SelectedObjectRecruitableAI ? 1 : 0));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectPowered, WorldBuilderConstants.DictValueType.Bool, IntValue: SelectedObjectPowered ? 1 : 0));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectSelectable, WorldBuilderConstants.DictValueType.Bool, IntValue: SelectedObjectSelectable ? 1 : 0));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectStoppingDistance, WorldBuilderConstants.DictValueType.Real, RealValue: SelectedObjectStoppingDistance));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectVisionDistance, WorldBuilderConstants.DictValueType.Real, RealValue: SelectedObjectVisionDistance));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectShroudClearingDistance, WorldBuilderConstants.DictValueType.Real, RealValue: SelectedObjectShroudClearingDistance));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.Weather, WorldBuilderConstants.DictValueType.AsciiString, StringValue: SelectedObjectWeather));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectTime, WorldBuilderConstants.DictValueType.AsciiString, StringValue: SelectedObjectTime));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectScale, WorldBuilderConstants.DictValueType.Real, RealValue: SelectedObjectScale));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectScaleEnabled, WorldBuilderConstants.DictValueType.Bool, IntValue: SelectedObjectScaleEnabled ? 1 : 0));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectSound, WorldBuilderConstants.DictValueType.AsciiString, StringValue: SelectedObjectSound));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectSoundCustomize, WorldBuilderConstants.DictValueType.Bool, IntValue: SelectedObjectSoundCustomize ? 1 : 0));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectSoundEnabled, WorldBuilderConstants.DictValueType.Bool, IntValue: SelectedObjectSoundEnabled ? 1 : 0));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectSoundLooping, WorldBuilderConstants.DictValueType.Bool, IntValue: SelectedObjectSoundLooping ? 1 : 0));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectSoundLoopCount, WorldBuilderConstants.DictValueType.Int, IntValue: SelectedObjectSoundLoopCount));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectSoundPriority, WorldBuilderConstants.DictValueType.AsciiString, StringValue: SelectedObjectSoundPriority));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectSoundVolume, WorldBuilderConstants.DictValueType.Real, RealValue: SelectedObjectSoundVolume));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectSoundMinVolume, WorldBuilderConstants.DictValueType.Real, RealValue: SelectedObjectSoundMinVolume));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectSoundMinRange, WorldBuilderConstants.DictValueType.Real, RealValue: SelectedObjectSoundMinRange));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectSoundMaxRange, WorldBuilderConstants.DictValueType.Real, RealValue: SelectedObjectSoundMaxRange));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectUpgrades, WorldBuilderConstants.DictValueType.AsciiString, StringValue: SelectedObjectUpgrades));
-        SelectedObject.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectReflectsInMirror, WorldBuilderConstants.DictValueType.Bool, IntValue: SelectedObjectReflectsInMirror ? 1 : 0));
+        ResolveObjectStance();
+        WriteObjectCoreProperties(SelectedObject);
+        WriteObjectFlagProperties(SelectedObject);
+        WriteObjectSoundProperties(SelectedObject);
 
         SyncObjects();
         IsDirty = true;
@@ -543,6 +501,72 @@ public sealed partial class WorldBuilderViewModel
         IsDirty = true;
         RefreshCanvasBitmap();
         UpdateUndoState();
+    }
+
+    private static MapDictValue BoolValue(string key, bool value)
+    {
+        return new MapDictValue(key, WorldBuilderConstants.DictValueType.Bool, IntValue: value ? 1 : 0);
+    }
+
+    private void ResolveObjectStance()
+    {
+        SelectedObjectAggressiveness = SelectedObjectAggressivenessIndex switch
+        {
+            0 => "Passive",
+            2 => "Aggressive",
+            _ => NormalSetting,
+        };
+        SelectedObjectVeterancy = SelectedObjectVeterancyIndex switch
+        {
+            1 => "Veteran",
+            2 => "Elite",
+            3 => "Heroic",
+            _ => "Regular",
+        };
+    }
+
+    private void WriteObjectCoreProperties(MapObjectEntry obj)
+    {
+        obj.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.TeamName, WorldBuilderConstants.DictValueType.AsciiString, StringValue: SelectedObjectTeam));
+        obj.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectScript, WorldBuilderConstants.DictValueType.AsciiString, StringValue: SelectedObjectScript));
+        obj.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectHealth, WorldBuilderConstants.DictValueType.Int, IntValue: SelectedObjectHealthPercent));
+        obj.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectHitPoints, WorldBuilderConstants.DictValueType.Int, IntValue: SelectedObjectHitPoints));
+        obj.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectAggressiveness, WorldBuilderConstants.DictValueType.AsciiString, StringValue: SelectedObjectAggressiveness));
+        obj.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectVeterancy, WorldBuilderConstants.DictValueType.AsciiString, StringValue: SelectedObjectVeterancy));
+        obj.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectStoppingDistance, WorldBuilderConstants.DictValueType.Real, RealValue: SelectedObjectStoppingDistance));
+        obj.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectVisionDistance, WorldBuilderConstants.DictValueType.Real, RealValue: SelectedObjectVisionDistance));
+        obj.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectShroudClearingDistance, WorldBuilderConstants.DictValueType.Real, RealValue: SelectedObjectShroudClearingDistance));
+        obj.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.Weather, WorldBuilderConstants.DictValueType.AsciiString, StringValue: SelectedObjectWeather));
+        obj.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectTime, WorldBuilderConstants.DictValueType.AsciiString, StringValue: SelectedObjectTime));
+        obj.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectScale, WorldBuilderConstants.DictValueType.Real, RealValue: SelectedObjectScale));
+        obj.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectUpgrades, WorldBuilderConstants.DictValueType.AsciiString, StringValue: SelectedObjectUpgrades));
+    }
+
+    private void WriteObjectFlagProperties(MapObjectEntry obj)
+    {
+        obj.Properties.Set(BoolValue(WorldBuilderConstants.DictKeys.ObjectEnabled, SelectedObjectEnabled));
+        obj.Properties.Set(BoolValue(WorldBuilderConstants.DictKeys.ObjectUnsellable, SelectedObjectUnsellable));
+        obj.Properties.Set(BoolValue(WorldBuilderConstants.DictKeys.ObjectTargetable, SelectedObjectTargetable));
+        obj.Properties.Set(BoolValue(WorldBuilderConstants.DictKeys.ObjectIndestructible, SelectedObjectIndestructible));
+        obj.Properties.Set(BoolValue(WorldBuilderConstants.DictKeys.ObjectRecruitableAI, SelectedObjectRecruitableAI));
+        obj.Properties.Set(BoolValue(WorldBuilderConstants.DictKeys.ObjectPowered, SelectedObjectPowered));
+        obj.Properties.Set(BoolValue(WorldBuilderConstants.DictKeys.ObjectSelectable, SelectedObjectSelectable));
+        obj.Properties.Set(BoolValue(WorldBuilderConstants.DictKeys.ObjectScaleEnabled, SelectedObjectScaleEnabled));
+        obj.Properties.Set(BoolValue(WorldBuilderConstants.DictKeys.ObjectReflectsInMirror, SelectedObjectReflectsInMirror));
+    }
+
+    private void WriteObjectSoundProperties(MapObjectEntry obj)
+    {
+        obj.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectSound, WorldBuilderConstants.DictValueType.AsciiString, StringValue: SelectedObjectSound));
+        obj.Properties.Set(BoolValue(WorldBuilderConstants.DictKeys.ObjectSoundCustomize, SelectedObjectSoundCustomize));
+        obj.Properties.Set(BoolValue(WorldBuilderConstants.DictKeys.ObjectSoundEnabled, SelectedObjectSoundEnabled));
+        obj.Properties.Set(BoolValue(WorldBuilderConstants.DictKeys.ObjectSoundLooping, SelectedObjectSoundLooping));
+        obj.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectSoundLoopCount, WorldBuilderConstants.DictValueType.Int, IntValue: SelectedObjectSoundLoopCount));
+        obj.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectSoundPriority, WorldBuilderConstants.DictValueType.AsciiString, StringValue: SelectedObjectSoundPriority));
+        obj.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectSoundVolume, WorldBuilderConstants.DictValueType.Real, RealValue: SelectedObjectSoundVolume));
+        obj.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectSoundMinVolume, WorldBuilderConstants.DictValueType.Real, RealValue: SelectedObjectSoundMinVolume));
+        obj.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectSoundMinRange, WorldBuilderConstants.DictValueType.Real, RealValue: SelectedObjectSoundMinRange));
+        obj.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectSoundMaxRange, WorldBuilderConstants.DictValueType.Real, RealValue: SelectedObjectSoundMaxRange));
     }
 
     private void SyncObjects()

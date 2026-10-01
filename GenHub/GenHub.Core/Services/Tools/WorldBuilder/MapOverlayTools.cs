@@ -566,39 +566,36 @@ public static class MapOverlayTools
         var bestDistance = Math.Max(toleranceFeet, 0.0f);
         foreach (var segment in GetRoadSegments(map))
         {
-            best = NearestEndpoint(segment.X1, segment.Y1, segment.X2, segment.Y2, x, y, best, ref bestDistance);
+            best = NearestEndpoint((segment.X1, segment.Y1, segment.X2, segment.Y2), x, y, best, ref bestDistance);
         }
 
         foreach (var bridge in GetBridges(map))
         {
-            best = NearestEndpoint(bridge.X1, bridge.Y1, bridge.X2, bridge.Y2, x, y, best, ref bestDistance);
+            best = NearestEndpoint((bridge.X1, bridge.Y1, bridge.X2, bridge.Y2), x, y, best, ref bestDistance);
         }
 
         return best;
     }
 
     private static (float X, float Y) NearestEndpoint(
-        float x1,
-        float y1,
-        float x2,
-        float y2,
+        (float X1, float Y1, float X2, float Y2) endpoints,
         float x,
         float y,
         (float X, float Y) best,
         ref float bestDistance)
     {
-        var first = MathF.Sqrt(((x1 - x) * (x1 - x)) + ((y1 - y) * (y1 - y)));
+        var first = MathF.Sqrt(((endpoints.X1 - x) * (endpoints.X1 - x)) + ((endpoints.Y1 - y) * (endpoints.Y1 - y)));
         if (first <= bestDistance)
         {
             bestDistance = first;
-            best = (x1, y1);
+            best = (endpoints.X1, endpoints.Y1);
         }
 
-        var second = MathF.Sqrt(((x2 - x) * (x2 - x)) + ((y2 - y) * (y2 - y)));
+        var second = MathF.Sqrt(((endpoints.X2 - x) * (endpoints.X2 - x)) + ((endpoints.Y2 - y) * (endpoints.Y2 - y)));
         if (second <= bestDistance)
         {
             bestDistance = second;
-            best = (x2, y2);
+            best = (endpoints.X2, endpoints.Y2);
         }
 
         return best;

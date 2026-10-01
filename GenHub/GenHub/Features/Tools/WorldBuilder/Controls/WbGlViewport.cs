@@ -294,13 +294,13 @@ public sealed class WbGlViewport : OpenGlControlBase, IDisposable
     }
 
     /// <inheritdoc />
-    protected override void OnOpenGlInit(GlInterface glInterface)
+    protected override void OnOpenGlInit(GlInterface gl)
     {
-        base.OnOpenGlInit(glInterface);
+        base.OnOpenGlInit(gl);
         try
         {
-            var gl = GL.GetApi(glInterface.GetProcAddress);
-            var created = WbRenderer.Create(gl);
+            var bindings = GL.GetApi(gl.GetProcAddress);
+            var created = WbRenderer.Create(bindings);
             if (created.Success && created.Data != null)
             {
                 _renderer = created.Data;
@@ -323,7 +323,7 @@ public sealed class WbGlViewport : OpenGlControlBase, IDisposable
     }
 
     /// <inheritdoc />
-    protected override void OnOpenGlRender(GlInterface glInterface, int fb)
+    protected override void OnOpenGlRender(GlInterface gl, int fb)
     {
         if (_renderer == null || Map == null)
         {
@@ -339,9 +339,9 @@ public sealed class WbGlViewport : OpenGlControlBase, IDisposable
     }
 
     /// <inheritdoc />
-    protected override void OnOpenGlDeinit(GlInterface glInterface)
+    protected override void OnOpenGlDeinit(GlInterface gl)
     {
-        base.OnOpenGlDeinit(glInterface);
+        base.OnOpenGlDeinit(gl);
         _renderer?.Dispose();
         _renderer = null;
     }

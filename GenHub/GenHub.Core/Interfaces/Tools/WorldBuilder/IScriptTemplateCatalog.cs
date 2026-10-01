@@ -17,12 +17,14 @@ public interface IScriptTemplateCatalog
     /// <summary>
     /// Gets all script action templates ordered by internal name.
     /// </summary>
-    IReadOnlyList<ScriptActionTemplate> Actions { get; }
+    /// <returns>The action templates in internal-name order.</returns>
+    IReadOnlyList<ScriptActionTemplate> GetActions();
 
     /// <summary>
     /// Gets all script condition templates ordered by internal name.
     /// </summary>
-    IReadOnlyList<ScriptConditionTemplate> Conditions { get; }
+    /// <returns>The condition templates in internal-name order.</returns>
+    IReadOnlyList<ScriptConditionTemplate> GetConditions();
 
     /// <summary>
     /// Finds one action template by internal name (case-insensitive).

@@ -17652,6 +17652,9 @@ Error: не удалось: {3}
   <data name="Tools.WorldBuilder.Scripts.MissingWaypointLink" xml:space="preserve">
     <value>Связь путевой точки ссылается на отсутствующий id точки: {0}</value>
   </data>
+  <data name="Tools.WorldBuilder.Scripts.DefaultSideName" xml:space="preserve">
+    <value>Игрок</value>
+  </data>
   <data name="Tools.WorldBuilder.Tabs.Roads" xml:space="preserve">
     <value>Дороги и мосты</value>
   </data>

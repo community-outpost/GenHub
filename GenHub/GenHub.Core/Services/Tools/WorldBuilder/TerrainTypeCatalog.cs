@@ -17,16 +17,22 @@ public sealed class TerrainTypeCatalog(ISageIniDatabase database, ILogger<Terrai
     private const float DefaultGlintGloss = 0.0f;
 
     /// <inheritdoc />
-    public IReadOnlyList<TerrainTypeInfo> All => Collect()
-        .OrderBy(terrain => terrain.Name, StringComparer.OrdinalIgnoreCase)
-        .ToList();
+    public IReadOnlyList<TerrainTypeInfo> GetAll()
+    {
+        return Collect()
+            .OrderBy(terrain => terrain.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
 
     /// <inheritdoc />
-    public IReadOnlyList<TerrainTypeInfo> PaletteEntries => Collect()
-        .Where(terrain => !terrain.IsBlendEdge)
-        .OrderBy(ClassRank)
-        .ThenBy(terrain => terrain.Name, StringComparer.OrdinalIgnoreCase)
-        .ToList();
+    public IReadOnlyList<TerrainTypeInfo> GetPaletteEntries()
+    {
+        return Collect()
+            .Where(terrain => !terrain.IsBlendEdge)
+            .OrderBy(ClassRank)
+            .ThenBy(terrain => terrain.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
 
     /// <inheritdoc />
     public TerrainTypeInfo? FindByName(string name)

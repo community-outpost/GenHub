@@ -14,14 +14,20 @@ namespace GenHub.Core.Services.Tools.WorldBuilder;
 public sealed class RoadCatalog(ISageIniDatabase database, ILogger<RoadCatalog> logger) : IRoadCatalog
 {
     /// <inheritdoc />
-    public IReadOnlyList<RoadInfo> Roads => CollectRoads()
-        .OrderBy(road => road.Name, StringComparer.OrdinalIgnoreCase)
-        .ToList();
+    public IReadOnlyList<RoadInfo> GetRoads()
+    {
+        return CollectRoads()
+            .OrderBy(road => road.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
 
     /// <inheritdoc />
-    public IReadOnlyList<BridgeInfo> Bridges => CollectBridges()
-        .OrderBy(bridge => bridge.Name, StringComparer.OrdinalIgnoreCase)
-        .ToList();
+    public IReadOnlyList<BridgeInfo> GetBridges()
+    {
+        return CollectBridges()
+            .OrderBy(bridge => bridge.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
 
     /// <inheritdoc />
     public RoadInfo? FindRoad(string name)

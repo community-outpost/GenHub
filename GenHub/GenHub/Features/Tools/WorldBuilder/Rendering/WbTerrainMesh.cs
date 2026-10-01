@@ -19,6 +19,10 @@ namespace GenHub.Features.Tools.WorldBuilder.Rendering;
 /// </summary>
 public static class WbTerrainMesh
 {
+    private sealed record CellUvs(float[] U1, float[] V1, float[] U2, float[] V2, byte[] Alpha);
+
+    private sealed record MeshLight(Vector3 Ambient, IReadOnlyList<Vector3> Directions, IReadOnlyList<Vector3> Diffuse);
+
     /// <summary>
     /// Floats per interleaved vertex: XYZ, RGB, UV1, UV2, alpha, extra alpha.
     /// </summary>
@@ -46,21 +50,18 @@ public static class WbTerrainMesh
         var indices = new List<uint>(terrain.Width * terrain.Height * 6);
         var extraVertices = new List<float>();
         var extraIndices = new List<uint>();
-        var u1 = new float[4];
-        var v1 = new float[4];
-        var u2 = new float[4];
-        var v2 = new float[4];
-        var alpha = new byte[4];
+        var uvs = new CellUvs(new float[4], new float[4], new float[4], new float[4], new byte[4]);
+        var light = new MeshLight(ambient, lightDirections, lightDiffuse);
         for (var y = 0; y < terrain.Height; y++)
         {
             for (var x = 0; x < terrain.Width; x++)
             {
                 var baseVertex = (uint)(vertices.Count / StrideFloats);
-                WbTerrainUv.GetCellUv(terrain, atlas, x, y, u1, v1);
-                var flip = WbTerrainUv.GetCellAlpha(terrain, atlas, x, y, u2, v2, alpha);
+                WbTerrainUv.GetCellUv(terrain, atlas, x, y, uvs.U1, uvs.V1);
+                var flip = WbTerrainUv.GetCellAlpha(terrain, atlas, x, y, uvs.U2, uvs.V2, uvs.Alpha);
                 for (var corner = 0; corner < 4; corner++)
                 {
-                    AppendVertex(vertices, terrain, x, y, corner, u1, v1, u2, v2, alpha, ambient, lightDirections, lightDiffuse);
+                    AppendVertex(vertices, terrain, x, y, corner, uvs, light);
                 }
 
                 if (flip)
@@ -82,7 +83,7 @@ public static class WbTerrainMesh
                     indices.Add(baseVertex + 3);
                 }
 
-                AppendExtraBlend(extraVertices, extraIndices, terrain, atlas, x, y, ambient, lightDirections, lightDiffuse);
+                AppendExtraBlend(extraVertices, extraIndices, terrain, atlas, x, y, light);
             }
         }
 
@@ -95,14 +96,8 @@ public static class WbTerrainMesh
         int x,
         int y,
         int corner,
-        float[] u1,
-        float[] v1,
-        float[] u2,
-        float[] v2,
-        byte[] alpha,
-        Vector3 ambient,
-        IReadOnlyList<Vector3> lightDirections,
-        IReadOnlyList<Vector3> lightDiffuse)
+        CellUvs uvs,
+        MeshLight light)
     {
         var cx = x + (corner == 1 || corner == 2 ? 1 : 0);
         var cy = y + (corner >= 2 ? 1 : 0);
@@ -114,18 +109,18 @@ public static class WbTerrainMesh
             SampleHeightFeet(terrain, cx + 1, cy),
             SampleHeightFeet(terrain, cx, cy - 1),
             SampleHeightFeet(terrain, cx, cy + 1));
-        var color = WbTerrainLighting.LightVertex(normal, ambient, lightDirections, lightDiffuse);
+        var color = WbTerrainLighting.LightVertex(normal, light.Ambient, light.Directions, light.Diffuse);
         vertices.Add(worldX);
         vertices.Add(worldY);
         vertices.Add(worldZ);
         vertices.Add(color.X);
         vertices.Add(color.Y);
         vertices.Add(color.Z);
-        vertices.Add(u1[corner]);
-        vertices.Add(v1[corner]);
-        vertices.Add(u2[corner]);
-        vertices.Add(v2[corner]);
-        vertices.Add(alpha[corner] / 255.0f);
+        vertices.Add(uvs.U1[corner]);
+        vertices.Add(uvs.V1[corner]);
+        vertices.Add(uvs.U2[corner]);
+        vertices.Add(uvs.V2[corner]);
+        vertices.Add(uvs.Alpha[corner] / 255.0f);
         vertices.Add(0.0f);
     }
 
@@ -136,9 +131,7 @@ public static class WbTerrainMesh
         WbTileAtlas atlas,
         int x,
         int y,
-        Vector3 ambient,
-        IReadOnlyList<Vector3> lightDirections,
-        IReadOnlyList<Vector3> lightDiffuse)
+        MeshLight light)
     {
         var index = (y * terrain.Width) + x;
         var extraIndex = terrain.ExtraBlendTileIndices[index];
@@ -163,11 +156,11 @@ public static class WbTerrainMesh
         v[1] = maxV;
         v[2] = minV;
         v[3] = minV;
-        var alpha = new byte[] { 255, 255, 255, 255 };
+        var uvs = new CellUvs(u, v, u, v, [255, 255, 255, 255]);
         var baseVertex = (uint)(extraVertices.Count / StrideFloats);
         for (var corner = 0; corner < 4; corner++)
         {
-            AppendVertex(extraVertices, terrain, x, y, corner, u, v, u, v, alpha, ambient, lightDirections, lightDiffuse);
+            AppendVertex(extraVertices, terrain, x, y, corner, uvs, light);
         }
 
         extraIndices.Add(baseVertex);

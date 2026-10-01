@@ -157,111 +157,162 @@ public static class WbTerrainUv
         ArgumentNullException.ThrowIfNull(terrain);
         ArgumentNullException.ThrowIfNull(atlas);
         var index = (y * terrain.Width) + x;
-        var needFlip = false;
-        var stretchedForCliff = false;
         var blendIndex = terrain.BlendTileIndices[index];
+        bool stretchedForCliff;
+        bool needFlip;
         if (blendIndex == 0 || blendIndex >= terrain.BlendTiles.Count)
         {
             var (flip, _) = GetCellUv(terrain, atlas, x, y, u, v);
             stretchedForCliff = flip;
-            alpha[0] = alpha[1] = alpha[2] = alpha[3] = 0;
+            needFlip = false;
+            ClearAlpha(alpha);
         }
         else
         {
             var record = terrain.BlendTiles[blendIndex];
             stretchedForCliff = SampleBlendUv(terrain, atlas, index, record.BlendIndex, u, v);
-            alpha[0] = alpha[1] = alpha[2] = alpha[3] = 0;
-            if (record.Horizontal != 0)
-            {
-                needFlip = (record.Inverted & WorldBuilderConstants.Limits.FlippedMask) != 0;
-                if ((record.Inverted & WorldBuilderConstants.Limits.InvertedMask) != 0)
-                {
-                    alpha[0] = alpha[3] = 255;
-                }
-                else
-                {
-                    alpha[1] = alpha[2] = 255;
-                }
-            }
-
-            if (record.Vertical != 0)
-            {
-                needFlip = (record.Inverted & WorldBuilderConstants.Limits.FlippedMask) != 0;
-                if ((record.Inverted & WorldBuilderConstants.Limits.InvertedMask) != 0)
-                {
-                    alpha[0] = alpha[1] = 255;
-                }
-                else
-                {
-                    alpha[2] = alpha[3] = 255;
-                }
-            }
-
-            if (record.RightDiagonal != 0)
-            {
-                if ((record.Inverted & WorldBuilderConstants.Limits.InvertedMask) != 0)
-                {
-                    alpha[1] = 255;
-                    if (record.LongDiagonal != 0)
-                    {
-                        alpha[0] = 255;
-                        alpha[2] = 255;
-                    }
-                }
-                else
-                {
-                    needFlip = true;
-                    alpha[2] = 255;
-                    if (record.LongDiagonal != 0)
-                    {
-                        alpha[1] = 255;
-                        alpha[3] = 255;
-                    }
-                }
-            }
-
-            if (record.LeftDiagonal != 0)
-            {
-                if ((record.Inverted & WorldBuilderConstants.Limits.InvertedMask) != 0)
-                {
-                    needFlip = true;
-                    alpha[0] = 255;
-                    if (record.LongDiagonal != 0)
-                    {
-                        alpha[1] = 255;
-                        alpha[3] = 255;
-                    }
-                }
-                else
-                {
-                    alpha[3] = 255;
-                    if (record.LongDiagonal != 0)
-                    {
-                        alpha[0] = 255;
-                        alpha[2] = 255;
-                    }
-                }
-            }
-
-            if (record.CustomBlendEdgeClass >= 0)
-            {
-                alpha[0] = alpha[1] = alpha[2] = alpha[3] = 0;
-                needFlip = false;
-            }
+            needFlip = ApplyBlendAlpha(record, alpha);
         }
 
         if (stretchedForCliff)
         {
-            var heights = terrain.Heights;
-            var width = terrain.Width;
-            var p0 = heights[index];
-            var p1 = heights[index + 1];
-            var p2 = heights[index + width + 1];
-            var p3 = heights[index + width];
-            needFlip = Math.Abs(p0 - p2) > Math.Abs(p1 - p3);
+            needFlip = CliffDiagonalFlip(terrain.Heights, terrain.Width, index);
         }
 
         return needFlip;
+    }
+
+    private static bool ApplyBlendAlpha(MapBlendTile record, byte[] alpha)
+    {
+        ClearAlpha(alpha);
+        var needFlip = ApplyHorizontalAlpha(record, alpha);
+        if (record.Vertical != 0)
+        {
+            needFlip = ApplyVerticalAlpha(record, alpha);
+        }
+
+        if (ApplyRightDiagonalAlpha(record, alpha))
+        {
+            needFlip = true;
+        }
+
+        if (ApplyLeftDiagonalAlpha(record, alpha))
+        {
+            needFlip = true;
+        }
+
+        if (record.CustomBlendEdgeClass < 0)
+        {
+            return needFlip;
+        }
+
+        ClearAlpha(alpha);
+        return false;
+    }
+
+    private static bool ApplyHorizontalAlpha(MapBlendTile record, byte[] alpha)
+    {
+        if (record.Horizontal == 0)
+        {
+            return false;
+        }
+
+        if ((record.Inverted & WorldBuilderConstants.Limits.InvertedMask) != 0)
+        {
+            alpha[0] = alpha[3] = 255;
+        }
+        else
+        {
+            alpha[1] = alpha[2] = 255;
+        }
+
+        return (record.Inverted & WorldBuilderConstants.Limits.FlippedMask) != 0;
+    }
+
+    private static bool ApplyVerticalAlpha(MapBlendTile record, byte[] alpha)
+    {
+        if ((record.Inverted & WorldBuilderConstants.Limits.InvertedMask) != 0)
+        {
+            alpha[0] = alpha[1] = 255;
+        }
+        else
+        {
+            alpha[2] = alpha[3] = 255;
+        }
+
+        return (record.Inverted & WorldBuilderConstants.Limits.FlippedMask) != 0;
+    }
+
+    private static bool ApplyRightDiagonalAlpha(MapBlendTile record, byte[] alpha)
+    {
+        if (record.RightDiagonal == 0)
+        {
+            return false;
+        }
+
+        if ((record.Inverted & WorldBuilderConstants.Limits.InvertedMask) != 0)
+        {
+            alpha[1] = 255;
+            if (record.LongDiagonal != 0)
+            {
+                alpha[0] = 255;
+                alpha[2] = 255;
+            }
+
+            return false;
+        }
+
+        alpha[2] = 255;
+        if (record.LongDiagonal != 0)
+        {
+            alpha[1] = 255;
+            alpha[3] = 255;
+        }
+
+        return true;
+    }
+
+    private static bool ApplyLeftDiagonalAlpha(MapBlendTile record, byte[] alpha)
+    {
+        if (record.LeftDiagonal == 0)
+        {
+            return false;
+        }
+
+        if ((record.Inverted & WorldBuilderConstants.Limits.InvertedMask) != 0)
+        {
+            alpha[0] = 255;
+            if (record.LongDiagonal != 0)
+            {
+                alpha[1] = 255;
+                alpha[3] = 255;
+            }
+
+            return true;
+        }
+
+        alpha[3] = 255;
+        if (record.LongDiagonal != 0)
+        {
+            alpha[0] = 255;
+            alpha[2] = 255;
+        }
+
+        return false;
+    }
+
+    private static bool CliffDiagonalFlip(byte[] heights, int width, int index)
+    {
+        var p0 = heights[index];
+        var p1 = heights[index + 1];
+        var p2 = heights[index + width + 1];
+        var p3 = heights[index + width];
+        return Math.Abs(p0 - p2) > Math.Abs(p1 - p3);
+    }
+
+    private static void ClearAlpha(byte[] alpha)
+    {
+        alpha[0] = alpha[1] = alpha[2] = alpha[3] = 0;
     }
 
     private static bool SampleBlendUv(MapTerrainData terrain, WbTileAtlas atlas, int index, int blendTileNdx, float[] u, float[] v)

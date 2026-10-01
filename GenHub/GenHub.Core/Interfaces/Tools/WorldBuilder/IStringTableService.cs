@@ -21,7 +21,8 @@ public interface IStringTableService
     /// <summary>
     /// Gets all loaded labels ordered case-insensitively (LOCALIZED_TEXT picker source).
     /// </summary>
-    IReadOnlyList<string> Labels { get; }
+    /// <returns>The labels in case-insensitive order.</returns>
+    IReadOnlyList<string> GetLabels();
 
     /// <summary>
     /// Loads the language CSF plus the text STR through the asset file system,

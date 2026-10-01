@@ -14,12 +14,14 @@ public interface ITerrainTypeCatalog
     /// <summary>
     /// Gets all terrain types ordered by name, including blend edges.
     /// </summary>
-    IReadOnlyList<TerrainTypeInfo> All { get; }
+    /// <returns>The terrain types in name order.</returns>
+    IReadOnlyList<TerrainTypeInfo> GetAll();
 
     /// <summary>
     /// Gets the palette entries: non-blend-edge types ordered by class, then name.
     /// </summary>
-    IReadOnlyList<TerrainTypeInfo> PaletteEntries { get; }
+    /// <returns>The palette entries in class, then name order.</returns>
+    IReadOnlyList<TerrainTypeInfo> GetPaletteEntries();
 
     /// <summary>
     /// Finds one terrain type by name (case-insensitive).

@@ -88,13 +88,19 @@ public sealed class WbRoadServiceTests
 
     private sealed class StubRoads : IRoadCatalog
     {
-        public IReadOnlyList<RoadInfo> Roads => [new RoadInfo("Paved", "Road.tga", 10.0f, 48.0f)];
+        public IReadOnlyList<RoadInfo> GetRoads()
+        {
+            return [new RoadInfo("Paved", "Road.tga", 10.0f, 48.0f)];
+        }
 
-        public IReadOnlyList<BridgeInfo> Bridges => [];
+        public IReadOnlyList<BridgeInfo> GetBridges()
+        {
+            return [];
+        }
 
         public RoadInfo? FindRoad(string name)
         {
-            return name == "Paved" ? Roads[0] : null;
+            return name == "Paved" ? GetRoads()[0] : null;
         }
 
         public BridgeInfo? FindBridge(string name)

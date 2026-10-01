@@ -113,12 +113,22 @@ public sealed class SageIniParser(ILogger<SageIniParser> logger)
 
     private static IReadOnlyList<string> SplitLines(string text)
     {
-        var stripped = text.StartsWith('\uFEFF')
-            ? text.Substring(1)
-            : text.StartsWith("\u00EF\u00BB\u00BF", StringComparison.Ordinal)
-            ? text.Substring(3)
-            : text;
-        return stripped.Split('\n');
+        return StripBom(text).Split('\n');
+    }
+
+    private static string StripBom(string text)
+    {
+        if (text.StartsWith('\uFEFF'))
+        {
+            return text.Substring(1);
+        }
+
+        if (text.StartsWith("\u00EF\u00BB\u00BF", StringComparison.Ordinal))
+        {
+            return text.Substring(3);
+        }
+
+        return text;
     }
 
     private static List<string> Tokenize(string processed)
@@ -414,40 +424,51 @@ public sealed class SageIniParser(ILogger<SageIniParser> logger)
                 return false;
             }
 
-            var line = session.Lines[session.Index];
-            session.Index++;
-            if (line.Tokens.Count == 0)
-            {
-                continue;
-            }
-
-            if (IsEndToken(line.Tokens[0]))
+            var outcome = ParseBodyLine(session, token, table, fields, subBlocks, cancellationToken);
+            if (outcome == true)
             {
                 return true;
             }
 
-            if (table.SubBlockOpeners.Contains(line.Tokens[0]))
+            if (outcome == false)
             {
-                if (!TryParseSubBlock(session, line, subBlocks, cancellationToken))
-                {
-                    return false;
-                }
-
-                continue;
+                return false;
             }
-
-            if (table.NestedScopeOpeners is not null && table.NestedScopeOpeners.Contains(line.Tokens[0]))
-            {
-                if (!TryParseBareScope(session, line, subBlocks, cancellationToken))
-                {
-                    return false;
-                }
-
-                continue;
-            }
-
-            AddField(session, table, token, line, fields);
         }
+    }
+
+    private static bool? ParseBodyLine(
+        ParseSession session,
+        string token,
+        SageIniFieldTable table,
+        List<SageIniField> fields,
+        List<SageIniSubBlock> subBlocks,
+        CancellationToken cancellationToken)
+    {
+        var line = session.Lines[session.Index];
+        session.Index++;
+        if (line.Tokens.Count == 0)
+        {
+            return null;
+        }
+
+        if (IsEndToken(line.Tokens[0]))
+        {
+            return true;
+        }
+
+        if (table.SubBlockOpeners.Contains(line.Tokens[0]))
+        {
+            return TryParseSubBlock(session, line, subBlocks, cancellationToken) ? null : false;
+        }
+
+        if (table.NestedScopeOpeners is not null && table.NestedScopeOpeners.Contains(line.Tokens[0]))
+        {
+            return TryParseBareScope(session, line, subBlocks, cancellationToken) ? null : false;
+        }
+
+        AddField(session, table, token, line, fields);
+        return null;
     }
 
     private static void AddField(ParseSession session, SageIniFieldTable table, string token, SourceLine line, List<SageIniField> fields)

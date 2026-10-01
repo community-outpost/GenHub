@@ -92,10 +92,10 @@ public static class WorldBuilderCatalogConstants
         public const string Side = "Side";
 
         /// <summary>Editor sorting bucket; drives the second tree tier.</summary>
-        public const string EditorSorting = "EditorSorting";
+        public const string EditorSortingKey = "EditorSorting";
 
         /// <summary>KindOf flag list.</summary>
-        public const string KindOf = "KindOf";
+        public const string KindOfKey = "KindOf";
 
         /// <summary>Buildable status.</summary>
         public const string Buildable = "Buildable";

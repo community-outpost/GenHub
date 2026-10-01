@@ -149,7 +149,10 @@ public sealed class WbModelRenderServiceTests
         private static readonly ThingTemplateInfo Tank = new(
             "Tank", "Object", null, null, "USA", string.Empty, [], null, null, null, null, null, null, null, [], "TANK.TURRET", 1.0f);
 
-        public IReadOnlyList<ThingTemplateInfo> All => [Tank];
+        public IReadOnlyList<ThingTemplateInfo> GetAll()
+        {
+            return [Tank];
+        }
 
         public ThingTemplateInfo? FindByName(string name)
         {

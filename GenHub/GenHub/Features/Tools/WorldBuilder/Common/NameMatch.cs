@@ -43,40 +43,7 @@ public static class NameMatch
             return 0.0f;
         }
 
-        // Levenshtein edit distance, two-row rolling buffer.
-        var previous = new int[lowerB.Length + 1];
-        var current = new int[lowerB.Length + 1];
-        for (var j = 0; j <= lowerB.Length; j++)
-        {
-            previous[j] = j;
-        }
-
-        for (var i = 1; i <= lowerA.Length; i++)
-        {
-            current[0] = i;
-            for (var j = 1; j <= lowerB.Length; j++)
-            {
-                var cost = lowerA[i - 1] == lowerB[j - 1] ? 0 : 1;
-                var best = previous[j] + 1;
-                var insertion = current[j - 1] + 1;
-                if (insertion < best)
-                {
-                    best = insertion;
-                }
-
-                var substitution = previous[j - 1] + cost;
-                if (substitution < best)
-                {
-                    best = substitution;
-                }
-
-                current[j] = best;
-            }
-
-            (previous, current) = (current, previous);
-        }
-
-        var distance = previous[lowerB.Length];
+        var distance = EditDistance(lowerA, lowerB);
         var maxLength = Math.Max(lowerA.Length, lowerB.Length);
         return 1.0f - (distance / (float)maxLength);
     }
@@ -320,5 +287,35 @@ public static class NameMatch
         {
             selectName(cursor.Step(direction));
         }
+    }
+
+    private static int EditDistance(string lowerA, string lowerB)
+    {
+        // Levenshtein edit distance, two-row rolling buffer.
+        var previous = new int[lowerB.Length + 1];
+        var current = new int[lowerB.Length + 1];
+        for (var j = 0; j <= lowerB.Length; j++)
+        {
+            previous[j] = j;
+        }
+
+        for (var i = 1; i <= lowerA.Length; i++)
+        {
+            current[0] = i;
+            for (var j = 1; j <= lowerB.Length; j++)
+            {
+                current[j] = EditCost(lowerA[i - 1], lowerB[j - 1], previous[j], current[j - 1], previous[j - 1]);
+            }
+
+            (previous, current) = (current, previous);
+        }
+
+        return previous[lowerB.Length];
+    }
+
+    private static int EditCost(char a, char b, int deletion, int insertion, int substitution)
+    {
+        var cost = a == b ? 0 : 1;
+        return Math.Min(deletion + 1, Math.Min(insertion + 1, substitution + cost));
     }
 }

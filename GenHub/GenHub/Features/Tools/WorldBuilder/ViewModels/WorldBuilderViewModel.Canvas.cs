@@ -11,6 +11,7 @@ using GenHub.Features.Tools.WorldBuilder.Controls;
 using GenHub.Features.Tools.WorldBuilder.Rendering;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -28,6 +29,7 @@ public sealed partial class WorldBuilderViewModel
     private (int X, int Y)? _twoPointStart;
     private int _renderPending;
     private int _isRendering;
+    private Task? _renderTask;
 
     [ObservableProperty]
     private WriteableBitmap? canvasBitmap;
@@ -229,7 +231,7 @@ public sealed partial class WorldBuilderViewModel
 
         if (_undoService.Undo(_map))
         {
-            _map.Terrain.CliffState = MapCliffComputer.ComputeCliffState(_map.Terrain.Heights, _map.Terrain.Width, _map.Terrain.Height, 20f);
+            _map.Terrain.CliffState = MapCliffComputer.ComputeCliffState(_map.Terrain.Heights, _map.Terrain.Width, _map.Terrain.Height, WorldBuilderConstants.Terrain.CliffToolSlopeLimitWorldZ);
             MapWidth = _map.Terrain.Width;
             MapHeight = _map.Terrain.Height;
             MapTerrainHeights = _map.Terrain.Heights;
@@ -253,7 +255,7 @@ public sealed partial class WorldBuilderViewModel
 
         if (_undoService.Redo(_map))
         {
-            _map.Terrain.CliffState = MapCliffComputer.ComputeCliffState(_map.Terrain.Heights, _map.Terrain.Width, _map.Terrain.Height, 20f);
+            _map.Terrain.CliffState = MapCliffComputer.ComputeCliffState(_map.Terrain.Heights, _map.Terrain.Width, _map.Terrain.Height, WorldBuilderConstants.Terrain.CliffToolSlopeLimitWorldZ);
             MapWidth = _map.Terrain.Width;
             MapHeight = _map.Terrain.Height;
             MapTerrainHeights = _map.Terrain.Heights;
@@ -306,48 +308,13 @@ public sealed partial class WorldBuilderViewModel
 
         if (e.IsRightButton)
         {
-            if (_twoPointStart != null)
-            {
-                _twoPointStart = null;
-                ActiveLinePreview = null;
-            }
-
+            CancelTwoPointStroke();
             return;
         }
 
         if (e.IsLeftButton)
         {
-            if (IsTwoPointTool(SelectedCanvasTool))
-            {
-                if (_twoPointStart == null)
-                {
-                    _twoPointStart = (e.CellX, e.CellY);
-                    ActiveLinePreview = (new Point(e.CellX, e.CellY), new Point(e.CellX, e.CellY));
-                }
-                else
-                {
-                    if (SelectedCanvasTool != MapCanvasTool.Ruler)
-                    {
-                        _undoService.Checkpoint(_map);
-                    }
-
-                    ApplyTwoPointTool(_twoPointStart.Value.X, _twoPointStart.Value.Y, e.CellX, e.CellY);
-                    _twoPointStart = null;
-                    ActiveLinePreview = null;
-
-                    if (SelectedCanvasTool != MapCanvasTool.Ruler)
-                    {
-                        UpdateUndoState();
-                    }
-                }
-
-                return;
-            }
-
-            _undoService.Checkpoint(_map);
-            _isDrawingStroke = true;
-            ApplyToolAtCell(e.CellX, e.CellY);
-            UpdateUndoState();
+            HandleLeftPress(e);
         }
     }
 
@@ -414,6 +381,7 @@ public sealed partial class WorldBuilderViewModel
     /// </summary>
     /// <param name="yawDegrees">The camera yaw in degrees.</param>
     /// <param name="pitchDegrees">The camera pitch in degrees.</param>
+    [SuppressMessage("Minor Code Smell", "S2325", Justification = "Assigns instance observable camera properties; cannot be static.")]
     public void SetCameraFromViewport(double yawDegrees, double pitchDegrees)
     {
         CameraYaw = yawDegrees;
@@ -465,7 +433,37 @@ public sealed partial class WorldBuilderViewModel
             return;
         }
 
-        _ = ExecuteRenderPassAsync();
+        _renderTask = ExecuteRenderPassAsync();
+    }
+
+    /// <summary>
+    /// Test hook: completes when no render pass is running or queued, so test
+    /// teardown can join fire-and-forget render work before the headless
+    /// dispatcher is reset for the next test.
+    /// </summary>
+    /// <returns>A task that completes when rendering is idle.</returns>
+    internal async Task RenderIdleAsync()
+    {
+        while (true)
+        {
+            var task = _renderTask;
+            if (task != null)
+            {
+                try
+                {
+                    await task.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    // A pass cancelled by dispatcher shutdown still releases its gate.
+                }
+            }
+
+            if (_isRendering == 0 && _renderPending == 0 && _renderTask == task)
+            {
+                return;
+            }
+        }
     }
 
     private static bool IsContinuousTool(MapCanvasTool tool)
@@ -490,77 +488,17 @@ public sealed partial class WorldBuilderViewModel
     private async Task ExecuteRenderPassAsync()
     {
         var map = _map;
-        if (map == null)
+        if (map == null || _disposed)
         {
             Interlocked.Exchange(ref _isRendering, 0);
             return;
         }
 
         Interlocked.Exchange(ref _renderPending, 0);
-
-        // BuildRenderOptions reads bound properties and RenderOptions raises
-        // PropertyChanged into Avalonia controls, so both must run on the UI
-        // thread. Re-queued passes run on the thread pool after ConfigureAwait(false).
-        MapCanvasRenderOptions options;
-        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
-        {
-            options = BuildRenderOptions();
-            RenderOptions = options;
-        }
-        else
-        {
-            options = await Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                var built = BuildRenderOptions();
-                RenderOptions = built;
-                return built;
-            });
-        }
-
+        var options = await PublishRenderOptionsAsync().ConfigureAwait(false);
         try
         {
-            var (pixels, width, height) = await Task.Run(() =>
-            {
-                var (p, w, h) = WbFallbackPreview.RenderTopDown(map, options);
-                return (p, w, h);
-            }).ConfigureAwait(false);
-
-            void ApplyBitmap()
-            {
-                if (_disposed || _map == null || _map != map)
-                {
-                    return;
-                }
-
-                if (CanvasBitmap == null || CanvasBitmap.PixelSize.Width != width || CanvasBitmap.PixelSize.Height != height)
-                {
-                    CanvasBitmap?.Dispose();
-                    CanvasBitmap = new WriteableBitmap(
-                        new PixelSize(width, height),
-                        new Vector(96, 96),
-                        PixelFormats.Bgra8888);
-                }
-
-                using (var frame = CanvasBitmap.Lock())
-                {
-                    for (var y = 0; y < height; y++)
-                    {
-                        Marshal.Copy(pixels, y * width, frame.Address + (y * frame.RowBytes), width);
-                    }
-                }
-
-                OnPropertyChanged(nameof(CanvasBitmap));
-            }
-
-            if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
-            {
-                ApplyBitmap();
-            }
-            else
-            {
-                await Dispatcher.UIThread.InvokeAsync(ApplyBitmap);
-            }
-
+            await RenderBitmapAsync(map, options).ConfigureAwait(false);
             RaiseRefreshView();
         }
         catch (OperationCanceledException)
@@ -577,16 +515,91 @@ public sealed partial class WorldBuilderViewModel
             // between the release and the check either observes the free gate
             // and starts its own pass, or is observed here and re-queued.
             Interlocked.Exchange(ref _isRendering, 0);
-            if (_map != null && Interlocked.Exchange(ref _renderPending, 0) == 1)
+            if (!_disposed && _map != null && Interlocked.Exchange(ref _renderPending, 0) == 1)
             {
                 RefreshCanvasBitmap();
             }
         }
     }
 
+    private async Task<MapCanvasRenderOptions> PublishRenderOptionsAsync()
+    {
+        if (_disposed)
+        {
+            return BuildRenderOptions();
+        }
+
+        // BuildRenderOptions reads bound properties and RenderOptions raises
+        // PropertyChanged into Avalonia controls, so both must run on the UI
+        // thread. Re-queued passes run on the thread pool after ConfigureAwait(false).
+        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            var direct = BuildRenderOptions();
+            RenderOptions = direct;
+            return direct;
+        }
+
+        return await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            var built = BuildRenderOptions();
+            RenderOptions = built;
+            return built;
+        });
+    }
+
+    private async Task RenderBitmapAsync(WorldBuilderMap map, MapCanvasRenderOptions options)
+    {
+        var (pixels, width, height) = await Task.Run(() =>
+        {
+            var (p, w, h) = WbFallbackPreview.RenderTopDown(map, options);
+            return (p, w, h);
+        }).ConfigureAwait(false);
+
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            ApplyPixels(map, pixels, width, height);
+        }
+        else
+        {
+            await Dispatcher.UIThread.InvokeAsync(() => ApplyPixels(map, pixels, width, height));
+        }
+    }
+
+    private void ApplyPixels(WorldBuilderMap map, int[] pixels, int width, int height)
+    {
+        if (_disposed || _map == null || _map != map)
+        {
+            return;
+        }
+
+        if (CanvasBitmap == null || CanvasBitmap.PixelSize.Width != width || CanvasBitmap.PixelSize.Height != height)
+        {
+            CanvasBitmap?.Dispose();
+            CanvasBitmap = new WriteableBitmap(
+                new PixelSize(width, height),
+                new Vector(96, 96),
+                PixelFormats.Bgra8888);
+        }
+
+        using (var frame = CanvasBitmap.Lock())
+        {
+            for (var y = 0; y < height; y++)
+            {
+                Marshal.Copy(pixels, y * width, frame.Address + (y * frame.RowBytes), width);
+            }
+        }
+
+        OnPropertyChanged(nameof(CanvasBitmap));
+    }
+
     private void RaiseRefreshView()
     {
-        if (RequestRefreshView == null)
+        if (_disposed || RequestRefreshView == null)
         {
             return;
         }
@@ -614,6 +627,64 @@ public sealed partial class WorldBuilderViewModel
             && cellY >= 0
             && cellX < _map.Terrain.Width
             && cellY < _map.Terrain.Height;
+    }
+
+    private void CancelTwoPointStroke()
+    {
+        if (_twoPointStart != null)
+        {
+            _twoPointStart = null;
+            ActiveLinePreview = null;
+        }
+    }
+
+    private void HandleLeftPress(CellPointerEventArgs e)
+    {
+        if (_map == null)
+        {
+            return;
+        }
+
+        if (IsTwoPointTool(SelectedCanvasTool))
+        {
+            HandleTwoPointPress(e);
+            return;
+        }
+
+        _undoService.Checkpoint(_map);
+        _isDrawingStroke = true;
+        ApplyToolAtCell(e.CellX, e.CellY);
+        UpdateUndoState();
+    }
+
+    private void HandleTwoPointPress(CellPointerEventArgs e)
+    {
+        if (_map == null)
+        {
+            return;
+        }
+
+        if (_twoPointStart == null)
+        {
+            _twoPointStart = (e.CellX, e.CellY);
+            ActiveLinePreview = (new Point(e.CellX, e.CellY), new Point(e.CellX, e.CellY));
+            return;
+        }
+
+        var isRuler = SelectedCanvasTool == MapCanvasTool.Ruler;
+        if (!isRuler)
+        {
+            _undoService.Checkpoint(_map);
+        }
+
+        ApplyTwoPointTool(_twoPointStart.Value.X, _twoPointStart.Value.Y, e.CellX, e.CellY);
+        _twoPointStart = null;
+        ActiveLinePreview = null;
+
+        if (!isRuler)
+        {
+            UpdateUndoState();
+        }
     }
 
     private void ApplyContinuousTool(int cellX, int cellY)
@@ -662,7 +733,7 @@ public sealed partial class WorldBuilderViewModel
                 return;
         }
 
-        _map.Terrain.CliffState = MapCliffComputer.ComputeCliffState(_map.Terrain.Heights, _map.Terrain.Width, _map.Terrain.Height, 20f);
+        _map.Terrain.CliffState = MapCliffComputer.ComputeCliffState(_map.Terrain.Heights, _map.Terrain.Width, _map.Terrain.Height, WorldBuilderConstants.Terrain.CliffToolSlopeLimitWorldZ);
         MapTerrainHeights = _map.Terrain.Heights;
         IsDirty = true;
         RefreshCanvasBitmap();
@@ -797,7 +868,7 @@ public sealed partial class WorldBuilderViewModel
 
         var rampWidth = (int)Math.Max(1, Math.Round(BrushRadius));
         MapTerrainTools.ApplyRamp(_map, startX, startY, endX, endY, rampWidth);
-        _map.Terrain.CliffState = MapCliffComputer.ComputeCliffState(_map.Terrain.Heights, _map.Terrain.Width, _map.Terrain.Height, 20f);
+        _map.Terrain.CliffState = MapCliffComputer.ComputeCliffState(_map.Terrain.Heights, _map.Terrain.Width, _map.Terrain.Height, WorldBuilderConstants.Terrain.CliffToolSlopeLimitWorldZ);
         MapTerrainHeights = _map.Terrain.Heights;
         IsDirty = true;
         RefreshCanvasBitmap();
@@ -914,11 +985,10 @@ public sealed partial class WorldBuilderViewModel
         if (cellIndex >= 0 && cellIndex < _map.Terrain.TileIndices.Length)
         {
             var tileId = _map.Terrain.TileIndices[cellIndex];
-            var matched = _map.Terrain.TextureClasses.FirstOrDefault(tc =>
-                tileId >= tc.FirstTile && tileId < tc.FirstTile + Math.Max(1, tc.NumTiles));
-            if (matched != null)
+            var classIndex = MapTerrainTools.GetTextureClassFromNdx(_map.Terrain, tileId);
+            if (classIndex >= 0 && classIndex < _map.Terrain.TextureClasses.Count)
             {
-                SelectedTexture = matched;
+                SelectedTexture = _map.Terrain.TextureClasses[classIndex];
             }
         }
     }
@@ -1131,6 +1201,7 @@ public sealed partial class WorldBuilderViewModel
 
     partial void OnHasDocumentChanged(bool value) => UpdateViewportVisibility();
 
+    [SuppressMessage("Minor Code Smell", "S2325", Justification = "Assigns instance observable visibility state; cannot be static.")]
     private void UpdateViewportVisibility()
     {
         Is3DViewportVisible = HasDocument && Renderer3DAvailable && ViewMode == MapCanvasViewMode.Isometric3D;

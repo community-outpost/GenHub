@@ -5,6 +5,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Models.Tools.WorldBuilder;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 
 namespace GenHub.Features.Tools.WorldBuilder.Rendering;
@@ -66,15 +67,7 @@ public static class WbSceneOverlayService
 
     private static MapObjectEntry? FindWaypoint(WorldBuilderMap map, int id)
     {
-        foreach (var entry in map.Objects)
-        {
-            if (entry.Properties.GetInt(WorldBuilderConstants.DictKeys.WaypointId, -1) == id)
-            {
-                return entry;
-            }
-        }
-
-        return null;
+        return map.Objects.FirstOrDefault(entry => entry.Properties.GetInt(WorldBuilderConstants.DictKeys.WaypointId, -1) == id);
     }
 
     private static void BuildBoundary(WorldBuilderMap map, List<float> vertices)
@@ -105,13 +98,8 @@ public static class WbSceneOverlayService
 
     private static void BuildTriggers(WorldBuilderMap map, List<float> vertices)
     {
-        foreach (var trigger in map.Triggers)
+        foreach (var trigger in map.Triggers.Where(trigger => trigger.Points.Count >= 2))
         {
-            if (trigger.Points.Count < 2)
-            {
-                continue;
-            }
-
             for (var i = 0; i < trigger.Points.Count; i++)
             {
                 var a = trigger.Points[i];

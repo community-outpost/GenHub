@@ -114,9 +114,15 @@ public sealed class WbBridgeServiceTests
             [],
             null);
 
-        public IReadOnlyList<RoadInfo> Roads => [];
+        public IReadOnlyList<RoadInfo> GetRoads()
+        {
+            return [];
+        }
 
-        public IReadOnlyList<BridgeInfo> Bridges => [Wooden];
+        public IReadOnlyList<BridgeInfo> GetBridges()
+        {
+            return [Wooden];
+        }
 
         public RoadInfo? FindRoad(string name)
         {
@@ -134,7 +140,10 @@ public sealed class WbBridgeServiceTests
         private static readonly ThingTemplateInfo Tower = new(
             "Tower", "Object", null, null, "USA", string.Empty, [], null, null, null, null, null, null, null, [], "TWR.TWR", 1.0f);
 
-        public IReadOnlyList<ThingTemplateInfo> All => [Tower];
+        public IReadOnlyList<ThingTemplateInfo> GetAll()
+        {
+            return [Tower];
+        }
 
         public ThingTemplateInfo? FindByName(string name)
         {

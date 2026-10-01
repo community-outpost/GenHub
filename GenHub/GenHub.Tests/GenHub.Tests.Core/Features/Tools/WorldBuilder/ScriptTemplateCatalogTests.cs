@@ -64,8 +64,8 @@ public sealed class ScriptTemplateCatalogTests : IDisposable
         condition.Should().NotBeNull();
         condition!.UiName.Should().Be("Flag is true");
         condition.UiName2.Should().BeNull();
-        sut.Actions.Should().ContainSingle();
-        sut.Conditions.Should().ContainSingle();
+        sut.GetActions().Should().ContainSingle();
+        sut.GetConditions().Should().ContainSingle();
         sut.FindAction("Ghost").Should().BeNull();
         sut.FindCondition("Ghost").Should().BeNull();
     }

@@ -236,7 +236,12 @@ public sealed class GameAssetFileSystem(IGameInstallationService installations, 
 
     private static string? FirstNonEmpty(string? preferred, string? fallback)
     {
-        return !string.IsNullOrWhiteSpace(preferred) ? preferred : (!string.IsNullOrWhiteSpace(fallback) ? fallback : null);
+        if (!string.IsNullOrWhiteSpace(preferred))
+        {
+            return preferred;
+        }
+
+        return !string.IsNullOrWhiteSpace(fallback) ? fallback : null;
     }
 
     private static List<MountLayer> CollectLayers(GameAssetMountSpec spec)

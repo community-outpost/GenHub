@@ -329,8 +329,12 @@ public partial class WorldBuilderView : UserControl
         }
 
         _terrainBusy = true;
-        _terrainCts?.Cancel();
-        _terrainCts?.Dispose();
+        if (_terrainCts != null)
+        {
+            await _terrainCts.CancelAsync().ConfigureAwait(true);
+            _terrainCts.Dispose();
+        }
+
         _terrainCts = new CancellationTokenSource();
         var token = _terrainCts.Token;
         try
@@ -379,8 +383,12 @@ public partial class WorldBuilderView : UserControl
         }
 
         _modelsBusy = true;
-        _modelsCts?.Cancel();
-        _modelsCts?.Dispose();
+        if (_modelsCts != null)
+        {
+            await _modelsCts.CancelAsync().ConfigureAwait(true);
+            _modelsCts.Dispose();
+        }
+
         _modelsCts = new CancellationTokenSource();
         var token = _modelsCts.Token;
         try

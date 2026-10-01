@@ -113,7 +113,7 @@ public static class WorldBuilderConstants
         public const ushort WorldInfo = 1;
 
         /// <summary>Sides with build-list scripts, health, and team lists.</summary>
-        public const ushort Sides = 3;
+        public const ushort SidesList = 3;
 
         /// <summary>Objects with property dictionaries.</summary>
         public const ushort Objects = 3;
@@ -288,6 +288,9 @@ public static class WorldBuilderConstants
 
         /// <summary>Cliff threshold in world Z units (engine PATHFIND_CLIFF_SLOPE_LIMIT_F).</summary>
         public const float CliffSlopeLimitWorldZ = 9.8f;
+
+        /// <summary>Lenient cliff threshold in world Z used when recomputing cliffs after interactive edits.</summary>
+        public const float CliffToolSlopeLimitWorldZ = 20f;
     }
 
     /// <summary>

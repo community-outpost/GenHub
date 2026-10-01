@@ -14,12 +14,14 @@ public interface IRoadCatalog
     /// <summary>
     /// Gets all road templates ordered by name.
     /// </summary>
-    IReadOnlyList<RoadInfo> Roads { get; }
+    /// <returns>The road templates in name order.</returns>
+    IReadOnlyList<RoadInfo> GetRoads();
 
     /// <summary>
     /// Gets all bridge templates ordered by name.
     /// </summary>
-    IReadOnlyList<BridgeInfo> Bridges { get; }
+    /// <returns>The bridge templates in name order.</returns>
+    IReadOnlyList<BridgeInfo> GetBridges();
 
     /// <summary>
     /// Finds one road template by name (case-insensitive).

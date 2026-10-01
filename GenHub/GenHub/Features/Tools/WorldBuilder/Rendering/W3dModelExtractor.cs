@@ -385,33 +385,26 @@ public static class W3dModelExtractor
 
     private static IReadOnlyList<W3dHlodSubObject> ReadSubObjects(W3dChunk array)
     {
-        var result = new List<W3dHlodSubObject>();
-        foreach (var sub in array.Children.Where(c => c.Type == WorldBuilderConstants.W3D.HlodSubObject))
-        {
-            if (sub.Payload.Length < HlodSubObjectSize)
-            {
-                continue;
-            }
+        return array.Children
+            .Where(c => c.Type == WorldBuilderConstants.W3D.HlodSubObject)
+            .Where(sub => sub.Payload.Length >= HlodSubObjectSize)
+            .Select(ParseSubObject)
+            .ToList();
+    }
 
-            var bone = BinaryPrimitives.ReadUInt32LittleEndian(sub.Payload.AsSpan(0, 4));
-            var identifier = ReadFixedName(sub.Payload, 4, IdentifierSize);
-            result.Add(new W3dHlodSubObject(bone, identifier, W3DAssetNames.DeriveMeshSelector(identifier)));
-        }
-
-        return result;
+    private static W3dHlodSubObject ParseSubObject(W3dChunk sub)
+    {
+        var bone = BinaryPrimitives.ReadUInt32LittleEndian(sub.Payload.AsSpan(0, 4));
+        var identifier = ReadFixedName(sub.Payload, 4, IdentifierSize);
+        return new W3dHlodSubObject(bone, identifier, W3DAssetNames.DeriveMeshSelector(identifier));
     }
 
     private static IReadOnlyList<string> ReadIdentifiers(W3dChunk array)
     {
-        var result = new List<string>();
-        foreach (var sub in array.Children.Where(c => c.Type == WorldBuilderConstants.W3D.HlodSubObject))
-        {
-            if (sub.Payload.Length >= HlodSubObjectSize)
-            {
-                result.Add(ReadFixedName(sub.Payload, 4, IdentifierSize));
-            }
-        }
-
-        return result;
+        return array.Children
+            .Where(c => c.Type == WorldBuilderConstants.W3D.HlodSubObject)
+            .Where(sub => sub.Payload.Length >= HlodSubObjectSize)
+            .Select(sub => ReadFixedName(sub.Payload, 4, IdentifierSize))
+            .ToList();
     }
 }

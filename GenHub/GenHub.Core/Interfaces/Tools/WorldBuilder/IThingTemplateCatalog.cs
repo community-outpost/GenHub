@@ -18,7 +18,8 @@ public interface IThingTemplateCatalog
     /// <summary>
     /// Gets all templates (Object, ObjectReskin, ObjectExtend, ChildObject) ordered by name.
     /// </summary>
-    IReadOnlyList<ThingTemplateInfo> All { get; }
+    /// <returns>The templates in name order.</returns>
+    IReadOnlyList<ThingTemplateInfo> GetAll();
 
     /// <summary>
     /// Finds one template by name (case-insensitive).

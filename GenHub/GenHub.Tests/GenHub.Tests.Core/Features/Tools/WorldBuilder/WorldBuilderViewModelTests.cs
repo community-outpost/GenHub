@@ -83,6 +83,10 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     public void Dispose()
     {
         _viewModel.Dispose();
+
+        // Join fire-and-forget render passes so no background work touches the
+        // headless dispatcher after this test ends (see TestAppBuilder).
+        _viewModel.RenderIdleAsync().Wait(TimeSpan.FromSeconds(30));
         try
         {
             Directory.Delete(_tempDirectory, true);

@@ -131,7 +131,7 @@ public sealed class WbTerrainRenderService(
             var row = (slot.Ordinal + i) / (AtlasWidth / TilePixels);
             var sourceX = (i % sourceTilesAcross) * TilePixels;
             var sourceY = (i / sourceTilesAcross) * TilePixels;
-            BlitTile(pixels, atlasHeight, source, sourceX, sourceY, column, row);
+            BlitTile(pixels, source, sourceX, sourceY, column, row);
             tileUv[slot.Class.FirstTile + i] = new WbAtlasRect(
                 column * TilePixels / (float)AtlasWidth,
                 row * TilePixels / (float)atlasHeight,
@@ -140,7 +140,7 @@ public sealed class WbTerrainRenderService(
         }
     }
 
-    private static void BlitTile(byte[] pixels, int atlasHeight, DecodedTexture source, int sourceX, int sourceY, int column, int row)
+    private static void BlitTile(byte[] pixels, DecodedTexture source, int sourceX, int sourceY, int column, int row)
     {
         for (var y = 0; y < TilePixels; y++)
         {

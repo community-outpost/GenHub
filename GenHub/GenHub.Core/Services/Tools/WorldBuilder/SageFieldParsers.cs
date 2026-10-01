@@ -65,16 +65,10 @@ internal static class SageFieldParsers
     internal static IReadOnlyList<string> AllValues(SageIniBlock block, string key)
     {
         ArgumentNullException.ThrowIfNull(block);
-        var values = new List<string>();
-        foreach (var field in block.Fields)
-        {
-            if (field.Key.Equals(key, StringComparison.Ordinal))
-            {
-                values.AddRange(field.Values);
-            }
-        }
-
-        return values;
+        return block.Fields
+            .Where(field => field.Key.Equals(key, StringComparison.Ordinal))
+            .SelectMany(field => field.Values)
+            .ToList();
     }
 
     /// <summary>
@@ -86,16 +80,10 @@ internal static class SageFieldParsers
     internal static IReadOnlyList<string> JoinedLines(SageIniBlock block, string key)
     {
         ArgumentNullException.ThrowIfNull(block);
-        var lines = new List<string>();
-        foreach (var field in block.Fields)
-        {
-            if (field.Key.Equals(key, StringComparison.Ordinal))
-            {
-                lines.Add(string.Join(' ', field.Values));
-            }
-        }
-
-        return lines;
+        return block.Fields
+            .Where(field => field.Key.Equals(key, StringComparison.Ordinal))
+            .Select(field => string.Join(' ', field.Values))
+            .ToList();
     }
 
     /// <summary>

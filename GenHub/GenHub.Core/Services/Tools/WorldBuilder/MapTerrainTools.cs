@@ -9,6 +9,59 @@ namespace GenHub.Core.Services.Tools.WorldBuilder;
 public static class MapTerrainTools
 {
     /// <summary>
+    /// Blend request for <see cref="BlendSpecificTiles"/>: destination and source
+    /// cells, base and over-blend tile indices, and blend shaping flags.
+    /// </summary>
+    /// <param name="X">Destination cell X.</param>
+    /// <param name="Y">Destination cell Y.</param>
+    /// <param name="SourceX">Source cell X.</param>
+    /// <param name="SourceY">Source cell Y.</param>
+    /// <param name="CurrentTileNdx">The base tile index.</param>
+    /// <param name="BlendTileNdx">The over-blend tile index.</param>
+    /// <param name="LongDiagonal">Whether this is a wide diagonal blend.</param>
+    /// <param name="EdgeClass">Custom blend edge class, or -1 for an alpha blend.</param>
+    /// <param name="UseThreeWayBlends">Whether to use the secondary blend layer.</param>
+    public readonly record struct BlendTilesSpec(
+        int X,
+        int Y,
+        int SourceX,
+        int SourceY,
+        int CurrentTileNdx,
+        int BlendTileNdx,
+        bool LongDiagonal,
+        int EdgeClass,
+        bool UseThreeWayBlends);
+
+    private readonly record struct GapModes(bool HorizontalVertical, bool Diagonal);
+
+    private readonly record struct BlendOrientation(
+        bool Horizontal,
+        bool Vertical,
+        bool RightDiagonal,
+        bool LeftDiagonal,
+        int Inverted,
+        bool Flipped);
+
+    private readonly record struct BlendBase(MapBlendTile? Blend, bool IsDiagonal, bool NeedsFlip);
+
+    private readonly record struct ReallocCellData(
+        int TextureClass,
+        int BlendNdx,
+        int ExtraBlendNdx,
+        List<MapTextureClass> SavedClasses,
+        List<MapBlendTile> SavedBlends);
+
+    [Flags]
+    private enum SideFlags
+    {
+        None = 0,
+        Top = 1,
+        Bottom = 2,
+        Left = 4,
+        Right = 8,
+    }
+
+    /// <summary>
     /// Raises or lowers terrain in a disc with linear falloff (MoundTool).
     /// </summary>
     /// <param name="map">The map document.</param>
@@ -504,7 +557,7 @@ public static class MapTerrainTools
             return;
         }
 
-        BlendSpecificTiles(terrain, x, y, sourceX, sourceY, currentTileNdx, blendTileNdx, false, edgeClass, true);
+        BlendSpecificTiles(terrain, new BlendTilesSpec(x, y, sourceX, sourceY, currentTileNdx, blendTileNdx, false, edgeClass, true));
     }
 
     /// <summary>
@@ -514,142 +567,43 @@ public static class MapTerrainTools
     /// table is full the cell keeps its base tile.
     /// </summary>
     /// <param name="terrain">The terrain data.</param>
-    /// <param name="x">Destination cell X.</param>
-    /// <param name="y">Destination cell Y.</param>
-    /// <param name="sourceX">Source cell X.</param>
-    /// <param name="sourceY">Source cell Y.</param>
-    /// <param name="currentTileNdx">The base tile index.</param>
-    /// <param name="blendTileNdx">The over-blend tile index.</param>
-    /// <param name="longDiagonal">Whether this is a wide diagonal blend.</param>
-    /// <param name="edgeClass">Custom blend edge class, or -1 for an alpha blend.</param>
-    /// <param name="useThreeWayBlends">Whether to use the secondary blend layer.</param>
-    public static void BlendSpecificTiles(
-        MapTerrainData terrain,
-        int x,
-        int y,
-        int sourceX,
-        int sourceY,
-        int currentTileNdx,
-        int blendTileNdx,
-        bool longDiagonal,
-        int edgeClass,
-        bool useThreeWayBlends)
+    /// <param name="spec">The blend request.</param>
+    public static void BlendSpecificTiles(MapTerrainData terrain, BlendTilesSpec spec)
     {
         ArgumentNullException.ThrowIfNull(terrain);
-        if (!InBounds(terrain, x, y))
+        if (!InBounds(terrain, spec.X, spec.Y))
         {
             return;
         }
 
-        var horizontal = false;
-        var vertical = false;
-        var rightDiagonal = false;
-        var leftDiagonal = false;
-        var inverted = 0;
-        var flipped = false;
-        var index = (y * terrain.Width) + x;
-        var baseBlend = useThreeWayBlends && terrain.BlendTileIndices[index] != 0
-            ? terrain.BlendTiles[terrain.BlendTileIndices[index]]
-            : null;
-        var baseIsDiagonal = baseBlend is not null && (baseBlend.RightDiagonal != 0 || baseBlend.LeftDiagonal != 0);
-        var baseNeedsFlip = baseBlend is not null &&
-            ((baseBlend.RightDiagonal != 0 && (baseBlend.Inverted & WorldBuilderConstants.Limits.InvertedMask) == 0) ||
-             (baseBlend.LeftDiagonal != 0 && (baseBlend.Inverted & WorldBuilderConstants.Limits.InvertedMask) != 0));
-        if (sourceY == y)
+        var index = (spec.Y * terrain.Width) + spec.X;
+        var blendBase = ResolveBlendBase(terrain, spec, index);
+        BlendOrientation orientation;
+        if (spec.SourceY == spec.Y)
         {
-            horizontal = true;
-            if (sourceX < x)
-            {
-                inverted |= WorldBuilderConstants.Limits.InvertedMask;
-            }
-
-            if (baseBlend is not null && baseNeedsFlip)
-            {
-                inverted |= WorldBuilderConstants.Limits.FlippedMask;
-            }
+            orientation = ClassifyStraightBlend(true, spec.SourceX < spec.X, blendBase.NeedsFlip);
         }
-        else if (sourceX == x)
+        else if (spec.SourceX == spec.X)
         {
-            vertical = true;
-            if (sourceY < y)
-            {
-                inverted |= WorldBuilderConstants.Limits.InvertedMask;
-            }
-
-            if (baseBlend is not null && baseNeedsFlip)
-            {
-                inverted |= WorldBuilderConstants.Limits.FlippedMask;
-            }
+            orientation = ClassifyStraightBlend(false, spec.SourceY < spec.Y, blendBase.NeedsFlip);
         }
-        else
-        {
-            if (sourceX > x)
-            {
-                rightDiagonal = true;
-            }
-            else
-            {
-                leftDiagonal = true;
-            }
-
-            if (sourceY < y)
-            {
-                inverted |= WorldBuilderConstants.Limits.InvertedMask;
-            }
-
-            if (longDiagonal)
-            {
-                inverted = inverted == 0 ? WorldBuilderConstants.Limits.InvertedMask : 0;
-                rightDiagonal = !rightDiagonal;
-                leftDiagonal = !leftDiagonal;
-            }
-
-            if ((rightDiagonal && (inverted & WorldBuilderConstants.Limits.InvertedMask) == 0) ||
-                (leftDiagonal && (inverted & WorldBuilderConstants.Limits.InvertedMask) != 0))
-            {
-                flipped = true;
-            }
-
-            if (baseBlend is not null && baseIsDiagonal && baseNeedsFlip != flipped)
-            {
-                return;
-            }
-        }
-
-        if (baseBlend is not null && baseBlend.BlendIndex == blendTileNdx)
+        else if (!TryClassifyDiagonalBlend(spec, blendBase, out orientation))
         {
             return;
         }
 
-        var record = new MapBlendTile(
-            blendTileNdx,
-            horizontal ? (byte)1 : (byte)0,
-            vertical ? (byte)1 : (byte)0,
-            rightDiagonal ? (byte)1 : (byte)0,
-            leftDiagonal ? (byte)1 : (byte)0,
-            (byte)inverted,
-            longDiagonal ? (byte)1 : (byte)0,
-            edgeClass);
-        var newIndex = FindOrCreateBlendTile(terrain, record);
+        if (blendBase.Blend is not null && blendBase.Blend.BlendIndex == spec.BlendTileNdx)
+        {
+            return;
+        }
+
+        var newIndex = FindOrCreateBlendTile(terrain, BuildBlendRecord(spec, orientation));
         if (newIndex < 0)
         {
             return;
         }
 
-        terrain.TileIndices[index] = (short)currentTileNdx;
-        if (useThreeWayBlends && terrain.BlendTileIndices[index] != 0)
-        {
-            terrain.ExtraBlendTileIndices[index] = (short)newIndex;
-            if (flipped && !baseIsDiagonal && baseBlend is not null)
-            {
-                var forced = baseBlend with { Inverted = (byte)(baseBlend.Inverted | WorldBuilderConstants.Limits.FlippedMask) };
-                terrain.BlendTileIndices[index] = (short)FindOrCreateBlendTile(terrain, forced);
-            }
-        }
-        else
-        {
-            terrain.BlendTileIndices[index] = (short)newIndex;
-        }
+        WriteBlendResult(terrain, index, spec, newIndex, blendBase, orientation.Flipped);
     }
 
     /// <summary>
@@ -765,71 +719,173 @@ public static class MapTerrainTools
             for (var cx = 0; cx < terrain.Width; cx++)
             {
                 var i = (cy * terrain.Width) + cx;
-                ReallocateCell(terrain, cx, cy, i, classSnapshot[i], blendSnapshot[i], extraSnapshot[i], savedClasses, savedBlends);
+                ReallocateCell(terrain, cx, cy, i, new ReallocCellData(classSnapshot[i], blendSnapshot[i], extraSnapshot[i], savedClasses, savedBlends));
             }
         }
 
         terrain.NumBlendedTiles = terrain.BlendTiles.Count;
     }
 
-    private static void ReallocateCell(
+    private static BlendBase ResolveBlendBase(MapTerrainData terrain, BlendTilesSpec spec, int index)
+    {
+        var blend = spec.UseThreeWayBlends && terrain.BlendTileIndices[index] != 0
+            ? terrain.BlendTiles[terrain.BlendTileIndices[index]]
+            : null;
+        var isDiagonal = blend is not null && (blend.RightDiagonal != 0 || blend.LeftDiagonal != 0);
+        var needsFlip = blend is not null && BlendWantsFlip(blend);
+        return new BlendBase(blend, isDiagonal, needsFlip);
+    }
+
+    private static bool BlendWantsFlip(MapBlendTile blend)
+    {
+        return (blend.RightDiagonal != 0 && (blend.Inverted & WorldBuilderConstants.Limits.InvertedMask) == 0)
+            || (blend.LeftDiagonal != 0 && (blend.Inverted & WorldBuilderConstants.Limits.InvertedMask) != 0);
+    }
+
+    private static BlendOrientation ClassifyStraightBlend(bool horizontal, bool negative, bool baseNeedsFlip)
+    {
+        var inverted = 0;
+        if (negative)
+        {
+            inverted |= WorldBuilderConstants.Limits.InvertedMask;
+        }
+
+        if (baseNeedsFlip)
+        {
+            inverted |= WorldBuilderConstants.Limits.FlippedMask;
+        }
+
+        return new BlendOrientation(horizontal, !horizontal, false, false, inverted, false);
+    }
+
+    private static bool TryClassifyDiagonalBlend(BlendTilesSpec spec, BlendBase blendBase, out BlendOrientation orientation)
+    {
+        var rightDiagonal = spec.SourceX > spec.X;
+        var leftDiagonal = !rightDiagonal;
+        var inverted = spec.SourceY < spec.Y ? WorldBuilderConstants.Limits.InvertedMask : 0;
+        if (spec.LongDiagonal)
+        {
+            inverted = inverted == 0 ? WorldBuilderConstants.Limits.InvertedMask : 0;
+            rightDiagonal = !rightDiagonal;
+            leftDiagonal = !leftDiagonal;
+        }
+
+        var flipped = (rightDiagonal && (inverted & WorldBuilderConstants.Limits.InvertedMask) == 0)
+            || (leftDiagonal && (inverted & WorldBuilderConstants.Limits.InvertedMask) != 0);
+        if (blendBase.IsDiagonal && blendBase.NeedsFlip != flipped)
+        {
+            orientation = default;
+            return false;
+        }
+
+        orientation = new BlendOrientation(false, false, rightDiagonal, leftDiagonal, inverted, flipped);
+        return true;
+    }
+
+    private static MapBlendTile BuildBlendRecord(BlendTilesSpec spec, BlendOrientation orientation)
+    {
+        return new MapBlendTile(
+            spec.BlendTileNdx,
+            orientation.Horizontal ? (byte)1 : (byte)0,
+            orientation.Vertical ? (byte)1 : (byte)0,
+            orientation.RightDiagonal ? (byte)1 : (byte)0,
+            orientation.LeftDiagonal ? (byte)1 : (byte)0,
+            (byte)orientation.Inverted,
+            spec.LongDiagonal ? (byte)1 : (byte)0,
+            spec.EdgeClass);
+    }
+
+    private static void WriteBlendResult(
+        MapTerrainData terrain,
+        int index,
+        BlendTilesSpec spec,
+        int newIndex,
+        BlendBase blendBase,
+        bool flipped)
+    {
+        terrain.TileIndices[index] = (short)spec.CurrentTileNdx;
+        if (!spec.UseThreeWayBlends || terrain.BlendTileIndices[index] == 0)
+        {
+            terrain.BlendTileIndices[index] = (short)newIndex;
+            return;
+        }
+
+        terrain.ExtraBlendTileIndices[index] = (short)newIndex;
+        if (flipped && !blendBase.IsDiagonal && blendBase.Blend is not null)
+        {
+            var forced = blendBase.Blend with { Inverted = (byte)(blendBase.Blend.Inverted | WorldBuilderConstants.Limits.FlippedMask) };
+            terrain.BlendTileIndices[index] = (short)FindOrCreateBlendTile(terrain, forced);
+        }
+    }
+
+    private static void ReallocateCell(MapTerrainData terrain, int x, int y, int index, ReallocCellData data)
+    {
+        var tileNdx = ResolveReallocTile(terrain, x, y, data);
+        terrain.TileIndices[index] = (short)tileNdx;
+
+        var newBlendNdx = ResolveReallocBlend(terrain, x, y, tileNdx, data);
+        terrain.BlendTileIndices[index] = (short)newBlendNdx;
+
+        var newExtraNdx = ResolveReallocExtra(terrain, x, y, tileNdx, newBlendNdx, data);
+        terrain.ExtraBlendTileIndices[index] = (short)newExtraNdx;
+    }
+
+    private static int ResolveReallocTile(MapTerrainData terrain, int x, int y, ReallocCellData data)
+    {
+        if (data.TextureClass < 0 || data.TextureClass >= data.SavedClasses.Count)
+        {
+            return 0;
+        }
+
+        var classIndex = EnsureTextureClass(terrain, data.SavedClasses[data.TextureClass]);
+        return classIndex >= 0 ? GetTileNdxForClass(terrain, x, y, classIndex) : 0;
+    }
+
+    private static int ResolveReallocBlend(MapTerrainData terrain, int x, int y, int tileNdx, ReallocCellData data)
+    {
+        if (data.BlendNdx == 0 || data.BlendNdx >= data.SavedBlends.Count)
+        {
+            return 0;
+        }
+
+        var current = data.SavedBlends[data.BlendNdx];
+        if (data.ExtraBlendNdx == 0)
+        {
+            current = current with { Inverted = (byte)(current.Inverted & ~WorldBuilderConstants.Limits.FlippedMask) };
+        }
+
+        var rebuilt = RebuildBlendNdx(terrain, x, y, current.BlendIndex, data.SavedClasses);
+        if (rebuilt == tileNdx)
+        {
+            return 0;
+        }
+
+        var created = FindOrCreateBlendTile(terrain, current with { BlendIndex = rebuilt });
+        return created < 0 ? 0 : created;
+    }
+
+    private static int ResolveReallocExtra(
         MapTerrainData terrain,
         int x,
         int y,
-        int index,
-        int textureClass,
-        int blendNdx,
-        int extraBlendNdx,
-        List<MapTextureClass> savedClasses,
-        List<MapBlendTile> savedBlends)
+        int tileNdx,
+        int newBlendNdx,
+        ReallocCellData data)
     {
-        var tileNdx = 0;
-        if (textureClass >= 0 && textureClass < savedClasses.Count)
+        if (data.ExtraBlendNdx == 0 || data.ExtraBlendNdx >= data.SavedBlends.Count)
         {
-            var classIndex = EnsureTextureClass(terrain, savedClasses[textureClass]);
-            tileNdx = classIndex >= 0 ? GetTileNdxForClass(terrain, x, y, classIndex) : 0;
+            return 0;
         }
 
-        terrain.TileIndices[index] = (short)tileNdx;
-
-        var newBlendNdx = 0;
-        if (blendNdx != 0 && blendNdx < savedBlends.Count)
+        var current = data.SavedBlends[data.ExtraBlendNdx];
+        var rebuilt = RebuildBlendNdx(terrain, x, y, current.BlendIndex, data.SavedClasses);
+        if (newBlendNdx == 0 || rebuilt == tileNdx || terrain.BlendTiles[newBlendNdx].BlendIndex == rebuilt)
         {
-            var current = savedBlends[blendNdx];
-            if (extraBlendNdx == 0)
-            {
-                current = current with { Inverted = (byte)(current.Inverted & ~WorldBuilderConstants.Limits.FlippedMask) };
-            }
-
-            var rebuilt = RebuildBlendNdx(terrain, x, y, current.BlendIndex, savedClasses);
-            if (rebuilt != tileNdx)
-            {
-                newBlendNdx = FindOrCreateBlendTile(terrain, current with { BlendIndex = rebuilt });
-                if (newBlendNdx < 0)
-                {
-                    newBlendNdx = 0;
-                }
-            }
+            return 0;
         }
 
-        terrain.BlendTileIndices[index] = (short)newBlendNdx;
-
-        var newExtraNdx = 0;
-        if (extraBlendNdx != 0 && extraBlendNdx < savedBlends.Count)
-        {
-            var current = savedBlends[extraBlendNdx];
-            var rebuilt = RebuildBlendNdx(terrain, x, y, current.BlendIndex, savedClasses);
-            if (newBlendNdx != 0 && rebuilt != tileNdx && terrain.BlendTiles[newBlendNdx].BlendIndex != rebuilt)
-            {
-                newExtraNdx = FindOrCreateBlendTile(terrain, current with { BlendIndex = rebuilt });
-                if (newExtraNdx < 0)
-                {
-                    newExtraNdx = 0;
-                }
-            }
-        }
-
-        terrain.ExtraBlendTileIndices[index] = (short)newExtraNdx;
+        var created = FindOrCreateBlendTile(terrain, current with { BlendIndex = rebuilt });
+        return created < 0 ? 0 : created;
     }
 
     private static int RebuildBlendNdx(
@@ -859,6 +915,7 @@ public static class MapTerrainTools
         var processed = new bool[terrain.Width * terrain.Height];
         var queue = new Queue<(int X, int Y)>();
         var border = new List<(int X, int Y)>();
+        var gaps = new GapModes(horizontalVerticalGap, diagonalGap);
         queue.Enqueue((x, y));
         processed[(y * terrain.Width) + x] = true;
         while (queue.Count > 0)
@@ -884,16 +941,7 @@ public static class MapTerrainTools
                         continue;
                     }
 
-                    if (GetTextureClass(terrain, i, j, true) != regionClass)
-                    {
-                        if (!ShouldFillGap(terrain, i, j, x, y, regionClass, horizontalVerticalGap, diagonalGap))
-                        {
-                            continue;
-                        }
-
-                        SetTileNdx(terrain, i, j, regionClass);
-                    }
-                    else if (terrain.BlendTileIndices[neighbor] > 0)
+                    if (!TryClaimFloodCell(terrain, i, j, (x, y), regionClass, gaps))
                     {
                         continue;
                     }
@@ -910,6 +958,28 @@ public static class MapTerrainTools
         }
 
         return border;
+    }
+
+    private static bool TryClaimFloodCell(
+        MapTerrainData terrain,
+        int i,
+        int j,
+        (int X, int Y) origin,
+        int regionClass,
+        GapModes gaps)
+    {
+        if (GetTextureClass(terrain, i, j, true) != regionClass)
+        {
+            if (!ShouldFillGap(terrain, i, j, origin, regionClass, gaps))
+            {
+                return false;
+            }
+
+            SetTileNdx(terrain, i, j, regionClass);
+            return true;
+        }
+
+        return terrain.BlendTileIndices[(j * terrain.Width) + i] <= 0;
     }
 
     private static void EnqueueFillNeighbor(Queue<(int X, int Y)> queue, bool[] visited, int width, int height, int x, int y)
@@ -931,11 +1001,9 @@ public static class MapTerrainTools
         MapTerrainData terrain,
         int x,
         int y,
-        int originX,
-        int originY,
+        (int X, int Y) origin,
         int regionClass,
-        bool horizontalVerticalGap,
-        bool diagonalGap)
+        GapModes gaps)
     {
         var (sides, total) = GetTextureClassNeighbors(terrain, x, y, regionClass);
         if (sides > 2 || total > 5)
@@ -943,7 +1011,7 @@ public static class MapTerrainTools
             return true;
         }
 
-        if (horizontalVerticalGap &&
+        if (gaps.HorizontalVertical &&
             ((x > 0 && x < terrain.Width - 1 &&
               GetTextureClass(terrain, x - 1, y, true) == regionClass &&
               GetTextureClass(terrain, x + 1, y, true) == regionClass) ||
@@ -954,13 +1022,13 @@ public static class MapTerrainTools
             return true;
         }
 
-        if (!diagonalGap)
+        if (!gaps.Diagonal)
         {
             return false;
         }
 
-        var dx = x - originX;
-        var dy = y - originY;
+        var dx = x - origin.X;
+        var dy = y - origin.Y;
         if ((dx * dx) + (dy * dy) > 6)
         {
             return false;
@@ -1033,27 +1101,38 @@ public static class MapTerrainTools
                     continue;
                 }
 
-                var index = (j * terrain.Width) + i;
-                if (processed[index])
-                {
-                    continue;
-                }
-
-                if (terrain.BlendTileIndices[index] > 0 &&
-                    terrain.BlendTileIndices[index] < terrain.BlendTiles.Count &&
-                    regionClass == GetTextureClassFromNdx(terrain, terrain.BlendTiles[terrain.BlendTileIndices[index]].BlendIndex))
-                {
-                    continue;
-                }
-
-                if (GetTextureClass(terrain, i, j, true) != regionClass)
-                {
-                    BlendToThisClass(terrain, i, j, regionClass, edgeClass);
-                }
-
-                processed[index] = true;
+                BlendBorderCell(terrain, i, j, regionClass, edgeClass, processed);
             }
         }
+    }
+
+    private static void BlendBorderCell(
+        MapTerrainData terrain,
+        int i,
+        int j,
+        int regionClass,
+        int edgeClass,
+        bool[] processed)
+    {
+        var index = (j * terrain.Width) + i;
+        if (processed[index] || HasRegionBlend(terrain, index, regionClass))
+        {
+            return;
+        }
+
+        if (GetTextureClass(terrain, i, j, true) != regionClass)
+        {
+            BlendToThisClass(terrain, i, j, regionClass, edgeClass);
+        }
+
+        processed[index] = true;
+    }
+
+    private static bool HasRegionBlend(MapTerrainData terrain, int index, int regionClass)
+    {
+        return terrain.BlendTileIndices[index] > 0
+            && terrain.BlendTileIndices[index] < terrain.BlendTiles.Count
+            && regionClass == GetTextureClassFromNdx(terrain, terrain.BlendTiles[terrain.BlendTileIndices[index]].BlendIndex);
     }
 
     private static void BlendToThisClass(MapTerrainData terrain, int x, int y, int regionClass, int edgeClass)
@@ -1066,35 +1145,15 @@ public static class MapTerrainTools
 
         if (sides == 0)
         {
-            for (var i = x - 1; i < x + 2; i++)
-            {
-                if (i < 0 || i >= terrain.Width)
-                {
-                    continue;
-                }
-
-                for (var j = y - 1; j < y + 2; j++)
-                {
-                    if (j < 0 || j >= terrain.Height || (i == x && j == y))
-                    {
-                        continue;
-                    }
-
-                    if (GetTextureClass(terrain, i, j, false) == regionClass)
-                    {
-                        BlendTile(terrain, x, y, i, j, null, edgeClass);
-                        return;
-                    }
-                }
-            }
-
+            BlendTowardDiagonalNeighbor(terrain, x, y, regionClass, edgeClass);
             return;
         }
 
-        var top = false;
-        var bottom = false;
-        var left = false;
-        var right = false;
+        BlendTowardSideNeighbors(terrain, x, y, regionClass, edgeClass, sides);
+    }
+
+    private static void BlendTowardDiagonalNeighbor(MapTerrainData terrain, int x, int y, int regionClass, int edgeClass)
+    {
         for (var i = x - 1; i < x + 2; i++)
         {
             if (i < 0 || i >= terrain.Width)
@@ -1104,7 +1163,65 @@ public static class MapTerrainTools
 
             for (var j = y - 1; j < y + 2; j++)
             {
-                if ((i != x && j != y) || j < 0 || j >= terrain.Height || (i == x && j == y))
+                if (j < 0 || j >= terrain.Height || (i == x && j == y))
+                {
+                    continue;
+                }
+
+                if (GetTextureClass(terrain, i, j, false) == regionClass)
+                {
+                    BlendTile(terrain, x, y, i, j, null, edgeClass);
+                    return;
+                }
+            }
+        }
+    }
+
+    private static void BlendTowardSideNeighbors(MapTerrainData terrain, int x, int y, int regionClass, int edgeClass, int sides)
+    {
+        if (sides == 1)
+        {
+            BlendTowardSingleSide(terrain, x, y, regionClass, edgeClass);
+            return;
+        }
+
+        var flags = CollectSideFlags(terrain, x, y, regionClass);
+        if (sides != 2)
+        {
+            return;
+        }
+
+        BlendCornerPair(terrain, x, y, regionClass, edgeClass, flags);
+    }
+
+    private static void BlendTowardSingleSide(MapTerrainData terrain, int x, int y, int regionClass, int edgeClass)
+    {
+        for (var i = x - 1; i < x + 2; i++)
+        {
+            for (var j = y - 1; j < y + 2; j++)
+            {
+                if (!IsPlusNeighborCell(i, j, x, y, terrain.Width, terrain.Height))
+                {
+                    continue;
+                }
+
+                if (GetTextureClass(terrain, i, j, false) == regionClass)
+                {
+                    BlendTile(terrain, x, y, i, j, null, edgeClass);
+                    return;
+                }
+            }
+        }
+    }
+
+    private static SideFlags CollectSideFlags(MapTerrainData terrain, int x, int y, int regionClass)
+    {
+        var flags = SideFlags.None;
+        for (var i = x - 1; i < x + 2; i++)
+        {
+            for (var j = y - 1; j < y + 2; j++)
+            {
+                if (!IsPlusNeighborCell(i, j, x, y, terrain.Width, terrain.Height))
                 {
                     continue;
                 }
@@ -1114,73 +1231,76 @@ public static class MapTerrainTools
                     continue;
                 }
 
-                if (sides == 1)
-                {
-                    BlendTile(terrain, x, y, i, j, null, edgeClass);
-                    return;
-                }
-
-                if (i == x)
-                {
-                    if (j > y)
-                    {
-                        top = true;
-                    }
-                    else
-                    {
-                        bottom = true;
-                    }
-                }
-                else if (i < x)
-                {
-                    left = true;
-                }
-                else
-                {
-                    right = true;
-                }
+                flags |= FlagForOffset(i - x, j - y);
             }
         }
 
-        if (sides != 2)
+        return flags;
+    }
+
+    private static bool IsPlusNeighborCell(int i, int j, int x, int y, int width, int height)
+    {
+        if (i < 0 || i >= width || j < 0 || j >= height || (i == x && j == y))
         {
-            return;
+            return false;
         }
 
+        return i == x || j == y;
+    }
+
+    private static SideFlags FlagForOffset(int dx, int dy)
+    {
+        if (dx == 0)
+        {
+            return dy > 0 ? SideFlags.Top : SideFlags.Bottom;
+        }
+
+        return dx < 0 ? SideFlags.Left : SideFlags.Right;
+    }
+
+    private static void BlendCornerPair(
+        MapTerrainData terrain,
+        int x,
+        int y,
+        int regionClass,
+        int edgeClass,
+        SideFlags flags)
+    {
         var blendTileNdx = GetTileNdxForClass(terrain, x, y, regionClass);
         var sourceX = x;
         var sourceY = y;
-        if (top)
+        if (flags.HasFlag(SideFlags.Top))
         {
             sourceY--;
         }
 
-        if (bottom)
+        if (flags.HasFlag(SideFlags.Bottom))
         {
             sourceY++;
         }
 
-        if (left)
+        if (flags.HasFlag(SideFlags.Left))
         {
             sourceX++;
         }
 
-        if (right)
+        if (flags.HasFlag(SideFlags.Right))
         {
             sourceX--;
         }
 
         BlendSpecificTiles(
             terrain,
-            x,
-            y,
-            sourceX,
-            sourceY,
-            terrain.TileIndices[(y * terrain.Width) + x],
-            blendTileNdx,
-            true,
-            edgeClass,
-            true);
+            new BlendTilesSpec(
+                x,
+                y,
+                sourceX,
+                sourceY,
+                terrain.TileIndices[(y * terrain.Width) + x],
+                blendTileNdx,
+                true,
+                edgeClass,
+                true));
     }
 
     private static bool InBounds(MapTerrainData terrain, int x, int y)

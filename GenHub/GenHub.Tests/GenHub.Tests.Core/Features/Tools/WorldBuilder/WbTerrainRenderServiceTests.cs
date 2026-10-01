@@ -105,21 +105,33 @@ public sealed class WbTerrainRenderServiceTests
 
     private sealed class StubTerrainCatalog : ITerrainTypeCatalog
     {
-        public IReadOnlyList<TerrainTypeInfo> All => [new TerrainTypeInfo("Dirt", "Dirt.tga", false, null, false, 0, 0)];
+        public IReadOnlyList<TerrainTypeInfo> GetAll()
+        {
+            return [new TerrainTypeInfo("Dirt", "Dirt.tga", false, null, false, 0, 0)];
+        }
 
-        public IReadOnlyList<TerrainTypeInfo> PaletteEntries => All;
+        public IReadOnlyList<TerrainTypeInfo> GetPaletteEntries()
+        {
+            return GetAll();
+        }
 
         public TerrainTypeInfo? FindByName(string name)
         {
-            return string.Equals(name, "Dirt", StringComparison.OrdinalIgnoreCase) ? All[0] : null;
+            return string.Equals(name, "Dirt", StringComparison.OrdinalIgnoreCase) ? GetAll()[0] : null;
         }
     }
 
     private sealed class MissingTerrainCatalog : ITerrainTypeCatalog
     {
-        public IReadOnlyList<TerrainTypeInfo> All => [];
+        public IReadOnlyList<TerrainTypeInfo> GetAll()
+        {
+            return [];
+        }
 
-        public IReadOnlyList<TerrainTypeInfo> PaletteEntries => [];
+        public IReadOnlyList<TerrainTypeInfo> GetPaletteEntries()
+        {
+            return [];
+        }
 
         public TerrainTypeInfo? FindByName(string name)
         {

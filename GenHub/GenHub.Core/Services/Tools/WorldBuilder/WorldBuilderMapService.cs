@@ -322,12 +322,9 @@ public sealed class WorldBuilderMapService(IMapCompressionService compression, I
         List<ScriptListModel> scripts,
         HashSet<string> written)
     {
-        foreach (var label in CanonicalChunkOrder())
+        foreach (var label in CanonicalChunkOrder().Where(label => written.Add(label)))
         {
-            if (written.Add(label))
-            {
-                WriteKnownChunk(writer, map, scripts, label);
-            }
+            WriteKnownChunk(writer, map, scripts, label);
         }
     }
 

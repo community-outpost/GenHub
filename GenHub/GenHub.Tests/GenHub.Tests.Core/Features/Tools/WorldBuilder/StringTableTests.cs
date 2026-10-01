@@ -120,7 +120,7 @@ public sealed class StringTableTests : IDisposable
         sut.GetString("Shared").Should().Be("FromStr");
         sut.GetString("CsfOnly").Should().Be("CsfValue");
         sut.GetString("StrOnly").Should().Be("StrValue");
-        sut.Labels.Should().BeEquivalentTo("Shared", "CsfOnly", "StrOnly");
+        sut.GetLabels().Should().BeEquivalentTo("Shared", "CsfOnly", "StrOnly");
         sut.Count.Should().Be(3);
     }
 

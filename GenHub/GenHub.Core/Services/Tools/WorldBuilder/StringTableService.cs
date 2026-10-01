@@ -36,15 +36,12 @@ public sealed class StringTableService(ILogger<StringTableService> logger) : ISt
     }
 
     /// <inheritdoc />
-    public IReadOnlyList<string> Labels
+    public IReadOnlyList<string> GetLabels()
     {
-        get
+        lock (_syncLock)
         {
-            lock (_syncLock)
-            {
-                return _gameStrings.Keys.Concat(_mapStrings.Keys).Distinct(StringComparer.OrdinalIgnoreCase)
-                    .OrderBy(label => label, StringComparer.OrdinalIgnoreCase).ToList();
-            }
+            return _gameStrings.Keys.Concat(_mapStrings.Keys).Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(label => label, StringComparer.OrdinalIgnoreCase).ToList();
         }
     }
 

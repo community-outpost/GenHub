@@ -17711,6 +17711,9 @@ Mapped image texture reference</value>
   <data name="Tools.WorldBuilder.Scripts.MissingWaypointLink" xml:space="preserve">
     <value>Waypoint link references missing waypoint id: {0}</value>
   </data>
+  <data name="Tools.WorldBuilder.Scripts.DefaultSideName" xml:space="preserve">
+    <value>Player</value>
+  </data>
   <data name="Tools.WorldBuilder.Tabs.Roads" xml:space="preserve">
     <value>Roads &amp; Bridges</value>
   </data>

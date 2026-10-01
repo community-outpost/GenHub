@@ -37,27 +37,33 @@ public sealed class ScriptTemplateCatalog(
         }.ToFrozenDictionary();
 
     /// <inheritdoc />
-    public IReadOnlyList<ScriptActionTemplate> Actions => CollectActions()
-        .OrderBy(template => template.InternalName, StringComparer.OrdinalIgnoreCase)
-        .ToList();
+    public IReadOnlyList<ScriptActionTemplate> GetActions()
+    {
+        return CollectActions()
+            .OrderBy(template => template.InternalName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
 
     /// <inheritdoc />
-    public IReadOnlyList<ScriptConditionTemplate> Conditions => CollectConditions()
-        .OrderBy(template => template.InternalName, StringComparer.OrdinalIgnoreCase)
-        .ToList();
+    public IReadOnlyList<ScriptConditionTemplate> GetConditions()
+    {
+        return CollectConditions()
+            .OrderBy(template => template.InternalName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
 
     /// <inheritdoc />
     public ScriptActionTemplate? FindAction(string internalName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(internalName);
-        return Actions.FirstOrDefault(template => template.InternalName.Equals(internalName, StringComparison.OrdinalIgnoreCase));
+        return GetActions().FirstOrDefault(template => template.InternalName.Equals(internalName, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <inheritdoc />
     public ScriptConditionTemplate? FindCondition(string internalName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(internalName);
-        return Conditions.FirstOrDefault(template => template.InternalName.Equals(internalName, StringComparison.OrdinalIgnoreCase));
+        return GetConditions().FirstOrDefault(template => template.InternalName.Equals(internalName, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <inheritdoc />
@@ -118,7 +124,7 @@ public sealed class ScriptTemplateCatalog(
             WorldBuilderConstants.ScriptParameterType.Sound => BlockNames(WorldBuilderCatalogConstants.Blocks.AudioEvent),
             WorldBuilderConstants.ScriptParameterType.Dialog => BlockNames(WorldBuilderCatalogConstants.Blocks.DialogEvent),
             WorldBuilderConstants.ScriptParameterType.Music => BlockNames(WorldBuilderCatalogConstants.Blocks.MusicTrack),
-            WorldBuilderConstants.ScriptParameterType.LocalizedText => strings.Labels,
+            WorldBuilderConstants.ScriptParameterType.LocalizedText => strings.GetLabels(),
             _ => null,
         };
     }
@@ -127,7 +133,7 @@ public sealed class ScriptTemplateCatalog(
     {
         return type switch
         {
-            WorldBuilderConstants.ScriptParameterType.ObjectType => things.All.Select(template => template.Name).ToList(),
+            WorldBuilderConstants.ScriptParameterType.ObjectType => things.GetAll().Select(template => template.Name).ToList(),
             WorldBuilderConstants.ScriptParameterType.FactionName => FactionSides(),
             WorldBuilderConstants.ScriptParameterType.Side => WorldBuilderCatalogConstants.SymbolicNames.SidePlayers.Concat(FactionSides()).ToList(),
             WorldBuilderConstants.ScriptParameterType.Unit => new[] { WorldBuilderCatalogConstants.SymbolicNames.ThisObject },

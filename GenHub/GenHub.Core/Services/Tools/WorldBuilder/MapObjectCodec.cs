@@ -26,7 +26,7 @@ public static class MapObjectCodec
         ArgumentNullException.ThrowIfNull(sides);
         ArgumentNullException.ThrowIfNull(teams);
         ArgumentNullException.ThrowIfNull(scripts);
-        writer.OpenChunk(WorldBuilderConstants.Chunks.SidesList, WorldBuilderConstants.Versions.Sides);
+        writer.OpenChunk(WorldBuilderConstants.Chunks.SidesList, WorldBuilderConstants.Versions.SidesList);
         writer.WriteInt(sides.Count);
         foreach (var side in sides)
         {

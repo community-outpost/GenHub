@@ -19,7 +19,7 @@ namespace GenHub.Core.Services.Tools.WorldBuilder;
 /// </summary>
 public sealed class SageIniDatabase(SageIniParser parser, ILogger<SageIniDatabase> logger) : ISageIniDatabase
 {
-    private sealed record SubsystemRow(string Subsystem, string? DefaultDir, string OverrideDir);
+    private sealed record SubsystemRow(string Name, string? DefaultDir, string OverrideDir);
 
     private static readonly SubsystemRow[] BootOrder =
     [
@@ -285,7 +285,7 @@ public sealed class SageIniDatabase(SageIniParser parser, ILogger<SageIniDatabas
         return async (includingFile, includePath, cancellationToken) =>
         {
             var nestDir = Path.GetDirectoryName(includingFile);
-            var anchor = string.IsNullOrEmpty(nestDir) ? baseDir : (Path.IsPathFullyQualified(nestDir) ? nestDir : Path.GetFullPath(Path.Combine(baseDir, nestDir)));
+            var anchor = ResolveAnchorDirectory(baseDir, nestDir);
             var resolved = Path.IsPathFullyQualified(includePath) ? includePath : Path.GetFullPath(Path.Combine(anchor, includePath));
             try
             {
@@ -302,6 +302,16 @@ public sealed class SageIniDatabase(SageIniParser parser, ILogger<SageIniDatabas
                 return OperationResult<(string ResolvedPath, string Text)>.CreateFailure($"Include '{includePath}' could not be read: {ex.Message}.");
             }
         };
+    }
+
+    private static string ResolveAnchorDirectory(string baseDir, string? nestDir)
+    {
+        if (string.IsNullOrEmpty(nestDir))
+        {
+            return baseDir;
+        }
+
+        return Path.IsPathFullyQualified(nestDir) ? nestDir : Path.GetFullPath(Path.Combine(baseDir, nestDir));
     }
 
     private static string ResolveVirtualPath(string includingFile, string includePath)
@@ -364,9 +374,9 @@ public sealed class SageIniDatabase(SageIniParser parser, ILogger<SageIniDatabas
         var files = CollectSubsystemFiles(fileSystem, row);
         if (files.Count == 0)
         {
-            var reason = $"No INI files for {row.Subsystem} are present on the mounted layers ({AttemptedPaths(row)}).";
+            var reason = $"No INI files for {row.Name} are present on the mounted layers ({AttemptedPaths(row)}).";
             logger.LogDebug("{Reason}", reason);
-            return new SageIniLoadReport.SubsystemLoadEntry(row.Subsystem, [], 0, Skipped: true, reason);
+            return new SageIniLoadReport.SubsystemLoadEntry(row.Name, [], 0, Skipped: true, reason);
         }
 
         var read = new List<string>();
@@ -382,7 +392,7 @@ public sealed class SageIniDatabase(SageIniParser parser, ILogger<SageIniDatabas
             }
         }
 
-        return new SageIniLoadReport.SubsystemLoadEntry(row.Subsystem, read, contributed, Skipped: false, SkipReason: null);
+        return new SageIniLoadReport.SubsystemLoadEntry(row.Name, read, contributed, Skipped: false, SkipReason: null);
     }
 
     private async Task<int> ParseAndMergeFileAsync(

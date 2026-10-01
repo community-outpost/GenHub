@@ -17652,6 +17652,9 @@ Error: فشل: {3}
   <data name="Tools.WorldBuilder.Scripts.MissingWaypointLink" xml:space="preserve">
     <value>رابط نقطة المسار يشير إلى معرف نقطة مسار مفقود: {0}</value>
   </data>
+  <data name="Tools.WorldBuilder.Scripts.DefaultSideName" xml:space="preserve">
+    <value>لاعب</value>
+  </data>
   <data name="Tools.WorldBuilder.Tabs.Roads" xml:space="preserve">
     <value>الطرق والجسور</value>
   </data>

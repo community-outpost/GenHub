@@ -117,7 +117,7 @@ public sealed class MapObjectCodecTests
 
         // Assert
         reader.TopLevel[0].Label.Should().Be(WorldBuilderConstants.Chunks.SidesList);
-        reader.TopLevel[0].Version.Should().Be(WorldBuilderConstants.Versions.Sides);
+        reader.TopLevel[0].Version.Should().Be(WorldBuilderConstants.Versions.SidesList);
     }
 
     /// <summary>

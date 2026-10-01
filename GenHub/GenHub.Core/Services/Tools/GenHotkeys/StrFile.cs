@@ -20,6 +20,31 @@ namespace GenHub.Core.Services.Tools.GenHotkeys;
 /// </summary>
 public sealed class StrFile
 {
+    private sealed class StrParser
+    {
+        public StrFile File { get; } = new();
+
+        public string Label { get; set; } = string.Empty;
+
+        public string? Value { get; set; }
+
+        public StringBuilder? Pending { get; set; }
+
+        public bool KeepPending { get; set; }
+
+        public int LineNumber { get; set; }
+
+        public void FinishValue()
+        {
+            if (KeepPending && Pending is not null)
+            {
+                Value = Pending.ToString().Trim();
+            }
+
+            Pending = null;
+        }
+    }
+
     private const string EndToken = "End";
     private const char ValueQuote = '"';
 
@@ -63,86 +88,15 @@ public sealed class StrFile
     public static StrFile LoadText(string text)
     {
         ArgumentNullException.ThrowIfNull(text);
-        var file = new StrFile();
-        var label = string.Empty;
-        var value = (string?)null;
-        var pending = (StringBuilder?)null;
-        var keepPending = false;
-        var lineNumber = 0;
+        var parser = new StrParser();
         foreach (var rawLine in text.Split('\n'))
         {
-            lineNumber++;
-            var line = rawLine.TrimEnd('\r').Trim();
-            if (pending is not null)
-            {
-                if (line.Equals(EndToken, StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new InvalidDataException($"Line {lineNumber}: End inside label '{label}' value.");
-                }
-
-                pending.Append(' ');
-                if (ConsumeQuotedContent(pending, line, 0))
-                {
-                    FinishPendingValue(ref value, ref pending, keepPending);
-                }
-
-                continue;
-            }
-
-            if (line.Length == 0 || line.StartsWith("//", StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            if (line.Equals(EndToken, StringComparison.OrdinalIgnoreCase))
-            {
-                if (label.Length == 0)
-                {
-                    throw new InvalidDataException($"Line {lineNumber}: End without a label.");
-                }
-
-                file._strings[label] = value ?? string.Empty;
-                label = string.Empty;
-                value = null;
-                continue;
-            }
-
-            if (line.StartsWith(ValueQuote))
-            {
-                if (label.Length == 0)
-                {
-                    throw new InvalidDataException($"Line {lineNumber}: value without a label.");
-                }
-
-                pending = new StringBuilder(line.Length);
-                keepPending = value is null;
-                if (ConsumeQuotedContent(pending, line, 1))
-                {
-                    FinishPendingValue(ref value, ref pending, keepPending);
-                }
-
-                continue;
-            }
-
-            if (label.Length != 0)
-            {
-                throw new InvalidDataException($"Line {lineNumber}: label '{line}' starts before '{label}' ends.");
-            }
-
-            label = line.Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries)[0];
+            parser.LineNumber++;
+            ParseLine(parser, rawLine.TrimEnd('\r').Trim());
         }
 
-        if (pending is not null)
-        {
-            throw new InvalidDataException($"Label '{label}' has an unterminated value.");
-        }
-
-        if (label.Length != 0)
-        {
-            throw new InvalidDataException($"Label '{label}' is missing its End token.");
-        }
-
-        return file;
+        ValidateComplete(parser);
+        return parser.File;
     }
 
     /// <summary>
@@ -165,14 +119,96 @@ public sealed class StrFile
         _strings[label] = value;
     }
 
-    private static void FinishPendingValue(ref string? value, ref StringBuilder? pending, bool keepPending)
+    private static void ParseLine(StrParser parser, string line)
     {
-        if (keepPending && pending is not null)
+        if (parser.Pending is not null)
         {
-            value = pending.ToString().Trim();
+            ParseContinuation(parser, line);
+            return;
         }
 
-        pending = null;
+        if (line.Length == 0 || line.StartsWith("//", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        if (line.Equals(EndToken, StringComparison.OrdinalIgnoreCase))
+        {
+            FinishEntry(parser);
+            return;
+        }
+
+        if (line.StartsWith(ValueQuote))
+        {
+            StartValue(parser, line);
+            return;
+        }
+
+        StartLabel(parser, line);
+    }
+
+    private static void ParseContinuation(StrParser parser, string line)
+    {
+        if (line.Equals(EndToken, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException($"Line {parser.LineNumber}: End inside label '{parser.Label}' value.");
+        }
+
+        parser.Pending!.Append(' ');
+        if (ConsumeQuotedContent(parser.Pending, line, 0))
+        {
+            parser.FinishValue();
+        }
+    }
+
+    private static void FinishEntry(StrParser parser)
+    {
+        if (parser.Label.Length == 0)
+        {
+            throw new InvalidDataException($"Line {parser.LineNumber}: End without a label.");
+        }
+
+        parser.File._strings[parser.Label] = parser.Value ?? string.Empty;
+        parser.Label = string.Empty;
+        parser.Value = null;
+    }
+
+    private static void StartValue(StrParser parser, string line)
+    {
+        if (parser.Label.Length == 0)
+        {
+            throw new InvalidDataException($"Line {parser.LineNumber}: value without a label.");
+        }
+
+        parser.Pending = new StringBuilder(line.Length);
+        parser.KeepPending = parser.Value is null;
+        if (ConsumeQuotedContent(parser.Pending, line, 1))
+        {
+            parser.FinishValue();
+        }
+    }
+
+    private static void StartLabel(StrParser parser, string line)
+    {
+        if (parser.Label.Length != 0)
+        {
+            throw new InvalidDataException($"Line {parser.LineNumber}: label '{line}' starts before '{parser.Label}' ends.");
+        }
+
+        parser.Label = line.Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries)[0];
+    }
+
+    private static void ValidateComplete(StrParser parser)
+    {
+        if (parser.Pending is not null)
+        {
+            throw new InvalidDataException($"Label '{parser.Label}' has an unterminated value.");
+        }
+
+        if (parser.Label.Length != 0)
+        {
+            throw new InvalidDataException($"Label '{parser.Label}' is missing its End token.");
+        }
     }
 
     /// <summary>

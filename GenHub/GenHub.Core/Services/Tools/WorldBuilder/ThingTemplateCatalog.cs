@@ -45,9 +45,12 @@ public sealed class ThingTemplateCatalog(ISageIniDatabase database, IMappedImage
     ];
 
     /// <inheritdoc />
-    public IReadOnlyList<ThingTemplateInfo> All => CollectTemplates()
-        .OrderBy(template => template.Name, StringComparer.OrdinalIgnoreCase)
-        .ToList();
+    public IReadOnlyList<ThingTemplateInfo> GetAll()
+    {
+        return CollectTemplates()
+            .OrderBy(template => template.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
 
     /// <inheritdoc />
     public ThingTemplateInfo? FindByName(string name)
@@ -126,15 +129,8 @@ public sealed class ThingTemplateCatalog(ISageIniDatabase database, IMappedImage
             return string.Empty;
         }
 
-        foreach (var name in WorldBuilderCatalogConstants.EditorSorting.Names)
-        {
-            if (name.Equals(value, StringComparison.OrdinalIgnoreCase))
-            {
-                return name;
-            }
-        }
-
-        return string.Empty;
+        return WorldBuilderCatalogConstants.EditorSorting.Names
+            .FirstOrDefault(name => name.Equals(value, StringComparison.OrdinalIgnoreCase)) ?? string.Empty;
     }
 
     private static string? FindModelName(SageIniBlock block)
@@ -202,8 +198,8 @@ public sealed class ThingTemplateCatalog(ISageIniDatabase database, IMappedImage
             block.ParentName,
             SageFieldParsers.FirstValue(block, WorldBuilderCatalogConstants.ThingFields.DisplayName),
             SageFieldParsers.FirstValue(block, WorldBuilderCatalogConstants.ThingFields.Side) ?? string.Empty,
-            CanonicalSorting(SageFieldParsers.FirstValue(block, WorldBuilderCatalogConstants.ThingFields.EditorSorting)),
-            SageFieldParsers.AllValues(block, WorldBuilderCatalogConstants.ThingFields.KindOf),
+            CanonicalSorting(SageFieldParsers.FirstValue(block, WorldBuilderCatalogConstants.ThingFields.EditorSortingKey)),
+            SageFieldParsers.AllValues(block, WorldBuilderCatalogConstants.ThingFields.KindOfKey),
             SageFieldParsers.FirstValue(block, WorldBuilderCatalogConstants.ThingFields.Buildable),
             SageFieldParsers.ParseInt(SageFieldParsers.FirstValue(block, WorldBuilderCatalogConstants.ThingFields.BuildCost)),
             SageFieldParsers.ParseFloat(SageFieldParsers.FirstValue(block, WorldBuilderCatalogConstants.ThingFields.BuildTime)),

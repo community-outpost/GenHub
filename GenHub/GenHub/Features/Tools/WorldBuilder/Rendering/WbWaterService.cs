@@ -5,6 +5,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Models.Tools.WorldBuilder;
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 
 namespace GenHub.Features.Tools.WorldBuilder.Rendering;
 
@@ -140,7 +141,14 @@ public static class WbWaterService
 
             var nx = (-dy / length) * halfWidth;
             var ny = (dx / length) * halfWidth;
-            AddQuad(vertices, indices, x1 + nx, y1 + ny, x1 - nx, y1 - ny, x2 + nx, y2 + ny, x2 - nx, y2 - ny, levelFeet);
+            AddQuad(
+                vertices,
+                indices,
+                new Vector2(x1 + nx, y1 + ny),
+                new Vector2(x1 - nx, y1 - ny),
+                new Vector2(x2 + nx, y2 + ny),
+                new Vector2(x2 - nx, y2 - ny),
+                levelFeet);
         }
     }
 
@@ -153,27 +161,30 @@ public static class WbWaterService
         float maxY,
         float z)
     {
-        AddQuad(vertices, indices, minX, minY, maxX, minY, minX, maxY, maxX, maxY, z);
+        AddQuad(
+            vertices,
+            indices,
+            new Vector2(minX, minY),
+            new Vector2(maxX, minY),
+            new Vector2(minX, maxY),
+            new Vector2(maxX, maxY),
+            z);
     }
 
     private static void AddQuad(
         List<float> vertices,
         List<uint> indices,
-        float ax,
-        float ay,
-        float bx,
-        float by,
-        float cx,
-        float cy,
-        float dx,
-        float dy,
+        Vector2 a,
+        Vector2 b,
+        Vector2 c,
+        Vector2 d,
         float z)
     {
         var baseIndex = (uint)(vertices.Count / WbWaterData.StrideFloats);
-        AddVertex(vertices, ax, ay, z);
-        AddVertex(vertices, bx, by, z);
-        AddVertex(vertices, cx, cy, z);
-        AddVertex(vertices, dx, dy, z);
+        AddVertex(vertices, a.X, a.Y, z);
+        AddVertex(vertices, b.X, b.Y, z);
+        AddVertex(vertices, c.X, c.Y, z);
+        AddVertex(vertices, d.X, d.Y, z);
         indices.Add(baseIndex);
         indices.Add(baseIndex + 1);
         indices.Add(baseIndex + 2);
