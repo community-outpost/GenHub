@@ -17,6 +17,7 @@ using GenHub.Core.Interfaces.Tools.ModelViewer;
 using GenHub.Core.Interfaces.Tools.TextureEditor;
 using GenHub.Core.Interfaces.Tools.WndEditor;
 using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.IniEditor;
 using GenHub.Core.Models.Tools.ModelViewer;
 using GenHub.Core.Models.Tools.TextureEditor;
@@ -1583,19 +1584,6 @@ public sealed partial class IniEditorViewModel(
         slot = null;
     }
 
-    private static async Task InvokeOnUIThreadAsync(Action action)
-    {
-        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
-        {
-            action();
-            await Task.CompletedTask.ConfigureAwait(false);
-        }
-        else
-        {
-            await Dispatcher.UIThread.InvokeAsync(action);
-        }
-    }
-
     private static void PostToUIThread(Action action)
     {
         if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
@@ -1700,6 +1688,26 @@ public sealed partial class IniEditorViewModel(
         }
     }
 
+    private static IniBlock? FindDefaultConditionState(IniBlock block)
+    {
+        foreach (var child in block.Children)
+        {
+            if (string.Equals(child.BlockType, "DefaultConditionState", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(child.Name, "DefaultConditionState", StringComparison.OrdinalIgnoreCase))
+            {
+                return child;
+            }
+
+            var nested = FindDefaultConditionState(child);
+            if (nested != null)
+            {
+                return nested;
+            }
+        }
+
+        return null;
+    }
+
     private string ResolveBlockModel(IniBlock block)
     {
         return ResolveBlockModelRecursive(block, 0);
@@ -1781,26 +1789,6 @@ public sealed partial class IniEditorViewModel(
 
         hidden.ExceptWith(shown);
         PreviewHiddenMeshNames = hidden.Count > 0 ? hidden : null;
-    }
-
-    private static IniBlock? FindDefaultConditionState(IniBlock block)
-    {
-        foreach (var child in block.Children)
-        {
-            if (string.Equals(child.BlockType, "DefaultConditionState", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(child.Name, "DefaultConditionState", StringComparison.OrdinalIgnoreCase))
-            {
-                return child;
-            }
-
-            var nested = FindDefaultConditionState(child);
-            if (nested != null)
-            {
-                return nested;
-            }
-        }
-
-        return null;
     }
 
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Kept as an instance helper to satisfy member ordering.")]

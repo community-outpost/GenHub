@@ -336,6 +336,42 @@ public sealed class W3dViewerControl : OpenGlControlBase
         RequestNextFrameRendering();
     }
 
+    /// <summary>
+    /// Computes the model matrix for a mesh given an optional pose and bind pose.
+    /// </summary>
+    /// <param name="mesh">The mesh whose transform is being computed.</param>
+    /// <param name="pose">The active animation pose, if any.</param>
+    /// <param name="bindPose">The rest bind pose of the skeleton, if any.</param>
+    /// <param name="inverseBind">The inverse bind pose matrices for skin meshes, if any.</param>
+    /// <returns>The computed 4x4 model matrix.</returns>
+    internal static Matrix4x4 ComputeMeshModelTransform(
+        W3dRenderMesh mesh,
+        IReadOnlyList<Matrix4x4>? pose,
+        IReadOnlyList<Matrix4x4>? bindPose,
+        IReadOnlyList<Matrix4x4>? inverseBind)
+    {
+        if (pose == null || mesh.BoneIndex < 0 || mesh.BoneIndex >= pose.Count)
+        {
+            if (!mesh.IsSkin && bindPose != null && mesh.BoneIndex >= 0 && mesh.BoneIndex < bindPose.Count)
+            {
+                return bindPose[mesh.BoneIndex];
+            }
+
+            return Matrix4x4.Identity;
+        }
+
+        // Deformable skin mesh vertices sit in bind-pose world space, so animation applies
+        // the pivot motion relative to the bind pose instead of the absolute pose.
+        // Rigid meshes (turrets, wheels, chassis) sit in object space relative to their pivot
+        // and must use the plain animated pivot transform.
+        if (mesh.IsSkin && inverseBind != null && mesh.BoneIndex < inverseBind.Count)
+        {
+            return inverseBind[mesh.BoneIndex] * pose[mesh.BoneIndex];
+        }
+
+        return pose[mesh.BoneIndex];
+    }
+
     /// <inheritdoc />
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
@@ -819,34 +855,6 @@ public sealed class W3dViewerControl : OpenGlControlBase
     private Matrix4x4 MeshModel(W3dRenderMesh mesh, IReadOnlyList<Matrix4x4>? pose)
     {
         return ComputeMeshModelTransform(mesh, pose, BindPose, _inverseBind);
-    }
-
-    internal static Matrix4x4 ComputeMeshModelTransform(
-        W3dRenderMesh mesh,
-        IReadOnlyList<Matrix4x4>? pose,
-        IReadOnlyList<Matrix4x4>? bindPose,
-        IReadOnlyList<Matrix4x4>? inverseBind)
-    {
-        if (pose == null || mesh.BoneIndex < 0 || mesh.BoneIndex >= pose.Count)
-        {
-            if (!mesh.IsSkin && bindPose != null && mesh.BoneIndex >= 0 && mesh.BoneIndex < bindPose.Count)
-            {
-                return bindPose[mesh.BoneIndex];
-            }
-
-            return Matrix4x4.Identity;
-        }
-
-        // Deformable skin mesh vertices sit in bind-pose world space, so animation applies
-        // the pivot motion relative to the bind pose instead of the absolute pose.
-        // Rigid meshes (turrets, wheels, chassis) sit in object space relative to their pivot
-        // and must use the plain animated pivot transform.
-        if (mesh.IsSkin && inverseBind != null && mesh.BoneIndex < inverseBind.Count)
-        {
-            return inverseBind[mesh.BoneIndex] * pose[mesh.BoneIndex];
-        }
-
-        return pose[mesh.BoneIndex];
     }
 
     private void CacheUniformLocations(GlInterface gl)

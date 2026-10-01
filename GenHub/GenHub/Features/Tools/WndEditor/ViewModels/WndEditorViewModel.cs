@@ -1458,19 +1458,6 @@ public sealed partial class WndEditorViewModel(
         }
     }
 
-    private static async Task InvokeOnUIThreadAsync(Action action)
-    {
-        if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
-        {
-            action();
-            await Task.CompletedTask.ConfigureAwait(false);
-        }
-        else
-        {
-            await Dispatcher.UIThread.InvokeAsync(action);
-        }
-    }
-
     private static IEnumerable<WndWindow> EnumerateWindows(IEnumerable<WndWindow> windows)
     {
         foreach (var window in windows)

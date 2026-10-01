@@ -217,24 +217,6 @@ public sealed class W3dSceneTests
         Assert.Null(miss);
     }
 
-    private static W3dMesh MeshWithTriangle(IReadOnlyList<W3dMaterialPass>? passes = null)
-    {
-        var origin = new W3dVector3(0, 0, 0);
-        return new W3dMesh(
-            "M",
-            "C",
-            0,
-            0,
-            new W3dBoundingBox(origin, new W3dVector3(1, 1, 0), origin, 1),
-            [new W3dVector3(0, 0, 0), new W3dVector3(1, 0, 0), new W3dVector3(0, 1, 0)],
-            [new W3dVector3(0, 0, 1), new W3dVector3(0, 0, 1), new W3dVector3(0, 0, 1)],
-            [new W3dTriangle(0, 1, 2, 0)],
-            [],
-            [],
-            [],
-            passes ?? [],
-            []);
-    }
     /// <summary>
     /// Verifies that meshes with GeometryTypeSkin attribute are marked as skin in render meshes.
     /// </summary>
@@ -315,4 +297,22 @@ public sealed class W3dSceneTests
         Assert.Equal(new Vector3(10, 0, 0), transform.Translation);
     }
 
+    private static W3dMesh MeshWithTriangle(IReadOnlyList<W3dMaterialPass>? passes = null)
+    {
+        var origin = new W3dVector3(0, 0, 0);
+        return new W3dMesh(
+            "M",
+            "C",
+            0,
+            0,
+            new W3dBoundingBox(origin, new W3dVector3(1, 1, 0), origin, 1),
+            [new W3dVector3(0, 0, 0), new W3dVector3(1, 0, 0), new W3dVector3(0, 1, 0)],
+            [new W3dVector3(0, 0, 1), new W3dVector3(0, 0, 1), new W3dVector3(0, 0, 1)],
+            [new W3dTriangle(0, 1, 2, 0)],
+            [],
+            [],
+            [],
+            passes ?? [],
+            []);
+    }
 }
