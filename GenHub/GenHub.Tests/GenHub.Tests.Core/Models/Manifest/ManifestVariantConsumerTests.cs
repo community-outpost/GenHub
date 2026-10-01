@@ -48,6 +48,37 @@ public class ManifestVariantConsumerTests
     }
 
     /// <summary>
+    /// A launchable manifest whose executable is only in another platform's variant is skipped,
+    /// so the next launchable manifest with a host executable is monitored.
+    /// </summary>
+    [Fact]
+    public void DetermineMonitoringTarget_FirstManifestWithoutHostExecutable_MonitorsNextLaunchableManifest()
+    {
+        var workspace = Path.Combine(Path.GetTempPath(), "GenHubTests", Guid.NewGuid().ToString("N"));
+        var foreignOnly = VariantManifestFixture.Create(
+            [],
+            [new() { RelativePath = "generalszh-foreign.exe", Hash = ForeignHash, IsExecutable = true, SourceType = ContentSourceType.ContentAddressable }]);
+        var hostTool = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.test.executable.tool"),
+            ContentType = ContentType.Executable,
+            Files = [new ManifestFile { RelativePath = "tool-host", Hash = HostHash, IsExecutable = true, SourceType = ContentSourceType.ContentAddressable }],
+        };
+
+        var result = GameLauncher.DetermineMonitoringTarget(
+            [foreignOnly, hostTool],
+            Path.Combine(workspace, "tool-host"),
+            workspace,
+            WorkspaceStrategy.SymlinkOnly,
+            expectedChildProcessName: null,
+            NullLogger.Instance,
+            localizationService: null);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.Equal(new GameProcessIdentity(HostHash, workspace), Assert.Single(result.Data!));
+    }
+
+    /// <summary>
     /// A stored variant manifest counts as downloaded content when only another platform's
     /// variant carries content-addressable files, because download identity covers every variant.
     /// </summary>

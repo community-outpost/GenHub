@@ -340,20 +340,31 @@ public class GameLauncher(
     }
 
     /// <summary>
-    /// Finds the first launchable manifest and its first executable file on this host.
+    /// Finds the first launchable manifest whose files on this host include an executable,
+    /// and that executable. A manifest whose executable is only in another platform's variant
+    /// is skipped. When none has one, the first launchable manifest is returned without a file.
     /// </summary>
     /// <param name="manifests">The workspace manifests.</param>
     /// <returns>The manifest and executable file, either of which may be null.</returns>
     private static (ContentManifest? Manifest, ManifestFile? File) FindMonitoredExecutable(IReadOnlyList<ContentManifest> manifests)
     {
-        var manifest = manifests.FirstOrDefault(m =>
-            m.ContentType == ContentType.GameClient ||
-            m.ContentType == ContentType.Executable ||
-            m.ContentType == ContentType.ModdingTool);
-        var file = manifest is null
-            ? null
-            : ManifestVariantResolver.ResolveFiles(manifest).FirstOrDefault(f => f.IsExecutable);
-        return (manifest, file);
+        var launchable = manifests
+            .Where(m =>
+                m.ContentType == ContentType.GameClient ||
+                m.ContentType == ContentType.Executable ||
+                m.ContentType == ContentType.ModdingTool)
+            .ToList();
+
+        foreach (var manifest in launchable)
+        {
+            var file = ManifestVariantResolver.ResolveFiles(manifest).FirstOrDefault(f => f.IsExecutable);
+            if (file is not null)
+            {
+                return (manifest, file);
+            }
+        }
+
+        return (launchable.FirstOrDefault(), null);
     }
 
     /// <summary>
