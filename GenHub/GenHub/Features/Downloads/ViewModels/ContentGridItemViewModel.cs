@@ -52,7 +52,7 @@ public sealed partial class ContentGridItemViewModel(
     private int _iconLoadVersion;
     private string? _loadedPublisherLogoUrl;
     private string? _loadedThumbnailUrl;
-    private CancellationTokenSource? _iconLoadCts;
+    private Action? _cancelIconLoad;
 
     /// <summary>
     /// Gets the underlying content search result.
@@ -556,20 +556,8 @@ public sealed partial class ContentGridItemViewModel(
                 component.PropertyChanged -= OnBundleComponentPropertyChanged;
             }
 
-            var cts = Interlocked.Exchange(ref _iconLoadCts, null);
-            if (cts != null)
-            {
-                try
-                {
-                    cts.Cancel();
-                }
-                catch (ObjectDisposedException)
-                {
-                    // Ignore if CTS is already disposed
-                }
-
-                cts.Dispose();
-            }
+            var cancelIconLoad = Interlocked.Exchange(ref _cancelIconLoad, null);
+            cancelIconLoad?.Invoke();
 
             _disposed = true;
             GC.SuppressFinalize(this);
@@ -1068,21 +1056,21 @@ public sealed partial class ContentGridItemViewModel(
             return;
         }
 
-        var cts = new CancellationTokenSource();
-        var oldCts = Interlocked.Exchange(ref _iconLoadCts, cts);
-        if (oldCts != null)
+        using var cts = new CancellationTokenSource();
+        void CancelAction()
         {
             try
             {
-                oldCts.Cancel();
+                cts.Cancel();
             }
             catch (ObjectDisposedException)
             {
                 // Ignore if CTS is already disposed
             }
-
-            oldCts.Dispose();
         }
+
+        var oldCancel = Interlocked.Exchange(ref _cancelIconLoad, CancelAction);
+        oldCancel?.Invoke();
 
         var token = cts.Token;
         var currentVersion = ++_iconLoadVersion;
@@ -1101,6 +1089,7 @@ public sealed partial class ContentGridItemViewModel(
 
         if (logoTask == null && thumbTask == null)
         {
+            Interlocked.CompareExchange(ref _cancelIconLoad, null, CancelAction);
             if (string.IsNullOrEmpty(thumbnailUrl) && currentVersion == _iconLoadVersion)
             {
                 IconBitmap = null;
@@ -1124,6 +1113,10 @@ public sealed partial class ContentGridItemViewModel(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to load icons for {ContentId}", SearchResult.Id);
+        }
+        finally
+        {
+            Interlocked.CompareExchange(ref _cancelIconLoad, null, CancelAction);
         }
     }
 
