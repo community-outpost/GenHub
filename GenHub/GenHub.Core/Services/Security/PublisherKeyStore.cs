@@ -221,6 +221,10 @@ public sealed class PublisherKeyStore : IPublisherKeyStore
         {
             return QuarantineFailed(ex);
         }
+        catch (CryptographicException ex)
+        {
+            return QuarantineFailed(ex);
+        }
         finally
         {
             _fileLock.Release();

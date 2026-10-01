@@ -306,7 +306,7 @@ public sealed class PublicKeyVerifierTests
     /// <summary>
     /// Curves outside P-256, P-384 and P-521 are rejected at import on every platform, through
     /// the result rather than a platform exception. This covers secp256k1, which OpenSSL imports
-    /// and macOS rejects, and the 224-bit P-224, which is below the minimum size.
+    /// and macOS rejects, and the 224-bit P-224, all rejected by the named-curve allowlist.
     /// </summary>
     /// <param name="curveOid">The named curve OID.</param>
     [Theory]

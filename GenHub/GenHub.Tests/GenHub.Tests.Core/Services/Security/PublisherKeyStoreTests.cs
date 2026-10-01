@@ -184,7 +184,7 @@ public sealed class PublisherKeyStoreTests : IDisposable
     /// A store whose directory cannot be read is reported as a failure, not treated as empty.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
-    [UnixFact]
+    [NonRootUnixFact]
     [UnsupportedOSPlatform("windows")]
     public async Task UnreadableStoreDirectory_ReturnsFailureInsteadOfEmpty()
     {
@@ -308,6 +308,24 @@ public sealed class PublisherKeyStoreTests : IDisposable
     }
 
     /// <summary>
+    /// DPAPI data encrypted with different entropy is unreadable and cannot be overwritten.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [WindowsFact]
+    [SupportedOSPlatform("windows")]
+    public async Task FileWithWrongDpapiEntropy_ReturnsFailureAndIsNotOverwritten()
+    {
+        Directory.CreateDirectory(_appDataPath);
+        var bytes = ProtectedData.Protect(
+            Encoding.UTF8.GetBytes("{\"schemaVersion\":1,\"keys\":[]}"),
+            Encoding.UTF8.GetBytes("different-publisher-store-entropy"),
+            DataProtectionScope.CurrentUser);
+        await File.WriteAllBytesAsync(StorePath, bytes);
+
+        await AssertUnreadableAndUntouchedAsync(CreateStore(), "cannot be decrypted");
+    }
+
+    /// <summary>
     /// Quarantining an unreadable store moves the file aside intact, and the store starts empty and writable.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
@@ -340,7 +358,7 @@ public sealed class PublisherKeyStoreTests : IDisposable
     /// untouched with no quarantined copy, and releases the lock.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
-    [UnixFact]
+    [NonRootUnixFact]
     [UnsupportedOSPlatform("windows")]
     public async Task QuarantineAsync_WhenMoveFails_ReturnsFailureAndLeavesStore()
     {
@@ -350,7 +368,7 @@ public sealed class PublisherKeyStoreTests : IDisposable
         File.SetUnixFileMode(_appDataPath, UnixFileMode.UserRead | UnixFileMode.UserExecute);
         try
         {
-            var quarantined = await store.QuarantineAsync();
+            var quarantined = await store.QuarantineAsync().WaitAsync(TimeSpan.FromSeconds(30));
             var afterwards = await store.GetKeysAsync().WaitAsync(TimeSpan.FromSeconds(30));
 
             Assert.False(quarantined.Success);
