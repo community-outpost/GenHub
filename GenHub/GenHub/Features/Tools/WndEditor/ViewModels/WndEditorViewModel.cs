@@ -2456,13 +2456,13 @@ public sealed partial class WndEditorViewModel(
         var explorer = new FileExplorerViewModel(logger)
         {
             AsynchronousEnumeration = true,
+            FilePatterns = [ModBuilderConstants.FileNames.WndSearchPattern],
+            ShowFileExtensions = false,
+            ExcludedDirectoryNames = [ModBuilderConstants.DefaultBuildDir, ModBuilderConstants.DefaultReleaseDir],
+            NodeFactory = (name, fullPath, isDirectory, isCurrent, parent) => new WndFileTreeNodeViewModel(name, fullPath, isDirectory, isCurrent, parent),
+            BrowseFolderAsync = PickFolderAsync,
+            DirectoryAdoptedAsync = (f, ct) => AdoptExplorerDirectoryAsync(f, ct),
         };
-        explorer.FilePatterns = [ModBuilderConstants.FileNames.WndSearchPattern];
-        explorer.ShowFileExtensions = false;
-        explorer.ExcludedDirectoryNames = [ModBuilderConstants.DefaultBuildDir, ModBuilderConstants.DefaultReleaseDir];
-        explorer.NodeFactory = (name, fullPath, isDirectory, isCurrent, parent) => new WndFileTreeNodeViewModel(name, fullPath, isDirectory, isCurrent, parent);
-        explorer.BrowseFolderAsync = PickFolderAsync;
-        explorer.DirectoryAdoptedAsync = (f, ct) => AdoptExplorerDirectoryAsync(f, ct);
         explorer.FileActivated += OnExplorerFileActivated;
         return explorer;
     }
@@ -2532,7 +2532,19 @@ public sealed partial class WndEditorViewModel(
             return normalizedPath.StartsWith(normalizedBase + Path.DirectorySeparatorChar, comparison)
                 || string.Equals(normalizedPath, normalizedBase, comparison);
         }
-        catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException or SecurityException)
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (NotSupportedException)
+        {
+            return false;
+        }
+        catch (SecurityException)
         {
             return false;
         }
@@ -3428,7 +3440,11 @@ public sealed partial class WndEditorViewModel(
         {
             return new FontFamily(fontName.Trim());
         }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException)
+        catch (ArgumentException)
+        {
+            return null;
+        }
+        catch (NotSupportedException)
         {
             return null;
         }
@@ -3492,8 +3508,7 @@ public sealed partial class WndEditorViewModel(
         }
 
         var drawCallback = window.GetProperty(WndConstants.PropertyKeys.DrawCallback);
-        return drawCallback != null
-            && drawCallback.Contains(WndConstants.DrawCallbacks.MapPreview, StringComparison.OrdinalIgnoreCase);
+        return drawCallback?.Contains(WndConstants.DrawCallbacks.MapPreview, StringComparison.OrdinalIgnoreCase) == true;
     }
 
     private Bitmap? ResolvePlanImage(WndPreviewPlan plan, WndCanvasItemViewModel item)
@@ -3640,7 +3655,7 @@ public sealed partial class WndEditorViewModel(
     private void RefreshAssetPreviews()
     {
         CancellationTokenSource? toCancel = null;
-        CancellationTokenSource cts = null!;
+        CancellationTokenSource? cts = null;
         int generation = 0;
         string? linkedModFolderSnapshot = null;
         List<string>? linkedBigFilesSnapshot = null;
@@ -3665,7 +3680,10 @@ public sealed partial class WndEditorViewModel(
         }
 
         CancelAndDisposeCts(toCancel);
-        _ = LoadAssetPreviewsAsync(cts.Token, generation, linkedModFolderSnapshot, linkedBigFilesSnapshot);
+        if (cts != null)
+        {
+            _ = LoadAssetPreviewsAsync(generation, linkedModFolderSnapshot, linkedBigFilesSnapshot, cts.Token);
+        }
     }
 
     private static void CancelAndDisposeCts(CancellationTokenSource? cts)
@@ -3690,10 +3708,10 @@ public sealed partial class WndEditorViewModel(
     }
 
     private async Task LoadAssetPreviewsAsync(
-        CancellationToken cancellationToken,
         int generation,
         string? linkedModFolderSnapshot,
-        IReadOnlyCollection<string>? linkedBigFilesSnapshot)
+        IReadOnlyCollection<string>? linkedBigFilesSnapshot,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -4264,13 +4282,17 @@ public sealed partial class WndEditorViewModel(
         {
             var fs = WndGameFileSystem.Open(roots.BaseRoot, null, projectDirectory, logger, additionalBigFiles, roots.IsZeroHour, cancellationToken);
             var iniBytes = fs.Read(WndConstants.ControlBarScheme.DataIniPath) ?? fs.Read(WndConstants.ControlBarScheme.IniPath);
-            if (iniBytes != null && iniBytes.Length > 0)
+            if (iniBytes?.Length > 0)
             {
                 var text = Encoding.UTF8.GetString(iniBytes);
                 ParseControlBarSchemeIni(text, result);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
+        {
+            logger.LogDebug(ex, "Failed to read ControlBarScheme.ini; using standard fallback scheme");
+        }
+        catch (UnauthorizedAccessException ex)
         {
             logger.LogDebug(ex, "Failed to read ControlBarScheme.ini; using standard fallback scheme");
         }

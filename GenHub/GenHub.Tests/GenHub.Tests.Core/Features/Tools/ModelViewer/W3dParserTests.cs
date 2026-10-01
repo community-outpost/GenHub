@@ -267,7 +267,7 @@ public sealed class W3dParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task ParseFileAsync_MissingFile_ReturnsFailure()
+    public async Task ParseFileAsync_MissingFile_ReturnsFailureAsync()
     {
         var result = await _parser.ParseFileAsync(Path.Combine(Path.GetTempPath(), $"missing-{Guid.NewGuid():N}.w3d"));
 

@@ -220,6 +220,7 @@ public class IniEditorViewTests
         viewModel.AddBlockCommand.Execute(null);
 
         viewModel.FieldRows.First(row => row.Key == "Health").Value = "150.0";
+        Assert.Equal("150.0", viewModel.FieldRows.First(row => row.Key == "Health").Value);
         viewModel.FieldRows.First(row => row.Key == "Health").Value = "200.0";
 
         Assert.Equal("200.0", viewModel.FieldRows.First(row => row.Key == "Health").Value);
