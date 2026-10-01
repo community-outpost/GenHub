@@ -4487,11 +4487,19 @@ public partial class ContentDetailViewModel(
             Description: description,
             FileSectionType: FileSectionType.Downloads);
 
-        string releaseName = !string.IsNullOrWhiteSpace(rel.Title)
-            ? rel.Title
-            : (!string.IsNullOrWhiteSpace(searchResult.Name)
-                ? $"{searchResult.Name} Version {rel.Version}"
-                : $"Version {rel.Version}");
+        string releaseName;
+        if (!string.IsNullOrWhiteSpace(rel.Title))
+        {
+            releaseName = rel.Title;
+        }
+        else if (!string.IsNullOrWhiteSpace(searchResult.Name))
+        {
+            releaseName = $"{searchResult.Name} Version {rel.Version}";
+        }
+        else
+        {
+            releaseName = $"Version {rel.Version}";
+        }
 
         var releaseItem = new ReleaseItemViewModel
         {
@@ -4833,9 +4841,19 @@ public partial class ContentDetailViewModel(
             Variants.Clear();
             foreach (var art in rel.Artifacts)
             {
-                string varName = !string.IsNullOrWhiteSpace(art.Variant)
-                    ? art.Variant
-                    : (!string.IsNullOrWhiteSpace(art.Filename) ? art.Filename : "Variant");
+                string varName;
+                if (!string.IsNullOrWhiteSpace(art.Variant))
+                {
+                    varName = art.Variant;
+                }
+                else if (!string.IsNullOrWhiteSpace(art.Filename))
+                {
+                    varName = art.Filename;
+                }
+                else
+                {
+                    varName = "Variant";
+                }
 
                 var axis = !string.IsNullOrWhiteSpace(art.VariantAxis) ? art.VariantAxis : "Variant";
                 Variants.Add(new InstallableVariant
@@ -7222,11 +7240,10 @@ public partial class ContentDetailViewModel(
                     !string.Equals(m.Id.Value, depId, StringComparison.OrdinalIgnoreCase) &&
                     m.Dependencies.Any(d => string.Equals(d.Id.Value, depId, StringComparison.OrdinalIgnoreCase)));
 
-                bool isUsedInProfile = profiles != null &&
-                    profiles.Any(p =>
-                        p.EnabledContentIds.Contains(depId, StringComparer.OrdinalIgnoreCase) ||
-                        string.Equals(p.GameClient?.Id, depId, StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(p.ToolContentId, depId, StringComparison.OrdinalIgnoreCase));
+                bool isUsedInProfile = profiles?.Any(p =>
+                    p.EnabledContentIds.Contains(depId, StringComparer.OrdinalIgnoreCase) ||
+                    string.Equals(p.GameClient?.Id, depId, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(p.ToolContentId, depId, StringComparison.OrdinalIgnoreCase)) == true;
 
                 if (!isStillDependedOn && !isUsedInProfile)
                 {
@@ -7309,11 +7326,10 @@ public partial class ContentDetailViewModel(
                 !string.Equals(m.Id.Value, depId, StringComparison.OrdinalIgnoreCase) &&
                 m.Dependencies.Any(d => string.Equals(d.Id.Value, depId, StringComparison.OrdinalIgnoreCase)));
 
-            bool isUsedInProfile = profileList != null &&
-                profileList.Any(p =>
-                    p.EnabledContentIds.Contains(depId, StringComparer.OrdinalIgnoreCase) ||
-                    string.Equals(p.GameClient?.Id, depId, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(p.ToolContentId, depId, StringComparison.OrdinalIgnoreCase));
+            bool isUsedInProfile = profileList?.Any(p =>
+                p.EnabledContentIds.Contains(depId, StringComparer.OrdinalIgnoreCase) ||
+                string.Equals(p.GameClient?.Id, depId, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(p.ToolContentId, depId, StringComparison.OrdinalIgnoreCase)) == true;
 
             if (!isStillDependedOn && !isUsedInProfile)
             {

@@ -2490,11 +2490,12 @@ public class GameLauncher(
         var steamExecutableName = GameClientConstants.GeneralsExecutable;
         logger.LogInformation("[GameLauncher] Steam executable to replace with proxy: {ExecutableName}", steamExecutableName);
 
-        string steamAppId = SteamAppIdResolver.TryResolveSteamAppIdFromInstallationPath(actualInstallationPath, out var resolvedSteamAppId)
-            ? resolvedSteamAppId
-            : (profile.GameClient?.GameType == GameType.Generals
+        if (!SteamAppIdResolver.TryResolveSteamAppIdFromInstallationPath(actualInstallationPath, out var steamAppId))
+        {
+            steamAppId = profile.GameClient?.GameType == GameType.Generals
                 ? SteamConstants.GeneralsAppId
-                : SteamConstants.ZeroHourAppId);
+                : SteamConstants.ZeroHourAppId;
+        }
 
         var targetArguments = arguments.Select(kvp => FormatCommandLineArgument(kvp.Key, kvp.Value)).ToArray();
 
