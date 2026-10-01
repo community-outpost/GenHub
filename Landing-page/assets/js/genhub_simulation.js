@@ -2411,9 +2411,9 @@
         return '';
     }
 
-    function formatMarkdown(md) {
-        if (!md) return "";
-        let html = md
+    function formatMarkdown(markdownText) {
+        if (!markdownText) return "";
+        let html = markdownText
             .replace(/\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g, "<a href=\"$2\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"color: #a78bfa; text-decoration: underline;\">$1</a>")
             .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
             .replace(/\*(\S[^*]*?)\*/g, "<em>$1</em>")
@@ -2426,28 +2426,19 @@
         return html.replace(/\n/g, "<br>");
     }
 
-    function isSummaryLine(lineText) {
-        return Boolean(lineText) && !/^([#*!-]|\s*$)/.test(lineText);
+    function extractSummaryLines(rawBody) {
+        return (rawBody || "").split("\n")
+            .map(lineText => lineText.trim())
+            .filter(lineText => Boolean(lineText) && !/^([#*!-]|\s*$)/.test(lineText))
+            .slice(0, 2);
     }
 
     function formatChangelogSummary(rawBody) {
-        if (!rawBody) {
+        const summaryLines = extractSummaryLines(rawBody);
+        if (summaryLines.length === 0) {
             return "Official GenHub release with updated assets and dependencies.";
         }
-        const lines = rawBody.split("\n");
-        const cleanLines = [];
-        for (const rawLine of lines) {
-            const trimmedLine = rawLine.trim();
-            if (isSummaryLine(trimmedLine)) {
-                cleanLines.push(trimmedLine);
-                if (cleanLines.length === 2) {
-                    break;
-                }
-            }
-        }
-        return cleanLines.length > 0
-            ? cleanLines.join(" ")
-            : "Official GenHub release with updated assets and dependencies.";
+        return summaryLines.join(" ");
     }
 
     function formatReleaseDate(publishedAt) {
@@ -2457,39 +2448,70 @@
         return new Date(publishedAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
     }
 
+    function getChangelogCardTitle(release) {
+        const tagName = release.tag_name || "";
+        return release.name || `GenHub ${tagName}`;
+    }
+
+    function getReleaseHeaderBlock(dateStr) {
+        if (dateStr) {
+            return `**Published:** ${dateStr}\n\n`;
+        }
+        return "\n";
+    }
+
+    function getReleaseCardContent(dateStr, summaryText) {
+        if (dateStr) {
+            return `Released on ${dateStr}. ${summaryText}`;
+        }
+        return summaryText;
+    }
+
+    function getReleaseType(isPrerelease) {
+        if (isPrerelease) {
+            return "Pre-release";
+        }
+        return "Release";
+    }
+
     function createChangelogCard(release) {
-        const tag = release.tag_name || "";
-        const name = release.name || `GenHub ${tag}`;
+        const tagName = release.tag_name || "";
+        const cardTitle = getChangelogCardTitle(release);
         const dateStr = formatReleaseDate(release.published_at);
         const rawBody = release.body || "No release notes provided.";
         const summaryText = formatChangelogSummary(rawBody);
-        const content = dateStr ? `Released on ${dateStr}. ${summaryText}` : summaryText;
+        const cardContent = getReleaseCardContent(dateStr, summaryText);
         const releaseUrl = release.html_url || "https://github.com/community-outpost/GenHub/releases";
-        const dateBlock = dateStr ? `**Published:** ${dateStr}\n\n` : "\n";
+        const dateBlock = getReleaseHeaderBlock(dateStr);
+        const releaseType = getReleaseType(release.prerelease);
 
         return {
-            title: name,
-            type: release.prerelease ? "Pre-release" : "Release",
-            content,
-            detailed: `**Release:** [${tag}](${releaseUrl})\n${dateBlock}${rawBody}`
+            title: cardTitle,
+            type: releaseType,
+            content: cardContent,
+            detailed: `**Release:** [${tagName}](${releaseUrl})\n${dateBlock}${rawBody}`
         };
     }
 
-    function createPatchNotesCard(note) {
-        let detailsList = "* Stability and performance improvements.";
+    function getPatchNotesDetailsList(note) {
         if (Array.isArray(note.details) && note.details.length > 0) {
-            detailsList = note.details.map(detailItem => `* ${detailItem}`).join("\n");
-        } else if (note.summary) {
-            detailsList = `* ${note.summary}`;
+            return note.details.map(detailItem => `* ${detailItem}`).join("\n");
         }
+        if (note.summary) {
+            return `* ${note.summary}`;
+        }
+        return "* Stability and performance improvements.";
+    }
 
-        const detailedMd = `**Official Patch Notes:** [${note.title} on playgenerals.online](${note.url})\n**Date:** ${note.date}\n\n**Changes & Fixes:**\n${detailsList}`;
+    function createPatchNotesCard(note) {
+        const detailsList = getPatchNotesDetailsList(note);
+        const detailedMarkdown = `**Official Patch Notes:** [${note.title} on playgenerals.online](${note.url})\n**Date:** ${note.date}\n\n**Changes & Fixes:**\n${detailsList}`;
 
         return {
             title: `${note.title} (${note.date})`,
             type: "Patch Notes",
             content: note.summary || "Generals Online service updates and gameplay improvements.",
-            detailed: detailedMd
+            detailed: detailedMarkdown
         };
     }
 
