@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Models.Security;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace GenHub.Tests.Core.Helpers;
@@ -119,6 +120,58 @@ public sealed class MachineBoundEncryptionTests
 
         Assert.False(MachineBoundEncryption.TryDecryptWithSecret(fromFallback, new MachineSecret("not-the-fallback", false), Salt, out _));
         Assert.False(MachineBoundEncryption.TryDecryptWithSecret(fromOtherMachine, new MachineSecret("primary-id-a", true), Salt, out _));
+    }
+
+    /// <summary>
+    /// Known answer: a GitHub token file produced by the pre-refactor token storage code decrypts
+    /// with the token salt and the unchanged PBKDF2 parameters.
+    /// </summary>
+    [Fact]
+    public void TryDecrypt_PreRefactorTokenFile_RecoversPlaintext()
+    {
+        var blob = Convert.FromBase64String("AZVez7DY44IGJz677HRWxqoat7QbXw3CSVCJlF/1Ew2HokaI6mh5IW4TJOijp2A1ml8uO3VJ2DGohIA=");
+        var key = MachineBoundEncryption.DeriveKey("known-answer-machine-secret", GitHubConstants.TokenFileKeySalt);
+
+        Assert.True(MachineBoundEncryption.TryDecrypt(blob, key, out var plainBytes));
+        Assert.Equal("ghp_KnownAnswerToken0123456789", Encoding.UTF8.GetString(plainBytes!));
+    }
+
+    /// <summary>
+    /// Known answer for the byte layout: version at 0, nonce at 1, tag after the nonce, ciphertext after
+    /// the header. Bytes assembled by hand with AesGcm decrypt, and Encrypt output decrypts by hand.
+    /// </summary>
+    [Fact]
+    public void FileLayout_MatchesFixedOffsets()
+    {
+        const int nonceOffset = 1;
+        const int tagOffset = nonceOffset + MachineBoundEncryptionConstants.NonceSizeBytes;
+        const int headerLength = tagOffset + MachineBoundEncryptionConstants.TagSizeBytes;
+        var key = MachineBoundEncryption.DeriveKey("known-answer-machine-secret", GitHubConstants.TokenFileKeySalt);
+        var nonce = Enumerable.Range(1, MachineBoundEncryptionConstants.NonceSizeBytes).Select(i => (byte)i).ToArray();
+        var cipherBytes = new byte[Plaintext.Length];
+        var tag = new byte[MachineBoundEncryptionConstants.TagSizeBytes];
+        using (var aes = new AesGcm(key, MachineBoundEncryptionConstants.TagSizeBytes))
+        {
+            aes.Encrypt(nonce, Plaintext, cipherBytes, tag);
+        }
+
+        byte[] handBuilt = [GitHubConstants.TokenFileFormatVersion, .. nonce, .. tag, .. cipherBytes];
+        Assert.True(MachineBoundEncryption.TryDecrypt(handBuilt, key, out var decrypted));
+        Assert.Equal(Plaintext, decrypted);
+
+        var encrypted = MachineBoundEncryption.Encrypt(Plaintext, key);
+        var manual = new byte[encrypted.Length - headerLength];
+        using (var aes = new AesGcm(key, MachineBoundEncryptionConstants.TagSizeBytes))
+        {
+            aes.Decrypt(
+                encrypted.AsSpan(nonceOffset, MachineBoundEncryptionConstants.NonceSizeBytes),
+                encrypted.AsSpan(headerLength),
+                encrypted.AsSpan(tagOffset, MachineBoundEncryptionConstants.TagSizeBytes),
+                manual);
+        }
+
+        Assert.Equal(GitHubConstants.TokenFileFormatVersion, encrypted[0]);
+        Assert.Equal(Plaintext, manual);
     }
 
     /// <summary>

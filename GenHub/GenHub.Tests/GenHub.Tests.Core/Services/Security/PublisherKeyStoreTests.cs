@@ -336,6 +336,35 @@ public sealed class PublisherKeyStoreTests : IDisposable
     }
 
     /// <summary>
+    /// When the store file cannot be moved, quarantine fails through the result, leaves the store
+    /// untouched with no quarantined copy, and releases the lock.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [UnixFact]
+    [UnsupportedOSPlatform("windows")]
+    public async Task QuarantineAsync_WhenMoveFails_ReturnsFailureAndLeavesStore()
+    {
+        await CreateStore().SaveKeyAsync(CreateTrustedKey("publisher", PublicKeyAlgorithm.Rsa));
+        var before = await File.ReadAllBytesAsync(StorePath);
+        var store = CreateStore();
+        File.SetUnixFileMode(_appDataPath, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+        try
+        {
+            var quarantined = await store.QuarantineAsync();
+            var afterwards = await store.GetKeysAsync().WaitAsync(TimeSpan.FromSeconds(30));
+
+            Assert.False(quarantined.Success);
+            Assert.True(afterwards.Success, afterwards.FirstError);
+            Assert.Equal(before, await File.ReadAllBytesAsync(StorePath));
+            Assert.Empty(Directory.GetFiles(_appDataPath, "*" + PublisherKeyConstants.QuarantinedFileExtension));
+        }
+        finally
+        {
+            File.SetUnixFileMode(_appDataPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+    }
+
+    /// <summary>
     /// Quarantining twice keeps both files, and quarantining with no store file is a no-op.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>

@@ -79,6 +79,28 @@ public class EncryptedFileGitHubTokenStorageTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that a token file written by the token storage before its crypto moved into
+    /// MachineBoundEncryption still loads. The blob was produced by the pre-refactor
+    /// EncryptToFileBytes and DeriveKeyFromSecret code from development.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LoadToken_FileFromPreRefactorFormat_LoadsAsync()
+    {
+        // Arrange
+        const string preRefactorTokenFile = "AZVez7DY44IGJz677HRWxqoat7QbXw3CSVCJlF/1Ew2HokaI6mh5IW4TJOijp2A1ml8uO3VJ2DGohIA=";
+        await File.WriteAllBytesAsync(TokenFilePath(), Convert.FromBase64String(preRefactorTokenFile));
+        var storage = CreateStorage("known-answer-machine-secret");
+
+        // Act
+        using var loaded = await storage.LoadTokenAsync();
+
+        // Assert
+        Assert.NotNull(loaded);
+        Assert.Equal("ghp_KnownAnswerToken0123456789", SecureStringHelper.ToUnsecureString(loaded));
+    }
+
+    /// <summary>
     /// Verifies that the token file does not contain the plain text token.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
