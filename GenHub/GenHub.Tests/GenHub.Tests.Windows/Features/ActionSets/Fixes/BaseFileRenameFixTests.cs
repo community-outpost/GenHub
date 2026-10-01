@@ -353,6 +353,10 @@ public sealed class BaseFileRenameFixTests : IDisposable
         {
             File.ReadAllText(Path.Combine(dir, target + UserBackupSuffix)).Should().Be(userBackupContent);
         }
+        else
+        {
+            File.Exists(Path.Combine(dir, target + UserBackupSuffix)).Should().BeFalse();
+        }
     }
 
     private static string HashFile(string path)
