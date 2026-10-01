@@ -2119,7 +2119,7 @@ public sealed partial class DownloadsBrowserViewModel(
     /// </summary>
     private string ResolveDownloadedContentLabel()
     {
-        if (_localizationService is { } localizationService && localizationService.TryGetString("Downloads.Browser.MyDownloads", out var localized))
+        if (_localizationService is { } locService && locService.TryGetString("Downloads.Browser.MyDownloads", out var localized))
         {
             return localized;
         }
@@ -2195,12 +2195,9 @@ public sealed partial class DownloadsBrowserViewModel(
             {
                 cachedState.ActiveDetailViewModel?.Dispose();
                 var currentItems = new HashSet<ContentGridItemViewModel>(ContentItems);
-                foreach (var item in cachedState.Items)
+                foreach (var item in cachedState.Items.Where(item => !currentItems.Contains(item)))
                 {
-                    if (!currentItems.Contains(item))
-                    {
-                        item.Dispose();
-                    }
+                    item.Dispose();
                 }
             }
         }
@@ -3033,7 +3030,7 @@ public sealed partial class DownloadsBrowserViewModel(
             }
 
             variantVm.NotifyStateChanged();
-            await Task.WhenAny(variantVm.EnsureIconsLoadedAsync(ct), Task.Delay(UiConstants.ProgressiveItemRenderDelayMs, ct));
+            await Task.WhenAny(variantVm.EnsureIconsLoadedAsync(), Task.Delay(UiConstants.ProgressiveItemRenderDelayMs, ct));
             return variantVm;
         }
         catch
@@ -3062,7 +3059,7 @@ public sealed partial class DownloadsBrowserViewModel(
             }
 
             vm.NotifyStateChanged();
-            await Task.WhenAny(vm.EnsureIconsLoadedAsync(ct), Task.Delay(UiConstants.ProgressiveItemRenderDelayMs, ct));
+            await Task.WhenAny(vm.EnsureIconsLoadedAsync(), Task.Delay(UiConstants.ProgressiveItemRenderDelayMs, ct));
             return vm;
         }
         catch

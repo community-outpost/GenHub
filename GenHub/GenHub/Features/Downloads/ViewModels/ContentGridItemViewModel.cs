@@ -565,6 +565,7 @@ public sealed partial class ContentGridItemViewModel(
                 }
                 catch (ObjectDisposedException)
                 {
+                    // Ignore if CTS is already disposed
                 }
 
                 cts.Dispose();
@@ -1060,8 +1061,13 @@ public sealed partial class ContentGridItemViewModel(
         }
     }
 
-    private CancellationToken PrepareIconLoadCancellationToken(CancellationToken cancellationToken, out IDisposable? cleanup)
+    private async Task LoadIconAsync()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
         var cts = new CancellationTokenSource();
         var oldCts = Interlocked.Exchange(ref _iconLoadCts, cts);
         if (oldCts != null)
@@ -1072,72 +1078,52 @@ public sealed partial class ContentGridItemViewModel(
             }
             catch (ObjectDisposedException)
             {
+                // Ignore if CTS is already disposed
             }
 
             oldCts.Dispose();
         }
 
-        if (cancellationToken.CanBeCanceled)
-        {
-            var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, cancellationToken);
-            cleanup = linkedCts;
-            return linkedCts.Token;
-        }
+        var token = cts.Token;
+        var currentVersion = ++_iconLoadVersion;
+        HydrateBitmapsFromMemoryCache();
 
-        cleanup = null;
-        return cts.Token;
-    }
+        var publisherLogoUrl = _loadedPublisherLogoUrl;
+        var thumbnailUrl = _loadedThumbnailUrl;
 
-    private async Task LoadIconAsync(CancellationToken cancellationToken = default)
-    {
-        if (_disposed)
+        var logoTask = (!string.IsNullOrEmpty(publisherLogoUrl) && PublisherLogoBitmap == null)
+            ? SafeGetBitmapAsync(publisherLogoUrl, token)
+            : null;
+
+        var thumbTask = (!string.IsNullOrEmpty(thumbnailUrl) && IconBitmap == null)
+            ? SafeGetBitmapAsync(thumbnailUrl, token)
+            : null;
+
+        if (logoTask == null && thumbTask == null)
         {
+            if (string.IsNullOrEmpty(thumbnailUrl) && currentVersion == _iconLoadVersion)
+            {
+                IconBitmap = null;
+            }
+
             return;
         }
 
-        var token = PrepareIconLoadCancellationToken(cancellationToken, out var cleanup);
-        using (cleanup)
+        try
         {
-            var currentVersion = ++_iconLoadVersion;
-            HydrateBitmapsFromMemoryCache();
-
-            var publisherLogoUrl = _loadedPublisherLogoUrl;
-            var thumbnailUrl = _loadedThumbnailUrl;
-
-            var logoTask = (!string.IsNullOrEmpty(publisherLogoUrl) && PublisherLogoBitmap == null)
-                ? SafeGetBitmapAsync(publisherLogoUrl, token)
-                : null;
-
-            var thumbTask = (!string.IsNullOrEmpty(thumbnailUrl) && IconBitmap == null)
-                ? SafeGetBitmapAsync(thumbnailUrl, token)
-                : null;
-
-            if (logoTask == null && thumbTask == null)
+            await AwaitIconLoadTasksAsync(logoTask, thumbTask);
+            if (!token.IsCancellationRequested)
             {
-                if (string.IsNullOrEmpty(thumbnailUrl) && currentVersion == _iconLoadVersion)
-                {
-                    IconBitmap = null;
-                }
-
-                return;
+                ApplyLoadedIconBitmaps(currentVersion, logoTask, publisherLogoUrl, thumbTask, thumbnailUrl);
             }
-
-            try
-            {
-                await AwaitIconLoadTasksAsync(logoTask, thumbTask);
-                if (!token.IsCancellationRequested)
-                {
-                    ApplyLoadedIconBitmaps(currentVersion, logoTask, publisherLogoUrl, thumbTask, thumbnailUrl);
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                // Disposed or superseded by a newer icon load
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to load icons for {ContentId}", SearchResult.Id);
-            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Disposed or superseded by a newer icon load
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to load icons for {ContentId}", SearchResult.Id);
         }
     }
 
@@ -1446,9 +1432,8 @@ public sealed partial class ContentGridItemViewModel(
     /// <summary>
     /// Loads icon and logo bitmaps if not already loaded.
     /// </summary>
-    /// <param name="cancellationToken">An optional cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public async Task EnsureIconsLoadedAsync(CancellationToken cancellationToken = default)
+    public async Task EnsureIconsLoadedAsync()
     {
         if (_disposed)
         {
@@ -1457,7 +1442,7 @@ public sealed partial class ContentGridItemViewModel(
 
         if (PublisherLogoBitmap == null || (IconBitmap == null && !string.IsNullOrEmpty(ThumbnailUrl)))
         {
-            await LoadIconAsync(cancellationToken);
+            await LoadIconAsync();
         }
     }
 
