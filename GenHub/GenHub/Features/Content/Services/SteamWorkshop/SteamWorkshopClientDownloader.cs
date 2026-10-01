@@ -213,7 +213,7 @@ public sealed class SteamWorkshopClientDownloader : ISteamWorkshopClientDownload
         while (!task.IsCompleted && !cancellationToken.IsCancellationRequested)
         {
             manager.RunWaitCallbacks(TimeSpan.FromMilliseconds(50));
-            await Task.Delay(20, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(20).ConfigureAwait(false);
         }
     }
 
@@ -451,37 +451,21 @@ public sealed class SteamWorkshopClientDownloader : ISteamWorkshopClientDownload
         }
 
         cancellationToken.ThrowIfCancellationRequested();
+        if (!tcsConnect.Task.IsCompletedSuccessfully)
+        {
+            var ex = tcsConnect.Task.Exception?.GetBaseException();
+            return OperationResult<bool>.CreateFailure(ex?.Message ?? "Disconnected from Steam network before connecting.");
+        }
 
         var steamId = accountInfo.SteamId != 0UL
             ? accountInfo.SteamId
             : SteamWorkshopHelper.ExtractSteamIdFromToken(accountInfo.RefreshToken);
 
-        _logger.LogDebug("Connected to Steam CM. Exchanging refresh token for app access token (SteamID: {SteamId})...", steamId);
-        var tokenTask = steamClient.Authentication.GenerateAccessTokenForAppAsync(
-            new SteamID(steamId),
-            accountInfo.RefreshToken);
-
-        await WaitForConditionAsync(tokenTask, manager, linked.Token).ConfigureAwait(false);
-        if (ctsTimeout.IsCancellationRequested)
-        {
-            return OperationResult<bool>.CreateFailure("Timed out while generating Steam access token.");
-        }
-
-        cancellationToken.ThrowIfCancellationRequested();
-        if (!tokenTask.IsCompletedSuccessfully)
-        {
-            var ex = tokenTask.Exception?.InnerException;
-            _logger.LogWarning(ex, "Failed to exchange refresh token for Steam account '{AccountName}'.", accountInfo.AccountName);
-            return OperationResult<bool>.CreateFailure(
-                $"Failed to authenticate Steam account: {ex?.Message ?? "Token exchange failed"}. Try signing in again in Settings.");
-        }
-
-        var tokenResult = await tokenTask.ConfigureAwait(false);
-        _logger.LogDebug("Logging on to Steam as '{AccountName}'...", accountInfo.AccountName);
+        _logger.LogDebug("Connected to Steam CM. Logging on as '{AccountName}' (SteamID: {SteamId})...", accountInfo.AccountName, steamId);
         steamUser.LogOn(new SteamUser.LogOnDetails
         {
             Username = accountInfo.AccountName,
-            AccessToken = tokenResult.AccessToken,
+            AccessToken = accountInfo.RefreshToken,
             ShouldRememberPassword = true,
         });
 
@@ -492,7 +476,12 @@ public sealed class SteamWorkshopClientDownloader : ISteamWorkshopClientDownload
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        await tcsLogin.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+        if (!tcsLogin.Task.IsCompletedSuccessfully)
+        {
+            var ex = tcsLogin.Task.Exception?.GetBaseException();
+            return OperationResult<bool>.CreateFailure(ex?.Message ?? "Steam logon failed. Try signing in again in Settings.");
+        }
+
         return OperationResult<bool>.CreateSuccess(true);
     }
 
