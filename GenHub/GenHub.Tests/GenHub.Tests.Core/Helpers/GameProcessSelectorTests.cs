@@ -68,6 +68,35 @@ public class GameProcessSelectorTests
     }
 
     /// <summary>
+    /// An identity named with an extension matches an extensionless image of the same stem, such
+    /// as a native build of a client that ships as game.exe on Windows.
+    /// </summary>
+    [Fact]
+    public void SelectSpawnedGameProcess_MatchesAnExtensionlessImageForANameWithAnExtension()
+    {
+        var candidates = new[] { new GameProcessCandidate(1, "game", Now, Path.Combine(Workspace, "game")) };
+
+        var selected = GameProcessSelector.SelectSpawnedGameProcess(
+            candidates, [new GameProcessIdentity("game.exe", Workspace)], Now);
+
+        Assert.Equal(1, selected?.ProcessId);
+    }
+
+    /// <summary>
+    /// Matching stems never stands in for residence: the same image elsewhere is rejected.
+    /// </summary>
+    [Fact]
+    public void SelectSpawnedGameProcess_RejectsAStemMatchOutsideTheIdentityDirectory()
+    {
+        var candidates = new[] { new GameProcessCandidate(1, "game", Now, Path.Combine("/somewhere/else", "game")) };
+
+        var selected = GameProcessSelector.SelectSpawnedGameProcess(
+            candidates, [new GameProcessIdentity("game.exe", Workspace)], Now);
+
+        Assert.Null(selected);
+    }
+
+    /// <summary>
     /// Residence cannot be proven for a process whose image path is unreadable, so it is not
     /// accepted while a working directory is being enforced.
     /// </summary>

@@ -19,9 +19,10 @@ public sealed class SymlinkFactAttribute : FactAttribute
 
     private static bool ProbeSymbolicLinks()
     {
-        var directory = Directory.CreateTempSubdirectory("GenHub.SymlinkProbe.");
+        DirectoryInfo? directory = null;
         try
         {
+            directory = Directory.CreateTempSubdirectory("GenHub.SymlinkProbe.");
             var target = Path.Combine(directory.FullName, "target");
             File.WriteAllText(target, string.Empty);
             File.CreateSymbolicLink(Path.Combine(directory.FullName, "link"), target);
@@ -39,7 +40,7 @@ public sealed class SymlinkFactAttribute : FactAttribute
         {
             try
             {
-                directory.Delete(recursive: true);
+                directory?.Delete(recursive: true);
             }
             catch (IOException)
             {
