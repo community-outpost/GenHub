@@ -59,7 +59,6 @@ public class ManifestFilesAccessRatchetTests
     /// </summary>
     private static readonly string[] PendingMigration =
     [
-        "GenHub.Core.Extensions.WorkspaceConfigurationExtensions",
         "GenHub.Core.Helpers.ManifestHelper",
         "GenHub.Core.Services.Content.LocalContentService",
         "GenHub.Features.Content.Services.Catalog.GenericCatalogResolver",
@@ -70,7 +69,6 @@ public class ManifestFilesAccessRatchetTests
         "GenHub.Features.Content.Services.ContentProviders.BaseContentProvider",
         "GenHub.Features.Content.Services.ContentResolvers.CsvResolver",
         "GenHub.Features.Content.Services.ContentResolvers.LocalManifestResolver",
-        "GenHub.Features.Content.Services.ContentValidator",
         "GenHub.Features.Content.Services.GeneralsOnline.GeneralsOnlineDeliverer",
         "GenHub.Features.Content.Services.GeneralsOnline.GeneralsOnlineProfileReconciler",
         "GenHub.Features.Content.Services.GenLauncher.GenLauncherDeliverer",
@@ -88,13 +86,6 @@ public class ManifestFilesAccessRatchetTests
         "GenHub.Features.Tools.GenHotkeys.ViewModels.GenHotkeysViewModel",
         "GenHub.Features.Tools.MapManager.Services.MapPackService",
         "GenHub.Features.Tools.MapManager.ViewModels.MapManagerViewModel",
-        "GenHub.Features.Workspace.Strategies.FullCopyStrategy",
-        "GenHub.Features.Workspace.Strategies.HardLinkStrategy",
-        "GenHub.Features.Workspace.Strategies.HybridCopySymlinkStrategy",
-        "GenHub.Features.Workspace.Strategies.SymlinkOnlyStrategy",
-        "GenHub.Features.Workspace.Strategies.WorkspaceCompatibilityHelper",
-        "GenHub.Features.Workspace.Strategies.WorkspaceStrategyBase`1",
-        "GenHub.Features.Workspace.WorkspaceReconciler",
     ];
 
     /// <summary>

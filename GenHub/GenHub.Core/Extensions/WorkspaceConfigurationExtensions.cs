@@ -12,6 +12,7 @@ public static class WorkspaceConfigurationExtensions
     /// <summary>
     /// Gets all unique files from all manifests, deduplicated by relative path.
     /// When multiple manifests contain the same file path, returns the first occurrence.
+    /// Each manifest contributes the files it resolves to on this host.
     /// </summary>
     /// <param name="configuration">The workspace configuration to get files from.</param>
     /// <returns>An enumerable of unique manifest files.</returns>
@@ -19,7 +20,7 @@ public static class WorkspaceConfigurationExtensions
         this WorkspaceConfiguration configuration)
     {
         return configuration.Manifests
-            .SelectMany(m => (m.Files ?? []).Select(f => new { File = f, Manifest = m }))
+            .SelectMany(m => ManifestVariantResolver.ResolveFiles(m).Select(f => new { File = f, Manifest = m }))
             .GroupBy(x => x.File.RelativePath, StringComparer.OrdinalIgnoreCase)
             .Select(g => g.OrderByDescending(x => ContentTypePriority.GetPriority(x.Manifest.ContentType))
                           .First().File);
@@ -34,11 +35,23 @@ public static class WorkspaceConfigurationExtensions
     public static IEnumerable<ManifestFile> GetWorkspaceUniqueFiles(
         this WorkspaceConfiguration configuration)
     {
+        return configuration.GetWorkspaceUniqueFileEntries().Select(entry => entry.File);
+    }
+
+    /// <summary>
+    /// Gets all unique files intended for the workspace, each paired with the manifest it came from.
+    /// Deduplication and ordering match <see cref="GetWorkspaceUniqueFiles"/>.
+    /// </summary>
+    /// <param name="configuration">The workspace configuration to get files from.</param>
+    /// <returns>An enumerable of unique workspace-specific files and their owning manifests.</returns>
+    public static IEnumerable<(ManifestFile File, ContentManifest Manifest)> GetWorkspaceUniqueFileEntries(
+        this WorkspaceConfiguration configuration)
+    {
         return configuration.Manifests
-            .SelectMany(m => (m.Files ?? []).Select(f => new { File = f, Manifest = m }))
+            .SelectMany(m => ManifestVariantResolver.ResolveFiles(m).Select(f => (File: f, Manifest: m)))
             .Where(x => x.File.InstallTarget == GenHub.Core.Models.Enums.ContentInstallTarget.Workspace)
             .GroupBy(x => x.File.RelativePath, StringComparer.OrdinalIgnoreCase)
             .Select(g => g.OrderByDescending(x => ContentTypePriority.GetPriority(x.Manifest.ContentType))
-                          .First().File);
+                          .First());
     }
 }

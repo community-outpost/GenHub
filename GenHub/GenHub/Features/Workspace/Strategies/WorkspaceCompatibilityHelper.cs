@@ -263,7 +263,7 @@ public static class WorkspaceCompatibilityHelper
         if (string.IsNullOrWhiteSpace(launchExecutable))
         {
             launchExecutable = configuration.Manifests
-                .SelectMany(m => m.Files ?? [])
+                .SelectMany(m => ManifestVariantResolver.ResolveFiles(m))
                 .Select(f => f.RelativePath)
                 .FirstOrDefault(CommandLineHelper.IsWindowsExecutable);
         }

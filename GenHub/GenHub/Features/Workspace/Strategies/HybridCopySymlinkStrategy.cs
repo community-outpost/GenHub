@@ -50,7 +50,7 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
         long totalUsage = 0;
         foreach (var manifest in configuration.Manifests)
         {
-            foreach (var file in manifest.Files)
+            foreach (var file in ManifestVariantResolver.ResolveFiles(manifest))
             {
                 if (IsEssentialFile(file.RelativePath, file.Size))
                 {
@@ -114,7 +114,7 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
             // Process each manifest and its files to maintain manifest context for source path resolution
             foreach (var manifest in configuration.Manifests)
             {
-                foreach (var file in (manifest.Files ?? Enumerable.Empty<ManifestFile>()).Where(f => f.InstallTarget == ContentInstallTarget.Workspace))
+                foreach (var file in ManifestVariantResolver.ResolveFiles(manifest).Where(f => f.InstallTarget == ContentInstallTarget.Workspace))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     var destinationPath = Path.Combine(workspacePath, file.RelativePath);
@@ -321,14 +321,5 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
                 }
             }
         }
-    }
-
-    /// <inheritdoc/>
-    protected override async Task ProcessGameInstallationFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
-    {
-        // For game installation files, treat them the same as local files
-        // We need to find the manifest that contains this file
-        var manifest = configuration.Manifests.FirstOrDefault(m => m.Files.Contains(file)) ?? throw new InvalidOperationException($"Could not find manifest containing file {file.RelativePath}");
-        await ProcessLocalFileAsync(file, manifest, targetPath, configuration, cancellationToken);
     }
 }

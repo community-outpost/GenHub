@@ -1,0 +1,142 @@
+using GenHub.Core.Extensions;
+using GenHub.Core.Interfaces.Workspace;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Workspace;
+using GenHub.Features.Workspace;
+using GenHub.Features.Workspace.Strategies;
+using GenHub.Tests.Core.Models.Manifest;
+using Microsoft.Extensions.Logging;
+using Moq;
+
+namespace GenHub.Tests.Core.Features.Workspace;
+
+/// <summary>
+/// Tests that workspace preparation and reconciliation use the host variant's files of
+/// manifests whose files live in platform variants rather than the flat list.
+/// </summary>
+public sealed class WorkspaceVariantTests : IDisposable
+{
+    private const string HostFileName = "generals.exe";
+    private const string ForeignFileName = "generalszh-foreign.exe";
+
+    private readonly Mock<IFileOperationsService> _fileOperations = new();
+    private readonly string _root = Path.Combine(Path.GetTempPath(), "GenHubTests", Guid.NewGuid().ToString("N"));
+    private readonly string _installDir;
+    private readonly string _workspaceRoot;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="WorkspaceVariantTests"/> class.
+    /// </summary>
+    public WorkspaceVariantTests()
+    {
+        _installDir = Path.Combine(_root, "Install");
+        _workspaceRoot = Path.Combine(_root, "Workspaces");
+        Directory.CreateDirectory(_installDir);
+        Directory.CreateDirectory(_workspaceRoot);
+    }
+
+    /// <summary>
+    /// Every strategy materializes the host variant's files and never the foreign variant's.
+    /// </summary>
+    /// <param name="strategyType">The strategy under test.</param>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Theory]
+    [InlineData(WorkspaceStrategy.FullCopy)]
+    [InlineData(WorkspaceStrategy.SymlinkOnly)]
+    [InlineData(WorkspaceStrategy.HybridCopySymlink)]
+    [InlineData(WorkspaceStrategy.HardLink)]
+    public async Task PrepareAsync_WithVariantManifest_MaterializesOnlyHostVariantAsync(WorkspaceStrategy strategyType)
+    {
+        var configuration = CreateConfiguration(strategyType, CreateManifest());
+
+        await CreateStrategy(strategyType).PrepareAsync(configuration, null, CancellationToken.None);
+
+        Assert.True(FileOperationsTouched(HostFileName), $"{strategyType} did not materialize the host variant's file.");
+        Assert.False(FileOperationsTouched(ForeignFileName), $"{strategyType} materialized the foreign variant's file.");
+    }
+
+    /// <summary>
+    /// The reconciler plans only the host variant's files.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task AnalyzeWorkspaceDeltaAsync_WithVariantManifest_PlansOnlyHostVariantAsync()
+    {
+        var reconciler = new WorkspaceReconciler(new Mock<ILogger<WorkspaceReconciler>>().Object, _fileOperations.Object);
+        var configuration = CreateConfiguration(WorkspaceStrategy.HybridCopySymlink, CreateManifest());
+
+        var deltas = await reconciler.AnalyzeWorkspaceDeltaAsync(null, configuration);
+
+        Assert.Contains(deltas, d => d.File.RelativePath == HostFileName);
+        Assert.DoesNotContain(deltas, d => d.File.RelativePath == ForeignFileName);
+    }
+
+    /// <summary>
+    /// Unique workspace entries pair each host-variant file with the manifest it came from.
+    /// </summary>
+    [Fact]
+    public void GetWorkspaceUniqueFileEntries_WithVariantManifest_PairsHostFilesWithOwner()
+    {
+        var manifest = CreateManifest();
+        var configuration = CreateConfiguration(WorkspaceStrategy.SymlinkOnly, manifest);
+
+        var entry = Assert.Single(configuration.GetWorkspaceUniqueFileEntries());
+
+        Assert.Equal(HostFileName, entry.File.RelativePath);
+        Assert.Same(manifest, entry.Manifest);
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        try
+        {
+            if (Directory.Exists(_root))
+            {
+                Directory.Delete(_root, true);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Ignore cleanup errors
+        }
+    }
+
+    private ContentManifest CreateManifest()
+    {
+        var hostPath = Path.Combine(_installDir, HostFileName);
+        var foreignPath = Path.Combine(_installDir, ForeignFileName);
+        File.WriteAllText(hostPath, "host");
+        File.WriteAllText(foreignPath, "foreign");
+
+        return VariantManifestFixture.Create(
+            [new() { RelativePath = HostFileName, SourcePath = hostPath, Size = 4, SourceType = ContentSourceType.GameInstallation }],
+            [new() { RelativePath = ForeignFileName, SourcePath = foreignPath, Size = 7, SourceType = ContentSourceType.GameInstallation }]);
+    }
+
+    private WorkspaceConfiguration CreateConfiguration(WorkspaceStrategy strategy, ContentManifest manifest) => new()
+    {
+        Id = Guid.NewGuid().ToString("N"),
+        Strategy = strategy,
+        WorkspaceRootPath = _workspaceRoot,
+        BaseInstallationPath = _installDir,
+        GameClient = new GameClient { Id = "test" },
+        Manifests = [manifest],
+    };
+
+    private bool FileOperationsTouched(string fileName) =>
+        _fileOperations.Invocations.Any(invocation => invocation.Arguments
+            .OfType<string>()
+            .Any(argument => argument.EndsWith(fileName, StringComparison.OrdinalIgnoreCase)));
+
+    private IWorkspaceStrategy CreateStrategy(WorkspaceStrategy strategyType) => strategyType switch
+    {
+        WorkspaceStrategy.FullCopy => new FullCopyStrategy(_fileOperations.Object, new Mock<ILogger<FullCopyStrategy>>().Object),
+        WorkspaceStrategy.SymlinkOnly => new SymlinkOnlyStrategy(_fileOperations.Object, new Mock<ILogger<SymlinkOnlyStrategy>>().Object),
+        WorkspaceStrategy.HybridCopySymlink => new HybridCopySymlinkStrategy(_fileOperations.Object, new Mock<ILogger<HybridCopySymlinkStrategy>>().Object),
+        WorkspaceStrategy.HardLink => new HardLinkStrategy(_fileOperations.Object, new Mock<ILogger<HardLinkStrategy>>().Object),
+        _ => throw new ArgumentException($"Unknown strategy type: {strategyType}"),
+    };
+}

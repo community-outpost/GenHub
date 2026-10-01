@@ -54,7 +54,7 @@ public sealed class FullCopyStrategy(
         long totalSize = 0;
         foreach (var manifest in configuration.Manifests)
         {
-            foreach (var file in (manifest.Files ?? Enumerable.Empty<ManifestFile>()).Where(f => f.InstallTarget == ContentInstallTarget.Workspace))
+            foreach (var file in ManifestVariantResolver.ResolveFiles(manifest).Where(f => f.InstallTarget == ContentInstallTarget.Workspace))
             {
                 // Prevent negative sizes and overflow
                 long safeSize = Math.Max(0, file.Size);
@@ -125,7 +125,7 @@ public sealed class FullCopyStrategy(
             // Group files by destination path to handle conflicts
             // include files where InstallTarget is Workspace.
             var filesByDestination = configuration.Manifests
-                .SelectMany(m => (m.Files ?? Enumerable.Empty<ManifestFile>())
+                .SelectMany(m => ManifestVariantResolver.ResolveFiles(m)
                     .Where(f => f.InstallTarget == ContentInstallTarget.Workspace)
                     .Select(f => new { Manifest = m, File = f }))
                 .GroupBy(item => item.File.RelativePath, StringComparer.OrdinalIgnoreCase)
@@ -272,14 +272,5 @@ public sealed class FullCopyStrategy(
                 Logger.LogWarning("Hash verification failed for file: {RelativePath}", file.RelativePath);
             }
         }
-    }
-
-    /// <inheritdoc/>
-    protected override async Task ProcessGameInstallationFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
-    {
-        // For game installation files, treat them the same as local files
-        // We need to find the manifest that contains this file
-        var manifest = configuration.Manifests.FirstOrDefault(m => m.Files.Contains(file)) ?? throw new InvalidOperationException($"Could not find manifest containing file {file.RelativePath}");
-        await ProcessLocalFileAsync(file, manifest, targetPath, configuration, cancellationToken);
     }
 }

@@ -45,7 +45,7 @@ public sealed class SymlinkOnlyStrategy(
     public override long EstimateDiskUsage(WorkspaceConfiguration configuration)
     {
         // Symbolic links use minimal space - approximate 1KB per link for metadata
-        return configuration.Manifests.SelectMany(m => m.Files).Count() * LinkOverheadBytes;
+        return configuration.Manifests.SelectMany(m => ManifestVariantResolver.ResolveFiles(m)).Count() * LinkOverheadBytes;
     }
 
     /// <inheritdoc/>
@@ -80,7 +80,7 @@ public sealed class SymlinkOnlyStrategy(
             // Create workspace directory
             Directory.CreateDirectory(workspacePath);
 
-            var allFiles = configuration.Manifests.SelectMany(m => m.Files).ToList();
+            var allFiles = configuration.Manifests.SelectMany(m => ManifestVariantResolver.ResolveFiles(m)).ToList();
             var totalFiles = allFiles.Count;
             var processedFiles = 0;
 
@@ -109,9 +109,7 @@ public sealed class SymlinkOnlyStrategy(
             // (e.g., GameClient and GameInstallation both contain the executable)
             // Group by path and take the first occurrence to avoid parallel creation conflicts
             // include files where InstallTarget is Workspace.
-            var manifestFiles = configuration.GetWorkspaceUniqueFiles()
-                .Select(f => new { Manifest = configuration.Manifests.First(m => m.Files.Contains(f)), File = f })
-                .ToList();
+            var manifestFiles = configuration.GetWorkspaceUniqueFileEntries().ToList();
 
             await Parallel.ForEachAsync(
                 manifestFiles,
@@ -227,14 +225,5 @@ public sealed class SymlinkOnlyStrategy(
             Logger.LogError(ex, "Failed to create symlink from {SourcePath} to {TargetPath}", sourcePath, targetPath);
             throw new InvalidOperationException($"Failed to create symlink for {file.RelativePath}: {ex.Message}", ex);
         }
-    }
-
-    /// <inheritdoc/>
-    protected override async Task ProcessGameInstallationFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
-    {
-        // For game installation files, treat them the same as local files
-        // We need to find the manifest that contains this file
-        var manifest = configuration.Manifests.FirstOrDefault(m => m.Files.Contains(file)) ?? throw new InvalidOperationException($"Could not find manifest containing file {file.RelativePath}");
-        await ProcessLocalFileAsync(file, manifest, targetPath, configuration, cancellationToken);
     }
 }

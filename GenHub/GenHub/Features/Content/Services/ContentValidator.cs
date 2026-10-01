@@ -104,11 +104,12 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
         ArgumentNullException.ThrowIfNull(manifest);
 
         var issues = new List<ValidationIssue>();
-        var totalFiles = manifest.Files.Count;
+        var files = ManifestVariantResolver.ResolveFiles(manifest);
+        var totalFiles = files.Count;
 
         // Performance: Use parallel processing for large file sets
         var semaphore = new SemaphoreSlim(Environment.ProcessorCount);
-        var tasks = manifest.Files.Select(async file =>
+        var tasks = files.Select(async file =>
         {
             await semaphore.WaitAsync(cancellationToken);
             try
@@ -211,7 +212,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
         {
             // Build a hashset of expected file paths for O(1) lookup performance
             var expectedFiles = new HashSet<string>(
-                manifest.Files.Select(f => Path.GetFullPath(Path.Combine(contentPath, f.RelativePath))),
+                ManifestVariantResolver.ResolveFiles(manifest).Select(f => Path.GetFullPath(Path.Combine(contentPath, f.RelativePath))),
                 StringComparer.OrdinalIgnoreCase);
 
             // Add expected directories if specified in manifest
@@ -314,32 +315,46 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
             issues.Add(new ValidationIssue("Manifest Version is missing.", ValidationSeverity.Warning));
         }
 
-        if (manifest.Files == null)
+        if (manifest.Variants.Count == 0)
         {
-            issues.Add(new ValidationIssue("Manifest Files collection is null.", ValidationSeverity.Error));
-        }
-        else if (manifest.Files.Count == 0)
-        {
-            issues.Add(new ValidationIssue("Manifest contains no files.", ValidationSeverity.Warning));
+            AddFileStructureIssues(ManifestVariantResolver.ResolveFiles(manifest), string.Empty, issues);
         }
         else
         {
-            var fileIndex = 0;
-            foreach (var file in manifest.Files)
+            for (var variantIndex = 0; variantIndex < manifest.Variants.Count; variantIndex++)
             {
-                if (file == null)
+                var variant = manifest.Variants[variantIndex];
+                if (variant == null)
                 {
-                    issues.Add(new ValidationIssue($"File at index {fileIndex} is null.", ValidationSeverity.Error));
-                }
-                else if (string.IsNullOrWhiteSpace(file.RelativePath))
-                {
-                    issues.Add(new ValidationIssue($"File at index {fileIndex} is missing its RelativePath.", ValidationSeverity.Error));
+                    issues.Add(new ValidationIssue($"Variant at index {variantIndex} is null.", ValidationSeverity.Error));
+                    continue;
                 }
 
-                fileIndex++;
+                AddFileStructureIssues(variant.Files ?? [], $" in variant {variantIndex}", issues);
             }
         }
 
+        if (!ManifestVariantResolver.EnumerateAllFiles(manifest).Any())
+        {
+            issues.Add(new ValidationIssue("Manifest contains no files.", ValidationSeverity.Warning));
+        }
+
         return issues;
+    }
+
+    private static void AddFileStructureIssues(IReadOnlyList<ManifestFile> files, string location, List<ValidationIssue> issues)
+    {
+        for (var fileIndex = 0; fileIndex < files.Count; fileIndex++)
+        {
+            var file = files[fileIndex];
+            if (file == null)
+            {
+                issues.Add(new ValidationIssue($"File at index {fileIndex}{location} is null.", ValidationSeverity.Error));
+            }
+            else if (string.IsNullOrWhiteSpace(file.RelativePath))
+            {
+                issues.Add(new ValidationIssue($"File at index {fileIndex}{location} is missing its RelativePath.", ValidationSeverity.Error));
+            }
+        }
     }
 }
