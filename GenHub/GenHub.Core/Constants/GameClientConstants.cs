@@ -335,9 +335,9 @@ public static class GameClientConstants
     /// The GeneralsOnline executable names that are supported launch entry points.
     /// Since 060526_QFE1 the Easy Anti-Cheat bootstrapper starts the binary named by
     /// <c>EasyAntiCheat/Settings.json</c>; older packages launch the 60Hz binary directly.
-    /// <c>GeneralsOnlineZH.exe</c> ships alongside both but is not wrapped, so it is workspace
-    /// content rather than an entry point. Unix packages ship the extensionless native
-    /// client instead of any Windows launcher.
+    /// <c>GeneralsOnlineZH_TestEnvironment.exe</c> and <c>GeneralsOnlineZH.exe</c> serve as
+    /// the direct execution entry points for the test environment client without Easy Anti-Cheat.
+    /// Unix packages ship the extensionless native client instead of any Windows launcher.
     /// </summary>
     /// <remarks>
     /// Membership only. When several are present the bootstrapper wins, but that precedence is

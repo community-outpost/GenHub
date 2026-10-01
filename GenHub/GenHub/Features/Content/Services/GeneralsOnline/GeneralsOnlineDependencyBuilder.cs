@@ -126,18 +126,13 @@ public class GeneralsOnlineDependencyBuilder : BaseDependencyBuilder
 
     /// <summary>
     /// Gets the list of all dependencies for a Generals Online Test Environment variant.
-    /// Includes Zero Hour installation, QuickMatch MapPack, and optional GameData patch.
+    /// Delegates to 60Hz dependency configuration (Zero Hour installation, QuickMatch MapPack, and optional GameData patch).
     /// </summary>
     /// <param name="version">The version of the components to depend on.</param>
     /// <returns>List of dependencies for Test Environment variant.</returns>
     public static List<ContentDependency> GetDependenciesForTestEnvironment(int version = 0)
     {
-        return
-        [
-            CreateZeroHourDependencyForGeneralsOnline(),
-            CreateQuickMatchMapPackDependency(version),
-            CreateGameDataPatchDependency(version),
-        ];
+        return GetDependenciesFor60Hz(version);
     }
 
     /// <summary>
@@ -178,8 +173,7 @@ public class GeneralsOnlineDependencyBuilder : BaseDependencyBuilder
         if (manifest.ContentType == ContentType.GameClient)
         {
             var isTestEnv = manifest.Id.Value.EndsWith($".{GeneralsOnlineConstants.VariantTestEnvironmentSuffix}", StringComparison.OrdinalIgnoreCase)
-                || manifest.Id.Value.EndsWith(".test-env", StringComparison.OrdinalIgnoreCase)
-                || (manifest.Metadata?.Tags?.Contains(GeneralsOnlineVariantTags.TagTestEnvironment) ?? false);
+                || (manifest.Metadata?.Tags is not null && manifest.Metadata.Tags.Contains(GeneralsOnlineVariantTags.TagTestEnvironment));
 
             return isTestEnv
                 ? GetDependenciesForTestEnvironment(userVersion)

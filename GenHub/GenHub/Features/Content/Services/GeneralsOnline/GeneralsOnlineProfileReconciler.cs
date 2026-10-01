@@ -327,11 +327,11 @@ public partial class GeneralsOnlineProfileReconciler(
 
         if (lastPart.Equals(GeneralsOnlineConstants.Variant60HzSuffix, StringComparison.OrdinalIgnoreCase) ||
             lastPart.Equals(GeneralsOnlineConstants.VariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase) ||
-            lastPart.Equals("test-env", StringComparison.OrdinalIgnoreCase) ||
+            lastPart.Equals(GeneralsOnlineConstants.LegacyVariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase) ||
             lastPart.Equals(GeneralsOnlineConstants.QuickMatchMapPackSuffix, StringComparison.OrdinalIgnoreCase) ||
             lastPart.Equals(GeneralsOnlineConstants.GameDataPatchSuffix, StringComparison.OrdinalIgnoreCase))
         {
-            if (lastPart.Equals("test-env", StringComparison.OrdinalIgnoreCase))
+            if (lastPart.Equals(GeneralsOnlineConstants.LegacyVariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase))
             {
                 return GeneralsOnlineConstants.VariantTestEnvironmentSuffix;
             }
@@ -341,7 +341,7 @@ public partial class GeneralsOnlineProfileReconciler(
 
         // Check if any segment is test environment
         if (parts.Any(p => p.Equals(GeneralsOnlineConstants.VariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase) ||
-                           p.Equals("test-env", StringComparison.OrdinalIgnoreCase)))
+                           p.Equals(GeneralsOnlineConstants.LegacyVariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase)))
         {
             return GeneralsOnlineConstants.VariantTestEnvironmentSuffix;
         }

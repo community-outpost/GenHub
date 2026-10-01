@@ -491,7 +491,7 @@ public class DependencyResolver(
         {
             var isContentTest = contentId.Contains(GeneralsOnlineConstants.VariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase);
             var isManifestTest = manifest.Id.Value.Contains(GeneralsOnlineConstants.VariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase) ||
-                                 (manifest.Name?.Contains(GeneralsOnlineConstants.TestEnvironmentDisplayName, StringComparison.OrdinalIgnoreCase) ?? false);
+                                 (manifest.Name is not null && manifest.Name.Contains(GeneralsOnlineConstants.TestEnvironmentDisplayName, StringComparison.OrdinalIgnoreCase));
 
             if (isContentTest != isManifestTest)
             {
@@ -500,14 +500,14 @@ public class DependencyResolver(
 
             var isContent60Hz = contentId.Contains(ManifestConstants.SixtyHzKeyword, StringComparison.OrdinalIgnoreCase);
             var isManifest60Hz = manifest.Id.Value.Contains(ManifestConstants.SixtyHzKeyword, StringComparison.OrdinalIgnoreCase) ||
-                                 (manifest.Name?.Contains(ManifestConstants.SixtyHzKeyword, StringComparison.OrdinalIgnoreCase) ?? false);
+                                 (manifest.Name is not null && manifest.Name.Contains(ManifestConstants.SixtyHzKeyword, StringComparison.OrdinalIgnoreCase));
 
             if (isContent60Hz && !isManifest60Hz)
             {
                 return false;
             }
 
-            if (contentId.Contains(ManifestConstants.SixtyHzKeyword, StringComparison.OrdinalIgnoreCase) ||
+            if (isContent60Hz ||
                 (contentId.Contains(ManifestConstants.GameClientContentTypeName, StringComparison.OrdinalIgnoreCase) &&
                  !contentId.Contains(ManifestConstants.GameDataContentTypeName, StringComparison.OrdinalIgnoreCase) &&
                  !contentId.Contains(ManifestConstants.MapPackKeyword, StringComparison.OrdinalIgnoreCase)))

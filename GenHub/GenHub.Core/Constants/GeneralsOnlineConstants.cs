@@ -108,6 +108,9 @@ public static class GeneralsOnlineConstants
     /// <summary>Manifest name suffix for test environment game client variant.</summary>
     public const string VariantTestEnvironmentSuffix = "test";
 
+    /// <summary>Legacy manifest name suffix for test environment variant.</summary>
+    public const string LegacyVariantTestEnvironmentSuffix = "test-env";
+
     /// <summary>CRC catalog content name for Easy Anti-Cheat Zero Hour game clients.</summary>
     public const string EacZeroHourContentName = "eac-zerohour";
 
@@ -184,12 +187,10 @@ public static class GeneralsOnlineConstants
     public static readonly string[] Tags = ["multiplayer", "online", "community", "enhancement"];
 
     /// <summary>
-    /// Default tags for MapPack manifests.
-    /// </summary>
+    /// Default tags for MapPack manifests.</summary>
     public static readonly string[] MapPackTags = ["mappack", "generalsonline", "quickmatch", "competitive"];
 
     /// <summary>
-    /// Default tags for GameData patch manifests.
-    /// </summary>
+    /// Default tags for GameData patch manifests.</summary>
     public static readonly string[] GameDataTags = ["patch", "generalsonline"];
 }

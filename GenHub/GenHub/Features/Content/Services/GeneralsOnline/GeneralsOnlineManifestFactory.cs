@@ -80,8 +80,7 @@ public class GeneralsOnlineManifestFactory(
             contentName,
             userVersion));
 
-        var isTestEnv = variantSuffix.Equals(GeneralsOnlineConstants.VariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase) ||
-                        variantSuffix.Equals("test-env", StringComparison.OrdinalIgnoreCase);
+        var isTestEnv = variantSuffix.Equals(GeneralsOnlineConstants.VariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase);
 
         var description = isTestEnv
             ? GeneralsOnlineConstants.TestEnvironmentDescription
@@ -384,8 +383,7 @@ public class GeneralsOnlineManifestFactory(
             return [GeneralsOnlineVariantTags.Tag60Hz];
         }
 
-        if (variantSuffix.Equals(GeneralsOnlineConstants.VariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase) ||
-            variantSuffix.Equals("test-env", StringComparison.OrdinalIgnoreCase))
+        if (variantSuffix.Equals(GeneralsOnlineConstants.VariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase))
         {
             return [GeneralsOnlineVariantTags.TagTestEnvironment];
         }
@@ -410,13 +408,12 @@ public class GeneralsOnlineManifestFactory(
             return false;
         }
 
-        if (manifest.Id.Value.EndsWith($".{GeneralsOnlineConstants.VariantTestEnvironmentSuffix}", StringComparison.OrdinalIgnoreCase) ||
-            manifest.Id.Value.EndsWith(".test-env", StringComparison.OrdinalIgnoreCase))
+        if (manifest.Id.Value.EndsWith($".{GeneralsOnlineConstants.VariantTestEnvironmentSuffix}", StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
 
-        return manifest.Metadata?.Tags?.Any(t => t.Equals(GeneralsOnlineVariantTags.TagTestEnvironment, StringComparison.OrdinalIgnoreCase)) ?? false;
+        return manifest.Metadata?.Tags is not null && manifest.Metadata.Tags.Any(t => t.Equals(GeneralsOnlineVariantTags.TagTestEnvironment, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
