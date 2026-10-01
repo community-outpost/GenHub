@@ -385,6 +385,7 @@
                     <Button Classes="catalog-reload-btn"
                             Command="{Binding ReloadCatalogCommand}"
                             ToolTip.Tip="{localization:Localize Downloads.Browser.ReloadCatalog}"
+                            AutomationProperties.Name="{localization:Localize Downloads.Browser.ReloadCatalog}"
                             VerticalAlignment="Center"
                             IsVisible="{Binding HasMultipleCatalogs}">
                         <PathIcon Data="{StaticResource RefreshIcon}"
