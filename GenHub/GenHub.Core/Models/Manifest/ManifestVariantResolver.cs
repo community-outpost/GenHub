@@ -63,6 +63,17 @@ public static class ManifestVariantResolver
         return (manifest.Files ?? []).Concat(variantFiles).Where(f => f is not null).ToList();
     }
 
+    /// <summary>Gets the declared file lists without dropping malformed entries, for structural validation.</summary>
+    /// <param name="manifest">The manifest to inspect.</param>
+    /// <returns>The flat list followed by each variant's list, in declaration order.</returns>
+    public static IReadOnlyList<IReadOnlyList<ManifestFile>> GetDeclaredFileLists(ContentManifest manifest)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+        var lists = new List<IReadOnlyList<ManifestFile>> { manifest.Files ?? [] };
+        lists.AddRange(manifest.Variants.Select(v => (IReadOnlyList<ManifestFile>)(v?.Files ?? [])));
+        return lists;
+    }
+
     /// <summary>
     /// Replaces the files <see cref="ResolveFiles"/> returns for the given runtime.
     /// <para>
@@ -103,10 +114,10 @@ public static class ManifestVariantResolver
         ArgumentNullException.ThrowIfNull(manifest);
         ArgumentNullException.ThrowIfNull(rewrite);
 
-        manifest.Files = (manifest.Files ?? []).Select(rewrite).ToList();
+        manifest.Files = (manifest.Files ?? []).Select(f => f is null ? f! : rewrite(f)).ToList();
         foreach (var variant in manifest.Variants.Where(v => v is not null))
         {
-            variant.Files = (variant.Files ?? []).Select(rewrite).ToList();
+            variant.Files = (variant.Files ?? []).Select(f => f is null ? f! : rewrite(f)).ToList();
         }
     }
 

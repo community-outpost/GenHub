@@ -257,6 +257,32 @@ public class ContentStorageServiceVariantTests : IDisposable
         Assert.False(File.Exists(Path.Combine(target, ForeignFileName)));
     }
 
+    /// <summary>Existing source directories do not make foreign CAS staging paths required.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task StoreContentAsync_MetadataOnlyWithExistingSource_IgnoresForeignCasStagingPathAsync()
+    {
+        var source = Path.Combine(_tempRoot, "Source");
+        Directory.CreateDirectory(source);
+        var manifest = VariantManifestFixture.Create(
+            [new() { RelativePath = HostFileName, SourceType = ContentSourceType.RemoteDownload }],
+            [new() { RelativePath = ForeignFileName, Hash = ForeignHash, SourceType = ContentSourceType.ContentAddressable, SourcePath = Path.Combine(_tempRoot, "Foreign", ForeignFileName) }]);
+        var result = await _service.StoreContentAsync(manifest, source);
+        Assert.True(result.Success, result.FirstError);
+        Assert.Null(Assert.Single(ManifestVariantResolver.ResolveFiles(result.Data!, VariantManifestFixture.ForeignRuntimeIdentifier)).SourcePath);
+    }
+
+    /// <summary>Metadata sanitization preserves malformed entries for validation to reject.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task StoreContentAsync_NullForeignFile_ReturnsValidationFailureAsync()
+    {
+        var manifest = VariantManifestFixture.Create([], [null!]);
+        var result = await _service.StoreContentAsync(manifest, Path.Combine(_tempRoot, "Missing"));
+        Assert.False(result.Success);
+        Assert.Contains("null variant or file", result.FirstError);
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {

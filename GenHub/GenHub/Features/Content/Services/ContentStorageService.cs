@@ -52,6 +52,13 @@ public class ContentStorageService : IContentStorageService
 
     private static OperationResult<bool> ValidateManifestSecurity(ContentManifest manifest, string baseDirectory)
     {
+        if (ManifestVariantResolver.GetDeclaredFileLists(manifest).Any(files => files.Any(f => f is null))
+            || manifest.Variants.Any(v => v is null))
+        {
+            return OperationResult<bool>.CreateFailure("Manifest contains a null variant or file entry");
+        }
+
+        var metadataOnly = !RequiresPhysicalStorage(manifest);
         var normalizedBase = Path.GetFullPath(baseDirectory);
         foreach (var file in ManifestVariantResolver.EnumerateAllFiles(manifest))
         {
@@ -79,7 +86,8 @@ public class ContentStorageService : IContentStorageService
             // For now, we enforce that if SourcePath IS set, it must check for traversal if relative,
             // and we warn on absolute paths if they look suspicious (though we can't easily distinguish
             // legitimate local imports from malicious ones without more context).
-            if (!string.IsNullOrEmpty(file.SourcePath))
+            if (!string.IsNullOrEmpty(file.SourcePath)
+                && !(metadataOnly && file.SourceType == ContentSourceType.ContentAddressable))
             {
                 try
                 {
