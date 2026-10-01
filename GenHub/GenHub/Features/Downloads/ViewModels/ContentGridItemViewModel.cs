@@ -48,6 +48,9 @@ public sealed partial class ContentGridItemViewModel(
 
     private readonly ILocalizationService? _localizationService = localizationService ?? LocalizationConverterHelper.ResolveLocalizationService();
     private bool _disposed;
+    private int _iconLoadVersion;
+    private string? _loadedPublisherLogoUrl;
+    private string? _loadedThumbnailUrl;
 
     /// <summary>
     /// Gets the underlying content search result.
@@ -648,6 +651,22 @@ public sealed partial class ContentGridItemViewModel(
         }
     }
 
+    private static async Task AwaitIconLoadTasksAsync(Task? task1, Task? task2)
+    {
+        if (task1 != null && task2 != null)
+        {
+            await Task.WhenAll(task1, task2);
+        }
+        else if (task1 != null)
+        {
+            await task1;
+        }
+        else if (task2 != null)
+        {
+            await task2;
+        }
+    }
+
     private bool IsMatchingDownloadMessage(
         string contentKey,
         string? contentId,
@@ -983,9 +1002,56 @@ public sealed partial class ContentGridItemViewModel(
         });
     }
 
-    private int _iconLoadVersion;
-    private string? _loadedPublisherLogoUrl;
-    private string? _loadedThumbnailUrl;
+    private void SynchronizeCardUrls(string? publisherLogoUrl, string? thumbnailUrl)
+    {
+        if (!string.Equals(_loadedPublisherLogoUrl, publisherLogoUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            _loadedPublisherLogoUrl = publisherLogoUrl;
+            PublisherLogoBitmap = !string.IsNullOrEmpty(publisherLogoUrl)
+                ? ImageCacheService.Instance.GetBitmapFromMemory(publisherLogoUrl)
+                : null;
+        }
+
+        if (!string.Equals(_loadedThumbnailUrl, thumbnailUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            _loadedThumbnailUrl = thumbnailUrl;
+            IconBitmap = !string.IsNullOrEmpty(thumbnailUrl)
+                ? ImageCacheService.Instance.GetBitmapFromMemory(thumbnailUrl)
+                : null;
+        }
+    }
+
+    private void ApplyLoadedIconBitmaps(
+        int version,
+        Task<Bitmap?>? logoTask,
+        string? publisherLogoUrl,
+        Task<Bitmap?>? thumbTask,
+        string? thumbnailUrl)
+    {
+        if (version != _iconLoadVersion)
+        {
+            return;
+        }
+
+        if (logoTask is { IsCompletedSuccessfully: true, Result: { } logoResult } &&
+            string.Equals(_loadedPublisherLogoUrl, publisherLogoUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            PublisherLogoBitmap = logoResult;
+        }
+
+        if (thumbTask is { IsCompletedSuccessfully: true } &&
+            string.Equals(_loadedThumbnailUrl, thumbnailUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            if (thumbTask.Result != null)
+            {
+                IconBitmap = thumbTask.Result;
+            }
+            else if (string.IsNullOrEmpty(thumbnailUrl))
+            {
+                IconBitmap = null;
+            }
+        }
+    }
 
     private async Task LoadIconAsync()
     {
@@ -1003,35 +1069,15 @@ public sealed partial class ContentGridItemViewModel(
         }
 
         var thumbnailUrl = ThumbnailUrl;
+        SynchronizeCardUrls(publisherLogoUrl, thumbnailUrl);
 
-        // When switching variants or when URLs change, synchronize loaded URLs and bitmaps
-        if (!string.Equals(_loadedPublisherLogoUrl, publisherLogoUrl, StringComparison.OrdinalIgnoreCase))
-        {
-            _loadedPublisherLogoUrl = publisherLogoUrl;
-            PublisherLogoBitmap = !string.IsNullOrEmpty(publisherLogoUrl)
-                ? ImageCacheService.Instance.GetBitmapFromMemory(publisherLogoUrl)
-                : null;
-        }
+        var logoTask = (!string.IsNullOrEmpty(publisherLogoUrl) && PublisherLogoBitmap == null)
+            ? SafeGetBitmapAsync(publisherLogoUrl)
+            : null;
 
-        if (!string.Equals(_loadedThumbnailUrl, thumbnailUrl, StringComparison.OrdinalIgnoreCase))
-        {
-            _loadedThumbnailUrl = thumbnailUrl;
-            IconBitmap = !string.IsNullOrEmpty(thumbnailUrl)
-                ? ImageCacheService.Instance.GetBitmapFromMemory(thumbnailUrl)
-                : null;
-        }
-
-        Task<Bitmap?>? logoTask = null;
-        if (!string.IsNullOrEmpty(publisherLogoUrl) && PublisherLogoBitmap == null)
-        {
-            logoTask = SafeGetBitmapAsync(publisherLogoUrl);
-        }
-
-        Task<Bitmap?>? thumbTask = null;
-        if (!string.IsNullOrEmpty(thumbnailUrl) && IconBitmap == null)
-        {
-            thumbTask = SafeGetBitmapAsync(thumbnailUrl);
-        }
+        var thumbTask = (!string.IsNullOrEmpty(thumbnailUrl) && IconBitmap == null)
+            ? SafeGetBitmapAsync(thumbnailUrl)
+            : null;
 
         if (logoTask == null && thumbTask == null)
         {
@@ -1043,43 +1089,8 @@ public sealed partial class ContentGridItemViewModel(
             return;
         }
 
-        if (logoTask != null && thumbTask != null)
-        {
-            await Task.WhenAll(logoTask, thumbTask);
-        }
-        else if (logoTask != null)
-        {
-            await logoTask;
-        }
-        else if (thumbTask != null)
-        {
-            await thumbTask;
-        }
-
-        if (currentVersion == _iconLoadVersion)
-        {
-            if (logoTask != null && string.Equals(_loadedPublisherLogoUrl, publisherLogoUrl, StringComparison.OrdinalIgnoreCase))
-            {
-                var logoResult = await logoTask;
-                if (logoResult != null)
-                {
-                    PublisherLogoBitmap = logoResult;
-                }
-            }
-
-            if (thumbTask != null && string.Equals(_loadedThumbnailUrl, thumbnailUrl, StringComparison.OrdinalIgnoreCase))
-            {
-                var thumbResult = await thumbTask;
-                if (thumbResult != null)
-                {
-                    IconBitmap = thumbResult;
-                }
-                else if (string.IsNullOrEmpty(thumbnailUrl))
-                {
-                    IconBitmap = null;
-                }
-            }
-        }
+        await AwaitIconLoadTasksAsync(logoTask, thumbTask);
+        ApplyLoadedIconBitmaps(currentVersion, logoTask, publisherLogoUrl, thumbTask, thumbnailUrl);
     }
 
     /// <summary>
