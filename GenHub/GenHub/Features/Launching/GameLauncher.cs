@@ -192,13 +192,7 @@ public class GameLauncher(
         ILogger logger,
         ILocalizationService? localizationService)
     {
-        var executableManifestForMonitor = manifests.FirstOrDefault(m =>
-            m.ContentType == ContentType.GameClient ||
-            m.ContentType == ContentType.Executable ||
-            m.ContentType == ContentType.ModdingTool);
-        var executableFileForMonitor = executableManifestForMonitor is null
-            ? null
-            : ManifestVariantResolver.ResolveFiles(executableManifestForMonitor).FirstOrDefault(f => f.IsExecutable);
+        var (executableManifestForMonitor, executableFileForMonitor) = FindMonitoredExecutable(manifests);
 
         if (executableFileForMonitor is { SourceType: ContentSourceType.ContentAddressable } &&
             effectiveStrategy == WorkspaceStrategy.SymlinkOnly)
@@ -343,6 +337,23 @@ public class GameLauncher(
         }
 
         return (legacy, null);
+    }
+
+    /// <summary>
+    /// Finds the first launchable manifest and its first executable file on this host.
+    /// </summary>
+    /// <param name="manifests">The workspace manifests.</param>
+    /// <returns>The manifest and executable file, either of which may be null.</returns>
+    private static (ContentManifest? Manifest, ManifestFile? File) FindMonitoredExecutable(IReadOnlyList<ContentManifest> manifests)
+    {
+        var manifest = manifests.FirstOrDefault(m =>
+            m.ContentType == ContentType.GameClient ||
+            m.ContentType == ContentType.Executable ||
+            m.ContentType == ContentType.ModdingTool);
+        var file = manifest is null
+            ? null
+            : ManifestVariantResolver.ResolveFiles(manifest).FirstOrDefault(f => f.IsExecutable);
+        return (manifest, file);
     }
 
     /// <summary>
