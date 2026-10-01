@@ -2240,8 +2240,11 @@ public sealed partial class DownloadsBrowserViewModel(
             _lastCatalogPublisherId = publisherId;
             var newCts = CancellationTokenSource.CreateLinkedTokenSource(_vmCts.Token);
             var replaced = Interlocked.Exchange(ref _catalogsCts, newCts);
-            replaced?.Cancel();
-            replaced?.Dispose();
+            if (replaced != null)
+            {
+                await replaced.CancelAsync();
+                replaced.Dispose();
+            }
 
             await LoadAvailableCatalogsAsync(publisherId, newCts.Token, loadId);
         }
@@ -2320,15 +2323,21 @@ public sealed partial class DownloadsBrowserViewModel(
                 if (reloadCatalogs && SelectedPublisher.PublisherType.Equals(CatalogConstants.SubscribedPublisherCategory, StringComparison.OrdinalIgnoreCase))
                 {
                     var oldCts = Interlocked.Exchange(ref _catalogsCts, null);
-                    oldCts?.Cancel();
-                    oldCts?.Dispose();
+                    if (oldCts != null)
+                    {
+                        await oldCts.CancelAsync();
+                        oldCts.Dispose();
+                    }
 
                     var loadId = Interlocked.Increment(ref _activeCatalogLoadId);
                     _lastCatalogPublisherId = publisherId;
                     var newCts = CancellationTokenSource.CreateLinkedTokenSource(_vmCts.Token);
                     var replaced = Interlocked.Exchange(ref _catalogsCts, newCts);
-                    replaced?.Cancel();
-                    replaced?.Dispose();
+                    if (replaced != null)
+                    {
+                        await replaced.CancelAsync();
+                        replaced.Dispose();
+                    }
 
                     _ = LoadAvailableCatalogsAsync(publisherId, newCts.Token, loadId);
                 }
@@ -3065,7 +3074,7 @@ public sealed partial class DownloadsBrowserViewModel(
             }
 
             variantVm.NotifyStateChanged();
-            await Task.WhenAny(variantVm.EnsureIconsLoadedAsync(), Task.Delay(UiConstants.ProgressiveItemRenderDelayMs));
+            await Task.WhenAny(variantVm.EnsureIconsLoadedAsync(ct), Task.Delay(UiConstants.ProgressiveItemRenderDelayMs, CancellationToken.None));
             return variantVm;
         }
         catch
@@ -3094,7 +3103,7 @@ public sealed partial class DownloadsBrowserViewModel(
             }
 
             vm.NotifyStateChanged();
-            await Task.WhenAny(vm.EnsureIconsLoadedAsync(), Task.Delay(UiConstants.ProgressiveItemRenderDelayMs));
+            await Task.WhenAny(vm.EnsureIconsLoadedAsync(ct), Task.Delay(UiConstants.ProgressiveItemRenderDelayMs, CancellationToken.None));
             return vm;
         }
         catch
