@@ -1,0 +1,1248 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Models.Tools.WorldBuilder;
+
+namespace GenHub.Core.Services.Tools.WorldBuilder;
+
+/// <summary>
+/// Terrain brush edits: mound, smooth, plateau, tile paint, blend paint, groves, ramps, and boundaries.
+/// </summary>
+public static class MapTerrainTools
+{
+    /// <summary>
+    /// Raises or lowers terrain in a disc with linear falloff (MoundTool).
+    /// </summary>
+    /// <param name="map">The map document.</param>
+    /// <param name="cx">Center cell X.</param>
+    /// <param name="cy">Center cell Y.</param>
+    /// <param name="radius">Brush radius in cells.</param>
+    /// <param name="delta">Height change at the center.</param>
+    public static void ApplyMound(WorldBuilderMap map, int cx, int cy, int radius, int delta)
+    {
+        ArgumentNullException.ThrowIfNull(map);
+        ForDisc(map.Terrain, cx, cy, radius, (x, y, falloff) =>
+        {
+            var index = (y * map.Terrain.Width) + x;
+            var change = (int)Math.Round(delta * falloff);
+            map.Terrain.Heights[index] = (byte)Math.Clamp(map.Terrain.Heights[index] + change, 0, WorldBuilderConstants.Terrain.MaxHeight);
+        });
+    }
+
+    /// <summary>
+    /// Averages terrain heights in a disc (FeatherTool smoothing), blended
+    /// toward the average by the radial falloff so edges feather out.
+    /// </summary>
+    /// <param name="map">The map document.</param>
+    /// <param name="cx">Center cell X.</param>
+    /// <param name="cy">Center cell Y.</param>
+    /// <param name="radius">Brush radius in cells.</param>
+    public static void ApplySmooth(WorldBuilderMap map, int cx, int cy, int radius)
+    {
+        ArgumentNullException.ThrowIfNull(map);
+        var terrain = map.Terrain;
+        var source = (byte[])terrain.Heights.Clone();
+        ForDisc(terrain, cx, cy, radius, (x, y, falloff) =>
+        {
+            var index = (y * terrain.Width) + x;
+            var average = AverageNeighbors(source, terrain.Width, terrain.Height, x, y);
+            terrain.Heights[index] = (byte)Math.Clamp(
+                Math.Round(source[index] + ((average - source[index]) * falloff)),
+                0,
+                WorldBuilderConstants.Terrain.MaxHeight);
+        });
+    }
+
+    /// <summary>
+    /// Eases terrain toward a flat height in a disc (plateau/mesh mold),
+    /// blended by the radial falloff so edges feather out.
+    /// </summary>
+    /// <param name="map">The map document.</param>
+    /// <param name="cx">Center cell X.</param>
+    /// <param name="cy">Center cell Y.</param>
+    /// <param name="radius">Brush radius in cells.</param>
+    /// <param name="height">Target height.</param>
+    public static void ApplyPlateau(WorldBuilderMap map, int cx, int cy, int radius, int height)
+    {
+        ArgumentNullException.ThrowIfNull(map);
+        var clamped = Math.Clamp(height, 0, WorldBuilderConstants.Terrain.MaxHeight);
+        ForDisc(map.Terrain, cx, cy, radius, (x, y, falloff) =>
+        {
+            var index = (y * map.Terrain.Width) + x;
+            var current = map.Terrain.Heights[index];
+            map.Terrain.Heights[index] = (byte)Math.Clamp(
+                Math.Round(current + ((clamped - current) * falloff)),
+                0,
+                WorldBuilderConstants.Terrain.MaxHeight);
+        });
+    }
+
+    /// <summary>
+    /// Scatters object instances in a disc (GroveTool).
+    /// </summary>
+    /// <param name="map">The map document.</param>
+    /// <param name="random">The random source.</param>
+    /// <param name="cx">Center cell X.</param>
+    /// <param name="cy">Center cell Y.</param>
+    /// <param name="radius">Brush radius in cells.</param>
+    /// <param name="templateName">Object template name.</param>
+    /// <param name="count">Instances to scatter.</param>
+    /// <returns>The placed objects.</returns>
+    public static IReadOnlyList<MapObjectEntry> ApplyGrove(WorldBuilderMap map, WbRandom random, int cx, int cy, int radius, string templateName, int count)
+    {
+        ArgumentNullException.ThrowIfNull(map);
+        ArgumentNullException.ThrowIfNull(random);
+        ArgumentException.ThrowIfNullOrEmpty(templateName);
+
+        var placed = new List<MapObjectEntry>();
+        for (var i = 0; i < count; i++)
+        {
+            var angle = random.NextReal() * MathF.PI * 2;
+            var distance = random.NextReal() * radius;
+            var x = cx + (int)Math.Round(Math.Cos(angle) * distance);
+            var y = cy + (int)Math.Round(Math.Sin(angle) * distance);
+            if (x < 0 || y < 0 || x >= map.Terrain.Width || y >= map.Terrain.Height)
+            {
+                continue;
+            }
+
+            var obj = MapOverlayTools.PlaceObject(map, templateName, CellCenter(map.Terrain, x), CellCenter(map.Terrain, y));
+            obj.Angle = random.NextReal() * 360f;
+            placed.Add(obj);
+        }
+
+        return placed;
+    }
+
+    /// <summary>
+    /// Smoothly interpolates terrain height along a corridor from (startX, startY) to (endX, endY) (RampTool).
+    /// </summary>
+    /// <param name="map">The map document.</param>
+    /// <param name="startX">Start cell X.</param>
+    /// <param name="startY">Start cell Y.</param>
+    /// <param name="endX">End cell X.</param>
+    /// <param name="endY">End cell Y.</param>
+    /// <param name="width">Ramp half-width in cells.</param>
+    public static void ApplyRamp(WorldBuilderMap map, int startX, int startY, int endX, int endY, int width)
+    {
+        ArgumentNullException.ThrowIfNull(map);
+        var terrain = map.Terrain;
+        if (startX < 0 || startX >= terrain.Width || startY < 0 || startY >= terrain.Height ||
+            endX < 0 || endX >= terrain.Width || endY < 0 || endY >= terrain.Height)
+        {
+            return;
+        }
+
+        var startH = terrain.Heights[(startY * terrain.Width) + startX];
+        var endH = terrain.Heights[(endY * terrain.Width) + endX];
+
+        var vx = (float)(endX - startX);
+        var vy = (float)(endY - startY);
+        var lenSq = (vx * vx) + (vy * vy);
+        if (lenSq < 1f)
+        {
+            terrain.Heights[(startY * terrain.Width) + startX] = endH;
+            return;
+        }
+
+        var minX = Math.Max(0, Math.Min(startX, endX) - width);
+        var maxX = Math.Min(terrain.Width - 1, Math.Max(startX, endX) + width);
+        var minY = Math.Max(0, Math.Min(startY, endY) - width);
+        var maxY = Math.Min(terrain.Height - 1, Math.Max(startY, endY) + width);
+
+        for (var y = minY; y <= maxY; y++)
+        {
+            for (var x = minX; x <= maxX; x++)
+            {
+                var px = x - startX;
+                var py = y - startY;
+                var t = Math.Clamp(((px * vx) + (py * vy)) / lenSq, 0f, 1f);
+
+                var projX = startX + (t * vx);
+                var projY = startY + (t * vy);
+                var distSq = ((x - projX) * (x - projX)) + ((y - projY) * (y - projY));
+
+                if (distSq <= width * width)
+                {
+                    var interpHeight = ((1f - t) * startH) + (t * endH);
+                    var idx = (y * terrain.Width) + x;
+                    terrain.Heights[idx] = (byte)Math.Clamp((int)Math.Round(interpHeight), 0, WorldBuilderConstants.Terrain.MaxHeight);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Sets the playable boundary rectangle and border size (BorderTool).
+    /// </summary>
+    /// <param name="map">The map document.</param>
+    /// <param name="minX">Top-left X cell.</param>
+    /// <param name="minY">Top-left Y cell.</param>
+    /// <param name="maxX">Bottom-right X cell.</param>
+    /// <param name="maxY">Bottom-right Y cell.</param>
+    public static void SetPlayableBoundary(WorldBuilderMap map, int minX, int minY, int maxX, int maxY)
+    {
+        ArgumentNullException.ThrowIfNull(map);
+        var terrain = map.Terrain;
+        var clampedMinX = Math.Clamp(minX, 0, terrain.Width - 1);
+        var clampedMaxX = Math.Clamp(maxX, clampedMinX + 1, terrain.Width);
+        var clampedMinY = Math.Clamp(minY, 0, terrain.Height - 1);
+        var clampedMaxY = Math.Clamp(maxY, clampedMinY + 1, terrain.Height);
+
+        terrain.BorderSize = Math.Min(clampedMinX, clampedMinY);
+        terrain.Boundaries.Clear();
+        terrain.Boundaries.Add(new MapBoundary(clampedMaxX - terrain.BorderSize, clampedMaxY - terrain.BorderSize));
+    }
+
+    /// <summary>
+    /// Paints a terrain texture class in a disc (TileTool). Ports
+    /// WorldHeightMapEdit.setTileNdx: the class is allocated on first use and
+    /// each cell receives its parity-correct sub-tile instead of a raw index.
+    /// Cells that cannot allocate (texture caps) keep their old tile.
+    /// </summary>
+    /// <param name="map">The map document.</param>
+    /// <param name="cx">Center cell X.</param>
+    /// <param name="cy">Center cell Y.</param>
+    /// <param name="radius">Brush radius in cells.</param>
+    /// <param name="textureClass">The terrain texture class to paint.</param>
+    public static void PaintTile(WorldBuilderMap map, int cx, int cy, int radius, MapTextureClass textureClass)
+    {
+        ArgumentNullException.ThrowIfNull(map);
+        ArgumentNullException.ThrowIfNull(textureClass);
+        var classIndex = EnsureTextureClass(map.Terrain, textureClass);
+        if (classIndex < 0)
+        {
+            return;
+        }
+
+        ForDisc(map.Terrain, cx, cy, radius, (x, y, _) => SetTileNdx(map.Terrain, x, y, classIndex));
+    }
+
+    /// <summary>
+    /// Finds a texture class by name.
+    /// </summary>
+    /// <param name="terrain">The terrain data.</param>
+    /// <param name="name">The terrain type name.</param>
+    /// <returns>The class index, or -1 when absent.</returns>
+    public static int FindTextureClassIndex(MapTerrainData terrain, string name)
+    {
+        ArgumentNullException.ThrowIfNull(terrain);
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        for (var i = 0; i < terrain.TextureClasses.Count; i++)
+        {
+            if (string.Equals(terrain.TextureClasses[i].Name, name, StringComparison.OrdinalIgnoreCase))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>
+    /// Allocates a texture class on first use, mirroring allocateTiles: the new
+    /// class takes the next free bitmap tile run. Returns the class index, or -1
+    /// when the texture caps leave no room.
+    /// </summary>
+    /// <param name="terrain">The terrain data.</param>
+    /// <param name="textureClass">The class carrying name, tile count, and sheet width.</param>
+    /// <returns>The class index, or -1 when allocation fails.</returns>
+    public static int EnsureTextureClass(MapTerrainData terrain, MapTextureClass textureClass)
+    {
+        ArgumentNullException.ThrowIfNull(terrain);
+        ArgumentNullException.ThrowIfNull(textureClass);
+        var existing = FindTextureClassIndex(terrain, textureClass.Name);
+        if (existing >= 0)
+        {
+            return existing;
+        }
+
+        var numTiles = Math.Max(1, textureClass.NumTiles);
+        if (terrain.TextureClasses.Count >= WorldBuilderConstants.Limits.MaxTextureClasses ||
+            terrain.NumBitmapTiles + numTiles > WorldBuilderConstants.Limits.MaxBitmapTiles)
+        {
+            return -1;
+        }
+
+        terrain.TextureClasses.Add(textureClass with { FirstTile = terrain.NumBitmapTiles });
+        terrain.NumBitmapTiles += numTiles;
+        return terrain.TextureClasses.Count - 1;
+    }
+
+    /// <summary>
+    /// Flood-fills the connected region of one base texture class with another
+    /// (TileTool flood fill), 4-connected and bounded by the map dimensions.
+    /// Filling with the region's own class is a no-op.
+    /// </summary>
+    /// <param name="map">The map document.</param>
+    /// <param name="x">Seed cell X.</param>
+    /// <param name="y">Seed cell Y.</param>
+    /// <param name="textureClass">The replacement texture class.</param>
+    /// <returns>The filled cell count.</returns>
+    public static int ApplyFloodFill(WorldBuilderMap map, int x, int y, MapTextureClass textureClass)
+    {
+        ArgumentNullException.ThrowIfNull(map);
+        ArgumentNullException.ThrowIfNull(textureClass);
+        var terrain = map.Terrain;
+        var source = GetTextureClass(terrain, x, y, baseClassOnly: true);
+        if (source < 0)
+        {
+            return 0;
+        }
+
+        var target = EnsureTextureClass(terrain, textureClass);
+        if (target == source)
+        {
+            return 0;
+        }
+
+        var filled = 0;
+        var visited = new bool[terrain.Width * terrain.Height];
+        var queue = new Queue<(int X, int Y)>();
+        queue.Enqueue((x, y));
+        visited[(y * terrain.Width) + x] = true;
+        while (queue.Count > 0)
+        {
+            var (cx, cy) = queue.Dequeue();
+            if (GetTextureClass(terrain, cx, cy, baseClassOnly: true) != source)
+            {
+                continue;
+            }
+
+            if (SetTileNdx(terrain, cx, cy, target))
+            {
+                filled++;
+            }
+
+            EnqueueFillNeighbor(queue, visited, terrain.Width, terrain.Height, cx + 1, cy);
+            EnqueueFillNeighbor(queue, visited, terrain.Width, terrain.Height, cx - 1, cy);
+            EnqueueFillNeighbor(queue, visited, terrain.Width, terrain.Height, cx, cy + 1);
+            EnqueueFillNeighbor(queue, visited, terrain.Width, terrain.Height, cx, cy - 1);
+        }
+
+        return filled;
+    }
+
+    /// <summary>
+    /// Writes the parity-correct sub-tile for a class into one cell and clears
+    /// its blend, extra-blend, and cliff indices (WorldHeightMapEdit.setTileNdx).
+    /// The cliff-UV stitch (updateFlatCellForAdjacentCliffs) is deferred: cliff
+    /// state bytes are recomputed per stroke by MapCliffComputer, and cliff UV
+    /// records belong to the renderer phase.
+    /// </summary>
+    /// <param name="terrain">The terrain data.</param>
+    /// <param name="x">Cell X.</param>
+    /// <param name="y">Cell Y.</param>
+    /// <param name="classIndex">The map-local texture class index.</param>
+    /// <returns>False when out of bounds or the class is unknown.</returns>
+    public static bool SetTileNdx(MapTerrainData terrain, int x, int y, int classIndex)
+    {
+        ArgumentNullException.ThrowIfNull(terrain);
+        if (x < 0 || y < 0 || x >= terrain.Width || y >= terrain.Height ||
+            classIndex < 0 || classIndex >= terrain.TextureClasses.Count)
+        {
+            return false;
+        }
+
+        var index = (y * terrain.Width) + x;
+        terrain.TileIndices[index] = (short)GetTileNdxForClass(terrain, x, y, classIndex);
+        terrain.BlendTileIndices[index] = 0;
+        terrain.ExtraBlendTileIndices[index] = 0;
+        terrain.CliffInfoIndices[index] = 0;
+        return true;
+    }
+
+    /// <summary>
+    /// Computes the sub-tile index for a cell (WorldHeightMapEdit
+    /// .getTileNdxForClass): the 64-pixel tile covering the 2x2 cell block, then
+    /// the low two bits select the quadrant from the cell x/y parity with the
+    /// encoding class = tileNdx right-shift 2, subtile = tileNdx and 3.
+    /// </summary>
+    /// <param name="terrain">The terrain data.</param>
+    /// <param name="x">Cell X.</param>
+    /// <param name="y">Cell Y.</param>
+    /// <param name="classIndex">The map-local texture class index.</param>
+    /// <returns>The tile index, or 0 for an unknown class.</returns>
+    public static int GetTileNdxForClass(MapTerrainData terrain, int x, int y, int classIndex)
+    {
+        ArgumentNullException.ThrowIfNull(terrain);
+        if (classIndex < 0 || classIndex >= terrain.TextureClasses.Count)
+        {
+            return 0;
+        }
+
+        var textureClass = terrain.TextureClasses[classIndex];
+        var width = Math.Max(1, textureClass.Width);
+        var tileNdx = textureClass.FirstTile + ((x / 2) % width) + (width * ((y / 2) % width));
+        tileNdx <<= 2;
+        tileNdx += (2 * (y & 1)) + (x & 1);
+        return tileNdx;
+    }
+
+    /// <summary>
+    /// Returns the map-local class holding a tile index
+    /// (getTextureClassFromNdx: class = tileNdx right-shift 2).
+    /// </summary>
+    /// <param name="terrain">The terrain data.</param>
+    /// <param name="tileNdx">The tile index.</param>
+    /// <returns>The class index, or -1 when no class holds it.</returns>
+    public static int GetTextureClassFromNdx(MapTerrainData terrain, int tileNdx)
+    {
+        ArgumentNullException.ThrowIfNull(terrain);
+        var baseNdx = tileNdx >> 2;
+        for (var i = 0; i < terrain.TextureClasses.Count; i++)
+        {
+            if (terrain.TextureClasses[i].FirstTile < 0)
+            {
+                continue;
+            }
+
+            if (baseNdx >= terrain.TextureClasses[i].FirstTile &&
+                baseNdx < terrain.TextureClasses[i].FirstTile + Math.Max(1, terrain.TextureClasses[i].NumTiles))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>
+    /// Returns the map-local class of a cell (getTextureClass). Blended cells
+    /// report -1 unless baseClassOnly is set.
+    /// </summary>
+    /// <param name="terrain">The terrain data.</param>
+    /// <param name="x">Cell X.</param>
+    /// <param name="y">Cell Y.</param>
+    /// <param name="baseClassOnly">Read the base tile even when blended.</param>
+    /// <returns>The class index, or -1.</returns>
+    public static int GetTextureClass(MapTerrainData terrain, int x, int y, bool baseClassOnly)
+    {
+        ArgumentNullException.ThrowIfNull(terrain);
+        if (x < 0 || y < 0 || x >= terrain.Width || y >= terrain.Height)
+        {
+            return -1;
+        }
+
+        var index = (y * terrain.Width) + x;
+        if (!baseClassOnly && (terrain.BlendTileIndices[index] != 0 || terrain.ExtraBlendTileIndices[index] != 0))
+        {
+            return -1;
+        }
+
+        return GetTextureClassFromNdx(terrain, terrain.TileIndices[index]);
+    }
+
+    /// <summary>
+    /// Counts same-class neighbors (getTexClassNeighbors). Off-map neighbors
+    /// clamp to the edge so border cells still see eight neighbors.
+    /// </summary>
+    /// <param name="terrain">The terrain data.</param>
+    /// <param name="x">Cell X.</param>
+    /// <param name="y">Cell Y.</param>
+    /// <param name="classIndex">The class to count.</param>
+    /// <returns>Side (orthogonal) and total neighbor counts.</returns>
+    public static (int Sides, int Total) GetTextureClassNeighbors(MapTerrainData terrain, int x, int y, int classIndex)
+    {
+        ArgumentNullException.ThrowIfNull(terrain);
+        var sides = 0;
+        var total = 0;
+        for (var i = x - 1; i < x + 2; i++)
+        {
+            for (var j = y - 1; j < y + 2; j++)
+            {
+                if (i == x && j == y)
+                {
+                    continue;
+                }
+
+                var clampedX = Math.Clamp(i, 0, terrain.Width - 1);
+                var clampedY = Math.Clamp(j, 0, terrain.Height - 1);
+                if (GetTextureClass(terrain, clampedX, clampedY, false) == classIndex)
+                {
+                    total++;
+                    if (i == x || j == y)
+                    {
+                        sides++;
+                    }
+                }
+            }
+        }
+
+        return (sides, total);
+    }
+
+    /// <summary>
+    /// Blends one cell toward a neighboring source cell (blendTile): when the
+    /// destination already continues the source tiling the blend is cleared,
+    /// otherwise a blend record is generated.
+    /// </summary>
+    /// <param name="terrain">The terrain data.</param>
+    /// <param name="x">Destination cell X.</param>
+    /// <param name="y">Destination cell Y.</param>
+    /// <param name="sourceX">Source cell X.</param>
+    /// <param name="sourceY">Source cell Y.</param>
+    /// <param name="textureClassName">Source class name, or null to derive it from the source cell.</param>
+    /// <param name="edgeClass">Custom blend edge class, or -1 for an alpha blend.</param>
+    public static void BlendTile(MapTerrainData terrain, int x, int y, int sourceX, int sourceY, string? textureClassName, int edgeClass = -1)
+    {
+        ArgumentNullException.ThrowIfNull(terrain);
+        if (!InBounds(terrain, x, y) || !InBounds(terrain, sourceX, sourceY))
+        {
+            return;
+        }
+
+        var classIndex = textureClassName is null
+            ? GetTextureClass(terrain, sourceX, sourceY, false)
+            : FindTextureClassIndex(terrain, textureClassName);
+        var blendTileNdx = classIndex >= 0 ? GetTileNdxForClass(terrain, x, y, classIndex) : terrain.TileIndices[(sourceY * terrain.Width) + sourceX];
+        var index = (y * terrain.Width) + x;
+        var currentTileNdx = terrain.TileIndices[index];
+        if (currentTileNdx == blendTileNdx)
+        {
+            terrain.TileIndices[index] = (short)blendTileNdx;
+            terrain.BlendTileIndices[index] = 0;
+            terrain.ExtraBlendTileIndices[index] = 0;
+            return;
+        }
+
+        BlendSpecificTiles(terrain, x, y, sourceX, sourceY, currentTileNdx, blendTileNdx, false, edgeClass, true);
+    }
+
+    /// <summary>
+    /// Generates the blend record blending blendTileNdx over curTileNdx
+    /// (blendSpecificTiles), including the three-way layer handling and the
+    /// flip-compatibility guards. Records are deduplicated; when the blend
+    /// table is full the cell keeps its base tile.
+    /// </summary>
+    /// <param name="terrain">The terrain data.</param>
+    /// <param name="x">Destination cell X.</param>
+    /// <param name="y">Destination cell Y.</param>
+    /// <param name="sourceX">Source cell X.</param>
+    /// <param name="sourceY">Source cell Y.</param>
+    /// <param name="currentTileNdx">The base tile index.</param>
+    /// <param name="blendTileNdx">The over-blend tile index.</param>
+    /// <param name="longDiagonal">Whether this is a wide diagonal blend.</param>
+    /// <param name="edgeClass">Custom blend edge class, or -1 for an alpha blend.</param>
+    /// <param name="useThreeWayBlends">Whether to use the secondary blend layer.</param>
+    public static void BlendSpecificTiles(
+        MapTerrainData terrain,
+        int x,
+        int y,
+        int sourceX,
+        int sourceY,
+        int currentTileNdx,
+        int blendTileNdx,
+        bool longDiagonal,
+        int edgeClass,
+        bool useThreeWayBlends)
+    {
+        ArgumentNullException.ThrowIfNull(terrain);
+        if (!InBounds(terrain, x, y))
+        {
+            return;
+        }
+
+        var horizontal = false;
+        var vertical = false;
+        var rightDiagonal = false;
+        var leftDiagonal = false;
+        var inverted = 0;
+        var flipped = false;
+        var index = (y * terrain.Width) + x;
+        var baseBlend = useThreeWayBlends && terrain.BlendTileIndices[index] != 0
+            ? terrain.BlendTiles[terrain.BlendTileIndices[index]]
+            : null;
+        var baseIsDiagonal = baseBlend is not null && (baseBlend.RightDiagonal != 0 || baseBlend.LeftDiagonal != 0);
+        var baseNeedsFlip = baseBlend is not null &&
+            ((baseBlend.RightDiagonal != 0 && (baseBlend.Inverted & WorldBuilderConstants.Limits.InvertedMask) == 0) ||
+             (baseBlend.LeftDiagonal != 0 && (baseBlend.Inverted & WorldBuilderConstants.Limits.InvertedMask) != 0));
+        if (sourceY == y)
+        {
+            horizontal = true;
+            if (sourceX < x)
+            {
+                inverted |= WorldBuilderConstants.Limits.InvertedMask;
+            }
+
+            if (baseBlend is not null && baseNeedsFlip)
+            {
+                inverted |= WorldBuilderConstants.Limits.FlippedMask;
+            }
+        }
+        else if (sourceX == x)
+        {
+            vertical = true;
+            if (sourceY < y)
+            {
+                inverted |= WorldBuilderConstants.Limits.InvertedMask;
+            }
+
+            if (baseBlend is not null && baseNeedsFlip)
+            {
+                inverted |= WorldBuilderConstants.Limits.FlippedMask;
+            }
+        }
+        else
+        {
+            if (sourceX > x)
+            {
+                rightDiagonal = true;
+            }
+            else
+            {
+                leftDiagonal = true;
+            }
+
+            if (sourceY < y)
+            {
+                inverted |= WorldBuilderConstants.Limits.InvertedMask;
+            }
+
+            if (longDiagonal)
+            {
+                inverted = inverted == 0 ? WorldBuilderConstants.Limits.InvertedMask : 0;
+                rightDiagonal = !rightDiagonal;
+                leftDiagonal = !leftDiagonal;
+            }
+
+            if ((rightDiagonal && (inverted & WorldBuilderConstants.Limits.InvertedMask) == 0) ||
+                (leftDiagonal && (inverted & WorldBuilderConstants.Limits.InvertedMask) != 0))
+            {
+                flipped = true;
+            }
+
+            if (baseBlend is not null && baseIsDiagonal && baseNeedsFlip != flipped)
+            {
+                return;
+            }
+        }
+
+        if (baseBlend is not null && baseBlend.BlendIndex == blendTileNdx)
+        {
+            return;
+        }
+
+        var record = new MapBlendTile(
+            blendTileNdx,
+            horizontal ? (byte)1 : (byte)0,
+            vertical ? (byte)1 : (byte)0,
+            rightDiagonal ? (byte)1 : (byte)0,
+            leftDiagonal ? (byte)1 : (byte)0,
+            (byte)inverted,
+            longDiagonal ? (byte)1 : (byte)0,
+            edgeClass);
+        var newIndex = FindOrCreateBlendTile(terrain, record);
+        if (newIndex < 0)
+        {
+            return;
+        }
+
+        terrain.TileIndices[index] = (short)currentTileNdx;
+        if (useThreeWayBlends && terrain.BlendTileIndices[index] != 0)
+        {
+            terrain.ExtraBlendTileIndices[index] = (short)newIndex;
+            if (flipped && !baseIsDiagonal && baseBlend is not null)
+            {
+                var forced = baseBlend with { Inverted = (byte)(baseBlend.Inverted | WorldBuilderConstants.Limits.FlippedMask) };
+                terrain.BlendTileIndices[index] = (short)FindOrCreateBlendTile(terrain, forced);
+            }
+        }
+        else
+        {
+            terrain.BlendTileIndices[index] = (short)newIndex;
+        }
+    }
+
+    /// <summary>
+    /// Finds the identical blend record or appends it (findOrCreateBlendTile).
+    /// Index 0 is the implicit no-blend record. Returns -1 when the blend
+    /// table is full.
+    /// </summary>
+    /// <param name="terrain">The terrain data.</param>
+    /// <param name="blend">The blend record.</param>
+    /// <returns>The record index, or -1.</returns>
+    public static int FindOrCreateBlendTile(MapTerrainData terrain, MapBlendTile blend)
+    {
+        ArgumentNullException.ThrowIfNull(terrain);
+        ArgumentNullException.ThrowIfNull(blend);
+        EnsureBlendTable(terrain);
+        for (var i = 1; i < terrain.BlendTiles.Count; i++)
+        {
+            if (terrain.BlendTiles[i].Equals(blend))
+            {
+                return i;
+            }
+        }
+
+        if (terrain.BlendTiles.Count >= WorldBuilderConstants.Limits.MaxBlendTiles)
+        {
+            return -1;
+        }
+
+        terrain.BlendTiles.Add(blend);
+        terrain.NumBlendedTiles = terrain.BlendTiles.Count;
+        return terrain.BlendTiles.Count - 1;
+    }
+
+    /// <summary>
+    /// Blends a same-class region outward into its neighbors (autoBlendOut):
+    /// flood-fills the region, fills mostly-surrounded gaps, clears stale
+    /// blends of the region class, then blends every border cell toward the
+    /// region. Mirrors the Adriane gap-correction options with the hvGap and
+    /// dGap flags.
+    /// </summary>
+    /// <param name="terrain">The terrain data.</param>
+    /// <param name="x">A cell inside the region (X).</param>
+    /// <param name="y">A cell inside the region (Y).</param>
+    /// <param name="edgeClass">Custom blend edge class, or -1 for alpha blends.</param>
+    /// <param name="horizontalVerticalGap">Fill straight one-cell gaps.</param>
+    /// <param name="diagonalGap">Fill diagonal one-cell gaps near the origin.</param>
+    /// <param name="revalidateBlends">Clear stale blends before re-blending.</param>
+    public static void AutoBlendOut(MapTerrainData terrain, int x, int y, int edgeClass = -1, bool horizontalVerticalGap = true, bool diagonalGap = true, bool revalidateBlends = true)
+    {
+        ArgumentNullException.ThrowIfNull(terrain);
+        var regionClass = GetTextureClass(terrain, x, y, false);
+        if (regionClass < 0 || !InBounds(terrain, x, y))
+        {
+            return;
+        }
+
+        var border = FloodRegion(terrain, x, y, regionClass, horizontalVerticalGap, diagonalGap);
+        if (revalidateBlends || horizontalVerticalGap || diagonalGap)
+        {
+            ClearStaleBlends(terrain, border, regionClass);
+        }
+
+        var processed = new bool[terrain.Width * terrain.Height];
+        foreach (var cell in border)
+        {
+            BlendRegionBorders(terrain, cell.X, cell.Y, regionClass, edgeClass, processed);
+        }
+    }
+
+    /// <summary>
+    /// Rebuilds tile and blend indices into canonical form (optimizeTiles):
+    /// tiles collapse to classes and are reallocated, redundant blends merge,
+    /// forced three-way flips are cleaned, and cliff records remap.
+    /// </summary>
+    /// <param name="terrain">The terrain data.</param>
+    public static void OptimizeTiles(MapTerrainData terrain)
+    {
+        ArgumentNullException.ThrowIfNull(terrain);
+        var size = terrain.Width * terrain.Height;
+        for (var i = 0; i < size; i++)
+        {
+            var textureClass = GetTextureClassFromNdx(terrain, terrain.TileIndices[i]);
+            terrain.TileIndices[i] = (short)Math.Max(0, textureClass);
+        }
+
+        EnsureBlendTable(terrain);
+        var savedBlends = new List<MapBlendTile>(terrain.BlendTiles);
+        for (var i = 1; i < savedBlends.Count; i++)
+        {
+            var blendClass = GetTextureClassFromNdx(terrain, savedBlends[i].BlendIndex);
+            savedBlends[i] = savedBlends[i] with { BlendIndex = Math.Max(0, blendClass) };
+        }
+
+        for (var i = 1; i < terrain.CliffInfos.Count; i++)
+        {
+            var cliffClass = GetTextureClassFromNdx(terrain, terrain.CliffInfos[i].TileIndex);
+            terrain.CliffInfos[i] = terrain.CliffInfos[i] with { TileIndex = Math.Max(0, cliffClass) };
+        }
+
+        var classSnapshot = new int[size];
+        Array.Copy(terrain.TileIndices, classSnapshot, size);
+        var blendSnapshot = new int[size];
+        Array.Copy(terrain.BlendTileIndices, blendSnapshot, size);
+        var extraSnapshot = new int[size];
+        Array.Copy(terrain.ExtraBlendTileIndices, extraSnapshot, size);
+        var savedClasses = new List<MapTextureClass>(terrain.TextureClasses);
+        terrain.TextureClasses.Clear();
+        terrain.BlendTiles.Clear();
+        terrain.NumBitmapTiles = 0;
+        terrain.NumBlendedTiles = 1;
+        for (var cy = 0; cy < terrain.Height; cy++)
+        {
+            for (var cx = 0; cx < terrain.Width; cx++)
+            {
+                var i = (cy * terrain.Width) + cx;
+                ReallocateCell(terrain, cx, cy, i, classSnapshot[i], blendSnapshot[i], extraSnapshot[i], savedClasses, savedBlends);
+            }
+        }
+
+        terrain.NumBlendedTiles = terrain.BlendTiles.Count;
+    }
+
+    private static void ReallocateCell(
+        MapTerrainData terrain,
+        int x,
+        int y,
+        int index,
+        int textureClass,
+        int blendNdx,
+        int extraBlendNdx,
+        List<MapTextureClass> savedClasses,
+        List<MapBlendTile> savedBlends)
+    {
+        var tileNdx = 0;
+        if (textureClass >= 0 && textureClass < savedClasses.Count)
+        {
+            var classIndex = EnsureTextureClass(terrain, savedClasses[textureClass]);
+            tileNdx = classIndex >= 0 ? GetTileNdxForClass(terrain, x, y, classIndex) : 0;
+        }
+
+        terrain.TileIndices[index] = (short)tileNdx;
+
+        var newBlendNdx = 0;
+        if (blendNdx != 0 && blendNdx < savedBlends.Count)
+        {
+            var current = savedBlends[blendNdx];
+            if (extraBlendNdx == 0)
+            {
+                current = current with { Inverted = (byte)(current.Inverted & ~WorldBuilderConstants.Limits.FlippedMask) };
+            }
+
+            var rebuilt = RebuildBlendNdx(terrain, x, y, current.BlendIndex, savedClasses);
+            if (rebuilt != tileNdx)
+            {
+                newBlendNdx = FindOrCreateBlendTile(terrain, current with { BlendIndex = rebuilt });
+                if (newBlendNdx < 0)
+                {
+                    newBlendNdx = 0;
+                }
+            }
+        }
+
+        terrain.BlendTileIndices[index] = (short)newBlendNdx;
+
+        var newExtraNdx = 0;
+        if (extraBlendNdx != 0 && extraBlendNdx < savedBlends.Count)
+        {
+            var current = savedBlends[extraBlendNdx];
+            var rebuilt = RebuildBlendNdx(terrain, x, y, current.BlendIndex, savedClasses);
+            if (newBlendNdx != 0 && rebuilt != tileNdx && terrain.BlendTiles[newBlendNdx].BlendIndex != rebuilt)
+            {
+                newExtraNdx = FindOrCreateBlendTile(terrain, current with { BlendIndex = rebuilt });
+                if (newExtraNdx < 0)
+                {
+                    newExtraNdx = 0;
+                }
+            }
+        }
+
+        terrain.ExtraBlendTileIndices[index] = (short)newExtraNdx;
+    }
+
+    private static int RebuildBlendNdx(
+        MapTerrainData terrain,
+        int x,
+        int y,
+        int classOrdinal,
+        List<MapTextureClass> savedClasses)
+    {
+        if (classOrdinal < 0 || classOrdinal >= savedClasses.Count)
+        {
+            return 0;
+        }
+
+        var classIndex = EnsureTextureClass(terrain, savedClasses[classOrdinal]);
+        return classIndex >= 0 ? GetTileNdxForClass(terrain, x, y, classIndex) : 0;
+    }
+
+    private static List<(int X, int Y)> FloodRegion(
+        MapTerrainData terrain,
+        int x,
+        int y,
+        int regionClass,
+        bool horizontalVerticalGap,
+        bool diagonalGap)
+    {
+        var processed = new bool[terrain.Width * terrain.Height];
+        var queue = new Queue<(int X, int Y)>();
+        var border = new List<(int X, int Y)>();
+        queue.Enqueue((x, y));
+        processed[(y * terrain.Width) + x] = true;
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            for (var i = current.X - 1; i < current.X + 2; i++)
+            {
+                if (i < 0 || i >= terrain.Width)
+                {
+                    continue;
+                }
+
+                for (var j = current.Y - 1; j < current.Y + 2; j++)
+                {
+                    if (j < 0 || j >= terrain.Height)
+                    {
+                        continue;
+                    }
+
+                    var neighbor = (j * terrain.Width) + i;
+                    if (processed[neighbor])
+                    {
+                        continue;
+                    }
+
+                    if (GetTextureClass(terrain, i, j, true) != regionClass)
+                    {
+                        if (!ShouldFillGap(terrain, i, j, x, y, regionClass, horizontalVerticalGap, diagonalGap))
+                        {
+                            continue;
+                        }
+
+                        SetTileNdx(terrain, i, j, regionClass);
+                    }
+                    else if (terrain.BlendTileIndices[neighbor] > 0)
+                    {
+                        continue;
+                    }
+
+                    queue.Enqueue((i, j));
+                    processed[neighbor] = true;
+                }
+            }
+
+            if (GetTextureClassNeighbors(terrain, current.X, current.Y, regionClass).Total != 8)
+            {
+                border.Add(current);
+            }
+        }
+
+        return border;
+    }
+
+    private static void EnqueueFillNeighbor(Queue<(int X, int Y)> queue, bool[] visited, int width, int height, int x, int y)
+    {
+        if (x < 0 || y < 0 || x >= width || y >= height)
+        {
+            return;
+        }
+
+        var index = (y * width) + x;
+        if (!visited[index])
+        {
+            visited[index] = true;
+            queue.Enqueue((x, y));
+        }
+    }
+
+    private static bool ShouldFillGap(
+        MapTerrainData terrain,
+        int x,
+        int y,
+        int originX,
+        int originY,
+        int regionClass,
+        bool horizontalVerticalGap,
+        bool diagonalGap)
+    {
+        var (sides, total) = GetTextureClassNeighbors(terrain, x, y, regionClass);
+        if (sides > 2 || total > 5)
+        {
+            return true;
+        }
+
+        if (horizontalVerticalGap &&
+            ((x > 0 && x < terrain.Width - 1 &&
+              GetTextureClass(terrain, x - 1, y, true) == regionClass &&
+              GetTextureClass(terrain, x + 1, y, true) == regionClass) ||
+             (y > 0 && y < terrain.Height - 1 &&
+              GetTextureClass(terrain, x, y - 1, true) == regionClass &&
+              GetTextureClass(terrain, x, y + 1, true) == regionClass)))
+        {
+            return true;
+        }
+
+        if (!diagonalGap)
+        {
+            return false;
+        }
+
+        var dx = x - originX;
+        var dy = y - originY;
+        if ((dx * dx) + (dy * dy) > 6)
+        {
+            return false;
+        }
+
+        return (x > 0 && y > 0 && x < terrain.Width - 1 && y < terrain.Height - 1 &&
+                GetTextureClass(terrain, x - 1, y - 1, true) == regionClass &&
+                GetTextureClass(terrain, x + 1, y + 1, true) == regionClass) ||
+               (x < terrain.Width - 1 && y > 0 && x > 0 && y < terrain.Height - 1 &&
+                GetTextureClass(terrain, x + 1, y - 1, true) == regionClass &&
+                GetTextureClass(terrain, x - 1, y + 1, true) == regionClass);
+    }
+
+    private static void ClearStaleBlends(MapTerrainData terrain, List<(int X, int Y)> border, int regionClass)
+    {
+        foreach (var cell in border)
+        {
+            for (var dy = -1; dy <= 1; dy++)
+            {
+                for (var dx = -1; dx <= 1; dx++)
+                {
+                    ClearStaleBlendAt(terrain, cell.X + dx, cell.Y + dy, regionClass);
+                }
+            }
+        }
+    }
+
+    private static void ClearStaleBlendAt(MapTerrainData terrain, int x, int y, int regionClass)
+    {
+        if (!InBounds(terrain, x, y))
+        {
+            return;
+        }
+
+        var index = (y * terrain.Width) + x;
+        if (terrain.BlendTileIndices[index] > 0 &&
+            terrain.BlendTileIndices[index] < terrain.BlendTiles.Count &&
+            GetTextureClassFromNdx(terrain, terrain.BlendTiles[terrain.BlendTileIndices[index]].BlendIndex) == regionClass)
+        {
+            terrain.BlendTileIndices[index] = 0;
+        }
+
+        if (terrain.ExtraBlendTileIndices[index] > 0 &&
+            terrain.ExtraBlendTileIndices[index] < terrain.BlendTiles.Count &&
+            GetTextureClassFromNdx(terrain, terrain.BlendTiles[terrain.ExtraBlendTileIndices[index]].BlendIndex) == regionClass)
+        {
+            terrain.ExtraBlendTileIndices[index] = 0;
+        }
+    }
+
+    private static void BlendRegionBorders(
+        MapTerrainData terrain,
+        int x,
+        int y,
+        int regionClass,
+        int edgeClass,
+        bool[] processed)
+    {
+        for (var i = x - 1; i < x + 2; i++)
+        {
+            if (i < 0 || i >= terrain.Width)
+            {
+                continue;
+            }
+
+            for (var j = y - 1; j < y + 2; j++)
+            {
+                if (j < 0 || j >= terrain.Height)
+                {
+                    continue;
+                }
+
+                var index = (j * terrain.Width) + i;
+                if (processed[index])
+                {
+                    continue;
+                }
+
+                if (terrain.BlendTileIndices[index] > 0 &&
+                    terrain.BlendTileIndices[index] < terrain.BlendTiles.Count &&
+                    regionClass == GetTextureClassFromNdx(terrain, terrain.BlendTiles[terrain.BlendTileIndices[index]].BlendIndex))
+                {
+                    continue;
+                }
+
+                if (GetTextureClass(terrain, i, j, true) != regionClass)
+                {
+                    BlendToThisClass(terrain, i, j, regionClass, edgeClass);
+                }
+
+                processed[index] = true;
+            }
+        }
+    }
+
+    private static void BlendToThisClass(MapTerrainData terrain, int x, int y, int regionClass, int edgeClass)
+    {
+        var (sides, total) = GetTextureClassNeighbors(terrain, x, y, regionClass);
+        if (total < 1)
+        {
+            return;
+        }
+
+        if (sides == 0)
+        {
+            for (var i = x - 1; i < x + 2; i++)
+            {
+                if (i < 0 || i >= terrain.Width)
+                {
+                    continue;
+                }
+
+                for (var j = y - 1; j < y + 2; j++)
+                {
+                    if (j < 0 || j >= terrain.Height || (i == x && j == y))
+                    {
+                        continue;
+                    }
+
+                    if (GetTextureClass(terrain, i, j, false) == regionClass)
+                    {
+                        BlendTile(terrain, x, y, i, j, null, edgeClass);
+                        return;
+                    }
+                }
+            }
+
+            return;
+        }
+
+        var top = false;
+        var bottom = false;
+        var left = false;
+        var right = false;
+        for (var i = x - 1; i < x + 2; i++)
+        {
+            if (i < 0 || i >= terrain.Width)
+            {
+                continue;
+            }
+
+            for (var j = y - 1; j < y + 2; j++)
+            {
+                if ((i != x && j != y) || j < 0 || j >= terrain.Height || (i == x && j == y))
+                {
+                    continue;
+                }
+
+                if (GetTextureClass(terrain, i, j, false) != regionClass)
+                {
+                    continue;
+                }
+
+                if (sides == 1)
+                {
+                    BlendTile(terrain, x, y, i, j, null, edgeClass);
+                    return;
+                }
+
+                if (i == x)
+                {
+                    if (j > y)
+                    {
+                        top = true;
+                    }
+                    else
+                    {
+                        bottom = true;
+                    }
+                }
+                else if (i < x)
+                {
+                    left = true;
+                }
+                else
+                {
+                    right = true;
+                }
+            }
+        }
+
+        if (sides != 2)
+        {
+            return;
+        }
+
+        var blendTileNdx = GetTileNdxForClass(terrain, x, y, regionClass);
+        var sourceX = x;
+        var sourceY = y;
+        if (top)
+        {
+            sourceY--;
+        }
+
+        if (bottom)
+        {
+            sourceY++;
+        }
+
+        if (left)
+        {
+            sourceX++;
+        }
+
+        if (right)
+        {
+            sourceX--;
+        }
+
+        BlendSpecificTiles(
+            terrain,
+            x,
+            y,
+            sourceX,
+            sourceY,
+            terrain.TileIndices[(y * terrain.Width) + x],
+            blendTileNdx,
+            true,
+            edgeClass,
+            true);
+    }
+
+    private static bool InBounds(MapTerrainData terrain, int x, int y)
+    {
+        return x >= 0 && y >= 0 && x < terrain.Width && y < terrain.Height;
+    }
+
+    private static void EnsureBlendTable(MapTerrainData terrain)
+    {
+        if (terrain.BlendTiles.Count == 0)
+        {
+            terrain.BlendTiles.Add(new MapBlendTile(0, 0, 0, 0, 0, 0, 0, -1));
+        }
+
+        terrain.NumBlendedTiles = Math.Max(terrain.NumBlendedTiles, terrain.BlendTiles.Count);
+    }
+
+    private static float CellCenter(MapTerrainData terrain, int cell)
+    {
+        return MapCoordinates.CellCenterToWorld(terrain.BorderSize, cell, 0).X;
+    }
+
+    private static void ForDisc(MapTerrainData terrain, int cx, int cy, int radius, Action<int, int, float> apply)
+    {
+        var clamped = Math.Max(0, radius);
+        for (var y = cy - clamped; y <= cy + clamped; y++)
+        {
+            for (var x = cx - clamped; x <= cx + clamped; x++)
+            {
+                if (x < 0 || y < 0 || x >= terrain.Width || y >= terrain.Height)
+                {
+                    continue;
+                }
+
+                var distance = Math.Sqrt(((x - cx) * (x - cx)) + ((y - cy) * (y - cy)));
+                if (distance <= clamped)
+                {
+                    var falloff = clamped == 0 ? 1f : 1f - ((float)distance / (clamped + 1));
+                    apply(x, y, falloff);
+                }
+            }
+        }
+    }
+
+    private static int AverageNeighbors(byte[] heights, int width, int height, int x, int y)
+    {
+        var total = 0;
+        var count = 0;
+        for (var dy = -1; dy <= 1; dy++)
+        {
+            for (var dx = -1; dx <= 1; dx++)
+            {
+                var nx = x + dx;
+                var ny = y + dy;
+                if (nx >= 0 && ny >= 0 && nx < width && ny < height)
+                {
+                    total += heights[(ny * width) + nx];
+                    count++;
+                }
+            }
+        }
+
+        return count == 0 ? 0 : total / count;
+    }
+}
