@@ -507,9 +507,7 @@ public class GameProcessManager(
                 // BuildProcessInfo assigns the fallback to GameProcessInfo.ExecutablePath, which
                 // GameLauncher persists. Passing the directory alone would store a folder where a
                 // file path is expected, so rebuild the executable path from what we were given.
-                var fallbackExecutable = Path.Combine(
-                    workingDirectory,
-                    OperatingSystem.IsWindows() ? processName + ".exe" : processName);
+                var fallbackExecutable = BuildDiscoveryFallbackPath(processName, workingDirectory, OperatingSystem.IsWindows());
 
                 var processInfo = BuildProcessInfo(process, fallbackExecutable);
                 RegisterProcessEventHandlers(process);
@@ -681,6 +679,19 @@ public class GameProcessManager(
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Reconstructs the discovery fallback without duplicating an explicit executable extension.
+    /// </summary>
+    /// <param name="processName">The identity name, with or without an extension.</param>
+    /// <param name="workingDirectory">The expected executable residence.</param>
+    /// <param name="isWindows">Whether extensionless names use the Windows executable suffix.</param>
+    /// <returns>The fallback executable path.</returns>
+    internal static string BuildDiscoveryFallbackPath(string processName, string workingDirectory, bool isWindows)
+    {
+        var fileName = isWindows && !Path.HasExtension(processName) ? processName + ".exe" : processName;
+        return Path.Combine(workingDirectory, fileName);
     }
 
     /// <summary>

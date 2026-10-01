@@ -28,6 +28,26 @@ public sealed class SymlinkedProcessDiscoveryTests(ITestOutputHelper output) : I
 
     private readonly string _root = Directory.CreateTempSubdirectory("GenHub.SymlinkedProcessDiscoveryTests.").FullName;
 
+    /// <summary>
+    /// Discovery fallback paths preserve explicit file extensions and native executable names.
+    /// </summary>
+    /// <param name="name">The process identity name.</param>
+    /// <param name="isWindows">The platform whose fallback policy is used.</param>
+    /// <param name="expectedFileName">The expected file name.</param>
+    [Theory]
+    [InlineData("generalsonlinezh_60", true, "generalsonlinezh_60.exe")]
+    [InlineData("generalsonlinezh_60.exe", true, "generalsonlinezh_60.exe")]
+    [InlineData("GENERALS.EXE", true, "GENERALS.EXE")]
+    [InlineData("game.dat", true, "game.dat")]
+    [InlineData("generals.ctr", true, "generals.ctr")]
+    [InlineData("generalszh", false, "generalszh")]
+    public void DiscoveryFallback_PreservesExplicitExtensions(string name, bool isWindows, string expectedFileName)
+    {
+        var result = GameProcessManager.BuildDiscoveryFallbackPath(name, _root, isWindows);
+
+        Assert.Equal(Path.Combine(_root, expectedFileName), result);
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {
