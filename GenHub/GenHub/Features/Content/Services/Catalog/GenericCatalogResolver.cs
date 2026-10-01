@@ -148,7 +148,7 @@ public partial class GenericCatalogResolver(
             logger.LogInformation(
                 "Successfully resolved manifest for '{ContentName}' with {FileCount} files",
                 manifest.Name,
-                ManifestVariantResolver.EnumerateAllFiles(manifest).Count());
+                ManifestVariantResolver.EnumerateAllFiles(manifest).Count);
 
             return OperationResult<ContentManifest>.CreateSuccess(manifest);
         }

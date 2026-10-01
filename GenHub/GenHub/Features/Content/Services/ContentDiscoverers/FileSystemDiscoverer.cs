@@ -66,7 +66,7 @@ public class FileSystemDiscoverer : IContentDiscoverer
         var discoveredItems = new List<ContentSearchResult>();
 
         // Use ManifestDiscoveryService for comprehensive discovery
-        Dictionary<string, ContentManifest> discoveredManifests;
+        Dictionary<string, ContentManifest> discoveredManifests = [];
         try
         {
             discoveredManifests = await _manifestDiscoveryService.DiscoverManifestsAsync(_contentDirectories, cancellationToken);
