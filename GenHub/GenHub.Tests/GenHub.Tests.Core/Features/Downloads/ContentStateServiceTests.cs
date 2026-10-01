@@ -827,12 +827,14 @@ public class ContentStateServiceTests
     }
 
     /// <summary>
-    /// Verifies that when a newer version of content is installed, an older prospective release is not
-    /// reported as downloaded.
+    /// Verifies that when a newer build of the same content source is installed, an older
+    /// prospective release stays downloaded (and still resolves for profiles) instead of
+    /// prompting a re-download of older bytes. Multi-release feeds are exempt: every
+    /// release there is its own card.
     /// </summary>
     /// <returns>A completed task.</returns>
     [Fact]
-    public async Task GetStateAsync_OlderProspectiveRelease_WhenNewerManifestInstalled_ReturnsNotDownloadedAsync()
+    public async Task GetStateAsync_OlderProspectiveRelease_WhenNewerManifestInstalled_ReturnsDownloadedAsync()
     {
         var storedManifest = new ContentManifest
         {
@@ -887,9 +889,9 @@ public class ContentStateServiceTests
             LastUpdated = new DateTime(2026, 9, 1),
         };
 
-        // Older release is NotDownloaded
-        Assert.Equal(ContentState.NotDownloaded, await service.GetStateAsync(olderRelease));
-        Assert.Null(await service.GetLocalManifestIdAsync(olderRelease));
+        // Older release stays Downloaded and resolves the newer local build for profiles
+        Assert.Equal(ContentState.Downloaded, await service.GetStateAsync(olderRelease));
+        Assert.Equal(storedManifest.Id.Value, await service.GetLocalManifestIdAsync(olderRelease));
 
         // Same release is Downloaded
         Assert.Equal(ContentState.Downloaded, await service.GetStateAsync(sameRelease));
@@ -1321,12 +1323,13 @@ public class ContentStateServiceTests
     }
 
     /// <summary>
-    /// Verifies that when a newer Generals Online release is discovered against an older installed release,
-    /// ContentStateService correctly returns UpdateAvailable rather than Downloaded.
+    /// Verifies that in a multi-release feed like Generals Online, discovering a prospective newer release
+    /// when an older release is installed locally returns NotDownloaded and a null local manifest ID,
+    /// so the newer card displays 'Download' rather than flickering 'Update Available' or corrupting the card ID.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetStateAsync_NewerGeneralsOnlineRelease_ReturnsUpdateAvailableAsync()
+    public async Task GetStateAsync_NewerGeneralsOnlineRelease_ReturnsNotDownloadedAsync()
     {
         // Arrange: Installed release is 081326
         var installedManifest = new ContentManifest
@@ -1346,8 +1349,8 @@ public class ContentStateServiceTests
             },
         };
 
-        // Discovered release is 082826
-        var item = new ContentSearchResult
+        // Discovered newer prospective release is 082826
+        var newerItem = new ContentSearchResult
         {
             Id = "1.828260.generalsonline.gameclient.generalsonline",
             Name = "Generals Online 082826",
@@ -1359,6 +1362,19 @@ public class ContentStateServiceTests
             LastUpdated = new DateTime(2026, 8, 28, 0, 0, 0, DateTimeKind.Utc),
         };
 
+        // Discovered installed release is 081326
+        var installedItem = new ContentSearchResult
+        {
+            Id = "1.813262.generalsonline.gameclient.generalsonline",
+            Name = "Generals Online 081326",
+            Version = "081326",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+            SourceUrl = "https://www.playgenerals.online",
+            LastUpdated = new DateTime(2026, 8, 13, 0, 0, 0, DateTimeKind.Utc),
+        };
+
         var pool = new Mock<IContentManifestPool>();
         pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([installedManifest]));
@@ -1367,11 +1383,19 @@ public class ContentStateServiceTests
 
         var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
 
-        // Act
-        var state = await service.GetStateAsync(item);
+        // Act & Assert for newer uninstalled card:
+        // Must be NotDownloaded, and local manifest ID must be null
+        var newerState = await service.GetStateAsync(newerItem);
+        var newerManifestId = await service.GetLocalManifestIdAsync(newerItem);
+        Assert.Equal(ContentState.NotDownloaded, newerState);
+        Assert.Null(newerManifestId);
 
-        // Assert
-        Assert.Equal(ContentState.UpdateAvailable, state);
+        // Act & Assert for installed card:
+        // Must be Downloaded, and local manifest ID must be the installed manifest ID
+        var installedState = await service.GetStateAsync(installedItem);
+        var installedManifestId = await service.GetLocalManifestIdAsync(installedItem);
+        Assert.Equal(ContentState.Downloaded, installedState);
+        Assert.Equal(installedManifest.Id.Value, installedManifestId);
     }
 
     /// <summary>
@@ -2352,6 +2376,274 @@ public class ContentStateServiceTests
         Assert.Null(await service.GetLocalManifestIdAsync(windowsCard));
         Assert.Equal(ContentState.NotDownloaded, await service.GetStateAsync(macCard));
         Assert.Null(await service.GetLocalManifestIdAsync(macCard));
+    }
+
+    /// <summary>
+    /// User reproduction test:
+    /// Local machine has Generals Online 092226_QFE2 installed (1.922262.generalsonline.gameclient.60hz).
+    /// Content state evaluation for the newer uninstalled release 092826 must return NotDownloaded
+    /// and a null local manifest ID, preventing spurious 'Update Available' UI buttons and preventing
+    /// item ID mutation that would erroneously mark the card as Downloaded on refresh.
+    /// </summary>
+    /// <returns>A completed task.</returns>
+    [Fact]
+    public async Task GetStateAsync_GeneralsOnlineNewerRelease_WhenOlderQfeReleaseInstalled_ReturnsNotDownloadedAndNullManifestIdAsync()
+    {
+        // Arrange: 092226_QFE2 is locally installed and acquired
+        var installedManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.922262.generalsonline.gameclient.60hz"),
+            Name = "Generals Online 60Hz",
+            Version = "092226_QFE2",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = PublisherTypeConstants.GeneralsOnline,
+            OriginalContentId = "generalsonline-092226_QFE2",
+            Publisher = new PublisherInfo
+            {
+                PublisherType = PublisherTypeConstants.GeneralsOnline,
+                Website = "https://www.playgenerals.online/download",
+                ContentIndexUrl = "https://www.playgenerals.online/download",
+            },
+        };
+
+        // Prospective card: 092826 (uninstalled newer release)
+        var prospectiveItem = new ContentSearchResult
+        {
+            Id = "generalsonline-092826",
+            Name = "Generals Online",
+            Version = "092826",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+            SourceUrl = "https://www.playgenerals.online/download",
+            LastUpdated = new DateTime(2026, 9, 28, 0, 0, 0, DateTimeKind.Utc),
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([installedManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(installedManifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.Is<ManifestId>(m => m.Value != installedManifest.Id.Value), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        // Act
+        var state = await service.GetStateAsync(prospectiveItem);
+        var localManifestId = await service.GetLocalManifestIdAsync(prospectiveItem);
+
+        // Assert: Uninstalled newer release must NOT be UpdateAvailable or Downloaded
+        Assert.Equal(ContentState.NotDownloaded, state);
+        Assert.Null(localManifestId);
+    }
+
+    /// <summary>
+    /// Verifies that all Generals Online history release cards (both regular and QFE)
+    /// correctly differentiate between downloaded and not-downloaded releases despite
+    /// sharing the same provider and SourceUrl.
+    /// </summary>
+    /// <returns>A completed task.</returns>
+    [Fact]
+    public async Task GetStateAsync_GeneralsOnlineHistoryReleases_EvaluatesEachReleaseIndependentlyAsync()
+    {
+        // Arrange: 082826_QFE1 is installed
+        var installedManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.828261.generalsonline.gameclient.60hz"),
+            Name = "Generals Online 60Hz",
+            Version = "082826_QFE1",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = PublisherTypeConstants.GeneralsOnline,
+            OriginalContentId = "generalsonline-082826_QFE1",
+            Publisher = new PublisherInfo
+            {
+                PublisherType = PublisherTypeConstants.GeneralsOnline,
+                Website = "https://www.playgenerals.online/download",
+            },
+        };
+
+        var card092826 = new ContentSearchResult
+        {
+            Id = "generalsonline-092826",
+            Name = "Generals Online",
+            Version = "092826",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+            SourceUrl = "https://www.playgenerals.online/download",
+        };
+
+        var card082826Qfe1 = new ContentSearchResult
+        {
+            Id = "generalsonline-082826_QFE1",
+            Name = "Generals Online",
+            Version = "082826_QFE1",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+            SourceUrl = "https://www.playgenerals.online/download",
+        };
+
+        var card082826 = new ContentSearchResult
+        {
+            Id = "generalsonline-082826",
+            Name = "Generals Online",
+            Version = "082826",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+            SourceUrl = "https://www.playgenerals.online/download",
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([installedManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(installedManifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.Is<ManifestId>(m => m.Value != installedManifest.Id.Value), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        // Assert: 092826 is newer -> NotDownloaded, null manifest
+        Assert.Equal(ContentState.NotDownloaded, await service.GetStateAsync(card092826));
+        Assert.Null(await service.GetLocalManifestIdAsync(card092826));
+
+        // Assert: 082826_QFE1 matches installed -> Downloaded, installed manifest ID
+        Assert.Equal(ContentState.Downloaded, await service.GetStateAsync(card082826Qfe1));
+        Assert.Equal(installedManifest.Id.Value, await service.GetLocalManifestIdAsync(card082826Qfe1));
+
+        // Assert: 082826 is older non-QFE sibling -> NotDownloaded, null manifest
+        Assert.Equal(ContentState.NotDownloaded, await service.GetStateAsync(card082826));
+        Assert.Null(await service.GetLocalManifestIdAsync(card082826));
+    }
+
+    /// <summary>
+    /// Verifies that when a publisher item (such as ModDB) carries a display version ("1.85")
+    /// that differs from the manifest's date-based version ("2025.10.15"), matching OriginalContentId
+    /// or metadata provenance correctly identifies the item as Downloaded without being vetoed
+    /// by version discrepancy.
+    /// </summary>
+    /// <returns>A completed task.</returns>
+    [Fact]
+    public async Task GetStateAsync_ModDbRowWithDisplayVersionDifferentFromManifestDate_MatchesDownloadedByOriginalContentIdAsync()
+    {
+        // Arrange
+        var installedManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.20251015.moddb.mod.shockwave"),
+            Name = "ShockWave Mod",
+            Version = "2025.10.15",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = PublisherTypeConstants.ModDB,
+            OriginalContentId = "moddb-addon-12345",
+            Publisher = new PublisherInfo
+            {
+                PublisherType = PublisherTypeConstants.ModDB,
+                Website = "https://www.moddb.com/mods/cc-shockwave",
+            },
+            Files =
+            [
+                new ManifestFile
+                {
+                    DownloadUrl = "https://www.moddb.com/downloads/start/12345",
+                    RelativePath = "shockwave-v185.zip",
+                },
+            ],
+        };
+
+        var modDbItem = new ContentSearchResult
+        {
+            Id = "moddb-addon-12345",
+            Name = "ShockWave Mod v1.85",
+            Version = "1.85",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = PublisherTypeConstants.ModDB,
+            SourceUrl = "https://www.moddb.com/mods/cc-shockwave/downloads/shockwave-v185",
+            SelectedDownloadUrl = "https://www.moddb.com/downloads/start/12345",
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([installedManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        pool.Setup(p => p.IsManifestAcquiredAsync(installedManifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        // Act
+        var state = await service.GetStateAsync(modDbItem);
+        var localManifestId = await service.GetLocalManifestIdAsync(modDbItem);
+
+        // Assert: Exact provenance/OriginalContentId match must resolve Downloaded and matching manifest ID
+        Assert.Equal(ContentState.Downloaded, state);
+        Assert.Equal(installedManifest.Id.Value, localManifestId);
+    }
+
+    /// <summary>
+    /// Verifies that when a publisher non-file item (such as ModDB mod page) carries a display version ("1.85")
+    /// that differs from the manifest's date-based version ("2025.10.15"), metadata provenance
+    /// (e.g. ModDB content ID) correctly identifies the item as Downloaded and resolves its local manifest ID
+    /// without divergence or version veto.
+    /// </summary>
+    /// <returns>A completed task.</returns>
+    [Fact]
+    public async Task GetStateAsync_ModDbNonFileRowWithDisplayVersionDifferentFromManifestDate_MatchesDownloadedByMetadataContentIdAsync()
+    {
+        // Arrange
+        var installedManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.20251015.moddb.mod.shockwave"),
+            Name = "ShockWave Mod",
+            Version = "2025.10.15",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = PublisherTypeConstants.ModDB,
+            OriginalContentId = "moddb.12345",
+            Publisher = new PublisherInfo
+            {
+                PublisherType = PublisherTypeConstants.ModDB,
+                Website = "https://www.moddb.com/mods/cc-shockwave",
+            },
+        };
+
+        var modDbItem = new ContentSearchResult
+        {
+            Id = "moddb-page-shockwave",
+            Name = "ShockWave Mod v1.85",
+            Version = "1.85",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = PublisherTypeConstants.ModDB,
+            SourceUrl = "https://www.moddb.com/mods/cc-shockwave",
+            SelectedDownloadUrl = null,
+        };
+        modDbItem.ResolverMetadata[ModDBConstants.ContentIdMetadataKey] = "12345";
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([installedManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        pool.Setup(p => p.IsManifestAcquiredAsync(installedManifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        // Act
+        var state = await service.GetStateAsync(modDbItem);
+        var localManifestId = await service.GetLocalManifestIdAsync(modDbItem);
+
+        // Assert: Metadata provenance match must resolve Downloaded and matching manifest ID for non-file row
+        Assert.Equal(ContentState.Downloaded, state);
+        Assert.Equal(installedManifest.Id.Value, localManifestId);
     }
 
     private static ContentSearchResult CreateGitHubAssetCard(

@@ -36,6 +36,12 @@ public partial class GenericCatalogResolver(
         string? SearchResultId,
         GameType ResolvedTargetGame);
 
+    private sealed record ResolutionPresentation(
+        string PublisherDisplayName,
+        string Website,
+        string SupportUrl,
+        string ChangelogUrl);
+
     /// <inheritdoc />
     public string ResolverId => CatalogConstants.GenericCatalogResolverId;
 
@@ -48,30 +54,10 @@ public partial class GenericCatalogResolver(
 
         try
         {
-            // Extract catalog item and release metadata
-            if (!discoveredItem.ResolverMetadata.TryGetValue(CatalogConstants.ReleaseJsonMetadataKey, out var releaseJson))
+            var metadataError = TryExtractResolutionMetadata(discoveredItem, out var release, out var contentItem, out var publisher);
+            if (metadataError != null || release == null || contentItem == null || publisher == null)
             {
-                return OperationResult<ContentManifest>.CreateFailure("Missing release metadata");
-            }
-
-            if (!discoveredItem.ResolverMetadata.TryGetValue(CatalogConstants.CatalogItemJsonMetadataKey, out var contentItemJson))
-            {
-                return OperationResult<ContentManifest>.CreateFailure("Missing content item metadata");
-            }
-
-            if (!discoveredItem.ResolverMetadata.TryGetValue(CatalogConstants.PublisherProfileJsonMetadataKey, out var publisherJson))
-            {
-                return OperationResult<ContentManifest>.CreateFailure("Missing publisher profile");
-            }
-
-            // Deserialize from JSON
-            var release = JsonSerializer.Deserialize<ContentRelease>(releaseJson);
-            var contentItem = JsonSerializer.Deserialize<CatalogContentItem>(contentItemJson);
-            var publisher = JsonSerializer.Deserialize<PublisherProfile>(publisherJson);
-
-            if (release == null || contentItem == null || publisher == null)
-            {
-                return OperationResult<ContentManifest>.CreateFailure("Failed to deserialize catalog metadata");
+                return OperationResult<ContentManifest>.CreateFailure(metadataError ?? "Failed to deserialize catalog metadata");
             }
 
             logger.LogInformation(
@@ -82,13 +68,8 @@ public partial class GenericCatalogResolver(
 
             var declaredPublisherId = CatalogManifestIdentity.ResolveDeclaredPublisherType(contentItem);
 
-            var publisherDisplayName = !string.IsNullOrWhiteSpace(contentItem.Metadata?.Author)
-                ? contentItem.Metadata.Author
-                : publisher.Name;
-
-            var website = !string.IsNullOrWhiteSpace(contentItem.Metadata?.DocumentationUrl)
-                ? contentItem.Metadata.DocumentationUrl
-                : (publisher.Website ?? string.Empty);
+            var upstreamRepoUrl = ResolveUpstreamGitHubRepoUrl(contentItem);
+            var presentation = ResolvePresentation(contentItem, publisher, upstreamRepoUrl);
 
             // ContentBundle (and other meta-packages) may ship no downloadable artifacts —
             // their payload is the dependency graph alone. Skip remote-file registration.
@@ -110,9 +91,9 @@ public partial class GenericCatalogResolver(
                 .WithContentType(contentItem.ContentType, resolvedTargetGame)
                 .WithName(resolvedName)
                 .WithPublisher(
-                    publisherDisplayName,
-                    website,
-                    publisher.SupportUrl ?? string.Empty,
+                    presentation.PublisherDisplayName,
+                    presentation.Website,
+                    presentation.SupportUrl,
                     publisher.ContactEmail ?? string.Empty,
                     publisherType: declaredPublisherId)
                 .WithMetadata(
@@ -120,7 +101,7 @@ public partial class GenericCatalogResolver(
                     tags: [.. contentItem.Tags],
                     iconUrl: contentItem.Metadata?.IconUrl ?? contentItem.Metadata?.BannerUrl ?? string.Empty,
                     screenshotUrls: contentItem.Metadata?.ScreenshotUrls?.ToList(),
-                    changelogUrl: contentItem.Metadata?.DocumentationUrl ?? string.Empty);
+                    changelogUrl: presentation.ChangelogUrl);
 
             if (ManifestId.TryParse(discoveredItem.Id, out var parsedManifestId))
             {
@@ -182,6 +163,71 @@ public partial class GenericCatalogResolver(
         }
     }
 
+    private static string? TryExtractResolutionMetadata(
+        ContentSearchResult discoveredItem,
+        out ContentRelease? release,
+        out CatalogContentItem? contentItem,
+        out PublisherProfile? publisher)
+    {
+        release = null;
+        contentItem = null;
+        publisher = null;
+
+        if (!discoveredItem.ResolverMetadata.TryGetValue(CatalogConstants.ReleaseJsonMetadataKey, out var releaseJson))
+        {
+            return "Missing release metadata";
+        }
+
+        if (!discoveredItem.ResolverMetadata.TryGetValue(CatalogConstants.CatalogItemJsonMetadataKey, out var contentItemJson))
+        {
+            return "Missing content item metadata";
+        }
+
+        if (!discoveredItem.ResolverMetadata.TryGetValue(CatalogConstants.PublisherProfileJsonMetadataKey, out var publisherJson))
+        {
+            return "Missing publisher profile";
+        }
+
+        release = JsonSerializer.Deserialize<ContentRelease>(releaseJson);
+        contentItem = JsonSerializer.Deserialize<CatalogContentItem>(contentItemJson);
+        publisher = JsonSerializer.Deserialize<PublisherProfile>(publisherJson);
+
+        if (release == null || contentItem == null || publisher == null)
+        {
+            return "Failed to deserialize catalog metadata";
+        }
+
+        return null;
+    }
+
+    private static ResolutionPresentation ResolvePresentation(
+        CatalogContentItem contentItem,
+        PublisherProfile publisher,
+        string? upstreamRepoUrl)
+    {
+        var publisherDisplayName = !string.IsNullOrWhiteSpace(contentItem.Metadata?.Author)
+            ? contentItem.Metadata.Author
+            : publisher.Name;
+
+        var website = !string.IsNullOrWhiteSpace(contentItem.Metadata?.DocumentationUrl)
+            ? contentItem.Metadata.DocumentationUrl
+            : (publisher.Website ?? string.Empty);
+
+        var supportUrl = publisher.SupportUrl ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(upstreamRepoUrl) && string.IsNullOrWhiteSpace(supportUrl))
+        {
+            supportUrl = upstreamRepoUrl;
+        }
+
+        var changelogUrl = contentItem.Metadata?.DocumentationUrl ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(upstreamRepoUrl) && string.IsNullOrWhiteSpace(changelogUrl))
+        {
+            changelogUrl = upstreamRepoUrl;
+        }
+
+        return new ResolutionPresentation(publisherDisplayName, website, supportUrl, changelogUrl);
+    }
+
     private static string ResolveManifestName(
         ContentSearchResult searchResult,
         CatalogContentItem contentItem,
@@ -223,6 +269,13 @@ public partial class GenericCatalogResolver(
         }
 
         return contentItem.TargetGame;
+    }
+
+    private static string? ResolveUpstreamGitHubRepoUrl(CatalogContentItem contentItem)
+    {
+        return CatalogConstants.UpstreamProviders.GitHubRepositoryUrl(
+            CatalogConstants.UpstreamProviders.DeclaredProvider(contentItem.UpstreamSync?.Provider, contentItem.PublisherType),
+            contentItem.UpstreamSync?.Repository);
     }
 
     private static string SanitizeArtifactFilename(ReleaseArtifact primaryArtifact, CatalogContentItem contentItem)

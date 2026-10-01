@@ -1,0 +1,139 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Update GeneralsOnline CRCs
+
+permissions: {}
+
+on:
+  workflow_dispatch:
+    inputs:
+      from_latest:
+        description: 'Start scan from the latest catalog date onward (efficient)'
+        required: true
+        type: boolean
+        default: true
+      start_date:
+        description: 'Custom start date (YYYY-MM-DD or MMDDYY). If specified, overrides from_latest.'
+        required: false
+        type: string
+        default: ''
+      end_date:
+        description: 'Custom end date (YYYY-MM-DD or MMDDYY). Optional.'
+        required: false
+        type: string
+        default: ''
+      inspect_binaries:
+        description: 'Inspect archive binaries to extract CRCs and SHA-256 for newly discovered candidates'
+        required: true
+        type: boolean
+        default: true
+      create_pr:
+        description: 'Create or update pull request if new CRCs are discovered'
+        required: true
+        type: boolean
+        default: true
+
+concurrency:
+  group: update-generalsonline-crcs
+  cancel-in-progress: false
+
+jobs:
+  update-crcs:
+    name: Discover & Update GeneralsOnline CRCs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: development
+          fetch-depth: 0
+          token: ${{ secrets.AUTO_MERGE_PAT || github.token }}
+
+      - name: Self-test CRC Catalog Generator
+        run: python3 scripts/generate_crc_catalog.py --self-test
+
+      - name: Discover and Update GeneralsOnline CRCs
+        env:
+          INSPECT_BINARIES: ${{ inputs.inspect_binaries }}
+          START_DATE: ${{ inputs.start_date }}
+          END_DATE: ${{ inputs.end_date }}
+          FROM_LATEST: ${{ inputs.from_latest }}
+        run: |
+          set -euo pipefail
+          ARGS=(--crawl --source generalsonline)
+
+          if [ "$INSPECT_BINARIES" != "false" ]; then
+            ARGS+=(--inspect-binaries)
+          fi
+
+          if [ -n "$START_DATE" ]; then
+            ARGS+=(--start-date "$START_DATE")
+          elif [ "$FROM_LATEST" != "false" ]; then
+            ARGS+=(--from-latest)
+          fi
+
+          if [ -n "$END_DATE" ]; then
+            ARGS+=(--end-date "$END_DATE")
+          fi
+
+          echo "Running: python3 scripts/generate_crc_catalog.py ${ARGS[*]}"
+          python3 scripts/generate_crc_catalog.py "${ARGS[@]}"
+
+      - name: Validate CRC Mapping Catalog
+        run: python3 scripts/generate_crc_catalog.py --validate
+
+      - name: Check for Changes
+        id: check_changes
+        run: |
+          if git diff --quiet GenHub/GenHub/Resources/crc-mapping.json; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "### GeneralsOnline CRCs Up to Date" >> "$GITHUB_STEP_SUMMARY"
+            echo "No new GeneralsOnline releases discovered on CDN. CRC catalog is already up to date." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            echo "### New GeneralsOnline CRCs Discovered" >> "$GITHUB_STEP_SUMMARY"
+            echo "Changes detected in \`GenHub/GenHub/Resources/crc-mapping.json\`:" >> "$GITHUB_STEP_SUMMARY"
+            echo '```diff' >> "$GITHUB_STEP_SUMMARY"
+            git diff GenHub/GenHub/Resources/crc-mapping.json >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload Updated CRC Mapping Catalog
+        if: steps.check_changes.outputs.has_changes == 'true'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: updated-crc-mapping
+          path: GenHub/GenHub/Resources/crc-mapping.json
+          retention-days: 14
+
+      - name: Create or Update Pull Request
+        if: steps.check_changes.outputs.has_changes == 'true' && (inputs.create_pr != false)
+        env:
+          GITHUB_TOKEN: ${{ secrets.AUTO_MERGE_PAT || github.token }}
+          GH_TOKEN: ${{ secrets.AUTO_MERGE_PAT || github.token }}
+        run: |
+          set -euo pipefail
+          BRANCH="chore/update-generalsonline-crcs"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$BRANCH"
+          git add GenHub/GenHub/Resources/crc-mapping.json
+          git commit -m "chore(content): update GeneralsOnline CRC catalog"
+          git push -u origin "$BRANCH" --force
+
+          EXISTING_PR=$(gh pr list --head "$BRANCH" --base development --state open --json number --jq '.[0].number // ""')
+          if [ -n "$EXISTING_PR" ]; then
+            echo "Updating existing PR #$EXISTING_PR"
+            gh pr edit "$EXISTING_PR" --body "Automated update of GeneralsOnline game client CRC mappings from CDN scan."
+          else
+            echo "Creating new PR targeting development"
+            gh pr create \
+              --base development \
+              --head "$BRANCH" \
+              --title "chore(content): update GeneralsOnline CRC catalog" \
+              --body "Automated update of GeneralsOnline game client CRC mappings generated by workflow dispatch."
+          fi

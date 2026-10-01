@@ -1,3 +1,7 @@
+using GenHub.Core.Models.Providers;
+using System;
+using System.Collections.Generic;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
@@ -222,6 +226,21 @@ public static class CatalogConstants
     public const string ResolutionVariantAxis = "resolution";
 
     /// <summary>
+    /// Variant axis name for localization language.
+    /// </summary>
+    public const string LanguageVariantAxis = "language";
+
+    /// <summary>
+    /// Variant axis name for content edition.
+    /// </summary>
+    public const string EditionVariantAxis = "edition";
+
+    /// <summary>
+    /// Default accent color for featured content cards (gold, #F59E0B).
+    /// </summary>
+    public const string FeaturedDefaultColor = "#F59E0B";
+
+    /// <summary>
     /// Variant label for Command &amp; Conquer Generals.
     /// </summary>
     public const string GeneralsVariantLabel = "Generals";
@@ -305,4 +324,250 @@ public static class CatalogConstants
     /// Status badge color for an up-to-date published catalog (#10B981).
     /// </summary>
     public const string CatalogStatusPublishedColor = "#10B981";
+
+    /// <summary>
+    /// Well-known variant axes offered in publisher UI dropdowns.
+    /// </summary>
+    public static readonly IReadOnlyList<string> KnownVariantAxes =
+    [
+        GameTypeVariantAxis,
+        ResolutionVariantAxis,
+        LanguageVariantAxis,
+        EditionVariantAxis,
+    ];
+
+    /// <summary>
+    /// Well-known upstream sync provider identifiers.
+    /// </summary>
+    public static class UpstreamProviders
+    {
+        /// <summary>
+        /// TheSuperHackers dynamic releases provider.
+        /// </summary>
+        public const string TheSuperHackers = "TheSuperHackers";
+
+        /// <summary>
+        /// GeneralsOnline ladder releases provider.
+        /// </summary>
+        public const string GeneralsOnline = "GeneralsOnline";
+
+        /// <summary>
+        /// CommunityOutpost GenPatcher releases provider.
+        /// </summary>
+        public const string CommunityOutpost = "CommunityOutpost";
+
+        /// <summary>
+        /// Generic GitHub Releases provider.
+        /// </summary>
+        public const string GitHubReleases = "GitHubReleases";
+
+        /// <summary>
+        /// Wire alias for generic GitHub Releases provider.
+        /// </summary>
+        public const string GitHubReleasesAlias = "github-releases";
+
+        /// <summary>
+        /// Default upstream repository used when a TheSuperHackers item declares none.
+        /// </summary>
+        public const string DefaultSuperHackersRepository =
+            SuperHackersConstants.GeneralsGameCodeOwner + "/" + SuperHackersConstants.GeneralsGameCodeRepo;
+
+        /// <summary>
+        /// Normalizes provider aliases to canonical upstream provider identifiers.
+        /// </summary>
+        /// <param name="provider">The provider name or alias to normalize.</param>
+        /// <returns>The canonical provider identifier, or <c>null</c> if unsupported.</returns>
+        public static string? Normalize(string? provider)
+        {
+            if (string.IsNullOrWhiteSpace(provider))
+            {
+                return null;
+            }
+
+            if (string.Equals(provider, TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, SuperHackersConstants.PublisherId, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase))
+            {
+                return TheSuperHackers;
+            }
+
+            if (string.Equals(provider, GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
+            {
+                return GeneralsOnline;
+            }
+
+            if (string.Equals(provider, CommunityOutpost, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, PublisherTypeConstants.CommunityOutpost, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, CommunityOutpostConstants.PublisherId, StringComparison.OrdinalIgnoreCase))
+            {
+                return CommunityOutpost;
+            }
+
+            if (string.Equals(provider, GitHubReleases, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, GitHubReleasesAlias, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, PublisherTypeConstants.GitHub, StringComparison.OrdinalIgnoreCase))
+            {
+                return GitHubReleases;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Determines whether the specified provider name represents a supported upstream provider.
+        /// </summary>
+        /// <param name="provider">The provider name to check.</param>
+        /// <returns><c>true</c> if supported; otherwise <c>false</c>.</returns>
+        public static bool IsSupported(string? provider) => Normalize(provider) != null;
+
+        /// <summary>
+        /// Determines whether the specified content item is configured as an upstream-synced source.
+        /// </summary>
+        /// <param name="content">The content item to check.</param>
+        /// <returns><c>true</c> if configured as a supported upstream source; otherwise <c>false</c>.</returns>
+        public static bool IsConfiguredUpstreamSource(CatalogContentItem? content)
+        {
+            if (content?.UpstreamSync == null)
+            {
+                return false;
+            }
+
+            var provider = !string.IsNullOrWhiteSpace(content.UpstreamSync.Provider)
+                ? content.UpstreamSync.Provider
+                : content.PublisherType;
+
+            return IsSupported(provider);
+        }
+
+        /// <summary>
+        /// Determines whether the declared provider tracks a GitHub-hosted repository.
+        /// </summary>
+        /// <param name="provider">The provider name or alias to check.</param>
+        /// <returns><c>true</c> for GitHub-backed providers; otherwise <c>false</c>.</returns>
+        public static bool IsGitHubUpstream(string? provider)
+        {
+            var normalized = Normalize(provider);
+            return string.Equals(normalized, GitHubReleases, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(normalized, TheSuperHackers, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Selects the effective upstream provider declaration for an item, preferring an
+        /// explicit upstream sync provider over the publisher type.
+        /// </summary>
+        /// <param name="syncProvider">The item's upstream sync provider, if declared.</param>
+        /// <param name="publisherType">The item's publisher type fallback.</param>
+        /// <returns>The declared provider or publisher type.</returns>
+        public static string? DeclaredProvider(string? syncProvider, string? publisherType)
+        {
+            return !string.IsNullOrWhiteSpace(syncProvider) ? syncProvider : publisherType;
+        }
+
+        /// <summary>
+        /// Builds the GitHub repository URL for a declared provider and repository pair.
+        /// </summary>
+        /// <param name="declaredProvider">The item's upstream provider or publisher type.</param>
+        /// <param name="declaredRepository">The item's declared repository in owner/repo form.</param>
+        /// <returns>The repository URL, or null when the pair is not GitHub-backed.</returns>
+        public static string? GitHubRepositoryUrl(string? declaredProvider, string? declaredRepository)
+        {
+            return TryResolveGitHubRepository(declaredProvider, declaredRepository, out var owner, out var repo)
+                ? $"https://github.com/{owner}/{repo}"
+                : null;
+        }
+
+        /// <summary>
+        /// Resolves the owner/repository coordinates for a GitHub-tracked item, applying
+        /// the default game-code repository when a TheSuperHackers item declares none.
+        /// </summary>
+        /// <param name="declaredProvider">The item's upstream provider or publisher type.</param>
+        /// <param name="declaredRepository">The item's declared repository in owner/repo form.</param>
+        /// <param name="owner">The resolved repository owner.</param>
+        /// <param name="repo">The resolved repository name.</param>
+        /// <returns><c>true</c> when the provider is GitHub-backed and the coordinates are valid.</returns>
+        public static bool TryResolveGitHubRepository(
+            string? declaredProvider,
+            string? declaredRepository,
+            out string owner,
+            out string repo)
+        {
+            owner = string.Empty;
+            repo = string.Empty;
+            if (!IsGitHubUpstream(declaredProvider))
+            {
+                return false;
+            }
+
+            var repository = declaredRepository?.Trim();
+            if (string.IsNullOrWhiteSpace(repository) &&
+                string.Equals(Normalize(declaredProvider), TheSuperHackers, StringComparison.OrdinalIgnoreCase))
+            {
+                repository = DefaultSuperHackersRepository;
+            }
+
+            var parts = repository?.Split('/');
+            if (parts?.Length != 2 || string.IsNullOrWhiteSpace(parts[0]) || string.IsNullOrWhiteSpace(parts[1]))
+            {
+                return false;
+            }
+
+            owner = parts[0].Trim();
+            repo = parts[1].Trim();
+            return true;
+        }
+
+        /// <summary>
+        /// Validates an upstream repository in owner/repo format.
+        /// </summary>
+        /// <param name="repo">The repository value to validate.</param>
+        /// <returns><c>true</c> for exactly two non-empty whitespace-free segments.</returns>
+        public static bool IsValidOwnerRepo(string? repo)
+        {
+            var parts = repo?.Split('/');
+            if (parts?.Length != 2)
+            {
+                return false;
+            }
+
+            return parts.All(part => part.Length != 0 && !part.Any(char.IsWhiteSpace));
+        }
+    }
+
+    /// <summary>
+    /// Well-known upstream release channels.
+    /// </summary>
+    public static class UpstreamChannels
+    {
+        /// <summary>
+        /// Stable releases channel.
+        /// </summary>
+        public const string Stable = "stable";
+
+        /// <summary>
+        /// Prerelease releases channel.
+        /// </summary>
+        public const string Prerelease = "prerelease";
+
+        /// <summary>
+        /// Beta releases channel.
+        /// </summary>
+        public const string Beta = "beta";
+
+        /// <summary>
+        /// Nightly releases channel.
+        /// </summary>
+        public const string Nightly = "nightly";
+
+        /// <summary>
+        /// Determines whether the channel tracks prerelease builds.
+        /// </summary>
+        /// <param name="channel">The channel name to check.</param>
+        /// <returns><c>true</c> for prerelease, beta, or nightly channels.</returns>
+        public static bool IsPrereleaseChannel(string? channel) =>
+            string.Equals(channel, Prerelease, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(channel, Beta, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(channel, Nightly, StringComparison.OrdinalIgnoreCase);
+    }
 }

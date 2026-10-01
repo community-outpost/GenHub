@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Features.GameProfiles.ViewModels.Wizard;
 using System.Collections.Generic;
 using Xunit;
@@ -29,6 +30,24 @@ public class SetupWizardViewModelTests
         Assert.Equal("Skip", vm.CancelLabel);
         Assert.Equal("Continue (2)", vm.ConfirmLabel);
         Assert.False(vm.Confirmed);
+    }
+
+    /// <summary>
+    /// Verifies that the wizard labels are resolved through localization keys, including after a toggle.
+    /// </summary>
+    [Fact]
+    public void Labels_WithLocalizationService_ResolveThroughKeys()
+    {
+        var item = new SetupWizardItemViewModel { Title = "Item 1", IsSelected = true, IsMandatory = false };
+        var vm = new SetupWizardViewModel([item], new MarkerLocalizationService());
+
+        Assert.Equal(MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.Title), vm.Title);
+        Assert.Equal(MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.Skip), vm.CancelLabel);
+        Assert.Equal(MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.ContinueWithCount, 1), vm.ConfirmLabel);
+
+        vm.ToggleSelectionCommand.Execute(item);
+
+        Assert.Equal(MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.Continue), vm.ConfirmLabel);
     }
 
     /// <summary>

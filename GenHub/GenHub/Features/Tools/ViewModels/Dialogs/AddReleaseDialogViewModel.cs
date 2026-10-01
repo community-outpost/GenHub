@@ -4,6 +4,7 @@ using GenHub.Common.Validation;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Features.Tools.Interfaces;
@@ -31,6 +32,175 @@ public partial class AddReleaseDialogViewModel(
     bool isAddon = false,
     INotificationService? notificationService = null) : ObservableValidator
 {
+    /// <summary>
+    /// Represents an option in the ContentBundle component matrix for release editing.
+    /// </summary>
+    public partial class BundleComponentOption : ObservableObject
+    {
+        [ObservableProperty]
+        private bool _isSelected;
+
+        [ObservableProperty]
+        private string? _selectedVariant;
+
+        /// <summary>
+        /// Gets the content ID of the bundled item.
+        /// </summary>
+        public string ContentId { get; init; } = string.Empty;
+
+        /// <summary>
+        /// Gets the display name of the bundled item.
+        /// </summary>
+        public string Name { get; init; } = string.Empty;
+
+        /// <summary>
+        /// Gets the content type of the bundled item.
+        /// </summary>
+        public ContentType ContentType { get; init; }
+
+        /// <summary>
+        /// Gets the display string for the content type.
+        /// </summary>
+        public string ContentTypeDisplay => ContentType.ToString();
+
+        /// <summary>
+        /// Gets available variants for this bundled item.
+        /// </summary>
+        public ObservableCollection<string> AvailableVariants { get; } = [];
+
+        /// <summary>
+        /// Gets a value indicating whether multiple variants are available.
+        /// </summary>
+        public bool HasVariants => AvailableVariants.Count > 0;
+
+        /// <summary>
+        /// Gets the publisher ID that provides this dependency.
+        /// </summary>
+        public string? PublisherId { get; init; }
+
+        /// <summary>
+        /// Gets the version constraint for this dependency.
+        /// </summary>
+        public string? VersionConstraint { get; init; }
+
+        /// <summary>
+        /// Gets the source dependency if this option originated from an existing dependency.
+        /// </summary>
+        public CatalogDependency? SourceDependency { get; init; }
+
+        /// <summary>
+        /// Builds sibling component options for a ContentBundle release.
+        /// </summary>
+        /// <param name="catalog">The publisher catalog.</param>
+        /// <param name="contentItemId">The owning bundle item id to exclude.</param>
+        /// <param name="isBundleContent">Whether the owning item is a content bundle.</param>
+        /// <param name="selectedDeps">Previously selected dependencies to pre-select.</param>
+        /// <returns>The component options.</returns>
+        public static ObservableCollection<BundleComponentOption> BuildOptions(
+            PublisherCatalog? catalog,
+            string? contentItemId,
+            bool isBundleContent,
+            IEnumerable<CatalogDependency>? selectedDeps)
+        {
+            var options = new ObservableCollection<BundleComponentOption>();
+            if (!isBundleContent || catalog?.Content == null)
+            {
+                return options;
+            }
+
+            var selected = selectedDeps?.Where(d => !string.IsNullOrWhiteSpace(d.ContentId)).ToList() ?? [];
+            var candidates = catalog.Content
+                .Where(item => !string.Equals(item.Id, contentItemId, StringComparison.OrdinalIgnoreCase) &&
+                               item.ContentType != ContentType.ContentBundle);
+
+            foreach (var item in candidates)
+            {
+                options.Add(BuildCandidateOption(item, catalog, selected));
+            }
+
+            foreach (var dep in selected)
+            {
+                var fallback = BuildFallbackOption(dep, options);
+                if (fallback != null)
+                {
+                    options.Add(fallback);
+                }
+            }
+
+            return options;
+        }
+
+        private static BundleComponentOption BuildCandidateOption(
+            CatalogContentItem item,
+            PublisherCatalog catalog,
+            List<CatalogDependency> selected)
+        {
+            var existingDep = selected.FirstOrDefault(d =>
+                string.Equals(d.ContentId, item.Id, StringComparison.OrdinalIgnoreCase) &&
+                (string.IsNullOrWhiteSpace(d.PublisherId) || string.Equals(d.PublisherId, catalog.Publisher?.Id, StringComparison.OrdinalIgnoreCase)));
+
+            var option = new BundleComponentOption
+            {
+                ContentId = item.Id,
+                Name = !string.IsNullOrWhiteSpace(item.Name) ? item.Name : item.Id,
+                ContentType = item.ContentType,
+                PublisherId = existingDep?.PublisherId ?? catalog.Publisher?.Id,
+                VersionConstraint = existingDep?.VersionConstraint,
+                SourceDependency = existingDep,
+            };
+
+            foreach (var variant in CollectItemVariants(item))
+            {
+                option.AvailableVariants.Add(variant);
+            }
+
+            if (existingDep == null)
+            {
+                option.SelectedVariant = option.AvailableVariants.FirstOrDefault();
+                return option;
+            }
+
+            option.IsSelected = true;
+            if (!string.IsNullOrWhiteSpace(existingDep.DefaultVariant) && !option.AvailableVariants.Contains(existingDep.DefaultVariant))
+            {
+                option.AvailableVariants.Add(existingDep.DefaultVariant);
+            }
+
+            option.SelectedVariant = existingDep.DefaultVariant ?? option.AvailableVariants.FirstOrDefault();
+            return option;
+        }
+
+        private static BundleComponentOption? BuildFallbackOption(CatalogDependency dep, ObservableCollection<BundleComponentOption> options)
+        {
+            if (string.IsNullOrWhiteSpace(dep.ContentId) ||
+                CatalogManifestIdentity.IsBaseGameDependency(dep) ||
+                options.Any(o =>
+                    string.Equals(o.ContentId, dep.ContentId, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(o.PublisherId ?? string.Empty, dep.PublisherId ?? string.Empty, StringComparison.OrdinalIgnoreCase)))
+            {
+                return null;
+            }
+
+            var fallback = new BundleComponentOption
+            {
+                ContentId = dep.ContentId,
+                Name = !string.IsNullOrWhiteSpace(dep.PublisherId) ? $"{dep.ContentId} ({dep.PublisherId})" : dep.ContentId,
+                ContentType = Enum.TryParse<ContentType>(dep.ContentType, out var parsed) ? parsed : ContentType.Addon,
+                PublisherId = dep.PublisherId,
+                VersionConstraint = dep.VersionConstraint,
+                SourceDependency = dep,
+            };
+            fallback.IsSelected = true;
+            fallback.SelectedVariant = dep.DefaultVariant;
+            if (!string.IsNullOrWhiteSpace(dep.DefaultVariant))
+            {
+                fallback.AvailableVariants.Add(dep.DefaultVariant);
+            }
+
+            return fallback;
+        }
+    }
+
     private readonly string? _originalVersion;
     private readonly ContentRelease? _existingRelease;
     private readonly Func<ContentRelease, Task>? _onReleaseDeleted;
@@ -204,6 +374,11 @@ public partial class AddReleaseDialogViewModel(
         {
             Dependencies.Add(CloneDependency(dep));
         }
+
+        if (IsBundleContent)
+        {
+            RefreshBundleComponentOptions(existing.Dependencies);
+        }
     }
 
     /// <summary>
@@ -215,6 +390,20 @@ public partial class AddReleaseDialogViewModel(
     /// Gets the dependencies currently added to this release.
     /// </summary>
     public ObservableCollection<CatalogDependency> Dependencies { get; } = [];
+
+    /// <summary>
+    /// Gets a value indicating whether the edited content is a content bundle.
+    /// Bundle releases carry only dependencies, never file artifacts.
+    /// </summary>
+    public bool IsBundleContent => contentItem?.ContentType == ContentType.ContentBundle;
+
+    /// <summary>
+    /// Gets sibling options for ContentBundle release editing.
+    /// Populated for new bundle releases as well so the add flow can satisfy
+    /// the required-component validation.
+    /// </summary>
+    public ObservableCollection<BundleComponentOption> BundleComponentOptions { get; } =
+        BundleComponentOption.BuildOptions(catalog, contentItem?.Id, contentItem?.ContentType == ContentType.ContentBundle, null);
 
     /// <summary>
     /// Gets the dialog title based on the current mode.
@@ -405,6 +594,7 @@ public partial class AddReleaseDialogViewModel(
             VariantAxis = source.VariantAxis,
             Variant = source.Variant,
             IsDefaultVariant = source.IsDefaultVariant,
+            TargetGame = source.TargetGame,
             LocalFilePath = source.LocalFilePath,
             EntryPoint = source.EntryPoint,
         };
@@ -425,6 +615,8 @@ public partial class AddReleaseDialogViewModel(
             DependencyType = source.DependencyType,
             DefinitionUrl = source.DefinitionUrl,
             ConflictsWith = [.. source.ConflictsWith],
+            DefaultVariant = source.DefaultVariant,
+            AllowedVariantAxes = [.. source.AllowedVariantAxes],
         };
     }
 
@@ -457,6 +649,25 @@ public partial class AddReleaseDialogViewModel(
         }
     }
 
+    private static List<string> CollectItemVariants(CatalogContentItem item)
+    {
+        var releaseVariants = item.Releases?
+            .Where(rel => rel.Artifacts != null)
+            .SelectMany(rel => rel.Artifacts)
+            .Select(art => art.Variant)
+            .Where(v => !string.IsNullOrWhiteSpace(v)) ?? Enumerable.Empty<string?>();
+
+        var ruleVariants = item.UpstreamSync?.AssetRules?
+            .Select(rule => rule.Variant)
+            .Where(v => !string.IsNullOrWhiteSpace(v)) ?? Enumerable.Empty<string?>();
+
+        return releaseVariants
+            .Concat(ruleVariants)
+            .OfType<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
     partial void OnIsVariantsModeChanged(bool value)
     {
         if (BundleArtifacts == value)
@@ -470,6 +681,11 @@ public partial class AddReleaseDialogViewModel(
         if (IsVariantsMode == value)
         {
             IsVariantsMode = !value;
+        }
+
+        if (value)
+        {
+            ClearArtifactVariants();
         }
     }
 
@@ -491,7 +707,7 @@ public partial class AddReleaseDialogViewModel(
     private async Task AddArtifactAsync()
     {
         if (dialogService == null) return;
-        var artifact = await dialogService.ShowAddArtifactDialogAsync();
+        var artifact = await dialogService.ShowAddArtifactDialogAsync(IsVariantsMode);
         if (artifact != null)
         {
             if (artifact.IsPrimary)
@@ -664,6 +880,77 @@ public partial class AddReleaseDialogViewModel(
     }
 
     /// <summary>
+    /// Opens the edit artifact dialog for an existing artifact (file, URL, or variant mapping).
+    /// </summary>
+    /// <param name="artifact">The artifact to edit.</param>
+    [RelayCommand]
+    private async Task EditArtifactAsync(ReleaseArtifact? artifact)
+    {
+        if (dialogService == null || artifact == null)
+        {
+            return;
+        }
+
+        var index = Artifacts.IndexOf(artifact);
+        if (index < 0)
+        {
+            return;
+        }
+
+        var edited = await dialogService.ShowEditArtifactDialogAsync(artifact, IsVariantsMode);
+        if (edited == null)
+        {
+            return;
+        }
+
+        if (edited.IsPrimary)
+        {
+            foreach (var other in Artifacts)
+            {
+                other.IsPrimary = false;
+            }
+        }
+        else if (artifact.IsPrimary)
+        {
+            // Unchecking the only primary must not leave the release without one:
+            // download resolution prefers the primary artifact.
+            var replacement = Artifacts.Where((_, i) => i != index).FirstOrDefault();
+            if (replacement != null)
+            {
+                replacement.IsPrimary = true;
+            }
+        }
+
+        edited.EntryPoint ??= artifact.EntryPoint;
+        Artifacts[index] = edited;
+        Validate();
+    }
+
+    /// <summary>
+    /// Clears variant fields from staged artifacts.
+    /// Bundle-mode releases install every artifact together, so variant data must not linger
+    /// from an earlier variants-mode selection or from a legacy edited release.
+    /// </summary>
+    private void ClearArtifactVariants()
+    {
+        for (var index = 0; index < Artifacts.Count; index++)
+        {
+            var artifact = Artifacts[index];
+            if (artifact.VariantAxis == null && artifact.Variant == null && !artifact.IsDefaultVariant)
+            {
+                continue;
+            }
+
+            artifact.VariantAxis = null;
+            artifact.Variant = null;
+            artifact.IsDefaultVariant = false;
+
+            // ReleaseArtifact is a plain model, so replace the entry to refresh bound lists.
+            Artifacts[index] = artifact;
+        }
+    }
+
+    /// <summary>
     /// Removes an artifact from the release.
     /// </summary>
     /// <param name="artifact">The artifact to remove.</param>
@@ -711,6 +998,46 @@ public partial class AddReleaseDialogViewModel(
         {
             Dependencies.Remove(dependency);
         }
+    }
+
+    private void RefreshBundleComponentOptions(IEnumerable<CatalogDependency>? selectedDeps)
+    {
+        BundleComponentOptions.Clear();
+        foreach (var option in BundleComponentOption.BuildOptions(catalog, contentItem?.Id, IsBundleContent, selectedDeps))
+        {
+            BundleComponentOptions.Add(option);
+        }
+    }
+
+    private List<CatalogDependency> BuildBundleDependenciesFromSelection()
+    {
+        var result = new List<CatalogDependency>();
+        foreach (var opt in BundleComponentOptions.Where(o => o.IsSelected))
+        {
+            // Clone the source dependency when one exists so resolution metadata
+            // (catalog/definition URLs, dependency type, conflicts, allowed axes)
+            // survives the rebuild; the option only overlays edited fields.
+            var dep = opt.SourceDependency != null
+                ? CloneDependency(opt.SourceDependency)
+                : new CatalogDependency { ContentId = opt.ContentId };
+            dep.PublisherId = opt.PublisherId ?? dep.PublisherId ?? catalog?.Publisher?.Id;
+            dep.ContentId = opt.ContentId;
+            dep.VersionConstraint = opt.VersionConstraint ?? dep.VersionConstraint ?? CatalogConstants.LatestVersionToken;
+            dep.IsOptional = false;
+            dep.DefaultVariant = opt.SelectedVariant ?? dep.DefaultVariant;
+            dep.ContentType = opt.ContentType.ToString();
+            result.Add(dep);
+        }
+
+        if (_existingRelease != null)
+        {
+            foreach (var baseDep in _existingRelease.Dependencies.Where(CatalogManifestIdentity.IsBaseGameDependency))
+            {
+                result.Add(CloneDependency(baseDep));
+            }
+        }
+
+        return result;
     }
 
     /// <summary>
@@ -779,62 +1106,24 @@ public partial class AddReleaseDialogViewModel(
     [RelayCommand]
     private void CreateRelease()
     {
+        RebuildBundleDependencies();
         Validate();
 
-        if (!IsValid)
+        if (!IsValid || HasBlockingSaveErrors() || IsDuplicateVersionBlocked())
         {
             return;
         }
 
-        if (Artifacts.Count == 0)
+        if (BundleArtifacts)
         {
-            ValidationError = GetLocalizedString(
-                "Tools.PublisherStudio.Release.ArtifactRequired",
-                "At least one artifact is required");
-            IsValid = false;
-            return;
-        }
-
-        if (HasErrors)
-        {
-            ValidationError = string.Join(Environment.NewLine, GetErrors().Select(e => e.ErrorMessage));
-            IsValid = false;
-            return;
-        }
-
-        var releasesPool = IsAddonMode ? (contentItem?.AddonReleases ?? []) : (contentItem?.Releases ?? []);
-        var isDuplicateVersion = releasesPool.Any(r => r.Version.Equals(Version, StringComparison.OrdinalIgnoreCase));
-        var isOriginalVersion = IsEditMode && _originalVersion != null && _originalVersion.Equals(Version, StringComparison.OrdinalIgnoreCase);
-        if (isDuplicateVersion && !isOriginalVersion)
-        {
-            ValidationError = localizationService?.GetString(
-                "Tools.PublisherStudio.Release.DuplicateVersion",
-                Version) ?? $"Version {Version} already exists";
-            IsValid = false;
-            return;
-        }
-
-        string? effectiveTitle;
-        if (!string.IsNullOrWhiteSpace(Title))
-        {
-            effectiveTitle = Title.Trim();
-        }
-        else if (!IsAddonMode)
-        {
-            effectiveTitle = !string.IsNullOrWhiteSpace(contentItem?.Name)
-                ? $"{contentItem.Name} Version {Version.Trim()}"
-                : $"Version {Version.Trim()}";
-        }
-        else
-        {
-            effectiveTitle = null;
+            ClearArtifactVariants();
         }
 
         var primaryEntryPoint = Artifacts.FirstOrDefault(a => !string.IsNullOrWhiteSpace(a.EntryPoint))?.EntryPoint;
 
         var release = new ContentRelease
         {
-            Title = effectiveTitle,
+            Title = ResolveEffectiveTitle(),
             Category = IsAddonMode && !string.IsNullOrWhiteSpace(Category) ? Category.Trim() : null,
             Version = Version.Trim(),
             ReleaseDate = ReleaseDate.UtcDateTime,
@@ -854,6 +1143,80 @@ public partial class AddReleaseDialogViewModel(
         onReleaseCreated(release);
     }
 
+    private void RebuildBundleDependencies()
+    {
+        if (!IsBundleContent)
+        {
+            return;
+        }
+
+        Dependencies.Clear();
+        foreach (var dep in BuildBundleDependenciesFromSelection())
+        {
+            Dependencies.Add(dep);
+        }
+    }
+
+    private bool HasBlockingSaveErrors()
+    {
+        if (IsValid)
+        {
+            if (!IsBundleContent && Artifacts.Count == 0)
+            {
+                ValidationError = GetLocalizedString(
+                    "Tools.PublisherStudio.Release.ArtifactRequired",
+                    "At least one artifact is required");
+                IsValid = false;
+                return true;
+            }
+
+            if (HasErrors)
+            {
+                ValidationError = string.Join(Environment.NewLine, GetErrors().Select(e => e.ErrorMessage));
+                IsValid = false;
+                return true;
+            }
+
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool IsDuplicateVersionBlocked()
+    {
+        var releasesPool = IsAddonMode ? (contentItem?.AddonReleases ?? []) : (contentItem?.Releases ?? []);
+        var isDuplicateVersion = releasesPool.Any(r => r.Version.Equals(Version, StringComparison.OrdinalIgnoreCase));
+        var isOriginalVersion = IsEditMode && _originalVersion != null && _originalVersion.Equals(Version, StringComparison.OrdinalIgnoreCase);
+        if (!isDuplicateVersion || isOriginalVersion)
+        {
+            return false;
+        }
+
+        ValidationError = localizationService?.GetString(
+            "Tools.PublisherStudio.Release.DuplicateVersion",
+            Version) ?? $"Version {Version} already exists";
+        IsValid = false;
+        return true;
+    }
+
+    private string? ResolveEffectiveTitle()
+    {
+        if (!string.IsNullOrWhiteSpace(Title))
+        {
+            return Title.Trim();
+        }
+
+        if (!IsAddonMode)
+        {
+            return !string.IsNullOrWhiteSpace(contentItem?.Name)
+                ? $"{contentItem.Name} Version {Version.Trim()}"
+                : $"Version {Version.Trim()}";
+        }
+
+        return null;
+    }
+
     private void Validate()
     {
         ValidateAllProperties();
@@ -870,7 +1233,16 @@ public partial class AddReleaseDialogViewModel(
             errors.Add(GetLocalizedString("Tools.PublisherStudio.Addon.TitleRequired", "Addon title / name is required"));
         }
 
-        if (Artifacts.Count == 0)
+        if (IsBundleContent)
+        {
+            if (!BundleComponentOptions.Any(o => o.IsSelected))
+            {
+                errors.Add(GetLocalizedString(
+                    "Tools.PublisherStudio.Validation.BundleComponentRequired",
+                    "At least one bundle component is required."));
+            }
+        }
+        else if (Artifacts.Count == 0)
         {
             errors.Add(GetLocalizedString(
                 "Tools.PublisherStudio.Release.ArtifactRequired",

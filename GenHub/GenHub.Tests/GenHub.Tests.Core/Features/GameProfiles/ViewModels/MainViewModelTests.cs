@@ -54,6 +54,12 @@ namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;
 /// </summary>
 public class MainViewModelTests
 {
+    private const string DeferredGettingStartedLog = "Deferring the Getting Started dialog";
+
+    private const string ClosedGettingStartedLog = "Closed the Getting Started dialog";
+
+    private static readonly TimeSpan DispatcherSignalTimeout = TimeSpan.FromSeconds(10);
+
     /// <summary>
     /// Tests that <see cref="MainViewModel"/> can be instantiated successfully.
     /// </summary>
@@ -274,7 +280,9 @@ public class MainViewModelTests
     [InlineData(true, 0)]
     public async Task InitializeAsync_GettingStarted_DeferredWhenSessionOpenedForLinkAsync(bool linkReceived, int expectedDialogs)
     {
-        var dialogService = CreateGettingStartedDialogService();
+        var dialogShown = NewSignal();
+        var dialogService = CreateGettingStartedDialogService(dialogShown);
+        var logger = new SignalingLogger(DeferredGettingStartedLog);
         using var tracker = new LinkActivationTracker();
         tracker.MarkLaunchFinished();
         if (linkReceived)
@@ -282,10 +290,10 @@ public class MainViewModelTests
             tracker.RecordLink();
         }
 
-        var vm = CreateMainViewModel(dialogService: dialogService, linkActivationTracker: tracker);
+        using var vm = CreateMainViewModel(dialogService: dialogService, linkActivationTracker: tracker, logger: logger);
 
         await vm.InitializeAsync();
-        Dispatcher.UIThread.RunJobs();
+        await PumpDispatcherUntilAsync(Task.WhenAny(dialogShown.Task, logger.Logged));
 
         VerifyGettingStartedShown(dialogService, Times.Exactly(expectedDialogs));
     }
@@ -298,14 +306,15 @@ public class MainViewModelTests
     public async Task InitializeAsync_GettingStarted_DeferredWhenLinkArrivesBeforeLaunchFinishesAsync()
     {
         var dialogService = CreateGettingStartedDialogService();
+        var logger = new SignalingLogger(DeferredGettingStartedLog);
         using var tracker = new LinkActivationTracker(launchFinished: false);
-        var vm = CreateMainViewModel(dialogService: dialogService, linkActivationTracker: tracker);
+        using var vm = CreateMainViewModel(dialogService: dialogService, linkActivationTracker: tracker, logger: logger);
 
         await vm.InitializeAsync();
         Dispatcher.UIThread.RunJobs();
         tracker.RecordLink();
         tracker.MarkLaunchFinished();
-        await PumpDispatcherAsync();
+        await PumpDispatcherUntilAsync(logger.Logged);
 
         VerifyGettingStartedShown(dialogService, Times.Never());
     }
@@ -317,16 +326,17 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task InitializeAsync_GettingStarted_ShownWhenLaunchFinishesWithoutLinkAsync()
     {
-        var dialogService = CreateGettingStartedDialogService();
+        var dialogShown = NewSignal();
+        var dialogService = CreateGettingStartedDialogService(dialogShown);
         using var tracker = new LinkActivationTracker(launchFinished: false);
-        var vm = CreateMainViewModel(dialogService: dialogService, linkActivationTracker: tracker);
+        using var vm = CreateMainViewModel(dialogService: dialogService, linkActivationTracker: tracker);
 
         await vm.InitializeAsync();
         Dispatcher.UIThread.RunJobs();
         VerifyGettingStartedShown(dialogService, Times.Never());
 
         tracker.MarkLaunchFinished();
-        await PumpDispatcherAsync();
+        await PumpDispatcherUntilAsync(dialogShown.Task);
 
         VerifyGettingStartedShown(dialogService, Times.Once());
     }
@@ -338,15 +348,15 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task InitializeAsync_GettingStarted_ClosedWithoutMarkingSeenWhenLinkArrivesAsync()
     {
-        CancellationToken dialogToken = default;
+        var dialogToken = new TaskCompletionSource<CancellationToken>(TaskCreationOptions.RunContinuationsAsynchronously);
         var dialogResult = new TaskCompletionSource<(DialogAction? Action, bool DoNotAskAgain)>(TaskCreationOptions.RunContinuationsAsynchronously);
         var dialogService = new Mock<IDialogService>();
         dialogService
             .Setup(x => x.ShowMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<DialogAction>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .Returns((string _, string _, IEnumerable<DialogAction> _, bool _, CancellationToken token) =>
             {
-                dialogToken = token;
                 token.Register(() => dialogResult.TrySetCanceled(token));
+                dialogToken.TrySetResult(token);
                 return dialogResult.Task;
             });
         var settings = new UserSettings();
@@ -354,27 +364,32 @@ public class MainViewModelTests
         userSettings.Setup(x => x.Get()).Returns(settings);
         userSettings.Setup(x => x.Update(It.IsAny<Action<UserSettings>>()))
             .Callback<Action<UserSettings>>(action => action(settings));
+        var logger = new SignalingLogger(ClosedGettingStartedLog);
         using var tracker = new LinkActivationTracker();
         tracker.MarkLaunchFinished();
-        var vm = CreateMainViewModel(mockUserSettings: userSettings, dialogService: dialogService, linkActivationTracker: tracker);
+        using var vm = CreateMainViewModel(mockUserSettings: userSettings, dialogService: dialogService, linkActivationTracker: tracker, logger: logger);
 
         await vm.InitializeAsync();
-        await PumpDispatcherAsync();
-        Assert.True(dialogToken.CanBeCanceled);
-        Assert.False(dialogToken.IsCancellationRequested);
+        await PumpDispatcherUntilAsync(dialogToken.Task);
+        var token = await dialogToken.Task;
+        Assert.True(token.CanBeCanceled);
+        Assert.False(token.IsCancellationRequested);
 
         tracker.RecordLink();
-        await PumpDispatcherAsync();
+        await PumpDispatcherUntilAsync(logger.Logged);
 
-        Assert.True(dialogToken.IsCancellationRequested);
+        Assert.True(token.IsCancellationRequested);
         Assert.False(settings.HasSeenQuickStart);
     }
 
-    private static Mock<IDialogService> CreateGettingStartedDialogService()
+    private static TaskCompletionSource NewSignal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    private static Mock<IDialogService> CreateGettingStartedDialogService(TaskCompletionSource? shown = null)
     {
         var dialogService = new Mock<IDialogService>();
         dialogService
             .Setup(x => x.ShowMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<DialogAction>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .Callback(() => shown?.TrySetResult())
             .ReturnsAsync((null, false));
         return dialogService;
     }
@@ -384,14 +399,22 @@ public class MainViewModelTests
             x => x.ShowMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<DialogAction>>(), true, It.IsAny<CancellationToken>()),
             times);
 
-    private static async Task PumpDispatcherAsync()
+    /// <summary>
+    /// Runs dispatcher jobs until <paramref name="signal"/> completes, because the Getting Started callback
+    /// resumes through a thread pool hop whose timing a fixed number of pumps cannot bound.
+    /// </summary>
+    /// <param name="signal">The task that completes once the code under test reached the awaited point.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous wait.</returns>
+    private static async Task PumpDispatcherUntilAsync(Task signal)
     {
-        for (var i = 0; i < 20; i++)
+        var deadline = DateTime.UtcNow + DispatcherSignalTimeout;
+        while (!signal.IsCompleted && DateTime.UtcNow < deadline)
         {
             Dispatcher.UIThread.RunJobs();
-            await Task.Yield();
+            await Task.Delay(10);
         }
 
+        Assert.True(signal.IsCompleted, $"The dispatcher did not reach the expected state within {DispatcherSignalTimeout.TotalSeconds} seconds.");
         Dispatcher.UIThread.RunJobs();
     }
 
@@ -400,13 +423,13 @@ public class MainViewModelTests
         Mock<IUserSettingsService>? mockUserSettings = null,
         Mock<INotificationService>? mockNotificationServiceParam = null,
         Mock<IDialogService>? dialogService = null,
-        ILinkActivationTracker? linkActivationTracker = null)
+        ILinkActivationTracker? linkActivationTracker = null,
+        ILogger<MainViewModel>? logger = null)
     {
         var (settingsVm, userSettingsMock) = CreateSettingsVm();
         var toolsVm = CreateToolsVm();
         var configProvider = CreateConfigProviderMock();
         var coordinator = mockBackgroundCoordinator ?? new Mock<IBackgroundUpdateCoordinator>();
-        var mockLogger = new Mock<ILogger<MainViewModel>>();
         var mockNotificationService = mockNotificationServiceParam ?? CreateNotificationServiceMock();
         var mockNotificationManager = new Mock<NotificationManagerViewModel>(
             mockNotificationService.Object,
@@ -427,7 +450,7 @@ public class MainViewModelTests
             dialogService: (dialogService ?? new Mock<IDialogService>()).Object,
             notificationFeedViewModel: notificationFeedVm,
             infoViewModel: CreateInfoViewModel(),
-            logger: mockLogger.Object,
+            logger: logger ?? Mock.Of<ILogger<MainViewModel>>(),
             linkActivationTracker: linkActivationTracker);
     }
 
@@ -597,5 +620,35 @@ public class MainViewModelTests
     private static InfoViewModel CreateInfoViewModel()
     {
         return new InfoViewModel([]);
+    }
+
+    /// <summary>
+    /// Completes <see cref="Logged"/> when <see cref="MainViewModel"/> logs a message that marks the end of a decision.
+    /// </summary>
+    /// <param name="messageFragment">The fragment that identifies the awaited message.</param>
+    private sealed class SignalingLogger(string messageFragment) : ILogger<MainViewModel>
+    {
+        private readonly TaskCompletionSource _logged = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        /// <summary>
+        /// Gets a task that completes once the awaited message is logged.
+        /// </summary>
+        public Task Logged => _logged.Task;
+
+        /// <inheritdoc/>
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        /// <inheritdoc/>
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        /// <inheritdoc/>
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            if (formatter(state, exception).Contains(messageFragment, StringComparison.Ordinal))
+            {
+                _logged.TrySetResult();
+            }
+        }
     }
 }

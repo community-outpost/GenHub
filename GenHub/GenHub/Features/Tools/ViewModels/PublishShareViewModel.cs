@@ -1309,6 +1309,65 @@ public partial class PublishShareViewModel(
         Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
         (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 
+    /// <summary>
+    /// Resolves a collision-free remote filename for a catalog. Catalogs imported from
+    /// identically named files would otherwise overwrite each other on the host and end
+    /// up sharing one download URL, which makes subscribers show the wrong items.
+    /// Both the original filename and the generated fallback are checked against the
+    /// names owned by other catalogs, incrementing until the name is unused.
+    /// </summary>
+    private static string ResolveUniqueCatalogFileName(
+        PublisherStudioProject project,
+        NamedCatalog activeCatalog,
+        IEnumerable<string>? additionalUsedNames = null)
+    {
+        var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var other in project.Catalogs)
+        {
+            if (string.Equals(other.Id, activeCatalog.Id, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            usedNames.Add(!string.IsNullOrWhiteSpace(other.FileName) ? other.FileName : $"catalog-{other.Id}.json");
+        }
+
+        if (additionalUsedNames != null)
+        {
+            usedNames.UnionWith(additionalUsedNames.Where(name => !string.IsNullOrWhiteSpace(name)));
+        }
+
+        var fileName = activeCatalog.FileName;
+        if (!string.IsNullOrWhiteSpace(fileName) && !usedNames.Contains(fileName))
+        {
+            return fileName;
+        }
+
+        var candidate = $"catalog-{activeCatalog.Id}.json";
+        var suffix = 2;
+        while (usedNames.Contains(candidate))
+        {
+            candidate = $"catalog-{activeCatalog.Id}-{suffix}.json";
+            suffix++;
+        }
+
+        return candidate;
+    }
+
+    /// <summary>
+    /// Gets remote filenames already claimed by other catalogs in persisted hosting state.
+    /// These are the actual upload names, which can differ from the project filenames
+    /// after collision resolution.
+    /// </summary>
+    private static IReadOnlyList<string> GetPersistedCatalogFileNames(HostingState? hostingState, string activeCatalogId)
+    {
+        return hostingState?.Catalogs
+            .Where(c => !string.Equals(c.CatalogId, activeCatalogId, StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrWhiteSpace(c.FileName))
+            .Select(c => c.FileName)
+            .ToList() ?? [];
+    }
+
     private static (string Name, string Url, long Size)? FindInArtifacts(IEnumerable<ReleaseArtifact>? artifacts, string sha256)
     {
         if (artifacts == null)
@@ -1350,6 +1409,35 @@ public partial class PublishShareViewModel(
         }
 
         return null;
+    }
+
+    private static bool IsMatchingDefinition(HostedFileInfo d, HostedFileInfo cloudDef)
+    {
+        return (!string.IsNullOrEmpty(d.FileName) && !string.IsNullOrEmpty(cloudDef.FileName) && string.Equals(d.FileName, cloudDef.FileName, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(d.FileId) && !string.IsNullOrEmpty(cloudDef.FileId) && string.Equals(d.FileId, cloudDef.FileId, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(d.Url) && !string.IsNullOrEmpty(cloudDef.Url) && string.Equals(d.Url, cloudDef.Url, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static void UpdateExistingDefinition(HostedFileInfo existing, HostedFileInfo cloudDef)
+    {
+        if (cloudDef.LastUpdated < existing.LastUpdated)
+        {
+            return;
+        }
+
+        // Never clobber a resolved shareable URL with an empty scan result: providers
+        // such as Dropbox report unshared files without a URL on every scan.
+        if (!string.IsNullOrEmpty(cloudDef.Url))
+        {
+            existing.Url = cloudDef.Url;
+        }
+
+        existing.FileSize = cloudDef.FileSize;
+        existing.LastUpdated = cloudDef.LastUpdated;
+        if (!string.IsNullOrEmpty(cloudDef.FileName))
+        {
+            existing.FileName = cloudDef.FileName;
+        }
     }
 
     private (string Name, string Url, long Size)? FindInHostedAssets(string sha256)
@@ -1477,11 +1565,15 @@ public partial class PublishShareViewModel(
             totalBytes += defSize;
         }
 
+        // A hosted definition is loadable when the local publisher profile is empty (e.g. after
+        // local data was wiped): this is the only path that surfaces the restore banner and pull command.
+        var canLoadDefinitionToProject = isDefHosted && string.IsNullOrWhiteSpace(project.Catalog?.Publisher?.Id);
+
         HostedAssets.Add(new HostedAssetItemViewModel
         {
             AssetKind = HostedAssetKind.Definition,
             CanUpload = !isDefHosted && SelectedHostingProvider != null && SelectedHostingProvider.SupportsCatalogHosting,
-            CanLoadToProject = false,
+            CanLoadToProject = canLoadDefinitionToProject,
             LoadButtonTooltip = GetLocalizedString("Tools.PublisherStudio.Hosting.LoadToProjectTip", "Load this definition and its catalogs into current project"),
             Name = project.ProviderDefinitionFileName ?? HostingConstants.DefaultDefinitionFileName,
             Category = GetLocalizedString("Tools.PublisherStudio.Hosting.AssetCategoryDefinition", "Publisher Definition"),
@@ -1501,7 +1593,8 @@ public partial class PublishShareViewModel(
     {
         foreach (var catalog in project.Catalogs)
         {
-            var catHosting = _currentHostingState?.Catalogs.FirstOrDefault(c => c.CatalogId == catalog.Id || c.FileName == catalog.FileName);
+            var catHosting = _currentHostingState?.Catalogs.FirstOrDefault(c => c.CatalogId == catalog.Id)
+                ?? _currentHostingState?.Catalogs.FirstOrDefault(c => c.FileName == catalog.FileName);
             var isCatHosted = catHosting != null && !string.IsNullOrWhiteSpace(catHosting.Url);
             var catSize = catHosting?.FileSize ?? 0;
             var catUrl = catHosting?.Url ?? string.Empty;
@@ -1745,7 +1838,7 @@ public partial class PublishShareViewModel(
 
         foreach (var cloudDef in _currentHostingState.Definitions.Where(cloudDef => !HostedAssets.Any(a =>
             (!string.IsNullOrEmpty(a.Url) && !string.IsNullOrEmpty(cloudDef.Url) && string.Equals(a.Url, cloudDef.Url, StringComparison.OrdinalIgnoreCase)) ||
-            (!string.IsNullOrEmpty(a.Name) && !string.IsNullOrEmpty(cloudDef.FileName) && string.Equals(a.Name, cloudDef.FileName, StringComparison.OrdinalIgnoreCase)))))
+            (a.IsOnline && !string.IsNullOrEmpty(a.Name) && !string.IsNullOrEmpty(cloudDef.FileName) && string.Equals(a.Name, cloudDef.FileName, StringComparison.OrdinalIgnoreCase)))))
         {
             totalBytes += cloudDef.FileSize;
             HostedDefinitionCount++;
@@ -1756,9 +1849,10 @@ public partial class PublishShareViewModel(
             {
                 AssetKind = HostedAssetKind.Definition,
                 CanUpload = false,
-                CanLoadToProject = !string.IsNullOrEmpty(cloudDef.Url),
+                CanLoadToProject = !string.IsNullOrEmpty(cloudDef.Url) || !string.IsNullOrEmpty(cloudDef.FileId),
                 LoadButtonTooltip = GetLocalizedString("Tools.PublisherStudio.Hosting.LoadToProjectTip", "Load this definition and its catalogs into current project"),
                 Name = string.IsNullOrEmpty(cloudDef.FileName) ? HostingConstants.DefaultDefinitionFileName : cloudDef.FileName,
+                FileId = cloudDef.FileId,
                 Category = categoryName,
                 Location = $"{providerName} ({HostingFolderPath})",
                 FileSize = cloudDef.FileSize,
@@ -1791,7 +1885,8 @@ public partial class PublishShareViewModel(
                 AssetKind = HostedAssetKind.Catalog,
                 CatalogId = cloudCat.CatalogId,
                 CanUpload = false,
-                CanLoadToProject = !isProjectCat && !string.IsNullOrEmpty(cloudCat.Url),
+                CanLoadToProject = !isProjectCat && (!string.IsNullOrEmpty(cloudCat.Url) || !string.IsNullOrEmpty(cloudCat.FileId)),
+                FileId = cloudCat.FileId,
                 LoadButtonTooltip = GetLocalizedString("Tools.PublisherStudio.Hosting.LoadCatalogTip", "Load this catalog into current project"),
                 Name = string.IsNullOrEmpty(cloudCat.FileName) ? $"catalog-{cloudCat.CatalogId}.json" : cloudCat.FileName,
                 Category = FormatLocalizedString("Tools.PublisherStudio.Hosting.AssetCategoryCloudCatalogFormat", "Cloud Catalog ({0})", cloudCat.CatalogId),
@@ -2739,6 +2834,13 @@ public partial class PublishShareViewModel(
         return true;
     }
 
+    private bool IsFileIdSharedWithOtherCatalog(string catalogId, string fileId)
+    {
+        return _currentHostingState?.Catalogs.Any(c =>
+            !string.Equals(c.CatalogId, catalogId, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(c.FileId, fileId, StringComparison.OrdinalIgnoreCase)) == true;
+    }
+
     private async Task<OperationResult<HostingUploadResult>> PerformCatalogUploadAsync(IProgress<int> progress, CancellationToken cancellationToken = default)
     {
         if (SelectedHostingProvider == null || ActiveCatalog == null)
@@ -2753,11 +2855,14 @@ public partial class PublishShareViewModel(
             ? _currentHostingState!.Catalogs.FirstOrDefault(c => c.CatalogId == ActiveCatalog.Id)?.FileId
             : null;
 
-        var catalogFileName = string.IsNullOrEmpty(ActiveCatalog.FileName)
-            ? $"catalog-{ActiveCatalog.Id}.json"
-            : ActiveCatalog.FileName;
+        var catalogFileName = ResolveUniqueCatalogFileName(project, ActiveCatalog, GetPersistedCatalogFileNames(_currentHostingState, ActiveCatalog.Id));
 
-        if (!string.IsNullOrEmpty(existingCatalogFileId) && SelectedHostingProvider.SupportsUpdate)
+        // A file ID shared with another catalog means a previous filename collision merged
+        // both catalogs into one remote file. Upload fresh so this catalog gets its own file.
+        var fileIdShared = !string.IsNullOrEmpty(existingCatalogFileId) &&
+            IsFileIdSharedWithOtherCatalog(ActiveCatalog.Id, existingCatalogFileId);
+
+        if (!string.IsNullOrEmpty(existingCatalogFileId) && SelectedHostingProvider.SupportsUpdate && !fileIdShared)
         {
             UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.UpdatingCatalogFormat", "Updating existing catalog '{0}'...", ActiveCatalog.Name);
             using var stream = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(CatalogJson));
@@ -3092,7 +3197,15 @@ public partial class PublishShareViewModel(
     {
         if (IsPendingArtworkPath(value))
         {
-            pending.Add((content, slot, value!.Trim()));
+            var trimmed = value!.Trim();
+            var localPath = ResolveArtworkLocalPath(trimmed);
+            if (localPath == null)
+            {
+                logger.LogDebug("Skipping artwork path that cannot be resolved under the project directory for '{ContentId}'", content.Id);
+                return;
+            }
+
+            pending.Add((content, slot, localPath));
         }
     }
 
@@ -3103,8 +3216,52 @@ public partial class PublishShareViewModel(
             return false;
         }
 
-        return !Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)
+        var trimmed = value.Trim();
+        if (trimmed.StartsWith("avares://", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("/Assets/", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        // A bare Assets/ reference is a built-in resource unless it exists as a
+        // publisher-local file, in which case it must be uploaded for subscribers.
+        if (trimmed.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
+        {
+            return ResolveArtworkLocalPath(trimmed) != null;
+        }
+
+        return !Uri.TryCreate(trimmed, UriKind.Absolute, out var uri)
             || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps);
+    }
+
+    /// <summary>
+    /// Resolves an artwork path to an existing local file. Relative paths resolve
+    /// against the studio project directory and must stay inside it, so crafted
+    /// catalog metadata cannot exfiltrate publisher-local files outside the project.
+    /// Values that escape the project or cannot be parsed as paths resolve to null.
+    /// </summary>
+    private string? ResolveArtworkLocalPath(string trimmed)
+    {
+        var projectDirectory = Path.GetDirectoryName(project.ProjectPath);
+        if (!string.IsNullOrEmpty(projectDirectory))
+        {
+            try
+            {
+                var root = Path.GetFullPath(projectDirectory) + Path.DirectorySeparatorChar;
+                var combined = Path.GetFullPath(Path.Combine(projectDirectory, trimmed));
+                if (combined.StartsWith(root, StringComparison.OrdinalIgnoreCase) && File.Exists(combined))
+                {
+                    return combined;
+                }
+            }
+            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+            {
+                logger.LogDebug(ex, "Ignoring artwork path that cannot be resolved under the project directory");
+                return null;
+            }
+        }
+
+        return null;
     }
 
     private void ApplyArtworkUrl(CatalogContentItem content, ArtworkSlot slot, string url)
@@ -3466,7 +3623,9 @@ public partial class PublishShareViewModel(
         catalogEntry.FileId = catalogFileId;
         catalogEntry.Url = catalogUrl;
         catalogEntry.FileSize = catalogFileSize;
-        catalogEntry.FileName = ActiveCatalog?.FileName ?? $"catalog-{catalogId}.json";
+        catalogEntry.FileName = ActiveCatalog != null
+            ? ResolveUniqueCatalogFileName(project, ActiveCatalog, GetPersistedCatalogFileNames(_currentHostingState, catalogId))
+            : $"catalog-{catalogId}.json";
         catalogEntry.CatalogName = ActiveCatalog?.Name ?? catalogId;
         catalogEntry.LastUpdated = DateTime.UtcNow;
 
@@ -3481,7 +3640,17 @@ public partial class PublishShareViewModel(
 
         if (!string.IsNullOrWhiteSpace(previousFileId))
         {
-            await DeleteOrphanedRemoteFileAsync(previousFileId, catalogFileId, cancellationToken);
+            // A file ID still referenced by another catalog must be kept: deleting it would
+            // break that catalog's subscribers. This happens when a previous filename
+            // collision merged two catalogs into one remote file.
+            if (!IsFileIdSharedWithOtherCatalog(catalogId, previousFileId))
+            {
+                await DeleteOrphanedRemoteFileAsync(previousFileId, catalogFileId, cancellationToken);
+            }
+            else
+            {
+                logger.LogInformation("Skipping deletion of shared remote file {FileId} still referenced by another catalog", previousFileId);
+            }
         }
 
         RefreshHostedAssets();
@@ -4899,6 +5068,14 @@ public partial class PublishShareViewModel(
         RefreshHostedAssets();
         GenerateSubscriptionUrl();
 
+        // When the local profile is empty, a sync doubles as a restore: pull the discovered
+        // definition and its catalogs so the project reflects what is actually hosted.
+        if (await TryAutoRestoreCloudDefinitionAsync(ct, resolveShareableUrl: true))
+        {
+            await SaveAllHostingStatesAsync(ct);
+            return;
+        }
+
         var foundCount = (_currentHostingState?.Catalogs.Count ?? 0) +
                          (_currentHostingState?.Artifacts.Count ?? 0) +
                          (_currentHostingState?.Definition != null ? 1 : 0);
@@ -4907,6 +5084,127 @@ public partial class PublishShareViewModel(
             GetLocalizedString("Tools.PublisherStudio.Publish.StorageSynced", "Storage Synced"),
             StorageScanStatusMessage,
             autoDismissMs: 4000);
+    }
+
+    /// <summary>
+    /// Restores the discovered cloud publisher definition and its catalogs into the project when
+    /// the local publisher profile is empty (for example after local data was wiped) and cloud
+    /// storage holds a published definition.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="resolveShareableUrl">True to resolve a shareable URL on demand when the
+    /// discovered definition has none yet; false keeps background scans side-effect free.</param>
+    /// <returns>True when the cloud publisher definition was successfully restored and populated the local profile; false otherwise.</returns>
+    private async Task<bool> TryAutoRestoreCloudDefinitionAsync(CancellationToken cancellationToken, bool resolveShareableUrl)
+    {
+        if (!string.IsNullOrWhiteSpace(project.Catalog?.Publisher?.Id))
+        {
+            return false;
+        }
+
+        var target = DiscoveredCloudDefinition;
+        if (target == null)
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(target.Url) &&
+            (!resolveShareableUrl || !await EnsureAssetDownloadUrlAsync(target, cancellationToken)))
+        {
+            return false;
+        }
+
+        try
+        {
+            await LoadDefinitionToProjectAsync(target);
+
+            // Download and validation failures inside the loader return normally, so only
+            // report a restore when the publisher profile was actually populated.
+            return !string.IsNullOrWhiteSpace(project.Catalog?.Publisher?.Id);
+        }
+        catch (Exception ex) when (ex is HttpRequestException
+            or System.Text.Json.JsonException
+            or IOException
+            or UnauthorizedAccessException
+            or InvalidOperationException)
+        {
+            logger.LogWarning(ex, "Automatic restore of cloud publisher definition failed; manual restore remains available");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Resolves a shareable download URL on demand for a discovered asset that has none yet
+    /// (for example a Dropbox file with no shared link) and persists it into hosting state.
+    /// </summary>
+    /// <param name="asset">The hosted asset item to resolve.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True when the asset has a usable download URL afterwards.</returns>
+    private async Task<bool> EnsureAssetDownloadUrlAsync(HostedAssetItemViewModel asset, CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(asset.Url))
+        {
+            return true;
+        }
+
+        if (SelectedHostingProvider == null || string.IsNullOrWhiteSpace(asset.FileId) || string.IsNullOrWhiteSpace(asset.Name))
+        {
+            return false;
+        }
+
+        try
+        {
+            var result = await SelectedHostingProvider.EnsureShareableDownloadUrlAsync(asset.FileId, asset.Name, cancellationToken);
+            if (!result.Success || string.IsNullOrWhiteSpace(result.Data))
+            {
+                logger.LogWarning(
+                    "Provider {Provider} could not resolve a shareable URL for {File}: {Error}",
+                    SelectedHostingProvider.DisplayName,
+                    asset.Name,
+                    result.FirstError);
+                return false;
+            }
+
+            asset.Url = result.Data;
+            PersistResolvedAssetUrl(asset);
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to resolve a shareable URL for {File}", asset.Name);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Writes a resolved asset URL back into the persisted hosting state entries so later
+    /// scans and inventory rebuilds keep the shareable link.
+    /// </summary>
+    /// <param name="asset">The hosted asset item carrying the resolved URL.</param>
+    private void PersistResolvedAssetUrl(HostedAssetItemViewModel asset)
+    {
+        if (_currentHostingState == null || string.IsNullOrWhiteSpace(asset.Url))
+        {
+            return;
+        }
+
+        foreach (var definition in _currentHostingState.Definitions.Where(d =>
+            (!string.IsNullOrEmpty(d.FileId) && !string.IsNullOrEmpty(asset.FileId) && string.Equals(d.FileId, asset.FileId, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(d.FileName) && string.Equals(d.FileName, asset.Name, StringComparison.OrdinalIgnoreCase))))
+        {
+            definition.Url = asset.Url;
+        }
+
+        foreach (var catalog in _currentHostingState.Catalogs.Where(c =>
+            (!string.IsNullOrEmpty(c.FileId) && !string.IsNullOrEmpty(asset.FileId) && string.Equals(c.FileId, asset.FileId, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(c.FileName) && string.Equals(c.FileName, asset.Name, StringComparison.OrdinalIgnoreCase))))
+        {
+            catalog.Url = asset.Url;
+        }
     }
 
     /// <summary>
@@ -4994,6 +5292,7 @@ public partial class PublishShareViewModel(
                 RefreshUploadHierarchy();
                 RefreshHostedAssets();
                 GenerateSubscriptionUrl();
+                await TryAutoRestoreCloudDefinitionAsync(silentCt, resolveShareableUrl: false);
             }
         }
         catch (OperationCanceledException ex)
@@ -5054,23 +5353,11 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        var existing = _currentHostingState.Definitions.FirstOrDefault(d =>
-            (!string.IsNullOrEmpty(d.FileName) && !string.IsNullOrEmpty(cloudDef.FileName) && string.Equals(d.FileName, cloudDef.FileName, StringComparison.OrdinalIgnoreCase)) ||
-            (!string.IsNullOrEmpty(d.FileId) && !string.IsNullOrEmpty(cloudDef.FileId) && string.Equals(d.FileId, cloudDef.FileId, StringComparison.OrdinalIgnoreCase)) ||
-            (!string.IsNullOrEmpty(d.Url) && !string.IsNullOrEmpty(cloudDef.Url) && string.Equals(d.Url, cloudDef.Url, StringComparison.OrdinalIgnoreCase)));
+        var existing = _currentHostingState.Definitions.FirstOrDefault(d => IsMatchingDefinition(d, cloudDef));
 
         if (existing != null)
         {
-            if (cloudDef.LastUpdated >= existing.LastUpdated)
-            {
-                existing.Url = cloudDef.Url;
-                existing.FileSize = cloudDef.FileSize;
-                existing.LastUpdated = cloudDef.LastUpdated;
-                if (!string.IsNullOrEmpty(cloudDef.FileName))
-                {
-                    existing.FileName = cloudDef.FileName;
-                }
-            }
+            UpdateExistingDefinition(existing, cloudDef);
         }
         else
         {
@@ -5551,9 +5838,21 @@ public partial class PublishShareViewModel(
     [RelayCommand]
     private async Task LoadAssetToProjectAsync(HostedAssetItemViewModel? asset)
     {
-        if (asset == null || string.IsNullOrWhiteSpace(asset.Url))
+        if (asset == null)
         {
             return;
+        }
+
+        if (string.IsNullOrWhiteSpace(asset.Url))
+        {
+            using var resolveCts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            if (!await EnsureAssetDownloadUrlAsync(asset, resolveCts.Token))
+            {
+                notificationService?.ShowError(
+                    GetLocalizedString(LoadFailedTitleKey, LoadFailedDefaultTitle),
+                    FormatLocalizedString("Tools.PublisherStudio.Hosting.LoadFailedFormat", "Failed to load {0}: {1}", asset.Name, GetLocalizedString("Tools.PublisherStudio.Hosting.NoShareableUrlError", "No shareable download URL is available.")));
+                return;
+            }
         }
 
         try
@@ -5692,7 +5991,43 @@ public partial class PublishShareViewModel(
             }
         }
 
+        if (loadedCatalogsCount > 0)
+        {
+            RemoveEmptyDefaultCatalogPlaceholder();
+        }
+
         return loadedCatalogsCount;
+    }
+
+    /// <summary>
+    /// Drops the migrated empty placeholder catalog once real cloud catalogs are attached, so a
+    /// restored project does not keep a confusing empty "Content" entry next to its catalogs.
+    /// </summary>
+    private void RemoveEmptyDefaultCatalogPlaceholder()
+    {
+        if (project.Catalog == null || project.Catalogs.Count <= 1)
+        {
+            return;
+        }
+
+        var removed = false;
+        for (var i = project.Catalogs.Count - 1; i >= 0; i--)
+        {
+            var candidate = project.Catalogs[i];
+            if (candidate != null &&
+                ReferenceEquals(candidate.Catalog, project.Catalog) &&
+                string.Equals(candidate.Id, CatalogConstants.DefaultCatalogId, StringComparison.OrdinalIgnoreCase) &&
+                (candidate.Catalog.Content == null || candidate.Catalog.Content.Count == 0))
+            {
+                project.Catalogs.RemoveAt(i);
+                removed = true;
+            }
+        }
+
+        if (removed)
+        {
+            SyncAvailableCatalogs();
+        }
     }
 
     private async Task<bool> TryLoadReferencedCatalogAsync(CatalogEntry catRef)
@@ -5717,7 +6052,7 @@ public partial class PublishShareViewModel(
                 catFileName = $"catalog-{catRef.Id}.json";
             }
 
-            var existingNamedCat = project.Catalogs.FirstOrDefault(c => c.Id == catRef.Id);
+            var existingNamedCat = project.Catalogs.FirstOrDefault(c => string.Equals(c.Id, catRef.Id, StringComparison.OrdinalIgnoreCase));
             if (existingNamedCat != null)
             {
                 existingNamedCat.Catalog = pubCat;

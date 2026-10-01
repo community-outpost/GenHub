@@ -1,3 +1,4 @@
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.Helpers;
@@ -9,6 +10,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Core.Utilities;
+using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Tools.Interfaces;
 using Microsoft.Extensions.Logging;
 using System;
@@ -18,6 +20,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -29,6 +32,7 @@ namespace GenHub.Features.Tools.ViewModels;
 /// Scoped to the currently active catalog.
 /// </summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Make member static", Justification = "ViewModel properties and methods mutate CommunityToolkit generated instance properties.")]
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "ContentLibraryViewModel requires catalog context, parent coordination, and optional cross-cutting services for library management.")]
 public partial class ContentLibraryViewModel(
     PublisherStudioProject project,
     NamedCatalog activeCatalog,
@@ -36,16 +40,106 @@ public partial class ContentLibraryViewModel(
     ILogger logger,
     IPublisherStudioDialogService dialogService,
     INotificationService? notificationService = null,
-    ILocalizationService? localizationService = null) : ObservableObject
+    ILocalizationService? localizationService = null,
+    ICatalogUpstreamIngestionService? upstreamIngestionService = null) : ObservableObject
 {
     private const int DetailTabReleases = 1;
     private const int DetailTabAddons = 2;
     private const int DetailTabMedia = 3;
 
     [ObservableProperty]
-    private ObservableCollection<CatalogContentItem> _contentItems = activeCatalog?.Catalog?.Content != null
-        ? [.. activeCatalog.Catalog.Content]
-        : [];
+    private ObservableCollection<CatalogContentItem> _contentItems = InitializeContentItems(activeCatalog, parentViewModel);
+
+    private static bool AreUpstreamSyncsEqual(CatalogUpstreamSync? a, CatalogUpstreamSync? b)
+    {
+        if (ReferenceEquals(a, b))
+        {
+            return true;
+        }
+
+        if (a == null || b == null)
+        {
+            return false;
+        }
+
+        if (!string.Equals(a.Provider, b.Provider, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(a.Repository, b.Repository, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(a.Channel, b.Channel, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(a.VariantAxis, b.VariantAxis, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(a.ContentCode, b.ContentCode, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (a.AssetRules.Count != b.AssetRules.Count)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < a.AssetRules.Count; i++)
+        {
+            var ruleA = a.AssetRules[i];
+            var ruleB = b.AssetRules[i];
+            if (!string.Equals(ruleA.Pattern, ruleB.Pattern, StringComparison.Ordinal) ||
+                !string.Equals(ruleA.Variant, ruleB.Variant, StringComparison.Ordinal) ||
+                ruleA.IsDefault != ruleB.IsDefault ||
+                ruleA.TargetGame != ruleB.TargetGame)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static CatalogContentItem? CloneForPreview(CatalogContentItem item)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<CatalogContentItem>(JsonSerializer.Serialize(item));
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static (string? CatalogIconUrl, string? PublisherAvatarUrl) ResolveCatalogPresentationUrls(
+        NamedCatalog? catalog,
+        PublisherStudioViewModel? parentViewModel)
+    {
+        var catalogIcon = catalog?.IconUrl
+            ?? catalog?.Catalog?.IconUrl
+            ?? catalog?.Catalog?.AvatarUrl
+            ?? catalog?.Catalog?.Publisher?.AvatarUrl;
+        var publisherAvatar = parentViewModel?.CurrentProject?.Catalog?.Publisher?.AvatarUrl
+            ?? catalog?.Catalog?.Publisher?.AvatarUrl
+            ?? catalogIcon;
+
+        return (catalogIcon, publisherAvatar);
+    }
+
+    private static ObservableCollection<CatalogContentItem> InitializeContentItems(
+        NamedCatalog? activeCatalog,
+        PublisherStudioViewModel? parentViewModel)
+    {
+        var items = new ObservableCollection<CatalogContentItem>();
+        var catalog = activeCatalog;
+        var content = catalog?.Catalog?.Content;
+        if (catalog != null && content != null)
+        {
+            var (catalogIcon, publisherAvatar) = ResolveCatalogPresentationUrls(catalog, parentViewModel);
+
+            foreach (var item in content)
+            {
+                item.CatalogIconUrl ??= catalogIcon;
+                item.PublisherAvatarUrl ??= publisherAvatar;
+                items.Add(item);
+            }
+        }
+
+        return items;
+    }
 
     [ObservableProperty]
     private CatalogContentItem? _selectedContent;
@@ -55,6 +149,20 @@ public partial class ContentLibraryViewModel(
 
     [ObservableProperty]
     private int _selectedDetailTabIndex;
+
+    [ObservableProperty]
+    private ObservableCollection<ContentRelease> _upstreamPreviewReleases = [];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowUpstreamSyncFailedWarning))]
+    private bool _isUpstreamPreviewLoading;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowUpstreamSyncFailedWarning))]
+    private bool _upstreamPreviewFailed;
+
+    private CancellationTokenSource? _upstreamPreviewCts;
+    private bool _suppressUpstreamPreviewReload;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ContentLibraryViewModel"/> class with default catalog.
@@ -68,7 +176,7 @@ public partial class ContentLibraryViewModel(
         PublisherStudioViewModel parentViewModel,
         ILogger logger,
         IPublisherStudioDialogService dialogService)
-        : this(project, project?.Catalogs.FirstOrDefault() ?? new NamedCatalog { Id = "default", Name = "Content", Catalog = project?.Catalog ?? new() }, parentViewModel, logger, dialogService, null, null)
+        : this(project, project?.Catalogs.FirstOrDefault() ?? new NamedCatalog { Id = "default", Name = "Content", Catalog = project?.Catalog ?? new() }, parentViewModel, logger, dialogService, null, null, null)
     {
     }
 
@@ -81,6 +189,86 @@ public partial class ContentLibraryViewModel(
     /// Gets the name of the active catalog.
     /// </summary>
     public string ActiveCatalogName => activeCatalog?.Name ?? string.Empty;
+
+    /// <summary>
+    /// Gets a value indicating whether an upstream release preview is available for the selected content item.
+    /// </summary>
+    public bool HasUpstreamPreview => UpstreamPreviewReleases.Count > 0;
+
+    /// <summary>
+    /// Gets a value indicating whether the selected content item tracks a live upstream provider.
+    /// Static releases of tracked items are fallback releases: the live upstream releases below supersede them.
+    /// </summary>
+    public bool SelectedContentTracksUpstream => IsSelectedContentUpstream();
+
+    /// <summary>
+    /// Gets the normalized versions of the live upstream preview releases for duplicate detection.
+    /// </summary>
+    public IReadOnlyList<string> UpstreamPreviewVersions { get; private set; } = [];
+
+    /// <summary>
+    /// Gets a value indicating whether the fallback-releases note should be shown above the static list.
+    /// </summary>
+    public bool ShowFallbackReleasesNote => SelectedContentTracksUpstream && HasUpstreamPreview;
+
+    /// <summary>
+    /// Gets a value indicating whether the manual fallback releases expander should be shown.
+    /// </summary>
+    public bool ShowManualFallbackReleases => ShowFallbackReleasesNote && (SelectedContent?.Releases?.Count ?? 0) > 0;
+
+    /// <summary>
+    /// Gets a value indicating whether the static releases list should be shown as the main list.
+    /// When live upstream releases are available they take over the main list and the
+    /// static releases collapse into the fallback expander instead.
+    /// </summary>
+    public bool ShowStaticReleasesList => !HasUpstreamPreview;
+
+    /// <summary>
+    /// Gets a value indicating whether a manual release can be added to the selected content item.
+    /// Upstream-tracked items receive their releases from the provider, and content bundles
+    /// version their dependency graph through the bundle editor, so manual adds are hidden.
+    /// </summary>
+    public bool CanAddManualRelease => !SelectedContentTracksUpstream && SelectedContent?.ContentType != ContentType.ContentBundle;
+
+    /// <summary>
+    /// Gets a value indicating whether the releases drop zone should be shown.
+    /// Hidden for upstream-tracked items, which receive releases from the provider,
+    /// and for content bundles, which have no file artifacts.
+    /// </summary>
+    public bool ShowReleasesDropZone => CanAddManualRelease && (SelectedContent?.Releases.Count ?? 0) == 0;
+
+    /// <summary>
+    /// Gets a value indicating whether the upstream sync failure warning should be shown.
+    /// </summary>
+    public bool ShowUpstreamSyncFailedWarning => SelectedContentTracksUpstream && UpstreamPreviewFailed && !IsUpstreamPreviewLoading;
+
+    /// <summary>
+    /// Gets a value indicating whether the selected content is a content bundle.
+    /// Bundle releases carry only dependencies, never file artifacts.
+    /// </summary>
+    public bool IsSelectedContentBundle => SelectedContent?.ContentType == ContentType.ContentBundle;
+
+    /// <summary>
+    /// Gets a value indicating whether release artifact UI should be shown.
+    /// Hidden for content bundles, which version a dependency graph instead of files.
+    /// </summary>
+    public bool ShowReleaseArtifacts => !IsSelectedContentBundle;
+
+    /// <summary>
+    /// Gets the effective release count for the selected content item (upstream live count when tracked, or static count).
+    /// </summary>
+    public int EffectiveSelectedContentReleasesCount
+    {
+        get
+        {
+            if (SelectedContentTracksUpstream && HasUpstreamPreview)
+            {
+                return UpstreamPreviewReleases.Count;
+            }
+
+            return SelectedContent?.Releases?.Count ?? 0;
+        }
+    }
 
     /// <summary>
     /// Gets the localized catalog item count summary for the footer.
@@ -231,7 +419,7 @@ public partial class ContentLibraryViewModel(
             return;
         }
 
-        var newContent = await dialogService.ShowAddContentDialogAsync(pathsList);
+        var newContent = await dialogService.ShowAddContentDialogAsync(pathsList, activeCatalog.Catalog);
         if (newContent != null)
         {
             if (activeCatalog.Catalog.Content.Any(c => string.Equals(c.Id, newContent.Id, StringComparison.OrdinalIgnoreCase)))
@@ -247,8 +435,9 @@ public partial class ContentLibraryViewModel(
                 return;
             }
 
-            newContent.CatalogIconUrl = activeCatalog.IconUrl ?? activeCatalog.Catalog?.IconUrl;
-            newContent.PublisherAvatarUrl ??= parentViewModel?.CurrentProject?.Catalog?.Publisher?.AvatarUrl;
+            var (catalogIcon, publisherAvatar) = ResolveCatalogPresentationUrls(activeCatalog, parentViewModel);
+            newContent.CatalogIconUrl = catalogIcon;
+            newContent.PublisherAvatarUrl ??= publisherAvatar;
             activeCatalog.Catalog?.Content.Add(newContent);
             ContentItems.Add(newContent);
             OnPropertyChanged(nameof(FilteredContent));
@@ -286,25 +475,30 @@ public partial class ContentLibraryViewModel(
         var importedCount = 0;
         CatalogContentItem? lastCreated = null;
 
-        foreach (var path in validPaths)
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var item = await CreateBatchContentItemAsync(path, cancellationToken);
-            if (item == null)
+            foreach (var path in validPaths)
             {
-                continue;
+                cancellationToken.ThrowIfCancellationRequested();
+                var item = await CreateBatchContentItemAsync(path, cancellationToken);
+                if (item == null)
+                {
+                    continue;
+                }
+
+                activeCatalog.Catalog.Content.Add(item);
+                ContentItems.Add(item);
+                lastCreated = item;
+                importedCount++;
+                logger.LogInformation("Batch imported content item '{ContentId}' from '{Path}'", item.Id, path);
             }
-
-            activeCatalog.Catalog.Content.Add(item);
-            ContentItems.Add(item);
-            lastCreated = item;
-            importedCount++;
-            logger.LogInformation("Batch imported content item '{ContentId}' from '{Path}'", item.Id, path);
         }
-
-        if (importedCount > 0)
+        finally
         {
-            await FinalizeBatchImportAsync(importedCount, lastCreated);
+            if (importedCount > 0)
+            {
+                await FinalizeBatchImportAsync(importedCount, lastCreated);
+            }
         }
 
         return importedCount;
@@ -368,7 +562,7 @@ public partial class ContentLibraryViewModel(
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public async Task AddReleaseWithPathsAsync(IEnumerable<string> paths)
     {
-        if (SelectedContent == null)
+        if (SelectedContent == null || !CanAddManualRelease)
         {
             return;
         }
@@ -681,7 +875,9 @@ public partial class ContentLibraryViewModel(
             GetLocalizedString("Tools.PublisherStudio.Library.BatchImportPickerTitle", "Select Files or Archives to Batch Import"));
         if (files is { Count: > 0 })
         {
-            await BatchImportContentItemsAsync(files);
+            // Batch import is independent of the upstream preview lifecycle, so it explicitly
+            // opts out of cancellation instead of reusing the preview token.
+            await BatchImportContentItemsAsync(files, CancellationToken.None);
         }
     }
 
@@ -705,6 +901,9 @@ public partial class ContentLibraryViewModel(
 
         if (edited != null)
         {
+            var previousUpstreamSync = target.UpstreamSync;
+            var upstreamChanged = !AreUpstreamSyncsEqual(previousUpstreamSync, edited.UpstreamSync);
+
             // Update the existing item's properties
             target.Name = edited.Name;
             target.Description = edited.Description;
@@ -713,12 +912,26 @@ public partial class ContentLibraryViewModel(
             target.Tags = edited.Tags;
             target.ExtendsContentId = edited.ExtendsContentId;
             target.Metadata = edited.Metadata;
-            target.CatalogIconUrl = activeCatalog.IconUrl ?? activeCatalog.Catalog?.IconUrl;
-            target.PublisherAvatarUrl = parentViewModel?.CurrentProject?.Catalog?.Publisher?.AvatarUrl;
+            target.IsFeatured = edited.IsFeatured;
+            target.FeaturedBadge = edited.FeaturedBadge;
+            target.UpstreamSync = edited.UpstreamSync;
+            target.PublisherType = edited.PublisherType;
+            target.BundledItems = edited.BundledItems;
+            target.Releases = edited.Releases;
+            target.Addons = edited.Addons;
+            target.AddonReleases = edited.AddonReleases;
+            var (catalogIcon, publisherAvatar) = ResolveCatalogPresentationUrls(activeCatalog, parentViewModel);
+            target.CatalogIconUrl = catalogIcon;
+            target.PublisherAvatarUrl = publisherAvatar;
             target.NotifyPresentationChanged();
 
             // Trigger UI update
             RefreshSelectedContent();
+
+            if (upstreamChanged && ReferenceEquals(target, SelectedContent))
+            {
+                BeginUpstreamPreviewLoad(target);
+            }
 
             MarkProjectAndCatalogDirty();
             if (parentViewModel != null)
@@ -789,7 +1002,7 @@ public partial class ContentLibraryViewModel(
     [RelayCommand]
     private async Task AddReleaseAsync()
     {
-        if (SelectedContent == null)
+        if (SelectedContent == null || !CanAddManualRelease)
         {
             return;
         }
@@ -1195,9 +1408,9 @@ public partial class ContentLibraryViewModel(
     [RelayCommand]
     private async Task AddArtifactToReleaseAsync(ContentRelease? release)
     {
-        if (release == null) return;
+        if (release == null || IsSelectedContentBundle) return;
 
-        var artifact = await dialogService.ShowAddArtifactDialogAsync();
+        var artifact = await dialogService.ShowAddArtifactDialogAsync(!release.BundleArtifacts);
         if (artifact != null)
         {
             if (artifact.IsPrimary)
@@ -1300,8 +1513,140 @@ public partial class ContentLibraryViewModel(
 
     partial void OnSelectedContentChanged(CatalogContentItem? value)
     {
-        _ = value;
         RefreshHostingHint();
+        OnPropertyChanged(nameof(SelectedContentTracksUpstream));
+        OnPropertyChanged(nameof(ShowFallbackReleasesNote));
+        OnPropertyChanged(nameof(ShowManualFallbackReleases));
+        OnPropertyChanged(nameof(ShowStaticReleasesList));
+        OnPropertyChanged(nameof(CanAddManualRelease));
+        OnPropertyChanged(nameof(ShowReleasesDropZone));
+        OnPropertyChanged(nameof(ShowUpstreamSyncFailedWarning));
+        OnPropertyChanged(nameof(IsSelectedContentBundle));
+        OnPropertyChanged(nameof(ShowReleaseArtifacts));
+        OnPropertyChanged(nameof(EffectiveSelectedContentReleasesCount));
+        if (_suppressUpstreamPreviewReload)
+        {
+            return;
+        }
+
+        BeginUpstreamPreviewLoad(value);
+    }
+
+    private bool IsSelectedContentUpstream() =>
+        SelectedContent != null && CatalogConstants.UpstreamProviders.IsConfiguredUpstreamSource(SelectedContent);
+
+    /// <summary>
+    /// Starts loading a read-only upstream release preview for the selected content item.
+    /// The preview is ingested from a clone so the catalog itself is never modified.
+    /// </summary>
+    private void BeginUpstreamPreviewLoad(CatalogContentItem? value)
+    {
+        _upstreamPreviewCts?.Cancel();
+        _upstreamPreviewCts?.Dispose();
+        _upstreamPreviewCts = null;
+        UpstreamPreviewReleases.Clear();
+        UpstreamPreviewVersions = [];
+        IsUpstreamPreviewLoading = false;
+        UpstreamPreviewFailed = false;
+        OnPropertyChanged(nameof(HasUpstreamPreview));
+        OnPropertyChanged(nameof(UpstreamPreviewVersions));
+        OnPropertyChanged(nameof(ShowFallbackReleasesNote));
+        OnPropertyChanged(nameof(ShowManualFallbackReleases));
+        OnPropertyChanged(nameof(ShowStaticReleasesList));
+        OnPropertyChanged(nameof(EffectiveSelectedContentReleasesCount));
+
+        if (value == null || upstreamIngestionService == null || !IsSelectedContentUpstream())
+        {
+            return;
+        }
+
+        var cts = new CancellationTokenSource();
+        _upstreamPreviewCts = cts;
+        IsUpstreamPreviewLoading = true;
+        _ = LoadUpstreamPreviewAsync(value, cts);
+    }
+
+    private async Task LoadUpstreamPreviewAsync(CatalogContentItem item, CancellationTokenSource cts)
+    {
+        try
+        {
+            var clone = CloneForPreview(item);
+            if (clone == null || upstreamIngestionService == null)
+            {
+                return;
+            }
+
+            // Ingestion replaces releases on success and leaves them untouched on a miss,
+            // so reference comparison tells live data apart from static leftovers.
+            var staticRefs = new HashSet<ContentRelease>(clone.Releases);
+            var preview = new PublisherCatalog { Content = [clone] };
+            await upstreamIngestionService.IngestCatalogAsync(preview, cts.Token);
+            if (cts.IsCancellationRequested)
+            {
+                return;
+            }
+
+            var releases = clone.Releases.Where(r => !staticRefs.Contains(r)).ToList();
+            var producedUpstream = releases.Count > 0;
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                if (_upstreamPreviewCts != cts)
+                {
+                    return;
+                }
+
+                UpstreamPreviewReleases.Clear();
+                foreach (var release in releases)
+                {
+                    UpstreamPreviewReleases.Add(release);
+                }
+
+                UpstreamPreviewFailed = !producedUpstream;
+                UpstreamPreviewVersions = releases
+                    .Where(r => !string.IsNullOrWhiteSpace(r.Version))
+                    .Select(r => r.Version)
+                    .ToList();
+                OnPropertyChanged(nameof(HasUpstreamPreview));
+                OnPropertyChanged(nameof(UpstreamPreviewVersions));
+                OnPropertyChanged(nameof(ShowFallbackReleasesNote));
+                OnPropertyChanged(nameof(ShowManualFallbackReleases));
+                OnPropertyChanged(nameof(ShowStaticReleasesList));
+                OnPropertyChanged(nameof(EffectiveSelectedContentReleasesCount));
+            });
+        }
+        catch (OperationCanceledException ex)
+        {
+            logger.LogDebug(ex, "Upstream release preview for '{ContentId}' was canceled", item.Id);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to load upstream release preview for '{ContentId}'", item.Id);
+        }
+        finally
+        {
+            try
+            {
+                if (_upstreamPreviewCts == cts)
+                {
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        if (_upstreamPreviewCts == cts)
+                        {
+                            IsUpstreamPreviewLoading = false;
+                        }
+                    });
+
+                    if (_upstreamPreviewCts == cts)
+                    {
+                        _upstreamPreviewCts = null;
+                    }
+                }
+            }
+            finally
+            {
+                cts.Dispose();
+            }
+        }
     }
 
     /// <summary>
@@ -1317,8 +1662,19 @@ public partial class ContentLibraryViewModel(
             return;
         }
 
-        SelectedContent = null;
-        SelectedContent = selected;
+        // The selection round-trip only forces the detail panel to rebuild for the same
+        // item, so keep the upstream preview instead of cancelling and re-fetching it.
+        _suppressUpstreamPreviewReload = true;
+        try
+        {
+            SelectedContent = null;
+            SelectedContent = selected;
+        }
+        finally
+        {
+            _suppressUpstreamPreviewReload = false;
+        }
+
         OnPropertyChanged(nameof(FilteredContent));
         RefreshHostingHint();
     }
@@ -1429,8 +1785,7 @@ public partial class ContentLibraryViewModel(
         var content = catalog?.Catalog?.Content;
         if (catalog != null && content != null)
         {
-            var catalogIcon = catalog.IconUrl ?? catalog.Catalog.IconUrl;
-            var publisherAvatar = parentViewModel?.CurrentProject?.Catalog?.Publisher?.AvatarUrl;
+            var (catalogIcon, publisherAvatar) = ResolveCatalogPresentationUrls(catalog, parentViewModel);
 
             foreach (var item in content)
             {

@@ -1,3 +1,4 @@
+using GenHub.Core.Models.Enums;
 using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Models.Providers;
@@ -74,6 +75,13 @@ public class ReleaseArtifact
     /// </summary>
     [JsonPropertyName("isDefaultVariant")]
     public bool IsDefaultVariant { get; set; }
+
+    /// <summary>
+    /// Gets or sets the target game specific to this artifact, if applicable.
+    /// Overrides item-level <see cref="GameType"/> for multi-game upstream releases.
+    /// </summary>
+    [JsonPropertyName("targetGame")]
+    public GameType TargetGame { get; set; } = GameType.Unknown;
 
     /// <summary>
     /// Gets or sets the local file path for upload (not serialized).

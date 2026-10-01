@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GitHub;
@@ -241,7 +242,7 @@ public class SetupWizardServiceTests
 
         // Assert: Generals Online was shown in wizard with Create Profile action
         Assert.NotNull(capturedVm);
-        var goItem = capturedVm.Items.FirstOrDefault(i => i.Title == "Generals Online");
+        var goItem = capturedVm.Items.FirstOrDefault(i => Equals(i.Metadata, PublisherTypeConstants.GeneralsOnline));
         Assert.NotNull(goItem);
         Assert.Equal(GameClientConstants.WizardStatuses.Downloaded, goItem.Status);
         Assert.Equal(GameClientConstants.WizardActionLabels.CreateProfile, goItem.ActionLabel);
@@ -308,7 +309,7 @@ public class SetupWizardServiceTests
 
         // Assert: Generals Online was shown in wizard with Status "Detected" and "Create Profile" action
         Assert.NotNull(capturedVm);
-        var goItem = capturedVm.Items.FirstOrDefault(i => i.Title == "Generals Online");
+        var goItem = capturedVm.Items.FirstOrDefault(i => Equals(i.Metadata, PublisherTypeConstants.GeneralsOnline));
         Assert.NotNull(goItem);
         Assert.Equal(GameClientConstants.WizardStatuses.Detected, goItem.Status);
         Assert.Equal(GameClientConstants.WizardActionLabels.CreateProfile, goItem.ActionLabel);
@@ -375,8 +376,8 @@ public class SetupWizardServiceTests
 
         // Assert
         Assert.NotNull(capturedVm);
-        var retailItem = capturedVm.Items.FirstOrDefault(i => i.Title == "Community Patch (Retail)");
-        var nonRetItem = capturedVm.Items.FirstOrDefault(i => i.Title == "Community Patch (Non-Retail)");
+        var retailItem = capturedVm.Items.FirstOrDefault(i => Equals(i.Metadata, CommunityOutpostConstants.CommunityPatchRetailCode));
+        var nonRetItem = capturedVm.Items.FirstOrDefault(i => Equals(i.Metadata, CommunityOutpostConstants.CommunityPatchNonRetCode));
 
         Assert.NotNull(retailItem);
         Assert.NotNull(nonRetItem);
@@ -389,7 +390,7 @@ public class SetupWizardServiceTests
         // Non-retail item defaults to unchecked and contains compatibility warning
         Assert.False(nonRetItem.IsSelected);
         Assert.Equal(nonRetVersion, nonRetItem.Version);
-        Assert.Contains("Not compatible with retail 1.04 zero hour", nonRetItem.Description);
+        Assert.EndsWith(" " + GameClientConstants.WizardFallbackText[GameClientConstants.WizardLocalizationKeys.NonRetailIncompatibleNotice], nonRetItem.Description);
         Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.CommunityPatchNonRetAction);
         Assert.True(result.Confirmed);
     }
@@ -440,7 +441,7 @@ public class SetupWizardServiceTests
 
         service.DialogShower = vm =>
         {
-            var nonRetItem = vm.Items.FirstOrDefault(i => i.Title == "Community Patch (Non-Retail)");
+            var nonRetItem = vm.Items.FirstOrDefault(i => Equals(i.Metadata, CommunityOutpostConstants.CommunityPatchNonRetCode));
             if (nonRetItem != null)
             {
                 nonRetItem.IsSelected = true; // User opts into Non-Retail as well
@@ -511,7 +512,7 @@ public class SetupWizardServiceTests
             var expectedAction = OperatingSystem.IsWindows()
                 ? GameClientConstants.WizardActionTypes.Install
                 : GameClientConstants.WizardActionTypes.CreateProfile;
-            var shItem = Assert.Single(capturedVm!.Items, i => i.Title == "TheSuperHackers");
+            var shItem = Assert.Single(capturedVm!.Items, i => Equals(i.Metadata, PublisherTypeConstants.TheSuperHackers));
             Assert.Equal(expectedAction, shItem.ActionType);
             Assert.True(shItem.IsSelected);
             Assert.Equal(expectedAction, result.SuperHackersAction);
@@ -610,7 +611,7 @@ public class SetupWizardServiceTests
 
             var result = await service.RunSetupWizardAsync([installation], CancellationToken.None);
 
-            var shItem = capturedVm?.Items.FirstOrDefault(i => i.Title == "TheSuperHackers");
+            var shItem = capturedVm?.Items.FirstOrDefault(i => Equals(i.Metadata, PublisherTypeConstants.TheSuperHackers));
             if (OperatingSystem.IsWindows())
             {
                 if (!windowsBuildListedFirst && !windowsPackageIsLatest)
@@ -713,7 +714,7 @@ public class SetupWizardServiceTests
 
             var result = await service.RunSetupWizardAsync([installation], CancellationToken.None);
 
-            var shItem = capturedVm?.Items.FirstOrDefault(i => i.Title == "TheSuperHackers");
+            var shItem = capturedVm?.Items.FirstOrDefault(i => Equals(i.Metadata, PublisherTypeConstants.TheSuperHackers));
             Assert.Equal(GameClientConstants.WizardActionTypes.CreateProfile, shItem?.ActionType);
             Assert.Equal(GameClientConstants.WizardActionTypes.CreateProfile, result.SuperHackersAction);
         }
@@ -805,8 +806,8 @@ public class SetupWizardServiceTests
 
             var result = await service.RunSetupWizardAsync([installation], CancellationToken.None);
 
-            var retailItem = capturedVm?.Items.FirstOrDefault(i => i.Title == "Community Patch (Retail)");
-            var nonRetItem = capturedVm?.Items.FirstOrDefault(i => i.Title == "Community Patch (Non-Retail)");
+            var retailItem = capturedVm?.Items.FirstOrDefault(i => Equals(i.Metadata, CommunityOutpostConstants.CommunityPatchRetailCode));
+            var nonRetItem = capturedVm?.Items.FirstOrDefault(i => Equals(i.Metadata, CommunityOutpostConstants.CommunityPatchNonRetCode));
             Assert.NotNull(retailItem);
             Assert.Equal(GameClientConstants.WizardActionTypes.Install, retailItem.ActionType);
             Assert.False(retailItem.IsSelected);
@@ -828,11 +829,308 @@ public class SetupWizardServiceTests
         }
     }
 
+    /// <summary>
+    /// Verifies that every wizard item's title, description, action label and status label, and the
+    /// wizard's own labels, are resolved through localization keys, while the selection decisions
+    /// still follow the item metadata.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RunSetupWizardAsync_WithLocalizationService_ResolvesItemTextThroughKeysAsync()
+    {
+        // Arrange
+        const string retailVersion = "23-07-2026";
+        const string nonRetVersion = "11-09-2026";
+
+        _cpDiscovererMock
+            .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
+            {
+                Items =
+                [
+                    new ContentSearchResult
+                    {
+                        Id = "generalszh_11-09-2026_NonRet.zip",
+                        Name = "Community Patch 11-09-2026 (Non-Retail)",
+                        Version = nonRetVersion,
+                        Tags = { "nonretail" },
+                    },
+                    new ContentSearchResult
+                    {
+                        Id = "generalszh_23-07-2026.zip",
+                        Name = "Community Patch 23-07-2026",
+                        Version = retailVersion,
+                    },
+                ],
+            }));
+
+        _goDiscovererMock
+            .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult { Items = [] }));
+
+        _manifestPoolMock
+            .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+        var service = CreateService(localizationService: new MarkerLocalizationService());
+
+        SetupWizardViewModel? capturedVm = null;
+        service.DialogShower = vm =>
+        {
+            capturedVm = vm;
+            vm.ConfirmCommand.Execute(null);
+            return Task.FromResult(true);
+        };
+
+        // Act
+        var result = await service.RunSetupWizardAsync([], CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(capturedVm);
+        var retailTitle = MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.CommunityPatchRetailTitle);
+        var nonRetTitle = MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.CommunityPatchNonRetailTitle);
+        var goTitle = MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.GeneralsOnlineTitle);
+        var shTitle = MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.SuperHackersTitle);
+
+        var retailItem = Assert.Single(capturedVm.Items, i => Equals(i.Metadata, CommunityOutpostConstants.CommunityPatchRetailCode));
+        Assert.Equal(retailTitle, retailItem.Title);
+        Assert.Equal(
+            MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.InstallVersionDescription, retailTitle, retailVersion),
+            retailItem.Description);
+        Assert.Equal(MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.DownloadAndInstallAction), retailItem.ActionLabel);
+        Assert.Equal(GameClientConstants.WizardStatuses.Missing, retailItem.Status);
+        Assert.Equal(MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.MissingStatus), retailItem.StatusLabel);
+
+        var nonRetItem = Assert.Single(capturedVm.Items, i => Equals(i.Metadata, CommunityOutpostConstants.CommunityPatchNonRetCode));
+        Assert.Equal(nonRetTitle, nonRetItem.Title);
+        Assert.Equal(
+            MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.InstallVersionDescription, nonRetTitle, nonRetVersion)
+                + " " + MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.NonRetailIncompatibleNotice),
+            nonRetItem.Description);
+
+        // Discovery found no Generals Online or TheSuperHackers version, so the unversioned descriptions are used
+        var goItem = Assert.Single(capturedVm.Items, i => Equals(i.Metadata, PublisherTypeConstants.GeneralsOnline));
+        Assert.Equal(goTitle, goItem.Title);
+        Assert.Equal(MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.InstallDescription, goTitle), goItem.Description);
+
+        var shItem = Assert.Single(capturedVm.Items, i => Equals(i.Metadata, PublisherTypeConstants.TheSuperHackers));
+        Assert.Equal(shTitle, shItem.Title);
+        Assert.Equal(MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.InstallDescription, shTitle), shItem.Description);
+
+        Assert.Equal(MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.Title), capturedVm.Title);
+        Assert.Equal(MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.Skip), capturedVm.CancelLabel);
+        Assert.Equal(MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.ContinueWithCount, 2), capturedVm.ConfirmLabel);
+
+        Assert.True(result.Confirmed);
+        Assert.Equal(GameClientConstants.WizardActionTypes.Install, result.CommunityPatchAction);
+        Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.CommunityPatchNonRetAction);
+        Assert.Equal(GameClientConstants.WizardActionTypes.Install, result.GeneralsOnlineAction);
+        Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.SuperHackersAction);
+    }
+
+    /// <summary>
+    /// Verifies that the update and create profile item texts are resolved through localization keys.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RunSetupWizardAsync_WithLocalizationService_ResolvesUpdateAndCreateProfileTextThroughKeysAsync()
+    {
+        // Arrange
+        const string latestVersion = "082826_QFE1";
+        const string staleVersion = "070126";
+        const string staleManifestId = "1.70126.generalsonline.gameclient.60hz";
+        const string retailVersion = "23-07-2026";
+        const string retailManifestId = "1.0.communityoutpost.gameclient.communitypatch";
+
+        _goDiscovererMock
+            .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
+            {
+                Items = [new ContentSearchResult { Version = latestVersion }],
+            }));
+
+        _cpDiscovererMock
+            .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
+            {
+                Items =
+                [
+                    new ContentSearchResult
+                    {
+                        Id = "generalszh_23-07-2026.zip",
+                        Name = "Community Patch 23-07-2026",
+                        Version = retailVersion,
+                    },
+                ],
+            }));
+
+        var staleGoManifest = CreateGameClientManifest(staleManifestId, "Generals Online", staleVersion, PublisherTypeConstants.GeneralsOnline);
+        var retailManifest = CreateGameClientManifest(retailManifestId, "Community Patch", retailVersion, CommunityOutpostConstants.PublisherType);
+
+        _manifestPoolMock
+            .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([staleGoManifest, retailManifest]));
+
+        _profileServiceMock
+            .Setup(s => s.ProfileExistsForGameClientAsync(staleManifestId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var service = CreateService(localizationService: new MarkerLocalizationService());
+
+        SetupWizardViewModel? capturedVm = null;
+        service.DialogShower = vm =>
+        {
+            capturedVm = vm;
+            vm.ConfirmCommand.Execute(null);
+            return Task.FromResult(true);
+        };
+
+        // Act
+        await service.RunSetupWizardAsync([], CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(capturedVm);
+        var goTitle = MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.GeneralsOnlineTitle);
+        var goItem = Assert.Single(capturedVm.Items, i => Equals(i.Metadata, PublisherTypeConstants.GeneralsOnline));
+        Assert.Equal(GameClientConstants.WizardActionTypes.Update, goItem.ActionType);
+        Assert.Equal(
+            MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.UpdateVersionDescription, goTitle, latestVersion),
+            goItem.Description);
+        Assert.Equal(MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.UpdateReinstallAction), goItem.ActionLabel);
+        Assert.Equal(MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.InstalledStatus), goItem.StatusLabel);
+
+        var retailTitle = MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.CommunityPatchRetailTitle);
+        var retailItem = Assert.Single(capturedVm.Items, i => Equals(i.Metadata, CommunityOutpostConstants.CommunityPatchRetailCode));
+        Assert.Equal(GameClientConstants.WizardActionTypes.CreateProfile, retailItem.ActionType);
+        Assert.Equal(
+            MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.CreateProfileVersionDescription, retailTitle, retailVersion),
+            retailItem.Description);
+        Assert.Equal(MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.CreateProfileAction), retailItem.ActionLabel);
+        Assert.Equal(MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.DownloadedStatus), retailItem.StatusLabel);
+    }
+
+    /// <summary>
+    /// Verifies that every wizard action type gets a non-empty localized action label, and that an
+    /// action type without a specific label falls back to the default action key.
+    /// </summary>
+    [Fact]
+    public void ApplyDisplayLabels_ForEveryActionType_SetsNonEmptyLocalizedActionLabel()
+    {
+        var service = CreateService(localizationService: new MarkerLocalizationService());
+        var actionTypes = typeof(GameClientConstants.WizardActionTypes)
+            .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+            .Where(f => f.IsLiteral)
+            .Select(f => (string)f.GetRawConstantValue()!)
+            .ToList();
+
+        Assert.NotEmpty(actionTypes);
+        foreach (var actionType in actionTypes)
+        {
+            var item = new SetupWizardItemViewModel { ActionType = actionType };
+
+            service.ApplyDisplayLabels(item);
+
+            var expectedKey = actionType switch
+            {
+                GameClientConstants.WizardActionTypes.Update => GameClientConstants.WizardLocalizationKeys.UpdateReinstallAction,
+                GameClientConstants.WizardActionTypes.CreateProfile => GameClientConstants.WizardLocalizationKeys.CreateProfileAction,
+                GameClientConstants.WizardActionTypes.Install => GameClientConstants.WizardLocalizationKeys.DownloadAndInstallAction,
+                _ => GameClientConstants.WizardLocalizationKeys.DefaultAction,
+            };
+            Assert.Equal(MarkerLocalizationService.Marker(expectedKey), item.ActionLabel);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that without a localization service an unmapped action type still gets the English default label.
+    /// </summary>
+    [Fact]
+    public void ApplyDisplayLabels_WithoutLocalizationServiceForUnmappedActionType_UsesEnglishDefault()
+    {
+        var service = CreateService();
+        var item = new SetupWizardItemViewModel { ActionType = GameClientConstants.WizardActionTypes.None };
+
+        service.ApplyDisplayLabels(item);
+
+        Assert.Equal(GameClientConstants.WizardFallbackText[GameClientConstants.WizardLocalizationKeys.DefaultAction], item.ActionLabel);
+    }
+
+    /// <summary>
+    /// Verifies that a discovered latest version of "unknown" in any casing is treated as no version,
+    /// so the item gets the unversioned description instead of "Download and install Generals Online unknown.".
+    /// </summary>
+    /// <param name="unknownVersion">The unknown version string reported by discovery.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Theory]
+    [InlineData("unknown")]
+    [InlineData("UNKNOWN")]
+    public async Task RunSetupWizardAsync_WhenLatestVersionIsUnknownInAnyCase_UsesUnversionedDescriptionAsync(string unknownVersion)
+    {
+        // Arrange
+        _goDiscovererMock
+            .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
+            {
+                Items = [new ContentSearchResult { Version = unknownVersion }],
+            }));
+
+        _cpDiscovererMock
+            .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult { Items = [] }));
+
+        _manifestPoolMock
+            .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+        var service = CreateService(localizationService: new MarkerLocalizationService());
+
+        SetupWizardViewModel? capturedVm = null;
+        service.DialogShower = vm =>
+        {
+            capturedVm = vm;
+            return Task.FromResult(false);
+        };
+
+        // Act
+        await service.RunSetupWizardAsync([], CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(capturedVm);
+        var goTitle = MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.GeneralsOnlineTitle);
+        var goItem = Assert.Single(capturedVm.Items, i => Equals(i.Metadata, PublisherTypeConstants.GeneralsOnline));
+        Assert.Equal(MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.InstallDescription, goTitle), goItem.Description);
+    }
+
+    /// <summary>
+    /// Verifies that every wizard localization key has an English fallback and that each fallback
+    /// equals the neutral <c>Strings.resx</c> value, so the two cannot drift apart.
+    /// </summary>
+    [Fact]
+    public void WizardFallbackText_CoversEveryKeyAndMatchesNeutralResources()
+    {
+        var resourceManager = new System.Resources.ResourceManager(
+            LocalizationConstants.StringResourceBaseName,
+            typeof(GenHub.Common.Services.LocalizationService).Assembly);
+        var keys = typeof(GameClientConstants.WizardLocalizationKeys)
+            .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+            .Where(f => f.IsLiteral)
+            .Select(f => (string)f.GetRawConstantValue()!)
+            .ToList();
+
+        Assert.NotEmpty(keys);
+        Assert.Equal(keys.Count, GameClientConstants.WizardFallbackText.Count);
+        foreach (var key in keys)
+        {
+            Assert.True(GameClientConstants.WizardFallbackText.TryGetValue(key, out var fallback), $"No fallback for {key}");
+            Assert.Equal(resourceManager.GetString(key, System.Globalization.CultureInfo.InvariantCulture), fallback);
+        }
+    }
+
     private static byte[] HostNativeExecutableHeader() => OperatingSystem.IsLinux()
         ? [0x7F, 0x45, 0x4C, 0x46, 0x02, 0x01, 0x01, 0x00]
         : [0xCF, 0xFA, 0xED, 0xFE, 0x0C, 0x00, 0x00, 0x01];
 
-    private SetupWizardService CreateService(SuperHackersProvider? superHackersProvider = null)
+    private SetupWizardService CreateService(SuperHackersProvider? superHackersProvider = null, ILocalizationService? localizationService = null)
     {
         return new SetupWizardService(
             _profileServiceMock.Object,
@@ -840,7 +1138,8 @@ public class SetupWizardServiceTests
             _goDiscovererMock.Object,
             superHackersProvider!, // Null is caught by null check / try-catch
             _manifestPoolMock.Object,
-            NullLogger<SetupWizardService>.Instance);
+            NullLogger<SetupWizardService>.Instance,
+            localizationService);
     }
 
     private ContentManifest CreateGameClientManifest(string id, string name, string version, string publisherType)

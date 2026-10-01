@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results.Content;
 using System;
 using System.Collections.Generic;
@@ -345,5 +346,85 @@ public class ContentCardBadgeHelperTests
         Assert.False(ContentCardBadgeHelper.CanChangeContentType(officialGo));
         Assert.False(ContentCardBadgeHelper.CanChangeContentType(officialCo));
         Assert.False(ContentCardBadgeHelper.CanChangeContentType(officialTsh));
+    }
+
+    /// <summary>
+    /// Verifies non-featured content resolves no featured color even with a valid accent.
+    /// </summary>
+    /// <param name="accentColor">The candidate accent color.</param>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("#76F525")]
+    public void GetFeaturedColor_NotFeatured_ReturnsNull(string? accentColor)
+    {
+        Assert.Null(ContentCardBadgeHelper.GetFeaturedColor(false, accentColor));
+    }
+
+    /// <summary>
+    /// Verifies featured content with a valid accent resolves that accent, trimmed.
+    /// </summary>
+    /// <param name="accentColor">The candidate accent color.</param>
+    /// <param name="expected">The expected resolved color.</param>
+    [Theory]
+    [InlineData("#76F525", "#76F525")]
+    [InlineData("  #0F6A0D  ", "#0F6A0D")]
+    public void GetFeaturedColor_FeaturedWithValidAccent_ReturnsAccent(string? accentColor, string expected)
+    {
+        Assert.Equal(expected, ContentCardBadgeHelper.GetFeaturedColor(true, accentColor));
+    }
+
+    /// <summary>
+    /// Verifies featured content without a valid accent falls back to default gold.
+    /// </summary>
+    /// <param name="accentColor">The candidate accent color.</param>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("not-a-color")]
+    [InlineData("#GGGGGG")]
+    public void GetFeaturedColor_FeaturedWithoutValidAccent_ReturnsDefaultGold(string? accentColor)
+    {
+        Assert.Equal(CatalogConstants.FeaturedDefaultColor, ContentCardBadgeHelper.GetFeaturedColor(true, accentColor));
+    }
+
+    /// <summary>
+    /// Verifies the search-result overload mirrors the flag and accent onto download cards.
+    /// </summary>
+    [Fact]
+    public void GetFeaturedColor_SearchResult_ResolvesFromFlagAndAccent()
+    {
+        var featured = new ContentSearchResult { IsFeatured = true, AccentColor = "#76F525" };
+        var featuredDefault = new ContentSearchResult { IsFeatured = true };
+        var plain = new ContentSearchResult { IsFeatured = false, AccentColor = "#76F525" };
+
+        Assert.Equal("#76F525", ContentCardBadgeHelper.GetFeaturedColor(featured));
+        Assert.Equal(CatalogConstants.FeaturedDefaultColor, ContentCardBadgeHelper.GetFeaturedColor(featuredDefault));
+        Assert.Null(ContentCardBadgeHelper.GetFeaturedColor(plain));
+    }
+
+    /// <summary>
+    /// Verifies the catalog-item overload honors both item-level and metadata-level featured flags.
+    /// </summary>
+    [Fact]
+    public void GetFeaturedColor_CatalogContentItem_HonorsBothFeaturedFlags()
+    {
+        var itemFlag = new CatalogContentItem
+        {
+            IsFeatured = true,
+            Metadata = new ContentRichMetadata { AccentColor = "#76F525" },
+        };
+        var metadataFlag = new CatalogContentItem
+        {
+            Metadata = new ContentRichMetadata { IsFeatured = true },
+        };
+        var plain = new CatalogContentItem
+        {
+            Metadata = new ContentRichMetadata { AccentColor = "#76F525" },
+        };
+
+        Assert.Equal("#76F525", ContentCardBadgeHelper.GetFeaturedColor(itemFlag));
+        Assert.Equal(CatalogConstants.FeaturedDefaultColor, ContentCardBadgeHelper.GetFeaturedColor(metadataFlag));
+        Assert.Null(ContentCardBadgeHelper.GetFeaturedColor(plain));
     }
 }

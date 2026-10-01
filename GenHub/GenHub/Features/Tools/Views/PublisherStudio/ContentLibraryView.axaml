@@ -19,6 +19,7 @@
         <converters:FileSizeConverter x:Key="FileSizeConverter"/>
         <converters:ArtifactPendingUploadConverter x:Key="ArtifactPendingUploadConverter"/>
         <converters:ReleaseOrderingConverter x:Key="ReleaseOrderingConverter"/>
+        <converters:UpstreamDuplicateReleaseConverter x:Key="UpstreamDuplicateReleaseConverter"/>
         <converters:StringToImageConverter x:Key="StringToImageConverter"/>
         <converters:ColorToBrushConverter x:Key="AccentColorBrushConverter"/>
         <converters:ValidColorToVisibilityConverter x:Key="ValidColorToVisibilityConverter"/>
@@ -41,6 +42,18 @@
         <Style Selector="ListBoxItem:selected Border#CardRoot">
             <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
+        </Style>
+        <!-- Featured preview: publisher featured color (or default gold) border, mirroring download cards.
+             The selected+featured combination keeps the featured border so publishers always see the
+             storefront appearance; selection stays visible through the tinted background. -->
+        <Style Selector="Border#CardRoot.featured" x:CompileBindings="False">
+            <Setter Property="BorderBrush" Value="{Binding FeaturedColor, Converter={StaticResource AccentColorBrushConverter}}"/>
+            <Setter Property="BorderThickness" Value="2"/>
+        </Style>
+        <Style Selector="ListBoxItem:selected Border#CardRoot.featured" x:CompileBindings="False">
+            <Setter Property="BorderBrush" Value="{Binding FeaturedColor, Converter={StaticResource AccentColorBrushConverter}}"/>
+            <Setter Property="BorderThickness" Value="2"/>
             <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
         </Style>
 
@@ -286,9 +299,15 @@
                                         BorderBrush="{DynamicResource GlassFillBrush}"
                                         BorderThickness="1"
                                         CornerRadius="8"
-                                        Padding="12"
-                                        Transitions="{x:Null}">
-                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                        Padding="0"
+                                        Transitions="{x:Null}"
+                                        Classes.featured="{Binding IsFeatured}">
+                                    <Grid ColumnDefinitions="4,*">
+                                        <!-- Publisher accent stripe. The fixed column keeps rows aligned when no color is set. -->
+                                        <Border CornerRadius="7,0,0,7"
+                                                Background="{Binding Metadata.AccentColor, Converter={StaticResource AccentColorBrushConverter}}"
+                                                IsVisible="{Binding Metadata.AccentColor, Converter={StaticResource ValidColorToVisibilityConverter}}" />
+                                        <Grid Grid.Column="1" ColumnDefinitions="Auto,*,Auto" Margin="8,12,12,12">
                                         <!-- Type Icon Box -->
                                         <Border Width="40" Height="40"
                                                 CornerRadius="8"
@@ -320,11 +339,20 @@
                                                        TextTrimming="CharacterEllipsis"/>
                                             <TextBlock FontSize="12"
                                                        Foreground="{DynamicResource TextSecondary}"
-                                                       TextTrimming="CharacterEllipsis">
+                                                       TextTrimming="CharacterEllipsis"
+                                                       IsVisible="{Binding !ShowsUpstreamReleasesPlaceholder}">
                                                 <Run Text="{Binding ContentType}"/>
                                                 <Run Text=" • "/>
                                                 <Run Text="{Binding Releases.Count, Mode=OneWay}"/>
                                                 <Run Text="{localization:Localize Tools.PublisherStudio.Library.ReleasesSuffix}"/>
+                                            </TextBlock>
+                                            <TextBlock FontSize="12"
+                                                       Foreground="{DynamicResource TextSecondary}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       IsVisible="{Binding ShowsUpstreamReleasesPlaceholder}">
+                                                <Run Text="{Binding ContentType}"/>
+                                                <Run Text=" • "/>
+                                                <Run Text="{localization:Localize Tools.PublisherStudio.Library.UpstreamSuffix}"/>
                                             </TextBlock>
                                         </StackPanel>
 
@@ -343,6 +371,7 @@
                                                           Foreground="{DynamicResource AccentColorBrush}"/>
                                             </Button>
                                         </StackPanel>
+                                        </Grid>
                                     </Grid>
                                 </Border>
                             </DataTemplate>
@@ -446,17 +475,6 @@
                                                             FontSize="11"
                                                             FontWeight="Bold"
                                                             Foreground="{DynamicResource AccentColorBrush}"/>
-                                            </Border>
-                                            <Border Background="{Binding Metadata.AccentColor, Converter={StaticResource AccentColorBrushConverter}}"
-                                                    CornerRadius="4"
-                                                    Padding="8,2"
-                                                    VerticalAlignment="Center"
-                                                    IsVisible="{Binding Metadata.AccentColor, Converter={StaticResource ValidColorToVisibilityConverter}}"
-                                                    ToolTip.Tip="{Binding Metadata.AccentColor}">
-                                                 <TextBlock Text="{Binding Metadata.AccentColor}"
-                                                            FontSize="11"
-                                                            FontWeight="Bold"
-                                                            Foreground="{DynamicResource AccentBadgeForegroundBrush}"/>
                                             </Border>
                                         </StackPanel>
                                         <TextBlock FontSize="13" Foreground="{DynamicResource TextSecondary}">
@@ -683,7 +701,7 @@
                                     <StackPanel Orientation="Horizontal" Spacing="4">
                                         <TextBlock Text="{localization:Localize Downloads.ContentDetail.Releases}" />
                                         <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="8" Padding="6,2">
-                                            <TextBlock Text="{Binding Releases.Count}" FontSize="10" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).EffectiveSelectedContentReleasesCount}" FontSize="10" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" />
                                         </Border>
                                     </StackPanel>
                                 </TabItem.Header>
@@ -725,6 +743,7 @@
                                                    Foreground="{DynamicResource TextPrimary}"/>
                                         <Button Grid.Column="1"
                                                 Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).AddReleaseCommand}"
+                                                IsVisible="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).CanAddManualRelease}"
                                                 Classes="accent-glass-btn">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
                                                 <PathIcon Data="{StaticResource AddIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
@@ -733,9 +752,27 @@
                                         </Button>
                                     </Grid>
 
-                                    <!-- Releases Drop Zone -->
+                                    <!-- Upstream sync failure: the provider returned no releases -->
+                                    <Border Background="{DynamicResource StatusWarningBadgeBackgroundBrush}"
+                                            BorderBrush="{DynamicResource WarningHighlightBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            Padding="12,10"
+                                            IsVisible="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).ShowUpstreamSyncFailedWarning}">
+                                        <Grid ColumnDefinitions="Auto,*">
+                                            <PathIcon Data="{StaticResource WarningIcon}" Width="14" Height="14" Foreground="{DynamicResource WarningHighlightBrush}" VerticalAlignment="Top" Margin="0,2,10,0"/>
+                                            <StackPanel Grid.Column="1" Spacing="4">
+                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.UpstreamSyncFailedTitle}"
+                                                           FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap"/>
+                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.UpstreamSyncFailedHint}"
+                                                           FontSize="12" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Releases Drop Zone (hidden for upstream-tracked items) -->
                                     <Border x:Name="ReleasesDropZone"
-                                            IsVisible="{Binding !Releases.Count}"
+                                            IsVisible="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).ShowReleasesDropZone}"
                                             DragDrop.AllowDrop="True"
                                             BorderBrush="{DynamicResource GlassBorderBrush}"
                                             BorderThickness="1"
@@ -749,8 +786,9 @@
                                         </StackPanel>
                                     </Border>
 
-                                    <!-- Releases List -->
-                                    <ItemsControl ItemsSource="{Binding Releases, Converter={StaticResource ReleaseOrderingConverter}}">
+                                    <!-- Releases List (hidden while live upstream releases take over the main list) -->
+                                    <ItemsControl ItemsSource="{Binding Releases, Converter={StaticResource ReleaseOrderingConverter}}"
+                                                  IsVisible="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).ShowStaticReleasesList}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate DataType="models:ContentRelease">
                                                 <Expander Background="{DynamicResource GlassFillSubtleBrush}"
@@ -760,10 +798,17 @@
                                                           Margin="0,0,0,8"
                                                           Padding="16"
                                                           IsExpanded="True">
+                                                    <Expander.IsVisible>
+                                                        <MultiBinding Converter="{StaticResource UpstreamDuplicateReleaseConverter}">
+                                                            <Binding Path="Version"/>
+                                                            <Binding Path="#RootView.((vm:ContentLibraryViewModel)DataContext).UpstreamPreviewVersions"/>
+                                                            <Binding Path="#RootView.((vm:ContentLibraryViewModel)DataContext).SelectedContentTracksUpstream"/>
+                                                        </MultiBinding>
+                                                    </Expander.IsVisible>
                                                     <Expander.Header>
                                                         <Grid ColumnDefinitions="Auto,*,Auto">
                                                             <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                                                                <TextBlock Text="{Binding Version, StringFormat='v{0}'}"
+                                                                <TextBlock Text="{Binding Version}"
                                                                            FontWeight="Bold"
                                                                            FontSize="16"
                                                                            Foreground="{DynamicResource TextPrimary}"/>
@@ -815,8 +860,9 @@
                                                             <TextBlock Text="{Binding Changelog}" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondary}" FontSize="13"/>
                                                         </StackPanel>
 
-                                                        <!-- Artifacts List -->
-                                                        <StackPanel Spacing="8">
+                                                        <!-- Artifacts List (hidden for content bundles, which carry only dependencies) -->
+                                                        <StackPanel Spacing="8"
+                                                                    IsVisible="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).ShowReleaseArtifacts}">
                                                             <Grid ColumnDefinitions="*,Auto">
                                                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.Artifacts}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
                                                                 <Button Grid.Column="1"
@@ -867,6 +913,18 @@
                                                                                         </StackPanel>
                                                                                         <TextBlock Text="{Binding Filename}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" FontSize="13" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
                                                                                     </DockPanel>
+                                                                                    <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding Variant, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                                                        <Border Background="{DynamicResource GlassFillBrush}" CornerRadius="4" Padding="6,1">
+                                                                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                                                                <TextBlock Text="{Binding VariantAxis}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                                                                                                <TextBlock Text="{Binding Variant}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
+                                                                                            </StackPanel>
+                                                                                        </Border>
+                                                                                        <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" CornerRadius="4" Padding="6,1"
+                                                                                                IsVisible="{Binding IsDefaultVariant}">
+                                                                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.DefaultVariantBadge}" FontSize="11" Foreground="{DynamicResource AccentColorBrush}"/>
+                                                                                        </Border>
+                                                                                    </StackPanel>
                                                                                     <TextBlock Text="{Binding DownloadUrl}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextTrimming="CharacterEllipsis" IsVisible="{Binding DownloadUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                                                                                     <TextBlock Text="{Binding LocalFilePath}" FontSize="11" Foreground="{DynamicResource WarningHighlightBrush}" TextTrimming="CharacterEllipsis" IsVisible="{Binding LocalFilePath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                                                                                 </StackPanel>
@@ -955,6 +1013,136 @@
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
+
+                                    <!-- Upstream releases preview (read-only) -->
+                                    <StackPanel Spacing="8" Margin="0,8,0,0"
+                                                IsVisible="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).HasUpstreamPreview}">
+                                        <Border Background="{DynamicResource StatusInfoBadgeBackgroundBrush}"
+                                                BorderBrush="{DynamicResource StatusInfoBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                Padding="12,10">
+                                            <Grid ColumnDefinitions="Auto,*">
+                                                <PathIcon Data="{StaticResource CloudStorageIcon}" Width="14" Height="14" Foreground="{DynamicResource StatusInfoBrush}" VerticalAlignment="Top" Margin="0,2,10,0"/>
+                                                <TextBlock Grid.Column="1" Text="{localization:Localize Tools.PublisherStudio.Library.UpstreamReleasesNote}"
+                                                           FontSize="12" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </Border>
+                                        <ItemsControl ItemsSource="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).UpstreamPreviewReleases}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate DataType="models:ContentRelease">
+                                                    <Border Background="{DynamicResource GlassFillSubtleBrush}"
+                                                            BorderBrush="{DynamicResource StatusInfoBrush}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="8"
+                                                            Padding="16"
+                                                            Margin="0,0,0,8">
+                                                        <StackPanel Spacing="8">
+                                                            <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding Version}"
+                                                                           FontWeight="Bold"
+                                                                           FontSize="16"
+                                                                           Foreground="{DynamicResource TextPrimary}"/>
+                                                                <Border Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                                                                        CornerRadius="4"
+                                                                        Padding="6,2"
+                                                                        IsVisible="{Binding IsLatest}">
+                                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.LatestBadge}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentColorBrush}"/>
+                                                                </Border>
+                                                                <Border Background="{DynamicResource StatusWarningBadgeBackgroundBrush}"
+                                                                        CornerRadius="4"
+                                                                        Padding="6,2"
+                                                                        IsVisible="{Binding IsPrerelease}">
+                                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.PrereleaseBadge}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource WarningHighlightBrush}"/>
+                                                                </Border>
+                                                                <TextBlock Text="{Binding ReleaseDate, StringFormat='{}{0:yyyy-MM-dd}'}"
+                                                                           FontSize="12"
+                                                                           Foreground="{DynamicResource TextSecondary}"
+                                                                           VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                            <TextBlock Text="{Binding Changelog}" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondary}" FontSize="13"
+                                                                       IsVisible="{Binding Changelog, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                                            <!-- Artifacts -->
+                                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.Artifacts}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" Margin="0,4,0,0"/>
+                                                            <ItemsControl ItemsSource="{Binding Artifacts}">
+                                                                <ItemsControl.ItemTemplate>
+                                                                    <DataTemplate>
+                                                                        <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,4">
+                                                                            <TextBlock Text="{Binding Filename}" FontSize="12" Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                                            <Border Grid.Column="1" Background="{DynamicResource GlassFillBrush}" CornerRadius="4" Padding="6,1" Margin="8,0" IsVisible="{Binding Variant, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                                                <TextBlock Text="{Binding Variant}" FontSize="11" Foreground="{DynamicResource AccentBrush}"/>
+                                                                            </Border>
+                                                                            <TextBlock Grid.Column="2" Text="{Binding Size, Converter={StaticResource FileSizeConverter}}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                                        </Grid>
+                                                                    </DataTemplate>
+                                                                </ItemsControl.ItemTemplate>
+                                                            </ItemsControl>
+
+                                                            <!-- Dependencies -->
+                                                            <StackPanel Spacing="4" Margin="0,6,0,0" IsVisible="{Binding Dependencies.Count}">
+                                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.Dependencies}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
+                                                                <ItemsControl ItemsSource="{Binding Dependencies}">
+                                                                    <ItemsControl.ItemTemplate>
+                                                                        <DataTemplate>
+                                                                            <Border Background="{DynamicResource GlassFillBrush}" CornerRadius="4" Padding="8,4" Margin="0,2">
+                                                                                <Grid ColumnDefinitions="*,Auto,Auto">
+                                                                                    <TextBlock Text="{Binding ContentId}" FontSize="12" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                                                                                    <TextBlock Grid.Column="1" Text="{Binding VersionConstraint, StringFormat='({0})'}" FontSize="11" Foreground="{DynamicResource TextSecondary}" Margin="8,0" VerticalAlignment="Center"/>
+                                                                                    <Border Grid.Column="2" Background="{DynamicResource AccentBadgeBackgroundBrush}" CornerRadius="4" Padding="4,1">
+                                                                                        <TextBlock Text="{Binding ContentType}" FontSize="10" Foreground="{DynamicResource AccentColorBrush}"/>
+                                                                                    </Border>
+                                                                                </Grid>
+                                                                            </Border>
+                                                                        </DataTemplate>
+                                                                    </ItemsControl.ItemTemplate>
+                                                                </ItemsControl>
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+
+                                    <!-- Optional manual fallback releases -->
+                                    <Expander Header="{localization:Localize Tools.PublisherStudio.Library.ManualReleasesExpander}"
+                                              IsExpanded="False"
+                                              IsVisible="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).ShowManualFallbackReleases}"
+                                              Margin="0,8,0,0"
+                                              Background="{DynamicResource GlassFillSubtleBrush}"
+                                              BorderBrush="{DynamicResource GlassBorderBrush}"
+                                              BorderThickness="1"
+                                              CornerRadius="8">
+                                        <StackPanel Spacing="8" Margin="8">
+                                            <ItemsControl ItemsSource="{Binding Releases, Converter={StaticResource ReleaseOrderingConverter}}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate DataType="models:ContentRelease">
+                                                        <Border Background="{DynamicResource GlassFillBrush}" CornerRadius="6" Padding="12" Margin="0,0,0,6">
+                                                            <Border.IsVisible>
+                                                                <MultiBinding Converter="{StaticResource UpstreamDuplicateReleaseConverter}">
+                                                                    <Binding Path="Version"/>
+                                                                    <Binding Path="#RootView.((vm:ContentLibraryViewModel)DataContext).UpstreamPreviewVersions"/>
+                                                                    <Binding Path="#RootView.((vm:ContentLibraryViewModel)DataContext).SelectedContentTracksUpstream"/>
+                                                                </MultiBinding>
+                                                            </Border.IsVisible>
+                                                            <Grid ColumnDefinitions="*,Auto">
+                                                                <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.ManualFallbackPrefix}" FontWeight="Medium" Foreground="{DynamicResource TextPrimary}"/>
+                                                                    <TextBlock Text="{Binding Version}" FontWeight="Medium" Foreground="{DynamicResource TextPrimary}"/>
+                                                                </StackPanel>
+                                                                <TextBlock Grid.Column="1" Text="{Binding ReleaseDate, StringFormat='{}{0:yyyy-MM-dd}'}" Foreground="{DynamicResource TextSecondary}" FontSize="11"/>
+                                                            </Grid>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Expander>
+
+                                    <!-- Upstream preview loading indicator -->
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.UpstreamReleasesLoading}"
+                                               FontSize="12" Foreground="{DynamicResource TextMuted}" Margin="0,8,0,0"
+                                               IsVisible="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).IsUpstreamPreviewLoading}"/>
                                 </StackPanel>
                             </Border>
 

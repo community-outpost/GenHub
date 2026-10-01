@@ -259,12 +259,40 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
         return lengthCmp != 0 ? lengthCmp : string.Compare(a, b, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Adds or updates an INI CRC mapping entry in the builder using deterministic disambiguation precedence:
+    /// 1. Entries with a non-empty <see cref="CrcMappingEntry.DataPatchManifestId"/> take priority over entries without one.
+    /// 2. If both entries have (or neither has) a data patch manifest ID, newer <see cref="CrcMappingEntry.BuildDate"/> takes precedence.
+    /// 3. If build dates are equal, higher semantic/alphanumeric version via <see cref="CompareVersions"/> takes precedence.
+    /// Note: EAC and non-EAC variants for the same release share identical patch properties and data patch names.
+    /// </summary>
     private static void AddOrUpdateIniEntry(ImmutableDictionary<string, CrcMappingEntry>.Builder iniBuilder, CrcMappingEntry entry)
     {
         var normalizedIni = NormalizeHex(entry.IniCrc);
-        if (!string.IsNullOrEmpty(normalizedIni) &&
-            (!iniBuilder.TryGetValue(normalizedIni, out _) ||
-             !string.IsNullOrEmpty(entry.DataPatchManifestId)))
+        if (string.IsNullOrEmpty(normalizedIni))
+        {
+            return;
+        }
+
+        if (!iniBuilder.TryGetValue(normalizedIni, out var existing))
+        {
+            iniBuilder[normalizedIni] = entry;
+            return;
+        }
+
+        if (string.IsNullOrEmpty(existing.DataPatchManifestId) && !string.IsNullOrEmpty(entry.DataPatchManifestId))
+        {
+            iniBuilder[normalizedIni] = entry;
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(existing.DataPatchManifestId) && string.IsNullOrEmpty(entry.DataPatchManifestId))
+        {
+            return;
+        }
+
+        int dateCmp = string.Compare(entry.BuildDate, existing.BuildDate, StringComparison.OrdinalIgnoreCase);
+        if (dateCmp > 0 || (dateCmp == 0 && CompareVersions(entry.Version, existing.Version) > 0))
         {
             iniBuilder[normalizedIni] = entry;
         }

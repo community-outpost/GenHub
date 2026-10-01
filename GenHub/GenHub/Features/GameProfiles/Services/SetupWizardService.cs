@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Content;
@@ -34,7 +35,8 @@ public class SetupWizardService(
     GeneralsOnlineDiscoverer generalsOnlineDiscoverer,
     SuperHackersProvider superHackersProvider,
     IContentManifestPool manifestPool,
-    ILogger<SetupWizardService> logger) : ISetupWizardService
+    ILogger<SetupWizardService> logger,
+    ILocalizationService? localizationService = null) : ISetupWizardService
 {
     /// <summary>
     /// Gets or sets an optional hook for showing the wizard dialog, primarily used in unit tests to simulate user interaction.
@@ -141,7 +143,7 @@ public class SetupWizardService(
                             Title = config.Title,
                             Status = GameClientConstants.WizardStatuses.Detected,
                             Description = FormatCreateProfileDescription(config.Title, nativeVersion) + (config.DescriptionSuffix ?? string.Empty),
-                            Version = nativeVersion == GameClientConstants.UnknownVersion ? string.Empty : nativeVersion,
+                            Version = HasDisplayVersion(nativeVersion) ? nativeVersion : string.Empty,
                             ActionLabel = GameClientConstants.WizardActionLabels.CreateProfile,
                             ActionType = GameClientConstants.WizardActionTypes.CreateProfile,
                             IsSelected = true,
@@ -185,7 +187,6 @@ public class SetupWizardService(
                     Title = config.Title,
                     Status = GameClientConstants.WizardStatuses.Downloaded,
                     Description = FormatCreateProfileDescription(config.Title, config.LatestVersion) + (config.DescriptionSuffix ?? string.Empty),
-                    ActionLabel = GameClientConstants.WizardActionLabels.CreateProfile,
                     ActionType = GameClientConstants.WizardActionTypes.CreateProfile,
                     IsSelected = true,
                     IconPath = config.IconPath,
@@ -221,7 +222,6 @@ public class SetupWizardService(
                     Title = config.Title,
                     Status = GameClientConstants.WizardStatuses.Detected,
                     Description = FormatCreateProfileDescription(config.Title, config.LatestVersion) + (config.DescriptionSuffix ?? string.Empty),
-                    ActionLabel = GameClientConstants.WizardActionLabels.CreateProfile,
                     ActionType = GameClientConstants.WizardActionTypes.CreateProfile,
                     IsSelected = true,
                     IconPath = config.IconPath,
@@ -257,7 +257,7 @@ public class SetupWizardService(
             }
 
             var isDetected = componentGlobal.Count > 0;
-            var displayVersion = !string.IsNullOrEmpty(config.LatestVersion) && config.LatestVersion != GameClientConstants.UnknownVersion
+            var displayVersion = HasDisplayVersion(config.LatestVersion)
                 ? config.LatestVersion
                 : (managedManifests.FirstOrDefault()?.Version ?? config.LatestVersion);
 
@@ -276,7 +276,6 @@ public class SetupWizardService(
                 // Profile exists, but it is not the latest managed version
                 item.Status = GameClientConstants.WizardStatuses.Installed;
                 item.Description = FormatUpdateProfileDescription(config.Title, displayVersion) + (config.DescriptionSuffix ?? string.Empty);
-                item.ActionLabel = GameClientConstants.WizardActionLabels.UpdateReinstall;
                 item.ActionType = GameClientConstants.WizardActionTypes.Update;
                 item.IsSelected = false;
             }
@@ -285,7 +284,6 @@ public class SetupWizardService(
                 // Content downloaded in pool, but no profile exists
                 item.Status = GameClientConstants.WizardStatuses.Downloaded;
                 item.Description = FormatCreateProfileDescription(config.Title, displayVersion) + (config.DescriptionSuffix ?? string.Empty);
-                item.ActionLabel = GameClientConstants.WizardActionLabels.CreateProfile;
                 item.ActionType = GameClientConstants.WizardActionTypes.CreateProfile;
                 item.IsSelected = true;
             }
@@ -294,7 +292,6 @@ public class SetupWizardService(
                 // Unmanaged files detected but no profile
                 item.Status = GameClientConstants.WizardStatuses.Detected;
                 item.Description = FormatDetectedInstallDescription(config.Title, config.LatestVersion) + (config.DescriptionSuffix ?? string.Empty);
-                item.ActionLabel = GameClientConstants.WizardActionLabels.DownloadAndInstall;
                 item.ActionType = GameClientConstants.WizardActionTypes.Install;
                 item.IsSelected = true;
             }
@@ -303,7 +300,6 @@ public class SetupWizardService(
                 // Nothing found at all
                 item.Status = GameClientConstants.WizardStatuses.Missing;
                 item.Description = config.MissingDescription + (config.DescriptionSuffix ?? string.Empty);
-                item.ActionLabel = GameClientConstants.WizardActionLabels.DownloadAndInstall;
                 item.ActionType = GameClientConstants.WizardActionTypes.Install;
                 item.IsSelected = config.DefaultSelected;
             }
@@ -329,13 +325,13 @@ public class SetupWizardService(
              CommunityOutpostConstants.IsNonRetailIdentifier(m.Name) ||
              (m.Metadata?.Tags != null && m.Metadata.Tags.Any(CommunityOutpostConstants.IsNonRetailIdentifier)));
 
-        var cpRetailDescription = string.IsNullOrEmpty(cpRetailCleanVersion)
-            ? "Download and install Community Patch (Retail)."
-            : $"Download and install Community Patch (Retail) {cpRetailCleanVersion}.";
+        var cpRetailTitle = localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.CommunityPatchRetailTitle);
+        var cpNonRetTitle = localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.CommunityPatchNonRetailTitle);
+        var goTitle = localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.GeneralsOnlineTitle);
+        var shTitle = localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.SuperHackersTitle);
 
-        var cpNonRetDescription = string.IsNullOrEmpty(cpNonRetCleanVersion)
-            ? "Download and install Community Patch (Non-Retail)."
-            : $"Download and install Community Patch (Non-Retail) {cpNonRetCleanVersion}.";
+        var cpRetailDescription = FormatInstallDescription(cpRetailTitle, cpRetailCleanVersion);
+        var cpNonRetDescription = FormatInstallDescription(cpNonRetTitle, cpNonRetCleanVersion);
 
         // Process all components
         var cpRetailConfig = new WizardComponentConfig
@@ -344,7 +340,7 @@ public class SetupWizardService(
             ComponentGlobal = cpRetailGlobal,
             ClientFilter = IsCpRetailClient,
             LatestVersion = cpRetailCleanVersion,
-            Title = "Community Patch (Retail)",
+            Title = cpRetailTitle,
             MissingDescription = cpRetailDescription,
             IconPath = CommunityOutpostConstants.LogoSource,
             Metadata = CommunityOutpostConstants.CommunityPatchRetailCode,
@@ -360,13 +356,13 @@ public class SetupWizardService(
             ComponentGlobal = cpNonRetGlobal,
             ClientFilter = IsCpNonRetClient,
             LatestVersion = cpNonRetCleanVersion,
-            Title = "Community Patch (Non-Retail)",
+            Title = cpNonRetTitle,
             MissingDescription = cpNonRetDescription,
             IconPath = CommunityOutpostConstants.LogoSource,
             Metadata = CommunityOutpostConstants.CommunityPatchNonRetCode,
             ManifestFilter = IsCpNonRetManifest,
             DefaultSelected = false,
-            DescriptionSuffix = " Not compatible with retail 1.04 zero hour.",
+            DescriptionSuffix = " " + localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.NonRetailIncompatibleNotice),
         };
         var cpNonRetRes = await ProcessComponentAsync(cpNonRetConfig);
         result.CommunityPatchNonRetAction = cpNonRetRes.FinalAction;
@@ -389,8 +385,8 @@ public class SetupWizardService(
             ComponentGlobal = goGlobal,
             ClientFilter = IsGeneralsOnlineClient,
             LatestVersion = goCleanVersion,
-            Title = "Generals Online",
-            MissingDescription = string.IsNullOrEmpty(goCleanVersion) ? "Download and install Generals Online." : $"Download and install Generals Online {goCleanVersion}.",
+            Title = goTitle,
+            MissingDescription = FormatInstallDescription(goTitle, goCleanVersion),
             IconPath = UriConstants.GeneralsOnlineLogoUri,
             Metadata = PublisherTypeConstants.GeneralsOnline,
             DefaultSelected = true,
@@ -404,8 +400,8 @@ public class SetupWizardService(
             ComponentGlobal = shGlobal,
             ClientFilter = IsSuperHackersClient,
             LatestVersion = shCleanVersion,
-            Title = "TheSuperHackers",
-            MissingDescription = string.IsNullOrEmpty(shCleanVersion) ? "Download and install TheSuperHackers." : $"Download and install TheSuperHackers {shCleanVersion}.",
+            Title = shTitle,
+            MissingDescription = FormatInstallDescription(shTitle, shCleanVersion),
             IconPath = UriConstants.SuperHackersLogoUri,
             Metadata = PublisherTypeConstants.TheSuperHackers,
             DefaultSelected = false,
@@ -417,7 +413,12 @@ public class SetupWizardService(
         if (wizardItems.Count > 0)
         {
             logger.LogInformation("[SetupWizard] Showing wizard with {Count} item(s)", wizardItems.Count);
-            var wizardVm = new SetupWizardViewModel(wizardItems);
+            foreach (var wizardItem in wizardItems)
+            {
+                ApplyDisplayLabels(wizardItem);
+            }
+
+            var wizardVm = new SetupWizardViewModel(wizardItems, localizationService);
 
             var accepted = await ShowWizardDialogAsync(wizardVm);
             result.Confirmed = accepted;
@@ -466,6 +467,32 @@ public class SetupWizardService(
     }
 
     /// <summary>
+    /// Sets the localized action and status labels of an item from its action type and status identifiers.
+    /// </summary>
+    /// <param name="item">The wizard item to label.</param>
+    internal void ApplyDisplayLabels(SetupWizardItemViewModel item)
+    {
+        item.ActionLabel = item.ActionType switch
+        {
+            GameClientConstants.WizardActionTypes.Update => localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.UpdateReinstallAction),
+            GameClientConstants.WizardActionTypes.CreateProfile => localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.CreateProfileAction),
+            GameClientConstants.WizardActionTypes.Install => localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.DownloadAndInstallAction),
+            _ => string.IsNullOrEmpty(item.ActionLabel)
+                ? localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.DefaultAction)
+                : item.ActionLabel,
+        };
+
+        item.StatusLabel = item.Status switch
+        {
+            GameClientConstants.WizardStatuses.Installed => localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.InstalledStatus),
+            GameClientConstants.WizardStatuses.Downloaded => localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.DownloadedStatus),
+            GameClientConstants.WizardStatuses.Detected => localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.DetectedStatus),
+            GameClientConstants.WizardStatuses.Missing => localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.MissingStatus),
+            _ => item.Status,
+        };
+    }
+
+    /// <summary>
     /// Selects the installation's client that matches <paramref name="predicate"/>, preferring a
     /// build native to this host so a Windows build of the same publisher does not hide it.
     /// </summary>
@@ -475,20 +502,8 @@ public class SetupWizardService(
             .OrderBy(c => PublisherProfileOrchestrator.IsHostNativeClient(c) ? 0 : 1)
             .FirstOrDefault();
 
-    private static string FormatCreateProfileDescription(string title, string? version) =>
-        string.IsNullOrEmpty(version) || version == GameClientConstants.UnknownVersion
-            ? $"Create a game profile for {title}."
-            : $"Create a game profile for {title} {version}.";
-
-    private static string FormatUpdateProfileDescription(string title, string? version) =>
-        string.IsNullOrEmpty(version) || version == GameClientConstants.UnknownVersion
-            ? $"Update {title} to the latest version."
-            : $"Update {title} to version {version}.";
-
-    private static string FormatDetectedInstallDescription(string title, string? version) =>
-        string.IsNullOrEmpty(version) || version == GameClientConstants.UnknownVersion
-            ? $"Download and install managed {title} files."
-            : $"Download and install managed {title} {version} files.";
+    private static bool HasDisplayVersion(string? version) =>
+        !string.IsNullOrEmpty(version) && !string.Equals(version, GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase);
 
     private static string CleanVersionString(string? version)
     {
@@ -515,6 +530,26 @@ public class SetupWizardService(
 
         return null;
     }
+
+    private string FormatCreateProfileDescription(string title, string? version) =>
+        HasDisplayVersion(version)
+            ? localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.CreateProfileVersionDescription, title, version)
+            : localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.CreateProfileDescription, title);
+
+    private string FormatUpdateProfileDescription(string title, string? version) =>
+        HasDisplayVersion(version)
+            ? localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.UpdateVersionDescription, title, version)
+            : localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.UpdateDescription, title);
+
+    private string FormatDetectedInstallDescription(string title, string? version) =>
+        HasDisplayVersion(version)
+            ? localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.InstallManagedVersionDescription, title, version)
+            : localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.InstallManagedDescription, title);
+
+    private string FormatInstallDescription(string title, string? version) =>
+        HasDisplayVersion(version)
+            ? localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.InstallVersionDescription, title, version)
+            : localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.InstallDescription, title);
 
     private async Task<(string RetailVersion, string NonRetVersion)> GetLatestCommunityPatchVersionsAsync()
     {

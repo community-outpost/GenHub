@@ -711,7 +711,10 @@ public sealed class MockPublisherStudioDialogService : IPublisherStudioDialogSer
     public Task<ContentRelease?> ShowEditAddonDialogAsync(ContentRelease existing, CatalogContentItem parent, PublisherCatalog catalog, Func<ContentRelease, Task>? onDelete = null) => Task.FromResult<ContentRelease?>(null);
 
     /// <inheritdoc/>
-    public Task<ReleaseArtifact?> ShowAddArtifactDialogAsync() => Task.FromResult<ReleaseArtifact?>(null);
+    public Task<ReleaseArtifact?> ShowAddArtifactDialogAsync(bool allowVariants = true) => Task.FromResult<ReleaseArtifact?>(null);
+
+    /// <inheritdoc/>
+    public Task<ReleaseArtifact?> ShowEditArtifactDialogAsync(ReleaseArtifact existing, bool allowVariants = true) => Task.FromResult<ReleaseArtifact?>(null);
 
     /// <inheritdoc/>
     public Task<CatalogDependency?> ShowAddDependencyDialogAsync(PublisherCatalog catalog, CatalogContentItem currentContent) => Task.FromResult<CatalogDependency?>(null);

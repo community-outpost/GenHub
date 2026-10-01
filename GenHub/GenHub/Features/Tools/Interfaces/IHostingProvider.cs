@@ -165,6 +165,24 @@ public interface IHostingProvider
     /// <returns>The direct download URL.</returns>
     // skipcq: CS-A1000
     string GetDirectDownloadUrl(string shareUrl);
+
+    /// <summary>
+    /// Ensures a shareable direct download URL exists for a file discovered during a storage
+    /// scan. Providers that list files without public links (for example Dropbox files with no
+    /// shared link yet) override this to create or return a link on demand; the default
+    /// implementation reports failure so callers keep the manual restore path.
+    /// </summary>
+    /// <param name="fileId">The provider file ID of the discovered file.</param>
+    /// <param name="fileName">The name of the discovered file.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The result containing the shareable direct download URL.</returns>
+    Task<OperationResult<string>> EnsureShareableDownloadUrlAsync(string fileId, string fileName, CancellationToken cancellationToken = default)
+    {
+        _ = fileId;
+        _ = fileName;
+        _ = cancellationToken;
+        return Task.FromResult(OperationResult<string>.CreateFailure("On-demand download URLs are not supported by this provider."));
+    }
 }
 
 /// <summary>

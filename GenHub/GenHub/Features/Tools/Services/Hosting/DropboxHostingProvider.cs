@@ -289,7 +289,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     {
         if (!IsAuthenticated)
         {
-            return OperationResult<HostingUploadResult>.CreateFailure("Not authenticated with Dropbox.");
+            return OperationResult<HostingUploadResult>.CreateFailure(GetNotAuthenticatedMessage());
         }
 
         try
@@ -367,7 +367,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     {
         if (!IsAuthenticated)
         {
-            return OperationResult<bool>.CreateFailure("Not authenticated with Dropbox.");
+            return OperationResult<bool>.CreateFailure(GetNotAuthenticatedMessage());
         }
 
         if (string.IsNullOrWhiteSpace(fileId))
@@ -428,7 +428,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     {
         if (!IsAuthenticated)
         {
-            return OperationResult<HostingState?>.CreateFailure("Not authenticated with Dropbox.");
+            return OperationResult<HostingState?>.CreateFailure(GetNotAuthenticatedMessage());
         }
 
         try
@@ -537,6 +537,48 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     public string GetDirectDownloadUrl(string shareUrl)
     {
         return ConvertToDirectDownloadUrl(shareUrl);
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<string>> EnsureShareableDownloadUrlAsync(string fileId, string fileName, CancellationToken cancellationToken = default)
+    {
+        // Lookup is path-based: discovery lists the publisher folder non-recursively, so the
+        // file ID is not needed to address the file.
+        _ = fileId;
+        if (!IsAuthenticated)
+        {
+            return OperationResult<string>.CreateFailure(GetNotAuthenticatedMessage());
+        }
+
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return OperationResult<string>.CreateFailure("A file name is required to resolve a download URL.");
+        }
+
+        try
+        {
+            await EnsureFreshAccessTokenAsync(cancellationToken);
+
+            // Discovery lists the publisher folder non-recursively, so every discovered file
+            // is a direct child and its path rebuilds exactly from the folder plus file name.
+            var path = $"{PublisherFolderPath}/{fileName}".ToLowerInvariant();
+            var linkResult = await CreateSharedLinkAsync(path, cancellationToken).ConfigureAwait(false);
+            if (!linkResult.Success || string.IsNullOrWhiteSpace(linkResult.Data))
+            {
+                return OperationResult<string>.CreateFailure(linkResult.FirstError ?? "Dropbox did not return a shared link.");
+            }
+
+            return OperationResult<string>.CreateSuccess(ConvertToDirectDownloadUrl(linkResult.Data));
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to resolve a shareable download URL for {FileName}", fileName);
+            return OperationResult<string>.CreateFailure($"Dropbox shared link error: {ex.Message}");
+        }
     }
 
     /// <inheritdoc/>
@@ -1518,6 +1560,11 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
 
         return null;
     }
+
+    private string GetNotAuthenticatedMessage() =>
+        localizationService != null && localizationService.TryGetString("Tools.PublisherStudio.Hosting.DropboxNotAuthenticated", out var localized)
+            ? localized
+            : HostingConstants.DropboxNotAuthenticated;
 
     private sealed record ChunkedSessionResult(bool Success, string FileId, long FileSize, bool IsExpiredToken, string? Error)
     {

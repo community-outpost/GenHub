@@ -158,10 +158,17 @@ public class PublisherStudioDialogService(
     }
 
     /// <inheritdoc/>
-    public async Task<ReleaseArtifact?> ShowAddArtifactDialogAsync()
+    public async Task<ReleaseArtifact?> ShowAddArtifactDialogAsync(bool allowVariants = true)
     {
         return await ShowDialogAsync<AddArtifactDialogViewModel, AddArtifactDialogView, ReleaseArtifact>(
-           callback => new AddArtifactDialogViewModel(callback, localizationService));
+           callback => new AddArtifactDialogViewModel(callback, localizationService, allowVariants));
+    }
+
+    /// <inheritdoc/>
+    public async Task<ReleaseArtifact?> ShowEditArtifactDialogAsync(ReleaseArtifact existing, bool allowVariants = true)
+    {
+        return await ShowDialogAsync<AddArtifactDialogViewModel, AddArtifactDialogView, ReleaseArtifact>(
+           callback => new AddArtifactDialogViewModel(existing, callback, localizationService, allowVariants));
     }
 
     /// <inheritdoc/>

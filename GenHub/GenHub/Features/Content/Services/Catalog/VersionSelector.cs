@@ -67,6 +67,15 @@ public class VersionSelector(ILogger<VersionSelector> logger) : IVersionSelector
             return [latest];
         }
 
+        // A prerelease-only item would otherwise vanish from default listings: fall back
+        // to the newest prerelease so it stays visible instead of disappearing silently.
+        var newestPrerelease = releases.OrderByDescending(r => r.ReleaseDate).FirstOrDefault();
+        if (newestPrerelease != null)
+        {
+            logger.LogDebug("No stable release found; falling back to newest prerelease: {Version}", newestPrerelease.Version);
+            return [newestPrerelease];
+        }
+
         logger.LogWarning("No stable releases found");
         return [];
     }

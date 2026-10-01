@@ -258,6 +258,49 @@ public sealed class SageVirtualFileSystemTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that within the same tier, BIG archives strictly adhere to the SAGE engine's
+    /// alphabetical first-loaded-wins rule (Win32BIGFileSystem overwrite=FALSE).
+    /// Prefixing with a lower sort key (such as 0_) overrides later-sorted base archives.
+    /// </summary>
+    [Fact]
+    public void Read_SameTierArchives_FollowsAlphabeticalFirstLoadedWins()
+    {
+        // Arrange: 0_Override.big (loads first), INI.big (loads second), Patch.big (loads third)
+        var root = Path.Combine(_tempRoot, "SameTierSortRoot");
+        Directory.CreateDirectory(root);
+        var overrideBytes = Encoding.UTF8.GetBytes("override-ini-content");
+        var baseBytes = Encoding.UTF8.GetBytes("base-ini-content");
+        var laterBytes = Encoding.UTF8.GetBytes("later-ini-content");
+
+        WndTestAssets.CreateBigArchive(
+            Path.Combine(root, "0_Override.big"),
+            ("Data\\INI\\GameData.ini", overrideBytes));
+        WndTestAssets.CreateBigArchive(
+            Path.Combine(root, "INI.big"),
+            ("Data\\INI\\GameData.ini", baseBytes),
+            ("Data\\INI\\Second.ini", baseBytes));
+        WndTestAssets.CreateBigArchive(
+            Path.Combine(root, "Patch.big"),
+            ("Data\\INI\\Second.ini", laterBytes));
+
+        var vfs = new SageVirtualFileSystem(
+            root,
+            isZeroHour: false,
+            logger: Mock.Of<ILogger>(),
+            initialTier: SageFileTier.BaseGame);
+
+        // Act
+        var gameData = vfs.Read("Data\\INI\\GameData.ini");
+        var second = vfs.Read("Data\\INI\\Second.ini");
+
+        // Assert: 0_Override.big beats INI.big, and INI.big beats Patch.big (earliest loaded wins)
+        gameData.Should().NotBeNull();
+        gameData.Should().Equal(overrideBytes);
+        second.Should().NotBeNull();
+        second.Should().Equal(baseBytes);
+    }
+
+    /// <summary>
     /// Tests that filename-only archive lookups apply the same first-mounted-wins rule
     /// within one tier, so root expansion textures beat same-name subdirectory textures.
     /// </summary>

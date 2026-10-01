@@ -2,6 +2,7 @@ using AngleSharp;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GeneralsOnline;
@@ -28,7 +29,8 @@ public class GeneralsOnlineDiscoverer(
     IProviderDefinitionLoader providerLoader,
     ICatalogParserFactory catalogParserFactory,
     IHttpClientFactory httpClientFactory,
-    IGeneralsOnlinePatchNotesService? patchNotesService) : IContentDiscoverer
+    IGeneralsOnlinePatchNotesService? patchNotesService,
+    ICrcMappingRegistry? crcRegistry = null) : IContentDiscoverer
 {
     private const string BaseUrl = GeneralsOnlineConstants.WebsiteUrl;
     private const string DefaultPatchNotesUrl = GeneralsOnlineConstants.PatchNotesUrl;
@@ -45,7 +47,7 @@ public class GeneralsOnlineDiscoverer(
         IProviderDefinitionLoader providerLoader,
         ICatalogParserFactory catalogParserFactory,
         IHttpClientFactory httpClientFactory)
-        : this(logger, providerLoader, catalogParserFactory, httpClientFactory, null)
+        : this(logger, providerLoader, catalogParserFactory, httpClientFactory, null, null)
     {
     }
 
@@ -133,21 +135,30 @@ public class GeneralsOnlineDiscoverer(
                     parseResult.FirstError ?? "Failed to parse catalog");
             }
 
-            // Step 4: Apply search filters
-            var results = parseResult.Data;
+            // Step 4: Apply search filters. Exclusions use the unfiltered CDN results
+            // so a search term cannot resurrect an excluded release as history.
+            var currentResults = parseResult.Data.ToList();
+            var results = currentResults.AsEnumerable();
             if (!string.IsNullOrWhiteSpace(query.SearchTerm))
             {
-                results = results.Where(r =>
+                results = currentResults.Where(r =>
                     r.Version?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) == true ||
                     r.Name?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) == true);
             }
 
             var list = results.ToList();
 
-            // Step 5: Enrich releases with patch notes
+            // Step 5: Enrich latest releases with patch notes (history skips this to avoid one HTTP call per archived version)
             foreach (var item in list)
             {
                 await EnrichWithPatchNotesAsync(item, provider, cancellationToken);
+            }
+
+            // Step 6: Append archived portable releases from the CRC catalog so older executables stay installable.
+            // History is opt-in: setup and update flows query latest-only and must not acquire archived versions.
+            if (query.IncludeOlderVersions)
+            {
+                AppendHistoryResults(list, query, currentResults);
             }
 
             return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
@@ -162,6 +173,58 @@ public class GeneralsOnlineDiscoverer(
             logger.LogError(ex, "Failed to discover Generals Online releases");
             return OperationResult<ContentDiscoveryResult>.CreateFailure(
                 $"Discovery failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Appends archived releases from the CRC catalog. History is best effort and never
+    /// fails discovery; entries resolve through the standard resolver and deliverer.
+    /// </summary>
+    private void AppendHistoryResults(
+        List<ContentSearchResult> list,
+        ContentSearchQuery query,
+        IReadOnlyList<ContentSearchResult> currentResults)
+    {
+        try
+        {
+            if (crcRegistry == null)
+            {
+                return;
+            }
+
+            var currentVersions = currentResults
+                .Select(item => item.Version)
+                .OfType<string>()
+                .Where(static version => !string.IsNullOrWhiteSpace(version))
+                .ToList();
+            var history = GeneralsOnlineHistoryMapper.BuildHistoryResults(crcRegistry.GetAllEntries(), currentVersions);
+            if (history.Count == 0)
+            {
+                return;
+            }
+
+            var knownIds = new HashSet<string>(list.Select(item => item.Id), StringComparer.OrdinalIgnoreCase);
+            foreach (var item in history)
+            {
+                if (knownIds.Contains(item.Id))
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(query.SearchTerm) &&
+                    item.Version?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) != true &&
+                    item.Name?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) != true)
+                {
+                    continue;
+                }
+
+                list.Add(item);
+                knownIds.Add(item.Id);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogDebug(ex, "Could not append Generals Online history releases");
         }
     }
 

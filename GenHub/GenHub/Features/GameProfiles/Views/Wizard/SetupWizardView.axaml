@@ -8,7 +8,7 @@
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
         x:Class="GenHub.Features.GameProfiles.Views.Wizard.SetupWizardView"
         x:DataType="vm:SetupWizardViewModel"
-        Title="Setup Wizard"
+        Title="{localization:Localize Profiles.Wizard.WindowTitle}"
         Icon="avares://GenHub/Assets/Icons/generalshub-icon.png"
         Width="700" Height="500"
         WindowStartupLocation="CenterOwner"
@@ -149,7 +149,7 @@
                                         <!-- Status / Action Badge -->
                                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0" Spacing="8">
                                             <Border Background="#203040" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding Status}" FontSize="11" FontWeight="SemiBold" Foreground="#3297FD"/>
+                                                <TextBlock Text="{Binding StatusLabel}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
                                             </Border>
 
                                             <!-- Version Badge -->

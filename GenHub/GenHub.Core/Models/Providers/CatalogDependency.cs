@@ -68,4 +68,16 @@ public class CatalogDependency
     /// </summary>
     [JsonPropertyName("conflictsWith")]
     public List<string> ConflictsWith { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the default variant for this dependency in a bundle.
+    /// </summary>
+    [JsonPropertyName("defaultVariant")]
+    public string? DefaultVariant { get; set; }
+
+    /// <summary>
+    /// Gets or sets the allowed variant axes for this dependency in a bundle.
+    /// </summary>
+    [JsonPropertyName("allowedVariantAxes")]
+    public List<string> AllowedVariantAxes { get; set; } = [];
 }

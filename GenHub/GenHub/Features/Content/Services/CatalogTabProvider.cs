@@ -21,6 +21,10 @@ namespace GenHub.Features.Content.Services;
 /// Loads dynamic custom tab definitions from remote publisher catalog manifests for the downloads browser content detail view.
 /// When a user opens the detail page for a specific mod, map, or patch in the downloads section, publishers can display extra custom UI tabs (e.g. documentation, server stats, sub-addons, or custom web views) defined in their catalog json.
 /// </summary>
+/// <remarks>
+/// Deferred pending per-item tab authoring support. Re-introduce publisher-defined custom tabs per content item once supported.
+/// Currently disabled in ContentDetailView.axaml. See GitHub issue #621 (https://github.com/community-outpost/GenHub/issues/621).
+/// </remarks>
 /// <param name="subscriptionStore">The publisher subscription store.</param>
 /// <param name="catalogParser">The publisher catalog parser.</param>
 /// <param name="httpClientFactory">The HTTP client factory.</param>

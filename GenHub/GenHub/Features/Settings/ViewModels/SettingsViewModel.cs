@@ -1778,7 +1778,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         Justification = "Kept as instance method to maintain member ordering and consistency.")]
     private void RunOnUiSafe(Action action)
     {
-        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess() || Avalonia.Application.Current == null)
+        if (Avalonia.Application.Current == null || Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
         {
             action();
         }

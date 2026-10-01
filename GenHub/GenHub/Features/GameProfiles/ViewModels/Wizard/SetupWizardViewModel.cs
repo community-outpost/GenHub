@@ -1,6 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -12,7 +14,8 @@ namespace GenHub.Features.GameProfiles.ViewModels.Wizard;
 /// Manages the list of setup items and user confirmation.
 /// </summary>
 /// <param name="items">The initial list of setup items.</param>
-public sealed partial class SetupWizardViewModel(IEnumerable<SetupWizardItemViewModel> items) : ViewModelBase, IRequestCloseViewModel
+/// <param name="localizationService">The localization service used to resolve labels, or null to use English.</param>
+public sealed partial class SetupWizardViewModel(IEnumerable<SetupWizardItemViewModel> items, ILocalizationService? localizationService = null) : ViewModelBase, IRequestCloseViewModel
 {
     [ObservableProperty]
     private ObservableCollection<SetupWizardItemViewModel> _items = new(items);
@@ -21,21 +24,19 @@ public sealed partial class SetupWizardViewModel(IEnumerable<SetupWizardItemView
     /// Gets or sets the title of the wizard window.
     /// </summary>
     [ObservableProperty]
-    private string _title = "Setup Detected Content";
+    private string _title = localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.Title);
 
     /// <summary>
     /// Gets or sets the label for the cancel/skip button.
     /// </summary>
     [ObservableProperty]
-    private string _cancelLabel = "Skip";
+    private string _cancelLabel = localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.Skip);
 
     /// <summary>
     /// Gets or sets the label for the confirm/continue button.
     /// </summary>
     [ObservableProperty]
-    private string _confirmLabel = items.Any(x => x.IsSelected)
-        ? $"Continue ({items.Count(x => x.IsSelected)})"
-        : "Continue";
+    private string _confirmLabel = FormatConfirmLabel(localizationService, items.Count(x => x.IsSelected));
 
     private bool _confirmed = false;
 
@@ -43,6 +44,11 @@ public sealed partial class SetupWizardViewModel(IEnumerable<SetupWizardItemView
     /// Gets a value indicating whether the user confirmed the setup actions.
     /// </summary>
     public bool Confirmed => _confirmed;
+
+    private static string FormatConfirmLabel(ILocalizationService? localizationService, int selectedCount) =>
+        selectedCount > 0
+            ? localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.ContinueWithCount, selectedCount)
+            : localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.Continue);
 
     [RelayCommand]
     private void ToggleSelection(SetupWizardItemViewModel? item)
@@ -77,8 +83,7 @@ public sealed partial class SetupWizardViewModel(IEnumerable<SetupWizardItemView
 
     private void UpdateLabels()
     {
-        var selectedCount = Items.Count(x => x.IsSelected);
-        ConfirmLabel = selectedCount > 0 ? $"Continue ({selectedCount})" : "Continue";
+        ConfirmLabel = FormatConfirmLabel(localizationService, Items.Count(x => x.IsSelected));
     }
 
     /// <summary>

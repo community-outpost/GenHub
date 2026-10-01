@@ -90,11 +90,11 @@ public sealed class CrcMappingRegistryTests
         var registry = new CrcMappingRegistry();
         var entry = new CrcMappingEntry
         {
-            ExeCrc = "0xB9DB8815",
-            IniCrc = "0x81FB5632",
+            ExeCrc = "0x77777777",
+            IniCrc = "0x88888888",
             ManifestId = "1.828261.generalsonline.gameclient.zerohour",
             DataPatchManifestId = "1.828261.generalsonline.patch.gamedata",
-            DataPatchName = "CommunityPatch Core INI (81FB5632)",
+            DataPatchName = "CommunityPatch Core INI (88888888)",
             Publisher = "generalsonline",
             GameType = "ZeroHour",
             Version = "082826_QFE1",
@@ -102,11 +102,11 @@ public sealed class CrcMappingRegistryTests
 
         registry.RegisterEntry(entry);
 
-        Assert.True(registry.TryGetEntryByIniCrc("0x81FB5632", out var foundWithPrefix));
+        Assert.True(registry.TryGetEntryByIniCrc("0x88888888", out var foundWithPrefix));
         Assert.NotNull(foundWithPrefix);
         Assert.Equal("1.828261.generalsonline.patch.gamedata", foundWithPrefix.DataPatchManifestId);
 
-        Assert.True(registry.TryGetEntryByIniCrc("81fb5632", out var foundWithoutPrefix));
+        Assert.True(registry.TryGetEntryByIniCrc("88888888", out var foundWithoutPrefix));
         Assert.NotNull(foundWithoutPrefix);
         Assert.Equal("1.828261.generalsonline.patch.gamedata", foundWithoutPrefix.DataPatchManifestId);
 
@@ -247,6 +247,86 @@ public sealed class CrcMappingRegistryTests
         Assert.True(registry.TryGetEntryByExeCrc("0xBBBBBBBB", out var numericFound));
         Assert.NotNull(numericFound);
         Assert.Equal("1.10.mod.gameclient.zerohour", numericFound.ManifestId);
+    }
+
+    /// <summary>
+    /// Verifies that duplicate IniCrc entries are disambiguated deterministically:
+    /// entries with DataPatchManifestId win over those without, newer BuildDates win,
+    /// equal BuildDates are resolved by CompareVersions, and later non-patch or older entries do not displace winners.
+    /// </summary>
+    [Fact]
+    public void LoadCatalog_DuplicateIniCrc_DisambiguatesToDataPatchOrNewest()
+    {
+        var registry = new CrcMappingRegistry();
+        var catalog = new CrcCatalog
+        {
+            SchemaVersion = 1,
+            TotalEntries = 5,
+            Mappings =
+            [
+                new()
+                {
+                    ExeCrc = "0x11111111",
+                    IniCrc = "0x99999999",
+                    ManifestId = "1.0.nodatapatch.gameclient.zerohour",
+                    Publisher = "generalsonline",
+                    GameType = "ZeroHour",
+                    BuildDate = "2026-08-01",
+                    Version = "1.0",
+                },
+                new()
+                {
+                    ExeCrc = "0x33333333",
+                    IniCrc = "0x99999999",
+                    ManifestId = "1.2.withdatapatchnewer.gameclient.zerohour",
+                    DataPatchManifestId = "1.2.patch.gamedata",
+                    Publisher = "generalsonline",
+                    GameType = "ZeroHour",
+                    BuildDate = "2026-08-03",
+                    Version = "1.2",
+                },
+                new()
+                {
+                    ExeCrc = "0x44444444",
+                    IniCrc = "0x99999999",
+                    ManifestId = "1.2.1.withdatapatchhigherver.gameclient.zerohour",
+                    DataPatchManifestId = "1.2.1.patch.gamedata",
+                    Publisher = "generalsonline",
+                    GameType = "ZeroHour",
+                    BuildDate = "2026-08-03",
+                    Version = "1.2.1",
+                },
+                new()
+                {
+                    ExeCrc = "0x22222222",
+                    IniCrc = "0x99999999",
+                    ManifestId = "1.1.withdatapatcholder.gameclient.zerohour",
+                    DataPatchManifestId = "1.1.patch.gamedata",
+                    Publisher = "generalsonline",
+                    GameType = "ZeroHour",
+                    BuildDate = "2026-08-02",
+                    Version = "1.1",
+                },
+                new()
+                {
+                    ExeCrc = "0x55555555",
+                    IniCrc = "0x99999999",
+                    ManifestId = "1.3.nodatapatchnewer.gameclient.zerohour",
+                    Publisher = "generalsonline",
+                    GameType = "ZeroHour",
+                    BuildDate = "2026-08-05",
+                    Version = "1.3",
+                },
+            ],
+        };
+
+        registry.LoadCatalog(catalog);
+
+        Assert.True(registry.TryGetEntryByIniCrc("0x99999999", out var found));
+        Assert.NotNull(found);
+        Assert.Equal("1.2.1.patch.gamedata", found.DataPatchManifestId);
+        Assert.Equal("1.2.1", found.Version);
+        Assert.Equal("0x44444444", found.ExeCrc);
     }
 
     /// <summary>

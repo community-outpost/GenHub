@@ -4,6 +4,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:GenHub.Features.Tools.ViewModels.Dialogs"
+             xmlns:cp="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.ColorPicker"
              xmlns:converters="using:GenHub.Infrastructure.Converters"
              xmlns:controls="using:GenHub.Infrastructure.Controls"
              xmlns:commonControls="clr-namespace:GenHub.Common.Controls"
@@ -15,6 +16,7 @@
 
     <UserControl.Resources>
         <converters:ColorToBrushConverter x:Key="AccentColorBrushConverter"/>
+        <converters:ContrastTextColorConverter x:Key="ContrastTextColorConverter"/>
         <converters:StringToImageConverter x:Key="StringToImageConverter"/>
     </UserControl.Resources>
 
@@ -105,9 +107,13 @@
                         <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
                     </StackPanel>
                     <TextBox Text="{Binding ContentId}" Watermark="{localization:Localize Tools.PublisherStudio.Content.IdPlaceholder}"
-                             IsReadOnly="{Binding IsEditMode}"/>
+                             IsReadOnly="{Binding IsContentIdReadOnly}"/>
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.IdHint}"
-                               Classes="hint"/>
+                               Classes="hint"
+                               IsVisible="{Binding !IsUpstreamSource}"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamIdHint}"
+                               Classes="hint"
+                               IsVisible="{Binding IsUpstreamSource}"/>
                 </StackPanel>
 
                 <!-- Type & Target -->
@@ -135,8 +141,176 @@
                                Classes="hint"/>
                 </StackPanel>
 
+                <!-- Featured + Upstream toggles -->
+                <Grid ColumnDefinitions="*,8,*">
+                    <Border Background="{DynamicResource GlassFillSubtleBrush}"
+                            BorderBrush="{DynamicResource GlassBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="12">
+                        <StackPanel Spacing="8">
+                            <CheckBox Content="{localization:Localize Tools.PublisherStudio.Content.FeaturedMark}"
+                                      IsChecked="{Binding IsFeatured}"
+                                      FontWeight="SemiBold"/>
+                            <StackPanel Spacing="4" IsVisible="{Binding IsFeatured}">
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.FeaturedBadgeLabel}" Classes="label"/>
+                                <TextBox Text="{Binding FeaturedBadge}" Watermark="{localization:Localize Tools.PublisherStudio.Content.FeaturedBadgePlaceholder}"/>
+                            </StackPanel>
+                            <StackPanel Spacing="4" IsVisible="{Binding IsFeatured}">
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.FeaturedColor}" Classes="label"/>
+                                <Button HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Stretch"
+                                        Padding="8,6"
+                                        Background="{DynamicResource GlassFillBrush}"
+                                        BorderBrush="{DynamicResource GlassBorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Content.FeaturedColorHint}">
+                                    <Button.Flyout>
+                                        <Flyout Placement="BottomEdgeAlignedLeft">
+                                            <cp:ColorView Color="{Binding FeaturedColor, Mode=TwoWay}"
+                                                          ColorSpectrumShape="Ring"
+                                                          IsAlphaEnabled="False"
+                                                          IsHexInputVisible="True"
+                                                          IsColorComponentsVisible="True"
+                                                          IsComponentSliderVisible="True"
+                                                          IsComponentTextInputVisible="False"
+                                                          IsColorPaletteVisible="True"
+                                                          IsColorPreviewVisible="True"
+                                                          MaxWidth="340"
+                                                          HorizontalAlignment="Stretch"/>
+                                        </Flyout>
+                                    </Button.Flyout>
+                                    <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+                                        <Border Grid.Column="0" Width="28" Height="18" CornerRadius="4"
+                                                Background="{Binding AccentColor, Converter={StaticResource AccentColorBrushConverter}}"
+                                                BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1"
+                                                Margin="0,0,8,0"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding AccentColor}" FontSize="12"
+                                                   Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="2" Text="{localization:Localize Tools.PublisherStudio.Content.FeaturedColorPick}" FontSize="11"
+                                                   Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="2"
+                            Background="{DynamicResource GlassFillSubtleBrush}"
+                            BorderBrush="{DynamicResource GlassBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="12"
+                            IsVisible="{Binding !IsBundleType}">
+                        <CheckBox Content="{localization:Localize Tools.PublisherStudio.Content.UpstreamTrack}"
+                                  IsChecked="{Binding IsUpstreamSource}"
+                                  FontWeight="SemiBold"
+                                  VerticalAlignment="Center"/>
+                    </Border>
+                </Grid>
+
+                <!-- Component Matrix (visible when ContentType is ContentBundle) -->
+                <Border Background="{DynamicResource GlassFillSubtleBrush}"
+                        BorderBrush="{DynamicResource GlassBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="12"
+                        IsVisible="{Binding IsBundleType}">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.BundleComponentMatrix}" FontWeight="Bold" FontSize="14"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.BundleComponentMatrixDesc}" Classes="hint"/>
+
+                        <ItemsControl ItemsSource="{Binding BundleComponentOptions}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource GlassFillSubtleBrush}"
+                                            BorderBrush="{DynamicResource GlassBorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="6"
+                                            Padding="10,6"
+                                            Margin="0,0,0,6">
+                                        <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                                            <CheckBox IsChecked="{Binding IsSelected}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{Binding ContentTypeDisplay}" Classes="hint"/>
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="2" Text="{localization:Localize Tools.PublisherStudio.Content.DefaultVariant}" VerticalAlignment="Center" Margin="8,0" Classes="hint" IsVisible="{Binding HasVariants}"/>
+                                            <ComboBox Grid.Column="3"
+                                                      ItemsSource="{Binding AvailableVariants}"
+                                                      SelectedItem="{Binding SelectedVariant}"
+                                                      IsVisible="{Binding HasVariants}"
+                                                      Width="140"
+                                                      VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <!-- Upstream Sync Configuration (visible when tracking an upstream provider) -->
+                <Border Background="{DynamicResource GlassFillSubtleBrush}"
+                        BorderBrush="{DynamicResource GlassBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="12"
+                        IsVisible="{Binding IsUpstreamSource}">
+                    <StackPanel Spacing="8">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamProvider}" Classes="label"/>
+                            <ComboBox ItemsSource="{Binding AvailableUpstreamProviders}"
+                                      SelectedItem="{Binding SelectedUpstreamProvider}"
+                                      HorizontalAlignment="Stretch"/>
+
+                            <StackPanel Spacing="4" IsVisible="{Binding ShowUpstreamRepository}">
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamRepo}" Classes="label"/>
+                                <TextBox Text="{Binding UpstreamRepository}" Watermark="{localization:Localize Tools.PublisherStudio.Content.UpstreamRepoPlaceholder}"/>
+                            </StackPanel>
+
+                            <StackPanel Spacing="4" IsVisible="{Binding ShowUpstreamContentCode}">
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamContentCode}" Classes="label"/>
+                                <TextBox Text="{Binding UpstreamContentCode}" Watermark="{localization:Localize Tools.PublisherStudio.Content.UpstreamContentCodePlaceholder}"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamContentCodeHint}"
+                                           Classes="hint"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+
+                            <StackPanel Spacing="4" IsVisible="{Binding ShowUpstreamChannel}">
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamChannel}" Classes="label"/>
+                                <TextBox Text="{Binding UpstreamChannel}" Watermark="{localization:Localize Tools.PublisherStudio.Content.UpstreamChannelPlaceholder}"/>
+                            </StackPanel>
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamVariantAxis}" Classes="label"/>
+                                <ComboBox ItemsSource="{Binding UpstreamVariantAxisSelector.Options}"
+                                          SelectedItem="{Binding UpstreamVariantAxisSelector.SelectedOption}"
+                                          HorizontalAlignment="Stretch">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate DataType="vm:VariantAxisOption">
+                                            <StackPanel Spacing="2" Margin="0,4">
+                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimary}"/>
+                                                <TextBlock Text="{Binding Description}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <TextBox Text="{Binding UpstreamVariantAxisSelector.CustomValue}"
+                                         Watermark="{localization:Localize Tools.PublisherStudio.Content.UpstreamVariantAxisCustomPlaceholder}"
+                                         IsVisible="{Binding UpstreamVariantAxisSelector.ShowCustomValue}"/>
+                                <TextBlock Text="{Binding UpstreamVariantAxisSelector.SelectedDescription}"
+                                           Classes="caption"
+                                           Foreground="{DynamicResource TextSecondary}"
+                                           TextWrapping="Wrap"
+                                           FontSize="11"
+                                           Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
                 <!-- Description -->
-                <StackPanel Spacing="6">
+                <StackPanel Spacing="6" Margin="0,0,0,4">
                     <StackPanel Orientation="Horizontal" Spacing="4">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.Description}" Classes="label"/>
                         <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
@@ -144,8 +318,7 @@
                     <TextBox Text="{Binding Description}"
                              TextWrapping="Wrap"
                              AcceptsReturn="True"
-                             MinHeight="110"
-                             Height="110"
+                             MinHeight="100"
                              Watermark="{localization:Localize Tools.PublisherStudio.Content.DescriptionPlaceholder}"/>
                 </StackPanel>
 
@@ -229,7 +402,7 @@
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.PreviewBadge}"
                                                FontSize="11"
                                                FontWeight="SemiBold"
-                                               Foreground="{DynamicResource AccentBadgeForegroundBrush}"/>
+                                               Foreground="{Binding AccentColor, Converter={StaticResource ContrastTextColorConverter}}"/>
                                 </Border>
                             </StackPanel>
                             <ItemsControl ItemsSource="{x:Static vm:AddContentDialogViewModel.AccentColorPresets}">
@@ -271,6 +444,20 @@
                                     <PathIcon Data="{StaticResource DocumentIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}"/>
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DragDropImagesHint}" FontWeight="Medium" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
                                 </StackPanel>
+                            </Border>
+
+                            <!-- Follow-up drop target: keeps screenshot drops working after the first image hides the main zone. -->
+                            <Border x:Name="ContentMediaDropZoneMore"
+                                    IsVisible="{Binding Screenshots.Count}"
+                                    DragDrop.AllowDrop="True"
+                                    BorderBrush="{DynamicResource GlassBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Background="Transparent"
+                                    Padding="8,4"
+                                    Margin="0,0,0,4"
+                                    Cursor="Hand">
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DragDropImagesHint}" FontSize="11" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.75"/>
                             </Border>
 
                             <!-- Screenshots List -->
@@ -377,7 +564,7 @@
                           IsExpanded="False"
                           HorizontalAlignment="Stretch"
                           HorizontalContentAlignment="Stretch"
-                          IsVisible="{Binding !IsEditMode}">
+                          IsVisible="{Binding CanShowInitialRelease}">
                     <Expander.Header>
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.InitialRelease}" Classes="label"/>
                     </Expander.Header>
