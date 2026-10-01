@@ -15,7 +15,8 @@ namespace GenHub.Windows.Features.ActionSets.Fixes;
 /// Abstract base class for fixes that disable problematic DLLs/files by renaming them to a GenHub-owned backup name.
 /// </summary>
 /// <remarks>
-/// The backup name is never a generic <c>.bak</c>, so a backup the user already keeps is never overwritten or consumed.
+/// The backup name is never a generic <c>.bak</c>, so apply never overwrites or consumes a backup the user already keeps.
+/// Undo falls back to a <c>.bak</c> left by earlier builds only when the target file is absent, so no bytes are lost.
 /// Neither apply nor undo deletes a file whose content is not preserved in another file.
 /// </remarks>
 public abstract class BaseFileRenameFix(
@@ -113,13 +114,20 @@ public abstract class BaseFileRenameFix(
             directories.Add((GameClientConstants.GeneralsShortName, installation.GeneralsPath));
         }
 
-        if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
+        if (installation.HasZeroHour
+            && !string.IsNullOrEmpty(installation.ZeroHourPath)
+            && !directories.Exists(d => IsSameDirectory(d.Directory, installation.ZeroHourPath)))
         {
             directories.Add((GameClientConstants.ZeroHourShortName, installation.ZeroHourPath));
         }
 
         return directories;
     }
+
+    private static bool IsSameDirectory(string first, string second) => string.Equals(
+        Path.TrimEndingDirectorySeparator(first),
+        Path.TrimEndingDirectorySeparator(second),
+        StringComparison.OrdinalIgnoreCase);
 
     private static async Task<bool> HaveSameContentAsync(string firstPath, string secondPath, CancellationToken ct)
     {
@@ -187,8 +195,7 @@ public abstract class BaseFileRenameFix(
 
         if (!File.Exists(backupPath))
         {
-            details.Add($"  OK: {backupFileName} not present, nothing to restore");
-            return true;
+            return RestoreLegacyBackup(directory, originalPath, details);
         }
 
         try
@@ -223,6 +230,38 @@ public abstract class BaseFileRenameFix(
         {
             Logger.LogError(ex, "Access denied restoring {BackupPath}", backupPath);
             AddFailureDetail(details, ex, $"restoring {backupFileName}", indent: "  ");
+            return false;
+        }
+    }
+
+    private bool RestoreLegacyBackup(string directory, string originalPath, List<string> details)
+    {
+        var legacyFileName = targetFileName + FileTypes.LegacyBackupExtension;
+        var legacyPath = Path.Combine(directory, legacyFileName);
+
+        if (File.Exists(originalPath) || !File.Exists(legacyPath))
+        {
+            details.Add($"  OK: {backupFileName} not present, nothing to restore");
+            return true;
+        }
+
+        try
+        {
+            File.Move(legacyPath, originalPath);
+            details.Add($"  OK: Restored from earlier backup: {legacyFileName} -> {targetFileName}");
+            Logger.LogInformation("Restored legacy backup {LegacyPath} to {OriginalPath}", legacyPath, originalPath);
+            return true;
+        }
+        catch (IOException ex)
+        {
+            Logger.LogError(ex, "Failed to restore legacy backup {LegacyPath}", legacyPath);
+            AddFailureDetail(details, ex, $"restoring {legacyFileName}", indent: "  ");
+            return false;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Logger.LogError(ex, "Access denied restoring legacy backup {LegacyPath}", legacyPath);
+            AddFailureDetail(details, ex, $"restoring {legacyFileName}", indent: "  ");
             return false;
         }
     }

@@ -43,6 +43,9 @@ public sealed class BaseFileRenameFixTests : IDisposable
     /// <summary>
     /// Gets the pre-apply states as (fix, has original, user backup content or null).
     /// </summary>
+    /// <remarks>
+    /// A <c>.bak</c> with no target is the state earlier builds left after apply, so undo restores it. The legacy undo tests cover it.
+    /// </remarks>
     public static TheoryData<string, bool, string?> InitialStates
     {
         get
@@ -54,7 +57,6 @@ public sealed class BaseFileRenameFixTests : IDisposable
                 data.Add(fixId, true, null);
                 data.Add(fixId, true, OriginalContent);
                 data.Add(fixId, true, DifferentContent);
-                data.Add(fixId, false, DifferentContent);
             }
 
             return data;
@@ -153,7 +155,7 @@ public sealed class BaseFileRenameFixTests : IDisposable
             HasGenerals = true,
             GeneralsPath = dir,
             HasZeroHour = true,
-            ZeroHourPath = dir,
+            ZeroHourPath = dir + Path.DirectorySeparatorChar,
         };
         Seed(dir, target, hasOriginal: true, DifferentContent);
         var before = Snapshot();
@@ -162,6 +164,65 @@ public sealed class BaseFileRenameFixTests : IDisposable
         var undo = await fix.UndoAsync(installation);
 
         apply.Success.Should().BeTrue(string.Join(Environment.NewLine, apply.Details));
+        undo.Success.Should().BeTrue(string.Join(Environment.NewLine, undo.Details));
+        apply.Details.Count(d => d.Contains(dir, StringComparison.Ordinal)).Should().Be(1);
+        undo.Details.Count(d => d.Contains(dir, StringComparison.Ordinal)).Should().Be(1);
+        Snapshot().Should().BeEquivalentTo(before);
+    }
+
+    /// <summary>
+    /// Verifies undo restores a target that an earlier build renamed to the legacy <c>.bak</c> name, byte for byte.
+    /// </summary>
+    /// <param name="fixId">The fix under test.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
+    [Theory]
+    [MemberData(nameof(FixIds))]
+    public async Task Undo_WhenOnlyLegacyBackupExists_RestoresTargetAsync(string fixId)
+    {
+        var (fix, target, _) = CreateFix(fixId);
+        var installation = CreateInstallation(out var generalsDir, out var zeroHourDir);
+        foreach (var dir in new[] { generalsDir, zeroHourDir })
+        {
+            Seed(dir, target, hasOriginal: false, OriginalContent);
+        }
+
+        var legacyHash = HashFile(Path.Combine(generalsDir, target + UserBackupSuffix));
+        (await fix.IsAppliedAsync(installation)).Should().BeTrue();
+
+        var undo = await fix.UndoAsync(installation);
+        var second = await fix.UndoAsync(installation);
+
+        undo.Success.Should().BeTrue(string.Join(Environment.NewLine, undo.Details));
+        second.Success.Should().BeTrue(string.Join(Environment.NewLine, second.Details));
+        foreach (var dir in new[] { generalsDir, zeroHourDir })
+        {
+            HashFile(Path.Combine(dir, target)).Should().Be(legacyHash);
+            File.Exists(Path.Combine(dir, target + UserBackupSuffix)).Should().BeFalse();
+        }
+
+        (await fix.IsAppliedAsync(installation)).Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Verifies undo never touches a legacy <c>.bak</c> while the target file is present.
+    /// </summary>
+    /// <param name="fixId">The fix under test.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
+    [Theory]
+    [MemberData(nameof(FixIds))]
+    public async Task Undo_WhenTargetAndLegacyBackupExist_LeavesBothUntouchedAsync(string fixId)
+    {
+        var (fix, target, _) = CreateFix(fixId);
+        var installation = CreateInstallation(out var generalsDir, out var zeroHourDir);
+        foreach (var dir in new[] { generalsDir, zeroHourDir })
+        {
+            Seed(dir, target, hasOriginal: true, DifferentContent);
+        }
+
+        var before = Snapshot();
+
+        var undo = await fix.UndoAsync(installation);
+
         undo.Success.Should().BeTrue(string.Join(Environment.NewLine, undo.Details));
         Snapshot().Should().BeEquivalentTo(before);
     }
