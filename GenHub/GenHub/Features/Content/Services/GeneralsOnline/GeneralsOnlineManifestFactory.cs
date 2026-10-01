@@ -317,6 +317,24 @@ public class GeneralsOnlineManifestFactory(
             fileName,
             StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Determines whether a manifest-relative path belongs to Easy Anti-Cheat binaries, services, or plugin directories.
+    /// </summary>
+    private static bool IsEasyAntiCheatFile(string relativePath)
+    {
+        var normalized = relativePath.Replace('\\', '/').TrimStart('/');
+        if (IsArchiveRootFile(relativePath, GameClientConstants.GeneralsOnlineEacLauncherExecutable) ||
+            IsArchiveRootFile(relativePath, GameClientConstants.GeneralsOnlineEacSetupExecutable) ||
+            IsArchiveRootFile(relativePath, "EOSSDK-Win32-Shipping.dll"))
+        {
+            return true;
+        }
+
+        return normalized.StartsWith("EasyAntiCheat/", StringComparison.OrdinalIgnoreCase) ||
+               normalized.StartsWith("plugins/easyanticheat/", StringComparison.OrdinalIgnoreCase) ||
+               normalized.StartsWith("plugins/goanticheat/", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static ManifestFile CreateMapManifestFile(string relativePath, FileInfo fileInfo, string hash)
     {
         // For maps, the relative path should be relative to the Maps directory
@@ -811,22 +829,33 @@ public class GeneralsOnlineManifestFactory(
         }
         else if (IsTestEnvironmentManifest(manifest))
         {
-            var hasTestEnvExe = filesWithHashes.Any(file =>
+            var hasDedicatedTestExe = filesWithHashes.Any(file =>
+                !file.IsMap && !file.IsGameData && IsArchiveRootFile(file.RelativePath, GameClientConstants.GeneralsOnlineTestEnvironmentExecutable));
+
+            var hasDefaultExe = filesWithHashes.Any(file =>
                 !file.IsMap && !file.IsGameData && IsArchiveRootFile(file.RelativePath, GameClientConstants.GeneralsOnlineDefaultExecutable));
 
-            if (!hasTestEnvExe)
+            if (!hasDedicatedTestExe && !hasDefaultExe)
             {
                 logger.LogInformation(
-                    "Test environment executable '{Exe}' not found in extract path; skipping test env files",
-                    GameClientConstants.GeneralsOnlineDefaultExecutable);
+                    "Test environment executable not found in extract path; skipping test env files");
                 return manifestFiles;
             }
 
-            var targetExecutable = GameClientConstants.GeneralsOnlineDefaultExecutable;
+            var targetExecutable = hasDedicatedTestExe
+                ? GameClientConstants.GeneralsOnlineTestEnvironmentExecutable
+                : GameClientConstants.GeneralsOnlineDefaultExecutable;
 
             foreach (var file in filesWithHashes)
             {
                 if (file.IsMap || file.IsGameData)
+                {
+                    continue;
+                }
+
+                // Exclude 60Hz executable and Easy Anti-Cheat components from Test Environment client
+                if (IsArchiveRootFile(file.RelativePath, GameClientConstants.GeneralsOnline60HzExecutable) ||
+                    IsEasyAntiCheatFile(file.RelativePath))
                 {
                     continue;
                 }
@@ -859,6 +888,12 @@ public class GeneralsOnlineManifestFactory(
             foreach (var file in filesWithHashes)
             {
                 if (file.IsMap || file.IsGameData)
+                {
+                    continue;
+                }
+
+                // Exclude Test Environment dedicated executable from 60Hz GameClient
+                if (IsArchiveRootFile(file.RelativePath, GameClientConstants.GeneralsOnlineTestEnvironmentExecutable))
                 {
                     continue;
                 }

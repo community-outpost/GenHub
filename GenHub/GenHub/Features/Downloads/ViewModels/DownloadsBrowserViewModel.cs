@@ -2368,19 +2368,43 @@ public sealed partial class DownloadsBrowserViewModel(
                         var sub = subResult.Success ? subResult.Data : null;
                         if (sub?.NotifyNewReleases != false)
                         {
-                            var title = _localizationService?.GetString("Downloads.Browser.NewContentNotificationTitle") ?? "New Content Available";
+                            var title = _localizationService?.GetString("Downloads.Browser.NewContentNotificationTitle") ?? "New Downloads Available";
                             var actionText = _localizationService?.GetString("Downloads.Browser.ViewContentAction") ?? "View";
-                            var catalogName = AvailableCatalogs.FirstOrDefault(c => string.Equals(c.Id, effectiveCatalogId, StringComparison.OrdinalIgnoreCase))?.Name
-                                ?? (string.Equals(SelectedCatalog?.Id, effectiveCatalogId, StringComparison.OrdinalIgnoreCase) ? SelectedCatalog?.Name : null)
-                                ?? "Catalog";
+                            var resolvedCatalog = AvailableCatalogs.FirstOrDefault(c => string.Equals(c.Id, effectiveCatalogId, StringComparison.OrdinalIgnoreCase))
+                                ?? (string.Equals(SelectedCatalog?.Id, effectiveCatalogId, StringComparison.OrdinalIgnoreCase) ? SelectedCatalog : null);
+                            var hasRealCatalog = resolvedCatalog != null &&
+                                                 !string.IsNullOrWhiteSpace(resolvedCatalog.Name) &&
+                                                 !string.Equals(resolvedCatalog.Name, "Catalog", StringComparison.OrdinalIgnoreCase) &&
+                                                 !string.Equals(resolvedCatalog.Id, CatalogConstants.DefaultCatalogId, StringComparison.OrdinalIgnoreCase);
+
+                            var publisherName = SelectedPublisher?.DisplayName;
+                            if (string.IsNullOrWhiteSpace(publisherName) && !string.IsNullOrWhiteSpace(publisherId))
+                            {
+                                publisherName = Publishers.FirstOrDefault(p => string.Equals(p.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase))?.DisplayName;
+                            }
 
                             if (newDiscoveredItems.Count == 1)
                             {
                                 var item = newDiscoveredItems[0];
-                                var message = string.Format(
-                                    _localizationService?.GetString("Downloads.Browser.NewContentNotificationFormat") ?? "New content '{0}' released in catalog '{1}'",
-                                    item.Name,
-                                    catalogName);
+                                string message;
+                                if (hasRealCatalog)
+                                {
+                                    var format = _localizationService?.GetString("Downloads.Browser.NewContentNotificationFormat")
+                                        ?? "New download '{0}' released in catalog '{1}'";
+                                    message = string.Format(format, item.Name, resolvedCatalog!.Name);
+                                }
+                                else if (!string.IsNullOrWhiteSpace(publisherName))
+                                {
+                                    var format = _localizationService?.GetString("Downloads.Browser.NewDownloadNotificationFormat")
+                                        ?? "New download '{0}' available from {1}";
+                                    message = string.Format(format, item.Name, publisherName);
+                                }
+                                else
+                                {
+                                    var format = _localizationService?.GetString("Downloads.Browser.NewDownloadGenericNotificationFormat")
+                                        ?? "New download '{0}' available";
+                                    message = string.Format(format, item.Name);
+                                }
 
                                 notificationService.Show(new NotificationMessage(
                                     NotificationType.Info,
@@ -2402,10 +2426,25 @@ public sealed partial class DownloadsBrowserViewModel(
                             }
                             else
                             {
-                                var message = string.Format(
-                                    _localizationService?.GetString("Downloads.Browser.NewContentsNotificationFormat") ?? "{0} new content items released in catalog '{1}'",
-                                    newDiscoveredItems.Count,
-                                    catalogName);
+                                string message;
+                                if (hasRealCatalog)
+                                {
+                                    var format = _localizationService?.GetString("Downloads.Browser.NewContentsNotificationFormat")
+                                        ?? "{0} new downloads released in catalog '{1}'";
+                                    message = string.Format(format, newDiscoveredItems.Count, resolvedCatalog!.Name);
+                                }
+                                else if (!string.IsNullOrWhiteSpace(publisherName))
+                                {
+                                    var format = _localizationService?.GetString("Downloads.Browser.NewDownloadsNotificationFormat")
+                                        ?? "{0} new downloads available from {1}";
+                                    message = string.Format(format, newDiscoveredItems.Count, publisherName);
+                                }
+                                else
+                                {
+                                    var format = _localizationService?.GetString("Downloads.Browser.NewDownloadsGenericNotificationFormat")
+                                        ?? "{0} new downloads available";
+                                    message = string.Format(format, newDiscoveredItems.Count);
+                                }
 
                                 notificationService.Show(new NotificationMessage(
                                     NotificationType.Info,

@@ -259,6 +259,13 @@ public class GeneralsOnlineManifestFactoryEacTests : IDisposable
         var eacStep = testClient.InstallationInstructions?.PostInstallSteps.FirstOrDefault(s =>
             string.Equals(s.TargetRelativePath, GameClientConstants.GeneralsOnlineEacSetupExecutable, StringComparison.OrdinalIgnoreCase));
         Assert.Null(eacStep);
+
+        // Test environment must NOT contain 60Hz binary or EAC files
+        Assert.DoesNotContain(testClient.Files, f => f.RelativePath.Equals(GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(testClient.Files, f => f.RelativePath.Equals(GameClientConstants.GeneralsOnlineEacLauncherExecutable, StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(testClient.Files, f => f.RelativePath.Equals(GameClientConstants.GeneralsOnlineEacSetupExecutable, StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(testClient.Files, f => f.RelativePath.Equals("EOSSDK-Win32-Shipping.dll", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(testClient.Files, f => f.RelativePath.Contains("EasyAntiCheat", StringComparison.OrdinalIgnoreCase));
     }
 
     /// <inheritdoc/>

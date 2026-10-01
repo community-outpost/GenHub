@@ -28,7 +28,8 @@ public class GeneralsOnlineClientIdentifier : IGameClientIdentifier
             return null;
         }
 
-        var isTestEnv = fileName.Equals(GameClientConstants.GeneralsOnlineDefaultExecutable, StringComparison.OrdinalIgnoreCase);
+        var isTestEnv = fileName.Equals(GameClientConstants.GeneralsOnlineTestEnvironmentExecutable, StringComparison.OrdinalIgnoreCase) ||
+                        fileName.Equals(GameClientConstants.GeneralsOnlineDefaultExecutable, StringComparison.OrdinalIgnoreCase);
 
         return new GameClientIdentification(
             publisherId: PublisherTypeConstants.GeneralsOnline,
@@ -41,7 +42,7 @@ public class GeneralsOnlineClientIdentifier : IGameClientIdentifier
     /// <summary>
     /// Determines whether a file name is a supported Generals Online entry point.
     /// Since 060526_QFE1 the Easy Anti-Cheat bootstrapper or 60Hz binary serves the 60Hz client,
-    /// while GeneralsOnlineZH.exe serves the test environment client without Easy Anti-Cheat.
+    /// while GeneralsOnlineZH_TestEnvironment.exe (or GeneralsOnlineZH.exe) serves the test environment client without Easy Anti-Cheat.
     /// </summary>
     private static bool IsSupportedEntryPoint(string fileName) =>
         GameClientConstants.GeneralsOnlineExecutableNames.Contains(fileName, StringComparer.OrdinalIgnoreCase);

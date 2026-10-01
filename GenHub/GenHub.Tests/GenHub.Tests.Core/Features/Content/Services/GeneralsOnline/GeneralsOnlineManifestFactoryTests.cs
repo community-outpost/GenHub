@@ -610,6 +610,9 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
         // 60Hz client must mark 60Hz executable as executable
         var sixtyExe = Assert.Single(gameClient60Hz.Files, f => f.IsExecutable);
         Assert.Equal(GameClientConstants.GeneralsOnline60HzExecutable, sixtyExe.RelativePath, ignoreCase: true);
+
+        // Test environment must NOT include 60Hz binary
+        Assert.DoesNotContain(gameClientTest.Files, f => f.RelativePath.Equals(GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
@@ -646,5 +649,74 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
         // Missing MapPack and GameData dependencies should be reconciled (dropped)
         Assert.DoesNotContain(gameClient.Dependencies, d => d.DependencyType == ContentType.MapPack);
         Assert.DoesNotContain(gameClient.Dependencies, d => d.DependencyType == ContentType.Patch);
+    }
+
+    /// <summary>
+    /// Verifies that when both 60Hz and Test Environment variants are extracted, files are cleanly partitioned:
+    /// Test Environment excludes 60Hz binary and EAC files, while 60Hz excludes dedicated Test Environment binary.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_PartitionsVariantsAndExcludesIrrelevantFilesAsync()
+    {
+        // Arrange: Create simulated extracted directory structure containing EAC + Test Environment
+        var exe60Path = Path.Combine(_tempDir, GameClientConstants.GeneralsOnline60HzExecutable);
+        var exeTestPath = Path.Combine(_tempDir, GameClientConstants.GeneralsOnlineTestEnvironmentExecutable);
+        var launcherPath = Path.Combine(_tempDir, GameClientConstants.GeneralsOnlineDefaultExecutable);
+        var eacLauncherPath = Path.Combine(_tempDir, GameClientConstants.GeneralsOnlineEacLauncherExecutable);
+        var eacSetupPath = Path.Combine(_tempDir, GameClientConstants.GeneralsOnlineEacSetupExecutable);
+        var eossdkPath = Path.Combine(_tempDir, "EOSSDK-Win32-Shipping.dll");
+        var eacDir = Path.Combine(_tempDir, "EasyAntiCheat");
+        Directory.CreateDirectory(eacDir);
+        var eacSettingsPath = Path.Combine(eacDir, "Settings.json");
+        var sharedDllPath = Path.Combine(_tempDir, "xaudio2_9redist.dll");
+
+        File.WriteAllText(exe60Path, "fake 60hz exe content");
+        File.WriteAllText(exeTestPath, "fake test env exe content");
+        File.WriteAllText(launcherPath, "fake launcher exe content");
+        File.WriteAllText(eacLauncherPath, "fake eac launcher content");
+        File.WriteAllText(eacSetupPath, "fake eac setup content");
+        File.WriteAllText(eossdkPath, "fake eos sdk content");
+        File.WriteAllText(eacSettingsPath, "fake eac settings content");
+        File.WriteAllText(sharedDllPath, "fake shared dll content");
+
+        var originalManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.1015255.generalsonline.gameclient.60hz"),
+            Name = GameClientConstants.GeneralsOnline60HzDisplayName,
+            Version = "101525_QFE5",
+            ContentType = ContentType.GameClient,
+            Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GeneralsOnline },
+            Metadata = new ContentMetadata { ReleaseDate = DateTime.UtcNow },
+        };
+
+        // Act
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.Success);
+        var manifests = result.Data!;
+        var gameClient60Hz = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient && m.Id.Value.EndsWith(GeneralsOnlineConstants.Variant60HzSuffix));
+        var gameClientTest = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient && m.Id.Value.EndsWith(GeneralsOnlineConstants.VariantTestEnvironmentSuffix));
+
+        Assert.NotNull(gameClient60Hz);
+        Assert.NotNull(gameClientTest);
+
+        // 60Hz client checks
+        Assert.Contains(gameClient60Hz.Files, f => f.RelativePath.Equals(GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(gameClient60Hz.Files, f => f.RelativePath.Equals(GameClientConstants.GeneralsOnlineEacLauncherExecutable, StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(gameClient60Hz.Files, f => f.RelativePath.Equals("EOSSDK-Win32-Shipping.dll", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(gameClient60Hz.Files, f => f.RelativePath.Contains("EasyAntiCheat", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(gameClient60Hz.Files, f => f.RelativePath.Equals(GameClientConstants.GeneralsOnlineTestEnvironmentExecutable, StringComparison.OrdinalIgnoreCase));
+
+        // Test Environment checks
+        var testExe = Assert.Single(gameClientTest.Files, f => f.IsExecutable);
+        Assert.Equal(GameClientConstants.GeneralsOnlineTestEnvironmentExecutable, testExe.RelativePath, ignoreCase: true);
+        Assert.Contains(gameClientTest.Files, f => f.RelativePath.Equals("xaudio2_9redist.dll", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(gameClientTest.Files, f => f.RelativePath.Equals(GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(gameClientTest.Files, f => f.RelativePath.Equals(GameClientConstants.GeneralsOnlineEacLauncherExecutable, StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(gameClientTest.Files, f => f.RelativePath.Equals(GameClientConstants.GeneralsOnlineEacSetupExecutable, StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(gameClientTest.Files, f => f.RelativePath.Equals("EOSSDK-Win32-Shipping.dll", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(gameClientTest.Files, f => f.RelativePath.Contains("EasyAntiCheat", StringComparison.OrdinalIgnoreCase));
     }
 }

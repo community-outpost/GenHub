@@ -14036,16 +14036,28 @@ Would you like to add this catalog to your provider project?</value>
     <value>Publisher '{0}' released {1} new catalogs.</value>
   </data>
   <data name="Downloads.Browser.NewContentNotificationTitle" xml:space="preserve">
-    <value>New Content Available</value>
+    <value>New Downloads Available</value>
   </data>
   <data name="Downloads.Browser.ViewContentAction" xml:space="preserve">
     <value>View</value>
   </data>
   <data name="Downloads.Browser.NewContentNotificationFormat" xml:space="preserve">
-    <value>New content '{0}' released in catalog '{1}'</value>
+    <value>New download '{0}' released in catalog '{1}'</value>
   </data>
   <data name="Downloads.Browser.NewContentsNotificationFormat" xml:space="preserve">
-    <value>{0} new content items released in catalog '{1}'</value>
+    <value>{0} new downloads released in catalog '{1}'</value>
+  </data>
+  <data name="Downloads.Browser.NewDownloadNotificationFormat" xml:space="preserve">
+    <value>New download '{0}' available from {1}</value>
+  </data>
+  <data name="Downloads.Browser.NewDownloadsNotificationFormat" xml:space="preserve">
+    <value>{0} new downloads available from {1}</value>
+  </data>
+  <data name="Downloads.Browser.NewDownloadGenericNotificationFormat" xml:space="preserve">
+    <value>New download '{0}' available</value>
+  </data>
+  <data name="Downloads.Browser.NewDownloadsGenericNotificationFormat" xml:space="preserve">
+    <value>{0} new downloads available</value>
   </data>
   <data name="Tools.PublisherStudio.Common.Catalog" xml:space="preserve">
     <value>Catalog</value>

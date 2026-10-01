@@ -158,6 +158,9 @@ public static class GameClientConstants
     /// <summary>GeneralsOnline default client executable name.</summary>
     public const string GeneralsOnlineDefaultExecutable = "generalsonlinezh.exe";
 
+    /// <summary>GeneralsOnline Test Environment client executable name.</summary>
+    public const string GeneralsOnlineTestEnvironmentExecutable = "generalsonlinezh_testenvironment.exe";
+
     /// <summary>
     /// Easy Anti-Cheat bootstrapper shipped since GeneralsOnline 060526_QFE1. It launches the
     /// binary named by <c>EasyAntiCheat/Settings.json</c> and is the supported launch target.
@@ -344,6 +347,7 @@ public static class GameClientConstants
     [
         GeneralsOnlineEacLauncherExecutable,
         GeneralsOnline60HzExecutable,
+        GeneralsOnlineTestEnvironmentExecutable,
         GeneralsOnlineDefaultExecutable,
         GeneralsOnlineUnixExecutable,
     ];
@@ -454,6 +458,7 @@ public static class GameClientConstants
         GameExecutable,
         GeneralsOnlineDefaultExecutable,
         GeneralsOnline60HzExecutable,
+        GeneralsOnlineTestEnvironmentExecutable,
         GeneralsOnlineEacLauncherExecutable,
         ContraExecutable,
         GeneralsOnlineUnixExecutable,
@@ -477,6 +482,7 @@ public static class GameClientConstants
         GameExecutable,
         GeneralsOnlineDefaultExecutable,
         GeneralsOnline60HzExecutable,
+        GeneralsOnlineTestEnvironmentExecutable,
         GeneralsOnlineEacLauncherExecutable,
         ContraExecutable,
         GeneralsOnlineUnixExecutable,
