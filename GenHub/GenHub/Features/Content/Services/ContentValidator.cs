@@ -126,12 +126,6 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var fileIssues = new List<ValidationIssue>();
-                if (file is null)
-                {
-                    fileIssues.Add(new ValidationIssue("Manifest contains a null file entry.", ValidationSeverity.Error) { IssueType = ValidationIssueType.ValidationUnavailable });
-                    return fileIssues;
-                }
-
                 if (string.IsNullOrWhiteSpace(file.RelativePath))
                 {
                     fileIssues.Add(new ValidationIssue("Manifest file is missing its RelativePath.", ValidationSeverity.Error) { IssueType = ValidationIssueType.ValidationUnavailable });
@@ -238,7 +232,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
         {
             // Build a hashset of expected file paths for O(1) lookup performance
             var expectedFiles = new HashSet<string>(
-                ManifestVariantResolver.ResolveFiles(manifest).Where(f => f is not null && !string.IsNullOrWhiteSpace(f.RelativePath)).Select(f => Path.GetFullPath(Path.Combine(contentPath, f.RelativePath))),
+                ManifestVariantResolver.ResolveFiles(manifest).Where(f => !string.IsNullOrWhiteSpace(f.RelativePath)).Select(f => Path.GetFullPath(Path.Combine(contentPath, f.RelativePath))),
                 StringComparer.OrdinalIgnoreCase);
 
             // Add expected directories if specified in manifest

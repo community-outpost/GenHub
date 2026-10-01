@@ -224,14 +224,23 @@ public sealed class ContentValidatorVariantTests : IDisposable
         }
     }
 
-    /// <summary>Malformed file entries produce validation errors instead of throwing.</summary>
+    /// <summary>
+    /// A null file entry is skipped by integrity validation and reported by the structural check,
+    /// so full validation still returns the error instead of throwing.
+    /// </summary>
     /// <returns>The asynchronous test.</returns>
     [Fact]
-    public async Task ValidateContentIntegrityAsync_NullFile_ReportsErrorAsync()
+    public async Task ValidateAllAsync_NullFile_ReportsStructuralErrorAsync()
     {
-        var manifest = new ContentManifest { Files = [null!] };
-        var result = await _validator.ValidateContentIntegrityAsync(_contentDirectory, manifest);
-        Assert.Contains(result.Issues, issue => issue.Message.Contains("null file"));
+        var manifest = CreateManifest();
+        ManifestVariantResolver.ResolveVariant(manifest)!.Files.Insert(0, null!);
+
+        var integrity = await _validator.ValidateContentIntegrityAsync(_contentDirectory, manifest);
+        var result = await _validator.ValidateAllAsync(_contentDirectory, manifest);
+
+        Assert.Equal(1, integrity.TotalFilesValidated);
+        Assert.Contains(result.Issues, issue => issue.Message == "File at index 0 in variant 1 is null."
+            && issue.Severity == ValidationSeverity.Error);
     }
 
     /// <summary>Root entries are validated even when runtime variants supply the payload.</summary>
