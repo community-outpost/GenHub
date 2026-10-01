@@ -88,6 +88,24 @@ public sealed class WorkspaceVariantTests : IDisposable
         Assert.Same(manifest, entry.Manifest);
     }
 
+    /// <summary>The estimate counts only unique files that will become workspace links.</summary>
+    [Fact]
+    public void EstimateDiskUsage_SymlinkOnly_ExcludesNonWorkspaceAndDuplicateFiles()
+    {
+        var manifest = CreateManifest();
+        var configuration = CreateConfiguration(WorkspaceStrategy.SymlinkOnly, manifest);
+        var strategy = CreateStrategy(WorkspaceStrategy.SymlinkOnly);
+        var expected = strategy.EstimateDiskUsage(configuration);
+        Assert.True(expected > 0);
+        configuration.Manifests.Add(manifest);
+        ManifestVariantResolver.ResolveVariant(manifest)!.Files.Add(new ManifestFile
+        {
+            RelativePath = "user-data.txt",
+            InstallTarget = ContentInstallTarget.UserDataDirectory,
+        });
+        Assert.Equal(expected, strategy.EstimateDiskUsage(configuration));
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {

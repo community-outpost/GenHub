@@ -45,7 +45,7 @@ public sealed class SymlinkOnlyStrategy(
     public override long EstimateDiskUsage(WorkspaceConfiguration configuration)
     {
         // Symbolic links use minimal space - approximate 1KB per link for metadata
-        return configuration.Manifests.SelectMany(m => ManifestVariantResolver.ResolveFiles(m)).Count() * LinkOverheadBytes;
+        return configuration.GetWorkspaceUniqueFiles().Count() * LinkOverheadBytes;
     }
 
     /// <inheritdoc/>
