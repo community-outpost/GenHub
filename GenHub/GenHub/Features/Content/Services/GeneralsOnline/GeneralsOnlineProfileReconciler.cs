@@ -50,7 +50,8 @@ public partial class GeneralsOnlineProfileReconciler(
     IContentVersionComparer versionComparer,
     IGameInstallationService? installationService = null,
     ITelemetryService? telemetryService = null,
-    ILocalizationService? localizationService = null)
+    ILocalizationService? localizationService = null,
+    IContentRetentionPolicy? retentionPolicy = null)
     : IGeneralsOnlineProfileReconciler, IPublisherReconciler
 {
     private readonly SemaphoreSlim _reconcileLock = new(1, 1);
@@ -875,9 +876,16 @@ public partial class GeneralsOnlineProfileReconciler(
     {
         if (shouldDeleteOldVersions && !anyFailure && manifestMapping != null)
         {
-            logger.LogInformation("[GO Reconciler] Deleting old manifests that have mapped successors");
-            var oldManifestIds = oldManifests
+            logger.LogInformation("[GO Reconciler] Filtering old manifests with retention policy");
+            var candidateManifests = oldManifests
                 .Where(m => manifestMapping.ContainsKey(m.Id.Value))
+                .ToList();
+
+            var deletableManifests = retentionPolicy != null
+                ? await retentionPolicy.FilterDeletableManifestsAsync(candidateManifests, cancellationToken)
+                : candidateManifests;
+
+            var oldManifestIds = deletableManifests
                 .Select(m => m.Id)
                 .ToList();
 
@@ -888,6 +896,14 @@ public partial class GeneralsOnlineProfileReconciler(
                 {
                     logger.LogWarning("[GO Reconciler] Failed to remove old manifests: {Error}", removalResult.FirstError);
                 }
+            }
+
+            if (oldManifestIds.Count < candidateManifests.Count)
+            {
+                logger.LogInformation(
+                    "[GO Reconciler] Retained {RetainedCount} older manifests per retention policy; removed {RemovedCount}",
+                    candidateManifests.Count - oldManifestIds.Count,
+                    oldManifestIds.Count);
             }
 
             await reconciliationService.ScheduleGarbageCollectionAsync(false, cancellationToken);

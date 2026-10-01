@@ -47,6 +47,7 @@ public class ContentManifest
         Files = other.Files != null ? [.. other.Files] : [];
         Variants = other.Variants != null ? [.. other.Variants] : [];
         EntryPoint = other.EntryPoint;
+        LaunchRelationship = other.LaunchRelationship;
         RequiredDirectories = other.RequiredDirectories != null ? [.. other.RequiredDirectories] : [];
         InstallationInstructions = other.InstallationInstructions;
     }
@@ -150,6 +151,20 @@ public class ContentManifest
     /// </para>
     /// </summary>
     public string? EntryPoint { get; set; }
+
+    /// <summary>
+    /// Gets or sets the process the entry point spawns and hands the session to, for single-variant content.
+    /// <para>
+    /// Declared rather than guessed from the entry's file name. Null means the entry
+    /// is the game itself and no adoption takes place. Absent on every manifest written
+    /// before relationships existed, which keeps them launching exactly as before.
+    /// </para>
+    /// <para>
+    /// When <see cref="Variants"/> is populated, each variant carries its own
+    /// relationship and this is ignored.
+    /// </para>
+    /// </summary>
+    public LaunchRelationship? LaunchRelationship { get; set; }
 
     /// <summary>Gets or sets the required directory structure.</summary>
     public List<string> RequiredDirectories { get; set; } = [];

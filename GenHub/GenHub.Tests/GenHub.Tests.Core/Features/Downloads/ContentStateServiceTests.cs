@@ -1689,7 +1689,56 @@ public class ContentStateServiceTests
     }
 
     /// <summary>
-    /// Verifies that ModDB content matches by ContentIdMetadataKey.
+    /// Verifies that ModDB downloaded content stored as Mod matches search results typed as Addon/Patch/Map symmetrically.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task GetStateAsync_ModDbDownloadedContent_MatchesWhenCardIsAddonAndManifestIsModAsync()
+    {
+        var storedManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.20260807.moddb.mod.generalsundonev101addon"),
+            Name = "Generals Undone v1.01 Addon",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = "moddb",
+            OriginalContentId = "moddb.addon.314094",
+            Publisher = new PublisherInfo
+            {
+                Name = "ModDB",
+                PublisherType = "moddb",
+                SupportUrl = "https://www.moddb.com/mods/cc-generals-undone/downloads/cc-generals-undone-v101-addon",
+            },
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<System.Collections.Generic.IEnumerable<ContentManifest>>.CreateSuccess([storedManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        var card = new ContentSearchResult
+        {
+            Id = "moddb.addon.314094",
+            Name = "Generals Undone v1.01 Addon",
+            ProviderName = "ModDB",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            SourceUrl = "https://www.moddb.com/mods/cc-generals-undone/downloads/cc-generals-undone-v101-addon",
+        };
+        card.ResolverMetadata[ModDBConstants.ContentIdMetadataKey] = "314094";
+
+        var state = await service.GetStateAsync(card);
+        var manifestId = await service.GetLocalManifestIdAsync(card);
+
+        Assert.Equal(ContentState.Downloaded, state);
+        Assert.Equal(storedManifest.Id.Value, manifestId);
+    }
+
+    /// <summary>
+    /// Verifies that ModDB downloaded content matches by metadata key when present.
     /// </summary>
     /// <returns>A task representing the test.</returns>
     [Fact]

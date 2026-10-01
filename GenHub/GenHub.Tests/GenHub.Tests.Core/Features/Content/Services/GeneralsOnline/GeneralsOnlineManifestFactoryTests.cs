@@ -137,6 +137,11 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
         Assert.Equal(GeneralsOnlineConstants.GameDataDisplayName, gameDataPatch.Name);
         Assert.Equal(GeneralsOnlineConstants.GameDataDescription, gameDataPatch.Metadata?.Description);
         Assert.Contains(GeneralsOnlineVariantTags.TagGameData, gameDataPatch.Metadata?.Tags ?? []);
+
+        // Verify OriginalContentId provenance mapping
+        Assert.Equal($"{GeneralsOnlineConstants.ContentIdPrefix}101525_QFE5", gameClient.OriginalContentId);
+        Assert.Equal($"{GeneralsOnlineConstants.ContentIdPrefix}101525_QFE5_MapPack", mapPack.OriginalContentId);
+        Assert.Equal($"{GeneralsOnlineConstants.ContentIdPrefix}101525_QFE5_Patch", gameDataPatch.OriginalContentId);
     }
 
     /// <summary>
@@ -161,10 +166,17 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
 
         // Assert
         Assert.Equal(3, manifests.Count);
-        var groupIds = manifests.Select(m => m.Metadata?.VariantGroupId).Distinct().ToList();
-        Assert.Single(groupIds);
-        Assert.Equal("generalsonline-032926_qfe1", groupIds[0]);
-        Assert.All(manifests, m => Assert.Equal("Generals Online 032926_QFE1", m.Metadata?.VariantFamilyName));
+        var gameClient = manifests.Single(m => m.ContentType == ContentType.GameClient);
+        var mapPack = manifests.Single(m => m.ContentType == ContentType.MapPack);
+        var patch = manifests.Single(m => m.ContentType == ContentType.Patch);
+
+        Assert.Equal("generalsonline-gameclient-032926_qfe1", gameClient.Metadata?.VariantGroupId);
+        Assert.Equal("generalsonline-mappack-032926_qfe1", mapPack.Metadata?.VariantGroupId);
+        Assert.Equal("generalsonline-patch-032926_qfe1", patch.Metadata?.VariantGroupId);
+
+        Assert.Equal("Generals Online Game Client 032926_QFE1", gameClient.Metadata?.VariantFamilyName);
+        Assert.Equal("Generals Online Map Pack 032926_QFE1", mapPack.Metadata?.VariantFamilyName);
+        Assert.Equal("Generals Online Patch 032926_QFE1", patch.Metadata?.VariantFamilyName);
     }
 
     /// <summary>

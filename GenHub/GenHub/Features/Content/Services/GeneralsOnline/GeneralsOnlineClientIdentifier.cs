@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
@@ -17,12 +18,13 @@ public class GeneralsOnlineClientIdentifier : IGameClientIdentifier
     public string PublisherId => PublisherTypeConstants.GeneralsOnline;
 
     /// <inheritdoc/>
-    public bool CanIdentify(string executablePath) => IsSupportedEntryPoint(Path.GetFileName(executablePath));
+    public bool CanIdentify(string executablePath) =>
+        IsSupportedEntryPoint(Path.GetFileName(executablePath.Replace('\\', '/')));
 
     /// <inheritdoc/>
     public GameClientIdentification? Identify(string executablePath)
     {
-        if (!IsSupportedEntryPoint(Path.GetFileName(executablePath)))
+        if (!IsSupportedEntryPoint(Path.GetFileName(executablePath.Replace('\\', '/'))))
         {
             return null;
         }
@@ -35,6 +37,101 @@ public class GeneralsOnlineClientIdentifier : IGameClientIdentifier
             localVersion: null); // Don't fetch from web during detection!
     }
 
+    /// <inheritdoc/>
+    public string? ResolveDirectoryEntryPoint(IEnumerable<string> fileNames) =>
+        ResolveDirectoryEntryPoint(string.Empty, fileNames);
+
+    /// <inheritdoc/>
+    public string? ResolveDirectoryEntryPoint(string directory, IEnumerable<string> fileNames)
+    {
+        string? eacLauncher = null;
+        string? sixtyHertz = null;
+        string? unixClient = null;
+
+        foreach (var fileName in fileNames)
+        {
+            if (fileName.Equals(GameClientConstants.GeneralsOnlineEacLauncherExecutable, StringComparison.OrdinalIgnoreCase))
+            {
+                eacLauncher = fileName;
+            }
+
+            if (fileName.Equals(GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase))
+            {
+                sixtyHertz = fileName;
+            }
+
+            if (fileName.Equals(GameClientConstants.GeneralsOnlineUnixExecutable, StringComparison.OrdinalIgnoreCase))
+            {
+                unixClient = fileName;
+            }
+        }
+
+        if (eacLauncher is not null)
+        {
+            if (!string.IsNullOrEmpty(directory)
+                && GeneralsOnlineEacSettings.TryRead(directory, out var settings)
+                && settings is not null)
+            {
+                var configured = Path.GetFileName(settings.Executable.Replace('\\', '/'));
+                if (configured.Equals(GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase))
+                {
+                    return eacLauncher;
+                }
+
+                // If EAC settings target something other than 60Hz (e.g. TestEnvironment),
+                // the live 60Hz client takes precedence if present.
+                if (sixtyHertz is not null)
+                {
+                    return sixtyHertz;
+                }
+            }
+
+            return eacLauncher;
+        }
+
+        return sixtyHertz ?? unixClient;
+    }
+
+    /// <inheritdoc/>
+    public bool IsCompanionFile(string executablePath)
+    {
+        var fileName = Path.GetFileName(executablePath.Replace('\\', '/'));
+        if (string.IsNullOrEmpty(fileName))
+        {
+            return false;
+        }
+
+        if (fileName.Equals(GameClientConstants.GeneralsOnlineEacLauncherExecutable, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var directory = Path.GetDirectoryName(executablePath);
+        if (string.IsNullOrEmpty(directory))
+        {
+            return false;
+        }
+
+        if (!HasSiblingBootstrapper(directory))
+        {
+            return false;
+        }
+
+        if (fileName.Equals(GameClientConstants.GeneralsOnlineDefaultExecutable, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (GeneralsOnlineEacSettings.TryRead(directory, out var settings) && settings is not null)
+        {
+            var configured = Path.GetFileName(settings.Executable.Replace('\\', '/'));
+            return fileName.Equals(configured, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return fileName.Equals(GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase)
+            || fileName.Equals(GameClientConstants.GeneralsOnlineUnixExecutable, StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>
     /// Determines whether a file name is a supported Generals Online entry point. Since
     /// 060526_QFE1 that is the Easy Anti-Cheat bootstrapper; older packages launch the 60Hz
@@ -43,4 +140,27 @@ public class GeneralsOnlineClientIdentifier : IGameClientIdentifier
     /// </summary>
     private static bool IsSupportedEntryPoint(string fileName) =>
         GameClientConstants.GeneralsOnlineExecutableNames.Contains(fileName, StringComparer.OrdinalIgnoreCase);
+
+    private static bool HasSiblingBootstrapper(string directory)
+    {
+        var bootstrapper = Path.Combine(directory, GameClientConstants.GeneralsOnlineEacLauncherExecutable);
+        try
+        {
+            if (File.Exists(bootstrapper))
+            {
+                return true;
+            }
+
+            return Directory.EnumerateFiles(directory)
+                .Select(Path.GetFileName)
+                .OfType<string>()
+                .Any(candidate => candidate.Equals(
+                    GameClientConstants.GeneralsOnlineEacLauncherExecutable,
+                    StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
 }

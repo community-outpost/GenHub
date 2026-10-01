@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "lastUpdated": "2026-09-30T18:50:26.036695+00:00",
-  "totalEntries": 152,
+  "totalEntries": 154,
   "mappings": [
     {
       "exeCrc": "0x401D89EA",
@@ -1895,6 +1895,36 @@
       "buildDate": "2003-02-11",
       "description": "Official Steam Generals 1.08",
       "cdnUrl": null,
+      "dataPatchCdnUrl": null
+    },
+    {
+      "exeCrc": "0x088DE24A",
+      "iniCrc": "0x81FB5632",
+      "sha256": "318acb621775093abcac3c74484f7ccb034f8df17d1e91ee860a0713e8a6dfbc",
+      "manifestId": "1.92826.generalsonline.gameclient.zerohour",
+      "dataPatchManifestId": "1.92826.generalsonline.patch.gamedata",
+      "dataPatchName": "CommunityPatch Core INI (81FB5632)",
+      "publisher": "generalsonline",
+      "gameType": "ZeroHour",
+      "version": "092826",
+      "buildDate": "2026-09-28",
+      "description": "GeneralsOnline 092826 portable release",
+      "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_092826.zip",
+      "dataPatchCdnUrl": "https://strata.gamereplays.org/storage/versions/ini/500_900_CommunityPatch_CoreINI_81FB5632.big"
+    },
+    {
+      "exeCrc": "0x088DE24A",
+      "iniCrc": "0xFEAAE3F3",
+      "sha256": "318acb621775093abcac3c74484f7ccb034f8df17d1e91ee860a0713e8a6dfbc",
+      "manifestId": "1.92826.generalsonline.gameclient.zerohour",
+      "dataPatchManifestId": null,
+      "dataPatchName": "Vanilla 1.04 INI",
+      "publisher": "generalsonline",
+      "gameType": "ZeroHour",
+      "version": "092826",
+      "buildDate": "2026-09-28",
+      "description": "GeneralsOnline 092826 portable release",
+      "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_092826.zip",
       "dataPatchCdnUrl": null
     }
   ]

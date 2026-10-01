@@ -193,7 +193,7 @@ public sealed class DownloadedContentDiscoverer(
         // publishers are untouched: coincidental version equality must never merge them.
         if (GeneralsOnlineVariantGrouping.IsGeneralsOnlineManifest(manifest))
         {
-            return GeneralsOnlineVariantGrouping.BuildVariantGroupId(manifest.Version);
+            return GeneralsOnlineVariantGrouping.BuildVariantGroupId(manifest.ContentType, manifest.Version);
         }
 
         // Legacy Community Outpost pool entries predate variant group stamping; derive it so
@@ -224,7 +224,7 @@ public sealed class DownloadedContentDiscoverer(
 
         if (GeneralsOnlineVariantGrouping.IsGeneralsOnlineManifest(manifest))
         {
-            return GeneralsOnlineVariantGrouping.BuildVariantFamilyName(manifest.Version);
+            return GeneralsOnlineVariantGrouping.BuildVariantFamilyName(manifest.ContentType, manifest.Version);
         }
 
         if (CommunityOutpostVariantGrouping.TryGetVariantContentCode(manifest, out var contentCode))

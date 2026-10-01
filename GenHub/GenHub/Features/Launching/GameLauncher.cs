@@ -421,6 +421,47 @@ public class GameLauncher(
     private static string GetRelativeDirectory(string relativePath) =>
         Path.GetDirectoryName(relativePath.Replace('\\', '/'))?.Replace('\\', '/') ?? string.Empty;
 
+    /// <summary>
+    /// Resolves the child process the launched entry is expected to spawn.
+    /// The game client manifest's declared launch relationship wins; manifests that
+    /// predate declarations fall back to legacy filename guessing.
+    /// </summary>
+    /// <param name="manifests">The manifests resolved for the launch.</param>
+    /// <param name="finalExecutablePath">The workspace executable being started.</param>
+    /// <param name="logger">Receives the resolution source for diagnostics.</param>
+    /// <returns>The expected child name and discovery timeout, both null for direct launches.</returns>
+    internal static (string? ChildName, TimeSpan? DiscoveryTimeout) ResolveExpectedChildProcess(
+        IReadOnlyList<ContentManifest> manifests,
+        string finalExecutablePath,
+        ILogger? logger = null)
+    {
+        var executableManifest = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient)
+            ?? manifests.FirstOrDefault(m => m.ContentType == ContentType.Executable);
+        var declared = executableManifest is null
+            ? null
+            : ManifestVariantResolver.ResolveLaunchRelationship(executableManifest);
+        if (declared is not null)
+        {
+            logger?.LogInformation(
+                "[GameLauncher] Using declared launch relationship from manifest '{ManifestId}': entry spawns '{Child}'",
+                executableManifest!.Id.Value,
+                declared.ProcessName);
+            return (declared.ProcessName, declared.DiscoveryTimeoutMs is > 0
+                ? TimeSpan.FromMilliseconds(declared.DiscoveryTimeoutMs.Value)
+                : null);
+        }
+
+        var legacy = LaunchEntryPointResolver.ResolveExpectedChildProcessName(finalExecutablePath);
+        if (legacy is not null)
+        {
+            logger?.LogInformation(
+                "[GameLauncher] No declared launch relationship; using legacy filename fallback: '{Child}'",
+                legacy);
+        }
+
+        return (legacy, null);
+    }
+
     private static bool BackupAndPurgeCorruptMapCache(string mapCachePath, ILogger? logger)
     {
         var backupPath = mapCachePath + GameClientConstants.CorruptMapCacheBackupExtension;
@@ -1867,7 +1908,7 @@ public class GameLauncher(
             steamAppId = prepResult.Data.SteamAppId;
         }
 
-        var launchConfig = BuildGameLaunchConfiguration(finalExecutablePath, workspaceInfo, arguments, profile, installation);
+        var launchConfig = BuildGameLaunchConfiguration(finalExecutablePath, workspaceInfo, arguments, profile, installation, manifests);
 
         var targetGame = profile.GameClient?.GameType ?? GameType.Generals;
         var archiveRootError = ValidateRetailArchiveRoots(launchConfig.EnvironmentVariables, installation, targetGame);
@@ -2049,15 +2090,18 @@ public class GameLauncher(
         WorkspaceInfo workspaceInfo,
         Dictionary<string, string> arguments,
         GameProfile profile,
-        GameInstallation installation)
+        GameInstallation installation,
+        IReadOnlyList<ContentManifest> manifests)
     {
+        var expectedChild = ResolveExpectedChildProcess(manifests, finalExecutablePath, logger);
         return new GameLaunchConfiguration
         {
             ExecutablePath = finalExecutablePath,
             WorkingDirectory = workspaceInfo.WorkspacePath,
             Arguments = arguments,
             EnvironmentVariables = BuildEnvironmentVariables(profile.EnvironmentVariables, installation),
-            ExpectedChildProcessName = LaunchEntryPointResolver.ResolveExpectedChildProcessName(finalExecutablePath),
+            ExpectedChildProcessName = expectedChild.ChildName,
+            ExpectedChildDiscoveryTimeout = expectedChild.DiscoveryTimeout,
             GameType = profile.GameClient?.GameType,
             GameClientId = profile.GameClient?.Id,
             GameClientName = profile.GameClient?.Name,

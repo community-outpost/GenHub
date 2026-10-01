@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Providers;
@@ -108,8 +109,8 @@ public class GeneralsOnlineManifestFactory(
                 ThemeColor = GeneralsOnlineConstants.ThemeColor,
                 Tags = [.. tags, .. GetVariantTags(variantSuffix)],
                 ChangelogUrl = release.Changelog,
-                VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(release.Version),
-                VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(release.Version),
+                VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(ContentType.GameClient, release.Version),
+                VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(ContentType.GameClient, release.Version),
             },
             Files =
             [
@@ -127,20 +128,7 @@ public class GeneralsOnlineManifestFactory(
             {
                 WorkspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy,
                 DownloadHash = release.Sha256,
-                PostInstallSteps =
-                [
-                    new InstallationStep
-                    {
-                        Name = GeneralsOnlineConstants.EacStepName,
-                        Kind = InstallationStepKind.RunVerifiedInstaller,
-                        TargetRelativePath = GameClientConstants.GeneralsOnlineEacSetupExecutable,
-                        Arguments = [GeneralsOnlineConstants.EacInstallCommand, GeneralsOnlineConstants.EacProductId],
-                        RequiresElevation = true,
-                        StatusMessage = GeneralsOnlineConstants.EacStatusMessage,
-                        StepKey = GeneralsOnlineConstants.EacStepKey,
-                        RunOnce = true,
-                    },
-                ],
+                PostInstallSteps = [CreateEacInstallStep()],
             },
         };
     }
@@ -215,10 +203,15 @@ public class GeneralsOnlineManifestFactory(
     {
         logger.LogInformation("Creating GeneralsOnline manifests from local install at: {Path}", installationPath);
 
-        // Verify key files exist
-        var has60Hz = File.Exists(Path.Combine(installationPath, GameClientConstants.GeneralsOnline60HzExecutable));
+        // Verify a supported entry point exists. The bootstrapper alone suffices: it
+        // names its target in EasyAntiCheat/Settings.json, so the wrapped binary needs
+        // no fixed file name. Lookups are case-insensitive for case-sensitive volumes.
+        var has60Hz = Path.Combine(installationPath, GameClientConstants.GeneralsOnline60HzExecutable)
+            .TryGetFileCaseInsensitive(out _);
+        var hasBootstrapper = Path.Combine(installationPath, GameClientConstants.GeneralsOnlineEacLauncherExecutable)
+            .TryGetFileCaseInsensitive(out _);
 
-        if (!has60Hz)
+        if (!has60Hz && !hasBootstrapper)
         {
             logger.LogWarning("No GeneralsOnline executables found in {Path}", installationPath);
             return [];
@@ -250,6 +243,64 @@ public class GeneralsOnlineManifestFactory(
         }
 
         return updateResult.Data ?? [];
+    }
+
+    /// <summary>
+    /// Creates the Easy Anti-Cheat install step. The product ID binds to the
+    /// package's own bootstrapper settings at execution time, so publisher-side
+    /// product rotations install correctly without a GenHub change. No explicit
+    /// step key: it derives from the resolved arguments.
+    /// </summary>
+    /// <returns>The EAC install step.</returns>
+    private static InstallationStep CreateEacInstallStep() => CreateEacInstallStep(string.Empty);
+
+    /// <summary>
+    /// Creates the Easy Anti-Cheat install step. For packages whose EAC settings
+    /// point to a secondary binary (e.g. test environment), the production
+    /// product ID is used for live 60Hz gameplay.
+    /// </summary>
+    /// <param name="extractPath">The extracted package directory.</param>
+    /// <returns>The EAC install step.</returns>
+    private static InstallationStep CreateEacInstallStep(string extractPath)
+    {
+        var isTestEnvironment = GeneralsOnlineEacSettings.TryRead(extractPath, out var settings)
+            && settings is not null
+            && !IsArchiveRootFile(settings.Executable, GameClientConstants.GeneralsOnline60HzExecutable);
+
+        if (isTestEnvironment)
+        {
+            return new InstallationStep
+            {
+                Name = GeneralsOnlineConstants.EacStepName,
+                Kind = InstallationStepKind.RunVerifiedInstaller,
+                TargetRelativePath = GameClientConstants.GeneralsOnlineEacSetupExecutable,
+                Arguments = [GeneralsOnlineConstants.EacInstallCommand, GeneralsOnlineConstants.EacProductId],
+                RequiresElevation = true,
+                StatusMessage = GeneralsOnlineConstants.EacStatusMessage,
+                RunOnce = true,
+            };
+        }
+
+        return new InstallationStep
+        {
+            Name = GeneralsOnlineConstants.EacStepName,
+            Kind = InstallationStepKind.RunVerifiedInstaller,
+            TargetRelativePath = GameClientConstants.GeneralsOnlineEacSetupExecutable,
+            Arguments = [GeneralsOnlineConstants.EacInstallCommand, string.Empty],
+            ArgumentBindings =
+            [
+                new InstallationArgumentBinding
+                {
+                    ArgumentIndex = 1,
+                    Source = ManifestConstants.InstallationBindingJsonSource,
+                    RelativePath = GeneralsOnlineConstants.EacSettingsRelativePath,
+                    Key = GeneralsOnlineConstants.EacSettingsProductIdKey,
+                },
+            ],
+            RequiresElevation = true,
+            StatusMessage = GeneralsOnlineConstants.EacStatusMessage,
+            RunOnce = true,
+        };
     }
 
     private static int ParseVersionForManifestId(string version)
@@ -365,7 +416,7 @@ public class GeneralsOnlineManifestFactory(
             ContentType = ContentType.Patch,
             TargetGame = GameType.ZeroHour,
             OriginalProviderName = PublisherTypeConstants.GeneralsOnline,
-            OriginalContentId = $"{GeneralsOnlineConstants.ContentIdPrefix}{release.Version}",
+            OriginalContentId = $"{GeneralsOnlineConstants.ContentIdPrefix}{release.Version}_Patch",
             Publisher = new PublisherInfo
             {
                 Name = GeneralsOnlineConstants.PublisherName,
@@ -383,8 +434,8 @@ public class GeneralsOnlineManifestFactory(
                 ThemeColor = GeneralsOnlineConstants.ThemeColor,
                 Tags = [.. GeneralsOnlineConstants.GameDataTags, .. GetVariantTags(GeneralsOnlineConstants.GameDataPatchSuffix)],
                 ChangelogUrl = release.Changelog,
-                VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(release.Version),
-                VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(release.Version),
+                VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(ContentType.Patch, release.Version),
+                VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(ContentType.Patch, release.Version),
             },
 
             // Files will be populated during extraction
@@ -422,7 +473,7 @@ public class GeneralsOnlineManifestFactory(
             ContentType = ContentType.MapPack,
             TargetGame = GameType.ZeroHour,
             OriginalProviderName = PublisherTypeConstants.GeneralsOnline,
-            OriginalContentId = $"{GeneralsOnlineConstants.ContentIdPrefix}{release.Version}",
+            OriginalContentId = $"{GeneralsOnlineConstants.ContentIdPrefix}{release.Version}_MapPack",
             Publisher = new PublisherInfo
             {
                 Name = GeneralsOnlineConstants.PublisherName,
@@ -440,8 +491,8 @@ public class GeneralsOnlineManifestFactory(
                 ThemeColor = GeneralsOnlineConstants.ThemeColor,
                 Tags = [.. GeneralsOnlineConstants.MapPackTags],
                 ChangelogUrl = release.Changelog,
-                VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(release.Version),
-                VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(release.Version),
+                VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(ContentType.MapPack, release.Version),
+                VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(ContentType.MapPack, release.Version),
             },
             Files = [], // Files will be populated during extraction
             Dependencies =
@@ -519,8 +570,8 @@ public class GeneralsOnlineManifestFactory(
                 Tags = [.. GeneralsOnlineConstants.Tags, .. GetVariantTags(GeneralsOnlineConstants.Variant60HzSuffix)],
                 ChangelogUrl = changelogUrl,
                 CoverUrl = GeneralsOnlineConstants.CoverSource,
-                VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(version),
-                VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(version),
+                VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(ContentType.GameClient, version),
+                VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(ContentType.GameClient, version),
             },
             Files = [],
             Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesFor60Hz(userVersion),
@@ -543,7 +594,7 @@ public class GeneralsOnlineManifestFactory(
             ContentType = ContentType.MapPack,
             TargetGame = GameType.ZeroHour,
             OriginalProviderName = originalProviderName,
-            OriginalContentId = originalContentId,
+            OriginalContentId = $"{originalContentId}_MapPack",
             Publisher = publisherInfo,
             Metadata = new ContentMetadata
             {
@@ -553,8 +604,8 @@ public class GeneralsOnlineManifestFactory(
                 ThemeColor = GeneralsOnlineConstants.ThemeColor,
                 Tags = [.. GeneralsOnlineConstants.MapPackTags, .. GetVariantTags(GeneralsOnlineConstants.QuickMatchMapPackSuffix)],
                 ChangelogUrl = changelogUrl,
-                VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(version),
-                VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(version),
+                VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(ContentType.MapPack, version),
+                VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(ContentType.MapPack, version),
             },
             Files = [],
             Dependencies =
@@ -577,7 +628,7 @@ public class GeneralsOnlineManifestFactory(
             ContentType = ContentType.Patch,
             TargetGame = GameType.ZeroHour,
             OriginalProviderName = originalProviderName,
-            OriginalContentId = originalContentId,
+            OriginalContentId = $"{originalContentId}_Patch",
             Publisher = publisherInfo,
             Metadata = new ContentMetadata
             {
@@ -587,8 +638,8 @@ public class GeneralsOnlineManifestFactory(
                 ThemeColor = GeneralsOnlineConstants.ThemeColor,
                 Tags = [.. GeneralsOnlineConstants.GameDataTags, .. GetVariantTags(GeneralsOnlineConstants.GameDataPatchSuffix)],
                 ChangelogUrl = changelogUrl,
-                VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(version),
-                VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(version),
+                VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(ContentType.Patch, version),
+                VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(ContentType.Patch, version),
             },
             Files = [],
             Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesForGameData(userVersion),
@@ -623,7 +674,7 @@ public class GeneralsOnlineManifestFactory(
 
         foreach (var manifest in manifests)
         {
-            var manifestFiles = BuildManifestFilesForManifest(manifest, filesWithHashes);
+            var manifestFiles = BuildManifestFilesForManifest(manifest, filesWithHashes, extractPath);
 
             if (manifestFiles.Count == 0)
             {
@@ -645,13 +696,19 @@ public class GeneralsOnlineManifestFactory(
                     $"Manifest '{manifest.Name}' of type {manifest.ContentType} has no files in extract path '{extractPath}'.");
             }
 
-            var instructions = BuildInstallationInstructions(manifest, filesWithHashes);
+            var instructions = BuildInstallationInstructions(manifest, filesWithHashes, extractPath);
 
-            updatedManifests.Add(new ContentManifest(manifest)
+            var updated = new ContentManifest(manifest)
             {
                 Files = manifestFiles,
                 InstallationInstructions = instructions,
-            });
+            };
+            if (updated.ContentType == ContentType.GameClient)
+            {
+                DeclareGameClientLaunch(updated, extractPath);
+            }
+
+            updatedManifests.Add(updated);
         }
 
         ReconcileMissingMapPackDependencies(updatedManifests);
@@ -697,7 +754,8 @@ public class GeneralsOnlineManifestFactory(
 
     private List<ManifestFile> BuildManifestFilesForManifest(
         ContentManifest manifest,
-        List<ExtractedFileInfo> filesWithHashes)
+        List<ExtractedFileInfo> filesWithHashes,
+        string extractPath)
     {
         var manifestFiles = new List<ManifestFile>();
 
@@ -727,12 +785,7 @@ public class GeneralsOnlineManifestFactory(
         }
         else
         {
-            var hasEacLauncher = filesWithHashes.Any(file =>
-                !file.IsMap && !file.IsGameData && IsArchiveRootFile(file.RelativePath, GameClientConstants.GeneralsOnlineEacLauncherExecutable));
-
-            var targetExecutable = hasEacLauncher
-                ? GameClientConstants.GeneralsOnlineEacLauncherExecutable
-                : GameClientConstants.GeneralsOnline60HzExecutable;
+            var targetExecutable = DetermineGameClientTargetExecutable(filesWithHashes, extractPath);
 
             foreach (var file in filesWithHashes)
             {
@@ -761,9 +814,49 @@ public class GeneralsOnlineManifestFactory(
         return manifestFiles;
     }
 
+    private string DetermineGameClientTargetExecutable(
+        List<ExtractedFileInfo> filesWithHashes,
+        string extractPath)
+    {
+        var hasEacLauncher = filesWithHashes.Any(file =>
+            !file.IsMap && !file.IsGameData && IsArchiveRootFile(file.RelativePath, GameClientConstants.GeneralsOnlineEacLauncherExecutable));
+
+        var has60Hz = filesWithHashes.Any(file =>
+            !file.IsMap && !file.IsGameData && IsArchiveRootFile(file.RelativePath, GameClientConstants.GeneralsOnline60HzExecutable));
+
+        if (hasEacLauncher && GeneralsOnlineEacSettings.TryRead(extractPath, out var settings) && settings is not null)
+        {
+            if (IsArchiveRootFile(settings.Executable, GameClientConstants.GeneralsOnline60HzExecutable))
+            {
+                return GameClientConstants.GeneralsOnlineEacLauncherExecutable;
+            }
+
+            if (has60Hz)
+            {
+                logger.LogInformation(
+                    "Generals Online EAC settings specify '{Configured}', but 60Hz live client '{LiveBinary}' is present. Targeting live binary directly.",
+                    settings.Executable,
+                    GameClientConstants.GeneralsOnline60HzExecutable);
+                return GameClientConstants.GeneralsOnline60HzExecutable;
+            }
+
+            return GameClientConstants.GeneralsOnlineEacLauncherExecutable;
+        }
+
+        if (hasEacLauncher && !has60Hz)
+        {
+            return GameClientConstants.GeneralsOnlineEacLauncherExecutable;
+        }
+
+        return hasEacLauncher
+            ? GameClientConstants.GeneralsOnlineEacLauncherExecutable
+            : GameClientConstants.GeneralsOnline60HzExecutable;
+    }
+
     private InstallationInstructions BuildInstallationInstructions(
         ContentManifest manifest,
-        List<ExtractedFileInfo> filesWithHashes)
+        List<ExtractedFileInfo> filesWithHashes,
+        string extractPath)
     {
         var hasEacSetup = filesWithHashes.Any(file =>
             !file.IsMap && !file.IsGameData &&
@@ -784,22 +877,84 @@ public class GeneralsOnlineManifestFactory(
 
         if (manifest.ContentType == ContentType.GameClient &&
             hasEacSetup &&
-            instructions.PostInstallSteps.All(s => s == null || (!string.Equals(s.TargetRelativePath, GameClientConstants.GeneralsOnlineEacSetupExecutable, StringComparison.OrdinalIgnoreCase) && !string.Equals(s.StepKey, GeneralsOnlineConstants.EacStepKey, StringComparison.OrdinalIgnoreCase))))
+            instructions.PostInstallSteps.All(s => s == null || !string.Equals(
+                s.TargetRelativePath,
+                GameClientConstants.GeneralsOnlineEacSetupExecutable,
+                StringComparison.OrdinalIgnoreCase)))
         {
-            instructions.PostInstallSteps.Add(new InstallationStep
-            {
-                Name = GeneralsOnlineConstants.EacStepName,
-                Kind = InstallationStepKind.RunVerifiedInstaller,
-                TargetRelativePath = GameClientConstants.GeneralsOnlineEacSetupExecutable,
-                Arguments = [GeneralsOnlineConstants.EacInstallCommand, GeneralsOnlineConstants.EacProductId],
-                RequiresElevation = true,
-                StatusMessage = GeneralsOnlineConstants.EacStatusMessage,
-                StepKey = GeneralsOnlineConstants.EacStepKey,
-                RunOnce = true,
-            });
+            instructions.PostInstallSteps.Add(CreateEacInstallStep(extractPath));
         }
 
         return instructions;
+    }
+
+    /// <summary>
+    /// Declares the game client's entry point and, for bootstrapper entries, the child
+    /// process the bootstrapper starts, so the launch pipeline reads data instead of
+    /// guessing from file names.
+    /// </summary>
+    /// <param name="manifest">The game client manifest to enrich.</param>
+    /// <param name="extractPath">The extracted package directory.</param>
+    private void DeclareGameClientLaunch(ContentManifest manifest, string extractPath)
+    {
+        var entry = manifest.Files.FirstOrDefault(file => file.IsExecutable);
+        if (entry is null)
+        {
+            return;
+        }
+
+        manifest.EntryPoint = entry.RelativePath;
+
+        if (!IsArchiveRootFile(entry.RelativePath, GameClientConstants.GeneralsOnlineEacLauncherExecutable))
+        {
+            return;
+        }
+
+        DeclareBootstrapperRelationship(manifest, extractPath);
+    }
+
+    /// <summary>
+    /// Declares which binary the Easy Anti-Cheat bootstrapper starts, read from the
+    /// package's own settings file. Absence degrades to launch-time legacy guessing.
+    /// </summary>
+    /// <param name="manifest">The game client manifest to enrich.</param>
+    /// <param name="extractPath">The extracted package directory.</param>
+    private void DeclareBootstrapperRelationship(ContentManifest manifest, string extractPath)
+    {
+        if (!GeneralsOnlineEacSettings.TryRead(extractPath, out var settings) || settings is null)
+        {
+            logger.LogWarning(
+                "Bootstrapper entry without readable {Settings}; launch will guess the child process",
+                GeneralsOnlineConstants.EacSettingsRelativePath);
+            return;
+        }
+
+        var childName = Path.GetFileNameWithoutExtension(settings.Executable.Replace('\\', '/'));
+        if (!LaunchRelationship.IsValidProcessName(childName))
+        {
+            logger.LogWarning(
+                "Bootstrapper settings name an unusable executable '{Executable}'; launch will guess the child process",
+                settings.Executable);
+            return;
+        }
+
+        if (!manifest.Files.Any(file => IsArchiveRootFile(file.RelativePath, settings.Executable)))
+        {
+            logger.LogWarning(
+                "Bootstrapper settings name '{Executable}', which is not in the package; launch will guess the child process",
+                settings.Executable);
+            return;
+        }
+
+        manifest.LaunchRelationship = new LaunchRelationship
+        {
+            ProcessName = childName,
+            DiscoveryTimeoutMs = ProcessConstants.SpawnedChildDiscoveryTimeoutMs,
+        };
+        logger.LogInformation(
+            "Declared launch relationship for '{Name}': bootstrapper starts '{Child}'",
+            manifest.Name,
+            childName);
     }
 
     private void ReconcileMissingMapPackDependencies(List<ContentManifest> manifests)

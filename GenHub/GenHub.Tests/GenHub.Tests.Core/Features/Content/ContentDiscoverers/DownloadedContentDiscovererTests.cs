@@ -368,12 +368,12 @@ public sealed class DownloadedContentDiscovererTests
     }
 
     /// <summary>
-    /// Verifies that legacy GeneralsOnline pool entries without stored grouping collapse by
-    /// full version (QFE included) while other releases stay separate.
+    /// Verifies that legacy GeneralsOnline pool entries without stored grouping isolate distinct
+    /// content types by version while other releases stay separate.
     /// </summary>
     /// <returns>A task that represents the asynchronous test.</returns>
     [Fact]
-    public async Task DiscoverAsync_LegacyGeneralsOnlineManifests_ShareVersionGroupAsync()
+    public async Task DiscoverAsync_LegacyGeneralsOnlineManifests_IsolateContentTypesAsync()
     {
         var client = CreateGeneralsOnlineManifest("1.329261.generalsonline.gameclient.60hz", "GeneralsOnline 60Hz", ContentType.GameClient, "032926_QFE1");
         var gameData = CreateGeneralsOnlineManifest("1.329261.generalsonline.patch.gamedata", "GeneralsOnline Game Data", ContentType.Patch, "032926_QFE1");
@@ -389,9 +389,12 @@ public sealed class DownloadedContentDiscovererTests
         var gameDataItem = Assert.Single(result.Data.Items, item => item.Id == gameData.Id.Value);
         var nextQfeItem = Assert.Single(result.Data.Items, item => item.Id == nextQfe.Id.Value);
         Assert.NotNull(clientItem.VariantGroupId);
-        Assert.Equal(clientItem.VariantGroupId, gameDataItem.VariantGroupId);
+        Assert.NotEqual(clientItem.VariantGroupId, gameDataItem.VariantGroupId);
+        Assert.Equal("generalsonline-gameclient-032926_qfe1", clientItem.VariantGroupId);
+        Assert.Equal("generalsonline-patch-032926_qfe1", gameDataItem.VariantGroupId);
         Assert.NotEqual(clientItem.VariantGroupId, nextQfeItem.VariantGroupId);
-        Assert.Equal("Generals Online 032926_QFE1", clientItem.VariantFamilyName);
+        Assert.Equal("Generals Online Game Client 032926_QFE1", clientItem.VariantFamilyName);
+        Assert.Equal("Generals Online Patch 032926_QFE1", gameDataItem.VariantFamilyName);
     }
 
     /// <summary>

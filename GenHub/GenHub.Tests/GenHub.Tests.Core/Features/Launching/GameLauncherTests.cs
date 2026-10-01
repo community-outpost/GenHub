@@ -2036,6 +2036,62 @@ public class GameLauncherTests : IDisposable
     }
 
     /// <summary>
+    /// A declared launch relationship on the game client manifest wins over any
+    /// filename guessing, including its custom discovery timeout.
+    /// </summary>
+    [Fact]
+    public void ResolveExpectedChildProcess_DeclaredRelationship_Wins()
+    {
+        var manifests = new List<ContentManifest>
+        {
+            new()
+            {
+                Id = "1.928260.generalsonline.gameclient.60hz",
+                ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
+                LaunchRelationship = new LaunchRelationship { ProcessName = "GeneralsOnlineZH_TestEnvironment", DiscoveryTimeoutMs = 15000 },
+            },
+        };
+
+        var resolved = GameLauncher.ResolveExpectedChildProcess(manifests, @"C:\workspace\EAC_LaunchGeneralsOnline.exe");
+
+        Assert.Equal("GeneralsOnlineZH_TestEnvironment", resolved.ChildName);
+        Assert.Equal(TimeSpan.FromMilliseconds(15000), resolved.DiscoveryTimeout);
+    }
+
+    /// <summary>
+    /// Manifests that predate declarations fall back to legacy filename guessing,
+    /// so old pool entries launch exactly as before.
+    /// </summary>
+    [Fact]
+    public void ResolveExpectedChildProcess_NoDeclaration_UsesLegacyFallback()
+    {
+        var manifests = new List<ContentManifest>
+        {
+            new() { Id = "1.928260.generalsonline.gameclient.60hz", ContentType = GenHub.Core.Models.Enums.ContentType.GameClient },
+        };
+
+        var bootstrapper = GameLauncher.ResolveExpectedChildProcess(manifests, @"C:\workspace\EAC_LaunchGeneralsOnline.exe");
+        Assert.Equal("generalsonlinezh_60", bootstrapper.ChildName);
+        Assert.Null(bootstrapper.DiscoveryTimeout);
+
+        var direct = GameLauncher.ResolveExpectedChildProcess(manifests, @"C:\workspace\generalszh.exe");
+        Assert.Null(direct.ChildName);
+        Assert.Null(direct.DiscoveryTimeout);
+    }
+
+    /// <summary>
+    /// Without any executable manifest there is nothing to declare from, so the
+    /// legacy fallback still applies.
+    /// </summary>
+    [Fact]
+    public void ResolveExpectedChildProcess_NoExecutableManifest_UsesLegacyFallback()
+    {
+        var resolved = GameLauncher.ResolveExpectedChildProcess([], @"C:\workspace\EAC_LaunchGeneralsOnline.exe");
+
+        Assert.Equal("generalsonlinezh_60", resolved.ChildName);
+    }
+
+    /// <summary>
     /// Creates a test <see cref="GameProfile"/> with required members set.
     /// </summary>
     /// <returns>A valid <see cref="GameProfile"/>.</returns>

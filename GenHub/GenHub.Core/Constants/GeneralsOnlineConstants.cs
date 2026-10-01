@@ -154,6 +154,18 @@ public static class GeneralsOnlineConstants
 
     // ===== Easy Anti-Cheat Installation =====
 
+    /// <summary>Manifest-relative path of the Easy Anti-Cheat bootstrapper settings file.</summary>
+    public const string EacSettingsRelativePath = "EasyAntiCheat/Settings.json";
+
+    /// <summary>Settings key naming the game binary the bootstrapper starts.</summary>
+    public const string EacSettingsExecutableKey = "executable";
+
+    /// <summary>Settings key carrying the Epic Online Services product ID.</summary>
+    public const string EacSettingsProductIdKey = "productid";
+
+    /// <summary>Maximum accepted size of the bootstrapper settings file in bytes.</summary>
+    public const int EacSettingsMaxSizeBytes = 65536;
+
     /// <summary>Product ID registered with Epic Online Services Easy Anti-Cheat for Generals Online.</summary>
     public const string EacProductId = "fc1cc0d936424212b645105f084d08b0";
 
@@ -165,9 +177,6 @@ public static class GeneralsOnlineConstants
 
     /// <summary>Status message displayed to the user during Easy Anti-Cheat installation.</summary>
     public const string EacStatusMessage = "Installing AntiCheat";
-
-    /// <summary>Unique step key identifying Easy Anti-Cheat installation for Generals Online.</summary>
-    public const string EacStepKey = PublisherType + ":eac:" + EacProductId;
 
     // ===== Content Tags =====
 

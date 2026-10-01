@@ -1395,6 +1395,24 @@ public sealed partial class ContentStateService(
             return null;
         }
 
+        if (item.ContentType != ContentType.GameInstallation && item.ContentType != ContentType.UnknownContentType)
+        {
+            var matchingType = candidates.Where(m => IsContentTypeCompatible(item.ContentType, m)).ToList();
+            if (matchingType.Count > 0)
+            {
+                candidates = matchingType;
+            }
+            else
+            {
+                logger?.LogDebug(
+                    "Content type filter found no type-compatible candidates among {CandidateCount} for content '{ContentName}' ({ContentId}) with requested type '{ItemType}'. Falling back to all candidates.",
+                    candidates.Count,
+                    item.Name,
+                    item.Id,
+                    item.ContentType);
+            }
+        }
+
         var itemPlatforms = CollectItemPlatforms(item);
         if (itemPlatforms.Count > 0)
         {
@@ -1485,8 +1503,65 @@ public sealed partial class ContentStateService(
         return CompareVersions(item.Version, manifest.Version, isGeneralsOnline) != 0;
     }
 
+    private static ContentType ResolveManifestContentType(ContentManifest manifest)
+    {
+        if (manifest.ContentType != ContentType.GameInstallation)
+        {
+            return manifest.ContentType;
+        }
+
+        var segments = manifest.Id.Value?.Split('.');
+        if (segments?.Length == 5 && Enum.TryParse<ContentType>(segments[3], ignoreCase: true, out var parsed) && Enum.IsDefined(parsed))
+        {
+            return parsed;
+        }
+
+        return manifest.ContentType;
+    }
+
+    private static bool IsContentTypeCompatible(ContentType itemType, ContentManifest manifest)
+    {
+        if (itemType == ContentType.GameInstallation || itemType == ContentType.UnknownContentType)
+        {
+            return true;
+        }
+
+        var manifestType = ResolveManifestContentType(manifest);
+        if (manifestType == ContentType.GameInstallation || manifestType == ContentType.UnknownContentType)
+        {
+            return true;
+        }
+
+        // Game clients and map packs have strict boundaries: a game client is never a map pack,
+        // and vice versa.
+        if (itemType == ContentType.GameClient || manifestType == ContentType.GameClient)
+        {
+            return itemType == manifestType;
+        }
+
+        if (itemType == ContentType.MapPack || manifestType == ContentType.MapPack)
+        {
+            return itemType == manifestType;
+        }
+
+        // Mod files on platforms like ModDB can be cataloged as Mod, Addon, Patch, or Map
+        if ((itemType == ContentType.Mod && (manifestType == ContentType.Addon || manifestType == ContentType.Patch || manifestType == ContentType.Map)) ||
+            (manifestType == ContentType.Mod && (itemType == ContentType.Addon || itemType == ContentType.Patch || itemType == ContentType.Map)))
+        {
+            return true;
+        }
+
+        return itemType == manifestType;
+    }
+    }
+
     private static bool IsExactManifestMatch(ContentManifest manifest, ContentSearchResult item)
     {
+        if (!IsContentTypeCompatible(item.ContentType, manifest))
+        {
+            return false;
+        }
+
         var itemVariant = ExtractVariantToken(item.Name) ?? ExtractVariantToken(item.Id);
         var manifestVariant = ExtractVariantToken(manifest.Metadata?.SelectedVariantId)
             ?? ExtractVariantToken(manifest.Name)
@@ -2014,7 +2089,8 @@ public sealed partial class ContentStateService(
     private static ContentManifest? FindDirectFileMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item, ILogger? logger = null)
     {
         var matches = manifests.Where(manifest =>
-            (!string.IsNullOrEmpty(manifest.OriginalContentId) && (
+            IsContentTypeCompatible(item.ContentType, manifest) &&
+            ((!string.IsNullOrEmpty(manifest.OriginalContentId) && (
                 string.Equals(manifest.OriginalContentId, item.Id, StringComparison.OrdinalIgnoreCase) ||
                 (item.ResolverMetadata?.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var parentId) == true &&
                  string.Equals(manifest.OriginalContentId, parentId, StringComparison.OrdinalIgnoreCase) &&
@@ -2027,7 +2103,7 @@ public sealed partial class ContentStateService(
                     !string.IsNullOrWhiteSpace(file.DownloadUrl) &&
                     string.Equals(file.DownloadUrl, item.SelectedDownloadUrl, StringComparison.OrdinalIgnoreCase)) == true) ||
                 (!string.IsNullOrWhiteSpace(manifest.Publisher?.ContentIndexUrl) &&
-                    string.Equals(manifest.Publisher.ContentIndexUrl, item.SelectedDownloadUrl, StringComparison.OrdinalIgnoreCase)))));
+                    string.Equals(manifest.Publisher.ContentIndexUrl, item.SelectedDownloadUrl, StringComparison.OrdinalIgnoreCase))))));
 
         return SelectBestMatchingManifest(matches, item, logger);
     }
@@ -2053,6 +2129,11 @@ public sealed partial class ContentStateService(
 
         var matches = manifests.Where(manifest =>
         {
+            if (!IsContentTypeCompatible(item.ContentType, manifest))
+            {
+                return false;
+            }
+
             var manifestPublisher = manifest.OriginalProviderName;
             if (string.IsNullOrEmpty(manifestPublisher))
             {
@@ -2731,11 +2812,16 @@ public sealed partial class ContentStateService(
             return (null, false, false);
         }
 
+        var prospectiveContentType = Enum.TryParse<ContentType>(contentType, ignoreCase: true, out var parsedType)
+            ? parsedType
+            : ContentType.UnknownContentType;
+
         var prospectiveItem = new ContentSearchResult
         {
             Id = prospectiveId,
             Version = itemVersion ?? string.Empty,
             TargetGame = targetGame,
+            ContentType = prospectiveContentType,
         };
         var bestMatch = SelectBestMatchingManifest(candidateManifests, prospectiveItem);
         if (bestMatch == null)

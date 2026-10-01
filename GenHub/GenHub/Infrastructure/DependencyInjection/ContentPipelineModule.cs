@@ -591,6 +591,9 @@ public static class ContentPipelineModule
         // Register installation instructions execution service
         services.AddSingleton<IInstallationInstructionsService, InstallationInstructionsService>();
 
+        // Register content retention policy
+        services.AddSingleton<IContentRetentionPolicy, DefaultContentRetentionPolicy>();
+
         // Register per-manifest artwork persistence for the offline library
         services.AddSingleton<IContentArtworkService, ContentArtworkService>();
     }

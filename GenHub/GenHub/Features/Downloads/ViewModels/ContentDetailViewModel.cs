@@ -4815,6 +4815,7 @@ public partial class ContentDetailViewModel(
         OnPropertyChanged(nameof(ShowDownloadButton));
         OnPropertyChanged(nameof(ShowAddToProfileButton));
         OnPropertyChanged(nameof(ShowUpdateButton));
+        OnPropertyChanged(nameof(ShowDeleteButton));
         OnPropertyChanged(nameof(CanChangeContentType));
         OnPropertyChanged(nameof(SelectedContentType));
         OnPropertyChanged(nameof(ContentType));
@@ -6877,6 +6878,9 @@ public partial class ContentDetailViewModel(
         IsDeleting = true;
         try
         {
+            var manifestToDeleteResult = await manifestPool.GetManifestAsync(ManifestId.Create(manifestId), _cts.Token);
+            var manifestToDelete = manifestToDeleteResult.Success ? manifestToDeleteResult.Data : null;
+
             var removeResult = await manifestPool.RemoveManifestAsync(ManifestId.Create(manifestId), cancellationToken: _cts.Token);
             if (!removeResult.Success)
             {
@@ -6892,6 +6896,29 @@ public partial class ContentDetailViewModel(
                 if (!purgeResult.Success)
                 {
                     logger.LogWarning("Deleted {ManifestId} but failed to purge its artwork: {Error}", manifestId, purgeResult.FirstError);
+                }
+            }
+
+            // Clean up any AutoInstall companion dependencies (such as QuickMatch MapPack) that are now orphaned
+            if (manifestToDelete?.Dependencies != null && manifestToDelete.Dependencies.Count > 0)
+            {
+                var allManifestsResult = await manifestPool.GetAllManifestsAsync(_cts.Token);
+                var profilesResult = profileManager != null
+                    ? await profileManager.GetAllProfilesAsync(_cts.Token)
+                    : null;
+
+                var canCleanUp = allManifestsResult.Success && allManifestsResult.Data != null
+                    && (profileManager == null || (profilesResult?.Success == true && profilesResult.Data != null));
+
+                if (!canCleanUp)
+                {
+                    logger.LogWarning(
+                        "Skipping orphan companion dependency cleanup for {ManifestId}: manifests or profiles could not be determined",
+                        manifestId);
+                }
+                else
+                {
+                    await CleanupOrphanCompanionDependenciesAsync(manifestToDelete.Dependencies, allManifestsResult.Data!, profilesResult?.Data);
                 }
             }
 
@@ -6953,6 +6980,65 @@ public partial class ContentDetailViewModel(
         finally
         {
             IsDeleting = false;
+        }
+    }
+
+    /// <summary>
+    /// Cleans up any <see cref="DependencyInstallBehavior.AutoInstall"/> companion dependencies
+    /// that are no longer referenced by any remaining manifest or active profile.
+    /// </summary>
+    /// <param name="dependencies">The dependencies of the deleted manifest to evaluate.</param>
+    /// <param name="remainingManifests">The remaining manifests in the pool.</param>
+    /// <param name="profiles">The existing profiles, or null if profile manager is not configured.</param>
+    private async Task CleanupOrphanCompanionDependenciesAsync(
+        IReadOnlyList<ContentDependency> dependencies,
+        IEnumerable<ContentManifest> remainingManifests,
+        IEnumerable<GameProfile>? profiles)
+    {
+        var manifestList = remainingManifests as IList<ContentManifest> ?? remainingManifests.ToList();
+        var profileList = profiles != null ? (profiles as IList<GameProfile> ?? profiles.ToList()) : null;
+
+        foreach (var dep in dependencies)
+        {
+            if (dep.InstallBehavior != DependencyInstallBehavior.AutoInstall ||
+                string.IsNullOrWhiteSpace(dep.Id.Value) ||
+                dep.Id.Value == ManifestConstants.DefaultContentDependencyId)
+            {
+                continue;
+            }
+
+            var depId = dep.Id.Value;
+            bool isStillDependedOn = manifestList.Any(m =>
+                m.Dependencies != null && m.Dependencies.Any(d => string.Equals(d.Id.Value, depId, StringComparison.OrdinalIgnoreCase)));
+            bool isUsedInProfile = profileList != null &&
+                profileList.Any(p =>
+                    (p.EnabledContentIds != null && p.EnabledContentIds.Contains(depId, StringComparer.OrdinalIgnoreCase)) ||
+                    string.Equals(p.GameClient?.Id, depId, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(p.ToolContentId, depId, StringComparison.OrdinalIgnoreCase));
+
+            if (!isStillDependedOn && !isUsedInProfile)
+            {
+                logger.LogInformation("Cleaning up orphaned companion dependency {DependencyId}", depId);
+                var removeResult = await manifestPool.RemoveManifestAsync(ManifestId.Create(depId), cancellationToken: _cts.Token);
+                if (!removeResult.Success)
+                {
+                    logger.LogWarning(
+                        "Failed to remove orphaned companion dependency {DependencyId}: {Error}",
+                        depId,
+                        removeResult.FirstError);
+                }
+                else if (artworkService != null)
+                {
+                    var purgeResult = await artworkService.PurgeArtworkAsync(depId, _cts.Token);
+                    if (!purgeResult.Success)
+                    {
+                        logger.LogWarning(
+                            "Removed orphaned companion dependency {DependencyId} but failed to purge its artwork: {Error}",
+                            depId,
+                            purgeResult.FirstError);
+                    }
+                }
+            }
         }
     }
 
