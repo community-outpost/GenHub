@@ -14,6 +14,7 @@ import json
 import os
 import re
 import sys
+import urllib.error
 import urllib.request
 import zipfile
 import zlib
@@ -34,6 +35,10 @@ DEFAULT_OUTPUT_PATH = os.path.join(
 
 class CatalogConflictError(Exception):
     """Raised when conflicting CRCs are encountered for the same manifest/cdnUrl."""
+
+
+class UpstreamFetchError(Exception):
+    """Raised when an upstream release source fails to fetch."""
 
 
 BASELINE_ENTRIES = [
@@ -510,12 +515,28 @@ def check_url_exists(url: str, timeout: int = 5) -> bool:
         return False
 
 
+def check_cdn_reachable(cdn_url: str, timeout: int = 10) -> bool:
+    """Checks whether the CDN host is reachable by probing it and verifying an HTTP response."""
+    req = urllib.request.Request(cdn_url, method="HEAD", headers={"User-Agent": "GenHub-Replay-Crawler"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return True
+    except urllib.error.HTTPError:
+        # Received HTTP status code (e.g. 200, 400, 403, 404); CDN host is online and responsive
+        return True
+    except (urllib.error.URLError, OSError, http.client.HTTPException):
+        # Transport, network, DNS, or socket error
+        return False
+
+
 def _extract_archive_crcs(zf: zipfile.ZipFile, binary_patterns: list[str]) -> tuple[str, str, str]:
     """Extracts executable CRC32, SHA256, and INI CRC from an open zip archive."""
     exe_crc = ""
     sha256 = ""
     ini_crc = ""
-    names_by_base = {os.path.basename(name).lower(): name for name in zf.namelist()}
+    names_by_base: dict[str, str] = {}
+    for name in zf.namelist():
+        names_by_base.setdefault(os.path.basename(name).lower(), name)
 
     for pat in binary_patterns:
         pat_lower = pat.lower()
@@ -546,6 +567,19 @@ def inspect_archive_binary(download_url: str, binary_patterns: list[str]) -> tup
         return "", "", ""
 
 
+def _fetch_release_page(repo: str, page: int, headers: dict) -> tuple[list[dict], bool]:
+    """Fetches a single page of releases from GitHub API, returning entries and whether a next page exists."""
+    url = f"https://api.github.com/repos/{repo}/releases?per_page=100&page={page}"
+    req = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        page_data = json.loads(resp.read().decode("utf-8"))
+        link_header = resp.headers.get("Link", "")
+    if not page_data or not isinstance(page_data, list):
+        return [], False
+    has_next = 'rel="next"' in link_header
+    return page_data, has_next
+
+
 def fetch_github_releases(repo: str, token: str | None = None) -> list[dict]:
     """Fetches all release records from a GitHub repository."""
     headers = {"User-Agent": "GenHub-Replay-Crawler"}
@@ -555,20 +589,18 @@ def fetch_github_releases(repo: str, token: str | None = None) -> list[dict]:
     releases = []
     page = 1
     while True:
-        url = f"https://api.github.com/repos/{repo}/releases?per_page=100&page={page}"
-        req = urllib.request.Request(url, headers=headers)
         try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                page_data = json.loads(resp.read().decode("utf-8"))
-                link_header = resp.headers.get("Link", "")
-            if not page_data or not isinstance(page_data, list):
+            page_data, has_next = _fetch_release_page(repo, page, headers)
+            if not page_data:
                 break
             releases.extend(page_data)
-            if 'rel="next"' not in link_header:
+            if not has_next:
                 break
             page += 1
-        except (OSError, json.JSONDecodeError) as e:
-            print(f"Warning: could not reach GitHub API page {page} ({e}). Falling back to cached catalog.", file=sys.stderr)
+        except (OSError, json.JSONDecodeError, http.client.HTTPException) as e:
+            if page == 1:
+                raise UpstreamFetchError(f"GitHub API error fetching {repo} releases on page {page}: {e}") from e
+            print(f"Warning: could not reach GitHub API page {page} ({e}). Using partial fetched releases.", file=sys.stderr)
             break
 
     return releases
@@ -638,35 +670,55 @@ def crawl_superhackers_releases(token: str | None = None, inspect_binaries: bool
     return entries
 
 
+def _parse_known_date_code(code: str) -> datetime.date | None:
+    """Parses a MMDDYY date code to a date object, returning None if invalid."""
+    try:
+        month = int(code[0:2])
+        day = int(code[2:4])
+        year = 2000 + int(code[4:6])
+        return datetime.date(year, month, day)
+    except (ValueError, IndexError):
+        return None
+
+
+def _resolve_date_bounds(
+    start_year: int,
+    end_year: int,
+    start_date: datetime.date | None,
+    end_date: datetime.date | None,
+) -> tuple[datetime.date, datetime.date]:
+    """Resolves and validates start and end date bounds."""
+    if start_date is not None and end_date is not None and start_date > end_date:
+        raise ValueError(f"start_date ({start_date}) cannot be after end_date ({end_date})")
+
+    resolved_start = start_date or datetime.date(start_year, 1, 1)
+    default_end = min(datetime.date(end_year, 12, 31), datetime.date.today() + datetime.timedelta(days=7))
+    resolved_end = end_date or (datetime.date.today() + datetime.timedelta(days=7) if start_date else default_end)
+
+    if resolved_start > resolved_end:
+        raise ValueError(f"Computed start_date ({resolved_start}) is after end_date ({resolved_end})")
+
+    return resolved_start, resolved_end
+
+
 def generate_date_codes(
     start_year: int = 2025,
     end_year: int = 2026,
     start_date: datetime.date | None = None,
     end_date: datetime.date | None = None,
+    include_all_known_dates: bool = False,
 ) -> set[str]:
     """Generates valid MMDDYY date codes within the given year range or explicit date bounds."""
+    start, end = _resolve_date_bounds(start_year, end_year, start_date, end_date)
     date_set = set()
 
-    if start_date is None:
-        start_date = datetime.date(start_year, 1, 1)
-        if end_date is None:
-            end_date = min(datetime.date(end_year, 12, 31), datetime.date.today() + datetime.timedelta(days=7))
-    elif end_date is None:
-        end_date = datetime.date.today() + datetime.timedelta(days=7)
-
     for code in GENERALSONLINE_KNOWN_DATES:
-        try:
-            month = int(code[0:2])
-            day = int(code[2:4])
-            year = 2000 + int(code[4:6])
-            d = datetime.date(year, month, day)
-            if start_date <= d <= end_date:
-                date_set.add(code)
-        except (ValueError, IndexError):
-            continue
+        d = _parse_known_date_code(code)
+        if d and (include_all_known_dates or (start <= d <= end)):
+            date_set.add(code)
 
-    curr_date = start_date
-    while curr_date <= end_date:
+    curr_date = start
+    while curr_date <= end:
         date_set.add(curr_date.strftime("%m%d%y"))
         curr_date += datetime.timedelta(days=1)
 
@@ -704,9 +756,16 @@ def generate_generalsonline_candidates(
     end_year: int = 2026,
     start_date: datetime.date | None = None,
     end_date: datetime.date | None = None,
+    include_all_known_dates: bool = False,
 ) -> list[tuple[str, str, str, str]]:
     """Generates candidate (date_code, version_str, manifest_id, url) tuples for GeneralsOnline."""
-    date_set = generate_date_codes(start_year, end_year, start_date=start_date, end_date=end_date)
+    date_set = generate_date_codes(
+        start_year,
+        end_year,
+        start_date=start_date,
+        end_date=end_date,
+        include_all_known_dates=include_all_known_dates,
+    )
     candidates = []
     for date_code in sorted(date_set):
         candidates.extend(build_candidates_for_date(date_code))
@@ -726,34 +785,57 @@ def parse_date_arg(date_str: str) -> datetime.date:
     raise ValueError(f"Invalid date format '{date_str}'. Expected YYYY-MM-DD or MMDDYY.")
 
 
+def _is_generalsonline_entry(entry: dict) -> bool:
+    """Checks whether a catalog entry belongs to GeneralsOnline."""
+    pub = entry.get("publisher", "").lower()
+    m_id = entry.get("manifestId", "").lower()
+    return pub == "generalsonline" or "generalsonline" in m_id
+
+
+def _parse_entry_build_date(entry: dict) -> datetime.date | None:
+    """Extracts date from entry buildDate field if valid ISO format."""
+    bdate_str = entry.get("buildDate")
+    if not bdate_str:
+        return None
+    try:
+        return datetime.date.fromisoformat(bdate_str)
+    except ValueError:
+        return None
+
+
+def _parse_entry_version_date(entry: dict) -> datetime.date | None:
+    """Extracts date from entry MMDDYY version prefix if valid."""
+    ver = entry.get("version", "")
+    m = re.match(r"^(\d{2})(\d{2})(\d{2})", ver)
+    if not m:
+        return None
+    try:
+        month = int(m.group(1))
+        day = int(m.group(2))
+        year = 2000 + int(m.group(3))
+        return datetime.date(year, month, day)
+    except ValueError:
+        return None
+
+
+def _extract_generalsonline_entry_date(entry: dict) -> datetime.date | None:
+    """Extracts candidate build date from buildDate or version string."""
+    d_build = _parse_entry_build_date(entry)
+    d_ver = _parse_entry_version_date(entry)
+    if d_build and d_ver:
+        return max(d_build, d_ver)
+    return d_build or d_ver
+
+
 def get_latest_generalsonline_date(mappings: list[dict]) -> datetime.date | None:
     """Extracts the most recent GeneralsOnline build date from existing catalog mappings."""
-    latest = None
-    for entry in mappings:
-        pub = entry.get("publisher", "").lower()
-        m_id = entry.get("manifestId", "").lower()
-        if pub == "generalsonline" or "generalsonline" in m_id:
-            bdate_str = entry.get("buildDate")
-            if bdate_str:
-                try:
-                    d = datetime.date.fromisoformat(bdate_str)
-                    if latest is None or d > latest:
-                        latest = d
-                except ValueError:
-                    pass
-            ver = entry.get("version", "")
-            m = re.match(r"^(\d{2})(\d{2})(\d{2})", ver)
-            if m:
-                try:
-                    month = int(m.group(1))
-                    day = int(m.group(2))
-                    year = 2000 + int(m.group(3))
-                    d = datetime.date(year, month, day)
-                    if latest is None or d > latest:
-                        latest = d
-                except ValueError:
-                    pass
-    return latest
+    dates = [
+        d
+        for entry in mappings
+        if _is_generalsonline_entry(entry)
+        and (d := _extract_generalsonline_entry_date(entry)) is not None
+    ]
+    return max(dates, default=None)
 
 
 def filter_available_candidates(candidates: list[tuple[str, str, str, str]]) -> list[tuple[str, str, str, str]]:
@@ -872,21 +954,20 @@ def crawl_generalsonline_releases(
     end_year: int = 2026,
     start_date: datetime.date | None = None,
     end_date: datetime.date | None = None,
+    include_all_known_dates: bool = False,
 ) -> list[dict]:
     """Probes and maps portable releases from the GeneralsOnline CDN."""
-    sentinel_url = f"{GENERALSONLINE_CDN}/GeneralsOnline_portable_092826.zip"
-    if not check_url_exists(sentinel_url, timeout=10):
-        print(
-            f"Error: GeneralsOnline CDN sentinel check failed ({sentinel_url}); CDN is unreachable or offline.",
-            file=sys.stderr,
+    if not check_cdn_reachable(GENERALSONLINE_CDN):
+        raise UpstreamFetchError(
+            f"GeneralsOnline CDN reachability check failed ({GENERALSONLINE_CDN}); CDN is unreachable or offline."
         )
-        sys.exit(1)
 
     candidates = generate_generalsonline_candidates(
         start_year=start_year,
         end_year=end_year,
         start_date=start_date,
         end_date=end_date,
+        include_all_known_dates=include_all_known_dates,
     )
     valid_candidates = filter_available_candidates(candidates)
 
@@ -1228,6 +1309,39 @@ def _load_existing_mappings(output_path: str, base_mappings: list[dict]) -> list
     return base_mappings
 
 
+def _resolve_go_start_date(
+    existing_mappings: list[dict],
+    from_latest: bool,
+    start_date: datetime.date | None,
+) -> datetime.date | None:
+    """Calculates start date for incremental GeneralsOnline crawling."""
+    if not (from_latest and start_date is None):
+        return start_date
+    latest_date = get_latest_generalsonline_date(existing_mappings)
+    if latest_date:
+        go_start_date = max(datetime.date(2025, 1, 1), latest_date - datetime.timedelta(days=1))
+        print(f"Incremental crawl: probing GeneralsOnline CDN from {go_start_date} (latest catalog date: {latest_date})")
+        return go_start_date
+    return None
+
+
+def _crawl_generalsonline_source(
+    existing_mappings: list[dict],
+    inspect_binaries: bool,
+    from_latest: bool,
+    start_date: datetime.date | None,
+    end_date: datetime.date | None,
+) -> list[dict]:
+    """Probes and maps GeneralsOnline releases."""
+    go_start_date = _resolve_go_start_date(existing_mappings, from_latest, start_date)
+    return crawl_generalsonline_releases(
+        inspect_binaries=inspect_binaries,
+        start_date=go_start_date,
+        end_date=end_date,
+        include_all_known_dates=from_latest,
+    )
+
+
 def _crawl_and_merge(
     existing_mappings: list[dict],
     inspect_binaries: bool,
@@ -1238,40 +1352,25 @@ def _crawl_and_merge(
 ) -> list[dict]:
     """Crawls upstream release feeds and merges into existing mappings."""
     try:
-        sh_crawled = []
-        go_crawled = []
-
         if source in ("all", "superhackers"):
             sh_crawled = crawl_superhackers_releases(inspect_binaries=inspect_binaries)
             if sh_crawled:
                 existing_mappings = merge_catalogs(existing_mappings, sh_crawled)
+            elif source == "superhackers":
+                print("Notice: no new Superhackers releases discovered.")
 
         if source in ("all", "generalsonline"):
-            go_start_date = start_date
-            go_end_date = end_date
-            if from_latest and go_start_date is None:
-                latest_date = get_latest_generalsonline_date(existing_mappings)
-                if latest_date:
-                    go_start_date = max(datetime.date(2025, 1, 1), latest_date - datetime.timedelta(days=1))
-                    print(f"Incremental crawl: probing GeneralsOnline CDN from {go_start_date} (latest catalog date: {latest_date})")
-
-            go_crawled = crawl_generalsonline_releases(
-                inspect_binaries=inspect_binaries,
-                start_date=go_start_date,
-                end_date=go_end_date,
+            go_crawled = _crawl_generalsonline_source(
+                existing_mappings, inspect_binaries, from_latest, start_date, end_date
             )
             if go_crawled:
                 existing_mappings = merge_catalogs(existing_mappings, go_crawled)
-            elif source == "generalsonline":
+            else:
                 print("Notice: no new GeneralsOnline releases discovered on CDN; catalog is up to date.")
 
-        if not sh_crawled and not go_crawled and not from_latest and source in ("all", "superhackers"):
-            print("Error: crawl failed to discover any entries from upstream sources; aborting generation to prevent publishing a stale catalog.", file=sys.stderr)
-            sys.exit(1)
-
         return existing_mappings
-    except CatalogConflictError as e:
-        print(f"Error: Crawled catalog conflict detected: {e}", file=sys.stderr)
+    except (CatalogConflictError, UpstreamFetchError) as e:
+        print(f"Error: {e}; aborting generation to prevent publishing a stale catalog.", file=sys.stderr)
         sys.exit(1)
 
 
@@ -1350,35 +1449,42 @@ def build_catalog(
 
 def run_self_test() -> bool:
     """Runs self-test assertions verifying hashing, date generation, and catalog structure."""
+    if not __debug__:
+        raise RuntimeError("Self-test suite requires asserts enabled (cannot run under python -O)")
+
+    def expect(condition: bool, msg: str = "") -> None:
+        if not condition:
+            raise AssertionError(msg or "Self-test expectation failed")
+
     print("Running self-test suite...")
 
     # Test 1: SAGE Legacy CRC
     test_bytes = b"Hello, World!"
     crc = compute_buffer_crc(test_bytes)
-    assert crc == "0x000AD4F9", f"Expected 0x000AD4F9, got {crc}"
+    expect(crc == "0x000AD4F9", f"Expected 0x000AD4F9, got {crc}")
 
     # Test 2: SAGE Transfer CRC
     xfer_crc = compute_sage_xfer_crc(test_bytes)
-    assert xfer_crc == "0xA7BDC0DE", f"Expected 0xA7BDC0DE, got {xfer_crc}"
+    expect(xfer_crc == "0xA7BDC0DE", f"Expected 0xA7BDC0DE, got {xfer_crc}")
 
     # Test 3: Date range generation
     d_start = datetime.date(2026, 9, 25)
     d_end = datetime.date(2026, 9, 28)
     codes = generate_date_codes(start_date=d_start, end_date=d_end)
     expected_codes = {"092526", "092626", "092726", "092826"}
-    assert codes == expected_codes, f"Expected {expected_codes}, got {codes}"
+    expect(codes == expected_codes, f"Expected {expected_codes}, got {codes}")
 
     # Test 4: Candidate generation includes QFE and EAC
     cands = build_candidates_for_date("092826", max_qfe=3)
     urls = [c[3] for c in cands]
-    assert f"{GENERALSONLINE_CDN}/GeneralsOnline_portable_092826.zip" in urls
-    assert f"{GENERALSONLINE_CDN}/GeneralsOnline_portable_092826_EAC.zip" in urls
-    assert f"{GENERALSONLINE_CDN}/GeneralsOnline_portable_092826_QFE1.zip" in urls
-    assert f"{GENERALSONLINE_CDN}/GeneralsOnline_portable_092826_QFE1_EAC.zip" in urls
+    expect(f"{GENERALSONLINE_CDN}/GeneralsOnline_portable_092826.zip" in urls, "portable zip missing")
+    expect(f"{GENERALSONLINE_CDN}/GeneralsOnline_portable_092826_EAC.zip" in urls, "portable EAC zip missing")
+    expect(f"{GENERALSONLINE_CDN}/GeneralsOnline_portable_092826_QFE1.zip" in urls, "QFE1 zip missing")
+    expect(f"{GENERALSONLINE_CDN}/GeneralsOnline_portable_092826_QFE1_EAC.zip" in urls, "QFE1 EAC zip missing")
 
     # Test 5: Date argument parsing
-    assert parse_date_arg("2026-09-28") == datetime.date(2026, 9, 28)
-    assert parse_date_arg("092826") == datetime.date(2026, 9, 28)
+    expect(parse_date_arg("2026-09-28") == datetime.date(2026, 9, 28), "ISO date parse failed")
+    expect(parse_date_arg("092826") == datetime.date(2026, 9, 28), "MMDDYY date parse failed")
 
     # Test 6: get_latest_generalsonline_date
     dummy_mappings = [
@@ -1387,12 +1493,43 @@ def run_self_test() -> bool:
         {"publisher": "steam", "buildDate": "2003-09-16", "version": "1.04"},
     ]
     latest = get_latest_generalsonline_date(dummy_mappings)
-    assert latest == datetime.date(2026, 9, 28), f"Expected 2026-09-28, got {latest}"
+    expect(latest == datetime.date(2026, 9, 28), f"Expected 2026-09-28, got {latest}")
 
-    # Test 7: generate_date_codes year range bounding
+    # Test 7: generate_date_codes year range bounding & clamping
     codes_2025 = generate_date_codes(start_year=2025, end_year=2025)
+    expect(len(codes_2025) == 365, f"Expected 365 days for 2025, got {len(codes_2025)}")
+    expect("010125" in codes_2025 and "123125" in codes_2025, "Boundary dates 010125 and 123125 must be present")
     for c in codes_2025:
-        assert c.endswith("25"), f"Expected 2025 date code, got {c}"
+        expect(c.endswith("25"), f"Expected 2025 date code, got {c}")
+
+    future_codes = generate_date_codes(start_year=2025, end_year=2099)
+    today = datetime.date.today()
+    max_expected = today + datetime.timedelta(days=7)
+    for c in future_codes:
+        month = int(c[0:2])
+        day = int(c[2:4])
+        year = 2000 + int(c[4:6])
+        d = datetime.date(year, month, day)
+        expect(d <= max_expected, f"Code {c} ({d}) exceeds future clamp limit {max_expected}")
+
+    try:
+        generate_date_codes(start_date=datetime.date(2026, 5, 1), end_date=datetime.date(2026, 4, 1))
+        raise AssertionError("Expected ValueError for inverted date range")
+    except ValueError:
+        pass
+
+    # Test 8: _extract_archive_crcs preserves first-match for duplicate basenames
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, "w") as zf:
+        zf.writestr("generals.exe", b"FIRST")
+        zf.writestr("subfolder/generals.exe", b"SECOND")
+    zip_buf.seek(0)
+    with zipfile.ZipFile(zip_buf, "r") as zf:
+        exe_crc, sha256, _ = _extract_archive_crcs(zf, ["generals.exe"])
+        expect(exe_crc == compute_buffer_crc(b"FIRST"), "Expected first archive member match")
+
+    # Test 9: check_cdn_reachable succeeds for responsive CDN
+    expect(check_cdn_reachable(GENERALSONLINE_CDN), f"Expected {GENERALSONLINE_CDN} to be reachable")
 
     print("All self-test assertions passed.")
     return True
@@ -1412,6 +1549,9 @@ def main():
     parser.add_argument("--self-test", action="store_true", help="Run self-test suite and exit")
 
     args = parser.parse_args()
+
+    if args.start_date and args.end_date and args.start_date > args.end_date:
+        parser.error(f"--start-date ({args.start_date}) cannot be after --end-date ({args.end_date})")
 
     if args.self_test:
         if run_self_test():

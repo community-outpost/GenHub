@@ -43,7 +43,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    timeout-minutes: 15
+    timeout-minutes: 45
 
     steps:
       - name: Checkout Code
@@ -58,10 +58,10 @@ jobs:
 
       - name: Discover and Update GeneralsOnline CRCs
         env:
-          INSPECT_BINARIES: ${{ github.event.inputs.inspect_binaries || 'true' }}
-          START_DATE: ${{ github.event.inputs.start_date || '' }}
-          END_DATE: ${{ github.event.inputs.end_date || '' }}
-          FROM_LATEST: ${{ github.event.inputs.from_latest || 'true' }}
+          INSPECT_BINARIES: ${{ inputs.inspect_binaries }}
+          START_DATE: ${{ inputs.start_date }}
+          END_DATE: ${{ inputs.end_date }}
+          FROM_LATEST: ${{ inputs.from_latest }}
         run: |
           set -euo pipefail
           ARGS=(--crawl --source generalsonline)
@@ -91,11 +91,11 @@ jobs:
         run: |
           if git diff --quiet GenHub/GenHub/Resources/crc-mapping.json; then
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
-            echo "### ✅ GeneralsOnline CRCs Up to Date" >> "$GITHUB_STEP_SUMMARY"
+            echo "### GeneralsOnline CRCs Up to Date" >> "$GITHUB_STEP_SUMMARY"
             echo "No new GeneralsOnline releases discovered on CDN. CRC catalog is already up to date." >> "$GITHUB_STEP_SUMMARY"
           else
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
-            echo "### 🚀 New GeneralsOnline CRCs Discovered!" >> "$GITHUB_STEP_SUMMARY"
+            echo "### New GeneralsOnline CRCs Discovered" >> "$GITHUB_STEP_SUMMARY"
             echo "Changes detected in \`GenHub/GenHub/Resources/crc-mapping.json\`:" >> "$GITHUB_STEP_SUMMARY"
             echo '```diff' >> "$GITHUB_STEP_SUMMARY"
             git diff GenHub/GenHub/Resources/crc-mapping.json >> "$GITHUB_STEP_SUMMARY"
@@ -111,7 +111,7 @@ jobs:
           retention-days: 14
 
       - name: Create or Update Pull Request
-        if: steps.check_changes.outputs.has_changes == 'true' && (github.event.inputs.create_pr != 'false')
+        if: steps.check_changes.outputs.has_changes == 'true' && (inputs.create_pr != false)
         env:
           GITHUB_TOKEN: ${{ secrets.AUTO_MERGE_PAT || github.token }}
           GH_TOKEN: ${{ secrets.AUTO_MERGE_PAT || github.token }}

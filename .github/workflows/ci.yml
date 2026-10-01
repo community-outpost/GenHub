@@ -131,7 +131,7 @@ jobs:
         run: python3 scripts/generate_crc_catalog.py --self-test
 
       # Verifies crc-mapping.json schema, hex CRC formatting, manifest IDs,
-      # and ensures no conflicting checksums or duplicate mappings exist.
+      # and rejects conflicting checksums; duplicate variants only produce a notice.
       - name: Validate CRC mapping catalog
         run: python3 scripts/generate_crc_catalog.py --validate
 
