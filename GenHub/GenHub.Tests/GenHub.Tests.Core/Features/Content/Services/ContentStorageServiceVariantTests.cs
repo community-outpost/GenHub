@@ -90,7 +90,7 @@ public class ContentStorageServiceVariantTests : IDisposable
 
         var manifest = VariantManifestFixture.Create(
             [new() { RelativePath = HostFileName, SourcePath = hostPath, SourceType = ContentSourceType.LocalFile, IsRequired = true }],
-            [new() { RelativePath = ForeignFileName, Hash = ForeignHash, SourceType = ContentSourceType.ContentAddressable, IsRequired = true }]);
+            [new() { RelativePath = ForeignFileName, Hash = ForeignHash, SourceType = ContentSourceType.ContentAddressable, SourcePath = Path.Combine(sourceDir, ForeignFileName), IsRequired = true }]);
 
         var result = await _service.StoreContentAsync(manifest, sourceDir);
 
@@ -104,6 +104,7 @@ public class ContentStorageServiceVariantTests : IDisposable
 
         var foreignFile = Assert.Single(ManifestVariantResolver.ResolveFiles(stored, VariantManifestFixture.ForeignRuntimeIdentifier));
         Assert.Equal(ForeignHash, foreignFile.Hash);
+        Assert.Null(foreignFile.SourcePath);
 
         _casServiceMock.Verify(
             c => c.StoreContentAsync(It.IsAny<string>(), It.IsAny<ContentType>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
@@ -279,6 +280,35 @@ public class ContentStorageServiceVariantTests : IDisposable
     {
         var manifest = VariantManifestFixture.Create([], [null!]);
         var result = await _service.StoreContentAsync(manifest, Path.Combine(_tempRoot, "Missing"));
+        Assert.False(result.Success);
+        Assert.Contains("null variant or file", result.FirstError);
+    }
+
+    /// <summary>Malformed host entries are rejected before missing-source handling.</summary>
+    /// <param name="sourceExists">Whether the source directory exists.</param>
+    /// <param name="flat">Whether the malformed entry is in the flat file list.</param>
+    /// <returns>The asynchronous test.</returns>
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task StoreContentAsync_NullHostFile_ReturnsValidationFailureAsync(bool sourceExists, bool flat)
+    {
+        var source = Path.Combine(_tempRoot, "MalformedSource");
+        if (sourceExists)
+        {
+            Directory.CreateDirectory(source);
+        }
+
+        var manifest = VariantManifestFixture.Create([null!], []);
+        if (flat)
+        {
+            manifest.Variants.Clear();
+            manifest.Files = [null!];
+        }
+
+        var result = await _service.StoreContentAsync(manifest, source);
         Assert.False(result.Success);
         Assert.Contains("null variant or file", result.FirstError);
     }

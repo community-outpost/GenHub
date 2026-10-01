@@ -66,11 +66,11 @@ public static class ManifestVariantResolver
     /// <summary>Gets the declared file lists without dropping malformed entries, for structural validation.</summary>
     /// <param name="manifest">The manifest to inspect.</param>
     /// <returns>The flat list followed by each variant's list, in declaration order.</returns>
-    public static IReadOnlyList<IReadOnlyList<ManifestFile>> GetDeclaredFileLists(ContentManifest manifest)
+    public static IReadOnlyList<IReadOnlyList<ManifestFile>?> GetDeclaredFileLists(ContentManifest manifest)
     {
         ArgumentNullException.ThrowIfNull(manifest);
-        var lists = new List<IReadOnlyList<ManifestFile>> { manifest.Files ?? [] };
-        lists.AddRange(manifest.Variants.Select(v => (IReadOnlyList<ManifestFile>)(v?.Files ?? [])));
+        var lists = new List<IReadOnlyList<ManifestFile>?> { manifest.Files };
+        lists.AddRange(manifest.Variants.Select(v => (IReadOnlyList<ManifestFile>?)v?.Files));
         return lists;
     }
 

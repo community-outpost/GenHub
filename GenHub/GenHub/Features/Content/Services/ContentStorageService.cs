@@ -52,12 +52,6 @@ public class ContentStorageService : IContentStorageService
 
     private static OperationResult<bool> ValidateManifestSecurity(ContentManifest manifest, string baseDirectory)
     {
-        if (ManifestVariantResolver.GetDeclaredFileLists(manifest).Any(files => files.Any(f => f is null))
-            || manifest.Variants.Any(v => v is null))
-        {
-            return OperationResult<bool>.CreateFailure("Manifest contains a null variant or file entry");
-        }
-
         var metadataOnly = !RequiresPhysicalStorage(manifest);
         var normalizedBase = Path.GetFullPath(baseDirectory);
         foreach (var file in ManifestVariantResolver.EnumerateAllFiles(manifest))
@@ -365,6 +359,12 @@ public class ContentStorageService : IContentStorageService
         IProgress<ContentStorageProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
+        if (ManifestVariantResolver.GetDeclaredFileLists(manifest).Any(files => files is null || files.Any(f => f is null))
+            || manifest.Variants.Any(v => v is null))
+        {
+            return OperationResult<ContentManifest>.CreateFailure("Manifest contains a null variant or file entry or file collection");
+        }
+
         if (string.IsNullOrEmpty(sourceDirectory) || !Directory.Exists(sourceDirectory))
         {
             return await HandleMissingSourceDirectoryAsync(manifest, sourceDirectory, cancellationToken).ConfigureAwait(false);
@@ -659,6 +659,11 @@ public class ContentStorageService : IContentStorageService
         string manifestPath,
         CancellationToken cancellationToken)
     {
+        ManifestVariantResolver.RewriteAllFiles(updatedManifest, f =>
+            f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.SourcePath)
+                ? CloneManifestFileForCas(f)
+                : f);
+
         // Track CAS references to ensure files are not prematurely garbage collected
         var trackResult = await _referenceTracker.TrackManifestReferencesAsync(updatedManifest.Id, updatedManifest, cancellationToken);
         if (!trackResult.Success)
