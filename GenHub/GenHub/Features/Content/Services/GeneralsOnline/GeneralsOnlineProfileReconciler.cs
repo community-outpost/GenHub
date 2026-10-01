@@ -1323,7 +1323,7 @@ public partial class GeneralsOnlineProfileReconciler(
         };
 
         var createResult = await profileManager.CreateProfileAsync(createRequest, cancellationToken);
-        if (createResult != null && createResult.Success)
+        if (createResult is { Success: true })
         {
             logger.LogInformation("[GO Reconciler] Successfully created fresh profile '{Name}' for update", createRequest.Name);
             return OperationResult<(int CreatedCount, string? TargetProfileId)>.CreateSuccess((1, createResult.Data?.Id));
@@ -1414,7 +1414,7 @@ public partial class GeneralsOnlineProfileReconciler(
             var cloneRequest = BuildCloneProfileRequest(profile, targetProfileName, updatedGameClient, newEnabledContent, newClientManifest);
 
             var createResult = await profileManager.CreateProfileAsync(cloneRequest, cancellationToken);
-            if (createResult != null && createResult.Success)
+            if (createResult is { Success: true })
             {
                 logger.LogInformation("[GO Reconciler] Created new profile '{Name}' for update", cloneRequest.Name);
                 return (true, createResult.Data?.Id);

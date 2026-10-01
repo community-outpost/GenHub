@@ -4940,7 +4940,7 @@ public sealed class ContentDetailViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ContentLibraryClearedMessage_WhenReceived_ResetsAllDownloadAndVariantStates()
+    public async Task ContentLibraryClearedMessage_WhenReceived_ResetsAllDownloadAndVariantStatesAsync()
     {
         // Arrange
         var searchResult = new ContentSearchResult

@@ -157,7 +157,15 @@ public class GameLauncher(
         {
             return Path.GetFullPath(root);
         }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or IOException)
+        catch (ArgumentException)
+        {
+            return null;
+        }
+        catch (NotSupportedException)
+        {
+            return null;
+        }
+        catch (IOException)
         {
             return null;
         }
@@ -1195,7 +1203,7 @@ public class GameLauncher(
         // The probe is the enumeration itself: Directory.Exists returns false for an
         // unreadable root as well as a missing one, which would report a permission
         // problem as missing content. Only DirectoryNotFoundException means absence.
-        bool hasArchive;
+        bool hasArchive = false;
         try
         {
             hasArchive = Directory
@@ -1452,7 +1460,15 @@ public class GameLauncher(
                 }
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (IOException)
+        {
+            // Non-critical: gracefully fall back
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Non-critical: gracefully fall back
+        }
+        catch (ArgumentException)
         {
             // Non-critical: gracefully fall back
         }
@@ -2474,17 +2490,11 @@ public class GameLauncher(
         var steamExecutableName = GameClientConstants.GeneralsExecutable;
         logger.LogInformation("[GameLauncher] Steam executable to replace with proxy: {ExecutableName}", steamExecutableName);
 
-        string steamAppId;
-        if (SteamAppIdResolver.TryResolveSteamAppIdFromInstallationPath(actualInstallationPath, out var resolvedSteamAppId))
-        {
-            steamAppId = resolvedSteamAppId;
-        }
-        else
-        {
-            steamAppId = profile.GameClient?.GameType == GameType.Generals
+        string steamAppId = SteamAppIdResolver.TryResolveSteamAppIdFromInstallationPath(actualInstallationPath, out var resolvedSteamAppId)
+            ? resolvedSteamAppId
+            : (profile.GameClient?.GameType == GameType.Generals
                 ? SteamConstants.GeneralsAppId
-                : SteamConstants.ZeroHourAppId;
-        }
+                : SteamConstants.ZeroHourAppId);
 
         var targetArguments = arguments.Select(kvp => FormatCommandLineArgument(kvp.Key, kvp.Value)).ToArray();
 
@@ -3032,7 +3042,7 @@ public class GameLauncher(
 
         var lines = await File.ReadAllLinesAsync(iniPath, cancellationToken);
         var firstLine = lines.Length > 0 ? lines[0] : null;
-        if (firstLine != null && firstLine.StartsWith("; GenHub Camera Override", StringComparison.OrdinalIgnoreCase))
+        if (firstLine?.StartsWith("; GenHub Camera Override", StringComparison.OrdinalIgnoreCase) == true)
         {
             File.Delete(iniPath);
             logger.LogInformation("[GameLauncher] Removed GenHub camera override from {IniPath} to restore default camera settings", iniPath);

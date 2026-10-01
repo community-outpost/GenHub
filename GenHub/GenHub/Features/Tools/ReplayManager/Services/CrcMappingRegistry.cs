@@ -368,7 +368,17 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
 
             return JsonSerializer.Deserialize<CrcCatalog>(stream, JsonOptions);
         }
-        catch (Exception ex) when (ex is JsonException or InvalidOperationException or IOException)
+        catch (JsonException ex)
+        {
+            logger?.LogWarning(ex, "Failed to preload embedded CRC mapping catalog.");
+            return null;
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger?.LogWarning(ex, "Failed to preload embedded CRC mapping catalog.");
+            return null;
+        }
+        catch (IOException ex)
         {
             logger?.LogWarning(ex, "Failed to preload embedded CRC mapping catalog.");
             return null;

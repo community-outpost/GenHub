@@ -190,7 +190,7 @@ public class GameLauncherTests : IDisposable
         profile.Id = Guid.NewGuid().ToString();
         var gate = GameLauncher.ProfileLaunchLocks.GetOrAdd(profile.Id, _ => new SemaphoreSlim(1, 1));
         await gate.WaitAsync();
-        Task<LaunchOperationResult<GameLaunchInfo>> launch;
+        Task<LaunchOperationResult<GameLaunchInfo>> launch = null!;
         try
         {
             launch = _gameLauncher.LaunchProfileAsync(profile);
@@ -1942,7 +1942,11 @@ public class GameLauncherTests : IDisposable
         {
             Directory.Delete(_retailRoot, recursive: true);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Best effort; a leftover temp directory is not worth failing the run over.
+        }
+        catch (UnauthorizedAccessException)
         {
             // Best effort; a leftover temp directory is not worth failing the run over.
         }

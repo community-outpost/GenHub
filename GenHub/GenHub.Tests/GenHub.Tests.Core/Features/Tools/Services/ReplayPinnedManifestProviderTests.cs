@@ -22,7 +22,7 @@ public sealed class ReplayPinnedManifestProviderTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetPinnedManifestIdsAsync_NoReplays_ReturnsEmptySet()
+    public async Task GetPinnedManifestIdsAsync_NoReplays_ReturnsEmptySetAsync()
     {
         var replayDirMock = new Mock<IReplayDirectoryService>();
         var crcRegistryMock = new Mock<ICrcMappingRegistry>();
@@ -44,7 +44,7 @@ public sealed class ReplayPinnedManifestProviderTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetPinnedManifestIdsAsync_MatchingReplay_ReturnsManifestAndDataPatchId()
+    public async Task GetPinnedManifestIdsAsync_MatchingReplay_ReturnsManifestAndDataPatchIdAsync()
     {
         var replayDirMock = new Mock<IReplayDirectoryService>();
         var crcRegistryMock = new Mock<ICrcMappingRegistry>();
@@ -101,7 +101,7 @@ public sealed class ReplayPinnedManifestProviderTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetPinnedManifestIdsAsync_ReplayDirectoryThrows_RecoversGracefully()
+    public async Task GetPinnedManifestIdsAsync_ReplayDirectoryThrows_RecoversGracefullyAsync()
     {
         var replayDirMock = new Mock<IReplayDirectoryService>();
         var crcRegistryMock = new Mock<ICrcMappingRegistry>();
@@ -123,7 +123,7 @@ public sealed class ReplayPinnedManifestProviderTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetPinnedManifestIdsAsync_IniCrcOnly_PinsDataPatchManifestId()
+    public async Task GetPinnedManifestIdsAsync_IniCrcOnly_PinsDataPatchManifestIdAsync()
     {
         var replayDirMock = new Mock<IReplayDirectoryService>();
         var crcRegistryMock = new Mock<ICrcMappingRegistry>();
@@ -176,7 +176,7 @@ public sealed class ReplayPinnedManifestProviderTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetPinnedManifestIdsAsync_ExeCrcOnly_PinsAllCandidateEntriesWithMatchingExeCrc()
+    public async Task GetPinnedManifestIdsAsync_ExeCrcOnly_PinsAllCandidateEntriesWithMatchingExeCrcAsync()
     {
         var replayDirMock = new Mock<IReplayDirectoryService>();
         var crcRegistryMock = new Mock<ICrcMappingRegistry>();
