@@ -109,7 +109,11 @@ public sealed class ContentValidatorVariantTests : IDisposable
                 Directory.Delete(_contentDirectory, true);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Ignore cleanup errors
+        }
+        catch (UnauthorizedAccessException)
         {
             // Ignore cleanup errors
         }
