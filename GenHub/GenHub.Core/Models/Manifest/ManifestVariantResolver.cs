@@ -143,7 +143,7 @@ public static class ManifestVariantResolver
         // Prefer an explicit match over a platform-neutral one, so a manifest carrying
         // both a native build and a neutral asset bundle resolves to the native build.
         return manifest.Variants.FirstOrDefault(v => v is not null && v.RuntimeIdentifiers is { Count: > 0 } && v.SupportsRuntime(rid))
-            ?? manifest.Variants.FirstOrDefault(v => v is not null && v.RuntimeIdentifiers is { Count: 0 });
+            ?? manifest.Variants.FirstOrDefault(v => v is not null && v.RuntimeIdentifiers is null or { Count: 0 });
     }
 
     /// <summary>

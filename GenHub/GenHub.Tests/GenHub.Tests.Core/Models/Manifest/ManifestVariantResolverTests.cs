@@ -513,6 +513,17 @@ public class ManifestVariantResolverTests
         Assert.Null(ManifestVariantResolver.ResolveVariant(manifest, "linux-x64"));
     }
 
+    /// <summary>A variant whose runtime list was deserialized as null is platform-neutral.</summary>
+    [Fact]
+    public void ResolveVariant_NullRuntimeIdentifiers_FallsBackAsNeutral()
+    {
+        var neutral = new ArtifactVariant { RuntimeIdentifiers = null!, Files = [File("assets.big")] };
+        var manifest = new ContentManifest { Variants = [new ArtifactVariant { RuntimeIdentifiers = ["win-x64"] }, neutral] };
+
+        Assert.Same(neutral, ManifestVariantResolver.ResolveVariant(manifest, "osx-arm64"));
+        Assert.True(ManifestVariantResolver.SupportsRuntime(manifest, "osx-arm64"));
+    }
+
     private static ManifestFile File(string path, bool isExecutable = false) =>
         new() { RelativePath = path, IsExecutable = isExecutable };
 }
