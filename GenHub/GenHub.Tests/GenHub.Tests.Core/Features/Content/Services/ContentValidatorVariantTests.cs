@@ -119,6 +119,16 @@ public sealed class ContentValidatorVariantTests : IDisposable
         }
     }
 
+    /// <summary>Malformed file entries produce validation errors instead of throwing.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateContentIntegrityAsync_NullFile_ReportsErrorAsync()
+    {
+        var manifest = new ContentManifest { Files = [null!] };
+        var result = await _validator.ValidateContentIntegrityAsync(_contentDirectory, manifest);
+        Assert.Contains(result.Issues, issue => issue.Message.Contains("null file"));
+    }
+
     private static ContentManifest CreateManifest() => VariantManifestFixture.Create(
         [new() { RelativePath = HostFileName, SourceType = ContentSourceType.GameInstallation }],
         [new() { RelativePath = ForeignFileName, SourceType = ContentSourceType.GameInstallation }]);

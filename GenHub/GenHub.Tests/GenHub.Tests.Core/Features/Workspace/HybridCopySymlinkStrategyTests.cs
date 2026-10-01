@@ -65,6 +65,8 @@ public class HybridCopySymlinkStrategyTests : IDisposable
                     Files = new List<ManifestFile>
                     {
                         new() { RelativePath = "generals.exe", Size = 1000000, IsExecutable = true },
+                        new() { RelativePath = "generals.exe", Size = 1000000, IsExecutable = true }, // Duplicate is not materialized twice.
+                        new() { RelativePath = "external.ini", Size = 9000000, InstallTarget = ContentInstallTarget.UserDataDirectory },
                         new() { RelativePath = "config.ini", Size = 1000 }, // Will be copied (small + .ini)
                         new() { RelativePath = "textures/large.tga", Size = 5000000 }, // Will be symlinked
                         new() { RelativePath = "sounds/music.wav", Size = 10000000 }, // Will be symlinked

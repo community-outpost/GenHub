@@ -48,19 +48,9 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
             return 0;
 
         long totalUsage = 0;
-        foreach (var manifest in configuration.Manifests)
+        foreach (var file in configuration.GetWorkspaceUniqueFiles())
         {
-            foreach (var file in ManifestVariantResolver.ResolveFiles(manifest))
-            {
-                if (IsEssentialFile(file.RelativePath, file.Size))
-                {
-                    totalUsage += file.Size;
-                }
-                else
-                {
-                    totalUsage += LinkOverheadBytes;
-                }
-            }
+            totalUsage += IsEssentialFile(file.RelativePath, file.Size) ? file.Size : LinkOverheadBytes;
         }
 
         return totalUsage;
