@@ -717,11 +717,14 @@ public class DownloadServiceTests
     }
 
     /// <summary>
-    /// Verifies that when a file already exists with matching expected hash, download is skipped immediately.
+    /// Verifies that when a file already exists with matching expected hash (even with leading/trailing whitespace), download is skipped immediately.
     /// </summary>
+    /// <param name="padWhitespace">Whether to pad expected hash with leading and trailing whitespace.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    [Fact]
-    public async Task DownloadFileAsync_FileExistsWithMatchingHash_SkipsDownloadAsync()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DownloadFileAsync_FileExistsWithMatchingHash_SkipsDownloadAsync(bool padWhitespace)
     {
         // Arrange
         var content = new byte[] { 10, 20, 30, 40 };
@@ -730,6 +733,10 @@ public class DownloadServiceTests
 
         var hashProvider = new Sha256HashProvider();
         var expectedHash = await hashProvider.ComputeFileHashAsync(tempFile);
+        if (padWhitespace)
+        {
+            expectedHash = $"  {expectedHash}  \t ";
+        }
 
         var handler = new Mock<HttpMessageHandler>();
         var service = CreateService(handler.Object, out _, hashProvider);
@@ -741,54 +748,6 @@ public class DownloadServiceTests
                 Url = new Uri("http://test/existing-match.bin"),
                 DestinationPath = tempFile,
                 ExpectedHash = expectedHash,
-            };
-
-            // Act
-            var result = await service.DownloadFileAsync(config);
-
-            // Assert
-            Assert.True(result.Success);
-            Assert.True(result.HashVerified);
-            handler.Protected().Verify(
-                "SendAsync",
-                Times.Never(),
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>());
-        }
-        finally
-        {
-            if (File.Exists(tempFile))
-            {
-                File.Delete(tempFile);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Verifies that when a file already exists and expected hash has whitespace, download is skipped.
-    /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    [Fact]
-    public async Task DownloadFileAsync_FileExistsWithMatchingHashHavingWhitespace_SkipsDownloadAsync()
-    {
-        // Arrange
-        var content = new byte[] { 10, 20, 30, 40 };
-        var tempFile = Path.GetTempFileName();
-        File.WriteAllBytes(tempFile, content);
-
-        var hashProvider = new Sha256HashProvider();
-        var expectedHash = await hashProvider.ComputeFileHashAsync(tempFile);
-
-        var handler = new Mock<HttpMessageHandler>();
-        var service = CreateService(handler.Object, out _, hashProvider);
-
-        try
-        {
-            var config = new DownloadConfiguration
-            {
-                Url = new Uri("http://test/existing-match-whitespace.bin"),
-                DestinationPath = tempFile,
-                ExpectedHash = $"  {expectedHash}  ",
             };
 
             // Act
