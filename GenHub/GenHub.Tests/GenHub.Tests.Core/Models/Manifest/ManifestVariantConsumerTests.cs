@@ -86,6 +86,7 @@ public class ManifestVariantConsumerTests
     [InlineData("generals.ctr", true)]
     [InlineData("game.dat", false)]
     [InlineData("generals.ctr", false)]
+    [InlineData("contra.dat", true)]
     public void DetermineMonitoringTarget_CustomAliasPreservesManifestAssociation(string entryName, bool matching)
     {
         var workspace = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
@@ -102,6 +103,10 @@ public class ManifestVariantConsumerTests
             };
             var result = GameLauncher.DetermineMonitoringTarget(
                 [manifest], Path.Combine(workspace, "generals.exe"), workspace, WorkspaceStrategy.SymlinkOnly, null, NullLogger.Instance, null);
+            var copiedResult = GameLauncher.DetermineMonitoringTarget(
+                [manifest], Path.Combine(workspace, "generals.exe"), workspace, WorkspaceStrategy.FullCopy, null, NullLogger.Instance, null);
+            Assert.True(copiedResult.Success, copiedResult.FirstError);
+            Assert.Equal("generals", Assert.Single(copiedResult.Data!).ProcessName);
             Assert.Equal(!matching, result.Success);
             if (matching)
             {

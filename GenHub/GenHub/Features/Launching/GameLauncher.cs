@@ -235,9 +235,7 @@ public class GameLauncher(
             return OperationResult<IReadOnlyList<GameProcessIdentity>>.CreateSuccess(entryIdentities);
         }
 
-        var processName = executableFileForMonitor != null
-            ? Path.GetFileNameWithoutExtension(executableFileForMonitor.RelativePath)
-            : Path.GetFileNameWithoutExtension(finalExecutablePath);
+        var processName = Path.GetFileNameWithoutExtension(finalExecutablePath);
 
         if (!string.IsNullOrEmpty(expectedChildProcessName))
         {
@@ -369,24 +367,32 @@ public class GameLauncher(
             }
         }
 
+        return FindAliasMonitoredExecutable(launchable, finalExecutablePath, workspacePath);
+    }
+
+    private static (ContentManifest? Manifest, ManifestFile? File) FindAliasMonitoredExecutable(
+        IReadOnlyList<ContentManifest> launchable, string finalExecutablePath, string workspacePath)
+    {
         // Workspace preparation copies custom Windows entry points to a root generals.exe alias.
         // Require matching bytes so an unrelated existing executable cannot borrow its identity.
-        if (string.Equals(Path.GetRelativePath(workspacePath, finalExecutablePath), GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(Path.GetRelativePath(workspacePath, finalExecutablePath), GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase))
         {
-            foreach (var manifest in launchable)
-            {
-                var entry = ManifestVariantResolver.ResolveEntryPoint(manifest);
-                if (!entry.Success || entry.RelativePath!.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
+            return (null, null);
+        }
 
-                var file = ManifestVariantResolver.ResolveFiles(manifest).FirstOrDefault(f =>
-                    ManifestVariantResolver.PathsMatch(f.RelativePath, entry.RelativePath));
-                if (file is not null && IsMatchingWorkspaceAlias(workspacePath, finalExecutablePath, file.RelativePath))
-                {
-                    return (manifest, file);
-                }
+        foreach (var manifest in launchable)
+        {
+            var entry = ManifestVariantResolver.ResolveEntryPoint(manifest);
+            if (!entry.Success || entry.RelativePath!.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var file = ManifestVariantResolver.ResolveFiles(manifest).FirstOrDefault(f =>
+                ManifestVariantResolver.PathsMatch(f.RelativePath, entry.RelativePath));
+            if (file is not null && IsMatchingWorkspaceAlias(workspacePath, finalExecutablePath, file.RelativePath))
+            {
+                return (manifest, file);
             }
         }
 
