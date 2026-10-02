@@ -383,6 +383,27 @@ public partial class SubscriptionConfirmationViewModel(
             : definition.Catalogs?.FirstOrDefault()?.Url;
     }
 
+    private static List<string> CollectCandidateCatalogUrls(PublisherDefinition definition)
+    {
+        var candidateUrls = new List<string>();
+        var targetCatalogUrl = ResolveTargetCatalogUrl(definition);
+        if (!string.IsNullOrWhiteSpace(targetCatalogUrl))
+        {
+            candidateUrls.Add(targetCatalogUrl);
+        }
+
+        if (definition.Catalogs != null)
+        {
+            var validCatalogUrls = definition.Catalogs
+                .Where(cat => !string.IsNullOrWhiteSpace(cat?.Url) && !candidateUrls.Contains(cat.Url, StringComparer.OrdinalIgnoreCase))
+                .Select(cat => cat.Url!);
+
+            candidateUrls.AddRange(validCatalogUrls);
+        }
+
+        return candidateUrls;
+    }
+
     [RelayCommand]
     private async Task ConfirmAsync(CancellationToken cancellationToken = default)
     {
@@ -566,14 +587,11 @@ public partial class SubscriptionConfirmationViewModel(
         return (null, null, null, null);
     }
 
-    private async Task<(PublisherCatalog? Catalog, string? DefinitionUrl, string? CatalogUrl, PublisherDefinition? Definition)> TryResolveDefinitionFromPayloadAsync(
-        string response,
-        CancellationToken cancellationToken)
+    private PublisherDefinition? TryDeserializeDefinition(string response, CancellationToken cancellationToken)
     {
-        PublisherDefinition? definition;
         try
         {
-            definition = JsonSerializer.Deserialize<PublisherDefinition>(response, DefinitionJsonOptions);
+            return JsonSerializer.Deserialize<PublisherDefinition>(response, DefinitionJsonOptions);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -582,37 +600,74 @@ public partial class SubscriptionConfirmationViewModel(
         catch (JsonException jsonEx)
         {
             logger.LogDebug(jsonEx, "Payload is not a valid publisher definition; falling back to direct catalog parse");
-            return (null, null, null, null);
+            return null;
         }
         catch (Exception defEx)
         {
             logger.LogDebug(defEx, "Failed to parse publisher definition; falling back to direct catalog parse");
-            return (null, null, null, null);
+            return null;
+        }
+    }
+
+    private async Task<(PublisherCatalog? Catalog, string? Error)> TryFetchCandidateCatalogAsync(
+        string candidateUrl,
+        CancellationToken cancellationToken)
+    {
+        var (targetSafe, ssrfReason) = await NetworkSecurityHelper.IsSafeUrlAsync(candidateUrl, cancellationToken);
+        if (!targetSafe)
+        {
+            if (!string.IsNullOrEmpty(ssrfReason))
+            {
+                logger.LogWarning("Blocked unsafe catalog URL in definition payload: {Reason}", ssrfReason);
+            }
+
+            return (null, ssrfReason);
         }
 
+        try
+        {
+            logger.LogInformation("Resolved catalog URL {TargetUrl} from definition at {DefUrl}", candidateUrl, catalogUrl);
+            var catResponse = await CatalogDocumentReader.ReadAsync(httpClient, candidateUrl, CatalogConstants.MaxCatalogSizeBytes, cancellationToken);
+            var catParseResult = await catalogParser.ParseCatalogAsync(catResponse, cancellationToken);
+            if (catParseResult.Success && catParseResult.Data != null)
+            {
+                return (catParseResult.Data, null);
+            }
+
+            return (null, string.Join("; ", catParseResult.Errors));
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (HttpRequestException httpEx)
+        {
+            logger.LogWarning(httpEx, "Transient error resolving catalog from candidate {Url}", candidateUrl);
+            return (null, httpEx.Message);
+        }
+        catch (OperationCanceledException timeoutEx)
+        {
+            logger.LogWarning(timeoutEx, "Timeout fetching candidate catalog from {Url}", candidateUrl);
+            return (null, timeoutEx.Message);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to resolve catalog from candidate URL {TargetUrl} in definition", candidateUrl);
+            return (null, ex.Message);
+        }
+    }
+
+    private async Task<(PublisherCatalog? Catalog, string? DefinitionUrl, string? CatalogUrl, PublisherDefinition? Definition)> TryResolveDefinitionFromPayloadAsync(
+        string response,
+        CancellationToken cancellationToken)
+    {
+        var definition = TryDeserializeDefinition(response, cancellationToken);
         if (definition == null || !HasCatalogReference(definition))
         {
             return (null, null, null, null);
         }
 
-        var candidateUrls = new List<string>();
-        var targetCatalogUrl = ResolveTargetCatalogUrl(definition);
-        if (!string.IsNullOrWhiteSpace(targetCatalogUrl))
-        {
-            candidateUrls.Add(targetCatalogUrl);
-        }
-
-        if (definition.Catalogs != null)
-        {
-            foreach (var cat in definition.Catalogs)
-            {
-                if (!string.IsNullOrWhiteSpace(cat?.Url) && !candidateUrls.Contains(cat.Url, StringComparer.OrdinalIgnoreCase))
-                {
-                    candidateUrls.Add(cat.Url);
-                }
-            }
-        }
-
+        var candidateUrls = CollectCandidateCatalogUrls(definition);
         if (candidateUrls.Count == 0)
         {
             _definitionCatalogFetchError = "Definition contains no valid catalog URL.";
@@ -622,49 +677,13 @@ public partial class SubscriptionConfirmationViewModel(
         string? lastError = null;
         foreach (var candidateUrl in candidateUrls)
         {
-            var (targetSafe, ssrfReason) = await NetworkSecurityHelper.IsSafeUrlAsync(candidateUrl, cancellationToken);
-            if (!targetSafe)
+            var (catalog, error) = await TryFetchCandidateCatalogAsync(candidateUrl, cancellationToken);
+            if (catalog != null)
             {
-                if (!string.IsNullOrEmpty(ssrfReason))
-                {
-                    logger.LogWarning("Blocked unsafe catalog URL in definition payload: {Reason}", ssrfReason);
-                }
-
-                lastError = ssrfReason;
-                continue;
+                return (catalog, catalogUrl, candidateUrl, definition);
             }
 
-            try
-            {
-                logger.LogInformation("Resolved catalog URL {TargetUrl} from definition at {DefUrl}", candidateUrl, catalogUrl);
-                var catResponse = await CatalogDocumentReader.ReadAsync(httpClient, candidateUrl, CatalogConstants.MaxCatalogSizeBytes, cancellationToken);
-                var catParseResult = await catalogParser.ParseCatalogAsync(catResponse, cancellationToken);
-                if (catParseResult.Success && catParseResult.Data != null)
-                {
-                    return (catParseResult.Data, catalogUrl, candidateUrl, definition);
-                }
-
-                lastError = string.Join("; ", catParseResult.Errors);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (HttpRequestException httpEx)
-            {
-                logger.LogWarning(httpEx, "Transient error resolving catalog from candidate {Url}", candidateUrl);
-                lastError = httpEx.Message;
-            }
-            catch (OperationCanceledException timeoutEx)
-            {
-                logger.LogWarning(timeoutEx, "Timeout fetching candidate catalog from {Url}", candidateUrl);
-                lastError = timeoutEx.Message;
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to resolve catalog from candidate URL {TargetUrl} in definition", candidateUrl);
-                lastError = ex.Message;
-            }
+            lastError = error;
         }
 
         _definitionCatalogFetchError = lastError;

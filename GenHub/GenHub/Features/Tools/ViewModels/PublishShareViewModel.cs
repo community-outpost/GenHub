@@ -6116,47 +6116,12 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        var catFileName = asset.Name;
-        if (string.IsNullOrEmpty(catFileName))
-        {
-            catFileName = HostingConstants.DefaultCatalogFileName;
-        }
+        var catFileName = string.IsNullOrEmpty(asset.Name)
+            ? HostingConstants.DefaultCatalogFileName
+            : asset.Name;
 
-        var catId = "main";
-        if (catFileName.StartsWith("catalog-", StringComparison.OrdinalIgnoreCase) && catFileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && catFileName.Length > 13)
-        {
-            catId = catFileName[8..^5];
-        }
-        else if (catFileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && !string.Equals(catFileName, "catalog.json", StringComparison.OrdinalIgnoreCase))
-        {
-            catId = Path.GetFileNameWithoutExtension(catFileName);
-        }
-
-        var catName = char.ToUpperInvariant(catId[0]) + catId[1..];
-
-        var existingNamedCat = project.Catalogs.FirstOrDefault(c => string.Equals(c.Id, catId, StringComparison.OrdinalIgnoreCase) || string.Equals(c.FileName, catFileName, StringComparison.OrdinalIgnoreCase));
-        if (existingNamedCat != null)
-        {
-            existingNamedCat.Catalog = pubCat;
-            existingNamedCat.FileName = catFileName;
-            catName = existingNamedCat.Name;
-        }
-        else
-        {
-            project.Catalogs.Add(new NamedCatalog
-            {
-                Id = catId,
-                Name = catName,
-                FileName = catFileName,
-                Catalog = pubCat,
-            });
-        }
-
-        RemoveEmptyDefaultCatalogPlaceholder();
-        if (project.Catalog == null || project.Catalog.Content == null || project.Catalog.Content.Count == 0)
-        {
-            project.Catalog = pubCat;
-        }
+        var catId = DetermineCatalogIdFromFileName(catFileName);
+        var catName = AttachCatalogToProject(pubCat, catFileName, catId);
 
         // Update hosting state for this catalog
         _currentHostingState ??= GetOrCreateHostingState(SelectedHostingProvider?.ProviderId ?? HostingConstants.UnknownProviderId);
@@ -6188,6 +6153,52 @@ public partial class PublishShareViewModel(
             GetLocalizedString("Tools.PublisherStudio.Hosting.LoadedCatalogSuccessTitle", "Catalog Loaded"),
             FormatLocalizedString("Tools.PublisherStudio.Hosting.LoadedCatalogSuccessFormat", "Successfully loaded catalog '{0}' into project.", catName),
             autoDismissMs: 4000);
+    }
+
+    private static string DetermineCatalogIdFromFileName(string catFileName)
+    {
+        if (catFileName.StartsWith("catalog-", StringComparison.OrdinalIgnoreCase) && catFileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && catFileName.Length > 13)
+        {
+            return catFileName[8..^5];
+        }
+
+        if (catFileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && !string.Equals(catFileName, "catalog.json", StringComparison.OrdinalIgnoreCase))
+        {
+            return Path.GetFileNameWithoutExtension(catFileName);
+        }
+
+        return "main";
+    }
+
+    private string AttachCatalogToProject(PublisherCatalog pubCat, string catFileName, string catId)
+    {
+        var catName = char.ToUpperInvariant(catId[0]) + catId[1..];
+
+        var existingNamedCat = project.Catalogs.FirstOrDefault(c => string.Equals(c.Id, catId, StringComparison.OrdinalIgnoreCase) || string.Equals(c.FileName, catFileName, StringComparison.OrdinalIgnoreCase));
+        if (existingNamedCat != null)
+        {
+            existingNamedCat.Catalog = pubCat;
+            existingNamedCat.FileName = catFileName;
+            catName = existingNamedCat.Name;
+        }
+        else
+        {
+            project.Catalogs.Add(new NamedCatalog
+            {
+                Id = catId,
+                Name = catName,
+                FileName = catFileName,
+                Catalog = pubCat,
+            });
+        }
+
+        RemoveEmptyDefaultCatalogPlaceholder();
+        if (project.Catalog == null || project.Catalog.Content == null || project.Catalog.Content.Count == 0)
+        {
+            project.Catalog = pubCat;
+        }
+
+        return catName;
     }
 
     /// <summary>

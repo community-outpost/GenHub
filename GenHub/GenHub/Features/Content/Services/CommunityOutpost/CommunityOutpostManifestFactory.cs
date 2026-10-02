@@ -388,6 +388,52 @@ public class CommunityOutpostManifestFactory(
         return Path.GetFileName(fullPath);
     }
 
+    private static List<string> BuildVariantTags(
+        ContentManifest originalManifest,
+        GenPatcherContentMetadata contentMetadata,
+        ContentVariant? variant)
+    {
+        var variantTags = new List<string>();
+        if (originalManifest.Metadata?.Tags != null)
+        {
+            variantTags.AddRange(originalManifest.Metadata.Tags.Where(t =>
+                !t.StartsWith(ManifestTagConstants.SelectedVariantPrefix, StringComparison.OrdinalIgnoreCase) &&
+                !t.StartsWith(ManifestTagConstants.RequestedVariantPrefix, StringComparison.OrdinalIgnoreCase) &&
+                !t.StartsWith(ManifestTagConstants.VariantPrefix, StringComparison.OrdinalIgnoreCase) &&
+                !t.StartsWith(ManifestTagConstants.ContentCodePrefix, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        var normalizedCode = GenPatcherContentRegistry.NormalizeContentCode(contentMetadata.ContentCode);
+        if (!string.IsNullOrEmpty(normalizedCode))
+        {
+            variantTags.Add($"{ManifestTagConstants.ContentCodePrefix}{normalizedCode}");
+        }
+
+        if (variant != null)
+        {
+            AppendVariantSpecificTags(variantTags, variant);
+        }
+
+        return variantTags;
+    }
+
+    private static void AppendVariantSpecificTags(List<string> variantTags, ContentVariant variant)
+    {
+        variantTags.Add($"{ManifestTagConstants.VariantPrefix}{variant.Id}");
+        variantTags.Add($"{ManifestTagConstants.SelectedVariantPrefix}{variant.Id}");
+        if (!string.IsNullOrWhiteSpace(variant.Value))
+        {
+            variantTags.Add($"{ManifestTagConstants.VariantPrefix}{variant.Value}");
+            variantTags.Add($"{ManifestTagConstants.SelectedVariantPrefix}{variant.Value}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(variant.Name))
+        {
+            variantTags.Add($"{ManifestTagConstants.VariantPrefix}{variant.Name.ToLowerInvariant()}");
+            variantTags.Add($"{ManifestTagConstants.SelectedVariantPrefix}{variant.Name.ToLowerInvariant()}");
+        }
+    }
+
     private async Task<OperationResult<List<ContentManifest>>> CreateVariantManifestsAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
@@ -757,38 +803,7 @@ public class CommunityOutpostManifestFactory(
         string manifestName,
         List<ManifestFile> fileEntries)
     {
-        var variantTags = new List<string>();
-        if (originalManifest.Metadata?.Tags != null)
-        {
-            variantTags.AddRange(originalManifest.Metadata.Tags.Where(t =>
-                !t.StartsWith(ManifestTagConstants.SelectedVariantPrefix, StringComparison.OrdinalIgnoreCase) &&
-                !t.StartsWith(ManifestTagConstants.RequestedVariantPrefix, StringComparison.OrdinalIgnoreCase) &&
-                !t.StartsWith(ManifestTagConstants.VariantPrefix, StringComparison.OrdinalIgnoreCase) &&
-                !t.StartsWith(ManifestTagConstants.ContentCodePrefix, StringComparison.OrdinalIgnoreCase)));
-        }
-
-        var normalizedCode = GenPatcherContentRegistry.NormalizeContentCode(contentMetadata.ContentCode);
-        if (!string.IsNullOrEmpty(normalizedCode))
-        {
-            variantTags.Add($"{ManifestTagConstants.ContentCodePrefix}{normalizedCode}");
-        }
-
-        if (variant != null)
-        {
-            variantTags.Add($"{ManifestTagConstants.VariantPrefix}{variant.Id}");
-            variantTags.Add($"{ManifestTagConstants.SelectedVariantPrefix}{variant.Id}");
-            if (!string.IsNullOrWhiteSpace(variant.Value))
-            {
-                variantTags.Add($"{ManifestTagConstants.VariantPrefix}{variant.Value}");
-                variantTags.Add($"{ManifestTagConstants.SelectedVariantPrefix}{variant.Value}");
-            }
-
-            if (!string.IsNullOrWhiteSpace(variant.Name))
-            {
-                variantTags.Add($"{ManifestTagConstants.VariantPrefix}{variant.Name.ToLowerInvariant()}");
-                variantTags.Add($"{ManifestTagConstants.SelectedVariantPrefix}{variant.Name.ToLowerInvariant()}");
-            }
-        }
+        var variantTags = BuildVariantTags(originalManifest, contentMetadata, variant);
 
         var manifest = new ContentManifest
         {
@@ -797,7 +812,7 @@ public class CommunityOutpostManifestFactory(
             Version = originalManifest.Version,
             ManifestVersion = originalManifest.ManifestVersion,
             ContentType = originalManifest.ContentType,
-            TargetGame = (variant != null && variant.TargetGame.HasValue) ? variant.TargetGame.Value : originalManifest.TargetGame,
+            TargetGame = variant?.TargetGame ?? originalManifest.TargetGame,
             Files = fileEntries,
             EntryPoint = originalManifest.EntryPoint ?? contentMetadata.EntryPoint,
             Dependencies = [.. contentMetadata.GetDependencies().Where(d => d.InstallBehavior != DependencyInstallBehavior.AutoInstall)],

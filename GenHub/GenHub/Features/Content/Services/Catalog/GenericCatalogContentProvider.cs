@@ -1,3 +1,9 @@
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
@@ -7,12 +13,6 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.ContentProviders;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.Catalog;
 
@@ -130,79 +130,12 @@ public class GenericCatalogContentProvider(
 
         if (specializedDeliverer != null)
         {
-            var isGeneralsOnline = string.Equals(
-                specializedDeliverer.SourceName,
-                GeneralsOnlineConstants.DelivererSourceName,
-                StringComparison.OrdinalIgnoreCase);
-
-            if (isGeneralsOnline && !OperatingSystem.IsWindows())
-            {
-                return OperationResult<ContentManifest>.CreateFailure(
-                    "GeneralsOnline is currently supported only on Windows. Easy Anti-Cheat was not designed for Wine/Proton environments.");
-            }
-
-            HashSet<ManifestId>? preExistingIds = null;
-            var opKey = GetOperationKey(manifest.Id.Value, workingDirectory);
-
-            if (isGeneralsOnline && manifestPool != null)
-            {
-                var existingPool = await manifestPool.GetAllManifestsAsync(cancellationToken);
-                if (!existingPool.Success || existingPool.Data == null)
-                {
-                    Logger.LogError(
-                        "Failed to capture manifest pool baseline prior to Generals Online delivery for {ManifestId}: {Error}",
-                        manifest.Id,
-                        existingPool.FirstError);
-                    return OperationResult<ContentManifest>.CreateFailure(
-                        $"Failed to initialize manifest pool state: {existingPool.FirstError ?? "Unable to retrieve manifest pool"}");
-                }
-
-                preExistingIds = new HashSet<ManifestId>(existingPool.Data.Select(m => m.Id));
-                _preExistingManifestIdsByOperation[opKey] = preExistingIds;
-            }
-
-            Logger.LogInformation(
-                "Routing generic catalog content {ManifestId} to specialized deliverer: {DelivererSource}",
-                manifest.Id,
-                specializedDeliverer.SourceName);
-
-            var deliveryResult = await DeliverContentOnlyAsync(
+            return await ExecuteSpecializedDelivererAsync(
                 specializedDeliverer,
                 manifest,
                 workingDirectory,
                 progress,
                 cancellationToken);
-
-            if (deliveryResult.Success && isGeneralsOnline && manifestPool != null && preExistingIds != null)
-            {
-                var postPool = await GetManifestPoolSafeAsync(manifestPool, cancellationToken);
-
-                if (postPool.Success && postPool.Data != null)
-                {
-                    var addedIds = postPool.Data
-                        .Where(m => preExistingIds != null &&
-                                    !preExistingIds.Contains(m.Id) &&
-                                    string.Equals(m.Publisher?.PublisherType, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
-                        .Select(m => m.Id)
-                        .ToList();
-
-                    _registeredManifestIdsByOperation[opKey] = addedIds;
-                    _preExistingManifestIdsByOperation.TryRemove(opKey, out _);
-                }
-                else
-                {
-                    Logger.LogError(
-                        "Failed to verify manifest pool registrations after delivering Generals Online content: {Error}",
-                        postPool.FirstError);
-
-                    await RollbackPreparedContentAsync(manifest, deliveryResult.Data ?? manifest, workingDirectory, CancellationToken.None);
-
-                    return OperationResult<ContentManifest>.CreateFailure(
-                        $"Failed to verify manifest pool registrations after delivery: {postPool.FirstError ?? "Unable to retrieve manifests"}");
-                }
-            }
-
-            return deliveryResult;
         }
 
         return await DeliverAndEnrichContentAsync(
@@ -227,32 +160,7 @@ public class GenericCatalogContentProvider(
         }
 
         var opKey = GetOperationKey(originalManifest.Id.Value, workingDirectory);
-        List<ManifestId>? manifestIdsToRemove = null;
-
-        if (_registeredManifestIdsByOperation.TryRemove(opKey, out var registeredIds) && registeredIds != null && registeredIds.Count > 0)
-        {
-            manifestIdsToRemove = registeredIds;
-        }
-        else if (_preExistingManifestIdsByOperation.TryRemove(opKey, out var preExistingIds) && preExistingIds != null)
-        {
-            try
-            {
-                var currentPool = await manifestPool.GetAllManifestsAsync(CancellationToken.None);
-                if (currentPool.Success && currentPool.Data != null)
-                {
-                    manifestIdsToRemove = currentPool.Data
-                        .Where(m => !preExistingIds.Contains(m.Id) &&
-                                    string.Equals(m.Publisher?.PublisherType, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase) &&
-                                    string.Equals(m.Version, preparedManifest.Version, StringComparison.OrdinalIgnoreCase))
-                        .Select(m => m.Id)
-                        .ToList();
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "Failed to recover manifest registrations during rollback for {ManifestId}", originalManifest.Id);
-            }
-        }
+        var manifestIdsToRemove = await ResolveManifestIdsToRemoveAsync(opKey, originalManifest.Id, preparedManifest.Version);
 
         if (manifestIdsToRemove == null || manifestIdsToRemove.Count == 0)
         {
@@ -260,26 +168,7 @@ public class GenericCatalogContentProvider(
         }
 
         Logger.LogWarning("Rolling back generic catalog Generals Online manifest registration for version {Version}", preparedManifest.Version);
-
-        foreach (var manifestId in manifestIdsToRemove)
-        {
-            try
-            {
-                var removeResult = await manifestPool.RemoveManifestAsync(manifestId, false, cancellationToken);
-                if (!removeResult.Success)
-                {
-                    Logger.LogWarning("Failed to remove manifest {ManifestId} during rollback: {Error}", manifestId, removeResult.FirstError);
-                }
-                else
-                {
-                    Logger.LogInformation("Unregistered manifest {ManifestId} during rollback", manifestId);
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "Error occurred during generic catalog manifest registration rollback for {ManifestId}", manifestId);
-            }
-        }
+        await RemoveManifestsAsync(manifestIdsToRemove, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -299,16 +188,197 @@ public class GenericCatalogContentProvider(
         $"{manifestId}::{workingDirectory}";
 
     private static async Task<OperationResult<IEnumerable<ContentManifest>>> GetManifestPoolSafeAsync(
-        IContentManifestPool manifestPool,
+        IContentManifestPool pool,
         CancellationToken cancellationToken)
     {
         try
         {
-            return await manifestPool.GetAllManifestsAsync(cancellationToken);
+            return await pool.GetAllManifestsAsync(cancellationToken);
         }
         catch (OperationCanceledException)
         {
-            return await manifestPool.GetAllManifestsAsync(CancellationToken.None);
+            return await pool.GetAllManifestsAsync(CancellationToken.None);
+        }
+    }
+
+    private async Task<OperationResult<ContentManifest>> ExecuteSpecializedDelivererAsync(
+        IContentDeliverer specializedDeliverer,
+        ContentManifest manifest,
+        string workingDirectory,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var isGeneralsOnline = string.Equals(
+            specializedDeliverer.SourceName,
+            GeneralsOnlineConstants.DelivererSourceName,
+            StringComparison.OrdinalIgnoreCase);
+
+        if (isGeneralsOnline && !OperatingSystem.IsWindows())
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                "GeneralsOnline is currently supported only on Windows. Easy Anti-Cheat was not designed for Wine/Proton environments.");
+        }
+
+        HashSet<ManifestId>? preExistingIds = null;
+        var opKey = GetOperationKey(manifest.Id.Value, workingDirectory);
+
+        if (isGeneralsOnline && manifestPool != null)
+        {
+            var baselineResult = await CaptureManifestPoolBaselineAsync(manifest.Id, cancellationToken);
+            if (!baselineResult.Success || baselineResult.Data == null)
+            {
+                return OperationResult<ContentManifest>.CreateFailure(
+                    $"Failed to initialize manifest pool state: {baselineResult.FirstError ?? "Unable to retrieve manifest pool"}");
+            }
+
+            preExistingIds = baselineResult.Data;
+            _preExistingManifestIdsByOperation[opKey] = preExistingIds;
+        }
+
+        Logger.LogInformation(
+            "Routing generic catalog content {ManifestId} to specialized deliverer: {DelivererSource}",
+            manifest.Id,
+            specializedDeliverer.SourceName);
+
+        var deliveryResult = await DeliverContentOnlyAsync(
+            specializedDeliverer,
+            manifest,
+            workingDirectory,
+            progress,
+            cancellationToken);
+
+        if (deliveryResult.Success && isGeneralsOnline && manifestPool != null && preExistingIds != null)
+        {
+            return await FinalizeGeneralsOnlineDeliveryAsync(
+                manifest,
+                deliveryResult,
+                workingDirectory,
+                opKey,
+                preExistingIds,
+                cancellationToken);
+        }
+
+        return deliveryResult;
+    }
+
+    private async Task<OperationResult<HashSet<ManifestId>>> CaptureManifestPoolBaselineAsync(
+        ManifestId manifestId,
+        CancellationToken cancellationToken)
+    {
+        var existingPool = await manifestPool!.GetAllManifestsAsync(cancellationToken);
+        if (!existingPool.Success || existingPool.Data == null)
+        {
+            Logger.LogError(
+                "Failed to capture manifest pool baseline prior to Generals Online delivery for {ManifestId}: {Error}",
+                manifestId,
+                existingPool.FirstError);
+            return OperationResult<HashSet<ManifestId>>.CreateFailure(
+                existingPool.FirstError ?? "Unable to retrieve manifest pool");
+        }
+
+        return OperationResult<HashSet<ManifestId>>.CreateSuccess(
+            new HashSet<ManifestId>(existingPool.Data.Select(m => m.Id)));
+    }
+
+    private async Task<OperationResult<ContentManifest>> FinalizeGeneralsOnlineDeliveryAsync(
+        ContentManifest manifest,
+        OperationResult<ContentManifest> deliveryResult,
+        string workingDirectory,
+        string opKey,
+        HashSet<ManifestId> preExistingIds,
+        CancellationToken cancellationToken)
+    {
+        var postPool = await GetManifestPoolSafeAsync(manifestPool!, cancellationToken);
+
+        if (postPool.Success && postPool.Data != null)
+        {
+            var addedIds = postPool.Data
+                .Where(m => !preExistingIds.Contains(m.Id) &&
+                            string.Equals(m.Publisher?.PublisherType, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+                .Select(m => m.Id)
+                .ToList();
+
+            _registeredManifestIdsByOperation[opKey] = addedIds;
+            _preExistingManifestIdsByOperation.TryRemove(opKey, out _);
+            return deliveryResult;
+        }
+
+        Logger.LogError(
+            "Failed to verify manifest pool registrations after delivering Generals Online content: {Error}",
+            postPool.FirstError);
+
+        await RollbackPreparedContentAsync(manifest, deliveryResult.Data ?? manifest, workingDirectory, CancellationToken.None);
+
+        return OperationResult<ContentManifest>.CreateFailure(
+            $"Failed to verify manifest pool registrations after delivery: {postPool.FirstError ?? "Unable to retrieve manifests"}");
+    }
+
+    private async Task<List<ManifestId>?> ResolveManifestIdsToRemoveAsync(
+        string opKey,
+        ManifestId originalManifestId,
+        string preparedVersion)
+    {
+        if (_registeredManifestIdsByOperation.TryRemove(opKey, out var registeredIds) && registeredIds is { Count: > 0 })
+        {
+            return registeredIds;
+        }
+
+        if (_preExistingManifestIdsByOperation.TryRemove(opKey, out var preExistingIds) && preExistingIds != null)
+        {
+            return await RecoverManifestIdsFromPoolAsync(originalManifestId, preparedVersion, preExistingIds);
+        }
+
+        return null;
+    }
+
+    private async Task<List<ManifestId>?> RecoverManifestIdsFromPoolAsync(
+        ManifestId originalManifestId,
+        string preparedVersion,
+        HashSet<ManifestId> preExistingIds)
+    {
+        try
+        {
+            var currentPool = await manifestPool!.GetAllManifestsAsync(CancellationToken.None);
+            if (currentPool.Success && currentPool.Data != null)
+            {
+                return currentPool.Data
+                    .Where(m => !preExistingIds.Contains(m.Id) &&
+                                string.Equals(m.Publisher?.PublisherType, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase) &&
+                                string.Equals(m.Version, preparedVersion, StringComparison.OrdinalIgnoreCase))
+                    .Select(m => m.Id)
+                    .ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to recover manifest registrations during rollback for {ManifestId}", originalManifestId);
+        }
+
+        return null;
+    }
+
+    private async Task RemoveManifestsAsync(
+        IEnumerable<ManifestId> manifestIdsToRemove,
+        CancellationToken cancellationToken)
+    {
+        foreach (var manifestId in manifestIdsToRemove)
+        {
+            try
+            {
+                var removeResult = await manifestPool!.RemoveManifestAsync(manifestId, false, cancellationToken);
+                if (!removeResult.Success)
+                {
+                    Logger.LogWarning("Failed to remove manifest {ManifestId} during rollback: {Error}", manifestId, removeResult.FirstError);
+                }
+                else
+                {
+                    Logger.LogInformation("Unregistered manifest {ManifestId} during rollback", manifestId);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error occurred during generic catalog manifest registration rollback for {ManifestId}", manifestId);
+            }
         }
     }
 }
