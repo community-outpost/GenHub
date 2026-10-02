@@ -31,37 +31,18 @@ public class IsSubscribedConverter : IMultiValueConverter
         var subscribedBranch = values.Count > 2 ? values[2] as string : null;
         var subscribedCustomBuild = values.Count > 3 ? values[3] as string : null;
 
-        bool hasCustomBuild = !string.IsNullOrEmpty(subscribedCustomBuild);
-        bool hasPr = subscribedPr != null;
-        bool hasBranch = !string.IsNullOrEmpty(subscribedBranch);
-
         if (item is PullRequestInfo pr)
         {
-            if (hasCustomBuild || hasBranch)
-            {
-                return false;
-            }
-
             return subscribedPr?.Number == pr.Number;
         }
 
         if (item is string branchName)
         {
-            if (hasCustomBuild || hasPr)
-            {
-                return false;
-            }
-
-            return string.Equals(subscribedBranch, branchName, StringComparison.OrdinalIgnoreCase);
+            return string.Equals(subscribedBranch, branchName, StringComparison.Ordinal);
         }
 
         if (item is CustomBuildSubscriptionItem customBuild)
         {
-            if (hasPr || hasBranch)
-            {
-                return false;
-            }
-
             return string.Equals(subscribedCustomBuild, customBuild.ContentId, StringComparison.OrdinalIgnoreCase);
         }
 

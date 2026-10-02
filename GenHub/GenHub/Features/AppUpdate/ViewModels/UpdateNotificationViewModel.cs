@@ -743,6 +743,8 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         else
         {
             IsUpdateAvailable = false;
+            LatestVersion = string.Empty;
+            SelectedVersion = null;
             StatusMessage = string.Format(
                 CultureInfo.InvariantCulture,
                 GetLocalizedString("Updates.Status.CustomBuildUpToDate", "{0} is up to date (v{1})"),
@@ -814,7 +816,10 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             return null;
         }
 
-        var client = _httpClientFactory?.CreateClient(CatalogConstants.CatalogHttpClientName) ?? new HttpClient();
+        using var client = _httpClientFactory?.CreateClient(CatalogConstants.CatalogHttpClientName) ?? new HttpClient(new HttpClientHandler
+        {
+            AllowAutoRedirect = false,
+        });
         return await CatalogDocumentReader.FetchAndParseCatalogAsync(client, _publisherCatalogParser, subscription.CatalogUrl, _logger, cancellationToken).ConfigureAwait(false);
     }
 
@@ -827,7 +832,8 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     {
         ArgumentNullException.ThrowIfNull(item);
 
-        if (string.Equals(SubscribedCustomBuildContentId, item.ContentId, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(SubscribedCustomBuildContentId, item.ContentId, StringComparison.Ordinal) &&
+            string.Equals(SubscribedCustomBuildPublisherId, item.PublisherId, StringComparison.Ordinal))
         {
             Unsubscribe();
             return;
@@ -1542,15 +1548,12 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                     string.Equals(a.Version, LatestVersion, StringComparison.OrdinalIgnoreCase)) ?? AvailableVersions[0];
                 _logger.LogInformation("Installing custom build update: {Version}", targetArtifact.DisplayVersion);
                 await InstallArtifactAsync(targetArtifact);
-                SubscribedCustomBuildVersion = targetArtifact.Version;
-                _userSettingsService.Update(s => s.SubscribedCustomBuildVersion = targetArtifact.Version);
-                _ = _userSettingsService.SaveAsync(CancellationToken.None);
                 return;
             }
 
             _logger.LogError("Cannot install custom build - no versions available");
             HasError = true;
-            ErrorMessage = "No versions available for the subscribed custom build";
+            ErrorMessage = GetLocalizedString("Updates.Error.NoVersionsAvailable", "No versions available for the subscribed custom build");
             StatusMessage = AppUpdateConstants.UpdateFailedMessage;
             return;
         }
@@ -2055,7 +2058,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     {
         if (string.IsNullOrEmpty(branchName)) return;
 
-        if (string.Equals(SubscribedBranch, branchName, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(SubscribedBranch, branchName, StringComparison.Ordinal))
         {
             Unsubscribe();
             return;
