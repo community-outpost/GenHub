@@ -285,15 +285,6 @@ public sealed class ProfileContentService(
         {
             logger.LogInformation("Creating new profile '{ProfileName}' with content {ManifestId}", profileName, manifestId);
 
-            var primaryManifestCheck = await manifestPool.GetManifestAsync(
-                Core.Models.Manifest.ManifestId.Create(manifestId),
-                cancellationToken);
-            if (primaryManifestCheck.Success && primaryManifestCheck.Data?.ContentType == ContentType.GenHubBuild)
-            {
-                logger.LogWarning("Attempted to create game profile with GenHub build {ManifestId}", manifestId);
-                return ProfileOperationResult<GameProfile>.CreateFailure("GenHub application builds cannot be used to create game profiles.");
-            }
-
             var candidateConflictError = await ValidateCandidateSetPairwiseConflictsAsync(requestedIds, cancellationToken);
             if (candidateConflictError != null)
             {
@@ -312,6 +303,11 @@ public sealed class ProfileContentService(
             }
 
             var manifest = manifestResult.Data;
+            if (manifest.ContentType == ContentType.GenHubBuild)
+            {
+                logger.LogWarning("Attempted to create game profile with GenHub build {ManifestId}", manifestId);
+                return ProfileOperationResult<GameProfile>.CreateFailure("GenHub application builds cannot be used to create game profiles.");
+            }
 
             if (manifest.ContentType.IsStandalone())
             {
@@ -336,70 +332,12 @@ public sealed class ProfileContentService(
                 return standaloneResult;
             }
 
-            var resolution = await ResolveProfileContentAsync(requestedIds, requestedIds, cancellationToken);
-            if (resolution.Failed || resolution.Data == null)
-            {
-                return ProfileOperationResult<GameProfile>.CreateFailure(
-                    resolution.FirstError ?? "Unable to resolve the required content dependencies.");
-            }
-
-            List<string> enabledContentIds = resolution.Data.EnabledContentIds;
-
-            // Find a suitable game installation
-            var installationsResult = await resolutionServices.InstallationService.GetAllInstallationsAsync(cancellationToken);
-            if (installationsResult.Failed || installationsResult.Data == null || installationsResult.Data.Count == 0)
-            {
-                return ProfileOperationResult<GameProfile>.CreateFailure("No game installations found. Please configure a game installation first.");
-            }
-
-            var requiredGameClient = resolution.Data.RequiredGameClient;
-            var requiredGameType = resolution.Data.RequiredGameType ?? manifest.TargetGame;
-
-            // Find an installation that satisfies the reconciled content graph, not merely the
-            // type of the item the user selected.
-            var installation = installationsResult.Data.FirstOrDefault(i =>
-                i.AvailableGameClients.Any(c => c.GameType == requiredGameType));
-
-            if (installation == null)
-            {
-                return ProfileOperationResult<GameProfile>.CreateFailure(
-                    $"No {requiredGameType} installation is available for the required game client.");
-            }
-
-            var gameClient = installation.AvailableGameClients
-                .FirstOrDefault(c => c.GameType == requiredGameType);
-
-            if (gameClient == null)
-            {
-                return ProfileOperationResult<GameProfile>.CreateFailure($"No suitable game client found for installation '{installation.InstallationType}'.");
-            }
-
-            var profileGameClient = requiredGameClient != null
-                ? CreatePublisherGameClient(requiredGameClient, gameClient, installation.Id)
-                : null;
-
-            var createRequest = manifest.ContentType.IsStandalone()
-                ? BuildStandaloneCreateProfileRequest(profileName, manifest, manifestId, enabledContentIds)
-                : BuildStandardCreateProfileRequest(profileName, manifest, installation, gameClient, requiredGameClient, profileGameClient, enabledContentIds);
-
-            var createResult = await profileManager.CreateProfileAsync(createRequest, cancellationToken);
-            if (createResult.Failed)
-            {
-                var error = createResult.FirstError ?? "Failed to create profile";
-                logger.LogError("Failed to create profile '{ProfileName}': {Error}", profileName, error);
-                return createResult;
-            }
-
-            notificationService.ShowSuccess(
-                localizationService.GetLocalizedString("GameProfiles.Notification.ProfileCreated.Title", "Profile Created"),
-                localizationService.GetLocalizedString("GameProfiles.Notification.ProfileCreated.Message", $"Created profile '{profileName}' with {manifest.Name}", profileName, manifest.Name));
-
-            logger.LogInformation(
-                "Successfully created profile {ProfileId} with content {ManifestId}",
-                createResult.Data!.Id,
-                manifestId);
-
-            return createResult;
+            return await CreateStandardProfileWithContentAsync(
+                profileName,
+                manifestId,
+                manifest,
+                requestedIds,
+                cancellationToken);
         }
         catch (ManifestNotFoundException ex)
         {
@@ -970,6 +908,77 @@ public sealed class ProfileContentService(
                 logger.LogWarning(ex, "Failed to resolve dependency names for notification on {ManifestId}", primaryManifestId);
             }
         }
+    }
+
+    private async Task<ProfileOperationResult<GameProfile>> CreateStandardProfileWithContentAsync(
+        string profileName,
+        string manifestId,
+        ContentManifest manifest,
+        IReadOnlyList<string> requestedIds,
+        CancellationToken cancellationToken)
+    {
+        var resolution = await ResolveProfileContentAsync(requestedIds, requestedIds, cancellationToken);
+        if (resolution.Failed || resolution.Data == null)
+        {
+            return ProfileOperationResult<GameProfile>.CreateFailure(
+                resolution.FirstError ?? "Unable to resolve the required content dependencies.");
+        }
+
+        List<string> enabledContentIds = resolution.Data.EnabledContentIds;
+
+        // Find a suitable game installation
+        var installationsResult = await resolutionServices.InstallationService.GetAllInstallationsAsync(cancellationToken);
+        if (installationsResult.Failed || installationsResult.Data == null || installationsResult.Data.Count == 0)
+        {
+            return ProfileOperationResult<GameProfile>.CreateFailure("No game installations found. Please configure a game installation first.");
+        }
+
+        var requiredGameClient = resolution.Data.RequiredGameClient;
+        var requiredGameType = resolution.Data.RequiredGameType ?? manifest.TargetGame;
+
+        // Find an installation that satisfies the reconciled content graph, not merely the
+        // type of the item the user selected.
+        var installation = installationsResult.Data.FirstOrDefault(i =>
+            i.AvailableGameClients.Any(c => c.GameType == requiredGameType));
+
+        if (installation == null)
+        {
+            return ProfileOperationResult<GameProfile>.CreateFailure(
+                $"No {requiredGameType} installation is available for the required game client.");
+        }
+
+        var gameClient = installation.AvailableGameClients
+            .FirstOrDefault(c => c.GameType == requiredGameType);
+
+        if (gameClient == null)
+        {
+            return ProfileOperationResult<GameProfile>.CreateFailure($"No suitable game client found for installation '{installation.InstallationType}'.");
+        }
+
+        var profileGameClient = requiredGameClient != null
+            ? CreatePublisherGameClient(requiredGameClient, gameClient, installation.Id)
+            : null;
+
+        var createRequest = BuildStandardCreateProfileRequest(profileName, manifest, installation, gameClient, requiredGameClient, profileGameClient, enabledContentIds);
+
+        var createResult = await profileManager.CreateProfileAsync(createRequest, cancellationToken);
+        if (createResult.Failed)
+        {
+            var error = createResult.FirstError ?? "Failed to create profile";
+            logger.LogError("Failed to create profile '{ProfileName}': {Error}", profileName, error);
+            return createResult;
+        }
+
+        notificationService.ShowSuccess(
+            localizationService.GetLocalizedString("GameProfiles.Notification.ProfileCreated.Title", "Profile Created"),
+            localizationService.GetLocalizedString("GameProfiles.Notification.ProfileCreated.Message", $"Created profile '{profileName}' with {manifest.Name}", profileName, manifest.Name));
+
+        logger.LogInformation(
+            "Successfully created profile {ProfileId} with content {ManifestId}",
+            createResult.Data!.Id,
+            manifestId);
+
+        return createResult;
     }
 
     private CreateProfileRequest BuildStandaloneCreateProfileRequest(

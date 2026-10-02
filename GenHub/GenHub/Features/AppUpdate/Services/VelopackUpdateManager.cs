@@ -1570,7 +1570,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             _logger.LogInformation("Installer process started with PID {ProcessId}", proc.Id);
         }
 
-        Environment.Exit(0);
+        Environment.Exit(0); // skipcq: CS-W1005
     }
 
     private void CleanSampleProjectArtifacts(string sampleProjectsDir)
