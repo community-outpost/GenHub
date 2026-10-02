@@ -326,23 +326,23 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
 
         if (string.IsNullOrWhiteSpace(manifest.Id))
         {
-            issues.Add(new ValidationIssue("Manifest Id is missing.", ValidationSeverity.Error));
+            issues.Add(new ValidationIssue("Manifest Id is missing.", ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
         }
 
         // Enforce deterministic ID scheme using centralized validator
         if (!string.IsNullOrWhiteSpace(manifest.Id) && !ManifestIdValidator.IsValid(manifest.Id, out var idReason))
         {
-            issues.Add(new ValidationIssue(idReason, ValidationSeverity.Error));
+            issues.Add(new ValidationIssue(idReason, ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
         }
 
         if (string.IsNullOrWhiteSpace(manifest.Name))
         {
-            issues.Add(new ValidationIssue("Manifest Name is missing.", ValidationSeverity.Error));
+            issues.Add(new ValidationIssue("Manifest Name is missing.", ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
         }
 
         if (string.IsNullOrWhiteSpace(manifest.Version))
         {
-            issues.Add(new ValidationIssue("Manifest Version is missing.", ValidationSeverity.Warning));
+            issues.Add(new ValidationIssue("Manifest Version is missing.", ValidationSeverity.Warning) { IssueType = ValidationIssueType.InvalidManifest });
         }
 
         AddFileStructureIssues(ManifestVariantResolver.GetDeclaredFileLists(manifest)[0], string.Empty, issues);
@@ -353,7 +353,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
                 var variant = manifest.Variants[variantIndex];
                 if (variant == null)
                 {
-                    issues.Add(new ValidationIssue($"Variant at index {variantIndex} is null.", ValidationSeverity.Error));
+                    issues.Add(new ValidationIssue($"Variant at index {variantIndex} is null.", ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
                     continue;
                 }
 
@@ -363,7 +363,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
 
         if (!ManifestVariantResolver.EnumerateAllFiles(manifest).Any())
         {
-            issues.Add(new ValidationIssue("Manifest contains no files.", ValidationSeverity.Warning));
+            issues.Add(new ValidationIssue("Manifest contains no files.", ValidationSeverity.Warning) { IssueType = ValidationIssueType.InvalidManifest });
         }
 
         return issues;
@@ -373,7 +373,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
     {
         if (files is null)
         {
-            issues.Add(new ValidationIssue($"Manifest Files collection{location} is null.", ValidationSeverity.Error));
+            issues.Add(new ValidationIssue($"Manifest Files collection{location} is null.", ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
             return;
         }
 
@@ -382,11 +382,11 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
             var file = files[fileIndex];
             if (file == null)
             {
-                issues.Add(new ValidationIssue($"File at index {fileIndex}{location} is null.", ValidationSeverity.Error));
+                issues.Add(new ValidationIssue($"File at index {fileIndex}{location} is null.", ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
             }
             else if (string.IsNullOrWhiteSpace(file.RelativePath))
             {
-                issues.Add(new ValidationIssue($"File at index {fileIndex}{location} is missing its RelativePath.", ValidationSeverity.Error));
+                issues.Add(new ValidationIssue($"File at index {fileIndex}{location} is missing its RelativePath.", ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
             }
         }
     }

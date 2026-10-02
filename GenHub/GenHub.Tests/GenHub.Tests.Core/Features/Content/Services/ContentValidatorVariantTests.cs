@@ -98,6 +98,8 @@ public sealed class ContentValidatorVariantTests : IDisposable
 
         var issue = Assert.Single(result.Issues, issue => issue.Message.Contains("RelativePath", StringComparison.Ordinal));
         Assert.Equal("File at index 1 in variant 0 is missing its RelativePath.", issue.Message);
+        Assert.Equal(ValidationIssueType.InvalidManifest, issue.IssueType);
+        Assert.Equal(0, result.MissingFilesCount);
     }
 
     /// <summary>Explicit null file collections must remain structural errors.</summary>
@@ -117,7 +119,9 @@ public sealed class ContentValidatorVariantTests : IDisposable
         manifest.Files = null!;
         var result = await _validator.ValidateManifestAsync(manifest);
         Assert.Contains(result.Issues, issue => issue.Message == "Manifest Files collection is null."
-            && issue.Severity == ValidationSeverity.Error);
+            && issue.Severity == ValidationSeverity.Error
+            && issue.IssueType == ValidationIssueType.InvalidManifest);
+        Assert.Equal(0, result.MissingFilesCount);
     }
 
     /// <summary>Malformed paths produce validation issues rather than aborting validation.</summary>
@@ -241,7 +245,8 @@ public sealed class ContentValidatorVariantTests : IDisposable
 
         Assert.Equal(1, integrity.TotalFilesValidated);
         Assert.Contains(result.Issues, issue => issue.Message == "File at index 0 in variant 1 is null."
-            && issue.Severity == ValidationSeverity.Error);
+            && issue.Severity == ValidationSeverity.Error
+            && issue.IssueType == ValidationIssueType.InvalidManifest);
     }
 
     /// <summary>Root entries are validated even when runtime variants supply the payload.</summary>
