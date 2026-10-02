@@ -1040,10 +1040,11 @@ public class SettingsViewModelTests
         var viewModel = CreateViewModel();
 
         // Act
-        await Assert.ThrowsAsync<OperationCanceledException>(() => viewModel.DeleteManifestsCommand.ExecuteAsync(null));
+        var executionTask = viewModel.DeleteManifestsCommand.ExecuteAsync(null);
+        await Assert.ThrowsAsync<OperationCanceledException>(() => executionTask);
 
-        // Assert
-        Assert.True(viewModel.DeleteManifestsCommand.ExecutionTask?.IsCanceled == true);
+        // Assert the invocation we awaited; background initialization also accesses the lazy command property.
+        Assert.True(executionTask.IsCanceled);
         _mockManifestPool.Verify(
             x => x.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
             Times.Exactly(2));
