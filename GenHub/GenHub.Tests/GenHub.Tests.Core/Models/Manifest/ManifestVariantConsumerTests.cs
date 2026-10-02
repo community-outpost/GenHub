@@ -78,6 +78,41 @@ public class ManifestVariantConsumerTests
         Assert.Equal(new GameProcessIdentity(HostHash, workspace), Assert.Single(result.Data!));
     }
 
+    /// <summary>A copied alias retains the custom entry's CAS validation, but unrelated files do not.</summary>
+    /// <param name="entryName">The custom entry point.</param>
+    /// <param name="matching">Whether the alias really contains the same binary.</param>
+    [Theory]
+    [InlineData("game.dat", true)]
+    [InlineData("generals.ctr", true)]
+    [InlineData("game.dat", false)]
+    public void DetermineMonitoringTarget_CustomAliasPreservesManifestAssociation(string entryName, bool matching)
+    {
+        var workspace = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(workspace);
+        try
+        {
+            File.WriteAllText(Path.Combine(workspace, entryName), "entry payload");
+            File.WriteAllText(Path.Combine(workspace, "generals.exe"), matching ? "entry payload" : "unrelated");
+            var manifest = new ContentManifest
+            {
+                ContentType = ContentType.GameClient,
+                EntryPoint = entryName,
+                Files = [new() { RelativePath = entryName, IsExecutable = true, SourceType = ContentSourceType.ContentAddressable }],
+            };
+            var result = GameLauncher.DetermineMonitoringTarget(
+                [manifest], Path.Combine(workspace, "generals.exe"), workspace, WorkspaceStrategy.SymlinkOnly, null, NullLogger.Instance, null);
+            Assert.Equal(!matching, result.Success);
+            if (matching)
+            {
+                Assert.Contains("hash", result.FirstError, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+        finally
+        {
+            Directory.Delete(workspace, true);
+        }
+    }
+
     /// <summary>A later tool cannot replace the actual executable's monitoring identity.</summary>
     [Fact]
     public void DetermineMonitoringTarget_DoesNotSelectUnrelatedTool()

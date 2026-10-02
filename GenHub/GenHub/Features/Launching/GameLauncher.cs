@@ -369,7 +369,53 @@ public class GameLauncher(
             }
         }
 
+        // Workspace preparation copies custom Windows entry points to a root generals.exe alias.
+        // Require matching bytes so an unrelated existing executable cannot borrow its identity.
+        if (string.Equals(Path.GetRelativePath(workspacePath, finalExecutablePath), GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase))
+        {
+            foreach (var manifest in launchable)
+            {
+                var entry = ManifestVariantResolver.ResolveEntryPoint(manifest);
+                if (!entry.Success || entry.RelativePath!.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var file = ManifestVariantResolver.ResolveFiles(manifest).FirstOrDefault(f =>
+                    ManifestVariantResolver.PathsMatch(f.RelativePath, entry.RelativePath));
+                if (file is not null && IsMatchingWorkspaceAlias(workspacePath, finalExecutablePath, file.RelativePath))
+                {
+                    return (manifest, file);
+                }
+            }
+        }
+
         return (null, null);
+    }
+
+    private static bool IsMatchingWorkspaceAlias(string workspacePath, string aliasPath, string relativePath)
+    {
+        var originalPath = Path.GetFullPath(Path.Combine(workspacePath, relativePath.Replace('\\', Path.DirectorySeparatorChar)));
+        if (!PathHelper.IsPathWithinDirectory(workspacePath, originalPath))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var original = File.OpenRead(originalPath);
+            using var alias = File.OpenRead(aliasPath);
+            return original.Length == alias.Length &&
+                System.Security.Cryptography.SHA256.HashData(original).AsSpan().SequenceEqual(System.Security.Cryptography.SHA256.HashData(alias));
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 
     /// <summary>
