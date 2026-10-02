@@ -7,6 +7,7 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Downloads.Services;
 using GenHub.Features.Launching;
+using GenHub.Tests.Core.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
@@ -116,6 +117,47 @@ public class ManifestVariantConsumerTests
         finally
         {
             Directory.Delete(workspace, true);
+        }
+    }
+
+    /// <summary>A copied alias retains CAS identity when the original entry is a link outside the workspace.</summary>
+    [SymlinkFact]
+    public void DetermineMonitoringTarget_CustomAliasWithCasSymlinkPreservesIdentity()
+    {
+        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        var workspace = Path.Combine(root, "workspace");
+        Directory.CreateDirectory(workspace);
+        try
+        {
+            var blob = Path.Combine(root, HostHash);
+            File.WriteAllText(blob, "entry payload");
+            File.CreateSymbolicLink(Path.Combine(workspace, "game.dat"), blob);
+            var alias = Path.Combine(workspace, "generals.exe");
+            File.Copy(blob, alias);
+            var file = new ManifestFile { RelativePath = "game.dat", IsExecutable = true, SourceType = ContentSourceType.ContentAddressable, Hash = HostHash };
+            var manifest = new ContentManifest { ContentType = ContentType.GameClient, EntryPoint = "game.dat", Files = [file] };
+            var result = GameLauncher.DetermineMonitoringTarget(
+                [manifest], alias, workspace, WorkspaceStrategy.SymlinkOnly, null, NullLogger.Instance, null);
+            Assert.True(result.Success, result.FirstError);
+            Assert.Equal(2, result.Data!.Count);
+            Assert.Contains(new GameProcessIdentity("generals.exe", workspace), result.Data);
+            Assert.Contains(new GameProcessIdentity("generals", workspace), result.Data);
+
+            file.Hash = null!;
+            result = GameLauncher.DetermineMonitoringTarget(
+                [manifest], alias, workspace, WorkspaceStrategy.SymlinkOnly, null, NullLogger.Instance, null);
+            Assert.False(result.Success);
+            Assert.Contains("hash", result.FirstError, StringComparison.OrdinalIgnoreCase);
+
+            File.WriteAllText(alias, "unrelated");
+            result = GameLauncher.DetermineMonitoringTarget(
+                [manifest], alias, workspace, WorkspaceStrategy.SymlinkOnly, null, NullLogger.Instance, null);
+            Assert.True(result.Success, result.FirstError);
+            Assert.Equal("generals", Assert.Single(result.Data!).ProcessName);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
         }
     }
 

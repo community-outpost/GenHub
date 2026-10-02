@@ -401,24 +401,25 @@ public class GameLauncher(
 
     private static bool IsMatchingWorkspaceAlias(string workspacePath, string aliasPath, string relativePath)
     {
-        var originalPath = Path.GetFullPath(Path.Combine(workspacePath, relativePath.Replace('\\', Path.DirectorySeparatorChar)));
-        if (!PathHelper.IsPathWithinDirectory(workspacePath, originalPath))
-        {
-            return false;
-        }
-
         try
         {
+            var originalPath = Path.GetFullPath(Path.Combine(workspacePath, relativePath.Replace('\\', Path.DirectorySeparatorChar)));
+            var workspaceRelative = Path.GetRelativePath(workspacePath, originalPath);
+
+            // Validate the workspace name without following links: CAS files intentionally target
+            // blobs outside the workspace. Matching bytes below establish the alias association.
+            if (Path.IsPathRooted(workspaceRelative) || workspaceRelative == ".." ||
+                workspaceRelative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
             using var original = File.OpenRead(originalPath);
             using var alias = File.OpenRead(aliasPath);
             return original.Length == alias.Length &&
                 System.Security.Cryptography.SHA256.HashData(original).AsSpan().SequenceEqual(System.Security.Cryptography.SHA256.HashData(alias));
         }
-        catch (IOException)
-        {
-            return false;
-        }
-        catch (UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or ArgumentException or NotSupportedException)
         {
             return false;
         }
