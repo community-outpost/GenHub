@@ -1309,6 +1309,21 @@ public partial class PublishShareViewModel(
         Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
         (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 
+    private static string DetermineCatalogIdFromFileName(string catFileName)
+    {
+        if (catFileName.StartsWith("catalog-", StringComparison.OrdinalIgnoreCase) && catFileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && catFileName.Length > 13)
+        {
+            return catFileName[8..^5];
+        }
+
+        if (catFileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && !string.Equals(catFileName, "catalog.json", StringComparison.OrdinalIgnoreCase))
+        {
+            return Path.GetFileNameWithoutExtension(catFileName);
+        }
+
+        return "main";
+    }
+
     /// <summary>
     /// Resolves a collision-free remote filename for a catalog. Catalogs imported from
     /// identically named files would otherwise overwrite each other on the host and end
@@ -6153,21 +6168,6 @@ public partial class PublishShareViewModel(
             GetLocalizedString("Tools.PublisherStudio.Hosting.LoadedCatalogSuccessTitle", "Catalog Loaded"),
             FormatLocalizedString("Tools.PublisherStudio.Hosting.LoadedCatalogSuccessFormat", "Successfully loaded catalog '{0}' into project.", catName),
             autoDismissMs: 4000);
-    }
-
-    private static string DetermineCatalogIdFromFileName(string catFileName)
-    {
-        if (catFileName.StartsWith("catalog-", StringComparison.OrdinalIgnoreCase) && catFileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && catFileName.Length > 13)
-        {
-            return catFileName[8..^5];
-        }
-
-        if (catFileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && !string.Equals(catFileName, "catalog.json", StringComparison.OrdinalIgnoreCase))
-        {
-            return Path.GetFileNameWithoutExtension(catFileName);
-        }
-
-        return "main";
     }
 
     private string AttachCatalogToProject(PublisherCatalog pubCat, string catFileName, string catId)
