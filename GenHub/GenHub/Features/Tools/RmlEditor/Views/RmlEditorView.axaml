@@ -1,0 +1,792 @@
+<UserControl x:Name="Root"
+             Focusable="True"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:vm="clr-namespace:GenHub.Features.Tools.RmlEditor.ViewModels"
+             xmlns:editors="clr-namespace:GenHub.Common.Editors"
+             x:Class="GenHub.Features.Tools.RmlEditor.Views.RmlEditorView"
+             x:DataType="vm:RmlEditorViewModel">
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="Ctrl+Add" Command="{Binding ZoomInCommand}"/>
+    <KeyBinding Gesture="Ctrl+OemPlus" Command="{Binding ZoomInCommand}"/>
+    <KeyBinding Gesture="Ctrl+Subtract" Command="{Binding ZoomOutCommand}"/>
+    <KeyBinding Gesture="Ctrl+OemMinus" Command="{Binding ZoomOutCommand}"/>
+    <KeyBinding Gesture="Ctrl+D0" Command="{Binding ResetZoomCommand}"/>
+    <KeyBinding Gesture="Ctrl+N" Command="{Binding NewDocumentCommand}"/>
+    <KeyBinding Gesture="Ctrl+O" Command="{Binding OpenFolderCommand}"/>
+    <KeyBinding Gesture="Ctrl+Shift+O" Command="{Binding OpenFileCommand}"/>
+    <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveCommand}"/>
+    <KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding SaveAsCommand}"/>
+    <KeyBinding Gesture="Ctrl+Z" Command="{Binding UndoCommand}"/>
+    <KeyBinding Gesture="Ctrl+Y" Command="{Binding RedoCommand}"/>
+    <KeyBinding Gesture="Ctrl+Shift+Z" Command="{Binding RedoCommand}"/>
+    <KeyBinding Gesture="Ctrl+C" Command="{Binding CopyCommand}"/>
+    <KeyBinding Gesture="Ctrl+X" Command="{Binding CutCommand}"/>
+    <KeyBinding Gesture="Ctrl+V" Command="{Binding PasteCommand}"/>
+    <KeyBinding Gesture="Ctrl+D" Command="{Binding DuplicateCommand}"/>
+    <KeyBinding Gesture="Delete" Command="{Binding DeleteCommand}"/>
+  </UserControl.KeyBindings>
+  <!-- Shared editor shell styles (compact tabs, canvas host) live in EditorShellStyles.axaml. -->
+  <Grid RowDefinitions="Auto,*">
+    <Border Grid.Row="0"
+            Background="{DynamicResource CardBackground}"
+            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+            CornerRadius="10" Padding="10,8" Margin="0,0,0,10">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+          <Button Padding="8,4"
+                  Background="{DynamicResource SurfaceElevatedBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}"
+                  BorderThickness="1" CornerRadius="6"
+                  ToolTip.Tip="{localization:Localize Tools.RmlEditor.Toolbar.MenuTooltip}"
+                  AutomationProperties.Name="{localization:Localize Tools.RmlEditor.Toolbar.MenuTooltip}">
+            <material:MaterialIcon Kind="Menu" Width="14" Height="14"/>
+            <Button.Flyout>
+              <MenuFlyout Placement="BottomEdgeAlignedLeft">
+                <MenuItem Header="{localization:Localize Tools.RmlEditor.Toolbar.New}"
+                          Command="{Binding NewDocumentCommand}">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="Plus" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="{localization:Localize Tools.RmlEditor.Toolbar.OpenFolder}"
+                          Command="{Binding OpenFolderCommand}">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="FolderOpen" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="{localization:Localize Tools.RmlEditor.Toolbar.OpenFile}"
+                          Command="{Binding OpenFileCommand}">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="FileOutline" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="{localization:Localize Tools.RmlEditor.Toolbar.Save}"
+                          Command="{Binding SaveCommand}"
+                          IsEnabled="{Binding HasDocument}">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="ContentSave" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="{localization:Localize Tools.RmlEditor.Toolbar.SaveAs}"
+                          Command="{Binding SaveAsCommand}"
+                          IsEnabled="{Binding HasDocument}">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="ContentSaveAll" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="{localization:Localize Tools.RmlEditor.Toolbar.Undo}"
+                          Command="{Binding UndoCommand}"
+                          IsEnabled="{Binding CanUndo}">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="Undo" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="{localization:Localize Tools.RmlEditor.Toolbar.Redo}"
+                          Command="{Binding RedoCommand}"
+                          IsEnabled="{Binding CanRedo}">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="Redo" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="{localization:Localize Tools.RmlEditor.Toolbar.Copy}"
+                          Command="{Binding CopyCommand}"
+                          IsEnabled="{Binding CanCopy}"
+                          InputGesture="Ctrl+C">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="ContentCopy" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="{localization:Localize Tools.RmlEditor.Toolbar.Cut}"
+                          Command="{Binding CutCommand}"
+                          IsEnabled="{Binding CanCut}"
+                          InputGesture="Ctrl+X">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="ContentCut" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="{localization:Localize Tools.RmlEditor.Toolbar.Paste}"
+                          Command="{Binding PasteCommand}"
+                          IsEnabled="{Binding CanPaste}"
+                          InputGesture="Ctrl+V">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="ContentPaste" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="{localization:Localize Tools.RmlEditor.Toolbar.Duplicate}"
+                          Command="{Binding DuplicateCommand}"
+                          IsEnabled="{Binding CanDuplicate}"
+                          InputGesture="Ctrl+D">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="ContentDuplicate" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="{localization:Localize Tools.RmlEditor.Toolbar.Delete}"
+                          Command="{Binding DeleteCommand}"
+                          IsEnabled="{Binding CanDelete}"
+                          InputGesture="Delete">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="Delete" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="{localization:Localize Tools.RmlEditor.Toolbar.AddElement}">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="PlusBox" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                  <MenuItem.Styles>
+                    <Style Selector="MenuItem MenuItem">
+                      <Setter Property="Header" Value="{Binding CommandParameter, RelativeSource={RelativeSource Self}}"/>
+                    </Style>
+                  </MenuItem.Styles>
+                  <MenuItem Command="{Binding AddChildElementCommand}" CommandParameter="div"/>
+                  <MenuItem Command="{Binding AddChildElementCommand}" CommandParameter="p"/>
+                  <MenuItem Command="{Binding AddChildElementCommand}" CommandParameter="span"/>
+                  <MenuItem Command="{Binding AddChildElementCommand}" CommandParameter="h1"/>
+                  <MenuItem Command="{Binding AddChildElementCommand}" CommandParameter="button"/>
+                  <MenuItem Command="{Binding AddChildElementCommand}" CommandParameter="input"/>
+                  <MenuItem Command="{Binding AddChildElementCommand}" CommandParameter="img"/>
+                  <MenuItem Command="{Binding AddChildElementCommand}" CommandParameter="select"/>
+                  <MenuItem Command="{Binding AddChildElementCommand}" CommandParameter="textarea"/>
+                  <MenuItem Command="{Binding AddChildElementCommand}" CommandParameter="ul"/>
+                  <MenuItem Command="{Binding AddChildElementCommand}" CommandParameter="a"/>
+                </MenuItem>
+                <MenuItem Header="{localization:Localize Tools.RmlEditor.Toolbar.Validate}"
+                          Command="{Binding ValidateDocumentCommand}"
+                          IsEnabled="{Binding HasDocument}">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="CheckCircle" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="{localization:Localize Tools.RmlEditor.Toolbar.LinkAssetsFolder}"
+                          Command="{Binding LinkAssetsFolderCommand}"
+                          IsEnabled="{Binding HasDocument}">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="ImageMultiple" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="{localization:Localize Tools.RmlEditor.Toolbar.ClearAssetsLink}"
+                          Command="{Binding ClearLinkedAssetsCommand}"
+                          IsEnabled="{Binding HasDocument}">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="ImageOff" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+              </MenuFlyout>
+            </Button.Flyout>
+          </Button>
+          <Border Background="{DynamicResource AccentTintBackgroundBrush}"
+                  BorderBrush="{DynamicResource AccentBrush}"
+                  BorderThickness="1" CornerRadius="6"
+                  Padding="6,3"
+                  IsVisible="{Binding HasMissingImages}"
+                  ToolTip.Tip="{localization:Localize Tools.RmlEditor.Assets.MissingTooltip}">
+            <TextBlock Text="{Binding AssetStatusText}"
+                       FontSize="10" FontWeight="SemiBold"
+                       Foreground="{DynamicResource AccentBrush}"
+                       VerticalAlignment="Center"/>
+          </Border>
+        </StackPanel>
+        <TextBlock Grid.Column="1"
+                   Text="{Binding DocumentTitle}"
+                   FontWeight="Bold" FontSize="13"
+                   Foreground="{DynamicResource TextPrimary}"
+                   VerticalAlignment="Center" HorizontalAlignment="Center"
+                   TextTrimming="CharacterEllipsis" Margin="12,0"/>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+          <ToggleButton IsChecked="{Binding IsSourceView, Mode=TwoWay}"
+                        Padding="8,4"
+                        Background="{DynamicResource SurfaceElevatedBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1" CornerRadius="6"
+                        ToolTip.Tip="{localization:Localize Tools.RmlEditor.View.SourceTooltip}"
+                        AutomationProperties.Name="{localization:Localize Tools.RmlEditor.View.SourceTooltip}">
+            <material:MaterialIcon Kind="CodeBraces" Width="14" Height="14"/>
+          </ToggleButton>
+          <ToggleButton IsChecked="{Binding IsPanMode, Mode=TwoWay}"
+                        Padding="8,4"
+                        Background="{DynamicResource SurfaceElevatedBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1" CornerRadius="6"
+                        ToolTip.Tip="{localization:Localize Tools.RmlEditor.Canvas.PanTooltip}"
+                        AutomationProperties.Name="{localization:Localize Tools.RmlEditor.Canvas.PanTooltip}">
+            <material:MaterialIcon Kind="HandBackLeft" Width="14" Height="14"/>
+          </ToggleButton>
+          <ToggleButton IsChecked="{Binding ShowHidden, Mode=TwoWay}"
+                        Padding="8,4"
+                        Background="{DynamicResource SurfaceElevatedBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1" CornerRadius="6"
+                        ToolTip.Tip="{localization:Localize Tools.RmlEditor.Canvas.ShowHiddenTooltip}"
+                        AutomationProperties.Name="{localization:Localize Tools.RmlEditor.Canvas.ShowHiddenTooltip}">
+            <material:MaterialIcon Kind="EyeOutline" Width="14" Height="14"/>
+          </ToggleButton>
+          <Button Command="{Binding ZoomOutCommand}"
+                  Padding="8,4"
+                  Background="{DynamicResource SurfaceElevatedBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}"
+                  BorderThickness="1" CornerRadius="6"
+                  ToolTip.Tip="{localization:Localize Tools.RmlEditor.Canvas.ZoomOutTooltip}"
+                  AutomationProperties.Name="{localization:Localize Tools.RmlEditor.Canvas.ZoomOutTooltip}">
+            <material:MaterialIcon Kind="MagnifyMinus" Width="14" Height="14"/>
+          </Button>
+          <Button Command="{Binding ResetZoomCommand}"
+                  Padding="8,4" MinWidth="52"
+                  Background="Transparent"
+                  BorderBrush="{DynamicResource BorderBrush}"
+                  BorderThickness="1" CornerRadius="6"
+                  Content="{Binding ZoomDisplayText}"
+                  FontSize="11"
+                  ToolTip.Tip="{localization:Localize Tools.RmlEditor.Canvas.ZoomResetTooltip}"
+                  AutomationProperties.Name="{localization:Localize Tools.RmlEditor.Canvas.ZoomResetTooltip}"/>
+          <Button Command="{Binding ZoomInCommand}"
+                  Padding="8,4"
+                  Background="{DynamicResource SurfaceElevatedBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}"
+                  BorderThickness="1" CornerRadius="6"
+                  ToolTip.Tip="{localization:Localize Tools.RmlEditor.Canvas.ZoomInTooltip}"
+                  AutomationProperties.Name="{localization:Localize Tools.RmlEditor.Canvas.ZoomInTooltip}">
+            <material:MaterialIcon Kind="MagnifyPlus" Width="14" Height="14"/>
+          </Button>
+        </StackPanel>
+      </Grid>
+    </Border>
+    <Grid Grid.Row="1">
+      <Grid ColumnDefinitions="350,4,*,4,400" IsVisible="{Binding HasDocument}">
+        <Border Grid.Column="0"
+                Background="{DynamicResource CardBackground}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                CornerRadius="10" Padding="8,6" ClipToBounds="True">
+          <TabControl Classes="compact-tabs" SelectedIndex="{Binding LeftSidebarTabIndex, Mode=TwoWay}" Padding="0">
+            <TabItem Header="{localization:Localize Tools.RmlEditor.Tabs.Elements}">
+              <Grid RowDefinitions="Auto,Auto,*,Auto">
+                <TextBox Grid.Row="0"
+                         Text="{Binding ElementsFilter, Mode=TwoWay}"
+                         Watermark="{localization:Localize Tools.RmlEditor.Tree.FilterWatermark}"
+                         FontSize="11" Margin="0,4,0,4"/>
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Margin="0,0,0,4">
+                  <Button Command="{Binding ExpandAllNodesCommand}"
+                          Padding="8,4"
+                          Background="Transparent"
+                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                          CornerRadius="6"
+                          Content="{localization:Localize Tools.RmlEditor.Tree.ExpandAll}"
+                          FontSize="11"/>
+                  <Button Command="{Binding CollapseAllNodesCommand}"
+                          Padding="8,4"
+                          Background="Transparent"
+                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                          CornerRadius="6"
+                          Content="{localization:Localize Tools.RmlEditor.Tree.CollapseAll}"
+                          FontSize="11"/>
+                </StackPanel>
+                <Border Grid.Row="2"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1" CornerRadius="8"
+                        Background="{DynamicResource SurfaceElevatedBrush}">
+                  <TreeView ItemsSource="{Binding RootNodes}"
+                            SelectedItem="{Binding SelectedNode, Mode=TwoWay}"
+                            BorderThickness="0" Background="Transparent"
+                            ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <TreeView.Styles>
+                      <Style Selector="TreeViewItem" x:DataType="vm:RmlTreeNodeViewModel">
+                        <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="MinHeight" Value="0"/>
+                      </Style>
+                      <Style Selector="TreeViewItem /template/ Panel#PART_ExpandCollapseChevronContainer">
+                        <Setter Property="Margin" Value="0,0,1,0"/>
+                      </Style>
+                      <Style Selector="TreeViewItem /template/ ToggleButton#PART_ExpandCollapseChevron">
+                        <Setter Property="Width" Value="10"/>
+                        <Setter Property="Height" Value="10"/>
+                        <Setter Property="Margin" Value="0"/>
+                        <Setter Property="Padding" Value="0"/>
+                      </Style>
+                      <Style Selector="TreeViewItem /template/ ToggleButton#PART_ExpandCollapseChevron PathIcon">
+                        <Setter Property="Width" Value="8"/>
+                        <Setter Property="Height" Value="8"/>
+                      </Style>
+                      <Style Selector="TreeViewItem:empty /template/ Panel#PART_ExpandCollapseChevronContainer">
+                        <Setter Property="Width" Value="10"/>
+                        <Setter Property="Margin" Value="0,0,1,0"/>
+                      </Style>
+                    </TreeView.Styles>
+                    <TreeView.ItemTemplate>
+                      <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="vm:RmlTreeNodeViewModel">
+                        <Border Margin="4,1" Padding="6,3" CornerRadius="6" Background="Transparent" HorizontalAlignment="Stretch">
+                          <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+                            <material:MaterialIcon Grid.Column="0"
+                                                   Kind="{Binding IconKind}"
+                                                   Width="12" Height="12"
+                                                   Foreground="{DynamicResource AccentBrush}"
+                                                   Margin="0,0,6,0"/>
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding DisplayName}"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextPrimary}"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Grid.Column="2"
+                                       Text="{Binding Detail}"
+                                       FontSize="9"
+                                       Foreground="{DynamicResource TextSecondary}"
+                                       VerticalAlignment="Center"
+                                       Margin="6,0,0,0"/>
+                          </Grid>
+                        </Border>
+                      </TreeDataTemplate>
+                    </TreeView.ItemTemplate>
+                  </TreeView>
+                </Border>
+                <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
+                  <Button Command="{Binding AddChildElementCommand}" CommandParameter="div"
+                          Padding="8,4"
+                          Background="{DynamicResource SurfaceElevatedBrush}"
+                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                          CornerRadius="6"
+                          Content="{localization:Localize Tools.RmlEditor.Tree.AddChild}"
+                          FontSize="11"/>
+                  <Button Command="{Binding MoveNodeUpCommand}"
+                          Padding="8,4"
+                          Background="Transparent"
+                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                          CornerRadius="6"
+                          Content="{localization:Localize Tools.RmlEditor.Tree.MoveUp}"
+                          FontSize="11"/>
+                  <Button Command="{Binding MoveNodeDownCommand}"
+                          Padding="8,4"
+                          Background="Transparent"
+                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                          CornerRadius="6"
+                          Content="{localization:Localize Tools.RmlEditor.Tree.MoveDown}"
+                          FontSize="11"/>
+                  <Button Command="{Binding DeleteCommand}"
+                          Padding="8,4"
+                          Background="Transparent"
+                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                          CornerRadius="6"
+                          Content="{localization:Localize Tools.RmlEditor.Tree.DeleteNode}"
+                          FontSize="11"/>
+                </StackPanel>
+              </Grid>
+            </TabItem>
+            <TabItem Header="{localization:Localize Tools.RmlEditor.Tabs.Files}">
+              <editors:EditorFileExplorerControl DataContext="{Binding FileExplorer}"/>
+            </TabItem>
+            <TabItem Header="{localization:Localize Tools.RmlEditor.Tabs.Styles}">
+              <Grid RowDefinitions="Auto,*,Auto,Auto,Auto,*" Margin="0,4,0,0">
+                <TextBlock Grid.Row="0"
+                           Text="{localization:Localize Tools.RmlEditor.Styles.RulesHeader}"
+                           FontSize="10" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextSecondary}"
+                           Margin="0,0,0,4"/>
+                <Border Grid.Row="1"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1" CornerRadius="8"
+                        Background="{DynamicResource SurfaceElevatedBrush}">
+                  <ListBox ItemsSource="{Binding StyleRules}"
+                           SelectedItem="{Binding SelectedStyleRule, Mode=TwoWay}"
+                           BorderThickness="0" Background="Transparent"
+                           ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
+                      <DataTemplate x:DataType="vm:RmlStyleRuleViewModel">
+                        <StackPanel Spacing="1">
+                          <TextBlock Text="{Binding Selectors}"
+                                     FontSize="11"
+                                     Foreground="{DynamicResource TextPrimary}"
+                                     TextTrimming="CharacterEllipsis"/>
+                          <TextBlock Text="{Binding Detail}"
+                                     FontSize="9"
+                                     Foreground="{DynamicResource TextSecondary}"
+                                     TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                      </DataTemplate>
+                    </ListBox.ItemTemplate>
+                  </ListBox>
+                </Border>
+                <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                  <TextBox Grid.Column="0"
+                           Text="{Binding NewRuleSelectors, Mode=TwoWay}"
+                           Watermark="{localization:Localize Tools.RmlEditor.Styles.SelectorsWatermark}"
+                           FontSize="11" Margin="0,0,6,0"/>
+                  <Button Grid.Column="1"
+                          Command="{Binding AddStyleRuleCommand}"
+                          Padding="8,4"
+                          Background="{DynamicResource SurfaceElevatedBrush}"
+                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                          CornerRadius="6"
+                          Content="{localization:Localize Tools.RmlEditor.Styles.AddRuleButton}"
+                          FontSize="11"/>
+                </Grid>
+                <TextBlock Grid.Row="3"
+                           Text="{Binding TargetSheetLabel}"
+                           FontSize="9"
+                           Foreground="{DynamicResource TextSecondary}"
+                           Margin="0,4,0,4"/>
+                <StackPanel Grid.Row="4" Spacing="4" Margin="0,0,0,4">
+                  <TextBlock Text="{localization:Localize Tools.RmlEditor.Styles.SelectorsHeader}"
+                             FontSize="10" FontWeight="SemiBold"
+                             Foreground="{DynamicResource TextSecondary}"/>
+                  <TextBox Text="{Binding SelectedStyleRule.Selectors, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                           IsEnabled="{Binding CanEditSelectedRule}"
+                           Watermark="{localization:Localize Tools.RmlEditor.Styles.SelectorsWatermark}"
+                           FontSize="11"/>
+                </StackPanel>
+                <Grid Grid.Row="5" RowDefinitions="Auto,*,Auto,Auto">
+                  <TextBlock Grid.Row="0"
+                             Text="{localization:Localize Tools.RmlEditor.Styles.DeclarationsHeader}"
+                             FontSize="10" FontWeight="SemiBold"
+                             Foreground="{DynamicResource TextSecondary}"
+                             Margin="0,0,0,4"/>
+                  <Border Grid.Row="1"
+                          BorderBrush="{DynamicResource BorderBrush}"
+                          BorderThickness="1" CornerRadius="8"
+                          Background="{DynamicResource SurfaceElevatedBrush}">
+                    <ScrollViewer MaxHeight="220">
+                      <ItemsControl ItemsSource="{Binding RuleDeclarations}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:RmlPropertyRowViewModel">
+                            <Grid ColumnDefinitions="*,*,Auto" Margin="6,2">
+                              <TextBlock Grid.Column="0"
+                                         Text="{Binding Name}"
+                                         FontSize="11"
+                                         Foreground="{DynamicResource TextSecondary}"
+                                         VerticalAlignment="Center"
+                                         TextTrimming="CharacterEllipsis"/>
+                              <TextBox Grid.Column="1"
+                                       Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                       IsReadOnly="{Binding IsReadOnly}"
+                                       FontSize="11" Margin="6,0"
+                                       BorderThickness="0" Background="Transparent"/>
+                              <Button Grid.Column="2"
+                                      Command="{Binding RemoveCommand}"
+                                      IsVisible="{Binding CanRemove}"
+                                      Padding="4,2"
+                                      Background="Transparent" BorderThickness="0"
+                                      Cursor="Hand">
+                                <material:MaterialIcon Kind="Close" Width="10" Height="10"/>
+                              </Button>
+                            </Grid>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </ScrollViewer>
+                  </Border>
+                  <Grid Grid.Row="2" ColumnDefinitions="*,*,Auto" Margin="0,4,0,0">
+                    <TextBox Grid.Column="0"
+                             Text="{Binding NewRuleProperty, Mode=TwoWay}"
+                             Watermark="{localization:Localize Tools.RmlEditor.Styles.PropertyWatermark}"
+                             FontSize="11" Margin="0,0,6,0"/>
+                    <TextBox Grid.Column="1"
+                             Text="{Binding NewRuleValue, Mode=TwoWay}"
+                             Watermark="{localization:Localize Tools.RmlEditor.Styles.ValueWatermark}"
+                             FontSize="11" Margin="0,0,6,0"/>
+                    <Button Grid.Column="2"
+                            Command="{Binding AddStyleDeclarationCommand}"
+                            IsEnabled="{Binding HasSelectedStyleRule}"
+                            Padding="8,4"
+                            Background="{DynamicResource SurfaceElevatedBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                            CornerRadius="6"
+                            Content="{localization:Localize Tools.RmlEditor.Styles.AddDeclarationButton}"
+                            FontSize="11"/>
+                  </Grid>
+                  <Button Grid.Row="3"
+                          Command="{Binding DeleteStyleRuleCommand}"
+                          IsEnabled="{Binding HasSelectedStyleRule}"
+                          Padding="8,4" Margin="0,4,0,0"
+                          Background="Transparent"
+                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                          CornerRadius="6"
+                          Content="{localization:Localize Tools.RmlEditor.Styles.DeleteRuleButton}"
+                          FontSize="11"/>
+                </Grid>
+              </Grid>
+            </TabItem>
+          </TabControl>
+        </Border>
+
+        <GridSplitter Grid.Column="1" Background="Transparent" ResizeDirection="Columns"/>
+
+        <Border Grid.Column="2"
+                Background="{DynamicResource CardBackground}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                CornerRadius="10" Padding="14" ClipToBounds="True">
+          <Grid>
+            <Border BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1" CornerRadius="8"
+                    Background="{DynamicResource SurfaceElevatedBrush}"
+                    ClipToBounds="True"
+                    IsVisible="{Binding !IsSourceView}">
+              <editors:EditorCanvasControl x:Name="EditorCanvas"
+                                           Zoom="{Binding Zoom, Mode=TwoWay}"
+                                           IsPanMode="{Binding IsPanMode, Mode=TwoWay}"
+                                           MaxZoom="{Binding ZoomMax}">
+                <ContentControl Content="{Binding PreviewContent}"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Top"
+                                Margin="24"/>
+              </editors:EditorCanvasControl>
+            </Border>
+            <Border BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1" CornerRadius="8"
+                    Background="{DynamicResource SurfaceElevatedBrush}"
+                    ClipToBounds="True"
+                    Padding="12"
+                    IsVisible="{Binding IsSourceView}">
+              <Grid RowDefinitions="*,Auto,Auto">
+                <TextBox Grid.Row="0"
+                         Text="{Binding SourceText, Mode=TwoWay}"
+                         FontFamily="Consolas,Menlo,monospace"
+                         FontSize="11"
+                         AcceptsReturn="True"
+                         BorderThickness="0" Background="Transparent"/>
+                <TextBlock Grid.Row="1"
+                           Text="{Binding SourceError}"
+                           IsVisible="{Binding SourceError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                           FontSize="11"
+                           Foreground="{DynamicResource ErrorBrush}"
+                           TextWrapping="Wrap"
+                           Margin="0,6,0,0"/>
+                <Button Grid.Row="2"
+                        Command="{Binding ApplySourceCommand}"
+                        Padding="12,6" Margin="0,8,0,0"
+                        HorizontalAlignment="Right"
+                        Background="{DynamicResource SurfaceElevatedBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                        CornerRadius="6"
+                        Content="{localization:Localize Tools.RmlEditor.View.SourceApplyButton}"
+                        FontSize="11" FontWeight="SemiBold"/>
+              </Grid>
+            </Border>
+          </Grid>
+        </Border>
+
+        <GridSplitter Grid.Column="3" Background="Transparent" ResizeDirection="Columns"/>
+        <Border Grid.Column="4"
+                Background="{DynamicResource CardBackground}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                CornerRadius="10" Padding="8,6" ClipToBounds="True">
+          <Grid>
+            <ScrollViewer IsVisible="{Binding SelectedProperties, Converter={x:Static ObjectConverters.IsNotNull}}">
+              <StackPanel Spacing="8" DataContext="{Binding SelectedProperties}">
+                <TextBlock Text="{Binding HeaderText}"
+                           FontSize="12" FontWeight="Bold"
+                           Foreground="{DynamicResource TextPrimary}"/>
+                <StackPanel Spacing="3" IsVisible="{Binding IsElement}">
+                  <TextBlock Text="{localization:Localize Tools.RmlEditor.Properties.TagLabel}"
+                             FontSize="10" FontWeight="SemiBold"
+                             Foreground="{DynamicResource TextSecondary}"/>
+                  <TextBox Text="{Binding Tag, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                           FontSize="11"/>
+                </StackPanel>
+                <StackPanel Spacing="3" IsVisible="{Binding IsTextEditable}">
+                  <TextBlock Text="{localization:Localize Tools.RmlEditor.Properties.TextLabel}"
+                             FontSize="10" FontWeight="SemiBold"
+                             Foreground="{DynamicResource TextSecondary}"/>
+                  <TextBox Text="{Binding TextContent, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                           FontSize="11"
+                           AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="120"/>
+                </StackPanel>
+                <StackPanel Spacing="3" IsVisible="{Binding IsElement}">
+                  <TextBlock Text="{localization:Localize Tools.RmlEditor.Properties.AttributesHeader}"
+                             FontSize="10" FontWeight="SemiBold"
+                             Foreground="{DynamicResource TextSecondary}"/>
+                  <ItemsControl ItemsSource="{Binding Attributes}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:RmlPropertyRowViewModel">
+                        <Grid ColumnDefinitions="*,*,Auto" Margin="0,1">
+                          <TextBlock Grid.Column="0"
+                                     Text="{Binding Name}"
+                                     FontSize="11"
+                                     Foreground="{DynamicResource TextSecondary}"
+                                     VerticalAlignment="Center"
+                                     TextTrimming="CharacterEllipsis"/>
+                          <TextBox Grid.Column="1"
+                                   Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                   FontSize="11" Margin="6,0"
+                                   BorderThickness="0" Background="Transparent"/>
+                          <Button Grid.Column="2"
+                                  Command="{Binding RemoveCommand}"
+                                  IsVisible="{Binding CanRemove}"
+                                  Padding="4,2"
+                                  Background="Transparent" BorderThickness="0"
+                                  Cursor="Hand">
+                            <material:MaterialIcon Kind="Close" Width="10" Height="10"/>
+                          </Button>
+                        </Grid>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <Grid ColumnDefinitions="*,*,Auto" Margin="0,4,0,0">
+                    <TextBox Grid.Column="0"
+                             Text="{Binding NewAttributeName, Mode=TwoWay}"
+                             Watermark="{localization:Localize Tools.RmlEditor.Properties.NameWatermark}"
+                             FontSize="11" Margin="0,0,6,0"/>
+                    <TextBox Grid.Column="1"
+                             Text="{Binding NewAttributeValue, Mode=TwoWay}"
+                             Watermark="{localization:Localize Tools.RmlEditor.Properties.ValueWatermark}"
+                             FontSize="11" Margin="0,0,6,0"/>
+                    <Button Grid.Column="2"
+                            Command="{Binding AddAttributeCommand}"
+                            Padding="8,4"
+                            Background="{DynamicResource SurfaceElevatedBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                            CornerRadius="6"
+                            Content="{localization:Localize Tools.RmlEditor.Properties.AddButton}"
+                            FontSize="11"/>
+                  </Grid>
+                </StackPanel>
+                <StackPanel Spacing="3" IsVisible="{Binding IsElement}">
+                  <TextBlock Text="{localization:Localize Tools.RmlEditor.Properties.InlineStyleHeader}"
+                             FontSize="10" FontWeight="SemiBold"
+                             Foreground="{DynamicResource TextSecondary}"/>
+                  <ItemsControl ItemsSource="{Binding InlineStyles}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:RmlPropertyRowViewModel">
+                        <Grid ColumnDefinitions="*,*,Auto" Margin="0,1">
+                          <TextBlock Grid.Column="0"
+                                     Text="{Binding Name}"
+                                     FontSize="11"
+                                     Foreground="{DynamicResource TextSecondary}"
+                                     VerticalAlignment="Center"
+                                     TextTrimming="CharacterEllipsis"/>
+                          <TextBox Grid.Column="1"
+                                   Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                   FontSize="11" Margin="6,0"
+                                   BorderThickness="0" Background="Transparent"/>
+                          <Button Grid.Column="2"
+                                  Command="{Binding RemoveCommand}"
+                                  IsVisible="{Binding CanRemove}"
+                                  Padding="4,2"
+                                  Background="Transparent" BorderThickness="0"
+                                  Cursor="Hand">
+                            <material:MaterialIcon Kind="Close" Width="10" Height="10"/>
+                          </Button>
+                        </Grid>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <Grid ColumnDefinitions="*,*,Auto" Margin="0,4,0,0">
+                    <TextBox Grid.Column="0"
+                             Text="{Binding NewStyleProperty, Mode=TwoWay}"
+                             Watermark="{localization:Localize Tools.RmlEditor.Properties.PropertyWatermark}"
+                             FontSize="11" Margin="0,0,6,0"/>
+                    <TextBox Grid.Column="1"
+                             Text="{Binding NewStyleValue, Mode=TwoWay}"
+                             Watermark="{localization:Localize Tools.RmlEditor.Properties.ValueWatermark}"
+                             FontSize="11" Margin="0,0,6,0"/>
+                    <Button Grid.Column="2"
+                            Command="{Binding AddInlineStyleCommand}"
+                            Padding="8,4"
+                            Background="{DynamicResource SurfaceElevatedBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                            CornerRadius="6"
+                            Content="{localization:Localize Tools.RmlEditor.Properties.AddButton}"
+                            FontSize="11"/>
+                  </Grid>
+                </StackPanel>
+                <StackPanel Spacing="3" IsVisible="{Binding IsElement}">
+                  <TextBlock Text="{localization:Localize Tools.RmlEditor.Properties.ComputedHeader}"
+                             FontSize="10" FontWeight="SemiBold"
+                             Foreground="{DynamicResource TextSecondary}"/>
+                  <ItemsControl ItemsSource="{Binding ComputedStyles}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:RmlPropertyRowViewModel">
+                        <Grid ColumnDefinitions="*,*" Margin="0,1">
+                          <TextBlock Grid.Column="0"
+                                     Text="{Binding Name}"
+                                     FontSize="11"
+                                     Foreground="{DynamicResource TextSecondary}"
+                                     VerticalAlignment="Center"
+                                     TextTrimming="CharacterEllipsis"/>
+                          <TextBlock Grid.Column="1"
+                                     Text="{Binding Value}"
+                                     FontSize="11"
+                                     Foreground="{DynamicResource TextPrimary}"
+                                     VerticalAlignment="Center"
+                                     TextTrimming="CharacterEllipsis" Margin="6,0,0,0"/>
+                        </Grid>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+                <StackPanel Spacing="3" IsVisible="{Binding IsElement}">
+                  <TextBlock Text="{localization:Localize Tools.RmlEditor.Properties.MatchedRulesHeader}"
+                             FontSize="10" FontWeight="SemiBold"
+                             Foreground="{DynamicResource TextSecondary}"/>
+                  <ItemsControl ItemsSource="{Binding MatchedRules}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <TextBlock Text="{Binding}"
+                                   FontSize="10"
+                                   Foreground="{DynamicResource TextSecondary}"
+                                   TextTrimming="CharacterEllipsis" Margin="0,1"/>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </StackPanel>
+            </ScrollViewer>
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="6"
+                        IsVisible="{Binding SelectedProperties, Converter={x:Static ObjectConverters.IsNull}}">
+              <TextBlock Text="{localization:Localize Tools.RmlEditor.Properties.NoSelectionTitle}"
+                         FontWeight="SemiBold" FontSize="12"
+                         Foreground="{DynamicResource TextSecondary}"
+                         HorizontalAlignment="Center"/>
+              <TextBlock Text="{localization:Localize Tools.RmlEditor.Properties.NoSelectionMessage}"
+                         FontSize="11"
+                         Foreground="{DynamicResource TextSecondary}"
+                         HorizontalAlignment="Center" TextWrapping="Wrap"/>
+            </StackPanel>
+          </Grid>
+        </Border>
+      </Grid>
+      <Border Background="{DynamicResource CardBackground}"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              CornerRadius="10" Padding="24"
+              IsVisible="{Binding !HasDocument}">
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
+          <TextBlock Text="{localization:Localize Tools.RmlEditor.Empty.Title}"
+                     FontWeight="Bold" FontSize="16"
+                     Foreground="{DynamicResource TextPrimary}"
+                     HorizontalAlignment="Center"/>
+          <TextBlock Text="{localization:Localize Tools.RmlEditor.Empty.Message}"
+                     FontSize="12"
+                     Foreground="{DynamicResource TextSecondary}"
+                     HorizontalAlignment="Center"/>
+          <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+            <Button Command="{Binding OpenFolderCommand}"
+                    Padding="12,6"
+                    Background="{DynamicResource SurfaceElevatedBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="6"
+                    Content="{localization:Localize Tools.RmlEditor.Empty.OpenFolderButton}"
+                    FontSize="11" FontWeight="SemiBold"/>
+            <Button Command="{Binding OpenFileCommand}"
+                    Padding="12,6"
+                    Background="{DynamicResource SurfaceElevatedBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="6"
+                    Content="{localization:Localize Tools.RmlEditor.Empty.OpenFileButton}"
+                    FontSize="11" FontWeight="SemiBold"/>
+            <Button Command="{Binding NewDocumentCommand}"
+                    Padding="12,6"
+                    Background="{DynamicResource SurfaceElevatedBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="6"
+                    Content="{localization:Localize Tools.RmlEditor.Empty.NewButton}"
+                    FontSize="11" FontWeight="SemiBold"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

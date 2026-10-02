@@ -1,4 +1,4 @@
-﻿<?xml version='1.0' encoding='utf-8'?>
+<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -17672,5 +17672,434 @@ Error: не удалось: {3}
   <data name="TextureEditor.Notify.OpenFailed.Message" xml:space="preserve"><value>Не удалось открыть целевую текстуру.</value></data>
   <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
     <value>Резервные выпуски вручную (переопределения)</value>
+  </data>
+  <data name="Tools.Plugin.genhub.tools.rmleditor.Name" xml:space="preserve">
+    <value>Редактор RML</value>
+  </data>
+  <data name="Tools.Plugin.genhub.tools.rmleditor.Description" xml:space="preserve">
+    <value>Визуальный редактор экранов интерфейса RmlUi (.rml) и таблиц стилей (.rcss). Просмотр дерева элементов, редактирование атрибутов и стилей, предпросмотр и сохранение в игровом формате.</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.MenuTooltip" xml:space="preserve">
+    <value>Меню редактора RML</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.New" xml:space="preserve">
+    <value>Создать</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.OpenFolder" xml:space="preserve">
+    <value>Открыть папку...</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.OpenFile" xml:space="preserve">
+    <value>Открыть файл...</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.Save" xml:space="preserve">
+    <value>Сохранить</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.SaveAs" xml:space="preserve">
+    <value>Сохранить как...</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.Undo" xml:space="preserve">
+    <value>Отменить</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.Redo" xml:space="preserve">
+    <value>Вернуть</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.Copy" xml:space="preserve">
+    <value>Копировать</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.Cut" xml:space="preserve">
+    <value>Вырезать</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.Paste" xml:space="preserve">
+    <value>Вставить</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.Duplicate" xml:space="preserve">
+    <value>Дублировать</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.Delete" xml:space="preserve">
+    <value>Удалить</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.AddElement" xml:space="preserve">
+    <value>Добавить элемент</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.Validate" xml:space="preserve">
+    <value>Проверить</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.LinkAssetsFolder" xml:space="preserve">
+    <value>Подключить папку ресурсов...</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.ClearAssetsLink" xml:space="preserve">
+    <value>Отключить папку ресурсов</value>
+  </data>
+  <data name="Tools.RmlEditor.View.SourceTooltip" xml:space="preserve">
+    <value>Показать исходник</value>
+  </data>
+  <data name="Tools.RmlEditor.View.SourceApplyButton" xml:space="preserve">
+    <value>Применить</value>
+  </data>
+  <data name="Tools.RmlEditor.Canvas.PanTooltip" xml:space="preserve">
+    <value>Панорама</value>
+  </data>
+  <data name="Tools.RmlEditor.Canvas.ShowHiddenTooltip" xml:space="preserve">
+    <value>Показать скрытые элементы</value>
+  </data>
+  <data name="Tools.RmlEditor.Canvas.ZoomOutTooltip" xml:space="preserve">
+    <value>Уменьшить</value>
+  </data>
+  <data name="Tools.RmlEditor.Canvas.ZoomResetTooltip" xml:space="preserve">
+    <value>Сбросить масштаб</value>
+  </data>
+  <data name="Tools.RmlEditor.Canvas.ZoomInTooltip" xml:space="preserve">
+    <value>Увеличить</value>
+  </data>
+  <data name="Tools.RmlEditor.Tabs.Elements" xml:space="preserve">
+    <value>Элементы</value>
+  </data>
+  <data name="Tools.RmlEditor.Tabs.Files" xml:space="preserve">
+    <value>Файлы</value>
+  </data>
+  <data name="Tools.RmlEditor.Tabs.Styles" xml:space="preserve">
+    <value>Стили</value>
+  </data>
+  <data name="Tools.RmlEditor.Tree.FilterWatermark" xml:space="preserve">
+    <value>Фильтр элементов...</value>
+  </data>
+  <data name="Tools.RmlEditor.Tree.ExpandAll" xml:space="preserve">
+    <value>Развернуть всё</value>
+  </data>
+  <data name="Tools.RmlEditor.Tree.CollapseAll" xml:space="preserve">
+    <value>Свернуть всё</value>
+  </data>
+  <data name="Tools.RmlEditor.Tree.AddChild" xml:space="preserve">
+    <value>Добавить дочерний</value>
+  </data>
+  <data name="Tools.RmlEditor.Tree.MoveUp" xml:space="preserve">
+    <value>Вверх</value>
+  </data>
+  <data name="Tools.RmlEditor.Tree.MoveDown" xml:space="preserve">
+    <value>Вниз</value>
+  </data>
+  <data name="Tools.RmlEditor.Tree.DeleteNode" xml:space="preserve">
+    <value>Удалить</value>
+  </data>
+  <data name="Tools.RmlEditor.Tree.ElementDetail" xml:space="preserve">
+    <value>Атрибутов: {0}, дочерних: {1}</value>
+  </data>
+  <data name="Tools.RmlEditor.Tree.TextDetail" xml:space="preserve">
+    <value>Символов: {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.RulesHeader" xml:space="preserve">
+    <value>Правила стилей</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.SelectorsHeader" xml:space="preserve">
+    <value>Селекторы</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.SelectorsWatermark" xml:space="preserve">
+    <value>напр. .screen, #main-menu</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.AddRuleButton" xml:space="preserve">
+    <value>Добавить правило</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.TargetSheet" xml:space="preserve">
+    <value>Новые правила — в {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.NoTargetSheet" xml:space="preserve">
+    <value>Нет редактируемой таблицы стилей</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.DeclarationsHeader" xml:space="preserve">
+    <value>Объявления</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.PropertyWatermark" xml:space="preserve">
+    <value>свойство</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.ValueWatermark" xml:space="preserve">
+    <value>значение</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.AddDeclarationButton" xml:space="preserve">
+    <value>Добавить</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.DeleteRuleButton" xml:space="preserve">
+    <value>Удалить правило</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.EmbeddedLabel" xml:space="preserve">
+    <value>встроенный</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.RuleDetail" xml:space="preserve">
+    <value>{0} · объявлений: {1}</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.ParseWarningTitle" xml:space="preserve">
+    <value>Таблица стилей пропущена</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.ParseWarningMessage" xml:space="preserve">
+    <value>Не удалось разобрать {0}: {1}</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.ElementHeader" xml:space="preserve">
+    <value>Элемент {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.TextHeader" xml:space="preserve">
+    <value>Текст</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.CommentHeader" xml:space="preserve">
+    <value>Комментарий</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.TagLabel" xml:space="preserve">
+    <value>Тег</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.TextLabel" xml:space="preserve">
+    <value>Текст</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.AttributesHeader" xml:space="preserve">
+    <value>Атрибуты</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.NameWatermark" xml:space="preserve">
+    <value>имя</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.ValueWatermark" xml:space="preserve">
+    <value>значение</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.AddButton" xml:space="preserve">
+    <value>Добавить</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.InlineStyleHeader" xml:space="preserve">
+    <value>Встроенный стиль</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.PropertyWatermark" xml:space="preserve">
+    <value>свойство</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.ComputedHeader" xml:space="preserve">
+    <value>Вычисленный стиль</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.MatchedRulesHeader" xml:space="preserve">
+    <value>Подошедшие правила</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.NoSelectionTitle" xml:space="preserve">
+    <value>Нет выбора</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.NoSelectionMessage" xml:space="preserve">
+    <value>Выберите элемент в дереве или предпросмотре, чтобы редактировать свойства.</value>
+  </data>
+  <data name="Tools.RmlEditor.Assets.EmptyStatus" xml:space="preserve">
+    <value>Изображения не используются</value>
+  </data>
+  <data name="Tools.RmlEditor.Assets.ResolvedStatus" xml:space="preserve">
+    <value>Найдено изображений: {0} из {1}</value>
+  </data>
+  <data name="Tools.RmlEditor.Assets.MissingTooltip" xml:space="preserve">
+    <value>Для части изображений нет файлов. Подключите папку ресурсов из меню.</value>
+  </data>
+  <data name="Tools.RmlEditor.Assets.LinkSuccessTitle" xml:space="preserve">
+    <value>Папка ресурсов подключена</value>
+  </data>
+  <data name="Tools.RmlEditor.Assets.LinkSuccessMessage" xml:space="preserve">
+    <value>Папка {0} подключена для поиска изображений.</value>
+  </data>
+  <data name="Tools.RmlEditor.Document.Untitled" xml:space="preserve">
+    <value>Без названия</value>
+  </data>
+  <data name="Tools.RmlEditor.FileDialog.FilterName" xml:space="preserve">
+    <value>Файлы интерфейса RML</value>
+  </data>
+  <data name="Tools.RmlEditor.FileDialog.OpenTitle" xml:space="preserve">
+    <value>Открыть файл интерфейса</value>
+  </data>
+  <data name="Tools.RmlEditor.FileDialog.SaveTitle" xml:space="preserve">
+    <value>Сохранить файл интерфейса</value>
+  </data>
+  <data name="Tools.RmlEditor.FileDialog.FolderTitle" xml:space="preserve">
+    <value>Выберите папку</value>
+  </data>
+  <data name="Tools.RmlEditor.Open.FailureTitle" xml:space="preserve">
+    <value>Не удалось открыть файл</value>
+  </data>
+  <data name="Tools.RmlEditor.Open.FailureMessage" xml:space="preserve">
+    <value>Не удалось открыть документ интерфейса: {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.Files.NoRmlFilesTitle" xml:space="preserve">
+    <value>Файлов интерфейса нет</value>
+  </data>
+  <data name="Tools.RmlEditor.Files.NoRmlFilesMessage" xml:space="preserve">
+    <value>В папке нет файлов .rml.</value>
+  </data>
+  <data name="Tools.RmlEditor.Files.StylesheetHintTitle" xml:space="preserve">
+    <value>Только таблица стилей</value>
+  </data>
+  <data name="Tools.RmlEditor.Files.StylesheetHintMessage" xml:space="preserve">
+    <value>{0} — таблица стилей. Откройте документ .rml, чтобы редактировать экран.</value>
+  </data>
+  <data name="Tools.RmlEditor.Save.SuccessTitle" xml:space="preserve">
+    <value>Файл сохранён</value>
+  </data>
+  <data name="Tools.RmlEditor.Save.SuccessMessage" xml:space="preserve">
+    <value>Сохранено: {0}.</value>
+  </data>
+  <data name="Tools.RmlEditor.Save.SuccessMessageSheets" xml:space="preserve">
+    <value>Сохранено: {0} и таблиц стилей: {1}.</value>
+  </data>
+  <data name="Tools.RmlEditor.Save.FailureTitle" xml:space="preserve">
+    <value>Не удалось сохранить файл</value>
+  </data>
+  <data name="Tools.RmlEditor.Save.FailureMessage" xml:space="preserve">
+    <value>Не удалось сохранить документ интерфейса: {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.Source.SuccessTitle" xml:space="preserve">
+    <value>Исходник применён</value>
+  </data>
+  <data name="Tools.RmlEditor.Source.SuccessMessage" xml:space="preserve">
+    <value>Документ заменён отредактированным исходником.</value>
+  </data>
+  <data name="Tools.RmlEditor.Source.FailureTitle" xml:space="preserve">
+    <value>Ошибки в исходнике</value>
+  </data>
+  <data name="Tools.RmlEditor.Source.FailureMessage" xml:space="preserve">
+    <value>Ошибки исходника: {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.Plugin.LoadError" xml:space="preserve">
+    <value>Ошибка загрузки редактора RML</value>
+  </data>
+  <data name="Tools.RmlEditor.Error.InvalidTitle" xml:space="preserve">
+    <value>Недопустимое значение</value>
+  </data>
+  <data name="Tools.RmlEditor.Error.InvalidTag" xml:space="preserve">
+    <value>Недопустимое имя тега: {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.Error.InvalidAttributeName" xml:space="preserve">
+    <value>Недопустимое имя атрибута: {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.Error.InvalidStyleDeclaration" xml:space="preserve">
+    <value>Недопустимое объявление стиля: {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.Error.InvalidSelectors" xml:space="preserve">
+    <value>Введите хотя бы один селектор.</value>
+  </data>
+  <data name="Tools.RmlEditor.Error.UnparsableInlineStyle" xml:space="preserve">
+    <value>Не удалось разобрать встроенный стиль.</value>
+  </data>
+  <data name="Tools.RmlEditor.Error.CannotEditEmbedded" xml:space="preserve">
+    <value>Встроенные стили недоступны для редактирования.</value>
+  </data>
+  <data name="Tools.RmlEditor.Error.NoEditableSheet" xml:space="preserve">
+    <value>Нет загруженной редактируемой таблицы стилей.</value>
+  </data>
+  <data name="Tools.RmlEditor.History.RenameTag" xml:space="preserve">
+    <value>Переименовать &lt;{0}&gt; в &lt;{1}&gt;</value>
+  </data>
+  <data name="Tools.RmlEditor.History.EditText" xml:space="preserve">
+    <value>Изменить текст {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.EditComment" xml:space="preserve">
+    <value>Изменить комментарий {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.EditAttribute" xml:space="preserve">
+    <value>Изменить атрибут {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.RemoveAttribute" xml:space="preserve">
+    <value>Удалить атрибут {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.AddAttribute" xml:space="preserve">
+    <value>Добавить атрибут {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.EditInlineStyle" xml:space="preserve">
+    <value>Изменить встроенный стиль {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.RemoveInlineStyle" xml:space="preserve">
+    <value>Удалить встроенный стиль {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.AddInlineStyle" xml:space="preserve">
+    <value>Добавить встроенный стиль {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.EditSelectors" xml:space="preserve">
+    <value>Изменить селекторы {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.EditDeclaration" xml:space="preserve">
+    <value>Изменить объявление {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.RemoveDeclaration" xml:space="preserve">
+    <value>Удалить объявление {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.AddDeclaration" xml:space="preserve">
+    <value>Добавить объявление {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.AddRule" xml:space="preserve">
+    <value>Добавить правило {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.DeleteRule" xml:space="preserve">
+    <value>Удалить правило {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.CutNode" xml:space="preserve">
+    <value>Вырезать {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.PasteNode" xml:space="preserve">
+    <value>Вставить {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.DuplicateNode" xml:space="preserve">
+    <value>Дублировать {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.DeleteNode" xml:space="preserve">
+    <value>Удалить {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.AddElement" xml:space="preserve">
+    <value>Добавить {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.MoveNode" xml:space="preserve">
+    <value>Переместить {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.ApplySource" xml:space="preserve">
+    <value>Применить исходник</value>
+  </data>
+  <data name="Tools.RmlEditor.Validate.SuccessTitle" xml:space="preserve">
+    <value>Документ корректен</value>
+  </data>
+  <data name="Tools.RmlEditor.Validate.SuccessMessage" xml:space="preserve">
+    <value>Открытый документ прошёл проверку.</value>
+  </data>
+  <data name="Tools.RmlEditor.Validate.WarningsMessage" xml:space="preserve">
+    <value>Документ корректен, предупреждений: {0}.</value>
+  </data>
+  <data name="Tools.RmlEditor.Validate.IssuesTitle" xml:space="preserve">
+    <value>Проверка нашла проблемы</value>
+  </data>
+  <data name="Tools.RmlEditor.Validate.IssuesMessage" xml:space="preserve">
+    <value>Ошибок: {0}, предупреждений: {1}. Первая проблема: {2}</value>
+  </data>
+  <data name="Tools.RmlEditor.Empty.Title" xml:space="preserve">
+    <value>Интерфейс не открыт</value>
+  </data>
+  <data name="Tools.RmlEditor.Empty.Message" xml:space="preserve">
+    <value>Откройте папку интерфейса или файл .rml, чтобы начать.</value>
+  </data>
+  <data name="Tools.RmlEditor.Empty.OpenFolderButton" xml:space="preserve">
+    <value>Открыть папку</value>
+  </data>
+  <data name="Tools.RmlEditor.Empty.OpenFileButton" xml:space="preserve">
+    <value>Открыть файл</value>
+  </data>
+  <data name="Tools.RmlEditor.Empty.NewButton" xml:space="preserve">
+    <value>Создать</value>
+  </data>
+  <data name="Tools.RmlEditor.Preview.MapPreview" xml:space="preserve">
+    <value>Предпросмотр карты</value>
+  </data>
+  <data name="Tools.RmlEditor.Preview.MissingImage" xml:space="preserve">
+    <value>Изображение не найдено</value>
+  </data>
+  <data name="Tools.RmlEditor.Preview.MissingImageSource" xml:space="preserve">
+    <value>Изображение не найдено: {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.Preview.HiddenElement" xml:space="preserve">
+    <value>Скрыто: {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.Preview.EmptyBody" xml:space="preserve">
+    <value>Нет видимого содержимого</value>
+  </data>
+  <data name="Tools.RmlEditor.Preview.BrowseButton" xml:space="preserve">
+    <value>Обзор...</value>
+  </data>
+  <data name="Tools.RmlEditor.Preview.SubmitButton" xml:space="preserve">
+    <value>Отправить</value>
+  </data>
+  <data name="Tools.RmlEditor.Preview.ResetButton" xml:space="preserve">
+    <value>Сбросить</value>
+  </data>
+  <data name="Tools.RmlEditor.Preview.DefaultButton" xml:space="preserve">
+    <value>Кнопка</value>
   </data>
 </root>

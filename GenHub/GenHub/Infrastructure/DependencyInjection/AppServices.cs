@@ -52,6 +52,7 @@ public static class AppServices
         services.AddGenHotkeys();
         services.AddModBuilder();
         services.AddWndEditor();
+        services.AddRmlEditor();
         services.AddTextureEditor();
         services.AddIniEditor();
 

@@ -214,6 +214,52 @@ public static class ToolConstants
     }
 
     /// <summary>
+    /// Constants for the RML Editor tool plugin.
+    /// </summary>
+    public static class RmlEditor
+    {
+        /// <summary>
+        /// The unique identifier for the RML Editor tool.
+        /// </summary>
+        public const string Id = "genhub.tools.rmleditor";
+
+        /// <summary>
+        /// The display name for the RML Editor tool.
+        /// </summary>
+        public const string Name = "RML Editor";
+
+        /// <summary>
+        /// The version of the RML Editor tool.
+        /// </summary>
+        public const string Version = DefaultVersion;
+
+        /// <summary>
+        /// The author of the RML Editor tool.
+        /// </summary>
+        public const string Author = DefaultAuthor;
+
+        /// <summary>
+        /// The description of the RML Editor tool.
+        /// </summary>
+        public const string Description = "Visual editor for RmlUi interface (.rml) screens and style sheets (.rcss). Browse the element tree, edit attributes and styles, preview the layout, and save back to the game format.";
+
+        /// <summary>
+        /// The icon path for the RML Editor tool.
+        /// </summary>
+        public const string IconPath = UriConstants.RmlEditorIconUri;
+
+        /// <summary>
+        /// Whether the RML Editor tool is bundled with the application.
+        /// </summary>
+        public const bool IsBundled = true;
+
+        /// <summary>
+        /// The tags associated with the RML Editor tool.
+        /// </summary>
+        public static readonly string[] Tags = ["modding", "ui-layout", "rml", "rcss"];
+    }
+
+    /// <summary>
     /// Constants for the WND Editor tool plugin.
     /// </summary>
     public static class WndEditor

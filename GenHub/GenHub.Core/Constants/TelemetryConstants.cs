@@ -199,6 +199,15 @@ public static class TelemetryConstants
     }
 
     /// <summary>
+    /// Non-identifying placeholder values for RML editor telemetry.
+    /// </summary>
+    public static class RmlEditor
+    {
+        /// <summary>Constant file identifier sent instead of user document names.</summary>
+        public const string AnonymousDocumentName = "rml_document";
+    }
+
+    /// <summary>
     /// Telemetry event names.
     /// </summary>
     public static class Events
@@ -301,6 +310,18 @@ public static class TelemetryConstants
 
         /// <summary>Emitted when textures are imported into the WND Editor.</summary>
         public const string WndTexturesImported = "wnd_textures_imported";
+
+        /// <summary>Emitted when the RML Editor tool is opened.</summary>
+        public const string RmlEditorOpened = "rml_editor_opened";
+
+        /// <summary>Emitted when an interface document is opened in the RML Editor.</summary>
+        public const string RmlDocumentOpened = "rml_document_opened";
+
+        /// <summary>Emitted when an interface document is saved in the RML Editor.</summary>
+        public const string RmlDocumentSaved = "rml_document_saved";
+
+        /// <summary>Emitted when an interface document is validated in the RML Editor.</summary>
+        public const string RmlDocumentValidated = "rml_document_validated";
 
         /// <summary>Emitted when a user subscribes to a content publisher.</summary>
         public const string PublisherSubscribed = "publisher_subscribed";
@@ -559,6 +580,12 @@ public static class TelemetryConstants
 
         /// <summary>Number of windows in a window definition document.</summary>
         public const string WindowCount = "window_count";
+
+        /// <summary>Number of elements in an interface document.</summary>
+        public const string ElementCount = "element_count";
+
+        /// <summary>Number of style rules applied to an interface document.</summary>
+        public const string StyleRuleCount = "style_rule_count";
 
         /// <summary>Indicates whether linked assets are configured in the WND Editor.</summary>
         public const string HasLinkedAssets = "has_linked_assets";

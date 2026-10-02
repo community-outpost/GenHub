@@ -1,4 +1,4 @@
-﻿<?xml version='1.0' encoding='utf-8'?>
+<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -17731,5 +17731,434 @@ Mapped image texture reference</value>
   <data name="TextureEditor.Notify.OpenFailed.Message" xml:space="preserve"><value>Failed to open target texture.</value></data>
   <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
     <value>Manual Fallback Releases (Overrides)</value>
+  </data>
+  <data name="Tools.Plugin.genhub.tools.rmleditor.Name" xml:space="preserve">
+    <value>RML Editor</value>
+  </data>
+  <data name="Tools.Plugin.genhub.tools.rmleditor.Description" xml:space="preserve">
+    <value>Visual editor for RmlUi interface (.rml) screens and style sheets (.rcss). Browse the element tree, edit attributes and styles, preview the layout, and save back to the game format.</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.MenuTooltip" xml:space="preserve">
+    <value>RML editor menu</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.New" xml:space="preserve">
+    <value>New</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.OpenFolder" xml:space="preserve">
+    <value>Open folder...</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.OpenFile" xml:space="preserve">
+    <value>Open file...</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.SaveAs" xml:space="preserve">
+    <value>Save as...</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.Undo" xml:space="preserve">
+    <value>Undo</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.Redo" xml:space="preserve">
+    <value>Redo</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.Copy" xml:space="preserve">
+    <value>Copy</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.Cut" xml:space="preserve">
+    <value>Cut</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.Paste" xml:space="preserve">
+    <value>Paste</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.Duplicate" xml:space="preserve">
+    <value>Duplicate</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.AddElement" xml:space="preserve">
+    <value>Add element</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.Validate" xml:space="preserve">
+    <value>Validate</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.LinkAssetsFolder" xml:space="preserve">
+    <value>Link assets folder...</value>
+  </data>
+  <data name="Tools.RmlEditor.Toolbar.ClearAssetsLink" xml:space="preserve">
+    <value>Clear assets link</value>
+  </data>
+  <data name="Tools.RmlEditor.View.SourceTooltip" xml:space="preserve">
+    <value>Toggle source view</value>
+  </data>
+  <data name="Tools.RmlEditor.View.SourceApplyButton" xml:space="preserve">
+    <value>Apply source</value>
+  </data>
+  <data name="Tools.RmlEditor.Canvas.PanTooltip" xml:space="preserve">
+    <value>Pan canvas</value>
+  </data>
+  <data name="Tools.RmlEditor.Canvas.ShowHiddenTooltip" xml:space="preserve">
+    <value>Show hidden elements</value>
+  </data>
+  <data name="Tools.RmlEditor.Canvas.ZoomOutTooltip" xml:space="preserve">
+    <value>Zoom out</value>
+  </data>
+  <data name="Tools.RmlEditor.Canvas.ZoomResetTooltip" xml:space="preserve">
+    <value>Reset zoom</value>
+  </data>
+  <data name="Tools.RmlEditor.Canvas.ZoomInTooltip" xml:space="preserve">
+    <value>Zoom in</value>
+  </data>
+  <data name="Tools.RmlEditor.Tabs.Elements" xml:space="preserve">
+    <value>Elements</value>
+  </data>
+  <data name="Tools.RmlEditor.Tabs.Files" xml:space="preserve">
+    <value>Files</value>
+  </data>
+  <data name="Tools.RmlEditor.Tabs.Styles" xml:space="preserve">
+    <value>Styles</value>
+  </data>
+  <data name="Tools.RmlEditor.Tree.FilterWatermark" xml:space="preserve">
+    <value>Filter elements...</value>
+  </data>
+  <data name="Tools.RmlEditor.Tree.ExpandAll" xml:space="preserve">
+    <value>Expand all</value>
+  </data>
+  <data name="Tools.RmlEditor.Tree.CollapseAll" xml:space="preserve">
+    <value>Collapse all</value>
+  </data>
+  <data name="Tools.RmlEditor.Tree.AddChild" xml:space="preserve">
+    <value>Add child</value>
+  </data>
+  <data name="Tools.RmlEditor.Tree.MoveUp" xml:space="preserve">
+    <value>Move up</value>
+  </data>
+  <data name="Tools.RmlEditor.Tree.MoveDown" xml:space="preserve">
+    <value>Move down</value>
+  </data>
+  <data name="Tools.RmlEditor.Tree.DeleteNode" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Tools.RmlEditor.Tree.ElementDetail" xml:space="preserve">
+    <value>{0} attributes, {1} children</value>
+  </data>
+  <data name="Tools.RmlEditor.Tree.TextDetail" xml:space="preserve">
+    <value>{0} characters</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.RulesHeader" xml:space="preserve">
+    <value>Style rules</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.SelectorsHeader" xml:space="preserve">
+    <value>Selectors</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.SelectorsWatermark" xml:space="preserve">
+    <value>e.g. .screen, #main-menu</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.AddRuleButton" xml:space="preserve">
+    <value>Add rule</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.TargetSheet" xml:space="preserve">
+    <value>New rules go to {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.NoTargetSheet" xml:space="preserve">
+    <value>No editable style sheet loaded</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.DeclarationsHeader" xml:space="preserve">
+    <value>Declarations</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.PropertyWatermark" xml:space="preserve">
+    <value>property</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.ValueWatermark" xml:space="preserve">
+    <value>value</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.AddDeclarationButton" xml:space="preserve">
+    <value>Add</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.DeleteRuleButton" xml:space="preserve">
+    <value>Delete rule</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.EmbeddedLabel" xml:space="preserve">
+    <value>embedded</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.RuleDetail" xml:space="preserve">
+    <value>{0} · {1} declarations</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.ParseWarningTitle" xml:space="preserve">
+    <value>Style sheet skipped</value>
+  </data>
+  <data name="Tools.RmlEditor.Styles.ParseWarningMessage" xml:space="preserve">
+    <value>Could not parse {0}: {1}</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.ElementHeader" xml:space="preserve">
+    <value>Element {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.TextHeader" xml:space="preserve">
+    <value>Text</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.CommentHeader" xml:space="preserve">
+    <value>Comment</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.TagLabel" xml:space="preserve">
+    <value>Tag</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.TextLabel" xml:space="preserve">
+    <value>Text</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.AttributesHeader" xml:space="preserve">
+    <value>Attributes</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.NameWatermark" xml:space="preserve">
+    <value>name</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.ValueWatermark" xml:space="preserve">
+    <value>value</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.AddButton" xml:space="preserve">
+    <value>Add</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.InlineStyleHeader" xml:space="preserve">
+    <value>Inline style</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.PropertyWatermark" xml:space="preserve">
+    <value>property</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.ComputedHeader" xml:space="preserve">
+    <value>Computed style</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.MatchedRulesHeader" xml:space="preserve">
+    <value>Matched rules</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.NoSelectionTitle" xml:space="preserve">
+    <value>No selection</value>
+  </data>
+  <data name="Tools.RmlEditor.Properties.NoSelectionMessage" xml:space="preserve">
+    <value>Select an element in the tree or preview to edit its properties.</value>
+  </data>
+  <data name="Tools.RmlEditor.Assets.EmptyStatus" xml:space="preserve">
+    <value>No images referenced</value>
+  </data>
+  <data name="Tools.RmlEditor.Assets.ResolvedStatus" xml:space="preserve">
+    <value>{0} of {1} images resolved</value>
+  </data>
+  <data name="Tools.RmlEditor.Assets.MissingTooltip" xml:space="preserve">
+    <value>Some referenced images have no art. Link an assets folder from the menu.</value>
+  </data>
+  <data name="Tools.RmlEditor.Assets.LinkSuccessTitle" xml:space="preserve">
+    <value>Assets folder linked</value>
+  </data>
+  <data name="Tools.RmlEditor.Assets.LinkSuccessMessage" xml:space="preserve">
+    <value>Linked {0} for image resolution.</value>
+  </data>
+  <data name="Tools.RmlEditor.Document.Untitled" xml:space="preserve">
+    <value>Untitled</value>
+  </data>
+  <data name="Tools.RmlEditor.FileDialog.FilterName" xml:space="preserve">
+    <value>RML interface files</value>
+  </data>
+  <data name="Tools.RmlEditor.FileDialog.OpenTitle" xml:space="preserve">
+    <value>Open interface file</value>
+  </data>
+  <data name="Tools.RmlEditor.FileDialog.SaveTitle" xml:space="preserve">
+    <value>Save interface file</value>
+  </data>
+  <data name="Tools.RmlEditor.FileDialog.FolderTitle" xml:space="preserve">
+    <value>Choose folder</value>
+  </data>
+  <data name="Tools.RmlEditor.Open.FailureTitle" xml:space="preserve">
+    <value>Could not open file</value>
+  </data>
+  <data name="Tools.RmlEditor.Open.FailureMessage" xml:space="preserve">
+    <value>Failed to open interface document: {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.Files.NoRmlFilesTitle" xml:space="preserve">
+    <value>No interface files</value>
+  </data>
+  <data name="Tools.RmlEditor.Files.NoRmlFilesMessage" xml:space="preserve">
+    <value>The folder contains no .rml files.</value>
+  </data>
+  <data name="Tools.RmlEditor.Files.StylesheetHintTitle" xml:space="preserve">
+    <value>Style sheet only</value>
+  </data>
+  <data name="Tools.RmlEditor.Files.StylesheetHintMessage" xml:space="preserve">
+    <value>{0} is a style sheet. Open its .rml document to edit the screen.</value>
+  </data>
+  <data name="Tools.RmlEditor.Save.SuccessTitle" xml:space="preserve">
+    <value>File saved</value>
+  </data>
+  <data name="Tools.RmlEditor.Save.SuccessMessage" xml:space="preserve">
+    <value>Saved {0}.</value>
+  </data>
+  <data name="Tools.RmlEditor.Save.SuccessMessageSheets" xml:space="preserve">
+    <value>Saved {0} with {1} style sheets.</value>
+  </data>
+  <data name="Tools.RmlEditor.Save.FailureTitle" xml:space="preserve">
+    <value>Could not save file</value>
+  </data>
+  <data name="Tools.RmlEditor.Save.FailureMessage" xml:space="preserve">
+    <value>Failed to save interface document: {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.Source.SuccessTitle" xml:space="preserve">
+    <value>Source applied</value>
+  </data>
+  <data name="Tools.RmlEditor.Source.SuccessMessage" xml:space="preserve">
+    <value>The edited source replaced the document.</value>
+  </data>
+  <data name="Tools.RmlEditor.Source.FailureTitle" xml:space="preserve">
+    <value>Invalid source</value>
+  </data>
+  <data name="Tools.RmlEditor.Source.FailureMessage" xml:space="preserve">
+    <value>The source has errors: {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.Plugin.LoadError" xml:space="preserve">
+    <value>Error loading RML Editor</value>
+  </data>
+  <data name="Tools.RmlEditor.Error.InvalidTitle" xml:space="preserve">
+    <value>Invalid value</value>
+  </data>
+  <data name="Tools.RmlEditor.Error.InvalidTag" xml:space="preserve">
+    <value>Invalid tag name: {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.Error.InvalidAttributeName" xml:space="preserve">
+    <value>Invalid attribute name: {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.Error.InvalidStyleDeclaration" xml:space="preserve">
+    <value>Invalid style declaration: {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.Error.InvalidSelectors" xml:space="preserve">
+    <value>Enter at least one selector.</value>
+  </data>
+  <data name="Tools.RmlEditor.Error.UnparsableInlineStyle" xml:space="preserve">
+    <value>The inline style could not be parsed.</value>
+  </data>
+  <data name="Tools.RmlEditor.Error.CannotEditEmbedded" xml:space="preserve">
+    <value>Embedded styles cannot be edited.</value>
+  </data>
+  <data name="Tools.RmlEditor.Error.NoEditableSheet" xml:space="preserve">
+    <value>No editable style sheet is loaded.</value>
+  </data>
+  <data name="Tools.RmlEditor.History.RenameTag" xml:space="preserve">
+    <value>Rename &lt;{0}&gt; to &lt;{1}&gt;</value>
+  </data>
+  <data name="Tools.RmlEditor.History.EditText" xml:space="preserve">
+    <value>Edit text of {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.EditComment" xml:space="preserve">
+    <value>Edit comment {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.EditAttribute" xml:space="preserve">
+    <value>Edit attribute {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.RemoveAttribute" xml:space="preserve">
+    <value>Remove attribute {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.AddAttribute" xml:space="preserve">
+    <value>Add attribute {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.EditInlineStyle" xml:space="preserve">
+    <value>Edit inline style {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.RemoveInlineStyle" xml:space="preserve">
+    <value>Remove inline style {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.AddInlineStyle" xml:space="preserve">
+    <value>Add inline style {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.EditSelectors" xml:space="preserve">
+    <value>Edit selectors {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.EditDeclaration" xml:space="preserve">
+    <value>Edit declaration {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.RemoveDeclaration" xml:space="preserve">
+    <value>Remove declaration {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.AddDeclaration" xml:space="preserve">
+    <value>Add declaration {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.AddRule" xml:space="preserve">
+    <value>Add rule {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.DeleteRule" xml:space="preserve">
+    <value>Delete rule {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.CutNode" xml:space="preserve">
+    <value>Cut {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.PasteNode" xml:space="preserve">
+    <value>Paste {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.DuplicateNode" xml:space="preserve">
+    <value>Duplicate {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.DeleteNode" xml:space="preserve">
+    <value>Delete {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.AddElement" xml:space="preserve">
+    <value>Add {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.MoveNode" xml:space="preserve">
+    <value>Move {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.History.ApplySource" xml:space="preserve">
+    <value>Apply edited source</value>
+  </data>
+  <data name="Tools.RmlEditor.Validate.SuccessTitle" xml:space="preserve">
+    <value>Document is valid</value>
+  </data>
+  <data name="Tools.RmlEditor.Validate.SuccessMessage" xml:space="preserve">
+    <value>The open document passed validation.</value>
+  </data>
+  <data name="Tools.RmlEditor.Validate.WarningsMessage" xml:space="preserve">
+    <value>The document is valid with {0} warning(s).</value>
+  </data>
+  <data name="Tools.RmlEditor.Validate.IssuesTitle" xml:space="preserve">
+    <value>Validation found issues</value>
+  </data>
+  <data name="Tools.RmlEditor.Validate.IssuesMessage" xml:space="preserve">
+    <value>{0} error(s), {1} warning(s). First issue: {2}</value>
+  </data>
+  <data name="Tools.RmlEditor.Empty.Title" xml:space="preserve">
+    <value>No interface open</value>
+  </data>
+  <data name="Tools.RmlEditor.Empty.Message" xml:space="preserve">
+    <value>Open a UI folder or an .rml file to start editing.</value>
+  </data>
+  <data name="Tools.RmlEditor.Empty.OpenFolderButton" xml:space="preserve">
+    <value>Open folder</value>
+  </data>
+  <data name="Tools.RmlEditor.Empty.OpenFileButton" xml:space="preserve">
+    <value>Open file</value>
+  </data>
+  <data name="Tools.RmlEditor.Empty.NewButton" xml:space="preserve">
+    <value>New</value>
+  </data>
+  <data name="Tools.RmlEditor.Preview.MapPreview" xml:space="preserve">
+    <value>Map preview</value>
+  </data>
+  <data name="Tools.RmlEditor.Preview.MissingImage" xml:space="preserve">
+    <value>Image not found</value>
+  </data>
+  <data name="Tools.RmlEditor.Preview.MissingImageSource" xml:space="preserve">
+    <value>Image not found: {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.Preview.HiddenElement" xml:space="preserve">
+    <value>Hidden {0}</value>
+  </data>
+  <data name="Tools.RmlEditor.Preview.EmptyBody" xml:space="preserve">
+    <value>No visible content</value>
+  </data>
+  <data name="Tools.RmlEditor.Preview.BrowseButton" xml:space="preserve">
+    <value>Browse...</value>
+  </data>
+  <data name="Tools.RmlEditor.Preview.SubmitButton" xml:space="preserve">
+    <value>Submit</value>
+  </data>
+  <data name="Tools.RmlEditor.Preview.ResetButton" xml:space="preserve">
+    <value>Reset</value>
+  </data>
+  <data name="Tools.RmlEditor.Preview.DefaultButton" xml:space="preserve">
+    <value>Button</value>
   </data>
 </root>

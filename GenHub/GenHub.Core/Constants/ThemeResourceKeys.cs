@@ -199,4 +199,24 @@ public static class ThemeResourceKeys
     /// Fluent Expander chevron foreground pressed brush resource key.
     /// </summary>
     public const string ExpanderChevronForegroundPressed = "ExpanderChevronForegroundPressed";
+
+    /// <summary>
+    /// Default border brush resource key.
+    /// </summary>
+    public const string BorderBrush = "BorderBrush";
+
+    /// <summary>
+    /// Secondary text brush resource key.
+    /// </summary>
+    public const string TextSecondary = "TextSecondary";
+
+    /// <summary>
+    /// Elevated surface brush resource key.
+    /// </summary>
+    public const string SurfaceElevatedBrush = "SurfaceElevatedBrush";
+
+    /// <summary>
+    /// Default surface background brush resource key.
+    /// </summary>
+    public const string SurfaceBackgroundBrush = "SurfaceBackgroundBrush";
 }
