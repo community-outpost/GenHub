@@ -80,6 +80,7 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <param name="workspaceManager">Optional workspace manager for cleaning stale workspaces on bundle updates.</param>
 /// <param name="patchNotesService">Optional service for fetching Generals Online patch notes on demand.</param>
 /// <param name="onDescriptionEnriched">Optional callback invoked when the content description is updated with patch notes (version, changelog).</param>
+/// <param name="installBuildAction">Optional action to install a downloaded GenHub build.</param>
 [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "ContentDetailViewModel coordinates rich media, downloads, profile binding, and custom tabs.")]
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Properties and methods access CommunityToolkit MVVM generated instance properties.")]
 [SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "Content detail ViewModel coordinates complex UI state, downloads, and multiple catalog sources.")]
@@ -108,7 +109,8 @@ public partial class ContentDetailViewModel(
     IGitHubApiClient? gitHubApiClient = null,
     IWorkspaceManager? workspaceManager = null,
     IGeneralsOnlinePatchNotesService? patchNotesService = null,
-    Action<string, string>? onDescriptionEnriched = null) : ObservableObject, IDisposable
+    Action<string, string>? onDescriptionEnriched = null,
+    Func<CancellationToken, Task>? installBuildAction = null) : ObservableObject, IDisposable
 {
     // ===== Constants =====
     private const string UnknownValue = "Unknown";
@@ -794,12 +796,22 @@ public partial class ContentDetailViewModel(
     }
 
     /// <summary>
+    /// Gets a value indicating whether the current content is a GenHub build.
+    /// </summary>
+    public bool IsGenHubBuild => (SelectedDownloadableItem?.ContentType ?? ContentType) == ContentType.GenHubBuild;
+
+    /// <summary>
     /// Gets a value indicating whether the Add to Profile button should be shown.
     /// </summary>
     public bool ShowAddToProfileButton
     {
         get
         {
+            if (IsGenHubBuild)
+            {
+                return false;
+            }
+
             if (HasBundleComponents)
             {
                 return AreBundleComponentsReadyForProfile;
@@ -808,6 +820,24 @@ public partial class ContentDetailViewModel(
             return SelectedDownloadableItem != null
                 ? SelectedDownloadableItem.IsDownloaded
                 : IsDownloaded;
+        }
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether the Install Build button should be shown.
+    /// </summary>
+    public bool ShowInstallBuildButton => IsGenHubBuild &&
+        (SelectedDownloadableItem != null ? SelectedDownloadableItem.IsDownloaded : IsDownloaded);
+
+    /// <summary>
+    /// Installs the downloaded GenHub build.
+    /// </summary>
+    [RelayCommand]
+    private async Task InstallBuildAsync()
+    {
+        if (installBuildAction != null)
+        {
+            await installBuildAction(CancellationToken.None);
         }
     }
 
@@ -1059,6 +1089,7 @@ public partial class ContentDetailViewModel(
         OnPropertyChanged(nameof(AreBundleComponentsReadyForProfile));
         OnPropertyChanged(nameof(ShowDownloadButton));
         OnPropertyChanged(nameof(ShowAddToProfileButton));
+        OnPropertyChanged(nameof(ShowInstallBuildButton));
         OnPropertyChanged(nameof(HasIncludesSummary));
         if (HasBundleComponents)
         {
@@ -2722,6 +2753,7 @@ public partial class ContentDetailViewModel(
             OnPropertyChanged(nameof(HasDownloadSize));
             OnPropertyChanged(nameof(ShowDownloadButton));
             OnPropertyChanged(nameof(ShowAddToProfileButton));
+            OnPropertyChanged(nameof(ShowInstallBuildButton));
             OnPropertyChanged(nameof(ShowUpdateButton));
             OnPropertyChanged(nameof(IconUrl));
             OnPropertyChanged(nameof(ThumbnailUrl));
@@ -2966,6 +2998,7 @@ public partial class ContentDetailViewModel(
                 IsUpdateAvailable = e.NewState == ContentState.UpdateAvailable;
                 OnPropertyChanged(nameof(ShowDownloadButton));
                 OnPropertyChanged(nameof(ShowAddToProfileButton));
+                OnPropertyChanged(nameof(ShowInstallBuildButton));
                 OnPropertyChanged(nameof(ShowUpdateButton));
             }
 
@@ -3482,6 +3515,7 @@ public partial class ContentDetailViewModel(
             }
 
             OnPropertyChanged(nameof(ShowAddToProfileButton));
+            OnPropertyChanged(nameof(ShowInstallBuildButton));
             OnPropertyChanged(nameof(ShowDeleteButton));
             OnPropertyChanged(nameof(ShowDownloadButton));
             OnPropertyChanged(nameof(ShowUpdateButton));
@@ -5157,6 +5191,7 @@ public partial class ContentDetailViewModel(
         OnPropertyChanged(nameof(HasVersion));
         OnPropertyChanged(nameof(ShowDownloadButton));
         OnPropertyChanged(nameof(ShowAddToProfileButton));
+        OnPropertyChanged(nameof(ShowInstallBuildButton));
         OnPropertyChanged(nameof(ShowUpdateButton));
         OnPropertyChanged(nameof(ShowDeleteButton));
         OnPropertyChanged(nameof(CanChangeContentType));
@@ -5494,6 +5529,7 @@ public partial class ContentDetailViewModel(
 
             OnPropertyChanged(nameof(ShowDownloadButton));
             OnPropertyChanged(nameof(ShowAddToProfileButton));
+            OnPropertyChanged(nameof(ShowInstallBuildButton));
             scope.CompleteSuccess();
         }
         catch (OperationCanceledException)
@@ -5940,6 +5976,7 @@ public partial class ContentDetailViewModel(
             OnPropertyChanged(nameof(AreBundleComponentsReadyForProfile));
             OnPropertyChanged(nameof(ShowDownloadButton));
             OnPropertyChanged(nameof(ShowAddToProfileButton));
+            OnPropertyChanged(nameof(ShowInstallBuildButton));
         });
     }
 
@@ -5961,6 +5998,7 @@ public partial class ContentDetailViewModel(
             OnPropertyChanged(nameof(AreBundleComponentsReadyForProfile));
             OnPropertyChanged(nameof(ShowDownloadButton));
             OnPropertyChanged(nameof(ShowAddToProfileButton));
+            OnPropertyChanged(nameof(ShowInstallBuildButton));
         }
     }
 

@@ -285,6 +285,15 @@ public sealed class ProfileContentService(
         {
             logger.LogInformation("Creating new profile '{ProfileName}' with content {ManifestId}", profileName, manifestId);
 
+            var primaryManifestCheck = await manifestPool.GetManifestAsync(
+                Core.Models.Manifest.ManifestId.Create(manifestId),
+                cancellationToken);
+            if (primaryManifestCheck.Success && primaryManifestCheck.Data?.ContentType == ContentType.GenHubBuild)
+            {
+                logger.LogWarning("Attempted to create game profile with GenHub build {ManifestId}", manifestId);
+                return ProfileOperationResult<GameProfile>.CreateFailure("GenHub application builds cannot be used to create game profiles.");
+            }
+
             var candidateConflictError = await ValidateCandidateSetPairwiseConflictsAsync(requestedIds, cancellationToken);
             if (candidateConflictError != null)
             {
@@ -790,6 +799,13 @@ public sealed class ProfileContentService(
         }
 
         var manifest = manifestResult.Data;
+        if (manifest.ContentType == ContentType.GenHubBuild)
+        {
+            var error = "GenHub application builds cannot be added to game profiles.";
+            logger.LogWarning("Attempted to add GenHub build manifest {ManifestId} to profile {ProfileId}", primaryManifestId, profileId);
+            return OperationResult<(GameProfile, ContentManifest, string)>.CreateFailure(error);
+        }
+
         var contentName = requestedCount > 1
             ? $"{manifest.Name ?? primaryManifestId} + {requestedCount - 1} more"
             : manifest.Name ?? primaryManifestId;
