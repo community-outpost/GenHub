@@ -3829,6 +3829,9 @@
   <data name="ContentType.Screensaver" xml:space="preserve">
     <value>Заставка</value>
   </data>
+  <data name="ContentType.GenHubBuild" xml:space="preserve">
+    <value>Сборка GenHub</value>
+  </data>
   <data name="ContentType.Executable" xml:space="preserve">
     <value>Исполняемый файл</value>
   </data>
@@ -18134,5 +18137,7 @@ Error: не удалось: {3}
   </data>
   <data name="GameProfiles.Share.Error.ReferencedManifestMissing" xml:space="preserve">
     <value>Манифест содержимого «{0}», указанный в профиле, не найден в локальном пуле манифестов.</value>
+  <data name="Updates.CustomBuilds.Label" xml:space="preserve">
+    <value>Пользовательские сборки и форки</value>
   </data>
 </root>

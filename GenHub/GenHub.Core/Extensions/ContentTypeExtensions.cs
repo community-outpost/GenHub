@@ -3,15 +3,15 @@ using GenHub.Core.Models.Enums;
 namespace GenHub.Core.Extensions;
 
 /// <summary>
-/// Extension methods for <see cref="ContentType"/> enum.
+/// Extension methods for the <see cref="ContentType"/> enum.
 /// </summary>
 public static class ContentTypeExtensions
 {
     /// <summary>
-    /// Gets the user-friendly display name for a content type.
+    /// Gets a user-friendly display name for the content type.
     /// </summary>
     /// <param name="contentType">The content type.</param>
-    /// <returns>The display name string.</returns>
+    /// <returns>A localized or friendly string representation.</returns>
     public static string GetDisplayName(this ContentType contentType)
     {
         return contentType switch

@@ -4,9 +4,11 @@ using GenHub.Common.Validation;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
+using GenHub.Core.Services.Tools;
 using GenHub.Features.Tools.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -30,8 +32,11 @@ public partial class AddReleaseDialogViewModel(
     IPublisherStudioDialogService dialogService,
     GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null,
     bool isAddon = false,
-    INotificationService? notificationService = null) : ObservableValidator
+    INotificationService? notificationService = null,
+    IGenHubBuildInspector? buildInspector = null) : ObservableValidator
 {
+    private readonly IGenHubBuildInspector _buildInspector = buildInspector ?? new GenHubBuildInspector();
+
     /// <summary>
     /// Represents an option in the ContentBundle component matrix for release editing.
     /// </summary>
@@ -304,6 +309,11 @@ public partial class AddReleaseDialogViewModel(
     /// </summary>
     public IReadOnlyList<string> AvailableAddonCategories { get; } =
     [
+        "Release",
+        "Prerelease",
+        "Test",
+        "Dev",
+        "CustomFork",
         "Addon",
         "Map",
         "Patch",
@@ -328,6 +338,7 @@ public partial class AddReleaseDialogViewModel(
     /// <param name="isAddon">True if editing an addon; false if editing a release.</param>
     /// <param name="notificationService">Optional notification service for user feedback.</param>
     /// <param name="onReleaseDeleted">Optional callback invoked when deleting the release.</param>
+    /// <param name="buildInspector">Optional GenHub build inspector.</param>
     public AddReleaseDialogViewModel(
         ContentRelease existing,
         CatalogContentItem contentItem,
@@ -337,8 +348,9 @@ public partial class AddReleaseDialogViewModel(
         GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null,
         bool isAddon = false,
         INotificationService? notificationService = null,
-        Func<ContentRelease, Task>? onReleaseDeleted = null)
-        : this(contentItem, catalog, onReleaseCreated, dialogService, localizationService, isAddon, notificationService)
+        Func<ContentRelease, Task>? onReleaseDeleted = null,
+        IGenHubBuildInspector? buildInspector = null)
+        : this(contentItem, catalog, onReleaseCreated, dialogService, localizationService, isAddon, notificationService, buildInspector)
     {
         ArgumentNullException.ThrowIfNull(existing);
 
@@ -497,6 +509,33 @@ public partial class AddReleaseDialogViewModel(
 
             Artifacts.Add(artifact);
             addedCount++;
+
+            if (contentItem?.ContentType == ContentType.GenHubBuild || _buildInspector.IsGenHubBuildPath(path))
+            {
+                var buildInfo = _buildInspector.Inspect(path);
+                if (buildInfo.IsGenHubBuild)
+                {
+                    if (!string.IsNullOrWhiteSpace(buildInfo.Version))
+                    {
+                        Version = buildInfo.Version;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(buildInfo.SuggestedCategory))
+                    {
+                        Category = buildInfo.SuggestedCategory;
+                    }
+
+                    if (buildInfo.BuildChannel is "PR" or "Dev" or "Test")
+                    {
+                        IsPrerelease = true;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(buildInfo.SuggestedDescription) && string.IsNullOrWhiteSpace(Changelog))
+                    {
+                        Changelog = buildInfo.SuggestedDescription;
+                    }
+                }
+            }
         }
 
         // Files dropped together are parts of one payload; bundle them so the

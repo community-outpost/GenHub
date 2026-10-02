@@ -3829,6 +3829,9 @@ Applied: {2} / {3} applicable fixes.</value>
   <data name="ContentType.Screensaver" xml:space="preserve">
     <value>Screensaver</value>
   </data>
+  <data name="ContentType.GenHubBuild" xml:space="preserve">
+    <value>GenHub Build</value>
+  </data>
   <data name="ContentType.Executable" xml:space="preserve">
     <value>Executable</value>
   </data>
@@ -18193,5 +18196,7 @@ Mapped image texture reference</value>
   </data>
   <data name="GameProfiles.Share.Error.ReferencedManifestMissing" xml:space="preserve">
     <value>Content manifest '{0}' referenced by profile could not be found in local manifest pool.</value>
+  <data name="Updates.CustomBuilds.Label" xml:space="preserve">
+    <value>Custom &amp; Fork Builds</value>
   </data>
 </root>
