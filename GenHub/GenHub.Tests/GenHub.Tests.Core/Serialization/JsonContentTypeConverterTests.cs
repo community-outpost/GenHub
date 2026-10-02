@@ -72,6 +72,8 @@ public class JsonContentTypeConverterTests
     [Theory]
     [InlineData("1", ContentType.GameClient)]
     [InlineData("2", ContentType.Mod)]
+    [InlineData("18", ContentType.UnknownContentType)]
+    [InlineData("19", ContentType.GenHubBuild)]
     [InlineData("99999", ContentType.UnknownContentType)]
     public void Deserialize_NumericValue_ReturnsExpectedOrFallback(string json, ContentType expected)
     {

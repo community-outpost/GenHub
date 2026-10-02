@@ -67,26 +67,7 @@ public class CommunityOutpostDeliverer(
     /// </summary>
     private static string GetContentCodeFromManifest(ContentManifest manifest)
     {
-        var tags = manifest.Metadata?.Tags;
-        if (tags != null)
-        {
-            foreach (var tag in tags.Where(t => t.StartsWith(ManifestTagConstants.ContentCodePrefix, StringComparison.OrdinalIgnoreCase)))
-            {
-                var code = GenPatcherContentRegistry.NormalizeContentCode(tag[ManifestTagConstants.ContentCodePrefix.Length..]);
-                if (GenPatcherContentRegistry.IsKnownCode(code))
-                {
-                    return code;
-                }
-            }
-
-            var firstTag = tags.FirstOrDefault(t => t.StartsWith(ManifestTagConstants.ContentCodePrefix, StringComparison.OrdinalIgnoreCase));
-            if (!string.IsNullOrEmpty(firstTag))
-            {
-                return GenPatcherContentRegistry.NormalizeContentCode(firstTag[ManifestTagConstants.ContentCodePrefix.Length..]);
-            }
-        }
-
-        return "unknown";
+        return GenPatcherContentRegistry.TryGetContentCodeFromTags(manifest.Metadata?.Tags) ?? "unknown";
     }
 
     /// <summary>

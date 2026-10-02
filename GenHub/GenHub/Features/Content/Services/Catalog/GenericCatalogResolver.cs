@@ -813,7 +813,7 @@ public partial class GenericCatalogResolver(
 
         if (contentItem.UpstreamSync != null && !string.IsNullOrWhiteSpace(contentItem.UpstreamSync.ContentCode))
         {
-            var upstreamCodeTag = $"{ManifestTagConstants.ContentCodePrefix}{contentItem.UpstreamSync.ContentCode.ToLowerInvariant()}";
+            var upstreamCodeTag = $"{ManifestTagConstants.ContentCodePrefix}{contentItem.UpstreamSync.ContentCode.Trim().ToLowerInvariant()}";
             if (!manifest.Metadata.Tags.Contains(upstreamCodeTag, StringComparer.OrdinalIgnoreCase))
             {
                 manifest.Metadata.Tags.Add(upstreamCodeTag);

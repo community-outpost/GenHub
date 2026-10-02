@@ -2150,7 +2150,7 @@ public sealed partial class ContentStateService(
             }
 
             if ((metadata.TryGetValue(CommunityOutpostCatalogConstants.ContentCodeKey, out var contentCode) && !string.IsNullOrWhiteSpace(contentCode)) ||
-                metadata.ContainsKey(CatalogConstants.CatalogContentIdMetadataKey))
+                (metadata.TryGetValue(CatalogConstants.CatalogContentIdMetadataKey, out var catContentId) && !string.IsNullOrWhiteSpace(catContentId)))
             {
                 return FindByPublisherTypeAndGame(manifests, item, logger);
             }

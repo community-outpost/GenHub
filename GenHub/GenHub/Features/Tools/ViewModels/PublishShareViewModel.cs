@@ -1313,12 +1313,14 @@ public partial class PublishShareViewModel(
     {
         if (catFileName.StartsWith("catalog-", StringComparison.OrdinalIgnoreCase) && catFileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && catFileName.Length > 13)
         {
-            return catFileName[8..^5];
+            var id = catFileName[8..^5];
+            return string.IsNullOrWhiteSpace(id) ? "main" : id;
         }
 
         if (catFileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && !string.Equals(catFileName, "catalog.json", StringComparison.OrdinalIgnoreCase))
         {
-            return Path.GetFileNameWithoutExtension(catFileName);
+            var stem = Path.GetFileNameWithoutExtension(catFileName);
+            return string.IsNullOrWhiteSpace(stem) ? "main" : stem;
         }
 
         return "main";
@@ -6135,7 +6137,9 @@ public partial class PublishShareViewModel(
             ? HostingConstants.DefaultCatalogFileName
             : asset.Name;
 
-        var catId = DetermineCatalogIdFromFileName(catFileName);
+        var catId = !string.IsNullOrWhiteSpace(asset.CatalogId)
+            ? asset.CatalogId
+            : DetermineCatalogIdFromFileName(catFileName);
         var catName = AttachCatalogToProject(pubCat, catFileName, catId);
 
         // Update hosting state for this catalog
@@ -6172,7 +6176,8 @@ public partial class PublishShareViewModel(
 
     private string AttachCatalogToProject(PublisherCatalog pubCat, string catFileName, string catId)
     {
-        var catName = char.ToUpperInvariant(catId[0]) + catId[1..];
+        var safeCatId = string.IsNullOrWhiteSpace(catId) ? "main" : catId;
+        var catName = char.ToUpperInvariant(safeCatId[0]) + safeCatId[1..];
 
         var existingNamedCat = project.Catalogs.FirstOrDefault(c => string.Equals(c.Id, catId, StringComparison.OrdinalIgnoreCase) || string.Equals(c.FileName, catFileName, StringComparison.OrdinalIgnoreCase));
         if (existingNamedCat != null)

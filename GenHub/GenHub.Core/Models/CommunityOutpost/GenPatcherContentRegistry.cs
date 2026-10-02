@@ -518,6 +518,33 @@ public static class GenPatcherContentRegistry
     }
 
     /// <summary>
+    /// Extracts the content code from manifest tags, prioritizing known content codes.
+    /// </summary>
+    /// <param name="tags">The tags collection to search.</param>
+    /// <returns>The normalized content code if found; otherwise null.</returns>
+    public static string? TryGetContentCodeFromTags(IEnumerable<string>? tags)
+    {
+        if (tags == null)
+        {
+            return null;
+        }
+
+        string? firstCandidate = null;
+        foreach (var tag in tags.Where(t => t.StartsWith(ManifestTagConstants.ContentCodePrefix, StringComparison.OrdinalIgnoreCase)))
+        {
+            var candidate = NormalizeContentCode(tag[ManifestTagConstants.ContentCodePrefix.Length..]);
+            if (IsKnownCode(candidate))
+            {
+                return candidate;
+            }
+
+            firstCandidate ??= candidate;
+        }
+
+        return firstCandidate;
+    }
+
+    /// <summary>
     /// Gets all known content codes.
     /// </summary>
     /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="string"/> where each element is a known content code.</returns>

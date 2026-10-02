@@ -513,8 +513,8 @@ public partial class SubscriptionConfirmationViewModel(
         {
             ErrorTitle = GetLocalizedString("Downloads.Subscription.ErrorTitle.FailedToLoad", "Failed to Load Catalog");
             ErrorMessage = !string.IsNullOrWhiteSpace(_definitionCatalogFetchError)
-                ? _definitionCatalogFetchError
-                : GetLocalizedString("Downloads.Subscription.ErrorMessage.FailedToFetchFormat", "Failed to fetch catalog from definition");
+                ? GetLocalizedString("Downloads.Subscription.ErrorMessage.FailedToFetchFormat", "Failed to fetch catalog: {0}", _definitionCatalogFetchError)
+                : GetLocalizedString("Downloads.Subscription.ErrorTitle.FailedToFetch", "Failed to fetch catalog from definition");
             logger.LogWarning("Failed to resolve catalog from definition: {Errors}", ErrorMessage);
             return (null, null, null, null);
         }
@@ -621,7 +621,7 @@ public partial class SubscriptionConfirmationViewModel(
                 logger.LogWarning("Blocked unsafe catalog URL in definition payload: {Reason}", ssrfReason);
             }
 
-            return (null, ssrfReason);
+            return (null, string.IsNullOrEmpty(ssrfReason) ? "Blocked unsafe catalog URL." : ssrfReason);
         }
 
         try
@@ -650,10 +650,20 @@ public partial class SubscriptionConfirmationViewModel(
             logger.LogWarning(timeoutEx, "Timeout fetching candidate catalog from {Url}", candidateUrl);
             return (null, timeoutEx.Message);
         }
-        catch (Exception ex)
+        catch (JsonException jsonEx)
         {
-            logger.LogWarning(ex, "Failed to resolve catalog from candidate URL {TargetUrl} in definition", candidateUrl);
-            return (null, ex.Message);
+            logger.LogWarning(jsonEx, "Failed to parse catalog JSON from candidate URL {TargetUrl} in definition", candidateUrl);
+            return (null, jsonEx.Message);
+        }
+        catch (System.IO.IOException ioEx)
+        {
+            logger.LogWarning(ioEx, "IO error reading catalog from candidate URL {TargetUrl} in definition", candidateUrl);
+            return (null, ioEx.Message);
+        }
+        catch (InvalidOperationException opEx)
+        {
+            logger.LogWarning(opEx, "Invalid operation reading catalog from candidate URL {TargetUrl} in definition", candidateUrl);
+            return (null, opEx.Message);
         }
     }
 
@@ -674,8 +684,11 @@ public partial class SubscriptionConfirmationViewModel(
             return (null, null, null, definition);
         }
 
+        const int maxCandidatesToTry = 5;
+        var candidatesToTry = candidateUrls.Take(maxCandidatesToTry);
+
         string? lastError = null;
-        foreach (var candidateUrl in candidateUrls)
+        foreach (var candidateUrl in candidatesToTry)
         {
             var (catalog, error) = await TryFetchCandidateCatalogAsync(candidateUrl, cancellationToken);
             if (catalog != null)
@@ -736,15 +749,16 @@ public partial class SubscriptionConfirmationViewModel(
         CancellationToken cancellationToken)
     {
         _definitionCatalogs.Clear();
-        var firstEntry = definition.Catalogs.FirstOrDefault(e => string.Equals(e.Url, firstCatalogUrl, StringComparison.OrdinalIgnoreCase))
-            ?? definition.Catalogs.FirstOrDefault();
+        var catalogs = definition.Catalogs ?? [];
+        var firstEntry = catalogs.FirstOrDefault(e => string.Equals(e.Url, firstCatalogUrl, StringComparison.OrdinalIgnoreCase))
+            ?? catalogs.FirstOrDefault();
         _definitionCatalogs.Add((
             firstEntry?.Id ?? "primary",
             ResolveCatalogDisplayName(firstEntry?.Name, firstEntry?.Id ?? "primary"),
             firstCatalogUrl,
             firstCatalog));
 
-        foreach (var entry in definition.Catalogs)
+        foreach (var entry in catalogs)
         {
             if (string.IsNullOrWhiteSpace(entry.Url) ||
                 string.Equals(entry.Url, firstCatalogUrl, StringComparison.OrdinalIgnoreCase))

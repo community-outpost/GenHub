@@ -6,6 +6,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Content.Services.Catalog;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -580,16 +581,7 @@ public sealed partial class BundleComponentViewModel : ObservableObject
             ApplyGitHubCoordinates(searchResult, repository[0], repository[1]);
         }
 
-        var declaredProvider = CatalogConstants.UpstreamProviders.DeclaredProvider(sibling.UpstreamSync?.Provider, sibling.PublisherType);
-        if (string.Equals(declaredProvider, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(declaredProvider, CommunityOutpostConstants.PublisherId, StringComparison.OrdinalIgnoreCase))
-        {
-            var contentCode = sibling.UpstreamSync?.ContentCode;
-            if (!string.IsNullOrWhiteSpace(contentCode))
-            {
-                searchResult.ResolverMetadata[CommunityOutpostCatalogConstants.ContentCodeKey] = contentCode.Trim().ToLowerInvariant();
-            }
-        }
+        GenericCatalogDiscoverer.ApplyUpstreamCommunityOutpostIdentity(searchResult, sibling);
     }
 
     private static string[]? ResolveSiblingRepository(CatalogContentItem sibling)

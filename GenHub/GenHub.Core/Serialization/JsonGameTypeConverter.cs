@@ -22,7 +22,10 @@ public class JsonGameTypeConverter : JsonConverter<GameType>
         if (reader.TokenType == JsonTokenType.String)
         {
             var valueStr = reader.GetString();
-            if (!string.IsNullOrEmpty(valueStr) && Enum.TryParse<GameType>(valueStr, ignoreCase: true, out var result) && Enum.IsDefined(result))
+            if (!string.IsNullOrEmpty(valueStr) &&
+                !int.TryParse(valueStr, out _) &&
+                Enum.TryParse<GameType>(valueStr, ignoreCase: true, out var result) &&
+                Enum.IsDefined(result))
             {
                 return result;
             }

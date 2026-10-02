@@ -168,7 +168,7 @@ public class GenericCatalogContentProvider(
         }
 
         Logger.LogWarning("Rolling back generic catalog Generals Online manifest registration for version {Version}", preparedManifest.Version);
-        await RemoveManifestsAsync(manifestIdsToRemove, cancellationToken);
+        await RemoveManifestsAsync(manifestIdsToRemove, CancellationToken.None);
     }
 
     /// <inheritdoc />
@@ -292,9 +292,11 @@ public class GenericCatalogContentProvider(
 
         if (postPool.Success && postPool.Data != null)
         {
+            var targetVersion = deliveryResult.Data?.Version ?? manifest.Version;
             var addedIds = postPool.Data
                 .Where(m => !preExistingIds.Contains(m.Id) &&
-                            string.Equals(m.Publisher?.PublisherType, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+                            string.Equals(m.Publisher?.PublisherType, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase) &&
+                            (string.IsNullOrEmpty(targetVersion) || string.Equals(m.Version, targetVersion, StringComparison.OrdinalIgnoreCase)))
                 .Select(m => m.Id)
                 .ToList();
 

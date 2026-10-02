@@ -48,6 +48,8 @@ public class JsonGameTypeConverterTests
     [Theory]
     [InlineData("\"FutureGame\"")]
     [InlineData("\"\"")]
+    [InlineData("\"0\"")]
+    [InlineData("\"1\"")]
     [InlineData("\"9999\"")]
     public void Deserialize_UnknownString_ReturnsUnknownGameType(string json)
     {

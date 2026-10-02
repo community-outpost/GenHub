@@ -212,23 +212,10 @@ public class CommunityOutpostManifestFactory(
     /// </summary>
     private static string GetContentCodeFromManifest(ContentManifest manifest)
     {
-        var tags = manifest.Metadata?.Tags;
-        if (tags != null)
+        var code = GenPatcherContentRegistry.TryGetContentCodeFromTags(manifest.Metadata?.Tags);
+        if (!string.IsNullOrEmpty(code))
         {
-            foreach (var tag in tags.Where(t => t.StartsWith(ManifestTagConstants.ContentCodePrefix, StringComparison.OrdinalIgnoreCase)))
-            {
-                var candidate = GenPatcherContentRegistry.NormalizeContentCode(tag[ManifestTagConstants.ContentCodePrefix.Length..]);
-                if (GenPatcherContentRegistry.IsKnownCode(candidate))
-                {
-                    return candidate;
-                }
-            }
-
-            var firstTag = tags.FirstOrDefault(t => t.StartsWith(ManifestTagConstants.ContentCodePrefix, StringComparison.OrdinalIgnoreCase));
-            if (!string.IsNullOrEmpty(firstTag))
-            {
-                return GenPatcherContentRegistry.NormalizeContentCode(firstTag[ManifestTagConstants.ContentCodePrefix.Length..]);
-            }
+            return code;
         }
 
         // Try to extract from manifest ID

@@ -69,9 +69,9 @@ public enum ContentType
     /// <summary>Modding and mapping tools/utilities.</summary>
     ModdingTool,
 
-    /// <summary>GenHub application installer or build.</summary>
-    GenHubBuild,
-
     /// <summary>Unknown content type.</summary>
     UnknownContentType,
+
+    /// <summary>GenHub application installer or build.</summary>
+    GenHubBuild,
 }
