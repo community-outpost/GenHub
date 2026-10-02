@@ -45,6 +45,11 @@
 
         <PackageReference Include="Markdown.Avalonia" />
         <PackageReference Include="Material.Icons.Avalonia" />
+        <!-- In-app video playback -->
+        <PackageReference Include="LibVLCSharp" />
+        <PackageReference Include="LibVLCSharp.Avalonia" />
+        <PackageReference Include="VideoLAN.LibVLC.Windows" />
+        <PackageReference Include="VideoLAN.LibVLC.Mac" />
         <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
         <PackageReference Include="Microsoft.Extensions.Http" />

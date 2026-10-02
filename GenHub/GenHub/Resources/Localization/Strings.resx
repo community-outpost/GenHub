@@ -13846,6 +13846,36 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Downloads.ContentDetail.PlayVideoTooltip" xml:space="preserve">
     <value>Play or open video</value>
   </data>
+  <data name="Downloads.ContentDetail.VideoPreview" xml:space="preserve">
+    <value>Video Preview</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoOpenFailedTitle" xml:space="preserve">
+    <value>Cannot Open Video</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoOpenFailedMessage" xml:space="preserve">
+    <value>The video link could not be opened in a browser.</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.PlayPause" xml:space="preserve">
+    <value>Play / Pause</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.MuteUnmute" xml:space="preserve">
+    <value>Mute / Unmute</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.LoadingVideo" xml:space="preserve">
+    <value>Loading video...</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.VideoUnavailable" xml:space="preserve">
+    <value>Video playback is unavailable on this device.</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.VideoLoadFailed" xml:space="preserve">
+    <value>Could not play this video.</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.Retry" xml:space="preserve">
+    <value>Retry</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.OpenInBrowser" xml:space="preserve">
+    <value>Open in browser</value>
+  </data>
   <data name="Tools.PublisherStudio.Release.VariantsMode" xml:space="preserve">
     <value>Alternative Variants (e.g. Languages, Resolutions)</value>
   </data>

@@ -290,6 +290,15 @@ public partial class ContentDetailViewModel(
     private bool _isFullScreenMediaOpen;
 
     [ObservableProperty]
+    private string? _videoPlayerUrl;
+
+    [ObservableProperty]
+    private string? _videoPlayerTitle;
+
+    [ObservableProperty]
+    private bool _isVideoPlayerOpen;
+
+    [ObservableProperty]
     private bool _isLoadingDetails;
 
     [ObservableProperty]
@@ -3976,16 +3985,6 @@ public partial class ContentDetailViewModel(
         searchResult.ResolverId == CatalogConstants.GenericCatalogResolverId ||
         searchResult.ResolverMetadata?.ContainsKey(CatalogConstants.CatalogItemJsonMetadataKey) == true;
 
-    private static bool IsVideoUrl(string url)
-    {
-        return url.Contains("youtube.com", StringComparison.OrdinalIgnoreCase) ||
-               url.Contains("youtu.be", StringComparison.OrdinalIgnoreCase) ||
-               url.Contains("vimeo.com", StringComparison.OrdinalIgnoreCase) ||
-               url.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase) ||
-               url.EndsWith(".webm", StringComparison.OrdinalIgnoreCase) ||
-               url.EndsWith(".mkv", StringComparison.OrdinalIgnoreCase);
-    }
-
     private void PopulateCatalogAddons(CatalogContentItem catalogItem)
     {
         var hasAddonReleases = catalogItem.AddonReleases is { Count: > 0 };
@@ -6707,89 +6706,60 @@ public partial class ContentDetailViewModel(
 
     /// <summary>
     /// Opens full-screen view for the specified media item or URL.
+    /// Direct videos stream in the in-app player; embed pages open in the system browser.
     /// </summary>
     [RelayCommand]
     private void OpenFullScreenMedia(object? item)
     {
-        if (item is Image img)
+        var decision = ContentDetailMediaDisplay.Resolve(item);
+        switch (decision.Action)
         {
-            FullScreenMediaUrl = img.FullSizeUrl ?? img.ThumbnailUrl;
-            FullScreenMediaTitle = img.Title;
-            IsFullScreenMediaOpen = true;
-        }
-        else if (item is Video vid)
-        {
-            if (!string.IsNullOrWhiteSpace(vid.EmbedUrl))
-            {
-                var targetUrl = vid.EmbedUrl;
-                if (targetUrl.Contains("/embed/", StringComparison.OrdinalIgnoreCase) &&
-                    targetUrl.Contains("youtube", StringComparison.OrdinalIgnoreCase))
+            case MediaDisplayAction.PlayVideo:
+                CloseFullScreenMedia();
+                VideoPlayerUrl = decision.Url;
+                VideoPlayerTitle = item is Video video
+                    ? video.Title
+                    : GetLocalizedString("Downloads.ContentDetail.VideoPreview", "Video Preview");
+                IsVideoPlayerOpen = true;
+                break;
+            case MediaDisplayAction.OpenExternally:
+                OpenMediaExternally(decision.Url);
+                break;
+            case MediaDisplayAction.ShowImage:
+                CloseVideoPlayer();
+                FullScreenMediaUrl = decision.Url;
+                FullScreenMediaTitle = item switch
                 {
-                    var embedParts = targetUrl.Split("/embed/", StringSplitOptions.RemoveEmptyEntries);
-                    if (embedParts.Length > 1)
-                    {
-                        var id = embedParts[1].Split('?')[0];
-                        if (!string.IsNullOrWhiteSpace(id))
-                        {
-                            targetUrl = $"{ApiConstants.YouTubeWatchUrlPrefix}{id}";
-                        }
-                    }
-                }
-
-                if (Uri.TryCreate(targetUrl, UriKind.Absolute, out var videoUri) &&
-                    (videoUri.Scheme == Uri.UriSchemeHttp || videoUri.Scheme == Uri.UriSchemeHttps))
-                {
-                    try
-                    {
-                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                        {
-                            FileName = videoUri.AbsoluteUri,
-                            UseShellExecute = true,
-                        });
-                        return;
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(ex, "Failed to open video in browser: {Url}", targetUrl);
-                    }
-                }
-                else
-                {
-                    logger.LogWarning("Refusing to open non-http/https video URL in browser: {Url}", targetUrl);
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(vid.ThumbnailUrl))
-            {
-                FullScreenMediaUrl = vid.ThumbnailUrl;
-                FullScreenMediaTitle = vid.Title;
+                    Video titledVideo => titledVideo.Title,
+                    Image image => image.Title,
+                    _ => GetLocalizedString("Downloads.ContentDetail.ImagePreview", "Image Preview"),
+                };
                 IsFullScreenMediaOpen = true;
-            }
+                break;
+            default:
+                break;
         }
-        else if (item is string url && MediaFileHelper.IsRemoteHttpUrl(url))
-        {
-            if (IsVideoUrl(url) && Uri.TryCreate(url, UriKind.Absolute, out var videoUri) &&
-                (videoUri.Scheme == Uri.UriSchemeHttp || videoUri.Scheme == Uri.UriSchemeHttps))
-            {
-                try
-                {
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = videoUri.AbsoluteUri,
-                        UseShellExecute = true,
-                    });
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to open video in browser: {Url}", url);
-                }
-            }
+    }
 
-            FullScreenMediaUrl = url;
-            FullScreenMediaTitle = GetLocalizedString("Downloads.ContentDetail.ImagePreview", "Image Preview");
-            IsFullScreenMediaOpen = true;
-        }
+    /// <summary>
+    /// Opens a media URL in the system browser, notifying the user when the launch fails.
+    /// </summary>
+    /// <param name="url">The URL to open.</param>
+    [RelayCommand]
+    private void OpenVideoExternally(string? url)
+    {
+        OpenMediaExternally(url);
+    }
+
+    /// <summary>
+    /// Closes the in-app video player.
+    /// </summary>
+    [RelayCommand]
+    private void CloseVideoPlayer()
+    {
+        IsVideoPlayerOpen = false;
+        VideoPlayerUrl = null;
+        VideoPlayerTitle = null;
     }
 
     /// <summary>
@@ -6801,6 +6771,18 @@ public partial class ContentDetailViewModel(
         IsFullScreenMediaOpen = false;
         FullScreenMediaUrl = null;
         FullScreenMediaTitle = null;
+    }
+
+    private void OpenMediaExternally(string? url)
+    {
+        if (!BrowserHelper.TryOpenUrl(url, logger))
+        {
+            notificationService.ShowWarning(
+                GetLocalizedString("Downloads.ContentDetail.VideoOpenFailedTitle", "Cannot Open Video"),
+                GetLocalizedString(
+                    "Downloads.ContentDetail.VideoOpenFailedMessage",
+                    "The video link could not be opened in a browser."));
+        }
     }
 
     private async Task LoadDependencySummaryAsync(string manifestId)

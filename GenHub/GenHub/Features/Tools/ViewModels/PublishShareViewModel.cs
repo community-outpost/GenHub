@@ -3518,18 +3518,20 @@ public partial class PublishShareViewModel(
         var pending = new List<PendingMediaUpload>();
         var skipped = new List<SkippedMediaReference>();
         var projectDirectory = Path.GetDirectoryName(project.ProjectPath);
-        foreach (var content in catalog.Catalog.Content)
+        foreach (var content in catalog.Catalog.Content ?? [])
         {
             CollectContentMedia(pending, skipped, content, projectDirectory);
-            for (var releaseIndex = 0; releaseIndex < content.Releases.Count; releaseIndex++)
+            var releases = content.Releases ?? [];
+            for (var releaseIndex = 0; releaseIndex < releases.Count; releaseIndex++)
             {
-                var release = content.Releases[releaseIndex];
+                var release = releases[releaseIndex];
                 CollectReleaseMedia(pending, skipped, content.Id, $"release-{releaseIndex}", release.ImageUrls, release.VideoUrls, projectDirectory);
             }
 
-            for (var addonIndex = 0; addonIndex < content.AddonReleases.Count; addonIndex++)
+            var addonReleases = content.AddonReleases ?? [];
+            for (var addonIndex = 0; addonIndex < addonReleases.Count; addonIndex++)
             {
-                var addon = content.AddonReleases[addonIndex];
+                var addon = addonReleases[addonIndex];
                 CollectReleaseMedia(pending, skipped, content.Id, $"addon-{addonIndex}", addon.ImageUrls, addon.VideoUrls, projectDirectory);
             }
         }
@@ -3555,12 +3557,19 @@ public partial class PublishShareViewModel(
         List<SkippedMediaReference> skipped,
         string contentId,
         string scope,
-        List<string> imageUrls,
-        List<string> videoUrls,
+        List<string>? imageUrls,
+        List<string>? videoUrls,
         string? projectDirectory)
     {
-        AddPendingMediaList(pending, skipped, contentId, scope, "images", imageUrls, projectDirectory, (index, url) => imageUrls[index] = url);
-        AddPendingMediaList(pending, skipped, contentId, scope, "videos", videoUrls, projectDirectory, (index, url) => videoUrls[index] = url);
+        if (imageUrls != null)
+        {
+            AddPendingMediaList(pending, skipped, contentId, scope, "images", imageUrls, projectDirectory, (index, url) => imageUrls[index] = url);
+        }
+
+        if (videoUrls != null)
+        {
+            AddPendingMediaList(pending, skipped, contentId, scope, "videos", videoUrls, projectDirectory, (index, url) => videoUrls[index] = url);
+        }
     }
 
     private void AddPendingMediaList(
@@ -3569,10 +3578,15 @@ public partial class PublishShareViewModel(
         string contentId,
         string scope,
         string kind,
-        List<string> urls,
+        List<string>? urls,
         string? projectDirectory,
         Action<int, string> applyUrl)
     {
+        if (urls == null)
+        {
+            return;
+        }
+
         for (var index = 0; index < urls.Count; index++)
         {
             var capturedIndex = index;

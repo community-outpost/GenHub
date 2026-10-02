@@ -13785,6 +13785,36 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Downloads.ContentDetail.PlayVideoTooltip" xml:space="preserve">
     <value>تشغيل أو فتح الفيديو</value>
   </data>
+  <data name="Downloads.ContentDetail.VideoPreview" xml:space="preserve">
+    <value>معاينة الفيديو</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoOpenFailedTitle" xml:space="preserve">
+    <value>تعذر فتح الفيديو</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoOpenFailedMessage" xml:space="preserve">
+    <value>تعذر فتح رابط الفيديو في المتصفح.</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.PlayPause" xml:space="preserve">
+    <value>تشغيل / إيقاف مؤقت</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.MuteUnmute" xml:space="preserve">
+    <value>كتم / إلغاء الكتم</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.LoadingVideo" xml:space="preserve">
+    <value>جارٍ تحميل الفيديو...</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.VideoUnavailable" xml:space="preserve">
+    <value>تشغيل الفيديو غير متوفر على هذا الجهاز.</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.VideoLoadFailed" xml:space="preserve">
+    <value>تعذر تشغيل هذا الفيديو.</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.Retry" xml:space="preserve">
+    <value>إعادة المحاولة</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.OpenInBrowser" xml:space="preserve">
+    <value>فتح في المتصفح</value>
+  </data>
   <data name="Tools.PublisherStudio.Release.VariantsMode" xml:space="preserve">
     <value>إصدارات بديلة (مثل اللغات والدقات)</value>
   </data>

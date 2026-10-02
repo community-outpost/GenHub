@@ -352,9 +352,9 @@ public partial class ContentLibraryViewModel(
     }
 
     private static int CountPendingLocalArtifacts(CatalogContentItem? item) =>
-        item?.Releases
+        (item?.Releases ?? [])
             .SelectMany(r => r.Artifacts)
-            .Count(a => !string.IsNullOrEmpty(a.LocalFilePath) && string.IsNullOrEmpty(a.DownloadUrl)) ?? 0;
+            .Count(a => !string.IsNullOrEmpty(a.LocalFilePath) && string.IsNullOrEmpty(a.DownloadUrl));
 
     private static int CountPendingLocalMedia(CatalogContentItem? item, string? projectDirectory)
     {
@@ -363,20 +363,20 @@ public partial class ContentLibraryViewModel(
             return 0;
         }
 
-        var count = item.Metadata.ScreenshotUrls.Count(url => IsUploadableMedia(projectDirectory, url));
-        count += item.Metadata.VideoUrls.Count(url => IsUploadableMedia(projectDirectory, url));
+        var count = CountPendingReleaseMedia(item.Metadata.ScreenshotUrls, projectDirectory);
+        count += CountPendingReleaseMedia(item.Metadata.VideoUrls, projectDirectory);
         if (IsUploadableMedia(projectDirectory, item.Metadata.VideoUrl))
         {
             count++;
         }
 
-        count += item.Releases.Sum(release => CountPendingReleaseMedia(release.ImageUrls, projectDirectory) + CountPendingReleaseMedia(release.VideoUrls, projectDirectory));
-        count += item.AddonReleases.Sum(addon => CountPendingReleaseMedia(addon.ImageUrls, projectDirectory) + CountPendingReleaseMedia(addon.VideoUrls, projectDirectory));
+        count += (item.Releases ?? []).Sum(release => CountPendingReleaseMedia(release.ImageUrls, projectDirectory) + CountPendingReleaseMedia(release.VideoUrls, projectDirectory));
+        count += (item.AddonReleases ?? []).Sum(addon => CountPendingReleaseMedia(addon.ImageUrls, projectDirectory) + CountPendingReleaseMedia(addon.VideoUrls, projectDirectory));
         return count;
     }
 
-    private static int CountPendingReleaseMedia(List<string> urls, string? projectDirectory) =>
-        urls.Count(url => IsUploadableMedia(projectDirectory, url));
+    private static int CountPendingReleaseMedia(List<string>? urls, string? projectDirectory) =>
+        urls?.Count(url => IsUploadableMedia(projectDirectory, url)) ?? 0;
 
     private static bool IsUploadableMedia(string? projectDirectory, string? value) =>
         !string.IsNullOrWhiteSpace(value)

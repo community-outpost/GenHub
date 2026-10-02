@@ -6,6 +6,7 @@
              xmlns:views="clr-namespace:GenHub.Features.Downloads.Views"
              xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
              xmlns:controls="clr-namespace:GenHub.Infrastructure.Controls;assembly=GenHub"
+             xmlns:common="clr-namespace:GenHub.Common.Controls;assembly=GenHub"
              xmlns:parsers="clr-namespace:GenHub.Core.Models.Parsers;assembly=GenHub.Core"
              xmlns:content="clr-namespace:GenHub.Core.Models.Content;assembly=GenHub.Core"
              xmlns:md="https://github.com/whistyun/Markdown.Avalonia"
@@ -1926,6 +1927,76 @@
                            VerticalAlignment="Center"
                            MaxHeight="680"
                            MaxWidth="1060" />
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+
+    <!-- In-App Video Player Modal Overlay -->
+    <Grid IsVisible="{Binding IsVideoPlayerOpen}"
+          Background="#D9000000">
+        <!-- Backdrop click to close -->
+        <Button Command="{Binding CloseVideoPlayerCommand}"
+                Background="Transparent"
+                BorderThickness="0"
+                Padding="0"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch">
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
+                    <Panel Background="Transparent" />
+                </ControlTemplate>
+            </Button.Template>
+        </Button>
+
+        <!-- Video Player Dialog -->
+        <Border Background="{DynamicResource CardBackground}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="12"
+                Margin="32"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                BoxShadow="0 16 48 0 #80000000"
+                ClipToBounds="True">
+            <Grid RowDefinitions="Auto,*" MaxWidth="1100" MaxHeight="750">
+                <!-- Modal Header -->
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="16,12" Background="Transparent">
+                    <TextBlock Grid.Column="0"
+                               Text="{Binding VideoPlayerTitle}"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimary}"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" />
+                    <Button Grid.Column="1"
+                            Command="{Binding CloseVideoPlayerCommand}"
+                            Foreground="{DynamicResource TextSecondary}"
+                            Background="{DynamicResource SurfaceElevatedBrush}"
+                            BorderThickness="1"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            CornerRadius="6"
+                            Width="30"
+                            Height="30"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
+                            Cursor="Hand">
+                        <PathIcon Data="{StaticResource ToolIcon.Close}" Width="12" Height="12" />
+                        <Button.Styles>
+                            <Style Selector="Button:pointerover">
+                                <Setter Property="Background" Value="{DynamicResource ErrorBrush}" />
+                                <Setter Property="Foreground" Value="White" />
+                            </Style>
+                        </Button.Styles>
+                    </Button>
+                </Grid>
+
+                <!-- Video Player -->
+                <Border Grid.Row="1" Background="Black" Padding="12">
+                    <common:VideoPlayerView SourceUrl="{Binding VideoPlayerUrl}"
+                                             FallbackCommand="{Binding OpenVideoExternallyCommand}"
+                                             MaxHeight="680"
+                                             MaxWidth="1060" />
                 </Border>
             </Grid>
         </Border>

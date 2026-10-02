@@ -64,6 +64,78 @@ public static class MediaFileHelper
     }
 
     /// <summary>
+    /// Determines whether the value is a video watch or embed page (YouTube, Vimeo)
+    /// that must open in the system browser instead of the in-app player.
+    /// </summary>
+    /// <param name="value">The media URL to check.</param>
+    /// <returns>True when the URL host is a known video embed platform.</returns>
+    public static bool IsEmbedVideoPageUrl(string? value)
+    {
+        if (!IsRemoteHttpUrl(value))
+        {
+            return false;
+        }
+
+        if (!Uri.TryCreate(value!.Trim(), UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        var host = uri.Host;
+        return host.EndsWith("youtube.com", StringComparison.OrdinalIgnoreCase)
+            || host.EndsWith("youtube-nocookie.com", StringComparison.OrdinalIgnoreCase)
+            || host.Equals("youtu.be", StringComparison.OrdinalIgnoreCase)
+            || host.EndsWith("vimeo.com", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Determines whether the value is a remote video file that the in-app player can stream.
+    /// </summary>
+    /// <param name="value">The media URL to check.</param>
+    /// <returns>True when the value is a remote http/https URL with a video file extension.</returns>
+    public static bool IsDirectVideoFileUrl(string? value)
+    {
+        return IsRemoteHttpUrl(value) && IsVideoFile(value);
+    }
+
+    /// <summary>
+    /// Determines whether the value is an extensionless hosted file URL from GenHub media
+    /// hosting (Google Drive direct downloads, gateway uploads). These carry no file
+    /// extension, so callers in a video context route them to the in-app player, which
+    /// sniffs the content type, with a browser fallback on failure.
+    /// </summary>
+    /// <param name="value">The media URL to check.</param>
+    /// <returns>True when the value is an extensionless file URL on a known media host.</returns>
+    public static bool IsExtensionlessHostedFileUrl(string? value)
+    {
+        if (!IsRemoteHttpUrl(value))
+        {
+            return false;
+        }
+
+        if (!Uri.TryCreate(value!.Trim(), UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(Path.GetExtension(uri.AbsolutePath)))
+        {
+            return false;
+        }
+
+        if (uri.Host.Equals(
+                Constants.HostingConstants.GoogleDriveDirectDownloadHost,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return uri.AbsolutePath.Equals("/uc", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return uri.Host.Equals(
+            Constants.HostingConstants.UploadThingFileHost,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     /// Resolves a catalog media reference to an existing local file.
     /// Accepts project-relative paths (kept inside the project directory), file:// URIs,
     /// and absolute paths. Remote http/https URLs and unresolvable values return null.
@@ -101,9 +173,8 @@ public static class MediaFileHelper
             return null;
         }
 
-        var root = projectRoot + Path.DirectorySeparatorChar;
         var combined = TryGetFullPath(Path.Combine(projectDirectory, trimmed));
-        return combined is not null && combined.StartsWith(root, StringComparison.OrdinalIgnoreCase) && File.Exists(combined)
+        return combined is not null && IsWithinDirectory(projectRoot, combined) && File.Exists(combined)
             ? combined
             : null;
     }
@@ -213,5 +284,20 @@ public static class MediaFileHelper
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// Determines whether a candidate path stays inside a root directory.
+    /// Detects escapes via the relative path so the check stays sound on case-sensitive file systems.
+    /// </summary>
+    /// <param name="root">The containing directory.</param>
+    /// <param name="candidate">The resolved path to test.</param>
+    /// <returns>True when the candidate is inside the root.</returns>
+    private static bool IsWithinDirectory(string root, string candidate)
+    {
+        var relative = Path.GetRelativePath(root, candidate);
+        return !relative.Equals("..", StringComparison.Ordinal)
+            && !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+            && !Path.IsPathRooted(relative);
     }
 }

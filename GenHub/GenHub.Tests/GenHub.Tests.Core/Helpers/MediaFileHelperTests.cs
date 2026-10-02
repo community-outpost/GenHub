@@ -169,6 +169,89 @@ public sealed class MediaFileHelperTests : IDisposable
         Assert.Null(MediaFileHelper.TryResolveLocalMediaPath(_tempDirectory, null));
     }
 
+    /// <summary>
+    /// Verifies that an existing file outside the project directory is never resolved via a relative reference.
+    /// </summary>
+    [Fact]
+    public void TryResolveLocalMediaPath_ExistingFileOutsideProject_ReturnsNull()
+    {
+        var parentDirectory = Path.GetDirectoryName(_tempDirectory)!;
+        var outsidePath = Path.Combine(parentDirectory, $"outside-{Guid.NewGuid():N}.png");
+        File.WriteAllBytes(outsidePath, [9, 9, 9, 9]);
+        try
+        {
+            Assert.Null(MediaFileHelper.TryResolveLocalMediaPath(_tempDirectory, "../" + Path.GetFileName(outsidePath)));
+        }
+        finally
+        {
+            File.Delete(outsidePath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that video platform pages are detected for external browser routing.
+    /// </summary>
+    /// <param name="value">The URL under test.</param>
+    /// <param name="expected">The expected classification.</param>
+    [Theory]
+    [InlineData("https://www.youtube.com/watch?v=abc123", true)]
+    [InlineData("https://www.youtube.com/embed/abc123", true)]
+    [InlineData("https://m.youtube.com/watch?v=abc123", true)]
+    [InlineData("https://www.youtube-nocookie.com/embed/abc123", true)]
+    [InlineData("https://youtu.be/abc123", true)]
+    [InlineData("https://vimeo.com/123456", true)]
+    [InlineData("https://player.vimeo.com/video/123456", true)]
+    [InlineData("https://cdn.example.com/trailer.mp4", false)]
+    [InlineData("https://drive.google.com/uc?export=download&id=abc123", false)]
+    [InlineData("https://utfs.io/f/abc123", false)]
+    [InlineData("https://cdn.example.com/shot.jpg", false)]
+    [InlineData("file:///C:/media/trailer.mp4", false)]
+    [InlineData(null, false)]
+    [InlineData("", false)]
+    public void IsEmbedVideoPageUrl_ClassifiesPlatforms(string? value, bool expected)
+    {
+        Assert.Equal(expected, MediaFileHelper.IsEmbedVideoPageUrl(value));
+    }
+
+    /// <summary>
+    /// Verifies that remote video files are detected for in-app playback.
+    /// </summary>
+    /// <param name="value">The URL under test.</param>
+    /// <param name="expected">The expected classification.</param>
+    [Theory]
+    [InlineData("https://cdn.example.com/trailer.mp4", true)]
+    [InlineData("https://cdn.example.com/trailer.webm", true)]
+    [InlineData("https://cdn.example.com/trailer.mov", true)]
+    [InlineData("https://cdn.example.com/trailer.mkv", true)]
+    [InlineData("https://dl.dropboxusercontent.com/s/abc/trailer.mp4", true)]
+    [InlineData("https://www.youtube.com/watch?v=abc123", false)]
+    [InlineData("https://drive.google.com/uc?export=download&id=abc123", false)]
+    [InlineData("https://cdn.example.com/shot.jpg", false)]
+    [InlineData("C:\\media\\trailer.mp4", false)]
+    [InlineData(null, false)]
+    public void IsDirectVideoFileUrl_ClassifiesVideoFiles(string? value, bool expected)
+    {
+        Assert.Equal(expected, MediaFileHelper.IsDirectVideoFileUrl(value));
+    }
+
+    /// <summary>
+    /// Verifies that extensionless hosted file URLs from GenHub media hosting are detected.
+    /// </summary>
+    /// <param name="value">The URL under test.</param>
+    /// <param name="expected">The expected classification.</param>
+    [Theory]
+    [InlineData("https://drive.google.com/uc?export=download&id=abc123", true)]
+    [InlineData("https://utfs.io/f/abc123", true)]
+    [InlineData("https://dl.dropboxusercontent.com/s/abc/trailer.mp4", false)]
+    [InlineData("https://cdn.example.com/trailer.mp4", false)]
+    [InlineData("https://www.youtube.com/watch?v=abc123", false)]
+    [InlineData("https://drive.google.com/drive/folders/abc123", false)]
+    [InlineData(null, false)]
+    public void IsExtensionlessHostedFileUrl_ClassifiesHostingUrls(string? value, bool expected)
+    {
+        Assert.Equal(expected, MediaFileHelper.IsExtensionlessHostedFileUrl(value));
+    }
+
     private string WriteTempFile(string fileName, byte[] content)
     {
         var path = Path.Combine(_tempDirectory, fileName);

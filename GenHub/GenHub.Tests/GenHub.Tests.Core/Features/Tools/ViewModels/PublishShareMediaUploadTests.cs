@@ -160,6 +160,53 @@ public class PublishShareMediaUploadTests
         }
     }
 
+    /// <summary>
+    /// Null media lists (for example from catalog JSON that explicitly nulls the arrays)
+    /// must be skipped by the media stage instead of failing the publish.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PublishCatalogCommand_NullMediaLists_PublishesWithoutThrowingAsync()
+    {
+        var projectDir = Directory.CreateTempSubdirectory("genhub-media-").FullName;
+        try
+        {
+            var item = new CatalogContentItem
+            {
+                Id = "content-1",
+                Name = "Content",
+                Metadata = new ContentRichMetadata { ScreenshotUrls = null!, VideoUrls = null! },
+                Releases = [new ContentRelease { ImageUrls = null!, VideoUrls = null! }],
+            };
+            var catalog = new NamedCatalog
+            {
+                Id = "cat",
+                Name = "Cat",
+                Catalog = new PublisherCatalog { Content = [item] },
+            };
+            var project = new PublisherStudioProject
+            {
+                ProjectPath = Path.Combine(projectDir, "project.json"),
+                Catalogs = [catalog],
+            };
+
+            var mockProvider = CreateRecordingMediaProvider(new List<string>());
+            SetupCatalogServiceMocks();
+            var vm = CreatePublishShareViewModel(project, mockProvider.Object);
+
+            var exception = await Record.ExceptionAsync(() => vm.PublishCatalogCommand.ExecuteAsync(catalog));
+
+            Assert.Null(exception);
+            mockProvider.Verify(
+                p => p.UploadFileAsync(It.IsAny<Stream>(), It.Is<string>(name => name.Contains("-media-", StringComparison.OrdinalIgnoreCase)), It.IsAny<string?>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+        finally
+        {
+            Directory.Delete(projectDir, true);
+        }
+    }
+
     private Mock<IHostingProvider> CreateRecordingMediaProvider(List<string> callOrder)
     {
         var mockProvider = new Mock<IHostingProvider>();
