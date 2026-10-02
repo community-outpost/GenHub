@@ -37,24 +37,13 @@ public class CasService(
             }
 
             // Compute hash if not provided
-            string hash = string.Empty;
-            if (!string.IsNullOrWhiteSpace(expectedHash))
+            var hashResult = await ResolveAndVerifyFileHashAsync(sourcePath, expectedHash, cancellationToken);
+            if (!hashResult.Success || hashResult.Data == null)
             {
-                var normalizedExpectedHash = expectedHash.Trim();
-
-                // Verify the expected hash matches the actual file
-                var actualHash = await fileHashProvider.ComputeFileHashAsync(sourcePath, cancellationToken);
-                if (!string.Equals(normalizedExpectedHash, actualHash, StringComparison.OrdinalIgnoreCase))
-                {
-                    return OperationResult<string>.CreateFailure($"Hash mismatch: expected {normalizedExpectedHash}, but got {actualHash}");
-                }
-
-                hash = normalizedExpectedHash;
+                return hashResult;
             }
-            else
-            {
-                hash = await fileHashProvider.ComputeFileHashAsync(sourcePath, cancellationToken);
-            }
+
+            var hash = hashResult.Data;
 
             // Check if content already exists in CAS
             if (await storage.ObjectExistsAsync(hash, cancellationToken))
@@ -339,22 +328,13 @@ public class CasService(
             var storage = poolManager.GetStorage(contentType);
 
             // Compute hash
-            string hash = string.Empty;
-            if (!string.IsNullOrWhiteSpace(expectedHash))
+            var hashResult = await ResolveAndVerifyFileHashAsync(sourcePath, expectedHash, cancellationToken);
+            if (!hashResult.Success || hashResult.Data == null)
             {
-                var normalizedExpectedHash = expectedHash.Trim();
-                var actualHash = await fileHashProvider.ComputeFileHashAsync(sourcePath, cancellationToken);
-                if (!string.Equals(normalizedExpectedHash, actualHash, StringComparison.OrdinalIgnoreCase))
-                {
-                    return OperationResult<string>.CreateFailure($"Hash mismatch: expected {normalizedExpectedHash}, but got {actualHash}");
-                }
+                return hashResult;
+            }
 
-                hash = normalizedExpectedHash;
-            }
-            else
-            {
-                hash = await fileHashProvider.ComputeFileHashAsync(sourcePath, cancellationToken);
-            }
+            var hash = hashResult.Data;
 
             // Check if content already exists in the pool
             if (await storage.ObjectExistsAsync(hash, cancellationToken))
@@ -638,6 +618,27 @@ public class CasService(
         }
 
         return 0;
+    }
+
+    private async Task<OperationResult<string>> ResolveAndVerifyFileHashAsync(
+        string sourcePath,
+        string? expectedHash,
+        CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(expectedHash))
+        {
+            var normalizedExpectedHash = expectedHash.Trim();
+            var actualHash = await fileHashProvider.ComputeFileHashAsync(sourcePath, cancellationToken);
+            if (!string.Equals(normalizedExpectedHash, actualHash, StringComparison.OrdinalIgnoreCase))
+            {
+                return OperationResult<string>.CreateFailure($"Hash mismatch: expected {normalizedExpectedHash}, but got {actualHash}");
+            }
+
+            return OperationResult<string>.CreateSuccess(normalizedExpectedHash);
+        }
+
+        var hash = await fileHashProvider.ComputeFileHashAsync(sourcePath, cancellationToken);
+        return OperationResult<string>.CreateSuccess(hash);
     }
 
     private async Task<OperationResult<string>> ComputeStreamHashAsync(
