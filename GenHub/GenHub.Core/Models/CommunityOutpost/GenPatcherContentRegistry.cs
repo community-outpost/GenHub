@@ -556,9 +556,9 @@ public static class GenPatcherContentRegistry
     /// <summary>
     /// Checks if a content code is known.
     /// </summary>
-    /// <param name="contentCode">The content code to check.</param>
+    /// <param name="contentCode">The content code to check (can be null or empty).</param>
     /// <returns>true if the content code is known; otherwise, false.</returns>
-    public static bool IsKnownCode(string contentCode)
+    public static bool IsKnownCode(string? contentCode)
     {
         if (string.IsNullOrWhiteSpace(contentCode))
         {

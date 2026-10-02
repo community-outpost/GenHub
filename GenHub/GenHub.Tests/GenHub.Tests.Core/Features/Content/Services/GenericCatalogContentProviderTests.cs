@@ -306,6 +306,17 @@ public sealed class GenericCatalogContentProviderTests
         manifestPoolMock.Verify(p => p.RemoveManifestAsync(preExistingManifest.Id, false, It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    /// <summary>
+    /// Verifies that Dispose can be called safely without throwing exceptions.
+    /// </summary>
+    [Fact]
+    public void Dispose_DisposesResourcesSafely()
+    {
+        var provider = CreateProvider();
+        provider.Dispose();
+        provider.Dispose();
+    }
+
     private static GenericCatalogContentProvider CreateProvider()
     {
         var discoverer = new GenericCatalogDiscoverer(
@@ -334,16 +345,5 @@ public sealed class GenericCatalogContentProviderTests
             NullLogger<GenericCatalogContentProvider>.Instance,
             Mock.Of<IContentValidator>(),
             Mock.Of<IInstallationInstructionsService>());
-    }
-
-    /// <summary>
-    /// Verifies that Dispose can be called safely without throwing exceptions.
-    /// </summary>
-    [Fact]
-    public void Dispose_DisposesResourcesSafely()
-    {
-        var provider = CreateProvider();
-        provider.Dispose();
-        provider.Dispose();
     }
 }
