@@ -84,16 +84,10 @@ public static class MediaFileHelper
             return File.Exists(uri.LocalPath) ? uri.LocalPath : null;
         }
 
-        try
+        if (Path.IsPathRooted(trimmed))
         {
-            if (Path.IsPathRooted(trimmed))
-            {
-                return File.Exists(trimmed) ? Path.GetFullPath(trimmed) : null;
-            }
-        }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
-        {
-            return null;
+            var fullPath = TryGetFullPath(trimmed);
+            return fullPath != null && File.Exists(fullPath) ? fullPath : null;
         }
 
         if (string.IsNullOrEmpty(projectDirectory))
@@ -101,18 +95,17 @@ public static class MediaFileHelper
             return null;
         }
 
-        try
-        {
-            var root = Path.GetFullPath(projectDirectory) + Path.DirectorySeparatorChar;
-            var combined = Path.GetFullPath(Path.Combine(projectDirectory, trimmed));
-            return combined.StartsWith(root, StringComparison.OrdinalIgnoreCase) && File.Exists(combined)
-                ? combined
-                : null;
-        }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        var projectRoot = TryGetFullPath(projectDirectory);
+        if (projectRoot == null)
         {
             return null;
         }
+
+        var root = projectRoot + Path.DirectorySeparatorChar;
+        var combined = TryGetFullPath(Path.Combine(projectDirectory, trimmed));
+        return combined != null && combined.StartsWith(root, StringComparison.OrdinalIgnoreCase) && File.Exists(combined)
+            ? combined
+            : null;
     }
 
     /// <summary>
@@ -194,6 +187,31 @@ public static class MediaFileHelper
         catch (ArgumentException)
         {
             return string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Gets the full path for a file system path, or null when the path is invalid.
+    /// </summary>
+    /// <param name="path">The path to normalize.</param>
+    /// <returns>The full path, or null when it cannot be resolved.</returns>
+    private static string? TryGetFullPath(string path)
+    {
+        try
+        {
+            return Path.GetFullPath(path);
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+        catch (NotSupportedException)
+        {
+            return null;
+        }
+        catch (PathTooLongException)
+        {
+            return null;
         }
     }
 }

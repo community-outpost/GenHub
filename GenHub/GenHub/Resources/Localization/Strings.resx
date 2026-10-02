@@ -13651,6 +13651,12 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.PublisherStudio.Publish.MediaHostingNotSupported" xml:space="preserve">
     <value>Provider does not support media hosting. Use direct image/video URLs or switch providers.</value>
   </data>
+  <data name="Tools.PublisherStudio.Publish.MediaSkippedTitle" xml:space="preserve">
+    <value>Unresolved Media Skipped</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.MediaSkippedFormat" xml:space="preserve">
+    <value>{0} media reference(s) could not be resolved to local files and were left unchanged.</value>
+  </data>
   <data name="Tools.PublisherStudio.Artifact.DropFileUnreadableFormat" xml:space="preserve">
     <value>Could not read the dropped file: {0}</value>
   </data>

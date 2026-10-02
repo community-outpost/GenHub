@@ -13590,6 +13590,12 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Publish.MediaHostingNotSupported" xml:space="preserve">
     <value>المزود لا يدعم استضافة الوسائط. استخدم روابط صور/فيديو مباشرة أو بدّل المزود.</value>
   </data>
+  <data name="Tools.PublisherStudio.Publish.MediaSkippedTitle" xml:space="preserve">
+    <value>تم تخطي الوسائط غير المحلولة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.MediaSkippedFormat" xml:space="preserve">
+    <value>تعذر حل {0} من مراجع الوسائط إلى ملفات محلية وتم تركها دون تغيير.</value>
+  </data>
   <data name="Tools.PublisherStudio.Artifact.DropFileUnreadableFormat" xml:space="preserve">
     <value>تعذّر قراءة الملف المُسقط: {0}</value>
   </data>

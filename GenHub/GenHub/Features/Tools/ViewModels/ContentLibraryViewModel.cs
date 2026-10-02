@@ -342,34 +342,46 @@ public partial class ContentLibraryViewModel(
     /// <summary>
     /// Gets the number of local artifacts and gallery media files in the selected content that are still waiting for cloud upload.
     /// </summary>
-    public int PendingUploadCount => CountPendingLocalArtifacts(SelectedContent) + CountPendingLocalMedia(SelectedContent);
+    public int PendingUploadCount
+    {
+        get
+        {
+            var projectDirectory = Path.GetDirectoryName(Project.ProjectPath);
+            return CountPendingLocalArtifacts(SelectedContent) + CountPendingLocalMedia(SelectedContent, projectDirectory);
+        }
+    }
 
     private static int CountPendingLocalArtifacts(CatalogContentItem? item) =>
         item?.Releases
             .SelectMany(r => r.Artifacts)
             .Count(a => !string.IsNullOrEmpty(a.LocalFilePath) && string.IsNullOrEmpty(a.DownloadUrl)) ?? 0;
 
-    private static int CountPendingLocalMedia(CatalogContentItem? item)
+    private static int CountPendingLocalMedia(CatalogContentItem? item, string? projectDirectory)
     {
         if (item?.Metadata == null)
         {
             return 0;
         }
 
-        var count = item.Metadata.ScreenshotUrls.Count(url => !string.IsNullOrWhiteSpace(url) && !MediaFileHelper.IsRemoteHttpUrl(url));
-        count += item.Metadata.VideoUrls.Count(url => !string.IsNullOrWhiteSpace(url) && !MediaFileHelper.IsRemoteHttpUrl(url));
-        if (!string.IsNullOrWhiteSpace(item.Metadata.VideoUrl) && !MediaFileHelper.IsRemoteHttpUrl(item.Metadata.VideoUrl))
+        var count = item.Metadata.ScreenshotUrls.Count(url => IsUploadableMedia(projectDirectory, url));
+        count += item.Metadata.VideoUrls.Count(url => IsUploadableMedia(projectDirectory, url));
+        if (IsUploadableMedia(projectDirectory, item.Metadata.VideoUrl))
         {
             count++;
         }
 
-        count += item.Releases.Sum(release => CountPendingReleaseMedia(release.ImageUrls) + CountPendingReleaseMedia(release.VideoUrls));
-        count += item.AddonReleases.Sum(addon => CountPendingReleaseMedia(addon.ImageUrls) + CountPendingReleaseMedia(addon.VideoUrls));
+        count += item.Releases.Sum(release => CountPendingReleaseMedia(release.ImageUrls, projectDirectory) + CountPendingReleaseMedia(release.VideoUrls, projectDirectory));
+        count += item.AddonReleases.Sum(addon => CountPendingReleaseMedia(addon.ImageUrls, projectDirectory) + CountPendingReleaseMedia(addon.VideoUrls, projectDirectory));
         return count;
     }
 
-    private static int CountPendingReleaseMedia(List<string> urls) =>
-        urls.Count(url => !string.IsNullOrWhiteSpace(url) && !MediaFileHelper.IsRemoteHttpUrl(url));
+    private static int CountPendingReleaseMedia(List<string> urls, string? projectDirectory) =>
+        urls.Count(url => IsUploadableMedia(projectDirectory, url));
+
+    private static bool IsUploadableMedia(string? projectDirectory, string? value) =>
+        !string.IsNullOrWhiteSpace(value)
+        && !MediaFileHelper.IsRemoteHttpUrl(value)
+        && MediaFileHelper.TryResolveLocalMediaPath(projectDirectory, value) != null;
 
     /// <summary>
     /// Gets a value indicating whether a hosting provider is currently connected.
@@ -1727,30 +1739,11 @@ public partial class ContentLibraryViewModel(
     [RelayCommand]
     private async Task PasteScreenshotAsync()
     {
-        if (SelectedContent == null)
-        {
-            return;
-        }
-
-        var desktop = Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
-        var clipboard = desktop?.MainWindow?.Clipboard;
-        if (clipboard == null)
-        {
-            return;
-        }
-
-        var tempDir = Path.Combine(Path.GetTempPath(), "GenHub", "Clipboard");
-        var paths = await ClipboardInputHelper.ExtractClipboardPathsAsync(clipboard, tempDir);
-        if (paths.Count > 0)
-        {
-            await AddMediaToSelectedContentAsync(paths);
-        }
-        else
-        {
-            var title = GetLocalizedString("Tools.PublisherStudio.Library.NoClipboardImageTitle", "No Image Found");
-            var message = GetLocalizedString("Tools.PublisherStudio.Library.NoClipboardImageMessage", "No image, file, or image URL was found on the clipboard.");
-            notificationService?.ShowWarning(title, message);
-        }
+        await PasteClipboardMediaAsync(
+            "Tools.PublisherStudio.Library.NoClipboardImageTitle",
+            "No Image Found",
+            "Tools.PublisherStudio.Library.NoClipboardImageMessage",
+            "No image, file, or image URL was found on the clipboard.");
     }
 
     [RelayCommand]
@@ -1773,6 +1766,19 @@ public partial class ContentLibraryViewModel(
     [RelayCommand]
     private async Task PasteVideoAsync()
     {
+        await PasteClipboardMediaAsync(
+            "Tools.PublisherStudio.Library.NoClipboardVideoTitle",
+            "No Video Found",
+            "Tools.PublisherStudio.Library.NoClipboardVideoMessage",
+            "No video file or video URL was found on the clipboard.");
+    }
+
+    private async Task PasteClipboardMediaAsync(
+        string noMediaTitleKey,
+        string noMediaTitleDefault,
+        string noMediaMessageKey,
+        string noMediaMessageDefault)
+    {
         if (SelectedContent == null)
         {
             return;
@@ -1793,8 +1799,8 @@ public partial class ContentLibraryViewModel(
         }
         else
         {
-            var title = GetLocalizedString("Tools.PublisherStudio.Library.NoClipboardVideoTitle", "No Video Found");
-            var message = GetLocalizedString("Tools.PublisherStudio.Library.NoClipboardVideoMessage", "No video file or video URL was found on the clipboard.");
+            var title = GetLocalizedString(noMediaTitleKey, noMediaTitleDefault);
+            var message = GetLocalizedString(noMediaMessageKey, noMediaMessageDefault);
             notificationService?.ShowWarning(title, message);
         }
     }

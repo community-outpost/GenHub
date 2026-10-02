@@ -191,7 +191,7 @@ public partial class ContentDetailViewModel(
     private InstallableVariant? _selectedVariant;
 
     [ObservableProperty]
-    private string _selectedScreenshotUrl = searchResult.ScreenshotUrls.FirstOrDefault() ?? string.Empty;
+    private string _selectedScreenshotUrl = searchResult.ScreenshotUrls.FirstOrDefault(s => MediaFileHelper.IsRemoteHttpUrl(s)) ?? string.Empty;
 
     [ObservableProperty]
     private int _selectedTabIndex;
@@ -437,7 +437,7 @@ public partial class ContentDetailViewModel(
     /// <summary>
     /// Gets the collection of screenshot URLs.
     /// </summary>
-    public ObservableCollection<string> Screenshots { get; } = new(searchResult.ScreenshotUrls);
+    public ObservableCollection<string> Screenshots { get; } = new(searchResult.ScreenshotUrls.Where(s => MediaFileHelper.IsRemoteHttpUrl(s)));
 
     /// <summary>
     /// Gets the collection of tags associated with the content.
@@ -3925,7 +3925,7 @@ public partial class ContentDetailViewModel(
             return;
         }
 
-        foreach (var screenshot in screenshots.Where(screenshot => !string.IsNullOrWhiteSpace(screenshot) && !Screenshots.Contains(screenshot)))
+        foreach (var screenshot in screenshots.Where(screenshot => MediaFileHelper.IsRemoteHttpUrl(screenshot) && !Screenshots.Contains(screenshot)))
         {
             Screenshots.Add(screenshot);
         }
@@ -4028,7 +4028,7 @@ public partial class ContentDetailViewModel(
             var category = !string.IsNullOrWhiteSpace(addonRel.Category) ? addonRel.Category : DefaultAddonName;
             var description = !string.IsNullOrWhiteSpace(addonRel.Changelog) ? addonRel.Changelog : $"Addon for {catalogItem.Name}";
 
-            var addonThumb = addonRel.ImageUrls?.FirstOrDefault(u => !string.IsNullOrWhiteSpace(u))
+            var addonThumb = addonRel.ImageUrls?.FirstOrDefault(u => MediaFileHelper.IsRemoteHttpUrl(u))
                 ?? catalogItem.Metadata?.BannerUrl
                 ?? catalogItem.Metadata?.IconUrl
                 ?? searchResult.IconUrl
@@ -4690,7 +4690,7 @@ public partial class ContentDetailViewModel(
         var category = searchResult.ContentType.GetDisplayName();
         var uploader = searchResult.AuthorName;
 
-        var releaseThumb = rel.ImageUrls?.FirstOrDefault(u => !string.IsNullOrWhiteSpace(u))
+        var releaseThumb = rel.ImageUrls?.FirstOrDefault(u => MediaFileHelper.IsRemoteHttpUrl(u))
             ?? catalogItem.Metadata?.BannerUrl
             ?? catalogItem.Metadata?.IconUrl
             ?? searchResult.IconUrl
@@ -6766,7 +6766,7 @@ public partial class ContentDetailViewModel(
                 IsFullScreenMediaOpen = true;
             }
         }
-        else if (item is string url && !string.IsNullOrWhiteSpace(url))
+        else if (item is string url && MediaFileHelper.IsRemoteHttpUrl(url))
         {
             if (IsVideoUrl(url) && Uri.TryCreate(url, UriKind.Absolute, out var videoUri) &&
                 (videoUri.Scheme == Uri.UriSchemeHttp || videoUri.Scheme == Uri.UriSchemeHttps))

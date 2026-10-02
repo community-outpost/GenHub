@@ -79,8 +79,16 @@ public partial class PublishShareViewModel(
     /// <param name="ContentId">The owning content item, used to name the remote file.</param>
     /// <param name="DisplayName">The local file name, used to name the remote file.</param>
     /// <param name="LocalPath">The resolved local file path.</param>
+    /// <param name="RemoteFileName">The unique remote file name for this entry.</param>
     /// <param name="ApplyUrl">Replaces the local reference with the hosted URL.</param>
-    private sealed record PendingMediaUpload(string ContentId, string DisplayName, string LocalPath, Action<string> ApplyUrl);
+    private sealed record PendingMediaUpload(string ContentId, string DisplayName, string LocalPath, string RemoteFileName, Action<string> ApplyUrl);
+
+    /// <summary>
+    /// A gallery media reference that could not be resolved to a local file and will not be uploaded.
+    /// </summary>
+    /// <param name="ContentId">The owning content item.</param>
+    /// <param name="Reference">The unresolvable raw reference.</param>
+    private sealed record SkippedMediaReference(string ContentId, string Reference);
 
     /// <summary>
     /// Google Drive OAuth client credentials persisted in the encrypted credential store.
@@ -3078,7 +3086,7 @@ public partial class PublishShareViewModel(
         bool suppressNotifications = false)
     {
         var pendingArtworkCount = ActiveCatalog == null ? 0 : CollectPendingArtwork(ActiveCatalog).Count;
-        var pendingMediaCount = ActiveCatalog == null ? 0 : CollectPendingMedia(ActiveCatalog).Count;
+        var pendingMediaCount = ActiveCatalog == null ? 0 : CollectPendingMedia(ActiveCatalog).Pending.Count;
         var (artifactsOk, completedArtifacts) = await UploadPendingArtifactsAsync(provider, cancellationToken, pendingArtworkCount + pendingMediaCount);
         if (!artifactsOk)
         {
@@ -3444,9 +3452,10 @@ public partial class PublishShareViewModel(
             return true;
         }
 
-        var pending = CollectPendingMedia(ActiveCatalog);
+        var (pending, skipped) = CollectPendingMedia(ActiveCatalog);
         if (pending.Count == 0)
         {
+            WarnAboutSkippedMedia(skipped, suppressNotifications);
             return true;
         }
 
@@ -3477,31 +3486,58 @@ public partial class PublishShareViewModel(
             }
         }
 
+        WarnAboutSkippedMedia(skipped, suppressNotifications);
         return true;
     }
 
-    private List<PendingMediaUpload> CollectPendingMedia(NamedCatalog catalog)
+    private void WarnAboutSkippedMedia(List<SkippedMediaReference> skipped, bool suppressNotifications)
+    {
+        foreach (var skippedItem in skipped)
+        {
+            logger.LogWarning(
+                "Skipping unresolvable gallery media reference {Reference} for content {ContentId}",
+                skippedItem.Reference,
+                skippedItem.ContentId);
+        }
+
+        if (skipped.Count > 0 && !suppressNotifications)
+        {
+            notificationService?.ShowWarning(
+                GetLocalizedString(
+                    "Tools.PublisherStudio.Publish.MediaSkippedTitle",
+                    "Unresolved Media Skipped"),
+                FormatLocalizedString(
+                    "Tools.PublisherStudio.Publish.MediaSkippedFormat",
+                    "{0} media reference(s) could not be resolved to local files and were left unchanged.",
+                    skipped.Count));
+        }
+    }
+
+    private (List<PendingMediaUpload> Pending, List<SkippedMediaReference> Skipped) CollectPendingMedia(NamedCatalog catalog)
     {
         var pending = new List<PendingMediaUpload>();
+        var skipped = new List<SkippedMediaReference>();
         var projectDirectory = Path.GetDirectoryName(project.ProjectPath);
         foreach (var content in catalog.Catalog.Content)
         {
-            CollectContentMedia(pending, content, projectDirectory);
-            foreach (var release in content.Releases)
+            CollectContentMedia(pending, skipped, content, projectDirectory);
+            for (var releaseIndex = 0; releaseIndex < content.Releases.Count; releaseIndex++)
             {
-                CollectReleaseMedia(pending, content.Id, release.ImageUrls, release.VideoUrls, projectDirectory);
+                var release = content.Releases[releaseIndex];
+                CollectReleaseMedia(pending, skipped, content.Id, $"release-{releaseIndex}", release.ImageUrls, release.VideoUrls, projectDirectory);
             }
 
-            foreach (var addon in content.AddonReleases)
+            for (var addonIndex = 0; addonIndex < content.AddonReleases.Count; addonIndex++)
             {
-                CollectReleaseMedia(pending, content.Id, addon.ImageUrls, addon.VideoUrls, projectDirectory);
+                var addon = content.AddonReleases[addonIndex];
+                CollectReleaseMedia(pending, skipped, content.Id, $"addon-{addonIndex}", addon.ImageUrls, addon.VideoUrls, projectDirectory);
             }
         }
 
-        return pending;
+        return (pending, skipped);
     }
 
-    private void CollectContentMedia(List<PendingMediaUpload> pending, CatalogContentItem content, string? projectDirectory)
+    private void CollectContentMedia(List<PendingMediaUpload> pending, List<SkippedMediaReference> skipped, CatalogContentItem content, string? projectDirectory)
     {
         var metadata = content.Metadata;
         if (metadata == null)
@@ -3509,25 +3545,30 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        AddPendingMediaList(pending, content.Id, metadata.ScreenshotUrls, projectDirectory, (index, url) => metadata.ScreenshotUrls[index] = url);
-        AddPendingMediaList(pending, content.Id, metadata.VideoUrls, projectDirectory, (index, url) => metadata.VideoUrls[index] = url);
-        AddPendingMediaUrl(pending, content.Id, metadata.VideoUrl, projectDirectory, url => metadata.VideoUrl = url);
+        AddPendingMediaList(pending, skipped, content.Id, "metadata", "screenshots", metadata.ScreenshotUrls, projectDirectory, (index, url) => metadata.ScreenshotUrls[index] = url);
+        AddPendingMediaList(pending, skipped, content.Id, "metadata", "videos", metadata.VideoUrls, projectDirectory, (index, url) => metadata.VideoUrls[index] = url);
+        AddPendingMediaUrl(pending, skipped, content.Id, "metadata", "trailer", 0, metadata.VideoUrl, projectDirectory, url => metadata.VideoUrl = url);
     }
 
     private void CollectReleaseMedia(
         List<PendingMediaUpload> pending,
+        List<SkippedMediaReference> skipped,
         string contentId,
+        string scope,
         List<string> imageUrls,
         List<string> videoUrls,
         string? projectDirectory)
     {
-        AddPendingMediaList(pending, contentId, imageUrls, projectDirectory, (index, url) => imageUrls[index] = url);
-        AddPendingMediaList(pending, contentId, videoUrls, projectDirectory, (index, url) => videoUrls[index] = url);
+        AddPendingMediaList(pending, skipped, contentId, scope, "images", imageUrls, projectDirectory, (index, url) => imageUrls[index] = url);
+        AddPendingMediaList(pending, skipped, contentId, scope, "videos", videoUrls, projectDirectory, (index, url) => videoUrls[index] = url);
     }
 
     private void AddPendingMediaList(
         List<PendingMediaUpload> pending,
+        List<SkippedMediaReference> skipped,
         string contentId,
+        string scope,
+        string kind,
         List<string> urls,
         string? projectDirectory,
         Action<int, string> applyUrl)
@@ -3535,13 +3576,17 @@ public partial class PublishShareViewModel(
         for (var index = 0; index < urls.Count; index++)
         {
             var capturedIndex = index;
-            AddPendingMediaUrl(pending, contentId, urls[index], projectDirectory, url => applyUrl(capturedIndex, url));
+            AddPendingMediaUrl(pending, skipped, contentId, scope, kind, capturedIndex, urls[index], projectDirectory, url => applyUrl(capturedIndex, url));
         }
     }
 
     private void AddPendingMediaUrl(
         List<PendingMediaUpload> pending,
+        List<SkippedMediaReference> skipped,
         string contentId,
+        string scope,
+        string kind,
+        int index,
         string? value,
         string? projectDirectory,
         Action<string> applyUrl)
@@ -3554,10 +3599,12 @@ public partial class PublishShareViewModel(
         var localPath = MediaFileHelper.TryResolveLocalMediaPath(projectDirectory, value);
         if (localPath == null)
         {
+            skipped.Add(new SkippedMediaReference(contentId, value));
             return;
         }
 
-        pending.Add(new PendingMediaUpload(contentId, Path.GetFileName(localPath), localPath, applyUrl));
+        var fileName = Path.GetFileName(localPath);
+        pending.Add(new PendingMediaUpload(contentId, fileName, localPath, $"{contentId}-media-{scope}-{kind}-{index}-{fileName}", applyUrl));
     }
 
     private async Task<bool> UploadSingleMediaAsync(
@@ -3591,8 +3638,7 @@ public partial class PublishShareViewModel(
         {
             ReportPendingUploadProgress(progressOffset + current - 1, combinedTotal, p);
         });
-        var uploadFileName = $"{item.ContentId}-media-{item.DisplayName}";
-        var (result, fileReadFailed) = await UploadLocalFileAsync(provider, item.LocalPath, uploadFileName, progress, cancellationToken);
+        var (result, fileReadFailed) = await UploadLocalFileAsync(provider, item.LocalPath, item.RemoteFileName, progress, cancellationToken);
         if (fileReadFailed)
         {
             var msg = FormatLocalizedString(

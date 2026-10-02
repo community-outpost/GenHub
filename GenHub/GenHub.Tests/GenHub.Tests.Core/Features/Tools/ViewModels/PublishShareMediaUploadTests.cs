@@ -12,6 +12,7 @@ using Moq;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -65,11 +66,17 @@ public class PublishShareMediaUploadTests
                 Catalogs = [catalog],
             };
 
-            var mockProvider = CreateRecordingMediaProvider([]);
+            var callOrder = new List<string>();
+            var mockProvider = CreateRecordingMediaProvider(callOrder);
             SetupCatalogServiceMocks();
             var vm = CreatePublishShareViewModel(project, mockProvider.Object);
 
             await vm.PublishCatalogCommand.ExecuteAsync(catalog);
+
+            Assert.Contains("catalog", callOrder);
+            var catalogIndex = callOrder.IndexOf("catalog");
+            Assert.True(catalogIndex > 0);
+            Assert.All(callOrder.Take(catalogIndex), entry => Assert.StartsWith("media:", entry, StringComparison.OrdinalIgnoreCase));
 
             mockProvider.Verify(
                 p => p.UploadFileAsync(

@@ -13590,6 +13590,12 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Publish.MediaHostingNotSupported" xml:space="preserve">
     <value>Провайдер не поддерживает хостинг медиа. Используйте прямые ссылки на изображения/видео или смените провайдера.</value>
   </data>
+  <data name="Tools.PublisherStudio.Publish.MediaSkippedTitle" xml:space="preserve">
+    <value>Неразрешённые медиафайлы пропущены</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.MediaSkippedFormat" xml:space="preserve">
+    <value>Не удалось сопоставить {0} ссылок на медиафайлы с локальными файлами; они оставлены без изменений.</value>
+  </data>
   <data name="Tools.PublisherStudio.Artifact.DropFileUnreadableFormat" xml:space="preserve">
     <value>Не удалось прочитать перетащенный файл: {0}</value>
   </data>
