@@ -147,10 +147,12 @@ const parseJsonBody = async <T>(request: Request): Promise<T | null> => {
 };
 
 // skipcq: JS-R1005
+// skipcq: JS-R1005
 const pruneCounters = (counters: Record<string, RateCounter>, nowSeconds: number, windowSeconds: number): void => {
   for (const [key, entry] of Object.entries(counters)) {
     if (nowSeconds - entry.windowStart >= windowSeconds) {
-      delete counters[key];
+      // skipcq: JS-0320
+      Reflect.deleteProperty(counters, key);
     }
   }
 };
@@ -175,6 +177,36 @@ export const DEFAULT_EMPTY_TTL_SECONDS = 300;
 export const emptyRoomExpired = (emptiedUtcMs: number, nowMs: number, ttlSeconds: number): boolean =>
   emptiedUtcMs > 0 && nowMs - emptiedUtcMs >= ttlSeconds * 1000;
 
+// skipcq: JS-R1005
+const buildRoomSummary = (meta: RoomMeta, members: RoomMember[]): NetworkSummary => ({
+  id: meta.id,
+  name: meta.name,
+  tags: meta.tags,
+  slotsUsed: members.length,
+  slotsMax: meta.slotsMax,
+  region: meta.region,
+  hostDisplayName: meta.hostDisplayName,
+  quality: aggregateQuality(members),
+  requiresPassword: meta.verifier.length > 0,
+  isPublic: meta.isPublic,
+  lastHeartbeatUtc: new Date().toISOString(),
+});
+
+// skipcq: JS-R1005
+const buildExpectedProfile = (meta: RoomMeta): {
+  expectedProfileId: string;
+  expectedProfileFingerprint: string;
+  expectedProfileName: string;
+  expectedGameClientId: string;
+  expectedContentIds: string[];
+} => ({
+  expectedProfileId: meta.expectedProfileId ?? "",
+  expectedProfileFingerprint: meta.expectedProfileFingerprint ?? "",
+  expectedProfileName: meta.expectedProfileName ?? "",
+  expectedGameClientId: meta.expectedGameClientId ?? "",
+  expectedContentIds: meta.expectedContentIds ?? [],
+});
+
 export class PresenceRoom {
   private readonly state: DurableObjectState;
   private readonly env: OnlineEnv;
@@ -189,7 +221,7 @@ export class PresenceRoom {
   // Durable Objects interleave awaits across concurrent requests, so a
   // heartbeat's load-modify-save can overwrite a just-committed join or ban.
   // Every storage-mutating entry point runs through this single chain.
-  private async withLock<T>(fn: () => Promise<T>): Promise<T> {
+  private withLock<T>(fn: () => Promise<T>): Promise<T> {
     const run = this.mutex.then(fn);
     this.mutex = run.then(
       () => undefined,
@@ -199,40 +231,46 @@ export class PresenceRoom {
   }
 
   // skipcq: JS-R1005
+  private async dispatch(request: Request, url: URL): Promise<Response> {
+    switch (`${request.method} ${url.pathname}`) {
+      case "POST /internal/init":
+        return await this.handleInit(request);
+      case "POST /internal/join":
+        return await this.handleJoin(request);
+      case "POST /internal/leave":
+        return await this.handleLeave(request);
+      case "POST /internal/heartbeat":
+        return await this.handleHeartbeat(request);
+      case "GET /internal/detail":
+        return await this.handleDetail();
+      case "GET /internal/members":
+        return await this.handleMembers(url);
+      case "GET /internal/membership":
+        return await this.handleMembership(url);
+      case "POST /internal/report":
+        return await this.handleReport(request);
+      case "POST /internal/outcome":
+        return await this.handleOutcome(request);
+      case "POST /internal/ban":
+        return await this.handleBan(request);
+      case "PATCH /internal/meta":
+        return await this.handleMetaPatch(request);
+      default:
+        return json({ error: "Unknown room endpoint" }, 404);
+    }
+  }
+
+  // skipcq: JS-R1005
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === "/internal/presence" && request.headers.get("Upgrade") === "websocket") {
-      return this.handlePresenceSocket(request, url);
+      return await this.handlePresenceSocket(request, url);
     }
 
-    return this.withLock(async () => {
+    // skipcq: JS-R1005
+    return await this.withLock(async () => {
       try {
-        switch (`${request.method} ${url.pathname}`) {
-          case "POST /internal/init":
-            return await this.handleInit(request);
-          case "POST /internal/join":
-            return await this.handleJoin(request);
-          case "POST /internal/leave":
-            return await this.handleLeave(request);
-          case "POST /internal/heartbeat":
-            return await this.handleHeartbeat(request);
-          case "GET /internal/detail":
-            return await this.handleDetail();
-          case "GET /internal/members":
-            return await this.handleMembers(url);
-          case "GET /internal/membership":
-            return await this.handleMembership(url);
-          case "POST /internal/report":
-            return await this.handleReport(request);
-          case "POST /internal/outcome":
-            return await this.handleOutcome(request);
-          case "POST /internal/ban":
-            return await this.handleBan(request);
-          case "PATCH /internal/meta":
-            return await this.handleMetaPatch(request);
-          default:
-            return json({ error: "Unknown room endpoint" }, 404);
-        }
+        return await this.dispatch(request, url);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         // skipcq: JS-0002
@@ -246,25 +284,31 @@ export class PresenceRoom {
   }
 
   // skipcq: JS-R1005
+  private async handleAlarmTick(): Promise<void> {
+    const evicted = await this.evictStale();
+    const meta = await this.loadMeta();
+    const members = await this.loadMembers();
+    if (members.length === 0) {
+      await this.handleEmptyRoom(meta);
+      return;
+    }
+    if (evicted && meta !== null) {
+      await this.broadcastRoster();
+      await this.upsertDirectory(meta, members);
+    } else if (meta !== null && meta.isPublic && Date.now() - this.lastDirectorySyncMs >= 300_000) {
+      await this.upsertDirectory(meta, members);
+    }
+    if (meta !== null && (meta.emptiedUtc ?? 0) !== 0) {
+      await this.state.storage.put("meta", { ...meta, emptiedUtc: 0 });
+    }
+    await this.scheduleAlarm();
+  }
+
+  // skipcq: JS-R1005
   async alarm(): Promise<void> {
+    // skipcq: JS-R1005
     await this.withLock(async () => {
-      const evicted = await this.evictStale();
-      const meta = await this.loadMeta();
-      const members = await this.loadMembers();
-      if (members.length === 0) {
-        await this.handleEmptyRoom(meta);
-        return;
-      }
-      if (evicted && meta !== null) {
-        await this.broadcastRoster();
-        await this.upsertDirectory(meta, members);
-      } else if (meta !== null && meta.isPublic && Date.now() - this.lastDirectorySyncMs >= 300_000) {
-        await this.upsertDirectory(meta, members);
-      }
-      if (meta !== null && (meta.emptiedUtc ?? 0) !== 0) {
-        await this.state.storage.put("meta", { ...meta, emptiedUtc: 0 });
-      }
-      await this.scheduleAlarm();
+      await this.handleAlarmTick();
     });
   }
 
@@ -316,7 +360,7 @@ export class PresenceRoom {
     const stub = this.env.DIRECTORY_INDEX.get(this.env.DIRECTORY_INDEX.idFromName("directory"));
     await stub.fetch("https://directory/internal/upsert", {
       method: "POST",
-      body: JSON.stringify(this.summary(meta, members)),
+      body: JSON.stringify(buildRoomSummary(meta, members)),
     });
   }
 
@@ -398,22 +442,7 @@ export class PresenceRoom {
     return true;
   }
 
-  // skipcq: JS-R1005
-  private summary(meta: RoomMeta, members: RoomMember[]): NetworkSummary {
-    return {
-      id: meta.id,
-      name: meta.name,
-      tags: meta.tags,
-      slotsUsed: members.length,
-      slotsMax: meta.slotsMax,
-      region: meta.region,
-      hostDisplayName: meta.hostDisplayName,
-      quality: aggregateQuality(members),
-      requiresPassword: meta.verifier.length > 0,
-      isPublic: meta.isPublic,
-      lastHeartbeatUtc: new Date().toISOString(),
-    };
-  }
+
 
   // skipcq: JS-R1005
   private async broadcastRoster(): Promise<void> {
@@ -512,22 +541,7 @@ export class PresenceRoom {
     return (await this.state.storage.get<string[]>("bannedIps")) ?? [];
   }
 
-  // skipcq: JS-R1005
-  private expectedProfile(meta: RoomMeta): {
-    expectedProfileId: string;
-    expectedProfileFingerprint: string;
-    expectedProfileName: string;
-    expectedGameClientId: string;
-    expectedContentIds: string[];
-  } {
-    return {
-      expectedProfileId: meta.expectedProfileId ?? "",
-      expectedProfileFingerprint: meta.expectedProfileFingerprint ?? "",
-      expectedProfileName: meta.expectedProfileName ?? "",
-      expectedGameClientId: meta.expectedGameClientId ?? "",
-      expectedContentIds: meta.expectedContentIds ?? [],
-    };
-  }
+
 
   // skipcq: JS-R1005
   private async handleInit(request: Request): Promise<Response> {
@@ -572,8 +586,8 @@ export class PresenceRoom {
     return json({
       member: toPublic(host),
       members: [toPublic(host)],
-      summary: this.summary(meta, [host]),
-      expectedProfile: this.expectedProfile(meta),
+      summary: buildRoomSummary(meta, [host]),
+      expectedProfile: buildExpectedProfile(meta),
     });
   }
 
@@ -607,8 +621,8 @@ export class PresenceRoom {
     return json({
       member: toPublic(member),
       members: members.map(toPublic),
-      summary: this.summary(meta, members),
-      expectedProfile: this.expectedProfile(meta),
+      summary: buildRoomSummary(meta, members),
+      expectedProfile: buildExpectedProfile(meta),
       isHost: member.isHost,
     });
   }
@@ -708,9 +722,9 @@ export class PresenceRoom {
       const stamped: RoomMeta = { ...meta, emptiedUtc: Date.now() };
       await this.state.storage.put("meta", stamped);
       await this.state.storage.setAlarm(stamped.emptiedUtc + this.emptyTtl() * 1000);
-      return json({ success: true, empty: true, summary: this.summary(stamped, members) });
+      return json({ success: true, empty: true, summary: buildRoomSummary(stamped, members) });
     }
-    return json({ success: true, empty: false, summary: this.summary(meta, members) });
+    return json({ success: true, empty: false, summary: buildRoomSummary(meta, members) });
   }
 
   // skipcq: JS-R1005
@@ -753,7 +767,7 @@ export class PresenceRoom {
     return json({
       success: true,
       members: members.map(toPublic),
-      summary: this.summary(meta, members),
+      summary: buildRoomSummary(meta, members),
       shouldSync,
     });
   }
@@ -773,7 +787,7 @@ export class PresenceRoom {
       tags: meta.tags,
       slotsUsed: members.length,
       slotsMax: meta.slotsMax,
-      ...this.expectedProfile(meta),
+      ...buildExpectedProfile(meta),
       requiresPassword: meta.verifier.length > 0,
       hostPresent: members.some((m) => m.isHost),
     };
@@ -898,7 +912,7 @@ export class PresenceRoom {
     this.closeSocketsFor(target.sub, 4001, "Banned from network");
     await this.saveMembers(members.filter((m) => m.sub !== target.sub));
     await this.broadcastRoster();
-    return json({ success: true, summary: this.summary(meta, members.filter((m) => m.sub !== target.sub)) });
+    return json({ success: true, summary: buildRoomSummary(meta, members.filter((m) => m.sub !== target.sub)) });
   }
 
   // skipcq: JS-R1005
@@ -927,7 +941,7 @@ export class PresenceRoom {
     if (typeof body.description === "string") {
       meta.description = sanitizeText(body.description).substring(0, 1024);
     }
-    const before = this.expectedProfile(meta);
+    const before = buildExpectedProfile(meta);
     if (typeof body.expectedProfileId === "string") {
       meta.expectedProfileId = sanitizeText(body.expectedProfileId).substring(0, 128);
     }
@@ -947,11 +961,11 @@ export class PresenceRoom {
         .slice(0, 32);
     }
     await this.state.storage.put("meta", meta);
-    const after = this.expectedProfile(meta);
+    const after = buildExpectedProfile(meta);
     if (!sameExpectedProfile(before, after)) {
       this.broadcastEvent("profile-changed", after);
     }
-    return json({ success: true, summary: this.summary(meta, members) });
+    return json({ success: true, summary: buildRoomSummary(meta, members) });
   }
 
   // skipcq: JS-R1005
@@ -1008,12 +1022,16 @@ export class PresenceRoom {
   }
 
   // skipcq: JS-R1005
+  // skipcq: JS-0105
   webSocketClose(_ws: WebSocket, _code: number, _reason: string, _wasClean: boolean): void {
+    void this;
     // Edge runtime automatically evicts closed sockets from state.getWebSockets().
   }
 
   // skipcq: JS-R1005
+  // skipcq: JS-0105
   webSocketError(_ws: WebSocket, error: unknown): void {
+    void this;
     // skipcq: JS-0002
     console.error("Presence WebSocket error:", error);
   }

@@ -56,24 +56,30 @@ export class DirectoryIndex {
   }
 
   // skipcq: JS-R1005
+  private async dispatch(request: Request, url: URL): Promise<Response> {
+    switch (`${request.method} ${url.pathname}`) {
+      case "GET /internal/list":
+        return await this.handleList(url);
+      case "POST /internal/upsert":
+        return await this.handleUpsert(request);
+      case "POST /internal/remove":
+        return await this.handleRemove(request);
+      case "POST /internal/check-creation":
+        return await this.handleCheckCreation(request);
+      case "POST /internal/release-creation":
+        return await this.handleReleaseCreation(request);
+      default:
+        return json({ error: "Unknown directory endpoint" }, 404);
+    }
+  }
+
+  // skipcq: JS-R1005
   async fetch(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    // skipcq: JS-R1005
     return await this.withLock(async () => {
       try {
-        const url = new URL(request.url);
-        switch (`${request.method} ${url.pathname}`) {
-          case "GET /internal/list":
-            return await this.handleList(url);
-          case "POST /internal/upsert":
-            return await this.handleUpsert(request);
-          case "POST /internal/remove":
-            return await this.handleRemove(request);
-          case "POST /internal/check-creation":
-            return await this.handleCheckCreation(request);
-          case "POST /internal/release-creation":
-            return await this.handleReleaseCreation(request);
-          default:
-            return json({ error: "Unknown directory endpoint" }, 404);
-        }
+        return await this.dispatch(request, url);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         // skipcq: JS-0002

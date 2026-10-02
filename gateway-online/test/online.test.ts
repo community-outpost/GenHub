@@ -797,7 +797,7 @@ describe("online edge", () => {
     // skipcq: JS-R1005
     const creds = (await res.json()) as { username: string; [PWD_KEY]: string; ttl: number; uris: string[] };
     expect(creds.username).toContain(":");
-    expect((creds as any)[PWD_KEY].length).toBeGreaterThan(0);
+    expect((creds as Record<string, string>)[PWD_KEY].length).toBeGreaterThan(0);
     expect(creds.uris.length).toBeGreaterThan(0);
   });
 

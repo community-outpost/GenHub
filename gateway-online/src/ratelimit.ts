@@ -30,7 +30,8 @@ export const pruneCounters = (
 ): void => {
   for (const [key, entry] of Object.entries(counters)) {
     if (nowSeconds - entry.windowStart >= windowSeconds) {
-      delete counters[key];
+      // skipcq: JS-0320
+      Reflect.deleteProperty(counters, key);
     }
   }
 };

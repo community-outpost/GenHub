@@ -97,6 +97,25 @@ const asContentIdList = (value: unknown): string[] | null => {
   return ids;
 };
 
+const ENDPOINT_REGEX = /^(?:\d{1,3}(?:\.\d{1,3}){3}|\[[0-9a-fA-F:.]+\]):\d{1,5}$/;
+const MAX_ENDPOINT_LENGTH = 64;
+
+// skipcq: JS-R1005
+export const parseEndpoint = (value: unknown): string => {
+  if (typeof value !== "string" || value.length === 0 || value.length > MAX_ENDPOINT_LENGTH) {
+    return "";
+  }
+  const trimmed = value.trim();
+  if (!ENDPOINT_REGEX.test(trimmed)) {
+    return "";
+  }
+  const port = Number(trimmed.substring(trimmed.lastIndexOf(":") + 1));
+  if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
+    return "";
+  }
+  return trimmed;
+};
+
 // skipcq: JS-R1005
 export const parseCreateNetwork = (body: unknown): CreateNetworkInput | null => {
   if (body === null || typeof body !== "object") {
@@ -202,24 +221,6 @@ export const parseJoinBody = (
   };
 };
 
-const ENDPOINT_REGEX = /^(?:\d{1,3}(?:\.\d{1,3}){3}|\[[0-9a-fA-F:.]+\]):\d{1,5}$/;
-const MAX_ENDPOINT_LENGTH = 64;
-
-// skipcq: JS-R1005
-export const parseEndpoint = (value: unknown): string => {
-  if (typeof value !== "string" || value.length === 0 || value.length > MAX_ENDPOINT_LENGTH) {
-    return "";
-  }
-  const trimmed = value.trim();
-  if (!ENDPOINT_REGEX.test(trimmed)) {
-    return "";
-  }
-  const port = Number(trimmed.substring(trimmed.lastIndexOf(":") + 1));
-  if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
-    return "";
-  }
-  return trimmed;
-};
 
 // skipcq: JS-R1005
 export const defaultDisplayName = (sub: string): string => `Player-${sub.replaceAll("-", "").substring(0, 6)}`;
