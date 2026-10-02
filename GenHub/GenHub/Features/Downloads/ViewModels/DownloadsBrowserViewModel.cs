@@ -18,6 +18,7 @@ using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Messages;
+using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Dialogs;
@@ -28,6 +29,7 @@ using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.Content.Services;
 using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Content.Services.ContentDiscoverers;
@@ -3641,6 +3643,7 @@ public sealed partial class DownloadsBrowserViewModel(
             DownloadCommand = DownloadContentCommand,
             AddToProfileCommand = AddContentToProfileCommand,
             UpdateCommand = UpdateContentCommand,
+            InstallBuildCommand = InstallBuildContentCommand,
         };
 
         vm.Initialize();
@@ -3817,7 +3820,8 @@ public sealed partial class DownloadsBrowserViewModel(
                     {
                         item.UpdateDescription(desc);
                     }
-                });
+                },
+                installBuildAction: _ => InstallBuildContentAsync(item));
 
             if (item.HasBundleComponents)
             {
@@ -4529,6 +4533,84 @@ public sealed partial class DownloadsBrowserViewModel(
     }
 
     /// <summary>
+    /// Installs a downloaded GenHub application build and restarts the application.
+    /// </summary>
+    /// <param name="item">The content item representing the GenHub build.</param>
+    [RelayCommand]
+    private async Task InstallBuildContentAsync(ContentGridItemViewModel? item)
+    {
+        if (item == null)
+        {
+            return;
+        }
+
+        var velopackManager = serviceProvider.GetService<IVelopackUpdateManager>();
+        if (velopackManager == null)
+        {
+            logger.LogWarning("IVelopackUpdateManager is not available to install build");
+            return;
+        }
+
+        var storageService = serviceProvider.GetService<IContentStorageService>();
+        if (storageService == null)
+        {
+            logger.LogWarning("IContentStorageService is not available to retrieve build files");
+            return;
+        }
+
+        try
+        {
+            notificationService.Show(new NotificationMessage(
+                NotificationType.Info,
+                "Preparing Installation",
+                $"Preparing {item.Name} for installation...",
+                NotificationDurations.Medium));
+
+            var tempDir = Path.Combine(Path.GetTempPath(), $"genhub-build-install-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(tempDir);
+
+            var retrieveResult = await storageService.RetrieveContentAsync(
+                ManifestId.Create(item.Id),
+                tempDir,
+                CancellationToken.None);
+
+            if (!retrieveResult.Success)
+            {
+                logger.LogError("Failed to retrieve build files for {ContentId}: {Error}", item.Id, retrieveResult.FirstError);
+                notificationService.Show(new NotificationMessage(
+                    NotificationType.Error,
+                    "Installation Failed",
+                    retrieveResult.FirstError ?? "Failed to retrieve build files from storage.",
+                    NotificationDurations.Long));
+                return;
+            }
+
+            var progress = new Progress<UpdateProgress>(p =>
+            {
+                if (!string.IsNullOrEmpty(p.Status))
+                {
+                    logger.LogInformation("Build install progress: {Percent}% - {Status}", p.PercentComplete, p.Status);
+                }
+            });
+
+            await velopackManager.InstallDownloadedBuildAsync(
+                tempDir,
+                item.Name,
+                progress,
+                CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to install GenHub build {ContentId}", item.Id);
+            notificationService.Show(new NotificationMessage(
+                NotificationType.Error,
+                "Installation Failed",
+                ex.Message,
+                NotificationDurations.Long));
+        }
+    }
+
+    /// <summary>
     /// Adds the content to a compatible profile. Shows a profile selection dialog.
     /// </summary>
     [RelayCommand]
@@ -4537,6 +4619,14 @@ public sealed partial class DownloadsBrowserViewModel(
         if (item == null)
         {
             logger.LogWarning("AddContentToProfileAsync called with null item");
+            return;
+        }
+
+        if (item.IsGenHubBuild)
+        {
+            notificationService.ShowWarning(
+                "Invalid Action",
+                "GenHub application builds cannot be added to game profiles. Use the Install Build option instead.");
             return;
         }
 
