@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 
 namespace GenHub.Core.Helpers;
@@ -133,6 +134,58 @@ public static class MediaFileHelper
         return uri.Host.Equals(
             Constants.HostingConstants.UploadThingFileHost,
             StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Extracts the YouTube video ID from watch, embed, shorts, live, and shortened URLs.
+    /// </summary>
+    /// <param name="value">The media URL to inspect.</param>
+    /// <returns>The video ID, or null when the URL is not a recognized YouTube video URL.</returns>
+    public static string? TryGetYouTubeVideoId(string? value)
+    {
+        if (!Uri.TryCreate(value?.Trim(), UriKind.Absolute, out var uri))
+        {
+            return null;
+        }
+
+        var host = uri.Host;
+        if (host.Equals(Constants.ApiConstants.YouTubeShortHost, StringComparison.OrdinalIgnoreCase))
+        {
+            return SanitizeYouTubeVideoId(uri.AbsolutePath.Trim('/'));
+        }
+
+        if (!IsYouTubeHost(host))
+        {
+            return null;
+        }
+
+        var queryId = GetQueryValue(uri.Query, "v");
+        if (!string.IsNullOrEmpty(queryId))
+        {
+            return SanitizeYouTubeVideoId(queryId);
+        }
+
+        var segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length == 2 && IsYouTubePathPrefix(segments[0]))
+        {
+            return SanitizeYouTubeVideoId(segments[1]);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Resolves the official thumbnail image URL for a YouTube video URL.
+    /// Non-YouTube URLs return null so callers render a placeholder instead of unrelated artwork.
+    /// </summary>
+    /// <param name="value">The media URL to inspect.</param>
+    /// <returns>The thumbnail URL, or null when no official thumbnail exists.</returns>
+    public static string? TryGetYouTubeThumbnailUrl(string? value)
+    {
+        var videoId = TryGetYouTubeVideoId(value);
+        return videoId is null
+            ? null
+            : string.Format(CultureInfo.InvariantCulture, Constants.ApiConstants.YouTubeThumbnailUrlTemplate, videoId);
     }
 
     /// <summary>
@@ -299,5 +352,61 @@ public static class MediaFileHelper
         return !relative.Equals("..", StringComparison.Ordinal)
             && !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal)
             && !Path.IsPathRooted(relative);
+    }
+
+    private static bool IsYouTubeHost(string host)
+    {
+        return IsHostOrSubdomain(host, Constants.ApiConstants.YouTubeHostSuffix)
+            || IsHostOrSubdomain(host, Constants.ApiConstants.YouTubeNoCookieHostSuffix);
+    }
+
+    private static bool IsHostOrSubdomain(string host, string suffix)
+    {
+        return host.Equals(suffix, StringComparison.OrdinalIgnoreCase)
+            || host.EndsWith("." + suffix, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsYouTubePathPrefix(string segment)
+    {
+        return segment.Equals("embed", StringComparison.OrdinalIgnoreCase)
+            || segment.Equals("shorts", StringComparison.OrdinalIgnoreCase)
+            || segment.Equals("live", StringComparison.OrdinalIgnoreCase)
+            || segment.Equals("v", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? SanitizeYouTubeVideoId(string? candidate)
+    {
+        if (string.IsNullOrWhiteSpace(candidate))
+        {
+            return null;
+        }
+
+        var id = candidate.Trim();
+        foreach (var c in id)
+        {
+            if (!char.IsLetterOrDigit(c) && c != '-' && c != '_')
+            {
+                return null;
+            }
+        }
+
+        return id.Length is >= 6 and <= 64 ? id : null;
+    }
+
+    private static string? GetQueryValue(string query, string key)
+    {
+        var pairs = query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var pair in pairs)
+        {
+            var separator = pair.IndexOf('=');
+            var name = separator < 0 ? pair : pair[..separator];
+            if (name.Equals(key, StringComparison.OrdinalIgnoreCase))
+            {
+                var encoded = separator < 0 ? string.Empty : pair[(separator + 1)..];
+                return Uri.UnescapeDataString(encoded);
+            }
+        }
+
+        return null;
     }
 }

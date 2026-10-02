@@ -1282,10 +1282,22 @@
                                                                     <Image controls:ImageLoader.Source="{Binding ThumbnailUrl}"
                                                                            Stretch="UniformToFill"
                                                                            IsVisible="{Binding ThumbnailUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                                    <!-- Placeholder tile for direct uploads with no poster frame -->
+                                                                    <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                                                                            HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                                                            IsVisible="{Binding ThumbnailUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}">
+                                                                        <Border Width="64" Height="64" CornerRadius="32" Background="#B3000000"
+                                                                                BorderBrush="#80FFFFFF" BorderThickness="1"
+                                                                                HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                            <PathIcon Data="M8 5v14l11-7z" Width="26" Height="26" Foreground="White"
+                                                                                      HorizontalAlignment="Center" VerticalAlignment="Center" Margin="4,0,0,0" />
+                                                                        </Border>
+                                                                    </Border>
                                                                     <!-- Play button overlay -->
                                                                     <Border Width="44" Height="44" CornerRadius="22" Background="#B3000000"
                                                                             BorderBrush="#80FFFFFF" BorderThickness="1"
-                                                                            HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                            IsVisible="{Binding ThumbnailUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                                                                         <PathIcon Data="M8 5v14l11-7z" Width="18" Height="18" Foreground="White"
                                                                                   HorizontalAlignment="Center" VerticalAlignment="Center" Margin="3,0,0,0" />
                                                                     </Border>
@@ -1959,7 +1971,9 @@
                 VerticalAlignment="Center"
                 BoxShadow="0 16 48 0 #80000000"
                 ClipToBounds="True">
-            <Grid RowDefinitions="Auto,*" MaxWidth="1100" MaxHeight="750">
+            <!-- Fixed stage width: the video surface has no intrinsic size, so without
+                 an explicit width the dialog collapses to the player minimum. -->
+            <Grid RowDefinitions="Auto,*" Width="960" MaxWidth="1100" MaxHeight="750">
                 <!-- Modal Header -->
                 <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="16,12" Background="Transparent">
                     <TextBlock Grid.Column="0"
@@ -1995,6 +2009,7 @@
                 <Border Grid.Row="1" Background="Black" Padding="12">
                     <common:VideoPlayerView SourceUrl="{Binding VideoPlayerUrl}"
                                              FallbackCommand="{Binding OpenVideoExternallyCommand}"
+                                             HorizontalAlignment="Stretch"
                                              MaxHeight="680"
                                              MaxWidth="1060" />
                 </Border>

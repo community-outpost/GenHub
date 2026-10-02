@@ -252,6 +252,71 @@ public sealed class MediaFileHelperTests : IDisposable
         Assert.Equal(expected, MediaFileHelper.IsExtensionlessHostedFileUrl(value));
     }
 
+    /// <summary>
+    /// Verifies that YouTube video IDs are extracted from watch, embed, shorts, live, and shortened URLs.
+    /// </summary>
+    /// <param name="value">The URL under test.</param>
+    /// <param name="expected">The expected video ID.</param>
+    [Theory]
+    [InlineData("https://www.youtube.com/watch?v=dQw4w9WgXcQ", "dQw4w9WgXcQ")]
+    [InlineData("https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s", "dQw4w9WgXcQ")]
+    [InlineData("https://m.youtube.com/watch?v=dQw4w9WgXcQ", "dQw4w9WgXcQ")]
+    [InlineData("https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0", "dQw4w9WgXcQ")]
+    [InlineData("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ", "dQw4w9WgXcQ")]
+    [InlineData("https://www.youtube.com/shorts/dQw4w9WgXcQ", "dQw4w9WgXcQ")]
+    [InlineData("https://www.youtube.com/live/dQw4w9WgXcQ", "dQw4w9WgXcQ")]
+    [InlineData("https://youtu.be/dQw4w9WgXcQ", "dQw4w9WgXcQ")]
+    [InlineData("https://youtu.be/dQw4w9WgXcQ?t=42", "dQw4w9WgXcQ")]
+    public void TryGetYouTubeVideoId_YouTubeUrls_ReturnsVideoId(string? value, string expected)
+    {
+        Assert.Equal(expected, MediaFileHelper.TryGetYouTubeVideoId(value));
+    }
+
+    /// <summary>
+    /// Verifies that non-YouTube URLs and malformed IDs resolve to no video ID.
+    /// </summary>
+    /// <param name="value">The URL under test.</param>
+    [Theory]
+    [InlineData("https://vimeo.com/123456")]
+    [InlineData("https://cdn.example.com/trailer.mp4")]
+    [InlineData("https://www.youtube.com/watch?v=")]
+    [InlineData("https://www.youtube.com/watch")]
+    [InlineData("https://www.youtube.com/playlist?list=abc123")]
+    [InlineData("https://fakeyoutube.com/watch?v=dQw4w9WgXcQ")]
+    [InlineData("https://youtu.be/")]
+    [InlineData("file:///C:/media/trailer.mp4")]
+    [InlineData(null)]
+    [InlineData("")]
+    public void TryGetYouTubeVideoId_NonYouTubeUrls_ReturnsNull(string? value)
+    {
+        Assert.Null(MediaFileHelper.TryGetYouTubeVideoId(value));
+    }
+
+    /// <summary>
+    /// Verifies that YouTube URLs resolve to the official thumbnail image URL.
+    /// </summary>
+    [Fact]
+    public void TryGetYouTubeThumbnailUrl_YouTubeUrl_ReturnsThumbnailUrl()
+    {
+        var thumbnail = MediaFileHelper.TryGetYouTubeThumbnailUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+
+        Assert.Equal("https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg", thumbnail);
+    }
+
+    /// <summary>
+    /// Verifies that direct uploads resolve to no thumbnail so callers render a placeholder.
+    /// </summary>
+    /// <param name="value">The URL under test.</param>
+    [Theory]
+    [InlineData("https://cdn.example.com/trailer.mp4")]
+    [InlineData("https://drive.google.com/uc?export=download&id=abc123")]
+    [InlineData("https://vimeo.com/123456")]
+    [InlineData(null)]
+    public void TryGetYouTubeThumbnailUrl_NonYouTubeUrl_ReturnsNull(string? value)
+    {
+        Assert.Null(MediaFileHelper.TryGetYouTubeThumbnailUrl(value));
+    }
+
     private string WriteTempFile(string fileName, byte[] content)
     {
         var path = Path.Combine(_tempDirectory, fileName);

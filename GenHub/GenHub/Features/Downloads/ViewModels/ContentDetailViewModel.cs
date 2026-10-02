@@ -4107,9 +4107,12 @@ public partial class ContentDetailViewModel(
                 return;
             }
 
+            // Only official video thumbnails (e.g. YouTube posters) are shown. Direct
+            // uploads have no poster frame, so the card renders a play-tile
+            // placeholder instead of unrelated banner artwork.
             videoList.Add(new Video(
                 Title: title,
-                ThumbnailUrl: catalogItem.Metadata?.BannerUrl ?? searchResult.IconUrl ?? string.Empty,
+                ThumbnailUrl: MediaFileHelper.TryGetYouTubeThumbnailUrl(url),
                 EmbedUrl: url,
                 Platform: "Web"));
         }
@@ -6737,6 +6740,7 @@ public partial class ContentDetailViewModel(
                 IsFullScreenMediaOpen = true;
                 break;
             default:
+                // Unpresentable references are ignored.
                 break;
         }
     }

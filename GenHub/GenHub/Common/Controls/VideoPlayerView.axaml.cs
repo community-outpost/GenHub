@@ -64,16 +64,15 @@ public partial class VideoPlayerView : UserControl
     public static readonly DirectProperty<VideoPlayerView, string> PositionTextProperty =
         AvaloniaProperty.RegisterDirect<VideoPlayerView, string>(nameof(PositionText), o => o.PositionText);
 
-    private const int PositionScale = 1000;
-    private const int PositionPollIntervalMs = 500;
-    private const int ConnectionTimeoutSeconds = 20;
-
+    private static readonly int PositionScale = 1000;
+    private static readonly int PositionPollIntervalMs = 500;
+    private static readonly int ConnectionTimeoutSeconds = 20;
     private static readonly object SyncRoot = new();
     private static LibVLC? sharedLibVlc;
     private static bool initializationAttempted;
     private static bool initializationFailed;
 
-    private DispatcherTimer positionTimer;
+    private readonly DispatcherTimer positionTimer;
     private MediaPlayer? mediaPlayer;
     private Media? currentMedia;
     private DateTime playbackStartedUtc = DateTime.MinValue;
@@ -303,17 +302,15 @@ public partial class VideoPlayerView : UserControl
     private void StopPlayback()
     {
         positionTimer.Stop();
-        if (VideoHost.MediaPlayer != null)
-        {
-            VideoHost.MediaPlayer = null;
-        }
+        VideoHost.MediaPlayer = null;
 
-        if (mediaPlayer != null)
+        var player = mediaPlayer;
+        mediaPlayer = null;
+        if (player != null)
         {
-            mediaPlayer.EncounteredError -= OnPlaybackError;
-            mediaPlayer.Stop();
-            mediaPlayer.Dispose();
-            mediaPlayer = null;
+            player.EncounteredError -= OnPlaybackError;
+            player.Stop();
+            player.Dispose();
         }
 
         currentMedia?.Dispose();
