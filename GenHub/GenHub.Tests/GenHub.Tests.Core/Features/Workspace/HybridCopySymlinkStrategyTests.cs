@@ -29,6 +29,19 @@ public class HybridCopySymlinkStrategyTests : IDisposable
         _tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
     }
 
+    /// <summary>Malformed sizes cannot make the estimate negative or overflow.</summary>
+    [Fact]
+    public void EstimateDiskUsage_ClampsInvalidSizes()
+    {
+        var config = new WorkspaceConfiguration
+        {
+            Manifests = [new() { Files = [new() { RelativePath = "a.ini", Size = -5 }] }],
+        };
+        Assert.Equal(0, _strategy.EstimateDiskUsage(config));
+        config.Manifests[0].Files = [new() { RelativePath = "a.exe", Size = long.MaxValue }, new() { RelativePath = "b.exe", Size = 10 }];
+        Assert.Equal(long.MaxValue, _strategy.EstimateDiskUsage(config));
+    }
+
     /// <summary>
     /// Test that the strategy can handle HybridCopySymlink configuration.
     /// </summary>

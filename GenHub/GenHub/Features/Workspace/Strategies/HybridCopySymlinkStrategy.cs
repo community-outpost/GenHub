@@ -50,7 +50,8 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
         long totalUsage = 0;
         foreach (var file in configuration.GetWorkspaceUniqueFiles())
         {
-            totalUsage += IsEssentialFile(file.RelativePath, file.Size) ? file.Size : LinkOverheadBytes;
+            var size = IsEssentialFile(file.RelativePath, file.Size) ? Math.Max(0, file.Size) : LinkOverheadBytes;
+            totalUsage = totalUsage > long.MaxValue - size ? long.MaxValue : totalUsage + size;
         }
 
         return totalUsage;
