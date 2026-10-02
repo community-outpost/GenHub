@@ -232,7 +232,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="1.2*" />
                     <ColumnDefinition Width="1*" />
-                    <ColumnDefinition Width="{Binding CustomBuildsColumnWidth}" />
+                    <ColumnDefinition Width="{Binding #Root.((vm:UpdateNotificationViewModel)DataContext).CustomBuildsColumnWidth}" />
                 </Grid.ColumnDefinitions>
                 <!-- Left Column: Open Pull Requests -->
                 <Border Grid.Column="0" Background="{DynamicResource SurfaceElevatedDarkBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,8,0">
@@ -362,7 +362,7 @@
                 </Border>
 
                 <!-- Column 2: Custom & Fork Builds -->
-                <Border Grid.Column="2" IsVisible="{Binding HasCustomBuilds}" Background="{DynamicResource SurfaceElevatedDarkBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="8,0,0,0">
+                <Border Grid.Column="2" IsVisible="{Binding #Root.((vm:UpdateNotificationViewModel)DataContext).HasCustomBuilds}" Background="{DynamicResource SurfaceElevatedDarkBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="8,0,0,0">
                     <Grid RowDefinitions="Auto,*">
                         <!-- Column Header -->
                         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="4,0,4,12">

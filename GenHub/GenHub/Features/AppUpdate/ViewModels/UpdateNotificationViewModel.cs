@@ -338,9 +338,11 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     public ObservableCollection<CustomBuildSubscriptionItem> AvailableCustomBuilds { get; } = [];
 
     /// <summary>
-    /// Gets a value indicating whether any custom builds are available.
+    /// Gets or sets a value indicating whether any custom builds are available.
     /// </summary>
-    public bool HasCustomBuilds => AvailableCustomBuilds.Count > 0;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CustomBuildsColumnWidth))]
+    private bool _hasCustomBuilds;
 
     /// <summary>
     /// Gets the column width for the custom builds column in the browse builds grid.
@@ -443,8 +445,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         AvailableVersions.CollectionChanged += (s, e) => OnPropertyChanged(nameof(VersionPlaceholderText));
         AvailableCustomBuilds.CollectionChanged += (s, e) =>
         {
-            OnPropertyChanged(nameof(HasCustomBuilds));
-            OnPropertyChanged(nameof(CustomBuildsColumnWidth));
+            HasCustomBuilds = AvailableCustomBuilds.Count > 0;
         };
 
         // automatically check for updates and load prs when dialog opens
@@ -727,17 +728,26 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         }
 
         var latestVersion = latestRelease.Version.TrimStart('v', 'V');
+        var isNotInstalledYet = string.IsNullOrWhiteSpace(SubscribedCustomBuildVersion);
         var installedVersion = (SubscribedCustomBuildVersion ?? CurrentAppVersion).TrimStart('v', 'V').Split('+')[0];
 
-        if (AppUpdateVersionHelper.IsArtifactVersionNewer(latestVersion, installedVersion, allowCrossChannel: true))
+        if (isNotInstalledYet ||
+            AppUpdateVersionHelper.IsArtifactVersionNewer(latestVersion, installedVersion, allowCrossChannel: true) ||
+            !string.Equals(latestVersion, installedVersion, StringComparison.OrdinalIgnoreCase))
         {
             IsUpdateAvailable = true;
             LatestVersion = latestRelease.Version;
-            StatusMessage = string.Format(
-                CultureInfo.InvariantCulture,
-                GetLocalizedString("Updates.Status.CustomBuildUpdateAvailable", "Update available: {0} for {1}"),
-                latestRelease.Version,
-                buildDisplayName);
+            StatusMessage = isNotInstalledYet
+                ? string.Format(
+                    CultureInfo.InvariantCulture,
+                    GetLocalizedString("Updates.Status.CustomBuildReadyToInstall", "Ready to install: {0} ({1})"),
+                    buildDisplayName,
+                    latestRelease.Version)
+                : string.Format(
+                    CultureInfo.InvariantCulture,
+                    GetLocalizedString("Updates.Status.CustomBuildUpdateAvailable", "Update available: {0} for {1}"),
+                    latestRelease.Version,
+                    buildDisplayName);
             _logger.LogInformation("Custom build update available: {Version}", LatestVersion);
         }
         else
@@ -772,6 +782,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             }
 
             AvailableCustomBuilds.Clear();
+            HasCustomBuilds = false;
 
             foreach (var sub in subsResult.Data)
             {
@@ -798,6 +809,8 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                     });
                 }
             }
+
+            HasCustomBuilds = AvailableCustomBuilds.Count > 0;
         }
         catch (OperationCanceledException) when (_cancellationTokenSource.IsCancellationRequested)
         {

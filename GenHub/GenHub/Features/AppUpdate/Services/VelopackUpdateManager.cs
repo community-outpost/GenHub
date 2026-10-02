@@ -1,10 +1,13 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GitHub;
+using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
 using GenHub.Features.AppUpdate.Interfaces;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
@@ -47,6 +50,8 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     private readonly ITelemetryService? _telemetryService;
     private readonly UpdateManager? _updateManager;
     private readonly GithubSource _githubSource;
+    private readonly IContentManifestPool? _contentManifestPool;
+    private readonly IContentStorageService? _contentStorageService;
 
     private bool _hasUpdateFromGitHub;
     private string? _latestVersionFromGitHub;
@@ -127,13 +132,17 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     /// <param name="userSettingsService">The user settings service (optional).</param>
     /// <param name="fileDownloader">The high-performance file downloader (optional).</param>
     /// <param name="telemetryService">The telemetry service (optional).</param>
+    /// <param name="contentManifestPool">The content manifest pool (optional).</param>
+    /// <param name="contentStorageService">The content storage service (optional).</param>
     public VelopackUpdateManager(
         ILogger<VelopackUpdateManager> logger,
         IHttpClientFactory httpClientFactory,
         IGitHubAuthService? gitHubAuthService = null,
         IUserSettingsService? userSettingsService = null,
         IFileDownloader? fileDownloader = null,
-        ITelemetryService? telemetryService = null)
+        ITelemetryService? telemetryService = null,
+        IContentManifestPool? contentManifestPool = null,
+        IContentStorageService? contentStorageService = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
@@ -141,6 +150,8 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         _userSettingsService = userSettingsService;
         _fileDownloader = fileDownloader ?? new FastHttpClientFileDownloader();
         _telemetryService = telemetryService;
+        _contentManifestPool = contentManifestPool;
+        _contentStorageService = contentStorageService;
 
         // Always initialize GithubSource for update checking with high-performance downloader
         _githubSource = new GithubSource(AppConstants.GitHubRepositoryUrl, string.Empty, true, _fileDownloader);
@@ -813,6 +824,17 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         try
         {
+            if (_contentManifestPool != null && _contentStorageService != null)
+            {
+                var localPath = await TryFindLocalArtifactPathAsync(artifactInfo, cancellationToken).ConfigureAwait(false);
+                if (!string.IsNullOrEmpty(localPath))
+                {
+                    _logger.LogInformation("Found locally cached build artifact for {Version}, installing from local storage without redownloading", artifactInfo.Version);
+                    await InstallDownloadedBuildAsync(localPath, artifactInfo.ArtifactName, progress, cancellationToken).ConfigureAwait(false);
+                    return;
+                }
+            }
+
             string label;
             if (artifactInfo.PullRequestNumber.HasValue)
             {
@@ -866,7 +888,13 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             tempDir = Path.Combine(Path.GetTempPath(), $"genhub-art-{Guid.NewGuid():N}");
             Directory.CreateDirectory(tempDir);
 
-            var zipPath = Path.Combine(tempDir, "artifact.zip");
+            var isDirectExe = (!string.IsNullOrWhiteSpace(artifactInfo.ArtifactName) && artifactInfo.ArtifactName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) ||
+                              (!string.IsNullOrWhiteSpace(downloadUrl) && downloadUrl.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
+
+            var targetFileName = isDirectExe
+                ? (!string.IsNullOrWhiteSpace(artifactInfo.ArtifactName) ? Path.GetFileName(artifactInfo.ArtifactName) : "setup.exe")
+                : "artifact.zip";
+            var targetFilePath = Path.Combine(tempDir, targetFileName);
 
             var downloadProgress = new Action<int>(percent =>
             {
@@ -882,16 +910,43 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
             await _fileDownloader.DownloadFile(
                 downloadUrl,
-                zipPath,
+                targetFilePath,
                 downloadProgress,
                 headers,
                 timeout: 300,
                 cancelToken: cancellationToken);
 
+            if (isDirectExe)
+            {
+                LaunchInstallerProcess(targetFilePath, progress);
+                return;
+            }
+
+            // If not marked direct exe, verify header before unzipping
+            if (File.Exists(targetFilePath))
+            {
+                using var fs = File.OpenRead(targetFilePath);
+                var magic = new byte[2];
+
+                // Check for "MZ" PE executable header
+                if (fs.Read(magic, 0, 2) == 2 && magic[0] == 0x4D && magic[1] == 0x5A)
+                {
+                    fs.Dispose();
+                    var exePath = Path.ChangeExtension(targetFilePath, ".exe");
+                    if (!File.Exists(exePath))
+                    {
+                        File.Move(targetFilePath, exePath);
+                    }
+
+                    LaunchInstallerProcess(exePath, progress);
+                    return;
+                }
+            }
+
             progress?.Report(new UpdateProgress { Status = "Extracting artifact...", PercentComplete = 30 });
 
             // Extract the ZIP with per-entry containment validation (zip-slip hardening)
-            ZipArchiveGuard.ExtractToDirectory(zipPath, tempDir, cancellationToken);
+            ZipArchiveGuard.ExtractToDirectory(targetFilePath, tempDir, cancellationToken);
 
             // Find .nupkg file
             var nupkgFiles = Directory.GetFiles(tempDir, "*.nupkg", SearchOption.AllDirectories);
@@ -905,14 +960,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 if (exeFiles.Length > 0)
                 {
                     var targetExe = exeFiles.FirstOrDefault(e => Path.GetFileName(e).Contains("Setup", StringComparison.OrdinalIgnoreCase)) ?? exeFiles[0];
-                    _logger.LogInformation("Launching installer executable '{Exe}'", targetExe);
-                    progress?.Report(new UpdateProgress { Status = "Launching installer...", PercentComplete = 100 });
-                    using var proc = Process.Start(new ProcessStartInfo(targetExe) { UseShellExecute = true });
-                    if (proc != null)
-                    {
-                        _logger.LogInformation("Installer process started with PID {ProcessId}", proc.Id);
-                    }
-
+                    LaunchInstallerProcess(targetExe, progress);
                     return;
                 }
 
@@ -2472,5 +2520,65 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             CreatedAt: createdAtUtc,
             DownloadUrl: downloadUrl,
             Size: size);
+    }
+
+    private async Task<string?> TryFindLocalArtifactPathAsync(ArtifactUpdateInfo artifactInfo, CancellationToken cancellationToken)
+    {
+        if (_contentManifestPool == null || _contentStorageService == null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var manifestsResult = await _contentManifestPool.GetAllManifestsAsync(cancellationToken).ConfigureAwait(false);
+            if (!manifestsResult.Success || manifestsResult.Data == null)
+            {
+                return null;
+            }
+
+            foreach (var manifest in manifestsResult.Data)
+            {
+                if (manifest.ContentType != ContentType.GenHubBuild)
+                {
+                    continue;
+                }
+
+                var matchesVersion = !string.IsNullOrWhiteSpace(artifactInfo.Version) &&
+                    string.Equals(manifest.Version, artifactInfo.Version, StringComparison.OrdinalIgnoreCase);
+
+                var matchesPr = artifactInfo.PullRequestNumber.HasValue &&
+                    manifest.Name.Contains($"#{artifactInfo.PullRequestNumber.Value}", StringComparison.OrdinalIgnoreCase);
+
+                var resolvedFiles = ManifestVariantResolver.ResolveFiles(manifest);
+                var matchesFileName = !string.IsNullOrWhiteSpace(artifactInfo.ArtifactName) &&
+                    resolvedFiles.Any(f => string.Equals(f.RelativePath, artifactInfo.ArtifactName, StringComparison.OrdinalIgnoreCase) ||
+                                           f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
+
+                var matchesUrl = !string.IsNullOrWhiteSpace(artifactInfo.DownloadUrl) &&
+                    resolvedFiles.Any(f => string.Equals(f.DownloadUrl, artifactInfo.DownloadUrl, StringComparison.OrdinalIgnoreCase));
+
+                if (matchesVersion || matchesPr || (matchesFileName && matchesUrl))
+                {
+                    var isAcquiredResult = await _contentManifestPool.IsManifestAcquiredAsync(manifest.Id, cancellationToken).ConfigureAwait(false);
+                    if (isAcquiredResult.Success && isAcquiredResult.Data)
+                    {
+                        var tempDir = Path.Combine(Path.GetTempPath(), $"genhub-local-build-{Guid.NewGuid():N}");
+                        Directory.CreateDirectory(tempDir);
+                        var retrieveResult = await _contentStorageService.RetrieveContentAsync(manifest.Id, tempDir, cancellationToken).ConfigureAwait(false);
+                        if (retrieveResult.Success)
+                        {
+                            return tempDir;
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to check local storage for artifact {Name} ({Version})", artifactInfo.ArtifactName, artifactInfo.Version);
+        }
+
+        return null;
     }
 }
