@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
@@ -40,7 +41,7 @@ public class GenericCatalogContentProvider(
         string.Equals(d.SourceName, ContentSourceNames.HttpDeliverer, StringComparison.OrdinalIgnoreCase))
         ?? throw new InvalidOperationException("HTTP deliverer not found");
 
-    private readonly ConcurrentDictionary<string, HashSet<string>> _preExistingManifestIdsByManifest = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, List<string>> _registeredManifestIdsByOperation = new(StringComparer.OrdinalIgnoreCase);
 
     /// <inheritdoc />
     public override string SourceName => CatalogConstants.GenericCatalogProviderName;
@@ -96,22 +97,24 @@ public class GenericCatalogContentProvider(
 
         if (specializedDeliverer != null)
         {
-            if (string.Equals(specializedDeliverer.SourceName, GeneralsOnlineConstants.DelivererSourceName, StringComparison.OrdinalIgnoreCase))
-            {
-                if (!OperatingSystem.IsWindows())
-                {
-                    return OperationResult<ContentManifest>.CreateFailure(
-                        "GeneralsOnline is currently supported only on Windows. Easy Anti-Cheat was not designed for Wine/Proton environments.");
-                }
+            var isGeneralsOnline = string.Equals(
+                specializedDeliverer.SourceName,
+                GeneralsOnlineConstants.DelivererSourceName,
+                StringComparison.OrdinalIgnoreCase);
 
-                if (manifestPool != null)
+            if (isGeneralsOnline && !OperatingSystem.IsWindows())
+            {
+                return OperationResult<ContentManifest>.CreateFailure(
+                    "GeneralsOnline is currently supported only on Windows. Easy Anti-Cheat was not designed for Wine/Proton environments.");
+            }
+
+            HashSet<string>? preExistingIds = null;
+            if (isGeneralsOnline && manifestPool != null)
+            {
+                var existingPool = await manifestPool.GetAllManifestsAsync(cancellationToken);
+                if (existingPool.Success && existingPool.Data != null)
                 {
-                    var existingPool = await manifestPool.GetAllManifestsAsync(cancellationToken);
-                    if (existingPool.Success && existingPool.Data != null)
-                    {
-                        var preExisting = new HashSet<string>(existingPool.Data.Select(m => m.Id), StringComparer.OrdinalIgnoreCase);
-                        _preExistingManifestIdsByManifest[manifest.Id] = preExisting;
-                    }
+                    preExistingIds = new HashSet<string>(existingPool.Data.Select(m => m.Id), StringComparer.OrdinalIgnoreCase);
                 }
             }
 
@@ -120,12 +123,30 @@ public class GenericCatalogContentProvider(
                 manifest.Id,
                 specializedDeliverer.SourceName);
 
-            return await DeliverContentOnlyAsync(
+            var deliveryResult = await DeliverContentOnlyAsync(
                 specializedDeliverer,
                 manifest,
                 workingDirectory,
                 progress,
                 cancellationToken);
+
+            if (deliveryResult.Success && isGeneralsOnline && manifestPool != null)
+            {
+                var postPool = await manifestPool.GetAllManifestsAsync(cancellationToken);
+                if (postPool.Success && postPool.Data != null)
+                {
+                    var addedIds = postPool.Data
+                        .Where(m => (preExistingIds == null || !preExistingIds.Contains(m.Id)) &&
+                                    string.Equals(m.Publisher?.PublisherType, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+                        .Select(m => m.Id)
+                        .ToList();
+
+                    var opKey = GetOperationKey(manifest.Id, workingDirectory);
+                    _registeredManifestIdsByOperation[opKey] = addedIds;
+                }
+            }
+
+            return deliveryResult;
         }
 
         return await DeliverAndEnrichContentAsync(
@@ -149,41 +170,32 @@ public class GenericCatalogContentProvider(
             return;
         }
 
-        if (!_preExistingManifestIdsByManifest.TryRemove(originalManifest.Id, out var preExistingIds) || preExistingIds == null)
+        var opKey = GetOperationKey(originalManifest.Id, workingDirectory);
+        if (!_registeredManifestIdsByOperation.TryRemove(opKey, out var registeredIds) || registeredIds == null || registeredIds.Count == 0)
         {
             return;
         }
 
         Logger.LogWarning("Rolling back generic catalog Generals Online manifest registration for version {Version}", preparedManifest.Version);
 
-        try
+        foreach (var manifestId in registeredIds)
         {
-            var allManifestsResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
-            if (allManifestsResult.Success && allManifestsResult.Data != null)
+            try
             {
-                var matchingManifests = allManifestsResult.Data
-                    .Where(m => string.Equals(m.Version, preparedManifest.Version, StringComparison.OrdinalIgnoreCase) &&
-                                string.Equals(m.Publisher?.PublisherType, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase) &&
-                                !preExistingIds.Contains(m.Id))
-                    .ToList();
-
-                foreach (var manifest in matchingManifests)
+                var removeResult = await manifestPool.RemoveManifestAsync(manifestId, cancellationToken: cancellationToken);
+                if (!removeResult.Success)
                 {
-                    var removeResult = await manifestPool.RemoveManifestAsync(manifest.Id, cancellationToken: cancellationToken);
-                    if (!removeResult.Success)
-                    {
-                        Logger.LogWarning("Failed to remove manifest {ManifestId} during rollback: {Error}", manifest.Id, removeResult.FirstError);
-                    }
-                    else
-                    {
-                        Logger.LogInformation("Unregistered manifest {ManifestId} during rollback", manifest.Id);
-                    }
+                    Logger.LogWarning("Failed to remove manifest {ManifestId} during rollback: {Error}", manifestId, removeResult.FirstError);
+                }
+                else
+                {
+                    Logger.LogInformation("Unregistered manifest {ManifestId} during rollback", manifestId);
                 }
             }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Error occurred during generic catalog manifest registration rollback");
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error occurred during generic catalog manifest registration rollback for {ManifestId}", manifestId);
+            }
         }
     }
 
@@ -194,13 +206,15 @@ public class GenericCatalogContentProvider(
         string workingDirectory,
         CancellationToken cancellationToken)
     {
-        _preExistingManifestIdsByManifest.TryRemove(originalManifest.Id, out _);
+        var opKey = GetOperationKey(originalManifest.Id, workingDirectory);
+        _registeredManifestIdsByOperation.TryRemove(opKey, out _);
         return Task.CompletedTask;
     }
 
-    internal void SetPreExistingManifestsForTesting(string manifestId, IEnumerable<string> existingIds)
+    internal void SetRegisteredManifestsForTesting(string manifestId, string workingDirectory, IEnumerable<string> registeredIds)
     {
-        _preExistingManifestIdsByManifest[manifestId] = new HashSet<string>(existingIds, StringComparer.OrdinalIgnoreCase);
+        var opKey = GetOperationKey(manifestId, workingDirectory);
+        _registeredManifestIdsByOperation[opKey] = [.. registeredIds];
     }
 
     internal Task InvokeRollbackPreparedContentAsyncForTesting(
@@ -211,4 +225,7 @@ public class GenericCatalogContentProvider(
     {
         return RollbackPreparedContentAsync(originalManifest, preparedManifest, workingDirectory, cancellationToken);
     }
+
+    private static string GetOperationKey(string manifestId, string workingDirectory) =>
+        $"{manifestId}::{workingDirectory}";
 }

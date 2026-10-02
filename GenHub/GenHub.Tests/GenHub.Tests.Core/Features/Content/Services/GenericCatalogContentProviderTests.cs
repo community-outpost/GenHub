@@ -196,13 +196,19 @@ public sealed class GenericCatalogContentProviderTests
             NullLogger<GenericCatalogManifestFactory>.Instance,
             Mock.Of<IArchivePayloadProcessor>());
 
+        var validatorMock = new Mock<IContentValidator>();
+        validatorMock.Setup(v => v.ValidateManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult("1.10000.generalsonline.gameclient.generalsonline", []));
+        validatorMock.Setup(v => v.ValidateAllAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<System.IProgress<ValidationProgress>?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult("1.10000.generalsonline.gameclient.generalsonline", []));
+
         var provider = new GenericCatalogContentProvider(
             discoverer,
             [resolverMock.Object],
             [httpDelivererMock.Object, goDelivererMock.Object],
             factory,
             NullLogger<GenericCatalogContentProvider>.Instance,
-            Mock.Of<IContentValidator>(),
+            validatorMock.Object,
             Mock.Of<IInstallationInstructionsService>());
 
         var result = await provider.PrepareContentAsync(manifest, "C:/work", null, CancellationToken.None);
@@ -286,7 +292,7 @@ public sealed class GenericCatalogContentProviderTests
             Mock.Of<IInstallationInstructionsService>(),
             manifestPoolMock.Object);
 
-        provider.SetPreExistingManifestsForTesting(originalManifest.Id, [preExistingManifest.Id]);
+        provider.SetRegisteredManifestsForTesting(originalManifest.Id, "C:/work", [newlyAddedVariant.Id]);
 
         await provider.InvokeRollbackPreparedContentAsyncForTesting(originalManifest, preparedManifest, "C:/work", CancellationToken.None);
 
