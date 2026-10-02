@@ -3835,6 +3835,9 @@
   <data name="ContentType.ModdingTool" xml:space="preserve">
     <value>Инструмент для моддинга</value>
   </data>
+  <data name="ContentType.GenHubBuild" xml:space="preserve">
+    <value>Сборка GenHub</value>
+  </data>
   <data name="ContentType.UnknownContentType" xml:space="preserve">
     <value>Неизвестный контент</value>
   </data>

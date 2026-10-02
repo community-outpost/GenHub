@@ -66,6 +66,7 @@ public partial class SubscriptionConfirmationViewModel(
     private string? _resolvedDefinitionUrl;
     private string? _resolvedCatalogUrl;
     private string? _selectedCatalogUrl;
+    private string? _definitionCatalogFetchError;
 
     /// <summary>
     /// Gets or sets an action that occurs when a request is made to close the dialog.
@@ -471,6 +472,7 @@ public partial class SubscriptionConfirmationViewModel(
         string response,
         CancellationToken cancellationToken)
     {
+        _definitionCatalogFetchError = null;
         if (definitionService != null)
         {
             var defServiceResult = await TryFetchFromDefinitionServiceAsync(cancellationToken);
@@ -484,6 +486,16 @@ public partial class SubscriptionConfirmationViewModel(
         if (defPayloadResult.Catalog != null)
         {
             return defPayloadResult;
+        }
+
+        if (defPayloadResult.Definition != null)
+        {
+            ErrorTitle = GetLocalizedString("Downloads.Subscription.ErrorTitle.FailedToLoad", "Failed to Load Catalog");
+            ErrorMessage = !string.IsNullOrWhiteSpace(_definitionCatalogFetchError)
+                ? _definitionCatalogFetchError
+                : GetLocalizedString("Downloads.Subscription.ErrorMessage.FailedToFetchFormat", "Failed to fetch catalog from definition");
+            logger.LogWarning("Failed to resolve catalog from definition: {Errors}", ErrorMessage);
+            return (null, null, null, null);
         }
 
         var result = await catalogParser.ParseCatalogAsync(response, cancellationToken);
@@ -558,27 +570,59 @@ public partial class SubscriptionConfirmationViewModel(
         string response,
         CancellationToken cancellationToken)
     {
+        PublisherDefinition? definition;
         try
         {
-            var definition = JsonSerializer.Deserialize<PublisherDefinition>(response, DefinitionJsonOptions);
-            if (definition == null)
+            definition = JsonSerializer.Deserialize<PublisherDefinition>(response, DefinitionJsonOptions);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (JsonException jsonEx)
+        {
+            logger.LogDebug(jsonEx, "Payload is not a valid publisher definition; falling back to direct catalog parse");
+            return (null, null, null, null);
+        }
+        catch (Exception defEx)
+        {
+            logger.LogDebug(defEx, "Failed to parse publisher definition; falling back to direct catalog parse");
+            return (null, null, null, null);
+        }
+
+        if (definition == null || !HasCatalogReference(definition))
+        {
+            return (null, null, null, null);
+        }
+
+        var candidateUrls = new List<string>();
+        var targetCatalogUrl = ResolveTargetCatalogUrl(definition);
+        if (!string.IsNullOrWhiteSpace(targetCatalogUrl))
+        {
+            candidateUrls.Add(targetCatalogUrl);
+        }
+
+        if (definition.Catalogs != null)
+        {
+            foreach (var cat in definition.Catalogs)
             {
-                return (null, null, null, null);
+                if (!string.IsNullOrWhiteSpace(cat?.Url) && !candidateUrls.Contains(cat.Url, StringComparer.OrdinalIgnoreCase))
+                {
+                    candidateUrls.Add(cat.Url);
+                }
             }
+        }
 
-            if (!HasCatalogReference(definition))
-            {
-                return (null, null, null, null);
-            }
+        if (candidateUrls.Count == 0)
+        {
+            _definitionCatalogFetchError = GetLocalizedString("Downloads.Subscription.ErrorMessage.NoCatalogUrl", "Definition contains no valid catalog URL.");
+            return (null, null, null, definition);
+        }
 
-            var targetCatalogUrl = ResolveTargetCatalogUrl(definition);
-
-            if (string.IsNullOrWhiteSpace(targetCatalogUrl))
-            {
-                return (null, null, null, null);
-            }
-
-            var (targetSafe, ssrfReason) = await NetworkSecurityHelper.IsSafeUrlAsync(targetCatalogUrl, cancellationToken);
+        string? lastError = null;
+        foreach (var candidateUrl in candidateUrls)
+        {
+            var (targetSafe, ssrfReason) = await NetworkSecurityHelper.IsSafeUrlAsync(candidateUrl, cancellationToken);
             if (!targetSafe)
             {
                 if (!string.IsNullOrEmpty(ssrfReason))
@@ -586,41 +630,45 @@ public partial class SubscriptionConfirmationViewModel(
                     logger.LogWarning("Blocked unsafe catalog URL in definition payload: {Reason}", ssrfReason);
                 }
 
-                return (null, null, null, null);
+                lastError = ssrfReason;
+                continue;
             }
 
-            logger.LogInformation("Resolved catalog URL {TargetUrl} from definition at {DefUrl}", targetCatalogUrl, catalogUrl);
-            var catResponse = await CatalogDocumentReader.ReadAsync(httpClient, targetCatalogUrl, CatalogConstants.MaxCatalogSizeBytes, cancellationToken);
-            var catParseResult = await catalogParser.ParseCatalogAsync(catResponse, cancellationToken);
-            if (catParseResult.Success && catParseResult.Data != null)
+            try
             {
-                return (catParseResult.Data, catalogUrl, targetCatalogUrl, definition);
+                logger.LogInformation("Resolved catalog URL {TargetUrl} from definition at {DefUrl}", candidateUrl, catalogUrl);
+                var catResponse = await CatalogDocumentReader.ReadAsync(httpClient, candidateUrl, CatalogConstants.MaxCatalogSizeBytes, cancellationToken);
+                var catParseResult = await catalogParser.ParseCatalogAsync(catResponse, cancellationToken);
+                if (catParseResult.Success && catParseResult.Data != null)
+                {
+                    return (catParseResult.Data, catalogUrl, candidateUrl, definition);
+                }
+
+                lastError = string.Join("; ", catParseResult.Errors);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (HttpRequestException httpEx)
+            {
+                logger.LogWarning(httpEx, "Transient error resolving catalog from candidate {Url}", candidateUrl);
+                lastError = httpEx.Message;
+            }
+            catch (OperationCanceledException timeoutEx)
+            {
+                logger.LogWarning(timeoutEx, "Timeout fetching candidate catalog from {Url}", candidateUrl);
+                lastError = timeoutEx.Message;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to resolve catalog from candidate URL {TargetUrl} in definition", candidateUrl);
+                lastError = ex.Message;
             }
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (HttpRequestException httpEx)
-        {
-            logger.LogWarning(httpEx, "Transient error resolving catalog from embedded definition at {Url}; falling back to direct catalog parse", catalogUrl);
-            return (null, null, null, null);
-        }
-        catch (OperationCanceledException timeoutEx)
-        {
-            logger.LogWarning(timeoutEx, "Timeout fetching target catalog from definition at {Url}", catalogUrl);
-            return (null, null, null, null);
-        }
-        catch (JsonException jsonEx)
-        {
-            logger.LogDebug(jsonEx, "Payload is not a valid publisher definition; falling back to direct catalog parse");
-        }
-        catch (Exception defEx)
-        {
-            logger.LogDebug(defEx, "Failed to resolve catalog from embedded definition; falling back to direct catalog parse");
-        }
 
-        return (null, null, null, null);
+        _definitionCatalogFetchError = lastError;
+        return (null, null, null, definition);
     }
 
     private PublisherProfile ResolveEffectivePublisher(PublisherCatalog catalog)

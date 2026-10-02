@@ -154,6 +154,146 @@ public sealed class GenericCatalogContentProviderTests
         httpDelivererMock.Verify(d => d.DeliverContentAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<System.IProgress<ContentAcquisitionProgress>?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    /// <summary>
+    /// When GeneralsOnline deliverer is selected on non-Windows hosts, PrepareContentAsync returns a clear OS incompatibility error.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PrepareContentAsync_GeneralsOnlineDelivererOnNonWindows_ReturnsUnsupportedOsFailureAsync()
+    {
+        if (System.OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var discoverer = new GenericCatalogDiscoverer(
+            NullLogger<GenericCatalogDiscoverer>.Instance,
+            Mock.Of<IHttpClientFactory>(),
+            Mock.Of<IPublisherCatalogParser>(),
+            new VersionSelector(NullLogger<VersionSelector>.Instance),
+            Mock.Of<IGitHubApiClient>());
+
+        var resolverMock = new Mock<IContentResolver>();
+        resolverMock.Setup(r => r.ResolverId).Returns(CatalogConstants.GenericCatalogResolverId);
+
+        var httpDelivererMock = new Mock<IContentDeliverer>();
+        httpDelivererMock.Setup(d => d.SourceName).Returns(ContentSourceNames.HttpDeliverer);
+
+        var goDelivererMock = new Mock<IContentDeliverer>();
+        goDelivererMock.Setup(d => d.SourceName).Returns(GeneralsOnlineConstants.DelivererSourceName);
+        goDelivererMock.Setup(d => d.CanDeliver(It.IsAny<ContentManifest>())).Returns(true);
+
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.10000.generalsonline.gameclient.generalsonline"),
+            Name = "Generals Online",
+            Version = "1.0",
+            ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
+        };
+
+        var factory = new GenericCatalogManifestFactory(
+            Mock.Of<IFileHashProvider>(),
+            NullLogger<GenericCatalogManifestFactory>.Instance,
+            Mock.Of<IArchivePayloadProcessor>());
+
+        var provider = new GenericCatalogContentProvider(
+            discoverer,
+            [resolverMock.Object],
+            [httpDelivererMock.Object, goDelivererMock.Object],
+            factory,
+            NullLogger<GenericCatalogContentProvider>.Instance,
+            Mock.Of<IContentValidator>(),
+            Mock.Of<IInstallationInstructionsService>());
+
+        var result = await provider.PrepareContentAsync(manifest, "C:/work", null, CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Contains("GeneralsOnline is currently supported only on Windows", result.FirstError);
+    }
+
+    /// <summary>
+    /// When post-preparation fails, rollback unregisters newly added GeneralsOnline manifests from the pool.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RollbackPreparedContentAsync_UnregistersNewlyAddedGeneralsOnlineManifestsAsync()
+    {
+        var discoverer = new GenericCatalogDiscoverer(
+            NullLogger<GenericCatalogDiscoverer>.Instance,
+            Mock.Of<IHttpClientFactory>(),
+            Mock.Of<IPublisherCatalogParser>(),
+            new VersionSelector(NullLogger<VersionSelector>.Instance),
+            Mock.Of<IGitHubApiClient>());
+
+        var resolverMock = new Mock<IContentResolver>();
+        resolverMock.Setup(r => r.ResolverId).Returns(CatalogConstants.GenericCatalogResolverId);
+
+        var delivererMock = new Mock<IContentDeliverer>();
+        delivererMock.Setup(d => d.SourceName).Returns(ContentSourceNames.HttpDeliverer);
+
+        var manifestPoolMock = new Mock<IContentManifestPool>();
+
+        var originalManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.10000.generalsonline.gameclient.generalsonline"),
+            Name = "Generals Online",
+            Version = "1.0",
+            Publisher = new PublisherInfo { PublisherType = GeneralsOnlineConstants.PublisherType },
+        };
+
+        var preparedManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.10000.generalsonline.gameclient.generalsonline"),
+            Name = "Generals Online",
+            Version = "1.0",
+            Publisher = new PublisherInfo { PublisherType = GeneralsOnlineConstants.PublisherType },
+        };
+
+        var preExistingManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.10000.other.mod.existing"),
+            Version = "1.0",
+            Publisher = new PublisherInfo { PublisherType = GeneralsOnlineConstants.PublisherType },
+        };
+
+        var newlyAddedVariant = new ContentManifest
+        {
+            Id = ManifestId.Create("1.10000.generalsonline.mod.60hz"),
+            Version = "1.0",
+            Publisher = new PublisherInfo { PublisherType = GeneralsOnlineConstants.PublisherType },
+        };
+
+        manifestPoolMock
+            .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<ContentManifest>>.CreateSuccess([preExistingManifest, newlyAddedVariant]));
+
+        manifestPoolMock
+            .Setup(p => p.RemoveManifestAsync(newlyAddedVariant.Id, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult.CreateSuccess());
+
+        var factory = new GenericCatalogManifestFactory(
+            Mock.Of<IFileHashProvider>(),
+            NullLogger<GenericCatalogManifestFactory>.Instance,
+            Mock.Of<IArchivePayloadProcessor>());
+
+        var provider = new GenericCatalogContentProvider(
+            discoverer,
+            [resolverMock.Object],
+            [delivererMock.Object],
+            factory,
+            NullLogger<GenericCatalogContentProvider>.Instance,
+            Mock.Of<IContentValidator>(),
+            Mock.Of<IInstallationInstructionsService>(),
+            manifestPoolMock.Object);
+
+        provider.SetPreExistingManifestsForTesting(originalManifest.Id, [preExistingManifest.Id]);
+
+        await provider.InvokeRollbackPreparedContentAsyncForTesting(originalManifest, preparedManifest, "C:/work", CancellationToken.None);
+
+        manifestPoolMock.Verify(p => p.RemoveManifestAsync(newlyAddedVariant.Id, null, It.IsAny<CancellationToken>()), Times.Once);
+        manifestPoolMock.Verify(p => p.RemoveManifestAsync(preExistingManifest.Id, null, It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     private static GenericCatalogContentProvider CreateProvider()
     {
         var discoverer = new GenericCatalogDiscoverer(

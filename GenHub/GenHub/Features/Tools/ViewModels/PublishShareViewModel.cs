@@ -6152,6 +6152,12 @@ public partial class PublishShareViewModel(
             });
         }
 
+        RemoveEmptyDefaultCatalogPlaceholder();
+        if (project.Catalog == null || project.Catalog.Content == null || project.Catalog.Content.Count == 0)
+        {
+            project.Catalog = pubCat;
+        }
+
         // Update hosting state for this catalog
         _currentHostingState ??= GetOrCreateHostingState(SelectedHostingProvider?.ProviderId ?? HostingConstants.UnknownProviderId);
         MergeCloudCatalog(new CatalogHostingInfo

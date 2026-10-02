@@ -1,3 +1,4 @@
+using GenHub.Core.Serialization;
 using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Models.Enums;
@@ -5,7 +6,7 @@ namespace GenHub.Core.Models.Enums;
 /// <summary>
 /// Defines the type of content in a manifest.
 /// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter))]
+[JsonConverter(typeof(JsonContentTypeConverter))]
 public enum ContentType
 {
     // Foundation types (detected/installed)
@@ -67,6 +68,9 @@ public enum ContentType
 
     /// <summary>Modding and mapping tools/utilities.</summary>
     ModdingTool,
+
+    /// <summary>GenHub application installer or build.</summary>
+    GenHubBuild,
 
     /// <summary>Unknown content type.</summary>
     UnknownContentType,
