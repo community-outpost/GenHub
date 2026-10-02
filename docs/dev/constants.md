@@ -2062,6 +2062,7 @@ Windows NTSTATUS exit codes that a game client reports when it fails to start, a
 | `StatusStackBufferOverrun` | `0xC0000409` | A stack buffer overrun or fail-fast request ended the process |
 | `HexFormat` | `"X8"` | Format that renders an exit code as its eight-digit hexadecimal value |
 | `ImmediateExitExplainedKey` | `"Launch.ExitCode.ImmediateExitExplained"` | Message for an immediate exit with a known code |
+| `LauncherExitExplainedKey` | `"Launch.ExitCode.LauncherExitExplained"` | Message for a launcher exit with a known code before its child starts |
 | `AccessViolationKey` | `"Launch.ExitCode.AccessViolation"` | Explains `StatusAccessViolation` |
 | `InvalidImageFormatKey` | `"Launch.ExitCode.InvalidImageFormat"` | Explains `StatusInvalidImageFormat` |
 | `DllNotFoundKey` | `"Launch.ExitCode.DllNotFound"` | Explains `StatusDllNotFound` |

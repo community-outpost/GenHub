@@ -1715,9 +1715,7 @@ public class GameProcessManager(
             if (explained != null)
             {
                 logger.LogError(
-                    "[Process] Process exited immediately with code {ExitCode} (0x{ExitCodeHex}). {Message}",
-                    exitCode,
-                    LaunchExitMessages.FormatHex(exitCode),
+                    "[Process] {Message}",
                     explained);
                 return OperationResult<GameProcessInfo>.CreateFailure(explained);
             }

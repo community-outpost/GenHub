@@ -583,7 +583,7 @@ public class GameProcessManagerTests
         Assert.Contains("-1073741515", message);
         Assert.Contains("0xC0000135", message);
         Assert.Contains(LaunchExitMessages.GetString(StartupExitCodeConstants.DllNotFoundKey, null), message);
-        Assert.DoesNotContain("Process exited immediately with code", message);
+        Assert.Equal(LaunchExitMessages.DescribeImmediateExit(StartupExitCodeConstants.StatusDllNotFound, string.Empty, null), message);
     }
 
     /// <summary>

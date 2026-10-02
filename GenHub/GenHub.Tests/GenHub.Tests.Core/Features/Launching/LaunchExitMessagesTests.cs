@@ -21,23 +21,19 @@ public class LaunchExitMessagesTests
     [InlineData("ru", "до окончания запуска")]
     public void Describe_UsesLocalizedResources(string cultureName, string expected)
     {
-        var resources = new ResourceManager(LocalizationConstants.StringResourceBaseName, typeof(LaunchExitMessages).Assembly);
-        var culture = CultureInfo.GetCultureInfo(cultureName);
-        var localization = new Mock<ILocalizationService>();
-        localization.Setup(m => m.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
-            .Returns<string, object?[]>((key, arguments) => string.Format(culture, resources.GetString(key, culture)!, arguments));
+        var localization = CreateLocalization(CultureInfo.GetCultureInfo(cultureName));
         var launch = new GameLaunchInfo
         {
             LaunchId = "early-exit", ProfileId = "profile", WorkspaceId = "workspace",
             ProcessInfo = new GameProcessInfo(), ExitCode = 0,
             FailureReason = "Internal diagnostic text",
         };
-        var message = LaunchExitMessages.Describe(launch, localization.Object);
+        var message = LaunchExitMessages.Describe(launch, localization);
         Assert.Contains(expected, message);
         Assert.Contains("0", message);
         Assert.DoesNotContain(launch.FailureReason, message);
         launch.ExitCode = null;
-        Assert.Contains(expected, LaunchExitMessages.Describe(launch, localization.Object));
+        Assert.Contains(expected, LaunchExitMessages.Describe(launch, localization));
     }
 
     /// <summary>Standalone callers receive translated success messages and a safe formatting fallback.</summary>
