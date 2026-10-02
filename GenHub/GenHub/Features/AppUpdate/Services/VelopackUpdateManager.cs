@@ -907,6 +907,11 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                     _logger.LogInformation("Launching installer executable '{Exe}'", targetExe);
                     progress?.Report(new UpdateProgress { Status = "Launching installer...", PercentComplete = 100 });
                     using var proc = Process.Start(new ProcessStartInfo(targetExe) { UseShellExecute = true });
+                    if (proc != null)
+                    {
+                        _logger.LogInformation("Installer process started with PID {ProcessId}", proc.Id);
+                    }
+
                     return;
                 }
 
