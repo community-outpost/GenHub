@@ -396,7 +396,7 @@ public partial class SubscriptionConfirmationViewModel(
         {
             var validCatalogUrls = definition.Catalogs
                 .Where(cat => !string.IsNullOrWhiteSpace(cat?.Url) && !candidateUrls.Contains(cat.Url, StringComparer.OrdinalIgnoreCase))
-                .Select(cat => cat.Url!);
+                .Select(cat => cat.Url);
 
             candidateUrls.AddRange(validCatalogUrls);
         }
