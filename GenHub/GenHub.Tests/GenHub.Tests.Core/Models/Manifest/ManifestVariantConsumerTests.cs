@@ -85,6 +85,7 @@ public class ManifestVariantConsumerTests
     [InlineData("game.dat", true)]
     [InlineData("generals.ctr", true)]
     [InlineData("game.dat", false)]
+    [InlineData("generals.ctr", false)]
     public void DetermineMonitoringTarget_CustomAliasPreservesManifestAssociation(string entryName, bool matching)
     {
         var workspace = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
