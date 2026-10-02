@@ -128,7 +128,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
                 var fileIssues = new List<ValidationIssue>();
                 if (string.IsNullOrWhiteSpace(file.RelativePath))
                 {
-                    fileIssues.Add(new ValidationIssue("Manifest file is missing its RelativePath.", ValidationSeverity.Error));
+                    fileIssues.Add(new ValidationIssue("Manifest file is missing its RelativePath.", ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
                     return fileIssues;
                 }
 

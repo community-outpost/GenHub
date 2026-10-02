@@ -133,7 +133,8 @@ public sealed class ContentValidatorVariantTests : IDisposable
         ManifestVariantResolver.ResolveVariant(manifest)!.Files[0].RelativePath = path!;
         var result = await _validator.ValidateAllAsync(_contentDirectory, manifest);
         Assert.Contains(result.Issues, issue => issue.Message == "Manifest file is missing its RelativePath."
-            && issue.Severity == ValidationSeverity.Error);
+            && issue.Severity == ValidationSeverity.Error
+            && issue.IssueType == ValidationIssueType.InvalidManifest);
         Assert.DoesNotContain(result.Issues, issue => issue.Message.Contains("Unexpected error", StringComparison.Ordinal));
     }
 

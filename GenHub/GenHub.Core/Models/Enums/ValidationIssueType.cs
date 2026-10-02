@@ -29,4 +29,7 @@ public enum ValidationIssueType
 
     /// <summary>Validation could not run because its required manifest or catalog was unavailable.</summary>
     ValidationUnavailable,
+
+    /// <summary>The manifest contains an invalid or incomplete file declaration.</summary>
+    InvalidManifest,
 }
