@@ -317,8 +317,8 @@ public class HttpContentDeliverer(
             Phase = ContentAcquisitionPhase.Downloading,
             ProgressPercentage = (double)(currentFileIndex - 1) / totalFiles * 100,
             CurrentOperation = totalFiles > 1
-                ? $"Downloading {file.RelativePath} ({currentFileIndex}/{totalFiles})..."
-                : $"Downloading {file.RelativePath}...",
+                ? $"Connecting to download {file.RelativePath} ({currentFileIndex}/{totalFiles})..."
+                : $"Connecting to download {file.RelativePath}...",
             CurrentFile = file.RelativePath,
             FilesProcessed = currentFileIndex - 1,
             TotalFiles = totalFiles,
