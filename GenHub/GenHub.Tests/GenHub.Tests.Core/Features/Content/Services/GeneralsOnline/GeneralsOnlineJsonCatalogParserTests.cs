@@ -236,5 +236,4 @@ public class GeneralsOnlineJsonCatalogParserTests
         Assert.Equal("082826", release.Version);
         Assert.Equal(new DateTime(2026, 8, 28, 0, 0, 0, DateTimeKind.Utc), release.VersionDate);
     }
-
 }
