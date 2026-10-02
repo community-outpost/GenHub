@@ -60,12 +60,6 @@ public class GeneralsOnlineDeliverer(
         IProgress<ContentAcquisitionProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            return OperationResult<ContentManifest>.CreateFailure(
-                "GeneralsOnline is currently supported only on Windows. Easy Anti-Cheat was not designed for Wine/Proton environments.");
-        }
-
         var newlyRegisteredManifests = new List<ContentManifest>();
         string? zipPath = null;
         string? extractPath = null;

@@ -91,6 +91,21 @@ public class GenericCatalogContentProvider(
         return RollbackPreparedContentAsync(originalManifest, preparedManifest, workingDirectory, cancellationToken);
     }
 
+    /// <summary>
+    /// Seeds pre-existing manifest IDs for testing rollback scenarios.
+    /// </summary>
+    /// <param name="manifestId">The manifest ID.</param>
+    /// <param name="workingDirectory">The working directory.</param>
+    /// <param name="existingIds">The pre-existing manifest IDs.</param>
+    internal void SetPreExistingManifestsForTesting(
+        ManifestId manifestId,
+        string workingDirectory,
+        IEnumerable<ManifestId> existingIds)
+    {
+        var opKey = GetOperationKey(manifestId.Value, workingDirectory);
+        _preExistingManifestIdsByOperation[opKey] = new HashSet<ManifestId>(existingIds);
+    }
+
     /// <inheritdoc />
     protected override IContentDiscoverer Discoverer => discoverer;
 

@@ -615,7 +615,7 @@ public partial class SubscriptionConfirmationViewModel(
 
         if (candidateUrls.Count == 0)
         {
-            _definitionCatalogFetchError = GetLocalizedString("Downloads.Subscription.ErrorMessage.NoCatalogUrl", "Definition contains no valid catalog URL.");
+            _definitionCatalogFetchError = "Definition contains no valid catalog URL.";
             return (null, null, null, definition);
         }
 

@@ -225,11 +225,6 @@ public sealed class GenericCatalogContentProviderTests
     [Fact]
     public async Task RollbackPreparedContentAsync_UnregistersNewlyAddedGeneralsOnlineManifestsAsync()
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            return;
-        }
-
         var discoverer = new GenericCatalogDiscoverer(
             NullLogger<GenericCatalogDiscoverer>.Instance,
             Mock.Of<IHttpClientFactory>(),
@@ -277,23 +272,10 @@ public sealed class GenericCatalogContentProviderTests
             Publisher = new PublisherInfo { PublisherType = GeneralsOnlineConstants.PublisherType },
         };
 
-        var goDelivererMock = new Mock<IContentDeliverer>();
-        goDelivererMock.Setup(d => d.SourceName).Returns(GeneralsOnlineConstants.DelivererSourceName);
-        goDelivererMock.Setup(d => d.CanDeliver(It.IsAny<ContentManifest>())).Returns(true);
-        goDelivererMock.Setup(d => d.DeliverContentAsync(originalManifest, "C:/work", It.IsAny<System.IProgress<ContentAcquisitionProgress>?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(preparedManifest));
-
         var manifestPoolMock = new Mock<IContentManifestPool>();
-        var getAllCallCount = 0;
         manifestPoolMock
             .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(() =>
-            {
-                getAllCallCount++;
-                return getAllCallCount == 1
-                    ? OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([preExistingManifest])
-                    : OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([preExistingManifest, newlyAddedVariant]);
-            });
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([preExistingManifest, newlyAddedVariant]));
 
         manifestPoolMock
             .Setup(p => p.RemoveManifestAsync(newlyAddedVariant.Id, false, It.IsAny<CancellationToken>()))
@@ -305,23 +287,18 @@ public sealed class GenericCatalogContentProviderTests
             Mock.Of<IArchivePayloadProcessor>());
 
         var validatorMock = new Mock<IContentValidator>();
-        validatorMock.Setup(v => v.ValidateManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult("1.10000.generalsonline.gameclient.generalsonline", []));
-        validatorMock.Setup(v => v.ValidateAllAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<System.IProgress<ValidationProgress>?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult("1.10000.generalsonline.gameclient.generalsonline", []));
 
         var provider = new GenericCatalogContentProvider(
             discoverer,
             [resolverMock.Object],
-            [httpDelivererMock.Object, goDelivererMock.Object],
+            [httpDelivererMock.Object],
             factory,
             NullLogger<GenericCatalogContentProvider>.Instance,
             validatorMock.Object,
             Mock.Of<IInstallationInstructionsService>(),
             manifestPoolMock.Object);
 
-        var prepareResult = await provider.PrepareContentAsync(originalManifest, "C:/work", null, CancellationToken.None);
-        Assert.True(prepareResult.Success);
+        provider.SetPreExistingManifestsForTesting(originalManifest.Id, "C:/work", [preExistingManifest.Id]);
 
         await provider.InvokeRollbackPreparedContentAsyncForTesting(originalManifest, preparedManifest, "C:/work", CancellationToken.None);
 
