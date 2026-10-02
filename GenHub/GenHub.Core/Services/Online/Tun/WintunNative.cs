@@ -185,8 +185,7 @@ internal static class WintunNative
         var targetDll = Path.Combine(targetDir, "wintun.dll");
 
         var resourceName = $"GenHub.Core.Resources.Wintun.{archFolder}.wintun.dll";
-        using var resourceStream = typeof(WintunNative).Assembly.GetManifestResourceStream(resourceName)
-            ?? Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName);
+        using var resourceStream = typeof(WintunNative).Assembly.GetManifestResourceStream(resourceName);
         if (resourceStream != null && ShouldExtractResource(targetDll, resourceStream))
         {
             try
@@ -195,7 +194,11 @@ internal static class WintunNative
                 using var fileStream = File.Create(targetDll);
                 resourceStream.CopyTo(fileStream);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (IOException)
+            {
+                // Best effort write
+            }
+            catch (UnauthorizedAccessException)
             {
                 // Best effort write
             }

@@ -18,9 +18,9 @@ export default defineWorkersConfig({
             DIRECTORY_INDEX: "DirectoryIndex",
           },
           bindings: {
-            JWT_SIGNING_SECRET: "test-jwt-signing-secret",
-            PASSWORD_PEPPER: "test-password-pepper",
-            COTURN_SECRET: "test-coturn-secret",
+            JWT_SIGNING_SECRET: "genhub-test-suite-auth-key",
+            PASSWORD_PEPPER: "genhub-test-pepper-token",
+            COTURN_SECRET: "genhub-test-coturn-token",
             SESSION_TTL_SECONDS: "3600",
             JOIN_GRANT_TTL_SECONDS: "600",
             TURN_TTL_SECONDS: "1800",

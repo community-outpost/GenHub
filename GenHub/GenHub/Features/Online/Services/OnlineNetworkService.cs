@@ -504,7 +504,15 @@ public sealed class OnlineNetworkService(
                 }
             }
         }
-        catch (Exception ex) when (ex is HttpRequestException or NotSupportedException or System.Text.Json.JsonException)
+        catch (HttpRequestException)
+        {
+            // Fall through to the generic error below.
+        }
+        catch (NotSupportedException)
+        {
+            // Fall through to the generic error below.
+        }
+        catch (System.Text.Json.JsonException)
         {
             // Fall through to the generic error below.
         }
@@ -516,7 +524,7 @@ public sealed class OnlineNetworkService(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
-        string body;
+        string body = string.Empty;
         try
         {
             body = await response.Content.ReadAsStringAsync(cancellationToken);

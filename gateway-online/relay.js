@@ -1,4 +1,4 @@
-import dgram from "node:dgram";
+const dgram = require("node:dgram");
 
 const PORT = Number.parseInt(process.env.RELAY_PORT || "8088", 10);
 const server = dgram.createSocket("udp4");

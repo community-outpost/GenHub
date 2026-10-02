@@ -68,7 +68,8 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
             {
                 return StartWindowsTunnel(parsed);
             }
-            else if (OperatingSystem.IsLinux())
+
+            if (OperatingSystem.IsLinux())
             {
                 var linuxResult = await TryStartLinuxTunnelAsync(parsed, cancellationToken).ConfigureAwait(false);
                 if (linuxResult is not null)
@@ -76,7 +77,8 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
                     return linuxResult;
                 }
             }
-            else if (OperatingSystem.IsMacOS())
+
+            if (OperatingSystem.IsMacOS())
             {
                 logger.LogWarning("Virtual LAN tunneling is not supported on macOS.");
                 return OperationResult<bool>.CreateFailure(
@@ -289,7 +291,19 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
             return (true, new ParsedTunnelConfig(
                 networkIdStr, netBytes, parsedIp, parsedIp.GetAddressBytes(), ep, prefixLength, broadcastBytes));
         }
-        catch (Exception ex) when (ex is JsonException or ArgumentException or FormatException or InvalidOperationException)
+        catch (JsonException)
+        {
+            return (false, default!);
+        }
+        catch (ArgumentException)
+        {
+            return (false, default!);
+        }
+        catch (FormatException)
+        {
+            return (false, default!);
+        }
+        catch (InvalidOperationException)
         {
             return (false, default!);
         }
@@ -485,7 +499,15 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
         {
             await task.ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is OperationCanceledException or SocketException or ObjectDisposedException)
+        catch (OperationCanceledException)
+        {
+            // Task canceled cleanly
+        }
+        catch (SocketException)
+        {
+            // Task canceled cleanly
+        }
+        catch (ObjectDisposedException)
         {
             // Task canceled cleanly
         }
@@ -787,10 +809,10 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
                 }
 
                 var packet = new byte[24 + data.Length];
-                Buffer.BlockCopy(config.NetworkIdBytes, 0, packet, 0, 16);
-                Buffer.BlockCopy(config.DirectedBroadcastBytes, 0, packet, 16, 4);
-                Buffer.BlockCopy(config.OverlayIpBytes, 0, packet, 20, 4);
-                Buffer.BlockCopy(data, 0, packet, 24, data.Length);
+                Array.Copy(config.NetworkIdBytes, 0, packet, 0, 16);
+                Array.Copy(config.DirectedBroadcastBytes, 0, packet, 16, 4);
+                Array.Copy(config.OverlayIpBytes, 0, packet, 20, 4);
+                Array.Copy(data, 0, packet, 24, data.Length);
 
                 try
                 {

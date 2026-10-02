@@ -282,7 +282,11 @@ public sealed class LinuxTunSetup(ILogger<LinuxTunSetup> logger) : ITunInterface
         {
             process.Kill(true);
         }
-        catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
+        catch (InvalidOperationException)
+        {
+            // Already exited.
+        }
+        catch (Win32Exception)
         {
             // Already exited.
         }

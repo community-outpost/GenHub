@@ -541,19 +541,17 @@ public sealed class OnlinePresenceService(
         }
     }
 
-    private byte[] BuildHeartbeatPayload()
+    private (string Fingerprint, string ProfileName, string DisplayName, bool IsLaunched) GetHeartbeatState()
     {
-        string fingerprint;
-        string profileName;
-        string displayName;
-        bool isLaunched;
         lock (_syncLock)
         {
-            fingerprint = _advertisedFingerprint;
-            profileName = _advertisedProfileName;
-            displayName = _advertisedDisplayName;
-            isLaunched = _advertisedIsLaunched;
+            return (_advertisedFingerprint, _advertisedProfileName, _advertisedDisplayName, _advertisedIsLaunched);
         }
+    }
+
+    private byte[] BuildHeartbeatPayload()
+    {
+        var (fingerprint, profileName, displayName, isLaunched) = GetHeartbeatState();
 
         if (string.IsNullOrEmpty(fingerprint) && string.IsNullOrEmpty(profileName) && string.IsNullOrEmpty(displayName) && !isLaunched)
         {

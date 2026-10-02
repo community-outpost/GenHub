@@ -291,23 +291,24 @@ public sealed class WindowsTunDevice : ITunDevice
     private static async Task WaitForEventAsync(SafeWaitHandle handle, CancellationToken cancellationToken)
     {
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var registration = cancellationToken.Register(() => tcs.TrySetCanceled(cancellationToken));
-
-        var waitHandle = new ManualResetEvent(false) { SafeWaitHandle = handle };
-        var rwh = ThreadPool.RegisterWaitForSingleObject(
-            waitHandle,
-            (_, _) => tcs.TrySetResult(true),
-            null,
-            -1,
-            executeOnlyOnce: true);
-
-        try
+        using (cancellationToken.Register(() => tcs.TrySetCanceled(cancellationToken)))
         {
-            await tcs.Task.ConfigureAwait(false);
-        }
-        finally
-        {
-            rwh.Unregister(null);
+            var waitHandle = new ManualResetEvent(false) { SafeWaitHandle = handle };
+            var rwh = ThreadPool.RegisterWaitForSingleObject(
+                waitHandle,
+                (_, _) => tcs.TrySetResult(true),
+                null,
+                -1,
+                executeOnlyOnce: true);
+
+            try
+            {
+                await tcs.Task.ConfigureAwait(false);
+            }
+            finally
+            {
+                rwh.Unregister(null);
+            }
         }
     }
 }

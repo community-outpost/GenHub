@@ -44,7 +44,7 @@ export class DirectoryIndex {
   // Same interleave hazard as PresenceRoom: concurrent upserts (rooms
   // re-sync on every heartbeat) or an upsert racing the list prune can
   // drop entries between loadIndex() and put(). Serialize everything.
-  private async withLock<T>(fn: () => Promise<T>): Promise<T> {
+  private withLock<T>(fn: () => Promise<T>): Promise<T> {
     const run = this.mutex.then(fn);
     this.mutex = run.then(
       () => undefined,
@@ -54,7 +54,7 @@ export class DirectoryIndex {
   }
 
   async fetch(request: Request): Promise<Response> {
-    return this.withLock(async () => {
+    return await this.withLock(async () => {
       try {
         const url = new URL(request.url);
         switch (`${request.method} ${url.pathname}`) {
@@ -133,7 +133,7 @@ export class DirectoryIndex {
       const nowMs = Date.now();
       for (const [id, entry] of Object.entries(index)) {
         if (isStaleEntry(entry, nowMs)) {
-          delete index[id];
+          Reflect.deleteProperty(index, id);
         }
       }
       if (Object.keys(index).length >= MAX_INDEX_ENTRIES) {
@@ -151,7 +151,7 @@ export class DirectoryIndex {
       return json({ error: "Invalid request body" }, 400);
     }
     const index = await this.loadIndex();
-    delete index[body.id];
+    Reflect.deleteProperty(index, body.id);
     await this.state.storage.put("index", index);
     return json({ success: true });
   }
@@ -167,7 +167,7 @@ export class DirectoryIndex {
     const now = Math.floor(Date.now() / 1000);
     for (const [key, entry] of Object.entries(counters)) {
       if (now - entry.windowStart >= CREATION_WINDOW_SECONDS) {
-        delete counters[key];
+        Reflect.deleteProperty(counters, key);
       }
     }
     const entry = counters[body.ip];

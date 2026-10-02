@@ -12,7 +12,9 @@ exclude_patterns = [
   "**/*.min.js",
   "**/*.generated.cs",
   "docs/**",
-  "gateway-online/**"
+  "gateway-online/**",
+  "**/gateway-online/**",
+  "**/docs/**"
 ]
 
 [[analyzers]]
