@@ -57,7 +57,7 @@ public class CommunityOutpostResolver(
                 discoveredItem.Version);
 
             // Get provider definition if not provided
-            provider ??= providerLoader.GetProvider(CommunityOutpostConstants.PublisherId);
+            provider ??= providerLoader.GetProvider(CommunityOutpostConstants.PublisherId) ?? providerLoader.GetProvider(CommunityOutpostConstants.PublisherType);
             if (provider == null)
             {
                 return OperationResult<ContentManifest>.CreateFailure(

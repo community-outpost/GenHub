@@ -131,7 +131,7 @@ public sealed class EasyAntiCheatPreconditionTests
         Kind = InstallationStepKind.RunVerifiedInstaller,
         TargetRelativePath = GameClientConstants.GeneralsOnlineEacSetupExecutable,
         Arguments = ["install", GeneralsOnlineConstants.EacProductId],
-        StepKey = GeneralsOnlineConstants.EacStepKey,
+        StepKey = "generalsonline:eac:test-product",
         RunOnce = true,
     };
 }

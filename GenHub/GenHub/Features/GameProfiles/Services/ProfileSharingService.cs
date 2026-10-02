@@ -1897,7 +1897,7 @@ public class ProfileSharingService(
     private static string GenerateConflictFreeProfileName(string baseName, ISet<string> existingNames)
     {
         int counter = 1;
-        string candidate;
+        string candidate = string.Empty;
         do
         {
             string suffix = string.Format(System.Globalization.CultureInfo.InvariantCulture, ProfileSharingConstants.ConflictSuffixFormat, counter);

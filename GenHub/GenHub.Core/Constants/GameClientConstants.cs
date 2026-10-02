@@ -158,6 +158,9 @@ public static class GameClientConstants
     /// <summary>GeneralsOnline default client executable name.</summary>
     public const string GeneralsOnlineDefaultExecutable = "generalsonlinezh.exe";
 
+    /// <summary>GeneralsOnline Test Environment client executable name.</summary>
+    public const string GeneralsOnlineTestEnvironmentExecutable = "generalsonlinezh_testenvironment.exe";
+
     /// <summary>
     /// Easy Anti-Cheat bootstrapper shipped since GeneralsOnline 060526_QFE1. It launches the
     /// binary named by <c>EasyAntiCheat/Settings.json</c> and is the supported launch target.
@@ -167,8 +170,14 @@ public static class GameClientConstants
     /// <summary>Epic Online Services Easy Anti-Cheat installer shipped in the GeneralsOnline portable.</summary>
     public const string GeneralsOnlineEacSetupExecutable = "EasyAntiCheat_EOS_Setup.exe";
 
+    /// <summary>Epic Online Services SDK runtime library shipped in the GeneralsOnline portable.</summary>
+    public const string GeneralsOnlineEosSdkDll = "EOSSDK-Win32-Shipping.dll";
+
     /// <summary>Display name for GeneralsOnline 60Hz variant.</summary>
     public const string GeneralsOnline60HzDisplayName = "GeneralsOnline 60Hz";
+
+    /// <summary>Display name for GeneralsOnline Test Environment variant.</summary>
+    public const string GeneralsOnlineTestEnvironmentDisplayName = "GeneralsOnline Test Environment";
 
     /// <summary>Default display name for GeneralsOnline variants.</summary>
     public const string GeneralsOnlineDefaultDisplayName = "GeneralsOnline";
@@ -329,9 +338,9 @@ public static class GameClientConstants
     /// The GeneralsOnline executable names that are supported launch entry points.
     /// Since 060526_QFE1 the Easy Anti-Cheat bootstrapper starts the binary named by
     /// <c>EasyAntiCheat/Settings.json</c>; older packages launch the 60Hz binary directly.
-    /// <c>GeneralsOnlineZH.exe</c> ships alongside both but is not wrapped, so it is workspace
-    /// content rather than an entry point. Unix packages ship the extensionless native
-    /// client instead of any Windows launcher.
+    /// <c>GeneralsOnlineZH_TestEnvironment.exe</c> and <c>GeneralsOnlineZH.exe</c> serve as
+    /// the direct execution entry points for the test environment client without Easy Anti-Cheat.
+    /// Unix packages ship the extensionless native client instead of any Windows launcher.
     /// </summary>
     /// <remarks>
     /// Membership only. When several are present the bootstrapper wins, but that precedence is
@@ -341,6 +350,8 @@ public static class GameClientConstants
     [
         GeneralsOnlineEacLauncherExecutable,
         GeneralsOnline60HzExecutable,
+        GeneralsOnlineTestEnvironmentExecutable,
+        GeneralsOnlineDefaultExecutable,
         GeneralsOnlineUnixExecutable,
     ];
 
@@ -450,6 +461,7 @@ public static class GameClientConstants
         GameExecutable,
         GeneralsOnlineDefaultExecutable,
         GeneralsOnline60HzExecutable,
+        GeneralsOnlineTestEnvironmentExecutable,
         GeneralsOnlineEacLauncherExecutable,
         ContraExecutable,
         GeneralsOnlineUnixExecutable,
@@ -473,6 +485,7 @@ public static class GameClientConstants
         GameExecutable,
         GeneralsOnlineDefaultExecutable,
         GeneralsOnline60HzExecutable,
+        GeneralsOnlineTestEnvironmentExecutable,
         GeneralsOnlineEacLauncherExecutable,
         ContraExecutable,
         GeneralsOnlineUnixExecutable,

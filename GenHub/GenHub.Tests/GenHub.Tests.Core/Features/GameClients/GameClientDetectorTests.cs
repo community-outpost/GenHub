@@ -631,7 +631,15 @@ public class GameClientDetectorTests : IDisposable
         _contentManifestPoolMock.Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
-        var result = await _detector.ScanDirectoryForGameClientsAsync(_tempDirectory);
+        var detector = new GameClientDetector(
+            _manifestGenerationServiceMock.Object,
+            _contentManifestPoolMock.Object,
+            _hashProviderMock.Object,
+            _hashRegistryMock.Object,
+            [new GeneralsOnlineClientIdentifier()],
+            NullLogger<GameClientDetector>.Instance);
+
+        var result = await detector.ScanDirectoryForGameClientsAsync(_tempDirectory);
 
         Assert.True(result.Success);
         var only = Assert.Single(result.Items);
@@ -799,7 +807,7 @@ public class GameClientDetectorTests : IDisposable
             _contentManifestPoolMock.Object,
             _hashProviderMock.Object,
             _hashRegistryMock.Object,
-            [generalsOnlineIdentifierMock.Object],
+            [generalsOnlineIdentifierMock.Object, new GeneralsOnlineClientIdentifier()],
             NullLogger<GameClientDetector>.Instance);
 
         var generalsPath = Path.Combine(_tempDirectory, "Generals");
@@ -890,7 +898,7 @@ public class GameClientDetectorTests : IDisposable
             _contentManifestPoolMock.Object,
             _hashProviderMock.Object,
             _hashRegistryMock.Object,
-            [identifierMock.Object],
+            [identifierMock.Object, new GeneralsOnlineClientIdentifier()],
             NullLogger<GameClientDetector>.Instance);
 
         var zeroHourPath = Path.Combine(_tempDirectory, "ZeroHourEac");
@@ -950,7 +958,7 @@ public class GameClientDetectorTests : IDisposable
             _contentManifestPoolMock.Object,
             _hashProviderMock.Object,
             _hashRegistryMock.Object,
-            [generalsOnlineIdentifierMock.Object],
+            [generalsOnlineIdentifierMock.Object, new GeneralsOnlineClientIdentifier()],
             NullLogger<GameClientDetector>.Instance);
 
         var zeroHourPath = Path.Combine(_tempDirectory, "ZeroHour");
@@ -1034,7 +1042,7 @@ public class GameClientDetectorTests : IDisposable
             _contentManifestPoolMock.Object,
             _hashProviderMock.Object,
             _hashRegistryMock.Object,
-            [identifier60HzMock.Object],
+            [identifier60HzMock.Object, new GeneralsOnlineClientIdentifier()],
             NullLogger<GameClientDetector>.Instance);
 
         var generalsPath = Path.Combine(_tempDirectory, "GeneralsMultiple");

@@ -325,7 +325,7 @@ public static partial class ContentCardBadgeHelper
     public static string? GetFeaturedColor(CatalogContentItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
-        var isFeatured = item.IsFeatured || (item.Metadata?.IsFeatured ?? false);
+        var isFeatured = item.IsFeatured || item.Metadata?.IsFeatured == true;
         return GetFeaturedColor(isFeatured, item.Metadata?.AccentColor);
     }
 
@@ -378,13 +378,40 @@ public static partial class ContentCardBadgeHelper
     }
 
     /// <summary>
+    /// Checks whether the search result belongs to Steam Workshop.
+    /// </summary>
+    /// <param name="result">The search result.</param>
+    /// <returns>True if the item is sourced from Steam Workshop; otherwise false.</returns>
+    public static bool IsSteamWorkshop(ContentSearchResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        if (IsGenericCatalog(result))
+        {
+            return false;
+        }
+
+        return (result.ProviderName?.Equals(PublisherTypeConstants.SteamWorkshop, StringComparison.OrdinalIgnoreCase) == true) ||
+               (result.ProviderName?.Equals(ContentSourceNames.SteamWorkshopDiscoverer, StringComparison.OrdinalIgnoreCase) == true) ||
+               (result.ResolverId?.Equals(SteamWorkshopConstants.ResolverId, StringComparison.OrdinalIgnoreCase) == true) ||
+               (result.Id?.StartsWith(SteamWorkshopConstants.ContentIdPrefix, StringComparison.OrdinalIgnoreCase) == true);
+    }
+
+    /// <summary>
     /// Resolves the canonical publisher logo URI for a content search result.
+    /// Steam Workshop items with a resolved creator avatar use the creator's
+    /// avatar so cards show the person instead of the generic publisher logo.
     /// </summary>
     /// <param name="result">The search result.</param>
     /// <returns>A logo URI string, or null when unmapped.</returns>
     public static string? GetPublisherLogoUrl(ContentSearchResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
+
+        if (IsSteamWorkshop(result) &&
+            TryGetMetadata(result, SteamWorkshopConstants.CreatorAvatarUrlMetadataKey, out var creatorAvatar))
+        {
+            return creatorAvatar;
+        }
 
         if (IsGenericCatalog(result))
         {
@@ -414,19 +441,7 @@ public static partial class ContentCardBadgeHelper
 
         if (IsGitHub(result))
         {
-            if (!string.IsNullOrWhiteSpace(result.IconUrl) &&
-                !result.IconUrl.Equals(PublisherInfoConstants.GitHub.LogoSource, StringComparison.OrdinalIgnoreCase))
-            {
-                return result.IconUrl;
-            }
-
-            var owner = GetGitHubOwner(result);
-            if (!string.IsNullOrWhiteSpace(owner))
-            {
-                return $"https://github.com/{Uri.EscapeDataString(owner)}.png";
-            }
-
-            return PublisherInfoConstants.GitHub.LogoSource;
+            return ResolveGitHubLogo(result);
         }
 
         var knownLogo = PublisherInfoConstants.GetPublisherLogo(result.ProviderName, $"{result.AuthorName} {result.Id} {result.Name}");
@@ -791,6 +806,23 @@ public static partial class ContentCardBadgeHelper
                 }
             }
         }
+    }
+
+    private static string ResolveGitHubLogo(ContentSearchResult result)
+    {
+        if (!string.IsNullOrWhiteSpace(result.IconUrl) &&
+            !result.IconUrl.Equals(PublisherInfoConstants.GitHub.LogoSource, StringComparison.OrdinalIgnoreCase))
+        {
+            return result.IconUrl;
+        }
+
+        var owner = GetGitHubOwner(result);
+        if (!string.IsNullOrWhiteSpace(owner))
+        {
+            return $"https://github.com/{Uri.EscapeDataString(owner)}.png";
+        }
+
+        return PublisherInfoConstants.GitHub.LogoSource;
     }
 
     private static string? GetGitHubOwner(ContentSearchResult result)

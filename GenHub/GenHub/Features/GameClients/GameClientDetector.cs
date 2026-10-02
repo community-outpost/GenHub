@@ -239,63 +239,6 @@ public class GameClientDetector(
         return null;
     }
 
-    /// <summary>
-    /// Resolves the single supported Generals Online entry point among one directory's file names.
-    /// The Easy Anti-Cheat bootstrapper takes precedence because it starts the binary named by
-    /// <c>EasyAntiCheat/Settings.json</c>; the bare 60Hz binary is the pre-EAC fallback.
-    /// </summary>
-    /// <param name="fileNames">The file names present in a single directory.</param>
-    /// <returns>The entry point name as it appears on disk, or <see langword="null"/> when none is present.</returns>
-    private static string? ResolveGeneralsOnlineEntryPoint(IEnumerable<string> fileNames)
-    {
-        string? sixtyHertz = null;
-        string? unixClient = null;
-
-        foreach (var fileName in fileNames)
-        {
-            if (fileName.Equals(GameClientConstants.GeneralsOnlineEacLauncherExecutable, StringComparison.OrdinalIgnoreCase))
-            {
-                return fileName;
-            }
-
-            if (fileName.Equals(GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase))
-            {
-                sixtyHertz = fileName;
-            }
-
-            if (fileName.Equals(GameClientConstants.GeneralsOnlineUnixExecutable, StringComparison.OrdinalIgnoreCase))
-            {
-                unixClient = fileName;
-            }
-        }
-
-        return sixtyHertz ?? unixClient;
-    }
-
-    /// <summary>
-    /// Resolves the single supported Generals Online entry point in a directory. Names are matched
-    /// against the directory listing rather than composed from constants, so the package's own
-    /// casing resolves on case-sensitive file systems.
-    /// </summary>
-    /// <param name="directory">The directory to inspect.</param>
-    /// <returns>The entry point name, or <see langword="null"/> when none is present.</returns>
-    private static string? ResolveGeneralsOnlineEntryPoint(string directory)
-    {
-        try
-        {
-            return ResolveGeneralsOnlineEntryPoint(
-                Directory.EnumerateFiles(directory).Select(Path.GetFileName).OfType<string>());
-        }
-        catch (IOException)
-        {
-            return null;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return null;
-        }
-    }
-
     private static GameClient CreateScannedClient(
         string gameTypeName,
         GameType gameType,
@@ -716,6 +659,7 @@ public class GameClientDetector(
                     logger.LogDebug("Sniffed Generals engine {ExecutablePath}: {Reason}", executablePath, verdict.Reason);
                     return CreateScannedClient("Generals", GameType.Generals, executablePath, workingDirectory);
                 default:
+                    // Unknown or unsupported binary role; fall through to directory sniffing
                     break;
             }
         }
@@ -749,6 +693,89 @@ public class GameClientDetector(
         return hashRegistry.PossibleExecutableNames.Contains(fileName, StringComparer.OrdinalIgnoreCase)
             || fileName.EndsWith(ContentFormatConstants.FlatpakExtension, StringComparison.OrdinalIgnoreCase)
             || (string.IsNullOrEmpty(Path.GetExtension(fileName)) && ExecutableFileClassifier.HasExecutableMagicBytes(executablePath));
+    }
+
+    /// <summary>
+    /// Resolves a publisher-declared entry point in a directory. Names are matched
+    /// against the directory listing rather than composed from constants, so the
+    /// package's own casing resolves on case-sensitive file systems.
+    /// </summary>
+    /// <param name="directory">The directory to inspect.</param>
+    /// <returns>The entry point name, or <see langword="null"/> when no publisher claims one.</returns>
+    private string? ResolvePublisherDirectoryEntryPoint(string directory)
+    {
+        var fileNames = GetFileNames(directory);
+        if (fileNames is null)
+        {
+            return null;
+        }
+
+        foreach (var identifier in gameClientIdentifiers)
+        {
+            try
+            {
+                var entryPoint = identifier.ResolveDirectoryEntryPoint(directory, fileNames);
+                if (!string.IsNullOrEmpty(entryPoint))
+                {
+                    return entryPoint;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(
+                    ex,
+                    "Publisher identifier {PublisherId} failed to resolve a directory entry point for {Directory}",
+                    identifier.PublisherId,
+                    directory);
+            }
+        }
+
+        return null;
+
+        static List<string>? GetFileNames(string dir)
+        {
+            try
+            {
+                return Directory.EnumerateFiles(dir).Select(Path.GetFileName).OfType<string>().ToList();
+            }
+            catch (IOException)
+            {
+                return null;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return null;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Determines whether an executable is a publisher's non-launchable companion file.
+    /// </summary>
+    /// <param name="executablePath">The path to the executable file to check.</param>
+    /// <returns><c>true</c> when any publisher claims the file as companion content.</returns>
+    private bool IsPublisherCompanionFile(string executablePath)
+    {
+        foreach (var identifier in gameClientIdentifiers)
+        {
+            try
+            {
+                if (identifier.IsCompanionFile(executablePath))
+                {
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(
+                    ex,
+                    "Publisher identifier {PublisherId} failed companion check for {ExecutablePath}",
+                    identifier.PublisherId,
+                    executablePath);
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -1187,7 +1214,7 @@ public class GameClientDetector(
         // Exactly one entry point per installation. Since 060526_QFE1 the Easy Anti-Cheat
         // bootstrapper wraps the 60Hz binary and both ship side by side, so detecting each
         // recognised name in turn would surface the same client twice.
-        var executableName = ResolveGeneralsOnlineEntryPoint(installationPath);
+        var executableName = ResolvePublisherDirectoryEntryPoint(installationPath);
 
         if (executableName is not null)
         {
@@ -1391,9 +1418,8 @@ public class GameClientDetector(
             try
             {
                 // Process files in current directory
+                var resolvedEntryPoint = ResolvePublisherDirectoryEntryPoint(currentDir);
                 var files = Directory.EnumerateFiles(currentDir).ToList();
-                var generalsOnlineEntryPoint = ResolveGeneralsOnlineEntryPoint(
-                    files.Select(Path.GetFileName).OfType<string>());
 
                 foreach (var file in files)
                 {
@@ -1412,10 +1438,10 @@ public class GameClientDetector(
                         continue;
                     }
 
-                    // A GeneralsOnline directory holds several supported entry points but is one
-                    // client, so only the resolved entry point counts.
-                    if (GameClientConstants.GeneralsOnlineExecutableNames.Contains(fileName, StringComparer.OrdinalIgnoreCase)
-                        && !fileName.Equals(generalsOnlineEntryPoint, StringComparison.OrdinalIgnoreCase))
+                    // A publisher directory can hold several runnable binaries that form one
+                    // client, so publisher-claimed companion content never counts unless it is
+                    // the publisher-selected directory entry point.
+                    if (!string.Equals(fileName, resolvedEntryPoint, StringComparison.OrdinalIgnoreCase) && IsPublisherCompanionFile(file))
                     {
                         continue;
                     }

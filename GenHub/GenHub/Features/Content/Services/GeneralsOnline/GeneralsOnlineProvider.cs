@@ -85,8 +85,9 @@ public class GeneralsOnlineProvider(
 
             if (allManifestsResult.Success && allManifestsResult.Data != null)
             {
-                // Find any GeneralsOnline manifest with matching version (30hz or 60hz)
+                // Find any GeneralsOnline game client manifest with matching version (30hz or 60hz)
                 var existing = allManifestsResult.Data.FirstOrDefault(m =>
+                    m.ContentType == ContentType.GameClient &&
                     string.Equals(m.Version, version, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(m.Publisher?.PublisherType, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase));
 

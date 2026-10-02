@@ -1,6 +1,7 @@
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Interfaces.Tools.Checksum;
@@ -73,6 +74,7 @@ public static class ReplayManagerModule
 
         // Services
         services.AddSingleton<IReplayDirectoryService, ReplayDirectoryService>();
+        services.AddSingleton<IPinnedManifestProvider, ReplayPinnedManifestProvider>();
         services.AddSingleton<IReplayCheckpointService, ReplayCheckpointService>();
         services.AddSingleton<IReplayImportService>(serviceProvider =>
         {

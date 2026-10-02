@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Content;
@@ -27,10 +28,12 @@ namespace GenHub.Features.Content.Services.ContentDiscoverers;
 /// <param name="manifestPool">The manifest pool holding acquired content.</param>
 /// <param name="artworkService">Service resolving and warming local artwork.</param>
 /// <param name="logger">The logger instance.</param>
+/// <param name="localizationService">Optional localization service.</param>
 public sealed class DownloadedContentDiscoverer(
     IContentManifestPool manifestPool,
     IContentArtworkService artworkService,
-    ILogger<DownloadedContentDiscoverer> logger) : IContentDiscoverer
+    ILogger<DownloadedContentDiscoverer> logger,
+    ILocalizationService? localizationService = null) : IContentDiscoverer
 {
     private const int FallbackPageSize = 24;
 
@@ -185,6 +188,12 @@ public sealed class DownloadedContentDiscoverer(
     {
         if (!string.IsNullOrWhiteSpace(manifest.Metadata?.VariantGroupId))
         {
+            if (GeneralsOnlineVariantGrouping.IsGeneralsOnlineManifest(manifest) &&
+                IsLegacyGeneralsOnlineGroupId(manifest.Metadata.VariantGroupId, manifest.ContentType))
+            {
+                return GeneralsOnlineVariantGrouping.BuildVariantGroupId(manifest.ContentType, manifest.Version);
+            }
+
             return manifest.Metadata.VariantGroupId;
         }
 
@@ -193,7 +202,7 @@ public sealed class DownloadedContentDiscoverer(
         // publishers are untouched: coincidental version equality must never merge them.
         if (GeneralsOnlineVariantGrouping.IsGeneralsOnlineManifest(manifest))
         {
-            return GeneralsOnlineVariantGrouping.BuildVariantGroupId(manifest.Version);
+            return GeneralsOnlineVariantGrouping.BuildVariantGroupId(manifest.ContentType, manifest.Version);
         }
 
         // Legacy Community Outpost pool entries predate variant group stamping; derive it so
@@ -215,29 +224,17 @@ public sealed class DownloadedContentDiscoverer(
         return null;
     }
 
-    private static string? ResolveVariantFamilyName(ContentManifest manifest)
+    private static bool IsLegacyGeneralsOnlineGroupId(string? groupId, ContentType contentType)
     {
-        if (!string.IsNullOrWhiteSpace(manifest.Metadata?.VariantFamilyName))
+        if (string.IsNullOrWhiteSpace(groupId))
         {
-            return manifest.Metadata.VariantFamilyName;
+            return false;
         }
 
-        if (GeneralsOnlineVariantGrouping.IsGeneralsOnlineManifest(manifest))
-        {
-            return GeneralsOnlineVariantGrouping.BuildVariantFamilyName(manifest.Version);
-        }
-
-        if (CommunityOutpostVariantGrouping.TryGetVariantContentCode(manifest, out var contentCode))
-        {
-            return CommunityOutpostVariantGrouping.BuildVariantFamilyName(contentCode);
-        }
-
-        if (GitHubVariantGrouping.TryGetVariantGroupId(manifest, out _))
-        {
-            return GitHubVariantGrouping.BuildVariantFamilyName(manifest);
-        }
-
-        return null;
+        var prefix = $"{GeneralsOnlineConstants.PublisherType}-";
+        var typedPrefix = $"{GeneralsOnlineConstants.PublisherType}-{contentType.ToString().ToLowerInvariant()}-";
+        return groupId.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) &&
+            !groupId.StartsWith(typedPrefix, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? ResolveCoverFallback(ContentManifest manifest)
@@ -252,6 +249,39 @@ public sealed class DownloadedContentDiscoverer(
         return PublisherInfoConstants.GetPublisherCover(
             manifest.Publisher?.PublisherType,
             manifest.Id.Value);
+    }
+
+    private string? ResolveVariantFamilyName(ContentManifest manifest)
+    {
+        if (GeneralsOnlineVariantGrouping.IsGeneralsOnlineManifest(manifest))
+        {
+            if (manifest.Metadata is { VariantFamilyName: { Length: > 0 } familyName } &&
+                !string.IsNullOrWhiteSpace(familyName) &&
+                !IsLegacyGeneralsOnlineGroupId(manifest.Metadata.VariantGroupId, manifest.ContentType))
+            {
+                return familyName;
+            }
+
+            return GeneralsOnlineVariantGrouping.BuildVariantFamilyName(manifest.ContentType, manifest.Version, localizationService);
+        }
+
+        if (manifest.Metadata is { VariantFamilyName: { Length: > 0 } storedFamilyName } &&
+            !string.IsNullOrWhiteSpace(storedFamilyName))
+        {
+            return storedFamilyName;
+        }
+
+        if (CommunityOutpostVariantGrouping.TryGetVariantContentCode(manifest, out var contentCode))
+        {
+            return CommunityOutpostVariantGrouping.BuildVariantFamilyName(contentCode);
+        }
+
+        if (GitHubVariantGrouping.TryGetVariantGroupId(manifest, out _))
+        {
+            return GitHubVariantGrouping.BuildVariantFamilyName(manifest);
+        }
+
+        return null;
     }
 
     private void PrefetchPageArtwork(IReadOnlyList<ContentManifest> pageItems, CancellationToken cancellationToken)

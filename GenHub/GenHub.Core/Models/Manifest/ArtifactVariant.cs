@@ -47,6 +47,13 @@ public class ArtifactVariant
     public string? EntryPoint { get; set; }
 
     /// <summary>
+    /// Gets or sets the process the variant's entry point spawns and hands the session
+    /// to. Null means the entry is the game itself and no adoption takes place.
+    /// </summary>
+    [JsonPropertyName("launchRelationship")]
+    public LaunchRelationship? LaunchRelationship { get; set; }
+
+    /// <summary>
     /// Gets or sets the files belonging to this variant.
     /// </summary>
     [JsonPropertyName("files")]

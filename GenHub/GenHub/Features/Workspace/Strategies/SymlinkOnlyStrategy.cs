@@ -87,7 +87,7 @@ public sealed class SymlinkOnlyStrategy(
             Logger.LogDebug("Processing {TotalFiles} files in parallel", totalFiles);
             ReportProgress(progress, 0, totalFiles, "Initializing", string.Empty);
 
-            int degreeOfParallelism;
+            int degreeOfParallelism = 0;
             try
             {
                 var driveInfo = new DriveInfo(Path.GetPathRoot(workspacePath) ?? "C:\\");

@@ -65,7 +65,7 @@ public static class MediaFileHelper
         try
         {
             using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            int chunk;
+            int chunk = 0;
             while (read < header.Length && (chunk = stream.Read(header[read..])) > 0)
             {
                 read += chunk;
