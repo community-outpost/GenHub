@@ -35,12 +35,14 @@
     <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="9.0.0" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageVersion Include="Microsoft.Playwright" Version="1.55.0" />
+    <PackageVersion Include="QRCoder" Version="1.8.0" />
     <PackageVersion Include="ReactiveUI" Version="19.6.1" />
     <PackageVersion Include="Serilog" Version="4.2.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="6.0.0" />
     <PackageVersion Include="Serilog.Extensions.Logging" Version="9.0.0" />
     <PackageVersion Include="Slugify.Core" Version="5.1.1" />
     <!-- Security pin: GHSA-xrw6-gwf8-vvr9 (High) is fixed in 0.21.3; overrides Avalonia's transitive 0.20.0 -->
+    <PackageVersion Include="SteamKit2" Version="3.4.0" />
     <PackageVersion Include="Tmds.DBus.Protocol" Version="0.21.3" />
     <PackageVersion Include="DotNetEnv" Version="3.1.1" />
     <PackageVersion Include="StyleCop.Analyzers" Version="1.2.0-beta.556" />

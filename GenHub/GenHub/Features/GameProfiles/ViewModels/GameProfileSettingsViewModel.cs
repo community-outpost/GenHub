@@ -286,8 +286,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         var activeInstallation = EnabledContent.FirstOrDefault(c => c.ContentType == ContentType.GameInstallation)
             ?? (SelectedGameInstallation is { IsEnabled: true } ? SelectedGameInstallation : null);
 
-        bool hasGo;
-        bool hasTsh;
+        bool hasGo = false;
+        bool hasTsh = false;
 
         if (enabledClients.Count > 0)
         {
@@ -1860,7 +1860,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         HashSet<string> warnedLockedNames,
         CancellationToken cancellationToken = default)
     {
-        if (IsDependencyAlreadyEnabled(dependency, EnabledContent) || dependency.IsOptional || _profileContentLoader == null)
+        if (IsDependencyAlreadyEnabled(dependency, EnabledContent) || (dependency.IsOptional && dependency.InstallBehavior != DependencyInstallBehavior.AutoInstall) || _profileContentLoader == null)
         {
             return;
         }

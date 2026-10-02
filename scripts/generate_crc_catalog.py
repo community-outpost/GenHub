@@ -24,6 +24,10 @@ GENERALSONLINE_CDN = "https://cdn.playgenerals.online"
 GENERALSONLINE_KNOWN_DATES = ("021326", "032926", "042826", "060526", "062026", "081326", "082826", "092226", "092526", "092826")
 RETAIL_ZERO_HOUR_MANIFEST_ID = "1.104.retail.gameclient.zerohour"
 VANILLA_104_INI = "Vanilla 1.04 INI"
+GENERALSONLINE_092826_MANIFEST_ID = "1.92826.generalsonline.gameclient.zerohour"
+GENERALSONLINE_092826_PORTABLE_ZIP = (
+    f"{GENERALSONLINE_CDN}/GeneralsOnline_portable_092826.zip"
+)
 COMMUNITY_PATCH_CORE_INI_NAME = "CommunityPatch Core INI (81FB5632)"
 COMMUNITY_PATCH_CORE_INI_URL = (
     "https://strata.gamereplays.org/storage/versions/ini/500_900_CommunityPatch_CoreINI_81FB5632.big"
@@ -332,7 +336,7 @@ BASELINE_ENTRIES = [
         "exeCrc": "0xD83377F3",
         "iniCrc": "0x81FB5632",
         "sha256": "8ba835206919bbfe724514f10e3ecb665245ff9e4141ef842b67fe616214ba3f",
-        "manifestId": "1.92826.generalsonline.gameclient.zerohour",
+        "manifestId": GENERALSONLINE_092826_MANIFEST_ID,
         "dataPatchManifestId": "1.92826.generalsonline.patch.gamedata",
         "dataPatchName": COMMUNITY_PATCH_CORE_INI_NAME,
         "publisher": "generalsonline",
@@ -340,7 +344,7 @@ BASELINE_ENTRIES = [
         "version": "092826",
         "buildDate": "2026-09-28",
         "description": "GeneralsOnline 092826",
-        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_092826.zip",
+        "cdnUrl": GENERALSONLINE_092826_PORTABLE_ZIP,
         "dataPatchCdnUrl": COMMUNITY_PATCH_CORE_INI_URL,
     },
     {
@@ -530,29 +534,87 @@ def check_cdn_reachable(cdn_url: str, timeout: int = 10) -> bool:
         return False
 
 
-def _extract_archive_crcs(zf: zipfile.ZipFile, binary_patterns: list[str]) -> tuple[str, str, str]:
-    """Extracts executable CRC32, SHA256, and INI CRC from an open zip archive."""
-    exe_crc = ""
-    sha256 = ""
-    ini_crc = ""
-    names_by_base: dict[str, str] = {}
+def _find_target_executable_from_settings(zf: zipfile.ZipFile) -> str | None:
+    """Inspects EasyAntiCheat/Settings.json to find the target executable."""
     for name in zf.namelist():
-        names_by_base.setdefault(os.path.basename(name).lower(), name)
+        norm_name = name.replace("\\", "/").lower()
+        if norm_name.endswith("easyanticheat/settings.json"):
+            try:
+                settings_bytes = zf.read(name)
+                settings = json.loads(settings_bytes.decode("utf-8"))
+                if not isinstance(settings, dict):
+                    continue
+                target = settings.get("executable")
+                if isinstance(target, str) and target:
+                    return target.replace("\\", "/")
+            except (OSError, ValueError):
+                pass
+    return None
 
-    for pat in binary_patterns:
-        pat_lower = pat.lower()
-        if pat_lower in names_by_base:
-            binary_bytes = zf.read(names_by_base[pat_lower])
+
+def _find_binary_by_name(zf: zipfile.ZipFile, target_base: str) -> tuple[str, str]:
+    """Finds a binary in the zip by exact relative path or shallowest basename match."""
+    target_norm = target_base.replace("\\", "/").lower()
+    target_leaf = os.path.basename(target_norm).lower()
+
+    for name in zf.namelist():
+        norm = name.replace("\\", "/").lower()
+        if norm == target_norm:
+            binary_bytes = zf.read(name)
+            return compute_buffer_crc(binary_bytes), compute_buffer_sha256(binary_bytes)
+
+    matches = []
+    for name in zf.namelist():
+        norm = name.replace("\\", "/")
+        if os.path.basename(norm).lower() == target_leaf:
+            depth = norm.count("/")
+            matches.append((depth, len(norm), name))
+    if matches:
+        matches.sort()
+        best_name = matches[0][2]
+        binary_bytes = zf.read(best_name)
+        return compute_buffer_crc(binary_bytes), compute_buffer_sha256(binary_bytes)
+
+    return "", ""
+
+
+def _scan_archive_patterns(
+    zf: zipfile.ZipFile,
+    pattern_set: set[str],
+    current_exe_crc: str,
+    current_sha256: str,
+) -> tuple[str, str, str]:
+    """Scans zip archive for fallback binary patterns and generals.ini."""
+    exe_crc = current_exe_crc
+    sha256 = current_sha256
+    ini_crc = ""
+
+    for name in zf.namelist():
+        norm = name.replace("\\", "/")
+        base_name = os.path.basename(norm).lower()
+        if not exe_crc and base_name in pattern_set:
+            binary_bytes = zf.read(name)
             exe_crc = compute_buffer_crc(binary_bytes)
             sha256 = compute_buffer_sha256(binary_bytes)
-            break
+        if not ini_crc and base_name == "generals.ini":
+            ini_bytes = zf.read(name)
+            ini_crc = compute_sage_xfer_crc(ini_bytes)
 
-    if "generals.ini" in names_by_base:
-        ini_bytes = zf.read(names_by_base["generals.ini"])
-        ini_crc = compute_sage_xfer_crc(ini_bytes)
+        if exe_crc and ini_crc:
+            break
 
     return exe_crc, sha256, ini_crc
 
+
+def _extract_archive_crcs(zf: zipfile.ZipFile, binary_patterns: list[str]) -> tuple[str, str, str]:
+    """Extracts executable CRC32, SHA256, and INI CRC from an open zip archive."""
+    target_executable = _find_target_executable_from_settings(zf)
+    exe_crc, sha256 = "", ""
+    if target_executable:
+        exe_crc, sha256 = _find_binary_by_name(zf, target_executable)
+
+    pattern_set = {p.lower() for p in binary_patterns}
+    return _scan_archive_patterns(zf, pattern_set, exe_crc, sha256)
 
 def inspect_archive_binary(download_url: str, binary_patterns: list[str]) -> tuple[str, str, str]:
     """Downloads archive into memory and extracts CRC32, SHA256, and INI CRC."""

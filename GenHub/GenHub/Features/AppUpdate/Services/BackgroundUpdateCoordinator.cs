@@ -178,6 +178,7 @@ public class BackgroundUpdateCoordinator(
             WeakReferenceMessenger.Default.UnregisterAll(this);
             timerToDispose?.Dispose();
             _cts.Dispose();
+            _checkLock.Dispose();
         }
     }
 
@@ -917,13 +918,20 @@ public class BackgroundUpdateCoordinator(
 
     private void OnPeriodicUpdateTimerCallback(object? state)
     {
-        if (state is not CancellationToken lifetimeToken || lifetimeToken.IsCancellationRequested)
+        try
         {
-            return;
-        }
+            if (state is not CancellationToken lifetimeToken || lifetimeToken.IsCancellationRequested)
+            {
+                return;
+            }
 
-        logger?.LogDebug("Periodic update check timer triggered");
-        _ = CheckForUpdatesInBackgroundAsync(lifetimeToken);
+            logger?.LogDebug("Periodic update check timer triggered");
+            _ = CheckForUpdatesInBackgroundAsync(lifetimeToken);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Unexpected exception in periodic update timer callback");
+        }
     }
 
     private bool TryGetLifetimeToken(out CancellationToken lifetimeToken)

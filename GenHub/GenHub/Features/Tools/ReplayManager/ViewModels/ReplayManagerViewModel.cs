@@ -1037,7 +1037,7 @@ public partial class ReplayManagerViewModel(
         StatusMessage = zipStatusMsg;
         var sw = Stopwatch.StartNew();
 
-        string? exportedZipPath;
+        string? exportedZipPath = null;
         try
         {
             var directory = directoryService.GetReplayDirectory(SelectedTab);

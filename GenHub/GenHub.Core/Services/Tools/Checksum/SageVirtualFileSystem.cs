@@ -912,7 +912,7 @@ public sealed class SageVirtualFileSystem
             return true;
         }
 
-        string rootFullPath;
+        string rootFullPath = string.Empty;
         try
         {
             rootFullPath = EnsureTrailingSeparator(Path.GetFullPath(root));

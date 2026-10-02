@@ -40,7 +40,8 @@ public static class LaunchEntryPointResolver
             return null;
         }
 
-        var fileName = Path.GetFileName(executablePath);
+        var normalizedPath = executablePath.Replace('\\', '/');
+        var fileName = Path.GetFileName(normalizedPath);
         if (fileName.Equals(GameClientConstants.GeneralsOnlineEacLauncherExecutable, StringComparison.OrdinalIgnoreCase))
         {
             return GameClientConstants.GeneralsOnline60HzExecutable;
@@ -48,7 +49,7 @@ public static class LaunchEntryPointResolver
 
         if (fileName.Equals(GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase))
         {
-            var directory = Path.GetDirectoryName(executablePath);
+            var directory = Path.GetDirectoryName(normalizedPath);
             if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory))
             {
                 var gameDat = Path.Combine(directory, GameClientConstants.SteamGameDatExecutable);

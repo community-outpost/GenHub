@@ -233,7 +233,7 @@
 
     <!-- Foreground Contrast States -->
     <Style Selector="ComboBoxItem:pointerover">
-        <Setter Property="Foreground" Value="#FFFFFF" />
+        <Setter Property="Foreground" Value="{DynamicResource ComboBoxItemForegroundPointerOver}" />
     </Style>
 
     <Style Selector="ComboBoxItem:selected">
@@ -241,7 +241,7 @@
     </Style>
 
     <Style Selector="ComboBoxItem:selected:pointerover">
-        <Setter Property="Foreground" Value="#FFFFFF" />
+        <Setter Property="Foreground" Value="{DynamicResource ComboBoxItemForegroundPointerOver}" />
     </Style>
 
     <!-- Clean / Compact Variant -->

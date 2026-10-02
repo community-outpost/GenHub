@@ -2260,7 +2260,7 @@ public partial class ModBuilderViewModel(
             if (Directory.Exists(targetDir))
             {
                 var counter = 1;
-                string candidate;
+                string candidate = string.Empty;
                 do
                 {
                     candidate = Path.Combine(userSamplesDir, $"{projectName}_{counter++}");

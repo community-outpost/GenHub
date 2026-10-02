@@ -1,3 +1,4 @@
+"use strict";
 /**
  * GenHub Native Desktop Client Simulation (Avalonia XAML Engine Parity)
  * 1:1 Flow, Modals, State Handling, Notifications, Diagnostics
@@ -140,7 +141,7 @@
                     b.classList.toggle('active', b.getAttribute('data-tool') === activeToolKey);
                 });
                 document.querySelectorAll('.gh-tool-subpane').forEach(pane => {
-                    pane.classList.toggle('active', pane.id === 'tool-pane-' + activeToolKey);
+                    pane.classList.toggle('active', pane.id === `tool-pane-${activeToolKey}`);
                 });
             }
             else if (paneKey === 'settings') statusText.textContent = 'Configuration Loaded (~/.config/GenHub/settings.json)';
@@ -299,7 +300,7 @@
                     version: '1.04',
                     created: new Date().toISOString()
                 })))).substring(0, 32);
-                if (shareUriInput) shareUriInput.value = 'genhub://profile/import?data=' + dummyToken;
+                if (shareUriInput) shareUriInput.value = `genhub://profile/import?data=${dummyToken}`;
 
                 openModal('ghShareProfileDialogModal');
             });
@@ -572,8 +573,8 @@
         copyShareLinkBtn.addEventListener('click', () => {
             const shareUriInput = document.getElementById('ghShareUriInput');
             const link = shareUriInput ? shareUriInput.value : 'genhub://profile/import?...';
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(link).catch(() => {});
+            if (navigator.clipboard?.writeText) {
+                navigator.clipboard.writeText(link).catch(() => { /* ignore clipboard errors */ });
             }
             const orig = copyShareLinkBtn.textContent;
             copyShareLinkBtn.textContent = 'Copied!';
@@ -588,7 +589,7 @@
         exportGhProfileBtn.addEventListener('click', () => {
             const shareTitle = document.getElementById('ghShareProfileName')?.textContent || 'Profile';
             const safeName = shareTitle.replace(/[^a-zA-Z0-9_-]/g, '_');
-            window.showGenHubToast('Success', 'Package Exported', 'Saved "' + safeName + '.ghprofile" package to Downloads folder.');
+            window.showGenHubToast('Success', 'Package Exported', `Saved "${safeName}.ghprofile" package to Downloads folder.`);
             closeModal('ghShareProfileDialogModal');
         });
     }
@@ -606,17 +607,17 @@
     if (confirmImportProfileBtn) {
         confirmImportProfileBtn.addEventListener('click', () => {
             const nameInput = document.getElementById('ghImportProfileNameInput');
-            const importedName = nameInput && nameInput.value && nameInput.value.trim() ? nameInput.value.trim() : 'Tournament Zero Hour v1.04';
+            const importedName = nameInput?.value?.trim() || 'Tournament Zero Hour v1.04';
             
             // Create a new card in ghProfilesList
             const list = document.getElementById('ghProfilesList');
-            const addProfileBtn = document.getElementById('ghAddNewProfileBtn');
+            const addNewBtn = document.getElementById('ghAddNewProfileBtn');
             const newCard = document.createElement('div');
             newCard.className = 'gh-profile-card';
-            newCard.setAttribute('data-profile-id', 'p_' + Date.now());
+            newCard.setAttribute('data-profile-id', `p_${Date.now()}`);
             newCard.setAttribute('data-name', importedName);
             newCard.innerHTML = `
-                <img src="./assets/images/zerohour-cover.png" alt="` + escapeHtml(importedName) + ` Cover" class="gh-card-bg">
+                <img src="./assets/images/zerohour-cover.png" alt="${escapeHtml(importedName)} Cover" class="gh-card-bg">
                 <div class="gh-card-gradient"></div>
                 <div class="gh-card-actions-bar">
                     <button class="gh-card-act-btn share-btn" title="Share Profile (genhub://)">
@@ -650,7 +651,7 @@
                             <img src="./assets/images/communityoutpost-logo.png" alt="Community Outpost">
                         </div>
                         <div class="gh-card-texts">
-                            <div class="gh-card-title">` + escapeHtml(importedName) + `</div>
+                            <div class="gh-card-title">${escapeHtml(importedName)}</div>
                             <div class="gh-card-sub">Imported from shared genhub:// link</div>
                         </div>
                     </div>
@@ -661,12 +662,12 @@
                 </div>
             `;
             wireProfileCard(newCard);
-            if (list && addProfileBtn) {
-                list.insertBefore(newCard, addProfileBtn);
+            if (list && addNewBtn) {
+                list.insertBefore(newCard, addNewBtn);
             }
             updateProfilesCount();
             closeModal('ghImportProfileInspectionModal');
-            window.showGenHubToast('Success', 'Profile Imported', 'Successfully imported "' + importedName + '" with 3 verified manifests!');
+            window.showGenHubToast('Success', 'Profile Imported', `Successfully imported "${importedName}" with 3 verified manifests!`);
         });
     }
 
@@ -699,15 +700,15 @@
     let activePublisherKey = 'hackers';
 
     function filterDownloadsCatalog() {
-        let q = (document.getElementById('ghCatalogSearch')?.value || '').toLowerCase().trim();
+        let searchFilterQuery = (document.getElementById('ghCatalogSearch')?.value || '').toLowerCase().trim();
         const cat = document.getElementById('ghCatalogFilter')?.value || 'all';
 
         // ModDB direct URL search parsing (PR #481)
-        if (q.includes('moddb.com/')) {
-            const cleanUrl = q.split('?')[0].replace(/\/+$/, '');
+        if (searchFilterQuery.includes('moddb.com/')) {
+            const cleanUrl = searchFilterQuery.split('?')[0].replace(/\/+$/, '');
             const slug = cleanUrl.split('/').pop();
             if (slug) {
-                q = slug.replace(/[-_]/g, ' ');
+                searchFilterQuery = slug.replace(/[-_]/g, ' ');
             }
         }
 
@@ -717,7 +718,7 @@
             const cardCat = card.getAttribute('data-category') || '';
 
             const matchesPub = cardPub === activePublisherKey;
-            const matchesQuery = !q || cardTitle.includes(q);
+            const matchesQuery = !searchFilterQuery || cardTitle.includes(searchFilterQuery);
             const matchesCat = cat === 'all' || cardCat === cat;
 
             card.style.display = (matchesPub && matchesQuery && matchesCat) ? '' : 'none';
@@ -793,7 +794,6 @@
         const titleEl = document.getElementById('ghDetailTitle');
         const badgeEl = document.getElementById('ghDetailBadge');
         const authorEl = document.getElementById('ghDetailAuthor');
-        const sizeEl = document.getElementById('ghDetailSize');
         const summaryTextEl = document.getElementById('ghDetailSummaryText');
         const iconEl = document.getElementById('ghDetailIconImg');
 
@@ -936,14 +936,14 @@
     function filterMaps() {
         const activeTab = document.querySelector('[data-map-game].active');
         const selectedGame = activeTab ? activeTab.getAttribute('data-map-game') : 'zerohour';
-        const q = (document.getElementById('ghMapSearchInput')?.value || '').toLowerCase().trim();
+        const mapSearchQuery = (document.getElementById('ghMapSearchInput')?.value || '').toLowerCase().trim();
         let count = 0;
 
         document.querySelectorAll('#ghMapTable tbody tr').forEach(row => {
             const rowGame = row.getAttribute('data-game') || 'zerohour';
             const name = (row.querySelector('.map-name')?.textContent || '').toLowerCase();
             const matchesGame = !selectedGame || rowGame === selectedGame;
-            const matchesQuery = !q || name.includes(q);
+            const matchesQuery = !mapSearchQuery || name.includes(mapSearchQuery);
             const show = matchesGame && matchesQuery;
             row.style.display = show ? '' : 'none';
             if (show) count++;
@@ -1038,7 +1038,7 @@
     });
 
     document.querySelectorAll('[data-map-del]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', () => {
             const mapName = btn.getAttribute('data-map-del');
             const row = btn.closest('tr');
             if (row) row.remove();
@@ -1094,7 +1094,7 @@
         } else if (act === "profile") {
             window.showGenHubToast("Info", "Replay Profile Options", `Opening client selector dialog for "${matchName}".`);
         } else if (act === "folder") {
-            window.showGenHubToast("Info", "Opening Explorer", `Revealed replay file in ~/.local/share/GenHub/Replays/`);
+            window.showGenHubToast("Info", "Opening Explorer", "Revealed replay file in ~/.local/share/GenHub/Replays/");
         } else if (act === "delete") {
             row.remove();
             updateReplaySelectedCount();
@@ -1241,14 +1241,14 @@
     if (generalSelect) {
         generalSelect.addEventListener("change", () => {
             const label = generalSelect.options[generalSelect.selectedIndex]?.text || "General";
-            window.showGenHubToast("GenHotkeys", "General Profile", "Switched variant: " + label);
+            window.showGenHubToast("GenHotkeys", "General Profile", `Switched variant: ${label}`);
         });
     }
 
     if (profileSelect) {
         profileSelect.addEventListener("change", () => {
             const label = profileSelect.options[profileSelect.selectedIndex]?.text || "Profile";
-            window.showGenHubToast("GenHotkeys", "Profile Switched", "Active configuration: " + label);
+            window.showGenHubToast("GenHotkeys", "Profile Switched", `Active configuration: ${label}`);
         });
     }
 
@@ -1312,7 +1312,7 @@
                     }
                 });
                 const label = presetSelect.options[presetSelect.selectedIndex]?.text || p;
-                window.showGenHubToast("GenHotkeys", "Preset Applied", "Loaded " + label + " key mapping preset.");
+                window.showGenHubToast("GenHotkeys", "Preset Applied", `Loaded ${label} key mapping preset.`);
             }
         });
     }
@@ -1328,7 +1328,7 @@
                 s.style.right = (corner === "tr" || corner === "br") ? "4px" : "auto";
             });
             const label = cornerSelect.options[cornerSelect.selectedIndex]?.text || corner;
-            window.showGenHubToast("GenHotkeys", "Stamp Position", "Badges aligned to " + label + ".");
+            window.showGenHubToast("GenHotkeys", "Stamp Position", `Badges aligned to ${label}.`);
         });
     }
 
@@ -1348,7 +1348,7 @@
             card.classList.add("selected");
             const title = card.querySelector(".gh-action-title")?.textContent || "Action";
             const stamp = card.querySelector(".gh-hotkey-stamp")?.textContent || "";
-            window.showGenHubToast("Hotkeys Editor", "Command Selected", title + " [" + stamp + "] ready for binding.");
+            window.showGenHubToast("Hotkeys Editor", "Command Selected", `${title} [${stamp}] ready for binding.`);
         });
     });
 
@@ -1372,7 +1372,7 @@
             gpBtn.textContent = 'Applying...';
             setTimeout(() => {
                 gpBtn.textContent = '✓ Fixes Applied';
-                setTimeout(() => gpBtn.textContent = orig, 1800);
+                setTimeout(() => { gpBtn.textContent = orig; }, 1800);
                 window.showGenHubToast('Success', 'GenPatcher Applied', 'DirectDraw fix, camera zoom, and GenTool 8.9 installed.');
             }, 600);
         });
@@ -1532,8 +1532,8 @@
 
     document.querySelectorAll('.gh-dir-act-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            const d = btn.getAttribute('data-dir');
-            window.showGenHubToast('Info', 'Opened Directory', `Accessed path: ~/.local/share/GenHub/${d.replace(' ', '')}/`);
+            const targetDirName = btn.getAttribute('data-dir');
+            window.showGenHubToast('Info', 'Opened Directory', `Accessed path: ~/.local/share/GenHub/${targetDirName.replace(' ', '')}/`);
         });
     });
 
@@ -2411,19 +2411,108 @@
         return '';
     }
 
-    function formatMarkdown(md) {
-        if (!md) return "";
-        let html = md
-            .replace(/\[(.*?)\]\((https?:\/\/[^\s\)]+)\)/g, "<a href=\"$2\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"color: #a78bfa; text-decoration: underline;\">$1</a>")
+    function formatMarkdown(markdownText) {
+        if (!markdownText) return "";
+        let html = markdownText
+            .replace(/\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g, "<a href=\"$2\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"color: #a78bfa; text-decoration: underline;\">$1</a>")
             .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
             .replace(/\*(\S[^*]*?)\*/g, "<em>$1</em>")
             .replace(/`([^`]+)`/g, "<code style=\"background: rgba(255,255,255,0.08); padding: 1px 4px; border-radius: 3px; font-family: monospace; font-size: 12px; color: #cbd5e1;\">$1</code>")
             .replace(/^###\s+(.*)$/gm, "<h5 style=\"color: #f1f5f9; margin: 10px 0 4px 0; font-size: 13px; font-weight: 600;\">$1</h5>")
             .replace(/^##\s+(.*)$/gm, "<h4 style=\"color: #f1f5f9; margin: 12px 0 6px 0; font-size: 14px; font-weight: 700;\">$1</h4>")
-            .replace(/^\s*[\*\-]\s+(.*)$/gm, "<li>$1</li>");
+            .replace(/^\s*[*-]\s+(.*)$/gm, "<li>$1</li>");
         html = html.replace(/((?:<li>.*?<\/li>\s*)+)/g, "<ul style=\"margin: 8px 0; padding-left: 20px;\">$1</ul>");
         html = html.replace(/<br>\s*<(ul|li|\/ul|\/li|h4|h5)/g, "<$1").replace(/<\/(ul|li|h4|h5)>\s*<br>/g, "</$1>");
         return html.replace(/\n/g, "<br>");
+    }
+
+    function extractSummaryLines(rawBody) {
+        return (rawBody || "").split("\n")
+            .map(lineText => lineText.trim())
+            .filter(lineText => Boolean(lineText) && !/^([#*!-]|\s*$)/.test(lineText))
+            .slice(0, 2);
+    }
+
+    function formatChangelogSummary(rawBody) {
+        const summaryLines = extractSummaryLines(rawBody);
+        if (summaryLines.length === 0) {
+            return "Official GenHub release with updated assets and dependencies.";
+        }
+        return summaryLines.join(" ");
+    }
+
+    function formatReleaseDate(publishedAt) {
+        if (!publishedAt) {
+            return "";
+        }
+        return new Date(publishedAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+    }
+
+    function getChangelogCardTitle(release) {
+        const tagName = release.tag_name || "";
+        return release.name || `GenHub ${tagName}`;
+    }
+
+    function getReleaseHeaderBlock(dateStr) {
+        if (dateStr) {
+            return `**Published:** ${dateStr}\n\n`;
+        }
+        return "\n";
+    }
+
+    function getReleaseCardContent(dateStr, summaryText) {
+        if (dateStr) {
+            return `Released on ${dateStr}. ${summaryText}`;
+        }
+        return summaryText;
+    }
+
+    function getReleaseType(isPrerelease) {
+        if (isPrerelease) {
+            return "Pre-release";
+        }
+        return "Release";
+    }
+
+    function createChangelogCard(release) {
+        const tagName = release.tag_name || "";
+        const cardTitle = getChangelogCardTitle(release);
+        const dateStr = formatReleaseDate(release.published_at);
+        const rawBody = release.body || "No release notes provided.";
+        const summaryText = formatChangelogSummary(rawBody);
+        const cardContent = getReleaseCardContent(dateStr, summaryText);
+        const releaseUrl = release.html_url || "https://github.com/community-outpost/GenHub/releases";
+        const dateBlock = getReleaseHeaderBlock(dateStr);
+        const releaseType = getReleaseType(release.prerelease);
+
+        return {
+            title: cardTitle,
+            type: releaseType,
+            content: cardContent,
+            detailed: `**Release:** [${tagName}](${releaseUrl})\n${dateBlock}${rawBody}`
+        };
+    }
+
+    function getPatchNotesDetailsList(note) {
+        if (Array.isArray(note.details) && note.details.length > 0) {
+            return note.details.map(detailItem => `* ${detailItem}`).join("\n");
+        }
+        if (note.summary) {
+            return `* ${note.summary}`;
+        }
+        return "* Stability and performance improvements.";
+    }
+
+    function createPatchNotesCard(note) {
+        const detailsList = getPatchNotesDetailsList(note);
+        const detailedMarkdown = `**Official Patch Notes:** [${note.title} on playgenerals.online](${note.url})\n**Date:** ${note.date}\n\n**Changes & Fixes:**\n${detailsList}`;
+
+        return {
+            title: `${note.title} (${note.date})`,
+            type: "Patch Notes",
+            content: note.summary || "Generals Online service updates and gameplay improvements.",
+            detailed: detailedMarkdown
+        };
     }
 
     const changelogState = {
@@ -2436,7 +2525,8 @@
             return;
         }
         if (changelogState[secKey].status === "loading") {
-            return changelogState[secKey].promise;
+            await changelogState[secKey].promise;
+            return;
         }
 
         changelogState[secKey].status = "loading";
@@ -2483,35 +2573,15 @@
                     }
 
                     if (Array.isArray(releases) && releases.length > 0) {
-                        infoData["changelog"].cards = releases.map(r => {
-                            const tag = r.tag_name || "";
-                            const name = r.name || `GenHub ${tag}`;
-                            const dateStr = r.published_at ? new Date(r.published_at).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "";
-                            const rawBody = r.body || "No release notes provided.";
-
-                            const cleanLines = rawBody.split("\n")
-                                .map(l => l.trim())
-                                .filter(l => l && !l.startsWith("#") && !l.startsWith("*") && !l.startsWith("-") && !l.startsWith("!"));
-                            const summaryText = cleanLines.slice(0, 2).join(" ") || "Official GenHub release with updated assets and dependencies.";
-                            const content = dateStr ? `Released on ${dateStr}. ${summaryText}` : summaryText;
-
-                            return {
-                                title: name,
-                                type: r.prerelease ? "Pre-release" : "Release",
-                                content: content,
-                                detailed: `**Release:** [${tag}](${r.html_url || "https://github.com/community-outpost/GenHub/releases"})\n` +
-                                          (dateStr ? `**Published:** ${dateStr}\n\n` : "\n") +
-                                          rawBody
-                            };
-                        });
-                        changelogState["changelog"].status = "loaded";
+                        infoData.changelog.cards = releases.map(createChangelogCard);
+                        changelogState.changelog.status = "loaded";
                     } else {
                         throw new Error("No release data found");
                     }
                 } catch (err) {
                     console.error("Failed to load GenHub changelog:", err);
-                    changelogState["changelog"].status = "error";
-                    infoData["changelog"].cards = [{
+                    changelogState.changelog.status = "error";
+                    infoData.changelog.cards = [{
                         title: "Unable to Load Releases",
                         type: "Notice",
                         content: "Could not fetch releases from GitHub API at this moment.",
@@ -2527,31 +2597,15 @@
                     }
 
                     if (Array.isArray(notes) && notes.length > 0) {
-                        infoData["gochange"].cards = notes.map(n => {
-                            const detailsList = Array.isArray(n.details) && n.details.length > 0
-                                ? n.details.map(d => `* ${d}`).join("\n")
-                                : (n.summary ? `* ${n.summary}` : "* Stability and performance improvements.");
-
-                            const detailedMd = `**Official Patch Notes:** [${n.title} on playgenerals.online](${n.url})\n` +
-                                               `**Date:** ${n.date}\n\n` +
-                                               `**Changes & Fixes:**\n` +
-                                               detailsList;
-
-                            return {
-                                title: `${n.title} (${n.date})`,
-                                type: "Patch Notes",
-                                content: n.summary || "Generals Online service updates and gameplay improvements.",
-                                detailed: detailedMd
-                            };
-                        });
-                        changelogState["gochange"].status = "loaded";
+                        infoData.gochange.cards = notes.map(createPatchNotesCard);
+                        changelogState.gochange.status = "loaded";
                     } else {
                         throw new Error("No patch notes data found");
                     }
                 } catch (err) {
                     console.error("Failed to load Generals Online patch notes:", err);
-                    changelogState["gochange"].status = "error";
-                    infoData["gochange"].cards = [{
+                    changelogState.gochange.status = "error";
+                    infoData.gochange.cards = [{
                         title: "Unable to Load Patch Notes",
                         type: "Notice",
                         content: "Could not load patch notes at this time.",
@@ -2573,8 +2627,8 @@
 
     function renderInfoSection(secKey) {
         // Support section aliases
-        if (secKey === "workspace" && infoData["workspaces"]) secKey = "workspaces";
-        if (secKey === "faq" && infoData["gofaq"]) secKey = "gofaq";
+        if (secKey === "workspace" && infoData.workspaces) secKey = "workspaces";
+        if (secKey === "faq" && infoData.gofaq) secKey = "gofaq";
 
         // Lazy-load changelogs on demand when clicked
         if ((secKey === "changelog" || secKey === "gochange") && changelogState[secKey].status !== "loaded") {
@@ -2587,7 +2641,7 @@
             return;
         }
 
-        const section = infoData[secKey] || infoData["quickstart"];
+        const section = infoData[secKey] || infoData.quickstart;
         const titleEl = document.getElementById("ghInfoSectionTitle");
         const descEl = document.getElementById("ghInfoSectionDesc");
         const container = document.getElementById("ghInfoCardsContainer");

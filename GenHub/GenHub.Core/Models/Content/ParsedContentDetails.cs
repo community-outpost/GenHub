@@ -21,6 +21,9 @@ namespace GenHub.Core.Models.Content;
 /// <param name="Rating">Content rating (optional).</param>
 /// <param name="RefererUrl">Referrer URL for tracking source (optional).</param>
 /// <param name="AdditionalFiles">Additional files associated with the content (optional).</param>
+/// <param name="Tags">Provider-supplied content tags (optional).</param>
+/// <param name="CreatorAvatarUrl">Creator avatar image URL (optional).</param>
+/// <param name="LastUpdated">Date last modified/updated (optional).</param>
 public record ParsedContentDetails(
     string Name,
     string Description,
@@ -36,4 +39,7 @@ public record ParsedContentDetails(
     string? FileType = null,
     float? Rating = null,
     string? RefererUrl = null,
-    List<DownloadableFile>? AdditionalFiles = null);
+    List<DownloadableFile>? AdditionalFiles = null,
+    IReadOnlyList<string>? Tags = null,
+    string? CreatorAvatarUrl = null,
+    DateTime? LastUpdated = null);

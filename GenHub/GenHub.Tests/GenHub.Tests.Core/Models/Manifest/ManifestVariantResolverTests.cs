@@ -360,6 +360,66 @@ public class ManifestVariantResolverTests
         Assert.Equal("Linux-GeneralsXZH.flatpak", resolution.RelativePath);
     }
 
+    /// <summary>
+    /// A manifest-level relationship resolves on single-build manifests. Absence is
+    /// normal and means the entry is the game itself.
+    /// </summary>
+    [Fact]
+    public void LaunchRelationship_ManifestLevel_Resolves()
+    {
+        var manifest = new ContentManifest
+        {
+            LaunchRelationship = new LaunchRelationship { ProcessName = "game", DiscoveryTimeoutMs = 5000 },
+        };
+
+        var resolved = ManifestVariantResolver.ResolveLaunchRelationship(manifest);
+
+        Assert.NotNull(resolved);
+        Assert.Equal("game", resolved.ProcessName);
+        Assert.Equal(5000, resolved.DiscoveryTimeoutMs);
+        Assert.Null(ManifestVariantResolver.ResolveLaunchRelationship(new ContentManifest()));
+    }
+
+    /// <summary>
+    /// Variant relationships mirror entry-point placement: the matching variant wins,
+    /// and the manifest-level value is ignored once variants exist.
+    /// </summary>
+    [Fact]
+    public void LaunchRelationship_VariantLevel_BeatsManifestLevel()
+    {
+        var manifest = new ContentManifest
+        {
+            LaunchRelationship = new LaunchRelationship { ProcessName = "ignored" },
+            Variants =
+            [
+                new() { RuntimeIdentifiers = ["win-x64"], LaunchRelationship = new LaunchRelationship { ProcessName = "game" } },
+                new() { RuntimeIdentifiers = ["osx-arm64"] },
+            ],
+        };
+
+        Assert.Equal("game", ManifestVariantResolver.ResolveLaunchRelationship(manifest, "win-x64")?.ProcessName);
+        Assert.Null(ManifestVariantResolver.ResolveLaunchRelationship(manifest, "osx-arm64"));
+    }
+
+    /// <summary>
+    /// An invalid declaration resolves to nothing so the launch degrades to legacy
+    /// guessing instead of adopting a nonsense name.
+    /// </summary>
+    /// <param name="processName">The declared name.</param>
+    [Theory]
+    [InlineData("subdir/game")]
+    [InlineData("game.exe")]
+    [InlineData("")]
+    public void LaunchRelationship_InvalidDeclaration_ResolvesToNull(string processName)
+    {
+        var manifest = new ContentManifest
+        {
+            LaunchRelationship = new LaunchRelationship { ProcessName = processName },
+        };
+
+        Assert.Null(ManifestVariantResolver.ResolveLaunchRelationship(manifest));
+    }
+
     private static ManifestFile File(string path, bool isExecutable = false) =>
         new() { RelativePath = path, IsExecutable = isExecutable };
 }

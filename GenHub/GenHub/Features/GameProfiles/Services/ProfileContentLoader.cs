@@ -192,7 +192,7 @@ public class ProfileContentLoader(
             // Note: RequireExisting GameInstallation dependencies are handled separately in the ViewModel
             // by selecting from AvailableGameInstallations (detected system installations)
             var autoInstallDeps = manifest.Dependencies
-                .Where(d => !d.IsOptional && d.InstallBehavior == DependencyInstallBehavior.AutoInstall)
+                .Where(d => d.InstallBehavior == DependencyInstallBehavior.AutoInstall)
                 .ToList();
 
             if (autoInstallDeps.Count == 0)
@@ -307,7 +307,7 @@ public class ProfileContentLoader(
         var isLocal = manifest.Publisher?.PublisherType?.Equals(LocalContentService.LocalPublisherType, StringComparison.OrdinalIgnoreCase) == true
             || !string.IsNullOrEmpty(manifest.SourcePath);
         var normalizedVersion = isLocal ? string.Empty : displayFormatter.NormalizeVersion(manifest.Version);
-        string displayName;
+        string displayName = string.Empty;
         if (manifest.ContentType == ContentType.GameInstallation)
         {
             if (displayFormatter.GetInstallationTypeFromManifest(manifest) == GameInstallationType.Custom)

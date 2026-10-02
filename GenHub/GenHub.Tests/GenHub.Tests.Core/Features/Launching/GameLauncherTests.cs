@@ -190,7 +190,7 @@ public class GameLauncherTests : IDisposable
         profile.Id = Guid.NewGuid().ToString();
         var gate = GameLauncher.ProfileLaunchLocks.GetOrAdd(profile.Id, _ => new SemaphoreSlim(1, 1));
         await gate.WaitAsync();
-        Task<LaunchOperationResult<GameLaunchInfo>> launch;
+        Task<LaunchOperationResult<GameLaunchInfo>> launch = null!;
         try
         {
             launch = _gameLauncher.LaunchProfileAsync(profile);
@@ -1942,7 +1942,11 @@ public class GameLauncherTests : IDisposable
         {
             Directory.Delete(_retailRoot, recursive: true);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Best effort; a leftover temp directory is not worth failing the run over.
+        }
+        catch (UnauthorizedAccessException)
         {
             // Best effort; a leftover temp directory is not worth failing the run over.
         }
@@ -2033,6 +2037,62 @@ public class GameLauncherTests : IDisposable
                 It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()),
             Times.Never);
+    }
+
+    /// <summary>
+    /// A declared launch relationship on the game client manifest wins over any
+    /// filename guessing, including its custom discovery timeout.
+    /// </summary>
+    [Fact]
+    public void ResolveExpectedChildProcess_DeclaredRelationship_Wins()
+    {
+        var manifests = new List<ContentManifest>
+        {
+            new()
+            {
+                Id = "1.928260.generalsonline.gameclient.60hz",
+                ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
+                LaunchRelationship = new LaunchRelationship { ProcessName = "GeneralsOnlineZH_TestEnvironment", DiscoveryTimeoutMs = 15000 },
+            },
+        };
+
+        var resolved = GameLauncher.ResolveExpectedChildProcess(manifests, @"C:\workspace\EAC_LaunchGeneralsOnline.exe");
+
+        Assert.Equal("GeneralsOnlineZH_TestEnvironment", resolved.ChildName);
+        Assert.Equal(TimeSpan.FromMilliseconds(15000), resolved.DiscoveryTimeout);
+    }
+
+    /// <summary>
+    /// Manifests that predate declarations fall back to legacy filename guessing,
+    /// so old pool entries launch exactly as before.
+    /// </summary>
+    [Fact]
+    public void ResolveExpectedChildProcess_NoDeclaration_UsesLegacyFallback()
+    {
+        var manifests = new List<ContentManifest>
+        {
+            new() { Id = "1.928260.generalsonline.gameclient.60hz", ContentType = GenHub.Core.Models.Enums.ContentType.GameClient },
+        };
+
+        var bootstrapper = GameLauncher.ResolveExpectedChildProcess(manifests, @"C:\workspace\EAC_LaunchGeneralsOnline.exe");
+        Assert.Equal("generalsonlinezh_60", bootstrapper.ChildName);
+        Assert.Null(bootstrapper.DiscoveryTimeout);
+
+        var direct = GameLauncher.ResolveExpectedChildProcess(manifests, @"C:\workspace\generalszh.exe");
+        Assert.Null(direct.ChildName);
+        Assert.Null(direct.DiscoveryTimeout);
+    }
+
+    /// <summary>
+    /// Without any executable manifest there is nothing to declare from, so the
+    /// legacy fallback still applies.
+    /// </summary>
+    [Fact]
+    public void ResolveExpectedChildProcess_NoExecutableManifest_UsesLegacyFallback()
+    {
+        var resolved = GameLauncher.ResolveExpectedChildProcess([], @"C:\workspace\EAC_LaunchGeneralsOnline.exe");
+
+        Assert.Equal("generalsonlinezh_60", resolved.ChildName);
     }
 
     /// <summary>

@@ -176,7 +176,7 @@ public class CatalogUpstreamIngestionService(
                 continue;
             }
 
-            string variant;
+            string variant = string.Empty;
             if (isZh)
             {
                 variant = "Zero Hour";

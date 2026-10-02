@@ -119,7 +119,7 @@ public sealed class PublisherKeyStore : IPublisherKeyStore
     public async Task<OperationResult> SaveKeyAsync(TrustedPublisherKey key, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(key);
-        ArgumentException.ThrowIfNullOrWhiteSpace(key.PublisherId, nameof(key));
+        ArgumentException.ThrowIfNullOrWhiteSpace(key.PublisherId);
         if (!IsWellFormed(key))
         {
             throw new ArgumentException("The trusted key is missing its algorithm, key data, or fingerprint.", nameof(key));
@@ -351,30 +351,44 @@ public sealed class PublisherKeyStore : IPublisherKeyStore
         return null;
     }
 
+    private async Task<(byte[]? Data, OperationResult<List<TrustedPublisherKey>>? Error)> TryReadStoreFileAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var bytes = await File.ReadAllBytesAsync(_storeFilePath, cancellationToken).ConfigureAwait(false);
+            return (bytes, null);
+        }
+        catch (FileNotFoundException)
+        {
+            return ([], null);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return ([], null);
+        }
+        catch (IOException ex)
+        {
+            return (null, ReadFailed(ex));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return (null, ReadFailed(ex));
+        }
+    }
+
     private async Task<OperationResult<List<TrustedPublisherKey>>> LoadAsync(CancellationToken cancellationToken)
     {
         // The file is opened directly instead of probed with File.Exists, which also returns false
         // when the file cannot be accessed. Only a genuinely absent file counts as an empty store.
-        byte[] encryptedBytes = [];
-        try
+        var (encryptedBytes, readError) = await TryReadStoreFileAsync(cancellationToken).ConfigureAwait(false);
+        if (readError != null)
         {
-            encryptedBytes = await File.ReadAllBytesAsync(_storeFilePath, cancellationToken).ConfigureAwait(false);
+            return readError;
         }
-        catch (FileNotFoundException)
+
+        if (encryptedBytes == null || encryptedBytes.Length == 0)
         {
             return OperationResult<List<TrustedPublisherKey>>.CreateSuccess([]);
-        }
-        catch (DirectoryNotFoundException)
-        {
-            return OperationResult<List<TrustedPublisherKey>>.CreateSuccess([]);
-        }
-        catch (IOException ex)
-        {
-            return ReadFailed(ex);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return ReadFailed(ex);
         }
 
         var decrypted = await DecryptAsync(encryptedBytes, cancellationToken).ConfigureAwait(false);
