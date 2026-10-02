@@ -6700,6 +6700,9 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Downloads.Subscription.Category.All" xml:space="preserve">
     <value>All</value>
   </data>
+  <data name="Downloads.Subscription.ErrorMessage.NoValidCatalogUrl" xml:space="preserve">
+    <value>Definition contains no valid catalog URL.</value>
+  </data>
   <data name="Downloads.Subscription.ErrorMessage.FailedToFetchFormat" xml:space="preserve">
     <value>Failed to fetch catalog: {0}</value>
   </data>

@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -50,6 +51,15 @@ public class GenericCatalogContentProvider(
 
     /// <inheritdoc />
     public override string Description => "Provides content from subscribed publisher catalogs";
+
+    /// <inheritdoc />
+    protected override IContentDiscoverer Discoverer => discoverer;
+
+    /// <inheritdoc />
+    protected override IContentResolver Resolver => _genericCatalogResolver;
+
+    /// <inheritdoc />
+    protected override IContentDeliverer Deliverer => _httpDeliverer;
 
     /// <inheritdoc />
     public override Task<OperationResult<IEnumerable<ContentSearchResult>>> SearchAsync(
@@ -113,15 +123,6 @@ public class GenericCatalogContentProvider(
         var opKey = GetOperationKey(manifestId.Value, workingDirectory);
         _preExistingManifestIdsByOperation[opKey] = new HashSet<ManifestId>(existingIds);
     }
-
-    /// <inheritdoc />
-    protected override IContentDiscoverer Discoverer => discoverer;
-
-    /// <inheritdoc />
-    protected override IContentResolver Resolver => _genericCatalogResolver;
-
-    /// <inheritdoc />
-    protected override IContentDeliverer Deliverer => _httpDeliverer;
 
     /// <inheritdoc />
     protected override async Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
@@ -206,20 +207,6 @@ public class GenericCatalogContentProvider(
 
     private static string GetOperationKey(string manifestId, string workingDirectory) =>
         $"{manifestId}::{workingDirectory}";
-
-    private static async Task<OperationResult<IEnumerable<ContentManifest>>> GetManifestPoolSafeAsync(
-        IContentManifestPool pool,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await pool.GetAllManifestsAsync(cancellationToken);
-        }
-        catch (OperationCanceledException)
-        {
-            return await pool.GetAllManifestsAsync(CancellationToken.None);
-        }
-    }
 
     private async Task<OperationResult<ContentManifest>> ExecuteSpecializedDelivererAsync(
         IContentDeliverer specializedDeliverer,
@@ -331,7 +318,7 @@ public class GenericCatalogContentProvider(
         HashSet<ManifestId> preExistingIds,
         CancellationToken cancellationToken)
     {
-        var postPool = await GetManifestPoolSafeAsync(manifestPool!, cancellationToken);
+        var postPool = await manifestPool!.GetAllManifestsAsync(cancellationToken);
 
         if (postPool.Success && postPool.Data != null)
         {
@@ -394,7 +381,11 @@ public class GenericCatalogContentProvider(
                     .ToList();
             }
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {
             Logger.LogError(ex, "Failed to recover manifest registrations during rollback for {ManifestId}", originalManifestId);
         }
@@ -420,7 +411,11 @@ public class GenericCatalogContentProvider(
                     Logger.LogInformation("Unregistered manifest {ManifestId} during rollback", manifestId);
                 }
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
             {
                 Logger.LogError(ex, "Error occurred during generic catalog manifest registration rollback for {ManifestId}", manifestId);
             }

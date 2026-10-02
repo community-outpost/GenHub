@@ -6642,6 +6642,9 @@
   <data name="Downloads.Subscription.Category.All" xml:space="preserve">
     <value>الكل</value>
   </data>
+  <data name="Downloads.Subscription.ErrorMessage.NoValidCatalogUrl" xml:space="preserve">
+    <value>لا يحتوي التعريف على عنوان URL صالح للكتالوج.</value>
+  </data>
   <data name="Downloads.Subscription.ErrorMessage.FailedToFetchFormat" xml:space="preserve">
     <value>فشل جلب الكتالوج: {0}</value>
   </data>

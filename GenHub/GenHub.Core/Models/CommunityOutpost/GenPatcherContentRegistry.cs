@@ -512,12 +512,6 @@ public static class GenPatcherContentRegistry
         if (hyphenIdx > 0)
         {
             var prefix = candidate[..hyphenIdx];
-            var hyphenKnown = KnownContent.Keys.FirstOrDefault(k => string.Equals(k, prefix, StringComparison.OrdinalIgnoreCase));
-            if (!string.IsNullOrEmpty(hyphenKnown))
-            {
-                return hyphenKnown;
-            }
-
             if (TryParsePatchCode(prefix.ToLowerInvariant()) != null)
             {
                 return prefix.ToLowerInvariant();

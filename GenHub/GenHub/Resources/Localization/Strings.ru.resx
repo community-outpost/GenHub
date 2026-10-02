@@ -6642,6 +6642,9 @@ GenHub связывает запуск модификаций со Steam, отк
   <data name="Downloads.Subscription.Category.All" xml:space="preserve">
     <value>Все</value>
   </data>
+  <data name="Downloads.Subscription.ErrorMessage.NoValidCatalogUrl" xml:space="preserve">
+    <value>Определение не содержит допустимого URL-адреса каталога.</value>
+  </data>
   <data name="Downloads.Subscription.ErrorMessage.FailedToFetchFormat" xml:space="preserve">
     <value>Не удалось получить каталог: {0}</value>
   </data>

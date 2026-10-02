@@ -1,7 +1,7 @@
-namespace GenHub.Core.Models.Enums;
-
 using GenHub.Core.Serialization;
 using System.Text.Json.Serialization;
+
+namespace GenHub.Core.Models.Enums;
 
 /// <summary>
 /// Represents the type of Command and Conquer game.
