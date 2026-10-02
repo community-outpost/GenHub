@@ -6654,6 +6654,12 @@
   <data name="Downloads.Subscription.ErrorMessage.HttpsOrEmailOnly" xml:space="preserve">
     <value>يمكن فقط فتح روابط HTTPS الآمنة أو عناوين البريد الإلكتروني الصالحة.</value>
   </data>
+  <data name="Downloads.Subscription.ErrorMessage.FailedToFetch" xml:space="preserve">
+    <value>فشل جلب الكتالوج من التعريف</value>
+  </data>
+  <data name="Downloads.Subscription.ErrorMessage.BlockedUnsafeCatalogUrl" xml:space="preserve">
+    <value>تم حظر رابط الكتالوج غير الآمن.</value>
+  </data>
   <data name="Downloads.Subscription.ErrorTitle.FailedToFetch" xml:space="preserve">
     <value>فشل جلب الكتالوج</value>
   </data>

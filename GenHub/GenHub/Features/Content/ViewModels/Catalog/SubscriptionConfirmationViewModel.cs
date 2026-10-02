@@ -514,7 +514,7 @@ public partial class SubscriptionConfirmationViewModel(
             ErrorTitle = GetLocalizedString("Downloads.Subscription.ErrorTitle.FailedToLoad", "Failed to Load Catalog");
             ErrorMessage = !string.IsNullOrWhiteSpace(_definitionCatalogFetchError)
                 ? GetLocalizedString("Downloads.Subscription.ErrorMessage.FailedToFetchFormat", "Failed to fetch catalog: {0}", _definitionCatalogFetchError)
-                : GetLocalizedString("Downloads.Subscription.ErrorTitle.FailedToFetch", "Failed to fetch catalog from definition");
+                : GetLocalizedString("Downloads.Subscription.ErrorMessage.FailedToFetch", "Failed to fetch catalog from definition");
             logger.LogWarning("Failed to resolve catalog from definition: {Errors}", ErrorMessage);
             return (null, null, null, null);
         }
@@ -621,7 +621,9 @@ public partial class SubscriptionConfirmationViewModel(
                 logger.LogWarning("Blocked unsafe catalog URL in definition payload: {Reason}", ssrfReason);
             }
 
-            return (null, string.IsNullOrEmpty(ssrfReason) ? "Blocked unsafe catalog URL." : ssrfReason);
+            return (null, string.IsNullOrEmpty(ssrfReason)
+                ? GetLocalizedString("Downloads.Subscription.ErrorMessage.BlockedUnsafeCatalogUrl", "Blocked unsafe catalog URL.")
+                : ssrfReason);
         }
 
         try

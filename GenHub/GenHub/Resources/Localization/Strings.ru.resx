@@ -6654,6 +6654,12 @@ GenHub связывает запуск модификаций со Steam, отк
   <data name="Downloads.Subscription.ErrorMessage.HttpsOrEmailOnly" xml:space="preserve">
     <value>Можно открывать только безопасные ссылки HTTPS или действительные адреса электронной почты.</value>
   </data>
+  <data name="Downloads.Subscription.ErrorMessage.FailedToFetch" xml:space="preserve">
+    <value>Не удалось получить каталог из определения</value>
+  </data>
+  <data name="Downloads.Subscription.ErrorMessage.BlockedUnsafeCatalogUrl" xml:space="preserve">
+    <value>Заблокирован небезопасный URL-адрес каталога.</value>
+  </data>
   <data name="Downloads.Subscription.ErrorTitle.FailedToFetch" xml:space="preserve">
     <value>Не удалось получить каталог</value>
   </data>

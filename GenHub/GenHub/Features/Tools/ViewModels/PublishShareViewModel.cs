@@ -6200,8 +6200,17 @@ public partial class PublishShareViewModel(
         RemoveEmptyDefaultCatalogPlaceholder();
         if (project.Catalog == null || project.Catalog.Content == null || project.Catalog.Content.Count == 0)
         {
+            if (string.IsNullOrWhiteSpace(pubCat.Publisher?.Id) &&
+                project.Catalog?.Publisher != null &&
+                !string.IsNullOrWhiteSpace(project.Catalog.Publisher.Id))
+            {
+                pubCat.Publisher = project.Catalog.Publisher;
+            }
+
             project.Catalog = pubCat;
         }
+
+        SyncAvailableCatalogs();
 
         return catName;
     }

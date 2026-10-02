@@ -265,6 +265,17 @@ public class CommunityOutpostDeliverer(
             ?? bigDirectories[0];
     }
 
+    private static bool ShouldSkipControlBarDependency(
+        GenPatcherContentMetadata packageMetadata,
+        GenPatcherContentMetadata depMetadata,
+        bool hasControlBarProBigs)
+    {
+        return hasControlBarProBigs &&
+            packageMetadata.Category == GenPatcherContentCategory.ControlBar &&
+            (string.Equals(depMetadata.OutputFilename, GameContentConstants.ControlBarProCoreFileName, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(depMetadata.OutputFilename, GameContentConstants.ControlBarHdBaseFileName, StringComparison.OrdinalIgnoreCase));
+    }
+
     /// <inheritdoc />
     public string SourceName => CommunityOutpostConstants.PublisherId;
 
@@ -971,17 +982,6 @@ public class CommunityOutpostDeliverer(
         }
 
         logger.LogInformation("Finished processing auto-install dependencies");
-    }
-
-    private bool ShouldSkipControlBarDependency(
-        GenPatcherContentMetadata packageMetadata,
-        GenPatcherContentMetadata depMetadata,
-        bool hasControlBarProBigs)
-    {
-        return hasControlBarProBigs &&
-            packageMetadata.Category == GenPatcherContentCategory.ControlBar &&
-            (string.Equals(depMetadata.OutputFilename, GameContentConstants.ControlBarProCoreFileName, StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(depMetadata.OutputFilename, GameContentConstants.ControlBarHdBaseFileName, StringComparison.OrdinalIgnoreCase));
     }
 
     private async Task ProcessSingleDependencyBigFileAsync(

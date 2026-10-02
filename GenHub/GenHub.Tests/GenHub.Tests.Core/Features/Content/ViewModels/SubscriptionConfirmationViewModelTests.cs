@@ -471,6 +471,38 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
         Assert.Equal("My Custom Publisher", savedSubscription.PublisherName);
     }
 
+    /// <summary>
+    /// Verifies that encountering an unsafe candidate catalog URL produces the expected localized blocked message.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_DefinitionWithUnsafeCatalogUrl_SetsLocalizedBlockedErrorMessageAsync()
+    {
+        // Arrange
+        const string definitionUrl = "https://93.184.216.34/definition.json";
+        const string unsafeCatalogUrl = "http://127.0.0.1:8080/catalog.json";
+        var definitionJson = "{\"$schemaVersion\":1,\"publisher\":{\"id\":\"my-pub\",\"name\":\"My Publisher\"},\"catalogs\":[{\"id\":\"unsafe\",\"name\":\"Unsafe Catalog\",\"url\":\"" + unsafeCatalogUrl + "\"}]}";
+
+        using var httpClient = new HttpClient(new MappedFakeHttpMessageHandler(new Dictionary<string, string>
+        {
+            [definitionUrl] = definitionJson,
+        }));
+
+        var vm = new SubscriptionConfirmationViewModel(
+            definitionUrl,
+            _subscriptionStore.Object,
+            _catalogParser.Object,
+            httpClient,
+            _logger.Object);
+
+        // Act
+        await vm.InitializeAsync();
+
+        // Assert
+        Assert.Equal("Failed to Load Catalog", vm.ErrorTitle);
+        Assert.Contains("URL must be a valid absolute HTTPS URL", vm.ErrorMessage);
+    }
+
     private static PublisherCatalog CreateSampleCatalog(string id, string name)
     {
         return new PublisherCatalog

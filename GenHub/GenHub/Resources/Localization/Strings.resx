@@ -6712,6 +6712,12 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Downloads.Subscription.ErrorMessage.HttpsOrEmailOnly" xml:space="preserve">
     <value>Only secure HTTPS links or valid email addresses can be opened.</value>
   </data>
+  <data name="Downloads.Subscription.ErrorMessage.FailedToFetch" xml:space="preserve">
+    <value>Failed to fetch catalog from definition</value>
+  </data>
+  <data name="Downloads.Subscription.ErrorMessage.BlockedUnsafeCatalogUrl" xml:space="preserve">
+    <value>Blocked unsafe catalog URL.</value>
+  </data>
   <data name="Downloads.Subscription.ErrorTitle.FailedToFetch" xml:space="preserve">
     <value>Failed to Fetch Catalog</value>
   </data>
