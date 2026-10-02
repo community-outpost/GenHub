@@ -605,7 +605,14 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
             if (item != null)
             {
-                foreach (var rel in item.Releases.OrderByDescending(r => r.ReleaseDate))
+                foreach (var rel in item.Releases
+                    .OrderByDescending(r => r.Version, Comparer<string>.Create((a, b) =>
+                    {
+                        if (AppUpdateVersionHelper.IsArtifactVersionNewer(a, b, allowCrossChannel: true)) return 1;
+                        if (AppUpdateVersionHelper.IsArtifactVersionNewer(b, a, allowCrossChannel: true)) return -1;
+                        return 0;
+                    }))
+                    .ThenByDescending(r => r.ReleaseDate))
                 {
                     var art = rel.Artifacts.FirstOrDefault();
                     list.Add(new ArtifactUpdateInfo(
@@ -766,13 +773,17 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                         ContentId = item.Id,
                         Name = item.Name,
                         Description = item.Description,
-                        LatestVersion = latestRel?.Version ?? "1.0.0",
+                        LatestVersion = latestRel?.Version ?? GenHubBuildConstants.DefaultVersion,
                         ReleaseDate = latestRel?.ReleaseDate,
-                        Category = latestRel?.Category ?? "CustomFork",
+                        Category = latestRel?.Category ?? GenHubBuildConstants.CategoryCustomFork,
                         IsSubscribed = string.Equals(SubscribedCustomBuildContentId, item.Id, StringComparison.OrdinalIgnoreCase),
                     });
                 }
             }
+        }
+        catch (OperationCanceledException) when (_cancellationTokenSource.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -787,22 +798,8 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             return null;
         }
 
-        try
-        {
-            var client = _httpClientFactory?.CreateClient(CatalogConstants.CatalogHttpClientName) ?? new HttpClient();
-            var json = await CatalogDocumentReader.ReadAsync(client, subscription.CatalogUrl, CatalogConstants.MaxCatalogSizeBytes, cancellationToken: cancellationToken);
-            var parseResult = await _publisherCatalogParser.ParseCatalogAsync(json, cancellationToken);
-            return parseResult.Success ? parseResult.Data : null;
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(ex, "Failed to fetch catalog from '{CatalogUrl}' for subscription '{PublisherId}'", subscription.CatalogUrl, subscription.PublisherId);
-            return null;
-        }
+        var client = _httpClientFactory?.CreateClient(CatalogConstants.CatalogHttpClientName) ?? new HttpClient();
+        return await CatalogDocumentReader.FetchAndParseCatalogAsync(client, _publisherCatalogParser, subscription.CatalogUrl, _logger, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -1496,7 +1493,8 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         // 0.5 handle custom build update
         if (IsSubscribedToCustomBuild && AvailableVersions.Count > 0)
         {
-            var targetArtifact = AvailableVersions[0];
+            var targetArtifact = AvailableVersions.FirstOrDefault(a =>
+                string.Equals(a.Version, LatestVersion, StringComparison.OrdinalIgnoreCase)) ?? AvailableVersions[0];
             _logger.LogInformation("Installing custom build update: {Version}", targetArtifact.DisplayVersion);
             await InstallArtifactAsync(targetArtifact);
             return;
