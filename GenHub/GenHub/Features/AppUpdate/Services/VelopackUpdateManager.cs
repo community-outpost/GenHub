@@ -156,6 +156,8 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         // Always initialize GithubSource for update checking with high-performance downloader
         _githubSource = new GithubSource(AppConstants.GitHubRepositoryUrl, string.Empty, true, _fileDownloader);
 
+        _ = Task.Run(() => SweepStaleBuildDirectories(_logger));
+
         try
         {
             // Try to initialize UpdateManager for downloading/applying updates
@@ -830,7 +832,25 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 if (!string.IsNullOrEmpty(localPath))
                 {
                     _logger.LogInformation("Found locally cached build artifact for {Version}, installing from local storage without redownloading", artifactInfo.Version);
-                    await InstallDownloadedBuildAsync(localPath, artifactInfo.ArtifactName, progress, cancellationToken).ConfigureAwait(false);
+                    try
+                    {
+                        await InstallDownloadedBuildAsync(localPath, artifactInfo.ArtifactName, progress, cancellationToken).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        try
+                        {
+                            if (Directory.Exists(localPath))
+                            {
+                                Directory.Delete(localPath, recursive: true);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogTrace(ex, "Failed to clean up local build path {Path}", localPath);
+                        }
+                    }
+
                     return;
                 }
             }
@@ -1346,6 +1366,76 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     }
 
     /// <summary>
+    /// Checks whether a local content manifest matches the target build artifact update.
+    /// Requires exact URL match, word-delimited PR match, target artifact file name match, or Git hash match.
+    /// </summary>
+    /// <param name="manifest">The content manifest to check.</param>
+    /// <param name="artifactInfo">The artifact update info.</param>
+    /// <returns><c>true</c> if the manifest matches the artifact; otherwise, <c>false</c>.</returns>
+    internal static bool IsManifestMatchingArtifact(ContentManifest manifest, ArtifactUpdateInfo artifactInfo)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+        ArgumentNullException.ThrowIfNull(artifactInfo);
+
+        var cleanManifestVersion = manifest.Version?.TrimStart('v', 'V');
+        var cleanArtifactVersion = artifactInfo.Version?.TrimStart('v', 'V');
+        var matchesVersion = !string.IsNullOrWhiteSpace(cleanArtifactVersion) &&
+            string.Equals(cleanManifestVersion, cleanArtifactVersion, StringComparison.OrdinalIgnoreCase);
+
+        var resolvedFiles = ManifestVariantResolver.ResolveFiles(manifest);
+
+        // 1. Direct download URL match - strong identity proof
+        if (!string.IsNullOrWhiteSpace(artifactInfo.DownloadUrl))
+        {
+            var matchesUrl = resolvedFiles.Any(f => string.Equals(f.DownloadUrl, artifactInfo.DownloadUrl, StringComparison.OrdinalIgnoreCase));
+            if (matchesUrl)
+            {
+                return true;
+            }
+        }
+
+        // 2. Exact word boundary PR match
+        if (artifactInfo.PullRequestNumber.HasValue)
+        {
+            var prNumber = artifactInfo.PullRequestNumber.Value;
+            var prPattern = $@"\b(PR\s*#?|#){prNumber}\b";
+            var matchesPr = Regex.IsMatch(manifest.Name ?? string.Empty, prPattern, RegexOptions.IgnoreCase);
+            if (matchesPr && matchesVersion)
+            {
+                return true;
+            }
+        }
+
+        // 3. Exact target artifact file name match (e.g. setup.exe, custom.exe) requiring matching version
+        if (!string.IsNullOrWhiteSpace(artifactInfo.ArtifactName))
+        {
+            var targetFileName = Path.GetFileName(artifactInfo.ArtifactName);
+            var matchesFileName = resolvedFiles.Any(f => string.Equals(Path.GetFileName(f.RelativePath), targetFileName, StringComparison.OrdinalIgnoreCase));
+            var matchesNameInManifest = string.Equals(manifest.Name, artifactInfo.ArtifactName, StringComparison.OrdinalIgnoreCase) ||
+                (manifest.Name?.Contains(artifactInfo.ArtifactName, StringComparison.OrdinalIgnoreCase) == true);
+
+            if (matchesFileName && matchesVersion && matchesNameInManifest)
+            {
+                return true;
+            }
+        }
+
+        // 4. Git hash match requiring matching version
+        if (!string.IsNullOrWhiteSpace(artifactInfo.GitHash) && artifactInfo.GitHash.Length >= 7)
+        {
+            var matchesGitHash = (manifest.Name?.Contains(artifactInfo.GitHash, StringComparison.OrdinalIgnoreCase) == true) ||
+                (manifest.Metadata?.Description?.Contains(artifactInfo.GitHash, StringComparison.OrdinalIgnoreCase) == true);
+
+            if (matchesGitHash && matchesVersion)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Cleans stray mutable build artifacts (.Build, .Release, .modbuilder_cache, etc.)
     /// from the application directory prior to applying an update.
     /// This prevents Windows file-lock (ERROR_ACCESS_DENIED) errors during Velopack package replacement.
@@ -1553,6 +1643,44 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         }
 
         return DateTime.MinValue;
+    }
+
+    private static void SweepStaleBuildDirectories(ILogger? logger)
+    {
+        try
+        {
+            var tempRoot = Path.GetTempPath();
+            var prefixes = new[] { "genhub-art-", "genhub-build-", "genhub-local-build-", "genhub-build-install-" };
+            if (!Directory.Exists(tempRoot))
+            {
+                return;
+            }
+
+            foreach (var dir in Directory.EnumerateDirectories(tempRoot, "genhub-*"))
+            {
+                var dirName = Path.GetFileName(dir);
+                if (prefixes.Any(prefix => dirName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
+                {
+                    try
+                    {
+                        var info = new DirectoryInfo(dir);
+                        if (DateTime.UtcNow - info.CreationTimeUtc > TimeSpan.FromMinutes(10))
+                        {
+                            Directory.Delete(dir, recursive: true);
+                            logger?.LogDebug("Swept stale build temp directory: {Dir}", dir);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        logger?.LogTrace(ex, "Failed to delete stale temp directory {Dir}", dir);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.LogDebug(ex, "Failed to sweep stale build directories");
+        }
     }
 
     private static string DetermineArtifactFileName(ArtifactUpdateInfo artifactInfo, bool isDirectExe)
@@ -2620,38 +2748,32 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                     continue;
                 }
 
-                var cleanManifestVersion = manifest.Version?.TrimStart('v', 'V');
-                var cleanArtifactVersion = artifactInfo.Version?.TrimStart('v', 'V');
-                var matchesVersion = !string.IsNullOrWhiteSpace(cleanArtifactVersion) &&
-                    string.Equals(cleanManifestVersion, cleanArtifactVersion, StringComparison.OrdinalIgnoreCase);
-
-                var matchesPr = artifactInfo.PullRequestNumber.HasValue &&
-                    manifest.Name.Contains($"#{artifactInfo.PullRequestNumber.Value}", StringComparison.OrdinalIgnoreCase);
-
-                var resolvedFiles = ManifestVariantResolver.ResolveFiles(manifest);
-                var matchesFileName = !string.IsNullOrWhiteSpace(artifactInfo.ArtifactName) &&
-                    resolvedFiles.Any(f => string.Equals(f.RelativePath, artifactInfo.ArtifactName, StringComparison.OrdinalIgnoreCase) ||
-                                           f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
-
-                var matchesUrl = !string.IsNullOrWhiteSpace(artifactInfo.DownloadUrl) &&
-                    resolvedFiles.Any(f => string.Equals(f.DownloadUrl, artifactInfo.DownloadUrl, StringComparison.OrdinalIgnoreCase));
-
-                var matchesArtifactNameInManifest = !string.IsNullOrWhiteSpace(artifactInfo.ArtifactName) &&
-                    (string.Equals(manifest.Name, artifactInfo.ArtifactName, StringComparison.OrdinalIgnoreCase) ||
-                     manifest.Name.Contains(artifactInfo.ArtifactName, StringComparison.OrdinalIgnoreCase));
-
-                if (matchesVersion || matchesPr || matchesUrl || (matchesFileName && matchesArtifactNameInManifest))
+                if (!IsManifestMatchingArtifact(manifest, artifactInfo))
                 {
-                    var isAcquiredResult = await _contentManifestPool.IsManifestAcquiredAsync(manifest.Id, cancellationToken).ConfigureAwait(false);
-                    if (isAcquiredResult.Success && isAcquiredResult.Data)
+                    continue;
+                }
+
+                var isAcquiredResult = await _contentManifestPool.IsManifestAcquiredAsync(manifest.Id, cancellationToken).ConfigureAwait(false);
+                if (isAcquiredResult.Success && isAcquiredResult.Data)
+                {
+                    var tempDir = Path.Combine(Path.GetTempPath(), $"genhub-local-build-{Guid.NewGuid():N}");
+                    Directory.CreateDirectory(tempDir);
+                    var retrieveResult = await _contentStorageService.RetrieveContentAsync(manifest.Id, tempDir, cancellationToken).ConfigureAwait(false);
+                    if (retrieveResult.Success)
                     {
-                        var tempDir = Path.Combine(Path.GetTempPath(), $"genhub-local-build-{Guid.NewGuid():N}");
-                        Directory.CreateDirectory(tempDir);
-                        var retrieveResult = await _contentStorageService.RetrieveContentAsync(manifest.Id, tempDir, cancellationToken).ConfigureAwait(false);
-                        if (retrieveResult.Success)
+                        return tempDir;
+                    }
+
+                    try
+                    {
+                        if (Directory.Exists(tempDir))
                         {
-                            return tempDir;
+                            Directory.Delete(tempDir, recursive: true);
                         }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogTrace(ex, "Failed to delete aborted local build temp dir {Path}", tempDir);
                     }
                 }
             }

@@ -39,6 +39,11 @@ public class AddToProfileResult : ResultBase
     public string? AddedContentName { get; set; }
 
     /// <summary>
+    /// Gets or sets the error code, if any.
+    /// </summary>
+    public string? ErrorCode { get; set; }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="AddToProfileResult"/> class for a successful operation.
     /// </summary>
     /// <param name="addedContentId">The added content ID.</param>
@@ -109,5 +114,20 @@ public class AddToProfileResult : ResultBase
     public static AddToProfileResult CreateFailure(string error, TimeSpan elapsed = default)
     {
         return new AddToProfileResult(error, elapsed);
+    }
+
+    /// <summary>
+    /// Creates a failed result with an error code.
+    /// </summary>
+    /// <param name="error">The error message.</param>
+    /// <param name="errorCode">The error code.</param>
+    /// <param name="elapsed">The elapsed time.</param>
+    /// <returns>A failed <see cref="AddToProfileResult"/>.</returns>
+    public static AddToProfileResult CreateFailure(string error, string? errorCode, TimeSpan elapsed = default)
+    {
+        return new AddToProfileResult(error, elapsed)
+        {
+            ErrorCode = errorCode,
+        };
     }
 }

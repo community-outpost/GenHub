@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
+using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -471,7 +472,7 @@ public sealed partial class ProfileSelectionViewModel(
                     profile.Name,
                     result.FirstError);
                 var errorMsg = result.FirstError;
-                if (errorMsg?.Contains("GenHub application builds", StringComparison.OrdinalIgnoreCase) == true)
+                if (result.ErrorCode == ProfileConstants.GenHubBuildNotAllowedErrorCode || errorMsg?.Contains("GenHub application builds", StringComparison.OrdinalIgnoreCase) == true)
                 {
                     errorMsg = localizationService.GetLocalizedString(
                         "Downloads.Notification.GenHubBuildNotAllowedInProfiles",
@@ -563,7 +564,7 @@ public sealed partial class ProfileSelectionViewModel(
                     result.FirstError ?? "Unknown error");
 
                 var createErrorMsg = result.FirstError;
-                if (createErrorMsg?.Contains("GenHub application builds", StringComparison.OrdinalIgnoreCase) == true)
+                if (result.ErrorCode == ProfileConstants.GenHubBuildNotAllowedErrorCode || createErrorMsg?.Contains("GenHub application builds", StringComparison.OrdinalIgnoreCase) == true)
                 {
                     createErrorMsg = localizationService.GetLocalizedString(
                         "Downloads.Notification.GenHubBuildNotAllowedInProfiles",

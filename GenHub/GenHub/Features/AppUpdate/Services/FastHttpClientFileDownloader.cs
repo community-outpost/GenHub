@@ -82,7 +82,7 @@ public class FastHttpClientFileDownloader(
     }
 
     /// <inheritdoc/>
-    public override async Task DownloadFile(
+    public override Task DownloadFile(
         string url,
         string targetFile,
         Action<int> progress,
@@ -90,100 +90,7 @@ public class FastHttpClientFileDownloader(
         double timeout,
         CancellationToken cancelToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(url);
-        ArgumentException.ThrowIfNullOrWhiteSpace(targetFile);
-
-        var destinationDirectory = Path.GetDirectoryName(targetFile);
-        if (!string.IsNullOrEmpty(destinationDirectory))
-        {
-            Directory.CreateDirectory(destinationDirectory);
-        }
-
-        using var client = CreateHttpClient(headers, timeout);
-
-        try
-        {
-            // Probe range support and resolve redirects without holding open full stream
-            using var probeRequest = new HttpRequestMessage(HttpMethod.Get, url);
-            probeRequest.Headers.Range = new RangeHeaderValue(0, 0);
-
-            using var probeResponse = await client.SendAsync(
-                probeRequest,
-                HttpCompletionOption.ResponseHeadersRead,
-                cancelToken).ConfigureAwait(false);
-
-            probeResponse.EnsureSuccessStatusCode();
-
-            var resolvedUri = probeResponse.RequestMessage?.RequestUri ?? new Uri(url);
-            var contentRange = probeResponse.Content.Headers.ContentRange;
-
-            // Validate that probe returned 206 Partial Content with valid byte range (bytes 0-0/totalLength)
-            var hasValidProbeRange = probeResponse.StatusCode == HttpStatusCode.PartialContent &&
-                contentRange is not null &&
-                string.Equals(contentRange.Unit, "bytes", StringComparison.OrdinalIgnoreCase) &&
-                contentRange.From == 0 &&
-                contentRange.To == 0 &&
-                contentRange.Length is { } probeTotalLength &&
-                probeTotalLength >= AppUpdateConstants.ParallelDownloadThresholdBytes;
-
-            if (hasValidProbeRange)
-            {
-                var totalLength = contentRange!.Length!.Value;
-                probeResponse.Dispose();
-
-                await DownloadViaParallelModeAsync(
-                    client,
-                    resolvedUri,
-                    url,
-                    targetFile,
-                    totalLength,
-                    progress,
-                    headers,
-                    timeout,
-                    cancelToken).ConfigureAwait(false);
-                return;
-            }
-
-            // If probe returned 200 OK (server ignored Range header), check for HTML response or stream directly
-            if (probeResponse.StatusCode == HttpStatusCode.OK)
-            {
-                if (await TryHandleHtmlResponseAsync(probeResponse, url, targetFile, progress, headers, timeout, cancelToken).ConfigureAwait(false))
-                {
-                    return;
-                }
-
-                var totalBytes = probeResponse.Content.Headers.ContentLength ?? -1L;
-                await DownloadSingleStreamAsync(probeResponse, targetFile, totalBytes, progress, cancelToken).ConfigureAwait(false);
-                ValidateDownloadedFileHeader(targetFile);
-                return;
-            }
-
-            // Fallback to single-stream GET (e.g. for files below parallel threshold)
-            using var fullResponse = await client.GetAsync(
-                url,
-                HttpCompletionOption.ResponseHeadersRead,
-                cancelToken).ConfigureAwait(false);
-
-            fullResponse.EnsureSuccessStatusCode();
-
-            if (await TryHandleHtmlResponseAsync(fullResponse, url, targetFile, progress, headers, timeout, cancelToken).ConfigureAwait(false))
-            {
-                return;
-            }
-
-            var fullBytes = fullResponse.Content.Headers.ContentLength ?? -1L;
-            await DownloadSingleStreamAsync(fullResponse, targetFile, fullBytes, progress, cancelToken).ConfigureAwait(false);
-            ValidateDownloadedFileHeader(targetFile);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            logger?.LogWarning(
-                ex,
-                "Parallel download encountered an issue for {Url}. Falling back to default downloader",
-                url);
-
-            await base.DownloadFile(url, targetFile, progress, headers, timeout, cancelToken).ConfigureAwait(false);
-        }
+        return DownloadFileCoreAsync(url, targetFile, progress, headers, timeout, cancelToken, remainingRedirects: 3);
     }
 
     /// <inheritdoc/>
@@ -343,7 +250,7 @@ public class FastHttpClientFileDownloader(
         }
 
         using var fs = File.OpenRead(filePath);
-        var buffer = new byte[Math.Min(512, (int)fileInfo.Length)];
+        var buffer = new byte[(int)Math.Min(512L, fileInfo.Length)];
         var bytesRead = fs.Read(buffer, 0, buffer.Length);
         if (bytesRead > 0)
         {
@@ -356,6 +263,111 @@ public class FastHttpClientFileDownloader(
         }
     }
 
+    private async Task DownloadFileCoreAsync(
+        string url,
+        string targetFile,
+        Action<int> progress,
+        IDictionary<string, string>? headers,
+        double timeout,
+        CancellationToken cancelToken,
+        int remainingRedirects)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(url);
+        ArgumentException.ThrowIfNullOrWhiteSpace(targetFile);
+
+        var destinationDirectory = Path.GetDirectoryName(targetFile);
+        if (!string.IsNullOrEmpty(destinationDirectory))
+        {
+            Directory.CreateDirectory(destinationDirectory);
+        }
+
+        using var client = CreateHttpClient(headers, timeout);
+
+        try
+        {
+            // Probe range support and resolve redirects without holding open full stream
+            using var probeRequest = new HttpRequestMessage(HttpMethod.Get, url);
+            probeRequest.Headers.Range = new RangeHeaderValue(0, 0);
+
+            using var probeResponse = await client.SendAsync(
+                probeRequest,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancelToken).ConfigureAwait(false);
+
+            probeResponse.EnsureSuccessStatusCode();
+
+            var resolvedUri = probeResponse.RequestMessage?.RequestUri ?? new Uri(url);
+            var contentRange = probeResponse.Content.Headers.ContentRange;
+
+            // Validate that probe returned 206 Partial Content with valid byte range (bytes 0-0/totalLength)
+            var hasValidProbeRange = probeResponse.StatusCode == HttpStatusCode.PartialContent &&
+                contentRange is not null &&
+                string.Equals(contentRange.Unit, "bytes", StringComparison.OrdinalIgnoreCase) &&
+                contentRange.From == 0 &&
+                contentRange.To == 0 &&
+                contentRange.Length is { } probeTotalLength &&
+                probeTotalLength >= AppUpdateConstants.ParallelDownloadThresholdBytes;
+
+            if (hasValidProbeRange)
+            {
+                var totalLength = contentRange!.Length!.Value;
+                probeResponse.Dispose();
+
+                await DownloadViaParallelModeAsync(
+                    client,
+                    resolvedUri,
+                    url,
+                    targetFile,
+                    totalLength,
+                    progress,
+                    headers,
+                    timeout,
+                    cancelToken).ConfigureAwait(false);
+                return;
+            }
+
+            // If probe returned 200 OK (server ignored Range header), check for HTML response or stream directly
+            if (probeResponse.StatusCode == HttpStatusCode.OK)
+            {
+                if (await TryHandleHtmlResponseAsync(probeResponse, url, targetFile, progress, headers, timeout, cancelToken, remainingRedirects).ConfigureAwait(false))
+                {
+                    return;
+                }
+
+                var totalBytes = probeResponse.Content.Headers.ContentLength ?? -1L;
+                await DownloadSingleStreamAsync(probeResponse, targetFile, totalBytes, progress, cancelToken).ConfigureAwait(false);
+                ValidateDownloadedFileHeader(targetFile);
+                return;
+            }
+
+            // Fallback to single-stream GET (e.g. for files below parallel threshold)
+            using var fullResponse = await client.GetAsync(
+                url,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancelToken).ConfigureAwait(false);
+
+            fullResponse.EnsureSuccessStatusCode();
+
+            if (await TryHandleHtmlResponseAsync(fullResponse, url, targetFile, progress, headers, timeout, cancelToken, remainingRedirects).ConfigureAwait(false))
+            {
+                return;
+            }
+
+            var fullBytes = fullResponse.Content.Headers.ContentLength ?? -1L;
+            await DownloadSingleStreamAsync(fullResponse, targetFile, fullBytes, progress, cancelToken).ConfigureAwait(false);
+            ValidateDownloadedFileHeader(targetFile);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger?.LogWarning(
+                ex,
+                "Parallel download encountered an issue for {Url}. Falling back to default downloader",
+                url);
+
+            await base.DownloadFile(url, targetFile, progress, headers, timeout, cancelToken).ConfigureAwait(false);
+        }
+    }
+
     private async Task<bool> TryHandleHtmlResponseAsync(
         HttpResponseMessage response,
         string url,
@@ -363,7 +375,8 @@ public class FastHttpClientFileDownloader(
         Action<int> progress,
         IDictionary<string, string>? headers,
         double timeout,
-        CancellationToken cancelToken)
+        CancellationToken cancelToken,
+        int remainingRedirects)
     {
         var mediaType = response.Content.Headers.ContentType?.MediaType;
         if (!string.Equals(mediaType, "text/html", StringComparison.OrdinalIgnoreCase))
@@ -376,8 +389,13 @@ public class FastHttpClientFileDownloader(
         var confirmedUrl = CloudUrlHelper.TryExtractGoogleDriveConfirmationUrl(html, resolvedUri);
         if (!string.IsNullOrEmpty(confirmedUrl))
         {
+            if (remainingRedirects <= 0)
+            {
+                throw new InvalidOperationException("Exceeded maximum redirects following download confirmation link.");
+            }
+
             logger?.LogInformation("Following Google Drive download confirmation from {Url} to {ConfirmedUrl}", url, confirmedUrl);
-            await DownloadFile(confirmedUrl, targetFile, progress, headers, timeout, cancelToken).ConfigureAwait(false);
+            await DownloadFileCoreAsync(confirmedUrl, targetFile, progress, headers, timeout, cancelToken, remainingRedirects - 1).ConfigureAwait(false);
             return true;
         }
 
