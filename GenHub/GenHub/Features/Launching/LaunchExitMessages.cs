@@ -85,6 +85,19 @@ internal static class LaunchExitMessages
         return string.IsNullOrWhiteSpace(standardErrorTail) ? message : $"{message} {standardErrorTail}";
     }
 
+    /// <summary>Describes a launcher failure, preserving legacy wording for unknown codes.</summary>
+    /// <param name="exitCode">The observed exit code.</param>
+    /// <param name="expectedName">The client the launcher was expected to start.</param>
+    /// <param name="localization">The application localization service, when available.</param>
+    /// <returns>The launcher failure and any known explanation.</returns>
+    internal static string DescribeLauncherExit(int exitCode, string expectedName, ILocalizationService? localization)
+    {
+        var explanation = Explain(exitCode, localization);
+        return explanation == null
+            ? $"Launcher exited with code {exitCode} before starting {expectedName}."
+            : GetString(StartupExitCodeConstants.LauncherExitExplainedKey, localization, exitCode, expectedName, explanation);
+    }
+
     /// <summary>Resolves a launch message for both DI and standalone callers.</summary>
     /// <param name="key">The resource key.</param>
     /// <param name="localization">The application localization service, when available.</param>

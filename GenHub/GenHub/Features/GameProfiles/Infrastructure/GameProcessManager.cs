@@ -1839,10 +1839,7 @@ public class GameProcessManager(
                         expectedName);
                     return OperationResult<GameProcessInfo>.CreateFailure(
                         AppendLauncherErrors(
-                            LaunchExitMessages.AppendExplanation(
-                                $"Launcher exited with code {exitCode} before starting {expectedName}.",
-                                exitCode,
-                                localizationService),
+                            LaunchExitMessages.DescribeLauncherExit(exitCode, expectedName, localizationService),
                             launcher,
                             capturedErrors));
                 }

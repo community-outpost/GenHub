@@ -14053,7 +14053,7 @@ https://example.com/screenshot2.png</value>
     <value>Процесс завершился до окончания запуска. Подробности см. в журнале.</value>
   </data>
   <data name="Launch.ExitCode.ImmediateExitExplained" xml:space="preserve">
-    <value>Игра завершилась сразу после запуска с кодом {0} (0x{1}). {2}</value>
+    <value>Процесс завершился сразу после запуска с кодом {0} (0x{1}). {2}</value>
   </data>
   <data name="Launch.ExitCode.DllNotFound" xml:space="preserve">
     <value>Не удалось найти необходимую библиотеку DLL. Убедитесь, что все DLL, поставляемые с исполняемым файлом, находятся в его папке.</value>
@@ -17615,5 +17615,8 @@ Error: не удалось: {3}
   <data name="TextureEditor.Notify.OpenFailed.Message" xml:space="preserve"><value>Не удалось открыть целевую текстуру.</value></data>
   <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
     <value>Резервные выпуски вручную (переопределения)</value>
+  </data>
+  <data name="Launch.ExitCode.LauncherExitExplained" xml:space="preserve">
+    <value>Программа запуска завершилась с кодом {0} до запуска {1}. {2}</value>
   </data>
 </root>

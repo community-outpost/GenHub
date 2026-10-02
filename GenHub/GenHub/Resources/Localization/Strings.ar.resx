@@ -14053,7 +14053,7 @@ https://example.com/screenshot2.png</value>
     <value>انتهت العملية قبل اكتمال التشغيل. راجع السجلات للاطلاع على التفاصيل.</value>
   </data>
   <data name="Launch.ExitCode.ImmediateExitExplained" xml:space="preserve">
-    <value>خرجت اللعبة فورًا برمز الخروج {0} (0x{1}). {2}</value>
+    <value>خرجت العملية فورًا برمز الخروج {0} (0x{1}). {2}</value>
   </data>
   <data name="Launch.ExitCode.DllNotFound" xml:space="preserve">
     <value>تعذر العثور على مكتبة DLL مطلوبة. تأكد من وجود جميع ملفات DLL المرفقة بالملف التنفيذي في مجلده.</value>
@@ -17615,5 +17615,8 @@ Error: فشل: {3}
   <data name="TextureEditor.Notify.OpenFailed.Message" xml:space="preserve"><value>فشل فتح النسيج الهدف.</value></data>
   <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
     <value>إصدارات احتياطية يدوية (تجاوزات)</value>
+  </data>
+  <data name="Launch.ExitCode.LauncherExitExplained" xml:space="preserve">
+    <value>خرج برنامج التشغيل برمز الخروج {0} قبل بدء {1}. {2}</value>
   </data>
 </root>

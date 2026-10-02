@@ -14114,7 +14114,7 @@ Would you like to add this catalog to your provider project?</value>
     <value>The process exited before launch completed. See the logs for details.</value>
   </data>
   <data name="Launch.ExitCode.ImmediateExitExplained" xml:space="preserve">
-    <value>The game exited immediately with code {0} (0x{1}). {2}</value>
+    <value>The process exited immediately with code {0} (0x{1}). {2}</value>
   </data>
   <data name="Launch.ExitCode.DllNotFound" xml:space="preserve">
     <value>A required DLL could not be found. Make sure every DLL that ships with the executable is in its folder.</value>
@@ -17674,5 +17674,8 @@ Mapped image texture reference</value>
   <data name="TextureEditor.Notify.OpenFailed.Message" xml:space="preserve"><value>Failed to open target texture.</value></data>
   <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
     <value>Manual Fallback Releases (Overrides)</value>
+  </data>
+  <data name="Launch.ExitCode.LauncherExitExplained" xml:space="preserve">
+    <value>The launcher exited with code {0} before starting {1}. {2}</value>
   </data>
 </root>

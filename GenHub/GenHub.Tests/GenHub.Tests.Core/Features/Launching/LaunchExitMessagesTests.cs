@@ -113,6 +113,25 @@ public class LaunchExitMessagesTests
         Assert.Contains("0xC0000135", message);
     }
 
+    /// <summary>Known launcher failures translate the entire sentence; unknown ones keep legacy wording.</summary>
+    /// <param name="cultureName">The UI language.</param>
+    /// <param name="prefix">The translated launcher subject.</param>
+    /// <param name="processPrefix">The process-neutral immediate-exit subject.</param>
+    [Theory]
+    [InlineData("en", "The launcher exited", "The process exited")]
+    [InlineData("ru", "Программа запуска завершилась", "Процесс завершился")]
+    [InlineData("ar", "خرج برنامج التشغيل", "خرجت العملية")]
+    public void DescribeLauncherExit_TranslatesKnownCodes(string cultureName, string prefix, string processPrefix)
+    {
+        var localization = CreateLocalization(CultureInfo.GetCultureInfo(cultureName));
+        var message = LaunchExitMessages.DescribeLauncherExit(StartupExitCodeConstants.StatusDllNotFound, "generalszh", localization);
+        Assert.StartsWith(prefix, message);
+        Assert.Contains("generalszh", message);
+        Assert.Contains("-1073741515", message);
+        Assert.StartsWith(processPrefix, LaunchExitMessages.DescribeImmediateExit(StartupExitCodeConstants.StatusDllNotFound, null, localization));
+        Assert.Equal("Launcher exited with code 127 before starting generalszh.", LaunchExitMessages.DescribeLauncherExit(127, "generalszh", localization));
+    }
+
     /// <summary>Captured output still follows the explanation so nothing the client printed is lost.</summary>
     [Fact]
     public void DescribeImmediateExit_KeepsCapturedOutput()

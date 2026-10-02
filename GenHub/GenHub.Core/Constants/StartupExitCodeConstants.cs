@@ -27,6 +27,9 @@ public static class StartupExitCodeConstants
     /// <summary>Resource key for an immediate exit with a known code. Arguments: decimal code, hexadecimal code, explanation.</summary>
     public const string ImmediateExitExplainedKey = "Launch.ExitCode.ImmediateExitExplained";
 
+    /// <summary>Resource key for a launcher exit. Arguments: exit code, expected client name, explanation.</summary>
+    public const string LauncherExitExplainedKey = "Launch.ExitCode.LauncherExitExplained";
+
     /// <summary>Resource key explaining <see cref="StatusAccessViolation"/>.</summary>
     public const string AccessViolationKey = "Launch.ExitCode.AccessViolation";
 
