@@ -1730,7 +1730,7 @@ public partial class ContentLibraryViewModel(
         var files = await dialogService.ShowImageFilesPickerAsync(
             GetLocalizedString("Tools.PublisherStudio.Library.PickScreenshotTitle", "Select Screenshot Images"));
 
-        if (files != null && files.Count > 0)
+        if (files is { Count: > 0 })
         {
             await AddMediaToSelectedContentAsync(files);
         }
@@ -1757,7 +1757,7 @@ public partial class ContentLibraryViewModel(
         var files = await dialogService.ShowVideoFilesPickerAsync(
             GetLocalizedString("Tools.PublisherStudio.Library.PickVideoTitle", "Select Video Files"));
 
-        if (files != null && files.Count > 0)
+        if (files is { Count: > 0 })
         {
             await AddMediaToSelectedContentAsync(files);
         }

@@ -87,7 +87,7 @@ public static class MediaFileHelper
         if (Path.IsPathRooted(trimmed))
         {
             var fullPath = TryGetFullPath(trimmed);
-            return fullPath != null && File.Exists(fullPath) ? fullPath : null;
+            return fullPath is not null && File.Exists(fullPath) ? fullPath : null;
         }
 
         if (string.IsNullOrEmpty(projectDirectory))
@@ -96,14 +96,14 @@ public static class MediaFileHelper
         }
 
         var projectRoot = TryGetFullPath(projectDirectory);
-        if (projectRoot == null)
+        if (projectRoot is null)
         {
             return null;
         }
 
         var root = projectRoot + Path.DirectorySeparatorChar;
         var combined = TryGetFullPath(Path.Combine(projectDirectory, trimmed));
-        return combined != null && combined.StartsWith(root, StringComparison.OrdinalIgnoreCase) && File.Exists(combined)
+        return combined is not null && combined.StartsWith(root, StringComparison.OrdinalIgnoreCase) && File.Exists(combined)
             ? combined
             : null;
     }
