@@ -54,7 +54,7 @@ public sealed class WbPerlinNoise
     {
         var h = hash & 15;
         var u = h < 8 ? x : y;
-        float v;
+        var v = z;
         if (h < 4)
         {
             v = y;
@@ -62,10 +62,6 @@ public sealed class WbPerlinNoise
         else if (h == 12 || h == 14)
         {
             v = x;
-        }
-        else
-        {
-            v = z;
         }
 
         var first = ((h & 1) == 0) ? u : -u;

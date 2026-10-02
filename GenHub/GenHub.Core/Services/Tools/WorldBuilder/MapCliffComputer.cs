@@ -17,7 +17,7 @@ public static class MapCliffComputer
     /// <param name="height">Height in cells.</param>
     /// <param name="slopeLimitWorldZ">Cliff threshold in world Z units.</param>
     /// <returns>Packed cliff-state bytes.</returns>
-    public static byte[] ComputeCliffState(byte[] heights, int width, int height, float slopeLimitWorldZ)
+    public static byte[] ComputeCliffState(IList<byte> heights, int width, int height, float slopeLimitWorldZ)
     {
         ArgumentNullException.ThrowIfNull(heights);
         var stride = (width + 7) / 8;

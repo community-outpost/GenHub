@@ -25,7 +25,7 @@ public sealed class MapPreviewService(ILogger<MapPreviewService> logger) : IMapP
             Height = WorldBuilderConstants.Preview.Height,
             Pixels = new int[WorldBuilderConstants.Preview.Width * WorldBuilderConstants.Preview.Height],
         };
-        if (map.Terrain.Width <= 0 || map.Terrain.Height <= 0 || map.Terrain.Heights.Length == 0)
+        if (map.Terrain.Width <= 0 || map.Terrain.Height <= 0 || map.Terrain.Heights.Count == 0)
         {
             return preview;
         }
@@ -133,9 +133,7 @@ public sealed class MapPreviewService(ILogger<MapPreviewService> logger) : IMapP
                 }
 
                 var height = SampleHeight(map, i, j);
-                float r;
-                float g;
-                float b;
+                var (r, g, b) = (0.0f, 0.0f, 0.0f);
                 if (IsUnderwater(map, i, j, height))
                 {
                     (r, g, b) = (0.55f, 0.55f, 1.0f);
@@ -255,9 +253,9 @@ public sealed class MapPreviewService(ILogger<MapPreviewService> logger) : IMapP
             hiZ = loZ + 0.2f;
         }
 
-        float t;
-        float anchor;
-        float pull;
+        var t = 0.0f;
+        var anchor = 0.0f;
+        var pull = 0.0f;
         if (height >= midZ)
         {
             var span = hiZ - midZ;

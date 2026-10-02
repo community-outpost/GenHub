@@ -35,9 +35,9 @@ public sealed class WbRoadServiceTests
         Assert.NotNull(result.Data);
         var draw = Assert.Single(result.Data!);
         Assert.Equal(4 * WbModelDraw.StrideFloats, draw.Vertices.Length);
-        Assert.Equal([0u, 1u, 2u, 1u, 3u, 2u], draw.Indices);
-        Assert.Equal(10.0f, draw.Vertices[1] - draw.Vertices[1 + WbModelDraw.StrideFloats]);
-        Assert.Equal(40.0f / 128.0f, draw.Vertices[6]);
+        Assert.Equal([0u, 1u, 2u, 1u, 3u, 2u], draw.Indices.ToArray());
+        Assert.Equal(10.0f, draw.Vertices.Span[1] - draw.Vertices.Span[1 + WbModelDraw.StrideFloats]);
+        Assert.Equal(40.0f / 128.0f, draw.Vertices.Span[6]);
         Assert.Equal("Road.tga", draw.TextureName);
         Assert.NotNull(draw.Texture);
         Assert.True(draw.TwoSided);

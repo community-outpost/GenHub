@@ -403,6 +403,46 @@ public sealed class SageIniDatabaseTests : IDisposable
         loaded.Success.Should().BeFalse();
     }
 
+    /// <summary>
+    /// Tests that subsystem boot keeps game-shaped Object files: Draw modules with nested
+    /// animation scopes plus trailing Behavior modules must not fail the whole file.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LoadSubsystemsAsync_GameShapedObjectFile_LoadsBlocksDespiteNuggetScopes()
+    {
+        // Arrange
+        var workspace = NewDir("workspace");
+        var gameIni =
+            "Object GLATank\n" +
+            "RadarPriority = 5\n" +
+            "Draw = W3DModelDraw ModuleTag_01\n" +
+            "ConditionState = REALLYDAMAGED\n" +
+            "ModelConditionState = USER_1\n" +
+            "Model = GLATank_D1\n" +
+            "End\n" +
+            "AnimationState = FIRING\n" +
+            "Animation = GLATank_Fire\n" +
+            "End\n" +
+            "End\n" +
+            "End\n" +
+            "Behavior = PhysicsBehavior ModuleTag_Physics\n" +
+            "Mass = 1.0\n" +
+            "End\n" +
+            "End\n" +
+            "Object GLAJeep\n" +
+            "End\n";
+        WriteLoose(workspace, @"Data\INI\Object\game.ini", gameIni);
+        var (fileSystem, sut) = await CreateMountedDatabaseAsync(workspace);
+
+        // Act
+        var loaded = await sut.LoadSubsystemsAsync(fileSystem);
+
+        // Assert
+        loaded.Success.Should().BeTrue();
+        sut.GetBlocks("Object").Select(b => b.Name).Should().BeEquivalentTo("GLATank", "GLAJeep");
+    }
+
     private static SageIniDatabase CreateSut()
     {
         return new SageIniDatabase(

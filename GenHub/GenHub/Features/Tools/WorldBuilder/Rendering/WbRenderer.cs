@@ -523,19 +523,21 @@ public sealed class WbRenderer : IDisposable
         var upload = data.Vertices;
         if (data.ExtraVertices.Length > 0)
         {
-            upload = new float[data.Vertices.Length + data.ExtraVertices.Length];
-            Array.Copy(data.Vertices, upload, data.Vertices.Length);
-            Array.Copy(data.ExtraVertices, 0, upload, data.Vertices.Length, data.ExtraVertices.Length);
+            var merged = new float[data.Vertices.Length + data.ExtraVertices.Length];
+            data.Vertices.Span.CopyTo(merged);
+            data.ExtraVertices.Span.CopyTo(merged.AsSpan(data.Vertices.Length));
+            upload = merged;
         }
 
-        _gl.BufferData<float>(BufferTargetARB.ArrayBuffer, upload, BufferUsageARB.StaticDraw);
+        _gl.BufferData<float>(BufferTargetARB.ArrayBuffer, upload.Span, BufferUsageARB.StaticDraw);
 
         var combined = new uint[data.Indices.Length + data.ExtraIndices.Length];
-        Array.Copy(data.Indices, combined, data.Indices.Length);
+        data.Indices.Span.CopyTo(combined);
         var extraBase = (uint)(data.Vertices.Length / WbTerrainMesh.StrideFloats);
-        for (var i = 0; i < data.ExtraIndices.Length; i++)
+        var extra = data.ExtraIndices.Span;
+        for (var i = 0; i < extra.Length; i++)
         {
-            combined[data.Indices.Length + i] = extraBase + data.ExtraIndices[i];
+            combined[data.Indices.Length + i] = extraBase + extra[i];
         }
 
         _gl.BufferData<uint>(BufferTargetARB.ElementArrayBuffer, combined, BufferUsageARB.StaticDraw);
@@ -552,7 +554,7 @@ public sealed class WbRenderer : IDisposable
             0,
             PixelFormat.Rgba,
             PixelType.UnsignedByte,
-            in data.AtlasPixels.AsSpan().GetPinnableReference());
+            in data.AtlasPixels.Span.GetPinnableReference());
 
         _gl.GenerateMipmap(TextureTarget.Texture2D);
         _gl.BindVertexArray(0);
@@ -619,10 +621,10 @@ public sealed class WbRenderer : IDisposable
         // the target buffers explicitly before uploading.
         _gl.BindVertexArray(_waterVao);
         _gl.BindBuffer(BufferTargetARB.ArrayBuffer, _waterVbo);
-        _gl.BufferData<float>(BufferTargetARB.ArrayBuffer, data.Vertices, BufferUsageARB.StaticDraw);
+        _gl.BufferData<float>(BufferTargetARB.ArrayBuffer, data.Vertices.Span, BufferUsageARB.StaticDraw);
 
         _gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, _waterIbo);
-        _gl.BufferData<uint>(BufferTargetARB.ElementArrayBuffer, data.Indices, BufferUsageARB.StaticDraw);
+        _gl.BufferData<uint>(BufferTargetARB.ElementArrayBuffer, data.Indices.Span, BufferUsageARB.StaticDraw);
 
         _gl.BindVertexArray(0);
         _waterIndexCount = (uint)data.Indices.Length;
@@ -653,7 +655,7 @@ public sealed class WbRenderer : IDisposable
         // the target buffer explicitly before uploading.
         _gl.BindVertexArray(_linesVao);
         _gl.BindBuffer(BufferTargetARB.ArrayBuffer, _linesVbo);
-        _gl.BufferData<float>(BufferTargetARB.ArrayBuffer, data.Vertices, BufferUsageARB.StaticDraw);
+        _gl.BufferData<float>(BufferTargetARB.ArrayBuffer, data.Vertices.Span, BufferUsageARB.StaticDraw);
 
         _gl.BindVertexArray(0);
         _linesVertexCount = data.Vertices.Length / WbOverlayLines.StrideFloats;
@@ -969,9 +971,9 @@ public sealed class WbRenderer : IDisposable
         _gl.BindBuffer(BufferTargetARB.ArrayBuffer, vbo);
         _gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, ibo);
         SetupModelAttribs(_gl);
-        _gl.BufferData<float>(BufferTargetARB.ArrayBuffer, draw.Vertices, BufferUsageARB.StaticDraw);
+        _gl.BufferData<float>(BufferTargetARB.ArrayBuffer, draw.Vertices.Span, BufferUsageARB.StaticDraw);
 
-        _gl.BufferData<uint>(BufferTargetARB.ElementArrayBuffer, draw.Indices, BufferUsageARB.StaticDraw);
+        _gl.BufferData<uint>(BufferTargetARB.ElementArrayBuffer, draw.Indices.Span, BufferUsageARB.StaticDraw);
 
         _gl.BindVertexArray(0);
         return new ModelUpload(vao, vbo, ibo, (uint)draw.Indices.Length, texture, draw.State, draw.TwoSided);

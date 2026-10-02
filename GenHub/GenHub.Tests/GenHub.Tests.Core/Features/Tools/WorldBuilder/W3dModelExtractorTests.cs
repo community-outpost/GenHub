@@ -34,7 +34,7 @@ public sealed class W3dModelExtractorTests
         Assert.Equal("MESH1", extracted.Name);
         Assert.Equal("CONT", extracted.ContainerName);
         Assert.Equal(0x2000u, extracted.Attributes);
-        Assert.Equal(3, extracted.Vertices.Length);
+        Assert.Equal(3, extracted.Vertices.Count);
         Assert.Equal(3.0f, extracted.Vertices[1].X);
         Assert.Equal(8.0f, extracted.Vertices[2].Z);
         var triangle = Assert.Single(extracted.Triangles);
@@ -53,11 +53,11 @@ public sealed class W3dModelExtractorTests
         var pass = Assert.Single(extracted.Passes);
         Assert.Equal([0u], pass.VertexMaterialIds);
         Assert.Equal([0u], pass.ShaderIds);
-        Assert.Equal(3, pass.Diffuse.Length);
+        Assert.Equal(3, pass.Diffuse.Count);
         Assert.Equal(200, pass.Diffuse[1].R);
         var stage = Assert.Single(pass.Stages);
         Assert.Equal([0u], stage.TextureIds);
-        Assert.Equal(3, stage.TexCoords.Length);
+        Assert.Equal(3, stage.TexCoords.Count);
         Assert.Equal(0.5f, stage.TexCoords[2].X);
     }
 

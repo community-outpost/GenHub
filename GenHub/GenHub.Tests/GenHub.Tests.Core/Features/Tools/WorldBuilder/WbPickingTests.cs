@@ -64,13 +64,14 @@ public sealed class WbPickingTests
     [Fact]
     public void IntersectTerrain_DownwardRay_HitsHeight()
     {
+        var heights = new byte[100];
+        Array.Fill(heights, (byte)20);
         var terrain = new MapTerrainData
         {
             Width = 10,
             Height = 10,
-            Heights = new byte[100],
+            Heights = heights,
         };
-        Array.Fill(terrain.Heights, (byte)20);
 
         var hit = WbPicking.IntersectTerrain(new Vector3(50, 50, 500), -Vector3.UnitZ, terrain, 2000.0f);
 

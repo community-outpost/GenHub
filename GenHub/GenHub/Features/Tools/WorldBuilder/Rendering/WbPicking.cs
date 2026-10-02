@@ -143,7 +143,7 @@ public static class WbPicking
     public static float SampleHeight(MapTerrainData terrain, float cellX, float cellY)
     {
         ArgumentNullException.ThrowIfNull(terrain);
-        if (terrain.Width <= 0 || terrain.Height <= 0 || terrain.Heights.Length == 0)
+        if (terrain.Width <= 0 || terrain.Height <= 0 || terrain.Heights.Count == 0)
         {
             return 0.0f;
         }

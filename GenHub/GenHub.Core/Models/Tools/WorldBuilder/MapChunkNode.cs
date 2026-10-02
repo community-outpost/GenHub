@@ -25,5 +25,5 @@ public sealed class MapChunkNode
     public ushort Version { get; }
 
     /// <summary>Gets the raw payload bytes.</summary>
-    public byte[] Data { get; }
+    public IList<byte> Data { get; }
 }

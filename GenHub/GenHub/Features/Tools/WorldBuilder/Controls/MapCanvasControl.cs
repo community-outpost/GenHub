@@ -56,8 +56,8 @@ public sealed class MapCanvasControl : Control
         AvaloniaProperty.Register<MapCanvasControl, double>("CameraYaw", 45.0, defaultBindingMode: BindingMode.TwoWay);
 
     /// <summary>Defines the <see cref="TerrainHeights"/> property.</summary>
-    public static readonly StyledProperty<byte[]?> TerrainHeightsProperty =
-        AvaloniaProperty.Register<MapCanvasControl, byte[]?>("TerrainHeights");
+    public static readonly StyledProperty<IList<byte>?> TerrainHeightsProperty =
+        AvaloniaProperty.Register<MapCanvasControl, IList<byte>?>("TerrainHeights");
 
     private const double MinZoom = 0.2;
     private const double MaxZoom = 16.0;
@@ -173,7 +173,7 @@ public sealed class MapCanvasControl : Control
     }
 
     /// <summary>Gets or sets the terrain height map for 3D cursor picking and surface projection.</summary>
-    public byte[]? TerrainHeights
+    public IList<byte>? TerrainHeights
     {
         get => GetValue(TerrainHeightsProperty);
         set => SetValue(TerrainHeightsProperty, value);
@@ -453,10 +453,10 @@ public sealed class MapCanvasControl : Control
             var dy = (float)cell.Y - proj.Cy;
             var dz = 0f;
 
-            if (TerrainHeights != null && TerrainHeights.Length > 0)
+            if (TerrainHeights != null && TerrainHeights.Count > 0)
             {
                 var idx = ((int)cell.Y * MapWidth) + (int)cell.X;
-                if (idx >= 0 && idx < TerrainHeights.Length)
+                if (idx >= 0 && idx < TerrainHeights.Count)
                 {
                     dz = (TerrainHeights[idx] - 20f) * IsometricHeightScale;
                 }
@@ -544,10 +544,10 @@ public sealed class MapCanvasControl : Control
             cellX = Math.Clamp(rdx + proj.Cx, 0f, MathF.Max(0f, MapWidth - 1));
             cellY = Math.Clamp(rdy + proj.Cy, 0f, MathF.Max(0f, MapHeight - 1));
 
-            if (TerrainHeights != null && TerrainHeights.Length > 0)
+            if (TerrainHeights != null && TerrainHeights.Count > 0)
             {
                 var idx = ((int)cellY * MapWidth) + (int)cellX;
-                if (idx >= 0 && idx < TerrainHeights.Length)
+                if (idx >= 0 && idx < TerrainHeights.Count)
                 {
                     dz = (TerrainHeights[idx] - 20f) * IsometricHeightScale;
                 }

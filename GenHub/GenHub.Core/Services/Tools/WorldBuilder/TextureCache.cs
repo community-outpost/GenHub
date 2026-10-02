@@ -103,7 +103,7 @@ public sealed class TextureCache(IGameAssetFileSystem fileSystem, ISageTextureCo
             return [exact];
         }
 
-        var stem = textureName.Substring(0, textureName.Length - extension.Length);
+        var stem = textureName[..^extension.Length];
         return [exact, string.Concat(directory, separator, stem, sibling)];
     }
 

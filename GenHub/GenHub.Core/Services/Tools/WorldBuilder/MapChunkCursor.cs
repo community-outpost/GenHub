@@ -11,7 +11,7 @@ namespace GenHub.Core.Services.Tools.WorldBuilder;
 /// </summary>
 public sealed class MapChunkCursor
 {
-    private readonly byte[] data;
+    private readonly IList<byte> data;
     private readonly IReadOnlyDictionary<uint, string> names;
     private int position;
 
@@ -20,21 +20,21 @@ public sealed class MapChunkCursor
     /// </summary>
     /// <param name="payload">Payload bytes.</param>
     /// <param name="nameTable">Table-of-contents id to name map for name keys.</param>
-    public MapChunkCursor(byte[] payload, IReadOnlyDictionary<uint, string>? nameTable = null)
+    public MapChunkCursor(IList<byte> payload, IReadOnlyDictionary<uint, string>? nameTable = null)
     {
         data = payload;
         names = nameTable ?? new Dictionary<uint, string>();
     }
 
     /// <summary>Gets the bytes remaining.</summary>
-    public int Remaining => data.Length - position;
+    public int Remaining => data.Count - position;
 
     /// <summary>Copies the unread payload bytes.</summary>
     /// <returns>The remaining bytes.</returns>
     public byte[] RemainingBytes()
     {
         var rest = new byte[Remaining];
-        Array.Copy(data, position, rest, 0, rest.Length);
+        CopyRange(position, rest, rest.Length);
         return rest;
     }
 
@@ -137,14 +137,28 @@ public sealed class MapChunkCursor
 
     private byte[] ReadRaw(int count)
     {
-        if (count < 0 || count > data.Length - position)
+        if (count < 0 || count > data.Count - position)
         {
-            throw new InvalidDataException($"Read of {count} bytes at {position} exceeds payload of {data.Length} bytes.");
+            throw new InvalidDataException($"Read of {count} bytes at {position} exceeds payload of {data.Count} bytes.");
         }
 
         var result = new byte[count];
-        Array.Copy(data, position, result, 0, count);
+        CopyRange(position, result, count);
         position += count;
         return result;
+    }
+
+    private void CopyRange(int sourceIndex, byte[] destination, int count)
+    {
+        if (data is byte[] bytes)
+        {
+            Array.Copy(bytes, sourceIndex, destination, 0, count);
+            return;
+        }
+
+        for (var i = 0; i < count; i++)
+        {
+            destination[i] = data[sourceIndex + i];
+        }
     }
 }

@@ -89,8 +89,9 @@ public sealed class WbFallbackPreviewTests
         var map = new WorldBuilderMap();
         map.Terrain.Width = 10;
         map.Terrain.Height = 10;
-        map.Terrain.Heights = new byte[100];
-        Array.Fill(map.Terrain.Heights, (byte)20);
+        var heights = new byte[100];
+        Array.Fill(heights, (byte)20);
+        map.Terrain.Heights = heights;
         return map;
     }
 }

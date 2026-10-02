@@ -12,5 +12,5 @@ public sealed class MapPreviewData
     public int Height { get; set; }
 
     /// <summary>Gets or sets the ARGB pixels row by row.</summary>
-    public int[] Pixels { get; set; } = [];
+    public IList<int> Pixels { get; set; } = [];
 }

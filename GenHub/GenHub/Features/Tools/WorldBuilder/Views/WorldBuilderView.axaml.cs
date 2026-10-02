@@ -86,6 +86,8 @@ public partial class WorldBuilderView : UserControl
             vm.RequestRefreshView += OnRequestRefreshView;
             vm.PropertyChanged += OnViewModelPropertyChanged;
         }
+
+        SyncPreexistingDocument();
     }
 
     /// <inheritdoc />
@@ -198,6 +200,7 @@ public partial class WorldBuilderView : UserControl
             vm.RequestResetView += OnRequestResetView;
             vm.RequestRefreshView += OnRequestRefreshView;
             vm.PropertyChanged += OnViewModelPropertyChanged;
+            SyncPreexistingDocument();
         }
     }
 
@@ -257,6 +260,19 @@ public partial class WorldBuilderView : UserControl
             return;
         }
 
+        SyncViewportToMap(map);
+    }
+
+    private void SyncPreexistingDocument()
+    {
+        if (_glViewport != null && DataContext is WorldBuilderViewModel vm && vm.CurrentMap is WorldBuilderMap map)
+        {
+            SyncViewportToMap(map);
+        }
+    }
+
+    private void SyncViewportToMap(WorldBuilderMap map)
+    {
         if (_glViewport != null && DataContext is WorldBuilderViewModel vm)
         {
             _glViewport.Map = map;

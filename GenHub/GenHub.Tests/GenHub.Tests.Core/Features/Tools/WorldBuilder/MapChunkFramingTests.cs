@@ -209,7 +209,7 @@ public sealed class MapChunkFramingTests
         var cursor = new MapChunkCursor([0x01]);
 
         // Act
-        var act = () => cursor.ReadInt();
+        Func<int> act = cursor.ReadInt;
 
         // Assert
         act.Should().Throw<InvalidDataException>();

@@ -867,6 +867,97 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that deleting a road checkpoints first, so the delete is undoable
+    /// and the dirty flag round-trips through undo.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task DeleteRoadSegment_CheckpointsAndUndoes()
+    {
+        // Arrange
+        await OpenScriptMapAsync("roads.map", CreateRoadMap());
+        _viewModel.RoadSegments.Should().ContainSingle();
+        _viewModel.IsDirty.Should().BeFalse();
+
+        // Act
+        _viewModel.SelectedRoadSegment = _viewModel.RoadSegments[0];
+        _viewModel.DeleteRoadSegmentCommand.Execute(null);
+
+        // Assert
+        _viewModel.RoadSegments.Should().BeEmpty();
+        _viewModel.IsDirty.Should().BeTrue();
+        _viewModel.CanUndo.Should().BeTrue();
+
+        // Act
+        _viewModel.UndoCommand.Execute(null);
+
+        // Assert
+        _viewModel.RoadSegments.Should().ContainSingle();
+        _viewModel.IsDirty.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Tests that deleting a bridge checkpoints first, so the delete is undoable
+    /// and the dirty flag round-trips through undo.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task DeleteBridge_CheckpointsAndUndoes()
+    {
+        // Arrange
+        await OpenScriptMapAsync("bridges.map", CreateRoadMap());
+        _viewModel.BridgeSegments.Should().ContainSingle();
+        _viewModel.IsDirty.Should().BeFalse();
+
+        // Act
+        _viewModel.SelectedBridgeSegment = _viewModel.BridgeSegments[0];
+        _viewModel.DeleteBridgeCommand.Execute(null);
+
+        // Assert
+        _viewModel.BridgeSegments.Should().BeEmpty();
+        _viewModel.IsDirty.Should().BeTrue();
+        _viewModel.CanUndo.Should().BeTrue();
+
+        // Act
+        _viewModel.UndoCommand.Execute(null);
+
+        // Assert
+        _viewModel.BridgeSegments.Should().ContainSingle();
+        _viewModel.IsDirty.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Tests that applying lighting checkpoints first, so the change is undoable
+    /// and the dirty flag round-trips through undo.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ApplyLighting_CheckpointsAndUndoes()
+    {
+        // Arrange
+        await OpenScriptMapAsync("lighting.map", CreateRoadMap());
+        _viewModel.IsDirty.Should().BeFalse();
+
+        // Act
+        _viewModel.SelectedTimeOfDayIndex = 3;
+        _viewModel.SelectedWeather = WorldBuilderConstants.WeatherPresets.Snow;
+        _viewModel.ApplyLightingCommand.Execute(null);
+
+        // Assert
+        _viewModel.CurrentMap.Should().NotBeNull();
+        _viewModel.CurrentMap!.Lighting.TimeOfDay.Should().Be(4);
+        _viewModel.IsDirty.Should().BeTrue();
+        _viewModel.CanUndo.Should().BeTrue();
+
+        // Act
+        _viewModel.UndoCommand.Execute(null);
+
+        // Assert
+        _viewModel.CurrentMap!.Lighting.TimeOfDay.Should().Be(0);
+        _viewModel.IsDirty.Should().BeFalse();
+    }
+
+    /// <summary>
     /// Tests that tidying without a companion ini reports the missing file.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
@@ -1129,6 +1220,14 @@ public sealed class WorldBuilderViewModelTests : IDisposable
         list.Scripts.Add(alpha);
         list.Scripts.Add(beta);
         map.Scripts.Add(list);
+        return map;
+    }
+
+    private static WorldBuilderMap CreateRoadMap()
+    {
+        var map = CreateScriptMap();
+        MapOverlayTools.AddRoadSegment(map, new RoadSegment("PavedRoad", 10f, 20f, 0f, 50f, 60f, 0f, IsAngled: false, IsTight: false));
+        MapOverlayTools.AddBridge(map, "BridgeConcrete", 100f, 100f, 200f, 100f);
         return map;
     }
 

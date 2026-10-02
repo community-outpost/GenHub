@@ -100,7 +100,7 @@ public static class MapTerrainTools
     {
         ArgumentNullException.ThrowIfNull(map);
         var terrain = map.Terrain;
-        var source = (byte[])terrain.Heights.Clone();
+        var source = terrain.Heights.ToArray();
         ForDisc(terrain, cx, cy, radius, (x, y, falloff) =>
         {
             var index = (y * terrain.Width) + x;
@@ -586,7 +586,7 @@ public static class MapTerrainTools
 
         var index = (spec.Y * terrain.Width) + spec.X;
         var blendBase = ResolveBlendBase(terrain, spec, index);
-        BlendOrientation orientation;
+        BlendOrientation orientation = default;
         if (spec.SourceY == spec.Y)
         {
             orientation = ClassifyStraightBlend(true, spec.SourceX < spec.X, blendBase.NeedsFlip);
@@ -712,11 +712,11 @@ public static class MapTerrainTools
         }
 
         var classSnapshot = new int[size];
-        Array.Copy(terrain.TileIndices, classSnapshot, size);
+        CopyWidening(terrain.TileIndices, classSnapshot, size);
         var blendSnapshot = new int[size];
-        Array.Copy(terrain.BlendTileIndices, blendSnapshot, size);
+        CopyWidening(terrain.BlendTileIndices, blendSnapshot, size);
         var extraSnapshot = new int[size];
-        Array.Copy(terrain.ExtraBlendTileIndices, extraSnapshot, size);
+        CopyWidening(terrain.ExtraBlendTileIndices, extraSnapshot, size);
         var savedClasses = new List<MapTextureClass>(terrain.TextureClasses);
         terrain.TextureClasses.Clear();
         terrain.BlendTiles.Clear();
@@ -1381,5 +1381,13 @@ public static class MapTerrainTools
         }
 
         return count == 0 ? 0 : total / count;
+    }
+
+    private static void CopyWidening(IList<short> source, int[] destination, int count)
+    {
+        for (var i = 0; i < count; i++)
+        {
+            destination[i] = source[i];
+        }
     }
 }

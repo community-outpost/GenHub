@@ -79,7 +79,7 @@ public static class WbFallbackPreview
 
     private static int SampleHeightByte(MapTerrainData terrain, int x, int y)
     {
-        if (terrain.Width <= 0 || terrain.Height <= 0 || terrain.Heights.Length == 0)
+        if (terrain.Width <= 0 || terrain.Height <= 0 || terrain.Heights.Count == 0)
         {
             return 0;
         }
@@ -87,7 +87,7 @@ public static class WbFallbackPreview
         var clampedX = Math.Clamp(x, 0, terrain.Width - 1);
         var clampedY = Math.Clamp(y, 0, terrain.Height - 1);
         var index = (clampedY * terrain.Width) + clampedX;
-        return index < terrain.Heights.Length ? terrain.Heights[index] : 0;
+        return index < terrain.Heights.Count ? terrain.Heights[index] : 0;
     }
 
     private static void DrawBoundary(int[] pixels, int width, int height, MapTerrainData terrain)

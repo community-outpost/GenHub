@@ -150,10 +150,12 @@ public sealed class WorldBuilderContentServiceTests
 
     private static GameInstallation CreateInstallation(string id, bool hasGenerals, bool hasZeroHour)
     {
-        var installation = new GameInstallation($"/games/{id}", GameInstallationType.Steam);
-        installation.Id = id;
-        installation.HasGenerals = hasGenerals;
-        installation.HasZeroHour = hasZeroHour;
+        var installation = new GameInstallation($"/games/{id}", GameInstallationType.Steam)
+        {
+            Id = id,
+            HasGenerals = hasGenerals,
+            HasZeroHour = hasZeroHour,
+        };
         return installation;
     }
 

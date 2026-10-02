@@ -103,7 +103,7 @@ public sealed class MapCompressionService : IMapCompressionService
         return detected switch
         {
             MapCompression.None => OperationResult<byte[]>.CreateSuccess(data.ToArray()),
-            MapCompression.RefPack => RefPackDecoder.Decode(data.Slice(WorldBuilderConstants.Compression.EnvelopeHeaderSize)),
+            MapCompression.RefPack => RefPackDecoder.Decode(data[WorldBuilderConstants.Compression.EnvelopeHeaderSize..]),
             MapCompression.ZLib => ZLibDecoder.Decode(data),
             _ => OperationResult<byte[]>.CreateFailure($"Unsupported map compression envelope '{EnvelopeName(data)}'. Resave the map uncompressed or RefPack/ZLib."),
         };
@@ -220,13 +220,15 @@ public sealed class MapCompressionService : IMapCompressionService
 
             try
             {
-                var payload = data.Slice(WorldBuilderConstants.Compression.EnvelopeHeaderSize).ToArray();
-                using var input = new MemoryStream(payload, false);
-                input.Position = 2;
+                var payload = data[WorldBuilderConstants.Compression.EnvelopeHeaderSize..].ToArray();
+                using var input = new MemoryStream(payload, false)
+                {
+                    Position = 2,
+                };
                 using var inflater = new DeflateStream(input, CompressionMode.Decompress);
                 var bytes = new byte[declared];
                 var total = 0;
-                int read;
+                var read = 0;
                 while (total < declared && (read = inflater.Read(bytes, total, declared - total)) > 0)
                 {
                     total += read;

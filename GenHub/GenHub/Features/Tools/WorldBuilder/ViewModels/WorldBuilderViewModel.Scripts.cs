@@ -1336,7 +1336,7 @@ public sealed partial class WorldBuilderViewModel
         }
 
         var list = GetScriptListForSide(SelectedScriptSide);
-        var scripts = SelectedScriptGroup != null ? SelectedScriptGroup.Scripts : list.Scripts;
+        var scripts = SelectedScriptGroup?.Scripts ?? list.Scripts;
         var filter = ScriptSearchText?.Trim();
         var sets = ScriptFilterWarnings ? BuildReferenceSets() : null;
 

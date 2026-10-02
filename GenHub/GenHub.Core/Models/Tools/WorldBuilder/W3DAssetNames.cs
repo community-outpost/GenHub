@@ -26,7 +26,7 @@ public static class W3DAssetNames
         var name = modelName.Trim();
         if (name.Length > 0 && name[0] == WorldBuilderConstants.W3D.CachedObjectPrefix)
         {
-            name = name.Substring(1);
+            name = name[1..];
         }
 
         if (name.Length == 0)
@@ -35,7 +35,7 @@ public static class W3DAssetNames
         }
 
         var dot = name.IndexOf('.', StringComparison.Ordinal);
-        var stem = dot < 0 ? name : name.Substring(0, dot);
+        var stem = dot < 0 ? name : name[..dot];
         if (stem.Length == 0)
         {
             return null;
@@ -56,10 +56,10 @@ public static class W3DAssetNames
         var name = modelName.Trim();
         if (name.Length > 0 && name[0] == WorldBuilderConstants.W3D.CachedObjectPrefix)
         {
-            name = name.Substring(1);
+            name = name[1..];
         }
 
         var dot = name.IndexOf('.', StringComparison.Ordinal);
-        return dot < 0 ? name : name.Substring(dot + 1);
+        return dot < 0 ? name : name[(dot + 1)..];
     }
 }

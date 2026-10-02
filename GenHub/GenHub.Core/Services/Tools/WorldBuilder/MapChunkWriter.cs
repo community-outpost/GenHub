@@ -74,10 +74,19 @@ public sealed class MapChunkWriter
 
     /// <summary>Writes raw bytes.</summary>
     /// <param name="value">The bytes.</param>
-    public void WriteBytes(byte[] value)
+    public void WriteBytes(IList<byte> value)
     {
         ArgumentNullException.ThrowIfNull(value);
-        Current().Write(value, 0, value.Length);
+        if (value is byte[] bytes)
+        {
+            Current().Write(bytes, 0, bytes.Length);
+            return;
+        }
+
+        for (var i = 0; i < value.Count; i++)
+        {
+            Current().WriteByte(value[i]);
+        }
     }
 
     /// <summary>Writes a length-prefixed ASCII string.</summary>

@@ -217,12 +217,12 @@ public sealed class MapTexturePaintTests
     private static void AssertValidTerrain(MapTerrainData terrain)
     {
         Assert.Equal(terrain.BlendTiles.Count, terrain.NumBlendedTiles);
-        for (var i = 0; i < terrain.TileIndices.Length; i++)
+        for (var i = 0; i < terrain.TileIndices.Count; i++)
         {
             Assert.True(MapTerrainTools.GetTextureClassFromNdx(terrain, terrain.TileIndices[i]) >= 0);
         }
 
-        for (var i = 0; i < terrain.BlendTileIndices.Length; i++)
+        for (var i = 0; i < terrain.BlendTileIndices.Count; i++)
         {
             Assert.InRange(terrain.BlendTileIndices[i], 0, terrain.BlendTiles.Count - 1);
             Assert.InRange(terrain.ExtraBlendTileIndices[i], 0, terrain.BlendTiles.Count - 1);

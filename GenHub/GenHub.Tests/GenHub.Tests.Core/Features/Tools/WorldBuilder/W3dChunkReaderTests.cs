@@ -52,7 +52,7 @@ public sealed class W3dChunkReaderTests
         Assert.Equal(WorldBuilderConstants.W3D.ChunkMesh, mesh.Type);
         Assert.Equal(2, mesh.Children.Count);
         Assert.Equal(WorldBuilderConstants.W3D.MeshVertices, mesh.Children[0].Type);
-        Assert.Equal(24, mesh.Children[0].Payload.Length);
+        Assert.Equal(24, mesh.Children[0].Payload.Count);
         var textures = mesh.Children[1];
         Assert.Equal(WorldBuilderConstants.W3D.MeshTextures, textures.Type);
         var texture = Assert.Single(textures.Children);

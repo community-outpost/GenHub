@@ -195,7 +195,7 @@ public sealed class WbModelRenderService(
             return null;
         }
 
-        var id = stage.TextureIds.Length > 0 ? stage.TextureIds[0] % (uint)mesh.TextureNames.Count : 0;
+        var id = stage.TextureIds.Count > 0 ? stage.TextureIds[0] % (uint)mesh.TextureNames.Count : 0;
         return mesh.TextureNames[(int)id];
     }
 
@@ -203,7 +203,7 @@ public sealed class WbModelRenderService(
     {
         var position = Vector3.Transform(mesh.Vertices[i], world);
         var normal = Vector3.UnitZ;
-        if (mesh.Normals.Length == count)
+        if (mesh.Normals.Count == count)
         {
             var rotated = Vector3.TransformNormal(mesh.Normals[i], world);
             if (rotated.LengthSquared() > float.Epsilon)
@@ -212,9 +212,9 @@ public sealed class WbModelRenderService(
             }
         }
 
-        var uv = stage != null && stage.TexCoords.Length == count ? stage.TexCoords[i] : Vector2.Zero;
+        var uv = stage != null && stage.TexCoords.Count == count ? stage.TexCoords[i] : Vector2.Zero;
         var material = ResolveMaterial(mesh, pass, i, count);
-        var baked = pass.Diffuse.Length == count ? pass.Diffuse[i] : White;
+        var baked = pass.Diffuse.Count == count ? pass.Diffuse[i] : White;
         var offset = i * WbModelDraw.StrideFloats;
         vertices[offset] = position.X;
         vertices[offset + 1] = position.Y;
@@ -238,11 +238,11 @@ public sealed class WbModelRenderService(
         }
 
         uint id = 0;
-        if (pass.VertexMaterialIds.Length == count)
+        if (pass.VertexMaterialIds.Count == count)
         {
             id = pass.VertexMaterialIds[vertex] % (uint)mesh.Materials.Count;
         }
-        else if (pass.VertexMaterialIds.Length > 0)
+        else if (pass.VertexMaterialIds.Count > 0)
         {
             id = pass.VertexMaterialIds[0] % (uint)mesh.Materials.Count;
         }
@@ -341,13 +341,13 @@ public sealed class WbModelRenderService(
 
     private async Task<WbModelDraw?> BuildDrawAsync(W3dMesh mesh, W3dMaterialPass pass, Matrix4x4 world, CancellationToken cancellationToken)
     {
-        if (mesh.Vertices.Length == 0 || mesh.Triangles.Length == 0)
+        if (mesh.Vertices.Count == 0 || mesh.Triangles.Count == 0)
         {
             return null;
         }
 
         var shader = OpaqueShader;
-        var shaderId = pass.ShaderIds.Length > 0 ? pass.ShaderIds[0] : 0;
+        var shaderId = pass.ShaderIds.Count > 0 ? pass.ShaderIds[0] : 0;
         if (shaderId < (uint)mesh.Shaders.Count)
         {
             shader = mesh.Shaders[(int)shaderId];
@@ -359,14 +359,14 @@ public sealed class WbModelRenderService(
         var texture = state.Textured && textureName != null
             ? await ResolveTextureAsync(textureName, cancellationToken).ConfigureAwait(false)
             : null;
-        var count = mesh.Vertices.Length;
+        var count = mesh.Vertices.Count;
         var vertices = new float[count * WbModelDraw.StrideFloats];
         for (var i = 0; i < count; i++)
         {
             WriteVertex(vertices, i, mesh, pass, stage, world, count);
         }
 
-        var indices = new List<uint>(mesh.Triangles.Length * 3);
+        var indices = new List<uint>(mesh.Triangles.Count * 3);
         foreach (var triangle in mesh.Triangles)
         {
             if (triangle.V0 < (uint)count && triangle.V1 < (uint)count && triangle.V2 < (uint)count)
@@ -384,7 +384,7 @@ public sealed class WbModelRenderService(
 
         return new WbModelDraw(
             vertices,
-            [.. indices],
+            indices.ToArray(),
             textureName,
             texture,
             state,

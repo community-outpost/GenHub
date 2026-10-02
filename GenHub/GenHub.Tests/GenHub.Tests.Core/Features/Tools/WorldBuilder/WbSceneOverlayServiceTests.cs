@@ -27,12 +27,12 @@ public sealed class WbSceneOverlayServiceTests
         var lines = WbSceneOverlayService.Build(map, MapCanvasLayers.Waypoints);
 
         Assert.Equal(2 * WbOverlayLines.StrideFloats, lines.Vertices.Length);
-        Assert.Equal(10.0f, lines.Vertices[0]);
-        Assert.Equal(20.0f, lines.Vertices[1]);
-        Assert.Equal(30.0f, lines.Vertices[WbOverlayLines.StrideFloats]);
-        Assert.Equal(1.0f, lines.Vertices[3]);
-        Assert.Equal(1.0f, lines.Vertices[4]);
-        Assert.Equal(0.0f, lines.Vertices[5]);
+        Assert.Equal(10.0f, lines.Vertices.Span[0]);
+        Assert.Equal(20.0f, lines.Vertices.Span[1]);
+        Assert.Equal(30.0f, lines.Vertices.Span[WbOverlayLines.StrideFloats]);
+        Assert.Equal(1.0f, lines.Vertices.Span[3]);
+        Assert.Equal(1.0f, lines.Vertices.Span[4]);
+        Assert.Equal(0.0f, lines.Vertices.Span[5]);
     }
 
     /// <summary>
@@ -47,7 +47,7 @@ public sealed class WbSceneOverlayServiceTests
 
         var lines = WbSceneOverlayService.Build(map, MapCanvasLayers.Waypoints);
 
-        Assert.Empty(lines.Vertices);
+        Assert.Equal(0, lines.Vertices.Length);
     }
 
     /// <summary>
@@ -62,7 +62,7 @@ public sealed class WbSceneOverlayServiceTests
         var lines = WbSceneOverlayService.Build(map, MapCanvasLayers.Boundary);
 
         Assert.Equal(8 * WbOverlayLines.StrideFloats, lines.Vertices.Length);
-        Assert.Equal(0xE0 / 255.0f, lines.Vertices[3]);
+        Assert.Equal(0xE0 / 255.0f, lines.Vertices.Span[3]);
     }
 
     /// <summary>
@@ -81,8 +81,8 @@ public sealed class WbSceneOverlayServiceTests
         var lines = WbSceneOverlayService.Build(map, MapCanvasLayers.Triggers);
 
         Assert.Equal(6 * WbOverlayLines.StrideFloats, lines.Vertices.Length);
-        Assert.Equal(1.0f, lines.Vertices[3]);
-        Assert.Equal(0.0f, lines.Vertices[4]);
+        Assert.Equal(1.0f, lines.Vertices.Span[3]);
+        Assert.Equal(0.0f, lines.Vertices.Span[4]);
     }
 
     /// <summary>
@@ -94,7 +94,7 @@ public sealed class WbSceneOverlayServiceTests
         var map = CreateMap();
         map.Objects.Add(Waypoint(1, 10, 20));
 
-        Assert.Empty(WbSceneOverlayService.Build(map, MapCanvasLayers.None).Vertices);
+        Assert.Equal(0, WbSceneOverlayService.Build(map, MapCanvasLayers.None).Vertices.Length);
     }
 
     private static WorldBuilderMap CreateMap()

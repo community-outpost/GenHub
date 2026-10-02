@@ -9,7 +9,10 @@ namespace GenHub.Core.Services.Tools.WorldBuilder;
 /// <summary>
 /// EA RefPack (10FB family) decompressor.
 /// Implements the EA SAGE engine RefPack dialect used in Command &amp; Conquer: Generals and Zero Hour
-/// maps and BIG archives. Mirrors the engine REF_decode opcode forms with strict bounds checking:
+/// maps and BIG archives. Mirrors the engine REF_decode opcode forms with strict bounds checking.
+/// Field order and opcode semantics match EA's official refdecode.cpp
+/// (electronicarts/CnC_Generals_Zero_Hour, Compression/EAC): the 0x01 flag means a compressed
+/// size precedes the uncompressed size, and the stop form carries (first &amp; 3) trailing literals:
 /// 2-byte header (0x10FB/0x11FB/0x90FB/0x91FB), 3-byte or 4-byte uncompressed size, 0x00..0x7F 2-byte
 /// short copy (0..3 literals, 3..10 copy length, 0..1023 offset), 0x80..0xBF 3-byte medium copy (0..3
 /// literals, 4..67 copy length, 0..16383 offset), 0xC0..0xDF 4-byte long copy (0..3 literals, 5..1028 copy

@@ -68,7 +68,7 @@ public sealed class GameAssetFileSystem(IGameInstallationService installations, 
     public async Task<OperationResult<byte[]>> ReadAllBytesAsync(string virtualPath, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(virtualPath);
-        AssetSource? source;
+        AssetSource? source = null;
         lock (_syncLock)
         {
             _files.TryGetValue(NormalizeVirtualPath(virtualPath), out source);
@@ -108,10 +108,9 @@ public sealed class GameAssetFileSystem(IGameInstallationService installations, 
         ArgumentNullException.ThrowIfNull(pattern);
         var prefix = NormalizeDirectoryPrefix(virtualDir);
         var loweredPattern = pattern.ToLowerInvariant();
-        List<string> matches;
+        List<string> matches = [];
         lock (_syncLock)
         {
-            matches = [];
             foreach (var (key, source) in _files)
             {
                 if (IsListMatch(key, prefix, loweredPattern, recurse))
@@ -181,7 +180,7 @@ public sealed class GameAssetFileSystem(IGameInstallationService installations, 
             return false;
         }
 
-        var rest = key.Substring(prefix.Length);
+        var rest = key[prefix.Length..];
         if (rest.Length == 0)
         {
             return false;
@@ -193,7 +192,7 @@ public sealed class GameAssetFileSystem(IGameInstallationService installations, 
             return false;
         }
 
-        var fileName = separator >= 0 ? rest.Substring(separator + 1) : rest;
+        var fileName = separator >= 0 ? rest[(separator + 1)..] : rest;
         return WildcardMatch(fileName, loweredPattern);
     }
 

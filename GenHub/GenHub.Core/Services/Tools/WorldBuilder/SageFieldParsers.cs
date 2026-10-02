@@ -152,7 +152,7 @@ internal static class SageFieldParsers
         var trimmed = value.Trim();
         if (trimmed.EndsWith('%'))
         {
-            var percent = ParseFloat(trimmed.Substring(0, trimmed.Length - 1));
+            var percent = ParseFloat(trimmed[..^1]);
             return percent is null ? null : percent / 100.0f;
         }
 
@@ -203,8 +203,8 @@ internal static class SageFieldParsers
         }
 
         var joined = string.Join(' ', values);
-        var stripped = joined.Length > 1 ? joined.Substring(1) : string.Empty;
-        return stripped.Length > 0 && stripped.EndsWith('"') ? stripped.Substring(0, stripped.Length - 1) : stripped;
+        var stripped = joined.Length > 1 ? joined[1..] : string.Empty;
+        return stripped.Length > 0 && stripped.EndsWith('"') ? stripped[..^1] : stripped;
     }
 
     private static string StripChannelPrefix(string token)
@@ -212,7 +212,7 @@ internal static class SageFieldParsers
         var separator = token.IndexOf(':');
         if (separator >= 0 && separator + 1 < token.Length)
         {
-            return token.Substring(separator + 1);
+            return token[(separator + 1)..];
         }
 
         if (token.Length == 1 && char.IsLetter(token[0]))

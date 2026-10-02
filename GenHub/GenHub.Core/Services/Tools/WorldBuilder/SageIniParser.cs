@@ -96,10 +96,7 @@ public sealed class SageIniParser(ILogger<SageIniParser> logger)
         var started = Stopwatch.GetTimestamp();
         var session = new ParseSession(options);
         var failure = await ExpandIncludesAsync(session, text, sourceName, [sourceName], cancellationToken).ConfigureAwait(false);
-        if (failure is null)
-        {
-            failure = ParseBlocks(session, cancellationToken);
-        }
+        failure ??= ParseBlocks(session, cancellationToken);
 
         if (failure is not null)
         {
@@ -120,12 +117,12 @@ public sealed class SageIniParser(ILogger<SageIniParser> logger)
     {
         if (text.StartsWith('\uFEFF'))
         {
-            return text.Substring(1);
+            return text[1..];
         }
 
         if (text.StartsWith("\u00EF\u00BB\u00BF", StringComparison.Ordinal))
         {
-            return text.Substring(3);
+            return text[3..];
         }
 
         return text;
@@ -173,6 +170,24 @@ public sealed class SageIniParser(ILogger<SageIniParser> logger)
                 HasWildcard: true,
                 SageIniConstants.ModuleOpeners.All,
                 NestedScopeOpeners: SageIniConstants.ObjectNestedScopes.All);
+        }
+
+        if (token.Equals(SageIniConstants.BlockTokens.FXList, StringComparison.Ordinal))
+        {
+            return new SageIniFieldTable(
+                new HashSet<string>(StringComparer.Ordinal),
+                HasWildcard: true,
+                new HashSet<string>(StringComparer.Ordinal),
+                NestedScopeOpeners: SageIniConstants.FxListScopes.All);
+        }
+
+        if (token.Equals(SageIniConstants.BlockTokens.ObjectCreationList, StringComparison.Ordinal))
+        {
+            return new SageIniFieldTable(
+                new HashSet<string>(StringComparer.Ordinal),
+                HasWildcard: true,
+                new HashSet<string>(StringComparer.Ordinal),
+                NestedScopeOpeners: SageIniConstants.ObjectCreationListScopes.All);
         }
 
         return new SageIniFieldTable(
@@ -309,6 +324,11 @@ public sealed class SageIniParser(ILogger<SageIniParser> logger)
 
         session.UnrecognizedBlocks.Add(new SageIniSkippedBlock(line.DisplayText, line.SourceFile, line.LineNumber, $"Token '{token}' is not in the block table."));
         session.Index++;
+        if (IsEndToken(token))
+        {
+            return null;
+        }
+
         SkipToEnd(session);
         return null;
     }
@@ -751,7 +771,7 @@ public sealed class SageIniParser(ILogger<SageIniParser> logger)
     private static string ProcessLine(ParseSession session, string raw, string fileName, int lineNumber)
     {
         var comment = raw.IndexOf(SageIniConstants.Grammar.Comment);
-        var content = comment >= 0 ? raw.Substring(0, comment) : raw;
+        var content = comment >= 0 ? raw[..comment] : raw;
         if (content.Length > SageIniConstants.Grammar.MaxCharsPerLine)
         {
             AddDiagnostic(session, SageIniDiagnosticLevel.Warning, fileName, lineNumber, $"Line exceeds {SageIniConstants.Grammar.MaxCharsPerLine} characters.");

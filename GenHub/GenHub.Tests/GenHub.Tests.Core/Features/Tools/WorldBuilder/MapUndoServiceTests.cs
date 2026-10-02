@@ -122,7 +122,7 @@ public sealed class MapUndoServiceTests
         Assert.Equal(64, map.Terrain.NumBitmapTiles);
         var textureClass = Assert.Single(map.Terrain.TextureClasses);
         Assert.Equal("Grass", textureClass.Name);
-        Assert.Equal(16, map.Terrain.Heights.Length);
+        Assert.Equal(16, map.Terrain.Heights.Count);
     }
 
     /// <summary>
@@ -163,8 +163,9 @@ public sealed class MapUndoServiceTests
         var map = new WorldBuilderMap();
         map.Terrain.Width = 4;
         map.Terrain.Height = 4;
-        map.Terrain.Heights = new byte[16];
-        Array.Fill(map.Terrain.Heights, (byte)20);
+        var heights = new byte[16];
+        Array.Fill(heights, (byte)20);
+        map.Terrain.Heights = heights;
         map.Terrain.TileIndices = new short[16];
         map.Terrain.BlendTileIndices = new short[16];
         map.Terrain.ExtraBlendTileIndices = new short[16];

@@ -11,6 +11,7 @@ using GenHub.Features.Tools.WorldBuilder.Controls;
 using GenHub.Features.Tools.WorldBuilder.Rendering;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -108,7 +109,7 @@ public sealed partial class WorldBuilderViewModel
     private (Point Start, Point End)? activeLinePreview;
 
     [ObservableProperty]
-    private byte[]? mapTerrainHeights;
+    private IList<byte>? mapTerrainHeights;
 
     [ObservableProperty]
     private bool renderer3DAvailable = true;
@@ -742,6 +743,7 @@ public sealed partial class WorldBuilderViewModel
                 break;
 
             default:
+                // Non-continuous tools are dispatched by their own handlers.
                 return;
         }
 
@@ -800,6 +802,7 @@ public sealed partial class WorldBuilderViewModel
                 break;
 
             default:
+                // Continuous tools never reach the two-point dispatcher.
                 break;
         }
     }
@@ -978,6 +981,7 @@ public sealed partial class WorldBuilderViewModel
                 break;
 
             default:
+                // Sculpt and two-point tools are dispatched by their own handlers.
                 break;
         }
     }
@@ -990,12 +994,12 @@ public sealed partial class WorldBuilderViewModel
         }
 
         var cellIndex = (cellY * _map.Terrain.Width) + cellX;
-        if (cellIndex >= 0 && cellIndex < _map.Terrain.Heights.Length)
+        if (cellIndex >= 0 && cellIndex < _map.Terrain.Heights.Count)
         {
             BrushHeight = _map.Terrain.Heights[cellIndex];
         }
 
-        if (cellIndex >= 0 && cellIndex < _map.Terrain.TileIndices.Length)
+        if (cellIndex >= 0 && cellIndex < _map.Terrain.TileIndices.Count)
         {
             var tileId = _map.Terrain.TileIndices[cellIndex];
             var classIndex = MapTerrainTools.GetTextureClassFromNdx(_map.Terrain, tileId);

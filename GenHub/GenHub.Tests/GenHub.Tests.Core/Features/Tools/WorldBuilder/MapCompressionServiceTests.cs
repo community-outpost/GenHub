@@ -327,6 +327,26 @@ public sealed class MapCompressionServiceTests
     }
 
     /// <summary>
+    /// Tests RefPack opcode forms against vectors decoded independently with the
+    /// niotso-reading oracle (nfs-resources-converter RefPack), plus the 0x11FB
+    /// header order taken from EA's official refdecode.cpp, so the suite does
+    /// not rely solely on self-authored streams.
+    /// </summary>
+    /// <param name="payload">The RefPack payload starting at the 10FB-family marker.</param>
+    /// <param name="expected">The expected decompressed bytes.</param>
+    [Theory]
+    [MemberData(nameof(OracleVerifiedRefPackVectors))]
+    public void Decompress_OracleVerifiedRefPackVector_MatchesIndependentDecoder(byte[] payload, byte[] expected)
+    {
+        // Act
+        var result = sut.Decompress(Envelop(payload));
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data.Should().Equal(expected);
+    }
+
+    /// <summary>
     /// Tests that truncated RefPack input fails cleanly instead of overrunning.
     /// </summary>
     [Fact]
@@ -545,6 +565,43 @@ public sealed class MapCompressionServiceTests
         reader.CopyTo(decoded);
         decoded.ToArray().Should().Equal(raw);
     }
+
+    /// <summary>
+    /// Gets RefPack streams whose expected outputs were produced by the independent oracle.
+    /// </summary>
+    public static TheoryData<byte[], byte[]> OracleVerifiedRefPackVectors => new()
+    {
+        // Literal run plus a one-byte stop tail: "Hello, World!".
+        {
+            [0x10, 0xFB, 0x00, 0x00, 0x0D, 0xE2, 0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x2C, 0x20, 0x57, 0x6F, 0x72, 0x6C, 0x64, 0xFD, 0x21],
+            [0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x2C, 0x20, 0x57, 0x6F, 0x72, 0x6C, 0x64, 0x21]
+        },
+
+        // Short copy: "ABAB" then length 3 at offset 1.
+        {
+            [0x10, 0xFB, 0x00, 0x00, 0x07, 0xE0, 0x41, 0x42, 0x41, 0x42, 0x00, 0x01, 0xFC],
+            [0x41, 0x42, 0x41, 0x42, 0x41, 0x42, 0x41]
+        },
+
+        // Int copy: "WXYZ" then length 4 at offset 3.
+        {
+            [0x10, 0xFB, 0x00, 0x00, 0x08, 0xE0, 0x57, 0x58, 0x59, 0x5A, 0x80, 0x00, 0x03, 0xFC],
+            [0x57, 0x58, 0x59, 0x5A, 0x57, 0x58, 0x59, 0x5A]
+        },
+
+        // Long copy: "1234" then length 5 at offset 3.
+        {
+            [0x10, 0xFB, 0x00, 0x00, 0x09, 0xE0, 0x31, 0x32, 0x33, 0x34, 0xC0, 0x00, 0x03, 0x00, 0xFC],
+            [0x31, 0x32, 0x33, 0x34, 0x31, 0x32, 0x33, 0x34, 0x31]
+        },
+
+        // 0x11FB header: compressed size precedes the uncompressed size per EA refdecode,
+        // then literals plus a three-byte stop tail.
+        {
+            [0x11, 0xFB, 0x00, 0x00, 0x09, 0x00, 0x00, 0x07, 0xE0, 0x61, 0x62, 0x63, 0x64, 0xFF, 0x58, 0x59, 0x5A],
+            [0x61, 0x62, 0x63, 0x64, 0x58, 0x59, 0x5A]
+        },
+    };
 
     private static byte[] Envelop(byte[] payload)
     {

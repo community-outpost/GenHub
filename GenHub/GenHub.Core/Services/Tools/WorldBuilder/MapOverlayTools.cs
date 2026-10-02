@@ -620,7 +620,7 @@ public static class MapOverlayTools
     {
         var cell = MapCoordinates.WorldToCell(map.Terrain.BorderSize, x, y, map.Terrain.Width, map.Terrain.Height);
         var index = (cell.Y * map.Terrain.Width) + cell.X;
-        if (index < 0 || index >= map.Terrain.Heights.Length)
+        if (index < 0 || index >= map.Terrain.Heights.Count)
         {
             return 0;
         }

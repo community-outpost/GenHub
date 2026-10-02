@@ -176,7 +176,7 @@ public static class WbTerrainMesh
         var clampedX = Math.Clamp(x, 0, terrain.Width - 1);
         var clampedY = Math.Clamp(y, 0, terrain.Height - 1);
         var index = (clampedY * terrain.Width) + clampedX;
-        return index < terrain.Heights.Length
+        return index < terrain.Heights.Count
             ? terrain.Heights[index] * WorldBuilderConstants.Terrain.HeightScale
             : 0.0f;
     }

@@ -65,11 +65,11 @@ public sealed class MapChunkReader
     /// </summary>
     /// <param name="payload">Payload bytes.</param>
     /// <returns>The child chunks.</returns>
-    public IReadOnlyList<MapChunkNode> ParseChildren(byte[] payload)
+    public IReadOnlyList<MapChunkNode> ParseChildren(IList<byte> payload)
     {
         ArgumentNullException.ThrowIfNull(payload);
         var children = new List<MapChunkNode>();
-        var cursor = new ChunkHeaderCursor(payload);
+        var cursor = new ChunkHeaderCursor(payload is byte[] bytes ? bytes : [.. payload]);
         while (!cursor.AtEnd)
         {
             children.Add(cursor.ReadNode(names));

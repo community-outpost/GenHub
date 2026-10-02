@@ -42,11 +42,11 @@ public sealed class WbModelRenderServiceTests
         Assert.NotNull(result.Data);
         var draw = Assert.Single(result.Data!.Draws);
         Assert.Equal(3 * WbModelDraw.StrideFloats, draw.Vertices.Length);
-        Assert.Equal([0u, 1u, 2u], draw.Indices);
-        Assert.Equal(10.0f, draw.Vertices[0]);
-        Assert.Equal(20.0f, draw.Vertices[1]);
-        Assert.Equal(5.0f, draw.Vertices[2]);
-        Assert.Equal(1.0f, draw.Vertices[5]);
+        Assert.Equal([0u, 1u, 2u], draw.Indices.ToArray());
+        Assert.Equal(10.0f, draw.Vertices.Span[0]);
+        Assert.Equal(20.0f, draw.Vertices.Span[1]);
+        Assert.Equal(5.0f, draw.Vertices.Span[2]);
+        Assert.Equal(1.0f, draw.Vertices.Span[5]);
         Assert.Equal("Tank.tga", draw.TextureName);
         Assert.NotNull(draw.Texture);
         Assert.False(draw.State.BlendEnabled);
@@ -80,7 +80,7 @@ public sealed class WbModelRenderServiceTests
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         var draw = Assert.Single(result.Data!.Draws);
-        Assert.Equal(25.0f, draw.Vertices[1]);
+        Assert.Equal(25.0f, draw.Vertices.Span[1]);
     }
 
     /// <summary>

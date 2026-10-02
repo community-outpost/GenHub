@@ -129,8 +129,9 @@ public sealed class MapPreviewServiceTests
         map.Terrain.Width = 128;
         map.Terrain.Height = 128;
         map.Terrain.BorderSize = 4;
-        map.Terrain.Heights = new byte[128 * 128];
-        Array.Fill(map.Terrain.Heights, height);
+        var heights = new byte[128 * 128];
+        Array.Fill(heights, height);
+        map.Terrain.Heights = heights;
         return map;
     }
 

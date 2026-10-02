@@ -100,8 +100,8 @@ public sealed class SageIniDatabase(SageIniParser parser, ILogger<SageIniDatabas
             return OperationResult<MapIniLoadReport>.CreateFailure($"Could not read map.ini at {mapIniPath}.", Stopwatch.GetElapsedTime(started));
         }
 
-        Dictionary<string, SageIniBlock> known;
-        Dictionary<string, Dictionary<string, SageIniBlock>> merged;
+        Dictionary<string, SageIniBlock> known = [];
+        Dictionary<string, Dictionary<string, SageIniBlock>> merged = [];
         lock (_syncLock)
         {
             merged = CopyStore(_subsystemBlocks);
@@ -238,7 +238,7 @@ public sealed class SageIniDatabase(SageIniParser parser, ILogger<SageIniDatabas
         var nested = new List<string>();
         foreach (var file in listed)
         {
-            var relative = file.Length > directory.Length ? file.Substring(directory.Length).TrimStart('\\', '/') : file;
+            var relative = file.Length > directory.Length ? file[directory.Length..].TrimStart('\\', '/') : file;
             if (relative.Contains('\\') || relative.Contains('/'))
             {
                 nested.Add(file);
@@ -324,7 +324,7 @@ public sealed class SageIniDatabase(SageIniParser parser, ILogger<SageIniDatabas
 
         var directory = NormalizeVirtualPath(includingFile);
         var separator = directory.LastIndexOf(WorldBuilderDataConstants.Separators.Virtual);
-        var baseDir = separator >= 0 ? directory.Substring(0, separator) : string.Empty;
+        var baseDir = separator >= 0 ? directory[..separator] : string.Empty;
         return CollapseVirtualPath(string.IsNullOrEmpty(baseDir) ? normalized : string.Concat(baseDir, WorldBuilderDataConstants.Separators.Virtual, normalized));
     }
 
@@ -362,6 +362,19 @@ public sealed class SageIniDatabase(SageIniParser parser, ILogger<SageIniDatabas
     private static string AttemptedPaths(SubsystemRow row)
     {
         return row.FallbackDir is null ? row.OverrideDir : string.Concat(row.FallbackDir, ", ", row.OverrideDir);
+    }
+
+    private static void AddSkipDiagnostics(List<SageIniDiagnostic> diagnostics, SageIniDocument document)
+    {
+        foreach (var skipped in document.SkippedBlocks)
+        {
+            diagnostics.Add(new SageIniDiagnostic(SageIniDiagnosticLevel.Warning, skipped.SourceFile, skipped.LineNumber, $"Skipped block '{skipped.HeaderLine}': {skipped.Reason}."));
+        }
+
+        foreach (var unrecognized in document.UnrecognizedBlocks)
+        {
+            diagnostics.Add(new SageIniDiagnostic(SageIniDiagnosticLevel.Warning, unrecognized.SourceFile, unrecognized.LineNumber, $"Unknown block '{unrecognized.HeaderLine}': {unrecognized.Reason}."));
+        }
     }
 
     private async Task<SageIniLoadReport.SubsystemLoadEntry> LoadSubsystemAsync(
@@ -410,7 +423,7 @@ public sealed class SageIniDatabase(SageIniParser parser, ILogger<SageIniDatabas
             return -1;
         }
 
-        var options = new SageIniParseOptions(KnownBlocks: BuildKnownBlocks(merged), IncludeReader: CreateVfsIncludeReader(fileSystem));
+        var options = new SageIniParseOptions(KnownBlocks: BuildKnownBlocks(merged), TolerateBlockFailures: true, IncludeReader: CreateVfsIncludeReader(fileSystem));
         var parsed = await parser.ParseAsync(DecodeIniText(bytes.Data), virtualPath, options, cancellationToken).ConfigureAwait(false);
         if (!parsed.Success || parsed.Data is null)
         {
@@ -420,6 +433,7 @@ public sealed class SageIniDatabase(SageIniParser parser, ILogger<SageIniDatabas
         }
 
         diagnostics.AddRange(parsed.Data.Diagnostics);
+        AddSkipDiagnostics(diagnostics, parsed.Data);
         foreach (var block in parsed.Data.Blocks)
         {
             cancellationToken.ThrowIfCancellationRequested();

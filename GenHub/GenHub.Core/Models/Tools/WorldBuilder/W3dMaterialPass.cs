@@ -11,7 +11,7 @@ namespace GenHub.Core.Models.Tools.WorldBuilder;
 /// <param name="Diffuse">Per-vertex diffuse colors; empty when absent.</param>
 /// <param name="Stages">Texture stages in order.</param>
 public sealed record W3dMaterialPass(
-    uint[] VertexMaterialIds,
-    uint[] ShaderIds,
-    W3dRgba[] Diffuse,
+    IList<uint> VertexMaterialIds,
+    IList<uint> ShaderIds,
+    IList<W3dRgba> Diffuse,
     IReadOnlyList<W3dTextureStage> Stages);

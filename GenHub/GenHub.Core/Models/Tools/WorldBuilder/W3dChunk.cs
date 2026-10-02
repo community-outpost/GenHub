@@ -10,4 +10,4 @@ namespace GenHub.Core.Models.Tools.WorldBuilder;
 /// <param name="Type">The chunk type id.</param>
 /// <param name="Payload">The raw payload bytes (size field with the flag bit masked off).</param>
 /// <param name="Children">Sub-chunks in file order; empty for leaves and unknown containers.</param>
-public sealed record W3dChunk(uint Type, byte[] Payload, IReadOnlyList<W3dChunk> Children);
+public sealed record W3dChunk(uint Type, IList<byte> Payload, IReadOnlyList<W3dChunk> Children);

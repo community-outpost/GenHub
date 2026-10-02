@@ -89,14 +89,15 @@ public static class W3dModelExtractor
     private static W3dMesh? ExtractMesh(W3dChunk chunk)
     {
         var header = chunk.Children.FirstOrDefault(c => c.Type == WorldBuilderConstants.W3D.MeshHeader3);
-        if (header == null || header.Payload.Length < MeshHeaderSize)
+        if (header == null || header.Payload.Count < MeshHeaderSize)
         {
             return null;
         }
 
-        var name = ReadFixedName(header.Payload, 8, NameSize);
-        var container = ReadFixedName(header.Payload, 24, NameSize);
-        var attributes = BinaryPrimitives.ReadUInt32LittleEndian(header.Payload.AsSpan(4, 4));
+        var headerBytes = AsArray(header.Payload);
+        var name = ReadFixedName(headerBytes, 8, NameSize);
+        var container = ReadFixedName(headerBytes, 24, NameSize);
+        var attributes = BinaryPrimitives.ReadUInt32LittleEndian(headerBytes.AsSpan(4, 4));
         return new W3dMesh(
             name,
             container,
@@ -112,7 +113,13 @@ public static class W3dModelExtractor
 
     private static byte[] Find(W3dChunk chunk, uint type)
     {
-        return chunk.Children.FirstOrDefault(c => c.Type == type)?.Payload ?? [];
+        var payload = chunk.Children.FirstOrDefault(c => c.Type == type)?.Payload;
+        return payload is null ? [] : AsArray(payload);
+    }
+
+    private static byte[] AsArray(IList<byte> payload)
+    {
+        return payload is byte[] bytes ? bytes : [.. payload];
     }
 
     private static Vector3[] ReadVectors(byte[] payload)
@@ -174,11 +181,12 @@ public static class W3dModelExtractor
     private static W3dVertexMaterial ReadMaterial(W3dChunk material)
     {
         var name = string.Empty;
-        var info = material.Children.FirstOrDefault(c => c.Type == WorldBuilderConstants.W3D.MeshVertexMaterialInfo)?.Payload ?? [];
+        var infoPayload = material.Children.FirstOrDefault(c => c.Type == WorldBuilderConstants.W3D.MeshVertexMaterialInfo)?.Payload;
+        var info = infoPayload is null ? [] : AsArray(infoPayload);
         var nameChunk = material.Children.FirstOrDefault(c => c.Type == WorldBuilderConstants.W3D.MeshVertexMaterialName);
         if (nameChunk != null)
         {
-            name = ReadNulName(nameChunk.Payload);
+            name = ReadNulName(AsArray(nameChunk.Payload));
         }
 
         if (info.Length < VertexMaterialInfoSize)
@@ -253,7 +261,7 @@ public static class W3dModelExtractor
             var name = texture.Children.FirstOrDefault(c => c.Type == WorldBuilderConstants.W3D.MeshTextureName);
             if (name != null)
             {
-                result.Add(ReadNulName(name.Payload));
+                result.Add(ReadNulName(AsArray(name.Payload)));
             }
         }
 
@@ -323,8 +331,8 @@ public static class W3dModelExtractor
     private static W3dHierarchy ExtractHierarchy(W3dChunk chunk)
     {
         var header = chunk.Children.FirstOrDefault(c => c.Type == WorldBuilderConstants.W3D.HierarchyHeader);
-        var name = header != null && header.Payload.Length >= HierarchyHeaderSize
-            ? ReadFixedName(header.Payload, 4, NameSize)
+        var name = header != null && header.Payload.Count >= HierarchyHeaderSize
+            ? ReadFixedName(AsArray(header.Payload), 4, NameSize)
             : string.Empty;
         var pivots = Find(chunk, WorldBuilderConstants.W3D.HierarchyPivots);
         var count = pivots.Length / PivotSize;
@@ -355,10 +363,11 @@ public static class W3dModelExtractor
         var header = chunk.Children.FirstOrDefault(c => c.Type == WorldBuilderConstants.W3D.HlodHeader);
         var model = string.Empty;
         var hierarchy = string.Empty;
-        if (header != null && header.Payload.Length >= HlodHeaderSize)
+        if (header != null && header.Payload.Count >= HlodHeaderSize)
         {
-            model = ReadFixedName(header.Payload, 8, NameSize);
-            hierarchy = ReadFixedName(header.Payload, 24, NameSize);
+            var headerBytes = AsArray(header.Payload);
+            model = ReadFixedName(headerBytes, 8, NameSize);
+            hierarchy = ReadFixedName(headerBytes, 24, NameSize);
         }
 
         var lods = new List<IReadOnlyList<W3dHlodSubObject>>();
@@ -387,15 +396,16 @@ public static class W3dModelExtractor
     {
         return array.Children
             .Where(c => c.Type == WorldBuilderConstants.W3D.HlodSubObject)
-            .Where(sub => sub.Payload.Length >= HlodSubObjectSize)
+            .Where(sub => sub.Payload.Count >= HlodSubObjectSize)
             .Select(ParseSubObject)
             .ToList();
     }
 
     private static W3dHlodSubObject ParseSubObject(W3dChunk sub)
     {
-        var bone = BinaryPrimitives.ReadUInt32LittleEndian(sub.Payload.AsSpan(0, 4));
-        var identifier = ReadFixedName(sub.Payload, 4, IdentifierSize);
+        var payload = AsArray(sub.Payload);
+        var bone = BinaryPrimitives.ReadUInt32LittleEndian(payload.AsSpan(0, 4));
+        var identifier = ReadFixedName(payload, 4, IdentifierSize);
         return new W3dHlodSubObject(bone, identifier, W3DAssetNames.DeriveMeshSelector(identifier));
     }
 
@@ -403,8 +413,8 @@ public static class W3dModelExtractor
     {
         return array.Children
             .Where(c => c.Type == WorldBuilderConstants.W3D.HlodSubObject)
-            .Where(sub => sub.Payload.Length >= HlodSubObjectSize)
-            .Select(sub => ReadFixedName(sub.Payload, 4, IdentifierSize))
+            .Where(sub => sub.Payload.Count >= HlodSubObjectSize)
+            .Select(sub => ReadFixedName(AsArray(sub.Payload), 4, IdentifierSize))
             .ToList();
     }
 }

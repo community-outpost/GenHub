@@ -56,6 +56,11 @@ public sealed partial class WorldBuilderViewModel(
     private bool _disposed;
 
     /// <summary>
+    /// Gets the adopted map document, if one is open.
+    /// </summary>
+    public WorldBuilderMap? CurrentMap => _map;
+
+    /// <summary>
     /// Gets validation issues from the most recent validation run.
     /// </summary>
     public ObservableCollection<ValidationIssue> ValidationIssues { get; } = [];
@@ -173,7 +178,7 @@ public sealed partial class WorldBuilderViewModel(
             return null;
         }
 
-        if (preview.Pixels.Length != preview.Width * preview.Height)
+        if (preview.Pixels.Count != preview.Width * preview.Height)
         {
             return null;
         }
@@ -185,7 +190,8 @@ public sealed partial class WorldBuilderViewModel(
                 new Vector(96, 96),
                 PixelFormats.Bgra8888);
             using var frame = bitmap.Lock();
-            Marshal.Copy(preview.Pixels, 0, frame.Address, preview.Pixels.Length);
+            var pixels = preview.Pixels is int[] ready ? ready : [.. preview.Pixels];
+            Marshal.Copy(pixels, 0, frame.Address, pixels.Length);
             return bitmap;
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or OutOfMemoryException)
@@ -452,7 +458,7 @@ public sealed partial class WorldBuilderViewModel(
 
         cancellationToken.ThrowIfCancellationRequested();
         var iniPath = Path.ChangeExtension(FilePath, WorldBuilderConstants.FileExtensions.MapIni);
-        string text;
+        var text = string.Empty;
         try
         {
             text = await File.ReadAllTextAsync(iniPath, cancellationToken).ConfigureAwait(false);

@@ -32,7 +32,7 @@ public sealed class MapGenField
     public int Height { get; }
 
     /// <summary>Gets the height bytes.</summary>
-    public byte[] Heights => heights;
+    public IList<byte> Heights => heights;
 
     /// <summary>Checks cell bounds.</summary>
     /// <param name="x">X cell.</param>

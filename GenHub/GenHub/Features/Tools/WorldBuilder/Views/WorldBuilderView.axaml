@@ -477,6 +477,7 @@
           <controls:WbGlViewport x:Name="GlViewport"
                                  RenderOptions="{Binding RenderOptions}"
                                  IsVisible="{Binding Is3DViewportVisible}"
+                                 Focusable="True"
                                  HorizontalAlignment="Stretch"
                                  VerticalAlignment="Stretch"/>
           <controls:MapCanvasControl x:Name="MapCanvas"
@@ -486,6 +487,7 @@
                                      ActiveLinePreview="{Binding ActiveLinePreview}"
                                      ViewMode="TopDown2D"
                                      IsVisible="{Binding !Is3DViewportVisible}"
+                                     Focusable="True"
                                      HorizontalAlignment="Stretch"
                                      VerticalAlignment="Stretch"/>
         </Grid>

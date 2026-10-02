@@ -56,7 +56,7 @@ public sealed class MapTerrainCodecTests
         var reader = new MapChunkReader(writer.ToFileBytes());
 
         // Assert
-        var payload = reader.TopLevel[0].Data;
+        var payload = reader.TopLevel[0].Data.ToArray();
         BitConverter.ToInt32(payload, 0).Should().Be(2);
         BitConverter.ToInt32(payload, 4).Should().Be(2);
         BitConverter.ToInt32(payload, 8).Should().Be(0);

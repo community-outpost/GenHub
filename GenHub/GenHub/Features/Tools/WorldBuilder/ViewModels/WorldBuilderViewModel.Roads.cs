@@ -147,11 +147,18 @@ public sealed partial class WorldBuilderViewModel
         }
 
         var idx = RoadSegments.IndexOf(target);
-        if (idx >= 0 && MapOverlayTools.DeleteRoadSegment(_map, idx))
+        if (idx < 0)
+        {
+            return;
+        }
+
+        _undoService.Checkpoint(_map);
+        if (MapOverlayTools.DeleteRoadSegment(_map, idx))
         {
             SyncRoadsAndBridges();
             IsDirty = true;
             RefreshCanvasBitmap();
+            UpdateUndoState();
         }
     }
 
@@ -169,11 +176,18 @@ public sealed partial class WorldBuilderViewModel
         }
 
         var idx = BridgeSegments.IndexOf(target);
-        if (idx >= 0 && MapOverlayTools.DeleteBridge(_map, idx))
+        if (idx < 0)
+        {
+            return;
+        }
+
+        _undoService.Checkpoint(_map);
+        if (MapOverlayTools.DeleteBridge(_map, idx))
         {
             SyncRoadsAndBridges();
             IsDirty = true;
             RefreshCanvasBitmap();
+            UpdateUndoState();
         }
     }
 
@@ -188,6 +202,8 @@ public sealed partial class WorldBuilderViewModel
             return;
         }
 
+        _undoService.Checkpoint(_map);
+
         // Engine enum GameType.h: TIME_OF_DAY_INVALID=0, MORNING=1, AFTERNOON=2, EVENING=3, NIGHT=4
         _map.Lighting.TimeOfDay = Math.Clamp(SelectedTimeOfDayIndex + 1, 1, 4);
 
@@ -201,6 +217,7 @@ public sealed partial class WorldBuilderViewModel
         IsDirty = true;
         SyncSunFromLighting();
         RefreshCanvasBitmap();
+        UpdateUndoState();
     }
 
     /// <summary>

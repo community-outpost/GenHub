@@ -167,7 +167,8 @@ public sealed class WbTerrainRenderService(
     {
         var tilesAcross = AtlasWidth / TilePixels;
         var slots = new List<AtlasSlot>();
-        var missing = 0;
+        var missingCatalog = 0;
+        var missingTexture = 0;
         var tileOrdinal = 0;
         foreach (var textureClass in textureClasses)
         {
@@ -176,7 +177,17 @@ public sealed class WbTerrainRenderService(
             tileOrdinal += Math.Max(1, textureClass.NumTiles);
             if (slot == null)
             {
-                missing++;
+                if (string.IsNullOrWhiteSpace(_terrainCatalog.FindByName(textureClass.Name)?.Texture))
+                {
+                    missingCatalog++;
+                    _logger.LogDebug("Terrain class '{Class}' has no Terrain block or Texture field.", textureClass.Name);
+                }
+                else
+                {
+                    missingTexture++;
+                    _logger.LogDebug("Terrain class '{Class}' texture file was not found under Art/Textures.", textureClass.Name);
+                }
+
                 continue;
             }
 
@@ -184,9 +195,9 @@ public sealed class WbTerrainRenderService(
         }
 
         var data = BuildAtlasAndMesh(terrain, slots, tileOrdinal, tilesAcross, ambient, lightDirections, lightDiffuse);
-        if (missing > 0)
+        if (missingCatalog + missingTexture > 0)
         {
-            _logger.LogInformation("Terrain atlas built with {Missing} of {Total} classes missing textures.", missing, textureClasses.Count);
+            _logger.LogInformation("Terrain atlas built with {Missing} of {Total} classes missing textures ({Catalog} without Terrain block, {Files} without texture file).", missingCatalog + missingTexture, textureClasses.Count, missingCatalog, missingTexture);
         }
 
         return data;

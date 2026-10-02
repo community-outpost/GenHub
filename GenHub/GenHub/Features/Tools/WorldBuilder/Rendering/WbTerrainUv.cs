@@ -5,6 +5,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Models.Tools.WorldBuilder;
 using GenHub.Core.Services.Tools.WorldBuilder;
 using System;
+using System.Collections.Generic;
 
 namespace GenHub.Features.Tools.WorldBuilder.Rendering;
 
@@ -120,7 +121,7 @@ public static class WbTerrainUv
         var info = terrain.CliffInfos[terrain.CliffInfoIndices[index]];
         var cellClass = MapTerrainTools.GetTextureClassFromNdx(terrain, terrain.TileIndices[index]);
         var cliffClass = MapTerrainTools.GetTextureClassFromNdx(terrain, info.TileIndex);
-        if (cellClass < 0 || cellClass != cliffClass || info.U.Length < 8 ||
+        if (cellClass < 0 || cellClass != cliffClass || info.U.Count < 8 ||
             !atlas.ClassUv.TryGetValue(terrain.TextureClasses[cellClass].Name, out var slot))
         {
             return (false, true);
@@ -160,8 +161,8 @@ public static class WbTerrainUv
         ArgumentNullException.ThrowIfNull(atlas);
         var index = (y * terrain.Width) + x;
         var blendIndex = terrain.BlendTileIndices[index];
-        bool stretchedForCliff;
-        bool needFlip;
+        var stretchedForCliff = false;
+        var needFlip = false;
         if (blendIndex == 0 || blendIndex >= terrain.BlendTiles.Count)
         {
             var (flip, _) = GetCellUv(terrain, atlas, x, y, u, v);
@@ -303,7 +304,7 @@ public static class WbTerrainUv
         return false;
     }
 
-    private static bool CliffDiagonalFlip(byte[] heights, int width, int index)
+    private static bool CliffDiagonalFlip(IList<byte> heights, int width, int index)
     {
         var p0 = heights[index];
         var p1 = heights[index + 1];
@@ -347,7 +348,7 @@ public static class WbTerrainUv
         var info = terrain.CliffInfos[terrain.CliffInfoIndices[index]];
         var cellClass = MapTerrainTools.GetTextureClassFromNdx(terrain, terrain.TileIndices[index]);
         var cliffClass = MapTerrainTools.GetTextureClassFromNdx(terrain, blendTileNdx);
-        if (cellClass < 0 || cellClass != cliffClass || info.U.Length < 8 ||
+        if (cellClass < 0 || cellClass != cliffClass || info.U.Count < 8 ||
             !atlas.ClassUv.TryGetValue(terrain.TextureClasses[cellClass].Name, out var slot))
         {
             return false;

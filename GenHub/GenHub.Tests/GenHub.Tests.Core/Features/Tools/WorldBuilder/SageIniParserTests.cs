@@ -701,6 +701,132 @@ public sealed class SageIniParserTests
         await act.Should().ThrowAsync<OperationCanceledException>();
     }
 
+    /// <summary>
+    /// Tests that a Draw module with ModelConditionState and AnimationState scopes nested
+    /// inside ConditionState keeps the whole Object block together, like real game Object files.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ParseAsync_TolerantDrawWithNestedAnimationScopes_ParsesWholeObject()
+    {
+        // Arrange
+        var sut = CreateSut();
+        var text =
+            "Object GLATank\n" +
+            "RadarPriority = 5\n" +
+            "Draw = W3DModelDraw ModuleTag_01\n" +
+            "DefaultConditionState\n" +
+            "Model = GLATank\n" +
+            "End\n" +
+            "ConditionState = REALLYDAMAGED\n" +
+            "Model = GLATank_D\n" +
+            "ModelConditionState = USER_1\n" +
+            "Model = GLATank_D1\n" +
+            "End\n" +
+            "AnimationState = FIRING\n" +
+            "Animation = GLATank_Fire\n" +
+            "End\n" +
+            "End\n" +
+            "End\n" +
+            "Behavior = PhysicsBehavior ModuleTag_Physics\n" +
+            "Mass = 1.0\n" +
+            "End\n" +
+            "End\n";
+        var options = new SageIniParseOptions(TolerateBlockFailures: true);
+
+        // Act
+        var parsed = await sut.ParseAsync(text, "test.ini", options);
+
+        // Assert
+        parsed.Success.Should().BeTrue();
+        var block = parsed.Data!.Blocks.Should().ContainSingle().Subject;
+        block.Fields.Should().Contain(f => f.Key == "RadarPriority");
+        block.SubBlocks.Should().Contain(s => s.Key == "Draw");
+        block.SubBlocks.Should().Contain(s => s.Key == "Behavior");
+    }
+
+    /// <summary>
+    /// Tests that a stray top-level End is skipped as a single line without eating neighbors.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ParseAsync_TolerantStrayEnd_SkipsLineAndKeepsNeighbors()
+    {
+        // Arrange
+        var sut = CreateSut();
+        var text = "Object A\nEnd\nEnd\nObject B\nEnd\n";
+        var options = new SageIniParseOptions(TolerateBlockFailures: true);
+
+        // Act
+        var parsed = await sut.ParseAsync(text, "test.ini", options);
+
+        // Assert
+        parsed.Success.Should().BeTrue();
+        parsed.Data!.Blocks.Select(b => b.Name).Should().BeEquivalentTo("A", "B");
+        parsed.Data.UnrecognizedBlocks.Should().ContainSingle().Which.HeaderLine.Should().Be("End");
+    }
+
+    /// <summary>
+    /// Tests that FXList Sound and ParticleSystem nuggets parse as nested scopes, like real game FXList files.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ParseAsync_TolerantFxListNuggets_ParsesSubBlocks()
+    {
+        // Arrange
+        var sut = CreateSut();
+        var text =
+            "FXList FXT_Gatling\n" +
+            "Sound\n" +
+            "Name = GatlingFire\n" +
+            "End\n" +
+            "ParticleSystem\n" +
+            "Name = ExMuzzleGatTank\n" +
+            "Offset = X:0.0 Y:2.0 Z:1.0\n" +
+            "End\n" +
+            "End\n";
+        var options = new SageIniParseOptions(TolerateBlockFailures: true);
+
+        // Act
+        var parsed = await sut.ParseAsync(text, "test.ini", options);
+
+        // Assert
+        parsed.Success.Should().BeTrue();
+        var block = parsed.Data!.Blocks.Should().ContainSingle().Subject;
+        block.SubBlocks.Select(s => s.Key).Should().BeEquivalentTo("Sound", "ParticleSystem");
+    }
+
+    /// <summary>
+    /// Tests that ObjectCreationList CreateObject and ApplyRandomForce nuggets parse as nested scopes.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ParseAsync_TolerantObjectCreationListNuggets_ParsesSubBlocks()
+    {
+        // Arrange
+        var sut = CreateSut();
+        var text =
+            "ObjectCreationList OCL_A10Strike\n" +
+            "CreateObject\n" +
+            "ObjectNames = A10Thunderbolt\n" +
+            "Count = 1\n" +
+            "End\n" +
+            "ApplyRandomForce\n" +
+            "MagnitudeMin = 10.0\n" +
+            "MagnitudeMax = 20.0\n" +
+            "End\n" +
+            "End\n";
+        var options = new SageIniParseOptions(TolerateBlockFailures: true);
+
+        // Act
+        var parsed = await sut.ParseAsync(text, "test.ini", options);
+
+        // Assert
+        parsed.Success.Should().BeTrue();
+        var block = parsed.Data!.Blocks.Should().ContainSingle().Subject;
+        block.SubBlocks.Select(s => s.Key).Should().BeEquivalentTo("CreateObject", "ApplyRandomForce");
+    }
+
     private static SageIniParser CreateSut()
     {
         return new SageIniParser(NullLogger<SageIniParser>.Instance);

@@ -133,7 +133,7 @@ public sealed class WbRoadService(
 
         return new WbModelDraw(
             vertices,
-            [0, 1, 2, 1, 3, 2],
+            new uint[] { 0, 1, 2, 1, 3, 2 },
             info.Texture,
             texture,
             state,

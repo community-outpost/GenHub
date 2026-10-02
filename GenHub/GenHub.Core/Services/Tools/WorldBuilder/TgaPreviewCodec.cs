@@ -18,7 +18,7 @@ public static class TgaPreviewCodec
     public static byte[] Encode(MapPreviewData preview)
     {
         ArgumentNullException.ThrowIfNull(preview);
-        using var output = new MemoryStream(18 + (preview.Pixels.Length * 4));
+        using var output = new MemoryStream(18 + (preview.Pixels.Count * 4));
         output.WriteByte(0);
         output.WriteByte(0);
         output.WriteByte(2);

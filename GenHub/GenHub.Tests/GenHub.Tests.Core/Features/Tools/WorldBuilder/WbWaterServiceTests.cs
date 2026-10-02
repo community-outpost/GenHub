@@ -24,8 +24,8 @@ public sealed class WbWaterServiceTests
 
         Assert.Equal(4 * WbWaterData.StrideFloats, water.Vertices.Length);
         Assert.Equal(6, water.Indices.Length);
-        Assert.Equal(10 * (10.0f / 16.0f), water.Vertices[2]);
-        Assert.Equal(0.5f, water.Vertices[6]);
+        Assert.Equal(10 * (10.0f / 16.0f), water.Vertices.Span[2]);
+        Assert.Equal(0.5f, water.Vertices.Span[6]);
     }
 
     /// <summary>
@@ -36,8 +36,8 @@ public sealed class WbWaterServiceTests
     {
         var water = WbWaterService.Build(CreateMap([20, 20, 20, 20]), 10);
 
-        Assert.Empty(water.Vertices);
-        Assert.Empty(water.Indices);
+        Assert.Equal(0, water.Vertices.Length);
+        Assert.Equal(0, water.Indices.Length);
     }
 
     /// <summary>
@@ -75,7 +75,7 @@ public sealed class WbWaterServiceTests
         var water = WbWaterService.Build(map, 10);
 
         Assert.Equal(4 * WbWaterData.StrideFloats, water.Vertices.Length);
-        Assert.Equal(10.0f, water.Vertices[7] - water.Vertices[0]);
+        Assert.Equal(10.0f, water.Vertices.Span[7] - water.Vertices.Span[0]);
     }
 
     private static WorldBuilderMap CreateMap(byte[] heights)

@@ -2,6 +2,7 @@
 // (TheSuperHackers/GeneralsGameCode, AdrianeYves/WorldbuilderZHAdriane, triatomic/worldbuilderQT),
 // licensed GPL-3.0 with EA additional terms; see NOTICE-WorldBuilder.md. Modified for GenHub.
 using GenHub.Core.Models.Tools.TextureEditor;
+using System;
 
 namespace GenHub.Features.Tools.WorldBuilder.Rendering;
 
@@ -16,8 +17,8 @@ namespace GenHub.Features.Tools.WorldBuilder.Rendering;
 /// <param name="State">Mapped render state.</param>
 /// <param name="TwoSided">True when backface culling must be disabled.</param>
 public sealed record WbModelDraw(
-    float[] Vertices,
-    uint[] Indices,
+    Memory<float> Vertices,
+    Memory<uint> Indices,
     string? TextureName,
     DecodedTexture? Texture,
     W3dGlState State,

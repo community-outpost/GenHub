@@ -35,17 +35,17 @@ public sealed class MapMemento
 
     private List<MapCliffInfo> CliffInfos { get; init; } = [];
 
-    private byte[] Heights { get; init; } = [];
+    private byte[] heights = [];
 
-    private short[] TileIndices { get; init; } = [];
+    private short[] tileIndices = [];
 
-    private short[] BlendTileIndices { get; init; } = [];
+    private short[] blendTileIndices = [];
 
-    private short[] ExtraBlendTileIndices { get; init; } = [];
+    private short[] extraBlendTileIndices = [];
 
-    private short[] CliffInfoIndices { get; init; } = [];
+    private short[] cliffInfoIndices = [];
 
-    private byte[] CliffState { get; init; } = [];
+    private byte[] cliffState = [];
 
     private List<MapDictValue> World { get; init; } = [];
 
@@ -86,13 +86,13 @@ public sealed class MapMemento
             TextureClasses = map.Terrain.TextureClasses.Select(c => c with { }).ToList(),
             EdgeTextureClasses = map.Terrain.EdgeTextureClasses.Select(c => c with { }).ToList(),
             BlendTiles = map.Terrain.BlendTiles.Select(b => b with { }).ToList(),
-            CliffInfos = map.Terrain.CliffInfos.Select(c => c with { U = (float[])c.U.Clone() }).ToList(),
-            Heights = (byte[])map.Terrain.Heights.Clone(),
-            TileIndices = (short[])map.Terrain.TileIndices.Clone(),
-            BlendTileIndices = (short[])map.Terrain.BlendTileIndices.Clone(),
-            ExtraBlendTileIndices = (short[])map.Terrain.ExtraBlendTileIndices.Clone(),
-            CliffInfoIndices = (short[])map.Terrain.CliffInfoIndices.Clone(),
-            CliffState = (byte[])map.Terrain.CliffState.Clone(),
+            CliffInfos = map.Terrain.CliffInfos.Select(c => c with { U = c.U.ToArray() }).ToList(),
+            heights = map.Terrain.Heights.ToArray(),
+            tileIndices = map.Terrain.TileIndices.ToArray(),
+            blendTileIndices = map.Terrain.BlendTileIndices.ToArray(),
+            extraBlendTileIndices = map.Terrain.ExtraBlendTileIndices.ToArray(),
+            cliffInfoIndices = map.Terrain.CliffInfoIndices.ToArray(),
+            cliffState = map.Terrain.CliffState.ToArray(),
             World = [.. map.World.Values],
             Sides = map.Sides.Select(CopySide).ToList(),
             Teams = map.Teams.Select(CopyTeam).ToList(),
@@ -128,13 +128,13 @@ public sealed class MapMemento
         map.Terrain.BlendTiles.Clear();
         map.Terrain.BlendTiles.AddRange(BlendTiles.Select(b => b with { }));
         map.Terrain.CliffInfos.Clear();
-        map.Terrain.CliffInfos.AddRange(CliffInfos.Select(c => c with { U = (float[])c.U.Clone() }));
-        map.Terrain.Heights = (byte[])Heights.Clone();
-        map.Terrain.TileIndices = (short[])TileIndices.Clone();
-        map.Terrain.BlendTileIndices = (short[])BlendTileIndices.Clone();
-        map.Terrain.ExtraBlendTileIndices = (short[])ExtraBlendTileIndices.Clone();
-        map.Terrain.CliffInfoIndices = (short[])CliffInfoIndices.Clone();
-        map.Terrain.CliffState = (byte[])CliffState.Clone();
+        map.Terrain.CliffInfos.AddRange(CliffInfos.Select(c => c with { U = c.U.ToArray() }));
+        map.Terrain.Heights = (byte[])heights.Clone();
+        map.Terrain.TileIndices = (short[])tileIndices.Clone();
+        map.Terrain.BlendTileIndices = (short[])blendTileIndices.Clone();
+        map.Terrain.ExtraBlendTileIndices = (short[])extraBlendTileIndices.Clone();
+        map.Terrain.CliffInfoIndices = (short[])cliffInfoIndices.Clone();
+        map.Terrain.CliffState = (byte[])cliffState.Clone();
         ReplaceDict(map.World, World);
         map.Sides.Clear();
         map.Sides.AddRange(Sides.Select(CopySide));

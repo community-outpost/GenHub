@@ -108,12 +108,23 @@ public sealed class StringTableService(ILogger<StringTableService> logger) : ISt
             return OperationResult<StringTableLoadReport>.CreateSuccess(new StringTableLoadReport(MapLanguage(), 0, 0, 0), Stopwatch.GetElapsedTime(started));
         }
 
-        StrFile parsed;
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
             var bytes = await File.ReadAllBytesAsync(mapStrPath, cancellationToken).ConfigureAwait(false);
-            parsed = StrFile.LoadText(Encoding.Latin1.GetString(bytes));
+            var parsed = StrFile.LoadText(Encoding.Latin1.GetString(bytes));
+            lock (_syncLock)
+            {
+                _mapStrings.Clear();
+                foreach (var (label, value) in parsed.Strings)
+                {
+                    _mapStrings[label] = value;
+                }
+            }
+
+            var report = new StringTableLoadReport(MapLanguage(), 0, 0, parsed.Count);
+            logger.LogInformation("Loaded {Count} map strings from {Path}", parsed.Count, mapStrPath);
+            return OperationResult<StringTableLoadReport>.CreateSuccess(report, Stopwatch.GetElapsedTime(started));
         }
         catch (OperationCanceledException)
         {
@@ -124,19 +135,6 @@ public sealed class StringTableService(ILogger<StringTableService> logger) : ISt
             logger.LogWarning(ex, "Could not load map strings at {Path}", mapStrPath);
             return OperationResult<StringTableLoadReport>.CreateFailure($"Could not load map strings at {mapStrPath}.", Stopwatch.GetElapsedTime(started));
         }
-
-        lock (_syncLock)
-        {
-            _mapStrings.Clear();
-            foreach (var (label, value) in parsed.Strings)
-            {
-                _mapStrings[label] = value;
-            }
-        }
-
-        var report = new StringTableLoadReport(MapLanguage(), 0, 0, parsed.Count);
-        logger.LogInformation("Loaded {Count} map strings from {Path}", parsed.Count, mapStrPath);
-        return OperationResult<StringTableLoadReport>.CreateSuccess(report, Stopwatch.GetElapsedTime(started));
     }
 
     /// <inheritdoc />
@@ -179,7 +177,7 @@ public sealed class StringTableService(ILogger<StringTableService> logger) : ISt
 
         var trimmed = rawDisplayName.Trim();
         var key = trimmed.StartsWith(WorldBuilderCatalogConstants.StringLabels.LabelPrefix, StringComparison.OrdinalIgnoreCase)
-            ? trimmed.Substring(WorldBuilderCatalogConstants.StringLabels.LabelPrefix.Length)
+            ? trimmed[WorldBuilderCatalogConstants.StringLabels.LabelPrefix.Length..]
             : trimmed;
         if (TryGetString(key, out var resolved) && resolved.Length > 0)
         {

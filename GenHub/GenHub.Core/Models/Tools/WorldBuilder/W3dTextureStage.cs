@@ -10,4 +10,4 @@ namespace GenHub.Core.Models.Tools.WorldBuilder;
 /// </summary>
 /// <param name="TextureIds">Texture ids, one entry or one per triangle.</param>
 /// <param name="TexCoords">UV per vertex.</param>
-public sealed record W3dTextureStage(uint[] TextureIds, Vector2[] TexCoords);
+public sealed record W3dTextureStage(IList<uint> TextureIds, IList<Vector2> TexCoords);

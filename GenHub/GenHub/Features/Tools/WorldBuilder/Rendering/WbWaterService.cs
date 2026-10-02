@@ -48,7 +48,7 @@ public static class WbWaterService
             }
         }
 
-        return new WbWaterData([.. vertices], [.. indices]);
+        return new WbWaterData(vertices.ToArray(), indices.ToArray());
     }
 
     private static void BuildStandingWater(
@@ -58,7 +58,7 @@ public static class WbWaterService
         List<float> vertices,
         List<uint> indices)
     {
-        if (terrain.Width <= 0 || terrain.Height <= 0 || terrain.Heights.Length == 0)
+        if (terrain.Width <= 0 || terrain.Height <= 0 || terrain.Heights.Count == 0)
         {
             return;
         }
@@ -87,7 +87,7 @@ public static class WbWaterService
     private static bool IsSubmerged(MapTerrainData terrain, int waterLevel, int x, int y)
     {
         var index = (y * terrain.Width) + x;
-        return index < terrain.Heights.Length && terrain.Heights[index] <= waterLevel;
+        return index < terrain.Heights.Count && terrain.Heights[index] <= waterLevel;
     }
 
     private static void BuildArea(

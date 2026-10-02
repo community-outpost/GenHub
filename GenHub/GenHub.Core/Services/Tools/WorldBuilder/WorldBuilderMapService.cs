@@ -283,6 +283,7 @@ public sealed class WorldBuilderMapService(IMapCompressionService compression, I
                 MapMiscCodec.WriteWaypoints(writer, map.WaypointLinks);
                 break;
             default:
+                // Unknown labels are written by the unknown-chunk pass below.
                 break;
         }
     }
@@ -322,7 +323,7 @@ public sealed class WorldBuilderMapService(IMapCompressionService compression, I
         List<ScriptListModel> scripts,
         HashSet<string> written)
     {
-        foreach (var label in CanonicalChunkOrder().Where(label => written.Add(label)))
+        foreach (var label in CanonicalChunkOrder().Where(written.Add))
         {
             WriteKnownChunk(writer, map, scripts, label);
         }
@@ -351,17 +352,17 @@ public sealed class WorldBuilderMapService(IMapCompressionService compression, I
         }
 
         var dataSize = terrain.Width * terrain.Height;
-        if (terrain.Heights.Length != dataSize
-            || terrain.TileIndices.Length != dataSize
-            || terrain.BlendTileIndices.Length != dataSize
-            || terrain.ExtraBlendTileIndices.Length != dataSize
-            || terrain.CliffInfoIndices.Length != dataSize)
+        if (terrain.Heights.Count != dataSize
+            || terrain.TileIndices.Count != dataSize
+            || terrain.BlendTileIndices.Count != dataSize
+            || terrain.ExtraBlendTileIndices.Count != dataSize
+            || terrain.CliffInfoIndices.Count != dataSize)
         {
             throw new InvalidDataException("Terrain arrays do not match dimensions.");
         }
 
         var flipWidth = ((terrain.Width + 7) / 8) * terrain.Height;
-        if (terrain.CliffState.Length != flipWidth)
+        if (terrain.CliffState.Count != flipWidth)
         {
             throw new InvalidDataException("Cliff state size does not match dimensions.");
         }

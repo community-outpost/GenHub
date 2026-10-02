@@ -73,7 +73,7 @@ public sealed class WbGlViewport : OpenGlControlBase, IDisposable
     }
 
     /// <summary>
-    /// Raised when GL availability is first determined.
+    /// Raised when GL availability changes.
     /// </summary>
     public event Action<bool>? GlAvailabilityChanged;
 
@@ -466,6 +466,7 @@ public sealed class WbGlViewport : OpenGlControlBase, IDisposable
                 _camera.Pan(new Vector2(0, step));
                 break;
             default:
+                // Unhandled keys leave the camera alone and skip the re-render.
                 return;
         }
 
@@ -491,12 +492,12 @@ public sealed class WbGlViewport : OpenGlControlBase, IDisposable
 
     private void ReportGlAvailability(bool available)
     {
-        _glAvailable = available;
-        if (_glReported)
+        if (_glReported && _glAvailable == available)
         {
             return;
         }
 
+        _glAvailable = available;
         _glReported = true;
         GlAvailabilityChanged?.Invoke(available);
     }

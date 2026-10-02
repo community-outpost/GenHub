@@ -428,7 +428,7 @@ public sealed class MapGenerationService(ILogger<MapGenerationService> logger) :
     {
         var random = new WbRandom((uint)(settings.Seed + WorldBuilderConstants.MapGen.SaltTrees));
         var cells = field.Width * field.Height;
-        float scale;
+        var scale = 3.0f;
         if (settings.TreeDensity < 33)
         {
             scale = 1.5f;
@@ -436,10 +436,6 @@ public sealed class MapGenerationService(ILogger<MapGenerationService> logger) :
         else if (settings.TreeDensity > 66)
         {
             scale = 6.0f;
-        }
-        else
-        {
-            scale = 3.0f;
         }
 
         var wanted = (int)((cells / 300.0f) * scale);

@@ -24,22 +24,22 @@ public sealed class MapTerrainData
     public List<MapBoundary> Boundaries { get; } = [];
 
     /// <summary>Gets or sets the raw height bytes (Width * Height).</summary>
-    public byte[] Heights { get; set; } = [];
+    public IList<byte> Heights { get; set; } = [];
 
     /// <summary>Gets or sets the base tile indices.</summary>
-    public short[] TileIndices { get; set; } = [];
+    public IList<short> TileIndices { get; set; } = [];
 
     /// <summary>Gets or sets the blend tile indices.</summary>
-    public short[] BlendTileIndices { get; set; } = [];
+    public IList<short> BlendTileIndices { get; set; } = [];
 
     /// <summary>Gets or sets the extra (three-way) blend tile indices.</summary>
-    public short[] ExtraBlendTileIndices { get; set; } = [];
+    public IList<short> ExtraBlendTileIndices { get; set; } = [];
 
     /// <summary>Gets or sets the cliff info indices.</summary>
-    public short[] CliffInfoIndices { get; set; } = [];
+    public IList<short> CliffInfoIndices { get; set; } = [];
 
     /// <summary>Gets or sets the packed cliff-state bits.</summary>
-    public byte[] CliffState { get; set; } = [];
+    public IList<byte> CliffState { get; set; } = [];
 
     /// <summary>Gets or sets the bitmap tile count.</summary>
     public int NumBitmapTiles { get; set; }

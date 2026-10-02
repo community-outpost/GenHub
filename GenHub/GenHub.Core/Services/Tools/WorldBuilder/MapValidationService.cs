@@ -62,16 +62,16 @@ public sealed class MapValidationService(ILogger<MapValidationService> logger) :
         }
 
         var dataSize = map.Terrain.Width * map.Terrain.Height;
-        if (map.Terrain.Heights.Length != dataSize)
+        if (map.Terrain.Heights.Count != dataSize)
         {
             issues.Add(new ValidationIssue(
                 "Height bytes do not match terrain dimensions.",
                 ValidationSeverity.Error,
                 expected: dataSize.ToString(),
-                actual: map.Terrain.Heights.Length.ToString()));
+                actual: map.Terrain.Heights.Count.ToString()));
         }
 
-        if (map.Terrain.TileIndices.Length != dataSize)
+        if (map.Terrain.TileIndices.Count != dataSize)
         {
             issues.Add(new ValidationIssue("Tile indices do not match terrain dimensions.", ValidationSeverity.Error));
         }

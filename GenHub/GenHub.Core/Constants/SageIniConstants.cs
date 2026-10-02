@@ -179,6 +179,8 @@ public static class SageIniConstants
     /// End-terminated scopes nested inside Draw modules. W3DModelDraw keeps one Model per
     /// condition state; DefaultConditionState must come first, otherwise the first
     /// ConditionState must be NONE, so the first Model field is the preview model.
+    /// ModelConditionState and AnimationState nest inside ConditionState in real game
+    /// Draw modules, so their End lines must not close the enclosing module.
     /// </summary>
     public static class ModuleNestedScopes
     {
@@ -197,6 +199,15 @@ public static class SageIniConstants
         /// <summary>Transition state scope opener.</summary>
         public const string TransitionState = "TransitionState";
 
+        /// <summary>Model condition state scope opener, nested inside ConditionState.</summary>
+        public const string ModelConditionState = "ModelConditionState";
+
+        /// <summary>Animation state scope opener, nested inside ConditionState.</summary>
+        public const string AnimationState = "AnimationState";
+
+        /// <summary>Idle animation state scope opener, nested inside ConditionState.</summary>
+        public const string IdleAnimationState = "IdleAnimationState";
+
         /// <summary>All module-nested scope opener field names.</summary>
         public static readonly FrozenSet<string> All = FrozenSet.ToFrozenSet<string>(
             [
@@ -205,8 +216,65 @@ public static class SageIniConstants
                 AliasConditionState,
                 AutoConditionState,
                 TransitionState,
+                ModelConditionState,
+                AnimationState,
+                IdleAnimationState,
             ],
             StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// Bare End-terminated nuggets nested directly inside FXList blocks (FXList::parseFXList
+    /// entries: Sound and ParticleSystem carry no type or tag).
+    /// </summary>
+    public static class FxListScopes
+    {
+        /// <summary>Sound nugget scope opener.</summary>
+        public const string Sound = "Sound";
+
+        /// <summary>Particle system nugget scope opener.</summary>
+        public const string ParticleSystem = "ParticleSystem";
+
+        /// <summary>All FXList nugget scope opener field names.</summary>
+        public static readonly FrozenSet<string> All = FrozenSet.ToFrozenSet<string>(
+            [
+                Sound,
+                ParticleSystem,
+            ],
+            StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// Bare End-terminated nuggets nested directly inside ObjectCreationList blocks
+    /// (CreateObject and ApplyRandomForce carry no type or tag).
+    /// </summary>
+    public static class ObjectCreationListScopes
+    {
+        /// <summary>Create-object nugget scope opener.</summary>
+        public const string CreateObject = "CreateObject";
+
+        /// <summary>Random-force nugget scope opener.</summary>
+        public const string ApplyRandomForce = "ApplyRandomForce";
+
+        /// <summary>All ObjectCreationList nugget scope opener field names.</summary>
+        public static readonly FrozenSet<string> All = FrozenSet.ToFrozenSet<string>(
+            [
+                CreateObject,
+                ApplyRandomForce,
+            ],
+            StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// Block tokens with dedicated nested-scope tables in the SAGE INI parser.
+    /// </summary>
+    public static class BlockTokens
+    {
+        /// <summary>Effect list block with Sound and ParticleSystem nuggets.</summary>
+        public const string FXList = "FXList";
+
+        /// <summary>Spawn list block with CreateObject and ApplyRandomForce nuggets.</summary>
+        public const string ObjectCreationList = "ObjectCreationList";
     }
 
     /// <summary>

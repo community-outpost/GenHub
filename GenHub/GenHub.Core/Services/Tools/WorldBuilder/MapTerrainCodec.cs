@@ -30,7 +30,7 @@ public static class MapTerrainCodec
             writer.WriteInt(boundary.Y);
         }
 
-        writer.WriteInt(terrain.Heights.Length);
+        writer.WriteInt(terrain.Heights.Count);
         writer.WriteBytes(terrain.Heights);
         writer.CloseChunk();
     }
@@ -46,12 +46,14 @@ public static class MapTerrainCodec
         ArgumentNullException.ThrowIfNull(reader);
         ArgumentNullException.ThrowIfNull(node);
         var cursor = reader.Cursor(node);
+        var width = cursor.ReadInt();
+        var height = cursor.ReadInt();
         var terrain = new MapTerrainData
         {
-            Width = cursor.ReadInt(),
-            Height = cursor.ReadInt(),
+            Width = width,
+            Height = height,
+            BorderSize = node.Version >= 3 ? cursor.ReadInt() : 0,
         };
-        terrain.BorderSize = node.Version >= 3 ? cursor.ReadInt() : 0;
         if (node.Version >= 4)
         {
             var count = cursor.ReadInt();
@@ -359,7 +361,7 @@ public static class MapTerrainCodec
         terrain.Height = newHeight;
     }
 
-    private static short[] Subsample(short[] source, int width, int height, int newSize)
+    private static short[] Subsample(IList<short> source, int width, int height, int newSize)
     {
         var result = new short[newSize];
         var newWidth = (width + 1) / 2;
@@ -391,10 +393,10 @@ public static class MapTerrainCodec
         return result;
     }
 
-    private static byte[] ToBytes(short[] values)
+    private static byte[] ToBytes(IList<short> values)
     {
-        var bytes = new byte[values.Length * 2];
-        for (var i = 0; i < values.Length; i++)
+        var bytes = new byte[values.Count * 2];
+        for (var i = 0; i < values.Count; i++)
         {
             var pair = BitConverter.GetBytes(values[i]);
             bytes[i * 2] = pair[0];

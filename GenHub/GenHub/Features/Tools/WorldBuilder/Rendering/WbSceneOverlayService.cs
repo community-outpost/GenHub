@@ -47,7 +47,7 @@ public static class WbSceneOverlayService
             BuildTriggers(map, vertices);
         }
 
-        return new WbOverlayLines([.. vertices]);
+        return new WbOverlayLines(vertices.ToArray());
     }
 
     private static void BuildWaypointLinks(WorldBuilderMap map, List<float> vertices)
@@ -135,7 +135,7 @@ public static class WbSceneOverlayService
     private static float SampleGroundFeet(WorldBuilderMap map, float x, float y)
     {
         var terrain = map.Terrain;
-        if (terrain.Width <= 0 || terrain.Height <= 0 || terrain.Heights.Length == 0)
+        if (terrain.Width <= 0 || terrain.Height <= 0 || terrain.Heights.Count == 0)
         {
             return 0.0f;
         }
@@ -143,6 +143,6 @@ public static class WbSceneOverlayService
         var cellX = Math.Clamp((int)MathF.Round((x / WorldBuilderConstants.Terrain.CellSize) + terrain.BorderSize), 0, terrain.Width - 1);
         var cellY = Math.Clamp((int)MathF.Round((y / WorldBuilderConstants.Terrain.CellSize) + terrain.BorderSize), 0, terrain.Height - 1);
         var index = (cellY * terrain.Width) + cellX;
-        return index < terrain.Heights.Length ? terrain.Heights[index] * WorldBuilderConstants.Terrain.HeightScale : 0.0f;
+        return index < terrain.Heights.Count ? terrain.Heights[index] * WorldBuilderConstants.Terrain.HeightScale : 0.0f;
     }
 }

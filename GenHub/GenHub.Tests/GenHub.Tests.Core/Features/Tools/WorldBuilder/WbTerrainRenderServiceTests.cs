@@ -69,10 +69,10 @@ public sealed class WbTerrainRenderServiceTests
         var data = result.Data!;
         Assert.Equal(24, data.Indices.Length);
         Assert.False(data.Atlas.TileUv.ContainsKey(0));
-        Assert.Equal(WorldBuilderConstants.Terrain.FallbackAtlasRed, data.AtlasPixels[0]);
-        Assert.Equal(WorldBuilderConstants.Terrain.FallbackAtlasGreen, data.AtlasPixels[1]);
-        Assert.Equal(WorldBuilderConstants.Terrain.FallbackAtlasBlue, data.AtlasPixels[2]);
-        Assert.Equal(255, data.AtlasPixels[3]);
+        Assert.Equal(WorldBuilderConstants.Terrain.FallbackAtlasRed, data.AtlasPixels.Span[0]);
+        Assert.Equal(WorldBuilderConstants.Terrain.FallbackAtlasGreen, data.AtlasPixels.Span[1]);
+        Assert.Equal(WorldBuilderConstants.Terrain.FallbackAtlasBlue, data.AtlasPixels.Span[2]);
+        Assert.Equal(255, data.AtlasPixels.Span[3]);
     }
 
     private static WorldBuilderMap CreateMap(string className)
