@@ -138,13 +138,6 @@ public abstract class BaseContentProvider : IContentProvider
         {
             Logger.LogDebug("Preparing content for manifest {ManifestId}", manifest.Id);
 
-            // Validate manifest before preparation
-            progress?.Report(new ContentAcquisitionProgress
-            {
-                Phase = ContentAcquisitionPhase.ValidatingManifest,
-                CurrentOperation = "Validating manifest structure...",
-            });
-
             var validationResult = await ContentValidator.ValidateManifestAsync(manifest, cancellationToken);
             if (!validationResult.IsValid)
             {
@@ -158,8 +151,9 @@ public abstract class BaseContentProvider : IContentProvider
 
             progress?.Report(new ContentAcquisitionProgress
             {
-                Phase = ContentAcquisitionPhase.Extracting,
-                CurrentOperation = "Preparing content files...",
+                Phase = ContentAcquisitionPhase.Downloading,
+                ProgressPercentage = ContentConstants.ProgressStepDownloading,
+                CurrentOperation = "Connecting to download server...",
             });
 
             // Delegate to implementation-specific preparation

@@ -10,6 +10,21 @@ namespace GenHub.Tests.Core.Helpers;
 public class CloudUrlHelperTests
 {
     /// <summary>
+    /// Verifies that Dropbox URLs are normalized with dl=1.
+    /// </summary>
+    /// <param name="input">The raw cloud URL.</param>
+    /// <param name="expected">The expected normalized direct download URL.</param>
+    [Theory]
+    [InlineData("https://www.dropbox.com/s/12345/setup.exe?dl=0", "https://www.dropbox.com/s/12345/setup.exe?dl=1")]
+    [InlineData("https://www.dropbox.com/s/12345/setup.exe", "https://www.dropbox.com/s/12345/setup.exe?dl=1")]
+    [InlineData("https://www.dropbox.com/s/12345/setup.exe?foo=bar", "https://www.dropbox.com/s/12345/setup.exe?foo=bar&dl=1")]
+    public void NormalizeCloudUrl_DropboxUrl_NormalizesWithDl1(string input, string expected)
+    {
+        var result = CloudUrlHelper.NormalizeCloudUrl(input);
+        Assert.Equal(expected, result);
+    }
+
+    /// <summary>
     /// Verifies that an explicit confirmation anchor href is extracted and decoded.
     /// </summary>
     [Fact]

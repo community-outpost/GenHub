@@ -431,7 +431,15 @@ public abstract partial class DownloadableItemViewModel : ObservableObject, IDow
     /// <summary>
     /// Gets a value indicating whether this item represents a GenHub build.
     /// </summary>
-    public bool IsGenHubBuild => ContentType == ContentType.GenHubBuild;
+    public bool IsGenHubBuild =>
+        ContentType == ContentType.GenHubBuild ||
+        (!string.IsNullOrWhiteSpace(Name) &&
+         Name.StartsWith("GenHub", StringComparison.OrdinalIgnoreCase) &&
+         (ContentType is ContentType.GameClient or ContentType.Executable or ContentType.ModdingTool or ContentType.UnknownContentType ||
+          Name.Contains("Setup", StringComparison.OrdinalIgnoreCase) ||
+          Name.Contains("PR #", StringComparison.OrdinalIgnoreCase) ||
+          Name.Contains("Build", StringComparison.OrdinalIgnoreCase) ||
+          Name.Contains("Fork", StringComparison.OrdinalIgnoreCase)));
 
     /// <summary>
     /// Gets a value indicating whether the Add to Profile button should be shown for this row.

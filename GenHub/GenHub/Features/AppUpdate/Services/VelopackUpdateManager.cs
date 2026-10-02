@@ -852,45 +852,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             var commitInfo = !string.IsNullOrEmpty(artifactInfo.GitHash) ? $" ({artifactInfo.GitHash})" : string.Empty;
             progress?.Report(new UpdateProgress { Status = $"Downloading artifact for {label}{commitInfo}...", PercentComplete = 0 });
 
-            string downloadUrl = string.Empty;
-            var headers = new Dictionary<string, string>
-            {
-                { "User-Agent", AppConstants.AppName },
-            };
-
-            if (isDirectUrl)
-            {
-                downloadUrl = artifactInfo.DownloadUrl!;
-                _logger.LogInformation("Downloading {Label} directly from {Url}", label, downloadUrl);
-            }
-            else
-            {
-                var owner = AppConstants.GitHubRepositoryOwner;
-                var repo = AppConstants.GitHubRepositoryName;
-                var artifactId = artifactInfo.ArtifactId;
-                downloadUrl = string.Format(ApiConstants.GitHubApiArtifactDownloadFormat, owner, repo, artifactId);
-                _logger.LogInformation("Downloading {Label} artifact from {Url}", label, downloadUrl);
-            }
-
-            var isGitHubApiUrl = !string.IsNullOrWhiteSpace(downloadUrl) &&
-                                 downloadUrl.Contains("api.github.com", StringComparison.OrdinalIgnoreCase);
-
-            if ((!isDirectUrl || isGitHubApiUrl) && _gitHubAuthService != null && _gitHubAuthService.IsAuthenticated)
-            {
-                using var token = await _gitHubAuthService.GetAccessTokenAsync(cancellationToken).ConfigureAwait(false);
-                if (token != null)
-                {
-                    headers["Accept"] = ApiConstants.GitHubApiHeaderAccept;
-                    UseSecureStringAsPlainText(token, plainText =>
-                    {
-                        headers["Authorization"] = $"Bearer {plainText}";
-                    });
-                }
-            }
-            else if (!isDirectUrl && (_gitHubAuthService == null || !_gitHubAuthService.IsAuthenticated))
-            {
-                throw new InvalidOperationException("GitHub authentication required to download artifacts");
-            }
+            var (downloadUrl, headers) = await ResolveArtifactDownloadDetailsAsync(artifactInfo, label, cancellationToken).ConfigureAwait(false);
 
             // Create temp directory
             tempDir = Path.Combine(Path.GetTempPath(), $"genhub-art-{Guid.NewGuid():N}");
@@ -899,9 +861,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             var isDirectExe = (!string.IsNullOrWhiteSpace(artifactInfo.ArtifactName) && artifactInfo.ArtifactName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) ||
                               (!string.IsNullOrWhiteSpace(downloadUrl) && downloadUrl.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
 
-            var targetFileName = isDirectExe
-                ? (!string.IsNullOrWhiteSpace(artifactInfo.ArtifactName) ? Path.GetFileName(artifactInfo.ArtifactName) : "setup.exe")
-                : "artifact.zip";
+            var targetFileName = DetermineArtifactFileName(artifactInfo, isDirectExe);
             var targetFilePath = Path.Combine(tempDir, targetFileName);
 
             var downloadProgress = new Action<int>(percent =>
@@ -924,35 +884,8 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 timeout: 300,
                 cancelToken: cancellationToken);
 
-            // Check if downloaded file is a Windows PE executable (MZ header)
-            var isExe = false;
-            if (File.Exists(targetFilePath))
+            if (TryInstallDirectExecutable(targetFilePath, isDirectExe, progress))
             {
-                using var fs = File.OpenRead(targetFilePath);
-                var magic = new byte[2];
-                if (fs.Read(magic, 0, 2) == 2 && magic[0] == 0x4D && magic[1] == 0x5A)
-                {
-                    isExe = true;
-                }
-            }
-
-            if (isDirectExe || isExe)
-            {
-                if (!isExe)
-                {
-                    throw new InvalidOperationException("Downloaded artifact was expected to be an executable installer, but the file does not have a valid Windows executable (PE/MZ) header.");
-                }
-
-                var exePath = targetFilePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
-                    ? targetFilePath
-                    : Path.ChangeExtension(targetFilePath, ".exe");
-
-                if (!string.Equals(targetFilePath, exePath, StringComparison.OrdinalIgnoreCase) && !File.Exists(exePath))
-                {
-                    File.Move(targetFilePath, exePath);
-                }
-
-                LaunchInstallerProcess(exePath, progress);
                 return;
             }
 
@@ -1622,14 +1555,140 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         return DateTime.MinValue;
     }
 
+    private static string DetermineArtifactFileName(ArtifactUpdateInfo artifactInfo, bool isDirectExe)
+    {
+        if (!isDirectExe)
+        {
+            return "artifact.zip";
+        }
+
+        return !string.IsNullOrWhiteSpace(artifactInfo.ArtifactName)
+            ? Path.GetFileName(artifactInfo.ArtifactName)
+            : "setup.exe";
+    }
+
+    private static bool IsWindowsExecutable(string filePath)
+    {
+        if (!File.Exists(filePath))
+        {
+            return false;
+        }
+
+        using var fs = File.OpenRead(filePath);
+        var magic = new byte[2];
+        return fs.Read(magic, 0, 2) == 2 && magic[0] == 0x4D && magic[1] == 0x5A;
+    }
+
     private void LaunchInstallerProcess(string exePath, IProgress<UpdateProgress>? progress)
     {
         _logger.LogInformation("Launching installer executable '{Exe}'", exePath);
         progress?.Report(new UpdateProgress { Status = "Launching installer...", PercentComplete = 100 });
-        using var proc = Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = true })
-            ?? throw new InvalidOperationException($"Failed to start installer '{exePath}'");
+
+        var stagedExe = exePath;
+        try
+        {
+            var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var stageDir = Path.Combine(appData, AppConstants.AppName, "PendingUpdate");
+            Directory.CreateDirectory(stageDir);
+            var targetStagedExe = Path.Combine(stageDir, Path.GetFileName(exePath));
+            File.Copy(exePath, targetStagedExe, overwrite: true);
+            stagedExe = targetStagedExe;
+        }
+        catch (IOException ex)
+        {
+            _logger.LogWarning(ex, "Failed to stage installer executable to PendingUpdate, executing from original path: {Path}", exePath);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Failed to stage installer executable to PendingUpdate, executing from original path: {Path}", exePath);
+        }
+
+        var startInfo = new ProcessStartInfo(stagedExe)
+        {
+            UseShellExecute = true,
+            WorkingDirectory = Path.GetDirectoryName(stagedExe) ?? string.Empty,
+        };
+
+        using var proc = Process.Start(startInfo)
+            ?? throw new InvalidOperationException($"Failed to start installer '{stagedExe}'");
         _logger.LogInformation("Installer process started with PID {ProcessId}", proc.Id);
+        Thread.Sleep(300);
         Environment.Exit(0); // skipcq: CS-W1005
+    }
+
+    private async Task<(string DownloadUrl, Dictionary<string, string> Headers)> ResolveArtifactDownloadDetailsAsync(
+        ArtifactUpdateInfo artifactInfo,
+        string label,
+        CancellationToken cancellationToken)
+    {
+        var isDirectUrl = !string.IsNullOrWhiteSpace(artifactInfo.DownloadUrl);
+        string downloadUrl;
+        var headers = new Dictionary<string, string>
+        {
+            { "User-Agent", AppConstants.AppName },
+        };
+
+        if (isDirectUrl)
+        {
+            downloadUrl = artifactInfo.DownloadUrl!;
+            _logger.LogInformation("Downloading {Label} directly from {Url}", label, downloadUrl);
+        }
+        else
+        {
+            var owner = AppConstants.GitHubRepositoryOwner;
+            var repo = AppConstants.GitHubRepositoryName;
+            var artifactId = artifactInfo.ArtifactId;
+            downloadUrl = string.Format(ApiConstants.GitHubApiArtifactDownloadFormat, owner, repo, artifactId);
+            _logger.LogInformation("Downloading {Label} artifact from {Url}", label, downloadUrl);
+        }
+
+        var isGitHubApiUrl = !string.IsNullOrWhiteSpace(downloadUrl) &&
+                             downloadUrl.Contains("api.github.com", StringComparison.OrdinalIgnoreCase);
+
+        if ((!isDirectUrl || isGitHubApiUrl) && _gitHubAuthService != null && _gitHubAuthService.IsAuthenticated)
+        {
+            using var token = await _gitHubAuthService.GetAccessTokenAsync(cancellationToken).ConfigureAwait(false);
+            if (token != null)
+            {
+                headers["Accept"] = ApiConstants.GitHubApiHeaderAccept;
+                UseSecureStringAsPlainText(token, plainText =>
+                {
+                    headers["Authorization"] = $"Bearer {plainText}";
+                });
+            }
+        }
+        else if (!isDirectUrl && (_gitHubAuthService == null || !_gitHubAuthService.IsAuthenticated))
+        {
+            throw new InvalidOperationException("GitHub authentication required to download artifacts");
+        }
+
+        return (downloadUrl, headers);
+    }
+
+    private bool TryInstallDirectExecutable(string targetFilePath, bool isDirectExe, IProgress<UpdateProgress>? progress)
+    {
+        var isExe = IsWindowsExecutable(targetFilePath);
+        if (!isDirectExe && !isExe)
+        {
+            return false;
+        }
+
+        if (!isExe)
+        {
+            throw new InvalidOperationException("Downloaded artifact was expected to be an executable installer, but the file does not have a valid Windows executable (PE/MZ) header.");
+        }
+
+        var exePath = targetFilePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+            ? targetFilePath
+            : Path.ChangeExtension(targetFilePath, ".exe");
+
+        if (!string.Equals(targetFilePath, exePath, StringComparison.OrdinalIgnoreCase) && !File.Exists(exePath))
+        {
+            File.Move(targetFilePath, exePath);
+        }
+
+        LaunchInstallerProcess(exePath, progress);
+        return true;
     }
 
     private void CleanSampleProjectArtifacts(string sampleProjectsDir)
@@ -2552,7 +2611,11 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
             foreach (var manifest in manifestsResult.Data)
             {
-                if (manifest.ContentType != ContentType.GenHubBuild)
+                var isGenHubContent = manifest.ContentType == ContentType.GenHubBuild ||
+                    (manifest.Metadata?.Tags != null && manifest.Metadata.Tags.Any(t => string.Equals(t, "genhub", StringComparison.OrdinalIgnoreCase) || string.Equals(t, "genhub-build", StringComparison.OrdinalIgnoreCase))) ||
+                    (!string.IsNullOrWhiteSpace(manifest.Name) && manifest.Name.StartsWith("GenHub", StringComparison.OrdinalIgnoreCase));
+
+                if (!isGenHubContent)
                 {
                     continue;
                 }
@@ -2593,7 +2656,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {
             _logger.LogWarning(ex, "Failed to check local storage for artifact {Name} ({Version})", artifactInfo.ArtifactName, artifactInfo.Version);
         }
