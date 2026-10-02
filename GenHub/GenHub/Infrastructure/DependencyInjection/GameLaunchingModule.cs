@@ -23,7 +23,7 @@ public static class GameLaunchingModule
         // LaunchRegistry is singleton - it tracks all launches globally across the app lifetime
         services.AddSingleton<ILaunchRegistry, LaunchRegistry>();
 
-        // publisher launch handlers and registry
+        // Publisher launch handlers and registry.
         services.AddScoped<IPublisherLaunchHandler, DefaultPublisherLaunchHandler>();
         services.AddScoped<IPublisherLaunchHandler, GeneralsOnlineLaunchHandler>();
         services.AddScoped<IPublisherLaunchHandlerRegistry>(sp =>

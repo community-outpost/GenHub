@@ -41,9 +41,9 @@ internal static class ManifestSourcePathResolver
                 continue;
             }
 
-            // game clients in a local working directory (e.g. retail or steam installations)
-            // resolve from that directory. publisher-based or staged clients (e.g. generals online,
-            // flatpak bundles) resolve their content directory from the manifest pool instead.
+            // Game clients in a local working directory (e.g. retail or Steam installations)
+            // resolve from that directory. Publisher-based or staged clients (e.g. Generals Online,
+            // Flatpak bundles) resolve their content directory from the manifest pool instead.
             if (manifest.ContentType == ContentType.GameClient
                 && ShouldUseWorkingDirectoryForGameClient(profile, manifest))
             {
@@ -94,8 +94,8 @@ internal static class ManifestSourcePathResolver
             return false;
         }
 
-        // publisher clients have their own binaries managed by the application (via content-addressable storage
-        // or extracted content pools) and do not exist in the retail installation working directory
+        // Publisher clients have their own binaries managed by the application (via content-addressable storage
+        // or extracted content pools) and do not exist in the retail installation working directory.
         if (profile.GameClient.IsPublisherClient)
         {
             var entry = ManifestVariantResolver.ResolveEntryPoint(manifest);

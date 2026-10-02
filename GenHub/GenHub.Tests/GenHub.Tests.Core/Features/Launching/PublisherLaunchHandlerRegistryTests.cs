@@ -110,6 +110,48 @@ public sealed class PublisherLaunchHandlerRegistryTests
     }
 
     /// <summary>
+    /// Verifies constructor throws InvalidOperationException when DefaultPublisherLaunchHandler is not registered.
+    /// </summary>
+    [Fact]
+    public void Constructor_ThrowsInvalidOperationException_WhenDefaultHandlerMissing()
+    {
+        // arrange
+        var settingsMock = new Mock<IGameSettingsService>();
+        var goHandler = new GeneralsOnlineLaunchHandler(
+            settingsMock.Object,
+            NullLogger<GeneralsOnlineLaunchHandler>.Instance);
+
+        // act & assert
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            new PublisherLaunchHandlerRegistry(
+                [goHandler],
+                NullLogger<PublisherLaunchHandlerRegistry>.Instance));
+        Assert.Contains("DefaultPublisherLaunchHandler", ex.Message);
+    }
+
+    /// <summary>
+    /// Verifies GetAllHandlers returns a defensive copy preventing external mutation.
+    /// </summary>
+    [Fact]
+    public void GetAllHandlers_ReturnsDefensiveCopy()
+    {
+        // arrange
+        var defaultHandler = new DefaultPublisherLaunchHandler();
+        var list = new List<IPublisherLaunchHandler> { defaultHandler };
+        var registry = new PublisherLaunchHandlerRegistry(
+            list,
+            NullLogger<PublisherLaunchHandlerRegistry>.Instance);
+
+        // act
+        list.Clear();
+        var handlers = registry.GetAllHandlers();
+
+        // assert
+        Assert.Single(handlers);
+        Assert.Same(defaultHandler, handlers[0]);
+    }
+
+    /// <summary>
     /// Verifies GetAllHandlers returns all registered handlers.
     /// </summary>
     [Fact]
@@ -173,7 +215,7 @@ public sealed class PublisherLaunchHandlerRegistryTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GeneralsOnlineLaunchHandler_BeforeLaunchAsync_AppliesSettingsForGeneralsOnlineProfile()
+    public async Task GeneralsOnlineLaunchHandler_BeforeLaunchAsync_AppliesSettingsForGeneralsOnlineProfileAsync()
     {
         // arrange
         var existingSettings = new GeneralsOnlineSettings { ShowFps = false };

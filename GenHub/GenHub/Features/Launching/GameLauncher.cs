@@ -1707,7 +1707,7 @@ public class GameLauncher(
             }
 
             progress?.Report(new LaunchProgress { Phase = LaunchPhase.Starting, PercentComplete = 90 });
-            var executableResult = ResolveAndValidateExecutablePath(profile, workspaceInfo);
+            var executableResult = ResolveFinalExecutablePath(profile, workspaceInfo, ref isSteamLaunch, ref steamInstallationLock);
             if (!executableResult.Success || executableResult.Data == null)
             {
                 await launchRegistry.UnregisterLaunchAsync(launchId);
@@ -1715,7 +1715,6 @@ public class GameLauncher(
             }
 
             var finalExecutablePath = executableResult.Data;
-            isSteamLaunch = ReevaluateSteamLaunch(isSteamLaunch, profile.Id, finalExecutablePath, ref steamInstallationLock);
 
             var prepResult = await PrepareLaunchConfigurationAndProxyAsync(
                 profile,
@@ -1767,31 +1766,14 @@ public class GameLauncher(
             var processInfo = processResult.Data;
             logger.LogInformation("[GameLauncher] Process started successfully - PID: {ProcessId}", processInfo.ProcessId);
 
-            // Update the placeholder launch entry with real process info
-            // (The placeholder was registered earlier to prevent deletion during launch)
-            var launchInfo = new GameLaunchInfo
-            {
-                LaunchId = launchId,
-                ProfileId = profile.Id,
-                WorkspaceId = workspaceInfo.Id,
-                ProcessInfo = processInfo,
-                LaunchedAt = DateTime.UtcNow,
-                ReceiptDriftWarnings = receiptDriftWarnings,
-            };
-            logger.LogDebug("[GameLauncher] Updating launch registry with real process info");
-            await launchRegistry.RegisterLaunchAsync(launchInfo);
-            if (launchInfo.TerminatedAt.HasValue || launchInfo.HasFailed)
-            {
-                // Keep the terminated entry so its exit code and diagnostics remain inspectable.
-                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(
-                    LaunchExitMessages.Describe(launchInfo, localizationService), launchId, profile.Id);
-            }
-
-            await RecordLaunchReceiptAsync(receiptContext);
-
-            progress?.Report(new LaunchProgress { Phase = LaunchPhase.Running, PercentComplete = 100 });
-            logger.LogInformation("[GameLauncher] === Launch completed successfully for profile {ProfileId} ===", profile.Id);
-            return LaunchOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo, launchId, profile.Id);
+            return await FinalizeLaunchAsync(
+                profile,
+                workspaceInfo,
+                processInfo,
+                launchId,
+                receiptDriftWarnings,
+                receiptContext,
+                progress);
         }
         catch (OperationCanceledException)
         {
@@ -1809,6 +1791,59 @@ public class GameLauncher(
         {
             steamInstallationLock?.Dispose();
         }
+    }
+
+    private OperationResult<string> ResolveFinalExecutablePath(
+        GameProfile profile,
+        WorkspaceInfo workspaceInfo,
+        ref bool isSteamLaunch,
+        ref IDisposable? steamInstallationLock)
+    {
+        var executableResult = ResolveAndValidateExecutablePath(profile, workspaceInfo);
+        if (!executableResult.Success || executableResult.Data == null)
+        {
+            return OperationResult<string>.CreateFailure(executableResult.FirstError ?? "No executable path available");
+        }
+
+        var finalExecutablePath = executableResult.Data;
+        isSteamLaunch = ReevaluateSteamLaunch(isSteamLaunch, profile.Id, finalExecutablePath, ref steamInstallationLock);
+        return OperationResult<string>.CreateSuccess(finalExecutablePath);
+    }
+
+    private async Task<LaunchOperationResult<GameLaunchInfo>> FinalizeLaunchAsync(
+        GameProfile profile,
+        WorkspaceInfo workspaceInfo,
+        GameProcessInfo processInfo,
+        string launchId,
+        List<string> receiptDriftWarnings,
+        LaunchReceiptContext receiptContext,
+        IProgress<LaunchProgress>? progress)
+    {
+        // Update the placeholder launch entry with real process info
+        // (The placeholder was registered earlier to prevent deletion during launch)
+        var launchInfo = new GameLaunchInfo
+        {
+            LaunchId = launchId,
+            ProfileId = profile.Id,
+            WorkspaceId = workspaceInfo.Id,
+            ProcessInfo = processInfo,
+            LaunchedAt = DateTime.UtcNow,
+            ReceiptDriftWarnings = receiptDriftWarnings,
+        };
+        logger.LogDebug("[GameLauncher] Updating launch registry with real process info");
+        await launchRegistry.RegisterLaunchAsync(launchInfo);
+        if (launchInfo.TerminatedAt.HasValue || launchInfo.HasFailed)
+        {
+            // Keep the terminated entry so its exit code and diagnostics remain inspectable.
+            return LaunchOperationResult<GameLaunchInfo>.CreateFailure(
+                LaunchExitMessages.Describe(launchInfo, localizationService), launchId, profile.Id);
+        }
+
+        await RecordLaunchReceiptAsync(receiptContext);
+
+        progress?.Report(new LaunchProgress { Phase = LaunchPhase.Running, PercentComplete = 100 });
+        logger.LogInformation("[GameLauncher] === Launch completed successfully for profile {ProfileId} ===", profile.Id);
+        return LaunchOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo, launchId, profile.Id);
     }
 
     private async Task<OperationResult<(WorkspaceInfo Workspace, IDisposable? SteamLock)>> SetupAndAcquireWorkspaceAsync(
@@ -2809,7 +2844,7 @@ public class GameLauncher(
     /// This ensures the game launches with the settings configured for this specific profile.
     /// </summary>
     /// <param name="profile">The game profile containing the settings to apply.</param>
-    /// <param name="cancellationToken">cancellation token.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     private async Task ApplyProfileSettingsToIniOptionsAsync(GameProfile profile, CancellationToken cancellationToken = default)
     {
@@ -2861,7 +2896,7 @@ public class GameLauncher(
                 logger.LogInformation("[GameLauncher] Successfully wrote Options.ini for {GameType}", gameType);
             }
 
-            // apply publisher-specific pre-launch settings
+            // Apply publisher-specific pre-launch settings (best-effort; failures do not block launch).
             var publisherHandler = publisherLaunchHandlerRegistry.GetHandler(profile);
             var beforeLaunchResult = await publisherHandler.BeforeLaunchAsync(profile, cancellationToken);
             if (!beforeLaunchResult.Success)
@@ -2875,7 +2910,7 @@ public class GameLauncher(
         }
         catch (Exception ex)
         {
-            // don't fail the launch if options writing fails - log and continue
+            // Don't fail the launch if Options.ini writing fails - log and continue.
             logger.LogError(ex, "Failed to apply profile settings to Options.ini, continuing with launch");
         }
     }

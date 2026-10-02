@@ -10,26 +10,47 @@ namespace GenHub.Features.Launching.Publishers;
 /// <summary>
 /// Registry managing publisher launch handlers and resolving the matching handler for a profile.
 /// </summary>
-public class PublisherLaunchHandlerRegistry(
-    IReadOnlyList<IPublisherLaunchHandler> handlers,
-    ILogger<PublisherLaunchHandlerRegistry> logger) : IPublisherLaunchHandlerRegistry
+public class PublisherLaunchHandlerRegistry : IPublisherLaunchHandlerRegistry
 {
+    private readonly IPublisherLaunchHandler[] _handlers;
+    private readonly DefaultPublisherLaunchHandler _defaultHandler;
+    private readonly ILogger<PublisherLaunchHandlerRegistry> _logger;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PublisherLaunchHandlerRegistry"/> class.
+    /// </summary>
+    /// <param name="handlers">The registered publisher launch handlers.</param>
+    /// <param name="logger">The logger instance.</param>
+    /// <exception cref="ArgumentNullException">Thrown if handlers or logger is null.</exception>
+    /// <exception cref="InvalidOperationException">Thrown if a default publisher handler is not registered.</exception>
+    public PublisherLaunchHandlerRegistry(
+        IEnumerable<IPublisherLaunchHandler> handlers,
+        ILogger<PublisherLaunchHandlerRegistry> logger)
+    {
+        ArgumentNullException.ThrowIfNull(handlers);
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+        _handlers = handlers.ToArray();
+        _defaultHandler = _handlers.OfType<DefaultPublisherLaunchHandler>().FirstOrDefault()
+            ?? throw new InvalidOperationException("DefaultPublisherLaunchHandler must be registered in the publisher launch handler registry.");
+    }
+
     /// <inheritdoc/>
     public IPublisherLaunchHandler GetHandler(GameProfile profile)
     {
         ArgumentNullException.ThrowIfNull(profile);
 
-        for (var i = 0; i < handlers.Count; i++)
+        for (var i = 0; i < _handlers.Length; i++)
         {
-            var handler = handlers[i];
+            var handler = _handlers[i];
             if (handler is not DefaultPublisherLaunchHandler && handler.CanHandle(profile))
             {
-                logger.LogDebug("[PublisherLaunchHandlerRegistry] Resolved handler {HandlerType} for profile {ProfileId}", handler.GetType().Name, profile.Id);
+                _logger.LogDebug("[PublisherLaunchHandlerRegistry] Resolved handler {HandlerType} for profile {ProfileId}", handler.GetType().Name, profile.Id);
                 return handler;
             }
         }
 
-        return handlers.OfType<DefaultPublisherLaunchHandler>().FirstOrDefault() ?? new DefaultPublisherLaunchHandler();
+        return _defaultHandler;
     }
 
     /// <inheritdoc/>
@@ -40,9 +61,9 @@ public class PublisherLaunchHandlerRegistry(
             return null;
         }
 
-        for (var i = 0; i < handlers.Count; i++)
+        for (var i = 0; i < _handlers.Length; i++)
         {
-            var handler = handlers[i];
+            var handler = _handlers[i];
             if (string.Equals(handler.PublisherType, publisherType, StringComparison.OrdinalIgnoreCase))
             {
                 return handler;
@@ -53,5 +74,5 @@ public class PublisherLaunchHandlerRegistry(
     }
 
     /// <inheritdoc/>
-    public IReadOnlyList<IPublisherLaunchHandler> GetAllHandlers() => handlers;
+    public IReadOnlyList<IPublisherLaunchHandler> GetAllHandlers() => _handlers.ToArray();
 }

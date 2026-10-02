@@ -195,32 +195,6 @@ public class GeneralsOnlinePatchNotesService(IHttpClientFactory httpClientFactor
         }
     }
 
-    private async Task<string?> FetchDirectOrFallbackFormattedNotesAsync(string datePart, string detailsUrl, CancellationToken cancellationToken)
-    {
-        using var client = httpClientFactory.CreateClient();
-        AddDefaultHeaders(client);
-
-        using var response = await client.GetAsync(detailsUrl, cancellationToken).ConfigureAwait(false);
-        if (response.StatusCode == HttpStatusCode.NotFound)
-        {
-            return await FetchFallbackPatchNotesAsync(datePart, cancellationToken).ConfigureAwait(false);
-        }
-
-        response.EnsureSuccessStatusCode();
-
-        var html = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        var context = BrowsingContext.New(Configuration.Default);
-        var document = await context.OpenAsync(req => req.Content(html), cancellationToken).ConfigureAwait(false);
-        var formatted = FormatPatchNotesDocument(document, datePart);
-
-        if (string.IsNullOrWhiteSpace(formatted))
-        {
-            return await FetchFallbackPatchNotesAsync(datePart, cancellationToken).ConfigureAwait(false);
-        }
-
-        return formatted;
-    }
-
     private static bool TryExtractDatePart(string version, out string datePart)
     {
         var clean = version;
@@ -315,6 +289,32 @@ public class GeneralsOnlinePatchNotesService(IHttpClientFactory httpClientFactor
         client.DefaultRequestHeaders.UserAgent.ParseAdd(ApiConstants.BrowserUserAgent);
         client.DefaultRequestHeaders.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8");
         client.DefaultRequestHeaders.Add("Referer", BaseUrl);
+    }
+
+    private async Task<string?> FetchDirectOrFallbackFormattedNotesAsync(string datePart, string detailsUrl, CancellationToken cancellationToken)
+    {
+        using var client = httpClientFactory.CreateClient();
+        AddDefaultHeaders(client);
+
+        using var response = await client.GetAsync(detailsUrl, cancellationToken).ConfigureAwait(false);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return await FetchFallbackPatchNotesAsync(datePart, cancellationToken).ConfigureAwait(false);
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        var html = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        var context = BrowsingContext.New(Configuration.Default);
+        var document = await context.OpenAsync(req => req.Content(html), cancellationToken).ConfigureAwait(false);
+        var formatted = FormatPatchNotesDocument(document, datePart);
+
+        if (string.IsNullOrWhiteSpace(formatted))
+        {
+            return await FetchFallbackPatchNotesAsync(datePart, cancellationToken).ConfigureAwait(false);
+        }
+
+        return formatted;
     }
 
     private async Task<IReadOnlyList<PatchNote>> FetchPatchNotesInternalAsync(CancellationToken cancellationToken)

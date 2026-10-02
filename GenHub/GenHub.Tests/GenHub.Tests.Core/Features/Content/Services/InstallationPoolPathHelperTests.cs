@@ -47,7 +47,7 @@ public class InstallationPoolPathHelperTests
     }
 
     /// <summary>
-    /// Verifies that when getting installations fails, true is returned so primary cas pool can be used.
+    /// Verifies that when getting installations fails, true is returned so primary CAS pool can be used.
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]

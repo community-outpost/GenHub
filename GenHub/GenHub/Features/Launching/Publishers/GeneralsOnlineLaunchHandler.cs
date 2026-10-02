@@ -47,13 +47,13 @@ public class GeneralsOnlineLaunchHandler(
         {
             logger.LogInformation("[GeneralsOnlineLaunchHandler] Applying Generals Online settings to settings.json for profile {ProfileId}", profile.Id);
 
-            // load existing settings first to preserve keys the client owns that the profile does not declare
+            // Load existing settings first to preserve keys the client owns that the profile does not declare.
             var loadResult = await gameSettingsService.LoadGeneralsOnlineSettingsAsync(cancellationToken);
             if (loadResult?.Success != true || loadResult.Data == null)
             {
                 logger.LogWarning(
                     "[GeneralsOnlineLaunchHandler] Not writing Generals Online settings because settings.json could not be read: {Error}",
-                    loadResult?.FirstError ?? "load result was null");
+                    loadResult?.FirstError ?? "Load result was null");
                 return OperationResult.CreateSuccess();
             }
 
@@ -86,14 +86,14 @@ public class GeneralsOnlineLaunchHandler(
     /// <inheritdoc/>
     public bool SupportsCameraSettingsOverride(GameProfile profile)
     {
-        // generals online provides its own internal camera handling; workspace gamedata overrides are skipped
+        // Generals Online provides its own internal camera handling; workspace GameData overrides are skipped.
         return false;
     }
 
     /// <inheritdoc/>
     public void ConfigureLaunchArguments(GameProfile profile, Dictionary<string, string> arguments)
     {
-        // generals online arguments can be customized here if needed in future releases
+        // Generals Online arguments can be customized here if needed in future releases.
     }
 
     /// <inheritdoc/>

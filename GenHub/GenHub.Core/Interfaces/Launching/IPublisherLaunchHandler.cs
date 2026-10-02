@@ -27,6 +27,10 @@ public interface IPublisherLaunchHandler
     /// <summary>
     /// Executes publisher-specific pre-launch configuration (e.g. settings file synchronization).
     /// </summary>
+    /// <remarks>
+    /// This hook operates with best-effort semantics. Any non-fatal failure will be logged as a warning
+    /// and will not block the game launch, allowing the profile to execute with existing or default configuration.
+    /// </remarks>
     /// <param name="profile">The game profile being launched.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>An operation result indicating success or failure.</returns>
@@ -49,6 +53,10 @@ public interface IPublisherLaunchHandler
     /// <summary>
     /// Executes publisher-specific hooks immediately before process startup.
     /// </summary>
+    /// <remarks>
+    /// Unlike <see cref="BeforeLaunchAsync"/>, a failure here represents a critical process initialization
+    /// error that will abort and unregister the launch.
+    /// </remarks>
     /// <param name="profile">The game profile being launched.</param>
     /// <param name="launchConfig">The launch configuration for the process.</param>
     /// <param name="cancellationToken">Cancellation token.</param>

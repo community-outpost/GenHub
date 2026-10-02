@@ -32,7 +32,7 @@ public class DefaultPublisherLaunchHandler : IPublisherLaunchHandler
     /// <inheritdoc/>
     public void ConfigureLaunchArguments(GameProfile profile, Dictionary<string, string> arguments)
     {
-        // default handler makes no argument modifications
+        // Default handler makes no argument modifications.
     }
 
     /// <inheritdoc/>

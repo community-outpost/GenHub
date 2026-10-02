@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace GenHub.Features.Content.Services;
 
 /// <summary>
-/// Helper to ensure the installation cas pool path is detected and initialized before storing content.
+/// Helper to ensure the installation CAS pool path is detected and initialized before storing content.
 /// </summary>
 internal static class InstallationPoolPathHelper
 {
@@ -17,7 +17,7 @@ internal static class InstallationPoolPathHelper
     /// Forces installation detection and resets the installation pool path.
     /// </summary>
     /// <param name="installationService">The game installation service.</param>
-    /// <param name="installationCasPoolService">The installation cas pool service.</param>
+    /// <param name="installationCasPoolService">The installation CAS pool service.</param>
     /// <param name="logger">The logger instance.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>True when content acquisition may continue; otherwise, false.</returns>

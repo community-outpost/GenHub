@@ -111,7 +111,7 @@ public class GeneralsOnlineDeliverer(
                 CurrentOperation = "Registering all variant manifests to content library",
             });
 
-            // For gameclient content, ensure installation pool path is initialized before storing
+            // For GameClient content, ensure installation pool path is initialized before storing.
             var storageResult = await EnsureGameClientStorageAsync(manifests, cancellationToken);
             if (!storageResult.Success)
             {
