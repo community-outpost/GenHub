@@ -48,7 +48,7 @@ public class ContentManifest
         Files = other.Files != null ? [.. other.Files] : [];
         Variants = other.Variants?.Select(v => v is null ? null! : new ArtifactVariant
         {
-            RuntimeIdentifiers = [.. v.RuntimeIdentifiers],
+            RuntimeIdentifiers = v.RuntimeIdentifiers is null ? [] : [.. v.RuntimeIdentifiers],
             EntryPoint = v.EntryPoint,
             LaunchRelationship = v.LaunchRelationship,
             Files = v.Files is null ? null! : [.. v.Files],
