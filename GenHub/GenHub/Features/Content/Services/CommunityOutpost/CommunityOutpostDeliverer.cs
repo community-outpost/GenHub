@@ -994,7 +994,7 @@ public class CommunityOutpostDeliverer(
         logger.LogInformation("Finished processing auto-install dependencies");
     }
 
-    private static bool ShouldSkipControlBarDependency(
+    private bool ShouldSkipControlBarDependency(
         GenPatcherContentMetadata packageMetadata,
         GenPatcherContentMetadata depMetadata,
         bool hasControlBarProBigs)

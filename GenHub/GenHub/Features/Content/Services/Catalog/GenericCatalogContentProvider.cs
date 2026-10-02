@@ -75,6 +75,13 @@ public class GenericCatalogContentProvider(
             $"Generic catalog content '{contentId}' requires resolution metadata and cannot be fetched by ID alone."));
     }
 
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
     /// <summary>
     /// Invokes RollbackPreparedContentAsync for testing purposes.
     /// </summary>
@@ -183,6 +190,18 @@ public class GenericCatalogContentProvider(
         _registeredManifestIdsByOperation.TryRemove(opKey, out _);
         _preExistingManifestIdsByOperation.TryRemove(opKey, out _);
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Releases unmanaged and - optionally - managed resources.
+    /// </summary>
+    /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _generalsOnlineDeliveryLock.Dispose();
+        }
     }
 
     private static string GetOperationKey(string manifestId, string workingDirectory) =>
@@ -405,25 +424,6 @@ public class GenericCatalogContentProvider(
             {
                 Logger.LogError(ex, "Error occurred during generic catalog manifest registration rollback for {ManifestId}", manifestId);
             }
-        }
-    }
-
-    /// <inheritdoc />
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    /// <summary>
-    /// Releases unmanaged and - optionally - managed resources.
-    /// </summary>
-    /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
-    protected virtual void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            _generalsOnlineDeliveryLock.Dispose();
         }
     }
 }
