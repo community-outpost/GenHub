@@ -9,6 +9,7 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.WorldBuilder;
 using GenHub.Core.Models.Validation;
 using GenHub.Core.Services.Tools.WorldBuilder;
+using GenHub.Features.Tools.WorldBuilder.Controls;
 using GenHub.Features.Tools.WorldBuilder.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -959,6 +960,54 @@ public sealed class WorldBuilderViewModelTests : IDisposable
             Times.Once);
     }
 
+    /// <summary>
+    /// Tests that the fence tool routes through two-point dispatch and places posts.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task Fence_PressTwice_PlacesFencePosts()
+    {
+        // Arrange
+        var map = CreateCanvasMap();
+        await OpenScriptMapAsync("fence.map", map);
+        _viewModel.SelectedCanvasTool = MapCanvasTool.Fence;
+
+        // Act: first press arms the two-point preview.
+        _viewModel.HandleCanvasCellPressed(new CellPointerEventArgs(2, 2, true, false, false));
+
+        // Assert
+        _viewModel.ActiveLinePreview.Should().NotBeNull();
+
+        // Act: second press completes the span.
+        _viewModel.HandleCanvasCellPressed(new CellPointerEventArgs(5, 5, true, false, false));
+
+        // Assert
+        _viewModel.ActiveLinePreview.Should().BeNull();
+        map.Objects.Should().NotBeEmpty();
+        _viewModel.IsDirty.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Tests that the flood fill tool fills the region under a single press.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task TileFloodFill_Press_FillsRegion()
+    {
+        // Arrange
+        var map = CreateCanvasMap();
+        await OpenScriptMapAsync("fill.map", map);
+        _viewModel.SelectedTexture = map.Terrain.TextureClasses[1];
+        _viewModel.SelectedCanvasTool = MapCanvasTool.TileFloodFill;
+
+        // Act
+        _viewModel.HandleCanvasCellPressed(new CellPointerEventArgs(0, 0, true, false, false));
+
+        // Assert
+        map.Terrain.TileIndices.Should().OnlyContain(tile => tile != 0);
+        _viewModel.IsDirty.Should().BeTrue();
+    }
+
     private static WorldBuilderMap CreateMap(string name)
     {
         var map = new WorldBuilderMap();
@@ -966,6 +1015,21 @@ public sealed class WorldBuilderViewModelTests : IDisposable
             WorldBuilderConstants.DictKeys.MapName,
             WorldBuilderConstants.DictValueType.UnicodeString,
             StringValue: name));
+        return map;
+    }
+
+    private static WorldBuilderMap CreateCanvasMap()
+    {
+        var map = CreateMap("Canvas Map");
+        map.Terrain.Width = 8;
+        map.Terrain.Height = 8;
+        map.Terrain.Heights = new byte[64];
+        map.Terrain.TileIndices = new short[64];
+        map.Terrain.BlendTileIndices = new short[64];
+        map.Terrain.ExtraBlendTileIndices = new short[64];
+        map.Terrain.CliffInfoIndices = new short[64];
+        map.Terrain.TextureClasses.Add(new MapTextureClass(0, 16, 4, "Dirt"));
+        map.Terrain.TextureClasses.Add(new MapTextureClass(16, 16, 4, "Grass"));
         return map;
     }
 

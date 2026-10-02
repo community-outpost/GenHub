@@ -479,6 +479,7 @@ public sealed partial class WorldBuilderViewModel
     {
         return tool is MapCanvasTool.Road
             or MapCanvasTool.Bridge
+            or MapCanvasTool.Fence
             or MapCanvasTool.Ramp
             or MapCanvasTool.Border
             or MapCanvasTool.Ruler
@@ -941,6 +942,7 @@ public sealed partial class WorldBuilderViewModel
             case MapCanvasTool.Smooth:
             case MapCanvasTool.Plateau:
             case MapCanvasTool.TilePaint:
+            case MapCanvasTool.TileFloodFill:
                 ApplyContinuousTool(cellX, cellY);
                 break;
 
