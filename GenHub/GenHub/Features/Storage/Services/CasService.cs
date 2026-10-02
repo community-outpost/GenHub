@@ -38,16 +38,18 @@ public class CasService(
 
             // Compute hash if not provided
             string hash = string.Empty;
-            if (!string.IsNullOrEmpty(expectedHash))
+            if (!string.IsNullOrWhiteSpace(expectedHash))
             {
+                var normalizedExpectedHash = expectedHash.Trim();
+
                 // Verify the expected hash matches the actual file
                 var actualHash = await fileHashProvider.ComputeFileHashAsync(sourcePath, cancellationToken);
-                if (!string.Equals(expectedHash, actualHash, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(normalizedExpectedHash, actualHash, StringComparison.OrdinalIgnoreCase))
                 {
-                    return OperationResult<string>.CreateFailure($"Hash mismatch: expected {expectedHash}, but got {actualHash}");
+                    return OperationResult<string>.CreateFailure($"Hash mismatch: expected {normalizedExpectedHash}, but got {actualHash}");
                 }
 
-                hash = expectedHash;
+                hash = normalizedExpectedHash;
             }
             else
             {
@@ -338,15 +340,16 @@ public class CasService(
 
             // Compute hash
             string hash = string.Empty;
-            if (!string.IsNullOrEmpty(expectedHash))
+            if (!string.IsNullOrWhiteSpace(expectedHash))
             {
+                var normalizedExpectedHash = expectedHash.Trim();
                 var actualHash = await fileHashProvider.ComputeFileHashAsync(sourcePath, cancellationToken);
-                if (!string.Equals(expectedHash, actualHash, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(normalizedExpectedHash, actualHash, StringComparison.OrdinalIgnoreCase))
                 {
-                    return OperationResult<string>.CreateFailure($"Hash mismatch: expected {expectedHash}, but got {actualHash}");
+                    return OperationResult<string>.CreateFailure($"Hash mismatch: expected {normalizedExpectedHash}, but got {actualHash}");
                 }
 
-                hash = expectedHash;
+                hash = normalizedExpectedHash;
             }
             else
             {
@@ -642,8 +645,10 @@ public class CasService(
         string? expectedHash,
         CancellationToken cancellationToken)
     {
-        if (!string.IsNullOrEmpty(expectedHash))
+        if (!string.IsNullOrWhiteSpace(expectedHash))
         {
+            var normalizedExpectedHash = expectedHash.Trim();
+
             // We need to compute the hash to verify it matches
             if (!contentStream.CanSeek)
             {
@@ -652,12 +657,12 @@ public class CasService(
 
             var actualHash = await streamHashProvider.ComputeStreamHashAsync(contentStream, cancellationToken);
             contentStream.Position = 0;
-            if (!string.Equals(expectedHash, actualHash, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(normalizedExpectedHash, actualHash, StringComparison.OrdinalIgnoreCase))
             {
-                return OperationResult<string>.CreateFailure($"Hash mismatch: expected {expectedHash}, but got {actualHash}");
+                return OperationResult<string>.CreateFailure($"Hash mismatch: expected {normalizedExpectedHash}, but got {actualHash}");
             }
 
-            return OperationResult<string>.CreateSuccess(expectedHash);
+            return OperationResult<string>.CreateSuccess(normalizedExpectedHash);
         }
 
         if (!contentStream.CanSeek)

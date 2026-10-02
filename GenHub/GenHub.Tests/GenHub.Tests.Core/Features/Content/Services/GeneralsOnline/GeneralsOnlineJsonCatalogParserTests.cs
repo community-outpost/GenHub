@@ -182,7 +182,14 @@ public class GeneralsOnlineJsonCatalogParserTests
     {
         // Arrange
         const string expectedSha256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
-        var json = $@"{{
+        var json = $@"[QUOT]
+            ""version"": ""111825_QFE2"",
+            ""download_url"": ""https://example.com/download.zip"",
+            ""size"": 123456,
+            ""sha256"": ""{expectedSha256}"",
+            ""release_notes"": ""Fixes stuff""
+        [QUOT]".Replace("[QUOT]", "{").Replace("[QUOT]", "}");
+        var actualJson = $@"{{
             ""version"": ""111825_QFE2"",
             ""download_url"": ""https://example.com/download.zip"",
             ""size"": 123456,
@@ -190,7 +197,7 @@ public class GeneralsOnlineJsonCatalogParserTests
             ""release_notes"": ""Fixes stuff""
         }}";
 
-        var wrapper = $"{{\"source\":\"manifest\",\"data\":{json}}}";
+        var wrapper = $"{{\"source\":\"manifest\",\"data\":{actualJson}}}";
 
         // Act
         var result = await _parser.ParseAsync(wrapper, _provider);
@@ -232,5 +239,36 @@ public class GeneralsOnlineJsonCatalogParserTests
         Assert.NotNull(release);
         Assert.Equal("082826", release.Version);
         Assert.Equal(new DateTime(2026, 8, 28, 0, 0, 0, DateTimeKind.Utc), release.VersionDate);
+    }
+
+    /// <summary>
+    /// Tests that ParseAsync trims whitespace from SHA256 in manifest.json.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ParseAsync_WithSha256ContainingLeadingOrTrailingWhitespace_TrimsSha256OnReleaseAsync()
+    {
+        // Arrange
+        const string rawSha256 = "   085726A5DB6C885EB17F5A38F1B4B3D1899FCB57A03A5B4BE83C0214AFF13FEE   ";
+        const string expectedSha256 = "085726A5DB6C885EB17F5A38F1B4B3D1899FCB57A03A5B4BE83C0214AFF13FEE";
+        var json = $@"{{
+            ""version"": ""100126_QFE3"",
+            ""download_url"": ""https://cdn.playgenerals.online/GeneralsOnline_portable_100126_QFE3.zip"",
+            ""size"": 123456,
+            ""sha256"": ""{rawSha256}"",
+            ""release_notes"": ""Fixes stuff""
+        }}";
+
+        var wrapper = $"{{\"source\":\"manifest\",\"data\":{json}}}";
+
+        // Act
+        var result = await _parser.ParseAsync(wrapper, _provider);
+
+        // Assert
+        Assert.True(result.Success);
+        var item = result.Data.First();
+        var release = item.GetData<GeneralsOnlineRelease>();
+        Assert.NotNull(release);
+        Assert.Equal(expectedSha256, release.Sha256);
     }
 }

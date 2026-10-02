@@ -503,8 +503,8 @@ public class FileOperationsService(
                 filePath,
                 cancellationToken);
             var matches = string.Equals(
-                actualHash,
-                expectedHash,
+                actualHash?.Trim(),
+                expectedHash?.Trim(),
                 StringComparison.OrdinalIgnoreCase);
 
             logger.LogDebug(

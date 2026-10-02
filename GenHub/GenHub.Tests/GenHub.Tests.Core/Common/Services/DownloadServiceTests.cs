@@ -130,6 +130,59 @@ public class DownloadServiceTests
     }
 
     /// <summary>
+    /// Verifies that an expected hash with leading or trailing whitespace passes hash verification successfully.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFileAsync_ExpectedHashWithWhitespace_VerifiesSuccessfullyAsync()
+    {
+        // Arrange
+        var fileContent = new byte[] { 10, 20, 30, 40 };
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(fileContent),
+            });
+
+        var hashProvider = new Sha256HashProvider();
+        var service = CreateService(handler.Object, out _, hashProvider);
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            await File.WriteAllBytesAsync(tempFile, fileContent);
+            var actualHash = await hashProvider.ComputeFileHashAsync(tempFile);
+
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("http://test/file.bin"),
+                DestinationPath = tempFile,
+                ExpectedHash = $"  {actualHash}  \t ",
+            };
+
+            // Act
+            var result = await service.DownloadFileAsync(config);
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.True(result.HashVerified);
+            Assert.Equal(fileContent, File.ReadAllBytes(tempFile));
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
     /// Verifies that an HTTP error triggers retries and ultimately fails.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
@@ -688,6 +741,54 @@ public class DownloadServiceTests
                 Url = new Uri("http://test/existing-match.bin"),
                 DestinationPath = tempFile,
                 ExpectedHash = expectedHash,
+            };
+
+            // Act
+            var result = await service.DownloadFileAsync(config);
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.True(result.HashVerified);
+            handler.Protected().Verify(
+                "SendAsync",
+                Times.Never(),
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>());
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that when a file already exists and expected hash has whitespace, download is skipped.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFileAsync_FileExistsWithMatchingHashHavingWhitespace_SkipsDownloadAsync()
+    {
+        // Arrange
+        var content = new byte[] { 10, 20, 30, 40 };
+        var tempFile = Path.GetTempFileName();
+        File.WriteAllBytes(tempFile, content);
+
+        var hashProvider = new Sha256HashProvider();
+        var expectedHash = await hashProvider.ComputeFileHashAsync(tempFile);
+
+        var handler = new Mock<HttpMessageHandler>();
+        var service = CreateService(handler.Object, out _, hashProvider);
+
+        try
+        {
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("http://test/existing-match-whitespace.bin"),
+                DestinationPath = tempFile,
+                ExpectedHash = $"  {expectedHash}  ",
             };
 
             // Act
