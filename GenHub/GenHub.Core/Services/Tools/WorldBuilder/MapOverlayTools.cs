@@ -51,6 +51,21 @@ public static class MapOverlayTools
     }
 
     /// <summary>
+    /// Deletes a specific object entry by reference. Prefer this over the
+    /// name lookup when the entry is already in hand: names are not unique
+    /// (scattered props share template names).
+    /// </summary>
+    /// <param name="map">The map document.</param>
+    /// <param name="entry">The entry to remove.</param>
+    /// <returns>True when the entry was removed.</returns>
+    public static bool DeleteObject(WorldBuilderMap map, MapObjectEntry entry)
+    {
+        ArgumentNullException.ThrowIfNull(map);
+        ArgumentNullException.ThrowIfNull(entry);
+        return map.Objects.Remove(entry);
+    }
+
+    /// <summary>
     /// Moves an object, snapping Z to the terrain height.
     /// </summary>
     /// <param name="map">The map document.</param>

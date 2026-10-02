@@ -1025,7 +1025,7 @@ public sealed partial class WorldBuilderViewModel
             return;
         }
 
-        var template = string.IsNullOrWhiteSpace(SelectedObjectTemplate) ? "CivilianBuilding01" : SelectedObjectTemplate;
+        var template = string.IsNullOrWhiteSpace(SelectedObjectTemplate) ? WorldBuilderConstants.Objects.DefaultTemplate : SelectedObjectTemplate;
         var objectPos = MapCoordinates.CellCenterToWorld(_map.Terrain.BorderSize, cellX, cellY);
         var obj = MapOverlayTools.PlaceObject(_map, template, objectPos.X, objectPos.Y);
         SyncObjects();
@@ -1053,7 +1053,7 @@ public sealed partial class WorldBuilderViewModel
 
         if (target != null)
         {
-            MapOverlayTools.DeleteObject(_map, target.Name);
+            MapOverlayTools.DeleteObject(_map, target);
             SyncObjects();
             SyncWaypoints();
             IsDirty = true;

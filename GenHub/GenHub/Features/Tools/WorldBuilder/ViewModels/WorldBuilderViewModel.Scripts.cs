@@ -11,6 +11,7 @@ using GenHub.Features.Tools.WorldBuilder.Common;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -568,7 +569,7 @@ public sealed partial class WorldBuilderViewModel
             var reader = new MapChunkReader(bytes);
             if (reader.TopLevel.Count == 0)
             {
-                throw new InvalidDataException(localizationService.GetString("Tools.WorldBuilder.Scripts.ImportEmpty"));
+                return FailScriptImport(localizationService.GetString("Tools.WorldBuilder.Scripts.ImportEmpty"));
             }
 
             var lists = MapScriptCodec.ReadPlayerScripts(reader, reader.TopLevel[0]);
@@ -591,11 +592,7 @@ public sealed partial class WorldBuilderViewModel
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
         {
-            notificationService.ShowError(
-                localizationService.GetString("Tools.WorldBuilder.Scripts.ImportScripts"),
-                localizationService.GetString("Tools.WorldBuilder.Scripts.ImportFailed", ex.Message),
-                NotificationDurations.Long);
-            return OperationResult<int>.CreateFailure(ex.Message);
+            return FailScriptImport(ex.Message);
         }
     }
 
@@ -1356,6 +1353,16 @@ public sealed partial class WorldBuilderViewModel
         }
     }
 
+    private OperationResult<int> FailScriptImport(string detail)
+    {
+        notificationService.ShowError(
+            localizationService.GetString("Tools.WorldBuilder.Scripts.ImportScripts"),
+            localizationService.GetString("Tools.WorldBuilder.Scripts.ImportFailed", detail),
+            NotificationDurations.Long);
+        return OperationResult<int>.CreateFailure(detail);
+    }
+
+    [SuppressMessage("Minor Code Smell", "S2325", Justification = "Reads instance observable filter properties; cannot be static.")]
     private bool ScriptPassesFilter(ScriptModel script, string? filter, ScriptReferenceSets? sets)
     {
         if (!ScriptFilterActive && script.IsActive)

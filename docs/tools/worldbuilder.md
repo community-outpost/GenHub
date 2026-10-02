@@ -8,7 +8,7 @@ The on-disk format support (DataChunk framing, RefPack/ZLib envelopes, terrain, 
 
 - **Open & Save**: Round-trips `.map` files including the `.wak` companion and `.tga` preview sidecar. Drop a `.map` file onto the view to open it.
 - **Map Summary**: Dimensions, sides, objects, teams, triggers, script lists, waypoint links, wave tracks, and total world cash.
-- **Preview**: Renders the embedded or sidecar 128x128 preview next to the editable map name.
+- **Preview**: Shows the document preview in the floating Minimap radar window and can generate a high-resolution render on demand.
 - **Validation**: Reports map issues by severity with error and warning counts.
 - **Map Generation**: Procedurally generates a new battlefield from a seed, dimensions, and player count.
 - **Team Exchange**: Imports and exports `.teams` files to share scripted teams between maps.
@@ -40,8 +40,8 @@ To open a map from a ModBuilder project, select a `.map` file in the ModBuilder 
 
 ### Panels & Editors
 
-- **Project & Generation**: Project map browser, import from game directories, procedural map generator with seed/size/player/cliff/feature controls, and native Wine launcher.
-- **Properties & Minimap**: 128x128 preview bitmap, live minimap generator, texture paletting, and layer visibility toggles.
+- **Generation Dialog**: Procedural map generator with seed/size/player controls (project folders and game-directory import live in the ViewModel commands and menu, not a browser panel).
+- **Layers & Minimap**: Texture palette, layer visibility toggles, and the floating Minimap radar with the document preview bitmap and live high-resolution generator.
 - **Script Editor**: Script tree organized by side and group, script flags (Active, OneShot, Subroutine, Easy/Normal/Hard), condition and action lists, and broken reference diagnostics.
 - **Teams & Sides**: Skirmish faction and side management, player team configuration with AI priority and waypoint linking, plus `.teams` file exchange import and export.
 - **Environment & Lighting**: Time-of-day selection (Morning, Afternoon, Dusk, Night) with ambient, diffuse, and directional lighting color parameters.

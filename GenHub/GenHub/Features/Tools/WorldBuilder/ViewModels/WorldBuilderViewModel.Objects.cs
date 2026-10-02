@@ -5,6 +5,7 @@ using GenHub.Core.Models.Tools.WorldBuilder;
 using GenHub.Core.Services.Tools.WorldBuilder;
 using System;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
 namespace GenHub.Features.Tools.WorldBuilder.ViewModels;
@@ -14,11 +15,9 @@ namespace GenHub.Features.Tools.WorldBuilder.ViewModels;
 /// </summary>
 public sealed partial class WorldBuilderViewModel
 {
-    private const string NormalSetting = "Normal";
-
     private static readonly string[] DefaultTemplates =
     [
-        "CivilianBuilding01",
+        WorldBuilderConstants.Objects.DefaultTemplate,
         "CivilianBuilding02",
         "SupplyDock",
         "SupplyWarehouse",
@@ -36,13 +35,13 @@ public sealed partial class WorldBuilderViewModel
     private string objectFilterText = string.Empty;
 
     [ObservableProperty]
-    private string selectedObjectTemplate = "CivilianBuilding01";
+    private string selectedObjectTemplate = WorldBuilderConstants.Objects.DefaultTemplate;
 
     [ObservableProperty]
     private string selectedObjectName = string.Empty;
 
     [ObservableProperty]
-    private string selectedObjectTeam = "[neutral]";
+    private string selectedObjectTeam = WorldBuilderConstants.Objects.NeutralTeam;
 
     [ObservableProperty]
     private string selectedObjectScript = "<none>";
@@ -51,12 +50,12 @@ public sealed partial class WorldBuilderViewModel
     private int selectedObjectHealthPercent = 100;
 
     [ObservableProperty]
-    private string selectedObjectAggressiveness = NormalSetting;
+    private string selectedObjectAggressiveness = WorldBuilderConstants.Objects.Normal;
 
     private int _selectedObjectAggressivenessIndex = 1;
 
     [ObservableProperty]
-    private string selectedObjectVeterancy = NormalSetting;
+    private string selectedObjectVeterancy = WorldBuilderConstants.Objects.Normal;
 
     private int _selectedObjectVeterancyIndex;
 
@@ -121,7 +120,7 @@ public sealed partial class WorldBuilderViewModel
     private int selectedObjectSoundLoopCount = 1;
 
     [ObservableProperty]
-    private string selectedObjectSoundPriority = NormalSetting;
+    private string selectedObjectSoundPriority = WorldBuilderConstants.Objects.Normal;
 
     [ObservableProperty]
     private float selectedObjectSoundVolume = 1f;
@@ -219,7 +218,7 @@ public sealed partial class WorldBuilderViewModel
         var center = MapCoordinates.CellCenterToWorld(_map.Terrain.BorderSize, _map.Terrain.Width / 2, _map.Terrain.Height / 2);
         var cx = center.X;
         var cy = center.Y;
-        var template = string.IsNullOrWhiteSpace(SelectedObjectTemplate) ? "CivilianBuilding01" : SelectedObjectTemplate;
+        var template = string.IsNullOrWhiteSpace(SelectedObjectTemplate) ? WorldBuilderConstants.Objects.DefaultTemplate : SelectedObjectTemplate;
         var obj = MapOverlayTools.PlaceObject(_map, template, cx, cy);
         SyncObjects();
         SelectedObject = obj;
@@ -290,7 +289,7 @@ public sealed partial class WorldBuilderViewModel
         }
 
         _undoService.Checkpoint(_map);
-        MapOverlayTools.DeleteObject(_map, SelectedObject.Name);
+        MapOverlayTools.DeleteObject(_map, SelectedObject);
         SelectedObject = null;
         SyncObjects();
         SyncWaypoints();
@@ -340,7 +339,7 @@ public sealed partial class WorldBuilderViewModel
             _map.WaypointLinks.RemoveAll(l => l.Waypoint1 == wpId || l.Waypoint2 == wpId);
         }
 
-        MapOverlayTools.DeleteObject(_map, SelectedWaypoint.Name);
+        MapOverlayTools.DeleteObject(_map, SelectedWaypoint);
         SelectedWaypoint = null;
         SyncWaypoints();
         SyncWaypointLinks();
@@ -512,19 +511,20 @@ public sealed partial class WorldBuilderViewModel
     {
         SelectedObjectAggressiveness = SelectedObjectAggressivenessIndex switch
         {
-            0 => "Passive",
-            2 => "Aggressive",
-            _ => NormalSetting,
+            0 => WorldBuilderConstants.Objects.Passive,
+            2 => WorldBuilderConstants.Objects.Aggressive,
+            _ => WorldBuilderConstants.Objects.Normal,
         };
         SelectedObjectVeterancy = SelectedObjectVeterancyIndex switch
         {
-            1 => "Veteran",
-            2 => "Elite",
-            3 => "Heroic",
-            _ => "Regular",
+            1 => WorldBuilderConstants.Objects.Veteran,
+            2 => WorldBuilderConstants.Objects.Elite,
+            3 => WorldBuilderConstants.Objects.Heroic,
+            _ => WorldBuilderConstants.Objects.Regular,
         };
     }
 
+    [SuppressMessage("Minor Code Smell", "S2325", Justification = "Reads instance observable editing properties; cannot be static.")]
     private void WriteObjectCoreProperties(MapObjectEntry obj)
     {
         obj.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.TeamName, WorldBuilderConstants.DictValueType.AsciiString, StringValue: SelectedObjectTeam));
@@ -542,6 +542,7 @@ public sealed partial class WorldBuilderViewModel
         obj.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectUpgrades, WorldBuilderConstants.DictValueType.AsciiString, StringValue: SelectedObjectUpgrades));
     }
 
+    [SuppressMessage("Minor Code Smell", "S2325", Justification = "Reads instance observable editing properties; cannot be static.")]
     private void WriteObjectFlagProperties(MapObjectEntry obj)
     {
         obj.Properties.Set(BoolValue(WorldBuilderConstants.DictKeys.ObjectEnabled, SelectedObjectEnabled));
@@ -555,6 +556,7 @@ public sealed partial class WorldBuilderViewModel
         obj.Properties.Set(BoolValue(WorldBuilderConstants.DictKeys.ObjectReflectsInMirror, SelectedObjectReflectsInMirror));
     }
 
+    [SuppressMessage("Minor Code Smell", "S2325", Justification = "Reads instance observable editing properties; cannot be static.")]
     private void WriteObjectSoundProperties(MapObjectEntry obj)
     {
         obj.Properties.Set(new MapDictValue(WorldBuilderConstants.DictKeys.ObjectSound, WorldBuilderConstants.DictValueType.AsciiString, StringValue: SelectedObjectSound));
@@ -640,7 +642,7 @@ public sealed partial class WorldBuilderViewModel
         if (value != null)
         {
             SelectedObjectName = value.Name;
-            SelectedObjectTeam = value.Properties.GetString(WorldBuilderConstants.DictKeys.TeamName, "[neutral]");
+            SelectedObjectTeam = value.Properties.GetString(WorldBuilderConstants.DictKeys.TeamName, WorldBuilderConstants.Objects.NeutralTeam);
             SelectedObjectScript = value.Properties.GetString(WorldBuilderConstants.DictKeys.ObjectScript, "<none>");
             SelectedObjectX = value.X;
             SelectedObjectY = value.Y;
@@ -648,19 +650,19 @@ public sealed partial class WorldBuilderViewModel
             SelectedObjectAngle = value.Angle;
             SelectedObjectHealthPercent = value.Properties.GetInt(WorldBuilderConstants.DictKeys.ObjectHealth, 100);
             SelectedObjectHitPoints = value.Properties.GetInt(WorldBuilderConstants.DictKeys.ObjectHitPoints, 0);
-            SelectedObjectAggressiveness = value.Properties.GetString(WorldBuilderConstants.DictKeys.ObjectAggressiveness, NormalSetting);
+            SelectedObjectAggressiveness = value.Properties.GetString(WorldBuilderConstants.DictKeys.ObjectAggressiveness, WorldBuilderConstants.Objects.Normal);
             SelectedObjectAggressivenessIndex = SelectedObjectAggressiveness switch
             {
-                "Passive" => 0,
-                "Aggressive" => 2,
+                WorldBuilderConstants.Objects.Passive => 0,
+                WorldBuilderConstants.Objects.Aggressive => 2,
                 _ => 1,
             };
-            SelectedObjectVeterancy = value.Properties.GetString(WorldBuilderConstants.DictKeys.ObjectVeterancy, "Regular");
+            SelectedObjectVeterancy = value.Properties.GetString(WorldBuilderConstants.DictKeys.ObjectVeterancy, WorldBuilderConstants.Objects.Regular);
             SelectedObjectVeterancyIndex = SelectedObjectVeterancy switch
             {
-                "Veteran" => 1,
-                "Elite" => 2,
-                "Heroic" => 3,
+                WorldBuilderConstants.Objects.Veteran => 1,
+                WorldBuilderConstants.Objects.Elite => 2,
+                WorldBuilderConstants.Objects.Heroic => 3,
                 _ => 0,
             };
             SelectedObjectEnabled = value.Properties.GetBool(WorldBuilderConstants.DictKeys.ObjectEnabled, true);
@@ -682,7 +684,7 @@ public sealed partial class WorldBuilderViewModel
             SelectedObjectSoundEnabled = value.Properties.GetBool(WorldBuilderConstants.DictKeys.ObjectSoundEnabled, true);
             SelectedObjectSoundLooping = value.Properties.GetBool(WorldBuilderConstants.DictKeys.ObjectSoundLooping, false);
             SelectedObjectSoundLoopCount = value.Properties.GetInt(WorldBuilderConstants.DictKeys.ObjectSoundLoopCount, 1);
-            SelectedObjectSoundPriority = value.Properties.GetString(WorldBuilderConstants.DictKeys.ObjectSoundPriority, NormalSetting);
+            SelectedObjectSoundPriority = value.Properties.GetString(WorldBuilderConstants.DictKeys.ObjectSoundPriority, WorldBuilderConstants.Objects.Normal);
             SelectedObjectSoundVolume = value.Properties.GetReal(WorldBuilderConstants.DictKeys.ObjectSoundVolume, 1f);
             SelectedObjectSoundMinVolume = value.Properties.GetReal(WorldBuilderConstants.DictKeys.ObjectSoundMinVolume, 0f);
             SelectedObjectSoundMinRange = value.Properties.GetReal(WorldBuilderConstants.DictKeys.ObjectSoundMinRange, 0f);

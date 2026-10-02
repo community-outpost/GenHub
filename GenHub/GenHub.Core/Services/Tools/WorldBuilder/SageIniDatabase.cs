@@ -19,7 +19,7 @@ namespace GenHub.Core.Services.Tools.WorldBuilder;
 /// </summary>
 public sealed class SageIniDatabase(SageIniParser parser, ILogger<SageIniDatabase> logger) : ISageIniDatabase
 {
-    private sealed record SubsystemRow(string Name, string? DefaultDir, string OverrideDir);
+    private sealed record SubsystemRow(string Name, string? FallbackDir, string OverrideDir);
 
     private static readonly SubsystemRow[] BootOrder =
     [
@@ -216,9 +216,9 @@ public sealed class SageIniDatabase(SageIniParser parser, ILogger<SageIniDatabas
     private static List<string> CollectSubsystemFiles(IGameAssetFileSystem fileSystem, SubsystemRow row)
     {
         var files = new List<string>();
-        if (row.DefaultDir is not null)
+        if (row.FallbackDir is not null)
         {
-            AddDirectoryLoad(files, fileSystem, row.DefaultDir);
+            AddDirectoryLoad(files, fileSystem, row.FallbackDir);
         }
 
         AddDirectoryLoad(files, fileSystem, row.OverrideDir);
@@ -361,7 +361,7 @@ public sealed class SageIniDatabase(SageIniParser parser, ILogger<SageIniDatabas
 
     private static string AttemptedPaths(SubsystemRow row)
     {
-        return row.DefaultDir is null ? row.OverrideDir : string.Concat(row.DefaultDir, ", ", row.OverrideDir);
+        return row.FallbackDir is null ? row.OverrideDir : string.Concat(row.FallbackDir, ", ", row.OverrideDir);
     }
 
     private async Task<SageIniLoadReport.SubsystemLoadEntry> LoadSubsystemAsync(

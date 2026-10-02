@@ -490,9 +490,9 @@ public sealed partial class WorldBuilderViewModel(
                     {
                         File.Delete(tempPath);
                     }
-                    catch
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                     {
-                        // Clean up temp file
+                        logger.LogDebug(ex, "Best-effort temp file cleanup failed for {Path}", tempPath);
                     }
                 }
             }
@@ -962,17 +962,18 @@ public sealed partial class WorldBuilderViewModel(
 
     private async Task<bool> WriteMapToFileAsync(string path, CancellationToken cancellationToken)
     {
-        if (_map == null)
+        var map = _map;
+        if (map == null)
         {
             return false;
         }
 
-        var previousPath = _map.FilePath;
-        _map.FilePath = path;
-        var result = await mapService.SaveAsync(_map, cancellationToken).ConfigureAwait(false);
+        var previousPath = map.FilePath;
+        map.FilePath = path;
+        var result = await mapService.SaveAsync(map, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
         {
-            _map.FilePath = previousPath;
+            map.FilePath = previousPath;
             notificationService.ShowError(
                 localizationService.GetString("Tools.WorldBuilder.Save.FailureTitle"),
                 localizationService.GetString("Tools.WorldBuilder.Save.FailureMessage", result.FirstError ?? path),
@@ -983,8 +984,13 @@ public sealed partial class WorldBuilderViewModel(
 
         await InvokeOnUIThreadAsync(() =>
         {
+            if (_map == null || _map != map)
+            {
+                return;
+            }
+
             FilePath = path;
-            _map.IsDirty = false;
+            map.IsDirty = false;
             IsDirty = false;
         }).ConfigureAwait(false);
         notificationService.ShowSuccess(

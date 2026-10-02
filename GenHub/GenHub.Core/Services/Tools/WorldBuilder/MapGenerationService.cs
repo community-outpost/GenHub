@@ -260,7 +260,7 @@ public sealed class MapGenerationService(ILogger<MapGenerationService> logger) :
             ApplyTexturing(map, settings, field, cancellationToken);
         }
 
-        map.World.Add(new MapDictValue(WorldBuilderConstants.DictKeys.MapName, WorldBuilderConstants.DictValueType.AsciiString, StringValue: "Generated Map"));
+        map.World.Add(new MapDictValue(WorldBuilderConstants.DictKeys.MapName, WorldBuilderConstants.DictValueType.AsciiString, StringValue: WorldBuilderConstants.MapGen.GeneratedMapName));
         map.World.Add(new MapDictValue(WorldBuilderConstants.DictKeys.Weather, WorldBuilderConstants.DictValueType.Int, IntValue: 0));
         map.World.Add(new MapDictValue(WorldBuilderConstants.DictKeys.CompressionType, WorldBuilderConstants.DictValueType.Int, IntValue: WorldBuilderConstants.Compression.IntentNone));
         AddSides(map, settings);
@@ -306,7 +306,7 @@ public sealed class MapGenerationService(ILogger<MapGenerationService> logger) :
         terrain.NumBitmapTiles = 64;
         terrain.NumBlendedTiles = 1;
         terrain.NumCliffInfo = 1;
-        terrain.TextureClasses.Add(new MapTextureClass(0, 64, 8, "Grass"));
+        terrain.TextureClasses.Add(new MapTextureClass(0, 64, 8, WorldBuilderConstants.MapGen.DefaultGroundTexture));
         terrain.NumEdgeTiles = 0;
     }
 

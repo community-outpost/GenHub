@@ -51,8 +51,16 @@ public static class MapTerrainTools
         List<MapTextureClass> SavedClasses,
         List<MapBlendTile> SavedBlends);
 
+    private sealed record FloodFill(
+        MapTerrainData Terrain,
+        (int X, int Y) Origin,
+        int RegionClass,
+        GapModes Gaps,
+        bool[] Processed,
+        Queue<(int X, int Y)> Queue);
+
     [Flags]
-    private enum SideFlags
+    private enum BlendSide
     {
         None = 0,
         Top = 1,
@@ -915,42 +923,13 @@ public static class MapTerrainTools
         var processed = new bool[terrain.Width * terrain.Height];
         var queue = new Queue<(int X, int Y)>();
         var border = new List<(int X, int Y)>();
-        var gaps = new GapModes(horizontalVerticalGap, diagonalGap);
+        var fill = new FloodFill(terrain, (x, y), regionClass, new GapModes(horizontalVerticalGap, diagonalGap), processed, queue);
         queue.Enqueue((x, y));
         processed[(y * terrain.Width) + x] = true;
         while (queue.Count > 0)
         {
             var current = queue.Dequeue();
-            for (var i = current.X - 1; i < current.X + 2; i++)
-            {
-                if (i < 0 || i >= terrain.Width)
-                {
-                    continue;
-                }
-
-                for (var j = current.Y - 1; j < current.Y + 2; j++)
-                {
-                    if (j < 0 || j >= terrain.Height)
-                    {
-                        continue;
-                    }
-
-                    var neighbor = (j * terrain.Width) + i;
-                    if (processed[neighbor])
-                    {
-                        continue;
-                    }
-
-                    if (!TryClaimFloodCell(terrain, i, j, (x, y), regionClass, gaps))
-                    {
-                        continue;
-                    }
-
-                    queue.Enqueue((i, j));
-                    processed[neighbor] = true;
-                }
-            }
-
+            FloodNeighbors(fill, current);
             if (GetTextureClassNeighbors(terrain, current.X, current.Y, regionClass).Total != 8)
             {
                 border.Add(current);
@@ -958,6 +937,44 @@ public static class MapTerrainTools
         }
 
         return border;
+    }
+
+    private static void FloodNeighbors(FloodFill fill, (int X, int Y) current)
+    {
+        for (var i = current.X - 1; i < current.X + 2; i++)
+        {
+            if (i < 0 || i >= fill.Terrain.Width)
+            {
+                continue;
+            }
+
+            for (var j = current.Y - 1; j < current.Y + 2; j++)
+            {
+                FloodNeighborCell(fill, i, j);
+            }
+        }
+    }
+
+    private static void FloodNeighborCell(FloodFill fill, int i, int j)
+    {
+        if (j < 0 || j >= fill.Terrain.Height)
+        {
+            return;
+        }
+
+        var neighbor = (j * fill.Terrain.Width) + i;
+        if (fill.Processed[neighbor])
+        {
+            return;
+        }
+
+        if (!TryClaimFloodCell(fill.Terrain, i, j, fill.Origin, fill.RegionClass, fill.Gaps))
+        {
+            return;
+        }
+
+        fill.Queue.Enqueue((i, j));
+        fill.Processed[neighbor] = true;
     }
 
     private static bool TryClaimFloodCell(
@@ -1185,7 +1202,7 @@ public static class MapTerrainTools
             return;
         }
 
-        var flags = CollectSideFlags(terrain, x, y, regionClass);
+        var flags = CollectBlendSides(terrain, x, y, regionClass);
         if (sides != 2)
         {
             return;
@@ -1214,9 +1231,9 @@ public static class MapTerrainTools
         }
     }
 
-    private static SideFlags CollectSideFlags(MapTerrainData terrain, int x, int y, int regionClass)
+    private static BlendSide CollectBlendSides(MapTerrainData terrain, int x, int y, int regionClass)
     {
-        var flags = SideFlags.None;
+        var flags = BlendSide.None;
         for (var i = x - 1; i < x + 2; i++)
         {
             for (var j = y - 1; j < y + 2; j++)
@@ -1248,14 +1265,14 @@ public static class MapTerrainTools
         return i == x || j == y;
     }
 
-    private static SideFlags FlagForOffset(int dx, int dy)
+    private static BlendSide FlagForOffset(int dx, int dy)
     {
         if (dx == 0)
         {
-            return dy > 0 ? SideFlags.Top : SideFlags.Bottom;
+            return dy > 0 ? BlendSide.Top : BlendSide.Bottom;
         }
 
-        return dx < 0 ? SideFlags.Left : SideFlags.Right;
+        return dx < 0 ? BlendSide.Left : BlendSide.Right;
     }
 
     private static void BlendCornerPair(
@@ -1264,27 +1281,27 @@ public static class MapTerrainTools
         int y,
         int regionClass,
         int edgeClass,
-        SideFlags flags)
+        BlendSide flags)
     {
         var blendTileNdx = GetTileNdxForClass(terrain, x, y, regionClass);
         var sourceX = x;
         var sourceY = y;
-        if (flags.HasFlag(SideFlags.Top))
+        if (flags.HasFlag(BlendSide.Top))
         {
             sourceY--;
         }
 
-        if (flags.HasFlag(SideFlags.Bottom))
+        if (flags.HasFlag(BlendSide.Bottom))
         {
             sourceY++;
         }
 
-        if (flags.HasFlag(SideFlags.Left))
+        if (flags.HasFlag(BlendSide.Left))
         {
             sourceX++;
         }
 
-        if (flags.HasFlag(SideFlags.Right))
+        if (flags.HasFlag(BlendSide.Right))
         {
             sourceX--;
         }

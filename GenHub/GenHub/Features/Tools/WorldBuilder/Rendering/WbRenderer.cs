@@ -600,9 +600,13 @@ public sealed class WbRenderer : IDisposable
             return;
         }
 
+        // VAO binding does not restore the global array-buffer binding, so bind
+        // the target buffers explicitly before uploading.
         _gl.BindVertexArray(_waterVao);
+        _gl.BindBuffer(BufferTargetARB.ArrayBuffer, _waterVbo);
         _gl.BufferData<float>(BufferTargetARB.ArrayBuffer, data.Vertices, BufferUsageARB.StaticDraw);
 
+        _gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, _waterIbo);
         _gl.BufferData<uint>(BufferTargetARB.ElementArrayBuffer, data.Indices, BufferUsageARB.StaticDraw);
 
         _gl.BindVertexArray(0);
@@ -630,7 +634,10 @@ public sealed class WbRenderer : IDisposable
             return;
         }
 
+        // VAO binding does not restore the global array-buffer binding, so bind
+        // the target buffer explicitly before uploading.
         _gl.BindVertexArray(_linesVao);
+        _gl.BindBuffer(BufferTargetARB.ArrayBuffer, _linesVbo);
         _gl.BufferData<float>(BufferTargetARB.ArrayBuffer, data.Vertices, BufferUsageARB.StaticDraw);
 
         _gl.BindVertexArray(0);

@@ -330,6 +330,39 @@ public static class WorldBuilderConstants
     }
 
     /// <summary>
+    /// Well-known object property values (defaults, stance, veterancy).
+    /// </summary>
+    public static class Objects
+    {
+        /// <summary>Default template for newly placed objects.</summary>
+        public const string DefaultTemplate = "CivilianBuilding01";
+
+        /// <summary>Fallback team for objects without an explicit team.</summary>
+        public const string NeutralTeam = "[neutral]";
+
+        /// <summary>Generic engine default token.</summary>
+        public const string Normal = "Normal";
+
+        /// <summary>Passive aggressiveness stance.</summary>
+        public const string Passive = "Passive";
+
+        /// <summary>Aggressive stance.</summary>
+        public const string Aggressive = "Aggressive";
+
+        /// <summary>Regular veterancy.</summary>
+        public const string Regular = "Regular";
+
+        /// <summary>Veteran veterancy.</summary>
+        public const string Veteran = "Veteran";
+
+        /// <summary>Elite veterancy.</summary>
+        public const string Elite = "Elite";
+
+        /// <summary>Heroic veterancy.</summary>
+        public const string Heroic = "Heroic";
+    }
+
+    /// <summary>
     /// Dictionary value types (Common/Dict).
     /// </summary>
     public enum DictValueType
@@ -585,6 +618,9 @@ public static class WorldBuilderConstants
 
         /// <summary>Default player count.</summary>
         public const int DefaultPlayers = 2;
+
+        /// <summary>Map name written by the procedural generator.</summary>
+        public const string GeneratedMapName = "Generated Map";
 
         /// <summary>Default road template placed by the generator.</summary>
         public const string DefaultRoadTemplate = "DirtRoad";

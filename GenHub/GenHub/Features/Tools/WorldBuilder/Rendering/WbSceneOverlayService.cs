@@ -98,19 +98,15 @@ public static class WbSceneOverlayService
 
     private static void BuildTriggers(WorldBuilderMap map, List<float> vertices)
     {
-        foreach (var trigger in map.Triggers.Where(trigger => trigger.Points.Count >= 2))
-        {
-            for (var i = 0; i < trigger.Points.Count; i++)
-            {
-                var a = trigger.Points[i];
-                var b = trigger.Points[(i + 1) % trigger.Points.Count];
-                AddLine(
-                    vertices,
-                    GroundPoint(map, a.X, a.Y),
-                    GroundPoint(map, b.X, b.Y),
-                    TriggerColor);
-            }
-        }
+        map.Triggers
+            .Where(trigger => trigger.Points.Count >= 2)
+            .SelectMany(trigger => trigger.Points.Select((point, i) => (A: point, B: trigger.Points[(i + 1) % trigger.Points.Count])))
+            .ToList()
+            .ForEach(segment => AddLine(
+                vertices,
+                GroundPoint(map, segment.A.X, segment.A.Y),
+                GroundPoint(map, segment.B.X, segment.B.Y),
+                TriggerColor));
     }
 
     private static void AddLine(List<float> vertices, Vector3 a, Vector3 b, Vector3 color)
