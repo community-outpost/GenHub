@@ -489,7 +489,7 @@ public static class PathHelper
     /// <returns>The canonicalized path, or <c>null</c> if resolution fails or a loop is detected.</returns>
     public static string? CanonicalizePath(string path)
     {
-        string current;
+        string current = string.Empty;
         try
         {
             current = Path.GetFullPath(path);
@@ -569,7 +569,7 @@ public static class PathHelper
 
         if (OperatingSystem.IsLinux())
         {
-            string? targetDir;
+            string? targetDir = null;
             if (File.Exists(filePath))
             {
                 targetDir = Path.GetDirectoryName(filePath);
@@ -654,6 +654,74 @@ public static class PathHelper
                !Path.IsPathRooted(relative);
     }
 
+    private static bool TryGetLinkTarget(string prefix, out string? target, out bool failed)
+    {
+        target = null;
+        failed = false;
+        try
+        {
+            FileSystemInfo info = new FileInfo(prefix);
+            target = info.LinkTarget ?? new DirectoryInfo(prefix).LinkTarget;
+            return true;
+        }
+        catch (IOException)
+        {
+            failed = true;
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            failed = true;
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            failed = true;
+            return false;
+        }
+        catch (NotSupportedException)
+        {
+            failed = true;
+            return false;
+        }
+    }
+
+    private static string? TryResolveLinkPrefix(string prefix, string target, string root, string[] segments, int currentIndex, out bool failed)
+    {
+        failed = false;
+        var parent = Path.GetDirectoryName(prefix) ?? root;
+        try
+        {
+            var resolvedPrefix = Path.GetFullPath(Path.IsPathRooted(target) ? target : Path.Combine(parent, target));
+            if (currentIndex + 1 >= segments.Length)
+            {
+                return resolvedPrefix;
+            }
+
+            return Path.Combine([resolvedPrefix, .. segments[(currentIndex + 1)..]]);
+        }
+        catch (IOException)
+        {
+            failed = true;
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            failed = true;
+            return null;
+        }
+        catch (ArgumentException)
+        {
+            failed = true;
+            return null;
+        }
+        catch (NotSupportedException)
+        {
+            failed = true;
+            return null;
+        }
+    }
+
     private static string? ResolveFirstLinkSegment(string fullPath, out bool failed)
     {
         failed = false;
@@ -678,15 +746,8 @@ public static class PathHelper
         for (var i = 0; i < segments.Length; i++)
         {
             prefix = Path.Combine(prefix, segments[i]);
-            string? target;
-            try
+            if (!TryGetLinkTarget(prefix, out var target, out failed))
             {
-                FileSystemInfo info = new FileInfo(prefix);
-                target = info.LinkTarget ?? new DirectoryInfo(prefix).LinkTarget;
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
-            {
-                failed = true;
                 return null;
             }
 
@@ -695,22 +756,7 @@ public static class PathHelper
                 continue;
             }
 
-            var parent = Path.GetDirectoryName(prefix) ?? root;
-            try
-            {
-                var resolvedPrefix = Path.GetFullPath(Path.IsPathRooted(target) ? target : Path.Combine(parent, target));
-                if (i + 1 >= segments.Length)
-                {
-                    return resolvedPrefix;
-                }
-
-                return Path.Combine([resolvedPrefix, .. segments[(i + 1)..]]);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
-            {
-                failed = true;
-                return null;
-            }
+            return TryResolveLinkPrefix(prefix, target, root, segments, i, out failed);
         }
 
         return null;

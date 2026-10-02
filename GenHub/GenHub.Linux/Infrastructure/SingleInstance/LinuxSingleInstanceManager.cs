@@ -112,7 +112,7 @@ public sealed partial class LinuxSingleInstanceManager : ISingleInstanceCommandR
             var subscriptionUrl = CommandLineParser.ExtractSubscriptionUrl(args);
             var profileId = CommandLineParser.ExtractProfileId(args);
 
-            string commandToSend;
+            string commandToSend = string.Empty;
             if (!string.IsNullOrEmpty(profileShareUri))
             {
                 logger.LogInformation("Forwarding import-profile command to primary instance");

@@ -153,6 +153,38 @@ public static class ManifestVariantResolver
     }
 
     /// <summary>
+    /// Resolves the declared launch relationship: the process the resolved entry point
+    /// spawns and hands the session to.
+    /// <para>
+    /// Mirrors entry-point placement: the matching variant's relationship wins when
+    /// variants are declared, otherwise the manifest-level one. Absence is normal and
+    /// means the entry is the game itself. An invalid declaration is treated as absent
+    /// so a bad relationship degrades to legacy guessing instead of breaking the launch.
+    /// </para>
+    /// </summary>
+    /// <param name="manifest">The manifest to resolve.</param>
+    /// <param name="runtimeIdentifier">Host runtime identifier; defaults to the current host.</param>
+    /// <returns>The validated relationship, or <c>null</c> when none is declared or valid.</returns>
+    public static LaunchRelationship? ResolveLaunchRelationship(
+        ContentManifest manifest,
+        string? runtimeIdentifier = null)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+
+        var variant = ResolveVariant(manifest, runtimeIdentifier);
+        var declared = manifest.Variants.Count == 0
+            ? manifest.LaunchRelationship
+            : variant?.LaunchRelationship;
+
+        if (declared is null || !LaunchRelationship.IsValidProcessName(declared.ProcessName))
+        {
+            return null;
+        }
+
+        return declared;
+    }
+
+    /// <summary>
     /// Determines whether a file list is exactly one Flatpak bundle, the shape a
     /// single-asset Flatpak download takes before content storage persists it.
     /// </summary>

@@ -190,7 +190,7 @@ public class HotkeyProfileStorageService(
         }
 
         // Determine preset CSF asset
-        string presetCsfPath;
+        string presetCsfPath = string.Empty;
         if (presetName.Equals(GenHotkeysConstants.PresetLegionnaire, StringComparison.OrdinalIgnoreCase))
         {
             presetCsfPath = GenHotkeysConstants.PresetsLegionnaireEn;

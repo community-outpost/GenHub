@@ -1254,7 +1254,7 @@ public class GenLauncherDiscoverer(
             using var ms = new MemoryStream();
             var buffer = new byte[GenLauncherConstants.DefaultBufferSize];
             long totalBytesRead = 0;
-            int read;
+            int read = 0;
             while ((read = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
             {
                 totalBytesRead += read;

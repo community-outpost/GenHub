@@ -6,6 +6,7 @@ using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Interfaces.Steam;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
@@ -66,7 +67,8 @@ public static class SharedViewModelModule
             sp.GetService<IUploadHistoryService>(),
             sp.GetRequiredService<IPublisherSubscriptionStore>(),
             sp.GetRequiredService<IPublisherCatalogRefreshService>(),
-            sp.GetService<ILocalizationService>()));
+            sp.GetService<ILocalizationService>(),
+            sp.GetService<ISteamWorkshopAccountAuthService>()));
         services.AddSingleton<GameProfileSettingsViewModel>();
 
         // Register ProfileSelectionViewModel as transient for profile selection scenarios

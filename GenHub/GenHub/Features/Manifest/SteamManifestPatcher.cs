@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Steam;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
 using System;
@@ -139,6 +140,21 @@ public class SteamManifestPatcher(
             changed = true;
         }
 
+        var supportsLaunch = manifest.ContentType is ContentType.GameClient or ContentType.Executable;
+        if (gameDat != null && supportsLaunch)
+        {
+            if (!string.Equals(manifest.LaunchRelationship?.ProcessName, GameClientConstants.GameProcessName, StringComparison.OrdinalIgnoreCase))
+            {
+                manifest.LaunchRelationship = new LaunchRelationship { ProcessName = GameClientConstants.GameProcessName };
+                changed = true;
+            }
+        }
+        else if (manifest.LaunchRelationship is not null)
+        {
+            manifest.LaunchRelationship = null;
+            changed = true;
+        }
+
         return changed;
     }
 
@@ -178,6 +194,12 @@ public class SteamManifestPatcher(
                 manifest.EntryPoint = generalsExe.RelativePath;
                 changed = true;
             }
+        }
+
+        if (manifest.LaunchRelationship is not null)
+        {
+            manifest.LaunchRelationship = null;
+            changed = true;
         }
 
         return changed;

@@ -152,7 +152,7 @@ internal static class InstallationManifestDriftDetector
         Dictionary<string, long> manifestMap,
         string primaryExecutable)
     {
-        string relativePath;
+        string relativePath = string.Empty;
         try
         {
             relativePath = Path.GetRelativePath(installationPath, file).Replace('\\', '/');

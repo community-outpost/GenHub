@@ -1,9 +1,11 @@
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GeneralsOnline;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Downloads.ViewModels;
@@ -902,6 +904,54 @@ public sealed class ContentGridItemViewModelTests
         var viewModel = CreateViewModel(searchResult);
 
         Assert.True(viewModel.MatchesGitHubUpstreamIdentity(["1", "0", "owner", "addon", "repoextra"]));
+    }
+
+    /// <summary>
+    /// Verifies UpdateDescription updates SearchResult, child release changelog, and fires property notifications.
+    /// </summary>
+    [Fact]
+    public void UpdateDescription_UpdatesSearchResultAndNotifiesProperties()
+    {
+        var searchResult = new ContentSearchResult
+        {
+            Id = "generalsonline-test",
+            Name = "Generals Online",
+            Version = "092826",
+            Description = "Generals Online 092826",
+            ProviderName = GeneralsOnlineConstants.PublisherType,
+        };
+
+        var release = new GeneralsOnlineRelease
+        {
+            Version = "092826",
+            PortableUrl = "https://example.com/portable.zip",
+            Changelog = "Generals Online 092826",
+        };
+        searchResult.SetData(release);
+
+        var viewModel = CreateViewModel(searchResult);
+
+        var notifiedProperties = new System.Collections.Generic.List<string>();
+        viewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName != null)
+            {
+                notifiedProperties.Add(e.PropertyName);
+            }
+        };
+
+        const string testDescription = "Update 092826 (28th September 2026)\n\n- Fixed camera issue";
+        viewModel.UpdateDescription(testDescription);
+
+        Assert.Equal(HtmlTextHelper.NormalizeHtml(testDescription), viewModel.Description);
+        Assert.Contains(nameof(ContentGridItemViewModel.Description), notifiedProperties);
+        Assert.Contains(nameof(ContentGridItemViewModel.ShortDescription), notifiedProperties);
+        Assert.Contains(nameof(ContentGridItemViewModel.HasShortDescription), notifiedProperties);
+
+        var updatedRelease = searchResult.GetData<GeneralsOnlineRelease>();
+        Assert.NotNull(updatedRelease);
+        Assert.Equal(testDescription, updatedRelease.Changelog);
+        Assert.Equal(testDescription, searchResult.Description);
     }
 
     private static void MarkAllSelectedDownloaded(ContentGridItemViewModel viewModel)

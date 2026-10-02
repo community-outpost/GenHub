@@ -157,7 +157,15 @@ public class GameLauncher(
         {
             return Path.GetFullPath(root);
         }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or IOException)
+        catch (ArgumentException)
+        {
+            return null;
+        }
+        catch (NotSupportedException)
+        {
+            return null;
+        }
+        catch (IOException)
         {
             return null;
         }
@@ -285,6 +293,54 @@ public class GameLauncher(
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Resolves the child process the launched entry is expected to spawn.
+    /// The game client manifest's declared launch relationship wins; manifests that
+    /// predate declarations fall back to legacy filename guessing.
+    /// </summary>
+    /// <param name="manifests">The manifests resolved for the launch.</param>
+    /// <param name="finalExecutablePath">The workspace executable being started.</param>
+    /// <param name="logger">Receives the resolution source for diagnostics.</param>
+    /// <returns>The expected child name and discovery timeout, both null for direct launches.</returns>
+    internal static (string? ChildName, TimeSpan? DiscoveryTimeout) ResolveExpectedChildProcess(
+        IReadOnlyList<ContentManifest> manifests,
+        string finalExecutablePath,
+        ILogger? logger = null)
+    {
+        var executableManifest = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient);
+        var declared = executableManifest is null
+            ? null
+            : ManifestVariantResolver.ResolveLaunchRelationship(executableManifest);
+        if (declared is null)
+        {
+            executableManifest = manifests.FirstOrDefault(m => m.ContentType == ContentType.Executable);
+            declared = executableManifest is null
+                ? null
+                : ManifestVariantResolver.ResolveLaunchRelationship(executableManifest);
+        }
+
+        if (declared is not null)
+        {
+            logger?.LogInformation(
+                "[GameLauncher] Using declared launch relationship from manifest '{ManifestId}': entry spawns '{Child}'",
+                executableManifest!.Id.Value,
+                declared.ProcessName);
+            return (declared.ProcessName, declared.DiscoveryTimeoutMs is > 0
+                ? TimeSpan.FromMilliseconds(declared.DiscoveryTimeoutMs.Value)
+                : null);
+        }
+
+        var legacy = LaunchEntryPointResolver.ResolveExpectedChildProcessName(finalExecutablePath);
+        if (legacy is not null)
+        {
+            logger?.LogInformation(
+                "[GameLauncher] No declared launch relationship; using legacy filename fallback: '{Child}'",
+                legacy);
+        }
+
+        return (legacy, null);
     }
 
     /// <summary>
@@ -1147,7 +1203,7 @@ public class GameLauncher(
         // The probe is the enumeration itself: Directory.Exists returns false for an
         // unreadable root as well as a missing one, which would report a permission
         // problem as missing content. Only DirectoryNotFoundException means absence.
-        bool hasArchive;
+        bool hasArchive = false;
         try
         {
             hasArchive = Directory
@@ -1404,7 +1460,15 @@ public class GameLauncher(
                 }
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (IOException)
+        {
+            // Non-critical: gracefully fall back
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Non-critical: gracefully fall back
+        }
+        catch (ArgumentException)
         {
             // Non-critical: gracefully fall back
         }
@@ -1867,7 +1931,7 @@ public class GameLauncher(
             steamAppId = prepResult.Data.SteamAppId;
         }
 
-        var launchConfig = BuildGameLaunchConfiguration(finalExecutablePath, workspaceInfo, arguments, profile, installation);
+        var launchConfig = BuildGameLaunchConfiguration(finalExecutablePath, workspaceInfo, arguments, profile, installation, manifests);
 
         var targetGame = profile.GameClient?.GameType ?? GameType.Generals;
         var archiveRootError = ValidateRetailArchiveRoots(launchConfig.EnvironmentVariables, installation, targetGame);
@@ -2049,15 +2113,18 @@ public class GameLauncher(
         WorkspaceInfo workspaceInfo,
         Dictionary<string, string> arguments,
         GameProfile profile,
-        GameInstallation installation)
+        GameInstallation installation,
+        IReadOnlyList<ContentManifest> manifests)
     {
+        var expectedChild = ResolveExpectedChildProcess(manifests, finalExecutablePath, logger);
         return new GameLaunchConfiguration
         {
             ExecutablePath = finalExecutablePath,
             WorkingDirectory = workspaceInfo.WorkspacePath,
             Arguments = arguments,
             EnvironmentVariables = BuildEnvironmentVariables(profile.EnvironmentVariables, installation),
-            ExpectedChildProcessName = LaunchEntryPointResolver.ResolveExpectedChildProcessName(finalExecutablePath),
+            ExpectedChildProcessName = expectedChild.ChildName,
+            ExpectedChildDiscoveryTimeout = expectedChild.DiscoveryTimeout,
             GameType = profile.GameClient?.GameType,
             GameClientId = profile.GameClient?.Id,
             GameClientName = profile.GameClient?.Name,
@@ -2423,12 +2490,7 @@ public class GameLauncher(
         var steamExecutableName = GameClientConstants.GeneralsExecutable;
         logger.LogInformation("[GameLauncher] Steam executable to replace with proxy: {ExecutableName}", steamExecutableName);
 
-        string steamAppId;
-        if (SteamAppIdResolver.TryResolveSteamAppIdFromInstallationPath(actualInstallationPath, out var resolvedSteamAppId))
-        {
-            steamAppId = resolvedSteamAppId;
-        }
-        else
+        if (!SteamAppIdResolver.TryResolveSteamAppIdFromInstallationPath(actualInstallationPath, out var steamAppId))
         {
             steamAppId = profile.GameClient?.GameType == GameType.Generals
                 ? SteamConstants.GeneralsAppId
@@ -2925,16 +2987,9 @@ public class GameLauncher(
         string actualInstallationPath,
         CancellationToken cancellationToken)
     {
-        string? iniContent = null;
-        if (File.Exists(iniPath))
-        {
-            iniContent = await File.ReadAllTextAsync(iniPath, cancellationToken);
-        }
-        else
-        {
-            iniContent = TryExtractGameDataIniFromBig(workspacePath) ??
-                         TryExtractGameDataIniFromBig(actualInstallationPath);
-        }
+        var iniContent = File.Exists(iniPath)
+            ? await File.ReadAllTextAsync(iniPath, cancellationToken)
+            : (TryExtractGameDataIniFromBig(workspacePath) ?? TryExtractGameDataIniFromBig(actualInstallationPath));
 
         if (string.IsNullOrEmpty(iniContent))
         {
@@ -2981,7 +3036,7 @@ public class GameLauncher(
 
         var lines = await File.ReadAllLinesAsync(iniPath, cancellationToken);
         var firstLine = lines.Length > 0 ? lines[0] : null;
-        if (firstLine != null && firstLine.StartsWith("; GenHub Camera Override", StringComparison.OrdinalIgnoreCase))
+        if (firstLine?.StartsWith("; GenHub Camera Override", StringComparison.OrdinalIgnoreCase) == true)
         {
             File.Delete(iniPath);
             logger.LogInformation("[GameLauncher] Removed GenHub camera override from {IniPath} to restore default camera settings", iniPath);

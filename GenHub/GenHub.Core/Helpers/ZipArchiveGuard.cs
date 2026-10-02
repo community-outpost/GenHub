@@ -72,7 +72,7 @@ public static class ZipArchiveGuard
             using (var destination = File.Create(targetPath))
             {
                 var buffer = new byte[ValidationLimits.ZipCopyBufferSize];
-                int read;
+                int read = 0;
                 while ((read = source.Read(buffer, 0, buffer.Length)) > 0)
                 {
                     cancellationToken.ThrowIfCancellationRequested();

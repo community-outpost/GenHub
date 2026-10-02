@@ -19,6 +19,8 @@
     <ItemGroup>
         <PackageReference Include="AngleSharp" />
         <PackageReference Include="Avalonia" />
+        <PackageReference Include="QRCoder" />
+        <PackageReference Include="SteamKit2" />
         <!-- Security pin: overrides Avalonia's vulnerable transitive Tmds.DBus.Protocol 0.20.0 (GHSA-xrw6-gwf8-vvr9) -->
         <PackageReference Include="Tmds.DBus.Protocol" />
         <PackageReference Include="Avalonia.Desktop" />

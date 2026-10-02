@@ -126,7 +126,7 @@ public static class ProcessConstants
     /// against the launcher's own start time rather than <see cref="EarlyExitThresholdSeconds"/>,
     /// so this may be raised as far as a slow bootstrapper needs.
     /// </summary>
-    public const int SpawnedChildDiscoveryTimeoutMs = 10_000;
+    public const int SpawnedChildDiscoveryTimeoutMs = 60_000;
 
     /// <summary>
     /// Interval in milliseconds between polls for a launcher's expected child process.

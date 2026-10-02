@@ -450,4 +450,14 @@ public static class ManifestConstants
     /// Divisor threshold for separating major and minor numeric version numbers (e.g. 104 -> 1.04).
     /// </summary>
     public const int NumericVersionDivisorThreshold = 100;
+
+    /// <summary>
+    /// Argument binding source reading a value from a JSON property in a delivered file.
+    /// </summary>
+    public const string InstallationBindingJsonSource = "json";
+
+    /// <summary>
+    /// Maximum accepted size in bytes of a file read for install-step argument bindings.
+    /// </summary>
+    public const long InstallationBindingMaxFileSizeBytes = 65536;
 }

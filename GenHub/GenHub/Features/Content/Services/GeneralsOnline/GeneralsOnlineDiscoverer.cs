@@ -246,10 +246,7 @@ public class GeneralsOnlineDiscoverer(
             }
 
             var changelog = release?.Changelog;
-            var needsPatchNotes = string.IsNullOrWhiteSpace(changelog) ||
-                changelog.Equals("www.playgenerals.online", StringComparison.OrdinalIgnoreCase) ||
-                changelog.StartsWith("http", StringComparison.OrdinalIgnoreCase) ||
-                changelog.Equals($"Generals Online {version}", StringComparison.OrdinalIgnoreCase);
+            var needsPatchNotes = GeneralsOnlinePatchNotesHelper.NeedsPatchNotes(changelog, version);
 
             if (!needsPatchNotes)
             {

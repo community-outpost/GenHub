@@ -305,7 +305,7 @@ internal sealed class ManagedPlaywrightDriver(
         {
             var buffer = new byte[AppUpdateConstants.DefaultStreamBufferSize];
             long totalRead = 0;
-            int read;
+            int read = 0;
             while ((read = await content.ReadAsync(buffer, cancellationToken)) > 0)
             {
                 await file.WriteAsync(buffer.AsMemory(0, read), cancellationToken);

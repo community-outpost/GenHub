@@ -359,7 +359,7 @@ public partial class ActionSetViewModel(
 
     private void HandleApplySuccess(ActionSetResult result, bool isForce, double duration)
     {
-        string detailsText;
+        string detailsText = string.Empty;
         if (result.Details.Count > 0)
         {
             detailsText = result.FormatDetails();

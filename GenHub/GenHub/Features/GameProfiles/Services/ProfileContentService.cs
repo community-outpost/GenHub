@@ -1166,7 +1166,7 @@ public sealed class ProfileContentService(
 
             foreach (var dependency in manifestResult.Data.Dependencies ?? [])
             {
-                if (dependency.IsOptional || dependency.InstallBehavior != DependencyInstallBehavior.AutoInstall)
+                if (dependency.InstallBehavior != DependencyInstallBehavior.AutoInstall)
                 {
                     continue;
                 }
@@ -1175,6 +1175,15 @@ public sealed class ProfileContentService(
                 var dependencyManifest = await GetOrAcquireDependencyManifestAsync(dependencyId, cancellationToken);
                 if (dependencyManifest == null)
                 {
+                    if (dependency.IsOptional)
+                    {
+                        logger.LogInformation(
+                            "Optional dependency '{Name}' ({Id}) could not be acquired automatically; skipping",
+                            dependency.Name,
+                            dependencyId);
+                        continue;
+                    }
+
                     return OperationResult<List<string>>.CreateFailure(
                         $"'{manifestResult.Data.Name ?? manifestId}' requires '{dependency.Name}', but it could not be downloaded automatically.");
                 }
