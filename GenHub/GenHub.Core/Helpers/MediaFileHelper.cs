@@ -47,6 +47,75 @@ public static class MediaFileHelper
     }
 
     /// <summary>
+    /// Determines whether the value is a remote http/https URL that subscribers can open.
+    /// Publisher-local references (file:// URIs, absolute paths, relative paths) return false.
+    /// </summary>
+    /// <param name="value">The media URL or path to check.</param>
+    /// <returns>True when the value is an absolute http or https URL.</returns>
+    public static bool IsRemoteHttpUrl(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        return Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)
+            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+    }
+
+    /// <summary>
+    /// Resolves a catalog media reference to an existing local file.
+    /// Accepts project-relative paths (kept inside the project directory), file:// URIs,
+    /// and absolute paths. Remote http/https URLs and unresolvable values return null.
+    /// </summary>
+    /// <param name="projectDirectory">The studio project directory for relative references.</param>
+    /// <param name="value">The media URL or path to resolve.</param>
+    /// <returns>The full local file path, or null when it cannot be resolved.</returns>
+    public static string? TryResolveLocalMediaPath(string? projectDirectory, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || IsRemoteHttpUrl(value))
+        {
+            return null;
+        }
+
+        var trimmed = value.Trim();
+        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) && uri.IsFile)
+        {
+            return File.Exists(uri.LocalPath) ? uri.LocalPath : null;
+        }
+
+        try
+        {
+            if (Path.IsPathRooted(trimmed))
+            {
+                return File.Exists(trimmed) ? Path.GetFullPath(trimmed) : null;
+            }
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return null;
+        }
+
+        if (string.IsNullOrEmpty(projectDirectory))
+        {
+            return null;
+        }
+
+        try
+        {
+            var root = Path.GetFullPath(projectDirectory) + Path.DirectorySeparatorChar;
+            var combined = Path.GetFullPath(Path.Combine(projectDirectory, trimmed));
+            return combined.StartsWith(root, StringComparison.OrdinalIgnoreCase) && File.Exists(combined)
+                ? combined
+                : null;
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Determines whether a local file has image binary content matching its extension.
     /// Reads only the file header so renamed text or archive files are rejected.
     /// </summary>

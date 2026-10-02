@@ -121,6 +121,54 @@ public sealed class MediaFileHelperTests : IDisposable
         Assert.False(MediaFileHelper.HasImageContent(path));
     }
 
+    /// <summary>
+    /// Verifies that only absolute http/https URLs count as subscriber-openable remote media.
+    /// </summary>
+    /// <param name="value">The media reference to classify.</param>
+    /// <param name="expected">The expected classification.</param>
+    [Theory]
+    [InlineData("https://cdn.example.com/trailer.mp4", true)]
+    [InlineData("http://cdn.example.com/shot.png", true)]
+    [InlineData("https://www.youtube.com/watch?v=abc123", true)]
+    [InlineData("file:///E:/Downloaded/clip.mp4", false)]
+    [InlineData("E:\\Downloaded\\clip.mp4", false)]
+    [InlineData("/home/user/clip.mp4", false)]
+    [InlineData("media/shot.png", false)]
+    [InlineData("avares://GenHub/Assets/icon.png", false)]
+    [InlineData(null, false)]
+    [InlineData("", false)]
+    [InlineData("   ", false)]
+    public void IsRemoteHttpUrl_ClassifiesReferences(string? value, bool expected)
+    {
+        Assert.Equal(expected, MediaFileHelper.IsRemoteHttpUrl(value));
+    }
+
+    /// <summary>
+    /// Verifies that project-relative, file://, and absolute media references resolve to existing files.
+    /// </summary>
+    [Fact]
+    public void TryResolveLocalMediaPath_ResolvesAllLocalForms()
+    {
+        var shot = WriteTempFile("shot.png", [1, 2, 3, 4]);
+
+        Assert.Equal(shot, MediaFileHelper.TryResolveLocalMediaPath(_tempDirectory, "shot.png"));
+        Assert.Equal(shot, MediaFileHelper.TryResolveLocalMediaPath(_tempDirectory, new Uri(shot).AbsoluteUri));
+        Assert.Equal(shot, MediaFileHelper.TryResolveLocalMediaPath(null, shot));
+    }
+
+    /// <summary>
+    /// Verifies that remote URLs, missing files, and escaping relatives never resolve.
+    /// </summary>
+    [Fact]
+    public void TryResolveLocalMediaPath_UnresolvableReferences_ReturnsNull()
+    {
+        Assert.Null(MediaFileHelper.TryResolveLocalMediaPath(_tempDirectory, "https://cdn.example.com/trailer.mp4"));
+        Assert.Null(MediaFileHelper.TryResolveLocalMediaPath(_tempDirectory, "missing.png"));
+        Assert.Null(MediaFileHelper.TryResolveLocalMediaPath(_tempDirectory, "../outside.png"));
+        Assert.Null(MediaFileHelper.TryResolveLocalMediaPath(null, "shot.png"));
+        Assert.Null(MediaFileHelper.TryResolveLocalMediaPath(_tempDirectory, null));
+    }
+
     private string WriteTempFile(string fileName, byte[] content)
     {
         var path = Path.Combine(_tempDirectory, fileName);

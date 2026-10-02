@@ -2622,7 +2622,7 @@ public partial class ContentDetailViewModel(
         var screenshots = sibling?.ScreenshotUrls ?? searchResult.ScreenshotUrls;
         if (screenshots != null)
         {
-            foreach (var shot in screenshots)
+            foreach (var shot in screenshots.Where(s => MediaFileHelper.IsRemoteHttpUrl(s)))
             {
                 releaseItem.PreviewImages.Add(shot);
             }
@@ -4102,6 +4102,12 @@ public partial class ContentDetailViewModel(
                 return;
             }
 
+            // Publisher-local file references never resolve on subscriber machines, so only remote URLs are shown.
+            if (!MediaFileHelper.IsRemoteHttpUrl(url))
+            {
+                return;
+            }
+
             videoList.Add(new Video(
                 Title: title,
                 ThumbnailUrl: catalogItem.Metadata?.BannerUrl ?? searchResult.IconUrl ?? string.Empty,
@@ -4168,6 +4174,12 @@ public partial class ContentDetailViewModel(
         void AddImage(string? url, string title)
         {
             if (string.IsNullOrWhiteSpace(url) || !seenImages.Add(url))
+            {
+                return;
+            }
+
+            // Publisher-local file references never resolve on subscriber machines, so only remote URLs are shown.
+            if (!MediaFileHelper.IsRemoteHttpUrl(url))
             {
                 return;
             }
@@ -4736,7 +4748,7 @@ public partial class ContentDetailViewModel(
 
         if (rel.ImageUrls != null)
         {
-            foreach (var img in rel.ImageUrls.Where(u => !string.IsNullOrWhiteSpace(u)))
+            foreach (var img in rel.ImageUrls.Where(u => !string.IsNullOrWhiteSpace(u) && MediaFileHelper.IsRemoteHttpUrl(u)))
             {
                 releaseItem.PreviewImages.Add(img);
             }
@@ -4744,7 +4756,7 @@ public partial class ContentDetailViewModel(
 
         if (rel.VideoUrls != null)
         {
-            foreach (var vid in rel.VideoUrls.Where(u => !string.IsNullOrWhiteSpace(u)))
+            foreach (var vid in rel.VideoUrls.Where(u => !string.IsNullOrWhiteSpace(u) && MediaFileHelper.IsRemoteHttpUrl(u)))
             {
                 releaseItem.PreviewVideos.Add(vid);
             }

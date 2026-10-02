@@ -74,6 +74,15 @@ public partial class PublishShareViewModel(
     }
 
     /// <summary>
+    /// A gallery media entry (screenshot or video) that references a local file and must be hosted on publish.
+    /// </summary>
+    /// <param name="ContentId">The owning content item, used to name the remote file.</param>
+    /// <param name="DisplayName">The local file name, used to name the remote file.</param>
+    /// <param name="LocalPath">The resolved local file path.</param>
+    /// <param name="ApplyUrl">Replaces the local reference with the hosted URL.</param>
+    private sealed record PendingMediaUpload(string ContentId, string DisplayName, string LocalPath, Action<string> ApplyUrl);
+
+    /// <summary>
     /// Google Drive OAuth client credentials persisted in the encrypted credential store.
     /// </summary>
     /// <param name="ClientId">The Google OAuth client ID.</param>
@@ -3069,14 +3078,21 @@ public partial class PublishShareViewModel(
         bool suppressNotifications = false)
     {
         var pendingArtworkCount = ActiveCatalog == null ? 0 : CollectPendingArtwork(ActiveCatalog).Count;
-        var (artifactsOk, completedArtifacts) = await UploadPendingArtifactsAsync(provider, cancellationToken, pendingArtworkCount);
+        var pendingMediaCount = ActiveCatalog == null ? 0 : CollectPendingMedia(ActiveCatalog).Count;
+        var (artifactsOk, completedArtifacts) = await UploadPendingArtifactsAsync(provider, cancellationToken, pendingArtworkCount + pendingMediaCount);
         if (!artifactsOk)
         {
             return OperationResult<HostingUploadResult>.CreateFailure(UploadStatusMessage);
         }
 
         // 1b. Upload Pending Artwork (local image files referenced by content metadata)
-        if (!await UploadPendingArtworkAsync(provider, cancellationToken, suppressNotifications, completedArtifacts, completedArtifacts + pendingArtworkCount))
+        if (!await UploadPendingArtworkAsync(provider, cancellationToken, suppressNotifications, completedArtifacts, completedArtifacts + pendingArtworkCount + pendingMediaCount))
+        {
+            return OperationResult<HostingUploadResult>.CreateFailure(UploadStatusMessage);
+        }
+
+        // 1c. Upload Pending Gallery Media (local screenshots and videos referenced by content metadata and releases)
+        if (!await UploadPendingMediaAsync(provider, cancellationToken, suppressNotifications, completedArtifacts + pendingArtworkCount, completedArtifacts + pendingArtworkCount + pendingMediaCount))
         {
             return OperationResult<HostingUploadResult>.CreateFailure(UploadStatusMessage);
         }
@@ -3339,30 +3355,15 @@ public partial class PublishShareViewModel(
             return FailArtworkUpload(msg, suppressNotifications);
         }
 
-        OperationResult<HostingUploadResult> result;
-        try
+        var combinedTotal = progressTotal > 0 ? progressTotal : total;
+        var progress = new Progress<int>(p =>
         {
-            await using var stream = File.OpenRead(localPath);
-            var combinedTotal = progressTotal > 0 ? progressTotal : total;
-            var progress = new Progress<int>(p =>
-            {
-                ReportPendingUploadProgress(progressOffset + current - 1, combinedTotal, p);
-            });
-            var uploadFileName = $"{content.Id}-{slot.ToString().ToLowerInvariant()}-{displayName}";
-            result = await provider.UploadFileAsync(stream, uploadFileName, null, progress, cancellationToken);
-        }
-        catch (IOException ex)
+            ReportPendingUploadProgress(progressOffset + current - 1, combinedTotal, p);
+        });
+        var uploadFileName = $"{content.Id}-{slot.ToString().ToLowerInvariant()}-{displayName}";
+        var (result, fileReadFailed) = await UploadLocalFileAsync(provider, localPath, uploadFileName, progress, cancellationToken);
+        if (fileReadFailed)
         {
-            logger.LogWarning(ex, "Failed to read artwork file {Path}", localPath);
-            var msg = FormatLocalizedString(
-                "Tools.PublisherStudio.Publish.ArtworkFileMissingFormat",
-                "Artwork file not found: {0}",
-                localPath);
-            return FailArtworkUpload(msg, suppressNotifications);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            logger.LogWarning(ex, "Access denied reading artwork file {Path}", localPath);
             var msg = FormatLocalizedString(
                 "Tools.PublisherStudio.Publish.ArtworkFileMissingFormat",
                 "Artwork file not found: {0}",
@@ -3384,6 +3385,40 @@ public partial class PublishShareViewModel(
         return true;
     }
 
+    /// <summary>
+    /// Uploads a local file to the hosting provider, mapping file read problems to a flagged failure.
+    /// </summary>
+    /// <param name="provider">The hosting provider.</param>
+    /// <param name="localPath">The local file path.</param>
+    /// <param name="uploadFileName">The remote file name.</param>
+    /// <param name="progress">The progress callback (0-100).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The upload result and whether a local file read failed.</returns>
+    private async Task<(OperationResult<HostingUploadResult> Result, bool FileReadFailed)> UploadLocalFileAsync(
+        IHostingProvider provider,
+        string localPath,
+        string uploadFileName,
+        IProgress<int> progress,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var stream = File.OpenRead(localPath);
+            var result = await provider.UploadFileAsync(stream, uploadFileName, null, progress, cancellationToken);
+            return (result, false);
+        }
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to read local file {Path}", localPath);
+            return (OperationResult<HostingUploadResult>.CreateFailure($"Local file unavailable: {localPath}"), true);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Access denied reading local file {Path}", localPath);
+            return (OperationResult<HostingUploadResult>.CreateFailure($"Local file unavailable: {localPath}"), true);
+        }
+    }
+
     private bool FailArtworkUpload(string message, bool suppressNotifications = false)
     {
         UploadStatusMessage = message;
@@ -3391,6 +3426,203 @@ public partial class PublishShareViewModel(
         {
             notificationService?.ShowError(
                 GetLocalizedString("Tools.PublisherStudio.Publish.ArtworkUploadFailedTitle", "Artwork Upload Failed"),
+                message);
+        }
+
+        return false;
+    }
+
+    private async Task<bool> UploadPendingMediaAsync(
+        IHostingProvider provider,
+        CancellationToken cancellationToken,
+        bool suppressNotifications = false,
+        int progressOffset = 0,
+        int progressTotal = 0)
+    {
+        if (ActiveCatalog == null)
+        {
+            return true;
+        }
+
+        var pending = CollectPendingMedia(ActiveCatalog);
+        if (pending.Count == 0)
+        {
+            return true;
+        }
+
+        if (!provider.SupportsArtifactHosting)
+        {
+            UploadStatusMessage = GetLocalizedString(
+                "Tools.PublisherStudio.Publish.MediaHostingNotSupported",
+                "Provider does not support media hosting. Use direct image/video URLs or switch providers.");
+            if (!suppressNotifications)
+            {
+                notificationService?.ShowError(
+                    GetLocalizedString(IncompatibleProviderTitleKey, IncompatibleProviderDefaultMessage),
+                    UploadStatusMessage);
+            }
+
+            return false;
+        }
+
+        int total = pending.Count;
+        int current = 0;
+        foreach (var item in pending)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            current++;
+            if (!await UploadSingleMediaAsync(provider, item, current, total, cancellationToken, suppressNotifications, progressOffset, progressTotal))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private List<PendingMediaUpload> CollectPendingMedia(NamedCatalog catalog)
+    {
+        var pending = new List<PendingMediaUpload>();
+        var projectDirectory = Path.GetDirectoryName(project.ProjectPath);
+        foreach (var content in catalog.Catalog.Content)
+        {
+            CollectContentMedia(pending, content, projectDirectory);
+            foreach (var release in content.Releases)
+            {
+                CollectReleaseMedia(pending, content.Id, release.ImageUrls, release.VideoUrls, projectDirectory);
+            }
+
+            foreach (var addon in content.AddonReleases)
+            {
+                CollectReleaseMedia(pending, content.Id, addon.ImageUrls, addon.VideoUrls, projectDirectory);
+            }
+        }
+
+        return pending;
+    }
+
+    private void CollectContentMedia(List<PendingMediaUpload> pending, CatalogContentItem content, string? projectDirectory)
+    {
+        var metadata = content.Metadata;
+        if (metadata == null)
+        {
+            return;
+        }
+
+        AddPendingMediaList(pending, content.Id, metadata.ScreenshotUrls, projectDirectory, (index, url) => metadata.ScreenshotUrls[index] = url);
+        AddPendingMediaList(pending, content.Id, metadata.VideoUrls, projectDirectory, (index, url) => metadata.VideoUrls[index] = url);
+        AddPendingMediaUrl(pending, content.Id, metadata.VideoUrl, projectDirectory, url => metadata.VideoUrl = url);
+    }
+
+    private void CollectReleaseMedia(
+        List<PendingMediaUpload> pending,
+        string contentId,
+        List<string> imageUrls,
+        List<string> videoUrls,
+        string? projectDirectory)
+    {
+        AddPendingMediaList(pending, contentId, imageUrls, projectDirectory, (index, url) => imageUrls[index] = url);
+        AddPendingMediaList(pending, contentId, videoUrls, projectDirectory, (index, url) => videoUrls[index] = url);
+    }
+
+    private void AddPendingMediaList(
+        List<PendingMediaUpload> pending,
+        string contentId,
+        List<string> urls,
+        string? projectDirectory,
+        Action<int, string> applyUrl)
+    {
+        for (var index = 0; index < urls.Count; index++)
+        {
+            var capturedIndex = index;
+            AddPendingMediaUrl(pending, contentId, urls[index], projectDirectory, url => applyUrl(capturedIndex, url));
+        }
+    }
+
+    private void AddPendingMediaUrl(
+        List<PendingMediaUpload> pending,
+        string contentId,
+        string? value,
+        string? projectDirectory,
+        Action<string> applyUrl)
+    {
+        if (string.IsNullOrWhiteSpace(value) || MediaFileHelper.IsRemoteHttpUrl(value))
+        {
+            return;
+        }
+
+        var localPath = MediaFileHelper.TryResolveLocalMediaPath(projectDirectory, value);
+        if (localPath == null)
+        {
+            return;
+        }
+
+        pending.Add(new PendingMediaUpload(contentId, Path.GetFileName(localPath), localPath, applyUrl));
+    }
+
+    private async Task<bool> UploadSingleMediaAsync(
+        IHostingProvider provider,
+        PendingMediaUpload item,
+        int current,
+        int total,
+        CancellationToken cancellationToken,
+        bool suppressNotifications = false,
+        int progressOffset = 0,
+        int progressTotal = 0)
+    {
+        UploadStatusMessage = FormatLocalizedString(
+            "Tools.PublisherStudio.Publish.UploadingMediaFormat",
+            "Uploading media {0}/{1}: {2}",
+            current,
+            total,
+            item.DisplayName);
+
+        if (!File.Exists(item.LocalPath))
+        {
+            var msg = FormatLocalizedString(
+                "Tools.PublisherStudio.Publish.MediaFileMissingFormat",
+                "Media file not found: {0}",
+                item.LocalPath);
+            return FailMediaUpload(msg, suppressNotifications);
+        }
+
+        var combinedTotal = progressTotal > 0 ? progressTotal : total;
+        var progress = new Progress<int>(p =>
+        {
+            ReportPendingUploadProgress(progressOffset + current - 1, combinedTotal, p);
+        });
+        var uploadFileName = $"{item.ContentId}-media-{item.DisplayName}";
+        var (result, fileReadFailed) = await UploadLocalFileAsync(provider, item.LocalPath, uploadFileName, progress, cancellationToken);
+        if (fileReadFailed)
+        {
+            var msg = FormatLocalizedString(
+                "Tools.PublisherStudio.Publish.MediaFileMissingFormat",
+                "Media file not found: {0}",
+                item.LocalPath);
+            return FailMediaUpload(msg, suppressNotifications);
+        }
+
+        if (!result.Success || result.Data == null || string.IsNullOrWhiteSpace(result.Data.DirectDownloadUrl))
+        {
+            var msg = FormatLocalizedString(
+                "Tools.PublisherStudio.Publish.MediaUploadFailedFormat",
+                "Failed to upload media {0}: {1}",
+                item.DisplayName,
+                result.FirstError);
+            return FailMediaUpload(msg, suppressNotifications);
+        }
+
+        item.ApplyUrl(result.Data.DirectDownloadUrl);
+        return true;
+    }
+
+    private bool FailMediaUpload(string message, bool suppressNotifications = false)
+    {
+        UploadStatusMessage = message;
+        if (!suppressNotifications)
+        {
+            notificationService?.ShowError(
+                GetLocalizedString("Tools.PublisherStudio.Publish.MediaUploadFailedTitle", "Media Upload Failed"),
                 message);
         }
 
