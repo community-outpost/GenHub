@@ -905,9 +905,10 @@ public class OnlineViewModelTests
         vm.Initialize();
 
         // Act - simulate typing "A", "Ac", "Ace" rapidly
-        vm.Nickname = "A";
-        vm.Nickname = "Ac";
-        vm.Nickname = "Ace";
+        foreach (var key in new[] { "A", "Ac", "Ace" })
+        {
+            vm.Nickname = key;
+        }
 
         // Assert
         await WaitForAsync(() => savedList.Count > 0);

@@ -764,26 +764,28 @@ public sealed class OnlineNetworkServiceTests
         var primaryAttempts = 0;
         var backupAttempts = 0;
 
-        var handler = new CountingHandler();
-        handler.Responder = request =>
+        var handler = new CountingHandler
         {
-            var host = request.RequestUri?.Authority ?? string.Empty;
-            if (request.RequestUri?.AbsolutePath.EndsWith("/v1/sessions/anonymous", StringComparison.Ordinal) == true)
+            Responder = request =>
             {
-                if (host.Contains(new Uri(primaryUrl).Authority, StringComparison.Ordinal))
+                var host = request.RequestUri?.Authority ?? string.Empty;
+                if (request.RequestUri?.AbsolutePath.EndsWith("/v1/sessions/anonymous", StringComparison.Ordinal) == true)
                 {
-                    primaryAttempts++;
-                    throw new TaskCanceledException("Primary edge request timed out");
+                    if (host.Contains(new Uri(primaryUrl).Authority, StringComparison.Ordinal))
+                    {
+                        primaryAttempts++;
+                        throw new TaskCanceledException("Primary edge request timed out");
+                    }
+
+                    if (host.Contains(new Uri(fallbackUrl).Authority, StringComparison.Ordinal))
+                    {
+                        backupAttempts++;
+                        return JsonResponse(SessionJson);
+                    }
                 }
 
-                if (host.Contains(new Uri(fallbackUrl).Authority, StringComparison.Ordinal))
-                {
-                    backupAttempts++;
-                    return JsonResponse(SessionJson);
-                }
-            }
-
-            return Route(request, HttpStatusCode.OK);
+                return Route(request, HttpStatusCode.OK);
+            },
         };
 
         try
@@ -821,24 +823,26 @@ public sealed class OnlineNetworkServiceTests
         Environment.SetEnvironmentVariable(ApiConstants.OnlineFallbackUrlEnvVar, fallbackUrl);
         ApiConstants.ResetActiveOnlineEdgeBaseUrl();
 
-        var handler = new CountingHandler();
-        handler.Responder = request =>
+        var handler = new CountingHandler
         {
-            var host = request.RequestUri?.Authority ?? string.Empty;
-            if (request.RequestUri?.AbsolutePath.EndsWith("/v1/sessions/anonymous", StringComparison.Ordinal) == true)
+            Responder = request =>
             {
-                if (host.Contains(new Uri(primaryUrl).Authority, StringComparison.Ordinal))
+                var host = request.RequestUri?.Authority ?? string.Empty;
+                if (request.RequestUri?.AbsolutePath.EndsWith("/v1/sessions/anonymous", StringComparison.Ordinal) == true)
                 {
-                    throw new HttpRequestException("Primary edge unreachable");
+                    if (host.Contains(new Uri(primaryUrl).Authority, StringComparison.Ordinal))
+                    {
+                        throw new HttpRequestException("Primary edge unreachable");
+                    }
+
+                    if (host.Contains(new Uri(fallbackUrl).Authority, StringComparison.Ordinal))
+                    {
+                        throw new HttpRequestException("Fallback edge unreachable");
+                    }
                 }
 
-                if (host.Contains(new Uri(fallbackUrl).Authority, StringComparison.Ordinal))
-                {
-                    throw new HttpRequestException("Fallback edge unreachable");
-                }
-            }
-
-            return Route(request, HttpStatusCode.OK);
+                return Route(request, HttpStatusCode.OK);
+            },
         };
 
         try
@@ -875,29 +879,31 @@ public sealed class OnlineNetworkServiceTests
         Environment.SetEnvironmentVariable(ApiConstants.OnlineFallbackUrlEnvVar, fallbackUrl);
         ApiConstants.ResetActiveOnlineEdgeBaseUrl();
 
-        var handler = new CountingHandler();
-        handler.Responder = request =>
+        var handler = new CountingHandler
         {
-            var host = request.RequestUri?.Authority ?? string.Empty;
-            if (host.Contains(new Uri(primaryUrl).Authority, StringComparison.Ordinal))
+            Responder = request =>
             {
-                // Primary session succeeds
-                if (request.RequestUri?.AbsolutePath.EndsWith("/v1/sessions/anonymous", StringComparison.Ordinal) == true)
+                var host = request.RequestUri?.Authority ?? string.Empty;
+                if (host.Contains(new Uri(primaryUrl).Authority, StringComparison.Ordinal))
                 {
-                    return JsonResponse(SessionJson);
+                    // Primary session succeeds
+                    if (request.RequestUri?.AbsolutePath.EndsWith("/v1/sessions/anonymous", StringComparison.Ordinal) == true)
+                    {
+                        return JsonResponse(SessionJson);
+                    }
+
+                    // Primary request fails with network error, triggering TryFallbackSendAsync
+                    throw new HttpRequestException("Primary edge network dropped during send");
                 }
 
-                // Primary request fails with network error, triggering TryFallbackSendAsync
-                throw new HttpRequestException("Primary edge network dropped during send");
-            }
+                if (host.Contains(new Uri(fallbackUrl).Authority, StringComparison.Ordinal))
+                {
+                    // Fallback edge is down (dual outage)
+                    throw new HttpRequestException("Fallback edge completely down");
+                }
 
-            if (host.Contains(new Uri(fallbackUrl).Authority, StringComparison.Ordinal))
-            {
-                // Fallback edge is down (dual outage)
-                throw new HttpRequestException("Fallback edge completely down");
-            }
-
-            return Route(request, HttpStatusCode.OK);
+                return Route(request, HttpStatusCode.OK);
+            },
         };
 
         try

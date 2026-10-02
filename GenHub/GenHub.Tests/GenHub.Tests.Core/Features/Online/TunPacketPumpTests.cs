@@ -26,14 +26,11 @@ public class TunPacketPumpTests
 
         public IPAddress OverlayIp => IPAddress.Parse("10.42.0.2");
 
-        public IReadOnlyList<byte[]> WrittenPackets
+        public IReadOnlyList<byte[]> GetWrittenPackets()
         {
-            get
+            lock (_writtenPackets)
             {
-                lock (_writtenPackets)
-                {
-                    return _writtenPackets.ToList();
-                }
+                return _writtenPackets.ToList();
             }
         }
 
@@ -72,7 +69,7 @@ public class TunPacketPumpTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task PumpAsync_ReceivesRelayPacket_WritesToTunDevice()
+    public async Task PumpAsync_ReceivesRelayPacket_WritesToTunDeviceAsync()
     {
         // Arrange
         using var relayServer = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
@@ -114,7 +111,7 @@ public class TunPacketPumpTests
 
         // Send from relay back to client endpoint with retry for UDP reliability under test runner load
         using var retryCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        while (!retryCts.Token.IsCancellationRequested && fakeTun.WrittenPackets.Count == 0)
+        while (!retryCts.Token.IsCancellationRequested && fakeTun.GetWrittenPackets().Count == 0)
         {
             await relayServer.SendAsync(frame, frame.Length, receivedPing.RemoteEndPoint);
             if (await fakeTun.WaitForPacketWrittenAsync(TimeSpan.FromMilliseconds(250)))
@@ -124,8 +121,8 @@ public class TunPacketPumpTests
         }
 
         // Assert packet is delivered to TUN
-        Assert.NotEmpty(fakeTun.WrittenPackets);
-        Assert.Equal(dummyIpPacket, fakeTun.WrittenPackets[0]);
+        Assert.NotEmpty(fakeTun.GetWrittenPackets());
+        Assert.Equal(dummyIpPacket, fakeTun.GetWrittenPackets()[0]);
 
         // Cleanup
         await pump.StopAsync();

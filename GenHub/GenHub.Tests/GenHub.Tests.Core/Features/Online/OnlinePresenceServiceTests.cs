@@ -236,12 +236,7 @@ public sealed class OnlinePresenceServiceTests : IDisposable
     {
         // Act & Assert
         var exception = Record.Exception(() =>
-        {
-            Parallel.For(0, 50, _ =>
-            {
-                _service.UpdateAdvertisedProfile("fp", "profile", "user", false);
-            });
-        });
+            Parallel.For(0, 50, _ => _service.UpdateAdvertisedProfile("fp", "profile", "user", false)));
 
         Assert.Null(exception);
     }

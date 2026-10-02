@@ -448,7 +448,15 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
             {
                 result = await listener.ReceiveAsync(cancellationToken);
             }
-            catch (Exception ex) when (ex is SocketException or ObjectDisposedException or OperationCanceledException)
+            catch (SocketException)
+            {
+                return;
+            }
+            catch (ObjectDisposedException)
+            {
+                return;
+            }
+            catch (OperationCanceledException)
             {
                 return;
             }
