@@ -1024,20 +1024,17 @@ export class PresenceRoom {
   // skipcq: JS-R1005
   // skipcq: JS-0105
   webSocketClose(_ws: WebSocket, _code: number, _reason: string, _wasClean: boolean): void {
-    if (!this.state) {
-      return;
-    }
     // Edge runtime automatically evicts closed sockets from state.getWebSockets().
+    this.state.getWebSockets();
   }
 
   // skipcq: JS-R1005
   // skipcq: JS-0105
   webSocketError(_ws: WebSocket, error: unknown): void {
-    if (!this.state) {
-      return;
+    if (this.state) {
+      // skipcq: JS-0002
+      console.error("Presence WebSocket error:", error);
     }
-    // skipcq: JS-0002
-    console.error("Presence WebSocket error:", error);
   }
 
   // skipcq: JS-R1005
