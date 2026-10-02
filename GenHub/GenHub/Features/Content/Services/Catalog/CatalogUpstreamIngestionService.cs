@@ -640,6 +640,16 @@ public class CatalogUpstreamIngestionService(
             IsLatest = true,
         };
 
+        PopulateDiscoveredArtifacts(synthesized, item, matched, downloadUrl, downloadSize);
+
+        PreserveReleaseDependenciesAndMetadata(item, synthesized);
+
+        item.Releases.Clear();
+        item.Releases.Add(synthesized);
+    }
+
+    private string ResolveDownloadFileExtension(string downloadUrl)
+    {
         var uriExt = string.Empty;
         if (Uri.TryCreate(downloadUrl, UriKind.Absolute, out var parsedUri))
         {
@@ -651,14 +661,17 @@ public class CatalogUpstreamIngestionService(
             uriExt = Path.GetExtension(downloadUrl);
         }
 
-        if (string.IsNullOrWhiteSpace(uriExt))
-        {
-            uriExt = ".zip";
-        }
+        return string.IsNullOrWhiteSpace(uriExt) ? ".zip" : uriExt;
+    }
 
-        var axis = !string.IsNullOrWhiteSpace(item.UpstreamSync?.VariantAxis)
-            ? item.UpstreamSync.VariantAxis
-            : "language";
+    private void PopulateDiscoveredArtifacts(
+        ContentRelease synthesized,
+        CatalogContentItem item,
+        ContentSearchResult matched,
+        string downloadUrl,
+        long downloadSize)
+    {
+        var uriExt = ResolveDownloadFileExtension(downloadUrl);
 
         var matchingVariants = matched.Variants?
             .Where(v => item.TargetGame == GameType.Unknown || v.TargetGame == null || v.TargetGame == GameType.Unknown || v.TargetGame == item.TargetGame)
@@ -666,19 +679,26 @@ public class CatalogUpstreamIngestionService(
 
         if (matchingVariants is { Count: > 0 })
         {
+            var fallbackAxis = matchingVariants.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v.VariantType))?.VariantType ?? "variant";
+            var configuredAxis = item.UpstreamSync?.VariantAxis;
+
             var hasDefault = matchingVariants.Any(v => v.IsDefault);
             for (var i = 0; i < matchingVariants.Count; i++)
             {
                 var v = matchingVariants[i];
                 var isDefault = v.IsDefault || (!hasDefault && i == 0);
-                var variantLabel = ResolveVariantDisplayLabel(v, axis);
+                var variantAxis = !string.IsNullOrWhiteSpace(configuredAxis)
+                    ? configuredAxis
+                    : (!string.IsNullOrWhiteSpace(v.VariantType) ? v.VariantType : fallbackAxis);
+
+                var variantLabel = ResolveVariantDisplayLabel(v, variantAxis);
 
                 synthesized.Artifacts.Add(new ReleaseArtifact
                 {
                     Filename = $"{item.Id}-{v.Id}{uriExt}",
                     DownloadUrl = downloadUrl,
                     Size = downloadSize,
-                    VariantAxis = axis,
+                    VariantAxis = variantAxis,
                     Variant = variantLabel,
                     IsDefaultVariant = isDefault,
                     IsPrimary = isDefault,
@@ -697,11 +717,6 @@ public class CatalogUpstreamIngestionService(
                 IsDefaultVariant = true,
             });
         }
-
-        PreserveReleaseDependenciesAndMetadata(item, synthesized);
-
-        item.Releases.Clear();
-        item.Releases.Add(synthesized);
     }
 
     private (string? DownloadUrl, long DownloadSize) ResolveDiscoveryDownloadUrl(

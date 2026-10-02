@@ -210,10 +210,7 @@ public static class CatalogBundleComponentBuilder
             };
         }
 
-        var isUpstream = CatalogConstants.UpstreamProviders.IsConfiguredUpstreamSource(sibling) ||
-                         CatalogConstants.UpstreamProviders.IsSupported(sibling.PublisherType);
-
-        if (isUpstream)
+        if (HasConcreteUpstreamSource(sibling))
         {
             isSyntheticPlaceholder = true;
             return new ContentRelease
@@ -224,6 +221,26 @@ public static class CatalogBundleComponentBuilder
         }
 
         return null;
+    }
+
+    private static bool HasConcreteUpstreamSource(CatalogContentItem sibling)
+    {
+        if (!CatalogConstants.UpstreamProviders.IsConfiguredUpstreamSource(sibling))
+        {
+            return false;
+        }
+
+        var provider = CatalogConstants.UpstreamProviders.Normalize(
+            CatalogConstants.UpstreamProviders.DeclaredProvider(sibling.UpstreamSync?.Provider, sibling.PublisherType));
+
+        return provider switch
+        {
+            CatalogConstants.UpstreamProviders.TheSuperHackers => true,
+            CatalogConstants.UpstreamProviders.GitHubReleases => !string.IsNullOrWhiteSpace(sibling.UpstreamSync?.Repository),
+            CatalogConstants.UpstreamProviders.CommunityOutpost => !string.IsNullOrWhiteSpace(sibling.UpstreamSync?.ContentCode),
+            CatalogConstants.UpstreamProviders.GeneralsOnline => true,
+            _ => false,
+        };
     }
 
     private static CatalogBundleComponentDescriptor BuildUnavailableReleaseDescriptor(
@@ -280,9 +297,8 @@ public static class CatalogBundleComponentBuilder
 
         var hasDownloadableArtifacts = siblingRelease.Artifacts != null && siblingRelease.Artifacts.Any(a => !string.IsNullOrWhiteSpace(a.DownloadUrl));
         var hasAssetRules = sibling.UpstreamSync?.AssetRules is { Count: > 0 };
-        var isUpstreamSource = CatalogConstants.UpstreamProviders.IsConfiguredUpstreamSource(sibling) ||
-                               CatalogConstants.UpstreamProviders.IsSupported(sibling.PublisherType);
-        var isComponentAvailable = !isSyntheticPlaceholder || hasDownloadableArtifacts || hasAssetRules || isUpstreamSource;
+        var hasUpstreamSource = HasConcreteUpstreamSource(sibling);
+        var isComponentAvailable = !isSyntheticPlaceholder || hasDownloadableArtifacts || hasAssetRules || hasUpstreamSource;
 
         var contentType = CatalogManifestIdentity.ResolveDependencyContentType(dependency, parent, itemsById);
         var name = !string.IsNullOrWhiteSpace(sibling.Name)

@@ -2138,21 +2138,22 @@ public sealed partial class ContentStateService(
 
     private static ContentManifest? FindFileRowRepositoryMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item, ILogger? logger = null)
     {
-        if (item.ResolverMetadata != null &&
-            item.ResolverMetadata.TryGetValue(GitHubConstants.OwnerMetadataKey, out var owner) &&
-            !string.IsNullOrWhiteSpace(owner) &&
-            item.ResolverMetadata.TryGetValue(GitHubConstants.RepoMetadataKey, out var repo) &&
-            !string.IsNullOrWhiteSpace(repo))
+        if (item.ResolverMetadata is { } metadata)
         {
-            return FindGitHubRepoMatch(manifests, item, logger)
-                ?? FindSuperHackersMatch(manifests, item, logger);
-        }
+            if (metadata.TryGetValue(GitHubConstants.OwnerMetadataKey, out var owner) &&
+                !string.IsNullOrWhiteSpace(owner) &&
+                metadata.TryGetValue(GitHubConstants.RepoMetadataKey, out var repo) &&
+                !string.IsNullOrWhiteSpace(repo))
+            {
+                return FindGitHubRepoMatch(manifests, item, logger)
+                    ?? FindSuperHackersMatch(manifests, item, logger);
+            }
 
-        if (item.ResolverMetadata != null &&
-            ((item.ResolverMetadata.TryGetValue(CommunityOutpostCatalogConstants.ContentCodeKey, out var contentCode) && !string.IsNullOrWhiteSpace(contentCode)) ||
-             item.ResolverMetadata.ContainsKey(CatalogConstants.CatalogContentIdMetadataKey)))
-        {
-            return FindByPublisherTypeAndGame(manifests, item, logger);
+            if ((metadata.TryGetValue(CommunityOutpostCatalogConstants.ContentCodeKey, out var contentCode) && !string.IsNullOrWhiteSpace(contentCode)) ||
+                metadata.ContainsKey(CatalogConstants.CatalogContentIdMetadataKey))
+            {
+                return FindByPublisherTypeAndGame(manifests, item, logger);
+            }
         }
 
         return null;

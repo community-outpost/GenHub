@@ -163,6 +163,8 @@ public sealed class CatalogBundleComponentBuilderTests
             UpstreamSync = new CatalogUpstreamSync
             {
                 Provider = provider,
+                Repository = "Test/TestRepo",
+                ContentCode = "hlei",
             },
         };
 
@@ -196,6 +198,59 @@ public sealed class CatalogBundleComponentBuilderTests
         Assert.Equal("latest", component.ReleaseVersion);
         Assert.Equal(expectedPublisherId, component.PublisherId, ignoreCase: true);
         Assert.Null(component.UnavailableReason);
+    }
+
+    /// <summary>
+    /// Verifies that an item labeled with an upstream publisher type but lacking UpstreamSync and releases
+    /// is marked unavailable rather than fabricating a metadata-free placeholder.
+    /// </summary>
+    /// <param name="publisherType">The upstream publisher identifier.</param>
+    [Theory]
+    [InlineData("github")]
+    [InlineData("communityoutpost")]
+    [InlineData("generalsonline")]
+    public void Build_SupportedPublisherWithoutUpstreamSyncOrReleases_MarksComponentUnavailable(string publisherType)
+    {
+        var itemWithoutSync = new CatalogContentItem
+        {
+            Id = "raw-item",
+            Name = "Raw Item",
+            ContentType = ContentType.GameClient,
+            PublisherType = publisherType,
+            TargetGame = GameType.ZeroHour,
+            Releases = [],
+            UpstreamSync = null,
+        };
+
+        var bundle = new CatalogContentItem
+        {
+            Id = "bundle-test",
+            Name = "Test Bundle",
+            ContentType = ContentType.ContentBundle,
+            TargetGame = GameType.ZeroHour,
+            BundledItems =
+            [
+                new CatalogDependency { ContentId = "raw-item" },
+            ],
+            Releases =
+            [
+                new ContentRelease { Version = "1.0.0", IsLatest = true },
+            ],
+        };
+
+        var catalog = new PublisherCatalog
+        {
+            SchemaVersion = 1,
+            Publisher = new PublisherProfile { Id = "test-pub", Name = "Test Publisher" },
+            Content = [itemWithoutSync, bundle],
+        };
+
+        var components = CatalogBundleComponentBuilder.Build(catalog, bundle, bundle.Releases[0]);
+
+        var component = Assert.Single(components, c => c.ContentId == "raw-item");
+        Assert.False(component.IsAvailable);
+        Assert.NotNull(component.UnavailableReason);
+        Assert.Contains("has no releases", component.UnavailableReason);
     }
 
     /// <summary>
