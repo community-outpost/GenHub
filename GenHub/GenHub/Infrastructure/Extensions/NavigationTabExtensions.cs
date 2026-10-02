@@ -20,6 +20,7 @@ public static class NavigationTabExtensions
         NavigationTab.Tools => "Tools",
         NavigationTab.Settings => "Settings",
         NavigationTab.Info => "Info",
+        NavigationTab.Online => "Online",
         _ => tab.ToString(),
     };
 }

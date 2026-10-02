@@ -80,6 +80,44 @@ public sealed class WineRunnerTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies an explicit runner binary override wins over PATH discovery.
+    /// </summary>
+    /// <remarks>
+    /// Power users point GenHub at alternate runtimes (Proton builds, custom Wine)
+    /// through the override without changing the default discovery.
+    /// </remarks>
+    [Fact]
+    public void ResolveCommand_WithWineBinaryOverride_UsesOverride()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("override-bin");
+        var overridePath = Path.Combine(binDirectory, "custom-wine");
+        File.WriteAllText(overridePath, "fake wine");
+        var previous = Environment.GetEnvironmentVariable(WineConstants.WineBinaryOverrideEnvVar);
+        Environment.SetEnvironmentVariable(WineConstants.WineBinaryOverrideEnvVar, overridePath);
+        try
+        {
+            var runner = CreateRunner([], Path.Combine(_tempDirectory, "prefix"), [$"missing-wine-{Guid.NewGuid():N}"]);
+            var configuration = new GameLaunchConfiguration
+            {
+                ExecutablePath = Path.Combine(_tempDirectory, "game", "generals.exe"),
+            };
+
+            // Act
+            var result = runner.ResolveCommand(configuration);
+
+            // Assert
+            Assert.True(result.Success, result.AllErrors);
+            Assert.NotNull(result.Data);
+            Assert.Equal(overridePath, result.Data.FileName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(WineConstants.WineBinaryOverrideEnvVar, previous);
+        }
+    }
+
+    /// <summary>
     /// Verifies non-Windows executables pass through without requiring Wine.
     /// </summary>
     [Fact]
@@ -959,6 +997,154 @@ public sealed class WineRunnerTests : IDisposable
         // Assert
         Assert.False(result.Success);
         Assert.Contains("macOS", result.FirstError);
+    }
+
+    /// <summary>
+    /// Verifies the native Network.ini (LAN nickname) is mirrored into both
+    /// prefix user documents folders, so the game reads the synced player name.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithNativeNetworkIni_MirrorsItIntoBothPrefixUserDocuments()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var prefixPath = Path.Combine(_tempDirectory, "prefix-network");
+        var runner = CreateRunner([binDirectory], prefixPath);
+        var userData = CreateDirectory("userdata-network");
+        var nativeOptionsPath = Path.Combine(userData, "Options.ini");
+        File.WriteAllText(nativeOptionsPath, "Resolution=1920 1080");
+        var nativeNetworkPath = Path.Combine(userData, "Network.ini");
+        File.WriteAllText(nativeNetworkPath, "UserName = TestPlayer");
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(_tempDirectory, "game", "generals.exe"),
+            GameType = GameType.ZeroHour,
+            NativeOptionsIniPath = nativeOptionsPath,
+            NativeNetworkIniPath = nativeNetworkPath,
+        };
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        var mirrored = Directory.GetFiles(prefixPath, "Network.ini", SearchOption.AllDirectories);
+        Assert.Equal(2, mirrored.Length);
+        Assert.All(mirrored, mirroredPath => Assert.Equal("UserName = TestPlayer", File.ReadAllText(mirroredPath)));
+    }
+
+    /// <summary>
+    /// Verifies no Network.ini is created in the prefix when no native
+    /// Network.ini exists (no nickname was ever synced).
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithoutNativeNetworkIni_CreatesNoNetworkIni()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var prefixPath = Path.Combine(_tempDirectory, "prefix-no-network");
+        var runner = CreateRunner([binDirectory], prefixPath);
+        var nativeOptionsPath = Path.Combine(CreateDirectory("userdata-no-network"), "Options.ini");
+        File.WriteAllText(nativeOptionsPath, "Resolution=1920 1080");
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(_tempDirectory, "game", "generals.exe"),
+            GameType = GameType.ZeroHour,
+            NativeOptionsIniPath = nativeOptionsPath,
+        };
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        Assert.Empty(Directory.GetFiles(prefixPath, "Network.ini", SearchOption.AllDirectories));
+    }
+
+    /// <summary>
+    /// Verifies a prefix Network.ini newer than the native one is kept, so a
+    /// name the game itself just wrote is never clobbered by a stale sync.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithNewerPrefixNetworkIni_KeepsPrefixContents()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var prefixPath = Path.Combine(_tempDirectory, "prefix-network-newer");
+        var runner = CreateRunner([binDirectory], prefixPath);
+        var userData = CreateDirectory("userdata-network-newer");
+        var nativeOptionsPath = Path.Combine(userData, "Options.ini");
+        File.WriteAllText(nativeOptionsPath, "Resolution=1920 1080");
+        var nativeNetworkPath = Path.Combine(userData, "Network.ini");
+        File.WriteAllText(nativeNetworkPath, "UserName = StaleName");
+        File.SetLastWriteTimeUtc(nativeNetworkPath, DateTime.UtcNow - TimeSpan.FromHours(1));
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(_tempDirectory, "game", "generals.exe"),
+            GameType = GameType.ZeroHour,
+            NativeOptionsIniPath = nativeOptionsPath,
+            NativeNetworkIniPath = nativeNetworkPath,
+        };
+
+        var first = runner.ResolveCommand(configuration);
+        Assert.True(first.Success, first.AllErrors);
+        var mirrored = Directory.GetFiles(prefixPath, "Network.ini", SearchOption.AllDirectories);
+        Assert.Equal(2, mirrored.Length);
+        foreach (var mirroredPath in mirrored)
+        {
+            File.WriteAllText(mirroredPath, "UserName = InGameName");
+        }
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        Assert.All(
+            Directory.GetFiles(prefixPath, "Network.ini", SearchOption.AllDirectories),
+            mirroredPath => Assert.Equal("UserName = InGameName", File.ReadAllText(mirroredPath)));
+    }
+
+    /// <summary>
+    /// Verifies the overlay IP preselected by Online Play (both network keys)
+    /// survives the prefix mirror verbatim, so the launched game binds the
+    /// lobby IP without any manual adapter choice.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithOverlayIpInNativeOptionsIni_MirrorsBothIpKeysVerbatim()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var prefixPath = Path.Combine(_tempDirectory, "prefix-overlay-ip");
+        var runner = CreateRunner([binDirectory], prefixPath);
+        var nativeOptionsPath = Path.Combine(CreateDirectory("userdata-overlay-ip"), "Options.ini");
+        File.WriteAllText(
+            nativeOptionsPath,
+            "SFXVolume=70\nResolution=1920 1080\nGameSpyIPAddress=10.42.0.7\nIPAddress=10.42.0.7\n");
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(_tempDirectory, "game", "generals.exe"),
+            GameType = GameType.ZeroHour,
+            NativeOptionsIniPath = nativeOptionsPath,
+        };
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        var mirrored = Directory.GetFiles(prefixPath, "Options.ini", SearchOption.AllDirectories);
+        Assert.Equal(2, mirrored.Length);
+        Assert.All(mirrored, mirroredPath =>
+        {
+            var text = File.ReadAllText(mirroredPath);
+            Assert.Contains("GameSpyIPAddress=10.42.0.7", text);
+            Assert.Contains("IPAddress=10.42.0.7", text);
+        });
     }
 
     /// <summary>

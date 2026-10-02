@@ -311,6 +311,58 @@ MissingBracket
     }
 
     /// <summary>
+    /// Should round-trip both network IP keys and leave no temp residue behind.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveOptionsAsync_Should_RoundTripLanIpKeysAtomicallyAsync()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName();
+        var options = new IniOptions
+        {
+            Network = new NetworkSettings
+            {
+                GameSpyIPAddress = "10.42.0.7",
+                IPAddress = "10.42.0.7",
+            },
+        };
+
+        var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)
+        {
+            CallBase = true,
+        };
+        mockService.Setup(x => x.GetOptionsFilePath(It.IsAny<GameType>())).Returns(tempFile);
+
+        try
+        {
+            // Act
+            var result = await mockService.Object.SaveOptionsAsync(GameType.ZeroHour, options);
+
+            // Assert
+            Assert.True(result.Success);
+            var savedLines = await File.ReadAllLinesAsync(tempFile);
+            Assert.Contains("GameSpyIPAddress=10.42.0.7", savedLines);
+            Assert.Contains("IPAddress=10.42.0.7", savedLines);
+            Assert.False(File.Exists(tempFile + ".tmp"));
+
+            var loadResult = await mockService.Object.LoadOptionsAsync(GameType.ZeroHour);
+            Assert.True(loadResult.Success);
+            Assert.Equal("10.42.0.7", loadResult.Data!.Network.GameSpyIPAddress);
+            Assert.Equal("10.42.0.7", loadResult.Data!.Network.IPAddress);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+            var residue = tempFile + ".tmp";
+            if (File.Exists(residue))
+            {
+                File.Delete(residue);
+            }
+        }
+    }
+
+    /// <summary>
     /// Should handle boolean values correctly in serialization.
     /// </summary>
     /// <param name="value">The boolean value to test.</param>
@@ -660,6 +712,98 @@ MoneyTransactionVolume = 70
             Assert.Equal("2.5", tshSection["GameWindowTransitionSpeedMultiplier"]);
             Assert.Equal("70", tshSection["MoneyTransactionVolume"]);
             Assert.Equal("55", tshSection["ScrollFactor"]);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that network IP settings are serialized before any [TheSuperHackers] or custom section
+    /// headers so the engine does not treat IPAddress as a section-scoped setting and drop it.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveOptionsAsync_WithTheSuperHackersSection_ShouldSerializeNetworkBeforeSectionAsync()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName();
+        var options = new IniOptions
+        {
+            Network = new NetworkSettings
+            {
+                IPAddress = "10.42.0.77",
+                GameSpyIPAddress = "10.42.0.77",
+            },
+        };
+        options.AdditionalSections[GameSettingsTheSuperHackersConstants.SectionName] = new Dictionary<string, string>
+        {
+            ["GameWindowTransitionSpeedMultiplier"] = "3.5",
+        };
+
+        var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)
+        {
+            CallBase = true,
+        };
+        mockService.Setup(x => x.GetOptionsFilePath(It.IsAny<GameType>())).Returns(tempFile);
+
+        try
+        {
+            // Act
+            var result = await mockService.Object.SaveOptionsAsync(GameType.ZeroHour, options);
+
+            // Assert
+            Assert.True(result.Success, result.FirstError);
+            var content = await File.ReadAllTextAsync(tempFile);
+            var ipIdx = content.IndexOf("IPAddress=10.42.0.77", StringComparison.Ordinal);
+            var tshIdx = content.IndexOf("[" + GameSettingsTheSuperHackersConstants.SectionName + "]", StringComparison.Ordinal);
+
+            Assert.True(ipIdx >= 0, "IPAddress not found in file");
+            Assert.True(tshIdx >= 0, "[TheSuperHackers] section not found in file");
+            Assert.True(ipIdx < tshIdx, "IPAddress must be serialized before [TheSuperHackers] section header");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that if an existing Options.ini file has IPAddress trapped inside [TheSuperHackers],
+    /// it is extracted into Network.IPAddress and not left in AdditionalSections.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task LoadOptionsAsync_WithLeakedNetworkInAdditionalSection_ShouldRestoreToNetworkSettingsAsync()
+    {
+        // Arrange
+        var content = @"[TheSuperHackers]
+GameWindowTransitionSpeedMultiplier=3.5
+IPAddress=10.42.0.88
+GameSpyIPAddress=10.42.0.88
+";
+        var tempFile = Path.GetTempFileName();
+        await File.WriteAllTextAsync(tempFile, content);
+
+        var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)
+        {
+            CallBase = true,
+        };
+        mockService.Setup(x => x.GetOptionsFilePath(It.IsAny<GameType>())).Returns(tempFile);
+
+        try
+        {
+            // Act
+            var result = await mockService.Object.LoadOptionsAsync(GameType.ZeroHour);
+
+            // Assert
+            Assert.True(result.Success, result.FirstError);
+            var options = result.Data!;
+            Assert.Equal("10.42.0.88", options.Network.IPAddress);
+            Assert.Equal("10.42.0.88", options.Network.GameSpyIPAddress);
+            Assert.False(options.AdditionalSections["TheSuperHackers"].ContainsKey("IPAddress"));
+            Assert.False(options.AdditionalSections["TheSuperHackers"].ContainsKey("GameSpyIPAddress"));
         }
         finally
         {

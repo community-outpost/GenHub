@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <AssemblyName>genhub-overlay</AssemblyName>
+        <RootNamespace>GenHub.Overlay</RootNamespace>
+        <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+        <PublishSingleFile>true</PublishSingleFile>
+        <SelfContained>true</SelfContained>
+        <EnableSingleFileCompression>true</EnableSingleFileCompression>
+        <InvariantGlobalization>true</InvariantGlobalization>
+        <PublishTrimmed>true</PublishTrimmed>
+        <TrimMode>full</TrimMode>
+        <DebuggerSupport>false</DebuggerSupport>
+        <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="StyleCop.Analyzers" />
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\GenHub.Core\GenHub.Core.csproj" />
+    </ItemGroup>
+</Project>

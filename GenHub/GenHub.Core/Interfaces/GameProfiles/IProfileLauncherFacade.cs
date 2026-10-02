@@ -24,6 +24,16 @@ public interface IProfileLauncherFacade
     Task<ProfileOperationResult<GameLaunchInfo>> LaunchProfileAsync(string profileId, bool skipUserDataCleanup = false, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Prepares and launches a game profile with full workspace setup and a LAN IP override for Options.ini.
+    /// </summary>
+    /// <param name="profileId">The unique identifier of the profile to launch.</param>
+    /// <param name="skipUserDataCleanup">Whether to skip cleanup of user data files (maps, etc.) from other profiles.</param>
+    /// <param name="networkIpOverride">Optional LAN IP written to Options.ini instead of the profile's stored address.</param>
+    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <returns>An operation result containing launch information and status.</returns>
+    Task<ProfileOperationResult<GameLaunchInfo>> LaunchProfileAsync(string profileId, bool skipUserDataCleanup, string? networkIpOverride, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Prepares and launches a game profile with full workspace setup and transient command line arguments.
     /// </summary>
     /// <param name="profileId">The unique identifier of the profile to launch.</param>
@@ -39,6 +49,22 @@ public interface IProfileLauncherFacade
         string profileId,
         bool skipUserDataCleanup,
         IReadOnlyDictionary<string, string>? additionalArguments,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Prepares and launches a game profile with full workspace setup, transient command line arguments, and a LAN IP override.
+    /// </summary>
+    /// <param name="profileId">The unique identifier of the profile to launch.</param>
+    /// <param name="skipUserDataCleanup">Whether to skip cleanup of user data files (maps, etc.) from other profiles.</param>
+    /// <param name="additionalArguments">Optional transient command line arguments to merge with profile launch options.</param>
+    /// <param name="networkIpOverride">Optional LAN IP written to Options.ini instead of the profile's stored address.</param>
+    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <returns>An operation result containing launch information and status.</returns>
+    Task<ProfileOperationResult<GameLaunchInfo>> LaunchProfileAsync(
+        string profileId,
+        bool skipUserDataCleanup,
+        IReadOnlyDictionary<string, string>? additionalArguments,
+        string? networkIpOverride,
         CancellationToken cancellationToken = default);
 
     /// <summary>

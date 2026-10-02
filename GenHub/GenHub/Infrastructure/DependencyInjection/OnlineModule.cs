@@ -1,0 +1,35 @@
+using GenHub.Core.Interfaces.Online;
+using GenHub.Core.Services.Online;
+using GenHub.Core.Services.Online.Tun;
+using GenHub.Features.Online.Services;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace GenHub.Infrastructure.DependencyInjection;
+
+/// <summary>
+/// Infrastructure module for the Online (virtual LAN) feature.
+/// Platform hosts replace <see cref="IVirtualLanAdapter"/> with the shared
+/// sidecar-backed adapter and register their own sidecar locator.
+/// </summary>
+public static class OnlineModule
+{
+    /// <summary>
+    /// Registers the Online feature services.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <returns>The service collection for chaining.</returns>
+    public static IServiceCollection AddOnlineServices(this IServiceCollection services)
+    {
+        services.AddHttpClient(nameof(OnlineNetworkService));
+        services.AddHttpClient(nameof(OnlinePresenceService));
+        services.AddSingleton<IOnlineNetworkService, OnlineNetworkService>();
+        services.AddSingleton<IOnlinePresenceService, OnlinePresenceService>();
+        services.AddSingleton<IOnlineLaunchService, OnlineLaunchService>();
+        services.AddSingleton<IOverlaySidecarHost, OverlaySidecarHost>();
+        services.AddSingleton<ITunInterfaceSetup, LinuxTunSetup>();
+        services.AddSingleton<ITunnelRunner, VirtualLanTunnelRunner>();
+        services.AddSingleton<IP2PConnectionService, P2PConnectionService>();
+        services.AddSingleton<IVirtualLanAdapter, NullVirtualLanAdapter>();
+        return services;
+    }
+}

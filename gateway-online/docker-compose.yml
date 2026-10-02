@@ -1,0 +1,51 @@
+services:
+  gateway:
+    image: node:20-slim
+    container_name: genhub-gateway
+    restart: unless-stopped
+    working_dir: /app
+    # Secrets have no committed defaults on purpose: compose fails fast when
+    # they are unset instead of booting every deployment on shared keys.
+    environment:
+      - JWT_SIGNING_SECRET=${JWT_SIGNING_SECRET:?set JWT_SIGNING_SECRET in .env}
+      - PASSWORD_PEPPER=${PASSWORD_PEPPER:?set PASSWORD_PEPPER in .env}
+      - COTURN_SECRET=${COTURN_SECRET:?set COTURN_SECRET in .env}
+      - TURN_URIS=${TURN_URIS:-turn:141.144.254.124:3478?transport=udp,turn:141.144.254.124:3478?transport=tcp}
+      - EMPTY_NETWORK_TTL_SECONDS=${EMPTY_NETWORK_TTL_SECONDS:-300}
+    volumes:
+      - ./:/app
+      - ./data:/data
+    # Local development only: wrangler dev is a single-process dev server,
+    # not a production runtime. Bound to loopback on purpose.
+    command: >
+      sh -c "npx wrangler dev --ip 127.0.0.1 --port 8787 --persist-to /data"
+    ports:
+      - "127.0.0.1:8787:8787"
+
+  relay:
+    image: node:20-slim
+    container_name: genhub-relay
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: node /app/relay.js
+    ports:
+      - "8088:8088/udp"
+
+  coturn:
+    image: coturn/coturn:latest
+    container_name: genhub-coturn
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - "-n"
+      - "--listening-port=3478"
+      - "--fingerprint"
+      - "--realm=genhub.online"
+      - "--use-auth-secret"
+      - "--static-auth-secret=${COTURN_SECRET:?set COTURN_SECRET in .env}"
+      - "--external-ip=141.144.254.124"
+      - "--min-port=49152"
+      - "--max-port=49252"
+      - "--no-cli"

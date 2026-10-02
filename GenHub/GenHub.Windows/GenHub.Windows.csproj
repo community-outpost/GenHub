@@ -54,8 +54,13 @@
     </ItemGroup>
 
     <ItemGroup>
-        <!-- Build-order-only: guarantees the proxy binary exists before BuildProxyLauncher packs it. -->
+        <!-- Build-order-only: guarantees the proxy and overlay binaries exist before MSBuild targets pack them. -->
         <ProjectReference Include="..\GenHub.ProxyLauncher\GenHub.ProxyLauncher.csproj">
+            <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+            <Private>false</Private>
+            <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
+        </ProjectReference>
+        <ProjectReference Include="..\GenHub.Overlay\GenHub.Overlay.csproj" Condition="'$(Configuration)' != 'Release'">
             <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
             <Private>false</Private>
             <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
@@ -63,4 +68,71 @@
     </ItemGroup>
 
     <Import Project="..\GenHub.ProxyLauncher\GenHub.ProxyLauncher.Bundle.targets" />
+
+    <PropertyGroup>
+        <OverlayPublishDir>$(MSBuildProjectDirectory)\..\GenHub.Overlay\bin\Publish\$(Configuration)\</OverlayPublishDir>
+        <OverlayBundleProperties>
+            Configuration=$(Configuration);
+            Platform=AnyCPU;
+            TargetFramework=net8.0;
+            RuntimeIdentifier=win-x64;
+            SelfContained=true;
+            PublishSingleFile=true;
+            PublishTrimmed=true;
+            EnableSingleFileCompression=true;
+            IntermediateOutputPath=obj/$(Configuration)/net8.0/win-x64/Overlay/;
+            PublishDir=$(OverlayPublishDir);
+            Version=$(Version);
+            GitShortHash=$(GitShortHash);
+            PullRequestNumber=$(PullRequestNumber);
+            BuildChannel=$(BuildChannel)
+        </OverlayBundleProperties>
+    </PropertyGroup>
+
+    <!-- Ensure Overlay is PUBLISHED as SingleFile and copied to build output for local development.
+         In Release, the overlay is excluded from the installer payload to keep Setup.exe under budget,
+         matching the Playwright and Chromium pattern. -->
+    <Target Name="BuildOverlay" BeforeTargets="Build" Condition="'$(Configuration)' != 'Release'">
+        <MSBuild
+            Projects="$(MSBuildProjectDirectory)\..\GenHub.Overlay\GenHub.Overlay.csproj"
+            Targets="Restore;Publish"
+            Properties="$(OverlayBundleProperties)"
+            RemoveProperties="_IsPublishing;DOTNET_CLI_DISABLE_PUBLISH_AND_PACK_RELEASE;_CommandLineDefinedOutputPath;_CommandLineDefinedRuntimeIdentifier;_CommandLineDefinedSelfContained;BaseOutputPath;BaseIntermediateOutputPath" />
+    </Target>
+
+    <Target Name="CopyOverlay" AfterTargets="Build" Condition="'$(Configuration)' != 'Release'">
+        <PropertyGroup>
+            <OverlaySourceDir>$(MSBuildProjectDirectory)\..\GenHub.Overlay\bin\Publish\$(Configuration)</OverlaySourceDir>
+        </PropertyGroup>
+        <ItemGroup>
+            <OverlayFiles Include="$(OverlaySourceDir)\genhub-overlay.exe" />
+            <OverlayFiles Include="$(OverlaySourceDir)\genhub-overlay.pdb" Condition="Exists('$(OverlaySourceDir)\genhub-overlay.pdb')" />
+            <OverlayFiles Include="$(OverlaySourceDir)\genhub-overlay.runtimeconfig.json" Condition="Exists('$(OverlaySourceDir)\genhub-overlay.runtimeconfig.json')" />
+            <WintunFiles Include="$(MSBuildProjectDirectory)\..\GenHub.Core\Resources\Wintun\x64\wintun.dll" />
+        </ItemGroup>
+        <Message Importance="High" Text="[CopyOverlay] Copying SingleFile from $(OverlaySourceDir) to $(TargetDir)" />
+        <Copy SourceFiles="@(OverlayFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
+        <Copy SourceFiles="@(WintunFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
+    </Target>
+
+    <!-- Ensure Overlay is included in Publish output for Velopack only in non-Release configurations -->
+    <Target Name="PublishOverlay" AfterTargets="ComputeFilesToPublish" Condition="'$(Configuration)' != 'Release'">
+        <PropertyGroup>
+            <OverlaySourceDir>$(MSBuildProjectDirectory)\..\GenHub.Overlay\bin\Publish\$(Configuration)</OverlaySourceDir>
+        </PropertyGroup>
+        <ItemGroup>
+            <ResolvedFileToPublish Include="$(OverlaySourceDir)\genhub-overlay.exe">
+                <RelativePath>genhub-overlay.exe</RelativePath>
+                <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+            </ResolvedFileToPublish>
+            <ResolvedFileToPublish Include="$(OverlaySourceDir)\genhub-overlay.runtimeconfig.json" Condition="Exists('$(OverlaySourceDir)\genhub-overlay.runtimeconfig.json')">
+                <RelativePath>genhub-overlay.runtimeconfig.json</RelativePath>
+                <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+            </ResolvedFileToPublish>
+            <ResolvedFileToPublish Include="$(MSBuildProjectDirectory)\..\GenHub.Core\Resources\Wintun\x64\wintun.dll">
+                <RelativePath>wintun.dll</RelativePath>
+                <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+            </ResolvedFileToPublish>
+        </ItemGroup>
+    </Target>
 </Project>

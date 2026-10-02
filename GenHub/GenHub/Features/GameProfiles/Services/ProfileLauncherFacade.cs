@@ -81,7 +81,27 @@ public class ProfileLauncherFacade(
         bool skipUserDataCleanup = false,
         CancellationToken cancellationToken = default)
     {
-        return LaunchProfileAsync(profileId, skipUserDataCleanup, null, cancellationToken);
+        return LaunchProfileAsync(profileId, skipUserDataCleanup, null, null, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public Task<ProfileOperationResult<GameLaunchInfo>> LaunchProfileAsync(
+        string profileId,
+        bool skipUserDataCleanup,
+        string? networkIpOverride,
+        CancellationToken cancellationToken = default)
+    {
+        return LaunchProfileAsync(profileId, skipUserDataCleanup, null, networkIpOverride, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public Task<ProfileOperationResult<GameLaunchInfo>> LaunchProfileAsync(
+        string profileId,
+        bool skipUserDataCleanup,
+        IReadOnlyDictionary<string, string>? additionalArguments,
+        CancellationToken cancellationToken = default)
+    {
+        return LaunchProfileAsync(profileId, skipUserDataCleanup, additionalArguments, null, cancellationToken);
     }
 
     /// <inheritdoc/>
@@ -89,6 +109,7 @@ public class ProfileLauncherFacade(
         string profileId,
         bool skipUserDataCleanup,
         IReadOnlyDictionary<string, string>? additionalArguments,
+        string? networkIpOverride,
         CancellationToken cancellationToken = default)
     {
         try
@@ -137,7 +158,7 @@ public class ProfileLauncherFacade(
             }
             else
             {
-                launchResult = await LaunchGameProfileAsync(profile, profileId, skipUserDataCleanup, additionalArguments, cancellationToken);
+                launchResult = await LaunchGameProfileAsync(profile, profileId, skipUserDataCleanup, additionalArguments, networkIpOverride, cancellationToken);
             }
 
             if (launchResult.Success)
@@ -872,60 +893,75 @@ public class ProfileLauncherFacade(
         }
     }
 
+    private async Task<ProfileOperationResult<(GameProfile Profile, GameInstallation Installation)>> PrepareProfileForLaunchAsync(
+        GameProfile profile,
+        string profileId,
+        CancellationToken cancellationToken)
+    {
+        logger.LogDebug("[Launch] Step 2: Resolving game installation ID: {InstallationId}", profile.GameInstallationId);
+
+        if (string.IsNullOrWhiteSpace(profile.GameInstallationId))
+        {
+            logger.LogWarning("[Launch] Game Installation ID is missing for profile {ProfileId}. Attempting to resolve...", profile.Id);
+        }
+
+        var resolvedInstallationResult = await ResolveOrRebindInstallationAsync(profile, cancellationToken);
+        if (resolvedInstallationResult.Failed || resolvedInstallationResult.Data == null)
+        {
+            logger.LogError("[Launch] Installation resolution failed: {Error}", resolvedInstallationResult.FirstError ?? "Resolved installation data was null.");
+            return ProfileOperationResult<(GameProfile Profile, GameInstallation Installation)>.CreateFailure(resolvedInstallationResult.FirstError ?? "Could not resolve game installation for profile");
+        }
+
+        var resolvedInstallation = resolvedInstallationResult.Data;
+        logger.LogDebug(
+            "[Launch] Bound to game installation: {InstallationId} at {Path}",
+            resolvedInstallation.Id,
+            resolvedInstallation.InstallationPath);
+
+        var rebindResult = await TryRebindProfileInstallationAsync(profileId, profile, resolvedInstallation, cancellationToken);
+        if (rebindResult.Failed)
+        {
+            return ProfileOperationResult<(GameProfile Profile, GameInstallation Installation)>.CreateFailure(rebindResult.FirstError ?? "Could not rebind profile to its game installation");
+        }
+
+        await EnsureCasPoolAsync(resolvedInstallation, cancellationToken);
+
+        var reconcileResult = await ReconcilePublisherClientAsync(profile, profileId, cancellationToken);
+        if (reconcileResult.Failed)
+        {
+            return ProfileOperationResult<(GameProfile Profile, GameInstallation Installation)>.CreateFailure(reconcileResult.FirstError ?? "Reconciliation failed");
+        }
+
+        profile = reconcileResult.Data ?? profile;
+        profileId = profile.Id;
+        rebindResult = await TryRebindProfileInstallationAsync(profileId, profile, resolvedInstallation, cancellationToken);
+        if (rebindResult.Failed)
+        {
+            return ProfileOperationResult<(GameProfile Profile, GameInstallation Installation)>.CreateFailure(rebindResult.FirstError ?? "Could not rebind profile to its game installation");
+        }
+
+        return ProfileOperationResult<(GameProfile Profile, GameInstallation Installation)>.CreateSuccess((profile, resolvedInstallation));
+    }
+
     private async Task<ProfileOperationResult<GameLaunchInfo>> LaunchGameProfileAsync(
         GameProfile profile,
         string profileId,
         bool skipUserDataCleanup,
         IReadOnlyDictionary<string, string>? additionalArguments,
-        CancellationToken cancellationToken)
+        string? networkIpOverride = null,
+        CancellationToken cancellationToken = default)
     {
         try
         {
-            // Try to resolve or rebind the installation if it's stale
-            logger.LogDebug("[Launch] Step 2: Resolving game installation ID: {InstallationId}", profile.GameInstallationId);
-
-            if (string.IsNullOrWhiteSpace(profile.GameInstallationId))
+            var preparedProfileResult = await PrepareProfileForLaunchAsync(profile, profileId, cancellationToken);
+            if (preparedProfileResult.Failed || preparedProfileResult.Data == default)
             {
-                // Log warning but proceed - ResolveOrRebindInstallationAsync might affect recovery or strict binding might be skipped for some flows.
-                logger.LogWarning("[Launch] Game Installation ID is missing for profile {ProfileId}. Attempting to resolve...", profile.Id);
+                return ProfileOperationResult<GameLaunchInfo>.CreateFailure(preparedProfileResult.FirstError ?? "Could not resolve game installation for profile");
             }
 
-            var resolvedInstallationResult = await ResolveOrRebindInstallationAsync(profile, cancellationToken);
-            if (resolvedInstallationResult.Failed || resolvedInstallationResult.Data == null)
-            {
-                logger.LogError("[Launch] Installation resolution failed: {Error}", resolvedInstallationResult.FirstError ?? "Resolved installation data was null.");
-                return ProfileOperationResult<GameLaunchInfo>.CreateFailure(resolvedInstallationResult.FirstError ?? "Could not resolve game installation for profile");
-            }
-
-            var resolvedInstallation = resolvedInstallationResult.Data;
-            logger.LogDebug(
-                "[Launch] Bound to game installation: {InstallationId} at {Path}",
-                resolvedInstallation.Id,
-                resolvedInstallation.InstallationPath);
-
-            var rebindResult = await TryRebindProfileInstallationAsync(profileId, profile, resolvedInstallation, cancellationToken);
-            if (rebindResult.Failed)
-            {
-                return ProfileOperationResult<GameLaunchInfo>.CreateFailure(rebindResult.FirstError ?? "Could not rebind profile to its game installation");
-            }
-
-            // Ensure CAS pool is available before reconciliation may download artifacts
-            await EnsureCasPoolAsync(resolvedInstallation, cancellationToken);
-
-            // Step 2.5: Check for game client updates before launching.
-            var reconcileResult = await ReconcilePublisherClientAsync(profile, profileId, cancellationToken);
-            if (reconcileResult.Failed)
-            {
-                return ProfileOperationResult<GameLaunchInfo>.CreateFailure(reconcileResult.FirstError ?? "Reconciliation failed");
-            }
-
-            profile = reconcileResult.Data ?? profile;
+            profile = preparedProfileResult.Data.Profile;
             profileId = profile.Id;
-            rebindResult = await TryRebindProfileInstallationAsync(profileId, profile, resolvedInstallation, cancellationToken);
-            if (rebindResult.Failed)
-            {
-                return ProfileOperationResult<GameLaunchInfo>.CreateFailure(rebindResult.FirstError ?? "Could not rebind profile to its game installation");
-            }
+            var resolvedInstallation = preparedProfileResult.Data.Installation;
 
             // Validate the profile before launching
             logger.LogDebug("[Launch] Step 3: Validating profile for launch");
@@ -998,7 +1034,20 @@ public class ProfileLauncherFacade(
             LaunchOperationResult<GameLaunchInfo> launchResult;
             try
             {
-                launchResult = await gameLauncher.LaunchProfileAsync(profile, progress: launchProgress, skipUserDataCleanup: skipUserDataCleanup, additionalArguments: additionalArguments, cancellationToken: cancellationToken);
+                launchResult = networkIpOverride is null
+                    ? await gameLauncher.LaunchProfileAsync(
+                        profile,
+                        progress: launchProgress,
+                        skipUserDataCleanup: skipUserDataCleanup,
+                        additionalArguments: additionalArguments,
+                        cancellationToken: cancellationToken)
+                    : await gameLauncher.LaunchProfileAsync(
+                        profile,
+                        progress: launchProgress,
+                        skipUserDataCleanup: skipUserDataCleanup,
+                        additionalArguments: additionalArguments,
+                        cancellationToken: cancellationToken,
+                        networkIpOverride: networkIpOverride);
             }
             finally
             {

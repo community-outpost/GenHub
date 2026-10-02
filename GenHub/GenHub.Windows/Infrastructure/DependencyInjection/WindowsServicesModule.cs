@@ -3,18 +3,21 @@ using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Launching;
+using GenHub.Core.Interfaces.Online;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Features.GameSettings;
 using GenHub.Features.Launching;
+using GenHub.Features.Online.Services;
 using GenHub.Features.Workspace;
 using GenHub.Windows.Features.ActionSets;
 using GenHub.Windows.Features.ActionSets.Fixes;
 using GenHub.Windows.Features.ActionSets.Infrastructure;
 using GenHub.Windows.Features.ActionSets.UI;
 using GenHub.Windows.Features.GitHub.Services;
+using GenHub.Windows.Features.Online;
 using GenHub.Windows.Features.Shortcuts;
 using GenHub.Windows.Features.Storage;
 using GenHub.Windows.Features.Workspace;
@@ -110,6 +113,10 @@ public static class WindowsServicesModule
         // Register GenPatcher Tool
         services.AddSingleton<IToolPlugin, GenPatcherTool>();
         services.AddSingleton<GenPatcherViewModel>();
+
+        // Online virtual LAN adapter (supersedes the shared null fallback)
+        services.AddSingleton<IOverlaySidecarLocator, WindowsOverlaySidecarLocator>();
+        services.Replace(ServiceDescriptor.Singleton<IVirtualLanAdapter, SharedVirtualLanAdapter>());
 
         return services;
     }

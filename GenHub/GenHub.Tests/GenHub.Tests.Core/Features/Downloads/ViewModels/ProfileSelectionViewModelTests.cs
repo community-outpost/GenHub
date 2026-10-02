@@ -447,4 +447,73 @@ public sealed class ProfileSelectionViewModelTests
         Assert.Equal("Add ShockWave Mod to this profile", vm.AddToProfileTooltip);
         Assert.Equal("Create a new profile with ShockWave Mod", vm.CreateProfileTooltip);
     }
+
+    /// <summary>
+    /// Tests that ActionBadgeText defaults to Add when unset.
+    /// </summary>
+    [Fact]
+    public void ActionBadgeText_WhenUnset_DefaultsToAdd()
+    {
+        // Arrange
+        var vm = new ProfileSelectionViewModel(
+            NullLogger<ProfileSelectionViewModel>.Instance,
+            Mock.Of<IGameProfileManager>(),
+            Mock.Of<IProfileContentService>(),
+            Mock.Of<IContentManifestPool>(),
+            Mock.Of<INotificationService>());
+
+        // Assert
+        Assert.Equal("Add", vm.ActionBadgeText);
+
+        // Act
+        vm.ActionBadgeText = "Select";
+
+        // Assert
+        Assert.Equal("Select", vm.ActionBadgeText);
+    }
+
+    /// <summary>
+    /// Tests that EvaluateCompatibility sets warning message and ShowWarning on incompatible profiles.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LoadProfilesAsync_WithIncompatibleLobby_SetsWarningMessageAndFlagAsync()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            Id = "zh-1",
+            Name = "ZH",
+            GameClient = new GameClient { GameType = GameType.ZeroHour },
+        };
+        var profileManager = new Mock<IGameProfileManager>();
+        profileManager.Setup(m => m.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
+        var manifestPool = new Mock<IContentManifestPool>();
+        manifestPool.Setup(m => m.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+        var vm = new ProfileSelectionViewModel(
+            NullLogger<ProfileSelectionViewModel>.Instance,
+            profileManager.Object,
+            Mock.Of<IProfileContentService>(),
+            manifestPool.Object,
+            Mock.Of<INotificationService>());
+
+        // Act: target is ZeroHour, but compatibleProfileIds excludes zh-1
+        await vm.LoadProfilesAsync(
+            GameType.ZeroHour,
+            "mod-1",
+            "Mod",
+            additionalManifestIds: null,
+            compatibleProfileIds: new HashSet<string>(["zh-other"]));
+
+        // Assert
+        Assert.Empty(vm.CompatibleProfiles);
+        Assert.Single(vm.OtherProfiles);
+        var option = vm.OtherProfiles[0];
+        Assert.True(option.ShowWarning);
+        Assert.False(string.IsNullOrWhiteSpace(option.WarningMessage));
+        Assert.Contains("match lobby", option.WarningMessage, StringComparison.OrdinalIgnoreCase);
+    }
 }

@@ -4,6 +4,7 @@ using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Launching;
+using GenHub.Core.Interfaces.Online;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
@@ -12,9 +13,11 @@ using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.AppUpdate.Services;
 using GenHub.Features.GameSettings;
 using GenHub.Features.Launching;
+using GenHub.Features.Online.Services;
 using GenHub.Features.Workspace;
 using GenHub.Infrastructure.DependencyInjection;
 using GenHub.MacOS.Features.GitHub.Services;
+using GenHub.MacOS.Features.Online;
 using GenHub.MacOS.Features.Shortcuts;
 using GenHub.MacOS.GameInstallations;
 using Microsoft.Extensions.DependencyInjection;
@@ -56,6 +59,10 @@ public static class MacOSServicesModule
         // AddAppUpdateModule, so this registration supersedes VelopackUpdateManager.
         // Delete this line once macOS artifacts are published.
         services.AddSingleton<IVelopackUpdateManager, UnsupportedPlatformUpdateManager>();
+
+        // Online virtual LAN adapter (supersedes the shared null fallback)
+        services.AddSingleton<IOverlaySidecarLocator, MacOSOverlaySidecarLocator>();
+        services.Replace(ServiceDescriptor.Singleton<IVirtualLanAdapter, SharedVirtualLanAdapter>());
 
         return services;
     }
