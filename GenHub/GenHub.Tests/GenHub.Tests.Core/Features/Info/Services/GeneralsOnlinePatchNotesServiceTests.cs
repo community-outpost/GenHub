@@ -251,6 +251,85 @@ public class GeneralsOnlinePatchNotesServiceTests
     }
 
     /// <summary>
+    /// Tests that <see cref="GeneralsOnlinePatchNotesService.GetPatchNotesFormattedAsync"/> falls back to the release cycle patch note when direct page returns 404 Not Found.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetPatchNotesFormattedAsync_Direct404_FallsBackToReleaseCycleNotesAsync()
+    {
+        const string indexHtml = @"<!DOCTYPE html>
+<html><body>
+    <div class=""row g-4"">
+        <div class=""col-lg-4 col-md-6 mb10"">
+            <div class=""post-text"">
+                <div class=""d-date"">28th September 2026</div>
+                <h4><a href=""/patchnotes/092826"">Update 092826</a></h4>
+                <p>Summary</p>
+            </div>
+        </div>
+    </div>
+</body></html>";
+
+        const string update092826Html = @"<!DOCTYPE html>
+<html><body>
+    <section id=""subheader"">
+        <div class=""center-y text-center"">
+            <h2>Update 092826</h2>
+            <div class=""subtitle"">28th September 2026</div>
+        </div>
+    </section>
+    <div class=""blog-read"">
+        <div class=""post-text"">
+            <ul>
+                <li>Covering release note for intermediate build</li>
+            </ul>
+        </div>
+    </div>
+</body></html>";
+
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            var uri = req.RequestUri!.ToString();
+            if (uri.EndsWith("/patchnotes/092526", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.NotFound);
+            }
+
+            if (uri.EndsWith("/patchnotes", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(indexHtml),
+                };
+            }
+
+            if (uri.EndsWith("/patchnotes/092826", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(update092826Html),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        var factoryMock = new Mock<IHttpClientFactory>();
+        factoryMock.Setup(f => f.CreateClient(It.IsAny<string>()))
+            .Returns(() => new HttpClient(handler, disposeHandler: false));
+
+        var service = new GeneralsOnlinePatchNotesService(
+            factoryMock.Object,
+            NullLogger<GeneralsOnlinePatchNotesService>.Instance);
+
+        var notes = await service.GetPatchNotesFormattedAsync("092526");
+
+        Assert.NotNull(notes);
+        Assert.Contains("Update 092826 (28th September 2026)", notes);
+        Assert.Contains("- Covering release note for intermediate build", notes);
+    }
+
+    /// <summary>
     /// Verifies that FindBestMatchingPatchNote prefers a future covering release over a past release across year boundaries.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
@@ -397,6 +476,51 @@ public class GeneralsOnlinePatchNotesServiceTests
         var note082826 = notes.First(n => n.Id == "082826");
         Assert.Equal("082826", note082826.Id);
         Assert.Equal("https://www.playgenerals.online/patchnotes/082826", note082826.DetailsUrl);
+    }
+
+    /// <summary>
+    /// Tests that <see cref="GeneralsOnlinePatchNotesService.GetPatchNotesAsync()"/> returns an empty collection and logs error when HTTP fails.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetPatchNotesAsync_HttpError_ReturnsEmptyListAndLogsErrorAsync()
+    {
+        var handler = new TestHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError));
+        var factoryMock = new Mock<IHttpClientFactory>();
+        factoryMock.Setup(f => f.CreateClient(It.IsAny<string>()))
+            .Returns(() => new HttpClient(handler, disposeHandler: false));
+
+        var service = new GeneralsOnlinePatchNotesService(
+            factoryMock.Object,
+            NullLogger<GeneralsOnlinePatchNotesService>.Instance);
+
+        var notes = await service.GetPatchNotesAsync();
+
+        Assert.NotNull(notes);
+        Assert.Empty(notes);
+    }
+
+    /// <summary>
+    /// Tests that <see cref="GeneralsOnlinePatchNotesService.GetPatchNotesAsync(CancellationToken)"/> rethrows when the cancellation token is cancelled.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetPatchNotesAsync_CancelledToken_RethrowsOperationCanceledExceptionAsync()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var handler = new TestHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var factoryMock = new Mock<IHttpClientFactory>();
+        factoryMock.Setup(f => f.CreateClient(It.IsAny<string>()))
+            .Returns(() => new HttpClient(handler, disposeHandler: false));
+
+        var service = new GeneralsOnlinePatchNotesService(
+            factoryMock.Object,
+            NullLogger<GeneralsOnlinePatchNotesService>.Instance);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            service.GetPatchNotesAsync(cts.Token));
     }
 
     /// <summary>

@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Models.GeneralsOnline;
 using GenHub.Core.Models.Results.Content;
 using System;
+using System.Linq;
 
 namespace GenHub.Features.Content.Services.GeneralsOnline;
 
@@ -127,25 +128,16 @@ public static class GeneralsOnlinePatchNotesHelper
 
     private static bool IsGeneralsOnlineDomainOrUrl(string value)
     {
-        foreach (var domain in GeneralsOnlineConstants.KnownDomains)
+        if (GeneralsOnlineConstants.KnownDomains.Any(domain => string.Equals(value, domain, StringComparison.OrdinalIgnoreCase)))
         {
-            if (string.Equals(value, domain, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
+            return true;
         }
 
         if (Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
             (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
         {
             var host = uri.Host;
-            foreach (var domain in GeneralsOnlineConstants.KnownDomains)
-            {
-                if (host.Equals(domain, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
+            return GeneralsOnlineConstants.KnownDomains.Any(domain => host.Equals(domain, StringComparison.OrdinalIgnoreCase));
         }
 
         return false;

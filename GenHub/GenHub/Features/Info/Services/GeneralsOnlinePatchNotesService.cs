@@ -80,70 +80,23 @@ public class GeneralsOnlinePatchNotesService(IHttpClientFactory httpClientFactor
     }
 
     /// <inheritdoc/>
-    public Task<IEnumerable<PatchNote>> GetPatchNotesAsync() => GetPatchNotesAsync(CancellationToken.None);
+    public Task<IReadOnlyList<PatchNote>> GetPatchNotesAsync() => GetPatchNotesAsync(CancellationToken.None);
 
     /// <inheritdoc/>
-    public async Task<IEnumerable<PatchNote>> GetPatchNotesAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<PatchNote>> GetPatchNotesAsync(CancellationToken cancellationToken)
     {
-        if (_cachedPatchNotes != null)
-        {
-            return _cachedPatchNotes;
-        }
-
-        await _patchNotesLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (_cachedPatchNotes != null)
-            {
-                return _cachedPatchNotes;
-            }
-
-            using var client = httpClientFactory.CreateClient();
-            AddDefaultHeaders(client);
-            using var response = await client.GetAsync(PatchNotesUrl, cancellationToken).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
-            var html = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-
-            var context = BrowsingContext.New(Configuration.Default);
-            var document = await context.OpenAsync(req => req.Content(html), cancellationToken).ConfigureAwait(false);
-
-            var patchNotes = new List<PatchNote>();
-            var rows = document.QuerySelectorAll(".row.g-4 .col-lg-4.col-md-6.mb10");
-
-            foreach (var row in rows)
-            {
-                var patchNote = new PatchNote();
-                var postText = row.QuerySelector(".post-text");
-                if (postText == null) continue;
-
-                var dateElement = postText.QuerySelector(".d-date");
-                var titleElement = postText.QuerySelector("h4 a");
-                var summaryElement = postText.QuerySelector("p");
-
-                patchNote.Date = dateElement?.TextContent.Trim() ?? string.Empty;
-                patchNote.Title = titleElement?.TextContent.Trim() ?? string.Empty;
-                patchNote.Summary = summaryElement?.TextContent.Trim() ?? string.Empty;
-                patchNote.DetailsUrl = titleElement?.GetAttribute("href") ?? string.Empty;
-
-                if (!string.IsNullOrEmpty(patchNote.DetailsUrl))
-                {
-                    patchNote.Id = patchNote.DetailsUrl.TrimEnd('/').Split('/').LastOrDefault() ?? string.Empty;
-                    if (!patchNote.DetailsUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
-                    {
-                        patchNote.DetailsUrl = BaseUrl + patchNote.DetailsUrl;
-                    }
-                }
-
-                patchNotes.Add(patchNote);
-            }
-
-            var result = patchNotes.OrderByDescending(p => p.Id).ToList();
-            _cachedPatchNotes = result;
-            return result;
+            return await FetchPatchNotesInternalAsync(cancellationToken).ConfigureAwait(false);
         }
-        finally
+        catch (OperationCanceledException)
         {
-            _patchNotesLock.Release();
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error fetching patch notes from {Url}", PatchNotesUrl);
+            return [];
         }
     }
 
@@ -220,13 +173,26 @@ public class GeneralsOnlinePatchNotesService(IHttpClientFactory httpClientFactor
         {
             using var client = httpClientFactory.CreateClient();
             AddDefaultHeaders(client);
-            var html = await client.GetStringAsync(detailsUrl, cancellationToken).ConfigureAwait(false);
 
-            var context = BrowsingContext.New(Configuration.Default);
-            var document = await context.OpenAsync(req => req.Content(html), cancellationToken).ConfigureAwait(false);
+            string? formatted = null;
+            using var response = await client.GetAsync(detailsUrl, cancellationToken).ConfigureAwait(false);
+            if (response.IsSuccessStatusCode)
+            {
+                var html = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                var context = BrowsingContext.New(Configuration.Default);
+                var document = await context.OpenAsync(req => req.Content(html), cancellationToken).ConfigureAwait(false);
+                formatted = FormatPatchNotesDocument(document, datePart);
+            }
+            else if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                formatted = await FetchFallbackPatchNotesAsync(datePart, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                response.EnsureSuccessStatusCode();
+            }
 
-            var formatted = FormatPatchNotesDocument(document, datePart);
-            if (string.IsNullOrWhiteSpace(formatted))
+            if (string.IsNullOrWhiteSpace(formatted) && response.IsSuccessStatusCode)
             {
                 formatted = await FetchFallbackPatchNotesAsync(datePart, cancellationToken).ConfigureAwait(false);
             }
@@ -349,6 +315,70 @@ public class GeneralsOnlinePatchNotesService(IHttpClientFactory httpClientFactor
         client.DefaultRequestHeaders.Add("Referer", BaseUrl);
     }
 
+    private async Task<IReadOnlyList<PatchNote>> FetchPatchNotesInternalAsync(CancellationToken cancellationToken)
+    {
+        if (_cachedPatchNotes != null)
+        {
+            return _cachedPatchNotes;
+        }
+
+        await _patchNotesLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (_cachedPatchNotes != null)
+            {
+                return _cachedPatchNotes;
+            }
+
+            using var client = httpClientFactory.CreateClient();
+            AddDefaultHeaders(client);
+            using var response = await client.GetAsync(PatchNotesUrl, cancellationToken).ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+            var html = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+            var context = BrowsingContext.New(Configuration.Default);
+            var document = await context.OpenAsync(req => req.Content(html), cancellationToken).ConfigureAwait(false);
+
+            var patchNotes = new List<PatchNote>();
+            var rows = document.QuerySelectorAll(".row.g-4 .col-lg-4.col-md-6.mb10");
+
+            foreach (var row in rows)
+            {
+                var patchNote = new PatchNote();
+                var postText = row.QuerySelector(".post-text");
+                if (postText == null) continue;
+
+                var dateElement = postText.QuerySelector(".d-date");
+                var titleElement = postText.QuerySelector("h4 a");
+                var summaryElement = postText.QuerySelector("p");
+
+                patchNote.Date = dateElement?.TextContent.Trim() ?? string.Empty;
+                patchNote.Title = titleElement?.TextContent.Trim() ?? string.Empty;
+                patchNote.Summary = summaryElement?.TextContent.Trim() ?? string.Empty;
+                patchNote.DetailsUrl = titleElement?.GetAttribute("href") ?? string.Empty;
+
+                if (!string.IsNullOrEmpty(patchNote.DetailsUrl))
+                {
+                    patchNote.Id = patchNote.DetailsUrl.TrimEnd('/').Split('/').LastOrDefault() ?? string.Empty;
+                    if (!patchNote.DetailsUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                    {
+                        patchNote.DetailsUrl = BaseUrl + patchNote.DetailsUrl;
+                    }
+                }
+
+                patchNotes.Add(patchNote);
+            }
+
+            var result = patchNotes.OrderByDescending(p => p.Id).ToList();
+            _cachedPatchNotes = result;
+            return result;
+        }
+        finally
+        {
+            _patchNotesLock.Release();
+        }
+    }
+
     private async Task<string?> FetchFallbackPatchNotesAsync(string datePart, CancellationToken cancellationToken)
     {
         if (!TryParseVersionDate(datePart, out var targetDate))
@@ -356,7 +386,7 @@ public class GeneralsOnlinePatchNotesService(IHttpClientFactory httpClientFactor
             return null;
         }
 
-        var allNotes = await GetPatchNotesAsync(cancellationToken).ConfigureAwait(false);
+        var allNotes = await FetchPatchNotesInternalAsync(cancellationToken).ConfigureAwait(false);
         var bestMatch = FindBestMatchingPatchNote(allNotes, targetDate);
         if (bestMatch == null || string.IsNullOrWhiteSpace(bestMatch.Id) || string.Equals(bestMatch.Id, datePart, StringComparison.OrdinalIgnoreCase))
         {
@@ -371,7 +401,9 @@ public class GeneralsOnlinePatchNotesService(IHttpClientFactory httpClientFactor
         var fallbackDetailsUrl = $"{PatchNotesUrl}/{bestMatch.Id}";
         using var client = httpClientFactory.CreateClient();
         AddDefaultHeaders(client);
-        var html = await client.GetStringAsync(fallbackDetailsUrl, cancellationToken).ConfigureAwait(false);
+        using var response = await client.GetAsync(fallbackDetailsUrl, cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+        var html = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
         var context = BrowsingContext.New(Configuration.Default);
         var document = await context.OpenAsync(req => req.Content(html), cancellationToken).ConfigureAwait(false);
