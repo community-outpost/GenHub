@@ -301,6 +301,8 @@ public class ContentStorageServiceVariantTests : IDisposable
         _casServiceMock
             .Setup(c => c.GetContentPathAsync(HostHash, ContentType.GameClient, It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<string>.CreateSuccess(hostBlob));
+
+        // The foreign blob resolves so that materializing every variant would copy it and fail the absence assertion.
         _casServiceMock
             .Setup(c => c.GetContentPathAsync(ForeignHash, ContentType.GameClient, It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<string>.CreateSuccess(foreignBlob));
