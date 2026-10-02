@@ -1,3 +1,6 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Services.Tools;
 using GenHub.Features.Tools.Interfaces;
@@ -47,8 +50,9 @@ public sealed class PublisherStudioGenHubBuildTests : IDisposable
     /// Verifies that staging a GenHub release setup executable auto-selects GenHubBuild content type
     /// and populates version, category, and content ID.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public void AddContentDialog_WhenGenHubBuildStaged_AutoConfiguresContent()
+    public async Task AddContentDialog_WhenGenHubBuildStaged_AutoConfiguresContentAsync()
     {
         var buildPath = WriteTempFile("GenHub-Setup-2.5.0.exe", "fake binary data");
         CatalogContentItem? created = null;
@@ -61,21 +65,23 @@ public sealed class PublisherStudioGenHubBuildTests : IDisposable
         Assert.Contains("GenHub", vm.ContentName);
         Assert.Contains("genhub", vm.ContentId);
 
+        await WaitForComputeAsync(vm);
         vm.CreateContentCommand.Execute(null);
 
         Assert.NotNull(created);
         Assert.Equal(CoreContentType.GenHubBuild, created.ContentType);
         var release = Assert.Single(created.Releases);
         Assert.Equal("2.5.0", release.Version);
-        Assert.Equal("Release", release.Category);
+        Assert.Equal(GenHubBuildConstants.CategoryRelease, release.Category);
         Assert.False(release.IsPrerelease);
     }
 
     /// <summary>
     /// Verifies that staging a GenHub PR build configures category as Test and sets IsPrerelease.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public void AddContentDialog_WhenGenHubPrBuildStaged_ConfiguresTestCategoryAndPrerelease()
+    public async Task AddContentDialog_WhenGenHubPrBuildStaged_ConfiguresTestCategoryAndPrereleaseAsync()
     {
         var buildPath = WriteTempFile("GenHub-PR-123-1.0.0-dev.1.exe", "fake pr binary");
         CatalogContentItem? created = null;
@@ -86,11 +92,12 @@ public sealed class PublisherStudioGenHubBuildTests : IDisposable
         Assert.Equal(CoreContentType.GenHubBuild, vm.SelectedContentType);
         Assert.Equal("1.0.0-dev.1", vm.InitialVersion);
 
+        await WaitForComputeAsync(vm);
         vm.CreateContentCommand.Execute(null);
 
         Assert.NotNull(created);
         var release = Assert.Single(created.Releases);
-        Assert.Equal("Test", release.Category);
+        Assert.Equal(GenHubBuildConstants.CategoryTest, release.Category);
         Assert.True(release.IsPrerelease);
     }
 
@@ -125,7 +132,27 @@ public sealed class PublisherStudioGenHubBuildTests : IDisposable
         await vm.AddArtifactsFromPathsAsync([buildPath]);
 
         Assert.Equal("1.4.0", vm.Version);
+        Assert.Equal(GenHubBuildConstants.CategoryCustomFork, vm.Category);
         Assert.False(vm.IsPrerelease);
+
+        vm.CreateReleaseCommand.Execute(null);
+        Assert.NotNull(createdRelease);
+        Assert.Equal(GenHubBuildConstants.CategoryCustomFork, createdRelease.Category);
+    }
+
+    private static async Task WaitForComputeAsync(AddContentDialogViewModel vm)
+    {
+        var timeout = TimeSpan.FromSeconds(5);
+        var start = DateTime.UtcNow;
+        while ((vm.IsComputingHash || string.IsNullOrEmpty(vm.Sha256Hash)) && DateTime.UtcNow - start < timeout)
+        {
+            await Task.Delay(50);
+        }
+
+        if (vm.IsComputingHash || string.IsNullOrEmpty(vm.Sha256Hash))
+        {
+            throw new TimeoutException($"Hash computation did not complete within {timeout.TotalSeconds} seconds.");
+        }
     }
 
     private string WriteTempFile(string fileName, string content)

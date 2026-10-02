@@ -525,7 +525,7 @@ public partial class AddReleaseDialogViewModel(
                         Category = buildInfo.SuggestedCategory;
                     }
 
-                    if (buildInfo.BuildChannel is "PR" or "Dev" or "Test")
+                    if (buildInfo.BuildChannel is GenHubBuildConstants.ChannelPr or GenHubBuildConstants.ChannelDev or GenHubBuildConstants.ChannelTest)
                     {
                         IsPrerelease = true;
                     }
@@ -1163,7 +1163,7 @@ public partial class AddReleaseDialogViewModel(
         var release = new ContentRelease
         {
             Title = ResolveEffectiveTitle(),
-            Category = IsAddonMode && !string.IsNullOrWhiteSpace(Category) ? Category.Trim() : null,
+            Category = (IsAddonMode || contentItem?.ContentType == ContentType.GenHubBuild) && !string.IsNullOrWhiteSpace(Category) ? Category.Trim() : null,
             Version = Version.Trim(),
             ReleaseDate = ReleaseDate.UtcDateTime,
             IsLatest = IsLatest,
