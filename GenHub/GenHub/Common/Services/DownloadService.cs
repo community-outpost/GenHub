@@ -734,6 +734,18 @@ public class DownloadService(
 
         var connection = await EstablishDownloadConnectionAsync(configuration, validator, existingBytes, cts);
 
+        if (progress != null && connection.TotalBytes > 0)
+        {
+            ReportDownloadProgress(
+                progress,
+                existingBytes,
+                0,
+                connection.TotalBytes,
+                Path.GetFileName(configuration.DestinationPath),
+                configuration.Url,
+                TimeSpan.Zero);
+        }
+
         if (CanUseParallelDownload(configuration, connection))
         {
             var parallelContext = new ParallelDownloadContext(

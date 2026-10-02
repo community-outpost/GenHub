@@ -34,6 +34,7 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
     private bool _terminalShown;
     private bool _dismissed;
     private bool _disposed;
+    private ContentAcquisitionPhase? _lastReportedPhase;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DownloadNotificationScope"/> class
@@ -115,8 +116,11 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
             return;
         }
 
+        var phaseChanged = !_lastReportedPhase.HasValue || _lastReportedPhase.Value != value.Phase;
+        _lastReportedPhase = value.Phase;
+
         var status = value.FormatProgressStatus();
-        UpdatePinnedToast(clamped, status);
+        UpdatePinnedToast(clamped, status, includePercentagePrefix: !StatusShowsPercentage(status), forceUpdate: phaseChanged);
     }
 
     /// <summary>
@@ -132,7 +136,7 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
 
         var clamped = ClampPercentage(value.Percentage);
         var status = $"{value.FileName} - {value.FormattedProgress} ({value.FormattedSpeed})";
-        UpdatePinnedToast(clamped, status);
+        UpdatePinnedToast(clamped, status, includePercentagePrefix: !StatusShowsPercentage(status));
     }
 
     /// <summary>
@@ -175,7 +179,9 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
             return;
         }
 
-        UpdatePinnedToast(ClampPercentage(fraction * 100), status ?? _contentName);
+        var clamped = ClampPercentage(fraction * 100);
+        var message = string.IsNullOrWhiteSpace(status) ? _contentName : status;
+        UpdatePinnedToast(clamped, message, includePercentagePrefix: !StatusShowsPercentage(message));
     }
 
     /// <summary>
@@ -347,10 +353,20 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
 
     private static bool StatusShowsPercentage(string status)
     {
-        return status.TrimEnd().EndsWith('%');
+        if (string.IsNullOrWhiteSpace(status))
+        {
+            return false;
+        }
+
+        var trimmed = status.TrimEnd();
+        return trimmed.EndsWith('%') || trimmed.Contains('%');
     }
 
-    private void UpdatePinnedToast(double clampedPercentage, string status, bool includePercentagePrefix = true)
+    private void UpdatePinnedToast(
+        double clampedPercentage,
+        string status,
+        bool includePercentagePrefix = true,
+        bool forceUpdate = false)
     {
         var title = PinnedTitle;
 
@@ -365,7 +381,7 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
                 ? double.MaxValue
                 : Stopwatch.GetElapsedTime(_lastUpdateTimestamp).TotalMilliseconds;
             var isComplete = clampedPercentage >= 100;
-            if (elapsedMs < ManifestConstants.NotificationUpdateThrottleMs && !isComplete)
+            if (!forceUpdate && elapsedMs < ManifestConstants.NotificationUpdateThrottleMs && !isComplete)
             {
                 return;
             }
