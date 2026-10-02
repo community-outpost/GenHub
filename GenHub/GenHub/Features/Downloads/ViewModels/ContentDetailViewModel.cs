@@ -870,7 +870,16 @@ public partial class ContentDetailViewModel(
     /// <summary>
     /// Gets a value indicating whether the current content is a GenHub build.
     /// </summary>
-    public bool IsGenHubBuild => (SelectedDownloadableItem?.ContentType ?? ContentType) == ContentType.GenHubBuild;
+    public bool IsGenHubBuild =>
+        (SelectedDownloadableItem?.ContentType ?? ContentType) == ContentType.GenHubBuild ||
+        (Tags != null && Tags.Any(t => string.Equals(t, "genhub", StringComparison.OrdinalIgnoreCase) || string.Equals(t, "genhub-build", StringComparison.OrdinalIgnoreCase))) ||
+        (!string.IsNullOrWhiteSpace(Name) &&
+         Name.StartsWith("GenHub", StringComparison.OrdinalIgnoreCase) &&
+         ((SelectedDownloadableItem?.ContentType ?? ContentType) is ContentType.GameClient or ContentType.Executable or ContentType.ModdingTool or ContentType.UnknownContentType ||
+          Name.Contains("Setup", StringComparison.OrdinalIgnoreCase) ||
+          Name.Contains("PR #", StringComparison.OrdinalIgnoreCase) ||
+          Name.Contains("Build", StringComparison.OrdinalIgnoreCase) ||
+          Name.Contains("Fork", StringComparison.OrdinalIgnoreCase)));
 
     /// <summary>
     /// Gets a value indicating whether the Add to Profile button should be shown.
@@ -7181,6 +7190,12 @@ public partial class ContentDetailViewModel(
     [RelayCommand]
     private async Task AddToProfileAsync()
     {
+        if (IsGenHubBuild)
+        {
+            await InstallBuildAsync();
+            return;
+        }
+
         await WaitForContentTypePersistAsync();
 
         if (HasBundleComponents)

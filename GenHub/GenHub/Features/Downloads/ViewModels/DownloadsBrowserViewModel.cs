@@ -4659,10 +4659,7 @@ public sealed partial class DownloadsBrowserViewModel(
 
         if (item.IsGenHubBuild)
         {
-            var loc = serviceProvider.GetService<ILocalizationService>();
-            notificationService.ShowWarning(
-                loc?.GetLocalizedString("Downloads.Notification.InstallBuild.InvalidAction.Title", "Invalid Action") ?? "Invalid Action",
-                loc?.GetLocalizedString("Downloads.Notification.InstallBuild.InvalidAction.Message", "GenHub application builds cannot be added to game profiles. Use the Install Build option instead.") ?? "GenHub application builds cannot be added to game profiles. Use the Install Build option instead.");
+            await InstallBuildContentAsync(item);
             return;
         }
 
