@@ -397,6 +397,57 @@ public sealed class W3dSceneTests
     }
 
     /// <summary>
+    /// Verifies that composite parts are laid out side by side with remapped bone indices.
+    /// </summary>
+    [Fact]
+    public void BuildComposite_TwoParts_LaysOutSideBySideWithRemappedBones()
+    {
+        var modelA = new W3dModel([MeshWithTexture("TexA")], [SinglePivotHierarchy("HA")], [], [], []);
+        var modelB = new W3dModel([MeshWithTexture("TexB", null, 4)], [SinglePivotHierarchy("HB")], [], [], []);
+        var texturesA = new Dictionary<string, DecodedTexture>
+        {
+            ["TexA"] = new DecodedTexture(2, 2, new byte[2 * 2 * 4]),
+        };
+        var texturesB = new Dictionary<string, DecodedTexture>
+        {
+            ["TexB"] = new DecodedTexture(2, 2, new byte[2 * 2 * 4]),
+        };
+        var bonesA = new Dictionary<string, int> { ["M"] = 0 };
+        var bonesB = new Dictionary<string, int> { ["M"] = 0 };
+        var parts = new List<W3dCompositePart>
+        {
+            new("Owner", modelA, texturesA, bonesA),
+            new("Unit", modelB, texturesB, bonesB),
+        };
+
+        var composite = W3dSceneBuilder.BuildComposite(parts);
+
+        Assert.Equal(2, composite.Scene.Meshes.Count);
+        Assert.Equal(2, composite.Scene.Textures.Count);
+        Assert.Equal(
+            [new W3dCompositeRange("Owner", 0, 1, 0, 1), new W3dCompositeRange("Unit", 1, 1, 1, 1)],
+            composite.Parts);
+        Assert.Equal(0, composite.Scene.Meshes[0].BoneIndex);
+        Assert.Equal(1, composite.Scene.Meshes[1].BoneIndex);
+        Assert.Equal(Vector3.Zero, composite.Scene.Meshes[0].LayoutOffset);
+        Assert.Equal(3, composite.Scene.Meshes[1].LayoutOffset.X, 3);
+        Assert.Equal(2, composite.Scene.Skeleton.Count);
+        Assert.Equal(7, composite.Scene.Bounds.Max.X, 3);
+    }
+
+    /// <summary>
+    /// Verifies that an empty composite request yields an empty scene.
+    /// </summary>
+    [Fact]
+    public void BuildComposite_NoParts_ReturnsEmptyScene()
+    {
+        var composite = W3dSceneBuilder.BuildComposite([]);
+
+        Assert.Empty(composite.Scene.Meshes);
+        Assert.Empty(composite.Parts);
+    }
+
+    /// <summary>
     /// Verifies that a skin without inverse-bind data renders the bind shape instead of a double transform.
     /// </summary>
     [Fact]
@@ -441,7 +492,7 @@ public sealed class W3dSceneTests
         Assert.Equal(new Vector3(2, 0, 0), model.Translation);
     }
 
-    private static W3dMesh MeshWithTexture(string textureName, IReadOnlyList<W3dShader>? shaders = null)
+    private static W3dMesh MeshWithTexture(string textureName, IReadOnlyList<W3dShader>? shaders = null, float size = 1)
     {
         var stage = new W3dTextureStage([0], [new W3dVector2(0, 0), new W3dVector2(1, 0), new W3dVector2(0, 1)], []);
         var origin = new W3dVector3(0, 0, 0);
@@ -450,8 +501,8 @@ public sealed class W3dSceneTests
             "C",
             0,
             0,
-            new W3dBoundingBox(origin, new W3dVector3(1, 1, 0), origin, 1),
-            [new W3dVector3(0, 0, 0), new W3dVector3(1, 0, 0), new W3dVector3(0, 1, 0)],
+            new W3dBoundingBox(origin, new W3dVector3(size, size, 0), origin, size),
+            [new W3dVector3(0, 0, 0), new W3dVector3(size, 0, 0), new W3dVector3(0, size, 0)],
             [new W3dVector3(0, 0, 1), new W3dVector3(0, 0, 1), new W3dVector3(0, 0, 1)],
             [new W3dTriangle(0, 1, 2, 0)],
             [],
@@ -459,6 +510,14 @@ public sealed class W3dSceneTests
             [new W3dTextureReference(textureName, 0, 0, 0)],
             [new W3dMaterialPass([0], [0], [stage])],
             []);
+    }
+
+    private static W3dHierarchy SinglePivotHierarchy(string name)
+    {
+        return new W3dHierarchy(
+            name,
+            new W3dVector3(0, 0, 0),
+            [new W3dPivot("ROOT", -1, new W3dVector3(0, 0, 0), new W3dVector3(0, 0, 0), new W3dQuaternion(0, 0, 0, 1))]);
     }
 
     private static W3dMesh MeshWithTriangle(IReadOnlyList<W3dMaterialPass>? passes = null)

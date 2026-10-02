@@ -504,6 +504,88 @@ public sealed class IniEditorPreviewTests
     }
 
     /// <summary>
+    /// Verifies that a faction variant resolves its base object model across files.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task SelectingVariant_ResolvesBaseObjectModelAcrossFilesAsync()
+    {
+        var mockResolver = ResolverReturning(ResolvedModel());
+        using var viewModel = CreateViewModel(mockResolver.Object, useRealReferenceService: true);
+        var folder = Path.Combine(Path.GetTempPath(), $"GenHubVariant{Guid.NewGuid():N}");
+        Directory.CreateDirectory(folder);
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(folder, "Map.ini"), VariantMapIni());
+            await File.WriteAllTextAsync(Path.Combine(folder, "Objects.ini"), VariantBaseIni());
+
+            Assert.True(await viewModel.OpenFolderAsync(folder));
+            Assert.True(await viewModel.OpenFileAsync(Path.Combine(folder, "Map.ini")));
+            var variantNode = FindNodeByName(viewModel, "Lazr_AmericaInfantryPathfinder");
+            Assert.NotNull(variantNode);
+            viewModel.SelectedNode = variantNode;
+
+            bool resolved = await WaitForAsync(() => viewModel.SelectedBlockModel == "TestUnit", TimeSpan.FromSeconds(8));
+            Assert.True(resolved);
+
+            bool loaded = await WaitForAsync(() => viewModel.HasPreviewScene, TimeSpan.FromSeconds(8));
+            Assert.True(loaded);
+            Assert.Equal("TestUnit", viewModel.PreviewModelName);
+        }
+        finally
+        {
+            Directory.Delete(folder, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that a command set composes its owner and related objects into one scene.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task SelectingCommandSet_BuildsCompositeSceneAsync()
+    {
+        var mockResolver = ResolverReturning(ResolvedModel());
+        using var viewModel = CreateViewModel(mockResolver.Object, useRealReferenceService: true);
+        var folder = Path.Combine(Path.GetTempPath(), $"GenHubComposite{Guid.NewGuid():N}");
+        Directory.CreateDirectory(folder);
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(folder, "Set.ini"), CompositeSetIni());
+            await File.WriteAllTextAsync(Path.Combine(folder, "Buttons.ini"), CompositeButtonsIni());
+            await File.WriteAllTextAsync(Path.Combine(folder, "Objects.ini"), CompositeObjectsIni());
+            await File.WriteAllTextAsync(Path.Combine(folder, "Owner.ini"), CompositeOwnerIni());
+
+            Assert.True(await viewModel.OpenFolderAsync(folder));
+            Assert.True(await viewModel.OpenFileAsync(Path.Combine(folder, "Set.ini")));
+            var setNode = FindNodeByName(viewModel, "SupW_WarFactorySet");
+            Assert.NotNull(setNode);
+            viewModel.SelectedNode = setNode;
+
+            bool composed = await WaitForAsync(
+                () => viewModel.PreviewRelatedObjects.Count == 3 &&
+                    viewModel.PreviewStatusText == "Tools.IniEditor.Preview3D.ReadyComposite",
+                TimeSpan.FromSeconds(10));
+            Assert.True(composed);
+            Assert.True(viewModel.HasPreviewScene);
+            Assert.Equal(3, viewModel.PreviewScene!.Meshes.Count);
+            Assert.Equal("SupW_WarFactory", viewModel.PreviewRelatedObjects[0].Title);
+            Assert.Equal(0, viewModel.PreviewSelectedMeshIndex);
+            Assert.Equal("SupW_VehicleTomahawk", viewModel.PreviewMeshes[1].PartLabel);
+            Assert.True(viewModel.PreviewRelatedObjects[0].IsHighlighted);
+            Assert.False(viewModel.PreviewRelatedObjects[1].IsHighlighted);
+
+            viewModel.PreviewSelectedMeshIndex = 1;
+            Assert.True(viewModel.PreviewRelatedObjects[1].IsHighlighted);
+            Assert.False(viewModel.PreviewRelatedObjects[0].IsHighlighted);
+        }
+        finally
+        {
+            Directory.Delete(folder, true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that missing texture names surface on the preview canvas.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
@@ -746,6 +828,60 @@ public sealed class IniEditorPreviewTests
     private static string OclObjectIni()
     {
         return "Object TestDropShip\n" +
+            "  Model = TestUnit\n" +
+            "End\n";
+    }
+
+    private static string CompositeSetIni()
+    {
+        return "CommandSet SupW_WarFactorySet\n" +
+            "  2 = SupW_BuildTomahawk\n" +
+            "  3 = SupW_BuildHumvee\n" +
+            "End\n";
+    }
+
+    private static string CompositeButtonsIni()
+    {
+        return "CommandButton SupW_BuildTomahawk\n" +
+            "  Object = SupW_VehicleTomahawk\n" +
+            "End\n" +
+            "CommandButton SupW_BuildHumvee\n" +
+            "  Object = SupW_VehicleHumvee\n" +
+            "End\n";
+    }
+
+    private static string CompositeObjectsIni()
+    {
+        return "Object SupW_VehicleTomahawk\n" +
+            "  Model = TestUnit\n" +
+            "End\n" +
+            "Object SupW_VehicleHumvee\n" +
+            "  Model = TestUnit\n" +
+            "End\n";
+    }
+
+    private static string CompositeOwnerIni()
+    {
+        return "Object SupW_WarFactory\n" +
+            "  CommandSet = SupW_WarFactorySet\n" +
+            "  Model = TestUnit\n" +
+            "End\n";
+    }
+
+    private static string VariantMapIni()
+    {
+        return "Object Lazr_AmericaInfantryPathfinder\n" +
+            "  AddModule\n" +
+            "    Behavior = VeterancyGainCreate ModuleTag_HeIden\n" +
+            "      StartingLevel = HEROIC\n" +
+            "    End\n" +
+            "  End\n" +
+            "End\n";
+    }
+
+    private static string VariantBaseIni()
+    {
+        return "Object AmericaInfantryPathfinder\n" +
             "  Model = TestUnit\n" +
             "End\n";
     }

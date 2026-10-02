@@ -15,6 +15,12 @@ public sealed partial class IniCanvasCardViewModel : ObservableObject
     private IImage? _portrait;
 
     /// <summary>
+    /// Gets or sets a value indicating whether the card is highlighted by the tree or 3D selection.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isHighlighted;
+
+    /// <summary>
     /// Gets the underlying INI block.
     /// </summary>
     public IniBlock Block { get; }
@@ -45,6 +51,11 @@ public sealed partial class IniCanvasCardViewModel : ObservableObject
     public IReadOnlyList<CanvasVitalItem> Vitals { get; }
 
     /// <summary>
+    /// Gets the source file backing the block, or null when it lives in the open document.
+    /// </summary>
+    public string? SourceFile { get; }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="IniCanvasCardViewModel"/> class.
     /// </summary>
     /// <param name="block">The underlying INI block.</param>
@@ -53,7 +64,8 @@ public sealed partial class IniCanvasCardViewModel : ObservableObject
     /// <param name="side">The optional faction or side.</param>
     /// <param name="portrait">The optional portrait bitmap.</param>
     /// <param name="vitals">The list of vital items.</param>
-    public IniCanvasCardViewModel(IniBlock block, string title, string blockType, string? side, IImage? portrait, IReadOnlyList<CanvasVitalItem> vitals)
+    /// <param name="sourceFile">The source file backing the block, or null when it lives in the open document.</param>
+    public IniCanvasCardViewModel(IniBlock block, string title, string blockType, string? side, IImage? portrait, IReadOnlyList<CanvasVitalItem> vitals, string? sourceFile = null)
     {
         Block = block;
         Title = title;
@@ -61,5 +73,6 @@ public sealed partial class IniCanvasCardViewModel : ObservableObject
         Side = side;
         _portrait = portrait;
         Vitals = vitals;
+        SourceFile = sourceFile;
     }
 }

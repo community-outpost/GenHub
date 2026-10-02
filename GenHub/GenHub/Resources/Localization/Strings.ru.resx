@@ -17935,6 +17935,12 @@ Error: не удалось: {3}
   <data name="Tools.IniEditor.Preview3D.ClipUnsupported" xml:space="preserve">
     <value>Анимация «{0}» использует сжатые каналы и не может быть показана.</value>
   </data>
+  <data name="Tools.IniEditor.Preview3D.ReadyComposite" xml:space="preserve">
+    <value>Моделей: {0} • мешей: {1} • текстур: {2}</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ReadyCompositeMissing" xml:space="preserve">
+    <value>Моделей: {0} • мешей: {1} • текстур: {2} (нет: {3})</value>
+  </data>
   <data name="Tools.IniEditor.Preview3D.Skeleton" xml:space="preserve">
     <value>Скелет</value>
   </data>

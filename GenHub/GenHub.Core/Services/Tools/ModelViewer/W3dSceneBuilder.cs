@@ -47,6 +47,90 @@ public static class W3dSceneBuilder
         return new W3dRenderScene(meshes, textures.Textures, skeleton, CombineBounds(model.Meshes));
     }
 
+    /// <summary>
+    /// Builds one render scene laying several models out side by side.
+    /// Mesh bone indices are remapped onto the concatenated pivot list so a
+    /// single static pose drives every part, and each part is shifted along X
+    /// by its accumulated width.
+    /// </summary>
+    /// <param name="parts">The models to compose, in layout order.</param>
+    /// <param name="discardedTextures">The optional collector for texture names dropped by shader flags.</param>
+    /// <returns>The merged scene with per-part mesh index ranges.</returns>
+    public static W3dCompositeScene BuildComposite(
+        IReadOnlyList<W3dCompositePart> parts,
+        ICollection<string>? discardedTextures = null)
+    {
+        ArgumentNullException.ThrowIfNull(parts);
+
+        var textures = new TextureTable();
+        var meshes = new List<W3dRenderMesh>();
+        var skeleton = new List<W3dSkeletonSegment>();
+        var ranges = new List<W3dCompositeRange>();
+        float cursorX = 0;
+        int pivotBase = 0;
+        float minX = float.MaxValue;
+        float minY = float.MaxValue;
+        float minZ = float.MaxValue;
+        float maxX = float.MinValue;
+        float maxY = float.MinValue;
+        float maxZ = float.MinValue;
+
+        foreach (var part in parts)
+        {
+            var partBounds = CombineBounds(part.Model.Meshes);
+            float offsetX = cursorX - partBounds.Min.X;
+            var offset = new System.Numerics.Vector3(offsetX, 0, 0);
+            int meshStart = meshes.Count;
+            foreach (var mesh in part.Model.Meshes)
+            {
+                var built = BuildMesh(mesh, part.TexturesByName, textures, part.BoneByMeshName, discardedTextures);
+                int bone = built.BoneIndex >= 0 ? built.BoneIndex + pivotBase : -1;
+                meshes.Add(built with { BoneIndex = bone, LayoutOffset = offset });
+            }
+
+            var hierarchy = part.Model.Hierarchies.FirstOrDefault();
+            int pivotCount = hierarchy?.Pivots.Count ?? 0;
+            if (hierarchy != null)
+            {
+                foreach (var segment in W3dAnimationSampler.BindPoseSegments(hierarchy))
+                {
+                    skeleton.Add(segment with
+                    {
+                        Start = new W3dVector3(segment.Start.X + offsetX, segment.Start.Y, segment.Start.Z),
+                        End = new W3dVector3(segment.End.X + offsetX, segment.End.Y, segment.End.Z),
+                        PivotIndex = segment.PivotIndex + pivotBase,
+                        ParentIndex = segment.ParentIndex >= 0 ? segment.ParentIndex + pivotBase : -1,
+                    });
+                }
+            }
+
+            ranges.Add(new W3dCompositeRange(part.Label, meshStart, part.Model.Meshes.Count, pivotBase, pivotCount));
+            float width = Math.Max(partBounds.Max.X - partBounds.Min.X, 0);
+            cursorX += width + Math.Max(width * CompositeGapScale, CompositeGapMin);
+            pivotBase += pivotCount;
+            minX = Math.Min(minX, partBounds.Min.X + offsetX);
+            minY = Math.Min(minY, partBounds.Min.Y);
+            minZ = Math.Min(minZ, partBounds.Min.Z);
+            maxX = Math.Max(maxX, partBounds.Max.X + offsetX);
+            maxY = Math.Max(maxY, partBounds.Max.Y);
+            maxZ = Math.Max(maxZ, partBounds.Max.Z);
+        }
+
+        if (meshes.Count == 0)
+        {
+            var origin = new W3dVector3(0, 0, 0);
+            return new W3dCompositeScene(new W3dRenderScene([], textures.Textures, [], new W3dBoundingBox(origin, origin, origin, 0)), ranges);
+        }
+
+        var min = new W3dVector3(minX, minY, minZ);
+        var max = new W3dVector3(maxX, maxY, maxZ);
+        var center = new W3dVector3((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
+        float radius = (float)Math.Sqrt(DistanceSquared(min, max)) / 2;
+        return new W3dCompositeScene(
+            new W3dRenderScene(meshes, textures.Textures, skeleton, new W3dBoundingBox(min, max, center, radius)),
+            ranges);
+    }
+
     private static W3dRenderMesh BuildMesh(
         W3dMesh mesh,
         IReadOnlyDictionary<string, DecodedTexture> texturesByName,
@@ -400,6 +484,9 @@ public static class W3dSceneBuilder
         float radius = (float)Math.Sqrt(DistanceSquared(min, max)) / 2;
         return new W3dBoundingBox(min, max, center, radius);
     }
+
+    private const float CompositeGapScale = 0.15f;
+    private const float CompositeGapMin = 2f;
 
     private static float DistanceSquared(W3dVector3 a, W3dVector3 b)
     {

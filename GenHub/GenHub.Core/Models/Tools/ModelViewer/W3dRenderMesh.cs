@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Numerics;
 
 namespace GenHub.Core.Models.Tools.ModelViewer;
 
@@ -17,6 +18,7 @@ namespace GenHub.Core.Models.Tools.ModelViewer;
 /// <param name="BoneIndex">The pivot index the mesh attaches to, or -1.</param>
 /// <param name="IsSkin">Whether the mesh is a deformable skin whose vertices are exported in world bind-pose space.</param>
 /// <param name="IsHidden">Whether the mesh is marked hidden in the source model data.</param>
+/// <param name="LayoutOffset">The world-space offset placing the mesh inside a composed multi-model scene.</param>
 public sealed record W3dRenderMesh(
     string Name,
     IReadOnlyList<float> Vertices,
@@ -27,7 +29,8 @@ public sealed record W3dRenderMesh(
     bool TwoSided,
     int BoneIndex,
     bool IsSkin = false,
-    bool IsHidden = false)
+    bool IsHidden = false,
+    Vector3 LayoutOffset = default)
 {
     /// <summary>
     /// Gets the number of floats per vertex.

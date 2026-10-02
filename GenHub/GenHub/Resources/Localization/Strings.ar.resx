@@ -17935,6 +17935,12 @@ Error: فشل: {3}
   <data name="Tools.IniEditor.Preview3D.ClipUnsupported" xml:space="preserve">
     <value>الحركة '{0}' تستخدم قنوات مضغوطة ولا يمكن معاينتها.</value>
   </data>
+  <data name="Tools.IniEditor.Preview3D.ReadyComposite" xml:space="preserve">
+    <value>{0} نماذج • {1} شبكات • {2} خامات</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ReadyCompositeMissing" xml:space="preserve">
+    <value>{0} نماذج • {1} شبكات • {2} خامات ({3} مفقودة)</value>
+  </data>
   <data name="Tools.IniEditor.Preview3D.Skeleton" xml:space="preserve">
     <value>الهيكل العظمي</value>
   </data>

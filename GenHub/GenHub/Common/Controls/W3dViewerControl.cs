@@ -6,7 +6,6 @@ using Avalonia.OpenGL;
 using Avalonia.OpenGL.Controls;
 using Avalonia.Rendering;
 using Avalonia.Threading;
-using Avalonia.VisualTree;
 using GenHub.Core.Models.Tools.ModelViewer;
 using GenHub.Core.Services.Tools.ModelViewer;
 using System;
@@ -396,17 +395,11 @@ public sealed class W3dViewerControl : OpenGlControlBase, ICustomHitTest
     /// OpenGL surfaces never paint render geometry, so without this every
     /// press falls through to the document canvas behind the viewer.
     /// </summary>
-    /// <param name="point">The point in global coordinate space.</param>
+    /// <param name="point">The point in the viewer local coordinate space.</param>
     /// <returns>True when the point falls inside the viewer bounds.</returns>
     bool ICustomHitTest.HitTest(Point point)
     {
-        if (TopLevel.GetTopLevel(this) is not Visual root)
-        {
-            return false;
-        }
-
-        var local = root.TranslatePoint(point, this);
-        return local.HasValue && new Rect(Bounds.Size).Contains(local.Value);
+        return new Rect(Bounds.Size).Contains(point);
     }
 
     /// <summary>
@@ -442,30 +435,39 @@ public sealed class W3dViewerControl : OpenGlControlBase, ICustomHitTest
         IReadOnlyList<Matrix4x4>? bindPose,
         IReadOnlyList<Matrix4x4>? inverseBind)
     {
+        Matrix4x4 inner;
         if (pose == null || mesh.BoneIndex < 0 || mesh.BoneIndex >= pose.Count)
         {
             if (!mesh.IsSkin && bindPose != null && mesh.BoneIndex >= 0 && mesh.BoneIndex < bindPose.Count)
             {
-                return bindPose[mesh.BoneIndex];
+                inner = bindPose[mesh.BoneIndex];
             }
-
-            return Matrix4x4.Identity;
+            else
+            {
+                inner = Matrix4x4.Identity;
+            }
         }
-
-        // Deformable skin mesh vertices sit in bind-pose world space, so animation applies
-        // the pivot motion relative to the bind pose instead of the absolute pose.
-        // Rigid meshes (turrets, wheels, chassis) sit in object space relative to their pivot
-        // and must use the plain animated pivot transform.
-        if (mesh.IsSkin)
+        else if (mesh.IsSkin)
         {
+            // Deformable skin mesh vertices sit in bind-pose world space, so animation applies
+            // the pivot motion relative to the bind pose instead of the absolute pose.
             // Without a matching inverse-bind matrix the absolute pose would
             // double-transform bind-space vertices, so render the bind shape.
-            return inverseBind != null && mesh.BoneIndex < inverseBind.Count
+            inner = inverseBind != null && mesh.BoneIndex < inverseBind.Count
                 ? inverseBind[mesh.BoneIndex] * pose[mesh.BoneIndex]
                 : Matrix4x4.Identity;
         }
+        else
+        {
+            // Rigid meshes (turrets, wheels, chassis) sit in object space relative to their pivot
+            // and must use the plain animated pivot transform.
+            inner = pose[mesh.BoneIndex];
+        }
 
-        return pose[mesh.BoneIndex];
+        // Composed multi-model scenes shift each part along X in world space.
+        return mesh.LayoutOffset == Vector3.Zero
+            ? inner
+            : Matrix4x4.CreateTranslation(mesh.LayoutOffset) * inner;
     }
 
     /// <summary>

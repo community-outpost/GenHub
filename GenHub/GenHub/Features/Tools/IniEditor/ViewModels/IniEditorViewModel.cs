@@ -105,6 +105,9 @@ public sealed partial class IniEditorViewModel(
     private object[] _previewStatusArgs = [];
     private W3dResolvedModel? _previewResolved;
     private bool _isSyncingPreviewSelection;
+    private bool _previewIsComposite;
+    private IReadOnlyList<W3dCompositeRange> _compositeRanges = [];
+    private IReadOnlyList<IReadOnlyList<string>> _compositePivotNames = [];
     private IniBlock? _lastHighlightBlock;
     private int _lastHighlightMeshCount = -1;
     private CancellationTokenSource? _filterCts;
@@ -1439,6 +1442,27 @@ public sealed partial class IniEditorViewModel(
         return null;
     }
 
+    private static IniTreeNodeViewModel? FindNodeByName(IEnumerable<IniTreeNodeViewModel> nodes, string blockType, string name)
+    {
+        foreach (var node in nodes)
+        {
+            if (!node.IsGroupHeader &&
+                string.Equals(node.Block.BlockType, blockType, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(node.Block.Name, name, StringComparison.OrdinalIgnoreCase))
+            {
+                return node;
+            }
+
+            var child = FindNodeByName(node.Children, blockType, name);
+            if (child != null)
+            {
+                return child;
+            }
+        }
+
+        return null;
+    }
+
     private static IReadOnlyList<string> CanvasHighlightKeys(string blockType)
     {
         if (string.Equals(blockType, IniConstants.BlockTypes.Object, StringComparison.OrdinalIgnoreCase))
@@ -2043,6 +2067,16 @@ public sealed partial class IniEditorViewModel(
         }
 
         var baseOutcome = await ResolveIndexedBaseObjectAsync(root, entryIndex, rootReferencers, cancellationToken).ConfigureAwait(false);
+        if (baseOutcome == null)
+        {
+            logger.LogInformation(
+                "Cross-file model walk for {BlockType} {Block} visited {Nodes} nodes over {Entries} index entries without finding a model",
+                root.BlockType,
+                root.Name,
+                nodes,
+                entryIndex.Count);
+        }
+
         return baseOutcome ?? new CrossFileOutcome(string.Empty, null, [], rootReferencers);
     }
 
@@ -2240,6 +2274,10 @@ public sealed partial class IniEditorViewModel(
         OnPropertyChanged(nameof(HasPreviewModelSource));
         RebuildSelectedBlockAssets(root, ResolveCanvasRootNode());
         QueueModelPreviewRefresh();
+        if (string.Equals(root.BlockType, IniConstants.BlockTypes.CommandSet, StringComparison.OrdinalIgnoreCase))
+        {
+            QueueCompositePreviewRefresh(root);
+        }
     }
 
     private sealed record WalkTarget(string BlockType, string Name, IniBlock? Block, IniReferenceEntry? Entry);
@@ -3915,7 +3953,27 @@ public sealed partial class IniEditorViewModel(
             }
 
             await InvokeOnUIThreadAsync(FilterReferenceResults).ConfigureAwait(false);
+            await InvokeOnUIThreadAsync(RefreshSelectionAfterIndexRebuild).ConfigureAwait(false);
         }).ConfigureAwait(false);
+    }
+
+    private void RefreshSelectionAfterIndexRebuild()
+    {
+        var block = EditableSelectedNode?.Block;
+        if (_document == null || block == null)
+        {
+            return;
+        }
+
+        // Selection walks run before the open's index rebuild finishes, so any
+        // cross-file outcome computed earlier saw a stale index. Re-resolve the
+        // selection when its model or referencer list is still empty.
+        if (!string.IsNullOrEmpty(SelectedBlockModel) && PreviewReferencers.Count > 0)
+        {
+            return;
+        }
+
+        QueueCrossFileResolution(block, string.IsNullOrEmpty(SelectedBlockModel));
     }
 
     private void FilterReferenceResults()
@@ -4984,15 +5042,23 @@ public sealed partial class IniEditorViewModel(
     }
 
     [RelayCommand]
-    private void SelectBlockCard(IniBlock? block)
+    private async Task SelectBlockCard(IniCanvasCardViewModel? card)
     {
-        if (block == null)
+        if (card == null)
         {
             return;
         }
 
         ShowAllBlocksOnCanvas = false;
-        var targetNode = FindNodeForBlock(RootNodes, block);
+        var targetNode = FindNode(RootNodes, card.Block);
+        if (targetNode == null && !string.IsNullOrEmpty(card.SourceFile))
+        {
+            if (await OpenFileAsync(card.SourceFile, CancellationToken.None).ConfigureAwait(false))
+            {
+                targetNode = FindNodeByName(RootNodes, card.Block.BlockType, card.Block.Name);
+            }
+        }
+
         if (targetNode != null)
         {
             ExpandGroupForNode(targetNode);
@@ -5179,6 +5245,7 @@ public sealed partial class IniEditorViewModel(
         OnPropertyChanged(nameof(HasPreviewResolutionPath));
         OnPropertyChanged(nameof(HasPreviewReferencers));
         QueueCrossFileResolution(block, string.IsNullOrEmpty(SelectedBlockModel));
+        SyncCardHighlight();
     }
 
     private void ResetVisualObjectCard()
@@ -5250,6 +5317,9 @@ public sealed partial class IniEditorViewModel(
         CancelDeferred(ref _modelPreviewCts);
         StopPreviewPlayback();
         _previewResolved = null;
+        _previewIsComposite = false;
+        _compositeRanges = [];
+        _compositePivotNames = [];
         _lastPreviewModel = null;
         _lastPreviewFailed = false;
         PreviewScene = null;
@@ -5347,6 +5417,409 @@ public sealed partial class IniEditorViewModel(
         }
     }
 
+    private void QueueCompositePreviewRefresh(IniBlock root)
+    {
+        var installation = SelectedInstallation ?? AvailableInstallations.FirstOrDefault();
+        var installationPath = installation?.Path;
+        var isZeroHour = installation is { IsZeroHour: true };
+        var projectDirectory = string.IsNullOrEmpty(FilePath) ? FileExplorer.Directory : Path.GetDirectoryName(FilePath);
+        if (string.IsNullOrEmpty(installationPath))
+        {
+            installationPath = projectDirectory;
+        }
+
+        ScheduleDeferred(ref _modelPreviewCts, IniConstants.Editor.ModelPreviewDebounceMs, token => _ = RefreshCompositePreviewAsync(root, installationPath, isZeroHour, projectDirectory, token), logger);
+    }
+
+    private sealed record CompositePreviewPart(IniBlock Block, string Model, string Label, string? SourceFile, W3dResolvedModel Resolved);
+
+    private async Task RefreshCompositePreviewAsync(
+        IniBlock root,
+        string? installationPath,
+        bool isZeroHour,
+        string? projectDirectory,
+        CancellationToken cancellationToken)
+    {
+        var generation = ++_modelPreviewGeneration;
+        if (string.IsNullOrEmpty(installationPath))
+        {
+            return;
+        }
+
+        IReadOnlyList<CompositePreviewPart> parts;
+        try
+        {
+            parts = await GatherCompositePartsAsync(root, installationPath, isZeroHour, projectDirectory, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Composite preview gather threw for {Block}", root.Name);
+            return;
+        }
+
+        if (generation != _modelPreviewGeneration || cancellationToken.IsCancellationRequested || parts.Count < 2)
+        {
+            return;
+        }
+
+        try
+        {
+            var buildParts = new List<W3dCompositePart>(parts.Count);
+            var binds = new List<Matrix4x4>();
+            var pivotNames = new List<IReadOnlyList<string>>();
+            var missing = new List<string>();
+            var discarded = new List<string>();
+            foreach (var part in parts)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var textures = part.Resolved.Textures.ToDictionary(texture => texture.Name, texture => texture.Texture, StringComparer.OrdinalIgnoreCase);
+                var bones = BoneMap(part.Resolved.Model);
+                buildParts.Add(new W3dCompositePart(part.Label, part.Resolved.Model, textures, bones));
+                var hierarchy = part.Resolved.Model.Hierarchies.FirstOrDefault();
+                binds.AddRange(hierarchy == null ? [] : W3dAnimationSampler.BindPoseWorlds(hierarchy));
+                pivotNames.Add(hierarchy == null ? [] : hierarchy.Pivots.Select(pivot => pivot.Name).ToList());
+                missing.AddRange(part.Resolved.MissingTextures);
+            }
+
+            var composite = W3dSceneBuilder.BuildComposite(buildParts, discarded);
+            if (discarded.Count > 0)
+            {
+                logger.LogInformation("Composite preview dropped {Count} textures disabled by shader flags", discarded.Count);
+            }
+
+            if (generation != _modelPreviewGeneration || cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            PostToUIThread(() => ApplyCompositeResolved(root, generation, parts, composite, binds, missing, pivotNames));
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or IndexOutOfRangeException)
+        {
+            logger.LogWarning(ex, "Failed to build composite preview scene for {Block}", root.Name);
+        }
+    }
+
+    private async Task<IReadOnlyList<CompositePreviewPart>> GatherCompositePartsAsync(
+        IniBlock root,
+        string installationPath,
+        bool isZeroHour,
+        string? projectDirectory,
+        CancellationToken cancellationToken)
+    {
+        var collected = new List<(IniBlock Block, string Model, string? SourceFile)>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        await CollectCompositeOwnerAsync(root, collected, seen, cancellationToken).ConfigureAwait(false);
+        await CollectCompositeRelatedAsync(root, collected, seen, cancellationToken).ConfigureAwait(false);
+        return await ResolveCollectedPartsAsync(collected, installationPath, isZeroHour, projectDirectory, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task CollectCompositeOwnerAsync(
+        IniBlock root,
+        List<(IniBlock Block, string Model, string? SourceFile)> collected,
+        HashSet<string> seen,
+        CancellationToken cancellationToken)
+    {
+        var referencers = await referenceService.FindReferencersAsync(root.Name, cancellationToken).ConfigureAwait(false);
+        if (referencers is not { Success: true, Data: not null })
+        {
+            return;
+        }
+
+        int attempts = 0;
+        foreach (var entry in referencers.Data)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (attempts >= IniConstants.Editor.MaxCompositeOwnerAttempts ||
+                collected.Count >= IniConstants.Editor.MaxCompositeModels)
+            {
+                return;
+            }
+
+            if (!string.Equals(entry.BlockType, IniConstants.BlockTypes.Object, StringComparison.OrdinalIgnoreCase) ||
+                !seen.Add($"{entry.BlockType}\n{entry.Name}"))
+            {
+                continue;
+            }
+
+            attempts++;
+            var (owner, sourceFile) = await CloneIndexedBlockAsync(entry, cancellationToken).ConfigureAwait(false);
+            var model = owner == null ? string.Empty : FindFieldValue(owner, IniConstants.FieldKeys.Model) ?? FindNestedModel(owner);
+            if (owner == null || string.IsNullOrEmpty(model))
+            {
+                continue;
+            }
+
+            collected.Add((owner, model, sourceFile));
+            return;
+        }
+    }
+
+    private async Task CollectCompositeRelatedAsync(
+        IniBlock root,
+        List<(IniBlock Block, string Model, string? SourceFile)> collected,
+        HashSet<string> seen,
+        CancellationToken cancellationToken)
+    {
+        var entryIndex = new Dictionary<string, IniReferenceEntry>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in referenceService.Entries)
+        {
+            entryIndex.TryAdd($"{entry.BlockType}\n{entry.Name}", entry);
+        }
+
+        foreach (var field in root.Fields)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (collected.Count >= IniConstants.Editor.MaxCompositeModels)
+            {
+                return;
+            }
+
+            var target = await ResolveSlotTargetAsync(field.Value, entryIndex, cancellationToken).ConfigureAwait(false);
+            if (target.Block == null || target.Model.Length == 0 || !seen.Add($"{IniConstants.BlockTypes.Object}\n{target.Name}"))
+            {
+                continue;
+            }
+
+            collected.Add((target.Block, target.Model, target.SourceFile));
+        }
+    }
+
+    private async Task<(IniBlock? Block, string Model, string Name, string? SourceFile)> ResolveSlotTargetAsync(
+        string? slotValue,
+        Dictionary<string, IniReferenceEntry> entryIndex,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(slotValue))
+        {
+            return (null, string.Empty, string.Empty, null);
+        }
+
+        string slot = slotValue.Trim();
+        var (button, _) = await CloneIndexedBlockAsync(IniConstants.BlockTypes.CommandButton, slot, entryIndex, cancellationToken).ConfigureAwait(false);
+        var target = button == null ? null : FindFieldValue(button, IniConstants.FieldKeys.Object);
+        if (string.IsNullOrWhiteSpace(target))
+        {
+            return (null, string.Empty, string.Empty, null);
+        }
+
+        var (targetBlock, sourceFile) = await CloneIndexedBlockAsync(IniConstants.BlockTypes.Object, target.Trim(), entryIndex, cancellationToken).ConfigureAwait(false);
+        var model = targetBlock == null ? string.Empty : FindFieldValue(targetBlock, IniConstants.FieldKeys.Model) ?? FindNestedModel(targetBlock);
+        return targetBlock == null || string.IsNullOrEmpty(model)
+            ? (null, string.Empty, string.Empty, null)
+            : (targetBlock, model, target.Trim(), sourceFile);
+    }
+
+    private async Task<IReadOnlyList<CompositePreviewPart>> ResolveCollectedPartsAsync(
+        List<(IniBlock Block, string Model, string? SourceFile)> collected,
+        string installationPath,
+        bool isZeroHour,
+        string? projectDirectory,
+        CancellationToken cancellationToken)
+    {
+        var resolved = new List<CompositePreviewPart>(collected.Count);
+        foreach (var (block, model, sourceFile) in collected)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var result = await modelResolver.ResolveAsync(model, installationPath, isZeroHour, projectDirectory, cancellationToken).ConfigureAwait(false);
+            if (result is not { Success: true, Data: not null })
+            {
+                logger.LogDebug("Composite preview skipped unresolvable model {Model}", model);
+                continue;
+            }
+
+            string label = string.IsNullOrWhiteSpace(block.Name) ? block.BlockType : block.Name;
+            resolved.Add(new CompositePreviewPart(block, model, label, sourceFile, result.Data));
+        }
+
+        return resolved;
+    }
+
+    private async Task<(IniBlock? Block, string? SourceFile)> CloneIndexedBlockAsync(
+        IniReferenceEntry entry,
+        CancellationToken cancellationToken)
+    {
+        if (entry.Source == IniReferenceSource.Document ||
+            string.Equals(entry.FilePath, FilePath, PathHelper.PathComparison))
+        {
+            return (FindBlocks(entry.BlockType, entry.Name).FirstOrDefault(), null);
+        }
+
+        var cloned = await referenceService.CloneBlockAsync(entry, cancellationToken).ConfigureAwait(false);
+        var block = cloned is { Success: true } ? cloned.Data : null;
+        return (block, block == null ? null : entry.FilePath);
+    }
+
+    private async Task<(IniBlock? Block, string? SourceFile)> CloneIndexedBlockAsync(
+        string blockType,
+        string name,
+        Dictionary<string, IniReferenceEntry> entryIndex,
+        CancellationToken cancellationToken)
+    {
+        var local = FindBlocks(blockType, name).FirstOrDefault();
+        if (local != null)
+        {
+            return (local, null);
+        }
+
+        if (!entryIndex.TryGetValue($"{blockType}\n{name}", out var entry))
+        {
+            return (null, null);
+        }
+
+        return await CloneIndexedBlockAsync(entry, cancellationToken).ConfigureAwait(false);
+    }
+
+    private void ApplyCompositeResolved(
+        IniBlock root,
+        int generation,
+        IReadOnlyList<CompositePreviewPart> parts,
+        W3dCompositeScene composite,
+        IReadOnlyList<Matrix4x4> binds,
+        IReadOnlyList<string> missing,
+        IReadOnlyList<IReadOnlyList<string>> pivotNames)
+    {
+        if (generation != _modelPreviewGeneration)
+        {
+            return;
+        }
+
+        StopPreviewPlayback();
+        _previewIsComposite = true;
+        _lastHighlightBlock = null;
+        _lastHighlightMeshCount = -1;
+        _previewResolved = parts[0].Resolved;
+        _lastPreviewModel = parts[0].Model;
+        _lastPreviewFailed = false;
+        PreviewScene = composite.Scene;
+        PreviewPose = binds;
+        PreviewBindPose = binds;
+        HasPreviewScene = true;
+        IsPreviewLoading = false;
+        PreviewModelName = parts[0].Model;
+        _compositeRanges = composite.Parts;
+        _compositePivotNames = pivotNames;
+        RebuildCompositeMeshList(composite);
+        PreviewClips.Clear();
+        OnPropertyChanged(nameof(HasPreviewClips));
+        SelectedPreviewClip = null;
+        PreviewFrame = 0;
+        PreviewFrameCount = 0;
+        IsPreviewPlaying = false;
+        PreviewSelectedMeshIndex = 0;
+        RebuildPreviewMeshModules();
+        RebuildCompositeRelatedCards(parts);
+        PreviewMissingTextures.Clear();
+        foreach (var name in missing.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            PreviewMissingTextures.Add(name);
+        }
+
+        OnPropertyChanged(nameof(HasPreviewMissingTextures));
+        UpdateCompositeReadyStatus(parts.Count, composite.Scene.Meshes.Count, composite.Scene.Textures.Count, missing.Count);
+        SyncCardHighlight();
+    }
+
+    private void RebuildCompositeMeshList(W3dCompositeScene composite)
+    {
+        PreviewMeshes.Clear();
+        for (int part = 0; part < composite.Parts.Count; part++)
+        {
+            var range = composite.Parts[part];
+            var pivots = part < _compositePivotNames.Count ? _compositePivotNames[part] : [];
+            for (int offset = 0; offset < range.MeshCount; offset++)
+            {
+                int index = range.MeshStart + offset;
+                var mesh = composite.Scene.Meshes[index];
+                int local = mesh.BoneIndex - range.PivotBase;
+                string? boneName = local >= 0 && local < pivots.Count ? pivots[local] : null;
+                string? textureName = mesh.TextureIndex >= 0 && mesh.TextureIndex < composite.Scene.Textures.Count
+                    ? composite.Scene.Textures[mesh.TextureIndex].Name
+                    : null;
+                PreviewMeshes.Add(new W3dPreviewMeshItem(index, mesh.Name, mesh.TriangleCount, mesh.VertexCount, boneName, textureName, range.Label));
+            }
+        }
+
+        PreviewSelectedMeshIndex = -1;
+    }
+
+    private void RebuildCompositeRelatedCards(IReadOnlyList<CompositePreviewPart> parts)
+    {
+        PreviewRelatedObjects.Clear();
+        foreach (var part in parts)
+        {
+            PreviewRelatedObjects.Add(new IniCanvasCardViewModel(
+                part.Block,
+                part.Label,
+                part.Block.BlockType,
+                FindFieldValue(part.Block, IniConstants.FieldKeys.Side),
+                TryGetPortrait(part.Block),
+                [],
+                part.SourceFile));
+        }
+
+        OnPropertyChanged(nameof(HasPreviewRelatedObjects));
+    }
+
+    private void UpdateCompositeReadyStatus(int partCount, int meshCount, int textureCount, int missingCount)
+    {
+        if (missingCount > 0)
+        {
+            SetPreviewStatus(
+                "Tools.IniEditor.Preview3D.ReadyCompositeMissing",
+                partCount,
+                meshCount,
+                textureCount,
+                missingCount);
+        }
+        else
+        {
+            SetPreviewStatus("Tools.IniEditor.Preview3D.ReadyComposite", partCount, meshCount, textureCount);
+        }
+    }
+
+    private void SyncCardHighlight()
+    {
+        var selected = EditableSelectedNode?.Block;
+        int meshIndex = PreviewSelectedMeshIndex;
+        foreach (var card in CanvasBlockCards.Concat(PreviewRelatedObjects))
+        {
+            bool treeMatch = selected != null &&
+                string.Equals(card.Block.BlockType, selected.BlockType, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(card.Block.Name, selected.Name, StringComparison.OrdinalIgnoreCase);
+            card.IsHighlighted = treeMatch || IsMeshCard(card, meshIndex);
+        }
+    }
+
+    private bool IsMeshCard(IniCanvasCardViewModel card, int meshIndex)
+    {
+        if (!_previewIsComposite || meshIndex < 0)
+        {
+            return false;
+        }
+
+        for (int part = 0; part < _compositeRanges.Count; part++)
+        {
+            var range = _compositeRanges[part];
+            if (meshIndex >= range.MeshStart && meshIndex < range.MeshStart + range.MeshCount)
+            {
+                return part < PreviewRelatedObjects.Count &&
+                    ReferenceEquals(PreviewRelatedObjects[part].Block, card.Block);
+            }
+        }
+
+        return false;
+    }
+
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Kept as an instance helper to satisfy member ordering.")]
     private Dictionary<string, int> BoneMap(W3dModel model)
     {
@@ -5377,6 +5850,9 @@ public sealed partial class IniEditorViewModel(
 
         StopPreviewPlayback();
         _previewResolved = data;
+        _previewIsComposite = false;
+        _compositeRanges = [];
+        _compositePivotNames = [];
         _lastPreviewModel = model;
         _lastPreviewFailed = false;
         PreviewScene = scene;
@@ -5449,6 +5925,9 @@ public sealed partial class IniEditorViewModel(
 
         StopPreviewPlayback();
         _previewResolved = null;
+        _previewIsComposite = false;
+        _compositeRanges = [];
+        _compositePivotNames = [];
         _lastPreviewModel = model;
         _lastPreviewFailed = true;
         PreviewScene = null;
@@ -5519,6 +5998,12 @@ public sealed partial class IniEditorViewModel(
 
     private void SamplePreviewPose()
     {
+        // Composite scenes hold a static concatenated bind pose that clip sampling must not overwrite.
+        if (_previewIsComposite)
+        {
+            return;
+        }
+
         var resolved = _previewResolved;
         if (resolved == null)
         {
@@ -5786,6 +6271,7 @@ public sealed partial class IniEditorViewModel(
         }
 
         RebuildPreviewMeshModules();
+        SyncCardHighlight();
     }
 
     partial void OnSelectedPreviewMeshChanged(W3dPreviewMeshItem? value)
@@ -5812,6 +6298,13 @@ public sealed partial class IniEditorViewModel(
     {
         PreviewFrameCount = value == null ? 0 : Math.Max((int)value.FrameCount - 1, 0);
         PreviewFrame = 0;
+
+        if (_previewIsComposite)
+        {
+            PreviewFrameCount = 0;
+            PreviewFrame = 0;
+            return;
+        }
 
         // Reset the pose before sampling so root tracking rebaselines instead
         // of jumping by the inter-clip root difference.

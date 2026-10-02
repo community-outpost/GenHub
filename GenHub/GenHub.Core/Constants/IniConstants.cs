@@ -1009,6 +1009,12 @@ public static class IniConstants
         /// <summary>Maximum related objects shown on the preview canvas for reference blocks.</summary>
         public const int MaxRelatedObjects = 12;
 
+        /// <summary>Maximum models composed into one multi-model 3D preview scene.</summary>
+        public const int MaxCompositeModels = 8;
+
+        /// <summary>Maximum owner candidates cloned while composing a multi-model 3D preview.</summary>
+        public const int MaxCompositeOwnerAttempts = 3;
+
         /// <summary>Maximum reverse-reference results returned per lookup.</summary>
         public const int MaxReferencers = 12;
 

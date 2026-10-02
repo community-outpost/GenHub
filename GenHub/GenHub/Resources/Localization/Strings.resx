@@ -17994,6 +17994,12 @@ Mapped image texture reference</value>
   <data name="Tools.IniEditor.Preview3D.ClipUnsupported" xml:space="preserve">
     <value>Animation '{0}' uses compressed channels and cannot be previewed.</value>
   </data>
+  <data name="Tools.IniEditor.Preview3D.ReadyComposite" xml:space="preserve">
+    <value>{0} models • {1} meshes • {2} textures</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ReadyCompositeMissing" xml:space="preserve">
+    <value>{0} models • {1} meshes • {2} textures ({3} missing)</value>
+  </data>
   <data name="Tools.IniEditor.Preview3D.Skeleton" xml:space="preserve">
     <value>Skeleton</value>
   </data>

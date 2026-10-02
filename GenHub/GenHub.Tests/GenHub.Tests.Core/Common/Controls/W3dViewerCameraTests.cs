@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Layout;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FluentAssertions;
@@ -113,6 +114,54 @@ public sealed class W3dViewerCameraTests
             viewer.CameraPitch.Should().BeApproximately(pitchBefore, 0.0001);
             scroller.Offset.X.Should().BeApproximately(offsetBefore.X + 120, 0.5);
             scroller.Offset.Y.Should().BeApproximately(offsetBefore.Y + 80, 0.5);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// Verifies that left-drag orbits when the viewer sits offset inside the document layout.
+    /// </summary>
+    [AvaloniaFact]
+    public void Viewer_LeftDragNestedWithOffset_OrbitsCamera()
+    {
+        var viewer = new W3dViewerControl
+        {
+            Width = 300,
+            Height = 200,
+            Margin = new Thickness(600, 500, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Top,
+            Scene = EmptyScene(),
+        };
+        var canvas = new EditorCanvasControl
+        {
+            Content = viewer,
+        };
+        var window = new Window { Width = 1000, Height = 800, Content = canvas };
+
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs(null);
+            var scroller = canvas.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
+            scroller.Should().NotBeNull();
+            double yawBefore = viewer.CameraYaw;
+            double pitchBefore = viewer.CameraPitch;
+            var start = CenterOnWindow(viewer, window);
+
+            window.MouseDown(start, MouseButton.Left);
+            Dispatcher.UIThread.RunJobs(null);
+            window.MouseMove(start + new Point(60, 30));
+            Dispatcher.UIThread.RunJobs(null);
+            window.MouseUp(start + new Point(60, 30), MouseButton.Left);
+            Dispatcher.UIThread.RunJobs(null);
+
+            viewer.CameraYaw.Should().NotBeApproximately(yawBefore, 0.0001);
+            viewer.CameraPitch.Should().NotBeApproximately(pitchBefore, 0.0001);
+            scroller!.Offset.Should().Be(new Vector(0, 0));
         }
         finally
         {

@@ -1035,6 +1035,10 @@
                                   Background="{DynamicResource CardBackground}"
                                   BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
                             <StackPanel Spacing="1">
+                              <TextBlock Text="{Binding PartLabel}" FontSize="9" FontWeight="SemiBold"
+                                         Foreground="{DynamicResource AccentBrush}"
+                                         TextTrimming="CharacterEllipsis"
+                                         IsVisible="{Binding PartLabel, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                               <TextBlock Text="{Binding Name}" FontSize="10" FontWeight="SemiBold"
                                          Foreground="{DynamicResource TextPrimary}"
                                          TextTrimming="CharacterEllipsis"/>
@@ -1096,27 +1100,32 @@
                       </ItemsControl.ItemsPanel>
                       <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:IniCanvasCardViewModel">
-                          <Button x:CompileBindings="False"
-                                  Command="{Binding DataContext.SelectBlockCardCommand, ElementName=Root}"
-                                  CommandParameter="{Binding Block}"
-                                  Padding="6,3" Margin="0,1,4,1" Background="Transparent"
-                                  BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
-                                  CornerRadius="6" Cursor="Hand"
-                                  ToolTip.Tip="{Binding Title}">
-                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                              <material:MaterialIcon Kind="{Binding IconKind}" Width="14" Height="14"
-                                                     Foreground="{DynamicResource AccentBrush}"
-                                                     VerticalAlignment="Center"/>
-                              <StackPanel Spacing="0" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding Title}" FontSize="10" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource TextPrimary}"
-                                           TextTrimming="CharacterEllipsis" MaxWidth="160"/>
-                                <TextBlock Text="{Binding BlockType}" FontSize="9"
-                                           Foreground="{DynamicResource TextSecondary}"
-                                           TextTrimming="CharacterEllipsis" MaxWidth="160"/>
+                          <Panel>
+                            <Button x:CompileBindings="False"
+                                    Command="{Binding DataContext.SelectBlockCardCommand, ElementName=Root}"
+                                    CommandParameter="{Binding}"
+                                    Padding="6,3" Margin="0,1,4,1" Background="Transparent"
+                                    BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
+                                    CornerRadius="6" Cursor="Hand"
+                                    ToolTip.Tip="{Binding Title}">
+                              <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                <material:MaterialIcon Kind="{Binding IconKind}" Width="14" Height="14"
+                                                       Foreground="{DynamicResource AccentBrush}"
+                                                       VerticalAlignment="Center"/>
+                                <StackPanel Spacing="0" VerticalAlignment="Center">
+                                  <TextBlock Text="{Binding Title}" FontSize="10" FontWeight="SemiBold"
+                                             Foreground="{DynamicResource TextPrimary}"
+                                             TextTrimming="CharacterEllipsis" MaxWidth="160"/>
+                                  <TextBlock Text="{Binding BlockType}" FontSize="9"
+                                             Foreground="{DynamicResource TextSecondary}"
+                                             TextTrimming="CharacterEllipsis" MaxWidth="160"/>
+                                </StackPanel>
                               </StackPanel>
-                            </StackPanel>
-                          </Button>
+                            </Button>
+                            <Border IsVisible="{Binding IsHighlighted}" Margin="0,1,4,1"
+                                    BorderBrush="{DynamicResource AccentBrush}" BorderThickness="2"
+                                    CornerRadius="6" IsHitTestVisible="False"/>
+                          </Panel>
                         </DataTemplate>
                       </ItemsControl.ItemTemplate>
                     </ItemsControl>
@@ -1229,13 +1238,14 @@
                       </ItemsControl.ItemsPanel>
                       <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:IniCanvasCardViewModel">
-                          <Button x:CompileBindings="False"
-                                  Command="{Binding DataContext.SelectBlockCardCommand, ElementName=Root}"
-                                  CommandParameter="{Binding Block}"
-                                  Width="130" Height="110" Margin="4" Padding="6"
-                                  Background="{DynamicResource CardBackground}"
-                                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                  CornerRadius="8" Cursor="Hand">
+                          <Panel>
+                            <Button x:CompileBindings="False"
+                                    Command="{Binding DataContext.SelectBlockCardCommand, ElementName=Root}"
+                                    CommandParameter="{Binding}"
+                                    Width="130" Height="110" Margin="4" Padding="6"
+                                    Background="{DynamicResource CardBackground}"
+                                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                    CornerRadius="8" Cursor="Hand">
                             <Grid RowDefinitions="Auto,*,Auto">
                               <Border Grid.Row="0" Width="36" Height="36" CornerRadius="6"
                                       Background="{DynamicResource SurfaceSubtleBrush}"
@@ -1262,6 +1272,10 @@
                               </Border>
                             </Grid>
                           </Button>
+                          <Border IsVisible="{Binding IsHighlighted}" Margin="4"
+                                  BorderBrush="{DynamicResource AccentBrush}" BorderThickness="2"
+                                  CornerRadius="8" IsHitTestVisible="False"/>
+                          </Panel>
                         </DataTemplate>
                       </ItemsControl.ItemTemplate>
                     </ItemsControl>
