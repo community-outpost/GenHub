@@ -131,70 +131,25 @@ public class FastHttpClientFileDownloader(
                 var totalLength = contentRange!.Length!.Value;
                 probeResponse.Dispose();
 
-                logger?.LogInformation(
-                    "Downloading {Url} via parallel chunk mode ({Concurrency} connections, Size: {Size:N0} bytes)",
+                await DownloadViaParallelModeAsync(
+                    client,
+                    resolvedUri,
                     url,
-                    AppUpdateConstants.ParallelDownloadConcurrency,
-                    totalLength);
-
-                // If redirected to a third-party CDN/storage host (e.g. Azure Blob/S3), strip Authorization header to avoid 400 Bad Request on presigned URLs
-                HttpClient chunkClient = client;
-                HttpClient? cdnClient = null;
-                var originUri = new Uri(url);
-                if (!string.Equals(resolvedUri.Host, originUri.Host, StringComparison.OrdinalIgnoreCase) && headers?.ContainsKey("Authorization") == true)
-                {
-                    var cdnHeaders = headers.Where(h => !string.Equals(h.Key, "Authorization", StringComparison.OrdinalIgnoreCase))
-                                           .ToDictionary(h => h.Key, h => h.Value);
-                    cdnClient = CreateHttpClient(cdnHeaders, timeout);
-                    chunkClient = cdnClient;
-                }
-
-                try
-                {
-                    await DownloadParallelAsync(
-                        chunkClient,
-                        resolvedUri,
-                        targetFile,
-                        totalLength,
-                        progress,
-                        cancelToken).ConfigureAwait(false);
-                    ValidateDownloadedFileHeader(targetFile);
-                }
-                finally
-                {
-                    cdnClient?.Dispose();
-                }
-
+                    targetFile,
+                    totalLength,
+                    progress,
+                    headers,
+                    timeout,
+                    cancelToken).ConfigureAwait(false);
                 return;
             }
 
-            // If probe returned 200 OK (server ignored Range header), stream the probe response directly
+            // If probe returned 200 OK (server ignored Range header), check for HTML response or stream directly
             if (probeResponse.StatusCode == HttpStatusCode.OK)
             {
-                var mediaType = probeResponse.Content.Headers.ContentType?.MediaType;
-                if (string.Equals(mediaType, "text/html", StringComparison.OrdinalIgnoreCase) ||
-                    resolvedUri.Host.Contains("drive.google.com", StringComparison.OrdinalIgnoreCase))
+                if (await TryHandleHtmlResponseAsync(probeResponse, url, targetFile, progress, headers, timeout, cancelToken).ConfigureAwait(false))
                 {
-                    var html = await probeResponse.Content.ReadAsStringAsync(cancelToken).ConfigureAwait(false);
-                    probeResponse.Dispose();
-
-                    var confirmedUrl = CloudUrlHelper.TryExtractGoogleDriveConfirmationUrl(html, resolvedUri);
-                    if (!string.IsNullOrEmpty(confirmedUrl))
-                    {
-                        logger?.LogInformation("Following Google Drive download confirmation from {Url} to {ConfirmedUrl}", url, confirmedUrl);
-                        await DownloadFile(confirmedUrl, targetFile, progress, headers, timeout, cancelToken).ConfigureAwait(false);
-                        return;
-                    }
-
-                    if (html.Contains("quota", StringComparison.OrdinalIgnoreCase) || html.Contains("too many users", StringComparison.OrdinalIgnoreCase))
-                    {
-                        throw new InvalidOperationException("Google Drive download quota exceeded for this file.");
-                    }
-
-                    if (string.Equals(mediaType, "text/html", StringComparison.OrdinalIgnoreCase))
-                    {
-                        throw new InvalidOperationException("Server returned an HTML page instead of the expected binary file download.");
-                    }
+                    return;
                 }
 
                 var totalBytes = probeResponse.Content.Headers.ContentLength ?? -1L;
@@ -211,29 +166,9 @@ public class FastHttpClientFileDownloader(
 
             fullResponse.EnsureSuccessStatusCode();
 
-            var fullMediaType = fullResponse.Content.Headers.ContentType?.MediaType;
-            if (string.Equals(fullMediaType, "text/html", StringComparison.OrdinalIgnoreCase) ||
-                (fullResponse.RequestMessage?.RequestUri?.Host.Contains("drive.google.com", StringComparison.OrdinalIgnoreCase) ?? false))
+            if (await TryHandleHtmlResponseAsync(fullResponse, url, targetFile, progress, headers, timeout, cancelToken).ConfigureAwait(false))
             {
-                var html = await fullResponse.Content.ReadAsStringAsync(cancelToken).ConfigureAwait(false);
-                var fullResolvedUri = fullResponse.RequestMessage?.RequestUri ?? new Uri(url);
-                var confirmedUrl = CloudUrlHelper.TryExtractGoogleDriveConfirmationUrl(html, fullResolvedUri);
-                if (!string.IsNullOrEmpty(confirmedUrl))
-                {
-                    logger?.LogInformation("Following Google Drive download confirmation from {Url} to {ConfirmedUrl}", url, confirmedUrl);
-                    await DownloadFile(confirmedUrl, targetFile, progress, headers, timeout, cancelToken).ConfigureAwait(false);
-                    return;
-                }
-
-                if (html.Contains("quota", StringComparison.OrdinalIgnoreCase) || html.Contains("too many users", StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new InvalidOperationException("Google Drive download quota exceeded for this file.");
-                }
-
-                if (string.Equals(fullMediaType, "text/html", StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new InvalidOperationException("Server returned an HTML page instead of the expected binary file download.");
-                }
+                return;
             }
 
             var fullBytes = fullResponse.Content.Headers.ContentLength ?? -1L;
@@ -418,6 +353,85 @@ public class FastHttpClientFileDownloader(
             {
                 throw new InvalidOperationException("The downloaded file is an HTML web page rather than binary content. Download may require authentication or virus-scan confirmation.");
             }
+        }
+    }
+
+    private async Task<bool> TryHandleHtmlResponseAsync(
+        HttpResponseMessage response,
+        string url,
+        string targetFile,
+        Action<int> progress,
+        IDictionary<string, string>? headers,
+        double timeout,
+        CancellationToken cancelToken)
+    {
+        var mediaType = response.Content.Headers.ContentType?.MediaType;
+        if (!string.Equals(mediaType, "text/html", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var html = await response.Content.ReadAsStringAsync(cancelToken).ConfigureAwait(false);
+        var resolvedUri = response.RequestMessage?.RequestUri ?? new Uri(url);
+        var confirmedUrl = CloudUrlHelper.TryExtractGoogleDriveConfirmationUrl(html, resolvedUri);
+        if (!string.IsNullOrEmpty(confirmedUrl))
+        {
+            logger?.LogInformation("Following Google Drive download confirmation from {Url} to {ConfirmedUrl}", url, confirmedUrl);
+            await DownloadFile(confirmedUrl, targetFile, progress, headers, timeout, cancelToken).ConfigureAwait(false);
+            return true;
+        }
+
+        if (html.Contains("quota", StringComparison.OrdinalIgnoreCase) || html.Contains("too many users", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Google Drive download quota exceeded for this file.");
+        }
+
+        throw new InvalidOperationException("Server returned an HTML page instead of the expected binary file download.");
+    }
+
+    private async Task DownloadViaParallelModeAsync(
+        HttpClient client,
+        Uri resolvedUri,
+        string url,
+        string targetFile,
+        long totalLength,
+        Action<int> progress,
+        IDictionary<string, string>? headers,
+        double timeout,
+        CancellationToken cancelToken)
+    {
+        logger?.LogInformation(
+            "Downloading {Url} via parallel chunk mode ({Concurrency} connections, Size: {Size:N0} bytes)",
+            url,
+            AppUpdateConstants.ParallelDownloadConcurrency,
+            totalLength);
+
+        // If redirected to a third-party CDN/storage host (e.g. Azure Blob/S3), strip Authorization header to avoid 400 Bad Request on presigned URLs
+        HttpClient chunkClient = client;
+        HttpClient? cdnClient = null;
+        var originUri = new Uri(url);
+        if (!string.Equals(resolvedUri.Host, originUri.Host, StringComparison.OrdinalIgnoreCase) && headers?.ContainsKey("Authorization") == true)
+        {
+            var cdnHeaders = headers.Where(h => !string.Equals(h.Key, "Authorization", StringComparison.OrdinalIgnoreCase))
+                                   .ToDictionary(h => h.Key, h => h.Value);
+            cdnClient = CreateHttpClient(cdnHeaders, timeout);
+            chunkClient = cdnClient;
+        }
+
+        try
+        {
+            await DownloadParallelAsync(
+                chunkClient,
+                resolvedUri,
+                targetFile,
+                totalLength,
+                progress,
+                cancelToken).ConfigureAwait(false);
+            ValidateDownloadedFileHeader(targetFile);
+        }
+        finally
+        {
+            cdnClient?.Dispose();
         }
     }
 }

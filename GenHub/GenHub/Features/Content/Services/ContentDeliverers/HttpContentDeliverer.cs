@@ -149,7 +149,9 @@ public class HttpContentDeliverer(
         IProgress<ContentAcquisitionProgress>? progress,
         string relativePath,
         int currentFileIndex,
-        int totalFiles)
+        int totalFiles,
+        long previousFilesBytes,
+        long totalBytesAllFiles)
     {
         if (progress == null)
         {
@@ -158,9 +160,24 @@ public class HttpContentDeliverer(
 
         return new Progress<DownloadProgress>(dp =>
         {
-            double fileProgressRange = 100.0 / totalFiles;
-            double baseProgress = (currentFileIndex - 1) * fileProgressRange;
-            double currentProgress = Math.Clamp(baseProgress + (dp.Percentage / 100.0 * fileProgressRange), 0, 100);
+            double currentProgress;
+            long aggregateBytesProcessed;
+            long aggregateTotalBytes;
+
+            if (totalBytesAllFiles > 0)
+            {
+                aggregateBytesProcessed = previousFilesBytes + dp.BytesReceived;
+                aggregateTotalBytes = totalBytesAllFiles;
+                currentProgress = Math.Clamp((double)aggregateBytesProcessed / totalBytesAllFiles * 100.0, 0, 100);
+            }
+            else
+            {
+                double fileProgressRange = 100.0 / totalFiles;
+                double baseProgress = (currentFileIndex - 1) * fileProgressRange;
+                currentProgress = Math.Clamp(baseProgress + (dp.Percentage / 100.0 * fileProgressRange), 0, 100);
+                aggregateBytesProcessed = dp.BytesReceived;
+                aggregateTotalBytes = dp.TotalBytes;
+            }
 
             progress.Report(new ContentAcquisitionProgress
             {
@@ -171,8 +188,8 @@ public class HttpContentDeliverer(
                     : $"{relativePath} - {dp.Percentage:F0}% ({dp.FormattedSpeed})",
                 FilesProcessed = currentFileIndex - 1,
                 TotalFiles = totalFiles,
-                TotalBytes = dp.TotalBytes,
-                BytesProcessed = dp.BytesReceived,
+                TotalBytes = aggregateTotalBytes,
+                BytesProcessed = aggregateBytesProcessed,
                 CurrentFile = relativePath,
             });
         });
@@ -250,6 +267,8 @@ public class HttpContentDeliverer(
     {
         var totalFiles = filesToDownload.Count;
         var processedFiles = 0;
+        var totalBytesAllFiles = filesToDownload.Sum(f => f.Size > 0 ? f.Size : 0L);
+        var previousFilesBytes = 0L;
 
         foreach (var file in filesToDownload)
         {
@@ -262,6 +281,8 @@ public class HttpContentDeliverer(
                 targetDirectory,
                 currentFileIndex,
                 totalFiles,
+                previousFilesBytes,
+                totalBytesAllFiles,
                 progress,
                 cancellationToken);
 
@@ -277,8 +298,15 @@ public class HttpContentDeliverer(
 
             cancellationToken.ThrowIfCancellationRequested();
             processedFiles++;
+            if (file.Size > 0)
+            {
+                previousFilesBytes += file.Size;
+            }
 
-            var currentPercentage = (double)processedFiles / totalFiles * 100;
+            var currentPercentage = totalBytesAllFiles > 0
+                ? Math.Clamp((double)previousFilesBytes / totalBytesAllFiles * 100.0, 0, 100)
+                : (double)processedFiles / totalFiles * 100;
+
             progress?.Report(new ContentAcquisitionProgress
             {
                 Phase = ContentAcquisitionPhase.Downloading,
@@ -287,6 +315,8 @@ public class HttpContentDeliverer(
                 CurrentFile = file.RelativePath,
                 FilesProcessed = processedFiles,
                 TotalFiles = totalFiles,
+                TotalBytes = totalBytesAllFiles > 0 ? totalBytesAllFiles : 0,
+                BytesProcessed = previousFilesBytes,
             });
         }
 
@@ -299,6 +329,8 @@ public class HttpContentDeliverer(
         string targetDirectory,
         int currentFileIndex,
         int totalFiles,
+        long previousFilesBytes,
+        long totalBytesAllFiles,
         IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken)
     {
@@ -309,18 +341,30 @@ public class HttpContentDeliverer(
             Directory.CreateDirectory(directory);
         }
 
-        var downloadProgress = CreateFileDownloadProgress(progress, file.RelativePath, currentFileIndex, totalFiles);
+        var downloadProgress = CreateFileDownloadProgress(
+            progress,
+            file.RelativePath,
+            currentFileIndex,
+            totalFiles,
+            previousFilesBytes,
+            totalBytesAllFiles);
+
+        var startingProgress = totalBytesAllFiles > 0
+            ? Math.Clamp((double)previousFilesBytes / totalBytesAllFiles * 100.0, 0, 100)
+            : (double)(currentFileIndex - 1) / totalFiles * 100;
 
         progress?.Report(new ContentAcquisitionProgress
         {
             Phase = ContentAcquisitionPhase.Downloading,
-            ProgressPercentage = (double)(currentFileIndex - 1) / totalFiles * 100,
+            ProgressPercentage = startingProgress,
             CurrentOperation = totalFiles > 1
                 ? $"Connecting to download {file.RelativePath} ({currentFileIndex}/{totalFiles})..."
                 : $"Connecting to download {file.RelativePath}...",
             CurrentFile = file.RelativePath,
             FilesProcessed = currentFileIndex - 1,
             TotalFiles = totalFiles,
+            TotalBytes = totalBytesAllFiles > 0 ? totalBytesAllFiles : 0,
+            BytesProcessed = previousFilesBytes,
         });
 
         return await DownloadFileAsync(packageManifest, file, localPath, downloadProgress, cancellationToken);

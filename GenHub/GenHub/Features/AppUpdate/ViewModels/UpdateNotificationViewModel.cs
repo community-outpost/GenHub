@@ -443,10 +443,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
         // monitor collection changes to update placeholder text
         AvailableVersions.CollectionChanged += (s, e) => OnPropertyChanged(nameof(VersionPlaceholderText));
-        AvailableCustomBuilds.CollectionChanged += (s, e) =>
-        {
-            HasCustomBuilds = AvailableCustomBuilds.Count > 0;
-        };
+        AvailableCustomBuilds.CollectionChanged += (s, e) => HasCustomBuilds = AvailableCustomBuilds.Count > 0;
 
         // automatically check for updates and load prs when dialog opens
         _ = InitializeAsync();
