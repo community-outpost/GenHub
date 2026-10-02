@@ -30,8 +30,10 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services;
 using GenHub.Features.Content.Services.ContentDiscoverers;
+using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.Downloads.Services;
 using GenHub.Features.Downloads.Views;
+using GenHub.Features.Info.Services;
 using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using System;
@@ -76,6 +78,8 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <param name="artworkService">Optional artwork service for purging persisted icons and covers on delete.</param>
 /// <param name="gitHubApiClient">Optional GitHub API client for README and release-notes hydration.</param>
 /// <param name="workspaceManager">Optional workspace manager for cleaning stale workspaces on bundle updates.</param>
+/// <param name="patchNotesService">Optional service for fetching Generals Online patch notes on demand.</param>
+/// <param name="onDescriptionEnriched">Optional callback invoked when the content description is updated with patch notes (version, changelog).</param>
 [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "ContentDetailViewModel coordinates rich media, downloads, profile binding, and custom tabs.")]
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Properties and methods access CommunityToolkit MVVM generated instance properties.")]
 [SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "Content detail ViewModel coordinates complex UI state, downloads, and multiple catalog sources.")]
@@ -102,7 +106,9 @@ public partial class ContentDetailViewModel(
     Func<string, Task>? deletedAction = null,
     IContentArtworkService? artworkService = null,
     IGitHubApiClient? gitHubApiClient = null,
-    IWorkspaceManager? workspaceManager = null) : ObservableObject, IDisposable
+    IWorkspaceManager? workspaceManager = null,
+    IGeneralsOnlinePatchNotesService? patchNotesService = null,
+    Action<string, string>? onDescriptionEnriched = null) : ObservableObject, IDisposable
 {
     // ===== Constants =====
     private const string UnknownValue = "Unknown";
@@ -134,6 +140,7 @@ public partial class ContentDetailViewModel(
     private readonly object _basicContentLoadLock = new();
     private readonly object _preloadLock = new();
     private readonly object _contentTypePersistLock = new();
+    private readonly object _generalsOnlineSync = new();
     private readonly CancellationTokenSource _cts = new();
     private readonly List<Task> _pendingRowStateTasks = [];
     private readonly object _gitHubNotesLock = new();
@@ -171,6 +178,8 @@ public partial class ContentDetailViewModel(
     private Task? _customTabsTask;
     private Task? _variantsTask;
     private Task? _gitHubReadmeTask;
+    private Task? _generalsOnlineNotesTask;
+    private CancellationTokenSource? _generalsOnlineCts;
     private Task? _gitHubHydrationTask;
     private bool _gitHubHydrationRunning;
 
@@ -566,7 +575,10 @@ public partial class ContentDetailViewModel(
     /// Gets the content description (full) - prefers parsed page context description.
     /// </summary>
     public string Description =>
-        HtmlTextHelper.NormalizeHtml(ParsedPage?.Context.Description ?? searchResult.Description);
+        HtmlTextHelper.NormalizeHtml(
+            (GeneralsOnlinePatchNotesHelper.IsGeneralsOnline(searchResult) && !GeneralsOnlinePatchNotesHelper.NeedsPatchNotes(searchResult.Description, searchResult.Version))
+                ? searchResult.Description
+                : (ParsedPage?.Context.Description ?? searchResult.Description));
 
     /// <summary>
     /// Gets the formatted markdown description with clickable links for PRs, issues, and URLs.
@@ -1015,6 +1027,13 @@ public partial class ContentDetailViewModel(
         _customTabsTask = LoadCustomTabsAsync();
         _variantsTask = InitializeVariantsAsync();
         _gitHubReadmeTask = LoadGitHubReadmeAsync();
+        if (patchNotesService != null &&
+            GeneralsOnlinePatchNotesHelper.IsGeneralsOnline(searchResult) &&
+            GeneralsOnlinePatchNotesHelper.NeedsPatchNotes(searchResult.Description, searchResult.Version) &&
+            !string.IsNullOrWhiteSpace(searchResult.Version))
+        {
+            StartGeneralsOnlineNotesTask(searchResult.Version);
+        }
     }
 
     /// <summary>
@@ -1143,6 +1162,14 @@ public partial class ContentDetailViewModel(
             tasks.Add(_variantsTask);
         }
 
+        lock (_generalsOnlineSync)
+        {
+            if (_generalsOnlineNotesTask != null)
+            {
+                tasks.Add(_generalsOnlineNotesTask);
+            }
+        }
+
         await Task.WhenAll(tasks);
         await WaitForGitHubHydrationAsync();
         await WaitForRowStateResolutionsAsync();
@@ -1186,6 +1213,7 @@ public partial class ContentDetailViewModel(
             Releases.Add(releaseItem);
             TrackRowStateResolution(ResolveRowStateAsync(releaseItem, file));
             EnqueueGitHubNotesRequest(releaseItem, sibling ?? searchResult, notesPlaceholder);
+            AttachGeneralsOnlinePatchNotesFetcher(releaseItem, sibling ?? searchResult, sibling);
         }
 
         var initialRelease = (SelectedVariant != null
@@ -1229,6 +1257,7 @@ public partial class ContentDetailViewModel(
             var releaseItem = CreateReleaseItemViewModel(file);
             Releases.Add(releaseItem);
             TrackRowStateResolution(ResolveRowStateAsync(releaseItem, file));
+            AttachGeneralsOnlinePatchNotesFetcher(releaseItem, searchResult);
         }
 
         SelectInitialPreferredRelease();
@@ -1507,8 +1536,14 @@ public partial class ContentDetailViewModel(
         {
             if (disposing)
             {
-                _cts.Cancel();
-                _cts.Dispose();
+                lock (_generalsOnlineSync)
+                {
+                    _cts.Cancel();
+                    _cts.Dispose();
+                    _generalsOnlineCts?.Cancel();
+                    _generalsOnlineCts?.Dispose();
+                    _generalsOnlineCts = null;
+                }
 
                 // Unsubscribe from state changes
                 contentStateService.ContentStateChanged -= OnContentStateChanged;
@@ -2670,6 +2705,15 @@ public partial class ContentDetailViewModel(
             variantSearchResults.TryGetValue(value.ManifestId, out var sr))
         {
             VariantSwap.Apply(searchResult, sr);
+            OnPropertyChanged(nameof(Description));
+            OnPropertyChanged(nameof(FormattedDescription));
+            if (patchNotesService != null &&
+                GeneralsOnlinePatchNotesHelper.IsGeneralsOnline(searchResult) &&
+                GeneralsOnlinePatchNotesHelper.NeedsPatchNotes(searchResult.Description, searchResult.Version) &&
+                !string.IsNullOrWhiteSpace(searchResult.Version))
+            {
+                StartGeneralsOnlineNotesTask(searchResult.Version);
+            }
 
             OnPropertyChanged(nameof(Name));
             OnPropertyChanged(nameof(DownloadSize));
@@ -4219,6 +4263,173 @@ public partial class ContentDetailViewModel(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to load README for {Owner}/{Repo}", owner, repo);
+        }
+    }
+
+    private void StartGeneralsOnlineNotesTask(string expectedVersion)
+    {
+        lock (_generalsOnlineSync)
+        {
+            var newTask = LoadGeneralsOnlinePatchNotesAsync(expectedVersion);
+            _generalsOnlineNotesTask = _generalsOnlineNotesTask == null || _generalsOnlineNotesTask.IsCompleted
+                ? newTask
+                : Task.WhenAll(_generalsOnlineNotesTask, newTask);
+        }
+    }
+
+    private async Task LoadGeneralsOnlinePatchNotesAsync(string expectedVersion)
+    {
+        if (patchNotesService == null || _disposed || string.IsNullOrWhiteSpace(expectedVersion))
+        {
+            return;
+        }
+
+        CancellationToken token = default;
+        CancellationTokenSource? ctsToDispose = null;
+        lock (_generalsOnlineSync)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            ctsToDispose = _generalsOnlineCts;
+            try
+            {
+                _generalsOnlineCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
+                token = _generalsOnlineCts.Token;
+            }
+            catch (ObjectDisposedException)
+            {
+                return;
+            }
+        }
+
+        if (ctsToDispose != null)
+        {
+            try
+            {
+                await ctsToDispose.CancelAsync().ConfigureAwait(false);
+            }
+            catch (ObjectDisposedException)
+            {
+                // Already disposed by a concurrent caller.
+            }
+            finally
+            {
+                ctsToDispose.Dispose();
+            }
+        }
+
+        try
+        {
+            var notes = await patchNotesService.GetPatchNotesFormattedAsync(expectedVersion, token).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(notes) || _disposed || token.IsCancellationRequested)
+            {
+                return;
+            }
+
+            await RunOnUiThreadAsync(() =>
+            {
+                if (_disposed || token.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                var currentVersion = searchResult.Version;
+                if (!GeneralsOnlinePatchNotesHelper.VersionsMatch(currentVersion, expectedVersion))
+                {
+                    return;
+                }
+
+                searchResult.Description = notes;
+                if (ParsedPage != null)
+                {
+                    var updatedContext = ParsedPage.Context with { Description = notes };
+                    ParsedPage = ParsedPage with { Context = updatedContext };
+                    if (searchResult.ParsedPageData != null)
+                    {
+                        searchResult.ParsedPageData = ParsedPage;
+                    }
+                }
+
+                var release = searchResult.GetData<GeneralsOnlineRelease>();
+                if (release != null)
+                {
+                    searchResult.SetData(release.WithChangelog(notes));
+                }
+
+                OnPropertyChanged(nameof(Description));
+                OnPropertyChanged(nameof(FormattedDescription));
+                onDescriptionEnriched?.Invoke(expectedVersion, notes);
+            }).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // Disposed or variant swapped during fetch
+        }
+        catch (ObjectDisposedException)
+        {
+            // Disposed during fetch
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to load Generals Online patch notes on demand for {Version}", expectedVersion);
+        }
+    }
+
+    private void AttachGeneralsOnlinePatchNotesFetcher(ReleaseItemViewModel releaseItem, ContentSearchResult contentResult, ContentSearchResult? sibling = null)
+    {
+        if (patchNotesService != null &&
+            GeneralsOnlinePatchNotesHelper.IsGeneralsOnline(contentResult) &&
+            GeneralsOnlinePatchNotesHelper.NeedsPatchNotes(releaseItem.FullDescription, releaseItem.Version))
+        {
+            releaseItem.IsDetailsLoaded = false;
+            var capturedSibling = sibling;
+            if (capturedSibling == null && variantSearchResults != null)
+            {
+                if (!string.IsNullOrWhiteSpace(releaseItem.DownloadedManifestId) &&
+                    variantSearchResults.TryGetValue(releaseItem.DownloadedManifestId, out var matchByManifest))
+                {
+                    capturedSibling = matchByManifest;
+                }
+                else if (!string.IsNullOrWhiteSpace(releaseItem.Version) &&
+                    variantSearchResults.TryGetValue(releaseItem.Version, out var matchByVersion))
+                {
+                    capturedSibling = matchByVersion;
+                }
+            }
+
+            releaseItem.FetchDetailsAsync = async (row, ct) =>
+            {
+                if (!string.IsNullOrWhiteSpace(row.Version))
+                {
+                    var notes = await patchNotesService.GetPatchNotesFormattedAsync(row.Version, ct).ConfigureAwait(false);
+                    if (!string.IsNullOrWhiteSpace(notes))
+                    {
+                        await RunOnUiThreadAsync(() =>
+                        {
+                            row.FullDescription = notes;
+                            row.IsDetailsLoaded = true;
+                            if (capturedSibling != null)
+                            {
+                                capturedSibling.Description = notes;
+                                var release = capturedSibling.GetData<GeneralsOnlineRelease>();
+                                if (release != null)
+                                {
+                                    capturedSibling.SetData(release.WithChangelog(notes));
+                                }
+                            }
+
+                            onDescriptionEnriched?.Invoke(row.Version, notes);
+                        }).ConfigureAwait(false);
+                    }
+                }
+                else
+                {
+                    await RunOnUiThreadAsync(() => row.IsDetailsLoaded = true).ConfigureAwait(false);
+                }
+            };
         }
     }
 
