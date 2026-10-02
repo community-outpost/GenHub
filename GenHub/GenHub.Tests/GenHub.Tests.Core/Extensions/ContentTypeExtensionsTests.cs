@@ -30,6 +30,7 @@ public class ContentTypeExtensionsTests
     [InlineData(ContentType.ContentReferral, "Content Referral")]
     [InlineData(ContentType.ModdingTool, "Tool")]
     [InlineData(ContentType.Executable, "Executable")]
+    [InlineData(ContentType.GenHubBuild, "GenHub Build")]
     [InlineData(ContentType.Skin, "Skin")]
     [InlineData(ContentType.Video, "Video")]
     [InlineData(ContentType.Replay, "Replay")]
@@ -65,6 +66,7 @@ public class ContentTypeExtensionsTests
     [InlineData(ContentType.Screensaver, "screensaver")]
     [InlineData(ContentType.ModdingTool, "moddingtool")]
     [InlineData(ContentType.Executable, "executable")]
+    [InlineData(ContentType.GenHubBuild, "genhubbuild")]
     [InlineData(ContentType.UnknownContentType, "unknown")]
     public void ToManifestIdString_ReturnsExpectedManifestIdString(ContentType contentType, string expectedManifestString)
     {
@@ -98,6 +100,7 @@ public class ContentTypeExtensionsTests
     [Theory]
     [InlineData(ContentType.ModdingTool, true)]
     [InlineData(ContentType.Executable, true)]
+    [InlineData(ContentType.GenHubBuild, true)]
     [InlineData(ContentType.Mod, false)]
     [InlineData(ContentType.Addon, false)]
     [InlineData(ContentType.GameClient, false)]

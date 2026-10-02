@@ -3835,6 +3835,9 @@
   <data name="ContentType.ModdingTool" xml:space="preserve">
     <value>Инструмент для моддинга</value>
   </data>
+  <data name="ContentType.GenHubBuild" xml:space="preserve">
+    <value>Сборка GenHub</value>
+  </data>
   <data name="ContentType.UnknownContentType" xml:space="preserve">
     <value>Неизвестный контент</value>
   </data>
@@ -6639,6 +6642,9 @@ GenHub связывает запуск модификаций со Steam, отк
   <data name="Downloads.Subscription.Category.All" xml:space="preserve">
     <value>Все</value>
   </data>
+  <data name="Downloads.Subscription.ErrorMessage.NoValidCatalogUrl" xml:space="preserve">
+    <value>Определение не содержит допустимого URL-адреса каталога.</value>
+  </data>
   <data name="Downloads.Subscription.ErrorMessage.FailedToFetchFormat" xml:space="preserve">
     <value>Не удалось получить каталог: {0}</value>
   </data>
@@ -6647,6 +6653,12 @@ GenHub связывает запуск модификаций со Steam, отк
   </data>
   <data name="Downloads.Subscription.ErrorMessage.HttpsOrEmailOnly" xml:space="preserve">
     <value>Можно открывать только безопасные ссылки HTTPS или действительные адреса электронной почты.</value>
+  </data>
+  <data name="Downloads.Subscription.ErrorMessage.FailedToFetch" xml:space="preserve">
+    <value>Не удалось получить каталог из определения</value>
+  </data>
+  <data name="Downloads.Subscription.ErrorMessage.BlockedUnsafeCatalogUrl" xml:space="preserve">
+    <value>Заблокирован небезопасный URL-адрес каталога.</value>
   </data>
   <data name="Downloads.Subscription.ErrorTitle.FailedToFetch" xml:space="preserve">
     <value>Не удалось получить каталог</value>

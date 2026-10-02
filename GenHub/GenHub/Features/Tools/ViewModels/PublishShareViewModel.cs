@@ -1309,6 +1309,23 @@ public partial class PublishShareViewModel(
         Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
         (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 
+    private static string DetermineCatalogIdFromFileName(string catFileName)
+    {
+        if (catFileName.StartsWith("catalog-", StringComparison.OrdinalIgnoreCase) && catFileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && catFileName.Length > 13)
+        {
+            var id = catFileName[8..^5];
+            return string.IsNullOrWhiteSpace(id) ? "main" : id;
+        }
+
+        if (catFileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && !string.Equals(catFileName, "catalog.json", StringComparison.OrdinalIgnoreCase))
+        {
+            var stem = Path.GetFileNameWithoutExtension(catFileName);
+            return string.IsNullOrWhiteSpace(stem) ? "main" : stem;
+        }
+
+        return "main";
+    }
+
     /// <summary>
     /// Resolves a collision-free remote filename for a catalog. Catalogs imported from
     /// identically named files would otherwise overwrite each other on the host and end
@@ -6116,41 +6133,14 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        var catFileName = asset.Name;
-        if (string.IsNullOrEmpty(catFileName))
-        {
-            catFileName = HostingConstants.DefaultCatalogFileName;
-        }
+        var catFileName = string.IsNullOrEmpty(asset.Name)
+            ? HostingConstants.DefaultCatalogFileName
+            : asset.Name;
 
-        var catId = "main";
-        if (catFileName.StartsWith("catalog-", StringComparison.OrdinalIgnoreCase) && catFileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && catFileName.Length > 13)
-        {
-            catId = catFileName[8..^5];
-        }
-        else if (catFileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && !string.Equals(catFileName, "catalog.json", StringComparison.OrdinalIgnoreCase))
-        {
-            catId = Path.GetFileNameWithoutExtension(catFileName);
-        }
-
-        var catName = char.ToUpperInvariant(catId[0]) + catId[1..];
-
-        var existingNamedCat = project.Catalogs.FirstOrDefault(c => string.Equals(c.Id, catId, StringComparison.OrdinalIgnoreCase) || string.Equals(c.FileName, catFileName, StringComparison.OrdinalIgnoreCase));
-        if (existingNamedCat != null)
-        {
-            existingNamedCat.Catalog = pubCat;
-            existingNamedCat.FileName = catFileName;
-            catName = existingNamedCat.Name;
-        }
-        else
-        {
-            project.Catalogs.Add(new NamedCatalog
-            {
-                Id = catId,
-                Name = catName,
-                FileName = catFileName,
-                Catalog = pubCat,
-            });
-        }
+        var catId = !string.IsNullOrWhiteSpace(asset.CatalogId)
+            ? asset.CatalogId
+            : DetermineCatalogIdFromFileName(catFileName);
+        var catName = AttachCatalogToProject(pubCat, catFileName, catId);
 
         // Update hosting state for this catalog
         _currentHostingState ??= GetOrCreateHostingState(SelectedHostingProvider?.ProviderId ?? HostingConstants.UnknownProviderId);
@@ -6182,6 +6172,47 @@ public partial class PublishShareViewModel(
             GetLocalizedString("Tools.PublisherStudio.Hosting.LoadedCatalogSuccessTitle", "Catalog Loaded"),
             FormatLocalizedString("Tools.PublisherStudio.Hosting.LoadedCatalogSuccessFormat", "Successfully loaded catalog '{0}' into project.", catName),
             autoDismissMs: 4000);
+    }
+
+    private string AttachCatalogToProject(PublisherCatalog pubCat, string catFileName, string catId)
+    {
+        var safeCatId = string.IsNullOrWhiteSpace(catId) ? "main" : catId;
+        var catName = char.ToUpperInvariant(safeCatId[0]) + safeCatId[1..];
+
+        var existingNamedCat = project.Catalogs.FirstOrDefault(c => string.Equals(c.Id, catId, StringComparison.OrdinalIgnoreCase) || string.Equals(c.FileName, catFileName, StringComparison.OrdinalIgnoreCase));
+        if (existingNamedCat != null)
+        {
+            existingNamedCat.Catalog = pubCat;
+            existingNamedCat.FileName = catFileName;
+            catName = existingNamedCat.Name;
+        }
+        else
+        {
+            project.Catalogs.Add(new NamedCatalog
+            {
+                Id = catId,
+                Name = catName,
+                FileName = catFileName,
+                Catalog = pubCat,
+            });
+        }
+
+        RemoveEmptyDefaultCatalogPlaceholder();
+        if (project.Catalog == null || project.Catalog.Content == null || project.Catalog.Content.Count == 0)
+        {
+            if (string.IsNullOrWhiteSpace(pubCat.Publisher?.Id) &&
+                project.Catalog?.Publisher != null &&
+                !string.IsNullOrWhiteSpace(project.Catalog.Publisher.Id))
+            {
+                pubCat.Publisher = project.Catalog.Publisher;
+            }
+
+            project.Catalog = pubCat;
+        }
+
+        SyncAvailableCatalogs();
+
+        return catName;
     }
 
     /// <summary>

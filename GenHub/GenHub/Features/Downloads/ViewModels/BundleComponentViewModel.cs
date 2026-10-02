@@ -1,10 +1,12 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Content.Services.Catalog;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -560,7 +562,7 @@ public sealed partial class BundleComponentViewModel : ObservableObject
         CatalogContentItem? sibling;
         try
         {
-            sibling = JsonSerializer.Deserialize<CatalogContentItem>(catalogItemJson);
+            sibling = JsonSerializer.Deserialize<CatalogContentItem>(catalogItemJson, PublisherJsonOptions.CatalogImport);
         }
         catch (JsonException)
         {
@@ -574,12 +576,12 @@ public sealed partial class BundleComponentViewModel : ObservableObject
         }
 
         var repository = ResolveSiblingRepository(sibling);
-        if (repository == null)
+        if (repository != null)
         {
-            return;
+            ApplyGitHubCoordinates(searchResult, repository[0], repository[1]);
         }
 
-        ApplyGitHubCoordinates(searchResult, repository[0], repository[1]);
+        GenericCatalogDiscoverer.ApplyUpstreamCommunityOutpostIdentity(searchResult, sibling);
     }
 
     private static string[]? ResolveSiblingRepository(CatalogContentItem sibling)

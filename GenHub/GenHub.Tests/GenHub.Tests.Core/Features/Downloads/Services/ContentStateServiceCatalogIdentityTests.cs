@@ -770,6 +770,174 @@ public sealed class ContentStateServiceCatalogIdentityTests
         Assert.Equal(gitHubManifest.Id.Value, await service.GetLocalManifestIdAsync(componentResult));
     }
 
+    /// <summary>
+    /// Verifies that a catalog card tracking a Community Outpost upstream content code resolves to
+    /// Downloaded when the content was acquired through the Community Outpost provider.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetStateAsync_CatalogUpstreamCommunityOutpostCard_MatchesCommunityOutpostManifestAsync()
+    {
+        var poolMock = new Mock<IContentManifestPool>();
+
+        var outpostManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.10000.communityoutpost.addon.hleizerohouren"),
+            Name = "Leikeze Competitive Hotkeys (Zero Hour - English)",
+            Version = "1.0",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo
+            {
+                Name = "Community Outpost",
+                PublisherType = "communityoutpost",
+                Website = "https://communityoutpost.org",
+            },
+            Metadata = new ContentMetadata
+            {
+                Tags = ["content-code:hlei", "variant:zerohour-en", "selected-variant:zerohour-en"],
+            },
+        };
+
+        poolMock.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(new List<ContentManifest> { outpostManifest }));
+        poolMock.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        poolMock.Setup(p => p.IsManifestAcquiredAsync(outpostManifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var service = new ContentStateService(poolMock.Object, NullLogger<ContentStateService>.Instance);
+
+        var catalogCard = new ContentSearchResult
+        {
+            Id = "1.10000.undead2146.addon.leikezehotkeys",
+            Name = "Leikeze Competitive Hotkeys",
+            Version = "1.0",
+            ProviderName = "undead2146",
+            AuthorName = "undead2146",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            SourceUrl = "https://www.gentool.net/data/hlei.dat",
+        };
+        catalogCard.ResolverMetadata[CommunityOutpostCatalogConstants.ContentCodeKey] = "hlei";
+
+        Assert.Equal(ContentState.Downloaded, await service.GetStateAsync(catalogCard));
+        Assert.Equal(outpostManifest.Id.Value, await service.GetLocalManifestIdAsync(catalogCard));
+    }
+
+    /// <summary>
+    /// Verifies that a bundle component built through production
+    /// <see cref="BundleComponentViewModel.CreateFromSearchResult"/> resolves to Downloaded
+    /// when tracking an upstream Community Outpost artifact.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetStateAsync_BundleComponentWithCommunityOutpostUpstreamIdentity_MatchesCommunityOutpostManifestAsync()
+    {
+        var poolMock = new Mock<IContentManifestPool>();
+
+        var outpostManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.10000.communityoutpost.addon.hlei-zerohour-en"),
+            Name = "Leikeze Competitive Hotkeys (Zero Hour - English)",
+            Version = "1.0",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo
+            {
+                Name = "Community Outpost",
+                PublisherType = "communityoutpost",
+                Website = "https://communityoutpost.org",
+            },
+            Metadata = new ContentMetadata
+            {
+                Tags = ["content-code:hlei", "variant:zerohour-en", "selected-variant:zerohour-en"],
+            },
+        };
+
+        poolMock.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(new List<ContentManifest> { outpostManifest }));
+        poolMock.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        poolMock.Setup(p => p.IsManifestAcquiredAsync(outpostManifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var service = new ContentStateService(poolMock.Object, NullLogger<ContentStateService>.Instance);
+
+        var sibling = new CatalogContentItem
+        {
+            Id = "leikeze-hotkeys",
+            Name = "Leikeze Competitive Hotkeys",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            PublisherType = "undead2146",
+            UpstreamSync = new CatalogUpstreamSync
+            {
+                Provider = "CommunityOutpost",
+                ContentCode = "hlei",
+            },
+        };
+
+        var release = new ContentRelease
+        {
+            Version = "1.0",
+            IsLatest = true,
+            Artifacts =
+            [
+                new ReleaseArtifact
+                {
+                    Filename = "hlei.dat",
+                    DownloadUrl = "https://www.gentool.net/data/hlei.dat",
+                    VariantAxis = "language",
+                    Variant = "English",
+                    IsDefaultVariant = true,
+                },
+            ],
+        };
+
+        var descriptors = new List<CatalogBundleComponentDescriptor>
+        {
+            new CatalogBundleComponentDescriptor
+            {
+                ContentId = "leikeze-hotkeys",
+                Name = "Leikeze Competitive Hotkeys",
+                PublisherId = "undead2146",
+                ContentType = ContentType.Addon.ToString(),
+                CatalogItemJson = JsonSerializer.Serialize(sibling),
+                Variants =
+                [
+                    new CatalogBundleComponentVariantDescriptor
+                    {
+                        Axis = "language",
+                        Label = "English",
+                        CatalogId = "1.10000.undead2146.addon.leikezehotkeys",
+                        ReleaseJson = JsonSerializer.Serialize(release),
+                        IsDefault = true,
+                    },
+                ],
+            },
+        };
+
+        var bundleResult = new ContentSearchResult
+        {
+            Id = "1.20260731.undead2146.contentbundle.stack",
+            Name = "Stack",
+            ContentType = ContentType.ContentBundle,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = "undead2146",
+            AuthorName = "undead2146",
+        };
+        bundleResult.ResolverMetadata[CatalogConstants.BundleComponentsJsonMetadataKey] =
+            JsonSerializer.Serialize(descriptors);
+
+        var component = BundleComponentViewModel.CreateFromSearchResult(bundleResult).Single();
+        var componentResult = component.GetSelectedSearchResult();
+        Assert.NotNull(componentResult);
+
+        Assert.Equal(ContentState.Downloaded, await service.GetStateAsync(componentResult));
+        Assert.Equal(outpostManifest.Id.Value, await service.GetLocalManifestIdAsync(componentResult));
+    }
+
     private ContentManifest CreateGitHubManifest(GameType game, string id)
     {
         return new ContentManifest

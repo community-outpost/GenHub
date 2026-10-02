@@ -3835,6 +3835,9 @@ Applied: {2} / {3} applicable fixes.</value>
   <data name="ContentType.ModdingTool" xml:space="preserve">
     <value>Modding Tool</value>
   </data>
+  <data name="ContentType.GenHubBuild" xml:space="preserve">
+    <value>GenHub Build</value>
+  </data>
   <data name="ContentType.UnknownContentType" xml:space="preserve">
     <value>Unknown Content</value>
   </data>
@@ -6697,6 +6700,9 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Downloads.Subscription.Category.All" xml:space="preserve">
     <value>All</value>
   </data>
+  <data name="Downloads.Subscription.ErrorMessage.NoValidCatalogUrl" xml:space="preserve">
+    <value>Definition contains no valid catalog URL.</value>
+  </data>
   <data name="Downloads.Subscription.ErrorMessage.FailedToFetchFormat" xml:space="preserve">
     <value>Failed to fetch catalog: {0}</value>
   </data>
@@ -6705,6 +6711,12 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   </data>
   <data name="Downloads.Subscription.ErrorMessage.HttpsOrEmailOnly" xml:space="preserve">
     <value>Only secure HTTPS links or valid email addresses can be opened.</value>
+  </data>
+  <data name="Downloads.Subscription.ErrorMessage.FailedToFetch" xml:space="preserve">
+    <value>Failed to fetch catalog from definition</value>
+  </data>
+  <data name="Downloads.Subscription.ErrorMessage.BlockedUnsafeCatalogUrl" xml:space="preserve">
+    <value>Blocked unsafe catalog URL.</value>
   </data>
   <data name="Downloads.Subscription.ErrorTitle.FailedToFetch" xml:space="preserve">
     <value>Failed to Fetch Catalog</value>

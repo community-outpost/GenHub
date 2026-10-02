@@ -278,6 +278,89 @@ public sealed class PublisherStudioHostingDiscoveryAndLoadTests : IDisposable
         }
     }
 
+    private sealed class SingleUrlHttpMessageHandler(string targetUrl, string content) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            if (request.RequestUri?.ToString() == targetUrl)
+            {
+                var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+                {
+                    Content = new StringContent(content, System.Text.Encoding.UTF8, "application/json"),
+                };
+                return Task.FromResult(response);
+            }
+
+            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.NotFound));
+        }
+    }
+
+    /// <summary>
+    /// Verifies that loading a catalog without a publisher ID preserves the existing publisher ID
+    /// from an empty primary catalog and synchronizes AvailableCatalogs.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LoadAssetToProject_CatalogWithoutPublisher_PreservesExistingPublisherAndSyncsAvailableCatalogsAsync()
+    {
+        const string catalogUrl = "https://example.com/catalog.json";
+        var catalogJson = """
+            {
+                "schemaVersion": 1,
+                "content": []
+            }
+            """;
+
+        var handler = new SingleUrlHttpMessageHandler(catalogUrl, catalogJson);
+        var client = new HttpClient(handler);
+        PublishShareViewModel.HttpClientOverrideForTesting = client;
+
+        try
+        {
+            var mockNotificationService = new Mock<INotificationService>();
+            var project = new PublisherStudioProject
+            {
+                ProjectPath = "/test/path/project.json",
+                Catalog = new PublisherCatalog
+                {
+                    Publisher = new PublisherProfile
+                    {
+                        Id = "existing-pub-id",
+                        Name = "Existing Publisher Name",
+                    },
+                },
+            };
+
+            using var vm = new PublishShareViewModel(
+                project,
+                Mock.Of<IPublisherStudioService>(),
+                NullLogger.Instance,
+                notificationService: mockNotificationService.Object);
+
+            var asset = new HostedAssetItemViewModel
+            {
+                Name = "catalog.json",
+                AssetKind = HostedAssetKind.Catalog,
+                Url = catalogUrl,
+                CanLoadToProject = true,
+            };
+
+            await vm.LoadAssetToProjectCommand.ExecuteAsync(asset);
+
+            Assert.NotNull(project.Catalog);
+            Assert.Equal("existing-pub-id", project.Catalog.Publisher.Id);
+            Assert.Equal("Existing Publisher Name", project.Catalog.Publisher.Name);
+            Assert.NotEmpty(vm.AvailableCatalogs);
+            Assert.Contains(vm.AvailableCatalogs, c => c.FileName == "catalog.json");
+        }
+        finally
+        {
+            PublishShareViewModel.HttpClientOverrideForTesting = null;
+            client.Dispose();
+            handler.Dispose();
+        }
+    }
+
     /// <summary>
     /// Tests that HostedAssetItemViewModel IsPending correctly reflects online and CDN status.
     /// </summary>

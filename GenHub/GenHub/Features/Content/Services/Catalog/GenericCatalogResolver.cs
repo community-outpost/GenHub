@@ -807,6 +807,17 @@ public partial class GenericCatalogResolver(
             {
                 manifest.Metadata.Tags.Add(variantTag);
             }
+
+            manifest.Metadata.SelectedVariantId = primaryArtifact.Variant;
+        }
+
+        if (contentItem.UpstreamSync != null && !string.IsNullOrWhiteSpace(contentItem.UpstreamSync.ContentCode))
+        {
+            var upstreamCodeTag = $"{ManifestTagConstants.ContentCodePrefix}{contentItem.UpstreamSync.ContentCode.Trim().ToLowerInvariant()}";
+            if (!manifest.Metadata.Tags.Contains(upstreamCodeTag, StringComparer.OrdinalIgnoreCase))
+            {
+                manifest.Metadata.Tags.Add(upstreamCodeTag);
+            }
         }
 
         if (manifest.Metadata.Tags.All(t => !t.StartsWith(ManifestTagConstants.ContentCodePrefix, StringComparison.OrdinalIgnoreCase)))
