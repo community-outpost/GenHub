@@ -4,7 +4,11 @@ using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Core.Models.Validation;
 using GenHub.Features.Content.Services.Catalog;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -63,6 +67,91 @@ public sealed class GenericCatalogContentProviderTests
 
         Assert.False(result.Success);
         Assert.Contains("resolution metadata", result.FirstError);
+    }
+
+    /// <summary>
+    /// When a specialized non-HTTP deliverer matches the manifest (such as CommunityOutpostDeliverer),
+    /// PrepareContentAsync delegates execution directly to DeliverContentOnlyAsync rather than
+    /// flat catalog zip extraction.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PrepareContentAsync_WhenSpecializedDelivererCanDeliver_RoutesToSpecializedDelivererAsync()
+    {
+        var discoverer = new GenericCatalogDiscoverer(
+            NullLogger<GenericCatalogDiscoverer>.Instance,
+            Mock.Of<IHttpClientFactory>(),
+            Mock.Of<IPublisherCatalogParser>(),
+            new VersionSelector(NullLogger<VersionSelector>.Instance),
+            Mock.Of<IGitHubApiClient>());
+
+        var resolverMock = new Mock<IContentResolver>();
+        resolverMock.Setup(r => r.ResolverId).Returns(CatalogConstants.GenericCatalogResolverId);
+
+        var httpDelivererMock = new Mock<IContentDeliverer>();
+        httpDelivererMock.Setup(d => d.SourceName).Returns(ContentSourceNames.HttpDeliverer);
+        httpDelivererMock.Setup(d => d.CanDeliver(It.IsAny<ContentManifest>())).Returns(true);
+
+        var specializedDelivererMock = new Mock<IContentDeliverer>();
+        specializedDelivererMock.Setup(d => d.SourceName).Returns("CommunityOutpostDeliverer");
+        specializedDelivererMock.Setup(d => d.CanDeliver(It.IsAny<ContentManifest>())).Returns(true);
+
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.10000.undead2146.addon.leikezehotkeys"),
+            Name = "Leikeze Competitive Hotkeys",
+            Version = "1.0",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Addon,
+        };
+
+        var deliveredManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.10000.communityoutpost.addon.hlei-zerohour-en"),
+            Name = "Leikeze Competitive Hotkeys (Zero Hour - English)",
+            Version = "1.0",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Addon,
+        };
+
+        specializedDelivererMock
+            .Setup(d => d.DeliverContentAsync(manifest, "C:/work", It.IsAny<System.IProgress<ContentAcquisitionProgress>?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(deliveredManifest));
+
+        var factory = new GenericCatalogManifestFactory(
+            Mock.Of<IFileHashProvider>(),
+            NullLogger<GenericCatalogManifestFactory>.Instance,
+            Mock.Of<IArchivePayloadProcessor>());
+
+        var validatorMock = new Mock<IContentValidator>();
+        validatorMock.Setup(v => v.ValidateManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult("1.10000.undead2146.addon.leikezehotkeys", []));
+        validatorMock.Setup(v => v.ValidateAllAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<System.IProgress<ValidationProgress>?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult("1.10000.undead2146.addon.leikezehotkeys", []));
+
+        var instructionsMock = new Mock<IInstallationInstructionsService>();
+        instructionsMock.Setup(i => i.ExecutePostInstallStepsAsync(
+                It.IsAny<ContentManifest>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<bool>(),
+                It.IsAny<System.IProgress<ContentAcquisitionProgress>?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult.CreateSuccess());
+
+        var provider = new GenericCatalogContentProvider(
+            discoverer,
+            [resolverMock.Object],
+            [httpDelivererMock.Object, specializedDelivererMock.Object],
+            factory,
+            NullLogger<GenericCatalogContentProvider>.Instance,
+            validatorMock.Object,
+            instructionsMock.Object);
+
+        var result = await provider.PrepareContentAsync(manifest, "C:/work", null, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Equal(deliveredManifest.Id.Value, result.Data.Id.Value);
+        specializedDelivererMock.Verify(d => d.DeliverContentAsync(manifest, "C:/work", It.IsAny<System.IProgress<ContentAcquisitionProgress>?>(), It.IsAny<CancellationToken>()), Times.Once);
+        httpDelivererMock.Verify(d => d.DeliverContentAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<System.IProgress<ContentAcquisitionProgress>?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     private static GenericCatalogContentProvider CreateProvider()

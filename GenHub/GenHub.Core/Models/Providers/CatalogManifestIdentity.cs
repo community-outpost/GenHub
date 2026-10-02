@@ -40,6 +40,8 @@ public static class CatalogManifestIdentity
         "gametype",
         "edition",
         "quality",
+        "language",
+        "lang",
         "1080p",
         "1440p",
         "4k",
@@ -54,6 +56,18 @@ public static class CatalogManifestIdentity
         "chinese",
         "italian",
         "polish",
+        "en",
+        "de",
+        "ru",
+        "fr",
+        "es",
+        "zh",
+        "it",
+        "pt",
+        "pl",
+        "ja",
+        "ko",
+        "uk",
     ];
 
     /// <summary>

@@ -32,6 +32,8 @@ public class GenericCatalogContentProvider(
         string.Equals(r.ResolverId, CatalogConstants.GenericCatalogResolverId, StringComparison.OrdinalIgnoreCase))
         ?? throw new InvalidOperationException("Generic catalog resolver not found");
 
+    private readonly IReadOnlyList<IContentDeliverer> _deliverers = [.. deliverers];
+
     private readonly IContentDeliverer _httpDeliverer = deliverers.FirstOrDefault(d =>
         string.Equals(d.SourceName, ContentSourceNames.HttpDeliverer, StringComparison.OrdinalIgnoreCase))
         ?? throw new InvalidOperationException("HTTP deliverer not found");
@@ -83,6 +85,25 @@ public class GenericCatalogContentProvider(
         CancellationToken cancellationToken)
     {
         Logger.LogInformation("Preparing generic catalog content: {ManifestId} ({Name})", manifest.Id, manifest.Name);
+
+        var specializedDeliverer = _deliverers.FirstOrDefault(d =>
+            !string.Equals(d.SourceName, ContentSourceNames.HttpDeliverer, StringComparison.OrdinalIgnoreCase) &&
+            d.CanDeliver(manifest));
+
+        if (specializedDeliverer != null)
+        {
+            Logger.LogInformation(
+                "Routing generic catalog content {ManifestId} to specialized deliverer: {DelivererSource}",
+                manifest.Id,
+                specializedDeliverer.SourceName);
+
+            return DeliverContentOnlyAsync(
+                specializedDeliverer,
+                manifest,
+                workingDirectory,
+                progress,
+                cancellationToken);
+        }
 
         return DeliverAndEnrichContentAsync(
             _httpDeliverer,

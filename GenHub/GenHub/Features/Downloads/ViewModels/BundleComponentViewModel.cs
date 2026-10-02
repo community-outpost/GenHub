@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -560,7 +561,7 @@ public sealed partial class BundleComponentViewModel : ObservableObject
         CatalogContentItem? sibling;
         try
         {
-            sibling = JsonSerializer.Deserialize<CatalogContentItem>(catalogItemJson);
+            sibling = JsonSerializer.Deserialize<CatalogContentItem>(catalogItemJson, PublisherJsonOptions.CatalogImport);
         }
         catch (JsonException)
         {
@@ -574,12 +575,21 @@ public sealed partial class BundleComponentViewModel : ObservableObject
         }
 
         var repository = ResolveSiblingRepository(sibling);
-        if (repository == null)
+        if (repository != null)
         {
-            return;
+            ApplyGitHubCoordinates(searchResult, repository[0], repository[1]);
         }
 
-        ApplyGitHubCoordinates(searchResult, repository[0], repository[1]);
+        var declaredProvider = CatalogConstants.UpstreamProviders.DeclaredProvider(sibling.UpstreamSync?.Provider, sibling.PublisherType);
+        if (string.Equals(declaredProvider, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(declaredProvider, CommunityOutpostConstants.PublisherId, StringComparison.OrdinalIgnoreCase))
+        {
+            var contentCode = sibling.UpstreamSync?.ContentCode;
+            if (!string.IsNullOrWhiteSpace(contentCode))
+            {
+                searchResult.ResolverMetadata[CommunityOutpostCatalogConstants.ContentCodeKey] = contentCode.Trim().ToLowerInvariant();
+            }
+        }
     }
 
     private static string[]? ResolveSiblingRepository(CatalogContentItem sibling)

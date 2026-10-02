@@ -295,6 +295,7 @@ public class GenericCatalogDiscoverer(
         searchResult.ResolverMetadata[CatalogConstants.CatalogContentIdMetadataKey] = contentItem.Id;
 
         ApplyUpstreamGitHubIdentity(searchResult, contentItem, release);
+        ApplyUpstreamCommunityOutpostIdentity(searchResult, contentItem);
 
         if (catalog.Referrals is { Count: > 0 })
         {
@@ -340,6 +341,28 @@ public class GenericCatalogDiscoverer(
         if (string.IsNullOrWhiteSpace(searchResult.SourceUrl))
         {
             searchResult.SourceUrl = $"https://github.com/{owner}/{repo}";
+        }
+    }
+
+    /// <summary>
+    /// Stamps Community Outpost upstream identity onto catalog search results so install-state
+    /// detection can match the same content code acquired through the official provider.
+    /// </summary>
+    private static void ApplyUpstreamCommunityOutpostIdentity(
+        ContentSearchResult searchResult,
+        CatalogContentItem contentItem)
+    {
+        var declaredProvider = CatalogConstants.UpstreamProviders.DeclaredProvider(contentItem.UpstreamSync?.Provider, contentItem.PublisherType);
+        if (!string.Equals(declaredProvider, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(declaredProvider, CommunityOutpostConstants.PublisherId, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var contentCode = contentItem.UpstreamSync?.ContentCode;
+        if (!string.IsNullOrWhiteSpace(contentCode))
+        {
+            searchResult.ResolverMetadata[CommunityOutpostCatalogConstants.ContentCodeKey] = contentCode.Trim().ToLowerInvariant();
         }
     }
 
