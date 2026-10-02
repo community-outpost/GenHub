@@ -263,8 +263,8 @@ public class GeneralsOnlineDeliverer(
         });
 
         var expectedHash = !string.IsNullOrWhiteSpace(zipFile.Hash)
-            ? zipFile.Hash
-            : packageManifest.InstallationInstructions?.DownloadHash;
+            ? zipFile.Hash.Trim()
+            : packageManifest.InstallationInstructions?.DownloadHash?.Trim();
 
         if (string.IsNullOrWhiteSpace(expectedHash))
         {

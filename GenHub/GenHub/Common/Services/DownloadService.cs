@@ -917,12 +917,13 @@ public class DownloadService(
             return DownloadResult.CreateSuccess(configuration.DestinationPath, downloadedBytes, elapsed, false);
         }
 
+        var expectedHash = configuration.ExpectedHash.Trim();
         var actualHash = await hashProvider.ComputeFileHashAsync(configuration.DestinationPath, cancellationToken);
-        var hashVerified = string.Equals(actualHash, configuration.ExpectedHash, StringComparison.OrdinalIgnoreCase);
+        var hashVerified = string.Equals(actualHash.Trim(), expectedHash, StringComparison.OrdinalIgnoreCase);
         if (!hashVerified)
         {
             TryDeleteFile(configuration.DestinationPath);
-            var hashError = $"Hash verification failed. Expected: {configuration.ExpectedHash}, Actual: {actualHash}";
+            var hashError = $"Hash verification failed. Expected: {expectedHash}, Actual: {actualHash}";
             TrackDownloadFailure(configuration, hashError, elapsed);
 
             return DownloadResult.CreateFailure(
@@ -944,8 +945,9 @@ public class DownloadService(
             return false;
         }
 
+        var expectedHash = configuration.ExpectedHash.Trim();
         var existingHash = await hashProvider.ComputeFileHashAsync(configuration.DestinationPath, cancellationToken);
-        if (string.Equals(existingHash, configuration.ExpectedHash, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(existingHash.Trim(), expectedHash, StringComparison.OrdinalIgnoreCase))
         {
             logger.LogInformation("File {FilePath} already exists and matches expected hash; skipping download", configuration.DestinationPath);
             return true;

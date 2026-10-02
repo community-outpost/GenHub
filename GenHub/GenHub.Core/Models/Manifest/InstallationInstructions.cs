@@ -10,6 +10,8 @@ namespace GenHub.Core.Models.Manifest;
 /// </summary>
 public class InstallationInstructions
 {
+    private string? _downloadHash;
+
     /// <summary>
     /// Gets or sets the steps to run after installation.
     /// </summary>
@@ -23,5 +25,9 @@ public class InstallationInstructions
     /// <summary>
     /// Gets or sets the SHA256 hash of the primary download file for verification.
     /// </summary>
-    public string? DownloadHash { get; set; }
+    public string? DownloadHash
+    {
+        get => _downloadHash;
+        set => _downloadHash = value?.Trim();
+    }
 }
