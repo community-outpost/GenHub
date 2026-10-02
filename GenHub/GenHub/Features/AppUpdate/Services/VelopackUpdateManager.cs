@@ -800,7 +800,9 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     {
         ArgumentNullException.ThrowIfNull(artifactInfo);
 
-        if (_gitHubAuthService == null || !_gitHubAuthService.IsAuthenticated)
+        var isDirectUrl = !string.IsNullOrWhiteSpace(artifactInfo.DownloadUrl);
+
+        if (!isDirectUrl && (_gitHubAuthService == null || !_gitHubAuthService.IsAuthenticated))
         {
             throw new InvalidOperationException("GitHub authentication required to download artifacts");
         }
@@ -812,41 +814,50 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         {
             var label = artifactInfo.PullRequestNumber.HasValue
                 ? $"PR #{artifactInfo.PullRequestNumber}"
-                : $"Branch {artifactInfo.ArtifactName}";
+                : !string.IsNullOrWhiteSpace(artifactInfo.ArtifactName)
+                    ? artifactInfo.ArtifactName
+                    : $"Artifact v{artifactInfo.Version}";
 
             var commitInfo = !string.IsNullOrEmpty(artifactInfo.GitHash) ? $" ({artifactInfo.GitHash})" : string.Empty;
             progress?.Report(new UpdateProgress { Status = $"Downloading artifact for {label}{commitInfo}...", PercentComplete = 0 });
 
-            using var token = await _gitHubAuthService!.GetAccessTokenAsync(cancellationToken);
-            if (token == null)
+            string downloadUrl;
+            var headers = new Dictionary<string, string>
             {
-                throw new InvalidOperationException("Failed to load GitHub access token");
+                { "User-Agent", AppConstants.AppName },
+            };
+
+            if (isDirectUrl)
+            {
+                downloadUrl = artifactInfo.DownloadUrl!;
+                _logger.LogInformation("Downloading {Label} directly from {Url}", label, downloadUrl);
             }
+            else
+            {
+                using var token = await _gitHubAuthService!.GetAccessTokenAsync(cancellationToken);
+                if (token == null)
+                {
+                    throw new InvalidOperationException("Failed to load GitHub access token");
+                }
 
-            var owner = AppConstants.GitHubRepositoryOwner;
-            var repo = AppConstants.GitHubRepositoryName;
-            var artifactId = artifactInfo.ArtifactId;
+                var owner = AppConstants.GitHubRepositoryOwner;
+                var repo = AppConstants.GitHubRepositoryName;
+                var artifactId = artifactInfo.ArtifactId;
 
-            // Download artifact
-            var downloadUrl = string.Format(ApiConstants.GitHubApiArtifactDownloadFormat, owner, repo, artifactId);
-            _logger.LogInformation("Downloading {Label} artifact from {Url}", label, downloadUrl);
+                downloadUrl = string.Format(ApiConstants.GitHubApiArtifactDownloadFormat, owner, repo, artifactId);
+                headers["Accept"] = ApiConstants.GitHubApiHeaderAccept;
+                UseSecureStringAsPlainText(token, plainText =>
+                {
+                    headers["Authorization"] = $"Bearer {plainText}";
+                });
+                _logger.LogInformation("Downloading {Label} artifact from {Url}", label, downloadUrl);
+            }
 
             // Create temp directory
             tempDir = Path.Combine(Path.GetTempPath(), $"genhub-art-{Guid.NewGuid():N}");
             Directory.CreateDirectory(tempDir);
 
             var zipPath = Path.Combine(tempDir, "artifact.zip");
-
-            var headers = new Dictionary<string, string>
-            {
-                { "User-Agent", AppConstants.AppName },
-                { "Accept", ApiConstants.GitHubApiHeaderAccept },
-            };
-
-            UseSecureStringAsPlainText(token, plainText =>
-            {
-                headers["Authorization"] = $"Bearer {plainText}";
-            });
 
             var downloadProgress = new Action<int>(percent =>
             {
@@ -878,7 +889,20 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
             if (nupkgFiles.Length == 0)
             {
-                throw new FileNotFoundException("No .nupkg file found in artifact");
+                var exeFiles = Directory.GetFiles(tempDir, "*.exe", SearchOption.AllDirectories)
+                    .Where(e => !Path.GetFileName(e).StartsWith("createdump", StringComparison.OrdinalIgnoreCase))
+                    .ToArray();
+
+                if (exeFiles.Length > 0)
+                {
+                    var targetExe = exeFiles.FirstOrDefault(e => Path.GetFileName(e).Contains("Setup", StringComparison.OrdinalIgnoreCase)) ?? exeFiles[0];
+                    _logger.LogInformation("Launching installer executable '{Exe}'", targetExe);
+                    progress?.Report(new UpdateProgress { Status = "Launching installer...", PercentComplete = 100 });
+                    Process.Start(new ProcessStartInfo(targetExe) { UseShellExecute = true });
+                    return;
+                }
+
+                throw new FileNotFoundException("No .nupkg or installer file found in artifact");
             }
 
             var nupkgFile = nupkgFiles[0];

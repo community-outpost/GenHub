@@ -21,6 +21,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -629,8 +630,12 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
     private async Task CheckSubscribedCustomBuildUpdatesAsync()
     {
+        var buildDisplayName = SubscribedCustomBuildName ?? SubscribedCustomBuildContentId ?? "Custom Build";
         _logger.LogInformation("Checking updates for subscribed custom build '{Name}' ({Id})", SubscribedCustomBuildName, SubscribedCustomBuildContentId);
-        StatusMessage = string.Format("Checking updates for {0}...", SubscribedCustomBuildName ?? SubscribedCustomBuildContentId);
+        StatusMessage = string.Format(
+            CultureInfo.InvariantCulture,
+            GetLocalizedString("Updates.Status.CheckingCustomBuildUpdates", "Checking updates for {0}..."),
+            buildDisplayName);
 
         if (_publisherSubscriptionStore == null)
         {
@@ -662,24 +667,38 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             if (item != null)
             {
                 matchedItem = item;
+                if (string.IsNullOrWhiteSpace(SubscribedCustomBuildPublisherId) && !string.IsNullOrWhiteSpace(sub.PublisherId))
+                {
+                    SubscribedCustomBuildPublisherId = sub.PublisherId;
+                }
+
                 break;
             }
         }
 
         if (matchedItem == null)
         {
-            StatusMessage = $"Subscribed build '{SubscribedCustomBuildName}' not found in publisher subscriptions.";
+            StatusMessage = string.Format(
+                CultureInfo.InvariantCulture,
+                GetLocalizedString("Updates.Status.CustomBuildNotFound", "Subscribed build '{0}' not found in publisher subscriptions."),
+                buildDisplayName);
             IsUpdateAvailable = false;
             return;
         }
 
         var latestRelease = matchedItem.Releases
-            .OrderByDescending(r => r.ReleaseDate)
+            .OrderByDescending(r => r.Version, Comparer<string>.Create((a, b) =>
+            {
+                if (AppUpdateVersionHelper.IsArtifactVersionNewer(a, b, allowCrossChannel: true)) return 1;
+                if (AppUpdateVersionHelper.IsArtifactVersionNewer(b, a, allowCrossChannel: true)) return -1;
+                return 0;
+            }))
+            .ThenByDescending(r => r.ReleaseDate)
             .FirstOrDefault();
 
         if (latestRelease == null || string.IsNullOrWhiteSpace(latestRelease.Version))
         {
-            StatusMessage = "No releases available for this build.";
+            StatusMessage = GetLocalizedString("Updates.Status.CustomBuildNoReleases", "No releases available for this build.");
             IsUpdateAvailable = false;
             return;
         }
@@ -691,13 +710,21 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         {
             IsUpdateAvailable = true;
             LatestVersion = latestRelease.Version;
-            StatusMessage = $"Update available: {latestRelease.Version} for {SubscribedCustomBuildName}";
+            StatusMessage = string.Format(
+                CultureInfo.InvariantCulture,
+                GetLocalizedString("Updates.Status.CustomBuildUpdateAvailable", "Update available: {0} for {1}"),
+                latestRelease.Version,
+                buildDisplayName);
             _logger.LogInformation("Custom build update available: {Version}", LatestVersion);
         }
         else
         {
             IsUpdateAvailable = false;
-            StatusMessage = $"{SubscribedCustomBuildName} is up to date (v{installedVersion})";
+            StatusMessage = string.Format(
+                CultureInfo.InvariantCulture,
+                GetLocalizedString("Updates.Status.CustomBuildUpToDate", "{0} is up to date (v{1})"),
+                buildDisplayName,
+                installedVersion);
         }
     }
 
@@ -767,6 +794,10 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             var parseResult = await _publisherCatalogParser.ParseCatalogAsync(json, cancellationToken);
             return parseResult.Success ? parseResult.Data : null;
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogDebug(ex, "Failed to fetch catalog from '{CatalogUrl}' for subscription '{PublisherId}'", subscription.CatalogUrl, subscription.PublisherId);
@@ -788,7 +819,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         SubscribedCustomBuildPublisherId = item.PublisherId;
         SubscribedCustomBuildContentId = item.ContentId;
         SubscribedCustomBuildName = item.Name;
-        SubscribedCustomBuildVersion = item.LatestVersion;
+        SubscribedCustomBuildVersion = null;
 
         _userSettingsService.Update(settings =>
         {
@@ -797,7 +828,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             settings.SubscribedCustomBuildPublisherId = item.PublisherId;
             settings.SubscribedCustomBuildContentId = item.ContentId;
             settings.SubscribedCustomBuildName = item.Name;
-            settings.SubscribedCustomBuildVersion = item.LatestVersion;
+            settings.SubscribedCustomBuildVersion = null;
         });
         _ = _userSettingsService.SaveAsync(CancellationToken.None);
 
@@ -1462,6 +1493,15 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             return;
         }
 
+        // 0.5 handle custom build update
+        if (IsSubscribedToCustomBuild && AvailableVersions.Count > 0)
+        {
+            var targetArtifact = AvailableVersions[0];
+            _logger.LogInformation("Installing custom build update: {Version}", targetArtifact.DisplayVersion);
+            await InstallArtifactAsync(targetArtifact);
+            return;
+        }
+
         // 1. handle pr artifact update
         if (SubscribedPr?.LatestArtifact != null &&
             string.Equals(SubscribedPr.LatestArtifact.Version, LatestVersion, StringComparison.OrdinalIgnoreCase))
@@ -1680,6 +1720,16 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             var progress = CreateInstallationProgress(this);
 
             await _velopackUpdateManager.InstallArtifactAsync(artifact, progress, _cancellationTokenSource.Token);
+
+            if (IsSubscribedToCustomBuild && !string.IsNullOrWhiteSpace(artifact.Version))
+            {
+                SubscribedCustomBuildVersion = artifact.Version;
+                _userSettingsService.Update(settings =>
+                {
+                    settings.SubscribedCustomBuildVersion = artifact.Version;
+                });
+                _ = _userSettingsService.SaveAsync(CancellationToken.None);
+            }
 
             // app will restart
         }
