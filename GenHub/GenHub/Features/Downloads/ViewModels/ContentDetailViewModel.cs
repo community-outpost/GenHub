@@ -2784,6 +2784,16 @@ public partial class ContentDetailViewModel(
             var targetManifestId = releaseItem.DownloadedManifestId ?? manifestId;
             await AddFileToProfileAsync(releaseItem.File ?? file, targetManifestId);
         });
+
+        releaseItem.InstallBuildCommand = new AsyncRelayCommand(async () =>
+        {
+            if (installBuildAction != null)
+            {
+                var targetManifestId = releaseItem.DownloadedManifestId ?? manifestId ?? searchResult.Id;
+                var targetName = releaseItem.Name;
+                await installBuildAction(targetManifestId, targetName, CancellationToken.None);
+            }
+        });
     }
 
     partial void OnSelectedVariantChanged(InstallableVariant? value)
@@ -4945,6 +4955,16 @@ public partial class ContentDetailViewModel(
             releaseItem.AddToProfileCommand = new AsyncRelayCommand(
                 () => AddFileToProfileAsync(releaseItem.File ?? file, releaseItem.DownloadedManifestId));
         }
+
+        releaseItem.InstallBuildCommand = new AsyncRelayCommand(async () =>
+        {
+            if (installBuildAction != null)
+            {
+                var targetManifestId = releaseItem.DownloadedManifestId ?? searchResult.Id;
+                var targetName = releaseItem.Name;
+                await installBuildAction(targetManifestId, targetName, CancellationToken.None);
+            }
+        });
 
         return releaseItem;
     }
@@ -8031,6 +8051,15 @@ public partial class ContentDetailViewModel(
         releaseItem.DownloadCommand = new AsyncRelayCommand(ct => DownloadReleaseAsync(releaseItem, releaseItem.File ?? file, ct));
         releaseItem.AddToProfileCommand = new AsyncRelayCommand(
             () => AddFileToProfileAsync(releaseItem.File ?? file, releaseItem.DownloadedManifestId));
+        releaseItem.InstallBuildCommand = new AsyncRelayCommand(async () =>
+        {
+            if (installBuildAction != null)
+            {
+                var targetManifestId = releaseItem.DownloadedManifestId ?? searchResult.Id;
+                var targetName = releaseItem.Name;
+                await installBuildAction(targetManifestId, targetName, CancellationToken.None);
+            }
+        });
 
         return releaseItem;
     }
@@ -8131,6 +8160,15 @@ public partial class ContentDetailViewModel(
         addonItem.DownloadCommand = new AsyncRelayCommand(ct => DownloadAddonAsync(addonItem, addonItem.File ?? file, ct));
         addonItem.AddToProfileCommand = new AsyncRelayCommand(
             () => AddFileToProfileAsync(addonItem.File ?? file, addonItem.DownloadedManifestId));
+        addonItem.InstallBuildCommand = new AsyncRelayCommand(async () =>
+        {
+            if (installBuildAction != null)
+            {
+                var targetManifestId = addonItem.DownloadedManifestId ?? searchResult.Id;
+                var targetName = addonItem.Name;
+                await installBuildAction(targetManifestId, targetName, CancellationToken.None);
+            }
+        });
 
         return addonItem;
     }

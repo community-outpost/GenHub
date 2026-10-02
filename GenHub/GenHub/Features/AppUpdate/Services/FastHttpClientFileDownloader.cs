@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -157,6 +158,7 @@ public class FastHttpClientFileDownloader(
                         totalLength,
                         progress,
                         cancelToken).ConfigureAwait(false);
+                    ValidateDownloadedFileHeader(targetFile);
                 }
                 finally
                 {
@@ -169,8 +171,35 @@ public class FastHttpClientFileDownloader(
             // If probe returned 200 OK (server ignored Range header), stream the probe response directly
             if (probeResponse.StatusCode == HttpStatusCode.OK)
             {
+                var mediaType = probeResponse.Content.Headers.ContentType?.MediaType;
+                if (string.Equals(mediaType, "text/html", StringComparison.OrdinalIgnoreCase) ||
+                    resolvedUri.Host.Contains("drive.google.com", StringComparison.OrdinalIgnoreCase))
+                {
+                    var html = await probeResponse.Content.ReadAsStringAsync(cancelToken).ConfigureAwait(false);
+                    probeResponse.Dispose();
+
+                    var confirmedUrl = CloudUrlHelper.TryExtractGoogleDriveConfirmationUrl(html, resolvedUri);
+                    if (!string.IsNullOrEmpty(confirmedUrl))
+                    {
+                        logger?.LogInformation("Following Google Drive download confirmation from {Url} to {ConfirmedUrl}", url, confirmedUrl);
+                        await DownloadFile(confirmedUrl, targetFile, progress, headers, timeout, cancelToken).ConfigureAwait(false);
+                        return;
+                    }
+
+                    if (html.Contains("quota", StringComparison.OrdinalIgnoreCase) || html.Contains("too many users", StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new InvalidOperationException("Google Drive download quota exceeded for this file.");
+                    }
+
+                    if (string.Equals(mediaType, "text/html", StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new InvalidOperationException("Server returned an HTML page instead of the expected binary file download.");
+                    }
+                }
+
                 var totalBytes = probeResponse.Content.Headers.ContentLength ?? -1L;
                 await DownloadSingleStreamAsync(probeResponse, targetFile, totalBytes, progress, cancelToken).ConfigureAwait(false);
+                ValidateDownloadedFileHeader(targetFile);
                 return;
             }
 
@@ -181,8 +210,35 @@ public class FastHttpClientFileDownloader(
                 cancelToken).ConfigureAwait(false);
 
             fullResponse.EnsureSuccessStatusCode();
+
+            var fullMediaType = fullResponse.Content.Headers.ContentType?.MediaType;
+            if (string.Equals(fullMediaType, "text/html", StringComparison.OrdinalIgnoreCase) ||
+                (fullResponse.RequestMessage?.RequestUri?.Host.Contains("drive.google.com", StringComparison.OrdinalIgnoreCase) ?? false))
+            {
+                var html = await fullResponse.Content.ReadAsStringAsync(cancelToken).ConfigureAwait(false);
+                var fullResolvedUri = fullResponse.RequestMessage?.RequestUri ?? new Uri(url);
+                var confirmedUrl = CloudUrlHelper.TryExtractGoogleDriveConfirmationUrl(html, fullResolvedUri);
+                if (!string.IsNullOrEmpty(confirmedUrl))
+                {
+                    logger?.LogInformation("Following Google Drive download confirmation from {Url} to {ConfirmedUrl}", url, confirmedUrl);
+                    await DownloadFile(confirmedUrl, targetFile, progress, headers, timeout, cancelToken).ConfigureAwait(false);
+                    return;
+                }
+
+                if (html.Contains("quota", StringComparison.OrdinalIgnoreCase) || html.Contains("too many users", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException("Google Drive download quota exceeded for this file.");
+                }
+
+                if (string.Equals(fullMediaType, "text/html", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException("Server returned an HTML page instead of the expected binary file download.");
+                }
+            }
+
             var fullBytes = fullResponse.Content.Headers.ContentLength ?? -1L;
             await DownloadSingleStreamAsync(fullResponse, targetFile, fullBytes, progress, cancelToken).ConfigureAwait(false);
+            ValidateDownloadedFileHeader(targetFile);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -336,5 +392,32 @@ public class FastHttpClientFileDownloader(
 
         await Task.WhenAll(tasks).ConfigureAwait(false);
         progressReporter.Complete();
+    }
+
+    private static void ValidateDownloadedFileHeader(string filePath)
+    {
+        if (!File.Exists(filePath))
+        {
+            return;
+        }
+
+        var fileInfo = new FileInfo(filePath);
+        if (fileInfo.Length < 16)
+        {
+            return;
+        }
+
+        using var fs = File.OpenRead(filePath);
+        var buffer = new byte[Math.Min(512, (int)fileInfo.Length)];
+        var bytesRead = fs.Read(buffer, 0, buffer.Length);
+        if (bytesRead > 0)
+        {
+            var headerText = System.Text.Encoding.UTF8.GetString(buffer, 0, bytesRead).TrimStart();
+            if (headerText.StartsWith("<!DOCTYPE html", StringComparison.OrdinalIgnoreCase) ||
+                headerText.StartsWith("<html", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("The downloaded file is an HTML web page rather than binary content. Download may require authentication or virus-scan confirmation.");
+            }
+        }
     }
 }
