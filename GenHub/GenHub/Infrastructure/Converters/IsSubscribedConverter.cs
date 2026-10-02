@@ -1,6 +1,6 @@
 using Avalonia.Data.Converters;
 using GenHub.Core.Models.AppUpdate;
-using GenHub.Features.AppUpdate.ViewModels;
+using GenHub.Core.Models.Providers;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -8,15 +8,15 @@ using System.Globalization;
 namespace GenHub.Infrastructure.Converters;
 
 /// <summary>
-/// Converter to check if a PR or Branch is currently subscribed.
-/// Expects values: [Item, UpdateNotificationViewModel.SubscribedPr, UpdateNotificationViewModel.SubscribedBranch].
+/// Converter to check if a PR, Branch, or Custom Build is currently subscribed.
+/// Expects values: [Item, UpdateNotificationViewModel.SubscribedPr, UpdateNotificationViewModel.SubscribedBranch, (optional) UpdateNotificationViewModel.SubscribedCustomBuildContentId].
 /// </summary>
 public class IsSubscribedConverter : IMultiValueConverter
 {
     /// <inheritdoc/>
     public object? Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
     {
-        if (values == null || values.Count < 3)
+        if (values == null || values.Count < 1)
         {
             return false;
         }
@@ -27,8 +27,9 @@ public class IsSubscribedConverter : IMultiValueConverter
             return false;
         }
 
-        var subscribedPr = values[1] as PullRequestInfo;
-        var subscribedBranch = values[2] as string;
+        var subscribedPr = values.Count > 1 ? values[1] as PullRequestInfo : null;
+        var subscribedBranch = values.Count > 2 ? values[2] as string : null;
+        var subscribedCustomBuild = values.Count > 3 ? values[3] as string : null;
 
         if (item is PullRequestInfo pr)
         {
@@ -38,6 +39,11 @@ public class IsSubscribedConverter : IMultiValueConverter
         if (item is string branchName)
         {
             return string.Equals(subscribedBranch, branchName, StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (item is CustomBuildSubscriptionItem customBuild)
+        {
+            return string.Equals(subscribedCustomBuild, customBuild.ContentId, StringComparison.OrdinalIgnoreCase);
         }
 
         return false;

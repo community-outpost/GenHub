@@ -8,8 +8,8 @@ using System.Globalization;
 namespace GenHub.Infrastructure.Converters;
 
 /// <summary>
-/// Base class mapping <see cref="ContentType"/> values to their UI brushes.
-/// Subclasses only decide how each content type color is materialized as a brush.
+/// Base class for converters that map a ContentType to a SolidColorBrush.
+/// Subclasses provide the concrete brush values (e.g., solid badges vs subtle backgrounds).
 /// </summary>
 public abstract class ContentTypeToBrushConverterBase : IValueConverter
 {
@@ -25,10 +25,10 @@ public abstract class ContentTypeToBrushConverterBase : IValueConverter
     /// <summary>Gets the brush for maps and map packs.</summary>
     protected abstract SolidColorBrush MapBrush { get; }
 
-    /// <summary>Gets the brush for add-ons.</summary>
+    /// <summary>Gets the brush for addons.</summary>
     protected abstract SolidColorBrush AddonBrush { get; }
 
-    /// <summary>Gets the brush for tools and executables.</summary>
+    /// <summary>Gets the brush for tools, standalone executables, and GenHub builds.</summary>
     protected abstract SolidColorBrush ToolBrush { get; }
 
     /// <summary>Gets the brush for content bundles.</summary>

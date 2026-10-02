@@ -410,6 +410,21 @@ public static class AppUpdateConstants
     public const long ParallelDownloadThresholdBytes = 4 * 1024 * 1024;
 
     /// <summary>
+    /// Update available notification title for custom build or fork subscriptions.
+    /// </summary>
+    public const string CustomBuildUpdateAvailableNotificationTitle = "Build Update Available";
+
+    /// <summary>
+    /// Custom build update notification body format string ({0}: version, {1}: build/fork name).
+    /// </summary>
+    public const string CustomBuildUpdateNotificationFormat = "A new build ({0}) is available for '{1}'.";
+
+    /// <summary>
+    /// Identity prefix for custom build or community fork update notification deduplication.
+    /// </summary>
+    public const string CustomBuildDedupePrefix = "custombuild:";
+
+    /// <summary>
     /// Delay before exit after applying update (5 seconds).
     /// </summary>
     public static readonly TimeSpan PostUpdateExitDelay = TimeSpan.FromSeconds(5);

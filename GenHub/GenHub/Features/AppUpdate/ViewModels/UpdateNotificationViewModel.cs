@@ -6,9 +6,14 @@ using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GitHub;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.AppUpdate;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GitHub;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Providers;
 using GenHub.Features.AppUpdate.Interfaces;
+using GenHub.Features.Content.Services.Catalog;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -17,6 +22,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -81,6 +87,9 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     private readonly IUserSettingsService _userSettingsService;
     private readonly ILocalizationService? _localizationService;
     private readonly IGitHubAuthService? _gitHubAuthService;
+    private readonly IPublisherSubscriptionStore? _publisherSubscriptionStore;
+    private readonly IPublisherCatalogParser? _publisherCatalogParser;
+    private readonly IHttpClientFactory? _httpClientFactory;
     private readonly CancellationTokenSource _cancellationTokenSource;
     private readonly List<PullRequestInfo> _allPullRequests = [];
     private CancellationTokenSource? _loadArtifactsCts;
@@ -291,9 +300,45 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     private bool _showPrMergedWarning;
 
     /// <summary>
-    /// Gets a value indicating whether the user is subscribed to either a PR or a branch.
+    /// Gets or sets the ID of the publisher for the subscribed custom build.
     /// </summary>
-    public bool IsSubscribedToAny => SubscribedPr != null || !string.IsNullOrEmpty(SubscribedBranch);
+    [ObservableProperty]
+    private string? _subscribedCustomBuildPublisherId;
+
+    /// <summary>
+    /// Gets or sets the content ID of the subscribed custom build.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSubscribedToCustomBuild))]
+    [NotifyPropertyChangedFor(nameof(IsSubscribedToAny))]
+    private string? _subscribedCustomBuildContentId;
+
+    /// <summary>
+    /// Gets or sets the friendly name of the subscribed custom build.
+    /// </summary>
+    [ObservableProperty]
+    private string? _subscribedCustomBuildName;
+
+    /// <summary>
+    /// Gets or sets the installed version of the subscribed custom build.
+    /// </summary>
+    [ObservableProperty]
+    private string? _subscribedCustomBuildVersion;
+
+    /// <summary>
+    /// Gets a value indicating whether the user is subscribed to a custom build or community fork.
+    /// </summary>
+    public bool IsSubscribedToCustomBuild => !string.IsNullOrEmpty(SubscribedCustomBuildContentId);
+
+    /// <summary>
+    /// Gets the list of available custom builds discovered from active publisher subscriptions.
+    /// </summary>
+    public ObservableCollection<CustomBuildSubscriptionItem> AvailableCustomBuilds { get; } = [];
+
+    /// <summary>
+    /// Gets a value indicating whether the user is subscribed to either a PR, a branch, or a custom build.
+    /// </summary>
+    public bool IsSubscribedToAny => SubscribedPr != null || !string.IsNullOrEmpty(SubscribedBranch) || IsSubscribedToCustomBuild;
 
     /// <summary>
     /// Gets the display string for the subscribed PR number.
@@ -340,18 +385,27 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// <param name="userSettingsService">The user settings service.</param>
     /// <param name="gitHubAuthService">The GitHub authentication service.</param>
     /// <param name="localizationService">The optional localization service.</param>
+    /// <param name="publisherSubscriptionStore">The optional publisher subscription store.</param>
+    /// <param name="publisherCatalogParser">The optional publisher catalog parser.</param>
+    /// <param name="httpClientFactory">The optional HTTP client factory.</param>
     public UpdateNotificationViewModel(
         IVelopackUpdateManager velopackUpdateManager,
         ILogger<UpdateNotificationViewModel> logger,
         IUserSettingsService userSettingsService,
         IGitHubAuthService? gitHubAuthService = null,
-        ILocalizationService? localizationService = null)
+        ILocalizationService? localizationService = null,
+        IPublisherSubscriptionStore? publisherSubscriptionStore = null,
+        IPublisherCatalogParser? publisherCatalogParser = null,
+        IHttpClientFactory? httpClientFactory = null)
     {
         _velopackUpdateManager = velopackUpdateManager ?? throw new ArgumentNullException(nameof(velopackUpdateManager));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _userSettingsService = userSettingsService ?? throw new ArgumentNullException(nameof(userSettingsService));
         _localizationService = localizationService;
         _gitHubAuthService = gitHubAuthService;
+        _publisherSubscriptionStore = publisherSubscriptionStore;
+        _publisherCatalogParser = publisherCatalogParser;
+        _httpClientFactory = httpClientFactory;
         _cancellationTokenSource = new CancellationTokenSource();
 
         if (_localizationService != null)
@@ -433,8 +487,9 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         var targetPr = SubscribedPr;
         var targetPrNumber = targetPr?.Number ?? _velopackUpdateManager.SubscribedPrNumber;
         var targetBranch = SubscribedBranch;
+        var targetCustomBuild = SubscribedCustomBuildContentId;
 
-        if (targetPrNumber == null && string.IsNullOrEmpty(targetBranch))
+        if (targetPrNumber == null && string.IsNullOrEmpty(targetBranch) && string.IsNullOrEmpty(targetCustomBuild))
         {
             IsLoadingVersions = false;
             AvailableVersions.Clear();
@@ -455,7 +510,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
         try
         {
-            var artifacts = await FetchSubscribedArtifactsAsync(targetPrNumber, targetBranch, token);
+            var artifacts = await FetchSubscribedArtifactsAsync(targetPrNumber, targetBranch, targetCustomBuild, token);
             if (token.IsCancellationRequested)
             {
                 return;
@@ -496,8 +551,15 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     private async Task<IReadOnlyList<ArtifactUpdateInfo>> FetchSubscribedArtifactsAsync(
         int? targetPrNumber,
         string? targetBranch,
+        string? targetCustomBuild,
         CancellationToken token)
     {
+        if (!string.IsNullOrEmpty(targetCustomBuild))
+        {
+            _logger.LogInformation("Loading artifacts for custom build '{ContentId}'", targetCustomBuild);
+            return await FetchCustomBuildArtifactsAsync(targetCustomBuild, token);
+        }
+
         if (targetPrNumber.HasValue)
         {
             _logger.LogInformation("Loading artifacts for PR #{PrNumber}", targetPrNumber.Value);
@@ -511,6 +573,244 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         }
 
         return [];
+    }
+
+    private async Task<IReadOnlyList<ArtifactUpdateInfo>> FetchCustomBuildArtifactsAsync(string contentId, CancellationToken token)
+    {
+        if (_publisherSubscriptionStore == null)
+        {
+            return [];
+        }
+
+        var subs = await _publisherSubscriptionStore.GetSubscriptionsAsync(token);
+        if (!subs.Success || subs.Data == null)
+        {
+            return [];
+        }
+
+        var candidateSubs = string.IsNullOrWhiteSpace(SubscribedCustomBuildPublisherId)
+            ? subs.Data
+            : subs.Data.Where(s => string.Equals(s.PublisherId, SubscribedCustomBuildPublisherId, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        var list = new List<ArtifactUpdateInfo>();
+        var releaseIdCounter = 1L;
+
+        foreach (var sub in candidateSubs)
+        {
+            var catalog = await FetchCatalogForSubscriptionAsync(sub, token);
+            var item = catalog?.Content.FirstOrDefault(c =>
+                string.Equals(c.Id, contentId, StringComparison.OrdinalIgnoreCase) &&
+                c.ContentType == ContentType.GenHubBuild);
+
+            if (item != null)
+            {
+                foreach (var rel in item.Releases.OrderByDescending(r => r.ReleaseDate))
+                {
+                    var art = rel.Artifacts.FirstOrDefault();
+                    list.Add(new ArtifactUpdateInfo(
+                        Version: rel.Version,
+                        GitHash: string.Empty,
+                        PullRequestNumber: null,
+                        WorkflowRunId: 0,
+                        WorkflowRunUrl: string.Empty,
+                        ArtifactId: releaseIdCounter++,
+                        ArtifactName: art?.Filename ?? rel.Version,
+                        CreatedAt: rel.ReleaseDate ?? DateTime.UtcNow,
+                        DownloadUrl: art?.DownloadUrl,
+                        Size: art?.Size ?? 0));
+                }
+
+                break;
+            }
+        }
+
+        return list;
+    }
+
+    private async Task CheckSubscribedCustomBuildUpdatesAsync()
+    {
+        _logger.LogInformation("Checking updates for subscribed custom build '{Name}' ({Id})", SubscribedCustomBuildName, SubscribedCustomBuildContentId);
+        StatusMessage = string.Format("Checking updates for {0}...", SubscribedCustomBuildName ?? SubscribedCustomBuildContentId);
+
+        if (_publisherSubscriptionStore == null)
+        {
+            StatusMessage = "No publisher subscription store available.";
+            IsUpdateAvailable = false;
+            return;
+        }
+
+        var subsResult = await _publisherSubscriptionStore.GetSubscriptionsAsync(_cancellationTokenSource.Token);
+        if (!subsResult.Success || subsResult.Data == null)
+        {
+            StatusMessage = "Failed to load publisher subscriptions.";
+            IsUpdateAvailable = false;
+            return;
+        }
+
+        var candidateSubs = string.IsNullOrWhiteSpace(SubscribedCustomBuildPublisherId)
+            ? subsResult.Data
+            : subsResult.Data.Where(s => string.Equals(s.PublisherId, SubscribedCustomBuildPublisherId, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        CatalogContentItem? matchedItem = null;
+        foreach (var sub in candidateSubs)
+        {
+            var catalog = await FetchCatalogForSubscriptionAsync(sub, _cancellationTokenSource.Token);
+            var item = catalog?.Content.FirstOrDefault(c =>
+                string.Equals(c.Id, SubscribedCustomBuildContentId, StringComparison.OrdinalIgnoreCase) &&
+                c.ContentType == ContentType.GenHubBuild);
+
+            if (item != null)
+            {
+                matchedItem = item;
+                break;
+            }
+        }
+
+        if (matchedItem == null)
+        {
+            StatusMessage = $"Subscribed build '{SubscribedCustomBuildName}' not found in publisher subscriptions.";
+            IsUpdateAvailable = false;
+            return;
+        }
+
+        var latestRelease = matchedItem.Releases
+            .OrderByDescending(r => r.ReleaseDate)
+            .FirstOrDefault();
+
+        if (latestRelease == null || string.IsNullOrWhiteSpace(latestRelease.Version))
+        {
+            StatusMessage = "No releases available for this build.";
+            IsUpdateAvailable = false;
+            return;
+        }
+
+        var latestVersion = latestRelease.Version.TrimStart('v', 'V');
+        var installedVersion = (SubscribedCustomBuildVersion ?? CurrentAppVersion).TrimStart('v', 'V').Split('+')[0];
+
+        if (AppUpdateVersionHelper.IsArtifactVersionNewer(latestVersion, installedVersion, allowCrossChannel: true))
+        {
+            IsUpdateAvailable = true;
+            LatestVersion = latestRelease.Version;
+            StatusMessage = $"Update available: {latestRelease.Version} for {SubscribedCustomBuildName}";
+            _logger.LogInformation("Custom build update available: {Version}", LatestVersion);
+        }
+        else
+        {
+            IsUpdateAvailable = false;
+            StatusMessage = $"{SubscribedCustomBuildName} is up to date (v{installedVersion})";
+        }
+    }
+
+    /// <summary>
+    /// Loads discoverable custom builds and forks across subscribed publisher catalogs.
+    /// </summary>
+    private async Task LoadCustomBuildsAsync()
+    {
+        if (_publisherSubscriptionStore == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var subsResult = await _publisherSubscriptionStore.GetSubscriptionsAsync(_cancellationTokenSource.Token);
+            if (!subsResult.Success || subsResult.Data == null)
+            {
+                return;
+            }
+
+            AvailableCustomBuilds.Clear();
+
+            foreach (var sub in subsResult.Data)
+            {
+                var catalog = await FetchCatalogForSubscriptionAsync(sub, _cancellationTokenSource.Token);
+                if (catalog?.Content == null)
+                {
+                    continue;
+                }
+
+                foreach (var item in catalog.Content.Where(c => c.ContentType == ContentType.GenHubBuild))
+                {
+                    var latestRel = item.Releases.OrderByDescending(r => r.ReleaseDate).FirstOrDefault();
+                    AvailableCustomBuilds.Add(new CustomBuildSubscriptionItem
+                    {
+                        PublisherId = sub.PublisherId,
+                        PublisherName = sub.PublisherName ?? sub.PublisherId,
+                        ContentId = item.Id,
+                        Name = item.Name,
+                        Description = item.Description,
+                        LatestVersion = latestRel?.Version ?? "1.0.0",
+                        ReleaseDate = latestRel?.ReleaseDate,
+                        Category = latestRel?.Category ?? "CustomFork",
+                        IsSubscribed = string.Equals(SubscribedCustomBuildContentId, item.Id, StringComparison.OrdinalIgnoreCase),
+                    });
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Failed to load custom builds from publisher subscriptions");
+        }
+    }
+
+    private async Task<PublisherCatalog?> FetchCatalogForSubscriptionAsync(PublisherSubscription subscription, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(subscription.CatalogUrl) || _publisherCatalogParser == null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var client = _httpClientFactory?.CreateClient(CatalogConstants.CatalogHttpClientName) ?? new HttpClient();
+            var json = await CatalogDocumentReader.ReadAsync(client, subscription.CatalogUrl, CatalogConstants.MaxCatalogSizeBytes, cancellationToken: cancellationToken);
+            var parseResult = await _publisherCatalogParser.ParseCatalogAsync(json, cancellationToken);
+            return parseResult.Success ? parseResult.Data : null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Failed to fetch catalog from '{CatalogUrl}' for subscription '{PublisherId}'", subscription.CatalogUrl, subscription.PublisherId);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Subscribes to a custom community build or fork.
+    /// </summary>
+    /// <param name="item">The build item to subscribe to.</param>
+    [RelayCommand]
+    private async Task SubscribeToCustomBuildAsync(CustomBuildSubscriptionItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+
+        SubscribedPr = null;
+        SubscribedBranch = null;
+        SubscribedCustomBuildPublisherId = item.PublisherId;
+        SubscribedCustomBuildContentId = item.ContentId;
+        SubscribedCustomBuildName = item.Name;
+        SubscribedCustomBuildVersion = item.LatestVersion;
+
+        _userSettingsService.Update(settings =>
+        {
+            settings.SubscribedPrNumber = null;
+            settings.SubscribedBranch = null;
+            settings.SubscribedCustomBuildPublisherId = item.PublisherId;
+            settings.SubscribedCustomBuildContentId = item.ContentId;
+            settings.SubscribedCustomBuildName = item.Name;
+            settings.SubscribedCustomBuildVersion = item.LatestVersion;
+        });
+        _ = _userSettingsService.SaveAsync(CancellationToken.None);
+
+        foreach (var build in AvailableCustomBuilds)
+        {
+            build.IsSubscribed = string.Equals(build.ContentId, item.ContentId, StringComparison.OrdinalIgnoreCase);
+        }
+
+        OnPropertyChanged(nameof(IsSubscribedToAny));
+        OnPropertyChanged(nameof(IsSubscribedToCustomBuild));
+
+        await CheckForUpdatesAsync();
+        await LoadArtifactsForSubscribedItemAsync();
     }
 
     private void PopulateAvailableVersions(IReadOnlyList<ArtifactUpdateInfo> artifacts)
@@ -566,6 +866,17 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             SubscribedBranch = settings.SubscribedBranch;
             _logger.LogInformation("Loaded subscribed branch '{Branch}' from settings", settings.SubscribedBranch);
         }
+
+        if (!string.IsNullOrWhiteSpace(settings.SubscribedCustomBuildContentId))
+        {
+            SubscribedCustomBuildContentId = settings.SubscribedCustomBuildContentId;
+            SubscribedCustomBuildName = settings.SubscribedCustomBuildName;
+            SubscribedCustomBuildPublisherId = settings.SubscribedCustomBuildPublisherId;
+            SubscribedCustomBuildVersion = settings.SubscribedCustomBuildVersion;
+            _logger.LogInformation("Loaded subscribed custom build '{Name}' ({Id}) from settings", SubscribedCustomBuildName, SubscribedCustomBuildContentId);
+        }
+
+        await LoadCustomBuildsAsync();
 
         // load data if we are authenticated
         if (IsAuthenticated)
@@ -665,6 +976,13 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                 return LatestVersion.StartsWith(SubscribedBranch, StringComparison.OrdinalIgnoreCase)
                     ? LatestVersion
                     : $"{SubscribedBranch} build {LatestVersion}";
+            }
+
+            // 3. custom build update
+            if (IsSubscribedToCustomBuild)
+            {
+                var cleanVersion = LatestVersion.TrimStart('v', 'V');
+                return $"{SubscribedCustomBuildName ?? "Custom Build"} v{cleanVersion}";
             }
 
             return LatestVersion.StartsWith("v", StringComparison.OrdinalIgnoreCase)
@@ -862,6 +1180,13 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             ShowPrMergedWarning = false;
 
             _logger.LogInformation("Starting Velopack update check");
+
+            // check custom build updates if subscribed
+            if (IsSubscribedToCustomBuild)
+            {
+                await CheckSubscribedCustomBuildUpdatesAsync();
+                return;
+            }
 
             // check if subscribed to a pr
             if (SubscribedPr != null)
@@ -1657,6 +1982,10 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         _velopackUpdateManager.SubscribedBranch = null;
         SubscribedPr = null;
         SubscribedBranch = null;
+        SubscribedCustomBuildContentId = null;
+        SubscribedCustomBuildName = null;
+        SubscribedCustomBuildPublisherId = null;
+        SubscribedCustomBuildVersion = null;
         SelectedVersion = null;
         ShowPrMergedWarning = false;
         IsUpdateAvailable = false;
@@ -1669,6 +1998,10 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         {
             settings.SubscribedPrNumber = null;
             settings.SubscribedBranch = null;
+            settings.SubscribedCustomBuildContentId = null;
+            settings.SubscribedCustomBuildName = null;
+            settings.SubscribedCustomBuildPublisherId = null;
+            settings.SubscribedCustomBuildVersion = null;
         });
         _ = _userSettingsService.SaveAsync(CancellationToken.None);
 

@@ -2,16 +2,25 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Notifications;
+using GenHub.Core.Models.Providers;
+using GenHub.Core.Models.Results;
 using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.AppUpdate.Services;
+using GenHub.Features.Content.Services.Catalog;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Moq.Protected;
 using System;
 using System.Collections.Generic;
+using System.Net;
+using System.Net.Http;
 using System.Reactive.Linq;
 using System.Reflection;
 using System.Threading;
@@ -993,6 +1002,119 @@ public class BackgroundUpdateCoordinatorTests
 
         await checkCancelled.Task.WaitAsync(TimeSpan.FromSeconds(5));
         mockNotificationService.Verify(x => x.Show(It.IsAny<NotificationMessage>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that when subscribed to a custom build and a newer release is published, a notification is shown.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckForUpdatesAsync_WhenCustomBuildUpdateAvailable_ShowsNotificationAsync()
+    {
+        var notificationShownTcs = new TaskCompletionSource<NotificationMessage>();
+
+        var userSettings = new UserSettings
+        {
+            AutoCheckForUpdatesOnStartup = true,
+            SubscribedCustomBuildContentId = "custom-genhub",
+            SubscribedCustomBuildPublisherId = "pub-1",
+            SubscribedCustomBuildName = "Custom GenHub",
+            SubscribedCustomBuildVersion = "1.0.0",
+        };
+
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+
+        var mockVelopack = new Mock<IVelopackUpdateManager>();
+        var mockNotificationService = CreateNotificationServiceMock();
+        mockNotificationService.Setup(x => x.Show(It.IsAny<NotificationMessage>()))
+            .Callback<NotificationMessage>(msg =>
+            {
+                if (msg.Title == AppUpdateConstants.CustomBuildUpdateAvailableNotificationTitle)
+                {
+                    notificationShownTcs.TrySetResult(msg);
+                }
+            });
+
+        var mockSubStore = new Mock<IPublisherSubscriptionStore>();
+        var tempCatalogFile = Path.Combine(Path.GetTempPath(), $"catalog_{Guid.NewGuid():N}.json");
+        await File.WriteAllTextAsync(tempCatalogFile, """{"version": "1.0.0"}""");
+        var subscription = new PublisherSubscription
+        {
+            PublisherId = "pub-1",
+            CatalogUrl = tempCatalogFile,
+        };
+        mockSubStore.Setup(x => x.GetSubscriptionsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess([subscription]));
+
+        var mockCatalogParser = new Mock<IPublisherCatalogParser>();
+        var catalog = new PublisherCatalog
+        {
+            Publisher = new PublisherProfile { Id = "pub-1", Name = "Custom Publisher" },
+            Content =
+            [
+                new CatalogContentItem
+                {
+                    Id = "custom-genhub",
+                    Name = "Custom GenHub",
+                    ContentType = GenHub.Core.Models.Enums.ContentType.GenHubBuild,
+                    Releases =
+                    [
+                        new ContentRelease
+                        {
+                            Version = "1.1.0",
+                            ReleaseDate = DateTime.UtcNow,
+                            Artifacts =
+                            [
+                                new ReleaseArtifact
+                                {
+                                    Filename = "GenHub-1.1.0.exe",
+                                    DownloadUrl = "https://example.com/build.exe",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        };
+
+        mockCatalogParser.Setup(x => x.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
+
+        var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
+        var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("""{"version": "1.0.0"}"""),
+        };
+        mockHttpMessageHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(response);
+
+        var httpClient = new HttpClient(mockHttpMessageHandler.Object);
+        var mockHttpClientFactory = new Mock<IHttpClientFactory>();
+        mockHttpClientFactory.Setup(x => x.CreateClient(It.IsAny<string>())).Returns(httpClient);
+
+        using var coordinator = new BackgroundUpdateCoordinator(
+            mockVelopack.Object,
+            mockUserSettings.Object,
+            mockNotificationService.Object,
+            new Mock<ILogger<BackgroundUpdateCoordinator>>().Object,
+            publisherSubscriptionStore: mockSubStore.Object,
+            publisherCatalogParser: mockCatalogParser.Object,
+            httpClientFactory: mockHttpClientFactory.Object);
+
+        await coordinator.CheckForUpdatesAsync();
+
+        var notification = await notificationShownTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.NotNull(notification);
+        Assert.Equal(AppUpdateConstants.CustomBuildUpdateAvailableNotificationTitle, notification.Title);
+        Assert.Contains("1.1.0", notification.Message);
+        Assert.Contains("Custom GenHub", notification.Message);
+
+        if (File.Exists(tempCatalogFile))
+        {
+            File.Delete(tempCatalogFile);
+        }
     }
 
     private static Mock<INotificationService> CreateNotificationServiceMock()
