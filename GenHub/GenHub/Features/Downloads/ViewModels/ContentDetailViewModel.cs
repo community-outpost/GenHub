@@ -112,7 +112,7 @@ public partial class ContentDetailViewModel(
     IGeneralsOnlinePatchNotesService? patchNotesService = null,
     Action<string, string>? onDescriptionEnriched = null,
     IUserSettingsService? userSettingsService = null,
-    Func<CancellationToken, Task>? installBuildAction = null) : ObservableObject, IDisposable
+    Func<string?, string?, CancellationToken, Task>? installBuildAction = null) : ObservableObject, IDisposable
 {
     // ===== Constants =====
     private const string UnknownValue = "Unknown";
@@ -909,7 +909,11 @@ public partial class ContentDetailViewModel(
     {
         if (installBuildAction != null)
         {
-            await installBuildAction(CancellationToken.None);
+            var targetManifestId = SelectedDownloadableItem?.DownloadedManifestId ??
+                SelectedVariant?.ManifestId ??
+                searchResult.Id;
+            var targetName = SelectedDownloadableItem?.Name ?? SelectedVariant?.Name ?? Name;
+            await installBuildAction(targetManifestId, targetName, CancellationToken.None);
         }
     }
 

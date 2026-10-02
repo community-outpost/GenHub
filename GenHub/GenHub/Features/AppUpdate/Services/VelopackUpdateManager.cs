@@ -22,6 +22,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using Velopack;
 using Velopack.Sources;
 
@@ -1564,12 +1565,9 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     {
         _logger.LogInformation("Launching installer executable '{Exe}'", exePath);
         progress?.Report(new UpdateProgress { Status = "Launching installer...", PercentComplete = 100 });
-        using var proc = Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = true });
-        if (proc != null)
-        {
-            _logger.LogInformation("Installer process started with PID {ProcessId}", proc.Id);
-        }
-
+        using var proc = Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = true })
+            ?? throw new InvalidOperationException($"Failed to start installer '{exePath}'");
+        _logger.LogInformation("Installer process started with PID {ProcessId}", proc.Id);
         Environment.Exit(0); // skipcq: CS-W1005
     }
 
@@ -1642,6 +1640,31 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     /// Gets or creates an HttpClient instance with proper configuration.
     /// </summary>
     /// <returns>An HttpClient instance.</returns>
+    private string? TryExtractNuspecVersion(string nupkgFile)
+    {
+        try
+        {
+            using var archive = ZipFile.OpenRead(nupkgFile);
+            var nuspecEntry = archive.Entries.FirstOrDefault(e => e.FullName.EndsWith(".nuspec", StringComparison.OrdinalIgnoreCase));
+            if (nuspecEntry != null)
+            {
+                using var stream = nuspecEntry.Open();
+                var doc = XDocument.Load(stream);
+                var versionElement = doc.Descendants().FirstOrDefault(e => e.Name.LocalName.Equals("version", StringComparison.OrdinalIgnoreCase));
+                if (versionElement != null && !string.IsNullOrWhiteSpace(versionElement.Value))
+                {
+                    return versionElement.Value.Trim();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to read .nuspec from nupkg '{File}'", nupkgFile);
+        }
+
+        return null;
+    }
+
     private async Task InstallLocalNupkgAsync(
         string nupkgFile,
         string tempDir,
@@ -1649,14 +1672,28 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         IProgress<UpdateProgress>? progress,
         CancellationToken cancellationToken)
     {
-        var releasesPath = Path.Combine(tempDir, "releases.win.json");
+        var releasesFileName = RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ? "releases.linux.json" :
+            RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? "releases.osx.json" : "releases.win.json";
+        var releasesPath = Path.Combine(tempDir, releasesFileName);
         var nupkgFileName = Path.GetFileName(nupkgFile);
         var fileInfo = new FileInfo(nupkgFile);
         var sha1 = CalculateSHA1(nupkgFile);
         var sha256 = CalculateSHA256(nupkgFile);
 
-        var versionMatch = NupkgVersionRegex().Match(nupkgFileName);
-        var fileVersion = versionMatch.Success ? versionMatch.Groups[1].Value : "1.0.0";
+        var fileVersion = TryExtractNuspecVersion(nupkgFile);
+        if (string.IsNullOrWhiteSpace(fileVersion))
+        {
+            var versionMatch = NupkgVersionRegex().Match(nupkgFileName);
+            if (versionMatch.Success)
+            {
+                fileVersion = versionMatch.Groups[1].Value;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(fileVersion))
+        {
+            throw new InvalidOperationException($"Unable to determine package version from nupkg '{nupkgFileName}'.");
+        }
 
         var releasesJson = new
         {
@@ -1677,7 +1714,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         var jsonContent = JsonSerializer.Serialize(releasesJson);
         await File.WriteAllTextAsync(releasesPath, jsonContent, cancellationToken);
-        _logger.LogInformation("Created local releases.win.json for build '{Title}' with version {Version}", releaseTitle, fileVersion);
+        _logger.LogInformation("Created local {FileName} for build '{Title}' with version {Version}", releasesFileName, releaseTitle, fileVersion);
 
         progress?.Report(new UpdateProgress { Status = "Starting local installation server...", PercentComplete = 50 });
 

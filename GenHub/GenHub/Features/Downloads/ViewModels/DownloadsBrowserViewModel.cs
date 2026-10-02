@@ -3821,7 +3821,7 @@ public sealed partial class DownloadsBrowserViewModel(
                         item.UpdateDescription(desc);
                     }
                 },
-                installBuildAction: _ => InstallBuildContentAsync(item));
+                installBuildAction: (manifestId, name, ct) => InstallBuildContentByIdAsync(manifestId ?? item.Id, name ?? item.Name, ct));
 
             if (item.HasBundleComponents)
             {
@@ -4544,6 +4544,12 @@ public sealed partial class DownloadsBrowserViewModel(
             return;
         }
 
+        var resolvedManifestId = await ResolveLocalInstalledManifestIdAsync(item, _vmCts.Token) ?? item.Id;
+        await InstallBuildContentByIdAsync(resolvedManifestId, item.Name, _vmCts.Token);
+    }
+
+    private async Task InstallBuildContentByIdAsync(string contentId, string contentName, CancellationToken cancellationToken)
+    {
         var velopackManager = serviceProvider.GetService<IVelopackUpdateManager>();
         if (velopackManager == null)
         {
@@ -4558,29 +4564,39 @@ public sealed partial class DownloadsBrowserViewModel(
             return;
         }
 
+        var locService = serviceProvider.GetService<ILocalizationService>();
+        string? tempDir = null;
+
         try
         {
+            var prepTitle = locService?.GetLocalizedString("Downloads.Notification.InstallBuild.Preparing.Title", "Preparing Installation") ?? "Preparing Installation";
+            var prepMessage = locService != null
+                ? string.Format(System.Globalization.CultureInfo.InvariantCulture, locService.GetLocalizedString("Downloads.Notification.InstallBuild.Preparing.Message", "Preparing {0} for installation..."), contentName)
+                : $"Preparing {contentName} for installation...";
+
             notificationService.Show(new NotificationMessage(
                 NotificationType.Info,
-                "Preparing Installation",
-                $"Preparing {item.Name} for installation...",
+                prepTitle,
+                prepMessage,
                 NotificationDurations.Medium));
 
-            var tempDir = Path.Combine(Path.GetTempPath(), $"genhub-build-install-{Guid.NewGuid():N}");
+            tempDir = Path.Combine(Path.GetTempPath(), $"genhub-build-install-{Guid.NewGuid():N}");
             Directory.CreateDirectory(tempDir);
 
             var retrieveResult = await storageService.RetrieveContentAsync(
-                ManifestId.Create(item.Id),
+                ManifestId.Create(contentId),
                 tempDir,
-                CancellationToken.None);
+                cancellationToken);
 
             if (!retrieveResult.Success)
             {
-                logger.LogError("Failed to retrieve build files for {ContentId}: {Error}", item.Id, retrieveResult.FirstError);
+                logger.LogError("Failed to retrieve build files for {ContentId}: {Error}", contentId, retrieveResult.FirstError);
+                var failedTitle = locService?.GetLocalizedString("Downloads.Notification.InstallBuild.Failed.Title", "Installation Failed") ?? "Installation Failed";
+                var failedMsg = retrieveResult.FirstError ?? "Failed to retrieve build files from storage.";
                 notificationService.Show(new NotificationMessage(
                     NotificationType.Error,
-                    "Installation Failed",
-                    retrieveResult.FirstError ?? "Failed to retrieve build files from storage.",
+                    failedTitle,
+                    failedMsg,
                     NotificationDurations.Long));
                 return;
             }
@@ -4595,18 +4611,37 @@ public sealed partial class DownloadsBrowserViewModel(
 
             await velopackManager.InstallDownloadedBuildAsync(
                 tempDir,
-                item.Name,
+                contentName,
                 progress,
-                CancellationToken.None);
+                cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            logger.LogInformation("Installation of GenHub build {ContentId} was cancelled", contentId);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to install GenHub build {ContentId}", item.Id);
+            logger.LogError(ex, "Failed to install GenHub build {ContentId}", contentId);
+            var failedTitle = locService?.GetLocalizedString("Downloads.Notification.InstallBuild.Failed.Title", "Installation Failed") ?? "Installation Failed";
             notificationService.Show(new NotificationMessage(
                 NotificationType.Error,
-                "Installation Failed",
+                failedTitle,
                 ex.Message,
                 NotificationDurations.Long));
+        }
+        finally
+        {
+            if (tempDir != null && Directory.Exists(tempDir))
+            {
+                try
+                {
+                    Directory.Delete(tempDir, recursive: true);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to clean up build install temp directory: {Dir}", tempDir);
+                }
+            }
         }
     }
 
@@ -4624,9 +4659,10 @@ public sealed partial class DownloadsBrowserViewModel(
 
         if (item.IsGenHubBuild)
         {
+            var loc = serviceProvider.GetService<ILocalizationService>();
             notificationService.ShowWarning(
-                "Invalid Action",
-                "GenHub application builds cannot be added to game profiles. Use the Install Build option instead.");
+                loc?.GetLocalizedString("Downloads.Notification.InstallBuild.InvalidAction.Title", "Invalid Action") ?? "Invalid Action",
+                loc?.GetLocalizedString("Downloads.Notification.InstallBuild.InvalidAction.Message", "GenHub application builds cannot be added to game profiles. Use the Install Build option instead.") ?? "GenHub application builds cannot be added to game profiles. Use the Install Build option instead.");
             return;
         }
 

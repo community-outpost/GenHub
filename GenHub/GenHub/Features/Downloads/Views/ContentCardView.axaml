@@ -684,11 +684,10 @@
                     </Button>
 
                     <!-- Install Build Button (visible when GenHubBuild is downloaded) -->
-                    <Button x:Name="InstallBuildButton" Classes="card-button action-btn"
+                    <Button x:Name="InstallBuildButton" Classes="card-button add-profile-btn"
                             Command="{Binding InstallBuildCommand}"
                             CommandParameter="{Binding}"
                             IsVisible="{Binding ShowInstallBuildButton}"
-                            Background="#FF107C41"
                             ToolTip.Tip="{localization:Localize Downloads.Card.InstallBuildTooltip}">
                         <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <Path Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"

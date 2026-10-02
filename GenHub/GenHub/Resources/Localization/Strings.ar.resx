@@ -18146,4 +18146,25 @@ Error: فشل: {3}
   <data name="Downloads.Card.InstallBuildTooltip" xml:space="preserve">
     <value>تثبيت إصدار GenHub هذا وإعادة تشغيل التطبيق</value>
   </data>
+  <data name="Downloads.Notification.GenHubBuildNotAllowedInProfiles" xml:space="preserve">
+    <value>لا يمكن إضافة إصدارات تطبيق GenHub إلى ملفات تعريف اللعبة.</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.Preparing.Title" xml:space="preserve">
+    <value>جارٍ التحضير للتثبيت</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.Preparing.Message" xml:space="preserve">
+    <value>جارٍ تحضير {0} للتثبيت...</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.Failed.Title" xml:space="preserve">
+    <value>فشل التثبيت</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.InvalidAction.Title" xml:space="preserve">
+    <value>إجراء غير صالح</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.InvalidAction.Message" xml:space="preserve">
+    <value>لا يمكن إضافة إصدارات تطبيق GenHub إلى ملفات تعريف اللعبة. استخدم خيار تثبيت الإصدار بدلاً من ذلك.</value>
+  </data>
+  <data name="Updates.Error.NoVersionsAvailable" xml:space="preserve">
+    <value>لا توجد إصدارات متاحة للنسخة المخصصة المشترك بها</value>
+  </data>
 </root>

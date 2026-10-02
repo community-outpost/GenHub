@@ -18205,4 +18205,25 @@ Mapped image texture reference</value>
   <data name="Downloads.Card.InstallBuildTooltip" xml:space="preserve">
     <value>Install this GenHub build and restart the application</value>
   </data>
+  <data name="Downloads.Notification.GenHubBuildNotAllowedInProfiles" xml:space="preserve">
+    <value>GenHub application builds cannot be added to game profiles.</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.Preparing.Title" xml:space="preserve">
+    <value>Preparing Installation</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.Preparing.Message" xml:space="preserve">
+    <value>Preparing {0} for installation...</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.Failed.Title" xml:space="preserve">
+    <value>Installation Failed</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.InvalidAction.Title" xml:space="preserve">
+    <value>Invalid Action</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.InvalidAction.Message" xml:space="preserve">
+    <value>GenHub application builds cannot be added to game profiles. Use the Install Build option instead.</value>
+  </data>
+  <data name="Updates.Error.NoVersionsAvailable" xml:space="preserve">
+    <value>No versions available for the subscribed custom build</value>
+  </data>
 </root>

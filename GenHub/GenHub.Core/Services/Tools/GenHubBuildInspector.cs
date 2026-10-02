@@ -306,7 +306,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
         if (baseName.Contains("fork", StringComparison.OrdinalIgnoreCase) ||
             baseName.Contains("community", StringComparison.OrdinalIgnoreCase))
         {
-            return (true, true, "Community Fork");
+            return (true, true, null);
         }
 
         if (baseName.Contains("custom", StringComparison.OrdinalIgnoreCase))
@@ -925,7 +925,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
 
         if (isFork)
         {
-            resolvedProductName = $"GenHub ({forkName})";
+            resolvedProductName = string.IsNullOrWhiteSpace(forkName) ? GenHubBuildConstants.CustomBuildName : $"GenHub ({forkName})";
             resolvedCompanyName = forkName ?? "Community";
         }
         else if (isCustom)

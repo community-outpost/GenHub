@@ -18146,4 +18146,25 @@ Error: не удалось: {3}
   <data name="Downloads.Card.InstallBuildTooltip" xml:space="preserve">
     <value>Установить эту сборку GenHub и перезапустить приложение</value>
   </data>
+  <data name="Downloads.Notification.GenHubBuildNotAllowedInProfiles" xml:space="preserve">
+    <value>Сборки приложения GenHub нельзя добавлять в игровые профили.</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.Preparing.Title" xml:space="preserve">
+    <value>Подготовка к установке</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.Preparing.Message" xml:space="preserve">
+    <value>Подготовка {0} к установке...</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.Failed.Title" xml:space="preserve">
+    <value>Ошибка установки</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.InvalidAction.Title" xml:space="preserve">
+    <value>Недопустимое действие</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.InvalidAction.Message" xml:space="preserve">
+    <value>Сборки приложения GenHub нельзя добавлять в игровые профили. Используйте функцию установки сборки.</value>
+  </data>
+  <data name="Updates.Error.NoVersionsAvailable" xml:space="preserve">
+    <value>Нет доступных версий для подписанной пользовательской сборки</value>
+  </data>
 </root>
