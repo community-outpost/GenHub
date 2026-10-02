@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GitHub;
+using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;

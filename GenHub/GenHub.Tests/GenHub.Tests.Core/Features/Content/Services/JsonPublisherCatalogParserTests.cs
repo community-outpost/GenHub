@@ -579,19 +579,6 @@ public sealed class JsonPublisherCatalogParserTests
         Assert.Contains(result.Errors, e => e.Contains("must declare a valid repository in 'owner/repo' format", StringComparison.Ordinal));
     }
 
-    private static void AssertUpstream(
-        System.Collections.Generic.IReadOnlyList<CatalogContentItem> content,
-        string id,
-        string provider,
-        string repository)
-    {
-        var item = Assert.Single(content, c => c.Id == id);
-        Assert.NotNull(item.UpstreamSync);
-        Assert.Equal(provider, item.UpstreamSync.Provider);
-        Assert.Equal(repository, item.UpstreamSync.Repository);
-        Assert.NotEmpty(item.UpstreamSync.AssetRules);
-    }
-
     /// <summary>
     /// Catalogs declaring 'GenHubBuild' content type must parse and validate successfully.
     /// </summary>
@@ -668,6 +655,19 @@ public sealed class JsonPublisherCatalogParserTests
         Assert.True(result.Success, string.Join("; ", result.Errors));
         var item = Assert.Single(result.Data!.Content);
         Assert.Equal(ContentType.UnknownContentType, item.ContentType);
+    }
+
+    private static void AssertUpstream(
+        System.Collections.Generic.IReadOnlyList<CatalogContentItem> content,
+        string id,
+        string provider,
+        string repository)
+    {
+        var item = Assert.Single(content, c => c.Id == id);
+        Assert.NotNull(item.UpstreamSync);
+        Assert.Equal(provider, item.UpstreamSync.Provider);
+        Assert.Equal(repository, item.UpstreamSync.Repository);
+        Assert.NotEmpty(item.UpstreamSync.AssetRules);
     }
 
     private static string FindDominatorMappacksCatalogPath()
