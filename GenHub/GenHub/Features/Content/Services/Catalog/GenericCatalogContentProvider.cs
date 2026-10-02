@@ -175,15 +175,7 @@ public class GenericCatalogContentProvider(
 
             if (deliveryResult.Success && isGeneralsOnline && manifestPool != null && preExistingIds != null)
             {
-                OperationResult<IEnumerable<ContentManifest>> postPool;
-                try
-                {
-                    postPool = await manifestPool.GetAllManifestsAsync(cancellationToken);
-                }
-                catch (OperationCanceledException)
-                {
-                    postPool = await manifestPool.GetAllManifestsAsync(CancellationToken.None);
-                }
+                var postPool = await GetManifestPoolSafeAsync(manifestPool, cancellationToken);
 
                 if (postPool.Success && postPool.Data != null)
                 {
@@ -305,4 +297,18 @@ public class GenericCatalogContentProvider(
 
     private static string GetOperationKey(string manifestId, string workingDirectory) =>
         $"{manifestId}::{workingDirectory}";
+
+    private static async Task<OperationResult<IEnumerable<ContentManifest>>> GetManifestPoolSafeAsync(
+        IContentManifestPool manifestPool,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await manifestPool.GetAllManifestsAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            return await manifestPool.GetAllManifestsAsync(CancellationToken.None);
+        }
+    }
 }
