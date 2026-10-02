@@ -23,6 +23,7 @@ namespace GenHub.Core.Services.Tools;
 /// </summary>
 public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? logger = null) : IGenHubBuildInspector
 {
+    private const int RegexTimeoutMs = 250;
     private readonly ILogger<GenHubBuildInspector> _logger = logger ?? NullLogger<GenHubBuildInspector>.Instance;
 
     /// <inheritdoc />
@@ -50,29 +51,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             return true;
         }
 
-        if (File.Exists(path))
-        {
-            var ext = Path.GetExtension(normalizedPath);
-            if (ext.Equals(".exe", StringComparison.OrdinalIgnoreCase) || ext.Equals(".dll", StringComparison.OrdinalIgnoreCase))
-            {
-                try
-                {
-                    var versionInfo = FileVersionInfo.GetVersionInfo(path);
-                    if (IsGenHubText(versionInfo.ProductName) ||
-                        IsGenHubText(versionInfo.FileDescription) ||
-                        IsGenHubText(versionInfo.OriginalFilename))
-                    {
-                        return true;
-                    }
-                }
-                catch
-                {
-                    // Fall through to false if unreadable
-                }
-            }
-        }
-
-        return false;
+        return InspectPeFileHeader(path, normalizedPath);
     }
 
     /// <inheritdoc />
@@ -86,7 +65,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
     {
         if (string.IsNullOrWhiteSpace(path))
         {
-            return new GenHubBuildInfo { IsGenHubBuild = false, Version = "Unknown", SuggestedCategory = GenHubBuildConstants.CategoryRelease };
+            return CreateNonBuildInfo();
         }
 
         try
@@ -102,24 +81,10 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
 
             if (File.Exists(path))
             {
-                var normalized = path.Replace('\\', '/');
-                var ext = Path.GetExtension(normalized);
-                if (ext.Equals(".zip", StringComparison.OrdinalIgnoreCase) || ext.Equals(".nupkg", StringComparison.OrdinalIgnoreCase))
+                var fileResult = InspectExistingFile(path);
+                if (fileResult.IsGenHubBuild)
                 {
-                    var archiveResult = InspectArchive(path);
-                    if (archiveResult.IsGenHubBuild)
-                    {
-                        return archiveResult;
-                    }
-                }
-
-                if (ext.Equals(".exe", StringComparison.OrdinalIgnoreCase) || ext.Equals(".dll", StringComparison.OrdinalIgnoreCase))
-                {
-                    var binResult = InspectBinaryFile(path);
-                    if (binResult.IsGenHubBuild)
-                    {
-                        return binResult;
-                    }
+                    return fileResult;
                 }
             }
 
@@ -137,14 +102,35 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             }
         }
 
-        return new GenHubBuildInfo { IsGenHubBuild = false, Version = "Unknown", SuggestedCategory = GenHubBuildConstants.CategoryRelease };
+        return CreateNonBuildInfo();
     }
 
-    [GeneratedRegex(@"^(genhub[\.\-_](setup|pr|dev|build|v\d|release|fork|community|windows|nightly|installer|core)|genhub\.(exe|dll)|genhub\-setup|genhub\-pr)", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"^(genhub[\.\-_](setup|pr|dev|build|v\d|release|fork|community|windows|nightly|installer|core)|genhub\.(exe|dll)|genhub\-setup|genhub\-pr)", RegexOptions.IgnoreCase, RegexTimeoutMs)]
     private static partial Regex GenHubNamePattern();
 
-    [GeneratedRegex(@"^genhub[\-_]test[\-_][0-9a-fA-F]{8,}", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"^genhub[\-_]test[\-_][0-9a-fA-F]{8,}", RegexOptions.IgnoreCase, RegexTimeoutMs)]
     private static partial Regex TestFixturePattern();
+
+    [GeneratedRegex(@"-pr(\d+)", RegexOptions.IgnoreCase, RegexTimeoutMs)]
+    private static partial Regex PrSourcePattern();
+
+    [GeneratedRegex(@"(?:^|[-_.])pr[-_]?(\d+)", RegexOptions.IgnoreCase, RegexTimeoutMs)]
+    private static partial Regex PrFileNamePattern();
+
+    [GeneratedRegex(@"(?:\b|[vV]|Setup-)(\d+\.\d+(?:\.\d+)?(?:-(?:dev|alpha|beta|rc|preview|pr)\.?[a-zA-Z0-9]+)?)(?:[-_.]|$)", RegexOptions.IgnoreCase, RegexTimeoutMs)]
+    private static partial Regex SemVerFileNamePattern();
+
+    [GeneratedRegex(@"(\d+\.\d+(?:\.\d+)?)", RegexOptions.None, RegexTimeoutMs)]
+    private static partial Regex FallbackVersionFileNamePattern();
+
+    [GeneratedRegex(@"[^a-z0-9\-]+", RegexOptions.None, RegexTimeoutMs)]
+    private static partial Regex ForkSlugPattern();
+
+    [GeneratedRegex(@"GenHub\s*[\(\[]([^\)\]]+)[\)\]]", RegexOptions.IgnoreCase, RegexTimeoutMs)]
+    private static partial Regex ProductForkNamePattern();
+
+    private static GenHubBuildInfo CreateNonBuildInfo() =>
+        new() { IsGenHubBuild = false, Version = "Unknown", SuggestedCategory = GenHubBuildConstants.CategoryRelease };
 
     private static bool IsGenHubText(string? text)
     {
@@ -154,6 +140,32 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
         }
 
         return text.Contains(GenHubBuildConstants.OfficialProductName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool InspectPeFileHeader(string path, string normalizedPath)
+    {
+        if (!File.Exists(path))
+        {
+            return false;
+        }
+
+        var ext = Path.GetExtension(normalizedPath);
+        if (!ext.Equals(".exe", StringComparison.OrdinalIgnoreCase) && !ext.Equals(".dll", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        try
+        {
+            var versionInfo = FileVersionInfo.GetVersionInfo(path);
+            return IsGenHubText(versionInfo.ProductName) ||
+                   IsGenHubText(versionInfo.FileDescription) ||
+                   IsGenHubText(versionInfo.OriginalFilename);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static (string? CleanVersion, string? GitHash, int? PrNumber) NormalizeVersion(
@@ -184,7 +196,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
         int? prNumber = existingPrNumber;
         if (!prNumber.HasValue)
         {
-            var prMatch = Regex.Match(source, @"-pr(\d+)", RegexOptions.IgnoreCase);
+            var prMatch = PrSourcePattern().Match(source);
             if (prMatch.Success && int.TryParse(prMatch.Groups[1].Value, out var parsedPr))
             {
                 prNumber = parsedPr;
@@ -230,6 +242,447 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
         }
 
         return (null, null);
+    }
+
+    private static (string? Id, string? Version, string? Authors, string? Title, string? Description) ReadNuspecMetadata(ZipArchiveEntry? nuspecEntry)
+    {
+        if (nuspecEntry == null)
+        {
+            return default;
+        }
+
+        try
+        {
+            using var stream = nuspecEntry.Open();
+            var doc = XDocument.Load(stream);
+            var metadata = doc.Root?.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("metadata", StringComparison.OrdinalIgnoreCase));
+            if (metadata != null)
+            {
+                return (
+                    metadata.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("id", StringComparison.OrdinalIgnoreCase))?.Value?.Trim(),
+                    metadata.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("version", StringComparison.OrdinalIgnoreCase))?.Value?.Trim(),
+                    metadata.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("authors", StringComparison.OrdinalIgnoreCase))?.Value?.Trim(),
+                    metadata.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("title", StringComparison.OrdinalIgnoreCase))?.Value?.Trim(),
+                    metadata.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("description", StringComparison.OrdinalIgnoreCase))?.Value?.Trim());
+            }
+        }
+        catch
+        {
+            // Ignore nuspec parsing errors
+        }
+
+        return default;
+    }
+
+    private static (string? Version, int? PrNumber) ParseVersionAndPrFromFileName(string baseName)
+    {
+        int? prNumber = null;
+        var prMatch = PrFileNamePattern().Match(baseName);
+        if (prMatch.Success && int.TryParse(prMatch.Groups[1].Value, out var pr))
+        {
+            prNumber = pr;
+        }
+
+        string? version = null;
+        var verMatch = SemVerFileNamePattern().Match(baseName);
+        if (verMatch.Success)
+        {
+            version = verMatch.Groups[1].Value.TrimStart('v', 'V');
+        }
+        else
+        {
+            var fallbackMatch = FallbackVersionFileNamePattern().Match(baseName);
+            if (fallbackMatch.Success)
+            {
+                version = fallbackMatch.Groups[1].Value;
+            }
+        }
+
+        return (version, prNumber);
+    }
+
+    private static (bool IsCustom, bool IsFork, string? ForkName) ParseForkFromFileName(string baseName)
+    {
+        if (baseName.Contains("fork", StringComparison.OrdinalIgnoreCase) ||
+            baseName.Contains("community", StringComparison.OrdinalIgnoreCase))
+        {
+            return (true, true, "Community Fork");
+        }
+
+        if (baseName.Contains("custom", StringComparison.OrdinalIgnoreCase))
+        {
+            return (true, false, null);
+        }
+
+        return (false, false, null);
+    }
+
+    private static string DetermineChannelFromFileName(string baseName, int? prNumber, bool isCustom, bool isFork)
+    {
+        if (prNumber.HasValue || baseName.Contains("-pr-", StringComparison.OrdinalIgnoreCase))
+        {
+            return GenHubBuildConstants.ChannelPr;
+        }
+
+        if (baseName.Contains("dev", StringComparison.OrdinalIgnoreCase))
+        {
+            return GenHubBuildConstants.ChannelDev;
+        }
+
+        if (baseName.Contains("test", StringComparison.OrdinalIgnoreCase) || baseName.Contains("beta", StringComparison.OrdinalIgnoreCase))
+        {
+            return GenHubBuildConstants.ChannelTest;
+        }
+
+        if (isCustom || isFork)
+        {
+            return GenHubBuildConstants.ChannelCustomFork;
+        }
+
+        return GenHubBuildConstants.ChannelRelease;
+    }
+
+    private static (bool IsCustom, bool IsFork, string? ForkName) DetermineForkAndCustom(
+        string? companyName,
+        string? buildChannel,
+        string? productName,
+        string? version)
+    {
+        var isCustom = false;
+        var isFork = false;
+        string? forkName = null;
+
+        if (!string.IsNullOrWhiteSpace(companyName) &&
+            !companyName.Equals(GenHubBuildConstants.OfficialCompany, StringComparison.OrdinalIgnoreCase) &&
+            !companyName.Contains("Electronic Arts", StringComparison.OrdinalIgnoreCase) &&
+            !companyName.Equals("EA", StringComparison.OrdinalIgnoreCase))
+        {
+            isCustom = true;
+            isFork = true;
+            forkName = companyName.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(buildChannel))
+        {
+            var normalizedChannel = buildChannel.ToLowerInvariant();
+            if (normalizedChannel.Contains("fork") || normalizedChannel.Contains("custom") || normalizedChannel.Contains("community"))
+            {
+                isCustom = true;
+                isFork = true;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(productName))
+        {
+            var match = ProductForkNamePattern().Match(productName);
+            if (match.Success)
+            {
+                var candidate = match.Groups[1].Value.Trim();
+                if (!candidate.Equals("Test", StringComparison.OrdinalIgnoreCase) &&
+                    !candidate.Equals("Dev", StringComparison.OrdinalIgnoreCase) &&
+                    !candidate.Equals("PR", StringComparison.OrdinalIgnoreCase))
+                {
+                    isFork = true;
+                    isCustom = true;
+                    forkName ??= candidate;
+                }
+            }
+            else if (productName.Contains("fork", StringComparison.OrdinalIgnoreCase))
+            {
+                isFork = true;
+                isCustom = true;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(version) &&
+            (version.Contains("-fork", StringComparison.OrdinalIgnoreCase) || version.Contains("-custom", StringComparison.OrdinalIgnoreCase)))
+        {
+            isCustom = true;
+            isFork = true;
+        }
+
+        return (isCustom, isFork, forkName);
+    }
+
+    private static string? ResolveExplicitChannel(string? explicitChannel)
+    {
+        if (string.IsNullOrWhiteSpace(explicitChannel))
+        {
+            return null;
+        }
+
+        if (explicitChannel.Equals(GenHubBuildConstants.ChannelPr, StringComparison.OrdinalIgnoreCase))
+        {
+            return GenHubBuildConstants.ChannelPr;
+        }
+
+        if (explicitChannel.Equals(GenHubBuildConstants.ChannelDev, StringComparison.OrdinalIgnoreCase) ||
+            explicitChannel.Equals("Development", StringComparison.OrdinalIgnoreCase))
+        {
+            return GenHubBuildConstants.ChannelDev;
+        }
+
+        if (explicitChannel.Equals(GenHubBuildConstants.ChannelTest, StringComparison.OrdinalIgnoreCase) ||
+            explicitChannel.Equals("Beta", StringComparison.OrdinalIgnoreCase))
+        {
+            return GenHubBuildConstants.ChannelTest;
+        }
+
+        if (explicitChannel.Equals(GenHubBuildConstants.ChannelRelease, StringComparison.OrdinalIgnoreCase))
+        {
+            return GenHubBuildConstants.ChannelRelease;
+        }
+
+        return null;
+    }
+
+    private static string? ResolveChannelFromVersion(string? version)
+    {
+        if (string.IsNullOrWhiteSpace(version))
+        {
+            return null;
+        }
+
+        if (version.Contains("-pr", StringComparison.OrdinalIgnoreCase))
+        {
+            return GenHubBuildConstants.ChannelPr;
+        }
+
+        if (version.Contains("-dev", StringComparison.OrdinalIgnoreCase))
+        {
+            return GenHubBuildConstants.ChannelDev;
+        }
+
+        if (version.Contains("-test", StringComparison.OrdinalIgnoreCase) || version.Contains("-beta", StringComparison.OrdinalIgnoreCase))
+        {
+            return GenHubBuildConstants.ChannelTest;
+        }
+
+        return null;
+    }
+
+    private static string ResolveChannelFromFileName(string fileName)
+    {
+        if (fileName.Contains("test", StringComparison.OrdinalIgnoreCase))
+        {
+            return GenHubBuildConstants.ChannelTest;
+        }
+
+        if (fileName.Contains("dev", StringComparison.OrdinalIgnoreCase))
+        {
+            return GenHubBuildConstants.ChannelDev;
+        }
+
+        return GenHubBuildConstants.ChannelRelease;
+    }
+
+    private static string DetermineChannel(
+        string? explicitChannel,
+        int? prNumber,
+        string? version,
+        string fileName,
+        bool isCustom,
+        bool isFork)
+    {
+        if (prNumber.HasValue)
+        {
+            return GenHubBuildConstants.ChannelPr;
+        }
+
+        var explicitResult = ResolveExplicitChannel(explicitChannel);
+        if (explicitResult != null)
+        {
+            return explicitResult;
+        }
+
+        if (isFork || isCustom)
+        {
+            return GenHubBuildConstants.ChannelCustomFork;
+        }
+
+        var versionResult = ResolveChannelFromVersion(version);
+        if (versionResult != null)
+        {
+            return versionResult;
+        }
+
+        return ResolveChannelFromFileName(fileName);
+    }
+
+    private static string DetermineSuggestedCategory(string channel) =>
+        channel switch
+        {
+            GenHubBuildConstants.ChannelPr => GenHubBuildConstants.CategoryTest,
+            GenHubBuildConstants.ChannelDev => GenHubBuildConstants.CategoryDev,
+            GenHubBuildConstants.ChannelTest => GenHubBuildConstants.CategoryTest,
+            GenHubBuildConstants.ChannelCustomFork => GenHubBuildConstants.CategoryCustomFork,
+            _ => GenHubBuildConstants.CategoryRelease,
+        };
+
+    private static (string Id, string Name, string Description) DetermineSuggestedIdentity(
+        bool isFork,
+        bool isCustom,
+        string? forkName,
+        string channel,
+        int? pullRequestNumber)
+    {
+        if (isFork && !string.IsNullOrWhiteSpace(forkName))
+        {
+            var cleanSlug = ForkSlugPattern().Replace(forkName.ToLowerInvariant(), "-").Trim('-');
+            return ($"genhub-fork-{cleanSlug}", $"GenHub ({forkName})", $"Custom community fork of GenHub by {forkName}.");
+        }
+
+        if (isCustom)
+        {
+            return (GenHubBuildConstants.CustomContentId, GenHubBuildConstants.CustomBuildName, "Custom third-party build of GenHub.");
+        }
+
+        if (channel == GenHubBuildConstants.ChannelTest)
+        {
+            return (GenHubBuildConstants.TestContentId, GenHubBuildConstants.TestBuildName, "Experimental test build of GenHub.");
+        }
+
+        if (channel == GenHubBuildConstants.ChannelPr && pullRequestNumber.HasValue)
+        {
+            return ($"genhub-pr{pullRequestNumber.Value}", $"GenHub PR #{pullRequestNumber.Value}", $"GenHub pull request build for PR #{pullRequestNumber.Value}.");
+        }
+
+        if (channel == GenHubBuildConstants.ChannelDev)
+        {
+            return (GenHubBuildConstants.DevContentId, GenHubBuildConstants.DevBuildName, "Development branch build of GenHub.");
+        }
+
+        return (GenHubBuildConstants.OfficialContentId, GenHubBuildConstants.OfficialProductName, "Official GenHub application build.");
+    }
+
+    private static List<string> GenerateSuggestedTags(
+        bool isFork,
+        bool isCustom,
+        string? forkName,
+        string channel,
+        int? pullRequestNumber)
+    {
+        var tags = new List<string> { GenHubBuildConstants.TagGenHub, GenHubBuildConstants.TagBuild };
+        if (isCustom || isFork)
+        {
+            tags.Add(GenHubBuildConstants.TagFork);
+            tags.Add(GenHubBuildConstants.TagCustom);
+            if (!string.IsNullOrWhiteSpace(forkName))
+            {
+                var cleanSlug = ForkSlugPattern().Replace(forkName.ToLowerInvariant(), "-").Trim('-');
+                tags.Add($"fork:{cleanSlug}");
+            }
+        }
+        else if (channel == GenHubBuildConstants.ChannelPr && pullRequestNumber.HasValue)
+        {
+            tags.Add(GenHubBuildConstants.TagPr);
+            tags.Add($"pr:{pullRequestNumber.Value}");
+        }
+        else if (channel == GenHubBuildConstants.ChannelDev)
+        {
+            tags.Add(GenHubBuildConstants.TagDev);
+            tags.Add("channel:dev");
+        }
+        else if (channel == GenHubBuildConstants.ChannelTest)
+        {
+            tags.Add(GenHubBuildConstants.TagTest);
+            tags.Add("channel:test");
+        }
+
+        return tags;
+    }
+
+    private static void ApplyCustomAttribute(
+        MetadataReader reader,
+        CustomAttribute attribute,
+        string attributeTypeName,
+        ref PeMetadataAccumulator acc)
+    {
+        var value = ReadFixedStringCustomAttribute(reader, attribute);
+        if (string.IsNullOrWhiteSpace(value) && attributeTypeName != "AssemblyMetadataAttribute")
+        {
+            return;
+        }
+
+        switch (attributeTypeName)
+        {
+            case "AssemblyInformationalVersionAttribute":
+                acc.InformationalVersion = value;
+                break;
+            case "AssemblyFileVersionAttribute":
+                acc.FileVersion = value;
+                break;
+            case "AssemblyProductAttribute":
+                acc.ProductName = value;
+                break;
+            case "AssemblyCompanyAttribute":
+                acc.CompanyName = value;
+                break;
+            case "AssemblyTitleAttribute" or "AssemblyDescriptionAttribute":
+                acc.FileDescription = value;
+                break;
+            case "AssemblyMetadataAttribute":
+                var (key, metaValue) = ReadKeyValueCustomAttribute(reader, attribute);
+                if (string.Equals(key, "BuildChannel", StringComparison.OrdinalIgnoreCase))
+                {
+                    acc.BuildChannel = metaValue;
+                }
+                else if (string.Equals(key, "PullRequestNumber", StringComparison.OrdinalIgnoreCase) && int.TryParse(metaValue, out var pr))
+                {
+                    acc.PullRequestNumber = pr;
+                }
+                else if ((string.Equals(key, "GitHash", StringComparison.OrdinalIgnoreCase) || string.Equals(key, "CommitHash", StringComparison.OrdinalIgnoreCase)) && metaValue != null)
+                {
+                    acc.GitShortHash = metaValue.Length > 7 ? metaValue[..7] : metaValue;
+                }
+
+                break;
+            default:
+                // Ignore unrecognized custom attributes.
+                break;
+        }
+    }
+
+    private static string? GetCustomAttributeTypeName(MetadataReader reader, CustomAttribute attribute)
+    {
+        var attributeType = attribute.Constructor;
+        if (attributeType.Kind == HandleKind.MemberReference)
+        {
+            var memberRef = reader.GetMemberReference((MemberReferenceHandle)attributeType);
+            if (memberRef.Parent.Kind == HandleKind.TypeReference)
+            {
+                var typeRef = reader.GetTypeReference((TypeReferenceHandle)memberRef.Parent);
+                return reader.GetString(typeRef.Name);
+            }
+        }
+
+        return null;
+    }
+
+    private GenHubBuildInfo InspectExistingFile(string path)
+    {
+        var normalized = path.Replace('\\', '/');
+        var ext = Path.GetExtension(normalized);
+
+        if (ext.Equals(".zip", StringComparison.OrdinalIgnoreCase) || ext.Equals(".nupkg", StringComparison.OrdinalIgnoreCase))
+        {
+            var archiveResult = InspectArchive(path);
+            if (archiveResult.IsGenHubBuild)
+            {
+                return archiveResult;
+            }
+        }
+
+        if (ext.Equals(".exe", StringComparison.OrdinalIgnoreCase) || ext.Equals(".dll", StringComparison.OrdinalIgnoreCase))
+        {
+            var binResult = InspectBinaryFile(path);
+            if (binResult.IsGenHubBuild)
+            {
+                return binResult;
+            }
+        }
+
+        return CreateNonBuildInfo();
     }
 
     private GenHubBuildInfo InspectDirectory(string dirPath)
@@ -286,7 +739,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             _logger.LogDebug(ex, "Error enumerating directory '{Directory}' during build inspection", dirPath);
         }
 
-        return new GenHubBuildInfo { IsGenHubBuild = false, Version = "Unknown", SuggestedCategory = GenHubBuildConstants.CategoryRelease };
+        return CreateNonBuildInfo();
     }
 
     private GenHubBuildInfo InspectArchive(string archivePath)
@@ -297,33 +750,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
 
             // 1. Check for .nuspec (e.g. in Velopack nupkg)
             var nuspecEntry = archive.Entries.FirstOrDefault(e => e.FullName.EndsWith(".nuspec", StringComparison.OrdinalIgnoreCase));
-            string? nuspecId = null;
-            string? nuspecVersion = null;
-            string? nuspecAuthors = null;
-            string? nuspecTitle = null;
-            string? nuspecDescription = null;
-
-            if (nuspecEntry != null)
-            {
-                try
-                {
-                    using var stream = nuspecEntry.Open();
-                    var doc = XDocument.Load(stream);
-                    var metadata = doc.Root?.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("metadata", StringComparison.OrdinalIgnoreCase));
-                    if (metadata != null)
-                    {
-                        nuspecId = metadata.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("id", StringComparison.OrdinalIgnoreCase))?.Value?.Trim();
-                        nuspecVersion = metadata.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("version", StringComparison.OrdinalIgnoreCase))?.Value?.Trim();
-                        nuspecAuthors = metadata.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("authors", StringComparison.OrdinalIgnoreCase))?.Value?.Trim();
-                        nuspecTitle = metadata.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("title", StringComparison.OrdinalIgnoreCase))?.Value?.Trim();
-                        nuspecDescription = metadata.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("description", StringComparison.OrdinalIgnoreCase))?.Value?.Trim();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogDebug(ex, "Failed to parse .nuspec from archive '{Path}'", archivePath);
-                }
-            }
+            var (nuspecId, nuspecVersion, nuspecAuthors, nuspecTitle, nuspecDescription) = ReadNuspecMetadata(nuspecEntry);
 
             // 2. Look for primary GenHub executable inside archive
             var targetEntry = archive.Entries.FirstOrDefault(e =>
@@ -367,19 +794,28 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
 
                     if (isGenHub)
                     {
-                        return BuildResult(
-                            isGenHub: true,
-                            cleanVersion: cleanVersion,
-                            productVersion: rawVersion,
-                            fileVersion: peMetadata.FileVersion,
-                            productName: productName,
-                            companyName: companyName,
-                            fileDescription: fileDesc,
-                            gitShortHash: peMetadata.GitShortHash ?? hash,
-                            pullRequestNumber: prNum,
-                            buildChannel: peMetadata.BuildChannel,
-                            entryPoint: targetEntry.Name,
-                            fileName: fileName);
+                        if (string.IsNullOrWhiteSpace(cleanVersion))
+                        {
+                            var fallback = InspectFromFileNameOnly(archivePath);
+                            cleanVersion = fallback.Version;
+                            prNum ??= fallback.PullRequestNumber;
+                        }
+
+                        var ctx = new BuildMetadataContext(
+                            IsGenHub: true,
+                            CleanVersion: cleanVersion,
+                            ProductVersion: rawVersion,
+                            FileVersion: peMetadata.FileVersion,
+                            ProductName: productName,
+                            CompanyName: companyName,
+                            FileDescription: fileDesc,
+                            GitShortHash: peMetadata.GitShortHash ?? hash,
+                            PullRequestNumber: prNum,
+                            BuildChannel: peMetadata.BuildChannel,
+                            EntryPoint: targetEntry.Name,
+                            FileName: fileName);
+
+                        return BuildResult(in ctx);
                     }
                 }
             }
@@ -399,7 +835,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             }
         }
 
-        return new GenHubBuildInfo { IsGenHubBuild = false, Version = "Unknown", SuggestedCategory = GenHubBuildConstants.CategoryRelease };
+        return CreateNonBuildInfo();
     }
 
     private GenHubBuildInfo InspectBinaryFile(string filePath)
@@ -442,7 +878,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
 
         if (!isGenHub)
         {
-            return new GenHubBuildInfo { IsGenHubBuild = false, Version = "Unknown", SuggestedCategory = GenHubBuildConstants.CategoryRelease };
+            return CreateNonBuildInfo();
         }
 
         var (cleanVersion, hash, prNum) = NormalizeVersion(
@@ -457,19 +893,21 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             prNum ??= fallback.PullRequestNumber;
         }
 
-        return BuildResult(
-            isGenHub: true,
-            cleanVersion: cleanVersion,
-            productVersion: productVersion,
-            fileVersion: fileVersion,
-            productName: productName ?? GenHubBuildConstants.OfficialProductName,
-            companyName: companyName,
-            fileDescription: fileDescription,
-            gitShortHash: peMetadata.GitShortHash ?? hash,
-            pullRequestNumber: prNum,
-            buildChannel: peMetadata.BuildChannel,
-            entryPoint: fileName,
-            fileName: fileName);
+        var ctx = new BuildMetadataContext(
+            IsGenHub: true,
+            CleanVersion: cleanVersion,
+            ProductVersion: productVersion,
+            FileVersion: fileVersion,
+            ProductName: productName ?? GenHubBuildConstants.OfficialProductName,
+            CompanyName: companyName,
+            FileDescription: fileDescription,
+            GitShortHash: peMetadata.GitShortHash ?? hash,
+            PullRequestNumber: prNum,
+            BuildChannel: peMetadata.BuildChannel,
+            EntryPoint: fileName,
+            FileName: fileName);
+
+        return BuildResult(in ctx);
     }
 
     private GenHubBuildInfo InspectFromFileNameOnly(string path)
@@ -478,76 +916,16 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
         var fileName = Path.GetFileName(normalized);
         var baseName = Path.GetFileNameWithoutExtension(fileName);
 
-        // Extract PR number if present: e.g. "GenHub-PR-123-..." or "...pr123..."
-        int? prNumber = null;
-        var prMatch = Regex.Match(baseName, @"(?:^|[-_.])pr[-_]?(\d+)", RegexOptions.IgnoreCase);
-        if (prMatch.Success && int.TryParse(prMatch.Groups[1].Value, out var pr))
-        {
-            prNumber = pr;
-        }
+        var (version, prNumber) = ParseVersionAndPrFromFileName(baseName);
+        var (isCustom, isFork, forkName) = ParseForkFromFileName(baseName);
+        var channel = DetermineChannelFromFileName(baseName, prNumber, isCustom, isFork);
 
-        // Extract SemVer from filename:
-        // Try e.g. 1.0.0-dev.45 or 1.5.2 or 1.4.0 or v2.0.0
-        string? version = null;
-        var verMatch = Regex.Match(baseName, @"(?:\b|[vV]|Setup-)(\d+\.\d+(?:\.\d+)?(?:-(?:dev|alpha|beta|rc|preview|pr)\.?[a-zA-Z0-9]+)?)(?:[-_.]|$)", RegexOptions.IgnoreCase);
-        if (verMatch.Success)
-        {
-            version = verMatch.Groups[1].Value.TrimStart('v', 'V');
-        }
-        else
-        {
-            var fallbackMatch = Regex.Match(baseName, @"(\d+\.\d+(?:\.\d+)?)");
-            if (fallbackMatch.Success)
-            {
-                version = fallbackMatch.Groups[1].Value;
-            }
-        }
+        var resolvedProductName = GenHubBuildConstants.OfficialProductName;
+        var resolvedCompanyName = GenHubBuildConstants.OfficialCompany;
 
-        // Determine if fork / custom
-        var isCustom = false;
-        var isFork = false;
-        string? forkName = null;
-
-        if (baseName.Contains("fork", StringComparison.OrdinalIgnoreCase) ||
-            baseName.Contains("community", StringComparison.OrdinalIgnoreCase))
-        {
-            isCustom = true;
-            isFork = true;
-            forkName = "Community Fork";
-        }
-        else if (baseName.Contains("custom", StringComparison.OrdinalIgnoreCase))
-        {
-            isCustom = true;
-        }
-
-        // Determine channel
-        string channel;
-        if (prNumber.HasValue || baseName.Contains("-pr-", StringComparison.OrdinalIgnoreCase))
-        {
-            channel = GenHubBuildConstants.ChannelPr;
-        }
-        else if (baseName.Contains("dev", StringComparison.OrdinalIgnoreCase))
-        {
-            channel = GenHubBuildConstants.ChannelDev;
-        }
-        else if (baseName.Contains("test", StringComparison.OrdinalIgnoreCase) || baseName.Contains("beta", StringComparison.OrdinalIgnoreCase))
-        {
-            channel = GenHubBuildConstants.ChannelTest;
-        }
-        else if (isCustom || isFork)
-        {
-            channel = GenHubBuildConstants.ChannelCustomFork;
-        }
-        else
-        {
-            channel = GenHubBuildConstants.ChannelRelease;
-        }
-
-        string resolvedProductName;
-        string resolvedCompanyName;
         if (isFork)
         {
-            resolvedProductName = forkName != null ? $"GenHub ({forkName})" : "GenHub (Community Fork)";
+            resolvedProductName = $"GenHub ({forkName})";
             resolvedCompanyName = forkName ?? "Community";
         }
         else if (isCustom)
@@ -555,274 +933,51 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             resolvedProductName = GenHubBuildConstants.CustomBuildName;
             resolvedCompanyName = "Custom";
         }
-        else
-        {
-            resolvedProductName = GenHubBuildConstants.OfficialProductName;
-            resolvedCompanyName = GenHubBuildConstants.OfficialCompany;
-        }
 
-        return BuildResult(
-            isGenHub: true,
-            cleanVersion: version ?? "1.0.0",
-            productVersion: version,
-            fileVersion: version,
-            productName: resolvedProductName,
-            companyName: resolvedCompanyName,
-            fileDescription: "GenHub Application Build",
-            gitShortHash: null,
-            pullRequestNumber: prNumber,
-            buildChannel: channel,
-            entryPoint: fileName,
-            fileName: fileName);
+        var ctx = new BuildMetadataContext(
+            IsGenHub: true,
+            CleanVersion: version ?? GenHubBuildConstants.DefaultVersion,
+            ProductVersion: version,
+            FileVersion: version,
+            ProductName: resolvedProductName,
+            CompanyName: resolvedCompanyName,
+            FileDescription: "GenHub Application Build",
+            GitShortHash: null,
+            PullRequestNumber: prNumber,
+            BuildChannel: channel,
+            EntryPoint: fileName,
+            FileName: fileName);
+
+        return BuildResult(in ctx);
     }
 
-    private GenHubBuildInfo BuildResult(
-        bool isGenHub,
-        string? cleanVersion,
-        string? productVersion,
-        string? fileVersion,
-        string? productName,
-        string? companyName,
-        string? fileDescription,
-        string? gitShortHash,
-        int? pullRequestNumber,
-        string? buildChannel,
-        string? entryPoint,
-        string fileName)
+    private GenHubBuildInfo BuildResult(in BuildMetadataContext ctx)
     {
-        var (isCustom, isFork, forkName) = DetermineForkAndCustom(companyName, buildChannel, productName, cleanVersion);
-
-        // Derive Build Channel
-        var channel = DetermineChannel(buildChannel, pullRequestNumber, cleanVersion, fileName, isCustom, isFork);
-
-        // Derive Category
-        var category = channel switch
-        {
-            GenHubBuildConstants.ChannelPr => GenHubBuildConstants.CategoryTest,
-            GenHubBuildConstants.ChannelDev => GenHubBuildConstants.CategoryDev,
-            GenHubBuildConstants.ChannelTest => GenHubBuildConstants.CategoryTest,
-            GenHubBuildConstants.ChannelCustomFork => GenHubBuildConstants.CategoryCustomFork,
-            _ => GenHubBuildConstants.CategoryRelease,
-        };
-
-        // Derive Suggested Content ID & Name
-        var suggestedId = GenHubBuildConstants.OfficialContentId;
-        var suggestedName = GenHubBuildConstants.OfficialProductName;
-        var suggestedDesc = "Official GenHub application build.";
-
-        if (isFork && !string.IsNullOrWhiteSpace(forkName))
-        {
-            var cleanSlug = Regex.Replace(forkName.ToLowerInvariant(), @"[^a-z0-9\-]+", "-").Trim('-');
-            suggestedId = $"genhub-fork-{cleanSlug}";
-            suggestedName = $"GenHub ({forkName})";
-            suggestedDesc = $"Custom community fork of GenHub by {forkName}.";
-        }
-        else if (isCustom)
-        {
-            suggestedId = GenHubBuildConstants.CustomContentId;
-            suggestedName = GenHubBuildConstants.CustomBuildName;
-            suggestedDesc = "Custom third-party build of GenHub.";
-        }
-        else if (channel == GenHubBuildConstants.ChannelTest)
-        {
-            suggestedId = GenHubBuildConstants.TestContentId;
-            suggestedName = GenHubBuildConstants.TestBuildName;
-            suggestedDesc = "Experimental test build of GenHub.";
-        }
-        else if (channel == GenHubBuildConstants.ChannelPr && pullRequestNumber.HasValue)
-        {
-            suggestedId = $"genhub-pr{pullRequestNumber.Value}";
-            suggestedName = $"GenHub PR #{pullRequestNumber.Value}";
-            suggestedDesc = $"GenHub pull request build for PR #{pullRequestNumber.Value}.";
-        }
-        else if (channel == GenHubBuildConstants.ChannelDev)
-        {
-            suggestedId = GenHubBuildConstants.DevContentId;
-            suggestedName = GenHubBuildConstants.DevBuildName;
-            suggestedDesc = "Development branch build of GenHub.";
-        }
-
-        // Generate Suggested Tags
-        var tags = new List<string> { GenHubBuildConstants.TagGenHub, GenHubBuildConstants.TagBuild };
-        if (isCustom || isFork)
-        {
-            tags.Add(GenHubBuildConstants.TagFork);
-            tags.Add(GenHubBuildConstants.TagCustom);
-            if (!string.IsNullOrWhiteSpace(forkName))
-            {
-                var cleanSlug = Regex.Replace(forkName.ToLowerInvariant(), @"[^a-z0-9\-]+", "-").Trim('-');
-                tags.Add($"fork:{cleanSlug}");
-            }
-        }
-        else if (channel == GenHubBuildConstants.ChannelPr && pullRequestNumber.HasValue)
-        {
-            tags.Add(GenHubBuildConstants.TagPr);
-            tags.Add($"pr:{pullRequestNumber.Value}");
-        }
-        else if (channel == GenHubBuildConstants.ChannelDev)
-        {
-            tags.Add(GenHubBuildConstants.TagDev);
-            tags.Add("channel:dev");
-        }
-        else if (channel == GenHubBuildConstants.ChannelTest)
-        {
-            tags.Add(GenHubBuildConstants.TagTest);
-            tags.Add("channel:test");
-        }
+        var (isCustom, isFork, forkName) = DetermineForkAndCustom(ctx.CompanyName, ctx.BuildChannel, ctx.ProductName, ctx.CleanVersion);
+        var channel = DetermineChannel(ctx.BuildChannel, ctx.PullRequestNumber, ctx.CleanVersion, ctx.FileName, isCustom, isFork);
+        var category = DetermineSuggestedCategory(channel);
+        var (suggestedId, suggestedName, suggestedDesc) = DetermineSuggestedIdentity(isFork, isCustom, forkName, channel, ctx.PullRequestNumber);
+        var tags = GenerateSuggestedTags(isFork, isCustom, forkName, channel, ctx.PullRequestNumber);
 
         return new GenHubBuildInfo
         {
-            IsGenHubBuild = isGenHub,
-            Version = cleanVersion ?? "1.0.0",
-            ProductVersion = productVersion,
-            FileVersion = fileVersion,
-            GitShortHash = gitShortHash,
-            PullRequestNumber = pullRequestNumber,
+            IsGenHubBuild = ctx.IsGenHub,
+            Version = ctx.CleanVersion ?? GenHubBuildConstants.DefaultVersion,
+            ProductVersion = ctx.ProductVersion,
+            FileVersion = ctx.FileVersion,
+            GitShortHash = ctx.GitShortHash,
+            PullRequestNumber = ctx.PullRequestNumber,
             BuildChannel = channel,
             IsCustomBuild = isCustom,
             IsFork = isFork,
             ForkName = forkName,
-            EntryPoint = entryPoint,
+            EntryPoint = ctx.EntryPoint,
             SuggestedContentId = suggestedId,
             SuggestedContentName = suggestedName,
-            SuggestedDescription = suggestedDesc,
             SuggestedCategory = category,
+            SuggestedDescription = suggestedDesc,
             SuggestedTags = tags,
         };
-    }
-
-    private (bool IsCustom, bool IsFork, string? ForkName) DetermineForkAndCustom(
-        string? companyName,
-        string? buildChannel,
-        string? productName,
-        string? version)
-    {
-        var isCustom = false;
-        var isFork = false;
-        string? forkName = null;
-
-        if (!string.IsNullOrWhiteSpace(companyName) &&
-            !companyName.Equals(GenHubBuildConstants.OfficialCompany, StringComparison.OrdinalIgnoreCase) &&
-            !companyName.Contains("Electronic Arts", StringComparison.OrdinalIgnoreCase) &&
-            !companyName.Contains("EA", StringComparison.OrdinalIgnoreCase))
-        {
-            isCustom = true;
-            isFork = true;
-            forkName = companyName.Trim();
-        }
-
-        if (!string.IsNullOrWhiteSpace(buildChannel))
-        {
-            var normalizedChannel = buildChannel.ToLowerInvariant();
-            if (normalizedChannel.Contains("fork") || normalizedChannel.Contains("custom") || normalizedChannel.Contains("community"))
-            {
-                isCustom = true;
-                isFork = true;
-            }
-        }
-
-        if (!string.IsNullOrWhiteSpace(productName))
-        {
-            var match = Regex.Match(productName, @"GenHub\s*[\(\[]([^\]\)]+)[\)\]]", RegexOptions.IgnoreCase);
-            if (match.Success)
-            {
-                var candidate = match.Groups[1].Value.Trim();
-                if (!candidate.Equals("Test", StringComparison.OrdinalIgnoreCase) &&
-                    !candidate.Equals("Dev", StringComparison.OrdinalIgnoreCase) &&
-                    !candidate.Equals("PR", StringComparison.OrdinalIgnoreCase))
-                {
-                    isFork = true;
-                    isCustom = true;
-                    forkName ??= candidate;
-                }
-            }
-            else if (productName.Contains("fork", StringComparison.OrdinalIgnoreCase))
-            {
-                isFork = true;
-                isCustom = true;
-            }
-        }
-
-        if (!string.IsNullOrWhiteSpace(version) &&
-            (version.Contains("-fork", StringComparison.OrdinalIgnoreCase) || version.Contains("-custom", StringComparison.OrdinalIgnoreCase)))
-        {
-            isCustom = true;
-            isFork = true;
-        }
-
-        return (isCustom, isFork, forkName);
-    }
-
-    private string DetermineChannel(
-        string? explicitChannel,
-        int? prNumber,
-        string? version,
-        string fileName,
-        bool isCustom,
-        bool isFork)
-    {
-        if (prNumber.HasValue)
-        {
-            return GenHubBuildConstants.ChannelPr;
-        }
-
-        if (!string.IsNullOrWhiteSpace(explicitChannel))
-        {
-            if (explicitChannel.Equals(GenHubBuildConstants.ChannelPr, StringComparison.OrdinalIgnoreCase))
-            {
-                return GenHubBuildConstants.ChannelPr;
-            }
-
-            if (explicitChannel.Equals(GenHubBuildConstants.ChannelDev, StringComparison.OrdinalIgnoreCase) || explicitChannel.Equals("Development", StringComparison.OrdinalIgnoreCase))
-            {
-                return GenHubBuildConstants.ChannelDev;
-            }
-
-            if (explicitChannel.Equals(GenHubBuildConstants.ChannelTest, StringComparison.OrdinalIgnoreCase) || explicitChannel.Equals("Beta", StringComparison.OrdinalIgnoreCase))
-            {
-                return GenHubBuildConstants.ChannelTest;
-            }
-
-            if (explicitChannel.Equals(GenHubBuildConstants.ChannelRelease, StringComparison.OrdinalIgnoreCase))
-            {
-                return GenHubBuildConstants.ChannelRelease;
-            }
-        }
-
-        if (isFork || isCustom)
-        {
-            return GenHubBuildConstants.ChannelCustomFork;
-        }
-
-        if (!string.IsNullOrWhiteSpace(version))
-        {
-            if (version.Contains("-pr", StringComparison.OrdinalIgnoreCase))
-            {
-                return GenHubBuildConstants.ChannelPr;
-            }
-
-            if (version.Contains("-dev", StringComparison.OrdinalIgnoreCase))
-            {
-                return GenHubBuildConstants.ChannelDev;
-            }
-
-            if (version.Contains("-test", StringComparison.OrdinalIgnoreCase) || version.Contains("-beta", StringComparison.OrdinalIgnoreCase))
-            {
-                return GenHubBuildConstants.ChannelTest;
-            }
-        }
-
-        if (fileName.Contains("test", StringComparison.OrdinalIgnoreCase))
-        {
-            return GenHubBuildConstants.ChannelTest;
-        }
-
-        if (fileName.Contains("dev", StringComparison.OrdinalIgnoreCase))
-        {
-            return GenHubBuildConstants.ChannelDev;
-        }
-
-        return GenHubBuildConstants.ChannelRelease;
     }
 
     private PeMetadata TryReadPeMetadata(Stream stream)
@@ -836,77 +991,15 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             }
 
             var reader = peReader.GetMetadataReader();
-            string? informationalVersion = null;
-            string? fileVersion = null;
-            string? productName = null;
-            string? companyName = null;
-            string? fileDescription = null;
-            string? buildChannel = null;
-            int? pullRequestNumber = null;
-            string? gitShortHash = null;
+            PeMetadataAccumulator accumulator = default;
 
             foreach (var customAttributeHandle in reader.CustomAttributes)
             {
                 var attribute = reader.GetCustomAttribute(customAttributeHandle);
-                var attributeType = attribute.Constructor;
-
-                string? attributeTypeName = null;
-                if (attributeType.Kind == HandleKind.MemberReference)
+                var attributeTypeName = GetCustomAttributeTypeName(reader, attribute);
+                if (attributeTypeName != null)
                 {
-                    var memberRef = reader.GetMemberReference((MemberReferenceHandle)attributeType);
-                    if (memberRef.Parent.Kind == HandleKind.TypeReference)
-                    {
-                        var typeRef = reader.GetTypeReference((TypeReferenceHandle)memberRef.Parent);
-                        attributeTypeName = reader.GetString(typeRef.Name);
-                    }
-                }
-
-                if (attributeTypeName == null)
-                {
-                    continue;
-                }
-
-                var value = ReadFixedStringCustomAttribute(reader, attribute);
-                if (string.IsNullOrWhiteSpace(value))
-                {
-                    continue;
-                }
-
-                switch (attributeTypeName)
-                {
-                    case "AssemblyInformationalVersionAttribute":
-                        informationalVersion = value;
-                        break;
-                    case "AssemblyFileVersionAttribute":
-                        fileVersion = value;
-                        break;
-                    case "AssemblyProductAttribute":
-                        productName = value;
-                        break;
-                    case "AssemblyCompanyAttribute":
-                        companyName = value;
-                        break;
-                    case "AssemblyTitleAttribute" or "AssemblyDescriptionAttribute":
-                        fileDescription = value;
-                        break;
-                    case "AssemblyMetadataAttribute":
-                        var (key, metaValue) = ReadKeyValueCustomAttribute(reader, attribute);
-                        if (string.Equals(key, "BuildChannel", StringComparison.OrdinalIgnoreCase))
-                        {
-                            buildChannel = metaValue;
-                        }
-                        else if (string.Equals(key, "PullRequestNumber", StringComparison.OrdinalIgnoreCase) && int.TryParse(metaValue, out var pr))
-                        {
-                            pullRequestNumber = pr;
-                        }
-                        else if ((string.Equals(key, "GitHash", StringComparison.OrdinalIgnoreCase) || string.Equals(key, "CommitHash", StringComparison.OrdinalIgnoreCase)) && metaValue != null)
-                        {
-                            gitShortHash = metaValue.Length > 7 ? metaValue[..7] : metaValue;
-                        }
-
-                        break;
-                    default:
-                        break;
+                    ApplyCustomAttribute(reader, attribute, attributeTypeName, ref accumulator);
                 }
             }
 
@@ -914,14 +1007,14 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
 
             return new PeMetadata(
                 Version: version,
-                InformationalVersion: informationalVersion,
-                FileVersion: fileVersion,
-                ProductName: productName,
-                CompanyName: companyName,
-                FileDescription: fileDescription,
-                BuildChannel: buildChannel,
-                PullRequestNumber: pullRequestNumber,
-                GitShortHash: gitShortHash);
+                InformationalVersion: accumulator.InformationalVersion,
+                FileVersion: accumulator.FileVersion,
+                ProductName: accumulator.ProductName,
+                CompanyName: accumulator.CompanyName,
+                FileDescription: accumulator.FileDescription,
+                BuildChannel: accumulator.BuildChannel,
+                PullRequestNumber: accumulator.PullRequestNumber,
+                GitShortHash: accumulator.GitShortHash);
         }
         catch (Exception ex)
         {
@@ -929,6 +1022,32 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             return default;
         }
     }
+
+    private ref struct PeMetadataAccumulator
+    {
+        public string? InformationalVersion;
+        public string? FileVersion;
+        public string? ProductName;
+        public string? CompanyName;
+        public string? FileDescription;
+        public string? BuildChannel;
+        public int? PullRequestNumber;
+        public string? GitShortHash;
+    }
+
+    private readonly record struct BuildMetadataContext(
+        bool IsGenHub,
+        string? CleanVersion,
+        string? ProductVersion,
+        string? FileVersion,
+        string? ProductName,
+        string? CompanyName,
+        string? FileDescription,
+        string? GitShortHash,
+        int? PullRequestNumber,
+        string? BuildChannel,
+        string? EntryPoint,
+        string FileName);
 
     private readonly record struct PeMetadata(
         string? Version,

@@ -16,6 +16,11 @@ public static class GenHubBuildConstants
     public const string OfficialProductName = "GenHub";
 
     /// <summary>
+    /// Default fallback version string for builds where version cannot be determined.
+    /// </summary>
+    public const string DefaultVersion = "1.0.0";
+
+    /// <summary>
     /// Default content ID for official GenHub builds.
     /// </summary>
     public const string OfficialContentId = "genhub";
