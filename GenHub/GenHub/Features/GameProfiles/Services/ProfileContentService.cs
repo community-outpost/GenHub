@@ -95,7 +95,10 @@ public sealed class ProfileContentService(
             var contextResult = await LoadProfileAndPrimaryManifestAsync(profileId, primaryManifestId, requestedIds, cancellationToken);
             if (contextResult.Failed)
             {
-                return AddToProfileResult.CreateFailure(contextResult.FirstError ?? "Failed to load profile or manifest", sw.Elapsed);
+                var errorCode = contextResult.FirstError?.Contains("GenHub application builds", StringComparison.OrdinalIgnoreCase) == true
+                    ? ProfileConstants.GenHubBuildNotAllowedErrorCode
+                    : null;
+                return AddToProfileResult.CreateFailure(contextResult.FirstError ?? "Failed to load profile or manifest", errorCode, sw.Elapsed);
             }
 
             var (profile, _, contentName) = contextResult.Data;
@@ -311,7 +314,7 @@ public sealed class ProfileContentService(
                 if (checkResult.Success && checkResult.Data?.ContentType == ContentType.GenHubBuild)
                 {
                     logger.LogWarning("Attempted to create game profile with GenHub build {ManifestId}", reqId);
-                    return ProfileOperationResult<GameProfile>.CreateFailure("GenHub application builds cannot be used to create game profiles.");
+                    return ProfileOperationResult<GameProfile>.CreateFailure("GenHub application builds cannot be used to create game profiles.", ProfileConstants.GenHubBuildNotAllowedErrorCode);
                 }
             }
 

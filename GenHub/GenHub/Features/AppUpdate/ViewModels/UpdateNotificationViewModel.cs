@@ -728,10 +728,17 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         var isNotInstalledYet = string.IsNullOrWhiteSpace(SubscribedCustomBuildVersion);
         var installedVersion = (SubscribedCustomBuildVersion ?? CurrentAppVersion).TrimStart('v', 'V').Split('+')[0];
 
-        if (isNotInstalledYet ||
-            AppUpdateVersionHelper.IsArtifactVersionNewer(latestVersion, installedVersion, allowCrossChannel: true) ||
-            !string.Equals(latestVersion, installedVersion, StringComparison.OrdinalIgnoreCase))
+        var isNewer = AppUpdateVersionHelper.IsArtifactVersionNewer(latestVersion, installedVersion, allowCrossChannel: true);
+        if (isNotInstalledYet || isNewer)
         {
+            var isDismissed = string.Equals(latestRelease.Version, _userSettingsService.Get().DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase);
+            if (isDismissed && !isNotInstalledYet)
+            {
+                IsUpdateAvailable = false;
+                _logger.LogInformation("Update {Version} was previously dismissed by user", latestRelease.Version);
+                return;
+            }
+
             IsUpdateAvailable = true;
             LatestVersion = latestRelease.Version;
             StatusMessage = isNotInstalledYet
@@ -1783,10 +1790,6 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         {
             _logger.LogInformation("Installing artifact: {Name} ({Version})", artifact.ArtifactName, artifact.Version);
 
-            var progress = CreateInstallationProgress(this);
-
-            await _velopackUpdateManager.InstallArtifactAsync(artifact, progress, _cancellationTokenSource.Token);
-
             if (IsSubscribedToCustomBuild && !string.IsNullOrWhiteSpace(artifact.Version))
             {
                 SubscribedCustomBuildVersion = artifact.Version;
@@ -1794,8 +1797,12 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                 {
                     settings.SubscribedCustomBuildVersion = artifact.Version;
                 });
-                _ = _userSettingsService.SaveAsync(CancellationToken.None);
+                await _userSettingsService.SaveAsync(CancellationToken.None).ConfigureAwait(false);
             }
+
+            var progress = CreateInstallationProgress(this);
+
+            await _velopackUpdateManager.InstallArtifactAsync(artifact, progress, _cancellationTokenSource.Token);
 
             // app will restart
         }
