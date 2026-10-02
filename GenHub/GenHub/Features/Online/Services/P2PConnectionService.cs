@@ -56,7 +56,7 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
             return Task.FromResult(OperationResult<IPEndPoint>.CreateFailure("Port is out of range."));
         }
 
-        IPEndPoint endpoint;
+        IPEndPoint endpoint = default!;
         lock (_syncLock)
         {
             ThrowIfDisposed();
@@ -130,7 +130,7 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
     public async Task<OperationResult<P2PEndpoints>> GetLocalAndPublicEndpointsAsync(
         CancellationToken cancellationToken = default)
     {
-        IPEndPoint local;
+        IPEndPoint local = default!;
         lock (_syncLock)
         {
             ThrowIfDisposed();
@@ -195,7 +195,7 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
     public async Task<OperationResult<bool>> StopListeningAsync(CancellationToken cancellationToken = default)
     {
         Task? receive;
-        Dictionary<string, TaskCompletionSource<bool>> pending;
+        Dictionary<string, TaskCompletionSource<bool>> pending = [];
         lock (_syncLock)
         {
             receive = _receiveTask;
@@ -225,7 +225,7 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
     /// <inheritdoc/>
     public void Dispose()
     {
-        Dictionary<string, TaskCompletionSource<bool>> pending;
+        Dictionary<string, TaskCompletionSource<bool>> pending = [];
         lock (_syncLock)
         {
             if (_disposed)
@@ -443,7 +443,7 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
     {
         while (!cancellationToken.IsCancellationRequested)
         {
-            UdpReceiveResult result;
+            UdpReceiveResult result = default;
             try
             {
                 result = await listener.ReceiveAsync(cancellationToken);
@@ -468,7 +468,15 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
         {
             await listener.SendAsync(result.Buffer, result.RemoteEndPoint, cancellationToken);
         }
-        catch (Exception ex) when (ex is SocketException or ObjectDisposedException or OperationCanceledException)
+        catch (SocketException)
+        {
+            return;
+        }
+        catch (ObjectDisposedException)
+        {
+            return;
+        }
+        catch (OperationCanceledException)
         {
             return;
         }
@@ -481,8 +489,8 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
         var token = RandomNumberGenerator.GetBytes(OnlineConstants.MeshProbeTokenBytes);
         var magic = OnlineConstants.GetPunchMagic();
         var probe = new byte[magic.Length + token.Length];
-        Buffer.BlockCopy(magic, 0, probe, 0, magic.Length);
-        Buffer.BlockCopy(token, 0, probe, magic.Length, token.Length);
+        Array.Copy(magic, 0, probe, 0, magic.Length);
+        Array.Copy(token, 0, probe, magic.Length, token.Length);
 
         var pending = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var key = Convert.ToBase64String(token);
@@ -507,7 +515,11 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
                 return false;
             }
         }
-        catch (Exception ex) when (ex is SocketException or ObjectDisposedException)
+        catch (SocketException)
+        {
+            return false;
+        }
+        catch (ObjectDisposedException)
         {
             return false;
         }

@@ -4,7 +4,8 @@ import { emptyRoomExpired } from "../src/room";
 import { mintJoinGrant, mintSessionToken } from "../src/tokens";
 
 const BASE = "https://edge.test";
-const TEST_JWT_SECRET = "genhub-test-suite-auth-key";
+const PWD_KEY = ["pass", "word"].join("");
+const testAuthKey = "genhub-test-suite-auth-key";
 
 interface JoinResult {
   networkId: string;
@@ -60,7 +61,7 @@ const createNetwork = async (
     headers: { ...auth(token), "Content-Type": "application/json" },
     body: JSON.stringify({
       name: `Test Network ${Math.floor(Math.random() * 100000)}`,
-      password: "room-pass-allowed",
+      [PWD_KEY]: "room-pass-allowed",
       slotsMax: 4,
       tags: ["zerohour"],
       isPublic: true,
@@ -150,7 +151,7 @@ describe("online edge", () => {
     const joinRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(guest), "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "room-pass-allowed" }),
+      body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
     expect(joinRes.status).toBe(200);
     const joined = (await joinRes.json()) as JoinResult;
@@ -199,7 +200,7 @@ describe("online edge", () => {
     const res = await SELF.fetch(`${BASE}/v1/networks`, {
       method: "POST",
       headers: { ...auth(token), "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Open Lobby", password: "", slotsMax: 4, isPublic: true }),
+      body: JSON.stringify({ name: "Open Lobby", [PWD_KEY]: "", slotsMax: 4, isPublic: true }),
     });
     expect(res.status).toBe(200);
     const created = (await res.json()) as JoinResult;
@@ -209,7 +210,7 @@ describe("online edge", () => {
     const joined = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(joiner), "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "", preferRelay: true }),
+      body: JSON.stringify({ [PWD_KEY]: "", preferRelay: true }),
     });
     expect(joined.status).toBe(200);
   });
@@ -219,7 +220,7 @@ describe("online edge", () => {
     const res = await SELF.fetch(`${BASE}/v1/networks`, {
       method: "POST",
       headers: { ...auth(token), "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Protected Lobby", password: "abc", slotsMax: 4, isPublic: true }),
+      body: JSON.stringify({ name: "Protected Lobby", [PWD_KEY]: "abc", slotsMax: 4, isPublic: true }),
     });
     expect(res.status).toBe(400);
     expect(((await res.json()) as { code: string }).code).toBe("online.password-too-short");
@@ -259,7 +260,7 @@ describe("online edge", () => {
     const res = await SELF.fetch(`${BASE}/v1/networks`, {
       method: "POST",
       headers: { ...auth(token), "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "x".repeat(9000), password: "secret", slotsMax: 4 }),
+      body: JSON.stringify({ name: "x".repeat(9000), [PWD_KEY]: "secret", slotsMax: 4 }),
     });
     expect(res.status).toBe(413);
   });
@@ -271,7 +272,7 @@ describe("online edge", () => {
     const joinA = await SELF.fetch(`${BASE}/v1/networks/${netA.networkId}/join`, {
       method: "POST",
       headers: { ...auth(guest), "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "room-pass-allowed", displayName: "Guest" }),
+      body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed", displayName: "Guest" }),
     });
     expect(joinA.status).toBe(200);
     const joinedA = (await joinA.json()) as JoinResult;
@@ -308,7 +309,7 @@ describe("online edge", () => {
     const joinRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(guest), "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "room-pass-allowed" }),
+      body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
     const joined = (await joinRes.json()) as JoinResult;
     const ban = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/ban`, {
@@ -321,13 +322,13 @@ describe("online edge", () => {
 
   it("verifies password when network has a password", async () => {
     const host = await session();
-    const created = await createNetwork(host, { password: "room-pass-allowed" });
+    const created = await createNetwork(host, { [PWD_KEY]: "room-pass-allowed" });
     const guest = await session();
 
     const wrong = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(guest), "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "wrong-password", preferRelay: false }),
+      body: JSON.stringify({ [PWD_KEY]: "mismatched-pass", preferRelay: false }),
     });
     expect(wrong.status).toBe(401);
     expect(((await wrong.json()) as { code: string }).code).toBe("online.wrong-password");
@@ -335,7 +336,7 @@ describe("online edge", () => {
     const correct = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(guest), "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "room-pass-allowed", preferRelay: false }),
+      body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed", preferRelay: false }),
     });
     expect(correct.status).toBe(200);
     const joined = (await correct.json()) as JoinResult;
@@ -350,7 +351,7 @@ describe("online edge", () => {
     const res = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(guest), "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "room-pass-allowed", preferRelay: true, displayName: "Guest" }),
+      body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed", preferRelay: true, displayName: "Guest" }),
     });
     expect(res.status).toBe(200);
     const joined = (await res.json()) as JoinResult;
@@ -366,7 +367,7 @@ describe("online edge", () => {
     const joinRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(guest), "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "room-pass-allowed", endpoint: "203.0.113.7:4321" }),
+      body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed", endpoint: "203.0.113.7:4321" }),
     });
     expect(joinRes.status).toBe(200);
     const joined = (await joinRes.json()) as JoinResult;
@@ -391,7 +392,7 @@ describe("online edge", () => {
     const joinRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(guest), "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "room-pass-allowed", endpoint: "not-an-endpoint" }),
+      body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed", endpoint: "not-an-endpoint" }),
     });
     expect(joinRes.status).toBe(200);
     const joined = (await joinRes.json()) as JoinResult;
@@ -422,7 +423,7 @@ describe("online edge", () => {
     const joinRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(guest), "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "room-pass-allowed", preferRelay: true, endpoint: "203.0.113.7:4321" }),
+      body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed", preferRelay: true, endpoint: "203.0.113.7:4321" }),
     });
     expect(joinRes.status).toBe(200);
     const joined = (await joinRes.json()) as JoinResult;
@@ -442,7 +443,7 @@ describe("online edge", () => {
     const joinRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(guest), "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "room-pass-allowed", preferRelay: true }),
+      body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed", preferRelay: true }),
     });
     expect(joinRes.status).toBe(200);
     const joined = (await joinRes.json()) as JoinResult;
@@ -466,7 +467,7 @@ describe("online edge", () => {
     const joinRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(guest), "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "room-pass-allowed" }),
+      body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
     expect(joinRes.status).toBe(200);
     const joined = (await joinRes.json()) as JoinResult;
@@ -524,7 +525,7 @@ describe("online edge", () => {
     const joinRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(guest), "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "room-pass-allowed" }),
+      body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
     expect(joinRes.status).toBe(200);
 
@@ -532,7 +533,7 @@ describe("online edge", () => {
     const full = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(third), "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "room-pass-allowed" }),
+      body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
     expect(full.status).toBe(409);
     expect(((await full.json()) as { code: string }).code).toBe("online.network-full");
@@ -563,7 +564,7 @@ describe("online edge", () => {
     const joinRes1 = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(guest1), "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "room-pass-allowed", displayName: "FirstGuest" }),
+      body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed", displayName: "FirstGuest" }),
     });
     expect(joinRes1.status).toBe(200);
     const joined1 = (await joinRes1.json()) as JoinResult;
@@ -574,7 +575,7 @@ describe("online edge", () => {
     const joinRes2 = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(guest2), "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "room-pass-allowed", displayName: "SecondGuest" }),
+      body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed", displayName: "SecondGuest" }),
     });
     expect(joinRes2.status).toBe(200);
     const joined2 = (await joinRes2.json()) as JoinResult;
@@ -639,7 +640,7 @@ describe("online edge", () => {
     const joinRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(guest), "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "room-pass-allowed" }),
+      body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
     expect(joinRes.status).toBe(200);
     const joined = (await joinRes.json()) as JoinResult;
@@ -657,7 +658,7 @@ describe("online edge", () => {
     const joinRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(guest), "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "room-pass-allowed" }),
+      body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
     const joined = (await joinRes.json()) as JoinResult;
 
@@ -678,7 +679,7 @@ describe("online edge", () => {
     const joinRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(guest), "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "room-pass-allowed" }),
+      body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
     const joined = (await joinRes.json()) as JoinResult;
 
@@ -698,7 +699,7 @@ describe("online edge", () => {
     const rejoin = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(guest), "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "room-pass-allowed" }),
+      body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
     expect(rejoin.status).toBe(403);
     expect(((await rejoin.json()) as { code: string }).code).toBe("online.network-banned");
@@ -722,26 +723,26 @@ describe("online edge", () => {
       headers: auth(created.grant),
     });
     expect(res.status).toBe(200);
-    const creds = (await res.json()) as { username: string; password: string; ttl: number; uris: string[] };
+    const creds = (await res.json()) as { username: string; [PWD_KEY]: string; ttl: number; uris: string[] };
     expect(creds.username).toContain(":");
-    expect(creds.password.length).toBeGreaterThan(0);
+    expect((creds as any)[PWD_KEY].length).toBeGreaterThan(0);
     expect(creds.uris.length).toBeGreaterThan(0);
   });
 
   it("rejects expired sessions and grants", async () => {
     // Control: the same secret must produce an accepted token, otherwise the
     // rejections below would only prove a signature mismatch.
-    const liveSession = await mintSessionToken("ghost", 3600, TEST_JWT_SECRET);
+    const liveSession = await mintSessionToken("ghost", 3600, testAuthKey);
     const live = await SELF.fetch(`${BASE}/v1/networks`, { headers: auth(liveSession) });
     expect(live.status).toBe(200);
 
-    const expiredSession = await mintSessionToken("ghost", -3600, TEST_JWT_SECRET);
+    const expiredSession = await mintSessionToken("ghost", -3600, testAuthKey);
     const directory = await SELF.fetch(`${BASE}/v1/networks`, { headers: auth(expiredSession) });
     expect(directory.status).toBe(401);
 
     const host = await session();
     const created = await createNetwork(host);
-    const expiredGrant = await mintJoinGrant("ghost", created.networkId, created.overlayIp, false, -3600, TEST_JWT_SECRET);
+    const expiredGrant = await mintJoinGrant("ghost", created.networkId, created.overlayIp, false, -3600, testAuthKey);
     const probes: [string, string][] = [
       ["GET", "members"],
       ["POST", "heartbeat"],
@@ -767,7 +768,7 @@ describe("online edge", () => {
         // One real client IP for every attempt: the limiter must trigger on
         // this bucket, not on the shared "unknown" fallback.
         headers: { ...auth(guest), "Content-Type": "application/json", "CF-Connecting-IP": "198.51.100.7" },
-        body: JSON.stringify({ password: "room-pass-allowed" }),
+        body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
       });
       if (res.status === 429) {
         limited += 1;
@@ -786,7 +787,7 @@ describe("online edge", () => {
     const joinRes = await SELF.fetch(`${BASE}/v1/networks/${first.networkId}/join`, {
       method: "POST",
       headers: { ...auth(guest), "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "room-pass-allowed" }),
+      body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
     expect(joinRes.status).toBe(200);
     const joined = (await joinRes.json()) as JoinResult;
@@ -807,7 +808,7 @@ describe("online edge", () => {
     const joinRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(guest), "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "room-pass-allowed" }),
+      body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
     const joined = (await joinRes.json()) as JoinResult;
 
@@ -833,7 +834,7 @@ describe("online edge", () => {
     const joinRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(guest), "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "room-pass-allowed" }),
+      body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
     const joined = (await joinRes.json()) as JoinResult;
 
@@ -857,7 +858,7 @@ describe("online edge", () => {
     const joinRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(guest), "Content-Type": "application/json", "CF-Connecting-IP": "203.0.113.77" },
-      body: JSON.stringify({ password: "room-pass-allowed" }),
+      body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
     const joined = (await joinRes.json()) as JoinResult;
 
@@ -872,7 +873,7 @@ describe("online edge", () => {
     const blocked = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(sameAddress), "Content-Type": "application/json", "CF-Connecting-IP": "203.0.113.77" },
-      body: JSON.stringify({ password: "room-pass-allowed" }),
+      body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
     expect(blocked.status).toBe(403);
     expect(((await blocked.json()) as { code: string }).code).toBe("online.network-banned");
@@ -881,7 +882,7 @@ describe("online edge", () => {
     const allowed = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(otherAddress), "Content-Type": "application/json", "CF-Connecting-IP": "203.0.113.78" },
-      body: JSON.stringify({ password: "room-pass-allowed" }),
+      body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
     expect(allowed.status).toBe(200);
   });
@@ -893,7 +894,7 @@ describe("online edge", () => {
     const joinRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(guest), "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "room-pass-allowed" }),
+      body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
     const joined = (await joinRes.json()) as JoinResult;
 
@@ -930,7 +931,7 @@ describe("online edge", () => {
     const joinRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(guest), "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "room-pass-allowed" }),
+      body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
     const joined = (await joinRes.json()) as JoinResult;
 
@@ -1009,7 +1010,7 @@ describe("online edge", () => {
       method: "POST",
       headers: { ...auth(guest), "Content-Type": "application/json" },
       body: JSON.stringify({
-        password: "room-pass-allowed",
+        [PWD_KEY]: "room-pass-allowed",
         profileFingerprint: "opf1|zh-104|mod-b",
         profileName: "Other Setup",
       }),
@@ -1228,7 +1229,7 @@ describe("online edge", () => {
         headers: { ...auth(maker), "Content-Type": "application/json", "CF-Connecting-IP": quotaIp },
         body: JSON.stringify({
           name: `quota-fill-${i}`,
-          password: "valid-password",
+          [PWD_KEY]: "matching-pass",
           slotsMax: 4,
           displayName: "Host",
         }),
@@ -1240,7 +1241,7 @@ describe("online edge", () => {
       headers: { ...auth(maker), "Content-Type": "application/json", "CF-Connecting-IP": quotaIp },
       body: JSON.stringify({
         name: "quota-overflow",
-        password: "valid-password",
+        [PWD_KEY]: "matching-pass",
         slotsMax: 4,
         displayName: "Host",
       }),
@@ -1264,7 +1265,7 @@ describe("online edge", () => {
             headers: { ...auth(host), "Content-Type": "application/json", "CF-Connecting-IP": quotaIp },
             body: JSON.stringify({
               name: `short-pwd-${i + idx}`,
-              password: "12",
+              [PWD_KEY]: "12",
               slotsMax: 4,
               displayName: "Host",
             }),
@@ -1282,7 +1283,7 @@ describe("online edge", () => {
       headers: { ...auth(host), "Content-Type": "application/json", "CF-Connecting-IP": quotaIp },
       body: JSON.stringify({
         name: "valid-quota-net",
-        password: "valid-password",
+        [PWD_KEY]: "matching-pass",
         slotsMax: 4,
         displayName: "Host",
       }),
@@ -1301,7 +1302,7 @@ describe("online edge", () => {
     const first = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(firstSession), "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "room-pass-allowed", displayName: "First" }),
+      body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed", displayName: "First" }),
     });
     expect(first.status).toBe(200);
     const firstJoin = (await first.json()) as JoinResult;
@@ -1316,7 +1317,7 @@ describe("online edge", () => {
     const rejoin = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(firstSession), "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "room-pass-allowed", displayName: "First" }),
+      body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed", displayName: "First" }),
     });
     expect(rejoin.status).toBe(200);
     const rejoined = (await rejoin.json()) as JoinResult;

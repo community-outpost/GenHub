@@ -275,7 +275,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
     /// Gets a value indicating whether the currently selected network requires a password.
     /// </summary>
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads generated MVVM properties Sonar cannot see; bound from XAML as an instance property.")]
-    public bool JoinRequiresPassword => SelectedDetail?.RequiresPassword ?? SelectedNetwork?.RequiresPassword ?? false;
+    public bool JoinRequiresPassword => SelectedDetail?.RequiresPassword == true || SelectedNetwork?.RequiresPassword == true;
 
     [ObservableProperty]
     private int _createSlots = OnlineConstants.DefaultSlotCap;
@@ -973,7 +973,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         {
             // Safe to detach: the loader reports its own errors, and the
             // panel outlives any scoped token, so loading is uncancellable.
-            _ = EnsureProfilesLoadedAsync(CancellationToken.None, forceReload: true);
+            _ = EnsureProfilesLoadedAsync(forceReload: true);
         }
     }
 
@@ -986,7 +986,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         IsHostPanelOpen = !IsHostPanelOpen;
         if (IsHostPanelOpen)
         {
-            _ = EnsureProfilesLoadedAsync(CancellationToken.None, forceReload: true);
+            _ = EnsureProfilesLoadedAsync(forceReload: true);
         }
     }
 
@@ -1145,7 +1145,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
 
         if (_profilesLoaded)
         {
-            _ = EnsureProfilesLoadedAsync(CancellationToken.None, forceReload: true);
+            _ = EnsureProfilesLoadedAsync(forceReload: true);
         }
     }
 
@@ -1806,7 +1806,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
             return;
         }
 
-        OperationResult<OnlineMeshCheckResult> mesh;
+        OperationResult<OnlineMeshCheckResult> mesh = default!;
         try
         {
             mesh = await meshTask;
@@ -1815,7 +1815,22 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         {
             throw;
         }
-        catch (Exception ex) when (ex is HttpRequestException or SocketException or TimeoutException or JsonException)
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning(ex, "Mesh check skipped.");
+            return;
+        }
+        catch (SocketException ex)
+        {
+            _logger.LogWarning(ex, "Mesh check skipped.");
+            return;
+        }
+        catch (TimeoutException ex)
+        {
+            _logger.LogWarning(ex, "Mesh check skipped.");
+            return;
+        }
+        catch (JsonException ex)
         {
             _logger.LogWarning(ex, "Mesh check skipped.");
             return;
@@ -2385,10 +2400,10 @@ public sealed partial class OnlineViewModel : ViewModelBase,
 
     private Task EnsureProfilesLoadedAsync(CancellationToken cancellationToken = default)
     {
-        return EnsureProfilesLoadedAsync(cancellationToken, forceReload: false);
+        return EnsureProfilesLoadedAsync(forceReload: false, cancellationToken);
     }
 
-    private async Task EnsureProfilesLoadedAsync(CancellationToken cancellationToken, bool forceReload)
+    private async Task EnsureProfilesLoadedAsync(bool forceReload, CancellationToken cancellationToken = default)
     {
         if (_disposed || (_profilesLoaded && !forceReload))
         {

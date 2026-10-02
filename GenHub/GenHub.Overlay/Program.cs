@@ -126,12 +126,20 @@ public static class Program
         }
 
         configPath = candidateConfigPath;
-        string configContents;
+        string configContents = string.Empty;
         try
         {
             configContents = File.ReadAllText(configPath);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
+        {
+            var err = $"Cannot read config: {ex.Message}";
+            Console.Error.WriteLine(err);
+            WriteErrorFile(configPath, err);
+            exitCode = OnlineConstants.SidecarExitConfigError;
+            return false;
+        }
+        catch (UnauthorizedAccessException ex)
         {
             var err = $"Cannot read config: {ex.Message}";
             Console.Error.WriteLine(err);

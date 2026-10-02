@@ -703,8 +703,9 @@ public sealed class OnlineNetworkServiceTests
         var primaryAttempts = 0;
         var backupAttempts = 0;
 
-        var handler = new CountingHandler();
-        handler.Responder = request =>
+        var handler = new CountingHandler
+        {
+            Responder = request =>
         {
             var host = request.RequestUri?.Authority ?? string.Empty;
             if (request.RequestUri?.AbsolutePath.EndsWith("/v1/sessions/anonymous", StringComparison.Ordinal) == true)
@@ -723,6 +724,7 @@ public sealed class OnlineNetworkServiceTests
             }
 
             return Route(request, HttpStatusCode.OK);
+        },
         };
 
         try
