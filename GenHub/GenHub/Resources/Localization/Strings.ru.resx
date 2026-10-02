@@ -15419,6 +15419,9 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="Tools.IniEditor.Properties.AddField" xml:space="preserve">
     <value>Добавить поле</value>
   </data>
+  <data name="Tools.IniEditor.Properties.NoFieldsHint" xml:space="preserve">
+    <value>Нет полей для отображения. Выберите блок или модуль, чтобы изменить его поля, или добавьте поле ниже.</value>
+  </data>
   <data name="Tools.IniEditor.Empty.Title" xml:space="preserve">
     <value>Документ не открыт</value>
   </data>
@@ -17903,7 +17906,7 @@ Error: не удалось: {3}
     <value>3D-предпросмотр</value>
   </data>
   <data name="Tools.IniEditor.Preview3D.Empty" xml:space="preserve">
-    <value>Выберите блок с полем Model или кнопку, указывающую на объект, для 3D-предпросмотра.</value>
+    <value>Нет 3D-модели для этого блока. Его модули и связанные объекты показаны ниже.</value>
   </data>
   <data name="Tools.IniEditor.Preview3D.Loading" xml:space="preserve">
     <value>Загрузка {0}…</value>
@@ -17976,6 +17979,9 @@ Error: не удалось: {3}
   </data>
   <data name="Tools.IniEditor.Preview3D.NoClips" xml:space="preserve">
     <value>Нет анимаций</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ViaSource" xml:space="preserve">
+    <value>из {0}</value>
   </data>
   <data name="TextureEditor.Button.OpenFolder" xml:space="preserve">
     <value>Открыть папку</value>

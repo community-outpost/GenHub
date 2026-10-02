@@ -915,6 +915,13 @@
                                 IsVisible="{Binding PreviewModelName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                           <TextBlock Text="{Binding PreviewModelName}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
                         </Border>
+                        <Border Background="Transparent"
+                                BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
+                                CornerRadius="4" Padding="6,1"
+                                IsVisible="{Binding HasPreviewModelSource}"
+                                ToolTip.Tip="{Binding PreviewModelSourceText}">
+                          <TextBlock Text="{Binding PreviewModelSourceText}" FontSize="10" Foreground="{DynamicResource AccentBrush}"/>
+                        </Border>
                       </StackPanel>
                       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                         <CheckBox Content="{localization:Localize Tools.IniEditor.Preview3D.Skeleton}"
@@ -1433,14 +1440,20 @@
                   </StackPanel>
                 </Expander>
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                  <ItemsControl ItemsSource="{Binding FieldRows}" Margin="4"
-                                ItemTemplate="{StaticResource IniFieldRowTemplate}">
-                    <ItemsControl.ItemsPanel>
-                      <ItemsPanelTemplate>
-                        <controls:TwoColumnPanel ColumnSpacing="6" RowSpacing="2"/>
-                      </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                  </ItemsControl>
+                  <StackPanel Spacing="4">
+                    <TextBlock Text="{localization:Localize Tools.IniEditor.Properties.NoFieldsHint}"
+                               IsVisible="{Binding !HasFieldRows}"
+                               FontSize="11" Foreground="{DynamicResource TextSecondary}"
+                               TextWrapping="Wrap" Margin="8,8,8,0"/>
+                    <ItemsControl ItemsSource="{Binding FieldRows}" Margin="4"
+                                  ItemTemplate="{StaticResource IniFieldRowTemplate}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <controls:TwoColumnPanel ColumnSpacing="6" RowSpacing="2"/>
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                  </StackPanel>
                 </ScrollViewer>
               </DockPanel>
             </Border>

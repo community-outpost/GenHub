@@ -431,6 +431,12 @@ public sealed partial class IniEditorViewModel(
     private string _previewModelName = string.Empty;
 
     /// <summary>
+    /// Gets or sets the inherited-model source label, or empty when the model belongs to the selected block.
+    /// </summary>
+    [ObservableProperty]
+    private string _previewModelSourceText = string.Empty;
+
+    /// <summary>
     /// Gets or sets the selected preview mesh index, or -1 for none.
     /// </summary>
     [ObservableProperty]
@@ -531,6 +537,16 @@ public sealed partial class IniEditorViewModel(
     /// Gets a value indicating whether the preview has related objects.
     /// </summary>
     public bool HasPreviewRelatedObjects => PreviewRelatedObjects.Count > 0;
+
+    /// <summary>
+    /// Gets a value indicating whether the previewed model is inherited from another block.
+    /// </summary>
+    public bool HasPreviewModelSource => !string.IsNullOrEmpty(PreviewModelSourceText);
+
+    /// <summary>
+    /// Gets a value indicating whether the selected block has direct fields.
+    /// </summary>
+    public bool HasFieldRows => FieldRows.Count > 0;
 
     /// <summary>
     /// Gets the related object cards for reference blocks such as command sets.
@@ -1781,26 +1797,37 @@ public sealed partial class IniEditorViewModel(
 
     private string ResolveBlockModel(IniBlock block)
     {
-        return ResolveBlockModelRecursive(block, 0);
+        return ResolveBlockModelCore(block, 0).Model;
     }
 
-    private string ResolveBlockModelRecursive(IniBlock block, int depth)
+    private IniBlock? ResolveBlockModelSource(IniBlock block)
+    {
+        var resolution = ResolveBlockModelCore(block, 0);
+        if (string.IsNullOrEmpty(resolution.Model) || ReferenceEquals(resolution.Source, block))
+        {
+            return null;
+        }
+
+        return resolution.Source;
+    }
+
+    private (string Model, IniBlock? Source) ResolveBlockModelCore(IniBlock block, int depth)
     {
         var direct = FindFieldValue(block, IniConstants.FieldKeys.Model);
         if (!string.IsNullOrWhiteSpace(direct))
         {
-            return direct.Trim();
+            return (direct.Trim(), block);
         }
 
         var nested = FindNestedModel(block);
         if (!string.IsNullOrEmpty(nested))
         {
-            return nested;
+            return (nested, block);
         }
 
         if (depth > 0)
         {
-            return string.Empty;
+            return (string.Empty, null);
         }
 
         // Blocks without their own model, such as command buttons and player
@@ -1810,21 +1837,57 @@ public sealed partial class IniEditorViewModel(
         if (!string.IsNullOrWhiteSpace(target))
         {
             var referenced = FindBlocks(IniConstants.BlockTypes.Object, target.Trim()).FirstOrDefault();
-            return referenced == null ? string.Empty : ResolveBlockModelRecursive(referenced, depth + 1);
+            return referenced == null
+                ? (string.Empty, null)
+                : ResolveBlockModelCore(referenced, depth + 1);
         }
 
         // Command sets point at buttons rather than objects, so preview the
         // model of the first related object behind the set.
         foreach (var related in ResolveRelatedObjectBlocks(block))
         {
-            var model = ResolveBlockModelRecursive(related, depth + 1);
-            if (!string.IsNullOrEmpty(model))
+            var model = ResolveBlockModelCore(related, depth + 1);
+            if (!string.IsNullOrEmpty(model.Model))
             {
                 return model;
             }
         }
 
-        return string.Empty;
+        // Faction variants such as AirF_AmericaVehicleComanche often carry
+        // only override modules, so preview the base object they extend.
+        return ResolveBaseObjectModel(block, depth);
+    }
+
+    private (string Model, IniBlock? Source) ResolveBaseObjectModel(IniBlock block, int depth)
+    {
+        if (!string.Equals(block.BlockType, IniConstants.BlockTypes.Object, StringComparison.OrdinalIgnoreCase))
+        {
+            return (string.Empty, null);
+        }
+
+        var name = block.Name;
+        var index = name.IndexOf('_');
+        while (index >= 0 && index + 1 < name.Length)
+        {
+            var candidate = name[(index + 1)..];
+            foreach (var baseBlock in FindBlocks(IniConstants.BlockTypes.Object, candidate))
+            {
+                if (ReferenceEquals(baseBlock, block))
+                {
+                    continue;
+                }
+
+                var resolved = ResolveBlockModelCore(baseBlock, depth + 1);
+                if (!string.IsNullOrEmpty(resolved.Model))
+                {
+                    return resolved;
+                }
+            }
+
+            index = name.IndexOf('_', index + 1);
+        }
+
+        return (string.Empty, null);
     }
 
     /// <summary>
@@ -2743,6 +2806,7 @@ public sealed partial class IniEditorViewModel(
         var block = EditableSelectedNode?.Block;
         if (block == null)
         {
+            OnPropertyChanged(nameof(HasFieldRows));
             return;
         }
 
@@ -2767,6 +2831,8 @@ public sealed partial class IniEditorViewModel(
                 MarkDocumentDirty,
                 (oldValue, newValue) => PushFieldValueUndo(block.Fields, key, fieldIndex, oldValue, newValue)));
         }
+
+        OnPropertyChanged(nameof(HasFieldRows));
     }
 
     private void RebuildGlobalFieldRows()
@@ -4733,6 +4799,11 @@ public sealed partial class IniEditorViewModel(
         OnPropertyChanged(nameof(HasSelectedBlockVitals));
 
         SelectedBlockModel = ResolveBlockModel(block);
+        var modelSource = ResolveBlockModelSource(block);
+        PreviewModelSourceText = modelSource == null
+            ? string.Empty
+            : Localization.GetString("Tools.IniEditor.Preview3D.ViaSource", modelSource.Name);
+        OnPropertyChanged(nameof(HasPreviewModelSource));
         ApplyVisualObjectPortrait(block);
         ApplyVisualObjectLists(block, node);
         RebuildPreviewRelatedObjects(block);
@@ -4762,6 +4833,8 @@ public sealed partial class IniEditorViewModel(
         SelectedBlockCost = null;
         SelectedBlockTime = null;
         SelectedBlockModel = string.Empty;
+        PreviewModelSourceText = string.Empty;
+        OnPropertyChanged(nameof(HasPreviewModelSource));
         SelectedBlockPortrait = null;
         SelectedBlockKindOfList.Clear();
         SelectedBlockModules.Clear();

@@ -331,6 +331,101 @@ public sealed class IniEditorPreviewTests
         }
     }
 
+    /// <summary>
+    /// Verifies that a faction variant without its own model previews the base object model.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task SelectingVariantObject_ResolvesBaseObjectModelAsync()
+    {
+        var mockResolver = ResolverReturning(ResolvedModel());
+        using var viewModel = CreateViewModel(mockResolver.Object);
+        viewModel.FileExplorer.Directory = Path.GetTempPath();
+        var filePath = Path.Combine(Path.GetTempPath(), $"GenHubVariant{Guid.NewGuid():N}.ini");
+        await File.WriteAllTextAsync(filePath, VariantIni());
+        try
+        {
+            Assert.True(await viewModel.OpenFileAsync(filePath));
+            var variantNode = FindNodeByName(viewModel, "AirF_AmericaVehicleComanche");
+            Assert.NotNull(variantNode);
+            viewModel.SelectedNode = variantNode;
+
+            Assert.Equal("TestUnit", viewModel.SelectedBlockModel);
+            Assert.True(viewModel.HasPreviewModelSource);
+            Assert.Equal("Tools.IniEditor.Preview3D.ViaSource", viewModel.PreviewModelSourceText);
+            Assert.False(viewModel.HasFieldRows);
+            Assert.True(viewModel.HasSelectedBlockModules);
+
+            bool loaded = await WaitForAsync(() => viewModel.HasPreviewScene, TimeSpan.FromSeconds(5));
+            Assert.True(loaded);
+            Assert.Equal("TestUnit", viewModel.PreviewModelName);
+        }
+        finally
+        {
+            File.Delete(filePath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that selecting a variant module keeps the base preview and shows the module fields.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task SelectingVariantModule_KeepsBasePreviewAndShowsModuleFieldsAsync()
+    {
+        var mockResolver = ResolverReturning(ResolvedModel());
+        using var viewModel = CreateViewModel(mockResolver.Object);
+        viewModel.FileExplorer.Directory = Path.GetTempPath();
+        var filePath = Path.Combine(Path.GetTempPath(), $"GenHubVariantModule{Guid.NewGuid():N}.ini");
+        await File.WriteAllTextAsync(filePath, VariantIni());
+        try
+        {
+            Assert.True(await viewModel.OpenFileAsync(filePath));
+            var variantNode = FindNodeByName(viewModel, "AirF_AmericaVehicleComanche");
+            Assert.NotNull(variantNode);
+            viewModel.SelectedNode = variantNode;
+            bool loaded = await WaitForAsync(() => viewModel.HasPreviewScene, TimeSpan.FromSeconds(5));
+            Assert.True(loaded);
+
+            var moduleNode = Assert.Single(variantNode.Children);
+            viewModel.SelectedNode = moduleNode;
+
+            Assert.Equal("AirF_AmericaVehicleComanche", viewModel.SelectedBlockTitle);
+            Assert.True(viewModel.HasPreviewScene);
+            Assert.False(viewModel.HasFieldRows);
+
+            var behaviorNode = Assert.Single(moduleNode.Children);
+            viewModel.SelectedNode = behaviorNode;
+
+            Assert.Equal("AirF_AmericaVehicleComanche", viewModel.SelectedBlockTitle);
+            Assert.True(viewModel.HasPreviewScene);
+            Assert.True(viewModel.HasFieldRows);
+            Assert.Single(viewModel.FieldRows);
+        }
+        finally
+        {
+            File.Delete(filePath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that a variant without a matching base object clears the preview.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task VariantWithoutBase_ClearsPreviewAsync()
+    {
+        using var viewModel = CreateViewModel(Mock.Of<IW3dModelResolver>());
+        await viewModel.NewDocumentCommand.ExecuteAsync(null);
+        viewModel.NewBlockType = "Object";
+        viewModel.NewBlockName = "AirF_Ghost";
+        viewModel.AddBlockCommand.Execute(null);
+
+        Assert.False(viewModel.HasPreviewScene);
+        Assert.False(viewModel.HasPreviewModelSource);
+        Assert.Equal("Tools.IniEditor.Preview3D.Empty", viewModel.PreviewStatusText);
+    }
+
     private static IniTreeNodeViewModel? FindNodeByName(IniEditorViewModel viewModel, string name)
     {
         var queue = new Queue<IniTreeNodeViewModel>(viewModel.RootNodes);
@@ -421,6 +516,20 @@ public sealed class IniEditorPreviewTests
             "    ModelConditionState = NONE\n" +
             "      Model = TestUnit\n" +
             "      ShowSubObjects = TURRET\n" +
+            "    End\n" +
+            "  End\n" +
+            "End\n";
+    }
+
+    private static string VariantIni()
+    {
+        return "Object AmericaVehicleComanche\n" +
+            "  Model = TestUnit\n" +
+            "End\n" +
+            "Object AirF_AmericaVehicleComanche\n" +
+            "  AddModule\n" +
+            "    Behavior = VeterancyGainCreate ModuleTag_HeIden\n" +
+            "      StartingLevel = HEROIC\n" +
             "    End\n" +
             "  End\n" +
             "End\n";
