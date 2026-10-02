@@ -388,6 +388,11 @@ public class ContentStorageService : IContentStorageService
             return OperationResult<ContentManifest>.CreateFailure("Manifest contains a null variant or file entry or file collection");
         }
 
+        if (!ManifestVariantResolver.SupportsRuntime(manifest))
+        {
+            return OperationResult<ContentManifest>.CreateFailure("Manifest has no variant for this host");
+        }
+
         if (string.IsNullOrEmpty(sourceDirectory) || !Directory.Exists(sourceDirectory))
         {
             return await HandleMissingSourceDirectoryAsync(manifest, sourceDirectory, cancellationToken).ConfigureAwait(false);
@@ -546,7 +551,7 @@ public class ContentStorageService : IContentStorageService
         {
             var manifestJson = await File.ReadAllTextAsync(manifestPath, cancellationToken).ConfigureAwait(false);
             var manifest = JsonSerializer.Deserialize<ContentManifest>(manifestJson, JsonOptions);
-            if (manifest == null)
+            if (manifest == null || !ManifestVariantResolver.SupportsRuntime(manifest))
             {
                 return OperationResult<bool>.CreateSuccess(false);
             }
@@ -740,9 +745,6 @@ public class ContentStorageService : IContentStorageService
 
         try
         {
-            // Metadata-only storage never reads staging source paths, so they must not fail validation either
-            ClearCasStagingSourcePaths(manifest);
-
             // Validate manifest for security issues
             // Use sourceDirectory if available, otherwise fallback to storage root (though typically sourceDirectory should be provided)
             var validationBase = !string.IsNullOrEmpty(sourceDirectory) && Directory.Exists(sourceDirectory)
@@ -755,6 +757,9 @@ public class ContentStorageService : IContentStorageService
                 _logger.LogError("Manifest security validation failed for {ManifestId}: {Error}", manifest.Id, securityValidation.FirstError ?? "Unknown error");
                 return OperationResult<ContentManifest>.CreateFailure($"Manifest security validation failed: {securityValidation.FirstError ?? "Unknown error"}");
             }
+
+            // Sanitize only after validation succeeds, preserving rejected callers' staging paths.
+            ClearCasStagingSourcePaths(manifest);
 
             // Create manifest directory if needed
             var manifestDir = Path.GetDirectoryName(manifestPath);
@@ -1230,14 +1235,18 @@ public class ContentStorageService : IContentStorageService
         if (string.IsNullOrEmpty(file.Hash))
         {
             _logger.LogWarning("File {RelativePath} has no hash, skipping", file.RelativePath);
-            return OperationResult<string>.CreateSuccess(string.Empty);
+            return file.IsRequired
+                ? OperationResult<string>.CreateFailure($"Required file {file.RelativePath} is unavailable in CAS")
+                : OperationResult<string>.CreateSuccess(string.Empty);
         }
 
         var casPathResult = await _casService.GetContentPathAsync(file.Hash, contentType, cancellationToken).ConfigureAwait(false);
         if (!casPathResult.Success || string.IsNullOrEmpty(casPathResult.Data))
         {
             _logger.LogWarning("File {RelativePath} not found in CAS (hash: {Hash})", file.RelativePath, file.Hash);
-            return OperationResult<string>.CreateSuccess(string.Empty);
+            return file.IsRequired
+                ? OperationResult<string>.CreateFailure($"Required file {file.RelativePath} is unavailable in CAS")
+                : OperationResult<string>.CreateSuccess(string.Empty);
         }
 
         var targetPath = Path.Combine(targetDirectory, file.RelativePath);

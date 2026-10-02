@@ -105,4 +105,16 @@ public class ContentManifestTests
         Assert.Equal("2", deserialized.SchemaVersion);
         Assert.Equal("2", deserialized.ManifestVersion);
     }
+
+    /// <summary>Replacing copied variant files does not mutate the source manifest.</summary>
+    [Fact]
+    public void CopyConstructor_VariantListsAreIndependent()
+    {
+        var source = new ContentManifest { Variants = [new() { Files = [new() { RelativePath = "original" }] }] };
+        var copy = new ContentManifest(source);
+        ManifestVariantResolver.ReplaceResolvedFiles(copy, [new() { RelativePath = "replacement" }]);
+        Assert.Equal("original", Assert.Single(source.Variants[0].Files).RelativePath);
+        copy.Variants[0].RuntimeIdentifiers.Add("win-x64");
+        Assert.Empty(source.Variants[0].RuntimeIdentifiers);
+    }
 }

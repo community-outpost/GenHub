@@ -56,7 +56,8 @@ public static class ManifestVariantResolver
 
     /// <summary>
     /// Enumerates every file the manifest declares: the flat list followed by each
-    /// variant's files, whichever runtime they target.
+    /// variant's files, whichever runtime they target. Null entries are skipped; use
+    /// GetDeclaredFileLists for structural validation of malformed entries.
     /// </summary>
     /// <param name="manifest">The manifest to enumerate.</param>
     /// <returns>All declared files.</returns>

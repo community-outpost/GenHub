@@ -12,6 +12,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using System;
 using System.IO;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -321,6 +322,58 @@ public class ContentStorageServiceVariantTests : IDisposable
         Assert.False(File.Exists(Path.Combine(target, ForeignFileName)));
     }
 
+    /// <summary>Required missing blobs cannot produce a successful empty retrieval.</summary>
+    /// <returns>The asynchronous test.</returns>
+    /// <param name="hash">A missing hash or a hash with no available blob.</param>
+    [Theory]
+    [InlineData("")]
+    [InlineData(HostHash)]
+    public async Task RetrieveContentAsync_MissingRequiredBlob_FailsAsync(string hash)
+    {
+        var manifest = VariantManifestFixture.Create([new() { RelativePath = HostFileName, Hash = hash }], []);
+        Directory.CreateDirectory(Path.GetDirectoryName(_service.GetManifestStoragePath(manifest.Id))!);
+        await File.WriteAllTextAsync(_service.GetManifestStoragePath(manifest.Id), JsonSerializer.Serialize(manifest));
+        var result = await _service.RetrieveContentAsync(manifest.Id, Path.Combine(_tempRoot, "Target"));
+        Assert.False(result.Success);
+        Assert.Contains(HostFileName, result.FirstError);
+    }
+
+    /// <summary>Rejected metadata preserves the caller's staging paths.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task StoreContentAsync_InvalidMetadata_PreservesStagingPathAsync()
+    {
+        _casServiceMock.Setup(c => c.ExistsAsync(HostHash, ContentType.GameClient, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        var stagingPath = Path.Combine(_tempRoot, "Staging", ForeignFileName);
+        var foreign = new ManifestFile
+        {
+            RelativePath = "../escape.exe", Hash = ForeignHash,
+            SourceType = ContentSourceType.ContentAddressable, SourcePath = stagingPath,
+        };
+        var manifest = VariantManifestFixture.Create(
+            [new() { RelativePath = HostFileName, Hash = HostHash, SourceType = ContentSourceType.ContentAddressable }],
+            [foreign]);
+
+        var result = await _service.StoreContentAsync(manifest, Path.Combine(_tempRoot, "Missing"));
+
+        Assert.False(result.Success);
+        Assert.Equal(stagingPath, foreign.SourcePath);
+    }
+
+    /// <summary>Unsupported map payloads fail before being persisted.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task StoreContentAsync_UnsupportedMapPack_FailsAsync()
+    {
+        var manifest = VariantManifestFixture.Create([], [new() { RelativePath = ForeignFileName }]);
+        manifest.ContentType = ContentType.MapPack;
+        manifest.Variants.RemoveAt(1);
+        var result = await _service.StoreContentAsync(manifest, _tempRoot);
+        Assert.False(result.Success);
+        Assert.False(File.Exists(_service.GetManifestStoragePath(manifest.Id)));
+    }
+
     /// <summary>Retrieving a stored manifest with no host variant names the host, not a corrupt manifest.</summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
@@ -330,8 +383,8 @@ public class ContentStorageServiceVariantTests : IDisposable
             [],
             [new() { RelativePath = ForeignFileName, Hash = ForeignHash, SourceType = ContentSourceType.ContentAddressable, IsRequired = true }]);
         manifest.Variants.RemoveAt(1);
-        var storeResult = await _service.StoreContentAsync(manifest, Path.Combine(_tempRoot, "Missing"));
-        Assert.True(storeResult.Success, storeResult.FirstError);
+        Directory.CreateDirectory(Path.GetDirectoryName(_service.GetManifestStoragePath(manifest.Id))!);
+        await File.WriteAllTextAsync(_service.GetManifestStoragePath(manifest.Id), JsonSerializer.Serialize(manifest));
 
         var result = await _service.RetrieveContentAsync(manifest.Id, Path.Combine(_tempRoot, "Target"));
 
