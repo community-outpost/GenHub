@@ -574,7 +574,7 @@ public sealed class IniReferenceService(
 
     private void ScanFileInto(string file, List<IniReferenceEntry> entries, Dictionary<string, HashSet<string>> tokens, IniReferenceSource source, string label)
     {
-        string content;
+        string content = string.Empty;
         try
         {
             content = File.ReadAllText(file);

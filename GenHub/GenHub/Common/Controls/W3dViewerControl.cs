@@ -438,14 +438,9 @@ public sealed class W3dViewerControl : OpenGlControlBase, ICustomHitTest
         Matrix4x4 inner;
         if (pose == null || mesh.BoneIndex < 0 || mesh.BoneIndex >= pose.Count)
         {
-            if (!mesh.IsSkin && bindPose != null && mesh.BoneIndex >= 0 && mesh.BoneIndex < bindPose.Count)
-            {
-                inner = bindPose[mesh.BoneIndex];
-            }
-            else
-            {
-                inner = Matrix4x4.Identity;
-            }
+            inner = !mesh.IsSkin && bindPose != null && mesh.BoneIndex >= 0 && mesh.BoneIndex < bindPose.Count
+                ? bindPose[mesh.BoneIndex]
+                : Matrix4x4.Identity;
         }
         else if (mesh.IsSkin)
         {

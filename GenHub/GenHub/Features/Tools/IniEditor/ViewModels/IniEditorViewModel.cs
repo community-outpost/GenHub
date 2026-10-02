@@ -1979,7 +1979,7 @@ public sealed partial class IniEditorViewModel(
 
     private async Task ResolveCrossFileAsync(IniBlock root, bool needsModel, int generation, CancellationToken cancellationToken)
     {
-        CrossFileOutcome outcome;
+        CrossFileOutcome outcome = new(string.Empty, null, [], []);
         try
         {
             outcome = await WalkCrossFileAsync(root, needsModel, cancellationToken).ConfigureAwait(false);
@@ -5051,12 +5051,10 @@ public sealed partial class IniEditorViewModel(
 
         ShowAllBlocksOnCanvas = false;
         var targetNode = FindNode(RootNodes, card.Block);
-        if (targetNode == null && !string.IsNullOrEmpty(card.SourceFile))
+        if (targetNode == null && !string.IsNullOrEmpty(card.SourceFile)
+            && await OpenFileAsync(card.SourceFile, CancellationToken.None).ConfigureAwait(false))
         {
-            if (await OpenFileAsync(card.SourceFile, CancellationToken.None).ConfigureAwait(false))
-            {
-                targetNode = FindNodeByName(RootNodes, card.Block.BlockType, card.Block.Name);
-            }
+            targetNode = FindNodeByName(RootNodes, card.Block.BlockType, card.Block.Name);
         }
 
         if (targetNode != null)
@@ -5446,7 +5444,7 @@ public sealed partial class IniEditorViewModel(
             return;
         }
 
-        IReadOnlyList<CompositePreviewPart> parts;
+        IReadOnlyList<CompositePreviewPart> parts = [];
         try
         {
             parts = await GatherCompositePartsAsync(root, installationPath, isZeroHour, projectDirectory, cancellationToken).ConfigureAwait(false);

@@ -432,12 +432,10 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger, ILoca
         }
 
         var firstToken = line.Split([' ', '\t'], 2, StringSplitOptions.RemoveEmptyEntries)[0];
-        if (IsParticleSystemReference(firstToken, context, lineNumber - 1, GetIndent(raw)))
+        if (IsParticleSystemReference(firstToken, context, lineNumber - 1, GetIndent(raw))
+            && TryAddWhitespaceField(line, comment, context.Stack, context.PendingComments))
         {
-            if (TryAddWhitespaceField(line, comment, context.Stack, context.PendingComments))
-            {
-                return;
-            }
+            return;
         }
 
         if (IsBlockType(firstToken))
