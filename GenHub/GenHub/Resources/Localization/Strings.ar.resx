@@ -3829,6 +3829,9 @@
   <data name="ContentType.Screensaver" xml:space="preserve">
     <value>شاشة توقف</value>
   </data>
+  <data name="ContentType.GenHubBuild" xml:space="preserve">
+    <value>إصدار GenHub</value>
+  </data>
   <data name="ContentType.Executable" xml:space="preserve">
     <value>ملف تنفيذي</value>
   </data>
@@ -17684,5 +17687,8 @@ Error: فشل: {3}
   <data name="TextureEditor.Notify.OpenFailed.Message" xml:space="preserve"><value>فشل فتح النسيج الهدف.</value></data>
   <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
     <value>إصدارات احتياطية يدوية (تجاوزات)</value>
+  </data>
+  <data name="Updates.CustomBuilds.Label" xml:space="preserve">
+    <value>إصدارات وتفريعات مخصصة</value>
   </data>
 </root>

@@ -5,16 +5,23 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Notifications;
+using GenHub.Core.Models.Providers;
 using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.AppUpdate.ViewModels;
 using GenHub.Features.AppUpdate.Views;
+using GenHub.Features.Content.Services.Catalog;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Globalization;
+using System.Linq;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Velopack;
@@ -30,13 +37,19 @@ namespace GenHub.Features.AppUpdate.Services;
 /// <param name="logger">Logger instance.</param>
 /// <param name="gitHubAuthService">Optional GitHub authentication service for checking authentication availability.</param>
 /// <param name="localizationService">Optional localization service.</param>
+/// <param name="publisherSubscriptionStore">Optional subscription store for tracking custom build subscriptions.</param>
+/// <param name="publisherCatalogParser">Optional catalog parser for reading subscribed catalogs.</param>
+/// <param name="httpClientFactory">Optional HTTP client factory for downloading catalogs.</param>
 public class BackgroundUpdateCoordinator(
     IVelopackUpdateManager velopackUpdateManager,
     IUserSettingsService userSettingsService,
     INotificationService notificationService,
     ILogger<BackgroundUpdateCoordinator> logger,
     IGitHubAuthService? gitHubAuthService = null,
-    ILocalizationService? localizationService = null) : IBackgroundUpdateCoordinator, IRecipient<UpdateSettingsChangedMessage>
+    ILocalizationService? localizationService = null,
+    IPublisherSubscriptionStore? publisherSubscriptionStore = null,
+    IPublisherCatalogParser? publisherCatalogParser = null,
+    IHttpClientFactory? httpClientFactory = null) : IBackgroundUpdateCoordinator, IRecipient<UpdateSettingsChangedMessage>
 {
     private readonly CancellationTokenSource _cts = new();
     private readonly object _lifecycleLock = new();
@@ -86,7 +99,14 @@ public class BackgroundUpdateCoordinator(
         {
             var settings = userSettingsService.Get();
 
-            // 1. check for subscribed pr artifacts
+            // 1. check for subscribed custom build / fork
+            if (!string.IsNullOrWhiteSpace(settings.SubscribedCustomBuildContentId))
+            {
+                await CheckSubscribedCustomBuildUpdateAsync(settings, effectiveToken);
+                return;
+            }
+
+            // 2. check for subscribed pr artifacts
             if (settings.SubscribedPrNumber.HasValue)
             {
                 await CheckSubscribedPrUpdateAsync(settings.SubscribedPrNumber.Value, settings, effectiveToken);
@@ -835,6 +855,116 @@ public class BackgroundUpdateCoordinator(
         catch (Exception ex)
         {
             logger?.LogWarning(ex, "Failed to clear stale subscription settings after fallback update");
+        }
+    }
+
+    private async Task CheckSubscribedCustomBuildUpdateAsync(UserSettings settings, CancellationToken cancellationToken)
+    {
+        var contentId = settings.SubscribedCustomBuildContentId!;
+        var buildName = settings.SubscribedCustomBuildName ?? contentId;
+        var publisherId = settings.SubscribedCustomBuildPublisherId;
+
+        logger?.LogInformation("Checking custom build / fork update for '{Name}' ({ContentId})", buildName, contentId);
+
+        if (publisherSubscriptionStore == null)
+        {
+            return;
+        }
+
+        var subsResult = await publisherSubscriptionStore.GetSubscriptionsAsync(cancellationToken);
+        if (!subsResult.Success || subsResult.Data == null)
+        {
+            return;
+        }
+
+        var candidateSubs = string.IsNullOrWhiteSpace(publisherId)
+            ? subsResult.Data
+            : subsResult.Data.Where(s => string.Equals(s.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        CatalogContentItem? matchedItem = null;
+
+        foreach (var sub in candidateSubs)
+        {
+            var catalog = await FetchCatalogForSubscriptionAsync(sub, cancellationToken);
+            var item = catalog?.Content.FirstOrDefault(c =>
+                string.Equals(c.Id, contentId, StringComparison.OrdinalIgnoreCase) &&
+                c.ContentType == ContentType.GenHubBuild);
+
+            if (item != null)
+            {
+                matchedItem = item;
+                break;
+            }
+        }
+
+        if (matchedItem == null)
+        {
+            logger?.LogDebug("Custom build content '{ContentId}' not found in active publisher subscriptions", contentId);
+            return;
+        }
+
+        var latestRelease = matchedItem.Releases
+            .OrderByDescending(r => r.ReleaseDate)
+            .FirstOrDefault();
+
+        if (latestRelease == null || string.IsNullOrWhiteSpace(latestRelease.Version))
+        {
+            return;
+        }
+
+        var latestVersion = latestRelease.Version.TrimStart('v', 'V');
+        var installedVersion = (settings.SubscribedCustomBuildVersion ?? UpdateNotificationViewModel.CurrentAppVersion).TrimStart('v', 'V').Split('+')[0];
+
+        if (AppUpdateVersionHelper.IsArtifactVersionNewer(latestVersion, installedVersion, allowCrossChannel: true) &&
+            !string.Equals(latestVersion, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
+        {
+            var updateIdentity = $"{AppUpdateConstants.CustomBuildDedupePrefix}{contentId}:{latestVersion}";
+
+            if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
+            {
+                logger?.LogDebug(AppUpdateConstants.NotificationAlreadyShownLogFormat, updateIdentity);
+                return;
+            }
+
+            _lastNotifiedUpdateIdentity = updateIdentity;
+            logger?.LogInformation("Custom build update available for '{Name}': v{Version}", buildName, latestVersion);
+
+            notificationService.Show(new NotificationMessage(
+                NotificationType.Info,
+                AppUpdateConstants.CustomBuildUpdateAvailableNotificationTitle,
+                string.Format(CultureInfo.InvariantCulture, AppUpdateConstants.CustomBuildUpdateNotificationFormat, latestVersion, buildName),
+                autoDismissMilliseconds: null,
+                actions:
+                [
+                    new NotificationAction(
+                        AppUpdateConstants.ViewUpdatesAction,
+                        OpenUpdateSettings,
+                        NotificationActionStyle.Primary,
+                        dismissOnExecute: true),
+                ],
+                isPersistent: true,
+                showInBadge: true));
+        }
+    }
+
+    private async Task<PublisherCatalog?> FetchCatalogForSubscriptionAsync(PublisherSubscription subscription, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(subscription.CatalogUrl) || publisherCatalogParser == null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var client = httpClientFactory?.CreateClient(CatalogConstants.CatalogHttpClientName) ?? new HttpClient();
+            var json = await CatalogDocumentReader.ReadAsync(client, subscription.CatalogUrl, CatalogConstants.MaxCatalogSizeBytes, cancellationToken: cancellationToken);
+            var parseResult = await publisherCatalogParser.ParseCatalogAsync(json, cancellationToken);
+            return parseResult.Success ? parseResult.Data : null;
+        }
+        catch (Exception ex)
+        {
+            logger?.LogDebug(ex, "Failed to fetch catalog from '{CatalogUrl}' for subscription '{PublisherId}'", subscription.CatalogUrl, subscription.PublisherId);
+            return null;
         }
     }
 

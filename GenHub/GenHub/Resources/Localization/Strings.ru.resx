@@ -3829,6 +3829,9 @@
   <data name="ContentType.Screensaver" xml:space="preserve">
     <value>Заставка</value>
   </data>
+  <data name="ContentType.GenHubBuild" xml:space="preserve">
+    <value>Сборка GenHub</value>
+  </data>
   <data name="ContentType.Executable" xml:space="preserve">
     <value>Исполняемый файл</value>
   </data>
@@ -17684,5 +17687,8 @@ Error: не удалось: {3}
   <data name="TextureEditor.Notify.OpenFailed.Message" xml:space="preserve"><value>Не удалось открыть целевую текстуру.</value></data>
   <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
     <value>Резервные выпуски вручную (переопределения)</value>
+  </data>
+  <data name="Updates.CustomBuilds.Label" xml:space="preserve">
+    <value>Пользовательские сборки и форки</value>
   </data>
 </root>

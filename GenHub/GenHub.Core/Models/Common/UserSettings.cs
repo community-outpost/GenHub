@@ -196,6 +196,26 @@ public class UserSettings
     public string? SubscribedBranch { get; set; }
 
     /// <summary>
+    /// Gets or sets the subscribed publisher ID for custom GenHub builds/forks update tracking.
+    /// </summary>
+    public string? SubscribedCustomBuildPublisherId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the subscribed content item ID for custom GenHub builds/forks update tracking.
+    /// </summary>
+    public string? SubscribedCustomBuildContentId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the subscribed custom build or fork display name.
+    /// </summary>
+    public string? SubscribedCustomBuildName { get; set; }
+
+    /// <summary>
+    /// Gets or sets the last known or installed version of the subscribed custom build.
+    /// </summary>
+    public string? SubscribedCustomBuildVersion { get; set; }
+
+    /// <summary>
     /// Gets or sets the last dismissed update version to prevent repeated notifications.
     /// </summary>
     public string? DismissedUpdateVersion { get; set; }
@@ -280,6 +300,10 @@ public class UserSettings
 
             SubscribedPrNumber = SubscribedPrNumber,
             SubscribedBranch = SubscribedBranch,
+            SubscribedCustomBuildPublisherId = SubscribedCustomBuildPublisherId,
+            SubscribedCustomBuildContentId = SubscribedCustomBuildContentId,
+            SubscribedCustomBuildName = SubscribedCustomBuildName,
+            SubscribedCustomBuildVersion = SubscribedCustomBuildVersion,
             DismissedUpdateVersion = DismissedUpdateVersion,
             LastSeenAppVersion = LastSeenAppVersion,
             ContentDirectories = ContentDirectories != null ? [.. ContentDirectories] : null,
