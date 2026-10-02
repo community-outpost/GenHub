@@ -92,7 +92,7 @@ public sealed class ProfileContentService(
                 primaryManifestId,
                 profileId);
 
-            var contextResult = await LoadProfileAndPrimaryManifestAsync(profileId, primaryManifestId, requestedIds.Count, cancellationToken);
+            var contextResult = await LoadProfileAndPrimaryManifestAsync(profileId, primaryManifestId, requestedIds, cancellationToken);
             if (contextResult.Failed)
             {
                 return AddToProfileResult.CreateFailure(contextResult.FirstError ?? "Failed to load profile or manifest", sw.Elapsed);
@@ -302,16 +302,24 @@ public sealed class ProfileContentService(
                 return ProfileOperationResult<GameProfile>.CreateFailure(error);
             }
 
-            var manifest = manifestResult.Data;
-            if (manifest.ContentType == ContentType.GenHubBuild)
+            foreach (var reqId in requestedIds)
             {
-                logger.LogWarning("Attempted to create game profile with GenHub build {ManifestId}", manifestId);
-                return ProfileOperationResult<GameProfile>.CreateFailure("GenHub application builds cannot be used to create game profiles.");
+                var checkResult = string.Equals(reqId, manifestId, StringComparison.Ordinal)
+                    ? manifestResult
+                    : await manifestPool.GetManifestAsync(Core.Models.Manifest.ManifestId.Create(reqId), cancellationToken);
+
+                if (checkResult.Success && checkResult.Data?.ContentType == ContentType.GenHubBuild)
+                {
+                    logger.LogWarning("Attempted to create game profile with GenHub build {ManifestId}", reqId);
+                    return ProfileOperationResult<GameProfile>.CreateFailure("GenHub application builds cannot be used to create game profiles.");
+                }
             }
+
+            var manifest = manifestResult.Data;
 
             if (manifest.ContentType.IsStandalone())
             {
-                var standaloneRequest = BuildStandaloneCreateProfileRequest(profileName, manifest, manifestId, [manifestId]);
+                var standaloneRequest = BuildStandaloneCreateProfileRequest(profileName, manifest, manifestId, requestedIds);
                 var standaloneResult = await profileManager.CreateProfileAsync(standaloneRequest, cancellationToken);
                 if (standaloneResult.Failed)
                 {
@@ -714,7 +722,7 @@ public sealed class ProfileContentService(
     private async Task<OperationResult<(GameProfile Profile, ContentManifest Manifest, string ContentName)>> LoadProfileAndPrimaryManifestAsync(
         string profileId,
         string primaryManifestId,
-        int requestedCount,
+        IReadOnlyList<string> requestedIds,
         CancellationToken cancellationToken)
     {
         var profileResult = await profileManager.GetProfileAsync(profileId, cancellationToken);
@@ -736,16 +744,23 @@ public sealed class ProfileContentService(
             return OperationResult<(GameProfile, ContentManifest, string)>.CreateFailure(error);
         }
 
-        var manifest = manifestResult.Data;
-        if (manifest.ContentType == ContentType.GenHubBuild)
+        foreach (var reqId in requestedIds)
         {
-            var error = "GenHub application builds cannot be added to game profiles.";
-            logger.LogWarning("Attempted to add GenHub build manifest {ManifestId} to profile {ProfileId}", primaryManifestId, profileId);
-            return OperationResult<(GameProfile, ContentManifest, string)>.CreateFailure(error);
+            var checkResult = string.Equals(reqId, primaryManifestId, StringComparison.Ordinal)
+                ? manifestResult
+                : await manifestPool.GetManifestAsync(Core.Models.Manifest.ManifestId.Create(reqId), cancellationToken);
+
+            if (checkResult.Success && checkResult.Data?.ContentType == ContentType.GenHubBuild)
+            {
+                var error = "GenHub application builds cannot be added to game profiles.";
+                logger.LogWarning("Attempted to add GenHub build manifest {ManifestId} to profile {ProfileId}", reqId, profileId);
+                return OperationResult<(GameProfile, ContentManifest, string)>.CreateFailure(error);
+            }
         }
 
-        var contentName = requestedCount > 1
-            ? $"{manifest.Name ?? primaryManifestId} + {requestedCount - 1} more"
+        var manifest = manifestResult.Data;
+        var contentName = requestedIds.Count > 1
+            ? $"{manifest.Name ?? primaryManifestId} + {requestedIds.Count - 1} more"
             : manifest.Name ?? primaryManifestId;
 
         return OperationResult<(GameProfile, ContentManifest, string)>.CreateSuccess((profileResult.Data, manifest, contentName));

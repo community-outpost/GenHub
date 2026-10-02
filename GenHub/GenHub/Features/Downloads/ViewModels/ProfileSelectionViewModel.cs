@@ -482,7 +482,15 @@ public sealed partial class ProfileSelectionViewModel(
                     "Failed to add content to profile '{ProfileName}': {Error}",
                     profile.Name,
                     result.FirstError);
-                ErrorMessage = result.FirstError ?? localizationService.GetLocalizedString("Downloads.Notification.AddToProfileFailed.Message", "Failed to add content to profile");
+                var errorMsg = result.FirstError;
+                if (errorMsg?.Contains("GenHub application builds", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    errorMsg = localizationService.GetLocalizedString(
+                        "Downloads.Notification.GenHubBuildNotAllowedInProfiles",
+                        "GenHub application builds cannot be added to game profiles.");
+                }
+
+                ErrorMessage = errorMsg ?? localizationService.GetLocalizedString("Downloads.Notification.AddToProfileFailed.Message", "Failed to add content to profile");
                 notificationService.ShowError(
                     localizationService.GetLocalizedString("Downloads.Notification.AddToProfileFailed.Title", "Failed to Add to Profile"),
                     ErrorMessage);
@@ -566,7 +574,15 @@ public sealed partial class ProfileSelectionViewModel(
                     "Failed to create profile: {Error}",
                     result.FirstError ?? "Unknown error");
 
-                ErrorMessage = result.FirstError ?? localizationService.GetLocalizedString("Common.UnknownError", "Unknown error");
+                var createErrorMsg = result.FirstError;
+                if (createErrorMsg?.Contains("GenHub application builds", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    createErrorMsg = localizationService.GetLocalizedString(
+                        "Downloads.Notification.GenHubBuildNotAllowedInProfiles",
+                        "GenHub application builds cannot be added to game profiles.");
+                }
+
+                ErrorMessage = createErrorMsg ?? localizationService.GetLocalizedString("Common.UnknownError", "Unknown error");
                 notificationService.ShowError(
                     localizationService.GetLocalizedString("Downloads.Notification.ProfileCreationFailed.Title", "Profile Creation Failed"),
                     ErrorMessage);

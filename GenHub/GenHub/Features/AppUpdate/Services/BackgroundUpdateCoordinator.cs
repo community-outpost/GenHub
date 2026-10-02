@@ -966,7 +966,10 @@ public class BackgroundUpdateCoordinator(
             return null;
         }
 
-        var client = httpClientFactory?.CreateClient(CatalogConstants.CatalogHttpClientName) ?? new HttpClient();
+        using var client = httpClientFactory?.CreateClient(CatalogConstants.CatalogHttpClientName) ?? new HttpClient(new HttpClientHandler
+        {
+            AllowAutoRedirect = false,
+        });
         return await CatalogDocumentReader.FetchAndParseCatalogAsync(client, publisherCatalogParser, subscription.CatalogUrl, logger, cancellationToken).ConfigureAwait(false);
     }
 
