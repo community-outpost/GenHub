@@ -1095,6 +1095,122 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     }
 
     /// <inheritdoc/>
+    public async Task InstallDownloadedBuildAsync(
+        string filePath,
+        string? originalFileName = null,
+        IProgress<UpdateProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+
+        _logger.LogInformation("Installing downloaded build from '{Path}'", filePath);
+
+        string? tempDir = null;
+        try
+        {
+            string targetPath = filePath;
+            if (Directory.Exists(filePath))
+            {
+                var exes = Directory.GetFiles(filePath, "*.exe", SearchOption.AllDirectories)
+                    .Where(e => !Path.GetFileName(e).StartsWith("createdump", StringComparison.OrdinalIgnoreCase))
+                    .ToArray();
+                var setupExe = exes.FirstOrDefault(e => Path.GetFileName(e).Contains("Setup", StringComparison.OrdinalIgnoreCase));
+                if (setupExe != null)
+                {
+                    LaunchInstallerProcess(setupExe, progress);
+                    return;
+                }
+
+                var nupkgs = Directory.GetFiles(filePath, "*.nupkg", SearchOption.AllDirectories);
+                if (nupkgs.Length > 0)
+                {
+                    targetPath = nupkgs[0];
+                }
+                else
+                {
+                    var zips = Directory.GetFiles(filePath, "*.zip", SearchOption.AllDirectories);
+                    if (zips.Length > 0)
+                    {
+                        targetPath = zips[0];
+                    }
+                    else if (exes.Length > 0)
+                    {
+                        LaunchInstallerProcess(exes[0], progress);
+                        return;
+                    }
+                    else
+                    {
+                        throw new FileNotFoundException($"No valid installer, nupkg, or zip archive found in '{filePath}'");
+                    }
+                }
+            }
+
+            if (!File.Exists(targetPath))
+            {
+                throw new FileNotFoundException($"Target build file not found: '{targetPath}'");
+            }
+
+            var extension = Path.GetExtension(targetPath).ToLowerInvariant();
+            if (extension == ".exe")
+            {
+                LaunchInstallerProcess(targetPath, progress);
+                return;
+            }
+
+            if (extension == ".zip")
+            {
+                progress?.Report(new UpdateProgress { Status = "Extracting build archive...", PercentComplete = 20 });
+                tempDir = Path.Combine(Path.GetTempPath(), $"genhub-build-{Guid.NewGuid():N}");
+                Directory.CreateDirectory(tempDir);
+                ZipArchiveGuard.ExtractToDirectory(targetPath, tempDir, cancellationToken);
+
+                var nupkgFiles = Directory.GetFiles(tempDir, "*.nupkg", SearchOption.AllDirectories);
+                if (nupkgFiles.Length > 0)
+                {
+                    await InstallLocalNupkgAsync(nupkgFiles[0], tempDir, Path.GetFileName(targetPath), progress, cancellationToken);
+                    return;
+                }
+
+                var exeFiles = Directory.GetFiles(tempDir, "*.exe", SearchOption.AllDirectories)
+                    .Where(e => !Path.GetFileName(e).StartsWith("createdump", StringComparison.OrdinalIgnoreCase))
+                    .ToArray();
+                if (exeFiles.Length > 0)
+                {
+                    var targetExe = exeFiles.FirstOrDefault(e => Path.GetFileName(e).Contains("Setup", StringComparison.OrdinalIgnoreCase)) ?? exeFiles[0];
+                    LaunchInstallerProcess(targetExe, progress);
+                    return;
+                }
+
+                throw new FileNotFoundException("No .nupkg or installer executable found inside zip archive");
+            }
+
+            if (extension == ".nupkg")
+            {
+                tempDir = Path.Combine(Path.GetTempPath(), $"genhub-build-{Guid.NewGuid():N}");
+                Directory.CreateDirectory(tempDir);
+                await InstallLocalNupkgAsync(targetPath, tempDir, Path.GetFileName(targetPath), progress, cancellationToken);
+                return;
+            }
+
+            throw new NotSupportedException($"Unsupported build file extension: '{extension}'");
+        }
+        finally
+        {
+            if (!string.IsNullOrEmpty(tempDir) && Directory.Exists(tempDir))
+            {
+                try
+                {
+                    Directory.Delete(tempDir, true);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to clean up temp build directory {Dir}", tempDir);
+                }
+            }
+        }
+    }
+
+    /// <inheritdoc/>
     public void ClearCache()
     {
         _lastUpdateCheckTime = DateTime.MinValue;
@@ -1444,6 +1560,19 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         return DateTime.MinValue;
     }
 
+    private void LaunchInstallerProcess(string exePath, IProgress<UpdateProgress>? progress)
+    {
+        _logger.LogInformation("Launching installer executable '{Exe}'", exePath);
+        progress?.Report(new UpdateProgress { Status = "Launching installer...", PercentComplete = 100 });
+        using var proc = Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = true });
+        if (proc != null)
+        {
+            _logger.LogInformation("Installer process started with PID {ProcessId}", proc.Id);
+        }
+
+        Environment.Exit(0);
+    }
+
     private void CleanSampleProjectArtifacts(string sampleProjectsDir)
     {
         var options = new EnumerationOptions
@@ -1513,6 +1642,84 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     /// Gets or creates an HttpClient instance with proper configuration.
     /// </summary>
     /// <returns>An HttpClient instance.</returns>
+    private async Task InstallLocalNupkgAsync(
+        string nupkgFile,
+        string tempDir,
+        string releaseTitle,
+        IProgress<UpdateProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var releasesPath = Path.Combine(tempDir, "releases.win.json");
+        var nupkgFileName = Path.GetFileName(nupkgFile);
+        var fileInfo = new FileInfo(nupkgFile);
+        var sha1 = CalculateSHA1(nupkgFile);
+        var sha256 = CalculateSHA256(nupkgFile);
+
+        var versionMatch = NupkgVersionRegex().Match(nupkgFileName);
+        var fileVersion = versionMatch.Success ? versionMatch.Groups[1].Value : "1.0.0";
+
+        var releasesJson = new
+        {
+            Assets = new[]
+            {
+                new
+                {
+                    PackageId = AppConstants.AppName,
+                    Version = fileVersion,
+                    Type = "Full",
+                    FileName = nupkgFileName,
+                    SHA1 = sha1,
+                    SHA256 = sha256,
+                    Size = fileInfo.Length,
+                },
+            },
+        };
+
+        var jsonContent = JsonSerializer.Serialize(releasesJson);
+        await File.WriteAllTextAsync(releasesPath, jsonContent, cancellationToken);
+        _logger.LogInformation("Created local releases.win.json for build '{Title}' with version {Version}", releaseTitle, fileVersion);
+
+        progress?.Report(new UpdateProgress { Status = "Starting local installation server...", PercentComplete = 50 });
+
+        var port = FindAvailablePort();
+        using var server = new SimpleHttpServer(nupkgFile, releasesPath, port, _logger);
+        server.Start();
+
+        progress?.Report(new UpdateProgress { Status = "Preparing update...", PercentComplete = 60 });
+
+        var source = new SimpleWebSource($"http://localhost:{port}/{server.SecretToken}/", _fileDownloader);
+        var localUpdateManager = new UpdateManager(source);
+
+        var asset = new VelopackAsset
+        {
+            PackageId = AppConstants.AppName,
+            Version = SemanticVersion.Parse(fileVersion),
+            Type = VelopackAssetType.Full,
+            FileName = nupkgFileName,
+            SHA1 = sha1,
+            SHA256 = sha256,
+            Size = fileInfo.Length,
+        };
+
+        var updateInfo = new UpdateInfo(asset, true);
+
+        await localUpdateManager.DownloadUpdatesAsync(
+            updateInfo,
+            p =>
+            {
+                progress?.Report(new UpdateProgress
+                {
+                    Status = $"Preparing update: {p}%",
+                    PercentComplete = 60 + (int)(p * 0.3),
+                });
+            },
+            cancellationToken);
+
+        progress?.Report(new UpdateProgress { Status = "Applying update and restarting...", PercentComplete = 100 });
+        _logger.LogInformation("Applying update from local build package and restarting");
+        localUpdateManager.ApplyUpdatesAndRestart(updateInfo);
+    }
+
     private HttpClient CreateConfiguredHttpClient()
     {
         var client = _httpClientFactory.CreateClient();

@@ -682,6 +682,20 @@
                             <TextBlock Text="{localization:Localize Downloads.Card.AddToProfile}" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
+
+                    <!-- Install Build Button (visible when GenHubBuild is downloaded) -->
+                    <Button x:Name="InstallBuildButton" Classes="card-button action-btn"
+                            Command="{Binding InstallBuildCommand}"
+                            CommandParameter="{Binding}"
+                            IsVisible="{Binding ShowInstallBuildButton}"
+                            Background="#FF107C41"
+                            ToolTip.Tip="{localization:Localize Downloads.Card.InstallBuildTooltip}">
+                        <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Path Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"
+                                  Fill="White" Width="12" Height="12" Stretch="Uniform" VerticalAlignment="Center" />
+                            <TextBlock Text="{localization:Localize Downloads.Card.InstallBuild}" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
             </Grid>
             </Button>

@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -337,6 +338,16 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     public ObservableCollection<CustomBuildSubscriptionItem> AvailableCustomBuilds { get; } = [];
 
     /// <summary>
+    /// Gets a value indicating whether any custom builds are available.
+    /// </summary>
+    public bool HasCustomBuilds => AvailableCustomBuilds.Count > 0;
+
+    /// <summary>
+    /// Gets the column width for the custom builds column in the browse builds grid.
+    /// </summary>
+    public GridLength CustomBuildsColumnWidth => HasCustomBuilds ? new GridLength(1.2, GridUnitType.Star) : new GridLength(0);
+
+    /// <summary>
     /// Gets a value indicating whether the user is subscribed to either a PR, a branch, or a custom build.
     /// </summary>
     public bool IsSubscribedToAny => SubscribedPr != null || !string.IsNullOrEmpty(SubscribedBranch) || IsSubscribedToCustomBuild;
@@ -430,6 +441,11 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
         // monitor collection changes to update placeholder text
         AvailableVersions.CollectionChanged += (s, e) => OnPropertyChanged(nameof(VersionPlaceholderText));
+        AvailableCustomBuilds.CollectionChanged += (s, e) =>
+        {
+            OnPropertyChanged(nameof(HasCustomBuilds));
+            OnPropertyChanged(nameof(CustomBuildsColumnWidth));
+        };
 
         // automatically check for updates and load prs when dialog opens
         _ = InitializeAsync();
@@ -811,6 +827,16 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     {
         ArgumentNullException.ThrowIfNull(item);
 
+        if (string.Equals(SubscribedCustomBuildContentId, item.ContentId, StringComparison.OrdinalIgnoreCase))
+        {
+            Unsubscribe();
+            return;
+        }
+
+        _velopackUpdateManager.SubscribedPrNumber = null;
+        _velopackUpdateManager.SubscribedBranch = null;
+        _velopackUpdateManager.ClearCache();
+
         SubscribedPr = null;
         SubscribedBranch = null;
         SubscribedCustomBuildPublisherId = item.PublisherId;
@@ -872,9 +898,20 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// </summary>
     private async Task InitializeAsync()
     {
-        // load subscribed pr and branch from settings
+        // load subscribed pr, branch, or custom build from settings with strict mutual exclusivity
         var settings = _userSettingsService.Get();
-        if (settings.SubscribedPrNumber.HasValue)
+        if (!string.IsNullOrWhiteSpace(settings.SubscribedCustomBuildContentId))
+        {
+            SubscribedCustomBuildContentId = settings.SubscribedCustomBuildContentId;
+            SubscribedCustomBuildName = settings.SubscribedCustomBuildName;
+            SubscribedCustomBuildPublisherId = settings.SubscribedCustomBuildPublisherId;
+            SubscribedCustomBuildVersion = settings.SubscribedCustomBuildVersion;
+            _velopackUpdateManager.SubscribedPrNumber = null;
+            SubscribedPr = null;
+            SubscribedBranch = null;
+            _logger.LogInformation("Loaded subscribed custom build '{Name}' ({Id}) from settings", SubscribedCustomBuildName, SubscribedCustomBuildContentId);
+        }
+        else if (settings.SubscribedPrNumber.HasValue)
         {
             var prNumber = settings.SubscribedPrNumber.Value;
             _velopackUpdateManager.SubscribedPrNumber = prNumber;
@@ -886,22 +923,23 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                 Author = "unknown",
                 State = "open",
             };
+            SubscribedBranch = null;
+            SubscribedCustomBuildContentId = null;
+            SubscribedCustomBuildName = null;
+            SubscribedCustomBuildPublisherId = null;
+            SubscribedCustomBuildVersion = null;
             _logger.LogInformation("Loaded subscribed PR #{PrNumber} from settings", prNumber);
         }
-
-        if (!string.IsNullOrEmpty(settings.SubscribedBranch))
+        else if (!string.IsNullOrEmpty(settings.SubscribedBranch))
         {
             SubscribedBranch = settings.SubscribedBranch;
+            _velopackUpdateManager.SubscribedPrNumber = null;
+            SubscribedPr = null;
+            SubscribedCustomBuildContentId = null;
+            SubscribedCustomBuildName = null;
+            SubscribedCustomBuildPublisherId = null;
+            SubscribedCustomBuildVersion = null;
             _logger.LogInformation("Loaded subscribed branch '{Branch}' from settings", settings.SubscribedBranch);
-        }
-
-        if (!string.IsNullOrWhiteSpace(settings.SubscribedCustomBuildContentId))
-        {
-            SubscribedCustomBuildContentId = settings.SubscribedCustomBuildContentId;
-            SubscribedCustomBuildName = settings.SubscribedCustomBuildName;
-            SubscribedCustomBuildPublisherId = settings.SubscribedCustomBuildPublisherId;
-            SubscribedCustomBuildVersion = settings.SubscribedCustomBuildVersion;
-            _logger.LogInformation("Loaded subscribed custom build '{Name}' ({Id}) from settings", SubscribedCustomBuildName, SubscribedCustomBuildContentId);
         }
 
         await LoadCustomBuildsAsync();
@@ -1491,12 +1529,29 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         }
 
         // 0.5 handle custom build update
-        if (IsSubscribedToCustomBuild && AvailableVersions.Count > 0)
+        if (IsSubscribedToCustomBuild)
         {
-            var targetArtifact = AvailableVersions.FirstOrDefault(a =>
-                string.Equals(a.Version, LatestVersion, StringComparison.OrdinalIgnoreCase)) ?? AvailableVersions[0];
-            _logger.LogInformation("Installing custom build update: {Version}", targetArtifact.DisplayVersion);
-            await InstallArtifactAsync(targetArtifact);
+            if (AvailableVersions.Count == 0)
+            {
+                await LoadArtifactsForSubscribedItemAsync();
+            }
+
+            if (AvailableVersions.Count > 0)
+            {
+                var targetArtifact = AvailableVersions.FirstOrDefault(a =>
+                    string.Equals(a.Version, LatestVersion, StringComparison.OrdinalIgnoreCase)) ?? AvailableVersions[0];
+                _logger.LogInformation("Installing custom build update: {Version}", targetArtifact.DisplayVersion);
+                await InstallArtifactAsync(targetArtifact);
+                SubscribedCustomBuildVersion = targetArtifact.Version;
+                _userSettingsService.Update(s => s.SubscribedCustomBuildVersion = targetArtifact.Version);
+                _ = _userSettingsService.SaveAsync(CancellationToken.None);
+                return;
+            }
+
+            _logger.LogError("Cannot install custom build - no versions available");
+            HasError = true;
+            ErrorMessage = "No versions available for the subscribed custom build";
+            StatusMessage = AppUpdateConstants.UpdateFailedMessage;
             return;
         }
 
@@ -1941,9 +1996,26 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void SubscribeToPr(int prNumber)
     {
+        if (SubscribedPr?.Number == prNumber)
+        {
+            Unsubscribe();
+            return;
+        }
+
         _velopackUpdateManager.SubscribedPrNumber = prNumber;
         _velopackUpdateManager.SubscribedBranch = null;
         SubscribedBranch = null;
+        SubscribedCustomBuildPublisherId = null;
+        SubscribedCustomBuildContentId = null;
+        SubscribedCustomBuildName = null;
+        SubscribedCustomBuildVersion = null;
+        foreach (var build in AvailableCustomBuilds)
+        {
+            build.IsSubscribed = false;
+        }
+
+        OnPropertyChanged(nameof(IsSubscribedToCustomBuild));
+
         ShowPrMergedWarning = false;
         IsUpdateAvailable = false;
         SelectedVersion = null;
@@ -1967,6 +2039,10 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         {
             settings.SubscribedPrNumber = prNumber;
             settings.SubscribedBranch = null;
+            settings.SubscribedCustomBuildPublisherId = null;
+            settings.SubscribedCustomBuildContentId = null;
+            settings.SubscribedCustomBuildName = null;
+            settings.SubscribedCustomBuildVersion = null;
         });
         _ = _userSettingsService.SaveAsync(CancellationToken.None);
 
@@ -1979,9 +2055,26 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     {
         if (string.IsNullOrEmpty(branchName)) return;
 
+        if (string.Equals(SubscribedBranch, branchName, StringComparison.OrdinalIgnoreCase))
+        {
+            Unsubscribe();
+            return;
+        }
+
         _velopackUpdateManager.SubscribedPrNumber = null;
         _velopackUpdateManager.SubscribedBranch = branchName;
         SubscribedPr = null;
+        SubscribedCustomBuildPublisherId = null;
+        SubscribedCustomBuildContentId = null;
+        SubscribedCustomBuildName = null;
+        SubscribedCustomBuildVersion = null;
+        foreach (var build in AvailableCustomBuilds)
+        {
+            build.IsSubscribed = false;
+        }
+
+        OnPropertyChanged(nameof(IsSubscribedToCustomBuild));
+
         ShowPrMergedWarning = false;
         IsUpdateAvailable = false;
         SelectedVersion = null;
@@ -1998,6 +2091,10 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         {
             settings.SubscribedBranch = branchName;
             settings.SubscribedPrNumber = null;
+            settings.SubscribedCustomBuildPublisherId = null;
+            settings.SubscribedCustomBuildContentId = null;
+            settings.SubscribedCustomBuildName = null;
+            settings.SubscribedCustomBuildVersion = null;
         });
         _ = _userSettingsService.SaveAsync(CancellationToken.None);
 
@@ -2052,6 +2149,14 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             settings.SubscribedCustomBuildVersion = null;
         });
         _ = _userSettingsService.SaveAsync(CancellationToken.None);
+
+        foreach (var build in AvailableCustomBuilds)
+        {
+            build.IsSubscribed = false;
+        }
+
+        OnPropertyChanged(nameof(IsSubscribedToCustomBuild));
+        OnPropertyChanged(nameof(IsSubscribedToAny));
 
         _logger.LogInformation("Unsubscribed from dev builds, switched to MAIN");
         _ = CheckForUpdatesAsync();

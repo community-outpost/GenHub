@@ -90,6 +90,7 @@ public sealed partial class ContentGridItemViewModel(
     [NotifyPropertyChangedFor(nameof(EffectiveIsDownloaded))]
     [NotifyPropertyChangedFor(nameof(ShowDownloadButton))]
     [NotifyPropertyChangedFor(nameof(ShowAddToProfileButton))]
+    [NotifyPropertyChangedFor(nameof(ShowInstallBuildButton))]
     private bool _isDownloaded;
 
     [ObservableProperty]
@@ -98,6 +99,7 @@ public sealed partial class ContentGridItemViewModel(
     [NotifyPropertyChangedFor(nameof(ShowDownloadButton))]
     [NotifyPropertyChangedFor(nameof(ShowUpdateButton))]
     [NotifyPropertyChangedFor(nameof(ShowAddToProfileButton))]
+    [NotifyPropertyChangedFor(nameof(ShowInstallBuildButton))]
     private ContentState _currentState = ContentState.NotDownloaded;
 
     [ObservableProperty]
@@ -486,13 +488,29 @@ public sealed partial class ContentGridItemViewModel(
         : EffectiveCurrentState == ContentState.UpdateAvailable && !IsDownloading;
 
     /// <summary>
+    /// Gets a value indicating whether this content is a GenHub application build.
+    /// </summary>
+    public bool IsGenHubBuild => ContentType == ContentType.GenHubBuild;
+
+    /// <summary>
     /// Gets a value indicating whether the Add to Profile button should be shown.
     /// Bundles require every selected required member to be acquired — the empty bundle
     /// recipe itself is never enough.
     /// </summary>
-    public bool ShowAddToProfileButton => HasBundleComponents
+    public bool ShowAddToProfileButton => !IsGenHubBuild && (HasBundleComponents
         ? AreBundleComponentsReadyForProfile
-        : EffectiveCurrentState is ContentState.Downloaded or ContentState.UpdateAvailable;
+        : EffectiveCurrentState is ContentState.Downloaded or ContentState.UpdateAvailable);
+
+    /// <summary>
+    /// Gets a value indicating whether the Install Build button should be shown.
+    /// </summary>
+    public bool ShowInstallBuildButton => IsGenHubBuild &&
+        (EffectiveCurrentState is ContentState.Downloaded or ContentState.UpdateAvailable);
+
+    /// <summary>
+    /// Gets or sets the command to install a downloaded GenHub build.
+    /// </summary>
+    public System.Windows.Input.ICommand? InstallBuildCommand { get; set; }
 
     /// <summary>
     /// Gets the tags associated with this content.
@@ -986,6 +1004,7 @@ public sealed partial class ContentGridItemViewModel(
                 OnPropertyChanged(nameof(ShowDownloadButton));
                 OnPropertyChanged(nameof(ShowUpdateButton));
                 OnPropertyChanged(nameof(ShowAddToProfileButton));
+                OnPropertyChanged(nameof(ShowInstallBuildButton));
             }
 
             if (HasBundleComponents)
@@ -1003,6 +1022,7 @@ public sealed partial class ContentGridItemViewModel(
                 OnPropertyChanged(nameof(ShowDownloadButton));
                 OnPropertyChanged(nameof(ShowUpdateButton));
                 OnPropertyChanged(nameof(ShowAddToProfileButton));
+                OnPropertyChanged(nameof(ShowInstallBuildButton));
             }
 
             if (isForThisContent && !HasBundleComponents)
@@ -1234,6 +1254,7 @@ public sealed partial class ContentGridItemViewModel(
     [NotifyPropertyChangedFor(nameof(ShowDownloadButton))]
     [NotifyPropertyChangedFor(nameof(ShowUpdateButton))]
     [NotifyPropertyChangedFor(nameof(ShowAddToProfileButton))]
+    [NotifyPropertyChangedFor(nameof(ShowInstallBuildButton))]
     private InstallableVariant? _selectedVariant;
 
     /// <summary>
@@ -1328,6 +1349,7 @@ public sealed partial class ContentGridItemViewModel(
         OnPropertyChanged(nameof(ShowDownloadButton));
         OnPropertyChanged(nameof(ShowUpdateButton));
         OnPropertyChanged(nameof(ShowAddToProfileButton));
+        OnPropertyChanged(nameof(ShowInstallBuildButton));
         OnPropertyChanged(nameof(HasIncludesSummary));
     }
 
@@ -1352,6 +1374,7 @@ public sealed partial class ContentGridItemViewModel(
         OnPropertyChanged(nameof(ShowDownloadButton));
         OnPropertyChanged(nameof(ShowUpdateButton));
         OnPropertyChanged(nameof(ShowAddToProfileButton));
+        OnPropertyChanged(nameof(ShowInstallBuildButton));
     }
 
     /// <summary>
@@ -1422,6 +1445,7 @@ public sealed partial class ContentGridItemViewModel(
         OnPropertyChanged(nameof(ShowDownloadButton));
         OnPropertyChanged(nameof(ShowUpdateButton));
         OnPropertyChanged(nameof(ShowAddToProfileButton));
+        OnPropertyChanged(nameof(ShowInstallBuildButton));
     }
 
     /// <summary>
@@ -1488,6 +1512,7 @@ public sealed partial class ContentGridItemViewModel(
         OnPropertyChanged(nameof(ShowDownloadButton));
         OnPropertyChanged(nameof(ShowUpdateButton));
         OnPropertyChanged(nameof(ShowAddToProfileButton));
+        OnPropertyChanged(nameof(ShowInstallBuildButton));
     }
 
     /// <summary>
@@ -1575,6 +1600,7 @@ public sealed partial class ContentGridItemViewModel(
             OnPropertyChanged(nameof(ShowDownloadButton));
             OnPropertyChanged(nameof(ShowUpdateButton));
             OnPropertyChanged(nameof(ShowAddToProfileButton));
+            OnPropertyChanged(nameof(ShowInstallBuildButton));
             OnPropertyChanged(nameof(EffectiveCurrentState));
             OnPropertyChanged(nameof(EffectiveIsDownloaded));
             OnPropertyChanged(nameof(ContentType));
@@ -1618,6 +1644,7 @@ public sealed partial class ContentGridItemViewModel(
         OnPropertyChanged(nameof(ShowDownloadButton));
         OnPropertyChanged(nameof(ShowUpdateButton));
         OnPropertyChanged(nameof(ShowAddToProfileButton));
+        OnPropertyChanged(nameof(ShowInstallBuildButton));
         OnPropertyChanged(nameof(EffectiveCurrentState));
         OnPropertyChanged(nameof(EffectiveIsDownloaded));
         OnPropertyChanged(nameof(PublisherBadgeToolTip));
@@ -1653,6 +1680,7 @@ public sealed partial class ContentGridItemViewModel(
             OnPropertyChanged(nameof(ShowDownloadButton));
             OnPropertyChanged(nameof(ShowUpdateButton));
             OnPropertyChanged(nameof(ShowAddToProfileButton));
+            OnPropertyChanged(nameof(ShowInstallBuildButton));
         }
     }
 
