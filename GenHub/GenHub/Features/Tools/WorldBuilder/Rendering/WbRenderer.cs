@@ -692,6 +692,25 @@ public sealed class WbRenderer : IDisposable
         _gl.DeleteProgram(_overlayProgram);
     }
 
+    /// <summary>
+    /// Converts a row-major <see cref="Matrix4x4"/> to the float sequence for
+    /// a mat4 uniform uploaded with transpose=false. GL reads those bytes as
+    /// column-major, so emitting the matrix in row order reproduces the
+    /// row-vector transform (v*M) on the GPU.
+    /// </summary>
+    /// <param name="matrix">The row-major matrix.</param>
+    /// <returns>The sixteen floats in GL upload order.</returns>
+    internal static float[] ToGlMatrix(Matrix4x4 matrix)
+    {
+        return
+        [
+            matrix.M11, matrix.M12, matrix.M13, matrix.M14,
+            matrix.M21, matrix.M22, matrix.M23, matrix.M24,
+            matrix.M31, matrix.M32, matrix.M33, matrix.M34,
+            matrix.M41, matrix.M42, matrix.M43, matrix.M44,
+        ];
+    }
+
     private static void SetupTerrainAttribs(GL gl)
     {
         const uint stride = 12 * sizeof(float);
@@ -799,17 +818,6 @@ public sealed class WbRenderer : IDisposable
         return (major, minor);
     }
 
-    private static float[] ToColumnMajor(Matrix4x4 matrix)
-    {
-        return
-        [
-            matrix.M11, matrix.M21, matrix.M31, matrix.M41,
-            matrix.M12, matrix.M22, matrix.M32, matrix.M42,
-            matrix.M13, matrix.M23, matrix.M33, matrix.M43,
-            matrix.M14, matrix.M24, matrix.M34, matrix.M44,
-        ];
-    }
-
     private static DepthFunction MapDepthFunction(W3dDepthFunction function)
     {
         return function switch
@@ -891,8 +899,8 @@ public sealed class WbRenderer : IDisposable
     private void DrawTerrain(Matrix4x4 viewProj)
     {
         _gl.UseProgram(_terrainProgram);
-        var columnMajor = ToColumnMajor(viewProj);
-        _gl.UniformMatrix4(_terrainViewProjLocation, false, columnMajor.AsSpan());
+        var glMatrix = ToGlMatrix(viewProj);
+        _gl.UniformMatrix4(_terrainViewProjLocation, false, glMatrix.AsSpan());
 
         _gl.ActiveTexture(TextureUnit.Texture0);
         _gl.BindTexture(TextureTarget.Texture2D, _terrainTexture);
@@ -930,8 +938,8 @@ public sealed class WbRenderer : IDisposable
         }
 
         _gl.UseProgram(_program);
-        var columnMajor = ToColumnMajor(viewProj);
-        _gl.UniformMatrix4(_viewProjLocation, false, columnMajor.AsSpan());
+        var glMatrix = ToGlMatrix(viewProj);
+        _gl.UniformMatrix4(_viewProjLocation, false, glMatrix.AsSpan());
 
         _gl.Uniform4(_colorLocation, 1.0f, 1.0f, 1.0f, 0.35f);
         _gl.BindVertexArray(_gridVao);
@@ -1036,8 +1044,8 @@ public sealed class WbRenderer : IDisposable
     private void DrawModels(Matrix4x4 viewProj, Vector3 sunDirection)
     {
         _gl.UseProgram(_modelProgram);
-        var columnMajor = ToColumnMajor(viewProj);
-        _gl.UniformMatrix4(_modelViewProjLocation, false, columnMajor.AsSpan());
+        var glMatrix = ToGlMatrix(viewProj);
+        _gl.UniformMatrix4(_modelViewProjLocation, false, glMatrix.AsSpan());
 
         _gl.Uniform3(_modelSunLocation, sunDirection.X, sunDirection.Y, sunDirection.Z);
         _gl.Uniform1(_modelAlphaRefLocation, W3dShaderMap.AlphaReference);
@@ -1094,8 +1102,8 @@ public sealed class WbRenderer : IDisposable
     private void DrawWater(Matrix4x4 viewProj)
     {
         _gl.UseProgram(_overlayProgram);
-        var columnMajor = ToColumnMajor(viewProj);
-        _gl.UniformMatrix4(_overlayViewProjLocation, false, columnMajor.AsSpan());
+        var glMatrix = ToGlMatrix(viewProj);
+        _gl.UniformMatrix4(_overlayViewProjLocation, false, glMatrix.AsSpan());
 
         _gl.Enable(EnableCap.Blend);
         _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
@@ -1111,8 +1119,8 @@ public sealed class WbRenderer : IDisposable
     private void DrawLines(Matrix4x4 viewProj)
     {
         _gl.UseProgram(_overlayProgram);
-        var columnMajor = ToColumnMajor(viewProj);
-        _gl.UniformMatrix4(_overlayViewProjLocation, false, columnMajor.AsSpan());
+        var glMatrix = ToGlMatrix(viewProj);
+        _gl.UniformMatrix4(_overlayViewProjLocation, false, glMatrix.AsSpan());
 
         _gl.Enable(EnableCap.Blend);
         _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
