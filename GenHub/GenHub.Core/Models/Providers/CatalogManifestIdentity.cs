@@ -27,9 +27,14 @@ public static class CatalogManifestIdentity
         ["communityoutpost"] = CommunityOutpostConstants.PublisherType,
         ["generalsonline"] = PublisherTypeConstants.GeneralsOnline,
         ["thesuperhackers"] = PublisherTypeConstants.TheSuperHackers,
+        ["superhackers"] = PublisherTypeConstants.TheSuperHackers,
         ["github"] = PublisherTypeConstants.GitHub,
         ["githubreleases"] = PublisherTypeConstants.GitHub,
         ["moddb"] = PublisherTypeConstants.ModDB,
+        ["steamworkshop"] = PublisherTypeConstants.SteamWorkshop,
+        ["genlauncher"] = PublisherTypeConstants.GenLauncher,
+        ["cnclabs"] = PublisherTypeConstants.CncLabs,
+        ["aodmaps"] = PublisherTypeConstants.AODMaps,
         ["generic"] = CatalogConstants.GenericCatalogResolverId,
     };
 

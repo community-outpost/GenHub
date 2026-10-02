@@ -210,10 +210,10 @@ public static class CatalogBundleComponentBuilder
             };
         }
 
-        var isSuperHackers = string.Equals(sibling.PublisherType, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
-                             string.Equals(sibling.UpstreamSync?.Provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase);
+        var isUpstream = CatalogConstants.UpstreamProviders.IsConfiguredUpstreamSource(sibling) ||
+                         CatalogConstants.UpstreamProviders.IsSupported(sibling.PublisherType);
 
-        if (isSuperHackers)
+        if (isUpstream)
         {
             isSyntheticPlaceholder = true;
             return new ContentRelease
@@ -280,7 +280,9 @@ public static class CatalogBundleComponentBuilder
 
         var hasDownloadableArtifacts = siblingRelease.Artifacts != null && siblingRelease.Artifacts.Any(a => !string.IsNullOrWhiteSpace(a.DownloadUrl));
         var hasAssetRules = sibling.UpstreamSync?.AssetRules is { Count: > 0 };
-        var isComponentAvailable = !isSyntheticPlaceholder || hasDownloadableArtifacts || hasAssetRules;
+        var isUpstreamSource = CatalogConstants.UpstreamProviders.IsConfiguredUpstreamSource(sibling) ||
+                               CatalogConstants.UpstreamProviders.IsSupported(sibling.PublisherType);
+        var isComponentAvailable = !isSyntheticPlaceholder || hasDownloadableArtifacts || hasAssetRules || isUpstreamSource;
 
         var contentType = CatalogManifestIdentity.ResolveDependencyContentType(dependency, parent, itemsById);
         var name = !string.IsNullOrWhiteSpace(sibling.Name)
