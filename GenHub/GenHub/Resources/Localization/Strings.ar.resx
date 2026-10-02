@@ -17932,6 +17932,9 @@ Error: فشل: {3}
   <data name="Tools.IniEditor.Preview3D.ReadyMissing" xml:space="preserve">
     <value>{0} شبكات • {1} خامات ({2} مفقودة) • {3} عظام</value>
   </data>
+  <data name="Tools.IniEditor.Preview3D.ClipUnsupported" xml:space="preserve">
+    <value>الحركة '{0}' تستخدم قنوات مضغوطة ولا يمكن معاينتها.</value>
+  </data>
   <data name="Tools.IniEditor.Preview3D.Skeleton" xml:space="preserve">
     <value>الهيكل العظمي</value>
   </data>
@@ -17982,6 +17985,15 @@ Error: فشل: {3}
   </data>
   <data name="Tools.IniEditor.Preview3D.ViaSource" xml:space="preserve">
     <value>عبر {0}</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ResolutionPath" xml:space="preserve">
+    <value>مسار المعاينة</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.UsedBy" xml:space="preserve">
+    <value>يُستخدم في</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.MissingTextures" xml:space="preserve">
+    <value>قوام مفقود:</value>
   </data>
   <data name="TextureEditor.Button.OpenFolder" xml:space="preserve">
     <value>فتح مجلد</value>

@@ -13,6 +13,8 @@ public interface IW3dModelResolver
 {
     /// <summary>
     /// Resolves a model from game installation roots layered with a mod project directory.
+    /// Implementations may execute synchronously; callers must offload with
+    /// <c>Task.Run</c> instead of awaiting this directly on the UI thread.
     /// </summary>
     /// <param name="modelName">The model name without extension.</param>
     /// <param name="installationPath">The game installation root.</param>

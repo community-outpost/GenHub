@@ -31,6 +31,9 @@ public static class IniConstants
         /// <summary>Separates a key from its value.</summary>
         public const char KeyValueSeparator = '=';
 
+        /// <summary>Marks a trailing production-time percentage.</summary>
+        public const char PercentSuffix = '%';
+
         /// <summary>Canonical newline used when writing files.</summary>
         public const string NewLine = "\r\n";
     }
@@ -257,6 +260,15 @@ public static class IniConstants
         /// <summary>Second AI skill set sub-block inside side info.</summary>
         public const string SkillSet2 = "SkillSet2";
 
+        /// <summary>Third AI skill set sub-block inside side info.</summary>
+        public const string SkillSet3 = "SkillSet3";
+
+        /// <summary>Fourth AI skill set sub-block inside side info.</summary>
+        public const string SkillSet4 = "SkillSet4";
+
+        /// <summary>Fifth AI skill set sub-block inside side info.</summary>
+        public const string SkillSet5 = "SkillSet5";
+
         /// <summary>Skirmish build list sub-block inside AI data.</summary>
         public const string SkirmishBuildList = "SkirmishBuildList";
 
@@ -348,6 +360,9 @@ public static class IniConstants
             SideInfo,
             SkillSet1,
             SkillSet2,
+            SkillSet3,
+            SkillSet4,
+            SkillSet5,
             SkirmishBuildList,
             Structure,
             InheritableModule,
@@ -993,5 +1008,23 @@ public static class IniConstants
 
         /// <summary>Maximum related objects shown on the preview canvas for reference blocks.</summary>
         public const int MaxRelatedObjects = 12;
+
+        /// <summary>Maximum reverse-reference results returned per lookup.</summary>
+        public const int MaxReferencers = 12;
+
+        /// <summary>Maximum files demand-parsed per reverse-reference lookup.</summary>
+        public const int MaxReverseParseFiles = 25;
+
+        /// <summary>Maximum hop depth for cross-file model resolution walks.</summary>
+        public const int MaxResolutionDepth = 4;
+
+        /// <summary>Maximum blocks visited per cross-file model resolution walk.</summary>
+        public const int MaxResolutionNodes = 48;
+
+        /// <summary>Debounce delay before resolving cross-file preview references, in milliseconds.</summary>
+        public const int CrossFileResolutionDebounceMs = 150;
+
+        /// <summary>Maximum layered file systems cached by the W3D model resolver.</summary>
+        public const int MaxCachedFileSystems = 4;
     }
 }

@@ -426,6 +426,130 @@ public sealed class IniEditorPreviewTests
         Assert.Equal("Tools.IniEditor.Preview3D.Empty", viewModel.PreviewStatusText);
     }
 
+    /// <summary>
+    /// Verifies that a special-power command button resolves the delivering object across files.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task SelectingSpecialPowerButton_ResolvesDeliveringObjectAcrossFilesAsync()
+    {
+        var mockResolver = ResolverReturning(ResolvedModel());
+        using var viewModel = CreateViewModel(mockResolver.Object, useRealReferenceService: true);
+        var folder = Path.Combine(Path.GetTempPath(), $"GenHubXRef{Guid.NewGuid():N}");
+        Directory.CreateDirectory(folder);
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(folder, "ChinaCommandButton.ini"), CarpetBombButtonIni());
+            await File.WriteAllTextAsync(Path.Combine(folder, "SpecialPower.ini"), CarpetBombPowerIni());
+            await File.WriteAllTextAsync(Path.Combine(folder, "ChinaAirforce.ini"), CarpetBomberIni());
+
+            Assert.True(await viewModel.OpenFolderAsync(folder));
+            Assert.True(await viewModel.OpenFileAsync(Path.Combine(folder, "ChinaCommandButton.ini")));
+            var buttonNode = FindNodeByName(viewModel, "Command_ChinaCarpetBomb");
+            Assert.NotNull(buttonNode);
+            viewModel.SelectedNode = buttonNode;
+
+            bool resolved = await WaitForAsync(() => viewModel.SelectedBlockModel == "TestUnit", TimeSpan.FromSeconds(8));
+            Assert.True(resolved);
+            Assert.True(viewModel.HasPreviewModelSource);
+            Assert.Equal(3, viewModel.PreviewResolutionPath.Count);
+            Assert.True(viewModel.HasPreviewReferencers);
+
+            bool loaded = await WaitForAsync(() => viewModel.HasPreviewScene, TimeSpan.FromSeconds(8));
+            Assert.True(loaded);
+            Assert.Equal("TestUnit", viewModel.PreviewModelName);
+        }
+        finally
+        {
+            Directory.Delete(folder, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that missing texture names surface on the preview canvas.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task PreviewWithMissingTexture_ListsMissingNamesAsync()
+    {
+        var mockResolver = ResolverReturning(ResolvedModel(includeMissingTexture: true));
+        using var viewModel = CreateViewModel(mockResolver.Object);
+        viewModel.FileExplorer.Directory = Path.GetTempPath();
+        await viewModel.NewDocumentCommand.ExecuteAsync(null);
+        viewModel.NewBlockType = "Object";
+        viewModel.NewBlockName = "Tank";
+        viewModel.AddBlockCommand.Execute(null);
+        viewModel.NewFieldKey = "Model";
+        viewModel.NewFieldValue = "TestUnit";
+        viewModel.AddFieldCommand.Execute(null);
+
+        bool loaded = await WaitForAsync(() => viewModel.HasPreviewScene, TimeSpan.FromSeconds(5));
+        Assert.True(loaded);
+        Assert.True(viewModel.HasPreviewMissingTextures);
+        Assert.Contains("GhostTexture", viewModel.PreviewMissingTextures);
+    }
+
+    /// <summary>
+    /// Verifies that a clip targeting an unknown hierarchy rests at the bind pose.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task ClipWithMissingHierarchy_RestsAtBindPoseAsync()
+    {
+        var mockResolver = ResolverReturning(ResolvedModel(clipHierarchyName: "Other"));
+        using var viewModel = CreateViewModel(mockResolver.Object);
+        viewModel.FileExplorer.Directory = Path.GetTempPath();
+        await viewModel.NewDocumentCommand.ExecuteAsync(null);
+        viewModel.NewBlockType = "Object";
+        viewModel.NewBlockName = "Tank";
+        viewModel.AddBlockCommand.Execute(null);
+        viewModel.NewFieldKey = "Model";
+        viewModel.NewFieldValue = "TestUnit";
+        viewModel.AddFieldCommand.Execute(null);
+
+        bool loaded = await WaitForAsync(() => viewModel.HasPreviewScene, TimeSpan.FromSeconds(5));
+        Assert.True(loaded);
+        Assert.NotNull(viewModel.SelectedPreviewClip);
+        Assert.Null(viewModel.PreviewPose);
+        Assert.NotNull(viewModel.PreviewBindPose);
+    }
+
+    /// <summary>
+    /// Verifies that selecting a non-samplable clip while playing stops playback.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task SelectingNonSamplableClipWhilePlaying_StopsPlaybackAsync()
+    {
+        var resolved = ResolvedModel();
+        var raw = new W3dAnimationClip("RAW", "H", 2, 30, false, 0, []);
+        var model = resolved with
+        {
+            Model = resolved.Model with { Animations = [resolved.Model.Animations[0], raw] },
+        };
+        var mockResolver = ResolverReturning(model);
+        using var viewModel = CreateViewModel(mockResolver.Object);
+        viewModel.FileExplorer.Directory = Path.GetTempPath();
+        await viewModel.NewDocumentCommand.ExecuteAsync(null);
+        viewModel.NewBlockType = "Object";
+        viewModel.NewBlockName = "Tank";
+        viewModel.AddBlockCommand.Execute(null);
+        viewModel.NewFieldKey = "Model";
+        viewModel.NewFieldValue = "TestUnit";
+        viewModel.AddFieldCommand.Execute(null);
+
+        bool loaded = await WaitForAsync(() => viewModel.HasPreviewScene, TimeSpan.FromSeconds(5));
+        Assert.True(loaded);
+        Assert.Equal(2, viewModel.PreviewClips.Count);
+        viewModel.IsPreviewPlaying = true;
+        Assert.True(viewModel.IsPreviewPlaying);
+
+        viewModel.SelectedPreviewClip = raw;
+
+        Assert.False(viewModel.IsPreviewPlaying);
+        Assert.Null(viewModel.PreviewPose);
+    }
+
     private static IniTreeNodeViewModel? FindNodeByName(IniEditorViewModel viewModel, string name)
     {
         var queue = new Queue<IniTreeNodeViewModel>(viewModel.RootNodes);
@@ -474,7 +598,7 @@ public sealed class IniEditorPreviewTests
         return mockResolver;
     }
 
-    private static W3dResolvedModel ResolvedModel(bool includeClip = true)
+    private static W3dResolvedModel ResolvedModel(bool includeClip = true, string clipHierarchyName = "H", bool includeMissingTexture = false)
     {
         var origin = new W3dVector3(0, 0, 0);
         var mesh = new W3dMesh(
@@ -497,7 +621,7 @@ public sealed class IniEditorPreviewTests
             [new W3dPivot("ROOT", -1, new W3dVector3(1, 0, 0), origin, new W3dQuaternion(0, 0, 0, 1))]);
         var clip = new W3dAnimationClip(
             "IDLE",
-            "H",
+            clipHierarchyName,
             2,
             30,
             false,
@@ -506,7 +630,8 @@ public sealed class IniEditorPreviewTests
         var lod = new W3dModelLod("L", "H", [new W3dLevelOfDetail(100, [new W3dSubObject(0, "C.TURRET")])]);
         List<W3dAnimationClip> clips = includeClip ? [clip] : [];
         var model = new W3dModel([mesh], [hierarchy], clips, [lod], []);
-        return new W3dResolvedModel("TestUnit", "Art/TestUnit.w3d", model, [], []);
+        List<string> missing = includeMissingTexture ? ["GhostTexture"] : [];
+        return new W3dResolvedModel("TestUnit", "Art/TestUnit.w3d", model, [], missing);
     }
 
     private static string PreviewIni()
@@ -517,6 +642,41 @@ public sealed class IniEditorPreviewTests
             "      Model = TestUnit\n" +
             "      ShowSubObjects = TURRET\n" +
             "    End\n" +
+            "  End\n" +
+            "End\n";
+    }
+
+    private static string CarpetBombButtonIni()
+    {
+        return "CommandButton Command_ChinaCarpetBomb\n" +
+            "  Command = SPECIAL_POWER\n" +
+            "  SpecialPower = SuperweaponChinaCarpetBomb\n" +
+            "  Options = NEED_SPECIAL_POWER_CHINA_SCIENCE NEED_TARGET_POS CONTEXTMODE_COMMAND\n" +
+            "  TextLabel = CONTROLBAR:CarpetBomb\n" +
+            "  ButtonImage = SNCBomber\n" +
+            "  ButtonBorderType = ACTION\n" +
+            "  InvalidCursorName = GenericInvalid\n" +
+            "  RadiusCursorType = CARPETBOMB\n" +
+            "  DescriptLabel = CONTROLBAR:TooltipCarpetBomb\n" +
+            "End\n" +
+            "CommandSet SetCarpetBomb\n" +
+            "  1 = Command_ChinaCarpetBomb\n" +
+            "End\n";
+    }
+
+    private static string CarpetBombPowerIni()
+    {
+        return "SpecialPower SuperweaponChinaCarpetBomb\n" +
+            "  ReloadTime = 240000\n" +
+            "End\n";
+    }
+
+    private static string CarpetBomberIni()
+    {
+        return "Object ChinaCarpetBomber\n" +
+            "  Model = TestUnit\n" +
+            "  Behavior = CarpetBombBehavior ModuleTag_Deliver\n" +
+            "    SpecialPower = SuperweaponChinaCarpetBomb\n" +
             "  End\n" +
             "End\n";
     }

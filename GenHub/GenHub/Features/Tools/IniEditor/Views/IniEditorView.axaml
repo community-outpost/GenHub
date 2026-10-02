@@ -965,6 +965,27 @@
                     <TextBlock Text="{localization:Localize Tools.IniEditor.Preview3D.DoubleClickHint}"
                                IsVisible="{Binding HasPreviewScene}"
                                FontSize="9" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                    <StackPanel Orientation="Horizontal" Spacing="6"
+                                IsVisible="{Binding HasPreviewMissingTextures}">
+                      <TextBlock Text="{localization:Localize Tools.IniEditor.Preview3D.MissingTextures}"
+                                 FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource WarningBrush}"
+                                 VerticalAlignment="Center"/>
+                      <ItemsControl ItemsSource="{Binding PreviewMissingTextures}">
+                        <ItemsControl.ItemsPanel>
+                          <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal"/>
+                          </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="x:String">
+                            <Border Background="Transparent" BorderBrush="{DynamicResource WarningBrush}"
+                                    BorderThickness="1" CornerRadius="4" Padding="5,1" Margin="0,1,4,1">
+                              <TextBlock Text="{Binding}" FontSize="9" Foreground="{DynamicResource WarningBrush}"/>
+                            </Border>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </StackPanel>
                     <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto"
                           IsVisible="{Binding HasPreviewClips}" VerticalAlignment="Center">
                       <TextBlock Grid.Column="0" Text="{localization:Localize Tools.IniEditor.Preview3D.ClipLabel}"
@@ -980,6 +1001,7 @@
                         </ComboBox.ItemTemplate>
                       </ComboBox>
                       <Button Grid.Column="2" Command="{Binding TogglePreviewPlaybackCommand}"
+                              IsEnabled="{Binding CanPreviewPlay}"
                               Padding="6,3" Background="Transparent" Margin="0,0,6,0"
                               BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6"
                               ToolTip.Tip="{localization:Localize Tools.IniEditor.Preview3D.Play}">
@@ -1090,6 +1112,84 @@
                                            Foreground="{DynamicResource TextPrimary}"
                                            TextTrimming="CharacterEllipsis" MaxWidth="160"/>
                                 <TextBlock Text="{Binding BlockType}" FontSize="9"
+                                           Foreground="{DynamicResource TextSecondary}"
+                                           TextTrimming="CharacterEllipsis" MaxWidth="160"/>
+                              </StackPanel>
+                            </StackPanel>
+                          </Button>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="{localization:Localize Tools.IniEditor.Preview3D.ResolutionPath}"
+                               IsVisible="{Binding HasPreviewResolutionPath}"
+                               FontWeight="SemiBold" FontSize="11" Foreground="{DynamicResource TextPrimary}"/>
+                    <ItemsControl ItemsSource="{Binding PreviewResolutionPath}"
+                                  IsVisible="{Binding HasPreviewResolutionPath}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <WrapPanel Orientation="Horizontal" VerticalAlignment="Center"/>
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:IniResolutionHopViewModel">
+                          <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+                            <material:MaterialIcon Kind="{Binding DirectionIconKind}" Width="12" Height="12"
+                                                   Foreground="{DynamicResource TextSecondary}"
+                                                   VerticalAlignment="Center"
+                                                   IsVisible="{Binding !IsFirst}"/>
+                            <Button x:CompileBindings="False"
+                                    Command="{Binding DataContext.NavigateToReferenceCommand, ElementName=Root}"
+                                    CommandParameter="{Binding}"
+                                    Padding="6,3" Margin="0,1,4,1" Background="Transparent"
+                                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                    CornerRadius="6" Cursor="Hand"
+                                    ToolTip.Tip="{Binding FilePath}">
+                              <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                <material:MaterialIcon Kind="{Binding IconKind}" Width="14" Height="14"
+                                                       Foreground="{DynamicResource AccentBrush}"
+                                                       VerticalAlignment="Center"/>
+                                <StackPanel Spacing="0" VerticalAlignment="Center">
+                                  <TextBlock Text="{Binding Title}" FontSize="10" FontWeight="SemiBold"
+                                             Foreground="{DynamicResource TextPrimary}"
+                                             TextTrimming="CharacterEllipsis" MaxWidth="160"/>
+                                  <TextBlock Text="{Binding BlockType}" FontSize="9"
+                                             Foreground="{DynamicResource TextSecondary}"
+                                             TextTrimming="CharacterEllipsis" MaxWidth="160"/>
+                                </StackPanel>
+                              </StackPanel>
+                            </Button>
+                          </StackPanel>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="{localization:Localize Tools.IniEditor.Preview3D.UsedBy}"
+                               IsVisible="{Binding HasPreviewReferencers}"
+                               FontWeight="SemiBold" FontSize="11" Foreground="{DynamicResource TextPrimary}"/>
+                    <ItemsControl ItemsSource="{Binding PreviewReferencers}"
+                                  IsVisible="{Binding HasPreviewReferencers}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <WrapPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="iniModels:IniReferenceEntry">
+                          <Button x:CompileBindings="False"
+                                  Command="{Binding DataContext.NavigateToReferenceCommand, ElementName=Root}"
+                                  CommandParameter="{Binding}"
+                                  Padding="6,3" Margin="0,1,4,1" Background="Transparent"
+                                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                  CornerRadius="6" Cursor="Hand"
+                                  ToolTip.Tip="{Binding FilePath}">
+                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                              <material:MaterialIcon Kind="{Binding IconKind}" Width="14" Height="14"
+                                                     Foreground="{DynamicResource AccentBrush}"
+                                                     VerticalAlignment="Center"/>
+                              <StackPanel Spacing="0" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Name}" FontSize="10" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimary}"
+                                           TextTrimming="CharacterEllipsis" MaxWidth="160"/>
+                                <TextBlock Text="{Binding SourceLabel}" FontSize="9"
                                            Foreground="{DynamicResource TextSecondary}"
                                            TextTrimming="CharacterEllipsis" MaxWidth="160"/>
                               </StackPanel>

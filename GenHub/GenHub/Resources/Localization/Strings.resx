@@ -17991,6 +17991,9 @@ Mapped image texture reference</value>
   <data name="Tools.IniEditor.Preview3D.ReadyMissing" xml:space="preserve">
     <value>{0} meshes • {1} textures ({2} missing) • {3} bones</value>
   </data>
+  <data name="Tools.IniEditor.Preview3D.ClipUnsupported" xml:space="preserve">
+    <value>Animation '{0}' uses compressed channels and cannot be previewed.</value>
+  </data>
   <data name="Tools.IniEditor.Preview3D.Skeleton" xml:space="preserve">
     <value>Skeleton</value>
   </data>
@@ -18041,6 +18044,15 @@ Mapped image texture reference</value>
   </data>
   <data name="Tools.IniEditor.Preview3D.ViaSource" xml:space="preserve">
     <value>via {0}</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ResolutionPath" xml:space="preserve">
+    <value>Preview path</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.UsedBy" xml:space="preserve">
+    <value>Used by</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.MissingTextures" xml:space="preserve">
+    <value>Missing textures:</value>
   </data>
   <data name="TextureEditor.Button.OpenFolder" xml:space="preserve">
     <value>Open folder</value>

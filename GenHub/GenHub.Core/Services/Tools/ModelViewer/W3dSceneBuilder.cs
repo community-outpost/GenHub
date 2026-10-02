@@ -19,21 +19,22 @@ public static class W3dSceneBuilder
     /// <param name="model">The parsed model.</param>
     /// <param name="texturesByName">The decoded textures keyed by referenced name.</param>
     /// <param name="boneByMeshName">The optional mesh name to pivot index map from HLOD data.</param>
+    /// <param name="discardedTextures">The optional collector for texture names dropped by shader flags.</param>
     /// <returns>The render scene.</returns>
     public static W3dRenderScene Build(
         W3dModel model,
         IReadOnlyDictionary<string, DecodedTexture> texturesByName,
-        IReadOnlyDictionary<string, int>? boneByMeshName = null)
+        IReadOnlyDictionary<string, int>? boneByMeshName = null,
+        ICollection<string>? discardedTextures = null)
     {
         ArgumentNullException.ThrowIfNull(model);
         ArgumentNullException.ThrowIfNull(texturesByName);
 
-        var textures = new List<W3dRenderTexture>();
-        var textureIndexByName = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var textures = new TextureTable();
         var meshes = new List<W3dRenderMesh>();
         foreach (var mesh in model.Meshes)
         {
-            meshes.Add(BuildMesh(mesh, texturesByName, textures, textureIndexByName, boneByMeshName));
+            meshes.Add(BuildMesh(mesh, texturesByName, textures, boneByMeshName, discardedTextures));
         }
 
         var skeleton = new List<W3dSkeletonSegment>();
@@ -43,23 +44,27 @@ public static class W3dSceneBuilder
             skeleton.AddRange(W3dAnimationSampler.BindPoseSegments(hierarchy));
         }
 
-        return new W3dRenderScene(meshes, textures, skeleton, CombineBounds(model.Meshes));
+        return new W3dRenderScene(meshes, textures.Textures, skeleton, CombineBounds(model.Meshes));
     }
 
     private static W3dRenderMesh BuildMesh(
         W3dMesh mesh,
         IReadOnlyDictionary<string, DecodedTexture> texturesByName,
-        List<W3dRenderTexture> textures,
-        Dictionary<string, int> textureIndexByName,
-        IReadOnlyDictionary<string, int>? boneByMeshName)
+        TextureTable textures,
+        IReadOnlyDictionary<string, int>? boneByMeshName,
+        ICollection<string>? discardedTextures)
     {
         var pass = mesh.Passes.FirstOrDefault();
         var stage = pass?.Stages.FirstOrDefault();
         var material = SelectMaterial(mesh, pass);
         var shader = SelectShader(mesh, pass);
-        int textureIndex = ResolveTextureIndex(mesh, stage, texturesByName, textures, textureIndexByName);
+        int textureIndex = ResolveTextureIndex(mesh, stage, texturesByName, textures);
         bool alphaTest = shader?.AlphaTest != 0;
         bool textured = textureIndex >= 0 && (shader == null || shader.EnablesTexturing);
+        if (textureIndex >= 0 && !textured && discardedTextures != null)
+        {
+            discardedTextures.Add(textures.NameAt(textureIndex));
+        }
 
         var vertices = new List<float>();
         var indices = new List<uint>();
@@ -122,8 +127,7 @@ public static class W3dSceneBuilder
         W3dMesh mesh,
         W3dTextureStage? stage,
         IReadOnlyDictionary<string, DecodedTexture> texturesByName,
-        List<W3dRenderTexture> textures,
-        Dictionary<string, int> textureIndexByName)
+        TextureTable textures)
     {
         if (stage == null || mesh.Textures.Count == 0)
         {
@@ -138,19 +142,82 @@ public static class W3dSceneBuilder
         }
 
         string key = reference.Name.Trim();
-        if (textureIndexByName.TryGetValue(key, out int existing))
+        if (textures.TryGetIndex(key, out int existing))
         {
             return existing;
         }
 
-        if (!texturesByName.TryGetValue(key, out var decoded))
+        // Referenced but undecodable textures render as a placeholder so they
+        // are distinguishable from legitimately untextured vertex-color meshes.
+        if (!texturesByName.TryGetValue(key, out var decoded) || !IsUsableTexture(decoded))
         {
-            return -1;
+            return textures.CheckerIndex;
         }
 
-        textureIndexByName[key] = textures.Count;
-        textures.Add(new W3dRenderTexture(key, decoded.Width, decoded.Height, decoded.PixelData));
-        return textures.Count - 1;
+        return textures.Add(key, decoded);
+    }
+
+    private static bool IsUsableTexture(DecodedTexture decoded)
+    {
+        return decoded.Width > 0 &&
+            decoded.Height > 0 &&
+            decoded.PixelData.Length >= (long)decoded.Width * decoded.Height * 4;
+    }
+
+    private sealed class TextureTable
+    {
+        private const string MissingTextureName = "__missing__";
+        private const int CheckerSize = 8;
+
+        private readonly List<W3dRenderTexture> _textures = [];
+        private readonly Dictionary<string, int> _indexByName = new(StringComparer.OrdinalIgnoreCase);
+        private int _checkerIndex = -1;
+
+        public IReadOnlyList<W3dRenderTexture> Textures => _textures;
+
+        public int CheckerIndex
+        {
+            get
+            {
+                if (_checkerIndex < 0)
+                {
+                    _checkerIndex = _textures.Count;
+                    _textures.Add(new W3dRenderTexture(MissingTextureName, CheckerSize, CheckerSize, BuildCheckerPixels()));
+                }
+
+                return _checkerIndex;
+            }
+        }
+
+        public bool TryGetIndex(string key, out int index) => _indexByName.TryGetValue(key, out index);
+
+        public string NameAt(int index) => _textures[index].Name;
+
+        public int Add(string key, DecodedTexture decoded)
+        {
+            _indexByName[key] = _textures.Count;
+            _textures.Add(new W3dRenderTexture(key, decoded.Width, decoded.Height, decoded.PixelData));
+            return _textures.Count - 1;
+        }
+
+        private static byte[] BuildCheckerPixels()
+        {
+            var pixels = new byte[CheckerSize * CheckerSize * 4];
+            for (int y = 0; y < CheckerSize; y++)
+            {
+                for (int x = 0; x < CheckerSize; x++)
+                {
+                    int offset = (y * CheckerSize * 4) + (x * 4);
+                    bool magenta = ((x / 2) + (y / 2)) % 2 == 0;
+                    pixels[offset] = magenta ? (byte)255 : (byte)0;
+                    pixels[offset + 1] = 0;
+                    pixels[offset + 2] = magenta ? (byte)255 : (byte)0;
+                    pixels[offset + 3] = 255;
+                }
+            }
+
+            return pixels;
+        }
     }
 
     private static void BuildSharedVertices(

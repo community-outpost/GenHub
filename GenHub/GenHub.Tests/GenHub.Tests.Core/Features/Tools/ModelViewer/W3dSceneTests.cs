@@ -317,6 +317,150 @@ public sealed class W3dSceneTests
         Assert.Equal(expected, W3dViewerControl.ShouldYieldPressToCanvas(isCanvasPanMode, isMiddlePressed, isLeftPressed));
     }
 
+    /// <summary>
+    /// Verifies that a referenced but unloadable texture renders as the missing placeholder.
+    /// </summary>
+    [Fact]
+    public void Build_MissingTexture_UsesCheckerPlaceholder()
+    {
+        var model = new W3dModel([MeshWithTexture("Ghost")], [], [], [], []);
+
+        var scene = W3dSceneBuilder.Build(model, new Dictionary<string, DecodedTexture>());
+
+        var render = Assert.Single(scene.Meshes);
+        Assert.True(render.TextureIndex >= 0);
+        var texture = scene.Textures[render.TextureIndex];
+        Assert.Equal("__missing__", texture.Name);
+        Assert.Equal(8, texture.Width);
+        Assert.Equal(8, texture.Height);
+        Assert.Equal(8 * 8 * 4, texture.PixelData.Length);
+    }
+
+    /// <summary>
+    /// Verifies that a truncated decode renders as the missing placeholder instead of uploading garbage.
+    /// </summary>
+    [Fact]
+    public void Build_InvalidTexture_UsesCheckerPlaceholder()
+    {
+        var model = new W3dModel([MeshWithTexture("Ghost")], [], [], [], []);
+        var textures = new Dictionary<string, DecodedTexture>
+        {
+            ["Ghost"] = new DecodedTexture(4, 4, new byte[8]),
+        };
+
+        var scene = W3dSceneBuilder.Build(model, textures);
+
+        var render = Assert.Single(scene.Meshes);
+        Assert.Equal("__missing__", scene.Textures[render.TextureIndex].Name);
+    }
+
+    /// <summary>
+    /// Verifies that a resolved texture still maps to its decoded pixels.
+    /// </summary>
+    [Fact]
+    public void Build_ResolvedTexture_UsesDecodedPixels()
+    {
+        var model = new W3dModel([MeshWithTexture("Ghost")], [], [], [], []);
+        var pixels = new byte[2 * 2 * 4];
+        var textures = new Dictionary<string, DecodedTexture>
+        {
+            ["Ghost"] = new DecodedTexture(2, 2, pixels),
+        };
+
+        var scene = W3dSceneBuilder.Build(model, textures);
+
+        var render = Assert.Single(scene.Meshes);
+        var texture = scene.Textures[render.TextureIndex];
+        Assert.Equal("Ghost", texture.Name);
+        Assert.Same(pixels, texture.PixelData);
+    }
+
+    /// <summary>
+    /// Verifies that a texture dropped by a texturing-disabled shader is reported to the collector.
+    /// </summary>
+    [Fact]
+    public void Build_TexturingDisabledShader_ReportsDiscardedTexture()
+    {
+        var shader = new W3dShader(0, 0, 0, 0, W3dConstants.ShaderValues.TexturingDisable, 0);
+        var model = new W3dModel([MeshWithTexture("Ghost", [shader])], [], [], [], []);
+        var textures = new Dictionary<string, DecodedTexture>
+        {
+            ["Ghost"] = new DecodedTexture(2, 2, new byte[2 * 2 * 4]),
+        };
+        var discarded = new List<string>();
+
+        var scene = W3dSceneBuilder.Build(model, textures, null, discarded);
+
+        var render = Assert.Single(scene.Meshes);
+        Assert.Equal(-1, render.TextureIndex);
+        Assert.Equal(["Ghost"], discarded);
+    }
+
+    /// <summary>
+    /// Verifies that a skin without inverse-bind data renders the bind shape instead of a double transform.
+    /// </summary>
+    [Fact]
+    public void ModelTransform_SkinWithoutInverseBind_ReturnsIdentity()
+    {
+        var mesh = new W3dRenderMesh("M", [], [], -1, 1, false, false, 0, IsSkin: true);
+        var pose = new List<Matrix4x4> { Matrix4x4.CreateTranslation(5, 0, 0) };
+
+        var model = W3dViewerControl.ComputeMeshModelTransform(mesh, pose, null, null);
+
+        Assert.Equal(Matrix4x4.Identity, model);
+    }
+
+    /// <summary>
+    /// Verifies that a skin with inverse-bind data composes the relative pivot motion.
+    /// </summary>
+    [Fact]
+    public void ModelTransform_SkinWithInverseBind_ComposesRelativeMotion()
+    {
+        var mesh = new W3dRenderMesh("M", [], [], -1, 1, false, false, 0, IsSkin: true);
+        var pose = new List<Matrix4x4> { Matrix4x4.CreateTranslation(6, 0, 0) };
+        var bind = new List<Matrix4x4> { Matrix4x4.CreateTranslation(1, 0, 0) };
+        Matrix4x4.Invert(bind[0], out var inverse);
+
+        var model = W3dViewerControl.ComputeMeshModelTransform(mesh, pose, bind, [inverse]);
+
+        Assert.Equal(new Vector3(5, 0, 0), model.Translation);
+    }
+
+    /// <summary>
+    /// Verifies that a rigid mesh with an out-of-range bone falls back to its bind transform.
+    /// </summary>
+    [Fact]
+    public void ModelTransform_RigidOutOfRange_FallsBackToBind()
+    {
+        var mesh = new W3dRenderMesh("M", [], [], -1, 1, false, false, 0);
+        var pose = new List<Matrix4x4>();
+        var bind = new List<Matrix4x4> { Matrix4x4.CreateTranslation(2, 0, 0) };
+
+        var model = W3dViewerControl.ComputeMeshModelTransform(mesh, pose, bind, null);
+
+        Assert.Equal(new Vector3(2, 0, 0), model.Translation);
+    }
+
+    private static W3dMesh MeshWithTexture(string textureName, IReadOnlyList<W3dShader>? shaders = null)
+    {
+        var stage = new W3dTextureStage([0], [new W3dVector2(0, 0), new W3dVector2(1, 0), new W3dVector2(0, 1)], []);
+        var origin = new W3dVector3(0, 0, 0);
+        return new W3dMesh(
+            "M",
+            "C",
+            0,
+            0,
+            new W3dBoundingBox(origin, new W3dVector3(1, 1, 0), origin, 1),
+            [new W3dVector3(0, 0, 0), new W3dVector3(1, 0, 0), new W3dVector3(0, 1, 0)],
+            [new W3dVector3(0, 0, 1), new W3dVector3(0, 0, 1), new W3dVector3(0, 0, 1)],
+            [new W3dTriangle(0, 1, 2, 0)],
+            [],
+            shaders ?? [],
+            [new W3dTextureReference(textureName, 0, 0, 0)],
+            [new W3dMaterialPass([0], [0], [stage])],
+            []);
+    }
+
     private static W3dMesh MeshWithTriangle(IReadOnlyList<W3dMaterialPass>? passes = null)
     {
         var origin = new W3dVector3(0, 0, 0);

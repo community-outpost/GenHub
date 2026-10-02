@@ -1,5 +1,4 @@
 using Avalonia.Headless.XUnit;
-using Avalonia.Threading;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
@@ -115,23 +114,5 @@ public sealed class IniEditorRawEditTests
                 It.IsAny<bool>()))
             .Callback<string, string, int?, bool>((_, message, _, _) => warnings.Add(message));
         return mockNotifications;
-    }
-
-    private static async Task<bool> WaitForAsync(Func<bool> condition, TimeSpan timeout)
-    {
-        var started = DateTime.UtcNow;
-        while (DateTime.UtcNow - started < timeout)
-        {
-            await Dispatcher.UIThread.InvokeAsync(() => { }).GetTask().ConfigureAwait(false);
-            if (condition())
-            {
-                return true;
-            }
-
-            await Task.Delay(50).ConfigureAwait(false);
-        }
-
-        await Dispatcher.UIThread.InvokeAsync(() => { }).GetTask().ConfigureAwait(false);
-        return condition();
     }
 }

@@ -4,11 +4,14 @@ using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.OpenGL;
 using Avalonia.OpenGL.Controls;
+using Avalonia.Rendering;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using GenHub.Core.Models.Tools.ModelViewer;
 using GenHub.Core.Services.Tools.ModelViewer;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.InteropServices;
@@ -19,7 +22,7 @@ namespace GenHub.Common.Controls;
 /// OpenGL viewer rendering textured W3D models with skeleton overlay,
 /// orbit camera, and click-to-select sub-object picking.
 /// </summary>
-public sealed class W3dViewerControl : OpenGlControlBase
+public sealed class W3dViewerControl : OpenGlControlBase, ICustomHitTest
 {
     /// <summary>
     /// The rendered scene.
@@ -92,6 +95,7 @@ public sealed class W3dViewerControl : OpenGlControlBase
     private const int GlPoints = 0x0000;
     private const int GlUnsignedInt = 0x1405;
     private const int GlLessEqual = 0x0203;
+    private const double HoverThrottleMs = 30;
     private const int GlTextureWrapS = 0x2802;
     private const int GlTextureWrapT = 0x2803;
     private const int GlClampToEdge = 0x812F;
@@ -153,6 +157,15 @@ public sealed class W3dViewerControl : OpenGlControlBase
             if (uAlphaTest > 0.5 && base.a < 0.5)
             {
                 discard;
+            }
+
+            if (uOpacity < 0.999)
+            {
+                float hash = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
+                if (hash > uOpacity)
+                {
+                    discard;
+                }
             }
 
             vec3 rgb = base.rgb * vLight;
@@ -227,6 +240,7 @@ public sealed class W3dViewerControl : OpenGlControlBase
     private double _maxDistance = 200;
 
     private int _hoveredMeshIndex = -1;
+    private long _lastHoverTimestamp;
     private Point _lastPointerPosition;
     private Point _pressPosition;
     private bool _pressing;
@@ -336,6 +350,66 @@ public sealed class W3dViewerControl : OpenGlControlBase
     }
 
     /// <summary>
+    /// Gets the current orbit yaw in radians.
+    /// </summary>
+    public double CameraYaw
+    {
+        get
+        {
+            lock (_cameraLock)
+            {
+                return _yaw;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the current orbit pitch in radians.
+    /// </summary>
+    public double CameraPitch
+    {
+        get
+        {
+            lock (_cameraLock)
+            {
+                return _pitch;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the current camera distance from the target.
+    /// </summary>
+    public double CameraDistance
+    {
+        get
+        {
+            lock (_cameraLock)
+            {
+                return _distance;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Hit-tests the viewer bounds so camera gestures reach the control.
+    /// OpenGL surfaces never paint render geometry, so without this every
+    /// press falls through to the document canvas behind the viewer.
+    /// </summary>
+    /// <param name="point">The point in global coordinate space.</param>
+    /// <returns>True when the point falls inside the viewer bounds.</returns>
+    bool ICustomHitTest.HitTest(Point point)
+    {
+        if (TopLevel.GetTopLevel(this) is not Visual root)
+        {
+            return false;
+        }
+
+        var local = root.TranslatePoint(point, this);
+        return local.HasValue && new Rect(Bounds.Size).Contains(local.Value);
+    }
+
+    /// <summary>
     /// Frames the current scene with a default orbit angle.
     /// </summary>
     public void ResetView()
@@ -382,9 +456,13 @@ public sealed class W3dViewerControl : OpenGlControlBase
         // the pivot motion relative to the bind pose instead of the absolute pose.
         // Rigid meshes (turrets, wheels, chassis) sit in object space relative to their pivot
         // and must use the plain animated pivot transform.
-        if (mesh.IsSkin && inverseBind != null && mesh.BoneIndex < inverseBind.Count)
+        if (mesh.IsSkin)
         {
-            return inverseBind[mesh.BoneIndex] * pose[mesh.BoneIndex];
+            // Without a matching inverse-bind matrix the absolute pose would
+            // double-transform bind-space vertices, so render the bind shape.
+            return inverseBind != null && mesh.BoneIndex < inverseBind.Count
+                ? inverseBind[mesh.BoneIndex] * pose[mesh.BoneIndex]
+                : Matrix4x4.Identity;
         }
 
         return pose[mesh.BoneIndex];
@@ -1259,12 +1337,24 @@ public sealed class W3dViewerControl : OpenGlControlBase
         int stride = 7 * sizeof(float);
         gl.VertexAttribPointer(PositionAttribute, 3, GlConsts.GL_FLOAT, 0, stride, IntPtr.Zero);
         gl.VertexAttribPointer(1, 4, GlConsts.GL_FLOAT, 0, stride, (IntPtr)(3 * sizeof(float)));
+
+        // GlInterface exposes no attribute disable, so re-point the mesh-only
+        // attributes into the line buffer to keep stale strides from overreading.
+        gl.VertexAttribPointer(UvAttribute, 2, GlConsts.GL_FLOAT, 0, stride, IntPtr.Zero);
+        gl.VertexAttribPointer(ColorAttribute, 4, GlConsts.GL_FLOAT, 0, stride, IntPtr.Zero);
         gl.DrawArrays(GlLines, 0, (IntPtr)_lineVertexCount);
         gl.DrawArrays(GlPoints, 0, (IntPtr)_lineVertexCount);
     }
 
     private void UpdateHover(Point position)
     {
+        long now = Stopwatch.GetTimestamp();
+        if (Stopwatch.GetElapsedTime(_lastHoverTimestamp, now).TotalMilliseconds < HoverThrottleMs)
+        {
+            return;
+        }
+
+        _lastHoverTimestamp = now;
         var scene = Scene;
         if (scene == null || scene.Meshes.Count == 0)
         {

@@ -13,6 +13,9 @@ public static class W3dConstants
     /// <summary>The conventional asset folder for model files inside game archives.</summary>
     public const string ArtDirectory = "Art";
 
+    /// <summary>Error prefix identifying unresolvable model names across resolver implementations.</summary>
+    public const string ModelNotFoundPrefix = "Model not found:";
+
     /// <summary>Mask selecting the low 31 payload-size bits of a chunk size field.</summary>
     public const uint SizeMask = 0x7FFFFFFF;
 

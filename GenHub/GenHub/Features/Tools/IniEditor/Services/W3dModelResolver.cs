@@ -25,6 +25,7 @@ public sealed class W3dModelResolver(
     ILogger<W3dModelResolver> logger) : IW3dModelResolver
 {
     private readonly Dictionary<string, SageVirtualFileSystem> _fileSystemCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly LinkedList<string> _fileSystemOrder = [];
     private readonly object _syncLock = new();
 
     /// <inheritdoc />
@@ -77,7 +78,7 @@ public sealed class W3dModelResolver(
         if (modelBytes == null)
         {
             return Task.FromResult(OperationResult<W3dResolvedModel>.CreateFailure(
-                $"Model not found: {cleanName}",
+                $"{W3dConstants.ModelNotFoundPrefix} {cleanName}",
                 Stopwatch.GetElapsedTime(started)));
         }
 
@@ -101,21 +102,27 @@ public sealed class W3dModelResolver(
         lock (_syncLock)
         {
             _fileSystemCache.Clear();
+            _fileSystemOrder.Clear();
         }
     }
 
     private static bool IsInvalidAssetPath(string name)
     {
+        // Asset names are bare SAGE identifiers; both separator kinds are rejected
+        // on every OS because backslash names arrive from Windows-authored files.
         return string.IsNullOrWhiteSpace(name) ||
             name.Contains("..", StringComparison.Ordinal) ||
+            name.Contains('/') ||
+            name.Contains('\\') ||
             Path.IsPathRooted(name);
     }
 
-    private static byte[]? FindModelBytes(string modelName, SageVirtualFileSystem fileSystem, out string? sourceName)
+    private byte[]? FindModelBytes(string modelName, SageVirtualFileSystem fileSystem, out string? sourceName)
     {
         sourceName = null;
         if (IsInvalidAssetPath(modelName))
         {
+            logger.LogWarning("Rejected unsafe model asset path {Model}", modelName);
             return null;
         }
 
@@ -143,11 +150,12 @@ public sealed class W3dModelResolver(
         return null;
     }
 
-    private static IReadOnlyList<string> TextureCandidates(string textureName)
+    private IReadOnlyList<string> TextureCandidates(string textureName)
     {
         string clean = textureName.Trim();
         if (IsInvalidAssetPath(clean))
         {
+            logger.LogWarning("Rejected unsafe texture asset path {Texture}", textureName);
             return [];
         }
 
@@ -178,8 +186,12 @@ public sealed class W3dModelResolver(
             ];
         }
 
+        // Bare stems and foreign extensions attempt the literal name first so an
+        // exact file is never skipped over in favor of an extension guess.
         return
         [
+            clean,
+            $"{W3dConstants.ArtDirectory}/{clean}",
             clean + ModBuilderConstants.FileExtensions.Dds,
             clean + ModBuilderConstants.FileExtensions.Tga,
             $"{W3dConstants.ArtDirectory}/{clean}{ModBuilderConstants.FileExtensions.Dds}",
@@ -196,15 +208,26 @@ public sealed class W3dModelResolver(
             {
                 return cached;
             }
+        }
 
-            var fileSystem = WndGameFileSystem.Open(installationPath, null, projectDirectory, logger, null, isZeroHour, cancellationToken);
-            if (_fileSystemCache.Count >= 4)
+        // Archive mounting performs multi-second I/O, so it runs outside the
+        // lock; a lost insertion race simply drops the redundant file system.
+        var fileSystem = WndGameFileSystem.Open(installationPath, null, projectDirectory, logger, null, isZeroHour, cancellationToken);
+        lock (_syncLock)
+        {
+            if (_fileSystemCache.TryGetValue(key, out var raced))
             {
-                var oldestKey = _fileSystemCache.Keys.First();
-                _fileSystemCache.Remove(oldestKey);
+                return raced;
+            }
+
+            if (_fileSystemCache.Count >= IniConstants.Editor.MaxCachedFileSystems && _fileSystemOrder.First != null)
+            {
+                _fileSystemCache.Remove(_fileSystemOrder.First.Value);
+                _fileSystemOrder.RemoveFirst();
             }
 
             _fileSystemCache[key] = fileSystem;
+            _fileSystemOrder.AddLast(key);
             return fileSystem;
         }
     }
@@ -257,6 +280,7 @@ public sealed class W3dModelResolver(
             string extension = Path.GetExtension(candidate);
             if (!textureCodec.SupportsExtension(extension))
             {
+                logger.LogWarning("Skipping texture {Texture} with unsupported extension {Extension}", candidate, extension);
                 continue;
             }
 
@@ -267,7 +291,7 @@ public sealed class W3dModelResolver(
                 return decoded.Data;
             }
 
-            logger.LogDebug("Failed to decode texture {Texture}: {Error}", candidate, decoded.FirstError);
+            logger.LogWarning("Failed to decode texture {Texture}: {Error}", candidate, decoded.FirstError);
         }
 
         return null;

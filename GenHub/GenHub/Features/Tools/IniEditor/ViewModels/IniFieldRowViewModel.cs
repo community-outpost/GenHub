@@ -325,8 +325,13 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
         }
 
         var target = PairTarget?.Trim() ?? string.Empty;
-        var percent = PairPercent?.Trim().TrimEnd('%').Trim() ?? string.Empty;
-        var recomposed = string.IsNullOrEmpty(percent) ? target : $"{target} {percent}%";
+        var percent = PairPercent?.Trim().TrimEnd(IniConstants.Syntax.PercentSuffix).Trim() ?? string.Empty;
+        var recomposed = (target, percent) switch
+        {
+            (_, "") => target,
+            ("", _) => $"{percent}%",
+            _ => $"{target} {percent}%",
+        };
         if (!string.Equals(Value, recomposed, StringComparison.Ordinal))
         {
             _isSyncingPair = true;
@@ -355,19 +360,21 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
             return;
         }
 
-        var parts = value.Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var lineBreak = value.IndexOfAny(['\r', '\n']);
+        var firstLine = lineBreak < 0 ? value : value[..lineBreak];
+        var parts = firstLine.Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (parts.Length == 0)
         {
             return;
         }
 
-        if (parts.Length == 1)
+        if (parts.Length == 1 || !parts[^1].EndsWith(IniConstants.Syntax.PercentSuffix))
         {
-            target = parts[0];
+            target = firstLine.Trim();
             return;
         }
 
-        percent = parts[^1].TrimEnd('%').Trim();
+        percent = parts[^1].TrimEnd(IniConstants.Syntax.PercentSuffix).Trim();
         target = string.Join(" ", parts[..^1]);
     }
 }

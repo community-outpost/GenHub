@@ -678,6 +678,12 @@ public class IniEditorViewTests
         mockReferenceService
             .Setup(service => service.GetNames(It.IsAny<string>()))
             .Returns(new List<string> { "ExistingSound" });
+        mockReferenceService
+            .Setup(service => service.FindReferencersAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<IniReferenceEntry>>.CreateSuccess(new List<IniReferenceEntry>(), TimeSpan.Zero));
+        mockReferenceService
+            .Setup(service => service.CloneBlockAsync(It.IsAny<IniReferenceEntry>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IniBlock?>.CreateSuccess(null, TimeSpan.Zero));
         using var viewModel = CreateViewModel(null, null, mockReferenceService.Object);
         var filePath = Path.Combine(Path.GetTempPath(), $"GenHubNoSound{Guid.NewGuid():N}.ini");
         await File.WriteAllTextAsync(filePath, "Object TestInfantry\n  VoiceSelect = NoSound\n  VoiceMove = BogusSound\nEnd\n");

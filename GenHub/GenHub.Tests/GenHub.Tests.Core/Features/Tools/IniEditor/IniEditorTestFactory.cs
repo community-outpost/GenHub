@@ -3,9 +3,11 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.IniEditor;
+using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Interfaces.Tools.ModelViewer;
 using GenHub.Core.Interfaces.Tools.TextureEditor;
 using GenHub.Core.Interfaces.Tools.WndEditor;
+using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.IniEditor;
 using GenHub.Features.Tools.IniEditor.Services;
@@ -39,17 +41,20 @@ public static class IniEditorTestFactory
     /// <param name="modelResolver">Optional model resolver override.</param>
     /// <param name="notificationService">Optional notification service override.</param>
     /// <param name="referenceService">Optional reference service override.</param>
+    /// <param name="useRealReferenceService">Whether to index real fixture files instead of mocking.</param>
     /// <returns>A new <see cref="IniEditorViewModel"/>.</returns>
     public static IniEditorViewModel CreateViewModel(
         IW3dModelResolver? modelResolver,
         INotificationService? notificationService = null,
-        IIniReferenceService? referenceService = null)
+        IIniReferenceService? referenceService = null,
+        bool useRealReferenceService = false)
     {
         var mockLocalization = new Mock<ILocalizationService>();
         mockLocalization
             .Setup(service => service.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
             .Returns((string key, object?[] args) => key);
 
+        var documentService = new IniDocumentService(Mock.Of<ILogger<IniDocumentService>>(), mockLocalization.Object);
         var mockReferenceService = new Mock<IIniReferenceService>();
         mockReferenceService
             .Setup(service => service.RebuildIndexAsync(
@@ -64,11 +69,17 @@ public static class IniEditorTestFactory
         mockReferenceService
             .Setup(service => service.GetNames(It.IsAny<string>()))
             .Returns(new List<string>());
+        mockReferenceService
+            .Setup(service => service.FindReferencersAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<IniReferenceEntry>>.CreateSuccess(new List<IniReferenceEntry>(), TimeSpan.Zero));
+        mockReferenceService
+            .Setup(service => service.CloneBlockAsync(It.IsAny<IniReferenceEntry>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IniBlock?>.CreateSuccess(null, TimeSpan.Zero));
 
         return new IniEditorViewModel(
-            new IniDocumentService(Mock.Of<ILogger<IniDocumentService>>(), mockLocalization.Object),
+            documentService,
             new IniSchemaService(mockLocalization.Object),
-            referenceService ?? mockReferenceService.Object,
+            referenceService ?? (useRealReferenceService ? RealReferenceService(documentService) : mockReferenceService.Object),
             Mock.Of<ISageMappedImageParser>(),
             Mock.Of<IWndImageAssetService>(),
             Mock.Of<IGameInstallationService>(),
@@ -112,5 +123,18 @@ public static class IniEditorTestFactory
 
         await Dispatcher.UIThread.InvokeAsync(() => { }).GetTask().ConfigureAwait(false);
         return condition();
+    }
+
+    private static IniReferenceService RealReferenceService(IniDocumentService documentService)
+    {
+        var mockInstallations = new Mock<IGameInstallationService>();
+        mockInstallations
+            .Setup(service => service.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess(new List<GameInstallation>(), TimeSpan.Zero));
+        return new IniReferenceService(
+            documentService,
+            mockInstallations.Object,
+            Mock.Of<IArchiveService>(),
+            Mock.Of<ILogger<IniReferenceService>>());
     }
 }

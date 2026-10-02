@@ -6,6 +6,7 @@ using GenHub.Core.Services.Tools.TextureEditor;
 using GenHub.Features.Tools.IniEditor.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -166,6 +167,9 @@ public sealed class W3dModelResolverTests : IDisposable
     [InlineData("..\\Secret\\Model")]
     [InlineData("/etc/passwd")]
     [InlineData("C:\\Windows\\System32\\model")]
+    [InlineData("Art/Tank")]
+    [InlineData("Art\\Tank")]
+    [InlineData("sub/dir/model")]
     public async Task ResolveAsync_InvalidModelPath_ReturnsFailureAsync(string invalidName)
     {
         var result = await _resolver.ResolveAsync(invalidName, _gameRoot, false);
@@ -175,11 +179,11 @@ public sealed class W3dModelResolverTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that resolving a model from a valid installation succeeds and populates the cache.
+    /// Verifies that resolving a model from a valid installation succeeds repeatedly.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task ResolveAsync_ValidInstallation_ResolvesModelAndCachesAsync()
+    public async Task ResolveAsync_ValidInstallation_ResolvesModelAsync()
     {
         File.WriteAllBytes(Path.Combine(_gameRoot, "Art", "Tank.w3d"), ModelWithTexture("track"));
 
@@ -189,19 +193,18 @@ public sealed class W3dModelResolverTests : IDisposable
         Assert.NotNull(firstResult.Data);
         Assert.Single(firstResult.Data.Model.Meshes);
 
-        // Second call exercises cache hit
-        var cachedResult = await _resolver.ResolveAsync("Tank", _gameRoot, false);
+        var secondResult = await _resolver.ResolveAsync("Tank", _gameRoot, false);
 
-        Assert.True(cachedResult.Success);
-        Assert.NotNull(cachedResult.Data);
+        Assert.True(secondResult.Success);
+        Assert.NotNull(secondResult.Data);
     }
 
     /// <summary>
-    /// Verifies that clearing the cache allows subsequent resolves and cache eviction at capacity works.
+    /// Verifies that clearing the cache keeps subsequent resolves working.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task ResolveAsync_ClearCacheAndEviction_WorksCorrectlyAsync()
+    public async Task ResolveAsync_ClearCache_ResolvesAnewAsync()
     {
         File.WriteAllBytes(Path.Combine(_gameRoot, "Art", "Jeep.w3d"), ModelWithTexture("wheel"));
 
@@ -212,15 +215,33 @@ public sealed class W3dModelResolverTests : IDisposable
 
         var afterClear = await _resolver.ResolveAsync("Jeep", _gameRoot, false);
         Assert.True(afterClear.Success);
+        Assert.NotNull(afterClear.Data);
+    }
 
-        // Exercise cache capacity / eviction by creating 5 distinct directories
-        for (int i = 1; i <= 5; i++)
+    /// <summary>
+    /// Verifies that resolving past cache capacity evicts transparently without corrupting results.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_BeyondCapacity_EvictsTransparentlyAsync()
+    {
+        var roots = new List<string>();
+        for (int i = 0; i < IniConstants.Editor.MaxCachedFileSystems + 1; i++)
         {
             var dir = Path.Combine(_gameRoot, $"CacheDir_{i}");
             Directory.CreateDirectory(Path.Combine(dir, "Art"));
             File.WriteAllBytes(Path.Combine(dir, "Art", "Jeep.w3d"), ModelWithTexture("wheel"));
-            var res = await _resolver.ResolveAsync("Jeep", dir, false);
-            Assert.True(res.Success);
+            roots.Add(dir);
+            var opened = await _resolver.ResolveAsync("Jeep", dir, false);
+            Assert.True(opened.Success);
+        }
+
+        foreach (var dir in roots)
+        {
+            var reread = await _resolver.ResolveAsync("Jeep", dir, false);
+            Assert.True(reread.Success);
+            Assert.NotNull(reread.Data);
+            Assert.Single(reread.Data.Model.Meshes);
         }
     }
 

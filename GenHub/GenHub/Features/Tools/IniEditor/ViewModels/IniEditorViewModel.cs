@@ -22,6 +22,7 @@ using GenHub.Core.Models.Tools.IniEditor;
 using GenHub.Core.Models.Tools.ModelViewer;
 using GenHub.Core.Models.Tools.TextureEditor;
 using GenHub.Core.Services.Tools.ModelViewer;
+using GenHub.Features.Tools.IniEditor.Services;
 using GenHub.Features.Tools.ModBuilder.Models;
 using Microsoft.Extensions.Logging;
 using System;
@@ -94,8 +95,11 @@ public sealed partial class IniEditorViewModel(
     private CancellationTokenSource? _previewCts;
     private CancellationTokenSource? _modelPreviewCts;
     private int _modelPreviewGeneration;
+    private CancellationTokenSource? _xrefsCts;
+    private int _xrefsGeneration;
     private DispatcherTimer? _previewPlaybackTimer;
     private string? _lastPreviewModel;
+    private bool _lastPreviewFailed;
     private string? _lastPreviewErrorToast;
     private string? _previewStatusKey;
     private object[] _previewStatusArgs = [];
@@ -410,6 +414,7 @@ public sealed partial class IniEditorViewModel(
     /// Gets or sets a value indicating whether a 3D preview scene is loaded.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanPreviewPlay))]
     private bool _hasPreviewScene;
 
     /// <summary>
@@ -452,6 +457,7 @@ public sealed partial class IniEditorViewModel(
     /// Gets or sets the selected animation clip.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanPreviewPlay))]
     private W3dAnimationClip? _selectedPreviewClip;
 
     /// <summary>
@@ -464,6 +470,7 @@ public sealed partial class IniEditorViewModel(
     /// Gets or sets the preview frame count.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanPreviewPlay))]
     private int _previewFrameCount;
 
     /// <summary>
@@ -514,6 +521,11 @@ public sealed partial class IniEditorViewModel(
     public bool HasPreviewClips => PreviewClips.Count > 0;
 
     /// <summary>
+    /// Gets a value indicating whether the selected clip can play.
+    /// </summary>
+    public bool CanPreviewPlay => HasPreviewScene && SelectedPreviewClip?.IsSamplable == true && PreviewFrameCount >= 1;
+
+    /// <summary>
     /// Gets a value indicating whether draw modules reference the selected preview mesh.
     /// </summary>
     public bool HasPreviewMeshModules => PreviewMeshModules.Count > 0;
@@ -539,6 +551,16 @@ public sealed partial class IniEditorViewModel(
     public bool HasPreviewRelatedObjects => PreviewRelatedObjects.Count > 0;
 
     /// <summary>
+    /// Gets a value indicating whether the preview is missing textures.
+    /// </summary>
+    public bool HasPreviewMissingTextures => PreviewMissingTextures.Count > 0;
+
+    /// <summary>
+    /// Gets the missing texture names for the previewed model.
+    /// </summary>
+    public ObservableCollection<string> PreviewMissingTextures { get; } = [];
+
+    /// <summary>
     /// Gets a value indicating whether the previewed model is inherited from another block.
     /// </summary>
     public bool HasPreviewModelSource => !string.IsNullOrEmpty(PreviewModelSourceText);
@@ -552,6 +574,26 @@ public sealed partial class IniEditorViewModel(
     /// Gets the related object cards for reference blocks such as command sets.
     /// </summary>
     public ObservableCollection<IniCanvasCardViewModel> PreviewRelatedObjects { get; } = [];
+
+    /// <summary>
+    /// Gets a value indicating whether the preview has a cross-file resolution path.
+    /// </summary>
+    public bool HasPreviewResolutionPath => PreviewResolutionPath.Count > 0;
+
+    /// <summary>
+    /// Gets the cross-file hops from the selected block to the previewed model.
+    /// </summary>
+    public ObservableCollection<IniResolutionHopViewModel> PreviewResolutionPath { get; } = [];
+
+    /// <summary>
+    /// Gets a value indicating whether other blocks reference the selected block.
+    /// </summary>
+    public bool HasPreviewReferencers => PreviewReferencers.Count > 0;
+
+    /// <summary>
+    /// Gets the indexed blocks referencing the selected block.
+    /// </summary>
+    public ObservableCollection<IniReferenceEntry> PreviewReferencers { get; } = [];
 
     /// <summary>
     /// Gets or sets the portrait image for the selected block.
@@ -1230,6 +1272,7 @@ public sealed partial class IniEditorViewModel(
             CancelDeferred(ref _thumbnailCts);
             CancelDeferred(ref _rawEditCts);
             CancelDeferred(ref _modelPreviewCts);
+            CancelDeferred(ref _xrefsCts);
             StopPreviewPlayback();
             if (_fileExplorer != null)
             {
@@ -1565,7 +1608,7 @@ public sealed partial class IniEditorViewModel(
         SetFieldValueByKey(fields, key, value);
     }
 
-    private static async Task RunDeferredRefreshAsync(CancellationTokenSource source, int delayMs, Action<CancellationToken> refresh)
+    private static async Task RunDeferredRefreshAsync(CancellationTokenSource source, int delayMs, Action<CancellationToken> refresh, ILogger logger)
     {
         try
         {
@@ -1578,9 +1621,22 @@ public sealed partial class IniEditorViewModel(
 
             PostToUIThread(() =>
             {
-                if (!token.IsCancellationRequested)
+                if (token.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                try
                 {
                     refresh(token);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Superseded by a newer edit, or the view model was disposed.
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    logger.LogWarning(ex, "Deferred editor refresh threw");
                 }
             });
         }
@@ -1695,18 +1751,18 @@ public sealed partial class IniEditorViewModel(
         return $"{command} → {target}";
     }
 
-    private static void ScheduleDeferred(ref CancellationTokenSource? slot, int delayMs, Action<CancellationToken> refresh)
+    private static void ScheduleDeferred(ref CancellationTokenSource? slot, int delayMs, Action<CancellationToken> refresh, ILogger logger)
     {
         slot?.Cancel();
         slot?.Dispose();
         var cts = new CancellationTokenSource();
         slot = cts;
-        _ = Task.Run(() => RunDeferredRefreshAsync(cts, delayMs, refresh), CancellationToken.None);
+        _ = Task.Run(() => RunDeferredRefreshAsync(cts, delayMs, refresh, logger), CancellationToken.None);
     }
 
-    private static void ScheduleDeferred(ref CancellationTokenSource? slot, int delayMs, Action refresh)
+    private static void ScheduleDeferred(ref CancellationTokenSource? slot, int delayMs, Action refresh, ILogger logger)
     {
-        ScheduleDeferred(ref slot, delayMs, _ => refresh());
+        ScheduleDeferred(ref slot, delayMs, _ => refresh(), logger);
     }
 
     private static string? ResolveHealthValue(IniBlock block)
@@ -1889,6 +1945,306 @@ public sealed partial class IniEditorViewModel(
 
         return (string.Empty, null);
     }
+
+    private void QueueCrossFileResolution(IniBlock block, bool needsModel)
+    {
+        CancelDeferred(ref _xrefsCts);
+        var generation = ++_xrefsGeneration;
+        ScheduleDeferred(ref _xrefsCts, IniConstants.Editor.CrossFileResolutionDebounceMs, token => _ = ResolveCrossFileAsync(block, needsModel, generation, token), logger);
+    }
+
+    private async Task ResolveCrossFileAsync(IniBlock root, bool needsModel, int generation, CancellationToken cancellationToken)
+    {
+        CrossFileOutcome outcome;
+        try
+        {
+            outcome = await WalkCrossFileAsync(root, needsModel, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (IOException ex)
+        {
+            logger.LogDebug(ex, "Cross-file preview resolution aborted");
+            return;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogDebug(ex, "Cross-file preview resolution aborted");
+            return;
+        }
+        catch (InvalidOperationException ex)
+        {
+            // The open document changed mid-walk; the triggering rebuild re-queues a fresh walk.
+            logger.LogDebug(ex, "Cross-file preview resolution aborted");
+            return;
+        }
+
+        PostToUIThread(() => ApplyCrossFileOutcome(root, generation, outcome));
+    }
+
+    private async Task<CrossFileOutcome> WalkCrossFileAsync(IniBlock root, bool needsModel, CancellationToken cancellationToken)
+    {
+        var referencers = await referenceService.FindReferencersAsync(root.Name, cancellationToken).ConfigureAwait(false);
+        var rootReferencers = referencers is { Success: true, Data: not null } ? referencers.Data : [];
+        if (!needsModel)
+        {
+            return new CrossFileOutcome(string.Empty, null, [], rootReferencers);
+        }
+
+        var entryIndex = new Dictionary<string, IniReferenceEntry>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in referenceService.Entries)
+        {
+            entryIndex.TryAdd($"{entry.BlockType}\n{entry.Name}", entry);
+        }
+
+        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { $"{root.BlockType}\n{root.Name}" };
+        var queue = new Queue<(WalkTarget Target, List<IniResolutionHopViewModel> Path)>();
+        queue.Enqueue((new WalkTarget(root.BlockType, root.Name, root, null), [RootResolutionHop(root)]));
+        var nodes = 0;
+        while (queue.Count > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var (target, path) = queue.Dequeue();
+            if (++nodes > IniConstants.Editor.MaxResolutionNodes)
+            {
+                break;
+            }
+
+            var block = target.Block ?? await CloneTargetAsync(target, cancellationToken).ConfigureAwait(false);
+            if (block == null)
+            {
+                continue;
+            }
+
+            var direct = FindFieldValue(block, IniConstants.FieldKeys.Model);
+            if (!string.IsNullOrWhiteSpace(direct))
+            {
+                return new CrossFileOutcome(direct.Trim(), block, path, rootReferencers);
+            }
+
+            var nested = FindNestedModel(block);
+            if (!string.IsNullOrEmpty(nested))
+            {
+                return new CrossFileOutcome(nested, block, path, rootReferencers);
+            }
+
+            if (path.Count > IniConstants.Editor.MaxResolutionDepth)
+            {
+                continue;
+            }
+
+            var added = EnqueueForwardHops(block, path, entryIndex, visited, queue);
+            if (added == 0 && path.Count <= 2)
+            {
+                await EnqueueReverseHopsAsync(target, path, visited, queue, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        var baseOutcome = await ResolveIndexedBaseObjectAsync(root, entryIndex, rootReferencers, cancellationToken).ConfigureAwait(false);
+        return baseOutcome ?? new CrossFileOutcome(string.Empty, null, [], rootReferencers);
+    }
+
+    private int EnqueueForwardHops(
+        IniBlock block,
+        List<IniResolutionHopViewModel> path,
+        Dictionary<string, IniReferenceEntry> entryIndex,
+        HashSet<string> visited,
+        Queue<(WalkTarget Target, List<IniResolutionHopViewModel> Path)> queue)
+    {
+        var added = 0;
+        foreach (var (ownerType, field) in EnumerateBlockFields(block))
+        {
+            schemaService.TryGetField(ownerType, field.Key, out var schema);
+            var referenceType = ResolveReferenceBlockType(field.Key, schema);
+            if (referenceType == null)
+            {
+                continue;
+            }
+
+            foreach (var token in IniReferenceService.SplitValueTokens(field.Value))
+            {
+                if (!visited.Add($"{referenceType}\n{token}"))
+                {
+                    continue;
+                }
+
+                var local = FindBlocks(referenceType, token).FirstOrDefault();
+                if (local != null)
+                {
+                    queue.Enqueue((new WalkTarget(referenceType, token, local, null), AppendHop(path, local, FilePath, false)));
+                    added++;
+                }
+                else if (entryIndex.TryGetValue($"{referenceType}\n{token}", out var entry))
+                {
+                    queue.Enqueue((new WalkTarget(entry.BlockType, entry.Name, null, entry), AppendHop(path, entry, isReverse: false)));
+                    added++;
+                }
+            }
+        }
+
+        return added;
+    }
+
+    private async Task EnqueueReverseHopsAsync(
+        WalkTarget target,
+        List<IniResolutionHopViewModel> path,
+        HashSet<string> visited,
+        Queue<(WalkTarget Target, List<IniResolutionHopViewModel> Path)> queue,
+        CancellationToken cancellationToken)
+    {
+        var referencers = await referenceService.FindReferencersAsync(target.Name, cancellationToken).ConfigureAwait(false);
+        if (referencers is not { Success: true, Data: not null })
+        {
+            return;
+        }
+
+        foreach (var entry in referencers.Data)
+        {
+            if (!visited.Add($"{entry.BlockType}\n{entry.Name}"))
+            {
+                continue;
+            }
+
+            var local = entry.Source == IniReferenceSource.Document
+                ? FindBlocks(entry.BlockType, entry.Name).FirstOrDefault()
+                : null;
+            queue.Enqueue((new WalkTarget(entry.BlockType, entry.Name, local, entry), AppendHop(path, entry, isReverse: true)));
+        }
+    }
+
+    private async Task<CrossFileOutcome?> ResolveIndexedBaseObjectAsync(
+        IniBlock root,
+        Dictionary<string, IniReferenceEntry> entryIndex,
+        IReadOnlyList<IniReferenceEntry> rootReferencers,
+        CancellationToken cancellationToken)
+    {
+        if (!string.Equals(root.BlockType, IniConstants.BlockTypes.Object, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var index = root.Name.IndexOf('_');
+        while (index >= 0 && index + 1 < root.Name.Length)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var candidate = root.Name[(index + 1)..];
+            if (entryIndex.TryGetValue($"{IniConstants.BlockTypes.Object}\n{candidate}", out var entry))
+            {
+                var block = await CloneTargetAsync(new WalkTarget(entry.BlockType, entry.Name, null, entry), cancellationToken).ConfigureAwait(false);
+                var model = block == null ? string.Empty : FindFieldValue(block, IniConstants.FieldKeys.Model) ?? FindNestedModel(block);
+                if (!string.IsNullOrEmpty(model))
+                {
+                    return new CrossFileOutcome(
+                        model,
+                        block,
+                        [RootResolutionHop(root), HopForEntry(entry, false)],
+                        rootReferencers);
+                }
+            }
+
+            index = root.Name.IndexOf('_', index + 1);
+        }
+
+        return null;
+    }
+
+    private async Task<IniBlock?> CloneTargetAsync(WalkTarget target, CancellationToken cancellationToken)
+    {
+        if (target.Entry == null)
+        {
+            return null;
+        }
+
+        if (target.Entry.Source == IniReferenceSource.Document ||
+            string.Equals(target.Entry.FilePath, FilePath, PathHelper.PathComparison))
+        {
+            return FindBlocks(target.Entry.BlockType, target.Entry.Name).FirstOrDefault();
+        }
+
+        var cloned = await referenceService.CloneBlockAsync(target.Entry, cancellationToken).ConfigureAwait(false);
+        return cloned is { Success: true } ? cloned.Data : null;
+    }
+
+    private IEnumerable<(string OwnerType, IniField Field)> EnumerateBlockFields(IniBlock block)
+    {
+        var queue = new Queue<IniBlock>();
+        queue.Enqueue(block);
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            foreach (var field in current.Fields)
+            {
+                yield return (current.BlockType, field);
+            }
+
+            foreach (var child in current.Children)
+            {
+                queue.Enqueue(child);
+            }
+        }
+    }
+
+    private IniResolutionHopViewModel RootResolutionHop(IniBlock root) =>
+        new(root.BlockType, root.Name, FilePath, false, false, true);
+
+    private List<IniResolutionHopViewModel> AppendHop(List<IniResolutionHopViewModel> path, IniBlock block, string? filePath, bool isReverse)
+    {
+        var hops = new List<IniResolutionHopViewModel>(path) { new(block.BlockType, block.Name, filePath, IsExternalPath(filePath), isReverse, false) };
+        return hops;
+    }
+
+    private List<IniResolutionHopViewModel> AppendHop(List<IniResolutionHopViewModel> path, IniReferenceEntry entry, bool isReverse)
+    {
+        var hops = new List<IniResolutionHopViewModel>(path) { HopForEntry(entry, isReverse) };
+        return hops;
+    }
+
+    private IniResolutionHopViewModel HopForEntry(IniReferenceEntry entry, bool isReverse) =>
+        new(entry.BlockType, entry.Name, entry.FilePath, IsExternalPath(entry.FilePath), isReverse, false);
+
+    private bool IsExternalPath(string? filePath) =>
+        !string.IsNullOrEmpty(filePath) && !string.Equals(filePath, FilePath, PathHelper.PathComparison);
+
+    private void ApplyCrossFileOutcome(IniBlock root, int generation, CrossFileOutcome outcome)
+    {
+        if (generation != _xrefsGeneration || !ReferenceEquals(ResolveCanvasRootNode()?.Block, root))
+        {
+            return;
+        }
+
+        PreviewResolutionPath.Clear();
+        foreach (var hop in outcome.Path)
+        {
+            PreviewResolutionPath.Add(hop);
+        }
+
+        OnPropertyChanged(nameof(HasPreviewResolutionPath));
+        PreviewReferencers.Clear();
+        foreach (var referencer in outcome.Referencers)
+        {
+            PreviewReferencers.Add(referencer);
+        }
+
+        OnPropertyChanged(nameof(HasPreviewReferencers));
+        if (string.IsNullOrEmpty(outcome.Model) || !string.IsNullOrEmpty(SelectedBlockModel))
+        {
+            return;
+        }
+
+        SelectedBlockModel = outcome.Model;
+        PreviewModelSourceText = outcome.Source == null
+            ? string.Empty
+            : Localization.GetString("Tools.IniEditor.Preview3D.ViaSource", outcome.Source.Name);
+        OnPropertyChanged(nameof(HasPreviewModelSource));
+        RebuildSelectedBlockAssets(root, ResolveCanvasRootNode());
+        QueueModelPreviewRefresh();
+    }
+
+    private sealed record WalkTarget(string BlockType, string Name, IniBlock? Block, IniReferenceEntry? Entry);
+
+    private sealed record CrossFileOutcome(string Model, IniBlock? Source, IReadOnlyList<IniResolutionHopViewModel> Path, IReadOnlyList<IniReferenceEntry> Referencers);
 
     /// <summary>
     /// Resolves the object blocks behind a reference block such as a command
@@ -3263,7 +3619,7 @@ public sealed partial class IniEditorViewModel(
     {
         MarkDirty();
         _documentRevision++;
-        ScheduleDeferred(ref _previewCts, IniConstants.Editor.PreviewRefreshDebounceMs, RefreshPreviews);
+        ScheduleDeferred(ref _previewCts, IniConstants.Editor.PreviewRefreshDebounceMs, RefreshPreviews, logger);
     }
 
     private void SyncDirtyAfterHistory()
@@ -3849,7 +4205,7 @@ public sealed partial class IniEditorViewModel(
 
     private void QueueThumbnailRefresh()
     {
-        ScheduleDeferred(ref _thumbnailCts, IniConstants.Editor.ThumbnailDebounceMs, () => _ = RefreshThumbnailsAsync());
+        ScheduleDeferred(ref _thumbnailCts, IniConstants.Editor.ThumbnailDebounceMs, () => _ = RefreshThumbnailsAsync(), logger);
     }
 
     private async Task RefreshThumbnailsAsync()
@@ -4818,6 +5174,11 @@ public sealed partial class IniEditorViewModel(
         OnPropertyChanged(nameof(KindOfLabel));
         OnPropertyChanged(nameof(ModulesLabel));
         QueueModelPreviewRefresh();
+        PreviewResolutionPath.Clear();
+        PreviewReferencers.Clear();
+        OnPropertyChanged(nameof(HasPreviewResolutionPath));
+        OnPropertyChanged(nameof(HasPreviewReferencers));
+        QueueCrossFileResolution(block, string.IsNullOrEmpty(SelectedBlockModel));
     }
 
     private void ResetVisualObjectCard()
@@ -4840,6 +5201,12 @@ public sealed partial class IniEditorViewModel(
         SelectedBlockModules.Clear();
         PreviewRelatedObjects.Clear();
         OnPropertyChanged(nameof(HasPreviewRelatedObjects));
+        CancelDeferred(ref _xrefsCts);
+        _xrefsGeneration++;
+        PreviewResolutionPath.Clear();
+        PreviewReferencers.Clear();
+        OnPropertyChanged(nameof(HasPreviewResolutionPath));
+        OnPropertyChanged(nameof(HasPreviewReferencers));
         SelectedBlockAssets.Clear();
         PreviewHiddenMeshNames = null;
         HasSelectedBlockAssets = false;
@@ -4857,7 +5224,7 @@ public sealed partial class IniEditorViewModel(
             return;
         }
 
-        if (string.Equals(model, _lastPreviewModel, StringComparison.OrdinalIgnoreCase) && HasPreviewScene)
+        if (string.Equals(model, _lastPreviewModel, StringComparison.OrdinalIgnoreCase) && (HasPreviewScene || _lastPreviewFailed))
         {
             RebuildPreviewMeshModules();
             return;
@@ -4874,7 +5241,7 @@ public sealed partial class IniEditorViewModel(
 
         SetPreviewStatus("Tools.IniEditor.Preview3D.Loading", model);
         IsPreviewLoading = true;
-        ScheduleDeferred(ref _modelPreviewCts, IniConstants.Editor.ModelPreviewDebounceMs, token => _ = RefreshModelPreviewAsync(model, installationPath, isZeroHour, projectDirectory, token));
+        ScheduleDeferred(ref _modelPreviewCts, IniConstants.Editor.ModelPreviewDebounceMs, token => _ = RefreshModelPreviewAsync(model, installationPath, isZeroHour, projectDirectory, token), logger);
     }
 
     private void ClearModelPreview()
@@ -4884,6 +5251,7 @@ public sealed partial class IniEditorViewModel(
         StopPreviewPlayback();
         _previewResolved = null;
         _lastPreviewModel = null;
+        _lastPreviewFailed = false;
         PreviewScene = null;
         PreviewPose = null;
         PreviewBindPose = null;
@@ -4894,6 +5262,8 @@ public sealed partial class IniEditorViewModel(
         PreviewMeshes.Clear();
         PreviewClips.Clear();
         PreviewMeshModules.Clear();
+        PreviewMissingTextures.Clear();
+        OnPropertyChanged(nameof(HasPreviewMissingTextures));
         SelectedPreviewClip = null;
         SelectedPreviewMesh = null;
         PreviewSelectedMeshIndex = -1;
@@ -4931,6 +5301,13 @@ public sealed partial class IniEditorViewModel(
         {
             // Cancelled previews are discarded silently.
         }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Fire-and-forget worker boundary: never let the loading state spin forever.
+            logger.LogWarning(ex, "Model preview resolution threw for {Model}", model);
+            PostToUIThread(() => ApplyPreviewFailure(model, generation, "Tools.IniEditor.Preview3D.ParseError", true));
+            return;
+        }
 
         if (generation != _modelPreviewGeneration || cancellationToken.IsCancellationRequested)
         {
@@ -4939,7 +5316,7 @@ public sealed partial class IniEditorViewModel(
 
         if (resolved == null || !resolved.Success || resolved.Data == null)
         {
-            bool notFound = resolved != null && resolved.FirstError?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true;
+            bool notFound = resolved != null && resolved.FirstError?.StartsWith(W3dConstants.ModelNotFoundPrefix, StringComparison.Ordinal) == true;
             string key = notFound ? "Tools.IniEditor.Preview3D.NotFound" : "Tools.IniEditor.Preview3D.ParseError";
             PostToUIThread(() => ApplyPreviewFailure(model, generation, key, !notFound));
             return;
@@ -4950,7 +5327,13 @@ public sealed partial class IniEditorViewModel(
             var data = resolved.Data;
             var textures = data.Textures.ToDictionary(texture => texture.Name, texture => texture.Texture, StringComparer.OrdinalIgnoreCase);
             var bones = BoneMap(data.Model);
-            var scene = W3dSceneBuilder.Build(data.Model, textures, bones);
+            var discarded = new List<string>();
+            var scene = W3dSceneBuilder.Build(data.Model, textures, bones, discarded);
+            if (discarded.Count > 0)
+            {
+                logger.LogInformation("Preview for {Model} dropped {Count} textures disabled by shader flags: {Names}", model, discarded.Count, string.Join(", ", discarded.Distinct(StringComparer.OrdinalIgnoreCase)));
+            }
+
             PostToUIThread(() => ApplyPreviewResolved(model, generation, data, scene));
         }
         catch (OperationCanceledException)
@@ -4995,6 +5378,7 @@ public sealed partial class IniEditorViewModel(
         StopPreviewPlayback();
         _previewResolved = data;
         _lastPreviewModel = model;
+        _lastPreviewFailed = false;
         PreviewScene = scene;
         PreviewPose = null;
         HasPreviewScene = true;
@@ -5013,6 +5397,31 @@ public sealed partial class IniEditorViewModel(
         else if (IsPreviewPlaying)
         {
             StartPreviewPlayback();
+        }
+
+        PreviewMissingTextures.Clear();
+        foreach (var missing in data.MissingTextures)
+        {
+            PreviewMissingTextures.Add(missing);
+        }
+
+        OnPropertyChanged(nameof(HasPreviewMissingTextures));
+        UpdatePreviewReadyStatus();
+    }
+
+    private void UpdatePreviewReadyStatus()
+    {
+        var data = _previewResolved;
+        var scene = PreviewScene;
+        if (data == null || scene == null)
+        {
+            return;
+        }
+
+        if (SelectedPreviewClip != null && !SelectedPreviewClip.IsSamplable)
+        {
+            SetPreviewStatus("Tools.IniEditor.Preview3D.ClipUnsupported", SelectedPreviewClip.Name);
+            return;
         }
 
         int pivots = data.Model.Hierarchies.FirstOrDefault()?.Pivots.Count ?? 0;
@@ -5041,6 +5450,7 @@ public sealed partial class IniEditorViewModel(
         StopPreviewPlayback();
         _previewResolved = null;
         _lastPreviewModel = model;
+        _lastPreviewFailed = true;
         PreviewScene = null;
         PreviewPose = null;
         PreviewBindPose = null;
@@ -5050,6 +5460,8 @@ public sealed partial class IniEditorViewModel(
         PreviewMeshes.Clear();
         PreviewClips.Clear();
         PreviewMeshModules.Clear();
+        PreviewMissingTextures.Clear();
+        OnPropertyChanged(nameof(HasPreviewMissingTextures));
         SelectedPreviewClip = null;
         SelectedPreviewMesh = null;
         PreviewSelectedMeshIndex = -1;
@@ -5116,11 +5528,21 @@ public sealed partial class IniEditorViewModel(
         }
 
         var clip = SelectedPreviewClip;
-        var hierarchy = clip == null
+        var hierarchies = resolved.Model.Hierarchies;
+        var hierarchy = clip == null || string.IsNullOrWhiteSpace(clip.HierarchyName)
             ? null
-            : resolved.Model.Hierarchies.FirstOrDefault(h =>
+            : hierarchies.FirstOrDefault(h =>
                 string.Equals(h.Name, clip.HierarchyName, StringComparison.OrdinalIgnoreCase));
-        hierarchy ??= resolved.Model.Hierarchies.FirstOrDefault();
+        if (clip != null && !string.IsNullOrWhiteSpace(clip.HierarchyName) && hierarchy == null)
+        {
+            // The clip targets a hierarchy the model does not have; sampling it
+            // against another hierarchy would pose the wrong joints, so rest.
+            PreviewPose = null;
+            PreviewBindPose = hierarchies.Count == 0 ? null : W3dAnimationSampler.BindPoseWorlds(hierarchies[0]);
+            return;
+        }
+
+        hierarchy ??= hierarchies.FirstOrDefault();
         if (hierarchy == null)
         {
             PreviewPose = null;
@@ -5286,7 +5708,7 @@ public sealed partial class IniEditorViewModel(
     [RelayCommand]
     private void TogglePreviewPlayback()
     {
-        IsPreviewPlaying = !IsPreviewPlaying;
+        IsPreviewPlaying = !IsPreviewPlaying && CanPreviewPlay;
     }
 
     [RelayCommand]
@@ -5295,6 +5717,54 @@ public sealed partial class IniEditorViewModel(
         if (node != null)
         {
             SelectModuleNode(node);
+        }
+    }
+
+    /// <summary>
+    /// Navigates to a resolution hop or referencing entry, opening its file when needed.
+    /// </summary>
+    /// <param name="parameter">The hop or entry to navigate to.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    [RelayCommand]
+    private async Task NavigateToReferenceAsync(object? parameter, CancellationToken cancellationToken = default)
+    {
+        var (blockType, name, filePath) = parameter switch
+        {
+            IniResolutionHopViewModel hop => (hop.BlockType, hop.Name, hop.FilePath),
+            IniReferenceEntry entry => (entry.BlockType, entry.Name, entry.FilePath),
+            _ => ((string?)null, null, null),
+        };
+        if (string.IsNullOrEmpty(blockType) || string.IsNullOrEmpty(name))
+        {
+            return;
+        }
+
+        if (string.IsNullOrEmpty(filePath) || string.Equals(filePath, FilePath, PathHelper.PathComparison))
+        {
+            var local = FindBlocks(blockType, name).FirstOrDefault();
+            if (local != null)
+            {
+                SelectBlock(local);
+                return;
+            }
+        }
+
+        if (string.IsNullOrEmpty(filePath))
+        {
+            Notifications.ShowInfo(
+                Localization.GetString("Tools.IniEditor.Reference.NotFoundTitle"),
+                Localization.GetString("Tools.IniEditor.Reference.NotFoundMessage", name),
+                NotificationDurations.Short);
+            return;
+        }
+
+        if (await OpenFileAsync(filePath, cancellationToken).ConfigureAwait(true))
+        {
+            var target = FindBlocks(blockType, name).FirstOrDefault();
+            if (target != null)
+            {
+                SelectBlock(target);
+            }
         }
     }
 
@@ -5342,7 +5812,12 @@ public sealed partial class IniEditorViewModel(
     {
         PreviewFrameCount = value == null ? 0 : Math.Max((int)value.FrameCount - 1, 0);
         PreviewFrame = 0;
+
+        // Reset the pose before sampling so root tracking rebaselines instead
+        // of jumping by the inter-clip root difference.
+        PreviewPose = null;
         SamplePreviewPose();
+        UpdatePreviewReadyStatus();
         if (IsPreviewPlaying)
         {
             StartPreviewPlayback();
@@ -5371,7 +5846,7 @@ public sealed partial class IniEditorViewModel(
         SelectedBlockAssets.Clear();
         var drawNode = node?.Children.FirstOrDefault(child =>
             child.Block.BlockType.Contains("Draw", StringComparison.OrdinalIgnoreCase));
-        var model = ResolveBlockModel(block);
+        var model = !string.IsNullOrWhiteSpace(SelectedBlockModel) ? SelectedBlockModel : ResolveBlockModel(block);
         if (!string.IsNullOrWhiteSpace(model))
         {
             SelectedBlockAssets.Add(new IniAssetLinkItem(
@@ -5518,7 +5993,7 @@ public sealed partial class IniEditorViewModel(
             }
 
             ApplyRawPreviewEdit(targetBlock, value);
-        });
+        }, logger);
     }
 
     private void RefreshRawPreviewText()
@@ -5659,7 +6134,7 @@ public sealed partial class IniEditorViewModel(
 
     partial void OnBlockFilterChanged(string? value)
     {
-        ScheduleDeferred(ref _filterCts, IniConstants.Editor.FilterDebounceMs, RebuildTree);
+        ScheduleDeferred(ref _filterCts, IniConstants.Editor.FilterDebounceMs, RebuildTree, logger);
     }
 
     partial void OnIsGroupByTypeEnabledChanged(bool value)
@@ -5714,10 +6189,11 @@ public sealed partial class IniEditorViewModel(
         _thumbnailGeneration++;
         _modelPreviewGeneration++;
         _lastPreviewErrorToast = null;
+        _lastPreviewModel = null;
+        _lastPreviewFailed = false;
         _textureThumbnails.Clear();
         QueueThumbnailRefresh();
         modelResolver.ClearCache();
-        _lastPreviewModel = null;
         QueueModelPreviewRefresh();
     }
 }

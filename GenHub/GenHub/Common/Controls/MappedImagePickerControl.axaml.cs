@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.VisualTree;
 using GenHub.Core.Models.Tools.TextureEditor;
 using System;
 using System.Collections.Generic;
@@ -57,8 +58,14 @@ public partial class MappedImagePickerControl : UserControl
         InitializeComponent();
         SearchBox.TextChanged += (_, _) => RefreshFilter();
         ImagesList.SelectionChanged += OnListSelectionChanged;
-        ImagesList.DoubleTapped += (_, _) =>
+        ImagesList.DoubleTapped += (_, e) =>
         {
+            // Double-taps on empty list space must not activate the stale selection.
+            if (e.Source is not Visual source || (source is not ListBoxItem && source.FindAncestorOfType<ListBoxItem>() == null))
+            {
+                return;
+            }
+
             if (SelectedImage is not null)
             {
                 if (ImageActivated is not null)

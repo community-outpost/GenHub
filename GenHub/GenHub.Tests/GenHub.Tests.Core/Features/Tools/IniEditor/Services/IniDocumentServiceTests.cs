@@ -1528,6 +1528,9 @@ public sealed class IniDocumentServiceTests : IDisposable
             "    SkillSet2\n" +
             "      Science = SCIENCE_Pathfinder\n" +
             "    End\n" +
+            "    SkillSet5\n" +
+            "      Science = SCIENCE_Overlord\n" +
+            "    End\n" +
             "  End\n" +
             "  SkirmishBuildList America\n" +
             "    Structure AmericaCommandCenter\n" +
@@ -1542,7 +1545,7 @@ public sealed class IniDocumentServiceTests : IDisposable
         result.Data!.ParseErrors.Should().BeEmpty();
         var data = result.Data.Blocks.Should().ContainSingle().Subject;
         data.Children.Select(child => child.BlockType).Should().Equal("SideInfo", "SkirmishBuildList");
-        data.Children[0].Children.Select(child => child.BlockType).Should().Equal("SkillSet1", "SkillSet2");
+        data.Children[0].Children.Select(child => child.BlockType).Should().Equal("SkillSet1", "SkillSet2", "SkillSet5");
         data.Children[1].Children.Should().ContainSingle().Subject.BlockType.Should().Be("Structure");
     }
 
