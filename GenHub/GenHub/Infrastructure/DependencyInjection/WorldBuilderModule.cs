@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.Tools.WorldBuilder;
 using GenHub.Core.Services.Tools.WorldBuilder;
 using GenHub.Features.Tools.WorldBuilder;
 using GenHub.Features.Tools.WorldBuilder.Rendering;
+using GenHub.Features.Tools.WorldBuilder.Services;
 using GenHub.Features.Tools.WorldBuilder.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -30,6 +31,7 @@ public static class WorldBuilderModule
         services.AddSingleton<IScriptTemplateCatalog, ScriptTemplateCatalog>();
         services.AddSingleton<ITextureCache, TextureCache>();
         services.AddSingleton<IW3DAssetLoader, W3DAssetLoader>();
+        services.AddSingleton<IWorldBuilderContentService, WorldBuilderContentService>();
         services.AddSingleton<WbModelRenderService>();
         services.AddSingleton<WbRoadService>();
         services.AddSingleton<WbBridgeService>();

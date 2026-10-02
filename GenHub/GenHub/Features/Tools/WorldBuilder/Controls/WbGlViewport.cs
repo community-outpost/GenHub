@@ -11,6 +11,7 @@ using GenHub.Features.Tools.WorldBuilder.Rendering;
 using Silk.NET.OpenGL;
 using System;
 using System.Numerics;
+using System.Threading;
 
 namespace GenHub.Features.Tools.WorldBuilder.Controls;
 
@@ -220,7 +221,7 @@ public sealed class WbGlViewport : OpenGlControlBase, IDisposable
     public void SetTerrainData(WbTerrainRenderData? data)
     {
         _pendingTerrain = data;
-        _pendingTerrainVersion++;
+        Volatile.Write(ref _pendingTerrainVersion, _pendingTerrainVersion + 1);
         RequestNextFrameRendering();
     }
 
@@ -231,7 +232,7 @@ public sealed class WbGlViewport : OpenGlControlBase, IDisposable
     public void SetModelsData(WbModelRenderData? data)
     {
         _pendingModels = data;
-        _pendingModelsVersion++;
+        Volatile.Write(ref _pendingModelsVersion, _pendingModelsVersion + 1);
         RequestNextFrameRendering();
     }
 
@@ -242,7 +243,7 @@ public sealed class WbGlViewport : OpenGlControlBase, IDisposable
     public void SetWaterData(WbWaterData? data)
     {
         _pendingWater = data;
-        _pendingWaterVersion++;
+        Volatile.Write(ref _pendingWaterVersion, _pendingWaterVersion + 1);
         RequestNextFrameRendering();
     }
 
@@ -253,7 +254,7 @@ public sealed class WbGlViewport : OpenGlControlBase, IDisposable
     public void SetOverlayLines(WbOverlayLines? data)
     {
         _pendingLines = data;
-        _pendingLinesVersion++;
+        Volatile.Write(ref _pendingLinesVersion, _pendingLinesVersion + 1);
         RequestNextFrameRendering();
     }
 
@@ -345,10 +346,14 @@ public sealed class WbGlViewport : OpenGlControlBase, IDisposable
         var pixelWidth = (int)Math.Round(Bounds.Width * scaling);
         var pixelHeight = (int)Math.Round(Bounds.Height * scaling);
         _renderer.SetViewport(pixelWidth, pixelHeight);
-        _renderer.SetTerrainData(_pendingTerrain, _pendingTerrainVersion);
-        _renderer.SetModels(_pendingModels, _pendingModelsVersion);
-        _renderer.SetWater(_pendingWater, _pendingWaterVersion);
-        _renderer.SetOverlayLines(_pendingLines, _pendingLinesVersion);
+        var terrainVersion = Volatile.Read(ref _pendingTerrainVersion);
+        var modelsVersion = Volatile.Read(ref _pendingModelsVersion);
+        var waterVersion = Volatile.Read(ref _pendingWaterVersion);
+        var linesVersion = Volatile.Read(ref _pendingLinesVersion);
+        _renderer.SetTerrainData(_pendingTerrain, terrainVersion);
+        _renderer.SetModels(_pendingModels, modelsVersion);
+        _renderer.SetWater(_pendingWater, waterVersion);
+        _renderer.SetOverlayLines(_pendingLines, linesVersion);
         var size = new Vector2((float)Bounds.Width, (float)Bounds.Height);
         _renderer.Render(_camera, size, Map.Terrain, RenderOptions);
     }

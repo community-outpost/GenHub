@@ -25,6 +25,7 @@ namespace GenHub.Features.Tools.WorldBuilder.ViewModels;
 public sealed partial class WorldBuilderViewModel
 {
     private readonly MapUndoService _undoService = new();
+    private bool _applyingViewportCamera;
     private bool _isDrawingStroke;
     private (int X, int Y)? _twoPointStart;
     private int _renderPending;
@@ -377,15 +378,25 @@ public sealed partial class WorldBuilderViewModel
 
     /// <summary>
     /// Applies orbit/pan/zoom performed in the 3D viewport back to the shared
-    /// camera properties.
+    /// camera properties. Canvas re-rendering is suppressed because the
+    /// viewport already repainted itself; the 2D bitmap refreshes on view-mode
+    /// switches instead.
     /// </summary>
     /// <param name="yawDegrees">The camera yaw in degrees.</param>
     /// <param name="pitchDegrees">The camera pitch in degrees.</param>
     [SuppressMessage("Minor Code Smell", "S2325", Justification = "Assigns instance observable camera properties; cannot be static.")]
     public void SetCameraFromViewport(double yawDegrees, double pitchDegrees)
     {
-        CameraYaw = yawDegrees;
-        CameraPitch = pitchDegrees;
+        _applyingViewportCamera = true;
+        try
+        {
+            CameraYaw = yawDegrees;
+            CameraPitch = pitchDegrees;
+        }
+        finally
+        {
+            _applyingViewportCamera = false;
+        }
     }
 
     /// <summary>
@@ -1228,9 +1239,21 @@ public sealed partial class WorldBuilderViewModel
 
     partial void OnSunYawChanged(float value) => RefreshCanvasBitmap();
 
-    partial void OnCameraPitchChanged(double value) => RefreshCanvasBitmap();
+    partial void OnCameraPitchChanged(double value)
+    {
+        if (!_applyingViewportCamera)
+        {
+            RefreshCanvasBitmap();
+        }
+    }
 
-    partial void OnCameraYawChanged(double value) => RefreshCanvasBitmap();
+    partial void OnCameraYawChanged(double value)
+    {
+        if (!_applyingViewportCamera)
+        {
+            RefreshCanvasBitmap();
+        }
+    }
 
     partial void OnShowAllObjectLabelsChanged(bool value) => RefreshCanvasBitmap();
 }

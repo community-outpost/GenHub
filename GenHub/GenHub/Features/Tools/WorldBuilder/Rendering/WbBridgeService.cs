@@ -42,15 +42,22 @@ public sealed class WbBridgeService(
     public async Task<OperationResult<IReadOnlyList<WbModelDraw>>> BuildBridgesAsync(WorldBuilderMap map, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(map);
+        var bridges = MapOverlayTools.GetBridges(map);
+        var draws = await Task.Run(() => BuildCoreAsync(bridges, cancellationToken), cancellationToken).ConfigureAwait(false);
+        return OperationResult<IReadOnlyList<WbModelDraw>>.CreateSuccess(draws);
+    }
+
+    private async Task<List<WbModelDraw>> BuildCoreAsync(List<BridgeSegment> bridges, CancellationToken cancellationToken)
+    {
         var draws = new List<WbModelDraw>();
-        foreach (var bridge in MapOverlayTools.GetBridges(map))
+        foreach (var bridge in bridges)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var built = await BuildBridgeAsync(bridge, cancellationToken).ConfigureAwait(false);
             draws.AddRange(built);
         }
 
-        return OperationResult<IReadOnlyList<WbModelDraw>>.CreateSuccess(draws);
+        return draws;
     }
 
     private async Task<IReadOnlyList<WbModelDraw>> BuildBridgeAsync(BridgeSegment bridge, CancellationToken cancellationToken)

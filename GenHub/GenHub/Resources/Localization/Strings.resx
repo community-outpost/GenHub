@@ -17666,6 +17666,12 @@ Mapped image texture reference</value>
   <data name="Tools.WorldBuilder.Objects.Coordinates" xml:space="preserve">
     <value>Coordinates</value>
   </data>
+  <data name="Tools.WorldBuilder.Content.NoInstallation.Title" xml:space="preserve">
+    <value>Game content unavailable</value>
+  </data>
+  <data name="Tools.WorldBuilder.Content.NoInstallation.Message" xml:space="preserve">
+    <value>No game installation was found, so terrain renders without textures. Add an installation to enable full content.</value>
+  </data>
   <data name="Tools.WorldBuilder.Waypoints.Links" xml:space="preserve">
     <value>Waypoint Links</value>
   </data>

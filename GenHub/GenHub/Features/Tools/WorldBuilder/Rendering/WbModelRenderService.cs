@@ -51,14 +51,8 @@ public sealed class WbModelRenderService(
     public async Task<OperationResult<WbModelRenderData>> BuildAsync(WorldBuilderMap map, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(map);
-        var draws = new List<WbModelDraw>();
-        foreach (var entry in map.Objects)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var built = await BuildObjectAsync(entry, cancellationToken).ConfigureAwait(false);
-            draws.AddRange(built);
-        }
-
+        var objects = map.Objects.ToList();
+        var draws = await Task.Run(() => BuildCoreAsync(objects, cancellationToken), cancellationToken).ConfigureAwait(false);
         return OperationResult<WbModelRenderData>.CreateSuccess(new WbModelRenderData(draws));
     }
 
@@ -254,6 +248,19 @@ public sealed class WbModelRenderService(
         }
 
         return mesh.Materials[(int)id];
+    }
+
+    private async Task<List<WbModelDraw>> BuildCoreAsync(List<MapObjectEntry> objects, CancellationToken cancellationToken)
+    {
+        var draws = new List<WbModelDraw>();
+        foreach (var entry in objects)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var built = await BuildObjectAsync(entry, cancellationToken).ConfigureAwait(false);
+            draws.AddRange(built);
+        }
+
+        return draws;
     }
 
     private async Task<IReadOnlyList<WbModelDraw>> BuildObjectAsync(MapObjectEntry entry, CancellationToken cancellationToken)

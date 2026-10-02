@@ -51,17 +51,8 @@ public sealed class WbRoadService(
     public async Task<OperationResult<IReadOnlyList<WbModelDraw>>> BuildRoadsAsync(WorldBuilderMap map, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(map);
-        var draws = new List<WbModelDraw>();
-        foreach (var segment in MapOverlayTools.GetRoadSegments(map))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var draw = await BuildSegmentAsync(segment, cancellationToken).ConfigureAwait(false);
-            if (draw != null)
-            {
-                draws.Add(draw);
-            }
-        }
-
+        var segments = MapOverlayTools.GetRoadSegments(map);
+        var draws = await Task.Run(() => BuildCoreAsync(segments, cancellationToken), cancellationToken).ConfigureAwait(false);
         return OperationResult<IReadOnlyList<WbModelDraw>>.CreateSuccess(draws);
     }
 
@@ -147,5 +138,21 @@ public sealed class WbRoadService(
             texture,
             state,
             true);
+    }
+
+    private async Task<List<WbModelDraw>> BuildCoreAsync(List<RoadSegment> segments, CancellationToken cancellationToken)
+    {
+        var draws = new List<WbModelDraw>();
+        foreach (var segment in segments)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var draw = await BuildSegmentAsync(segment, cancellationToken).ConfigureAwait(false);
+            if (draw != null)
+            {
+                draws.Add(draw);
+            }
+        }
+
+        return draws;
     }
 }

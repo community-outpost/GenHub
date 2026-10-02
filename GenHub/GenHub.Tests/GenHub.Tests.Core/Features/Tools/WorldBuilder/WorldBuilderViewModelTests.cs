@@ -1,3 +1,5 @@
+using Avalonia.Headless.XUnit;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Messaging;
 using FluentAssertions;
 using GenHub.Core.Constants;
@@ -37,6 +39,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     private readonly Mock<INotificationService> _mockNotificationService;
     private readonly Mock<ILocalizationService> _mockLocalizationService;
     private readonly Mock<IDialogService> _mockDialogService;
+    private readonly Mock<IWorldBuilderContentService> _mockContentService;
     private readonly WorldBuilderViewModel _viewModel;
     private readonly string _tempDirectory;
 
@@ -64,6 +67,10 @@ public sealed class WorldBuilderViewModelTests : IDisposable
         _mockPreviewService
             .Setup(s => s.ReadTgaAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<MapPreviewData>.CreateFailure("No preview."));
+        _mockContentService = new Mock<IWorldBuilderContentService>();
+        _mockContentService
+            .Setup(s => s.EnsureContentLoadedAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
         _viewModel = new WorldBuilderViewModel(
             _mockMapService.Object,
             _mockValidationService.Object,
@@ -75,6 +82,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
             _mockNotificationService.Object,
             _mockLocalizationService.Object,
             _mockDialogService.Object,
+            _mockContentService.Object,
             Mock.Of<ILogger<WorldBuilderViewModel>>());
         _tempDirectory = Path.Combine(Path.GetTempPath(), "GenHubWbVmTests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempDirectory);
@@ -1006,6 +1014,42 @@ public sealed class WorldBuilderViewModelTests : IDisposable
         // Assert
         map.Terrain.TileIndices.Should().OnlyContain(tile => tile != 0);
         _viewModel.IsDirty.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Tests that syncing the camera from the 3D viewport updates orientation
+    /// without re-rendering the canvas or requesting a 3D rebuild.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task SetCameraFromViewport_DoesNotRaiseRefreshView()
+    {
+        // Arrange
+        var mapPath = Path.Combine(_tempDirectory, "camera.map");
+        _mockMapService
+            .Setup(s => s.LoadAsync(mapPath, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<WorldBuilderMap>.CreateSuccess(CreateCanvasMap()));
+        _mockMapService
+            .Setup(s => s.Summarize(It.IsAny<WorldBuilderMap>()))
+            .Returns(new MapSummaryReport { MapName = "Canvas Map" });
+        await _viewModel.OpenMapAsync(mapPath);
+        await _viewModel.RenderIdleAsync();
+        Dispatcher.UIThread.RunJobs();
+        var refreshes = 0;
+        _viewModel.RequestRefreshView += OnRefresh;
+
+        // Act
+        _viewModel.SetCameraFromViewport(60.0, 30.0);
+        await _viewModel.RenderIdleAsync();
+        Dispatcher.UIThread.RunJobs();
+        _viewModel.RequestRefreshView -= OnRefresh;
+
+        // Assert
+        _viewModel.CameraYaw.Should().Be(60.0);
+        _viewModel.CameraPitch.Should().Be(30.0);
+        refreshes.Should().Be(0);
+
+        void OnRefresh() => refreshes++;
     }
 
     private static WorldBuilderMap CreateMap(string name)

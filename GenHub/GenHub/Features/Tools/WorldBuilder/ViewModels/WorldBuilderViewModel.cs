@@ -46,11 +46,13 @@ public sealed partial class WorldBuilderViewModel(
     INotificationService notificationService,
     ILocalizationService localizationService,
     IDialogService dialogService,
+    IWorldBuilderContentService contentService,
     ILogger<WorldBuilderViewModel> logger) : ObservableObject, IDisposable
 {
     private WorldBuilderMap? _map;
     private WorldBuilderProject? _project;
     private bool _adoptingDocument;
+    private bool _contentWarningShown;
     private bool _disposed;
 
     /// <summary>
@@ -867,10 +869,39 @@ public sealed partial class WorldBuilderViewModel(
             UpdateViewportVisibility();
             RefreshCanvasBitmap();
             RequestResetView?.Invoke(map);
+            _ = Task.Run(EnsureGameContentAsync);
         }
         finally
         {
             _adoptingDocument = false;
+        }
+    }
+
+    private async Task EnsureGameContentAsync()
+    {
+        try
+        {
+            var result = await contentService.EnsureContentLoadedAsync().ConfigureAwait(false);
+            if (result.Success && result.Data)
+            {
+                await InvokeOnUIThreadAsync(RaiseRefreshView).ConfigureAwait(false);
+            }
+            else if (!result.Success && !_contentWarningShown)
+            {
+                _contentWarningShown = true;
+                await InvokeOnUIThreadAsync(() => notificationService.ShowWarning(
+                    localizationService.GetString("Tools.WorldBuilder.Content.NoInstallation.Title"),
+                    localizationService.GetString("Tools.WorldBuilder.Content.NoInstallation.Message"),
+                    NotificationDurations.Medium)).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Content loading was superseded; a newer pass wins.
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            logger.LogWarning(ex, "Background game content load for WorldBuilder failed.");
         }
     }
 

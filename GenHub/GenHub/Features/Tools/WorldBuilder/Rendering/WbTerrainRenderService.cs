@@ -9,6 +9,7 @@ using GenHub.Core.Models.Tools.WorldBuilder;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -70,24 +71,23 @@ public sealed class WbTerrainRenderService(
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(map);
-        var tilesAcross = AtlasWidth / TilePixels;
-        var slots = new List<AtlasSlot>();
-        var missing = 0;
-        var tileOrdinal = 0;
-        foreach (var textureClass in map.Terrain.TextureClasses)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var slot = await ResolveClassAsync(textureClass, tileOrdinal, cancellationToken).ConfigureAwait(false);
-            tileOrdinal += Math.Max(1, textureClass.NumTiles);
-            if (slot == null)
-            {
-                missing++;
-                continue;
-            }
+        var textureClasses = map.Terrain.TextureClasses.ToList();
+        var terrain = map.Terrain;
+        var data = await Task.Run(
+            () => BuildCoreAsync(terrain, textureClasses, ambient, lightDirections, lightDiffuse, cancellationToken),
+            cancellationToken).ConfigureAwait(false);
+        return OperationResult<WbTerrainRenderData>.CreateSuccess(data);
+    }
 
-            slots.Add(slot);
-        }
-
+    private static WbTerrainRenderData BuildAtlasAndMesh(
+        MapTerrainData terrain,
+        List<AtlasSlot> slots,
+        int tileOrdinal,
+        int tilesAcross,
+        Vector3 ambient,
+        IReadOnlyList<Vector3> lightDirections,
+        IReadOnlyList<Vector3> lightDiffuse)
+    {
         var rows = Math.Max(1, (tileOrdinal + tilesAcross - 1) / tilesAcross);
         var height = 64;
         while (height < rows * TilePixels)
@@ -111,14 +111,8 @@ public sealed class WbTerrainRenderService(
 
         var atlas = new WbTileAtlas(AtlasWidth, height, tileUv, classUv);
         var (vertices, indices, extraVertices, extraIndices) = WbTerrainMesh.Build(
-            map.Terrain, atlas, ambient, lightDirections, lightDiffuse);
-        if (missing > 0)
-        {
-            _logger.LogInformation("Terrain atlas built with {Missing} of {Total} classes missing textures.", missing, map.Terrain.TextureClasses.Count);
-        }
-
-        return OperationResult<WbTerrainRenderData>.CreateSuccess(
-            new WbTerrainRenderData(vertices, indices, extraVertices, extraIndices, pixels, AtlasWidth, height, atlas));
+            terrain, atlas, ambient, lightDirections, lightDiffuse);
+        return new WbTerrainRenderData(vertices, indices, extraVertices, extraIndices, pixels, AtlasWidth, height, atlas);
     }
 
     private static void FillFallbackGround(byte[] pixels)
@@ -161,6 +155,41 @@ public sealed class WbTerrainRenderService(
             var targetRow = (((row * TilePixels) + y) * AtlasWidth) + (column * TilePixels);
             Buffer.BlockCopy(source.PixelData, sourceRow * 4, pixels, targetRow * 4, TilePixels * 4);
         }
+    }
+
+    private async Task<WbTerrainRenderData> BuildCoreAsync(
+        MapTerrainData terrain,
+        List<MapTextureClass> textureClasses,
+        Vector3 ambient,
+        IReadOnlyList<Vector3> lightDirections,
+        IReadOnlyList<Vector3> lightDiffuse,
+        CancellationToken cancellationToken)
+    {
+        var tilesAcross = AtlasWidth / TilePixels;
+        var slots = new List<AtlasSlot>();
+        var missing = 0;
+        var tileOrdinal = 0;
+        foreach (var textureClass in textureClasses)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var slot = await ResolveClassAsync(textureClass, tileOrdinal, cancellationToken).ConfigureAwait(false);
+            tileOrdinal += Math.Max(1, textureClass.NumTiles);
+            if (slot == null)
+            {
+                missing++;
+                continue;
+            }
+
+            slots.Add(slot);
+        }
+
+        var data = BuildAtlasAndMesh(terrain, slots, tileOrdinal, tilesAcross, ambient, lightDirections, lightDiffuse);
+        if (missing > 0)
+        {
+            _logger.LogInformation("Terrain atlas built with {Missing} of {Total} classes missing textures.", missing, textureClasses.Count);
+        }
+
+        return data;
     }
 
     private async Task<AtlasSlot?> ResolveClassAsync(MapTextureClass textureClass, int ordinal, CancellationToken cancellationToken)

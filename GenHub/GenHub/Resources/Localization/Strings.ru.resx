@@ -17607,6 +17607,12 @@ Error: не удалось: {3}
   <data name="Tools.WorldBuilder.Objects.Coordinates" xml:space="preserve">
     <value>Координаты</value>
   </data>
+  <data name="Tools.WorldBuilder.Content.NoInstallation.Title" xml:space="preserve">
+    <value>Игровой контент недоступен</value>
+  </data>
+  <data name="Tools.WorldBuilder.Content.NoInstallation.Message" xml:space="preserve">
+    <value>Установка игры не найдена, поэтому местность отображается без текстур. Добавьте установку, чтобы включить полный контент.</value>
+  </data>
   <data name="Tools.WorldBuilder.Waypoints.Links" xml:space="preserve">
     <value>Связи путевых точек</value>
   </data>
