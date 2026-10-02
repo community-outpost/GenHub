@@ -370,7 +370,7 @@ public partial class MainViewModel(
 
         var linkReceived = linkActivationTracker?.LinkReceivedToken ?? CancellationToken.None;
         using var dialogCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, linkReceived);
-        (DialogAction? Action, bool DoNotAskAgain) result;
+        (DialogAction? Action, bool DoNotAskAgain) result = (null, false);
         try
         {
             result = await dialogService.ShowMessageAsync(
