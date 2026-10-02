@@ -132,18 +132,18 @@ public class GenericCatalogContentProvider(
             if (isGeneralsOnline && manifestPool != null)
             {
                 var existingPool = await manifestPool.GetAllManifestsAsync(cancellationToken);
-                if (existingPool.Success && existingPool.Data != null)
+                if (!existingPool.Success || existingPool.Data == null)
                 {
-                    preExistingIds = new HashSet<ManifestId>(existingPool.Data.Select(m => m.Id));
-                    _preExistingManifestIdsByOperation[opKey] = preExistingIds;
-                }
-                else
-                {
-                    Logger.LogWarning(
-                        "Manifest pool baseline could not be obtained prior to delivery for {ManifestId}: {Error}",
+                    Logger.LogError(
+                        "Failed to capture manifest pool baseline prior to Generals Online delivery for {ManifestId}: {Error}",
                         manifest.Id,
                         existingPool.FirstError);
+                    return OperationResult<ContentManifest>.CreateFailure(
+                        $"Failed to initialize manifest pool state: {existingPool.FirstError ?? "Unable to retrieve manifest pool"}");
                 }
+
+                preExistingIds = new HashSet<ManifestId>(existingPool.Data.Select(m => m.Id));
+                _preExistingManifestIdsByOperation[opKey] = preExistingIds;
             }
 
             Logger.LogInformation(
@@ -187,6 +187,9 @@ public class GenericCatalogContentProvider(
                     Logger.LogError(
                         "Failed to verify manifest pool registrations after delivering Generals Online content: {Error}",
                         postPool.FirstError);
+
+                    await RollbackPreparedContentAsync(manifest, deliveryResult.Data ?? manifest, workingDirectory, CancellationToken.None);
+
                     return OperationResult<ContentManifest>.CreateFailure(
                         $"Failed to verify manifest pool registrations after delivery: {postPool.FirstError ?? "Unable to retrieve manifests"}");
                 }
