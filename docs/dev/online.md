@@ -49,13 +49,11 @@ of failing silently.
 ## Going live (maintainer checklist)
 
 1. `cd gateway-online && npm run deploy`
-2. Provision secrets (one command per secret):
-   `wrangler secret put JWT_SIGNING_SECRET`
-   `wrangler secret put PASSWORD_PEPPER`
-   `wrangler secret put COTURN_SECRET`
+2. Provision secrets (one command per secret name using `wrangler secret put <NAME>`):
+   JWT signing key, password pepper, and Coturn secret.
 3. Verify the public hostname matches `ApiConstants.DefaultOnlineEdgeBaseUrl`;
    update the constant if the `workers.dev` subdomain differs.
-4. Point a coturn instance at `COTURN_SECRET` (`static-auth-secret`, sample in
+4. Point a coturn instance at the configured static auth secret (sample in
    `gateway-online/coturn/turnserver.conf.sample`) and set `TURN_URIS` in
    `wrangler.jsonc`.
 5. Redeploy after every edge change (`npm run deploy`): clients speaking to a
@@ -65,8 +63,7 @@ of failing silently.
 ## Join flow
 
 1. `POST /v1/sessions/anonymous` mints a short-lived session (no user database).
-2. `GET /v1/networks` returns metadata only: no member lists, no endpoints.
-   Non-members can never learn underlay IPs from the directory.
+2. `GET /v1/networks` returns metadata only: no member lists, no endpoints.\n   Non-members can never learn underlay IPs from the directory.
 3. `POST /v1/networks/{id}/join` checks slots, bans, and the lobby password
    when one is set, then returns a grant, an overlay
    IP, an opaque adapter config, the initial roster, and the expected profile
@@ -171,7 +168,7 @@ enforcement, until an optional account layer exists.
 Lobby passwords are optional: an empty password means an open lobby, while a
 password of at least 4 characters (`MIN_PASSWORD_LENGTH`) protects the lobby.
 The edge stores only a PBKDF2-SHA256 verifier salted with the server-side
-`PASSWORD_PEPPER` (never the password itself), advertises
+password pepper (never the password itself), advertises
 `requiresPassword` in the directory and detail responses, and rejects wrong
 passwords with `online.wrong-password` (401). Display strings are
 control-character sanitized; JSON bodies are capped at 8 KiB.
@@ -199,6 +196,6 @@ GENHUB_ONLINE_ENABLED=1 GENHUB_ONLINE_EDGE_URL=http://127.0.0.1:8787 \
   `overlay: "pending-selection"`, joins succeed lobby-only (roster +
   presence, no tunneling), and the UI says so instead of warning.
 - **OQ4**: production hosting + TURN/relay funding and secret provisioning
-  (one `wrangler secret put [KEY]` per secret: `JWT_SIGNING_SECRET`,
-  `PASSWORD_PEPPER`, `COTURN_SECRET`).
+  (one `wrangler secret put [KEY]` per secret name: the JWT signing key,
+  password pepper, and Coturn secret).
 - GameRanger interop stays "don't break it, don't depend on it".

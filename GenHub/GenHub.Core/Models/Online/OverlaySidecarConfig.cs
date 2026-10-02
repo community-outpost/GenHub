@@ -172,7 +172,7 @@ public sealed record OverlaySidecarConfig(
     {
         return !string.IsNullOrWhiteSpace(name) &&
                name.Length <= 128 &&
-               !name.Any(c => c is '"' or '\\' or '\r' or '\n' or '\0');
+               name.All(c => c is not ('"' or '\\' or '\r' or '\n' or '\0'));
     }
 
     private static bool TryParseOverlayIp(JsonElement root, string? defaultOverlayIp, out string overlayIp, out string? error)

@@ -34,7 +34,11 @@ public static class OverlayConfigInspector
 
             return null;
         }
-        catch (Exception ex) when (ex is FormatException or JsonException)
+        catch (FormatException)
+        {
+            return null;
+        }
+        catch (JsonException)
         {
             return null;
         }

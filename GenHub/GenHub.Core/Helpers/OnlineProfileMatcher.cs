@@ -109,7 +109,7 @@ public static class OnlineProfileMatcher
             return false;
         }
 
-        if (contentTypes != null && contentTypes.TryGetValue(contentId, out var type))
+        if (contentTypes?.TryGetValue(contentId, out var type) == true)
         {
             return IsGameplayContent(type);
         }
@@ -200,7 +200,7 @@ public static class OnlineProfileMatcher
         // boundary: "X\nY" with no content must hash differently from "X" with
         // content "Y".
         var canonical = clientKey.Length + "\n" + clientKey + "\n" + string.Join("\n", gameplayContentIds);
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical))).Substring(0, FingerprintHashChars);
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)))[..FingerprintHashChars];
         if (string.IsNullOrEmpty(iniCrc) && string.IsNullOrEmpty(exeCrc))
         {
             return string.Join(
@@ -242,8 +242,8 @@ public static class OnlineProfileMatcher
             return false;
         }
 
-        iniCrc = NormalizeCrc(segments[segments.Length - 2]);
-        exeCrc = NormalizeCrc(segments[segments.Length - 1]);
+        iniCrc = NormalizeCrc(segments[^2]);
+        exeCrc = NormalizeCrc(segments[^1]);
         return true;
     }
 
@@ -418,7 +418,7 @@ public static class OnlineProfileMatcher
         }
 
         var local = new HashSet<string>(localContentIds, StringComparer.Ordinal);
-        return expectedContentIds.Count(id => local.Contains(id));
+        return expectedContentIds.Count(local.Contains);
     }
 
     /// <summary>

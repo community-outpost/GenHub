@@ -40,7 +40,7 @@ public static class LanNicknameCodec
 
         var trimmed = nickname.Trim();
         return trimmed.Length > OnlineConstants.MaxNicknameLength
-            ? trimmed.Substring(0, OnlineConstants.MaxNicknameLength)
+            ? trimmed[..OnlineConstants.MaxNicknameLength]
             : trimmed;
     }
 

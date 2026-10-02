@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Services.Online;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Versioning;
 
@@ -17,7 +18,7 @@ public sealed class MacOSOverlaySidecarLocator : OverlaySidecarLocatorBase
     protected override Environment.SpecialFolder BaseFolder => Environment.SpecialFolder.UserProfile;
 
     /// <inheritdoc/>
-    protected override string[] CandidateSegments =>
+    protected override IReadOnlyList<string> CandidateSegments =>
         ["Library", "Application Support", OnlineConstants.OverlayInstallDir, OnlineConstants.OverlaySubDir, OnlineConstants.OverlayUnixBinary];
 
     /// <inheritdoc/>

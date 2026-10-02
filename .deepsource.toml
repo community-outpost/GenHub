@@ -11,7 +11,8 @@ exclude_patterns = [
   "**/node_modules/**",
   "**/*.min.js",
   "**/*.generated.cs",
-  "docs/.vitepress/**"
+  "docs/**",
+  "gateway-online/**"
 ]
 
 [[analyzers]]

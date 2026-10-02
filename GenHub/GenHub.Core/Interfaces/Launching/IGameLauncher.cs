@@ -36,16 +36,16 @@ public interface IGameLauncher
     /// <param name="progress">Optional progress reporter for launch progress.</param>
     /// <param name="skipUserDataCleanup">Whether to skip cleanup of user data files (maps, etc.) from other profiles.</param>
     /// <param name="additionalArguments">Optional transient command line arguments to merge with profile launch options.</param>
-    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
     /// <param name="networkIpOverride">Optional LAN IP written to Options.ini instead of the profile's stored address.</param>
+    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
     /// <returns>A <see cref="LaunchOperationResult{GameLaunchInfo}"/> representing the result of the launch operation.</returns>
     Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(
         string profileId,
         IProgress<LaunchProgress>? progress,
         bool skipUserDataCleanup,
         IReadOnlyDictionary<string, string>? additionalArguments,
-        CancellationToken cancellationToken,
-        string? networkIpOverride);
+        string? networkIpOverride,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Launches a game using the provided game profile object.
@@ -70,16 +70,16 @@ public interface IGameLauncher
     /// <param name="progress">Optional progress reporter for launch progress.</param>
     /// <param name="skipUserDataCleanup">Whether to skip cleanup of user data files (maps, etc.) from other profiles.</param>
     /// <param name="additionalArguments">Optional transient command line arguments to merge with profile launch options.</param>
-    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
     /// <param name="networkIpOverride">Optional LAN IP written to Options.ini instead of the profile's stored address.</param>
+    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
     /// <returns>A <see cref="LaunchOperationResult{GameLaunchInfo}"/> representing the result of the launch operation.</returns>
     Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(
         GameProfile profile,
         IProgress<LaunchProgress>? progress,
         bool skipUserDataCleanup,
         IReadOnlyDictionary<string, string>? additionalArguments,
-        CancellationToken cancellationToken,
-        string? networkIpOverride);
+        string? networkIpOverride,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Terminates a running game instance by its launch ID.

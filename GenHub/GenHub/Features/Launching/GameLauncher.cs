@@ -686,7 +686,7 @@ public class GameLauncher(
         IReadOnlyDictionary<string, string>? additionalArguments = null,
         CancellationToken cancellationToken = default)
     {
-        return LaunchProfileAsync(profileId, progress, skipUserDataCleanup, additionalArguments, cancellationToken, null);
+        return LaunchProfileAsync(profileId, progress, skipUserDataCleanup, additionalArguments, null, cancellationToken);
     }
 
     /// <inheritdoc/>
@@ -695,8 +695,8 @@ public class GameLauncher(
         IProgress<LaunchProgress>? progress,
         bool skipUserDataCleanup,
         IReadOnlyDictionary<string, string>? additionalArguments,
-        CancellationToken cancellationToken,
-        string? networkIpOverride)
+        string? networkIpOverride,
+        CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
 
@@ -711,7 +711,7 @@ public class GameLauncher(
         }
 
         var profile = profileResult.Data;
-        return await LaunchProfileAsync(profile, progress, skipUserDataCleanup, additionalArguments, cancellationToken, networkIpOverride);
+        return await LaunchProfileAsync(profile, progress, skipUserDataCleanup, additionalArguments, networkIpOverride, cancellationToken);
     }
 
     /// <inheritdoc/>
@@ -722,7 +722,7 @@ public class GameLauncher(
         IReadOnlyDictionary<string, string>? additionalArguments = null,
         CancellationToken cancellationToken = default)
     {
-        return LaunchProfileAsync(profile, progress, skipUserDataCleanup, additionalArguments, cancellationToken, null);
+        return LaunchProfileAsync(profile, progress, skipUserDataCleanup, additionalArguments, null, cancellationToken);
     }
 
     /// <inheritdoc/>
@@ -731,8 +731,8 @@ public class GameLauncher(
         IProgress<LaunchProgress>? progress,
         bool skipUserDataCleanup,
         IReadOnlyDictionary<string, string>? additionalArguments,
-        CancellationToken cancellationToken,
-        string? networkIpOverride)
+        string? networkIpOverride,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(profile);
 
@@ -800,7 +800,7 @@ public class GameLauncher(
             };
             await launchRegistry.RegisterLaunchAsync(placeholderLaunchInfo);
             logger.LogDebug("Registered placeholder launch {LaunchId} for profile {ProfileId} to prevent deletion during launch", launchId, profile.Id);
-            return await LaunchProfileAsync(profile, skipUserDataCleanup, additionalArguments, progress, launchId, cancellationToken, networkIpOverride);
+            return await LaunchProfileAsync(profile, skipUserDataCleanup, additionalArguments, progress, launchId, networkIpOverride, cancellationToken);
         }
         finally
         {
@@ -1576,8 +1576,8 @@ public class GameLauncher(
         GameProfile profile,
         IProgress<LaunchProgress>? progress,
         string launchId,
-        CancellationToken cancellationToken,
-        string? networkIpOverride = null)
+        string? networkIpOverride = null,
+        CancellationToken cancellationToken = default)
     {
         progress?.Report(new LaunchProgress { Phase = LaunchPhase.ValidatingProfile, PercentComplete = 0 });
         progress?.Report(new LaunchProgress { Phase = LaunchPhase.ResolvingContent, PercentComplete = 10 });
@@ -1649,7 +1649,7 @@ public class GameLauncher(
         return adjusted;
     }
 
-    private async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(GameProfile profile, bool skipUserDataCleanup, IReadOnlyDictionary<string, string>? additionalArguments, IProgress<LaunchProgress>? progress, string launchId, CancellationToken cancellationToken, string? networkIpOverride = null)
+    private async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(GameProfile profile, bool skipUserDataCleanup, IReadOnlyDictionary<string, string>? additionalArguments, IProgress<LaunchProgress>? progress, string launchId, string? networkIpOverride = null, CancellationToken cancellationToken = default)
     {
         IDisposable? steamInstallationLock = null;
 
@@ -1658,7 +1658,7 @@ public class GameLauncher(
             logger.LogInformation("[GameLauncher] === Starting launch for profile '{ProfileName}' (ID: {ProfileId}) ===", profile.Name, profile.Id);
             cancellationToken.ThrowIfCancellationRequested();
 
-            var preflightResult = await PrepareManifestsAndPreflightAsync(profile, progress, launchId, cancellationToken, networkIpOverride);
+            var preflightResult = await PrepareManifestsAndPreflightAsync(profile, progress, launchId, networkIpOverride, cancellationToken);
             if (!preflightResult.Success || preflightResult.Data == null)
             {
                 return LaunchOperationResult<GameLaunchInfo>.CreateFailure(

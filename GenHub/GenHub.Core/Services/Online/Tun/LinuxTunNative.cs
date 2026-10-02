@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using System;
+using System.Buffers.Binary;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -158,8 +159,9 @@ internal static class LinuxTunNative
     {
         var request = new byte[InterfaceRequestSize];
         var nameBytes = Encoding.ASCII.GetBytes(interfaceName);
-        Buffer.BlockCopy(nameBytes, 0, request, 0, nameBytes.Length);
-        Buffer.BlockCopy(BitConverter.GetBytes(InterfaceFlagsTunNoPacketInfo), 0, request, InterfaceFlagsOffset, sizeof(short));
+        var copyLength = Math.Min(nameBytes.Length, MaxInterfaceNameLength);
+        Array.Copy(nameBytes, 0, request, 0, copyLength);
+        BinaryPrimitives.WriteInt16LittleEndian(request.AsSpan(InterfaceFlagsOffset), InterfaceFlagsTunNoPacketInfo);
         return request;
     }
 

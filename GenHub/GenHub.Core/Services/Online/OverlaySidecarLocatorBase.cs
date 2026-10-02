@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Online;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
@@ -19,7 +20,7 @@ public abstract class OverlaySidecarLocatorBase : IOverlaySidecarLocator
     /// <summary>
     /// Gets the path segments below <see cref="BaseFolder"/> locating the platform candidate binary.
     /// </summary>
-    protected abstract string[] CandidateSegments { get; }
+    protected abstract IReadOnlyList<string> CandidateSegments { get; }
 
     /// <inheritdoc/>
     public string? LocateBinary()
@@ -31,7 +32,7 @@ public abstract class OverlaySidecarLocatorBase : IOverlaySidecarLocator
         }
 
         var appBase = AppContext.BaseDirectory;
-        if (!string.IsNullOrWhiteSpace(appBase) && CandidateSegments.Length > 0)
+        if (!string.IsNullOrWhiteSpace(appBase) && CandidateSegments.Count > 0)
         {
             var binaryName = CandidateSegments[^1];
             var localCandidate = Path.Combine(appBase, binaryName);

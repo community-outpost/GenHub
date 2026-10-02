@@ -56,7 +56,7 @@ public sealed class OnlineLaunchService(
         await PreselectOverlayIpAsync(profile.Data, overlayIp);
         await ApplyNicknameAsync(profile.Data, nickname, cancellationToken);
 
-        var launch = await launcherFacade.LaunchProfileAsync(profile.Data.Id, false, cancellationToken, OverlayOrNull(overlayIp));
+        var launch = await launcherFacade.LaunchProfileAsync(profile.Data.Id, false, OverlayOrNull(overlayIp), cancellationToken);
         if (!launch.Success)
         {
             logger.LogWarning("Online play launch failed for profile {ProfileId}.", profile.Data.Id);
