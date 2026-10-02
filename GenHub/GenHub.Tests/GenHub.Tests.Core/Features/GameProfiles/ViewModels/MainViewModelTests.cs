@@ -665,5 +665,4 @@ public class MainViewModelTests
             }
         }
     }
-    }
 }
