@@ -224,6 +224,11 @@ public sealed class GenericCatalogContentProviderTests
     [Fact]
     public async Task RollbackPreparedContentAsync_UnregistersNewlyAddedGeneralsOnlineManifestsAsync()
     {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
         var discoverer = new GenericCatalogDiscoverer(
             NullLogger<GenericCatalogDiscoverer>.Instance,
             Mock.Of<IHttpClientFactory>(),
@@ -234,16 +239,15 @@ public sealed class GenericCatalogContentProviderTests
         var resolverMock = new Mock<IContentResolver>();
         resolverMock.Setup(r => r.ResolverId).Returns(CatalogConstants.GenericCatalogResolverId);
 
-        var delivererMock = new Mock<IContentDeliverer>();
-        delivererMock.Setup(d => d.SourceName).Returns(ContentSourceNames.HttpDeliverer);
-
-        var manifestPoolMock = new Mock<IContentManifestPool>();
+        var httpDelivererMock = new Mock<IContentDeliverer>();
+        httpDelivererMock.Setup(d => d.SourceName).Returns(ContentSourceNames.HttpDeliverer);
 
         var originalManifest = new ContentManifest
         {
             Id = ManifestId.Create("1.10000.generalsonline.gameclient.generalsonline"),
             Name = "Generals Online",
             Version = "1.0",
+            ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
             Publisher = new PublisherInfo { PublisherType = GeneralsOnlineConstants.PublisherType },
         };
 
@@ -252,6 +256,7 @@ public sealed class GenericCatalogContentProviderTests
             Id = ManifestId.Create("1.10000.generalsonline.gameclient.generalsonline"),
             Name = "Generals Online",
             Version = "1.0",
+            ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
             Publisher = new PublisherInfo { PublisherType = GeneralsOnlineConstants.PublisherType },
         };
 
@@ -259,6 +264,7 @@ public sealed class GenericCatalogContentProviderTests
         {
             Id = ManifestId.Create("1.10000.other.mod.existing"),
             Version = "1.0",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
             Publisher = new PublisherInfo { PublisherType = GeneralsOnlineConstants.PublisherType },
         };
 
@@ -266,38 +272,60 @@ public sealed class GenericCatalogContentProviderTests
         {
             Id = ManifestId.Create("1.10000.generalsonline.mod.60hz"),
             Version = "1.0",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
             Publisher = new PublisherInfo { PublisherType = GeneralsOnlineConstants.PublisherType },
         };
 
+        var goDelivererMock = new Mock<IContentDeliverer>();
+        goDelivererMock.Setup(d => d.SourceName).Returns(GeneralsOnlineConstants.DelivererSourceName);
+        goDelivererMock.Setup(d => d.CanDeliver(It.IsAny<ContentManifest>())).Returns(true);
+        goDelivererMock.Setup(d => d.DeliverContentAsync(originalManifest, "C:/work", It.IsAny<System.IProgress<ContentAcquisitionProgress>?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(preparedManifest));
+
+        var manifestPoolMock = new Mock<IContentManifestPool>();
+        var getAllCallCount = 0;
         manifestPoolMock
             .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<IReadOnlyList<ContentManifest>>.CreateSuccess([preExistingManifest, newlyAddedVariant]));
+            .ReturnsAsync(() =>
+            {
+                getAllCallCount++;
+                return getAllCallCount == 1
+                    ? OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([preExistingManifest])
+                    : OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([preExistingManifest, newlyAddedVariant]);
+            });
 
         manifestPoolMock
-            .Setup(p => p.RemoveManifestAsync(newlyAddedVariant.Id, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult.CreateSuccess());
+            .Setup(p => p.RemoveManifestAsync(newlyAddedVariant.Id, false, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         var factory = new GenericCatalogManifestFactory(
             Mock.Of<IFileHashProvider>(),
             NullLogger<GenericCatalogManifestFactory>.Instance,
             Mock.Of<IArchivePayloadProcessor>());
 
+        var validatorMock = new Mock<IContentValidator>();
+        validatorMock.Setup(v => v.ValidateManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult("1.10000.generalsonline.gameclient.generalsonline", []));
+        validatorMock.Setup(v => v.ValidateAllAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<System.IProgress<ValidationProgress>?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult("1.10000.generalsonline.gameclient.generalsonline", []));
+
         var provider = new GenericCatalogContentProvider(
             discoverer,
             [resolverMock.Object],
-            [delivererMock.Object],
+            [httpDelivererMock.Object, goDelivererMock.Object],
             factory,
             NullLogger<GenericCatalogContentProvider>.Instance,
-            Mock.Of<IContentValidator>(),
+            validatorMock.Object,
             Mock.Of<IInstallationInstructionsService>(),
             manifestPoolMock.Object);
 
-        provider.SetRegisteredManifestsForTesting(originalManifest.Id, "C:/work", [newlyAddedVariant.Id]);
+        var prepareResult = await provider.PrepareContentAsync(originalManifest, "C:/work", null, CancellationToken.None);
+        Assert.True(prepareResult.Success);
 
         await provider.InvokeRollbackPreparedContentAsyncForTesting(originalManifest, preparedManifest, "C:/work", CancellationToken.None);
 
-        manifestPoolMock.Verify(p => p.RemoveManifestAsync(newlyAddedVariant.Id, null, It.IsAny<CancellationToken>()), Times.Once);
-        manifestPoolMock.Verify(p => p.RemoveManifestAsync(preExistingManifest.Id, null, It.IsAny<CancellationToken>()), Times.Never);
+        manifestPoolMock.Verify(p => p.RemoveManifestAsync(newlyAddedVariant.Id, false, It.IsAny<CancellationToken>()), Times.Once);
+        manifestPoolMock.Verify(p => p.RemoveManifestAsync(preExistingManifest.Id, false, It.IsAny<CancellationToken>()), Times.Never);
     }
 
     private static GenericCatalogContentProvider CreateProvider()
