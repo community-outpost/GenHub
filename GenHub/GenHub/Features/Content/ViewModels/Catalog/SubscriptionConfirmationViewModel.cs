@@ -627,9 +627,7 @@ public partial class SubscriptionConfirmationViewModel(
                 logger.LogWarning("Blocked unsafe catalog URL in definition payload: {Reason}", ssrfReason);
             }
 
-            return (null, string.IsNullOrEmpty(ssrfReason)
-                ? GetLocalizedString("Downloads.Subscription.ErrorMessage.BlockedUnsafeCatalogUrl", "Blocked unsafe catalog URL.")
-                : ssrfReason);
+            return (null, GetLocalizedString("Downloads.Subscription.ErrorMessage.BlockedUnsafeCatalogUrl", "Blocked unsafe catalog URL."));
         }
 
         try

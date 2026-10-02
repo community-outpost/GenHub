@@ -500,7 +500,7 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
 
         // Assert
         Assert.Equal("Failed to Load Catalog", vm.ErrorTitle);
-        Assert.Contains("URL must be a valid absolute HTTPS URL", vm.ErrorMessage);
+        Assert.Contains("Blocked unsafe catalog URL", vm.ErrorMessage);
     }
 
     /// <summary>
