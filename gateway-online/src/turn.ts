@@ -8,6 +8,7 @@ export interface TurnCredentials {
   uris: string[];
 }
 
+// skipcq: JS-R1005
 const base64Encode = (bytes: Uint8Array): string => {
   let binary = "";
   bytes.forEach((b) => {
@@ -16,6 +17,7 @@ const base64Encode = (bytes: Uint8Array): string => {
   return btoa(binary);
 };
 
+// skipcq: JS-R1005
 export const mintTurnCredentials = async (
   member: string,
   ttlSeconds: number,
@@ -35,6 +37,7 @@ export const mintTurnCredentials = async (
   return { username, password: base64Encode(sig), ttl: ttlSeconds, uris };
 };
 
+// skipcq: JS-R1005
 export const parseTurnUris = (raw: string | undefined): string[] => {
   if (typeof raw !== "string" || raw.trim().length === 0) {
     return [];

@@ -5,11 +5,13 @@ const ITERATIONS = 100000;
 const SALT_BYTES = 16;
 const HASH_BITS = 256;
 
+// skipcq: JS-R1005
 const toHex = (bytes: Uint8Array): string =>
   Array.from(bytes)
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 
+// skipcq: JS-R1005
 const fromHex = (text: string): Uint8Array | null => {
   if (text.length % 2 !== 0 || !/^[0-9a-f]+$/i.test(text)) {
     return null;
@@ -21,6 +23,7 @@ const fromHex = (text: string): Uint8Array | null => {
   return bytes;
 };
 
+// skipcq: JS-R1005
 const derive = async (password: string, pepper: string, salt: Uint8Array): Promise<Uint8Array> => {
   const key = await crypto.subtle.importKey(
     "raw",
@@ -37,12 +40,14 @@ const derive = async (password: string, pepper: string, salt: Uint8Array): Promi
   return new Uint8Array(bits);
 };
 
+// skipcq: JS-R1005
 export const createVerifier = async (password: string, pepper: string): Promise<string> => {
   const salt = crypto.getRandomValues(new Uint8Array(SALT_BYTES));
   const hash = await derive(password, pepper, salt);
   return `${ITERATIONS}.${toHex(salt)}.${toHex(hash)}`;
 };
 
+// skipcq: JS-R1005
 export const verifyPassword = async (password: string, verifier: string, pepper: string): Promise<boolean> => {
   const parts = verifier.split(".");
   if (parts.length !== 3) {

@@ -66,6 +66,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
 
     private const int SearchDebounceMs = 350;
     private const string CreateErrorTitleKey = "Online.Error.CreateTitle";
+    private const string MeshCheckSkippedMessage = "Mesh check skipped.";
 
     private readonly IOnlineNetworkService _networkService;
     private readonly IOnlineLaunchService _launchService;
@@ -275,7 +276,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
     /// Gets a value indicating whether the currently selected network requires a password.
     /// </summary>
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads generated MVVM properties Sonar cannot see; bound from XAML as an instance property.")]
-    public bool JoinRequiresPassword => SelectedDetail?.RequiresPassword == true || SelectedNetwork?.RequiresPassword == true;
+    public bool JoinRequiresPassword => SelectedDetail is { RequiresPassword: true } || SelectedNetwork is { RequiresPassword: true };
 
     [ObservableProperty]
     private int _createSlots = OnlineConstants.DefaultSlotCap;
@@ -973,7 +974,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         {
             // Safe to detach: the loader reports its own errors, and the
             // panel outlives any scoped token, so loading is uncancellable.
-            _ = EnsureProfilesLoadedAsync(forceReload: true);
+            _ = EnsureProfilesLoadedAsync(forceReload: true, CancellationToken.None);
         }
     }
 
@@ -986,7 +987,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         IsHostPanelOpen = !IsHostPanelOpen;
         if (IsHostPanelOpen)
         {
-            _ = EnsureProfilesLoadedAsync(forceReload: true);
+            _ = EnsureProfilesLoadedAsync(forceReload: true, CancellationToken.None);
         }
     }
 
@@ -1145,7 +1146,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
 
         if (_profilesLoaded)
         {
-            _ = EnsureProfilesLoadedAsync(forceReload: true);
+            _ = EnsureProfilesLoadedAsync(forceReload: true, CancellationToken.None);
         }
     }
 
@@ -1817,22 +1818,22 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogWarning(ex, "Mesh check skipped.");
+            _logger.LogWarning(ex, MeshCheckSkippedMessage);
             return;
         }
         catch (SocketException ex)
         {
-            _logger.LogWarning(ex, "Mesh check skipped.");
+            _logger.LogWarning(ex, MeshCheckSkippedMessage);
             return;
         }
         catch (TimeoutException ex)
         {
-            _logger.LogWarning(ex, "Mesh check skipped.");
+            _logger.LogWarning(ex, MeshCheckSkippedMessage);
             return;
         }
         catch (JsonException ex)
         {
-            _logger.LogWarning(ex, "Mesh check skipped.");
+            _logger.LogWarning(ex, MeshCheckSkippedMessage);
             return;
         }
 

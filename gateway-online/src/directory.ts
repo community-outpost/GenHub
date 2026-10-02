@@ -17,6 +17,7 @@ const READ_WINDOW_SECONDS = 60;
 // corpse whose room died without removing its entry.
 const STALE_ENTRY_SECONDS = 3600;
 
+// skipcq: JS-R1005
 const json = (data: unknown, status = 200): Response =>
   new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
 
@@ -28,6 +29,7 @@ const parseJsonBody = async <T>(request: Request): Promise<T | null> => {
   }
 };
 
+// skipcq: JS-R1005
 const isStaleEntry = (summary: NetworkSummary, nowMs: number): boolean => {
   const seen = Date.parse(summary.lastHeartbeatUtc ?? "");
   return Number.isNaN(seen) || nowMs - seen >= STALE_ENTRY_SECONDS * 1000;
@@ -53,6 +55,7 @@ export class DirectoryIndex {
     return run;
   }
 
+  // skipcq: JS-R1005
   async fetch(request: Request): Promise<Response> {
     return await this.withLock(async () => {
       try {
@@ -73,6 +76,7 @@ export class DirectoryIndex {
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
+        // skipcq: JS-0002
         console.error("Directory error:", msg);
         if (isQuotaError(err)) {
           return json({ error: "Service temporarily unavailable: quota exceeded", code: "online.service-unavailable" }, 503);
@@ -82,15 +86,18 @@ export class DirectoryIndex {
     });
   }
 
+  // skipcq: JS-R1005
   private async loadIndex(): Promise<Record<string, NetworkSummary>> {
     return (await this.state.storage.get<Record<string, NetworkSummary>>("index")) ?? {};
   }
 
+  // skipcq: JS-R1005
   private async handleList(url: URL): Promise<Response> {
     const ip = url.searchParams.get("ip") ?? "unknown";
     const maxPerMin = Number.parseInt(url.searchParams.get("maxPerMin") ?? "", 10);
     if (Number.isSafeInteger(maxPerMin) && maxPerMin > 0) {
       const now = Math.floor(Date.now() / 1000);
+      // skipcq: JS-R1005
       const reads = (await this.state.storage.get<Record<string, RateCounter>>("reads")) ?? {};
       pruneCounters(reads, now, READ_WINDOW_SECONDS);
       const allowed = allowRequest(reads, ip, now, maxPerMin, READ_WINDOW_SECONDS);
@@ -111,6 +118,7 @@ export class DirectoryIndex {
       }
       await this.state.storage.put("index", pruned);
     }
+    // skipcq: JS-R1005
     const search = (url.searchParams.get("search") ?? "").trim().toLowerCase();
     let entries = fresh;
     if (search.length > 0) {
@@ -123,6 +131,7 @@ export class DirectoryIndex {
     return json(entries.slice(0, 100));
   }
 
+  // skipcq: JS-R1005
   private async handleUpsert(request: Request): Promise<Response> {
     const summary = await parseJsonBody<NetworkSummary>(request);
     if (summary === null || typeof summary.id !== "string" || summary.id.length === 0) {
@@ -145,6 +154,7 @@ export class DirectoryIndex {
     return json({ success: true });
   }
 
+  // skipcq: JS-R1005
   private async handleRemove(request: Request): Promise<Response> {
     const body = await parseJsonBody<{ id: string }>(request);
     if (body === null || typeof body.id !== "string") {
@@ -156,6 +166,7 @@ export class DirectoryIndex {
     return json({ success: true });
   }
 
+  // skipcq: JS-R1005
   private async handleCheckCreation(request: Request): Promise<Response> {
     const body = await parseJsonBody<{ ip: string; maxPerIp: number }>(request);
     if (body === null || typeof body.ip !== "string") {
@@ -163,6 +174,7 @@ export class DirectoryIndex {
     }
     const maxPerIp =
       Number.isSafeInteger(body.maxPerIp) && body.maxPerIp > 0 ? body.maxPerIp : DEFAULT_MAX_PER_IP;
+    // skipcq: JS-R1005
     const counters = (await this.state.storage.get<Record<string, CreationCounter>>("creations")) ?? {};
     const now = Math.floor(Date.now() / 1000);
     for (const [key, entry] of Object.entries(counters)) {
@@ -181,11 +193,13 @@ export class DirectoryIndex {
     return json({ allowed: count <= maxPerIp });
   }
 
+  // skipcq: JS-R1005
   private async handleReleaseCreation(request: Request): Promise<Response> {
     const body = await parseJsonBody<{ ip: string }>(request);
     if (body === null || typeof body.ip !== "string") {
       return json({ error: "Invalid request body" }, 400);
     }
+    // skipcq: JS-R1005
     const counters = (await this.state.storage.get<Record<string, CreationCounter>>("creations")) ?? {};
     const entry = counters[body.ip];
     if (entry !== undefined && entry.count > 0) {

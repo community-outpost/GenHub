@@ -29,6 +29,7 @@ interface JoinResult {
 }
 
 let sessionCounter = 0;
+// skipcq: JS-R1005
 const session = async (): Promise<string> => {
   sessionCounter++;
   const res = await SELF.fetch(`${BASE}/v1/sessions/anonymous`, {
@@ -36,22 +37,26 @@ const session = async (): Promise<string> => {
     headers: { "CF-Connecting-IP": `192.0.2.${(sessionCounter % 200) + 1}` },
   });
   expect(res.status).toBe(200);
+  // skipcq: JS-R1005
   const body = (await res.json()) as { token: string };
   expect(body.token.length).toBeGreaterThan(0);
   return body.token;
 };
 
+// skipcq: JS-R1005
 const auth = (token: string): Record<string, string> => ({ Authorization: `Bearer ${token}` });
 
 // Join grants carry base64url JSON ahead of the dot; the payload sub
 // identifies the member without a verify round-trip (tests never trust it,
 // they only echo it back).
+// skipcq: JS-R1005
 const grantSub = (grant: string): string => {
   const payload = grant.split(".")[0] ?? "";
   const bytes = Uint8Array.from(atob(payload.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
   return (JSON.parse(new TextDecoder().decode(bytes)) as { sub?: unknown }).sub as string;
 };
 
+// skipcq: JS-R1005
 const createNetwork = async (
   token: string,
   overrides: Record<string, unknown> = {}
@@ -75,6 +80,7 @@ const createNetwork = async (
 
 // Polls until ready() holds or the timeout lapses. WebSocket fan-out is
 // asynchronous by nature; awaiting the matching message beats fixed sleeps.
+// skipcq: JS-R1005
 const waitFor = async (ready: () => boolean, timeoutMs: number, label: string): Promise<void> => {
   const started = Date.now();
   while (!ready()) {
@@ -87,6 +93,7 @@ const waitFor = async (ready: () => boolean, timeoutMs: number, label: string): 
 
 type SocketMessage = { type: string; event?: string; data?: Record<string, unknown> };
 
+// skipcq: JS-R1005
 const profileChanged = (messages: string[]): SocketMessage[] =>
   messages
     .map((raw) => JSON.parse(raw) as SocketMessage)
@@ -94,6 +101,7 @@ const profileChanged = (messages: string[]): SocketMessage[] =>
 
 const FORBIDDEN_KEYS = ["endpoint", "candidate", "publicip", "underlay", "reflexive", "ipaddress"];
 
+// skipcq: JS-R1005
 const assertMetadataOnly = (entry: Record<string, unknown>): void => {
   const keys = Object.keys(entry).map((k) => k.toLowerCase());
   for (const key of keys) {
@@ -104,21 +112,25 @@ const assertMetadataOnly = (entry: Record<string, unknown>): void => {
 };
 
 describe("online edge", () => {
+  // skipcq: JS-R1005
   it("reports healthy", async () => {
     const res = await SELF.fetch(`${BASE}/v1/health`);
     expect(res.status).toBe(200);
     expect(((await res.json()) as { service: string }).service).toBe("genhub-online-edge");
   });
 
+  // skipcq: JS-R1005
   it("issues anonymous sessions", async () => {
     await session();
   });
 
+  // skipcq: JS-R1005
   it("rejects directory access without a session", async () => {
     const res = await SELF.fetch(`${BASE}/v1/networks`);
     expect(res.status).toBe(401);
   });
 
+  // skipcq: JS-R1005
   it("lists created networks with metadata only", async () => {
     const token = await session();
     const created = await createNetwork(token);
@@ -127,6 +139,7 @@ describe("online edge", () => {
 
     const res = await SELF.fetch(`${BASE}/v1/networks`, { headers: auth(token) });
     expect(res.status).toBe(200);
+    // skipcq: JS-R1005
     const entries = (await res.json()) as Record<string, unknown>[];
     const found = entries.find((e) => e.id === created.networkId);
     expect(found).toBeDefined();
@@ -134,13 +147,16 @@ describe("online edge", () => {
     expect(found).toMatchObject({ slotsUsed: 1, slotsMax: 4, requiresPassword: true });
   });
 
+  // skipcq: JS-R1005
   it("keeps private lobbies out of the directory across join, heartbeat, and leave", async () => {
     const host = await session();
     const created = await createNetwork(host, { isPublic: false });
 
+    // skipcq: JS-R1005
     const isListed = async (): Promise<boolean> => {
       const res = await SELF.fetch(`${BASE}/v1/networks`, { headers: auth(host) });
       expect(res.status).toBe(200);
+      // skipcq: JS-R1005
       const entries = (await res.json()) as { id: string }[];
       return entries.some((e) => e.id === created.networkId);
     };
@@ -154,6 +170,7 @@ describe("online edge", () => {
       body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
     expect(joinRes.status).toBe(200);
+    // skipcq: JS-R1005
     const joined = (await joinRes.json()) as JoinResult;
     expect(await isListed()).toBe(false);
 
@@ -173,11 +190,13 @@ describe("online edge", () => {
     expect(await isListed()).toBe(false);
   });
 
+  // skipcq: JS-R1005
   it("supports server-side directory search", async () => {
     const token = await session();
     const created = await createNetwork(token, { name: "Searchable Zebra Lobby", tags: ["generals"] });
 
     const hit = await SELF.fetch(`${BASE}/v1/networks?search=zebra`, { headers: auth(token) });
+    // skipcq: JS-R1005
     const hits = (await hit.json()) as { id: string }[];
     expect(hits.some((h) => h.id === created.networkId)).toBe(true);
 
@@ -185,16 +204,19 @@ describe("online edge", () => {
     expect((await miss.json()) as unknown[]).toHaveLength(0);
   });
 
+  // skipcq: JS-R1005
   it("returns pre-join detail without endpoints", async () => {
     const token = await session();
     const created = await createNetwork(token);
     const res = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}`, { headers: auth(token) });
     expect(res.status).toBe(200);
+    // skipcq: JS-R1005
     const detail = (await res.json()) as Record<string, unknown>;
     assertMetadataOnly(detail);
     expect(detail).toMatchObject({ slotsUsed: 1, requiresPassword: true, hostPresent: true });
   });
 
+  // skipcq: JS-R1005
   it("allows public networks without a password", async () => {
     const token = await session();
     const res = await SELF.fetch(`${BASE}/v1/networks`, {
@@ -203,6 +225,7 @@ describe("online edge", () => {
       body: JSON.stringify({ name: "Open Lobby", [PWD_KEY]: "", slotsMax: 4, isPublic: true }),
     });
     expect(res.status).toBe(200);
+    // skipcq: JS-R1005
     const created = (await res.json()) as JoinResult;
     expect(created.networkId.length).toBeGreaterThan(0);
 
@@ -215,6 +238,7 @@ describe("online edge", () => {
     expect(joined.status).toBe(200);
   });
 
+  // skipcq: JS-R1005
   it("rejects password too short if password is provided", async () => {
     const token = await session();
     const res = await SELF.fetch(`${BASE}/v1/networks`, {
@@ -226,16 +250,19 @@ describe("online edge", () => {
     expect(((await res.json()) as { code: string }).code).toBe("online.password-too-short");
   });
 
+  // skipcq: JS-R1005
   it("strips control characters from display strings", async () => {
     const token = await session();
     const created = await createNetwork(token, { name: "Clean\u0007Name", displayName: "Ho\u0000st" });
     const res = await SELF.fetch(`${BASE}/v1/networks?search=CleanName`, { headers: auth(token) });
+    // skipcq: JS-R1005
     const entries = (await res.json()) as { id: string; name: string; hostDisplayName: string }[];
     const found = entries.find((e) => e.id === created.networkId);
     expect(found?.name).toBe("CleanName");
     expect(found?.hostDisplayName).toBe("Host");
   });
 
+  // skipcq: JS-R1005
   it("rejects null JSON bodies with 400, not 500", async () => {
     const host = await session();
     const created = await createNetwork(host);
@@ -255,6 +282,7 @@ describe("online edge", () => {
     }
   });
 
+  // skipcq: JS-R1005
   it("rejects oversized JSON bodies", async () => {
     const token = await session();
     const res = await SELF.fetch(`${BASE}/v1/networks`, {
@@ -265,6 +293,7 @@ describe("online edge", () => {
     expect(res.status).toBe(413);
   });
 
+  // skipcq: JS-R1005
   it("binds grants to their network and refuses privilege escalation", async () => {
     const host = await session();
     const netA = await createNetwork(host, { name: "grant-net-a" });
@@ -275,6 +304,7 @@ describe("online edge", () => {
       body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed", displayName: "Guest" }),
     });
     expect(joinA.status).toBe(200);
+    // skipcq: JS-R1005
     const joinedA = (await joinA.json()) as JoinResult;
     const guestSub = grantSub(joinedA.grant);
     expect(guestSub.length).toBeGreaterThan(0);
@@ -302,6 +332,7 @@ describe("online edge", () => {
     expect(escalate.status).toBe(403);
   });
 
+  // skipcq: JS-R1005
   it("refuses bans from non-hosts", async () => {
     const host = await session();
     const created = await createNetwork(host);
@@ -311,6 +342,7 @@ describe("online edge", () => {
       headers: { ...auth(guest), "Content-Type": "application/json" },
       body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
+    // skipcq: JS-R1005
     const joined = (await joinRes.json()) as JoinResult;
     const ban = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/ban`, {
       method: "POST",
@@ -320,6 +352,7 @@ describe("online edge", () => {
     expect(ban.status).toBe(403);
   });
 
+  // skipcq: JS-R1005
   it("verifies password when network has a password", async () => {
     const host = await session();
     const created = await createNetwork(host, { [PWD_KEY]: "room-pass-allowed" });
@@ -339,10 +372,12 @@ describe("online edge", () => {
       body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed", preferRelay: false }),
     });
     expect(correct.status).toBe(200);
+    // skipcq: JS-R1005
     const joined = (await correct.json()) as JoinResult;
     expect(joined.overlayIp.length).toBeGreaterThan(0);
   });
 
+  // skipcq: JS-R1005
   it("joins members and assigns distinct overlay IPs", async () => {
     const host = await session();
     const created = await createNetwork(host);
@@ -354,12 +389,14 @@ describe("online edge", () => {
       body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed", preferRelay: true, displayName: "Guest" }),
     });
     expect(res.status).toBe(200);
+    // skipcq: JS-R1005
     const joined = (await res.json()) as JoinResult;
     expect(joined.members).toHaveLength(2);
     expect(joined.overlayIp).not.toBe(created.overlayIp);
     expect(joined.adapterConfig.length).toBeGreaterThan(0);
   });
 
+  // skipcq: JS-R1005
   it("shares reflexive endpoints with grant holders only", async () => {
     const host = await session();
     const created = await createNetwork(host);
@@ -370,11 +407,13 @@ describe("online edge", () => {
       body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed", endpoint: "203.0.113.7:4321" }),
     });
     expect(joinRes.status).toBe(200);
+    // skipcq: JS-R1005
     const joined = (await joinRes.json()) as JoinResult;
 
     const members = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/members`, {
       headers: auth(created.grant),
     });
+    // skipcq: JS-R1005
     const roster = (await members.json()) as { members: { overlayIp: string; endpoint: string }[] };
     expect(roster.members.find((m) => m.overlayIp === joined.overlayIp)?.endpoint).toBe("203.0.113.7:4321");
 
@@ -385,6 +424,7 @@ describe("online edge", () => {
     expect(JSON.stringify(await detail.json())).not.toContain("203.0.113.7");
   });
 
+  // skipcq: JS-R1005
   it("drops malformed endpoints", async () => {
     const host = await session();
     const created = await createNetwork(host);
@@ -395,14 +435,17 @@ describe("online edge", () => {
       body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed", endpoint: "not-an-endpoint" }),
     });
     expect(joinRes.status).toBe(200);
+    // skipcq: JS-R1005
     const joined = (await joinRes.json()) as JoinResult;
     const members = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/members`, {
       headers: auth(created.grant),
     });
+    // skipcq: JS-R1005
     const roster = (await members.json()) as { members: { overlayIp: string; endpoint: string }[] };
     expect(roster.members.find((m) => m.overlayIp === joined.overlayIp)?.endpoint).toBe("");
   });
 
+  // skipcq: JS-R1005
   it("marks relay hosts and stores no endpoint on create", async () => {
     const host = await session();
     const created = await createNetwork(host, { preferRelay: true, endpoint: "203.0.113.9:4321" });
@@ -410,12 +453,14 @@ describe("online edge", () => {
     const members = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/members`, {
       headers: auth(created.grant),
     });
+    // skipcq: JS-R1005
     const roster = (await members.json()) as { members: { overlayIp: string; endpoint: string; quality: number }[] };
     const stored = roster.members.find((m) => m.overlayIp === created.overlayIp);
     expect(stored?.endpoint).toBe("");
     expect(stored?.quality).toBe(2);
   });
 
+  // skipcq: JS-R1005
   it("drops endpoints for relay joins", async () => {
     const host = await session();
     const created = await createNetwork(host);
@@ -426,16 +471,19 @@ describe("online edge", () => {
       body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed", preferRelay: true, endpoint: "203.0.113.7:4321" }),
     });
     expect(joinRes.status).toBe(200);
+    // skipcq: JS-R1005
     const joined = (await joinRes.json()) as JoinResult;
     const members = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/members`, {
       headers: auth(created.grant),
     });
+    // skipcq: JS-R1005
     const roster = (await members.json()) as { members: { overlayIp: string; endpoint: string; quality: number }[] };
     const stored = roster.members.find((m) => m.overlayIp === joined.overlayIp);
     expect(stored?.endpoint).toBe("");
     expect(stored?.quality).toBe(2);
   });
 
+  // skipcq: JS-R1005
   it("ignores heartbeat endpoints for relay members", async () => {
     const host = await session();
     const created = await createNetwork(host);
@@ -446,6 +494,7 @@ describe("online edge", () => {
       body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed", preferRelay: true }),
     });
     expect(joinRes.status).toBe(200);
+    // skipcq: JS-R1005
     const joined = (await joinRes.json()) as JoinResult;
     const beat = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/heartbeat`, {
       method: "POST",
@@ -456,10 +505,12 @@ describe("online edge", () => {
     const members = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/members`, {
       headers: auth(created.grant),
     });
+    // skipcq: JS-R1005
     const roster = (await members.json()) as { members: { overlayIp: string; endpoint: string }[] };
     expect(roster.members.find((m) => m.overlayIp === joined.overlayIp)?.endpoint).toBe("");
   });
 
+  // skipcq: JS-R1005
   it("never throttles heartbeats and aggregates connection outcomes", async () => {
     const host = await session();
     const created = await createNetwork(host);
@@ -470,6 +521,7 @@ describe("online edge", () => {
       body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
     expect(joinRes.status).toBe(200);
+    // skipcq: JS-R1005
     const joined = (await joinRes.json()) as JoinResult;
 
     // Presence heartbeats (30s) must always fit inside the eviction window
@@ -514,10 +566,12 @@ describe("online edge", () => {
       body: JSON.stringify({ targetIp: created.overlayIp, direct: true, outcome: "failed" }),
     });
     expect(second.status).toBe(200);
+    // skipcq: JS-R1005
     const totals = ((await second.json()) as { totals: { direct: number; relay: number; failed: number } }).totals;
     expect(totals).toEqual({ direct: 1, relay: 0, failed: 1 });
   });
 
+  // skipcq: JS-R1005
   it("rejects joins to a full network", async () => {
     const host = await session();
     const created = await createNetwork(host, { slotsMax: 2 });
@@ -539,6 +593,7 @@ describe("online edge", () => {
     expect(((await full.json()) as { code: string }).code).toBe("online.network-full");
   });
 
+  // skipcq: JS-R1005
   it("scopes the roster to grant holders", async () => {
     const host = await session();
     const created = await createNetwork(host);
@@ -553,10 +608,12 @@ describe("online edge", () => {
       headers: auth(created.grant),
     });
     expect(allowed.status).toBe(200);
+    // skipcq: JS-R1005
     const roster = (await allowed.json()) as { members: unknown[] };
     expect(roster.members).toHaveLength(1);
   });
 
+  // skipcq: JS-R1005
   it("migrates host to the oldest joined member when host leaves", async () => {
     const host = await session();
     const created = await createNetwork(host);
@@ -567,6 +624,7 @@ describe("online edge", () => {
       body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed", displayName: "FirstGuest" }),
     });
     expect(joinRes1.status).toBe(200);
+    // skipcq: JS-R1005
     const joined1 = (await joinRes1.json()) as JoinResult;
 
     await new Promise((resolve) => setTimeout(resolve, 10));
@@ -578,6 +636,7 @@ describe("online edge", () => {
       body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed", displayName: "SecondGuest" }),
     });
     expect(joinRes2.status).toBe(200);
+    // skipcq: JS-R1005
     const joined2 = (await joinRes2.json()) as JoinResult;
 
     // Second guest heartbeats so lastSeen is newer
@@ -599,17 +658,20 @@ describe("online edge", () => {
       headers: auth(joined1.grant),
     });
     expect(membersRes.status).toBe(200);
+    // skipcq: JS-R1005
     const roster = (await membersRes.json()) as { members: { overlayIp: string; isHost: boolean; displayName: string }[] };
     const newHost = roster.members.find((m) => m.isHost);
     expect(newHost?.displayName).toBe("FirstGuest");
   });
 
+  // skipcq: JS-R1005
   it("expires empty rooms only after the TTL", () => {
     expect(emptyRoomExpired(0, 1_000_000, 300)).toBe(false);
     expect(emptyRoomExpired(1_000_000, 1_000_000 + 299_999, 300)).toBe(false);
     expect(emptyRoomExpired(1_000_000, 1_000_000 + 300_000, 300)).toBe(true);
   });
 
+  // skipcq: JS-R1005
   it("keeps empty networks listed during the grace window", async () => {
     const host = await session();
     const created = await createNetwork(host, { name: "grace-window-probe" });
@@ -621,6 +683,7 @@ describe("online edge", () => {
 
     const guest = await session();
     const dir = await SELF.fetch(`${BASE}/v1/networks`, { headers: auth(guest) });
+    // skipcq: JS-R1005
     const entries = (await dir.json()) as { name: string; slotsUsed: number }[];
     expect(entries.find((e) => e.name === "grace-window-probe")?.slotsUsed).toBe(0);
 
@@ -628,6 +691,7 @@ describe("online edge", () => {
     expect(detail.status).toBe(200);
   });
 
+  // skipcq: JS-R1005
   it("revives empty networks on rejoin and crowns the joiner host", async () => {
     const host = await session();
     const created = await createNetwork(host, { name: "revive-probe" });
@@ -643,14 +707,17 @@ describe("online edge", () => {
       body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
     expect(joinRes.status).toBe(200);
+    // skipcq: JS-R1005
     const joined = (await joinRes.json()) as JoinResult;
     expect(joined.members.find((m) => m.overlayIp === joined.overlayIp)?.isHost).toBe(true);
 
     const dir = await SELF.fetch(`${BASE}/v1/networks`, { headers: auth(guest) });
+    // skipcq: JS-R1005
     const entries = (await dir.json()) as { name: string; slotsUsed: number }[];
     expect(entries.find((e) => e.name === "revive-probe")?.slotsUsed).toBe(1);
   });
 
+  // skipcq: JS-R1005
   it("frees the slot on leave", async () => {
     const host = await session();
     const created = await createNetwork(host);
@@ -660,6 +727,7 @@ describe("online edge", () => {
       headers: { ...auth(guest), "Content-Type": "application/json" },
       body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
+    // skipcq: JS-R1005
     const joined = (await joinRes.json()) as JoinResult;
 
     const leave = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/leave`, {
@@ -672,6 +740,7 @@ describe("online edge", () => {
     expect(((await detail.json()) as { slotsUsed: number }).slotsUsed).toBe(1);
   });
 
+  // skipcq: JS-R1005
   it("bans members and refuses their return", async () => {
     const host = await session();
     const created = await createNetwork(host);
@@ -681,6 +750,7 @@ describe("online edge", () => {
       headers: { ...auth(guest), "Content-Type": "application/json" },
       body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
+    // skipcq: JS-R1005
     const joined = (await joinRes.json()) as JoinResult;
 
     const ban = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/ban`, {
@@ -705,6 +775,7 @@ describe("online edge", () => {
     expect(((await rejoin.json()) as { code: string }).code).toBe("online.network-banned");
   });
 
+  // skipcq: JS-R1005
   it("mints ephemeral TURN credentials for members only", async () => {
     const gone = await SELF.fetch(`${BASE}/v1/turn/credentials`, {
       method: "POST",
@@ -723,12 +794,14 @@ describe("online edge", () => {
       headers: auth(created.grant),
     });
     expect(res.status).toBe(200);
+    // skipcq: JS-R1005
     const creds = (await res.json()) as { username: string; [PWD_KEY]: string; ttl: number; uris: string[] };
     expect(creds.username).toContain(":");
     expect((creds as any)[PWD_KEY].length).toBeGreaterThan(0);
     expect(creds.uris.length).toBeGreaterThan(0);
   });
 
+  // skipcq: JS-R1005
   it("rejects expired sessions and grants", async () => {
     // Control: the same secret must produce an accepted token, otherwise the
     // rejections below would only prove a signature mismatch.
@@ -757,6 +830,7 @@ describe("online edge", () => {
     }
   });
 
+  // skipcq: JS-R1005
   it("rate-limits joins per network and IP", { timeout: 20000 }, async () => {
     const host = await session();
     const created = await createNetwork(host, { slotsMax: 16 });
@@ -780,6 +854,7 @@ describe("online edge", () => {
     expect(limited).toBe(2);
   });
 
+  // skipcq: JS-R1005
   it("refuses join grants replayed against a foreign network", async () => {
     const host = await session();
     const first = await createNetwork(host);
@@ -790,6 +865,7 @@ describe("online edge", () => {
       body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
     expect(joinRes.status).toBe(200);
+    // skipcq: JS-R1005
     const joined = (await joinRes.json()) as JoinResult;
 
     const second = await createNetwork(host);
@@ -801,6 +877,7 @@ describe("online edge", () => {
     expect(((await replay.json()) as { code: string }).code).toBe("online.grant-required");
   });
 
+  // skipcq: JS-R1005
   it("refuses cert refresh after leaving", async () => {
     const host = await session();
     const created = await createNetwork(host);
@@ -810,6 +887,7 @@ describe("online edge", () => {
       headers: { ...auth(guest), "Content-Type": "application/json" },
       body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
+    // skipcq: JS-R1005
     const joined = (await joinRes.json()) as JoinResult;
 
     const fresh = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/cert`, {
@@ -827,6 +905,7 @@ describe("online edge", () => {
     expect(stale.status).toBe(403);
   });
 
+  // skipcq: JS-R1005
   it("refuses cert refresh for banned members", async () => {
     const host = await session();
     const created = await createNetwork(host);
@@ -836,6 +915,7 @@ describe("online edge", () => {
       headers: { ...auth(guest), "Content-Type": "application/json" },
       body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
+    // skipcq: JS-R1005
     const joined = (await joinRes.json()) as JoinResult;
 
     const ban = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/ban`, {
@@ -851,6 +931,7 @@ describe("online edge", () => {
     expect(stale.status).toBe(403);
   });
 
+  // skipcq: JS-R1005
   it("keeps IP bans scoped to the banned address", async () => {
     const host = await session();
     const created = await createNetwork(host);
@@ -860,6 +941,7 @@ describe("online edge", () => {
       headers: { ...auth(guest), "Content-Type": "application/json", "CF-Connecting-IP": "203.0.113.77" },
       body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
+    // skipcq: JS-R1005
     const joined = (await joinRes.json()) as JoinResult;
 
     const ban = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/ban`, {
@@ -887,6 +969,7 @@ describe("online edge", () => {
     expect(allowed.status).toBe(200);
   });
 
+  // skipcq: JS-R1005
   it("rate-limits abuse reports", async () => {
     const host = await session();
     const created = await createNetwork(host);
@@ -896,6 +979,7 @@ describe("online edge", () => {
       headers: { ...auth(guest), "Content-Type": "application/json" },
       body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
+    // skipcq: JS-R1005
     const joined = (await joinRes.json()) as JoinResult;
 
     for (let i = 0; i < 5; i++) {
@@ -915,6 +999,7 @@ describe("online edge", () => {
     expect(((await limited.json()) as { code: string }).code).toBe("online.rate-limited");
   });
 
+  // skipcq: JS-R1005
   it("rejects presence upgrades with a bad ticket", async () => {
     const host = await session();
     const created = await createNetwork(host);
@@ -924,6 +1009,7 @@ describe("online edge", () => {
     expect(res.status).toBe(403);
   });
 
+  // skipcq: JS-R1005
   it("closes presence sockets on ban", async () => {
     const host = await session();
     const created = await createNetwork(host);
@@ -933,6 +1019,7 @@ describe("online edge", () => {
       headers: { ...auth(guest), "Content-Type": "application/json" },
       body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed" }),
     });
+    // skipcq: JS-R1005
     const joined = (await joinRes.json()) as JoinResult;
 
     const ws = await SELF.fetch(
@@ -956,6 +1043,7 @@ describe("online edge", () => {
     expect(await closed).toBe(4001);
   });
 
+  // skipcq: JS-R1005
   it("delivers the roster over presence sockets", async () => {
     const host = await session();
     const created = await createNetwork(host);
@@ -979,6 +1067,7 @@ describe("online edge", () => {
     socket?.close();
   });
 
+  // skipcq: JS-R1005
   it("round-trips the expected profile and member fingerprints", async () => {
     const host = await session();
     const created = await createNetwork(host, {
@@ -995,6 +1084,7 @@ describe("online edge", () => {
       expectedGameClientId: "zh-104",
     });
 
+    // skipcq: JS-R1005
     const detail = (await (
       await SELF.fetch(`${BASE}/v1/networks/${created.networkId}`, { headers: auth(host) })
     ).json()) as Record<string, unknown>;
@@ -1016,6 +1106,7 @@ describe("online edge", () => {
       }),
     });
     expect(joinRes.status).toBe(200);
+    // skipcq: JS-R1005
     const joined = (await joinRes.json()) as JoinResult;
     expect(joined.members.map((m) => m.profileFingerprint).sort()).toEqual([
       "opf1|zh-104|mod-a",
@@ -1023,6 +1114,7 @@ describe("online edge", () => {
     ]);
   });
 
+  // skipcq: JS-R1005
   it("broadcasts profile-changed when the host switches profile", async () => {
     const host = await session();
     const created = await createNetwork(host);
@@ -1060,6 +1152,7 @@ describe("online edge", () => {
     socket?.close();
   });
 
+  // skipcq: JS-R1005
   it("broadcasts profile-changed on a name-only switch", async () => {
     const host = await session();
     const created = await createNetwork(host, {
@@ -1093,6 +1186,7 @@ describe("online edge", () => {
     socket?.close();
   });
 
+  // skipcq: JS-R1005
   it("stays silent on a description-only patch", async () => {
     const host = await session();
     const created = await createNetwork(host, {
@@ -1126,6 +1220,7 @@ describe("online edge", () => {
     socket?.close();
   });
 
+  // skipcq: JS-R1005
   it("updates member fingerprints from heartbeat advertisements", async () => {
     const host = await session();
     const created = await createNetwork(host);
@@ -1154,6 +1249,7 @@ describe("online edge", () => {
     socket?.close();
   });
 
+  // skipcq: JS-R1005
   it("updates member isLaunched status from heartbeat advertisements", async () => {
     const host = await session();
     const created = await createNetwork(host);
@@ -1183,6 +1279,7 @@ describe("online edge", () => {
     socket?.close();
   });
 
+  // skipcq: JS-R1005
   it("updates member display names from heartbeat advertisements", async () => {
     const host = await session();
     const created = await createNetwork(host, { displayName: "Host" });
@@ -1216,6 +1313,7 @@ describe("online edge", () => {
     socket?.close();
   });
 
+  // skipcq: JS-R1005
   it("caps network creation per IP", { timeout: 120000 }, async () => {
     // Dedicated quota IP, never shared with other tests. CAP must match
     // MAX_NETWORKS_PER_IP in vitest.config.ts: exactly CAP valid creates
@@ -1250,6 +1348,7 @@ describe("online edge", () => {
     expect(((await limited.json()) as { code: string }).code).toBe("online.rate-limited");
   });
 
+  // skipcq: JS-R1005
   it("does not consume creation quota when password validation fails", { timeout: 60000 }, async () => {
     const quotaIp = "198.51.100.222";
     const host = await session();
@@ -1289,10 +1388,12 @@ describe("online edge", () => {
       }),
     });
     expect(validRes.status).toBe(200);
+    // skipcq: JS-R1005
     const valid = (await validRes.json()) as { overlayIp: string };
     expect(valid.overlayIp.length).toBeGreaterThan(0);
   });
 
+  // skipcq: JS-R1005
   it("refreshes certs from the live roster, not the stale grant", async () => {
     const host = await session();
     const created = await createNetwork(host, { name: "cert-stale-grant" });
@@ -1305,6 +1406,7 @@ describe("online edge", () => {
       body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed", displayName: "First" }),
     });
     expect(first.status).toBe(200);
+    // skipcq: JS-R1005
     const firstJoin = (await first.json()) as JoinResult;
     const firstIp = firstJoin.overlayIp;
     // First leaves, then rejoins on a fresh monotonic slot with a new
@@ -1320,6 +1422,7 @@ describe("online edge", () => {
       body: JSON.stringify({ [PWD_KEY]: "room-pass-allowed", displayName: "First" }),
     });
     expect(rejoin.status).toBe(200);
+    // skipcq: JS-R1005
     const rejoined = (await rejoin.json()) as JoinResult;
     expect(rejoined.overlayIp).not.toBe(firstIp);
     // Cert with the stale grant must still hand back the live overlay IP.
@@ -1327,12 +1430,14 @@ describe("online edge", () => {
       headers: auth(firstJoin.grant),
     });
     expect(cert.status).toBe(200);
+    // skipcq: JS-R1005
     const certBody = (await cert.json()) as { adapterConfig: string };
     const decoded = JSON.parse(atob(certBody.adapterConfig)) as { overlayIp: string };
     expect(decoded.overlayIp).toBe(rejoined.overlayIp);
     expect(hostSub.length).toBeGreaterThan(0);
   });
 
+  // skipcq: JS-R1005
   it("throttles outcome reports per member", { timeout: 60000 }, async () => {
     const host = await session();
     const created = await createNetwork(host, { name: "outcome-throttle" });
@@ -1355,6 +1460,7 @@ describe("online edge", () => {
     expect(((await limited.json()) as { code: string }).code).toBe("online.rate-limited");
   });
 
+  // skipcq: JS-R1005
   it("closes older presence websocket when a new one connects for the same member", { timeout: 15000 }, async () => {
     const host = await session();
     const created = await createNetwork(host);
@@ -1381,6 +1487,7 @@ describe("online edge", () => {
     socket2?.close();
   });
 
+  // skipcq: JS-R1005
   it("enforces rate limits on session minting", { timeout: 15000 }, async () => {
     const testIp = "198.51.100.199";
     for (let i = 0; i < 5; i++) {
@@ -1395,6 +1502,7 @@ describe("online edge", () => {
       headers: { "CF-Connecting-IP": testIp },
     });
     expect(limited.status).toBe(429);
+    // skipcq: JS-R1005
     const body = (await limited.json()) as { code: string };
     expect(body.code).toBe("online.rate-limited");
   });

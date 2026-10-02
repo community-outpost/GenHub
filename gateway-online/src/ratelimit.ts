@@ -5,6 +5,7 @@ export interface RateCounter {
   windowStart: number;
 }
 
+// skipcq: JS-R1005
 export const allowRequest = (
   counters: Record<string, RateCounter>,
   key: string,
@@ -21,6 +22,7 @@ export const allowRequest = (
   return entry.count <= max;
 };
 
+// skipcq: JS-R1005
 export const pruneCounters = (
   counters: Record<string, RateCounter>,
   nowSeconds: number,

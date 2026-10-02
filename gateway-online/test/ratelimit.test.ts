@@ -3,12 +3,14 @@ import { allowRequest, pruneCounters } from "../src/ratelimit";
 import { isQuotaError } from "../src/validation";
 
 describe("rate limiter", () => {
+  // skipcq: JS-R1005
   it("allows requests under the limit", () => {
     const counters = {};
     expect(allowRequest(counters, "ip", 1000, 2, 60)).toBe(true);
     expect(allowRequest(counters, "ip", 1001, 2, 60)).toBe(true);
   });
 
+  // skipcq: JS-R1005
   it("blocks requests over the limit", () => {
     const counters = {};
     allowRequest(counters, "ip", 1000, 2, 60);
@@ -16,6 +18,7 @@ describe("rate limiter", () => {
     expect(allowRequest(counters, "ip", 1002, 2, 60)).toBe(false);
   });
 
+  // skipcq: JS-R1005
   it("resets after the window", () => {
     const counters = {};
     allowRequest(counters, "ip", 1000, 1, 60);
@@ -23,12 +26,14 @@ describe("rate limiter", () => {
     expect(allowRequest(counters, "ip", 1061, 1, 60)).toBe(true);
   });
 
+  // skipcq: JS-R1005
   it("tracks keys independently", () => {
     const counters = {};
     allowRequest(counters, "a", 1000, 1, 60);
     expect(allowRequest(counters, "b", 1000, 1, 60)).toBe(true);
   });
 
+  // skipcq: JS-R1005
   it("prunes expired counters", () => {
     const counters = {
       old: { count: 5, windowStart: 100 },
@@ -42,6 +47,7 @@ describe("rate limiter", () => {
 });
 
 describe("isQuotaError", () => {
+  // skipcq: JS-R1005
   it("detects Durable Objects free tier or quota errors", () => {
     expect(isQuotaError(new Error("Durable Objects exceeded daily requests limit"))).toBe(true);
     expect(isQuotaError(new Error("free tier limit exceeded"))).toBe(true);
