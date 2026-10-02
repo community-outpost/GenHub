@@ -932,6 +932,27 @@ public sealed class CatalogUpstreamIngestionServiceTests
         Assert.Contains(synthesized.Artifacts, a => a.Variant == "Generals" && a.TargetGame == GameType.Generals);
     }
 
+    /// <summary>
+    /// Tests that ResolveDownloadFileExtension correctly resolves extensions for absolute, relative, query-bearing, and fragment-bearing URLs.
+    /// </summary>
+    /// <param name="url">The URL to test.</param>
+    /// <param name="expectedExtension">The expected file extension.</param>
+    [Theory]
+    [InlineData("https://example.com/downloads/package.zip", ".zip")]
+    [InlineData("https://example.com/downloads/package.tar.gz", ".gz")]
+    [InlineData("https://example.com/downloads/package.zip?token=secret123&expiry=456", ".zip")]
+    [InlineData("relative/path/mod.zip?token=secret123#header", ".zip")]
+    [InlineData("mod.dat?version=1.0", ".dat")]
+    [InlineData("mod.zip#section", ".zip")]
+    [InlineData("relative_file_without_ext?param=val", ".zip")]
+    [InlineData(null, ".zip")]
+    [InlineData("", ".zip")]
+    public void ResolveDownloadFileExtension_StripsQueryAndFragmentCorrectly(string? url, string expectedExtension)
+    {
+        var ext = CatalogUpstreamIngestionService.ResolveDownloadFileExtension(url!);
+        Assert.Equal(expectedExtension, ext);
+    }
+
     private sealed class StubGeneralsOnlineDiscoverer(ContentDiscoveryResult result) : GeneralsOnlineDiscoverer(
         NullLogger<GeneralsOnlineDiscoverer>.Instance,
         Mock.Of<IProviderDefinitionLoader>(),

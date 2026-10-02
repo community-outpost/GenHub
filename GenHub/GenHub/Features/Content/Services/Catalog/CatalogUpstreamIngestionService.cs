@@ -104,6 +104,34 @@ public class CatalogUpstreamIngestionService(
     /// </summary>
     internal static void ClearReleaseCache() => GitHubReleaseCache.Clear();
 
+    /// <summary>
+    /// Resolves the file extension from a download URL, stripping query string or fragment.
+    /// </summary>
+    /// <param name="downloadUrl">The download URL.</param>
+    /// <returns>The file extension (defaulting to .zip).</returns>
+    internal static string ResolveDownloadFileExtension(string downloadUrl)
+    {
+        var uriExt = string.Empty;
+        if (Uri.TryCreate(downloadUrl, UriKind.Absolute, out var parsedUri))
+        {
+            uriExt = Path.GetExtension(parsedUri.AbsolutePath);
+        }
+
+        if (string.IsNullOrWhiteSpace(uriExt) && !string.IsNullOrWhiteSpace(downloadUrl))
+        {
+            var cleanUrl = downloadUrl;
+            var queryOrFragIdx = cleanUrl.IndexOfAny(['?', '#']);
+            if (queryOrFragIdx >= 0)
+            {
+                cleanUrl = cleanUrl[..queryOrFragIdx];
+            }
+
+            uriExt = Path.GetExtension(cleanUrl);
+        }
+
+        return string.IsNullOrWhiteSpace(uriExt) ? ".zip" : uriExt;
+    }
+
     private static string NormalizeReleaseVersion(GitHubRelease release)
     {
         var rawVersion = release.TagName;
@@ -646,22 +674,6 @@ public class CatalogUpstreamIngestionService(
 
         item.Releases.Clear();
         item.Releases.Add(synthesized);
-    }
-
-    private string ResolveDownloadFileExtension(string downloadUrl)
-    {
-        var uriExt = string.Empty;
-        if (Uri.TryCreate(downloadUrl, UriKind.Absolute, out var parsedUri))
-        {
-            uriExt = Path.GetExtension(parsedUri.AbsolutePath);
-        }
-
-        if (string.IsNullOrWhiteSpace(uriExt))
-        {
-            uriExt = Path.GetExtension(downloadUrl);
-        }
-
-        return string.IsNullOrWhiteSpace(uriExt) ? ".zip" : uriExt;
     }
 
     private void PopulateDiscoveredArtifacts(
