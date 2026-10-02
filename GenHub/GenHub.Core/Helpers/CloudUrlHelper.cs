@@ -18,6 +18,21 @@ public static class CloudUrlHelper
         RegexOptions.Compiled | RegexOptions.IgnoreCase,
         RegexTimeout);
 
+    private static readonly Regex GoogleDriveConfirmHrefRegex = new(
+        @"href=""([^""]*confirm=[^""]+)""",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase,
+        RegexTimeout);
+
+    private static readonly Regex GoogleDriveFormActionRegex = new(
+        @"action=""(https://drive\.usercontent\.google\.com/download[^""]*)""",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase,
+        RegexTimeout);
+
+    private static readonly Regex GoogleDriveFormInputRegex = new(
+        @"<input[^>]+type=""hidden""[^>]+name=""([^""]+)""[^>]+value=""([^""]*)""",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase,
+        RegexTimeout);
+
     private static readonly Regex GitHubBlobRegex = new(
         @"^https?:\/\/github\.com\/([^\/]+)\/([^\/]+)\/blob\/([^\/]+)\/(.+)$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase,
@@ -65,6 +80,66 @@ public static class CloudUrlHelper
         return trimmed;
     }
 
+    /// <summary>
+    /// Attempts to extract a confirmed direct download URL from Google Drive HTML warning/confirmation page.
+    /// </summary>
+    /// <param name="html">The HTML content returned by Google Drive.</param>
+    /// <param name="requestUri">The request URI that returned the HTML.</param>
+    /// <returns>The confirmed direct download URL, or null if not found.</returns>
+    public static string? TryExtractGoogleDriveConfirmationUrl(string? html, Uri? requestUri)
+    {
+        if (string.IsNullOrWhiteSpace(html))
+        {
+            return null;
+        }
+
+        var confirmMatch = GoogleDriveConfirmHrefRegex.Match(html);
+        if (confirmMatch.Success)
+        {
+            var rawUrl = confirmMatch.Groups[1].Value.Replace("&amp;", "&");
+            if (Uri.TryCreate(rawUrl, UriKind.Absolute, out var absUri))
+            {
+                return absUri.ToString();
+            }
+
+            var baseUri = requestUri ?? new Uri(Uri.UriSchemeHttps + "://drive.google.com");
+            return new Uri(baseUri, rawUrl).ToString();
+        }
+
+        var actionMatch = GoogleDriveFormActionRegex.Match(html);
+        if (actionMatch.Success)
+        {
+            var action = actionMatch.Groups[1].Value.Replace("&amp;", "&");
+            var inputMatches = GoogleDriveFormInputRegex.Matches(html);
+            var queryParams = inputMatches
+                .Select(m => $"{Uri.EscapeDataString(m.Groups[1].Value)}={Uri.EscapeDataString(m.Groups[2].Value)}")
+                .ToList();
+
+            if (queryParams.Count > 0)
+            {
+                var separator = action.Contains('?') ? "&" : "?";
+                return $"{action}{separator}{string.Join("&", queryParams)}";
+            }
+
+            return action;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Attempts to extract a confirmed direct download URL from Google Drive HTML warning/confirmation page.
+    /// </summary>
+    /// <param name="html">The HTML content returned by Google Drive.</param>
+    /// <param name="requestUri">The request URI that returned the HTML.</param>
+    /// <param name="confirmedUrl">When successful, contains the confirmed download URL.</param>
+    /// <returns>True if a confirmation URL was extracted; otherwise false.</returns>
+    public static bool TryExtractGoogleDriveConfirmationUrl(string? html, Uri? requestUri, out string? confirmedUrl)
+    {
+        confirmedUrl = TryExtractGoogleDriveConfirmationUrl(html, requestUri);
+        return !string.IsNullOrEmpty(confirmedUrl);
+    }
+
     private static bool TryNormalizeGoogleDriveUrl(string url, out string normalizedUrl)
     {
         if (IsMatchingHost(url, "drive.google.com", "docs.google.com"))
@@ -94,7 +169,7 @@ public static class CloudUrlHelper
 
             if (!DropboxDl1Regex.IsMatch(url))
             {
-                var separator = url.Contains('?') ? "&dl=1" : "?dl=1";
+                var separator = url.Contains('?') ? "&" : "?";
                 var fragmentIndex = url.IndexOf('#');
                 normalizedUrl = fragmentIndex == -1 ? url + separator : url.Insert(fragmentIndex, separator);
                 return true;
