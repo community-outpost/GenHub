@@ -935,11 +935,7 @@ public class GameProcessManager(
             exitTime = process.ExitTime.ToUniversalTime();
             exitCode = process.ExitCode;
         }
-        catch (InvalidOperationException)
-        {
-            // Process may have already been disposed or its metadata may be inaccessible.
-        }
-        catch (Win32Exception)
+        catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
         {
             // Process may have already been disposed or its metadata may be inaccessible.
         }
@@ -991,24 +987,12 @@ public class GameProcessManager(
             return;
         }
 
-        string fullRoot = string.Empty;
+        string fullRoot;
         try
         {
             fullRoot = Path.GetFullPath(dirPath);
         }
-        catch (IOException)
-        {
-            return;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return;
-        }
-        catch (ArgumentException)
-        {
-            return;
-        }
-        catch (NotSupportedException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
             return;
         }
@@ -1167,7 +1151,8 @@ public class GameProcessManager(
             return true;
         }
 
-        if (runnerCommand.EnvironmentVariables?.ContainsKey(WineConstants.PrefixEnvironmentVariable) == true)
+        if (runnerCommand.EnvironmentVariables != null &&
+            runnerCommand.EnvironmentVariables.ContainsKey(WineConstants.PrefixEnvironmentVariable))
         {
             return true;
         }
@@ -1441,7 +1426,7 @@ public class GameProcessManager(
             return;
         }
 
-        int processId = 0;
+        int processId;
         try
         {
             processId = process.Id;
@@ -1915,7 +1900,7 @@ public class GameProcessManager(
         finally
         {
             // A failed cleanup transfers ownership to the manager for monitoring and retry.
-            if (_managedProcesses.Values.All(candidate => !ReferenceEquals(candidate, launcher)))
+            if (!_managedProcesses.Values.Any(candidate => ReferenceEquals(candidate, launcher)))
             {
                 TryRemoveProcessErrors(launcher);
                 launcher.Dispose();
