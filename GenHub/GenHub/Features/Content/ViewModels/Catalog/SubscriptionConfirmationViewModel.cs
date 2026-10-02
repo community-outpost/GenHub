@@ -399,6 +399,12 @@ public partial class SubscriptionConfirmationViewModel(
                 .Select(cat => cat.Url);
 
             candidateUrls.AddRange(validCatalogUrls);
+
+            var mirrorUrls = definition.Catalogs
+                .SelectMany(cat => cat?.Mirrors ?? [])
+                .Where(url => !string.IsNullOrWhiteSpace(url) && !candidateUrls.Contains(url, StringComparer.OrdinalIgnoreCase));
+
+            candidateUrls.AddRange(mirrorUrls);
         }
 
         return candidateUrls;
@@ -661,6 +667,16 @@ public partial class SubscriptionConfirmationViewModel(
         {
             logger.LogWarning(ioEx, "IO error reading catalog from candidate URL {TargetUrl} in definition", candidateUrl);
             return (null, ioEx.Message);
+        }
+        catch (ArgumentException argumentEx)
+        {
+            logger.LogWarning(argumentEx, "Invalid candidate catalog URL {Url}", candidateUrl);
+            return (null, argumentEx.Message);
+        }
+        catch (System.IO.InvalidDataException invalidDataEx)
+        {
+            logger.LogWarning(invalidDataEx, "Invalid candidate catalog data from {Url}", candidateUrl);
+            return (null, invalidDataEx.Message);
         }
         catch (InvalidOperationException opEx)
         {
