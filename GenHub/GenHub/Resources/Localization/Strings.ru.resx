@@ -1,4 +1,4 @@
-﻿<?xml version='1.0' encoding='utf-8'?>
+<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -18140,4 +18140,4 @@ Error: не удалось: {3}
   <data name="Updates.CustomBuilds.Label" xml:space="preserve">
     <value>Пользовательские сборки и форки</value>
   </data>
-</root>
+<data name="Updates.Status.CheckingCustomBuildUpdates" xml:space="preserve"><value>Проверка обновлений для {0}...</value></data><data name="Updates.Status.CustomBuildNotFound" xml:space="preserve"><value>Сборка '{0}' не найдена в подписках издателей.</value></data><data name="Updates.Status.CustomBuildNoReleases" xml:space="preserve"><value>Для этой сборки нет доступных релизов.</value></data><data name="Updates.Status.CustomBuildUpdateAvailable" xml:space="preserve"><value>Доступно обновление: {0} для {1}</value></data><data name="Updates.Status.CustomBuildUpToDate" xml:space="preserve"><value>{0} актуален (v{1})</value></data></root>

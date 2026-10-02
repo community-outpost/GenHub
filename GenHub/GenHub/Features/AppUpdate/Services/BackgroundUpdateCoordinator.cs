@@ -19,6 +19,7 @@ using GenHub.Features.AppUpdate.Views;
 using GenHub.Features.Content.Services.Catalog;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Net.Http;
@@ -893,6 +894,11 @@ public class BackgroundUpdateCoordinator(
             if (item != null)
             {
                 matchedItem = item;
+                if (string.IsNullOrWhiteSpace(publisherId) && !string.IsNullOrWhiteSpace(sub.PublisherId))
+                {
+                    settings.SubscribedCustomBuildPublisherId = sub.PublisherId;
+                }
+
                 break;
             }
         }
@@ -904,7 +910,13 @@ public class BackgroundUpdateCoordinator(
         }
 
         var latestRelease = matchedItem.Releases
-            .OrderByDescending(r => r.ReleaseDate)
+            .OrderByDescending(r => r.Version, Comparer<string>.Create((a, b) =>
+            {
+                if (AppUpdateVersionHelper.IsArtifactVersionNewer(a, b, allowCrossChannel: true)) return 1;
+                if (AppUpdateVersionHelper.IsArtifactVersionNewer(b, a, allowCrossChannel: true)) return -1;
+                return 0;
+            }))
+            .ThenByDescending(r => r.ReleaseDate)
             .FirstOrDefault();
 
         if (latestRelease == null || string.IsNullOrWhiteSpace(latestRelease.Version))
@@ -960,6 +972,10 @@ public class BackgroundUpdateCoordinator(
             var json = await CatalogDocumentReader.ReadAsync(client, subscription.CatalogUrl, CatalogConstants.MaxCatalogSizeBytes, cancellationToken: cancellationToken);
             var parseResult = await publisherCatalogParser.ParseCatalogAsync(json, cancellationToken);
             return parseResult.Success ? parseResult.Data : null;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {

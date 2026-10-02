@@ -2398,8 +2398,15 @@ public partial class AddContentDialogViewModel(
             var buildInfo = _buildInspector.Inspect(StagedFiles[0].LocalPath);
             if (buildInfo.IsGenHubBuild)
             {
-                release.Category = buildInfo.SuggestedCategory ?? "Release";
-                if (buildInfo.BuildChannel is "PR" or "Dev" or "Test")
+                if (!string.IsNullOrWhiteSpace(buildInfo.Version) &&
+                    !buildInfo.Version.Equals("Unknown", StringComparison.OrdinalIgnoreCase) &&
+                    (string.IsNullOrWhiteSpace(InitialVersion) || InitialVersion == "1.0.0"))
+                {
+                    release.Version = buildInfo.Version;
+                }
+
+                release.Category = buildInfo.SuggestedCategory ?? GenHubBuildConstants.CategoryRelease;
+                if (buildInfo.BuildChannel is GenHubBuildConstants.ChannelPr or GenHubBuildConstants.ChannelDev or GenHubBuildConstants.ChannelTest)
                 {
                     release.IsPrerelease = true;
                 }

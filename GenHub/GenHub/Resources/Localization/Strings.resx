@@ -1,4 +1,4 @@
-﻿<?xml version='1.0' encoding='utf-8'?>
+<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -18199,4 +18199,4 @@ Mapped image texture reference</value>
   <data name="Updates.CustomBuilds.Label" xml:space="preserve">
     <value>Custom &amp; Fork Builds</value>
   </data>
-</root>
+<data name="Updates.Status.CheckingCustomBuildUpdates" xml:space="preserve"><value>Checking updates for {0}...</value></data><data name="Updates.Status.CustomBuildNotFound" xml:space="preserve"><value>Subscribed build '{0}' not found in publisher subscriptions.</value></data><data name="Updates.Status.CustomBuildNoReleases" xml:space="preserve"><value>No releases available for this build.</value></data><data name="Updates.Status.CustomBuildUpdateAvailable" xml:space="preserve"><value>Update available: {0} for {1}</value></data><data name="Updates.Status.CustomBuildUpToDate" xml:space="preserve"><value>{0} is up to date (v{1})</value></data></root>

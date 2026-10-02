@@ -1,4 +1,4 @@
-﻿<?xml version='1.0' encoding='utf-8'?>
+<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -18140,4 +18140,4 @@ Error: فشل: {3}
   <data name="Updates.CustomBuilds.Label" xml:space="preserve">
     <value>إصدارات وتفريعات مخصصة</value>
   </data>
-</root>
+<data name="Updates.Status.CheckingCustomBuildUpdates" xml:space="preserve"><value>جارٍ التحقق من تحديثات {0}...</value></data><data name="Updates.Status.CustomBuildNotFound" xml:space="preserve"><value>لم يتم العثور على الإصدار '{0}' في اشتراكات الناشرين.</value></data><data name="Updates.Status.CustomBuildNoReleases" xml:space="preserve"><value>لا توجد إصدارات متاحة لهذا البناء.</value></data><data name="Updates.Status.CustomBuildUpdateAvailable" xml:space="preserve"><value>يتوفر تحديث: {0} لـ {1}</value></data><data name="Updates.Status.CustomBuildUpToDate" xml:space="preserve"><value>{0} محدث إلى أحدث إصدار (v{1})</value></data></root>
