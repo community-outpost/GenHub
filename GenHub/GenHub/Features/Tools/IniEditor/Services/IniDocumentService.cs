@@ -432,6 +432,14 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger, ILoca
         }
 
         var firstToken = line.Split([' ', '\t'], 2, StringSplitOptions.RemoveEmptyEntries)[0];
+        if (IsParticleSystemReference(firstToken, context, lineNumber - 1, GetIndent(raw)))
+        {
+            if (TryAddWhitespaceField(line, comment, context.Stack, context.PendingComments))
+            {
+                return;
+            }
+        }
+
         if (IsBlockType(firstToken))
         {
             OpenBlock(context, line, GetIndent(raw), lineNumber, comment);
@@ -578,6 +586,27 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger, ILoca
     }
 
     /// <summary>
+    /// Determines whether a bare <c>ParticleSystem Name</c> line references an
+    /// emitter instead of opening a nested definition. Effect lists carry their
+    /// emitters as bare references with no closing <c>End</c>; only a line that
+    /// continues with deeper-indented <c>Key = Value</c> content opens a block.
+    /// </summary>
+    /// <param name="firstToken">The first token of the current line.</param>
+    /// <param name="context">The parsing context.</param>
+    /// <param name="index">The zero-based index of the current line.</param>
+    /// <param name="indent">The indentation of the current line.</param>
+    /// <returns>True when the line is an emitter reference; otherwise, false.</returns>
+    private static bool IsParticleSystemReference(string firstToken, IniParseContext context, int index, int indent)
+    {
+        if (!string.Equals(firstToken, IniConstants.SubBlockTypes.ParticleSystem, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return FindNestedContentKey(context.Lines, index, indent) == null;
+    }
+
+    /// <summary>
     /// Looks ahead past blank lines and comments to decide whether an Animation
     /// line heads a nested sub-block: the next significant line must be deeper
     /// indented and carry an animation block field key.
@@ -587,6 +616,22 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger, ILoca
     /// <param name="indent">The indentation of the Animation line.</param>
     /// <returns>True when a nested animation sub-block follows; otherwise, false.</returns>
     private static bool HasAnimationBlockFields(string[] lines, int index, int indent)
+    {
+        var nextKey = FindNestedContentKey(lines, index, indent);
+        return nextKey != null && IniConstants.AnimationBlockFields.All.Any(field =>
+            string.Equals(field, nextKey, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Finds the key of the first deeper-indented <c>Key = Value</c> line after
+    /// the given index, stopping at <c>End</c>, dedent, or content without a
+    /// separator.
+    /// </summary>
+    /// <param name="lines">All document lines.</param>
+    /// <param name="index">The zero-based index of the anchor line.</param>
+    /// <param name="indent">The indentation of the anchor line.</param>
+    /// <returns>The nested content key, or null when no nested fields follow.</returns>
+    private static string? FindNestedContentKey(string[] lines, int index, int indent)
     {
         for (var j = index + 1; j < lines.Length; j++)
         {
@@ -599,26 +644,24 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger, ILoca
 
             if (string.Equals(candidate, IniConstants.BlockTags.End, StringComparison.OrdinalIgnoreCase))
             {
-                return false;
+                return null;
             }
 
             if (GetIndent(lines[j]) <= indent)
             {
-                return false;
+                return null;
             }
 
             var separatorIndex = candidate.IndexOf(IniConstants.Syntax.KeyValueSeparator);
             if (separatorIndex < 0)
             {
-                return false;
+                return null;
             }
 
-            var nextKey = candidate[..separatorIndex].Trim();
-            return IniConstants.AnimationBlockFields.All.Any(field =>
-                string.Equals(field, nextKey, StringComparison.OrdinalIgnoreCase));
+            return candidate[..separatorIndex].Trim();
         }
 
-        return false;
+        return null;
     }
 
     private static void OpenModuleBlock(

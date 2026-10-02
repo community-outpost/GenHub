@@ -130,6 +130,15 @@ public static class IniConstants
     }
 
     /// <summary>
+    /// Special body values the engine accepts on object health.
+    /// </summary>
+    public static class BodyMarkers
+    {
+        /// <summary>Indestructible body marker.</summary>
+        public const string Immortal = "Immortal";
+    }
+
+    /// <summary>
     /// Additional sub-block and map.ini directive block types.
     /// </summary>
     public static class SubBlockTypes
@@ -951,6 +960,12 @@ public static class IniConstants
 
         /// <summary>Debounce delay before resolving the 3D model preview, in milliseconds.</summary>
         public const int ModelPreviewDebounceMs = 350;
+
+        /// <summary>Default 3D preview animation frame rate, in frames per second.</summary>
+        public const int DefaultPreviewFrameRate = 30;
+
+        /// <summary>Maximum 3D preview animation frame rate, in frames per second.</summary>
+        public const int MaxPreviewFrameRate = 120;
 
         /// <summary>Maximum reference results shown in the reference browser.</summary>
         public const int MaxReferenceResults = 500;

@@ -1399,6 +1399,48 @@ public sealed class IniDocumentServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that bare emitter lines inside effect lists parse as references, not blocks.
+    /// </summary>
+    [Fact]
+    public void ParseText_FXListParticleSystemReferences_ParseAsFields()
+    {
+        const string content =
+            "FXList FX_GenericTankMuzzle\n" +
+            "  ParticleSystem GenericTankMuzzleSmoke\n" +
+            "  ParticleSystem GenericTankMuzzleFlash\n" +
+            "End\n";
+
+        var result = _service.ParseText(content);
+
+        result.Success.Should().BeTrue();
+        result.Data!.ParseErrors.Should().BeEmpty();
+        var list = result.Data.Blocks.Should().ContainSingle().Subject;
+        list.Children.Should().BeEmpty();
+        list.Fields.Select(field => field.Value).Should().Equal(
+            "GenericTankMuzzleSmoke", "GenericTankMuzzleFlash");
+    }
+
+    /// <summary>
+    /// Verifies that a particle system definition with fields still opens a nested block.
+    /// </summary>
+    [Fact]
+    public void ParseText_ParticleSystemDefinition_OpensBlock()
+    {
+        const string content =
+            "ParticleSystem GenericTankMuzzleSmoke\n" +
+            "  MaxSize = 12.0\n" +
+            "End\n";
+
+        var result = _service.ParseText(content);
+
+        result.Success.Should().BeTrue();
+        result.Data!.ParseErrors.Should().BeEmpty();
+        var definition = result.Data.Blocks.Should().ContainSingle().Subject;
+        definition.BlockType.Should().Be("ParticleSystem");
+        definition.Fields.Should().ContainSingle();
+    }
+
+    /// <summary>
     /// Verifies that mission sub-blocks inside campaigns parse as nested blocks.
     /// </summary>
     [Fact]

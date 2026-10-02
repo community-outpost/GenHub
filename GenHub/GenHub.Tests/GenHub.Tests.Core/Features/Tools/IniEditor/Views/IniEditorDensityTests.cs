@@ -199,9 +199,31 @@ public class IniEditorDensityTests
         viewModel.NewBlockType = "Upgrade";
         viewModel.NewBlockName = "IconUpgrade";
         viewModel.AddBlockCommand.Execute(null);
+        viewModel.ToggleCanvasOverviewCommand.Execute(null);
 
         var card = viewModel.CanvasBlockCards.First(c => c.Block.Name == "IconUpgrade");
         Assert.Equal("ArrowUpBoldHexagonOutline", card.IconKind);
+    }
+
+    /// <summary>
+    /// Verifies that overview cards are built lazily when the overview is toggled on.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task CanvasOverview_BuildsCardsOnlyWhenVisibleAsync()
+    {
+        using var viewModel = CreateViewModel();
+        await viewModel.NewDocumentCommand.ExecuteAsync(null);
+        viewModel.NewBlockType = "Upgrade";
+        viewModel.NewBlockName = "HiddenUpgrade";
+        viewModel.AddBlockCommand.Execute(null);
+
+        Assert.Empty(viewModel.CanvasBlockCards);
+
+        viewModel.ToggleCanvasOverviewCommand.Execute(null);
+
+        Assert.Single(viewModel.CanvasBlockCards);
+        Assert.Equal("Tools.IniEditor.Canvas.OverviewCount", viewModel.CanvasOverviewCountText);
     }
 
     /// <summary>

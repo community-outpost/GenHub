@@ -57,7 +57,6 @@ public sealed partial class IniEditorViewModel(
     ILogger<IniEditorViewModel> logger)
     : EditorToolViewModelBase(notificationService, localizationService, dialogService)
 {
-    private const string ImmortalMarker = "Immortal";
     private const string AccentBrushKey = ThemeResourceKeys.AccentBrush;
     private const string TextPrimaryBrushKey = ThemeResourceKeys.TextPrimary;
     private const string TextSecondaryBrushKey = ThemeResourceKeys.TextSecondary;
@@ -767,7 +766,11 @@ public sealed partial class IniEditorViewModel(
                 },
                 Undo: () =>
                 {
-                    SetFieldValueByKey(block.Fields, expectedPortraitKey, oldValue);
+                    if (string.Equals(FindFieldValue(block, expectedPortraitKey), textureName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        SetFieldValueByKey(block.Fields, expectedPortraitKey, oldValue);
+                    }
+
                     RebuildAll();
                 }));
         }
@@ -793,7 +796,11 @@ public sealed partial class IniEditorViewModel(
                 },
                 Undo: () =>
                 {
-                    RemoveFieldByKey(block.Fields, expectedPortraitKey);
+                    if (string.Equals(FindFieldValue(block, expectedPortraitKey), textureName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        RemoveFieldByKey(block.Fields, expectedPortraitKey);
+                    }
+
                     RebuildAll();
                 }));
         }
@@ -1423,12 +1430,12 @@ public sealed partial class IniEditorViewModel(
             return schema.ReferenceBlockType;
         }
 
-        if (string.Equals(key, "CommandButton", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(key, IniConstants.BlockTypes.CommandButton, StringComparison.OrdinalIgnoreCase))
         {
             return IniConstants.BlockTypes.CommandButton;
         }
 
-        if (string.Equals(key, "CommandSet", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(key, IniConstants.BlockTypes.CommandSet, StringComparison.OrdinalIgnoreCase))
         {
             return IniConstants.BlockTypes.CommandSet;
         }
@@ -1708,18 +1715,18 @@ public sealed partial class IniEditorViewModel(
                     return childHealth;
                 }
 
-                if (child.BlockType.Contains(ImmortalMarker, StringComparison.OrdinalIgnoreCase) ||
-                    child.AssignmentValue?.Contains(ImmortalMarker, StringComparison.OrdinalIgnoreCase) == true)
+                if (child.BlockType.Contains(IniConstants.BodyMarkers.Immortal, StringComparison.OrdinalIgnoreCase) ||
+                    child.AssignmentValue?.Contains(IniConstants.BodyMarkers.Immortal, StringComparison.OrdinalIgnoreCase) == true)
                 {
-                    return ImmortalMarker;
+                    return IniConstants.BodyMarkers.Immortal;
                 }
             }
         }
 
         var bodyField = block.Fields.FirstOrDefault(f => string.Equals(f.Key, IniConstants.FieldKeys.Body, StringComparison.OrdinalIgnoreCase));
-        if (bodyField != null && bodyField.Value.Contains(ImmortalMarker, StringComparison.OrdinalIgnoreCase))
+        if (bodyField != null && bodyField.Value.Contains(IniConstants.BodyMarkers.Immortal, StringComparison.OrdinalIgnoreCase))
         {
-            return ImmortalMarker;
+            return IniConstants.BodyMarkers.Immortal;
         }
 
         return null;
@@ -1756,8 +1763,8 @@ public sealed partial class IniEditorViewModel(
     {
         foreach (var child in block.Children)
         {
-            if (string.Equals(child.BlockType, "DefaultConditionState", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(child.Name, "DefaultConditionState", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(child.BlockType, IniConstants.SubBlockTypes.DefaultConditionState, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(child.Name, IniConstants.SubBlockTypes.DefaultConditionState, StringComparison.OrdinalIgnoreCase))
             {
                 return child;
             }
@@ -1970,7 +1977,7 @@ public sealed partial class IniEditorViewModel(
     {
         AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Command"), FindFieldValue(block, IniConstants.FieldKeys.Command), AccentBrushKey);
         AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Border"), FindFieldValue(block, IniConstants.FieldKeys.ButtonBorderType), TextSecondaryBrushKey);
-        AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Target"), FindFieldValue(block, IniConstants.FieldKeys.Object) ?? FindFieldValue(block, "Upgrade"), AccentBrushKey);
+        AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Target"), FindFieldValue(block, IniConstants.FieldKeys.Object) ?? FindFieldValue(block, IniConstants.FieldKeys.Upgrade), AccentBrushKey);
         AddVitalIfPresent(vitals, Localization.GetString("Tools.IniEditor.Vitals.Image"), FindFieldValue(block, IniConstants.FieldKeys.ButtonImage), TextPrimaryBrushKey);
     }
 
@@ -4500,6 +4507,12 @@ public sealed partial class IniEditorViewModel(
         }
 
         var total = _document.Blocks.Count;
+        if (!ShowAllBlocksOnCanvas)
+        {
+            CanvasOverviewCountText = Localization.GetString("Tools.IniEditor.Canvas.OverviewCount", 0, total);
+            return;
+        }
+
         var hpLabel = Localization.GetString("Tools.IniEditor.Canvas.CardHpLabel");
         var costLabel = Localization.GetString("Tools.IniEditor.Vitals.Cost");
         var cmdLabel = Localization.GetString("Tools.IniEditor.Canvas.CardCmdLabel");
@@ -4545,6 +4558,7 @@ public sealed partial class IniEditorViewModel(
     private void ToggleCanvasOverview()
     {
         ShowAllBlocksOnCanvas = !ShowAllBlocksOnCanvas;
+        RebuildCanvasBlockCards();
     }
 
     [RelayCommand]
@@ -4870,7 +4884,7 @@ public sealed partial class IniEditorViewModel(
         {
             return;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or IndexOutOfRangeException)
         {
             logger.LogWarning(ex, "Failed to build 3D preview scene for {Model}", model);
             PostToUIThread(() => ApplyPreviewFailure(model, generation, "Tools.IniEditor.Preview3D.ParseError", true));
@@ -5064,7 +5078,10 @@ public sealed partial class IniEditorViewModel(
             return;
         }
 
-        double fps = clip.FrameRate == 0 ? 30 : clip.FrameRate;
+        double fps = Math.Clamp(
+            clip.FrameRate == 0 ? IniConstants.Editor.DefaultPreviewFrameRate : clip.FrameRate,
+            1,
+            IniConstants.Editor.MaxPreviewFrameRate);
         _previewPlaybackTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1 / fps) };
         _previewPlaybackTimer.Tick += OnPreviewPlaybackTick;
         _previewPlaybackTimer.Start();
