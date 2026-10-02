@@ -963,13 +963,10 @@ public partial class AddContentDialogViewModel(
 
     private static ContentType? InferContentType(string path, string baseName, IGenHubBuildInspector inspector)
     {
-        if (inspector.IsGenHubBuildPath(path))
+        var buildInfo = inspector.Inspect(path);
+        if (buildInfo.IsGenHubBuild)
         {
-            var buildInfo = inspector.Inspect(path);
-            if (buildInfo.IsGenHubBuild)
-            {
-                return ContentType.GenHubBuild;
-            }
+            return ContentType.GenHubBuild;
         }
 
         if (IsGameClientPath(path, baseName))
@@ -1296,6 +1293,41 @@ public partial class AddContentDialogViewModel(
         }
     }
 
+    private void ApplyGenHubBuildToContent(GenHubBuildInfo buildInfo, string baseName)
+    {
+        SelectedContentType = ContentType.GenHubBuild;
+
+        if (string.IsNullOrWhiteSpace(ContentName) || ContentName == FormatContentNameFromBaseName(baseName))
+        {
+            ContentName = buildInfo.SuggestedContentName ?? FormatContentNameFromBaseName(baseName);
+        }
+
+        if (string.IsNullOrWhiteSpace(ContentId) || ContentId == GenerateContentId(ContentName))
+        {
+            ContentId = buildInfo.SuggestedContentId ?? GenerateContentId(ContentName);
+        }
+
+        if (string.IsNullOrWhiteSpace(Description) || Description.Contains("package for", StringComparison.OrdinalIgnoreCase))
+        {
+            Description = buildInfo.SuggestedDescription ?? string.Format(
+                GetLocalizedString("Tools.PublisherStudio.Content.AutoDescriptionFormat", "{0} package for {1}."),
+                ContentName,
+                GetLocalizedGameName(SelectedTargetGame));
+        }
+
+        if (!string.IsNullOrWhiteSpace(buildInfo.Version) && (string.IsNullOrWhiteSpace(InitialVersion) || InitialVersion == "1.0.0"))
+        {
+            InitialVersion = buildInfo.Version;
+        }
+
+        if (buildInfo.SuggestedTags.Count > 0)
+        {
+            var currentTags = ParseTags(TagsInput);
+            var merged = currentTags.Union(buildInfo.SuggestedTags, StringComparer.OrdinalIgnoreCase).ToList();
+            TagsInput = string.Join(", ", merged);
+        }
+    }
+
     private void AutoFillFromEntry(string path, StagedContentFile entry)
     {
         var baseName = entry.IsFolder ? entry.DisplayName : Path.GetFileNameWithoutExtension(entry.DisplayName);
@@ -1303,38 +1335,7 @@ public partial class AddContentDialogViewModel(
         var buildInfo = _buildInspector.Inspect(path);
         if (buildInfo.IsGenHubBuild)
         {
-            SelectedContentType = ContentType.GenHubBuild;
-
-            if (string.IsNullOrWhiteSpace(ContentName) || ContentName == FormatContentNameFromBaseName(baseName))
-            {
-                ContentName = buildInfo.SuggestedContentName ?? FormatContentNameFromBaseName(baseName);
-            }
-
-            if (string.IsNullOrWhiteSpace(ContentId) || ContentId == GenerateContentId(ContentName))
-            {
-                ContentId = buildInfo.SuggestedContentId ?? GenerateContentId(ContentName);
-            }
-
-            if (string.IsNullOrWhiteSpace(Description) || Description.Contains("package for", StringComparison.OrdinalIgnoreCase))
-            {
-                Description = buildInfo.SuggestedDescription ?? string.Format(
-                    GetLocalizedString("Tools.PublisherStudio.Content.AutoDescriptionFormat", "{0} package for {1}."),
-                    ContentName,
-                    GetLocalizedGameName(SelectedTargetGame));
-            }
-
-            if (!string.IsNullOrWhiteSpace(buildInfo.Version) && (string.IsNullOrWhiteSpace(InitialVersion) || InitialVersion == "1.0.0"))
-            {
-                InitialVersion = buildInfo.Version;
-            }
-
-            if (buildInfo.SuggestedTags.Count > 0)
-            {
-                var currentTags = ParseTags(TagsInput);
-                var merged = currentTags.Union(buildInfo.SuggestedTags, StringComparer.OrdinalIgnoreCase).ToList();
-                TagsInput = string.Join(", ", merged);
-            }
-
+            ApplyGenHubBuildToContent(buildInfo, baseName);
             return;
         }
 
@@ -2361,6 +2362,33 @@ public partial class AddContentDialogViewModel(
             source.Category != null ||
             source.PlayerCount != null);
 
+    private void ApplyGenHubBuildToInitialRelease(ContentRelease release, string stagedPath)
+    {
+        var buildInfo = _buildInspector.Inspect(stagedPath);
+        if (!buildInfo.IsGenHubBuild)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(buildInfo.Version) &&
+            !buildInfo.Version.Equals("Unknown", StringComparison.OrdinalIgnoreCase) &&
+            (string.IsNullOrWhiteSpace(InitialVersion) || InitialVersion == "1.0.0"))
+        {
+            release.Version = buildInfo.Version;
+        }
+
+        release.Category = buildInfo.SuggestedCategory ?? GenHubBuildConstants.CategoryRelease;
+        if (buildInfo.BuildChannel is GenHubBuildConstants.ChannelPr or GenHubBuildConstants.ChannelDev or GenHubBuildConstants.ChannelTest)
+        {
+            release.IsPrerelease = true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(buildInfo.EntryPoint))
+        {
+            release.EntryPoint = buildInfo.EntryPoint;
+        }
+    }
+
     private void AttachInitialRelease(CatalogContentItem contentItem)
     {
         if (SelectedContentType == ContentType.ContentBundle)
@@ -2395,27 +2423,7 @@ public partial class AddContentDialogViewModel(
 
         if (SelectedContentType == ContentType.GenHubBuild && StagedFiles.Count > 0)
         {
-            var buildInfo = _buildInspector.Inspect(StagedFiles[0].LocalPath);
-            if (buildInfo.IsGenHubBuild)
-            {
-                if (!string.IsNullOrWhiteSpace(buildInfo.Version) &&
-                    !buildInfo.Version.Equals("Unknown", StringComparison.OrdinalIgnoreCase) &&
-                    (string.IsNullOrWhiteSpace(InitialVersion) || InitialVersion == "1.0.0"))
-                {
-                    release.Version = buildInfo.Version;
-                }
-
-                release.Category = buildInfo.SuggestedCategory ?? GenHubBuildConstants.CategoryRelease;
-                if (buildInfo.BuildChannel is GenHubBuildConstants.ChannelPr or GenHubBuildConstants.ChannelDev or GenHubBuildConstants.ChannelTest)
-                {
-                    release.IsPrerelease = true;
-                }
-
-                if (!string.IsNullOrWhiteSpace(buildInfo.EntryPoint))
-                {
-                    release.EntryPoint = buildInfo.EntryPoint;
-                }
-            }
+            ApplyGenHubBuildToInitialRelease(release, StagedFiles[0].LocalPath);
         }
 
         if (ReleaseArtifacts.Count == 0)

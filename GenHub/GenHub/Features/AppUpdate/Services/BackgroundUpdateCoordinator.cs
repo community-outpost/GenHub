@@ -966,22 +966,8 @@ public class BackgroundUpdateCoordinator(
             return null;
         }
 
-        try
-        {
-            var client = httpClientFactory?.CreateClient(CatalogConstants.CatalogHttpClientName) ?? new HttpClient();
-            var json = await CatalogDocumentReader.ReadAsync(client, subscription.CatalogUrl, CatalogConstants.MaxCatalogSizeBytes, cancellationToken: cancellationToken);
-            var parseResult = await publisherCatalogParser.ParseCatalogAsync(json, cancellationToken);
-            return parseResult.Success ? parseResult.Data : null;
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            logger?.LogDebug(ex, "Failed to fetch catalog from '{CatalogUrl}' for subscription '{PublisherId}'", subscription.CatalogUrl, subscription.PublisherId);
-            return null;
-        }
+        var client = httpClientFactory?.CreateClient(CatalogConstants.CatalogHttpClientName) ?? new HttpClient();
+        return await CatalogDocumentReader.FetchAndParseCatalogAsync(client, publisherCatalogParser, subscription.CatalogUrl, logger, cancellationToken).ConfigureAwait(false);
     }
 
     private void OpenUpdateSettings()

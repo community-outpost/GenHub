@@ -309,11 +309,6 @@ public partial class AddReleaseDialogViewModel(
     /// </summary>
     public IReadOnlyList<string> AvailableAddonCategories { get; } =
     [
-        "Release",
-        "Prerelease",
-        "Test",
-        "Dev",
-        "CustomFork",
         "Addon",
         "Map",
         "Patch",
@@ -510,32 +505,7 @@ public partial class AddReleaseDialogViewModel(
             Artifacts.Add(artifact);
             addedCount++;
 
-            if (contentItem?.ContentType == ContentType.GenHubBuild || _buildInspector.IsGenHubBuildPath(path))
-            {
-                var buildInfo = _buildInspector.Inspect(path);
-                if (buildInfo.IsGenHubBuild)
-                {
-                    if (!string.IsNullOrWhiteSpace(buildInfo.Version))
-                    {
-                        Version = buildInfo.Version;
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(buildInfo.SuggestedCategory))
-                    {
-                        Category = buildInfo.SuggestedCategory;
-                    }
-
-                    if (buildInfo.BuildChannel is GenHubBuildConstants.ChannelPr or GenHubBuildConstants.ChannelDev or GenHubBuildConstants.ChannelTest)
-                    {
-                        IsPrerelease = true;
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(buildInfo.SuggestedDescription) && string.IsNullOrWhiteSpace(Changelog))
-                    {
-                        Changelog = buildInfo.SuggestedDescription;
-                    }
-                }
-            }
+            await ApplyGenHubBuildMetadataAsync(path, cancellationToken).ConfigureAwait(true);
         }
 
         // Files dropped together are parts of one payload; bundle them so the
@@ -809,6 +779,40 @@ public partial class AddReleaseDialogViewModel(
         if (!existingUrls.Contains(targetUrl, StringComparer.OrdinalIgnoreCase))
         {
             existingUrls.Add(targetUrl);
+        }
+    }
+
+    private async Task ApplyGenHubBuildMetadataAsync(string path, CancellationToken cancellationToken)
+    {
+        if (contentItem?.ContentType != ContentType.GenHubBuild && !_buildInspector.IsGenHubBuildPath(path))
+        {
+            return;
+        }
+
+        var buildInfo = await _buildInspector.InspectAsync(path, cancellationToken).ConfigureAwait(true);
+        if (!buildInfo.IsGenHubBuild)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(buildInfo.Version))
+        {
+            Version = buildInfo.Version;
+        }
+
+        if (!string.IsNullOrWhiteSpace(buildInfo.SuggestedCategory))
+        {
+            Category = buildInfo.SuggestedCategory;
+        }
+
+        if (buildInfo.BuildChannel is GenHubBuildConstants.ChannelPr or GenHubBuildConstants.ChannelDev or GenHubBuildConstants.ChannelTest)
+        {
+            IsPrerelease = true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(buildInfo.SuggestedDescription) && string.IsNullOrWhiteSpace(Changelog))
+        {
+            Changelog = buildInfo.SuggestedDescription;
         }
     }
 

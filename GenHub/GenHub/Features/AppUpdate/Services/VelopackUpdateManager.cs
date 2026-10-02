@@ -812,16 +812,24 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         try
         {
-            var label = artifactInfo.PullRequestNumber.HasValue
-                ? $"PR #{artifactInfo.PullRequestNumber}"
-                : !string.IsNullOrWhiteSpace(artifactInfo.ArtifactName)
-                    ? artifactInfo.ArtifactName
-                    : $"Artifact v{artifactInfo.Version}";
+            string label;
+            if (artifactInfo.PullRequestNumber.HasValue)
+            {
+                label = $"PR #{artifactInfo.PullRequestNumber.Value}";
+            }
+            else if (!string.IsNullOrWhiteSpace(artifactInfo.ArtifactName))
+            {
+                label = artifactInfo.ArtifactName;
+            }
+            else
+            {
+                label = $"Artifact v{artifactInfo.Version}";
+            }
 
             var commitInfo = !string.IsNullOrEmpty(artifactInfo.GitHash) ? $" ({artifactInfo.GitHash})" : string.Empty;
             progress?.Report(new UpdateProgress { Status = $"Downloading artifact for {label}{commitInfo}...", PercentComplete = 0 });
 
-            string downloadUrl;
+            string downloadUrl = string.Empty;
             var headers = new Dictionary<string, string>
             {
                 { "User-Agent", AppConstants.AppName },
@@ -898,7 +906,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                     var targetExe = exeFiles.FirstOrDefault(e => Path.GetFileName(e).Contains("Setup", StringComparison.OrdinalIgnoreCase)) ?? exeFiles[0];
                     _logger.LogInformation("Launching installer executable '{Exe}'", targetExe);
                     progress?.Report(new UpdateProgress { Status = "Launching installer...", PercentComplete = 100 });
-                    Process.Start(new ProcessStartInfo(targetExe) { UseShellExecute = true });
+                    using var proc = Process.Start(new ProcessStartInfo(targetExe) { UseShellExecute = true });
                     return;
                 }
 
