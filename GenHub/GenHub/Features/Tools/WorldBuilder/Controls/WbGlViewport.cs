@@ -2,6 +2,7 @@
 // (TheSuperHackers/GeneralsGameCode, AdrianeYves/WorldbuilderZHAdriane, triatomic/worldbuilderQT),
 // licensed GPL-3.0 with EA additional terms; see NOTICE-WorldBuilder.md. Modified for GenHub.
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.OpenGL;
 using Avalonia.OpenGL.Controls;
@@ -294,6 +295,16 @@ public sealed class WbGlViewport : OpenGlControlBase, IDisposable
     }
 
     /// <inheritdoc />
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == MapProperty || change.Property == RenderOptionsProperty)
+        {
+            RequestNextFrameRendering();
+        }
+    }
+
+    /// <inheritdoc />
     protected override void OnOpenGlInit(GlInterface gl)
     {
         base.OnOpenGlInit(gl);
@@ -330,6 +341,10 @@ public sealed class WbGlViewport : OpenGlControlBase, IDisposable
             return;
         }
 
+        var scaling = VisualRoot is TopLevel topLevel ? topLevel.RenderScaling : 1.0;
+        var pixelWidth = (int)Math.Round(Bounds.Width * scaling);
+        var pixelHeight = (int)Math.Round(Bounds.Height * scaling);
+        _renderer.SetViewport(pixelWidth, pixelHeight);
         _renderer.SetTerrainData(_pendingTerrain, _pendingTerrainVersion);
         _renderer.SetModels(_pendingModels, _pendingModelsVersion);
         _renderer.SetWater(_pendingWater, _pendingWaterVersion);

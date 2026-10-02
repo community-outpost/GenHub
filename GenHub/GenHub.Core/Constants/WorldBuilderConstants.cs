@@ -289,6 +289,15 @@ public static class WorldBuilderConstants
         /// <summary>Cliff threshold in world Z units (engine PATHFIND_CLIFF_SLOPE_LIMIT_F).</summary>
         public const float CliffSlopeLimitWorldZ = 9.8f;
 
+        /// <summary>Atlas base red: muted ground tone sampled by classes without resolved textures.</summary>
+        public const byte FallbackAtlasRed = 107;
+
+        /// <summary>Atlas base green: muted ground tone sampled by classes without resolved textures.</summary>
+        public const byte FallbackAtlasGreen = 102;
+
+        /// <summary>Atlas base blue: muted ground tone sampled by classes without resolved textures.</summary>
+        public const byte FallbackAtlasBlue = 71;
+
         /// <summary>Lenient cliff threshold in world Z used when recomputing cliffs after interactive edits.</summary>
         public const float CliffToolSlopeLimitWorldZ = 20f;
     }

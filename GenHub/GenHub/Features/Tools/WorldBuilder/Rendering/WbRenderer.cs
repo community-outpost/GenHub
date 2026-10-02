@@ -482,6 +482,21 @@ public sealed class WbRenderer : IDisposable
     }
 
     /// <summary>
+    /// Sets the GL viewport in physical pixels. Avalonia does not set it
+    /// before OnOpenGlRender, and shared/surfaceless contexts (notably ANGLE
+    /// on Windows) can start with a zero-size viewport that silently clips
+    /// all geometry while Clear still paints the framebuffer.
+    /// Must run on the render thread.
+    /// </summary>
+    /// <param name="width">The viewport width in physical pixels.</param>
+    /// <param name="height">The viewport height in physical pixels.</param>
+    public void SetViewport(int width, int height)
+    {
+        ThrowIfDisposed();
+        _gl.Viewport(0, 0, (uint)Math.Max(1, width), (uint)Math.Max(1, height));
+    }
+
+    /// <summary>
     /// Uploads terrain mesh and atlas pixels, replacing the previous upload
     /// when the version differs. Must run on the render thread.
     /// </summary>

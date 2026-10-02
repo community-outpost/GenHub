@@ -93,6 +93,8 @@ public static class WbTerrainUv
         var index = (y * terrain.Width) + x;
         if (!GetTileUv(atlas, terrain.TileIndices[index], out var minU, out var minV, out var maxU, out var maxV))
         {
+            u[0] = u[1] = u[2] = u[3] = 0.0f;
+            v[0] = v[1] = v[2] = v[3] = 0.0f;
             return (false, false);
         }
 

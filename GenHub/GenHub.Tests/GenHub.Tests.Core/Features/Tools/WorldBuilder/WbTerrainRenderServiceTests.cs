@@ -1,6 +1,7 @@
 // Portions derived from the Command & Conquer Generals / Zero Hour WorldBuilder sources
 // (TheSuperHackers/GeneralsGameCode, AdrianeYves/WorldbuilderZHAdriane, triatomic/worldbuilderQT),
 // licensed GPL-3.0 with EA additional terms; see NOTICE-WorldBuilder.md. Modified for GenHub.
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools.WorldBuilder;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.TextureEditor;
@@ -68,6 +69,10 @@ public sealed class WbTerrainRenderServiceTests
         var data = result.Data!;
         Assert.Equal(24, data.Indices.Length);
         Assert.False(data.Atlas.TileUv.ContainsKey(0));
+        Assert.Equal(WorldBuilderConstants.Terrain.FallbackAtlasRed, data.AtlasPixels[0]);
+        Assert.Equal(WorldBuilderConstants.Terrain.FallbackAtlasGreen, data.AtlasPixels[1]);
+        Assert.Equal(WorldBuilderConstants.Terrain.FallbackAtlasBlue, data.AtlasPixels[2]);
+        Assert.Equal(255, data.AtlasPixels[3]);
     }
 
     private static WorldBuilderMap CreateMap(string className)

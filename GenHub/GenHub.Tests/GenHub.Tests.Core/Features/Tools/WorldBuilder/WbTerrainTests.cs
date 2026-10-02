@@ -45,6 +45,25 @@ public sealed class WbTerrainTests
     }
 
     /// <summary>
+    /// Verifies missing tiles zero the cell UVs so they sample the fallback atlas origin.
+    /// </summary>
+    [Fact]
+    public void GetCellUv_MissingTile_ZeroesUvs()
+    {
+        var terrain = CreateTerrain();
+        terrain.TileIndices[0] = 9999;
+        var u = new float[4] { 0.5f, 0.5f, 0.5f, 0.5f };
+        var v = new float[4] { 0.5f, 0.5f, 0.5f, 0.5f };
+
+        var (flip, hasTexture) = WbTerrainUv.GetCellUv(terrain, CreateAtlas(), 0, 0, u, v);
+
+        Assert.False(flip);
+        Assert.False(hasTexture);
+        Assert.Equal([0.0f, 0.0f, 0.0f, 0.0f], u);
+        Assert.Equal([0.0f, 0.0f, 0.0f, 0.0f], v);
+    }
+
+    /// <summary>
     /// Verifies the horizontal alpha directions.
     /// </summary>
     /// <param name="inverted">The inverted bits.</param>

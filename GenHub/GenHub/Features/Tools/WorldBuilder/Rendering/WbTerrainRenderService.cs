@@ -1,6 +1,7 @@
 // Portions derived from the Command & Conquer Generals / Zero Hour WorldBuilder sources
 // (TheSuperHackers/GeneralsGameCode, AdrianeYves/WorldbuilderZHAdriane, triatomic/worldbuilderQT),
 // licensed GPL-3.0 with EA additional terms; see NOTICE-WorldBuilder.md. Modified for GenHub.
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools.WorldBuilder;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.TextureEditor;
@@ -95,6 +96,7 @@ public sealed class WbTerrainRenderService(
         }
 
         var pixels = new byte[AtlasWidth * height * 4];
+        FillFallbackGround(pixels);
         var tileUv = new Dictionary<int, WbAtlasRect>();
         var classUv = new Dictionary<string, WbAtlasRect>(StringComparer.OrdinalIgnoreCase);
         foreach (var slot in slots)
@@ -117,6 +119,17 @@ public sealed class WbTerrainRenderService(
 
         return OperationResult<WbTerrainRenderData>.CreateSuccess(
             new WbTerrainRenderData(vertices, indices, extraVertices, extraIndices, pixels, AtlasWidth, height, atlas));
+    }
+
+    private static void FillFallbackGround(byte[] pixels)
+    {
+        for (var i = 0; i < pixels.Length; i += 4)
+        {
+            pixels[i] = WorldBuilderConstants.Terrain.FallbackAtlasRed;
+            pixels[i + 1] = WorldBuilderConstants.Terrain.FallbackAtlasGreen;
+            pixels[i + 2] = WorldBuilderConstants.Terrain.FallbackAtlasBlue;
+            pixels[i + 3] = 255;
+        }
     }
 
     private static void BlitTiles(byte[] pixels, int atlasHeight, AtlasSlot slot, Dictionary<int, WbAtlasRect> tileUv)
