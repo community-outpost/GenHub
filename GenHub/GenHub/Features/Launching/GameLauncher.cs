@@ -192,7 +192,7 @@ public class GameLauncher(
         ILogger logger,
         ILocalizationService? localizationService)
     {
-        var (executableManifestForMonitor, executableFileForMonitor) = FindMonitoredExecutable(manifests);
+        var (executableManifestForMonitor, executableFileForMonitor) = FindMonitoredExecutable(manifests, finalExecutablePath, workspacePath);
 
         if (executableFileForMonitor is { SourceType: ContentSourceType.ContentAddressable } &&
             effectiveStrategy == WorkspaceStrategy.SymlinkOnly)
@@ -340,13 +340,14 @@ public class GameLauncher(
     }
 
     /// <summary>
-    /// Finds the first launchable manifest whose files on this host include an executable,
-    /// and that executable. A manifest whose executable is only in another platform's variant
-    /// is skipped. When none has one, the first launchable manifest is returned without a file.
+    /// Finds the host file corresponding to the executable being started.
+    /// Unrelated executables from other manifests are never used for its monitoring identity.
     /// </summary>
     /// <param name="manifests">The workspace manifests.</param>
+    /// <param name="finalExecutablePath">The executable actually being started.</param>
+    /// <param name="workspacePath">The workspace containing the executable.</param>
     /// <returns>The manifest and executable file, either of which may be null.</returns>
-    private static (ContentManifest? Manifest, ManifestFile? File) FindMonitoredExecutable(IReadOnlyList<ContentManifest> manifests)
+    private static (ContentManifest? Manifest, ManifestFile? File) FindMonitoredExecutable(IReadOnlyList<ContentManifest> manifests, string finalExecutablePath, string workspacePath)
     {
         var launchable = manifests
             .Where(m =>
@@ -357,14 +358,18 @@ public class GameLauncher(
 
         foreach (var manifest in launchable)
         {
-            var file = ManifestVariantResolver.ResolveFiles(manifest).FirstOrDefault(f => f.IsExecutable);
+            var file = ManifestVariantResolver.ResolveFiles(manifest).FirstOrDefault(f =>
+                string.Equals(
+                    f.RelativePath.Replace('\\', '/'),
+                    Path.GetRelativePath(workspacePath, finalExecutablePath).Replace('\\', '/'),
+                    OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
             if (file is not null)
             {
                 return (manifest, file);
             }
         }
 
-        return (launchable.FirstOrDefault(), null);
+        return (null, null);
     }
 
     /// <summary>

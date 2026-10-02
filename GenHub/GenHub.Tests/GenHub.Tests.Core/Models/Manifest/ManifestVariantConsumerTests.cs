@@ -78,6 +78,33 @@ public class ManifestVariantConsumerTests
         Assert.Equal(new GameProcessIdentity(HostHash, workspace), Assert.Single(result.Data!));
     }
 
+    /// <summary>A later tool cannot replace the actual executable's monitoring identity.</summary>
+    [Fact]
+    public void DetermineMonitoringTarget_DoesNotSelectUnrelatedTool()
+    {
+        var workspace = Path.GetTempPath();
+        var manifest = new ContentManifest
+        {
+            ContentType = ContentType.GameClient,
+            Files = [new() { RelativePath = "generals.exe", Hash = HostHash, SourceType = ContentSourceType.ContentAddressable }],
+        };
+        var tool = new ContentManifest
+        {
+            ContentType = ContentType.ModdingTool,
+            Files = [new() { RelativePath = "tool.exe", IsExecutable = true, SourceType = ContentSourceType.ContentAddressable }],
+        };
+        var result = GameLauncher.DetermineMonitoringTarget(
+            [manifest, tool],
+            Path.Combine(workspace, "generals.exe"),
+            workspace,
+            WorkspaceStrategy.SymlinkOnly,
+            null,
+            NullLogger.Instance,
+            null);
+        Assert.True(result.Success, result.FirstError);
+        Assert.Equal(new GameProcessIdentity(HostHash, workspace), Assert.Single(result.Data!));
+    }
+
     /// <summary>
     /// A stored variant manifest counts as downloaded content when only another platform's
     /// variant carries content-addressable files, because download identity covers every variant.
@@ -166,6 +193,18 @@ public class ManifestVariantConsumerTests
         var method = typeof(ContentStateService).GetMethod("IsGitHubVariantMatch", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
         Assert.True((bool)method.Invoke(null, [manifest, new ContentSearchResult { Name = "client-english" }])!);
         Assert.False((bool)method.Invoke(null, [manifest, new ContentSearchResult { Name = "client-russian" }])!);
+    }
+
+    /// <summary>Incidental payload paths do not change a variant's first-token identity.</summary>
+    [Fact]
+    public void GitHubVariantMatch_VariantUsesFirstToken()
+    {
+        var manifest = VariantManifestFixture.Create(
+            [new() { RelativePath = "client-russian.zip" }, new() { RelativePath = "english-readme.txt" }], []);
+        manifest.Name = "client";
+        var method = typeof(ContentStateService).GetMethod("IsGitHubVariantMatch", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        Assert.False((bool)method.Invoke(null, [manifest, new ContentSearchResult { Name = "client-english" }])!);
+        Assert.True((bool)method.Invoke(null, [manifest, new ContentSearchResult { Name = "client-russian" }])!);
     }
 
     /// <summary>The host variant's hotkey payload satisfies addon detection.</summary>

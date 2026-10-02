@@ -2245,7 +2245,7 @@ public sealed partial class ContentStateService(
     /// <returns>True when the item identifies the manifest's asset, or carries no asset identity.</returns>
     private static bool IsSameGitHubAsset(ContentManifest manifest, ContentSearchResult item)
     {
-        var files = ManifestVariantResolver.EnumerateAllFiles(manifest).ToList();
+        var files = ManifestVariantResolver.EnumerateAllFiles(manifest);
         if (files.Count == 0)
         {
             return false;
@@ -2369,7 +2369,10 @@ public sealed partial class ContentStateService(
             var files = ManifestVariantResolver.EnumerateAllFiles(manifest);
             if (manifest.Variants.Count > 0)
             {
-                return files.Any(f => string.Equals(ExtractVariantToken(f.RelativePath), itemVariant, StringComparison.OrdinalIgnoreCase));
+                return manifest.Variants.Where(v => v?.Files != null)
+                    .Select(v => v.Files.Where(f => f != null).Select(f => ExtractVariantToken(f.RelativePath))
+                        .FirstOrDefault(token => !string.IsNullOrEmpty(token)))
+                    .Any(token => string.Equals(token, itemVariant, StringComparison.OrdinalIgnoreCase));
             }
 
             manifestVariant = files.Select(f => ExtractVariantToken(f.RelativePath))
