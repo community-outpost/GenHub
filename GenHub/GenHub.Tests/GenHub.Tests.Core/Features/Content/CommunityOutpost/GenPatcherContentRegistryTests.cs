@@ -294,6 +294,7 @@ public class GenPatcherContentRegistryTests
     [InlineData("community-patch-nonret", "community-patch-nonret")]
     [InlineData("10zh", "10zh")]
     [InlineData("unknown_test", "unknown_test")]
+    [InlineData("custom-addon-1", "custom-addon-1")]
     [InlineData(null, "")]
     [InlineData("", "")]
     public void NormalizeContentCode_ReturnsExpectedNormalizedCode(string? rawCode, string expectedNormalized)
@@ -346,5 +347,20 @@ public class GenPatcherContentRegistryTests
 
         // Assert
         Assert.Equal("custom-addon-1", code);
+    }
+
+    /// <summary>
+    /// Verifies that TryGetContentCodeFromTags skips tags that contain only the prefix or whitespace.
+    /// </summary>
+    [Fact]
+    public void TryGetContentCodeFromTags_WithEmptyContentCodeTag_SkipsEmptyCandidate()
+    {
+        // Arrange
+        var tagsOnlyEmpty = new[] { "contentCode:", "contentCode:   " };
+        var tagsWithNextValid = new[] { "contentCode:", "contentCode:gent" };
+
+        // Act & Assert
+        Assert.Null(GenPatcherContentRegistry.TryGetContentCodeFromTags(tagsOnlyEmpty));
+        Assert.Equal("gent", GenPatcherContentRegistry.TryGetContentCodeFromTags(tagsWithNextValid));
     }
 }

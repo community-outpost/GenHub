@@ -511,7 +511,17 @@ public static class GenPatcherContentRegistry
         var hyphenIdx = candidate.IndexOf('-');
         if (hyphenIdx > 0)
         {
-            candidate = candidate[..hyphenIdx];
+            var prefix = candidate[..hyphenIdx];
+            var hyphenKnown = KnownContent.Keys.FirstOrDefault(k => string.Equals(k, prefix, StringComparison.OrdinalIgnoreCase));
+            if (!string.IsNullOrEmpty(hyphenKnown))
+            {
+                return hyphenKnown;
+            }
+
+            if (TryParsePatchCode(prefix.ToLowerInvariant()) != null)
+            {
+                return prefix.ToLowerInvariant();
+            }
         }
 
         return candidate.ToLowerInvariant();
@@ -532,7 +542,18 @@ public static class GenPatcherContentRegistry
         string? firstCandidate = null;
         foreach (var tag in tags.Where(t => !string.IsNullOrEmpty(t) && t.StartsWith(ManifestTagConstants.ContentCodePrefix, StringComparison.OrdinalIgnoreCase)))
         {
-            var candidate = NormalizeContentCode(tag[ManifestTagConstants.ContentCodePrefix.Length..]);
+            var rawValue = tag[ManifestTagConstants.ContentCodePrefix.Length..].Trim();
+            if (string.IsNullOrEmpty(rawValue))
+            {
+                continue;
+            }
+
+            var candidate = NormalizeContentCode(rawValue);
+            if (string.IsNullOrEmpty(candidate))
+            {
+                continue;
+            }
+
             if (IsKnownCode(candidate))
             {
                 return candidate;
