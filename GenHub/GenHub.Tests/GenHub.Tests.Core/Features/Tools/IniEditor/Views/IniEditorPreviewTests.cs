@@ -466,6 +466,44 @@ public sealed class IniEditorPreviewTests
     }
 
     /// <summary>
+    /// Verifies that a button resolves through SpecialPower OCL CreateObject to the delivering object.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task SelectingOclPowerButton_ResolvesCreatedObjectAcrossFilesAsync()
+    {
+        var mockResolver = ResolverReturning(ResolvedModel());
+        using var viewModel = CreateViewModel(mockResolver.Object, useRealReferenceService: true);
+        var folder = Path.Combine(Path.GetTempPath(), $"GenHubOcl{Guid.NewGuid():N}");
+        Directory.CreateDirectory(folder);
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(folder, "OclButton.ini"), OclButtonIni());
+            await File.WriteAllTextAsync(Path.Combine(folder, "OclPower.ini"), OclPowerIni());
+            await File.WriteAllTextAsync(Path.Combine(folder, "OclList.ini"), OclListIni());
+            await File.WriteAllTextAsync(Path.Combine(folder, "OclObject.ini"), OclObjectIni());
+
+            Assert.True(await viewModel.OpenFolderAsync(folder));
+            Assert.True(await viewModel.OpenFileAsync(Path.Combine(folder, "OclButton.ini")));
+            var buttonNode = FindNodeByName(viewModel, "Command_OclStrike");
+            Assert.NotNull(buttonNode);
+            viewModel.SelectedNode = buttonNode;
+
+            bool resolved = await WaitForAsync(() => viewModel.SelectedBlockModel == "TestUnit", TimeSpan.FromSeconds(8));
+            Assert.True(resolved);
+            Assert.Contains(viewModel.PreviewResolutionPath, hop => hop.Title == "OCL_TestDrop");
+
+            bool loaded = await WaitForAsync(() => viewModel.HasPreviewScene, TimeSpan.FromSeconds(8));
+            Assert.True(loaded);
+            Assert.Equal("TestUnit", viewModel.PreviewModelName);
+        }
+        finally
+        {
+            Directory.Delete(folder, true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that missing texture names surface on the preview canvas.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
@@ -678,6 +716,37 @@ public sealed class IniEditorPreviewTests
             "  Behavior = CarpetBombBehavior ModuleTag_Deliver\n" +
             "    SpecialPower = SuperweaponChinaCarpetBomb\n" +
             "  End\n" +
+            "End\n";
+    }
+
+    private static string OclButtonIni()
+    {
+        return "CommandButton Command_OclStrike\n" +
+            "  Command = SPECIAL_POWER\n" +
+            "  SpecialPower = SuperweaponOclTest\n" +
+            "End\n";
+    }
+
+    private static string OclPowerIni()
+    {
+        return "SpecialPower SuperweaponOclTest\n" +
+            "  ReloadTime = 60000\n" +
+            "  OCL = OCL_TestDrop\n" +
+            "End\n";
+    }
+
+    private static string OclListIni()
+    {
+        return "ObjectCreationList OCL_TestDrop\n" +
+            "  CreateObject = TestDropShip\n" +
+            "  Count = 1\n" +
+            "End\n";
+    }
+
+    private static string OclObjectIni()
+    {
+        return "Object TestDropShip\n" +
+            "  Model = TestUnit\n" +
             "End\n";
     }
 

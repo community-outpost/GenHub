@@ -144,7 +144,7 @@ public sealed class IniSchemaService : IIniSchemaService
                 "Tools.IniEditor.Schema.Blocks.WeaponSet",
                 [
                     new("Conditions", "Tools.IniEditor.Schema.Fields.WeaponSet.Conditions", false),
-                    new("Weapon", "Tools.IniEditor.Schema.Fields.WeaponSet.Weapon", false),
+                    new("Weapon", "Tools.IniEditor.Schema.Fields.WeaponSet.Weapon", false, ReferenceBlockType: IniConstants.BlockTypes.Weapon),
                     new("AutoChooseSources", "Tools.IniEditor.Schema.Fields.WeaponSet.AutoChooseSources", false),
                     new("PreferredAgainst", "Tools.IniEditor.Schema.Fields.WeaponSet.PreferredAgainst", false),
                     new("ShareWeaponReloadTime", "Tools.IniEditor.Schema.Fields.WeaponSet.ShareWeaponReloadTime", false),
@@ -217,7 +217,7 @@ public sealed class IniSchemaService : IIniSchemaService
                 [
                     new(IniConstants.FieldKeys.DisplayName, "Tools.IniEditor.Schema.Fields.Science.DisplayName", false),
                     new("Description", "Tools.IniEditor.Schema.Fields.Science.Description", false),
-                    new("PrerequisiteSciences", "Tools.IniEditor.Schema.Fields.Science.PrerequisiteSciences", false),
+                    new("PrerequisiteSciences", "Tools.IniEditor.Schema.Fields.Science.PrerequisiteSciences", false, ReferenceBlockType: IniConstants.BlockTypes.Science),
                     new("SciencePurchasePointCost", "Tools.IniEditor.Schema.Fields.Science.SciencePurchasePointCost", true),
                     new("IsGrantable", "Tools.IniEditor.Schema.Fields.Science.IsGrantable", false, Options: IniConstants.BooleanOptions.All),
                     new(IniConstants.FieldKeys.ButtonImage, "Tools.IniEditor.Schema.Fields.Science.ButtonImage", false, IsTexture: true),
@@ -228,7 +228,7 @@ public sealed class IniSchemaService : IIniSchemaService
                 [
                     new("Enum", "Tools.IniEditor.Schema.Fields.SpecialPower.Enum", false),
                     new("ReloadTime", "Tools.IniEditor.Schema.Fields.SpecialPower.ReloadTime", true),
-                    new("RequiredScience", "Tools.IniEditor.Schema.Fields.SpecialPower.RequiredScience", false),
+                    new("RequiredScience", "Tools.IniEditor.Schema.Fields.SpecialPower.RequiredScience", false, ReferenceBlockType: IniConstants.BlockTypes.Science),
                     new("InitiateSound", "Tools.IniEditor.Schema.Fields.SpecialPower.InitiateSound", false),
                     new("RadiusCursorRadius", "Tools.IniEditor.Schema.Fields.SpecialPower.RadiusCursorRadius", true),
                     new("ViewObjectDuration", "Tools.IniEditor.Schema.Fields.SpecialPower.ViewObjectDuration", true),
@@ -236,7 +236,7 @@ public sealed class IniSchemaService : IIniSchemaService
                     new(IniConstants.FieldKeys.DisplayName, "Tools.IniEditor.Schema.Fields.SpecialPower.DisplayName", false),
                     new(IniConstants.FieldKeys.ButtonImage, "Tools.IniEditor.Schema.Fields.SpecialPower.ButtonImage", false, IsTexture: true),
                     new("OCL", "Tools.IniEditor.Schema.Fields.SpecialPower.OCL", false, ReferenceBlockType: IniConstants.BlockTypes.ObjectCreationList),
-                    new("ChangeWeapon", "Tools.IniEditor.Schema.Fields.SpecialPower.ChangeWeapon", false),
+                    new("ChangeWeapon", "Tools.IniEditor.Schema.Fields.SpecialPower.ChangeWeapon", false, ReferenceBlockType: IniConstants.BlockTypes.Weapon),
                     new("PublicTimer", "Tools.IniEditor.Schema.Fields.SpecialPower.PublicTimer", false),
                     new("SharedSyncedTimer", "Tools.IniEditor.Schema.Fields.SpecialPower.SharedSyncedTimer", false),
                     new("ShortcutPower", "Tools.IniEditor.Schema.Fields.SpecialPower.ShortcutPower", false),
@@ -268,7 +268,7 @@ public sealed class IniSchemaService : IIniSchemaService
                 IniConstants.BlockTypes.ObjectCreationList,
                 "Tools.IniEditor.Schema.Blocks.ObjectCreationList",
                 [
-                    new("CreateObject", "Tools.IniEditor.Schema.Fields.ObjectCreationList.CreateObject", false),
+                    new("CreateObject", "Tools.IniEditor.Schema.Fields.ObjectCreationList.CreateObject", false, ReferenceBlockType: IniConstants.BlockTypes.Object),
                     new("Disposition", "Tools.IniEditor.Schema.Fields.ObjectCreationList.Disposition", false),
                     new("Count", "Tools.IniEditor.Schema.Fields.ObjectCreationList.Count", true),
                     new("SpreadFormation", "Tools.IniEditor.Schema.Fields.ObjectCreationList.SpreadFormation", false),
