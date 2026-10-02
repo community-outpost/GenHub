@@ -182,14 +182,7 @@ public class GeneralsOnlineJsonCatalogParserTests
     {
         // Arrange
         const string expectedSha256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
-        var json = $@"[QUOT]
-            ""version"": ""111825_QFE2"",
-            ""download_url"": ""https://example.com/download.zip"",
-            ""size"": 123456,
-            ""sha256"": ""{expectedSha256}"",
-            ""release_notes"": ""Fixes stuff""
-        [QUOT]".Replace("[QUOT]", "{").Replace("[QUOT]", "}");
-        var actualJson = $@"{{
+        var json = $@"{{
             ""version"": ""111825_QFE2"",
             ""download_url"": ""https://example.com/download.zip"",
             ""size"": 123456,
@@ -197,7 +190,7 @@ public class GeneralsOnlineJsonCatalogParserTests
             ""release_notes"": ""Fixes stuff""
         }}";
 
-        var wrapper = $"{{\"source\":\"manifest\",\"data\":{actualJson}}}";
+        var wrapper = $"{{\"source\":\"manifest\",\"data\":{json}}}";
 
         // Act
         var result = await _parser.ParseAsync(wrapper, _provider);
