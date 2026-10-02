@@ -687,9 +687,19 @@ public class CatalogUpstreamIngestionService(
             {
                 var v = matchingVariants[i];
                 var isDefault = v.IsDefault || (!hasDefault && i == 0);
-                var variantAxis = !string.IsNullOrWhiteSpace(configuredAxis)
-                    ? configuredAxis
-                    : (!string.IsNullOrWhiteSpace(v.VariantType) ? v.VariantType : fallbackAxis);
+                string variantAxis;
+                if (!string.IsNullOrWhiteSpace(configuredAxis))
+                {
+                    variantAxis = configuredAxis;
+                }
+                else if (!string.IsNullOrWhiteSpace(v.VariantType))
+                {
+                    variantAxis = v.VariantType;
+                }
+                else
+                {
+                    variantAxis = fallbackAxis;
+                }
 
                 var variantLabel = ResolveVariantDisplayLabel(v, variantAxis);
 
