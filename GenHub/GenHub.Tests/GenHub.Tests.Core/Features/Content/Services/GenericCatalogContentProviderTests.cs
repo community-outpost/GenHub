@@ -335,4 +335,15 @@ public sealed class GenericCatalogContentProviderTests
             Mock.Of<IContentValidator>(),
             Mock.Of<IInstallationInstructionsService>());
     }
+
+    /// <summary>
+    /// Verifies that Dispose can be called safely without throwing exceptions.
+    /// </summary>
+    [Fact]
+    public void Dispose_DisposesResourcesSafely()
+    {
+        var provider = CreateProvider();
+        provider.Dispose();
+        provider.Dispose();
+    }
 }

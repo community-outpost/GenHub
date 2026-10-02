@@ -530,7 +530,7 @@ public static class GenPatcherContentRegistry
         }
 
         string? firstCandidate = null;
-        foreach (var tag in tags.Where(t => t.StartsWith(ManifestTagConstants.ContentCodePrefix, StringComparison.OrdinalIgnoreCase)))
+        foreach (var tag in tags.Where(t => !string.IsNullOrEmpty(t) && t.StartsWith(ManifestTagConstants.ContentCodePrefix, StringComparison.OrdinalIgnoreCase)))
         {
             var candidate = NormalizeContentCode(tag[ManifestTagConstants.ContentCodePrefix.Length..]);
             if (IsKnownCode(candidate))
@@ -560,7 +560,13 @@ public static class GenPatcherContentRegistry
     /// <returns>true if the content code is known; otherwise, false.</returns>
     public static bool IsKnownCode(string contentCode)
     {
-        return KnownContent.ContainsKey(contentCode.ToLowerInvariant());
+        if (string.IsNullOrWhiteSpace(contentCode))
+        {
+            return false;
+        }
+
+        var normalized = contentCode.Trim().ToLowerInvariant();
+        return KnownContent.ContainsKey(normalized) || TryParsePatchCode(normalized) != null;
     }
 
     /// <summary>

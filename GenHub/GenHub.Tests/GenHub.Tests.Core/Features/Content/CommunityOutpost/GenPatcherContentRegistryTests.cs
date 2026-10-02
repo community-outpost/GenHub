@@ -138,6 +138,8 @@ public class GenPatcherContentRegistryTests
     [InlineData("10zh")]
     [InlineData("community-patch")]
     [InlineData("community-patch-nonret")]
+    [InlineData("108e")]
+    [InlineData("104b")]
     public void IsKnownCode_ReturnsTrueForKnownCodes(string contentCode)
     {
         // Act
@@ -154,8 +156,10 @@ public class GenPatcherContentRegistryTests
     [Theory]
     [InlineData("zzzz")]
     [InlineData("abcd")]
-    [InlineData("108e")] // Patch codes are parsed dynamically, not in known list
-    public void IsKnownCode_ReturnsFalseForUnknownCodes(string contentCode)
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void IsKnownCode_ReturnsFalseForUnknownCodes(string? contentCode)
     {
         // Act
         var isKnown = GenPatcherContentRegistry.IsKnownCode(contentCode);
@@ -296,5 +300,51 @@ public class GenPatcherContentRegistryTests
     {
         var result = GenPatcherContentRegistry.NormalizeContentCode(rawCode);
         Assert.Equal(expectedNormalized, result);
+    }
+
+    /// <summary>
+    /// Verifies that TryGetContentCodeFromTags handles null collections and null entries safely.
+    /// </summary>
+    [Fact]
+    public void TryGetContentCodeFromTags_WithNullOrNullEntries_HandlesSafely()
+    {
+        // Act & Assert
+        Assert.Null(GenPatcherContentRegistry.TryGetContentCodeFromTags(null));
+
+        var tagsWithNull = new string?[] { null, "unrelated:tag", null, "contentCode:gent" };
+        var code = GenPatcherContentRegistry.TryGetContentCodeFromTags(tagsWithNull!);
+        Assert.Equal("gent", code);
+    }
+
+    /// <summary>
+    /// Verifies that TryGetContentCodeFromTags prioritizes known patch codes over earlier unrelated candidates.
+    /// </summary>
+    [Fact]
+    public void TryGetContentCodeFromTags_PrioritizesKnownPatchCodeOverUnrelatedCandidate()
+    {
+        // Arrange: first candidate is an unrecognized code, followed by a valid patch code (108e)
+        var tags = new[] { "contentCode:some-unknown-item", "contentCode:108e" };
+
+        // Act
+        var code = GenPatcherContentRegistry.TryGetContentCodeFromTags(tags);
+
+        // Assert
+        Assert.Equal("108e", code);
+    }
+
+    /// <summary>
+    /// Verifies that TryGetContentCodeFromTags returns first candidate if no known code exists.
+    /// </summary>
+    [Fact]
+    public void TryGetContentCodeFromTags_ReturnsFirstCandidateWhenNoKnownCodeFound()
+    {
+        // Arrange
+        var tags = new[] { "contentCode:custom-addon-1", "contentCode:custom-addon-2" };
+
+        // Act
+        var code = GenPatcherContentRegistry.TryGetContentCodeFromTags(tags);
+
+        // Assert
+        Assert.Equal("custom-addon-1", code);
     }
 }

@@ -29,8 +29,9 @@ public class GenericCatalogContentProvider(
     IContentValidator contentValidator,
     IInstallationInstructionsService installationInstructionsService,
     IContentManifestPool? manifestPool = null)
-    : BaseContentProvider(contentValidator, installationInstructionsService, logger)
+    : BaseContentProvider(contentValidator, installationInstructionsService, logger), IDisposable
 {
+    private readonly SemaphoreSlim _generalsOnlineDeliveryLock = new(1, 1);
     private readonly IContentResolver _genericCatalogResolver = resolvers.FirstOrDefault(r =>
         string.Equals(r.ResolverId, CatalogConstants.GenericCatalogResolverId, StringComparison.OrdinalIgnoreCase))
         ?? throw new InvalidOperationException("Generic catalog resolver not found");
@@ -213,26 +214,62 @@ public class GenericCatalogContentProvider(
             GeneralsOnlineConstants.DelivererSourceName,
             StringComparison.OrdinalIgnoreCase);
 
-        if (isGeneralsOnline && !OperatingSystem.IsWindows())
+        if (isGeneralsOnline)
         {
-            return OperationResult<ContentManifest>.CreateFailure(
-                "GeneralsOnline is currently supported only on Windows. Easy Anti-Cheat was not designed for Wine/Proton environments.");
-        }
-
-        HashSet<ManifestId>? preExistingIds = null;
-        var opKey = GetOperationKey(manifest.Id.Value, workingDirectory);
-
-        if (isGeneralsOnline && manifestPool != null)
-        {
-            var baselineResult = await CaptureManifestPoolBaselineAsync(manifest.Id, cancellationToken);
-            if (!baselineResult.Success || baselineResult.Data == null)
+            if (!OperatingSystem.IsWindows())
             {
                 return OperationResult<ContentManifest>.CreateFailure(
-                    $"Failed to initialize manifest pool state: {baselineResult.FirstError ?? "Unable to retrieve manifest pool"}");
+                    "GeneralsOnline is currently supported only on Windows. Easy Anti-Cheat was not designed for Wine/Proton environments.");
             }
 
-            preExistingIds = baselineResult.Data;
-            _preExistingManifestIdsByOperation[opKey] = preExistingIds;
+            await _generalsOnlineDeliveryLock.WaitAsync(cancellationToken);
+            try
+            {
+                HashSet<ManifestId>? preExistingIds = null;
+                var opKey = GetOperationKey(manifest.Id.Value, workingDirectory);
+
+                if (manifestPool != null)
+                {
+                    var baselineResult = await CaptureManifestPoolBaselineAsync(manifest.Id, cancellationToken);
+                    if (!baselineResult.Success || baselineResult.Data == null)
+                    {
+                        return OperationResult<ContentManifest>.CreateFailure(
+                            $"Failed to initialize manifest pool state: {baselineResult.FirstError ?? "Unable to retrieve manifest pool"}");
+                    }
+
+                    preExistingIds = baselineResult.Data;
+                    _preExistingManifestIdsByOperation[opKey] = preExistingIds;
+                }
+
+                Logger.LogInformation(
+                    "Routing generic catalog content {ManifestId} to specialized deliverer: {DelivererSource}",
+                    manifest.Id,
+                    specializedDeliverer.SourceName);
+
+                var deliveryResult = await DeliverContentOnlyAsync(
+                    specializedDeliverer,
+                    manifest,
+                    workingDirectory,
+                    progress,
+                    cancellationToken);
+
+                if (deliveryResult.Success && manifestPool != null && preExistingIds != null)
+                {
+                    return await FinalizeGeneralsOnlineDeliveryAsync(
+                        manifest,
+                        deliveryResult,
+                        workingDirectory,
+                        opKey,
+                        preExistingIds,
+                        cancellationToken);
+                }
+
+                return deliveryResult;
+            }
+            finally
+            {
+                _generalsOnlineDeliveryLock.Release();
+            }
         }
 
         Logger.LogInformation(
@@ -240,25 +277,12 @@ public class GenericCatalogContentProvider(
             manifest.Id,
             specializedDeliverer.SourceName);
 
-        var deliveryResult = await DeliverContentOnlyAsync(
+        return await DeliverContentOnlyAsync(
             specializedDeliverer,
             manifest,
             workingDirectory,
             progress,
             cancellationToken);
-
-        if (deliveryResult.Success && isGeneralsOnline && manifestPool != null && preExistingIds != null)
-        {
-            return await FinalizeGeneralsOnlineDeliveryAsync(
-                manifest,
-                deliveryResult,
-                workingDirectory,
-                opKey,
-                preExistingIds,
-                cancellationToken);
-        }
-
-        return deliveryResult;
     }
 
     private async Task<OperationResult<HashSet<ManifestId>>> CaptureManifestPoolBaselineAsync(
@@ -381,6 +405,25 @@ public class GenericCatalogContentProvider(
             {
                 Logger.LogError(ex, "Error occurred during generic catalog manifest registration rollback for {ManifestId}", manifestId);
             }
+        }
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases unmanaged and - optionally - managed resources.
+    /// </summary>
+    /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _generalsOnlineDeliveryLock.Dispose();
         }
     }
 }
