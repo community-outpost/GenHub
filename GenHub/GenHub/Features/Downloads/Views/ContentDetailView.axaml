@@ -1603,7 +1603,7 @@
                             <!-- Install Build Button (visible when GenHubBuild is downloaded) -->
                             <Button x:Name="InstallBuildButton" HorizontalAlignment="Stretch"
                                     Height="48"
-                                    Background="#FF107C41"
+                                    Background="{DynamicResource SuccessBrush}"
                                     Foreground="White"
                                     CornerRadius="8"
                                     FontSize="15"
