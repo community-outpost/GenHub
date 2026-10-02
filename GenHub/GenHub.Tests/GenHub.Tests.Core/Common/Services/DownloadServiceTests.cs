@@ -130,7 +130,7 @@ public class DownloadServiceTests
     }
 
     /// <summary>
-    /// Verifies that an expected hash with leading or trailing whitespace passes hash verification successfully.
+    /// Verifies that an expected hash with leading or trailing whitespace passes hash verification successfully on a fresh download.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
@@ -151,13 +151,12 @@ public class DownloadServiceTests
 
         var hashProvider = new Sha256HashProvider();
         var service = CreateService(handler.Object, out _, hashProvider);
-        var tempFile = Path.GetTempFileName();
+        using var stream = new MemoryStream(fileContent);
+        var actualHash = await hashProvider.ComputeStreamHashAsync(stream);
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
 
         try
         {
-            await File.WriteAllBytesAsync(tempFile, fileContent);
-            var actualHash = await hashProvider.ComputeFileHashAsync(tempFile);
-
             var config = new DownloadConfiguration
             {
                 Url = new Uri("http://test/file.bin"),
@@ -171,7 +170,12 @@ public class DownloadServiceTests
             // Assert
             Assert.True(result.Success);
             Assert.True(result.HashVerified);
-            Assert.Equal(fileContent, File.ReadAllBytes(tempFile));
+            Assert.Equal(fileContent, await File.ReadAllBytesAsync(tempFile));
+            handler.Protected().Verify(
+                "SendAsync",
+                Times.Once(),
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>());
         }
         finally
         {
