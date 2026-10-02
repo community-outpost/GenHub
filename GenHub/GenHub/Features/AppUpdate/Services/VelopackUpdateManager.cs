@@ -865,23 +865,31 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             }
             else
             {
-                using var token = await _gitHubAuthService!.GetAccessTokenAsync(cancellationToken);
-                if (token == null)
-                {
-                    throw new InvalidOperationException("Failed to load GitHub access token");
-                }
-
                 var owner = AppConstants.GitHubRepositoryOwner;
                 var repo = AppConstants.GitHubRepositoryName;
                 var artifactId = artifactInfo.ArtifactId;
-
                 downloadUrl = string.Format(ApiConstants.GitHubApiArtifactDownloadFormat, owner, repo, artifactId);
-                headers["Accept"] = ApiConstants.GitHubApiHeaderAccept;
-                UseSecureStringAsPlainText(token, plainText =>
-                {
-                    headers["Authorization"] = $"Bearer {plainText}";
-                });
                 _logger.LogInformation("Downloading {Label} artifact from {Url}", label, downloadUrl);
+            }
+
+            var isGitHubApiUrl = !string.IsNullOrWhiteSpace(downloadUrl) &&
+                                 downloadUrl.Contains("api.github.com", StringComparison.OrdinalIgnoreCase);
+
+            if ((!isDirectUrl || isGitHubApiUrl) && _gitHubAuthService != null && _gitHubAuthService.IsAuthenticated)
+            {
+                using var token = await _gitHubAuthService.GetAccessTokenAsync(cancellationToken).ConfigureAwait(false);
+                if (token != null)
+                {
+                    headers["Accept"] = ApiConstants.GitHubApiHeaderAccept;
+                    UseSecureStringAsPlainText(token, plainText =>
+                    {
+                        headers["Authorization"] = $"Bearer {plainText}";
+                    });
+                }
+            }
+            else if (!isDirectUrl && (_gitHubAuthService == null || !_gitHubAuthService.IsAuthenticated))
+            {
+                throw new InvalidOperationException("GitHub authentication required to download artifacts");
             }
 
             // Create temp directory
@@ -916,31 +924,36 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 timeout: 300,
                 cancelToken: cancellationToken);
 
-            if (isDirectExe)
-            {
-                LaunchInstallerProcess(targetFilePath, progress);
-                return;
-            }
-
-            // If not marked direct exe, verify header before unzipping
+            // Check if downloaded file is a Windows PE executable (MZ header)
+            var isExe = false;
             if (File.Exists(targetFilePath))
             {
                 using var fs = File.OpenRead(targetFilePath);
                 var magic = new byte[2];
-
-                // Check for "MZ" PE executable header
                 if (fs.Read(magic, 0, 2) == 2 && magic[0] == 0x4D && magic[1] == 0x5A)
                 {
-                    fs.Dispose();
-                    var exePath = Path.ChangeExtension(targetFilePath, ".exe");
-                    if (!File.Exists(exePath))
-                    {
-                        File.Move(targetFilePath, exePath);
-                    }
-
-                    LaunchInstallerProcess(exePath, progress);
-                    return;
+                    isExe = true;
                 }
+            }
+
+            if (isDirectExe || isExe)
+            {
+                if (!isExe)
+                {
+                    throw new InvalidOperationException("Downloaded artifact was expected to be an executable installer, but the file does not have a valid Windows executable (PE/MZ) header.");
+                }
+
+                var exePath = targetFilePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                    ? targetFilePath
+                    : Path.ChangeExtension(targetFilePath, ".exe");
+
+                if (!string.Equals(targetFilePath, exePath, StringComparison.OrdinalIgnoreCase) && !File.Exists(exePath))
+                {
+                    File.Move(targetFilePath, exePath);
+                }
+
+                LaunchInstallerProcess(exePath, progress);
+                return;
             }
 
             progress?.Report(new UpdateProgress { Status = "Extracting artifact...", PercentComplete = 30 });
@@ -2544,8 +2557,10 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                     continue;
                 }
 
-                var matchesVersion = !string.IsNullOrWhiteSpace(artifactInfo.Version) &&
-                    string.Equals(manifest.Version, artifactInfo.Version, StringComparison.OrdinalIgnoreCase);
+                var cleanManifestVersion = manifest.Version?.TrimStart('v', 'V');
+                var cleanArtifactVersion = artifactInfo.Version?.TrimStart('v', 'V');
+                var matchesVersion = !string.IsNullOrWhiteSpace(cleanArtifactVersion) &&
+                    string.Equals(cleanManifestVersion, cleanArtifactVersion, StringComparison.OrdinalIgnoreCase);
 
                 var matchesPr = artifactInfo.PullRequestNumber.HasValue &&
                     manifest.Name.Contains($"#{artifactInfo.PullRequestNumber.Value}", StringComparison.OrdinalIgnoreCase);
@@ -2558,7 +2573,11 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 var matchesUrl = !string.IsNullOrWhiteSpace(artifactInfo.DownloadUrl) &&
                     resolvedFiles.Any(f => string.Equals(f.DownloadUrl, artifactInfo.DownloadUrl, StringComparison.OrdinalIgnoreCase));
 
-                if (matchesVersion || matchesPr || (matchesFileName && matchesUrl))
+                var matchesArtifactNameInManifest = !string.IsNullOrWhiteSpace(artifactInfo.ArtifactName) &&
+                    (string.Equals(manifest.Name, artifactInfo.ArtifactName, StringComparison.OrdinalIgnoreCase) ||
+                     manifest.Name.Contains(artifactInfo.ArtifactName, StringComparison.OrdinalIgnoreCase));
+
+                if (matchesVersion || matchesPr || matchesUrl || (matchesFileName && matchesArtifactNameInManifest))
                 {
                     var isAcquiredResult = await _contentManifestPool.IsManifestAcquiredAsync(manifest.Id, cancellationToken).ConfigureAwait(false);
                     if (isAcquiredResult.Success && isAcquiredResult.Data)

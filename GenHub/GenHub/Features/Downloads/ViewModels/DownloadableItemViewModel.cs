@@ -329,6 +329,8 @@ public abstract partial class DownloadableItemViewModel : ObservableObject, IDow
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(StatusDisplay))]
+    [NotifyPropertyChangedFor(nameof(ShowAddToProfileButton))]
+    [NotifyPropertyChangedFor(nameof(ShowInstallBuildButton))]
     private bool _isDownloaded;
 
     /// <summary>
@@ -421,7 +423,25 @@ public abstract partial class DownloadableItemViewModel : ObservableObject, IDow
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FormattedSize))]
     [NotifyPropertyChangedFor(nameof(HasFormattedSize))]
+    [NotifyPropertyChangedFor(nameof(IsGenHubBuild))]
+    [NotifyPropertyChangedFor(nameof(ShowAddToProfileButton))]
+    [NotifyPropertyChangedFor(nameof(ShowInstallBuildButton))]
     private ContentType _contentType = ContentType.Addon;
+
+    /// <summary>
+    /// Gets a value indicating whether this item represents a GenHub build.
+    /// </summary>
+    public bool IsGenHubBuild => ContentType == ContentType.GenHubBuild;
+
+    /// <summary>
+    /// Gets a value indicating whether the Add to Profile button should be shown for this row.
+    /// </summary>
+    public bool ShowAddToProfileButton => !IsGenHubBuild && IsDownloaded;
+
+    /// <summary>
+    /// Gets a value indicating whether the Install Build button should be shown for this row.
+    /// </summary>
+    public bool ShowInstallBuildButton => IsGenHubBuild && IsDownloaded;
 
     /// <summary>
     /// Gets or sets the underlying downloadable file model.
@@ -442,6 +462,11 @@ public abstract partial class DownloadableItemViewModel : ObservableObject, IDow
     /// Gets or sets the command to add the item to a profile.
     /// </summary>
     public ICommand? AddToProfileCommand { get; set; }
+
+    /// <summary>
+    /// Gets or sets the command to install this build directly.
+    /// </summary>
+    public ICommand? InstallBuildCommand { get; set; }
 
     /// <summary>
     /// Gets or sets the delegate function to fetch extended details on demand.
