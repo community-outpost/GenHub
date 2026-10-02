@@ -59,7 +59,14 @@ public static class ContentDetailMediaDisplay
                 return new MediaDisplayDecision(MediaDisplayAction.OpenExternally, targetUrl);
             }
 
-            return new MediaDisplayDecision(MediaDisplayAction.PlayVideo, targetUrl);
+            if (MediaFileHelper.IsDirectVideoFileUrl(targetUrl) || MediaFileHelper.IsExtensionlessHostedFileUrl(targetUrl))
+            {
+                return new MediaDisplayDecision(MediaDisplayAction.PlayVideo, targetUrl);
+            }
+
+            // Watch pages and other non-media URLs open in the system browser so the
+            // player is never handed an HTML page.
+            return new MediaDisplayDecision(MediaDisplayAction.OpenExternally, targetUrl);
         }
 
         return MediaFileHelper.IsRemoteHttpUrl(thumbnailUrl)

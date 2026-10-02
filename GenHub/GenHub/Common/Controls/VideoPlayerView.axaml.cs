@@ -64,9 +64,9 @@ public partial class VideoPlayerView : UserControl
     public static readonly DirectProperty<VideoPlayerView, string> PositionTextProperty =
         AvaloniaProperty.RegisterDirect<VideoPlayerView, string>(nameof(PositionText), o => o.PositionText);
 
-    private static readonly int PositionScale = 1000;
-    private static readonly int PositionPollIntervalMs = 500;
-    private static readonly int ConnectionTimeoutSeconds = 20;
+    private const int PositionScale = 1000;
+    private const int PositionPollIntervalMs = 500;
+    private const int ConnectionTimeoutSeconds = 20;
     private static readonly object SyncRoot = new();
     private static LibVLC? sharedLibVlc;
     private static bool initializationAttempted;
@@ -293,10 +293,10 @@ public partial class VideoPlayerView : UserControl
     private void AttachPlayerEvents(MediaPlayer player)
     {
         player.EncounteredError += OnPlaybackError;
-        player.Playing += (_, _) => Dispatcher.UIThread.Post(() => UpdatePlayingState(isPlaying: true));
-        player.Paused += (_, _) => Dispatcher.UIThread.Post(() => UpdatePlayingState(isPlaying: false));
-        player.Stopped += (_, _) => Dispatcher.UIThread.Post(() => UpdatePlayingState(isPlaying: false));
-        player.EndReached += (_, _) => Dispatcher.UIThread.Post(OnPlaybackEnded);
+        player.Playing += (_, _) => Dispatcher.UIThread.Post(() => UpdatePlayingState(player, isPlaying: true));
+        player.Paused += (_, _) => Dispatcher.UIThread.Post(() => UpdatePlayingState(player, isPlaying: false));
+        player.Stopped += (_, _) => Dispatcher.UIThread.Post(() => UpdatePlayingState(player, isPlaying: false));
+        player.EndReached += (_, _) => Dispatcher.UIThread.Post(() => OnPlaybackEnded(player));
     }
 
     private void StopPlayback()
@@ -330,9 +330,9 @@ public partial class VideoPlayerView : UserControl
         PositionText = FormatTime(0) + " / " + FormatTime(0);
     }
 
-    private void UpdatePlayingState(bool isPlaying)
+    private void UpdatePlayingState(MediaPlayer player, bool isPlaying)
     {
-        if (HasError)
+        if (!ReferenceEquals(mediaPlayer, player) || HasError)
         {
             return;
         }
@@ -343,21 +343,23 @@ public partial class VideoPlayerView : UserControl
 
     private void OnPlaybackError(object? sender, EventArgs e)
     {
+        var player = sender as MediaPlayer;
         Dispatcher.UIThread.Post(() =>
         {
-            if (!HasError)
+            if (player is null || !ReferenceEquals(mediaPlayer, player) || HasError)
             {
-                IsLoading = false;
-                HasError = true;
-                IsPlaying = false;
+                return;
             }
+
+            IsLoading = false;
+            HasError = true;
+            IsPlaying = false;
         });
     }
 
-    private void OnPlaybackEnded()
+    private void OnPlaybackEnded(MediaPlayer player)
     {
-        var player = mediaPlayer;
-        if (player == null || HasError)
+        if (!ReferenceEquals(mediaPlayer, player) || HasError)
         {
             return;
         }

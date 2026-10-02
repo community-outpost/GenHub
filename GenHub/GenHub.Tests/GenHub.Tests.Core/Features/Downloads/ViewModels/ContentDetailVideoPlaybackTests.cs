@@ -127,6 +127,24 @@ public sealed class ContentDetailVideoPlaybackTests
     }
 
     /// <summary>
+    /// Verifies that video records pointing at watch pages or articles resolve to the
+    /// system browser instead of handing an HTML page to the in-app player.
+    /// </summary>
+    /// <param name="url">The watch page URL under test.</param>
+    [Theory]
+    [InlineData("https://www.moddb.com/mods/starcraft/videos/starcraft-showcase")]
+    [InlineData("https://example.com/articles/trailer-roundup")]
+    public void ResolveMediaDisplay_WatchPageVideoRecord_ReturnsOpenExternally(string url)
+    {
+        var video = new Video("Showcase", null, url, null);
+
+        var decision = ContentDetailMediaDisplay.Resolve(video);
+
+        Assert.Equal(MediaDisplayAction.OpenExternally, decision.Action);
+        Assert.Equal(url, decision.Url);
+    }
+
+    /// <summary>
     /// Verifies that image URLs and records resolve to the image viewer.
     /// </summary>
     /// <param name="url">The image URL under test.</param>
