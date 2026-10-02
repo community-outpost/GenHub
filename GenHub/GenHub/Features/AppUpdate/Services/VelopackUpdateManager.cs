@@ -1640,6 +1640,21 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     /// Gets or creates an HttpClient instance with proper configuration.
     /// </summary>
     /// <returns>An HttpClient instance.</returns>
+    private string GetReleasesFileName()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            return "releases.linux.json";
+        }
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            return "releases.osx.json";
+        }
+
+        return "releases.win.json";
+    }
+
     private string? TryExtractNuspecVersion(string nupkgFile)
     {
         try
@@ -1672,8 +1687,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         IProgress<UpdateProgress>? progress,
         CancellationToken cancellationToken)
     {
-        var releasesFileName = RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ? "releases.linux.json" :
-            RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? "releases.osx.json" : "releases.win.json";
+        var releasesFileName = GetReleasesFileName();
         var releasesPath = Path.Combine(tempDir, releasesFileName);
         var nupkgFileName = Path.GetFileName(nupkgFile);
         var fileInfo = new FileInfo(nupkgFile);
