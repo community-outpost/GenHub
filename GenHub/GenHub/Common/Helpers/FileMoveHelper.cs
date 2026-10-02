@@ -85,7 +85,11 @@ internal static class FileMoveHelper
             {
                 File.Delete(destinationPath);
             }
-            catch (Exception cleanupEx) when (cleanupEx is IOException or UnauthorizedAccessException)
+            catch (IOException)
+            {
+                // The source is still in place. The caller rethrows the original failure.
+            }
+            catch (UnauthorizedAccessException)
             {
                 // The source is still in place. The caller rethrows the original failure.
             }
