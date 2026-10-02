@@ -322,6 +322,27 @@ public class ContentStorageServiceVariantTests : IDisposable
         Assert.False(File.Exists(Path.Combine(target, ForeignFileName)));
     }
 
+    /// <summary>Retrieval finds required objects in a different content pool.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task RetrieveContentAsync_RequiredBlobInDifferentPool_SucceedsAsync()
+    {
+        var blob = Path.Combine(_tempRoot, "other-pool-blob");
+        await File.WriteAllTextAsync(blob, "payload");
+        _casServiceMock.Setup(c => c.GetContentPathAsync(HostHash, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateSuccess(blob));
+        var manifest = VariantManifestFixture.Create(
+            [new() { RelativePath = HostFileName, Hash = HostHash, SourceType = ContentSourceType.ContentAddressable }], []);
+        Directory.CreateDirectory(Path.GetDirectoryName(_service.GetManifestStoragePath(manifest.Id))!);
+        await File.WriteAllTextAsync(_service.GetManifestStoragePath(manifest.Id), JsonSerializer.Serialize(manifest));
+        var target = Path.Combine(_tempRoot, "Target");
+
+        var result = await _service.RetrieveContentAsync(manifest.Id, target);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.Equal("payload", await File.ReadAllTextAsync(Path.Combine(target, HostFileName)));
+    }
+
     /// <summary>Required missing blobs cannot produce a successful empty retrieval.</summary>
     /// <returns>The asynchronous test.</returns>
     /// <param name="hash">A missing hash or a hash with no available blob.</param>

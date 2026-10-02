@@ -1243,6 +1243,11 @@ public class ContentStorageService : IContentStorageService
         var casPathResult = await _casService.GetContentPathAsync(file.Hash, contentType, cancellationToken).ConfigureAwait(false);
         if (!casPathResult.Success || string.IsNullOrEmpty(casPathResult.Data))
         {
+            casPathResult = await _casService.GetContentPathAsync(file.Hash, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (!casPathResult.Success || string.IsNullOrEmpty(casPathResult.Data))
+        {
             _logger.LogWarning("File {RelativePath} not found in CAS (hash: {Hash})", file.RelativePath, file.Hash);
             return file.IsRequired
                 ? OperationResult<string>.CreateFailure($"Required file {file.RelativePath} is unavailable in CAS")
