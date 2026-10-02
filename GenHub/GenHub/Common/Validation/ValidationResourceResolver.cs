@@ -26,7 +26,11 @@ internal static class ValidationResourceResolver
         {
             return ResourceManager.GetString(resourceKey, CultureInfo.CurrentUICulture);
         }
-        catch (Exception ex) when (ex is MissingManifestResourceException or MissingSatelliteAssemblyException)
+        catch (MissingManifestResourceException)
+        {
+            return null;
+        }
+        catch (MissingSatelliteAssemblyException)
         {
             return null;
         }

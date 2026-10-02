@@ -14,14 +14,22 @@ public interface IGeneralsOnlinePatchNotesService
     /// Gets all patch notes from the Generals Online website.
     /// </summary>
     /// <returns>A collection of patch notes.</returns>
-    Task<IEnumerable<PatchNote>> GetPatchNotesAsync();
+    Task<IReadOnlyList<PatchNote>> GetPatchNotesAsync();
+
+    /// <summary>
+    /// Gets all patch notes from the Generals Online website with cancellation support.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A collection of patch notes.</returns>
+    Task<IReadOnlyList<PatchNote>> GetPatchNotesAsync(CancellationToken cancellationToken);
 
     /// <summary>
     /// Fetches the detailed changes for a specific patch note.
     /// </summary>
     /// <param name="patchNote">The patch note to fetch details for.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task GetPatchDetailsAsync(PatchNote patchNote);
+    Task GetPatchDetailsAsync(PatchNote patchNote, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Fetches and formats the patch notes for a given release version into plain text.

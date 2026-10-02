@@ -272,7 +272,11 @@ public class DownloadService(
             {
                 await File.WriteAllTextAsync($"{configuration.DestinationPath}.etag", etag.Trim(), cancellationToken);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (IOException)
+            {
+                // Non-fatal if sidecar cannot be written
+            }
+            catch (UnauthorizedAccessException)
             {
                 // Non-fatal if sidecar cannot be written
             }
@@ -385,7 +389,11 @@ public class DownloadService(
                 File.Delete(path);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Non-fatal cleanup
+        }
+        catch (UnauthorizedAccessException)
         {
             // Non-fatal cleanup
         }

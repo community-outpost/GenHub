@@ -37,6 +37,7 @@ using GenHub.Features.Content.Services.SteamWorkshop;
 using GenHub.Features.Downloads.Services;
 using GenHub.Features.Downloads.ViewModels.Filters;
 using GenHub.Features.Downloads.Views;
+using GenHub.Features.Info.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
@@ -3737,7 +3738,15 @@ public sealed partial class DownloadsBrowserViewModel(
                 deletedAction: OnContentDeletedAsync,
                 artworkService: serviceProvider.GetService<IContentArtworkService>(),
                 gitHubApiClient: serviceProvider.GetService(typeof(IGitHubApiClient)) as IGitHubApiClient,
-                workspaceManager: serviceProvider.GetService<IWorkspaceManager>());
+                workspaceManager: serviceProvider.GetService<IWorkspaceManager>(),
+                patchNotesService: serviceProvider.GetService(typeof(IGeneralsOnlinePatchNotesService)) as IGeneralsOnlinePatchNotesService,
+                onDescriptionEnriched: (version, desc) =>
+                {
+                    if (GeneralsOnlinePatchNotesHelper.VersionsMatch(item.SearchResult.Version, version))
+                    {
+                        item.UpdateDescription(desc);
+                    }
+                });
 
             if (item.HasBundleComponents)
             {
