@@ -1,10 +1,10 @@
-using GenHub.Core.Models.Manifest;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GitHub;
+using GenHub.Core.Models.AppUpdate;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
 using GenHub.Features.AppUpdate.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -476,6 +476,128 @@ public class VelopackUpdateManagerTests
         Assert.Null(manager.LatestVersionFromGitHub);
     }
 
+    /// <summary>
+    /// Tests that IsManifestMatchingArtifact returns true when the artifact download URL matches a file download URL in the manifest.
+    /// </summary>
+    [Fact]
+    public void IsManifestMatchingArtifact_WhenDownloadUrlMatches_ReturnsTrue()
+    {
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("test.build"),
+            Name = "GenHub Custom Fork",
+            Version = "1.0.0",
+            ContentType = GenHub.Core.Models.Enums.ContentType.GenHubBuild,
+            Files = [new ManifestFile { RelativePath = "setup.exe", DownloadUrl = "https://example.com/build.exe" }],
+        };
+
+        var artifact = new ArtifactUpdateInfo(
+            Version: "1.0.0",
+            GitHash: "abcdef1",
+            PullRequestNumber: null,
+            WorkflowRunId: 123,
+            WorkflowRunUrl: "https://github.com/test",
+            ArtifactId: 456,
+            ArtifactName: "setup.exe",
+            CreatedAt: DateTime.UtcNow,
+            DownloadUrl: "https://example.com/build.exe",
+            Size: 1024);
+
+        var result = VelopackUpdateManager.IsManifestMatchingArtifact(manifest, artifact);
+        Assert.True(result);
+    }
+
+    /// <summary>
+    /// Tests that IsManifestMatchingArtifact returns true when the PR number matches with word boundaries in manifest name.
+    /// </summary>
+    [Fact]
+    public void IsManifestMatchingArtifact_WhenPrNumberMatchesWordBoundary_ReturnsTrue()
+    {
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("test.build"),
+            Name = "GenHub Custom Fork PR #1",
+            Version = "1.0.0",
+            ContentType = GenHub.Core.Models.Enums.ContentType.GenHubBuild,
+        };
+
+        var artifact = new ArtifactUpdateInfo(
+            Version: "1.0.0",
+            GitHash: "abcdef1",
+            PullRequestNumber: 1,
+            WorkflowRunId: 123,
+            WorkflowRunUrl: "https://github.com/test",
+            ArtifactId: 456,
+            ArtifactName: "artifact.zip",
+            CreatedAt: DateTime.UtcNow,
+            DownloadUrl: "https://example.com/other.zip",
+            Size: 1024);
+
+        var result = VelopackUpdateManager.IsManifestMatchingArtifact(manifest, artifact);
+        Assert.True(result);
+    }
+
+    /// <summary>
+    /// Tests that IsManifestMatchingArtifact returns false when PR number in manifest is a substring of another PR number.
+    /// </summary>
+    [Fact]
+    public void IsManifestMatchingArtifact_WhenPrNumberIsSubstringOfAnotherPr_ReturnsFalse()
+    {
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("test.build"),
+            Name = "GenHub Custom Fork PR #10",
+            Version = "1.0.0",
+            ContentType = GenHub.Core.Models.Enums.ContentType.GenHubBuild,
+        };
+
+        var artifact = new ArtifactUpdateInfo(
+            Version: "1.0.0",
+            GitHash: "abcdef1",
+            PullRequestNumber: 1,
+            WorkflowRunId: 123,
+            WorkflowRunUrl: "https://github.com/test",
+            ArtifactId: 456,
+            ArtifactName: "artifact.zip",
+            CreatedAt: DateTime.UtcNow,
+            DownloadUrl: "https://example.com/other.zip",
+            Size: 1024);
+
+        var result = VelopackUpdateManager.IsManifestMatchingArtifact(manifest, artifact);
+        Assert.False(result);
+    }
+
+    /// <summary>
+    /// Tests that IsManifestMatchingArtifact returns false when only the version matches but artifact names and URLs differ.
+    /// </summary>
+    [Fact]
+    public void IsManifestMatchingArtifact_WhenOnlyVersionMatchesDifferentArtifact_ReturnsFalse()
+    {
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("test.build"),
+            Name = "Publisher A Fork",
+            Version = "1.0.0",
+            ContentType = GenHub.Core.Models.Enums.ContentType.GenHubBuild,
+            Files = [new ManifestFile { RelativePath = "publisher-a.exe", DownloadUrl = "https://example.com/publisher-a.exe" }],
+        };
+
+        var artifact = new ArtifactUpdateInfo(
+            Version: "1.0.0",
+            GitHash: "abcdef1",
+            PullRequestNumber: null,
+            WorkflowRunId: 123,
+            WorkflowRunUrl: "https://github.com/test",
+            ArtifactId: 456,
+            ArtifactName: "publisher-b.exe",
+            CreatedAt: DateTime.UtcNow,
+            DownloadUrl: "https://example.com/publisher-b.exe",
+            Size: 1024);
+
+        var result = VelopackUpdateManager.IsManifestMatchingArtifact(manifest, artifact);
+        Assert.False(result);
+    }
+
     private static HttpClient CreateCannedHttpClient(string responseJson, HttpStatusCode statusCode = HttpStatusCode.OK)
     {
         var handler = new TestHttpMessageHandler(_ => new HttpResponseMessage(statusCode)
@@ -509,114 +631,5 @@ public class VelopackUpdateManagerTests
             _mockHttpClientFactory.Object,
             _mockGitHubAuthService.Object,
             _mockUserSettingsService.Object);
-    }
-    [Fact]
-    public void IsManifestMatchingArtifact_WhenDownloadUrlMatches_ReturnsTrue()
-    {
-        var manifest = new ContentManifest
-        {
-            Id = ManifestId.Create("test.build"),
-            Name = "GenHub Custom Fork",
-            Version = "1.0.0",
-            ContentType = ContentType.GenHubBuild,
-            Files = [new ManifestFile { RelativePath = "setup.exe", DownloadUrl = "https://example.com/build.exe" }],
-        };
-
-        var artifact = new ArtifactUpdateInfo(
-            Version: "1.0.0",
-            GitHash: "abcdef1",
-            PullRequestNumber: null,
-            WorkflowRunId: 123,
-            WorkflowRunUrl: "https://github.com/test",
-            ArtifactId: 456,
-            ArtifactName: "setup.exe",
-            CreatedAt: DateTime.UtcNow,
-            DownloadUrl: "https://example.com/build.exe",
-            Size: 1024);
-
-        var result = VelopackUpdateManager.IsManifestMatchingArtifact(manifest, artifact);
-        Assert.True(result);
-    }
-
-    [Fact]
-    public void IsManifestMatchingArtifact_WhenPrNumberMatchesWordBoundary_ReturnsTrue()
-    {
-        var manifest = new ContentManifest
-        {
-            Id = ManifestId.Create("test.build"),
-            Name = "GenHub Custom Fork PR #1",
-            Version = "1.0.0",
-            ContentType = ContentType.GenHubBuild,
-        };
-
-        var artifact = new ArtifactUpdateInfo(
-            Version: "1.0.0",
-            GitHash: "abcdef1",
-            PullRequestNumber: 1,
-            WorkflowRunId: 123,
-            WorkflowRunUrl: "https://github.com/test",
-            ArtifactId: 456,
-            ArtifactName: "artifact.zip",
-            CreatedAt: DateTime.UtcNow,
-            DownloadUrl: "https://example.com/other.zip",
-            Size: 1024);
-
-        var result = VelopackUpdateManager.IsManifestMatchingArtifact(manifest, artifact);
-        Assert.True(result);
-    }
-
-    [Fact]
-    public void IsManifestMatchingArtifact_WhenPrNumberIsSubstringOfAnotherPr_ReturnsFalse()
-    {
-        var manifest = new ContentManifest
-        {
-            Id = ManifestId.Create("test.build"),
-            Name = "GenHub Custom Fork PR #10",
-            Version = "1.0.0",
-            ContentType = ContentType.GenHubBuild,
-        };
-
-        var artifact = new ArtifactUpdateInfo(
-            Version: "1.0.0",
-            GitHash: "abcdef1",
-            PullRequestNumber: 1,
-            WorkflowRunId: 123,
-            WorkflowRunUrl: "https://github.com/test",
-            ArtifactId: 456,
-            ArtifactName: "artifact.zip",
-            CreatedAt: DateTime.UtcNow,
-            DownloadUrl: "https://example.com/other.zip",
-            Size: 1024);
-
-        var result = VelopackUpdateManager.IsManifestMatchingArtifact(manifest, artifact);
-        Assert.False(result);
-    }
-
-    [Fact]
-    public void IsManifestMatchingArtifact_WhenOnlyVersionMatchesDifferentArtifact_ReturnsFalse()
-    {
-        var manifest = new ContentManifest
-        {
-            Id = ManifestId.Create("test.build"),
-            Name = "Publisher A Fork",
-            Version = "1.0.0",
-            ContentType = ContentType.GenHubBuild,
-            Files = [new ManifestFile { RelativePath = "publisher-a.exe", DownloadUrl = "https://example.com/publisher-a.exe" }],
-        };
-
-        var artifact = new ArtifactUpdateInfo(
-            Version: "1.0.0",
-            GitHash: "abcdef1",
-            PullRequestNumber: null,
-            WorkflowRunId: 123,
-            WorkflowRunUrl: "https://github.com/test",
-            ArtifactId: 456,
-            ArtifactName: "publisher-b.exe",
-            CreatedAt: DateTime.UtcNow,
-            DownloadUrl: "https://example.com/publisher-b.exe",
-            Size: 1024);
-
-        var result = VelopackUpdateManager.IsManifestMatchingArtifact(manifest, artifact);
-        Assert.False(result);
     }
 }
