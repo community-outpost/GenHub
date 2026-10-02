@@ -185,12 +185,10 @@ public sealed class BaseFileRenameFixTests : IDisposable
     {
         var (fix, target, _) = CreateFix(fixId);
         var installation = CreateInstallation(out var generalsDir, out var zeroHourDir);
-        foreach (var dir in new[] { generalsDir, zeroHourDir })
-        {
-            Seed(dir, target, hasOriginal: false, OriginalContent);
-        }
-
-        var legacyHash = HashFile(Path.Combine(generalsDir, target + UserBackupSuffix));
+        Seed(generalsDir, target, hasOriginal: false, OriginalContent);
+        Seed(zeroHourDir, target, hasOriginal: false, DifferentContent);
+        var legacyHashes = new[] { generalsDir, zeroHourDir }
+            .ToDictionary(dir => dir, dir => HashFile(Path.Combine(dir, target + UserBackupSuffix)));
         (await fix.IsAppliedAsync(installation)).Should().BeTrue();
 
         var undo = await fix.UndoAsync(installation);
@@ -200,7 +198,7 @@ public sealed class BaseFileRenameFixTests : IDisposable
         second.Success.Should().BeTrue(string.Join(Environment.NewLine, second.Details));
         foreach (var dir in new[] { generalsDir, zeroHourDir })
         {
-            HashFile(Path.Combine(dir, target)).Should().Be(legacyHash);
+            HashFile(Path.Combine(dir, target)).Should().Be(legacyHashes[dir]);
             File.Exists(Path.Combine(dir, target + UserBackupSuffix)).Should().BeFalse();
         }
 
@@ -442,6 +440,53 @@ public sealed class BaseFileRenameFixTests : IDisposable
         scanned.Should().Equal(target);
         GameInstallationScanRules.ResolveSourcePathWithBackup(targetPath).Should().Be(targetPath);
         File.ReadAllText(targetPath).Should().Be(SecondRepairContent);
+    }
+
+    /// <summary>
+    /// Verifies apply refuses to number past the largest backup index and leaves every file in place.
+    /// </summary>
+    /// <param name="fixId">The fix under test.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
+    [Theory]
+    [MemberData(nameof(FixIds))]
+    public async Task Apply_WhenBackupIndexIsExhausted_FailsAndKeepsFilesAsync(string fixId)
+    {
+        var (fix, target, _) = CreateFix(fixId);
+        var installation = CreateInstallation(out var directory, out _);
+        installation.HasZeroHour = false;
+        File.WriteAllText(Path.Combine(directory, target), OriginalContent);
+        File.WriteAllText(Path.Combine(directory, BaseFileRenameFix.GetBackupFileName(target, long.MaxValue)), DifferentContent);
+        var before = Snapshot();
+
+        var apply = await fix.ApplyAsync(installation);
+
+        apply.Success.Should().BeFalse();
+        Snapshot().Should().BeEquivalentTo(before);
+    }
+
+    /// <summary>
+    /// Verifies undo restores the newest file backup and ignores a directory with a higher backup number.
+    /// </summary>
+    /// <param name="fixId">The fix under test.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
+    [Theory]
+    [MemberData(nameof(FixIds))]
+    public async Task Undo_WhenHighestBackupIsDirectory_RestoresNewestFileBackupAsync(string fixId)
+    {
+        var (fix, target, _) = CreateFix(fixId);
+        var installation = CreateInstallation(out var directory, out _);
+        installation.HasZeroHour = false;
+        File.WriteAllText(Path.Combine(directory, BaseFileRenameFix.GetBackupFileName(target, 2)), OriginalContent);
+        File.WriteAllText(Path.Combine(directory, BaseFileRenameFix.GetBackupFileName(target, 3)), FirstRepairContent);
+        var occupied = Path.Combine(directory, BaseFileRenameFix.GetBackupFileName(target, 5));
+        Directory.CreateDirectory(occupied);
+
+        var undo = await fix.UndoAsync(installation);
+
+        undo.Success.Should().BeTrue(string.Join(Environment.NewLine, undo.Details));
+        File.ReadAllText(Path.Combine(directory, target)).Should().Be(FirstRepairContent);
+        File.ReadAllText(Path.Combine(directory, BaseFileRenameFix.GetBackupFileName(target, 2))).Should().Be(OriginalContent);
+        Directory.Exists(occupied).Should().BeTrue();
     }
 
     private static (BaseFileRenameFix Fix, string Target, string GenHubBackup) CreateFix(string fixId) => fixId switch

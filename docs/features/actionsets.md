@@ -57,7 +57,7 @@ These fixes are essential for the games to run properly on modern Windows system
 
 **Reversible**: Yes. Undo renames the newest backup back to `.dll`.
 
-**Backups (both fixes)**: Neither fix reads or writes a user's own `.bak` file during apply. If a game repair brings the `.dll` back while a backup exists, apply moves it to the next free numbered backup (`.genpatcher.1.ghbak`, `.genpatcher.2.ghbak`, and so on) and keeps every earlier backup. Renames never overwrite an existing file or directory. Undo restores the highest numbered backup when the `.dll` is missing. If the `.dll` is present, undo changes nothing. Undo restores a `.bak` left by earlier GenHub builds only when the `.dll` is missing and no GenPatcher backup exists. Every backup name ends in `.ghbak`, so installation scans skip it, but none is `<file>.ghbak`, which the scanner would read in place of the live `.dll`.
+**Backups (both fixes)**: Neither fix reads or writes a user's own `.bak` file during apply. If a game repair brings the `.dll` back while a backup exists, apply moves it to the number after the highest existing backup (`.genpatcher.1.ghbak`, `.genpatcher.2.ghbak`, and so on) and keeps every earlier backup. Renames never overwrite an existing file or directory. Undo restores the highest numbered backup when the `.dll` is missing. If the `.dll` is present, undo changes nothing. Undo restores a `.bak` left by earlier GenHub builds only when the `.dll` is missing and no GenPatcher backup exists. Every backup name ends in `.ghbak`, so installation scans skip it, but none is `<file>.ghbak`, which the scanner would read in place of the live `.dll`.
 
 ---
 

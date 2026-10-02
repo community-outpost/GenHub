@@ -36,6 +36,16 @@ public abstract class BaseFileRenameFix(
     /// <inheritdoc/>
     public override bool IsCrucialFix => true;
 
+    /// <summary>
+    /// Builds the backup file name for a target: index 0 is the first backup, higher indexes follow game repairs.
+    /// </summary>
+    /// <param name="targetFileName">The file the fix disables.</param>
+    /// <param name="index">The backup sequence number.</param>
+    /// <returns>The backup file name.</returns>
+    public static string GetBackupFileName(string targetFileName, long index) => index == 0
+        ? targetFileName + FileTypes.GenPatcherBackupInfix + FileTypes.BackupExtension
+        : targetFileName + FileTypes.GenPatcherBackupInfix + "." + index.ToString(CultureInfo.InvariantCulture) + FileTypes.BackupExtension;
+
     /// <inheritdoc/>
     public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
@@ -65,16 +75,6 @@ public abstract class BaseFileRenameFix(
 
         return Task.FromResult(generalsApplied && zeroHourApplied);
     }
-
-    /// <summary>
-    /// Builds the backup file name for a target: index 0 is the first backup, higher indexes follow game repairs.
-    /// </summary>
-    /// <param name="targetFileName">The file the fix disables.</param>
-    /// <param name="index">The backup sequence number.</param>
-    /// <returns>The backup file name.</returns>
-    internal static string GetBackupFileName(string targetFileName, long index) => index == 0
-        ? targetFileName + FileTypes.GenPatcherBackupInfix + FileTypes.BackupExtension
-        : targetFileName + FileTypes.GenPatcherBackupInfix + "." + index.ToString(CultureInfo.InvariantCulture) + FileTypes.BackupExtension;
 
     /// <inheritdoc/>
     protected override Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken ct)
@@ -207,7 +207,7 @@ public abstract class BaseFileRenameFix(
     private bool RestoreTarget(string directory, List<string> details)
     {
         var originalPath = Path.Combine(directory, targetFileName);
-        var backupPath = Path.Combine(directory, GetBackupFileName(targetFileName, 0));
+        var backupPath = string.Empty;
 
         try
         {
@@ -230,22 +230,27 @@ public abstract class BaseFileRenameFix(
         }
         catch (IOException ex)
         {
-            Logger.LogError(ex, "Failed to restore {BackupPath}", backupPath);
-            AddFailureDetail(details, ex, $"restoring {Path.GetFileName(backupPath)}", indent: "  ");
+            Logger.LogError(ex, "Failed to restore {TargetFileName} from {BackupPath}", targetFileName, backupPath);
+            AddFailureDetail(details, ex, DescribeRestore(backupPath), indent: "  ");
             return false;
         }
         catch (UnauthorizedAccessException ex)
         {
-            Logger.LogError(ex, "Access denied restoring {BackupPath}", backupPath);
-            AddFailureDetail(details, ex, $"restoring {Path.GetFileName(backupPath)}", indent: "  ");
+            Logger.LogError(ex, "Access denied restoring {TargetFileName} from {BackupPath}", targetFileName, backupPath);
+            AddFailureDetail(details, ex, DescribeRestore(backupPath), indent: "  ");
             return false;
         }
     }
 
+    private string DescribeRestore(string backupPath) => string.IsNullOrEmpty(backupPath)
+        ? $"finding a backup of {targetFileName}"
+        : $"restoring {Path.GetFileName(backupPath)}";
+
     private (long Index, string Path) GetLatestBackup(string directory, bool filesOnly = false)
     {
         var basePath = Path.Combine(directory, GetBackupFileName(targetFileName, 0));
-        var latest = (Index: File.Exists(basePath) ? 0L : -1L, Path: File.Exists(basePath) ? basePath : string.Empty);
+        var baseExists = File.Exists(basePath);
+        var latest = baseExists ? (Index: 0L, Path: basePath) : (Index: -1L, Path: string.Empty);
         if (!Directory.Exists(directory))
         {
             return latest;
