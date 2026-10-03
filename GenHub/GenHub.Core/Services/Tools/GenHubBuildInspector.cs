@@ -12,6 +12,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
+using System.Security;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,7 +25,7 @@ namespace GenHub.Core.Services.Tools;
 /// </summary>
 public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? logger = null) : IGenHubBuildInspector
 {
-    private const int RegexTimeoutMs = 250;
+    private const int RegexTimeoutMs = RegexConstants.BuildInspectionTimeoutMs;
     private readonly ILogger<GenHubBuildInspector> _logger = logger ?? NullLogger<GenHubBuildInspector>.Instance;
 
     /// <summary>
@@ -123,7 +124,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
                 return InspectFromFileNameOnly(path);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or InvalidDataException or BadImageFormatException)
         {
             _logger.LogWarning(ex, "Failed to inspect potential GenHub build at path '{Path}'", path);
             if (IsGenHubBuildPath(path))
@@ -794,7 +795,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException)
         {
             _logger.LogDebug(ex, "Error enumerating directory '{Directory}' during build inspection", dirPath);
         }
@@ -856,7 +857,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
                 return InspectFromFileNameOnly(archivePath);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or InvalidDataException or BadImageFormatException)
         {
             _logger.LogDebug(ex, "Failed to inspect archive '{Path}'", archivePath);
             if (IsGenHubBuildPath(archivePath))
@@ -959,7 +960,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             peMetadata = TryReadPeMetadata(fileStream);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or InvalidDataException or BadImageFormatException)
         {
             _logger.LogDebug(ex, "Failed to read PE metadata from '{Path}'", filePath);
         }
@@ -1116,7 +1117,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
                 PullRequestNumber: accumulator.PullRequestNumber,
                 GitShortHash: accumulator.GitShortHash);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or InvalidDataException or BadImageFormatException)
         {
             _logger.LogDebug(ex, "Failed to read CLI metadata from PE stream");
             return default;

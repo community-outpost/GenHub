@@ -1,5 +1,6 @@
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Infrastructure.Services;
@@ -109,7 +110,17 @@ public static class DownloadModule
         MaxConnectionsPerServer = DownloadDefaults.HttpMaxConnectionsPerServer,
         ConnectCallback = async (context, cancellationToken) =>
         {
+            if (Uri.CheckHostName(context.DnsEndPoint.Host) == UriHostNameType.Unknown)
+            {
+                throw new HttpRequestException($"Invalid host name: '{context.DnsEndPoint.Host}'.");
+            }
+
             var addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, cancellationToken).ConfigureAwait(false);
+            if (addresses.Length == 0 || !addresses.All(NetworkSecurityHelper.IsSafeIpAddress))
+            {
+                throw new HttpRequestException($"Host '{context.DnsEndPoint.Host}' resolved to an unsafe or reserved IP address.");
+            }
+
             var sortedAddresses = addresses
                 .OrderBy(a => a.AddressFamily == AddressFamily.InterNetwork ? 0 : 1)
                 .ToArray();

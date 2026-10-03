@@ -35,7 +35,33 @@ public class FastHttpClientFileDownloader(
         ConnectTimeout = TimeSpan.FromSeconds(30),
         ConnectCallback = async (context, cancellationToken) =>
         {
+            if (Uri.CheckHostName(context.DnsEndPoint.Host) == UriHostNameType.Unknown)
+            {
+                throw new HttpRequestException($"Invalid host name: '{context.DnsEndPoint.Host}'.");
+            }
+
+            var isLoopbackHost = string.Equals(context.DnsEndPoint.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
+                                 string.Equals(context.DnsEndPoint.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+                                 string.Equals(context.DnsEndPoint.Host, "::1", StringComparison.OrdinalIgnoreCase);
+
             var addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, cancellationToken).ConfigureAwait(false);
+            if (addresses.Length == 0)
+            {
+                throw new HttpRequestException($"No IP addresses found for host '{context.DnsEndPoint.Host}'.");
+            }
+
+            if (isLoopbackHost)
+            {
+                if (!addresses.All(IPAddress.IsLoopback))
+                {
+                    throw new HttpRequestException($"Loopback host '{context.DnsEndPoint.Host}' resolved to a non-loopback IP address.");
+                }
+            }
+            else if (!addresses.All(NetworkSecurityHelper.IsSafeIpAddress))
+            {
+                throw new HttpRequestException($"Host '{context.DnsEndPoint.Host}' resolved to an unsafe or reserved IP address.");
+            }
+
             var sortedAddresses = addresses
                 .OrderBy(a => a.AddressFamily == AddressFamily.InterNetwork ? 0 : 1)
                 .ToArray();
@@ -299,7 +325,7 @@ public class FastHttpClientFileDownloader(
         ArgumentException.ThrowIfNullOrWhiteSpace(url);
         ArgumentException.ThrowIfNullOrWhiteSpace(targetFile);
 
-        if (!NetworkSecurityHelper.IsSafeUrl(url, out var urlError))
+        if (!IsAllowedDownloadUrl(url, out var urlError))
         {
             throw new SecurityException($"Download URL is not allowed: {urlError}");
         }
@@ -326,7 +352,7 @@ public class FastHttpClientFileDownloader(
             probeResponse.EnsureSuccessStatusCode();
 
             var resolvedUri = probeResponse.RequestMessage?.RequestUri ?? new Uri(url);
-            if (!NetworkSecurityHelper.IsSafeUrl(resolvedUri.ToString(), out var redirectError))
+            if (!IsAllowedDownloadUrl(resolvedUri.ToString(), out var redirectError))
             {
                 throw new SecurityException($"Redirect target is not allowed: {redirectError}");
             }
@@ -390,7 +416,7 @@ public class FastHttpClientFileDownloader(
             fullResponse.EnsureSuccessStatusCode();
 
             var fullResolvedUri = fullResponse.RequestMessage?.RequestUri ?? new Uri(url);
-            if (!NetworkSecurityHelper.IsSafeUrl(fullResolvedUri.ToString(), out var fullRedirectError))
+            if (!IsAllowedDownloadUrl(fullResolvedUri.ToString(), out var fullRedirectError))
             {
                 throw new SecurityException($"Redirect target is not allowed: {fullRedirectError}");
             }
@@ -443,7 +469,7 @@ public class FastHttpClientFileDownloader(
                 throw new InvalidOperationException("Exceeded maximum redirects following download confirmation link.");
             }
 
-            if (!NetworkSecurityHelper.IsSafeUrl(confirmedUrl, out var confirmedError))
+            if (!IsAllowedDownloadUrl(confirmedUrl, out var confirmedError))
             {
                 throw new SecurityException($"Confirmation URL target is not allowed: {confirmedError}");
             }
@@ -507,5 +533,31 @@ public class FastHttpClientFileDownloader(
         {
             cdnClient?.Dispose();
         }
+    }
+
+    private static bool IsAllowedDownloadUrl(string? url, out string? error)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            error = "URL cannot be empty.";
+            return false;
+        }
+
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            if (uri.IsLoopback ||
+                string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(uri.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(uri.Host, "::1", StringComparison.OrdinalIgnoreCase))
+            {
+                if (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
+                {
+                    error = null;
+                    return true;
+                }
+            }
+        }
+
+        return NetworkSecurityHelper.IsSafeUrl(url, out error);
     }
 }

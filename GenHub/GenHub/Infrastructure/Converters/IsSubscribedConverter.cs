@@ -16,49 +16,29 @@ public class IsSubscribedConverter : IMultiValueConverter
     /// <inheritdoc/>
     public object? Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
     {
-        if (values == null || values.Count < 1)
+        if (values == null || values.Count == 0)
         {
             return false;
         }
 
         var item = values[0];
-        if (item == null || item == Avalonia.AvaloniaProperty.UnsetValue)
+        if (item is null or Avalonia.AvaloniaProperty.UnsetValue)
         {
             return false;
         }
 
-        var subscribedPr = values.Count > 1 ? values[1] as PullRequestInfo : null;
-        var subscribedBranch = values.Count > 2 ? values[2] as string : null;
-        var subscribedCustomBuild = values.Count > 3 ? values[3] as string : null;
-        var subscribedPublisherId = values.Count > 4 ? values[4] as string : null;
+        var subscribedPr = GetValue<PullRequestInfo>(values, 1);
+        var subscribedBranch = GetValue<string>(values, 2);
+        var subscribedCustomBuild = GetValue<string>(values, 3);
+        var subscribedPublisherId = GetValue<string>(values, 4);
 
-        if (item is PullRequestInfo pr)
+        return item switch
         {
-            return subscribedPr?.Number == pr.Number;
-        }
-
-        if (item is string branchName)
-        {
-            return string.Equals(subscribedBranch, branchName, StringComparison.Ordinal);
-        }
-
-        if (item is CustomBuildSubscriptionItem customBuild)
-        {
-            var contentMatches = string.Equals(subscribedCustomBuild, customBuild.ContentId, StringComparison.OrdinalIgnoreCase);
-            if (!contentMatches)
-            {
-                return false;
-            }
-
-            if (!string.IsNullOrWhiteSpace(subscribedPublisherId) && !string.IsNullOrWhiteSpace(customBuild.PublisherId))
-            {
-                return string.Equals(subscribedPublisherId, customBuild.PublisherId, StringComparison.OrdinalIgnoreCase);
-            }
-
-            return true;
-        }
-
-        return false;
+            PullRequestInfo pr => subscribedPr?.Number == pr.Number,
+            string branchName => string.Equals(subscribedBranch, branchName, StringComparison.Ordinal),
+            CustomBuildSubscriptionItem customBuild => IsCustomBuildSubscribed(customBuild, subscribedCustomBuild, subscribedPublisherId),
+            _ => false,
+        };
     }
 
     /// <summary>
@@ -71,6 +51,30 @@ public class IsSubscribedConverter : IMultiValueConverter
     /// <returns>An array of values that have been converted from the target value back to the source values.</returns>
     public object?[] ConvertBack(object? value, Type[] targetTypes, object? parameter, CultureInfo culture)
     {
-        return Array.Empty<object?>();
+        return [];
+    }
+
+    private static T? GetValue<T>(IList<object?> values, int index)
+        where T : class
+    {
+        return values.Count > index ? values[index] as T : null;
+    }
+
+    private static bool IsCustomBuildSubscribed(
+        CustomBuildSubscriptionItem customBuild,
+        string? subscribedCustomBuild,
+        string? subscribedPublisherId)
+    {
+        if (!string.Equals(subscribedCustomBuild, customBuild.ContentId, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(subscribedPublisherId) && !string.IsNullOrWhiteSpace(customBuild.PublisherId))
+        {
+            return string.Equals(subscribedPublisherId, customBuild.PublisherId, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return true;
     }
 }

@@ -11,27 +11,27 @@ namespace GenHub.Core.Helpers;
 /// </summary>
 public static partial class CloudUrlHelper
 {
-    private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(500);
+    private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(RegexConstants.DefaultTimeoutMs);
 
-    [GeneratedRegex(@"^https?:\/\/(?:drive|docs)\.google\.com\/(?:file\/d\/|[^?]*\?(?:[^#]*&)?id=)([^/?&]+)", RegexOptions.IgnoreCase, 500)]
+    [GeneratedRegex(@"^https?:\/\/(?:drive|docs)\.google\.com\/(?:file\/d\/|[^?]*\?(?:[^#]*&)?id=)([^/?&]+)", RegexOptions.IgnoreCase, RegexConstants.DefaultTimeoutMs)]
     private static partial Regex GoogleDriveRegexCompiled();
 
-    [GeneratedRegex(@"^https?:\/\/github\.com\/([^\/]+)\/([^\/]+)\/blob\/([^\/]+)\/(.+)$", RegexOptions.IgnoreCase, 500)]
+    [GeneratedRegex(@"^https?:\/\/github\.com\/([^\/]+)\/([^\/]+)\/blob\/([^\/]+)\/(.+)$", RegexOptions.IgnoreCase, RegexConstants.DefaultTimeoutMs)]
     private static partial Regex GitHubBlobRegexCompiled();
 
-    [GeneratedRegex(@"(?<=[?&])dl=0(?=[&#]|$)", RegexOptions.IgnoreCase, 500)]
+    [GeneratedRegex(@"(?<=[?&])dl=0(?=[&#]|$)", RegexOptions.IgnoreCase, RegexConstants.DefaultTimeoutMs)]
     private static partial Regex DropboxDlRegexCompiled();
 
-    [GeneratedRegex(@"(?<=[?&])dl=1(?=[&#]|$)", RegexOptions.IgnoreCase, 500)]
+    [GeneratedRegex(@"(?<=[?&])dl=1(?=[&#]|$)", RegexOptions.IgnoreCase, RegexConstants.DefaultTimeoutMs)]
     private static partial Regex DropboxDl1RegexCompiled();
 
-    [GeneratedRegex(@"href=[""']([^""']*confirm=[^""']*)[""']", RegexOptions.IgnoreCase, 500)]
+    [GeneratedRegex(@"href=[""']([^""']*confirm=[^""']*)[""']", RegexOptions.IgnoreCase, RegexConstants.DefaultTimeoutMs)]
     private static partial Regex GoogleDriveConfirmHrefRegexCompiled();
 
-    [GeneratedRegex(@"<form\b(?=[^>]*\baction=[""']([^""']*)[""'])(?=[^>]*\bmethod=[""'](?:post|get)[""'])[^>]*>(.*?)(?:<\/form>|$)", RegexOptions.IgnoreCase | RegexOptions.Singleline, 500)]
+    [GeneratedRegex(@"<form\b(?=[^>]*\baction=[""']([^""']*)[""'])(?=[^>]*\bmethod=[""'](?:post|get)[""'])[^>]*>(.*?)(?:<\/form>|$)", RegexOptions.IgnoreCase | RegexOptions.Singleline, RegexConstants.DefaultTimeoutMs)]
     private static partial Regex GoogleDriveFormActionRegexCompiled();
 
-    [GeneratedRegex(@"<input\s+(?=[^>]*\bname=[""']([^""']+)[""'])(?=[^>]*\bvalue=[""']([^""']*)[""'])[^>]*>", RegexOptions.IgnoreCase, 500)]
+    [GeneratedRegex(@"<input\s+(?=[^>]*\bname=[""']([^""']+)[""'])(?=[^>]*\bvalue=[""']([^""']*)[""'])[^>]*>", RegexOptions.IgnoreCase, RegexConstants.DefaultTimeoutMs)]
     private static partial Regex GoogleDriveFormInputRegexCompiled();
 
     private static Regex GoogleDriveRegex => GoogleDriveRegexCompiled();
