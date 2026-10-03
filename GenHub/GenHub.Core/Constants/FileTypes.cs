@@ -97,6 +97,15 @@ public static class FileTypes
     public const string BackupExtension = ".ghbak";
 
     /// <summary>
+    /// Infix that marks a GenPatcher rename backup, as in <c>dbghelp.dll.genpatcher.ghbak</c> or <c>dbghelp.dll.genpatcher.1.ghbak</c>.
+    /// </summary>
+    /// <remarks>
+    /// The names still end in <see cref="BackupExtension"/>, so installation scans skip them, but never equal
+    /// <c>&lt;file&gt;.ghbak</c>, which the scanner reads in place of the live file.
+    /// </remarks>
+    public const string GenPatcherBackupInfix = ".genpatcher";
+
+    /// <summary>
     /// Legacy file extension for backup files.
     /// </summary>
     public const string LegacyBackupExtension = ".bak";
