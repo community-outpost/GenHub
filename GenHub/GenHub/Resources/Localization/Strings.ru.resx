@@ -13594,7 +13594,7 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>Неразрешённые медиафайлы пропущены</value>
   </data>
   <data name="Tools.PublisherStudio.Publish.MediaSkippedFormat" xml:space="preserve">
-    <value>Не удалось сопоставить {0} ссылок на медиафайлы с локальными файлами; они оставлены без изменений.</value>
+    <value>Не удалось сопоставить ссылки на медиафайлы с локальными файлами. Количество ссылок: {0}. Ссылки оставлены без изменений.</value>
   </data>
   <data name="Tools.PublisherStudio.Artifact.DropFileUnreadableFormat" xml:space="preserve">
     <value>Не удалось прочитать перетащенный файл: {0}</value>

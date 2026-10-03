@@ -654,6 +654,12 @@ public partial class VideoPlayerView : UserControl
             IsLoading = false;
         }
 
+        if (player.Time > 0)
+        {
+            // Connection established; the timeout guards only the initial connect.
+            playbackStartedUtc = DateTime.MinValue;
+        }
+
         if (!isScrubbing && player.Length > 0)
         {
             try

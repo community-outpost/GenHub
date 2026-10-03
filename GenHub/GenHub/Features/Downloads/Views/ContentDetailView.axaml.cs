@@ -80,11 +80,13 @@ public partial class ContentDetailView : UserControl
             var deltaX = currentPoint.X - resizeStartPoint.Value.X;
             var deltaY = currentPoint.Y - resizeStartPoint.Value.Y;
 
-            var maxWidth = Math.Max(600, Bounds.Width - 48);
-            var maxHeight = Math.Max(400, Bounds.Height - 48);
+            var maxWidth = Math.Max(0, Bounds.Width - 48);
+            var maxHeight = Math.Max(0, Bounds.Height - 48);
+            var minWidth = Math.Min(560, maxWidth);
+            var minHeight = Math.Min(380, maxHeight);
 
-            vm.VideoModalWidth = Math.Clamp(initialModalWidth + deltaX, 560, maxWidth);
-            vm.VideoModalHeight = Math.Clamp(initialModalHeight + deltaY, 380, maxHeight);
+            vm.VideoModalWidth = Math.Clamp(initialModalWidth + deltaX, minWidth, maxWidth);
+            vm.VideoModalHeight = Math.Clamp(initialModalHeight + deltaY, minHeight, maxHeight);
             e.Handled = true;
         }
     }
