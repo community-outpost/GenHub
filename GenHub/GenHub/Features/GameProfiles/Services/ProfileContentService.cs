@@ -1355,7 +1355,7 @@ public sealed class ProfileContentService(
                 if (allManifestsResult.Success && allManifestsResult.Data != null)
                 {
                     var bundlingManifest = allManifestsResult.Data.FirstOrDefault(manifest =>
-                        manifest.Files.Any(file => string.Equals(
+                        ManifestVariantResolver.ResolveFiles(manifest).Any(file => string.Equals(
                             System.IO.Path.GetFileName(file.RelativePath),
                             metadata.OutputFilename,
                             StringComparison.OrdinalIgnoreCase)));

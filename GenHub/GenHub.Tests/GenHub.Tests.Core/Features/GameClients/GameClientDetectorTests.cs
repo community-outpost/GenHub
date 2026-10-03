@@ -73,6 +73,67 @@ public class GameClientDetectorTests : IDisposable
         Directory.CreateDirectory(_tempDirectory);
     }
 
+    /// <summary>
+    /// A pooled publisher manifest that has no variant for this host creates no client, so it
+    /// must not hide the publisher's local client from detection.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DetectGameClientsFromInstallationsAsync_UnsupportedPooledVariant_KeepsLocalClientAsync()
+    {
+        var installPath = Directory.CreateDirectory(Path.Combine(_tempDirectory, "ForeignOnlyPool")).FullName;
+        var localExecutable = Path.Combine(installPath, Path.GetFileNameWithoutExtension(GameClientConstants.SuperHackersZeroHourExecutable));
+        await File.WriteAllBytesAsync(localExecutable, [0x4D, 0x5A, 0x90, 0x00, 0x03, 0x00, 0x00, 0x00]);
+
+        var foreignOnlyPackage = new ContentManifest
+        {
+            Id = ManifestId.Create("1.20260925.thesuperhackers.gameclient.generalszh"),
+            Name = "TheSuperHackers - Zero Hour",
+            Version = "weekly-2026-09-25",
+            ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.TheSuperHackers },
+            Variants =
+            [
+                new ArtifactVariant
+                {
+                    RuntimeIdentifiers = ["unsupported-runtime"],
+                    Files =
+                    [
+                        new ManifestFile
+                        {
+                            RelativePath = GameClientConstants.SuperHackersZeroHourExecutable,
+                            SourceType = ContentSourceType.ContentAddressable,
+                            Hash = "hash",
+                        },
+                    ],
+                },
+            ],
+        };
+        _contentManifestPoolMock.Setup(pool => pool.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([foreignOnlyPackage]));
+
+        var detector = new GameClientDetector(
+            _manifestGenerationServiceMock.Object,
+            _contentManifestPoolMock.Object,
+            _hashProviderMock.Object,
+            _hashRegistryMock.Object,
+            [new SuperHackersClientIdentifier()],
+            NullLogger<GameClientDetector>.Instance);
+        var installation = new GameInstallation(installPath, GameInstallationType.Retail)
+        {
+            HasZeroHour = true,
+            ZeroHourPath = installPath,
+        };
+
+        var result = await detector.DetectGameClientsFromInstallationsAsync([installation]);
+
+        Assert.True(result.Success);
+        var client = Assert.Single(result.Items, c => c.PublisherType == PublisherTypeConstants.TheSuperHackers);
+        Assert.Equal(localExecutable, client.ExecutablePath);
+        Assert.NotEqual(foreignOnlyPackage.Id.Value, client.Id);
+    }
+
     /// <summary>Pooled publisher manifests are scoped to the requested game.</summary>
     /// <param name="gameType">The requested game or all-game sentinel.</param>
     /// <param name="expectedCount">The expected number of manifests.</param>

@@ -59,7 +59,6 @@ public class ManifestFilesAccessRatchetTests
     /// </summary>
     private static readonly string[] PendingMigration =
     [
-        "GenHub.Core.Helpers.ManifestHelper",
         "GenHub.Core.Services.Content.LocalContentService",
         "GenHub.Features.Content.Services.Catalog.GenericCatalogResolver",
         "GenHub.Features.Content.Services.CommunityOutpost.CommunityOutpostDeliverer",
@@ -74,18 +73,10 @@ public class ManifestFilesAccessRatchetTests
         "GenHub.Features.Content.Services.GenLauncher.GenLauncherDeliverer",
         "GenHub.Features.Content.Services.GenLauncher.GenLauncherResolver",
         "GenHub.Features.Content.Services.GitHub.GitHubContentDeliverer",
-        "GenHub.Features.Content.Services.InstallationInstructionsService",
-        "GenHub.Features.Downloads.Services.ContentStateService",
-        "GenHub.Features.GameClients.GameClientDetector",
-        "GenHub.Features.GameProfiles.Services.ProfileContentService",
         "GenHub.Features.GameProfiles.Services.ProfileSharingService",
-        "GenHub.Features.Launching.GameLauncher",
         "GenHub.Features.Manifest.ContentManifestPool",
         "GenHub.Features.Manifest.ManifestProvider",
         "GenHub.Features.Manifest.SteamManifestPatcher",
-        "GenHub.Features.Tools.GenHotkeys.ViewModels.GenHotkeysViewModel",
-        "GenHub.Features.Tools.MapManager.Services.MapPackService",
-        "GenHub.Features.Tools.MapManager.ViewModels.MapManagerViewModel",
     ];
 
     /// <summary>

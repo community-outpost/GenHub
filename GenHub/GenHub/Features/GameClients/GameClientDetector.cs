@@ -1135,7 +1135,10 @@ public class GameClientDetector(
             {
                 var clientsFromManifests = CreateGameClientsFromManifests(existingManifests, installation, installationPath);
                 detectedClients.AddRange(clientsFromManifests);
-                publishersHandledFromPool.Add(publisherId);
+                if (clientsFromManifests.Count > 0)
+                {
+                    publishersHandledFromPool.Add(publisherId);
+                }
 
                 logger.LogInformation(
                     "Found {Count} existing {Publisher} manifests in pool, created {ClientCount} game clients for {GameType}",
@@ -1362,7 +1365,7 @@ public class GameClientDetector(
         foreach (var manifest in manifests)
         {
             // Find the executable file in the manifest
-            var executableFile = manifest.Files?.FirstOrDefault(f =>
+            var executableFile = ManifestVariantResolver.ResolveFiles(manifest).FirstOrDefault(f =>
                 f.IsExecutable ||
                 (f.RelativePath?.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) == true));
 

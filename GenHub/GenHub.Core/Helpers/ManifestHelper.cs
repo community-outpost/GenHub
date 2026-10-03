@@ -40,15 +40,10 @@ public static class ManifestHelper
             return false;
         }
 
-        // Check if files indicate downloaded content (ContentAddressable source type with hashes)
-        if (manifest.Files is { Count: > 0 })
-        {
-            return manifest.Files.Any(f =>
-                f.SourceType == ContentSourceType.ContentAddressable &&
-                !string.IsNullOrEmpty(f.Hash));
-        }
-
-        return false;
+        // Check if files in any variant indicate downloaded content (ContentAddressable source type with hashes)
+        return ManifestVariantResolver.EnumerateAllFiles(manifest).Any(f =>
+            f.SourceType == ContentSourceType.ContentAddressable &&
+            !string.IsNullOrEmpty(f.Hash));
     }
 
     /// <summary>
@@ -108,16 +103,7 @@ public static class ManifestHelper
         ArgumentNullException.ThrowIfNull(manifest);
 
         var hashes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        CollectContentAddressableHashes(manifest.Files, hashes);
-
-        if (manifest.Variants is { Count: > 0 })
-        {
-            foreach (var variant in manifest.Variants)
-            {
-                CollectContentAddressableHashes(variant?.Files, hashes);
-            }
-        }
-
+        CollectContentAddressableHashes(ManifestVariantResolver.EnumerateAllFiles(manifest), hashes);
         return hashes;
     }
 
