@@ -1,4 +1,4 @@
-using System.Reflection;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -8,7 +8,9 @@ using GenHub.Core.Models.Results;
 using GenHub.Features.Manifest;
 using GenHub.Infrastructure.Exceptions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System.Reflection;
 
 namespace GenHub.Tests.Core.Features.Manifest;
 
@@ -51,7 +53,78 @@ public class ManifestProviderTests
         _poolMock = new Mock<IContentManifestPool>();
         _manifestIdServiceMock = new Mock<IManifestIdService>();
         _manifestBuilderMock = new Mock<IContentManifestBuilder>();
-        _manifestProvider = new ManifestProvider(_loggerMock.Object, _poolMock.Object, _manifestIdServiceMock.Object, _manifestBuilderMock.Object);
+        _manifestProvider = new ManifestProvider(_loggerMock.Object, _poolMock.Object, _manifestIdServiceMock.Object, () => _manifestBuilderMock.Object);
+    }
+
+    /// <summary>Each fallback manifest owns its files and remains unchanged by later requests.</summary>
+    /// <returns>The asynchronous operation.</returns>
+    [Fact]
+    public async Task GetManifestAsync_Fallbacks_DoNotShareBuilderStateAsync()
+    {
+        var root = Directory.CreateTempSubdirectory("GenHub.ManifestIsolation.");
+        try
+        {
+            var generalsPath = Directory.CreateDirectory(Path.Combine(root.FullName, "Generals")).FullName;
+            var zeroHourPath = Directory.CreateDirectory(Path.Combine(root.FullName, "ZeroHour")).FullName;
+            await File.WriteAllTextAsync(Path.Combine(generalsPath, "generals-only.big"), "generals");
+            await File.WriteAllTextAsync(Path.Combine(zeroHourPath, "zerohour-only.big"), "zerohour");
+            var idService = new ManifestIdService();
+            var buildersCreated = 0;
+            var provider = new ManifestProvider(
+                _loggerMock.Object,
+                _poolMock.Object,
+                idService,
+                () =>
+                {
+                    buildersCreated++;
+                    return new ContentManifestBuilder(
+                        NullLogger<ContentManifestBuilder>.Instance,
+                        Mock.Of<IFileHashProvider>(),
+                        idService,
+                        Mock.Of<IDownloadService>(),
+                        Mock.Of<IConfigurationProviderService>());
+                },
+                new ManifestProviderOptions { GenerateFallbackManifests = true });
+            _poolMock.Setup(pool => pool.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<ContentManifest?>.CreateFailure("Not cached"));
+            var installation = new GameInstallation(root.FullName, GameInstallationType.Retail)
+            {
+                GeneralsPath = generalsPath, ZeroHourPath = zeroHourPath,
+                HasGenerals = true, HasZeroHour = true,
+            };
+
+            var first = await provider.GetManifestAsync(installation, GameType.Generals);
+            Assert.NotNull(first);
+            var firstId = first.Id;
+            var second = await provider.GetManifestAsync(installation, GameType.ZeroHour);
+            Assert.NotNull(second);
+            Assert.Equal(2, buildersCreated);
+            Assert.NotSame(first, second);
+            Assert.Equal(firstId, first.Id);
+            Assert.Equal("generals-only.big", Assert.Single(first.Files).RelativePath);
+            Assert.Equal("zerohour-only.big", Assert.Single(second.Files).RelativePath);
+            Assert.Equal(2, first.RequiredDirectories.Count);
+            Assert.Equal(2, second.RequiredDirectories.Count);
+        }
+        finally
+        {
+            root.Delete(recursive: true);
+        }
+    }
+
+    /// <summary>Invalid game types are rejected before accessing the manifest pool.</summary>
+    /// <param name="gameType">The unsupported game type.</param>
+    /// <returns>The asynchronous operation.</returns>
+    [Theory]
+    [InlineData(GameType.Unknown)]
+    [InlineData((GameType)999)]
+    public async Task GetManifestAsync_UnsupportedGame_RejectsBeforeLookupAsync(GameType gameType)
+    {
+        var installation = new GameInstallation(Path.GetTempPath(), GameInstallationType.Retail);
+        var exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => _manifestProvider.GetManifestAsync(installation, gameType));
+        Assert.Equal("gameType", exception.ParamName);
+        _poolMock.VerifyNoOtherCalls();
     }
 
     /// <summary>
@@ -59,7 +132,7 @@ public class ManifestProviderTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetManifestAsync_WithGameClient_ReturnsFromCache_WhenAvailable()
+    public async Task GetManifestAsync_WithGameClient_ReturnsFromCache_WhenAvailableAsync()
     {
         // Arrange
         var gameClient = new GameClient
@@ -86,11 +159,34 @@ public class ManifestProviderTests
     }
 
     /// <summary>
+    /// Cached variant manifests must pass the same fail-closed ingestion gate as newly
+    /// discovered manifests.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetManifestAsync_WithCachedVariantManifest_ThrowsValidationExceptionAsync()
+    {
+        var gameClient = new GameClient { Id = "1.0.genhub.mod.variant" };
+        var manifest = new ContentManifest
+        {
+            Id = gameClient.Id,
+            Variants = [new ArtifactVariant()],
+        };
+
+        _poolMock
+            .Setup(pool => pool.GetManifestAsync(manifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
+
+        await Assert.ThrowsAsync<ManifestValidationException>(
+            () => _manifestProvider.GetManifestAsync(gameClient));
+    }
+
+    /// <summary>
     /// Tests that GetManifestAsync builds correct manifest ID for game installation.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetManifestAsync_WithGameInstallation_BuildsCorrectManifestId()
+    public async Task GetManifestAsync_WithGameInstallation_BuildsCorrectManifestIdAsync()
     {
         // Arrange
         var installation = new GameInstallation(
@@ -120,17 +216,46 @@ public class ManifestProviderTests
     }
 
     /// <summary>
+    /// The installation overload must not bypass the fail-closed variant gate.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetManifestAsync_WithInstallationCachedVariantManifest_ThrowsValidationExceptionAsync()
+    {
+        var installation = new GameInstallation(
+            installationPath: @"C:\TestPath",
+            installationType: GameInstallationType.EaApp,
+            logger: null);
+        installation.SetPaths(@"C:\TestPath\Command and Conquer Generals", null);
+
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.108.eaapp.gameinstallation.generals"),
+            Variants = [new ArtifactVariant()],
+        };
+
+        _poolMock
+            .Setup(pool => pool.GetManifestAsync(manifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
+
+        await Assert.ThrowsAsync<ManifestValidationException>(
+            () => _manifestProvider.GetManifestAsync(installation));
+    }
+
+    /// <summary>
     /// Tests that GetManifestAsync uses Zero Hour ID for Zero Hour installations.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetManifestAsync_WithZeroHourInstallation_UsesZeroHourId()
+    public async Task GetManifestAsync_WithZeroHourInstallation_UsesZeroHourIdAsync()
     {
         // Arrange
         var tempZeroHourPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempZeroHourPath);
-        var zeroHourExe = Path.Combine(tempZeroHourPath, "generals.exe");
-        File.WriteAllText(zeroHourExe, "dummy");
+
+        // Zero Hour is flagged by its retail archives, not by an executable name.
+        var zeroHourArchive = Path.Combine(tempZeroHourPath, "INIZH.big");
+        File.WriteAllText(zeroHourArchive, "archive");
         try
         {
             var installation = new GameInstallation(
@@ -169,11 +294,54 @@ public class ManifestProviderTests
     }
 
     /// <summary>
+    /// The single-manifest overload prefers Zero Hour for a combined installation, so
+    /// Generals can only be reached through the game-typed overload. This asserts that
+    /// overload requests the Generals manifest id for such an installation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetManifestAsync_WithCombinedInstallationAndExplicitGenerals_UsesGeneralsId()
+    {
+        var combinedPath = Directory.CreateTempSubdirectory("GenHub.CombinedManifest.").FullName;
+        File.WriteAllText(Path.Combine(combinedPath, "INI.big"), "archive");
+        File.WriteAllText(Path.Combine(combinedPath, "INIZH.big"), "archive");
+        try
+        {
+            var installation = new GameInstallation(
+                installationPath: combinedPath,
+                installationType: GameInstallationType.Steam,
+                logger: null);
+            installation.SetPaths(combinedPath, combinedPath);
+            Assert.True(installation.HasGenerals);
+            Assert.True(installation.HasZeroHour);
+
+            var expectedManifest = new ContentManifest
+            {
+                Id = ManifestId.Create("1.108.steam.gameinstallation.generals"),
+                Name = "Test Manifest",
+            };
+
+            _poolMock.Setup(x => x.GetManifestAsync(ManifestId.Create("1.108.steam.gameinstallation.generals"), It.IsAny<CancellationToken>()))
+                      .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(expectedManifest));
+
+            var result = await _manifestProvider.GetManifestAsync(installation, GameType.Generals);
+
+            Assert.NotNull(result);
+            Assert.Equal("1.108.steam.gameinstallation.generals", result.Id);
+            _poolMock.Verify(x => x.GetManifestAsync(ManifestId.Create("1.108.steam.gameinstallation.generals"), It.IsAny<CancellationToken>()), Times.Once);
+        }
+        finally
+        {
+            Directory.Delete(combinedPath, true);
+        }
+    }
+
+    /// <summary>
     /// Tests that GetManifestAsync returns null when manifest is not found in cache or resources.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetManifestAsync_ReturnsNull_WhenManifestNotFoundInCacheAndResources()
+    public async Task GetManifestAsync_ReturnsNull_WhenManifestNotFoundInCacheAndResourcesAsync()
     {
         // Arrange
         var gameClient = new GameClient { Id = "1.0.genhub.nonexistent" };
@@ -192,7 +360,7 @@ public class ManifestProviderTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetManifestAsync_ThrowsValidationException_WhenManifestIdMismatch()
+    public async Task GetManifestAsync_ThrowsValidationException_WhenManifestIdMismatchAsync()
     {
         // Arrange
         var gameClient = new GameClient

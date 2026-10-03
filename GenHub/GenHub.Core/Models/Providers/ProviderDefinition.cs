@@ -1,0 +1,140 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Models.Enums;
+using System.Collections.Generic;
+using System.Text.Json.Serialization;
+
+namespace GenHub.Core.Models.Providers;
+
+/// <summary>
+/// Defines a content provider's static configuration (Tier 1 — publisher metadata + endpoints).
+/// </summary>
+/// <remarks>
+/// <para>
+/// Loaded today from bundled <c>Providers/*.provider.json</c> (GeneralsOnline, CommunityOutpost, …)
+/// and drives built-in discoverers/parsers (catalog format, timeouts, version scheme).
+/// </para>
+/// <para>
+/// This is <b>not</b> what <c>genhub://subscribe</c> persists today — subscribe stores a
+/// <see cref="PublisherSubscription"/> to a <see cref="PublisherCatalog"/> URL. Publisher Studio
+/// will later publish user-hosted definitions so users subscribe to a stable definition URL that
+/// references catalog endpoint(s), keeping the same Downloads/generic-catalog pipeline for content.
+/// </para>
+/// </remarks>
+public class ProviderDefinition
+{
+    /// <summary>
+    /// Gets or sets the unique provider identifier (e.g., "generalsonline", "communityoutpost", "github").
+    /// </summary>
+    [JsonPropertyName("providerId")]
+    public string ProviderId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the publisher type used in manifest IDs (e.g., "generalsonline", "communityoutpost").
+    /// </summary>
+    [JsonPropertyName("publisherType")]
+    public string PublisherType { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the display name shown in the UI (e.g., "Generals Online", "Community Outpost").
+    /// </summary>
+    [JsonPropertyName("displayName")]
+    public string DisplayName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets a description of what this provider offers.
+    /// </summary>
+    [JsonPropertyName("description")]
+    public string Description { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the icon color for UI display (hex color like "#4CAF50").
+    /// </summary>
+    [JsonPropertyName("iconColor")]
+    public string IconColor { get; set; } = "#808080";
+
+    /// <summary>
+    /// Gets or sets the icon URL for the provider.
+    /// </summary>
+    [JsonPropertyName("iconUrl")]
+    public string? IconUrl { get; set; }
+
+    /// <summary>
+    /// Gets or sets the provider type that determines discovery/resolution behavior.
+    /// </summary>
+    [JsonPropertyName("providerType")]
+    public ProviderType ProviderType { get; set; } = ProviderType.Static;
+
+    /// <summary>
+    /// Gets or sets the catalog format used by this provider.
+    /// Determines which parser to use for discovery (e.g., "genpatcher-dat", "github-releases", "json-api").
+    /// </summary>
+    [JsonPropertyName("catalogFormat")]
+    public string CatalogFormat { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the version scheme used to order this provider's versions
+    /// (e.g. "mmddyy-qfe", "iso-date", "numeric").
+    /// </summary>
+    [JsonPropertyName("versionScheme")]
+    public string VersionScheme { get; set; } = VersionSchemeConstants.Default;
+
+    /// <summary>
+    /// Gets or sets the endpoints configuration for this provider.
+    /// </summary>
+    [JsonPropertyName("endpoints")]
+    public ProviderEndpoints Endpoints { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the discovery configuration (for author-based providers).
+    /// </summary>
+    [JsonPropertyName("discovery")]
+    public DiscoveryConfiguration? Discovery { get; set; }
+
+    /// <summary>
+    /// Gets or sets the mirror preference order for downloads.
+    /// </summary>
+    [JsonPropertyName("mirrorPreference")]
+    public List<string> MirrorPreference { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets default content tags applied to all content from this provider.
+    /// </summary>
+    [JsonPropertyName("defaultTags")]
+    public List<string> DefaultTags { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this provider is enabled by default.
+    /// </summary>
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the target game for content from this provider (if fixed).
+    /// </summary>
+    [JsonPropertyName("targetGame")]
+    public GameType? TargetGame { get; set; }
+
+    /// <summary>
+    /// Gets or sets timeouts for this provider.
+    /// </summary>
+    [JsonPropertyName("timeouts")]
+    public ProviderTimeouts Timeouts { get; set; } = new();
+}
+
+/// <summary>
+/// Defines the type of content provider.
+/// </summary>
+public enum ProviderType
+{
+    /// <summary>
+    /// Static provider with fixed publisher identity (GeneralsOnline, CommunityOutpost, TheSuperhackers).
+    /// Discovers from a catalog/API, publishes under a single known identity.
+    /// </summary>
+    Static = 0,
+
+    /// <summary>
+    /// Dynamic provider where authors become publishers (GitHub, ModDB, CNCLabs).
+    /// Discovers content from various authors, each author becomes a distinct publisher.
+    /// </summary>
+    Dynamic = 1,
+}

@@ -1,11 +1,17 @@
-using System;
-using System.Runtime.Versioning;
 using Avalonia;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Infrastructure.DependencyInjection;
+using GenHub.Linux.Features.Shortcuts;
 using GenHub.Linux.Infrastructure.DependencyInjection;
+using GenHub.Linux.Infrastructure.SingleInstance;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System;
+using System.IO;
+using System.Linq;
+using System.Runtime.Versioning;
+using System.Threading;
 using Velopack;
 
 namespace GenHub.Linux;
@@ -15,8 +21,8 @@ namespace GenHub.Linux;
 /// </summary>
 public class Program
 {
-    private const string UpdaterUserAgent = "GenHub-Updater/1.0";
     private static readonly TimeSpan UpdaterTimeout = TimeIntervals.UpdaterTimeout;
+    private static LinuxSingleInstanceManager? _singleInstanceManager;
 
     /// <summary>
     /// Main entry point for the application.
@@ -34,12 +40,40 @@ public class Program
         // Initialize Velopack - must be first to handle install/update hooks
         VelopackApp.Build().Run();
 
-        // TODO: Create lockfile to guarantee that only one instance is running on linux
         using var bootstrapLoggerFactory = LoggingModule.CreateBootstrapLoggerFactory();
         var bootstrapLogger = bootstrapLoggerFactory.CreateLogger<Program>();
+
+        bool multiInstance = args.Contains(CommandLineConstants.MultiInstanceArg, StringComparer.OrdinalIgnoreCase) ||
+                             args.Contains(CommandLineConstants.MultiInstanceShortArg, StringComparer.OrdinalIgnoreCase) ||
+                             Environment.GetEnvironmentVariable(CommandLineConstants.MultiInstanceEnvVar) == CommandLineConstants.MultiInstanceEnvEnabledValue;
+
+        if (!multiInstance)
+        {
+            _singleInstanceManager = LinuxSingleInstanceManager.TryCreatePrimary(bootstrapLoggerFactory.CreateLogger<LinuxSingleInstanceManager>());
+            if (_singleInstanceManager == null)
+            {
+                TryForwardToPrimaryInstance(args, bootstrapLogger);
+                return;
+            }
+        }
+
+        // Register genhub:// protocol handler on Linux desktop
+        LinuxUriSchemeRegistrar.Register(bootstrapLogger);
+
         try
         {
-            bootstrapLogger.LogInformation("Starting GenHub Linux application");
+            bootstrapLogger.LogInformation("Starting GenHub Linux application ({Version})", AppConstants.FullDisplayVersion);
+
+            // Initialize configured data-path resolver before checking conflict so AppDataPath is respected
+            ConfigurationModule.InitializeConfiguredDataPathResolver();
+
+            // Check for duplicate installation collision and adopt configuration early
+            // before dependency injection initializes UserSettingsService.
+            var registeredCustom = Features.Storage.LinuxInstallationTracker.GetRegisteredCustomInstallPathStatic(bootstrapLogger);
+            Common.Services.StorageMigrationService.EarlyAdoptIfConflict(registeredCustom, bootstrapLogger);
+
+            // Record custom installation location if running outside default root
+            Features.Storage.LinuxInstallationTracker.RecordInstallLocationStatic(bootstrapLogger);
 
             var services = new ServiceCollection();
 
@@ -50,14 +84,17 @@ public class Program
             }
             catch (Exception configEx)
             {
-                bootstrapLogger.LogCritical(configEx, "Failed to configure application services");
-                throw;
+                throw new InvalidOperationException("Failed to configure application services", configEx);
             }
 
-            var serviceProvider = services.BuildServiceProvider();
-            AppLocator.Services = serviceProvider;
+            using (_singleInstanceManager)
+            {
+                var serviceProvider = services.BuildServiceProvider();
+                AppLocator.Services = serviceProvider;
+                AppLocator.SingleInstanceManager = _singleInstanceManager;
 
-            BuildAvaloniaApp(serviceProvider).StartWithClassicDesktopLifetime(args);
+                BuildAvaloniaApp(serviceProvider).StartWithClassicDesktopLifetime(args);
+            }
         }
         catch (Exception ex)
         {
@@ -79,4 +116,25 @@ public class Program
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace();
+
+    [SupportedOSPlatform("linux")]
+    private static void TryForwardToPrimaryInstance(string[] args, ILogger bootstrapLogger)
+    {
+        for (int attempt = 1; attempt <= CommandLineConstants.SingleInstanceMaxForwardAttempts; attempt++)
+        {
+            if (LinuxSingleInstanceManager.SendCommandToPrimaryInstance(args, bootstrapLogger))
+            {
+                return;
+            }
+
+            if (attempt < CommandLineConstants.SingleInstanceMaxForwardAttempts)
+            {
+                Thread.Sleep(TimeIntervals.SingleInstanceForwardRetryDelayMs);
+            }
+        }
+
+        bootstrapLogger.LogWarning(
+            "Failed to forward arguments to primary instance after {MaxAttempts} attempts. Exiting secondary instance to prevent duplicate instance state corruption.",
+            CommandLineConstants.SingleInstanceMaxForwardAttempts);
+    }
 }

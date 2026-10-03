@@ -1,0 +1,17 @@
+{
+  "BundlePacks": [
+    {
+      "Name": "Hotkeys",
+      "Items": [
+        "HotkeyIndicators",
+        "HotkeyINIs",
+        "HotkeyStrings"
+      ],
+      "OutputFile": ".Release/!HotkeysLegionnaireZH.big",
+      "Big": true,
+      "AllowBuild": true,
+      "AllowInstall": true,
+      "Description": "Complete Legionnaire Hotkeys and Overlay Indicators single BIG archive"
+    }
+  ]
+}

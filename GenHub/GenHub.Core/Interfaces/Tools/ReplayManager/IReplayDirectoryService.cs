@@ -1,0 +1,138 @@
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
+using GenHub.Core.Models.GameProfile;
+using GenHub.Core.Models.Launching;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Tools.ReplayManager;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace GenHub.Core.Interfaces.Tools.ReplayManager;
+
+/// <summary>
+/// Manages replay directory operations, compatibility resolution, profile generation, and game replay execution.
+/// </summary>
+public interface IReplayDirectoryService
+{
+    /// <summary>
+    /// Gets the replay directory path for the specified game version.
+    /// </summary>
+    /// <param name="version">The game version.</param>
+    /// <returns>The path to the replay directory.</returns>
+    string GetReplayDirectory(GameType version);
+
+    /// <summary>
+    /// Ensures the replay directory exists, creating it if necessary.
+    /// </summary>
+    /// <param name="version">The game version.</param>
+    void EnsureDirectoryExists(GameType version);
+
+    /// <summary>
+    /// Gets all replay files for the specified game version.
+    /// </summary>
+    /// <param name="version">The game version.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>A list of replay files.</returns>
+    Task<IReadOnlyList<ReplayFile>> GetReplaysAsync(GameType version, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes the specified replay files (moves to Recycle Bin).
+    /// </summary>
+    /// <param name="replays">The replays to delete.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>True if deletion was successful.</returns>
+    Task<bool> DeleteReplaysAsync(IEnumerable<ReplayFile> replays, CancellationToken ct = default);
+
+    /// <summary>
+    /// Opens the replay directory in Windows Explorer.
+    /// </summary>
+    /// <param name="version">The game version.</param>
+    void OpenInExplorer(GameType version);
+
+    /// <summary>
+    /// Reveals a specific file in Windows Explorer.
+    /// </summary>
+    /// <param name="replay">The replay file to reveal.</param>
+    void RevealInExplorer(ReplayFile replay);
+
+    /// <summary>
+    /// Gets all profiles compatible with the specified replay.
+    /// </summary>
+    /// <param name="replay">The replay file.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>A list of compatible profiles.</returns>
+    Task<IReadOnlyList<GameProfile>> GetCompatibleProfilesForReplayAsync(
+        ReplayFile replay,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Creates a dedicated game profile configured with the exact game client and INI settings matching the replay.
+    /// </summary>
+    /// <param name="replay">The replay file to create a profile for.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The operation result containing the created profile.</returns>
+    Task<ProfileOperationResult<GameProfile>> CreateProfileForReplayAsync(
+        ReplayFile replay,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Creates a dedicated game profile configured with the exact game client (or custom selected client) and INI settings matching the replay.
+    /// </summary>
+    /// <param name="replay">The replay file to create a profile for.</param>
+    /// <param name="customGameClient">Custom game client selected by the user.</param>
+    /// <param name="customClientManifestId">Optional custom client manifest ID if catalog-backed.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The operation result containing the created profile.</returns>
+    Task<ProfileOperationResult<GameProfile>> CreateProfileForReplayAsync(
+        ReplayFile replay,
+        GameClient? customGameClient,
+        string? customClientManifestId = null,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Launches the game with the profile matching the specified replay.
+    /// </summary>
+    /// <param name="replay">The replay file to launch.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The operation result containing the launch information.</returns>
+    Task<ProfileOperationResult<GameLaunchInfo>> LaunchReplayAsync(
+        ReplayFile replay,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Launches the game with the profile matching the specified replay.
+    /// </summary>
+    /// <param name="replay">The replay file to launch.</param>
+    /// <param name="profileId">Optional explicit profile ID to launch with.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The operation result containing the launch information.</returns>
+    Task<ProfileOperationResult<GameLaunchInfo>> LaunchReplayAsync(
+        ReplayFile replay,
+        string? profileId,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Checks whether the game profile with the specified ID is currently running.
+    /// </summary>
+    /// <param name="profileId">The profile ID to check.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns><c>true</c> if the profile is running; otherwise, <c>false</c>.</returns>
+    Task<bool> IsProfileRunningAsync(string profileId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Finds all compatible game profiles for the specified replay, ordered by relevance score descending.
+    /// </summary>
+    /// <param name="replay">The replay file to match against.</param>
+    /// <param name="profiles">The list of candidate profiles.</param>
+    /// <returns>A list of compatible profiles ordered by relevance.</returns>
+    IReadOnlyList<GameProfile> FindCompatibleProfiles(ReplayFile replay, IReadOnlyList<GameProfile> profiles);
+
+    /// <summary>
+    /// Finds all recovery-capable game profiles for the specified replay, ordered by relevance score descending.
+    /// </summary>
+    /// <param name="replay">The replay file to recover.</param>
+    /// <param name="profiles">The list of candidate profiles.</param>
+    /// <returns>A list of recovery-capable profiles ordered by relevance.</returns>
+    IReadOnlyList<GameProfile> FindRecoveryProfiles(ReplayFile replay, IReadOnlyList<GameProfile> profiles);
+}

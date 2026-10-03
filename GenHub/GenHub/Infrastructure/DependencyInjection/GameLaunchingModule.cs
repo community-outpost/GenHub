@@ -1,14 +1,10 @@
-using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Interfaces.GameInstallations;
-using GenHub.Core.Interfaces.GameProfiles;
-using GenHub.Core.Interfaces.GameSettings;
+using GenHub.Core.Interfaces.Launcher;
 using GenHub.Core.Interfaces.Launching;
-using GenHub.Core.Interfaces.Manifest;
-using GenHub.Core.Interfaces.Storage;
-using GenHub.Core.Interfaces.Workspace;
 using GenHub.Features.Launching;
+using GenHub.Features.Launching.Publishers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Linq;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -27,9 +23,23 @@ public static class GameLaunchingModule
         // LaunchRegistry is singleton - it tracks all launches globally across the app lifetime
         services.AddSingleton<ILaunchRegistry, LaunchRegistry>();
 
+        // Publisher launch handlers and registry.
+        services.AddScoped<IPublisherLaunchHandler, DefaultPublisherLaunchHandler>();
+        services.AddScoped<IPublisherLaunchHandler, GeneralsOnlineLaunchHandler>();
+        services.AddScoped<IPublisherLaunchHandlerRegistry>(sp =>
+            new PublisherLaunchHandlerRegistry(
+                sp.GetServices<IPublisherLaunchHandler>().ToList(),
+                sp.GetRequiredService<ILogger<PublisherLaunchHandlerRegistry>>()));
+
         // GameLauncher is scoped - one per request/operation to avoid captive dependencies
         // This prevents issues where scoped dependencies (like IGameProfileManager) are captured by singletons
         services.AddScoped<IGameLauncher, GameLauncher>();
+
+        // SteamLauncher for Steam integration - provisions files directly to game installation
+        services.AddScoped<ISteamLauncher, SteamLauncher>();
+
+        // Records a receipt per launch and cheaply revalidates it before subsequent launches
+        services.AddScoped<ILaunchReceiptService, LaunchReceiptService>();
 
         return services;
     }

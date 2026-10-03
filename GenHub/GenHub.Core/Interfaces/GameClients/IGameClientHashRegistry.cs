@@ -29,7 +29,7 @@ public interface IGameClientHashRegistry
     /// </summary>
     /// <param name="hash">The SHA-256 hash of the executable.</param>
     /// <param name="gameType">The game type to match.</param>
-    /// <returns>The version string or "Unknown" if not found.</returns>
+    /// <returns>The version string or GameClientConstants.UnknownVersion if not found.</returns>
     string GetVersionFromHash(string hash, GameType gameType);
 
     /// <summary>

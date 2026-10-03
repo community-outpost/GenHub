@@ -1,20 +1,19 @@
-using System;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
 using Microsoft.Extensions.Logging;
+using System;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Workspace.Strategies;
 
 /// <summary>
 /// Workspace strategy that creates complete copies of all game files.
-/// Provides maximum compatibility and complete isolation at the cost of disk space.
 /// </summary>
 /// <remarks>
 /// Initializes a new instance of the <see cref="FullCopyStrategy"/> class.
@@ -49,20 +48,17 @@ public sealed class FullCopyStrategy(
     /// <returns>The estimated disk usage in bytes, or <see cref="long.MaxValue"/> if overflow occurs.</returns>
     public override long EstimateDiskUsage(WorkspaceConfiguration configuration)
     {
-        if (configuration?.Manifests == null || configuration.Manifests.Count == 0)
+        if (configuration?.Manifests is null || configuration.Manifests.Count == 0)
             return 0;
 
         long totalSize = 0;
-        foreach (var manifest in configuration.Manifests)
+        foreach (var file in configuration.GetWorkspaceUniqueFiles())
         {
-            foreach (var file in manifest.Files)
-            {
-                // Prevent negative sizes and overflow
-                long safeSize = Math.Max(0, file.Size);
-                if (long.MaxValue - totalSize < safeSize)
-                    return long.MaxValue; // Indicate overflow
-                totalSize += safeSize;
-            }
+            // Prevent negative sizes and overflow
+            long safeSize = Math.Max(0, file.Size);
+            if (long.MaxValue - totalSize < safeSize)
+                return long.MaxValue; // Indicate overflow
+            totalSize += safeSize;
         }
 
         return totalSize;
@@ -87,24 +83,26 @@ public sealed class FullCopyStrategy(
             cancellationToken.ThrowIfCancellationRequested();
 
             // Clean existing workspace if force recreate is requested
-            if (Directory.Exists(workspacePath) && configuration.ForceRecreate)
+            if (configuration.ForceRecreate)
             {
                 Logger.LogDebug("Removing existing workspace directory: {WorkspacePath}", workspacePath);
-                Directory.Delete(workspacePath, true);
+                FileOperationsService.DeleteDirectoryIfExists(workspacePath);
             }
 
             // Create workspace directory
             Directory.CreateDirectory(workspacePath);
 
-            var allFiles = configuration.GetAllUniqueFiles().ToList();
-            var totalFiles = allFiles.Count;
+            // Copy one file per workspace path: the shared collision winner, as every other strategy does.
+            // ONLY include files where InstallTarget is Workspace.
+            var entries = configuration.GetWorkspaceUniqueFileEntries();
+            var totalFiles = entries.Count;
             var processedFiles = 0;
             long totalBytesProcessed = 0;
 
             Logger.LogDebug("Processing {TotalFiles} files in parallel", totalFiles);
             ReportProgress(progress, 0, totalFiles, "Initializing", string.Empty);
 
-            int degreeOfParallelism;
+            int degreeOfParallelism = Environment.ProcessorCount * 2;
             try
             {
                 var driveInfo = new DriveInfo(Path.GetPathRoot(workspacePath) ?? "C:\\");
@@ -122,82 +120,61 @@ public sealed class FullCopyStrategy(
                 degreeOfParallelism = Environment.ProcessorCount * 2;
             }
 
-            // Group files by destination path to handle conflicts
-            var filesByDestination = configuration.Manifests
-                .SelectMany(m => (m.Files ?? Enumerable.Empty<ManifestFile>()).Select(f => new { Manifest = m, File = f }))
-                .GroupBy(item => item.File.RelativePath, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
             await Parallel.ForEachAsync(
-                filesByDestination,
+                entries,
                 new ParallelOptions
                 {
                     MaxDegreeOfParallelism = degreeOfParallelism,
                     CancellationToken = cancellationToken,
                 },
-                async (fileGroup, ct) =>
+                async (entry, ct) =>
                 {
-                    // For each destination path, process files in priority order (lowest to highest)
-                    // Priority: GameInstallation (0) < GameClient (1) < Mod (2)
-                    // This ensures higher priority content overwrites lower priority
-                    var orderedFiles = fileGroup
-                        .OrderBy(item => item.Manifest.ContentType)
-                        .ToList();
+                    var (file, manifest) = entry;
+                    var destinationPath = Path.Combine(workspacePath, file.RelativePath);
 
-                    // Process all versions of this file in priority order
-                    // The last one (highest priority) will be the final version
-                    foreach (var item in orderedFiles)
+                    try
                     {
-                        var destinationPath = Path.Combine(workspacePath, item.File.RelativePath);
-
-                        try
+                        if (file.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
                         {
-                            // Handle different source types
-                            if (item.File.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(item.File.Hash))
-                            {
-                                // Use CAS content
-                                await CreateCasLinkAsync(item.File.Hash, destinationPath, ct);
-                            }
-                            else
-                            {
-                                // Resolve source path supporting multi-source installations
-                                var sourcePath = ResolveSourcePath(item.File, item.Manifest, configuration);
+                            // Use CAS content
+                            await CreateCasLinkAsync(file.Hash, destinationPath, manifest.ContentType, ct);
+                        }
+                        else
+                        {
+                            // Resolve source path supporting multi-source installations
+                            var sourcePath = ResolveSourcePath(file, manifest, configuration);
 
-                                if (!ValidateSourceFile(sourcePath, item.File.RelativePath))
-                                {
-                                    continue;
-                                }
-
+                            if (ValidateSourceFile(sourcePath, file.RelativePath))
+                            {
                                 await FileOperations.CopyFileAsync(sourcePath, destinationPath, ct);
 
                                 // Verify file integrity if hash is provided
-                                if (!string.IsNullOrEmpty(item.File.Hash))
+                                if (!string.IsNullOrEmpty(file.Hash))
                                 {
-                                    var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, item.File.Hash, ct);
+                                    var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, file.Hash, ct);
                                     if (!hashValid)
                                     {
-                                        Logger.LogWarning("Hash verification failed for file: {RelativePath}", item.File.RelativePath);
+                                        Logger.LogWarning("Hash verification failed for file: {RelativePath}", file.RelativePath);
                                     }
                                 }
                             }
                         }
-                        catch (Exception ex)
-                        {
-                            Logger.LogError(
-                                ex,
-                                "Failed to copy file {RelativePath} to {DestinationPath}",
-                                item.File.RelativePath,
-                                destinationPath);
-                            throw new InvalidOperationException($"Failed to copy file {item.File.RelativePath}: {ex.Message}", ex);
-                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogError(
+                            ex,
+                            "Failed to copy file {RelativePath} to {DestinationPath}",
+                            file.RelativePath,
+                            destinationPath);
+                        throw new InvalidOperationException($"Failed to copy file {file.RelativePath}: {ex.Message}", ex);
                     }
 
-                    // Only count the file group once for progress reporting
-                    Interlocked.Add(ref totalBytesProcessed, orderedFiles.First().File.Size);
+                    Interlocked.Add(ref totalBytesProcessed, file.Size);
                     var current = Interlocked.Increment(ref processedFiles);
                     if (current % 50 == 0 || current == totalFiles)
                     {
-                        ReportProgress(progress, current, totalFiles, "Copying files", orderedFiles.First().File.RelativePath);
+                        ReportProgress(progress, current, totalFiles, "Copying files", file.RelativePath);
                     }
                 });
 
@@ -233,12 +210,13 @@ public sealed class FullCopyStrategy(
     /// </summary>
     /// <param name="hash">The hash of the file in CAS.</param>
     /// <param name="targetPath">The destination path for the copied file.</param>
+    /// <param name="contentType">The content type for pool-specific CAS lookup.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task that represents the asynchronous copy operation.</returns>
     /// <exception cref="InvalidOperationException">Thrown if the copy operation fails.</exception>
-    protected override async Task CreateCasLinkAsync(string hash, string targetPath, CancellationToken cancellationToken)
+    protected override async Task CreateCasLinkAsync(string hash, string targetPath, ContentType? contentType, CancellationToken cancellationToken)
     {
-        var success = await FileOperations.CopyFromCasAsync(hash, targetPath, cancellationToken);
+        var success = await FileOperations.CopyFromCasAsync(hash, targetPath, contentType: contentType, cancellationToken: cancellationToken);
         if (!success)
         {
             Logger.LogError("Failed to copy from CAS for hash {Hash} to {TargetPath}", hash, targetPath);
@@ -269,19 +247,5 @@ public sealed class FullCopyStrategy(
                 Logger.LogWarning("Hash verification failed for file: {RelativePath}", file.RelativePath);
             }
         }
-    }
-
-    /// <inheritdoc/>
-    protected override async Task ProcessGameInstallationFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
-    {
-        // For game installation files, treat them the same as local files
-        // We need to find the manifest that contains this file
-        var manifest = configuration.Manifests.FirstOrDefault(m => m.Files.Contains(file));
-        if (manifest == null)
-        {
-            throw new InvalidOperationException($"Could not find manifest containing file {file.RelativePath}");
-        }
-
-        await ProcessLocalFileAsync(file, manifest, targetPath, configuration, cancellationToken);
     }
 }

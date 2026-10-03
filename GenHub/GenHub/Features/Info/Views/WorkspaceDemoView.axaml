@@ -1,0 +1,78 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Info.ViewModels"
+             xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="GenHub.Features.Info.Views.WorkspaceDemoView"
+             x:DataType="vm:WorkspaceDemoViewModel">
+
+    <Border Background="{DynamicResource CardBackground}" CornerRadius="12" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="20">
+        <Grid RowDefinitions="Auto, *, Auto">
+
+            <!-- Header -->
+            <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,20">
+                <StackPanel>
+                    <TextBlock Text="{localization:Localize Info.Demo.Workspace.Title}" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                    <TextBlock Text="{Binding Status}" FontSize="13" Foreground="{DynamicResource TextSecondary}" Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <Button Grid.Column="1"
+                        Command="{Binding StartSimulationCommand}"
+                        IsEnabled="{Binding !IsSimulating}"
+                        Background="{DynamicResource PrimaryButtonBackground}"
+                        Padding="16,8" CornerRadius="6">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <material:MaterialIcon Kind="Play" Width="18" Height="18" Foreground="{DynamicResource PrimaryButtonForeground}"/>
+                        <TextBlock Text="{localization:Localize Info.WorkspaceDemo.RunSimulator}" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryButtonForeground}"/>
+                    </StackPanel>
+                </Button>
+            </Grid>
+
+            <!-- Operation List -->
+            <Border Grid.Row="1" Background="{DynamicResource CardBackground}" CornerRadius="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                <ScrollViewer x:Name="OperationsScroll">
+                    <ItemsControl ItemsSource="{Binding Operations}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="0,0,0,1" Padding="12,10">
+                                    <Grid ColumnDefinitions="*, Auto, *">
+                                        <!-- Source -->
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="{localization:Localize Info.WorkspaceDemo.Source}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMuted}"/>
+                                            <TextBlock Text="{Binding Source}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="NoWrap"/>
+                                        </StackPanel>
+
+                                        <!-- Link Visual -->
+                                        <StackPanel Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="15,0">
+                                            <material:MaterialIcon Kind="Link" Width="14" Height="14" Foreground="{DynamicResource AccentBrush}"/>
+                                            <TextBlock Text="{Binding Type}" FontSize="9" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Center"/>
+                                        </StackPanel>
+
+                                        <!-- Target -->
+                                        <StackPanel Grid.Column="2" HorizontalAlignment="Right">
+                                            <TextBlock Text="{localization:Localize Info.WorkspaceDemo.Workspace}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Right"/>
+                                            <TextBlock Text="{Binding Target}" FontSize="11" Foreground="{DynamicResource TextPrimary}" TextWrapping="NoWrap" HorizontalAlignment="Right"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Border>
+
+            <!-- Footer / Progress -->
+            <StackPanel Grid.Row="2" Margin="0,15,0,0" Spacing="8">
+                <ProgressBar Value="{Binding Progress}" Height="4" Background="{DynamicResource SurfaceHoverBrush}" Foreground="{DynamicResource AccentBrush}"/>
+                <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                    <PathIcon Data="M12,2A7,7 0 0,0 5,9C5,11.38 6.19,13.47 8,14.74V17A1,1 0 0,0 9,18H15A1,1 0 0,0 16,17V14.74C17.81,13.47 19,11.38 19,9A7,7 0 0,0 12,2M9,21A1,1 0 0,0 10,22H14A1,1 0 0,0 15,21V20H9V21Z" Width="12" Height="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{localization:Localize Info.WorkspaceDemo.Description}"
+                               FontSize="11" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center" FontStyle="Italic" VerticalAlignment="Center"/>
+                </StackPanel>
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

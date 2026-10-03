@@ -1,11 +1,14 @@
 using GenHub.Core.Interfaces.Content;
-
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Storage;
 using GenHub.Features.Manifest;
+using GenHub.Features.Storage.Services;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
@@ -17,6 +20,7 @@ namespace GenHub.Tests.Core.Features.Manifest;
 public class ContentManifestPoolTests : IDisposable
 {
     private readonly Mock<IContentStorageService> _storageServiceMock;
+    private readonly Mock<ICasReferenceTracker> _referenceTrackerMock;
     private readonly Mock<ILogger<ContentManifestPool>> _loggerMock;
     private readonly ContentManifestPool _manifestPool;
     private readonly string _tempDirectory;
@@ -28,9 +32,68 @@ public class ContentManifestPoolTests : IDisposable
     {
         _storageServiceMock = new Mock<IContentStorageService>();
         _loggerMock = new Mock<ILogger<ContentManifestPool>>();
-        _manifestPool = new ContentManifestPool(_storageServiceMock.Object, _loggerMock.Object);
+
+        _referenceTrackerMock = new Mock<ICasReferenceTracker>();
+        _referenceTrackerMock.Setup(x => x.TrackManifestReferencesAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult.CreateSuccess());
+        _referenceTrackerMock.Setup(x => x.UntrackManifestAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult.CreateSuccess());
+
+        _manifestPool = new ContentManifestPool(_storageServiceMock.Object, _referenceTrackerMock.Object, _loggerMock.Object);
         _tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempDirectory);
+    }
+
+    /// <summary>Cancellation during reference tracking restores the previous metadata.</summary>
+    /// <param name="existing">Whether the manifest already has metadata.</param>
+    /// <returns>The asynchronous test.</returns>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AddManifestAsync_TrackingCancelled_RestoresMetadataAsync(bool existing)
+    {
+        var manifest = CreateTestManifest();
+        var path = Path.Combine(_tempDirectory, "manifest.json");
+        const string previous = "previous metadata bytes";
+        if (existing)
+        {
+            await File.WriteAllTextAsync(path, previous);
+        }
+
+        using var cts = new CancellationTokenSource();
+        _storageServiceMock.Setup(x => x.IsContentStoredAsync(manifest.Id, cts.Token))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _storageServiceMock.Setup(x => x.GetManifestStoragePath(manifest.Id)).Returns(path);
+        _referenceTrackerMock.Setup(x => x.TrackManifestReferencesAsync(manifest.Id, manifest, cts.Token))
+            .Returns(() =>
+            {
+                cts.Cancel();
+                throw new OperationCanceledException(cts.Token);
+            });
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _manifestPool.AddManifestAsync(manifest, cts.Token));
+
+        if (existing)
+        {
+            Assert.Equal(previous, await File.ReadAllTextAsync(path));
+        }
+        else
+        {
+            Assert.False(File.Exists(path));
+        }
+    }
+
+    /// <summary>Metadata updates preserve cancellation from the storage layer.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task AddManifestAsync_MetadataCancellationPropagatesAsync()
+    {
+        var manifest = CreateTestManifest();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        _storageServiceMock.Setup(x => x.IsContentStoredAsync(manifest.Id, cts.Token))
+            .ThrowsAsync(new OperationCanceledException(cts.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _manifestPool.AddManifestAsync(manifest, cts.Token));
     }
 
     /// <summary>
@@ -38,7 +101,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task AddManifestAsync_WithStoredContent_ShouldSucceed()
+    public async Task AddManifestAsync_WithStoredContent_ShouldSucceedAsync()
     {
         // Arrange
         var manifest = CreateTestManifest();
@@ -63,7 +126,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task AddManifestAsync_WithoutStoredContent_ShouldFail()
+    public async Task AddManifestAsync_WithoutStoredContent_ShouldFailAsync()
     {
         // Arrange
         var manifest = CreateTestManifest();
@@ -83,7 +146,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task AddManifestAsync_WithSourceDirectory_ShouldSucceed()
+    public async Task AddManifestAsync_WithSourceDirectory_ShouldSucceedAsync()
     {
         // Arrange
         var manifest = CreateTestManifest();
@@ -103,11 +166,33 @@ public class ContentManifestPoolTests : IDisposable
     }
 
     /// <summary>
+    /// Should propagate cancellation from content storage instead of returning a failure.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task AddManifestAsync_WithSourceDirectory_WhenStorageCancelled_ThrowsAsync()
+    {
+        // Arrange
+        var manifest = CreateTestManifest();
+        var sourceDirectory = Path.Combine(_tempDirectory, "source");
+        Directory.CreateDirectory(sourceDirectory);
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        _storageServiceMock.Setup(x => x.StoreContentAsync(manifest, sourceDirectory, It.IsAny<IProgress<ContentStorageProgress>?>(), cts.Token))
+            .ThrowsAsync(new OperationCanceledException(cts.Token));
+
+        // Act & Assert
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => _manifestPool.AddManifestAsync(manifest, sourceDirectory, null, cts.Token));
+    }
+
+    /// <summary>
     /// Should return manifest when it exists.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetManifestAsync_WhenExists_ShouldReturnManifest()
+    public async Task GetManifestAsync_WhenExists_ShouldReturnManifestAsync()
     {
         // Arrange
         var manifest = CreateTestManifest();
@@ -127,11 +212,36 @@ public class ContentManifestPoolTests : IDisposable
     }
 
     /// <summary>
+    /// An explicit JSON null must not replace the manifest's non-null variants
+    /// collection and crash the ingestion gate.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetManifestAsync_WithNullVariants_PreservesEmptyCollectionAsync()
+    {
+        var manifestId = ManifestId.Create("1.0.genhub.mod.nullvariants");
+        var manifestPath = Path.Combine(_tempDirectory, "null-variants.json");
+        await File.WriteAllTextAsync(
+            manifestPath,
+            """{"Id":"1.0.genhub.mod.nullvariants","Variants":null}""");
+
+        _storageServiceMock.Setup(service => service.GetManifestStoragePath(manifestId))
+            .Returns(manifestPath);
+
+        var result = await _manifestPool.GetManifestAsync(manifestId);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Empty(result.Data.Variants);
+        Assert.True(ManifestIngestionGate.TryAccept(result.Data, out _));
+    }
+
+    /// <summary>
     /// Should return null when manifest does not exist.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetManifestAsync_WhenNotExists_ShouldReturnNull()
+    public async Task GetManifestAsync_WhenNotExists_ShouldReturnNullAsync()
     {
         // Arrange
         var manifestId = "1.0.genhub.mod.nonexistent";
@@ -153,7 +263,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetAllManifestsAsync_ShouldReturnAllManifests()
+    public async Task GetAllManifestsAsync_ShouldReturnAllManifestsAsync()
     {
         // Arrange
         var manifests = new List<ContentManifest>
@@ -191,7 +301,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetAllManifestsAsync_WhenNoDirectory_ShouldReturnEmptyList()
+    public async Task GetAllManifestsAsync_WhenNoDirectory_ShouldReturnEmptyListAsync()
     {
         // Arrange
         _storageServiceMock.Setup(x => x.GetContentStorageRoot())
@@ -210,7 +320,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task SearchManifestsAsync_WithQuery_ShouldReturnFilteredResults()
+    public async Task SearchManifestsAsync_WithQuery_ShouldReturnFilteredResultsAsync()
     {
         // Arrange
         var manifests = new List<ContentManifest>
@@ -238,24 +348,48 @@ public class ContentManifestPoolTests : IDisposable
     }
 
     /// <summary>
-    /// Should remove manifest successfully.
+    /// Should remove manifest successfully and trigger cleanup by default.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task RemoveManifestAsync_ShouldSucceed()
+    public async Task RemoveManifestAsync_ShouldSucceedAndCleanupByDefaultAsync()
     {
         // Arrange
         var manifestId = "1.0.genhub.mod.publisher";
-        _storageServiceMock.Setup(x => x.RemoveContentAsync(manifestId, default))
+        _storageServiceMock.Setup(x => x.RemoveContentAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _referenceTrackerMock.Setup(x => x.UntrackManifestAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult.CreateSuccess());
 
         // Act
         var result = await _manifestPool.RemoveManifestAsync(manifestId);
 
         // Assert
+        Assert.True(result.Success, $"RemoveManifestAsync failed: {result.FirstError}");
+        Assert.True(result.Data);
+        _referenceTrackerMock.Verify(x => x.UntrackManifestAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+        _storageServiceMock.Verify(x => x.RemoveContentAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Should remove manifest successfully and skip cleanup when requested.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RemoveManifestAsync_WithSkipCleanup_ShouldSucceedAsync()
+    {
+        // Arrange
+        var manifestId = "1.0.genhub.mod.publisher";
+        _storageServiceMock.Setup(x => x.RemoveContentAsync(manifestId, true, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        var result = await _manifestPool.RemoveManifestAsync(manifestId, skipUntrack: true);
+
+        // Assert
         Assert.True(result.Success);
         Assert.True(result.Data);
-        _storageServiceMock.Verify(x => x.RemoveContentAsync(manifestId, default), Times.Once);
+        _storageServiceMock.Verify(x => x.RemoveContentAsync(manifestId, true, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     /// <summary>
@@ -263,11 +397,11 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task RemoveManifestAsync_WhenStorageFails_ShouldFail()
+    public async Task RemoveManifestAsync_WhenStorageFails_ShouldFailAsync()
     {
         // Arrange
         var manifestId = "1.0.genhub.mod.publisher";
-        _storageServiceMock.Setup(x => x.RemoveContentAsync(manifestId, default))
+        _storageServiceMock.Setup(x => x.RemoveContentAsync(manifestId, It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateFailure("Storage error"));
 
         // Act
@@ -283,7 +417,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task IsManifestAcquiredAsync_ShouldReturnCorrectStatus()
+    public async Task IsManifestAcquiredAsync_ShouldReturnCorrectStatusAsync()
     {
         // Arrange
         var manifestId = "1.0.genhub.mod.publisher";
@@ -303,7 +437,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetContentDirectoryAsync_WhenExists_ShouldReturnPath()
+    public async Task GetContentDirectoryAsync_WhenExists_ShouldReturnPathAsync()
     {
         // Arrange
         var manifestId = "1.0.genhub.mod.publisher";
@@ -327,7 +461,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetContentDirectoryAsync_WhenNotExists_ShouldReturnNull()
+    public async Task GetContentDirectoryAsync_WhenNotExists_ShouldReturnNullAsync()
     {
         // Arrange
         var manifestId = "1.0.genhub.mod.publisher";
@@ -350,7 +484,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetManifestAsync_WhenExceptionThrown_ShouldReturnFailure()
+    public async Task GetManifestAsync_WhenExceptionThrown_ShouldReturnFailureAsync()
     {
         // Arrange
         var manifestId = "1.0.genhub.mod.publisher";
@@ -383,6 +517,81 @@ public class ContentManifestPoolTests : IDisposable
         }
 
         GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// A variant manifest must be rejected before any content is written.
+    /// </summary>
+    /// <remarks>
+    /// The pool is the chokepoint every deliverer, resolver and detector reaches, so this
+    /// is where the gate has to hold. Returning a failure is not sufficient on its own:
+    /// what matters is that nothing was stored and no CAS references were tracked, because
+    /// mis-tracked references are what corrupts reference counting and garbage collection.
+    /// </remarks>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task AddManifestAsync_WithVariants_RejectsBeforeStoringContentAsync()
+    {
+        var manifest = CreateTestManifest();
+        manifest.Variants.Add(new ArtifactVariant());
+
+        var result = await _manifestPool.AddManifestAsync(manifest);
+
+        Assert.False(result.Success);
+        Assert.Contains("variant", result.FirstError, StringComparison.OrdinalIgnoreCase);
+
+        _storageServiceMock.Verify(
+            x => x.IsContentStoredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        _referenceTrackerMock.Verify(
+            x => x.TrackManifestReferencesAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// The source-directory overload must reject a variant manifest without storing content.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task AddManifestAsync_WithSourceDirectory_WithVariants_RejectsBeforeStoringContentAsync()
+    {
+        var manifest = CreateTestManifest();
+        manifest.Variants.Add(new ArtifactVariant());
+
+        var result = await _manifestPool.AddManifestAsync(manifest, _tempDirectory);
+
+        Assert.False(result.Success);
+        Assert.Contains("variant", result.FirstError, StringComparison.OrdinalIgnoreCase);
+
+        _storageServiceMock.Verify(
+            x => x.StoreContentAsync(
+                It.IsAny<ContentManifest>(),
+                It.IsAny<string>(),
+                It.IsAny<IProgress<ContentStorageProgress>>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+        _referenceTrackerMock.Verify(
+            x => x.TrackManifestReferencesAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// A manifest without variants must not be rejected by the gate; every manifest
+    /// published today is this shape.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task AddManifestAsync_WithoutVariants_IsNotRejectedByTheGateAsync()
+    {
+        var manifest = CreateTestManifest();
+        _storageServiceMock.Setup(x => x.IsContentStoredAsync(manifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _storageServiceMock.Setup(x => x.GetManifestStoragePath(manifest.Id))
+            .Returns(Path.Combine(_tempDirectory, $"{manifest.Id}.manifest.json"));
+
+        var result = await _manifestPool.AddManifestAsync(manifest);
+
+        Assert.True(result.Success, $"Expected success but got: {result.FirstError}");
     }
 
     /// <summary>

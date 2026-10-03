@@ -1,7 +1,6 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Enums;
-using GenHub.Features.Content.Services.CommunityOutpost.Models;
-using Xunit;
-
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.Content.CommunityOutpost;
@@ -20,11 +19,17 @@ public class GenPatcherContentRegistryTests
     /// <param name="expectedGame">The expected target game.</param>
     [Theory]
     [InlineData("gent", "GenTool", ContentType.Addon, GameType.ZeroHour)]
-    [InlineData("genl", "GenLauncher", ContentType.Addon, GameType.ZeroHour)]
+    [InlineData("gena", "GenAssist", ContentType.Addon, GameType.ZeroHour)]
+    [InlineData("ewba", "Enhanced World Builder (Advanced)", ContentType.ModdingTool, GameType.ZeroHour)]
+    [InlineData("ewbi", "Enhanced World Builder (International)", ContentType.ModdingTool, GameType.ZeroHour)]
     [InlineData("10gn", "Generals 1.08", ContentType.GameClient, GameType.Generals)]
     [InlineData("10zh", "Zero Hour 1.04", ContentType.GameClient, GameType.ZeroHour)]
-    [InlineData("cbbs", "Control Bar - Basic", ContentType.Addon, GameType.ZeroHour)]
+    [InlineData("cbbs", "Control Bar HD (Base)", ContentType.Addon, GameType.ZeroHour)]
+    [InlineData("hlei", "Leikeze's Hotkeys", ContentType.Addon, GameType.ZeroHour)]
     [InlineData("crzh", "Camera Mod - Zero Hour", ContentType.Addon, GameType.ZeroHour)]
+    [InlineData("community-patch", CommunityOutpostConstants.CommunityPatchRetailDisplayName, ContentType.GameClient, GameType.ZeroHour)]
+    [InlineData(CommunityOutpostConstants.CommunityPatchRetailCode, CommunityOutpostConstants.CommunityPatchRetailDisplayName, ContentType.GameClient, GameType.ZeroHour)]
+    [InlineData("community-patch-nonret", CommunityOutpostConstants.CommunityPatchNonRetDisplayName, ContentType.GameClient, GameType.ZeroHour)]
     public void GetMetadata_ReturnsCorrectMetadataForKnownCodes(
         string contentCode,
         string expectedName,
@@ -82,7 +87,7 @@ public class GenPatcherContentRegistryTests
         var metadata = GenPatcherContentRegistry.GetMetadata("zzzz");
 
         // Assert
-        Assert.Contains("Unknown", metadata.DisplayName);
+        Assert.Contains(GameClientConstants.UnknownVersion, metadata.DisplayName);
         Assert.Equal(ContentType.UnknownContentType, metadata.ContentType);
         Assert.Equal(GenPatcherContentCategory.Other, metadata.Category);
     }
@@ -128,9 +133,13 @@ public class GenPatcherContentRegistryTests
     /// <param name="contentCode">The known content code to test.</param>
     [Theory]
     [InlineData("gent")]
-    [InlineData("genl")]
+    [InlineData("gena")]
     [InlineData("cbbs")]
     [InlineData("10zh")]
+    [InlineData("community-patch")]
+    [InlineData("community-patch-nonret")]
+    [InlineData("108e")]
+    [InlineData("104b")]
     public void IsKnownCode_ReturnsTrueForKnownCodes(string contentCode)
     {
         // Act
@@ -147,8 +156,10 @@ public class GenPatcherContentRegistryTests
     [Theory]
     [InlineData("zzzz")]
     [InlineData("abcd")]
-    [InlineData("108e")] // Patch codes are parsed dynamically, not in known list
-    public void IsKnownCode_ReturnsFalseForUnknownCodes(string contentCode)
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void IsKnownCode_ReturnsFalseForUnknownCodes(string? contentCode)
     {
         // Act
         var isKnown = GenPatcherContentRegistry.IsKnownCode(contentCode);
@@ -169,8 +180,10 @@ public class GenPatcherContentRegistryTests
         // Assert
         Assert.NotEmpty(codes);
         Assert.Contains("gent", codes);
-        Assert.Contains("genl", codes);
+        Assert.Contains("gena", codes);
         Assert.Contains("10zh", codes);
+        Assert.Contains("community-patch", codes);
+        Assert.Contains("community-patch-nonret", codes);
     }
 
     /// <summary>
@@ -184,9 +197,12 @@ public class GenPatcherContentRegistryTests
     [InlineData("crzh", GenPatcherContentCategory.Camera)]
     [InlineData("hlen", GenPatcherContentCategory.Hotkeys)]
     [InlineData("gent", GenPatcherContentCategory.Tools)]
+    [InlineData("ewba", GenPatcherContentCategory.Tools)]
     [InlineData("maod", GenPatcherContentCategory.Maps)]
     [InlineData("icon", GenPatcherContentCategory.Visuals)]
     [InlineData("vc05", GenPatcherContentCategory.Prerequisites)]
+    [InlineData("community-patch", GenPatcherContentCategory.CommunityPatch)]
+    [InlineData("community-patch-nonret", GenPatcherContentCategory.CommunityPatch)]
     public void GetMetadata_AssignsCorrectCategory(
         string contentCode,
         GenPatcherContentCategory expectedCategory)
@@ -224,5 +240,127 @@ public class GenPatcherContentRegistryTests
         // Assert
         Assert.Equal(expectedLanguageCode, metadata.LanguageCode);
         Assert.Equal(ContentType.Patch, metadata.ContentType);
+    }
+
+    /// <summary>
+    /// Verifies that Leikeze's Hotkeys metadata defines valid variants with output filenames.
+    /// </summary>
+    [Fact]
+    public void GetMetadata_HleiVariants_DefineOutputFilenames()
+    {
+        // Act
+        var metadata = GenPatcherContentRegistry.GetMetadata("hlei");
+
+        // Assert
+        Assert.True(metadata.SupportsVariants);
+        Assert.NotNull(metadata.Variants);
+        Assert.Equal(4, metadata.Variants.Count);
+
+        var zhEn = metadata.Variants.FirstOrDefault(v => v.Id == "zerohour-en");
+        Assert.NotNull(zhEn);
+        Assert.Equal("!HotkeysLeikezeENZH.big", zhEn.OutputFilename);
+        Assert.Equal(GameType.ZeroHour, zhEn.TargetGame);
+
+        var zhDe = metadata.Variants.FirstOrDefault(v => v.Id == "zerohour-de");
+        Assert.NotNull(zhDe);
+        Assert.Equal("!HotkeysLeikezeDEZH.big", zhDe.OutputFilename);
+        Assert.Equal(GameType.ZeroHour, zhDe.TargetGame);
+
+        var zhRu = metadata.Variants.FirstOrDefault(v => v.Id == "zerohour-ru");
+        Assert.NotNull(zhRu);
+        Assert.Equal("!HotkeysLeikezeRUZH.big", zhRu.OutputFilename);
+        Assert.Equal(GameType.ZeroHour, zhRu.TargetGame);
+
+        var ccgEn = metadata.Variants.FirstOrDefault(v => v.Id == "generals-en");
+        Assert.NotNull(ccgEn);
+        Assert.Equal("!HotkeysLeikezeEN.big", ccgEn.OutputFilename);
+        Assert.Equal(GameType.Generals, ccgEn.TargetGame);
+    }
+
+    /// <summary>
+    /// Verifies that NormalizeContentCode correctly normalizes raw and composite content codes.
+    /// </summary>
+    /// <param name="rawCode">The raw code to test.</param>
+    /// <param name="expectedNormalized">The expected normalized code.</param>
+    [Theory]
+    [InlineData("hleizerohourru", "hlei")]
+    [InlineData("hlei-zerohour-ru", "hlei")]
+    [InlineData("hlei-zerohour-de", "hlei")]
+    [InlineData("hlei", "hlei")]
+    [InlineData("HLEI", "hlei")]
+    [InlineData("cbpr-1080p", "cbpr")]
+    [InlineData("community-patch", "community-patch")]
+    [InlineData(CommunityOutpostConstants.CommunityPatchRetailCode, CommunityOutpostConstants.CommunityPatchRetailCode)]
+    [InlineData("community-patch-nonret", "community-patch-nonret")]
+    [InlineData("10zh", "10zh")]
+    [InlineData("unknown_test", "unknown_test")]
+    [InlineData("custom-addon-1", "custom-addon-1")]
+    [InlineData(null, "")]
+    [InlineData("", "")]
+    public void NormalizeContentCode_ReturnsExpectedNormalizedCode(string? rawCode, string expectedNormalized)
+    {
+        var result = GenPatcherContentRegistry.NormalizeContentCode(rawCode);
+        Assert.Equal(expectedNormalized, result);
+    }
+
+    /// <summary>
+    /// Verifies that TryGetContentCodeFromTags handles null collections and null entries safely.
+    /// </summary>
+    [Fact]
+    public void TryGetContentCodeFromTags_WithNullOrNullEntries_HandlesSafely()
+    {
+        // Act & Assert
+        Assert.Null(GenPatcherContentRegistry.TryGetContentCodeFromTags(null));
+
+        var tagsWithNull = new string?[] { null, "unrelated:tag", null, "contentCode:gent" };
+        var code = GenPatcherContentRegistry.TryGetContentCodeFromTags(tagsWithNull!);
+        Assert.Equal("gent", code);
+    }
+
+    /// <summary>
+    /// Verifies that TryGetContentCodeFromTags prioritizes known patch codes over earlier unrelated candidates.
+    /// </summary>
+    [Fact]
+    public void TryGetContentCodeFromTags_PrioritizesKnownPatchCodeOverUnrelatedCandidate()
+    {
+        // Arrange: first candidate is an unrecognized code, followed by a valid patch code (108e)
+        var tags = new[] { "contentCode:some-unknown-item", "contentCode:108e" };
+
+        // Act
+        var code = GenPatcherContentRegistry.TryGetContentCodeFromTags(tags);
+
+        // Assert
+        Assert.Equal("108e", code);
+    }
+
+    /// <summary>
+    /// Verifies that TryGetContentCodeFromTags returns first candidate if no known code exists.
+    /// </summary>
+    [Fact]
+    public void TryGetContentCodeFromTags_ReturnsFirstCandidateWhenNoKnownCodeFound()
+    {
+        // Arrange
+        var tags = new[] { "contentCode:custom-addon-1", "contentCode:custom-addon-2" };
+
+        // Act
+        var code = GenPatcherContentRegistry.TryGetContentCodeFromTags(tags);
+
+        // Assert
+        Assert.Equal("custom-addon-1", code);
+    }
+
+    /// <summary>
+    /// Verifies that TryGetContentCodeFromTags skips tags that contain only the prefix or whitespace.
+    /// </summary>
+    [Fact]
+    public void TryGetContentCodeFromTags_WithEmptyContentCodeTag_SkipsEmptyCandidate()
+    {
+        // Arrange
+        var tagsOnlyEmpty = new[] { "contentCode:", "contentCode:   " };
+        var tagsWithNextValid = new[] { "contentCode:", "contentCode:gent" };
+
+        // Act & Assert
+        Assert.Null(GenPatcherContentRegistry.TryGetContentCodeFromTags(tagsOnlyEmpty));
+        Assert.Equal("gent", GenPatcherContentRegistry.TryGetContentCodeFromTags(tagsWithNextValid));
     }
 }

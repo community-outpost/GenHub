@@ -1,8 +1,10 @@
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Workspace;
+using GenHub.Tests.Core.Helpers;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -37,7 +39,7 @@ public class FileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CopyFileAsync_CreatesFile()
+    public async Task CopyFileAsync_CreatesFileAsync()
     {
         var src = Path.Combine(_tempDir, "source.txt");
         var dst = Path.Combine(_tempDir, "destination.txt");
@@ -50,11 +52,102 @@ public class FileOperationsServiceTests : IDisposable
     }
 
     /// <summary>
+    /// A copy that cannot even open its source must not have destroyed the file already sitting at
+    /// the destination: the destination is unlinked to break hard links, and doing that before the
+    /// source is known to be readable turns a failed copy into data loss.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CopyFileAsync_MissingSource_LeavesExistingDestinationIntactAsync()
+    {
+        var src = Path.Combine(_tempDir, "missing-source.txt");
+        var dst = Path.Combine(_tempDir, "existing-destination.txt");
+
+        await File.WriteAllTextAsync(dst, "the file the user already had");
+
+        await Assert.ThrowsAsync<FileNotFoundException>(() => _service.CopyFileAsync(src, dst));
+
+        Assert.True(File.Exists(dst));
+        Assert.Equal("the file the user already had", await File.ReadAllTextAsync(dst));
+    }
+
+    /// <summary>
+    /// Copying a file onto itself must leave it alone rather than unlinking it and then failing to
+    /// read the source it has just deleted.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CopyFileAsync_SameSourceAndDestination_LeavesFileIntactAsync()
+    {
+        var file = Path.Combine(_tempDir, "self.txt");
+        await File.WriteAllTextAsync(file, "irreplaceable content");
+
+        await _service.CopyFileAsync(file, Path.Combine(_tempDir, ".", "self.txt"));
+
+        Assert.True(File.Exists(file));
+        Assert.Equal("irreplaceable content", await File.ReadAllTextAsync(file));
+    }
+
+    /// <summary>
+    /// A destination that is a leftover link to the source is exactly what callers copy to get rid
+    /// of: skipping the copy because the link resolves to the source leaves the workspace file
+    /// pointing at the shared CAS object, so later writes reach the object every profile shares.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CopyFileAsync_DestinationIsSymlinkToSource_ReplacesLinkWithIndependentCopyAsync()
+    {
+        var file = Path.Combine(_tempDir, "real.txt");
+        var link = Path.Combine(_tempDir, "link.txt");
+        await File.WriteAllTextAsync(file, "shared content");
+
+        if (!SymlinkTestHelper.TryCreateFileSymlink(link, file))
+        {
+            return;
+        }
+
+        await _service.CopyFileAsync(file, link);
+
+        Assert.Null(File.ResolveLinkTarget(link, returnFinalTarget: true));
+        Assert.Equal("shared content", await File.ReadAllTextAsync(link));
+
+        await File.WriteAllTextAsync(link, "workspace content");
+
+        Assert.Equal("shared content", await File.ReadAllTextAsync(file));
+        Assert.Equal("workspace content", await File.ReadAllTextAsync(link));
+    }
+
+    /// <summary>
+    /// When the source is the link and the destination is the real file it points at, the
+    /// destination is already the independent copy the caller wants. Unlinking it would destroy the
+    /// only copy of the content, so the copy must be skipped.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CopyFileAsync_SourceIsSymlinkToDestination_LeavesFileIntactAsync()
+    {
+        var file = Path.Combine(_tempDir, "target.txt");
+        var link = Path.Combine(_tempDir, "pointer.txt");
+        await File.WriteAllTextAsync(file, "irreplaceable content");
+
+        if (!SymlinkTestHelper.TryCreateFileSymlink(link, file))
+        {
+            return;
+        }
+
+        await _service.CopyFileAsync(link, file);
+
+        Assert.True(File.Exists(file));
+        Assert.Null(File.ResolveLinkTarget(file, returnFinalTarget: true));
+        Assert.Equal("irreplaceable content", await File.ReadAllTextAsync(file));
+    }
+
+    /// <summary>
     /// Tests that CreateSymlinkAsync creates a symbolic link or falls back to copy on unsupported platforms.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CreateSymlinkAsync_CreatesSymlinkOrCopies()
+    public async Task CreateSymlinkAsync_CreatesSymlinkOrCopiesAsync()
     {
         var src = Path.Combine(_tempDir, "source.txt");
         var link = Path.Combine(_tempDir, "link.txt");
@@ -95,42 +188,34 @@ public class FileOperationsServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Tests that CreateHardLinkAsync creates a hard link or falls back to copy on unsupported platforms.
+    /// The base service must refuse to create a hard link, because it cannot.
+    /// <para>
+    /// This replaces a test that swallowed five exception types and then asserted only
+    /// <c>File.Exists</c> and matching content — assertions a plain <c>File.Copy</c>
+    /// satisfies. The base implementation did exactly that on Unix, so the test passed
+    /// while every Linux workspace silently full-copied the game instead of linking it.
+    /// A test that cannot distinguish the bug from the fix is worse than no test.
+    /// </para>
+    /// <para>
+    /// Real link behaviour is covered per platform, where it can actually be asserted:
+    /// see <c>UnixFileOperationsServiceTests</c> and <c>WindowsFileOperationsServiceTests</c>.
+    /// </para>
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CreateHardLinkAsync_CreatesHardLinkOrCopies()
+    public async Task CreateHardLinkAsync_OnBaseService_RefusesInsteadOfCopyingAsync()
     {
         var src = Path.Combine(_tempDir, "source.txt");
         var link = Path.Combine(_tempDir, "hardlink.txt");
 
         await File.WriteAllTextAsync(src, "test content");
 
-        // Try to create hard link; on unsupported platforms or not implemented, skip test
-        try
-        {
-            await _service.CreateHardLinkAsync(link, src);
-        }
-        catch (NotImplementedException)
-        {
-            // Not implemented in base service, skip test
-            return;
-        }
-        catch (PlatformNotSupportedException)
-        {
-            return;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return;
-        }
-        catch (NotSupportedException)
-        {
-            return;
-        }
+        var thrown = await Record.ExceptionAsync(() => _service.CreateHardLinkAsync(link, src));
 
-        Assert.True(File.Exists(link));
-        Assert.Equal("test content", await File.ReadAllTextAsync(link));
+        Assert.IsType<NotSupportedException>(thrown);
+        Assert.False(
+            File.Exists(link),
+            "The base service produced a file, which means it silently copied rather than refusing.");
     }
 
     /// <summary>
@@ -141,7 +226,7 @@ public class FileOperationsServiceTests : IDisposable
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task VerifyFileHashAsync_HandlesCase(bool caseSensitive)
+    public async Task VerifyFileHashAsync_HandlesCaseAsync(bool caseSensitive)
     {
         var file = Path.Combine(_tempDir, "test.txt");
         await File.WriteAllTextAsync(file, "test");
@@ -166,7 +251,7 @@ public class FileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task VerifyFileHashAsync_ReturnsFalse_WhenHashDoesNotMatch()
+    public async Task VerifyFileHashAsync_ReturnsFalse_WhenHashDoesNotMatchAsync()
     {
         var file = Path.Combine(_tempDir, "test.txt");
         await File.WriteAllTextAsync(file, "test");
@@ -188,7 +273,7 @@ public class FileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DownloadFileAsync_UsesDownloadService_Successfully()
+    public async Task DownloadFileAsync_UsesDownloadService_SuccessfullyAsync()
     {
         var testUrl = "https://example.com/file.txt";
         var destination = Path.Combine(_tempDir, "download.txt");
@@ -223,7 +308,7 @@ public class FileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DownloadFileAsync_ThrowsException_WhenDownloadServiceFails()
+    public async Task DownloadFileAsync_ThrowsException_WhenDownloadServiceFailsAsync()
     {
         var downloadServiceMock = new Mock<IDownloadService>();
         downloadServiceMock.Setup(s => s.DownloadFileAsync(
@@ -237,7 +322,7 @@ public class FileOperationsServiceTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAsync<HttpRequestException>(() =>
-            fileOps.DownloadFileAsync(new Uri("http://fail"), "fail.zip"));
+            fileOps.DownloadFileAsync(new Uri("https://fail"), "fail.zip"));
     }
 
     /// <summary>
@@ -245,7 +330,7 @@ public class FileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CopyFileAsync_ThrowsException_WhenSourceFileNotFound()
+    public async Task CopyFileAsync_ThrowsException_WhenSourceFileNotFoundAsync()
     {
         var nonExistentSource = Path.Combine(_tempDir, "nonexistent.txt");
         var destination = Path.Combine(_tempDir, "destination.txt");
@@ -259,7 +344,7 @@ public class FileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CopyFileAsync_CreatesDirectoryStructure()
+    public async Task CopyFileAsync_CreatesDirectoryStructureAsync()
     {
         var source = Path.Combine(_tempDir, "source.txt");
         var destination = Path.Combine(_tempDir, "nested", "deep", "destination.txt");
@@ -277,7 +362,7 @@ public class FileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task VerifyFileHashAsync_ReturnsFalse_WhenFileNotExists()
+    public async Task VerifyFileHashAsync_ReturnsFalse_WhenFileNotExistsAsync()
     {
         var nonExistentFile = Path.Combine(_tempDir, "nonexistent.txt");
         var hash = "somehash";
@@ -291,11 +376,27 @@ public class FileOperationsServiceTests : IDisposable
     }
 
     /// <summary>
+    /// A file that is not there yields no hash at all, so it must be reported as a failed check
+    /// rather than as a confirmed difference that a destructive caller could act on.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckFileHashAsync_MissingFile_ReportsFailedAsync()
+    {
+        var missing = Path.Combine(_tempDir, "not-here.txt");
+
+        var result = await _service.CheckFileHashAsync(missing, "any-hash");
+
+        Assert.Equal(FileHashVerification.Failed, result);
+        Assert.False(await _service.VerifyFileHashAsync(missing, "any-hash"));
+    }
+
+    /// <summary>
     /// Tests that VerifyFileHashAsync handles exceptions gracefully.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task VerifyFileHashAsync_HandlesExceptions_Gracefully()
+    public async Task VerifyFileHashAsync_HandlesExceptions_GracefullyAsync()
     {
         var file = Path.Combine(_tempDir, "test.txt");
         await File.WriteAllTextAsync(file, "test");
@@ -314,7 +415,7 @@ public class FileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CreateSymlinkAsync_WithAllowFallbackTrue_SucceedsAlways()
+    public async Task CreateSymlinkAsync_WithAllowFallbackTrue_SucceedsAlwaysAsync()
     {
         var src = Path.Combine(_tempDir, "source.txt");
         var link = Path.Combine(_tempDir, "link.txt");
@@ -334,7 +435,7 @@ public class FileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CreateSymlinkAsync_WithDefaultParameter_AllowsFallback()
+    public async Task CreateSymlinkAsync_WithDefaultParameter_AllowsFallbackAsync()
     {
         var src = Path.Combine(_tempDir, "source.txt");
         var link = Path.Combine(_tempDir, "link_default.txt");
@@ -345,6 +446,172 @@ public class FileOperationsServiceTests : IDisposable
 
         Assert.True(File.Exists(link));
         Assert.Equal("test content", await File.ReadAllTextAsync(link));
+    }
+
+    /// <summary>
+    /// Tests that DeleteDirectoryIfExists returns false for null or whitespace paths.
+    /// </summary>
+    /// <param name="path">The path to test.</param>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void DeleteDirectoryIfExists_ReturnsFalse_WhenPathIsNullOrWhiteSpace(string? path)
+    {
+        var result = FileOperationsService.DeleteDirectoryIfExists(path!);
+        Assert.False(result);
+    }
+
+    /// <summary>
+    /// Tests that DeleteDirectoryIfExists returns false when the directory does not exist.
+    /// </summary>
+    [Fact]
+    public void DeleteDirectoryIfExists_ReturnsFalse_WhenDirectoryDoesNotExist()
+    {
+        var nonExistent = Path.Combine(_tempDir, Guid.NewGuid().ToString());
+        var result = FileOperationsService.DeleteDirectoryIfExists(nonExistent);
+        Assert.False(result);
+    }
+
+    /// <summary>
+    /// Tests that DeleteDirectoryIfExists successfully removes a directory containing read-only files.
+    /// </summary>
+    [Fact]
+    public void DeleteDirectoryIfExists_DeletesDirectoryAndReadOnlyFiles()
+    {
+        var dir = Path.Combine(_tempDir, "readonly_dir");
+        var subDir = Path.Combine(dir, "sub");
+        Directory.CreateDirectory(subDir);
+
+        var file1 = Path.Combine(dir, "file1.txt");
+        var file2 = Path.Combine(subDir, "file2.txt");
+        File.WriteAllText(file1, "read only file 1");
+        File.WriteAllText(file2, "read only file 2");
+
+        File.SetAttributes(file1, FileAttributes.ReadOnly);
+        File.SetAttributes(file2, FileAttributes.ReadOnly);
+
+        var result = FileOperationsService.DeleteDirectoryIfExists(dir);
+
+        Assert.True(result);
+        Assert.False(Directory.Exists(dir));
+    }
+
+    /// <summary>
+    /// Tests that DeleteDirectoryIfExists deletes a regular file if given a path to a file.
+    /// </summary>
+    [Fact]
+    public void DeleteDirectoryIfExists_DeletesRegularFile()
+    {
+        var filePath = Path.Combine(_tempDir, "stray_file.txt");
+        File.WriteAllText(filePath, "stray file content");
+
+        var result = FileOperationsService.DeleteDirectoryIfExists(filePath);
+
+        Assert.True(result);
+        Assert.False(File.Exists(filePath));
+    }
+
+    /// <summary>
+    /// Tests that WriteAllBytesAtomicAsync lands the exact bytes while leaving no temporary files behind.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task WriteAllBytesAtomicAsync_WritesContentWithoutTempLeftoversAsync()
+    {
+        var filePath = Path.Combine(_tempDir, "atomic.bin");
+        var content = new byte[] { 1, 2, 3, 4 };
+
+        await FileOperationsService.WriteAllBytesAtomicAsync(filePath, content);
+
+        Assert.Equal(content, await File.ReadAllBytesAsync(filePath));
+        Assert.Single(Directory.GetFiles(_tempDir));
+    }
+
+    /// <summary>
+    /// Tests that WriteAllBytesAtomicAsync overwrites an existing file.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task WriteAllBytesAtomicAsync_OverwritesExistingFileAsync()
+    {
+        var filePath = Path.Combine(_tempDir, "atomic-overwrite.bin");
+        await File.WriteAllTextAsync(filePath, "stale content");
+        var content = new byte[] { 9, 8, 7 };
+
+        await FileOperationsService.WriteAllBytesAtomicAsync(filePath, content);
+
+        Assert.Equal(content, await File.ReadAllBytesAsync(filePath));
+        Assert.Single(Directory.GetFiles(_tempDir));
+    }
+
+    /// <summary>
+    /// Tests that a rename blocked by a momentary open handle succeeds once the handle is released.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task MoveFileWithRetryAsync_WithTransientLock_RetriesAndSucceedsAsync()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            // POSIX rename succeeds over open files; the retry only engages on Windows.
+            return;
+        }
+
+        var sourcePath = Path.Combine(_tempDir, "retry-source.bin");
+        var destinationPath = Path.Combine(_tempDir, "retry-destination.bin");
+        await File.WriteAllTextAsync(sourcePath, "new");
+        await File.WriteAllTextAsync(destinationPath, "old");
+
+        // Hold the destination open the way a concurrent reader does, then release it
+        // well before the first retry delay elapses so the first attempt deterministically
+        // fails and the retry deterministically succeeds.
+        var holder = new FileStream(destinationPath, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.Read);
+        try
+        {
+            var releaser = Task.Run(async () =>
+            {
+                await Task.Delay(20);
+                await holder.DisposeAsync();
+            });
+
+            await FileOperationsService.MoveFileWithRetryAsync(sourcePath, destinationPath);
+            await releaser;
+
+            Assert.Equal("new", await File.ReadAllTextAsync(destinationPath));
+            Assert.False(File.Exists(sourcePath));
+        }
+        finally
+        {
+            holder.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Tests that a rename blocked for the whole retry budget surfaces the original error
+    /// with neither file half-moved.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task MoveFileWithRetryAsync_WithPersistentLock_ThrowsOriginalExceptionAsync()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            // POSIX rename succeeds over open files; the retry only engages on Windows.
+            return;
+        }
+
+        var sourcePath = Path.Combine(_tempDir, "blocked-source.bin");
+        var destinationPath = Path.Combine(_tempDir, "blocked-destination.bin");
+        await File.WriteAllTextAsync(sourcePath, "new");
+        await File.WriteAllTextAsync(destinationPath, "old");
+        using var holder = new FileStream(destinationPath, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.Read);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(
+            () => FileOperationsService.MoveFileWithRetryAsync(sourcePath, destinationPath));
+
+        Assert.True(File.Exists(sourcePath));
+        Assert.Equal("old", await File.ReadAllTextAsync(destinationPath));
     }
 
     /// <summary>

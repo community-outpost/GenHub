@@ -1,4 +1,6 @@
 using GenHub.Core.Models.GameProfile;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace GenHub.Core.Interfaces.Launching;
 

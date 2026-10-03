@@ -1,9 +1,9 @@
-using System;
-using System.Collections.Generic;
-using System.Globalization;
 using Avalonia.Data.Converters;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Features.Content.ViewModels;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
 
 namespace GenHub.Infrastructure.Converters;
 
@@ -29,7 +29,8 @@ public class ProfileSelectionConverter : IMultiValueConverter
             {
                 return new object[] { contentItem, profile };
             }
-            else if (values[0] is Core.Models.Manifest.ContentManifest manifest)
+
+            if (values[0] is Core.Models.Manifest.ContentManifest manifest)
             {
                 return new object[] { manifest, profile };
             }

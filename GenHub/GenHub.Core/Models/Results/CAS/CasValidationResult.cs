@@ -1,7 +1,7 @@
-namespace GenHub.Core.Models.Results.CAS;
-
-using System.Linq;
 using GenHub.Core.Models.Storage;
+using System.Linq;
+
+namespace GenHub.Core.Models.Results.CAS;
 
 /// <summary>Result of CAS integrity validation operations.</summary>
 public class CasValidationResult : ResultBase
@@ -19,10 +19,12 @@ public class CasValidationResult : ResultBase
         : base(
             !issues.Any(i => i.IssueType == CasValidationIssueType.HashMismatch ||
                              i.IssueType == CasValidationIssueType.CorruptedObject ||
-                             i.IssueType == CasValidationIssueType.MissingObject),
+                             i.IssueType == CasValidationIssueType.MissingObject ||
+                             i.IssueType == CasValidationIssueType.Critical),
             issues.Where(i => i.IssueType == CasValidationIssueType.HashMismatch ||
                               i.IssueType == CasValidationIssueType.CorruptedObject ||
-                              i.IssueType == CasValidationIssueType.MissingObject)
+                              i.IssueType == CasValidationIssueType.MissingObject ||
+                              i.IssueType == CasValidationIssueType.Critical)
                   .Select(i => $"{i.IssueType}: {i.Details}")
                   .ToList(),
             elapsed)
