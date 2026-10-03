@@ -127,7 +127,7 @@ public sealed class SymlinkOnlyStrategy(
                             ReportProgress(progress, current, totalFiles, "Creating symlinks", item.File.RelativePath);
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is not OperationCanceledException)
                     {
                         Logger.LogError(
                             ex,
@@ -208,13 +208,13 @@ public sealed class SymlinkOnlyStrategy(
                 await FileOperations.CreateHardLinkAsync(targetPath, sourcePath, cancellationToken);
                 Logger.LogDebug("Successfully created hardlink from {SourcePath} to {TargetPath}", sourcePath, targetPath);
             }
-            catch (Exception hardLinkEx)
+            catch (Exception hardLinkEx) when (hardLinkEx is not OperationCanceledException)
             {
                 Logger.LogError(hardLinkEx, "Hardlink fallback also failed for {RelativePath}, attempting copy", file.RelativePath);
                 await FileOperations.CopyFileAsync(sourcePath, targetPath, cancellationToken);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Logger.LogError(ex, "Failed to create symlink from {SourcePath} to {TargetPath}", sourcePath, targetPath);
             throw new InvalidOperationException($"Failed to create symlink for {file.RelativePath}: {ex.Message}", ex);

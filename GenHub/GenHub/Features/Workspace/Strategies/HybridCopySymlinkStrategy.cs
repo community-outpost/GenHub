@@ -191,7 +191,7 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
                                     symlinkedFiles++; // Still count as symlinked for reporting purposes
                                     totalBytesProcessed += LinkOverheadBytes;
                                 }
-                                catch (Exception hardLinkEx)
+                                catch (Exception hardLinkEx) when (hardLinkEx is not OperationCanceledException)
                                 {
                                     Logger.LogError(hardLinkEx, "Hardlink fallback also failed for {RelativePath}, attempting copy", file.RelativePath);
                                     await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
@@ -202,7 +202,7 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
                         }
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     var operation = isEssential ? "copy" : "create symlink for";
                     Logger.LogError(
@@ -306,7 +306,7 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
                 {
                     await FileOperations.CreateHardLinkAsync(targetPath, sourcePath, cancellationToken);
                 }
-                catch (Exception hardLinkEx)
+                catch (Exception hardLinkEx) when (hardLinkEx is not OperationCanceledException)
                 {
                     Logger.LogError(hardLinkEx, "Hardlink fallback also failed for {RelativePath}, attempting copy", file.RelativePath);
                     await FileOperations.CopyFileAsync(sourcePath, targetPath, cancellationToken);
