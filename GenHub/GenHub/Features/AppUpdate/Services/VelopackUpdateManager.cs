@@ -1185,7 +1185,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             return false;
         }
 
-        var prPattern = $@"(PR\s*#?|#){prNumber.Value}";
+        var prPattern = $@"(?:^|\W)(?:PR\s*#?|#){prNumber.Value}(?!\d)";
         return Regex.IsMatch(manifestName ?? string.Empty, prPattern, RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(500));
     }
 
