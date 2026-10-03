@@ -170,6 +170,7 @@ public partial class AddContentDialogViewModel(
     /// Artwork browse target for the content backdrop cover.
     /// </summary>
     public const string ArtworkTargetBackdrop = "Backdrop";
+    private const string DefaultInitialVersion = "1.0.0";
 
     private readonly CatalogContentItem? _existingItem;
     private readonly Func<CatalogContentItem, Task>? _onContentDeleted;
@@ -378,7 +379,7 @@ public partial class AddContentDialogViewModel(
     private bool _includeInitialRelease = true;
 
     [ObservableProperty]
-    private string _initialVersion = "1.0.0";
+    private string _initialVersion = DefaultInitialVersion;
 
     [ObservableProperty]
     private bool _useDirectUrl = true;
@@ -1315,7 +1316,7 @@ public partial class AddContentDialogViewModel(
                 GetLocalizedGameName(SelectedTargetGame));
         }
 
-        if (!string.IsNullOrWhiteSpace(buildInfo.Version) && (string.IsNullOrWhiteSpace(InitialVersion) || InitialVersion == "1.0.0"))
+        if (!string.IsNullOrWhiteSpace(buildInfo.Version) && (string.IsNullOrWhiteSpace(InitialVersion) || InitialVersion == DefaultInitialVersion))
         {
             InitialVersion = buildInfo.Version;
         }
@@ -2372,7 +2373,7 @@ public partial class AddContentDialogViewModel(
 
         if (!string.IsNullOrWhiteSpace(buildInfo.Version) &&
             !buildInfo.Version.Equals("Unknown", StringComparison.OrdinalIgnoreCase) &&
-            (string.IsNullOrWhiteSpace(InitialVersion) || InitialVersion == "1.0.0"))
+            (string.IsNullOrWhiteSpace(InitialVersion) || InitialVersion == DefaultInitialVersion))
         {
             release.Version = buildInfo.Version;
         }
@@ -2402,7 +2403,7 @@ public partial class AddContentDialogViewModel(
             return;
         }
 
-        var version = string.IsNullOrWhiteSpace(InitialVersion) ? "1.0.0" : InitialVersion.Trim();
+        var version = string.IsNullOrWhiteSpace(InitialVersion) ? DefaultInitialVersion : InitialVersion.Trim();
         if (BundleArtifacts)
         {
             ClearReleaseArtifactVariants();
@@ -2464,7 +2465,7 @@ public partial class AddContentDialogViewModel(
 
     private void AttachInitialBundleRelease(CatalogContentItem contentItem)
     {
-        var bundleVersion = string.IsNullOrWhiteSpace(InitialVersion) ? "1.0.0" : InitialVersion.Trim();
+        var bundleVersion = string.IsNullOrWhiteSpace(InitialVersion) ? DefaultInitialVersion : InitialVersion.Trim();
         var bundleRelease = new ContentRelease
         {
             Version = bundleVersion,

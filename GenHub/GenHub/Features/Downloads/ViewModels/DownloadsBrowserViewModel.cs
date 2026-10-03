@@ -84,6 +84,7 @@ public sealed partial class DownloadsBrowserViewModel(
     ILocalizationService? localizationService = null) : ObservableObject, IDisposable
 {
     private const string DefaultPublisherName = "Content";
+    private const string InstallationFailedFallbackTitle = "Installation Failed";
 
     private long _subscriptionRefreshVersion;
 
@@ -4580,7 +4581,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 prepMessage,
                 NotificationDurations.Medium));
 
-            tempDir = Path.Combine(Path.GetTempPath(), $"genhub-build-install-{Guid.NewGuid():N}");
+            tempDir = Path.Combine(AppDataPathHelper.GetDataRoot(), "Temp", $"genhub-build-install-{Guid.NewGuid():N}");
             Directory.CreateDirectory(tempDir);
 
             var retrieveResult = await storageService.RetrieveContentAsync(
@@ -4591,7 +4592,7 @@ public sealed partial class DownloadsBrowserViewModel(
             if (!retrieveResult.Success)
             {
                 logger.LogError("Failed to retrieve build files for {ContentId}: {Error}", contentId, retrieveResult.FirstError);
-                var failedTitle = locService?.GetLocalizedString("Downloads.Notification.InstallBuild.Failed.Title", "Installation Failed") ?? "Installation Failed";
+                var failedTitle = locService?.GetLocalizedString("Downloads.Notification.InstallBuild.Failed.Title", InstallationFailedFallbackTitle) ?? InstallationFailedFallbackTitle;
                 var failedMsg = retrieveResult.FirstError ?? "Failed to retrieve build files from storage.";
                 notificationService.Show(new NotificationMessage(
                     NotificationType.Error,
@@ -4622,7 +4623,7 @@ public sealed partial class DownloadsBrowserViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to install GenHub build {ContentId}", contentId);
-            var failedTitle = locService?.GetLocalizedString("Downloads.Notification.InstallBuild.Failed.Title", "Installation Failed") ?? "Installation Failed";
+            var failedTitle = locService?.GetLocalizedString("Downloads.Notification.InstallBuild.Failed.Title", InstallationFailedFallbackTitle) ?? InstallationFailedFallbackTitle;
             notificationService.Show(new NotificationMessage(
                 NotificationType.Error,
                 failedTitle,

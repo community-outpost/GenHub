@@ -7,6 +7,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Parsers;
+using GenHub.Core.Services.Tools;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -432,14 +433,7 @@ public abstract partial class DownloadableItemViewModel : ObservableObject, IDow
     /// Gets a value indicating whether this item represents a GenHub build.
     /// </summary>
     public bool IsGenHubBuild =>
-        ContentType == ContentType.GenHubBuild ||
-        (!string.IsNullOrWhiteSpace(Name) &&
-         Name.StartsWith("GenHub", StringComparison.OrdinalIgnoreCase) &&
-         (ContentType is ContentType.GameClient or ContentType.Executable or ContentType.ModdingTool or ContentType.UnknownContentType ||
-          Name.Contains("Setup", StringComparison.OrdinalIgnoreCase) ||
-          Name.Contains("PR #", StringComparison.OrdinalIgnoreCase) ||
-          Name.Contains("Build", StringComparison.OrdinalIgnoreCase) ||
-          Name.Contains("Fork", StringComparison.OrdinalIgnoreCase)));
+        GenHubBuildInspector.IsGenHubApplicationBuild(ContentType, Name);
 
     /// <summary>
     /// Gets a value indicating whether the Add to Profile button should be shown for this row.

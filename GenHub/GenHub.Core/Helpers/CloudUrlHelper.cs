@@ -13,7 +13,7 @@ public static partial class CloudUrlHelper
 {
     private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(500);
 
-    [GeneratedRegex(@"^https?:\/\/(?:drive|docs)\.google\.com\/(?:file\/d\/|open\?id=)([^/?&]+)", RegexOptions.IgnoreCase, 500)]
+    [GeneratedRegex(@"^https?:\/\/(?:drive|docs)\.google\.com\/(?:file\/d\/|[^?]*\?(?:[^#]*&)?id=)([^/?&]+)", RegexOptions.IgnoreCase, 500)]
     private static partial Regex GoogleDriveRegexCompiled();
 
     [GeneratedRegex(@"^https?:\/\/github\.com\/([^\/]+)\/([^\/]+)\/blob\/([^\/]+)\/(.+)$", RegexOptions.IgnoreCase, 500)]
@@ -28,10 +28,10 @@ public static partial class CloudUrlHelper
     [GeneratedRegex(@"href=[""']([^""']*confirm=[^""']*)[""']", RegexOptions.IgnoreCase, 500)]
     private static partial Regex GoogleDriveConfirmHrefRegexCompiled();
 
-    [GeneratedRegex(@"<form\s+(?:[^>]*?\s+)?action=[""']([^""']*?)[""'][^>]*method=[""'](?:post|get)[""'][^>]*>", RegexOptions.IgnoreCase, 500)]
+    [GeneratedRegex(@"<form\b(?=[^>]*\baction=[""']([^""']*)[""'])(?=[^>]*\bmethod=[""'](?:post|get)[""'])[^>]*>", RegexOptions.IgnoreCase, 500)]
     private static partial Regex GoogleDriveFormActionRegexCompiled();
 
-    [GeneratedRegex(@"<input\s+(?:[^>]*?\s+)?name=[""']([^""']+)[""'][^>]*value=[""']([^""']*)[""'][^>]*>", RegexOptions.IgnoreCase, 500)]
+    [GeneratedRegex(@"<input\s+(?=[^>]*\bname=[""']([^""']+)[""'])(?=[^>]*\bvalue=[""']([^""']*)[""'])[^>]*>", RegexOptions.IgnoreCase, 500)]
     private static partial Regex GoogleDriveFormInputRegexCompiled();
 
     private static Regex GoogleDriveRegex => GoogleDriveRegexCompiled();
@@ -118,19 +118,43 @@ public static partial class CloudUrlHelper
         var actionMatch = GoogleDriveFormActionRegex.Match(html);
         if (actionMatch.Success)
         {
-            var action = actionMatch.Groups[1].Value.Replace("&amp;", "&");
-            var inputMatches = GoogleDriveFormInputRegex.Matches(html);
-            var queryParams = inputMatches
-                .Select(m => $"{Uri.EscapeDataString(m.Groups[1].Value)}={Uri.EscapeDataString(m.Groups[2].Value)}")
-                .ToList();
-
-            if (queryParams.Count > 0)
+            var rawAction = actionMatch.Groups[1].Value.Replace("&amp;", "&");
+            Uri? resolvedUri = null;
+            if (Uri.TryCreate(rawAction, UriKind.Absolute, out var absAction) &&
+                (absAction.Scheme == Uri.UriSchemeHttp || absAction.Scheme == Uri.UriSchemeHttps))
             {
-                var separator = action.Contains('?') ? "&" : "?";
-                return $"{action}{separator}{string.Join("&", queryParams)}";
+                resolvedUri = absAction;
+            }
+            else
+            {
+                var baseUri = requestUri ?? new Uri(Uri.UriSchemeHttps + "://drive.google.com");
+                if (Uri.TryCreate(baseUri, rawAction, out var combinedUri) &&
+                    (combinedUri.Scheme == Uri.UriSchemeHttp || combinedUri.Scheme == Uri.UriSchemeHttps))
+                {
+                    resolvedUri = combinedUri;
+                }
             }
 
-            return action;
+            if (resolvedUri != null &&
+                resolvedUri.Scheme == Uri.UriSchemeHttps &&
+                (resolvedUri.Host.Equals("drive.google.com", StringComparison.OrdinalIgnoreCase) ||
+                 resolvedUri.Host.EndsWith(".google.com", StringComparison.OrdinalIgnoreCase) ||
+                 resolvedUri.Host.EndsWith(".googleusercontent.com", StringComparison.OrdinalIgnoreCase)))
+            {
+                var action = resolvedUri.ToString();
+                var inputMatches = GoogleDriveFormInputRegex.Matches(html);
+                var queryParams = inputMatches
+                    .Select(m => $"{Uri.EscapeDataString(m.Groups[1].Value)}={Uri.EscapeDataString(m.Groups[2].Value)}")
+                    .ToList();
+
+                if (queryParams.Count > 0)
+                {
+                    var separator = action.Contains('?') ? "&" : "?";
+                    return $"{action}{separator}{string.Join("&", queryParams)}";
+                }
+
+                return action;
+            }
         }
 
         return null;

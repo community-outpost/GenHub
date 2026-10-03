@@ -3,6 +3,7 @@ using GenHub.Core.Helpers;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -90,7 +91,7 @@ public class FastHttpClientFileDownloader(
         double timeout,
         CancellationToken cancelToken = default)
     {
-        return DownloadFileCoreAsync(url, targetFile, progress, headers, timeout, cancelToken, remainingRedirects: 3);
+        return DownloadFileCoreAsync(url, targetFile, progress, headers, timeout, remainingRedirects: 3, cancelToken);
     }
 
     /// <inheritdoc/>
@@ -98,16 +99,19 @@ public class FastHttpClientFileDownloader(
     {
         var handler = httpMessageHandler ?? SharedSocketsHandler;
         var client = new HttpClient(handler, disposeHandler: false);
+
         if (timeout > 0)
         {
             client.Timeout = TimeSpan.FromSeconds(timeout);
         }
 
-        if (headers != null)
+        client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", ApiConstants.DefaultUserAgent);
+
+        if (headers is not null)
         {
-            foreach (var header in headers)
+            foreach (var kvp in headers)
             {
-                client.DefaultRequestHeaders.TryAddWithoutValidation(header.Key, header.Value);
+                client.DefaultRequestHeaders.TryAddWithoutValidation(kvp.Key, kvp.Value);
             }
         }
 
@@ -122,7 +126,6 @@ public class FastHttpClientFileDownloader(
         CancellationToken cancelToken)
     {
         var progressReporter = new MonotonicProgressReporter(progress, totalBytes);
-
         await using var contentStream = await response.Content.ReadAsStreamAsync(cancelToken).ConfigureAwait(false);
         await using var fileStream = new FileStream(
             targetFile,
@@ -133,7 +136,7 @@ public class FastHttpClientFileDownloader(
             useAsync: true);
 
         var buffer = new byte[AppUpdateConstants.DefaultStreamBufferSize];
-        int bytesRead = 0;
+        int bytesRead;
 
         while ((bytesRead = await contentStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancelToken).ConfigureAwait(false)) > 0)
         {
@@ -269,8 +272,8 @@ public class FastHttpClientFileDownloader(
         Action<int> progress,
         IDictionary<string, string>? headers,
         double timeout,
-        CancellationToken cancelToken,
-        int remainingRedirects)
+        int remainingRedirects,
+        CancellationToken cancelToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(url);
         ArgumentException.ThrowIfNullOrWhiteSpace(targetFile);
@@ -329,7 +332,7 @@ public class FastHttpClientFileDownloader(
             // If probe returned 200 OK (server ignored Range header), check for HTML response or stream directly
             if (probeResponse.StatusCode == HttpStatusCode.OK)
             {
-                if (await TryHandleHtmlResponseAsync(probeResponse, url, targetFile, progress, headers, timeout, cancelToken, remainingRedirects).ConfigureAwait(false))
+                if (await TryHandleHtmlResponseAsync(probeResponse, url, targetFile, progress, headers, timeout, remainingRedirects, cancelToken).ConfigureAwait(false))
                 {
                     return;
                 }
@@ -348,7 +351,7 @@ public class FastHttpClientFileDownloader(
 
             fullResponse.EnsureSuccessStatusCode();
 
-            if (await TryHandleHtmlResponseAsync(fullResponse, url, targetFile, progress, headers, timeout, cancelToken, remainingRedirects).ConfigureAwait(false))
+            if (await TryHandleHtmlResponseAsync(fullResponse, url, targetFile, progress, headers, timeout, remainingRedirects, cancelToken).ConfigureAwait(false))
             {
                 return;
             }
@@ -357,7 +360,7 @@ public class FastHttpClientFileDownloader(
             await DownloadSingleStreamAsync(fullResponse, targetFile, fullBytes, progress, cancelToken).ConfigureAwait(false);
             ValidateDownloadedFileHeader(targetFile);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is not (OperationCanceledException or InvalidOperationException))
         {
             logger?.LogWarning(
                 ex,
@@ -368,6 +371,7 @@ public class FastHttpClientFileDownloader(
         }
     }
 
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Internal helper requires download options and progress state.")]
     private async Task<bool> TryHandleHtmlResponseAsync(
         HttpResponseMessage response,
         string url,
@@ -375,8 +379,8 @@ public class FastHttpClientFileDownloader(
         Action<int> progress,
         IDictionary<string, string>? headers,
         double timeout,
-        CancellationToken cancelToken,
-        int remainingRedirects)
+        int remainingRedirects,
+        CancellationToken cancelToken)
     {
         var mediaType = response.Content.Headers.ContentType?.MediaType;
         if (!string.Equals(mediaType, "text/html", StringComparison.OrdinalIgnoreCase))
@@ -395,7 +399,7 @@ public class FastHttpClientFileDownloader(
             }
 
             logger?.LogInformation("Following Google Drive download confirmation from {Url} to {ConfirmedUrl}", url, confirmedUrl);
-            await DownloadFileCoreAsync(confirmedUrl, targetFile, progress, headers, timeout, cancelToken, remainingRedirects - 1).ConfigureAwait(false);
+            await DownloadFileCoreAsync(confirmedUrl, targetFile, progress, headers, timeout, remainingRedirects - 1, cancelToken).ConfigureAwait(false);
             return true;
         }
 
@@ -407,6 +411,7 @@ public class FastHttpClientFileDownloader(
         throw new InvalidOperationException("Server returned an HTML page instead of the expected binary file download.");
     }
 
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Internal helper requires download options and progress state.")]
     private async Task DownloadViaParallelModeAsync(
         HttpClient client,
         Uri resolvedUri,

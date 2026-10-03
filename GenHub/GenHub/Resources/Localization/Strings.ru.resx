@@ -3838,9 +3838,6 @@
   <data name="ContentType.ModdingTool" xml:space="preserve">
     <value>Инструмент для моддинга</value>
   </data>
-  <data name="ContentType.GenHubBuild" xml:space="preserve">
-    <value>Сборка GenHub</value>
-  </data>
   <data name="ContentType.UnknownContentType" xml:space="preserve">
     <value>Неизвестный контент</value>
   </data>
@@ -18165,6 +18162,6 @@ Error: не удалось: {3}
     <value>Сборки приложения GenHub нельзя добавлять в игровые профили. Используйте функцию установки сборки.</value>
   </data>
   <data name="Updates.Error.NoVersionsAvailable" xml:space="preserve">
-    <value>Нет доступных версий для подписанной пользовательской сборки</value>
+    <value>Нет доступных версий для пользовательской сборки, на которую оформлена подписка</value>
   </data>
 </root>
