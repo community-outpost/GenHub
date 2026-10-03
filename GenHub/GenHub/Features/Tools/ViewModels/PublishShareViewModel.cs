@@ -251,6 +251,7 @@ public partial class PublishShareViewModel(
     private readonly Dictionary<string, List<HostedAssetChildViewModel>> _remotePreviewCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly LinkedList<string> _remotePreviewCacheOrder = new();
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, long> _probedMediaSizes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, long> _probedArtifactSizes = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _probeLock = new();
     private CancellationTokenSource? _probeCts = new();
     private CancellationTokenSource? _previewCts = new();
@@ -1893,7 +1894,15 @@ public partial class PublishShareViewModel(
             ? FindHostingArtifactByUrl(artifact.DownloadUrl)
             : _currentHostingState?.Artifacts.FirstOrDefault(a => a.FileName == artifact.Filename);
         artHosting ??= FindUnresolvedHostingArtifact(artifact.Filename, artifact.Size);
-        var artSize = artifact.Size > 0 ? artifact.Size : (artHosting?.FileSize ?? 0);
+        var artSize = artifact.Size > 0
+            ? artifact.Size
+            : (artHosting?.FileSize > 0
+                ? artHosting.FileSize
+                : (_probedArtifactSizes.TryGetValue(artifact.DownloadUrl ?? string.Empty, out var cachedArtSize) ? cachedArtSize : 0));
+        if (artSize > 0 && artifact.Size <= 0)
+        {
+            artifact.Size = artSize;
+        }
         var artUpdated = artHosting?.LastUpdated ?? DateTime.MinValue;
 
         var (location, status) = ResolveArtifactLocationAndStatus(
@@ -2064,6 +2073,46 @@ public partial class PublishShareViewModel(
         }
     }
 
+    private void UpdateProjectArtifactSizes(string url, long size)
+    {
+        if (_project.Catalogs == null)
+        {
+            return;
+        }
+
+        foreach (var namedCatalog in _project.Catalogs)
+        {
+            if (namedCatalog.Catalog?.Content == null)
+            {
+                continue;
+            }
+
+            foreach (var content in namedCatalog.Catalog.Content)
+            {
+                if (content.Releases == null)
+                {
+                    continue;
+                }
+
+                foreach (var release in content.Releases)
+                {
+                    if (release.Artifacts == null)
+                    {
+                        continue;
+                    }
+
+                    foreach (var art in release.Artifacts)
+                    {
+                        if (art.Size <= 0 && string.Equals(art.DownloadUrl, url, StringComparison.OrdinalIgnoreCase))
+                        {
+                            art.Size = size;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private async Task ProbeExternalAssetSizeAsync(string url, ReleaseArtifact artifact, List<HostedAssetItemViewModel> list, CancellationToken cancellationToken)
     {
         try
@@ -2074,7 +2123,9 @@ public partial class PublishShareViewModel(
             if (detectedSize is > 0 && !cancellationToken.IsCancellationRequested)
             {
                 var size = detectedSize.Value;
+                _probedArtifactSizes[url] = size;
                 artifact.Size = size;
+                UpdateProjectArtifactSizes(url, size);
                 DispatchArtifactSizeUpdate(url, size);
                 logger.LogInformation("Probed external artifact size for {FileName}: {Size} bytes", artifact.Filename, size);
             }
