@@ -354,6 +354,18 @@ public sealed partial class IniEditorViewModel(
     private ObservableCollection<string> _availableFieldKeys = [];
 
     /// <summary>
+    /// Gets or sets a value indicating whether the new field key dropdown is open.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isNewFieldKeyDropdownOpen;
+
+    /// <summary>
+    /// Gets the value suggestions for the current new field key.
+    /// </summary>
+    [ObservableProperty]
+    private ObservableCollection<string> _newFieldValueSuggestions = [];
+
+    /// <summary>
     /// Gets or sets the raw preview text for two-way block editing.
     /// </summary>
     [ObservableProperty]
@@ -504,13 +516,13 @@ public sealed partial class IniEditorViewModel(
     /// Gets or sets a value indicating whether the 3D camera follows the animated model.
     /// </summary>
     [ObservableProperty]
-    private bool _previewTrackTarget = true;
+    private bool _previewTrackTarget;
 
     /// <summary>
     /// Gets or sets a value indicating whether the preview skeleton renders.
     /// </summary>
     [ObservableProperty]
-    private bool _previewShowSkeleton = true;
+    private bool _previewShowSkeleton;
 
     /// <summary>
     /// Gets or sets a value indicating whether the preview renders wireframes.
@@ -2643,6 +2655,36 @@ public sealed partial class IniEditorViewModel(
         RebuildAll();
         NewGlobalFieldKey = string.Empty;
         NewGlobalFieldValue = string.Empty;
+    }
+
+    /// <summary>
+    /// Clears a field row value, or deletes the row once it is already empty.
+    /// </summary>
+    /// <param name="row">The field row to clear or delete.</param>
+    [RelayCommand]
+    private void ClearOrDeleteField(IniFieldRowViewModel? row)
+    {
+        if (row == null)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(row.Value))
+        {
+            row.Value = string.Empty;
+            return;
+        }
+
+        DeleteField(row);
+    }
+
+    /// <summary>
+    /// Toggles the new field key dropdown open or closed.
+    /// </summary>
+    [RelayCommand]
+    private void ToggleNewFieldKeyDropdown()
+    {
+        IsNewFieldKeyDropdownOpen = !IsNewFieldKeyDropdownOpen;
     }
 
     /// <summary>
@@ -6496,6 +6538,38 @@ public sealed partial class IniEditorViewModel(
         {
             AvailableFieldKeys.Add(key);
         }
+
+        RefreshNewFieldValueSuggestions();
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether the current new field key has value suggestions.
+    /// </summary>
+    public bool HasNewFieldValueSuggestions => NewFieldValueSuggestions.Count > 0;
+
+    partial void OnNewFieldKeyChanged(string value)
+    {
+        RefreshNewFieldValueSuggestions();
+    }
+
+    private void RefreshNewFieldValueSuggestions()
+    {
+        NewFieldValueSuggestions.Clear();
+        var block = EditableSelectedNode?.Block;
+        if (block != null && !string.IsNullOrWhiteSpace(NewFieldKey))
+        {
+            schemaService.TryGetField(block.BlockType, NewFieldKey.Trim(), out var schema);
+            var resolved = ResolveSuggestions(NewFieldKey.Trim(), schema, BuildSuggestionScope());
+            if (resolved != null)
+            {
+                foreach (var suggestion in resolved)
+                {
+                    NewFieldValueSuggestions.Add(suggestion);
+                }
+            }
+        }
+
+        OnPropertyChanged(nameof(HasNewFieldValueSuggestions));
     }
 
     partial void OnRawPreviewTextChanged(string value)

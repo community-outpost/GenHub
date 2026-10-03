@@ -15314,18 +15314,6 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="Tools.IniEditor.Toolbar.MenuTooltip" xml:space="preserve">
     <value>Действия с файлом и правкой</value>
   </data>
-  <data name="Tools.IniEditor.Toolbar.AddUpgrade" xml:space="preserve">
-    <value>Добавить улучшение</value>
-  </data>
-  <data name="Tools.IniEditor.Toolbar.AddUpgradeTooltip" xml:space="preserve">
-    <value>Добавить связь улучшения к выбранному блоку Object</value>
-  </data>
-  <data name="Tools.IniEditor.Toolbar.AddDamage" xml:space="preserve">
-    <value>Добавить урон</value>
-  </data>
-  <data name="Tools.IniEditor.Toolbar.AddDamageTooltip" xml:space="preserve">
-    <value>Добавить профиль урона к выбранному блоку Weapon</value>
-  </data>
   <data name="Tools.IniEditor.Tabs.Blocks" xml:space="preserve">
     <value>Блоки</value>
   </data>
@@ -15400,6 +15388,9 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   </data>
   <data name="Tools.IniEditor.FileSettings.Title" xml:space="preserve">
     <value>Настройки файла</value>
+  </data>
+  <data name="Tools.IniEditor.Properties.ClearFieldTooltip" xml:space="preserve">
+    <value>Очистить значение; пустое поле будет удалено</value>
   </data>
   <data name="Tools.IniEditor.Properties.DeleteFieldTooltip" xml:space="preserve">
     <value>Удалить это поле</value>
@@ -17695,12 +17686,6 @@ Error: не удалось: {3}
   <data name="Tools.IniEditor.Canvas.PanTooltip" xml:space="preserve">
     <value>Сдвинуть предпросмотр</value>
   </data>
-  <data name="Tools.IniEditor.Toolbar.QuickAdd" xml:space="preserve">
-    <value>Быстрое добавление</value>
-  </data>
-  <data name="Tools.IniEditor.Toolbar.QuickAddTooltip" xml:space="preserve">
-    <value>Быстро добавить улучшения, профили урона, блоки или поля к выбранному</value>
-  </data>
   <data name="Tools.IniEditor.Open.RecoveredTitle" xml:space="preserve">
     <value>Открыто с проблемами</value>
   </data>
@@ -17949,6 +17934,9 @@ Error: не удалось: {3}
   </data>
   <data name="Tools.IniEditor.Preview3D.Track" xml:space="preserve">
     <value>Следить</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ViewOptions" xml:space="preserve">
+    <value>Параметры 3D-предпросмотра</value>
   </data>
   <data name="Tools.IniEditor.Preview3D.TrackTooltip" xml:space="preserve">
     <value>Следовать за моделью во время воспроизведения анимации</value>

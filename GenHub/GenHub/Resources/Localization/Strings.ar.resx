@@ -15407,18 +15407,6 @@ https://example.com/screenshot2.png</value>
   <data name="Tools.IniEditor.Toolbar.MenuTooltip" xml:space="preserve">
     <value>إجراءات الملف والتحرير</value>
   </data>
-  <data name="Tools.IniEditor.Toolbar.AddUpgrade" xml:space="preserve">
-    <value>إضافة ترقية</value>
-  </data>
-  <data name="Tools.IniEditor.Toolbar.AddUpgradeTooltip" xml:space="preserve">
-    <value>إضافة ربط ترقية إلى كتلة الكائن المحددة</value>
-  </data>
-  <data name="Tools.IniEditor.Toolbar.AddDamage" xml:space="preserve">
-    <value>إضافة ضرر</value>
-  </data>
-  <data name="Tools.IniEditor.Toolbar.AddDamageTooltip" xml:space="preserve">
-    <value>إضافة ملف ضرر إلى كتلة السلاح المحددة</value>
-  </data>
   <data name="Tools.IniEditor.Tabs.Blocks" xml:space="preserve">
     <value>الكتل</value>
   </data>
@@ -15493,6 +15481,9 @@ https://example.com/screenshot2.png</value>
   </data>
   <data name="Tools.IniEditor.FileSettings.Title" xml:space="preserve">
     <value>إعدادات الملف</value>
+  </data>
+  <data name="Tools.IniEditor.Properties.ClearFieldTooltip" xml:space="preserve">
+    <value>مسح القيمة؛ إذا كانت فارغة يحذف الحقل</value>
   </data>
   <data name="Tools.IniEditor.Properties.DeleteFieldTooltip" xml:space="preserve">
     <value>حذف هذا الحقل</value>
@@ -17695,12 +17686,6 @@ Error: فشل: {3}
   <data name="Tools.IniEditor.Canvas.PanTooltip" xml:space="preserve">
     <value>تحريك اللوحة</value>
   </data>
-  <data name="Tools.IniEditor.Toolbar.QuickAdd" xml:space="preserve">
-    <value>إضافة سريعة</value>
-  </data>
-  <data name="Tools.IniEditor.Toolbar.QuickAddTooltip" xml:space="preserve">
-    <value>إضافة الترقيات أو ملفات الضرر أو الكتل أو الحقول بسرعة إلى التحديد</value>
-  </data>
   <data name="Tools.IniEditor.Open.RecoveredTitle" xml:space="preserve">
     <value>تم الفتح مع وجود مشكلات</value>
   </data>
@@ -17949,6 +17934,9 @@ Error: فشل: {3}
   </data>
   <data name="Tools.IniEditor.Preview3D.Track" xml:space="preserve">
     <value>تتبع</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ViewOptions" xml:space="preserve">
+    <value>خيارات العرض ثلاثي الأبعاد</value>
   </data>
   <data name="Tools.IniEditor.Preview3D.TrackTooltip" xml:space="preserve">
     <value>تتبع النموذج أثناء تشغيل الحركة</value>

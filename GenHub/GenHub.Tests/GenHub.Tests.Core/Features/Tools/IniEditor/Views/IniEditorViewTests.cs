@@ -234,6 +234,34 @@ public class IniEditorViewTests
     }
 
     /// <summary>
+    /// Verifies that clearing a valued field empties it first and deletes it once empty.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task ClearOrDeleteField_ValueSet_ClearsThenDeletesAsync()
+    {
+        using var viewModel = CreateViewModel();
+        await viewModel.NewDocumentCommand.ExecuteAsync(null);
+        viewModel.NewBlockType = "Object";
+        viewModel.NewBlockName = "Edited";
+        viewModel.AddBlockCommand.Execute(null);
+
+        viewModel.NewFieldKey = "Side";
+        viewModel.NewFieldValue = "GDI";
+        viewModel.AddFieldCommand.Execute(null);
+
+        int before = viewModel.FieldRows.Count(row => row.Key == "Side");
+        var row = viewModel.FieldRows.Last(row => row.Key == "Side");
+        viewModel.ClearOrDeleteFieldCommand.Execute(row);
+
+        Assert.Equal(string.Empty, row.Value);
+        Assert.Equal(before, viewModel.FieldRows.Count(row => row.Key == "Side"));
+
+        viewModel.ClearOrDeleteFieldCommand.Execute(row);
+        Assert.Equal(before - 1, viewModel.FieldRows.Count(row => row.Key == "Side"));
+    }
+
+    /// <summary>
     /// Verifies that duplicate block names are rejected.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>

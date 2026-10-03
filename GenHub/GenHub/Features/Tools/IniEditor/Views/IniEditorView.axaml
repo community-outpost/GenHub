@@ -15,14 +15,6 @@
   <UserControl.Resources>
     <DataTemplate x:Key="IniFieldRowActionsTemplate" x:DataType="vm:IniFieldRowViewModel">
       <StackPanel Orientation="Horizontal">
-        <Border IsVisible="{Binding IsKnown}"
-                Background="{DynamicResource AccentTintBackgroundBrush}"
-                BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
-                CornerRadius="3" Padding="2,0" Margin="5,0,0,0"
-                VerticalAlignment="Center">
-          <material:MaterialIcon Kind="Check" Width="9" Height="9"
-                                 Foreground="{DynamicResource AccentBrush}"/>
-        </Border>
         <Button x:CompileBindings="False"
                 Command="{Binding DataContext.GoToDefinitionCommand, ElementName=Root}"
                 CommandParameter="{Binding}"
@@ -35,8 +27,20 @@
                                  Foreground="{DynamicResource AccentBrush}"/>
         </Button>
         <Button x:CompileBindings="False"
-                Command="{Binding DataContext.DeleteFieldCommand, ElementName=Root}"
+                Command="{Binding DataContext.ClearOrDeleteFieldCommand, ElementName=Root}"
                 CommandParameter="{Binding}"
+                IsVisible="{Binding Value, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                Padding="3,1" Margin="2,0,0,0"
+                Background="Transparent" BorderThickness="0"
+                ToolTip.Tip="{localization:Localize Tools.IniEditor.Properties.ClearFieldTooltip}"
+                VerticalAlignment="Center">
+          <material:MaterialIcon Kind="Eraser" Width="12" Height="12"
+                                 Foreground="{DynamicResource WarningBrush}"/>
+        </Button>
+        <Button x:CompileBindings="False"
+                Command="{Binding DataContext.ClearOrDeleteFieldCommand, ElementName=Root}"
+                CommandParameter="{Binding}"
+                IsVisible="{Binding Value, Converter={x:Static StringConverters.IsNullOrEmpty}}"
                 Padding="3,1" Margin="2,0,0,0"
                 Background="Transparent" BorderThickness="0"
                 ToolTip.Tip="{localization:Localize Tools.IniEditor.Properties.DeleteFieldTooltip}"
@@ -333,61 +337,6 @@
                    Foreground="{DynamicResource TextPrimary}"
                    VerticalAlignment="Center" HorizontalAlignment="Center"
                    TextTrimming="CharacterEllipsis" Margin="12,0"/>
-        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-          <Button Padding="8,4"
-                  Background="{DynamicResource SurfaceElevatedBrush}"
-                  BorderBrush="{DynamicResource BorderBrush}"
-                  BorderThickness="1" CornerRadius="6"
-                  ToolTip.Tip="{localization:Localize Tools.IniEditor.Toolbar.QuickAddTooltip}"
-                  AutomationProperties.Name="{localization:Localize Tools.IniEditor.Toolbar.QuickAdd}"
-                  IsEnabled="{Binding HasSelectedBlock}">
-            <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-              <material:MaterialIcon Kind="PlusBoxOutline" Width="14" Height="14"/>
-              <TextBlock Text="{localization:Localize Tools.IniEditor.Toolbar.QuickAdd}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
-              <material:MaterialIcon Kind="ChevronDown" Width="12" Height="12"/>
-            </StackPanel>
-            <Button.Flyout>
-              <MenuFlyout Placement="BottomEdgeAlignedRight">
-                <MenuItem Header="{localization:Localize Tools.IniEditor.Toolbar.AddUpgrade}"
-                          Command="{Binding AddUpgradeHookupCommand}"
-                          ToolTip.Tip="{localization:Localize Tools.IniEditor.Toolbar.AddUpgradeTooltip}">
-                  <MenuItem.Icon>
-                    <material:MaterialIcon Kind="ArrowUpBoldCircleOutline" Width="14" Height="14"/>
-                  </MenuItem.Icon>
-                </MenuItem>
-                <MenuItem Header="{localization:Localize Tools.IniEditor.Toolbar.AddDamage}"
-                          Command="{Binding AddDamageProfileCommand}"
-                          ToolTip.Tip="{localization:Localize Tools.IniEditor.Toolbar.AddDamageTooltip}">
-                  <MenuItem.Icon>
-                    <material:MaterialIcon Kind="Flash" Width="14" Height="14"/>
-                  </MenuItem.Icon>
-                </MenuItem>
-                <Separator/>
-                <MenuItem Header="{localization:Localize Tools.IniEditor.Tree.AddBlock}"
-                          Command="{Binding AddBlockCommand}"
-                          ToolTip.Tip="{localization:Localize Tools.IniEditor.Tree.AddBlock}">
-                  <MenuItem.Icon>
-                    <material:MaterialIcon Kind="CubeOutline" Width="14" Height="14"/>
-                  </MenuItem.Icon>
-                </MenuItem>
-                <MenuItem Header="{localization:Localize Tools.IniEditor.Properties.AddField}"
-                          Command="{Binding AddFieldCommand}"
-                          ToolTip.Tip="{localization:Localize Tools.IniEditor.Properties.AddField}">
-                  <MenuItem.Icon>
-                    <material:MaterialIcon Kind="FormTextbox" Width="14" Height="14"/>
-                  </MenuItem.Icon>
-                </MenuItem>
-                <MenuItem Header="{localization:Localize Tools.IniEditor.Toolbar.Duplicate}"
-                          Command="{Binding DuplicateCommand}"
-                          ToolTip.Tip="{localization:Localize Tools.IniEditor.Toolbar.Duplicate}">
-                  <MenuItem.Icon>
-                    <material:MaterialIcon Kind="ContentDuplicate" Width="14" Height="14"/>
-                  </MenuItem.Icon>
-                </MenuItem>
-              </MenuFlyout>
-            </Button.Flyout>
-          </Button>
-        </StackPanel>
       </Grid>
     </Border>
 
@@ -860,7 +809,7 @@
                                          IsPanMode="{Binding IsPanMode, Mode=TwoWay}"
                                          Background="Transparent"
                                          ClipToBounds="True">
-              <StackPanel Spacing="12" Margin="14" MaxWidth="580" HorizontalAlignment="Center">
+              <StackPanel Spacing="12" Margin="14" HorizontalAlignment="Stretch">
                 <!-- Live validation issues -->
                 <Border Background="{DynamicResource SurfaceElevatedBrush}"
                         BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1"
@@ -924,19 +873,35 @@
                         </Border>
                       </StackPanel>
                       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                        <CheckBox Content="{localization:Localize Tools.IniEditor.Preview3D.Skeleton}"
-                                  IsChecked="{Binding PreviewShowSkeleton, Mode=TwoWay}" FontSize="10"/>
-                        <CheckBox Content="{localization:Localize Tools.IniEditor.Preview3D.Wireframe}"
-                                  IsChecked="{Binding PreviewShowWireframe, Mode=TwoWay}" FontSize="10"/>
-                        <CheckBox Content="{localization:Localize Tools.IniEditor.Preview3D.Track}"
-                                  ToolTip.Tip="{localization:Localize Tools.IniEditor.Preview3D.TrackTooltip}"
-                                  IsChecked="{Binding PreviewTrackTarget, Mode=TwoWay}" FontSize="10"/>
+                        <DropDownButton ToolTip.Tip="{localization:Localize Tools.IniEditor.Preview3D.ViewOptions}"
+                                        AutomationProperties.Name="{localization:Localize Tools.IniEditor.Preview3D.ViewOptions}"
+                                        Padding="6,2" Background="Transparent" BorderThickness="0">
+                          <DropDownButton.Content>
+                            <material:MaterialIcon Kind="Menu" Width="15" Height="15"
+                                                     Foreground="{DynamicResource TextSecondary}"/>
+                          </DropDownButton.Content>
+                          <DropDownButton.Flyout>
+                            <Flyout>
+                              <StackPanel Spacing="6" Margin="4">
+                                <CheckBox Content="{localization:Localize Tools.IniEditor.Preview3D.Skeleton}"
+                                          IsChecked="{Binding PreviewShowSkeleton, Mode=TwoWay}" FontSize="10"/>
+                                <CheckBox Content="{localization:Localize Tools.IniEditor.Preview3D.Wireframe}"
+                                          IsChecked="{Binding PreviewShowWireframe, Mode=TwoWay}" FontSize="10"/>
+                                <CheckBox Content="{localization:Localize Tools.IniEditor.Preview3D.Track}"
+                                          ToolTip.Tip="{localization:Localize Tools.IniEditor.Preview3D.TrackTooltip}"
+                                          IsChecked="{Binding PreviewTrackTarget, Mode=TwoWay}" FontSize="10"/>
+                              </StackPanel>
+                            </Flyout>
+                          </DropDownButton.Flyout>
+                        </DropDownButton>
                       </StackPanel>
                     </Grid>
                     <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                             CornerRadius="8" ClipToBounds="True" Background="{DynamicResource CardBackground}">
-                      <Panel Height="300">
-                        <controls:W3dViewerControl Scene="{Binding PreviewScene}"
+                      <Grid RowDefinitions="300,Auto">
+                        <Panel Grid.Row="0" MinHeight="160">
+                        <controls:W3dViewerControl x:Name="PreviewViewer"
+                                                   Scene="{Binding PreviewScene}"
                                                    SelectedMeshIndex="{Binding PreviewSelectedMeshIndex, Mode=TwoWay}"
                                                    ShowSkeleton="{Binding PreviewShowSkeleton}"
                                                    ShowWireframe="{Binding PreviewShowWireframe}"
@@ -958,7 +923,11 @@
                           <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsPreviewLoading}"
                                        Width="160" HorizontalAlignment="Center"/>
                         </StackPanel>
-                      </Panel>
+                        </Panel>
+                        <GridSplitter Grid.Row="1" Height="8" ResizeDirection="Rows"
+                                      IsVisible="{Binding HasPreviewScene}"
+                                      Background="Transparent"/>
+                      </Grid>
                     </Border>
                     <TextBlock Text="{Binding PreviewStatusText}" IsVisible="{Binding HasPreviewScene}"
                                FontSize="10" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
@@ -1024,11 +993,18 @@
                     <TextBlock Text="{localization:Localize Tools.IniEditor.Preview3D.Subobjects}"
                                IsVisible="{Binding HasPreviewScene}"
                                FontWeight="SemiBold" FontSize="11" Foreground="{DynamicResource TextPrimary}"/>
-                    <ListBox ItemsSource="{Binding PreviewMeshes}"
+                    <ListBox x:Name="SubObjectListBox"
+                             ItemsSource="{Binding PreviewMeshes}"
                              SelectedItem="{Binding SelectedPreviewMesh, Mode=TwoWay}"
+                             SelectionChanged="OnSubObjectSelectionChanged"
                              IsVisible="{Binding HasPreviewScene}"
-                             MaxHeight="120" Background="Transparent" BorderThickness="0" Padding="0"
+                             MaxHeight="220" Background="Transparent" BorderThickness="0" Padding="0"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                      <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <UniformGrid Columns="2"/>
+                        </ItemsPanelTemplate>
+                      </ListBox.ItemsPanel>
                       <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:W3dPreviewMeshItem">
                           <Border Margin="0,1" Padding="6,3" CornerRadius="5"
@@ -1573,20 +1549,44 @@
             </Border>
             <Grid Grid.Row="2" RowDefinitions="Auto,Auto" Margin="0,8,0,0">
               <Grid Grid.Row="0" ColumnDefinitions="*,*" Margin="0,0,0,6">
-                <AutoCompleteBox Grid.Column="0"
-                                 Text="{Binding NewFieldKey, Mode=TwoWay}"
-                                 ItemsSource="{Binding AvailableFieldKeys}"
-                                 FilterMode="Contains"
-                                 MinimumPrefixLength="0"
-                                 MaxDropDownHeight="240"
-                                 Watermark="{localization:Localize Tools.IniEditor.Properties.NewKeyWatermark}"
-                                 ToolTip.Tip="{localization:Localize Tools.IniEditor.Properties.NewKeyWatermark}"
-                                 FontSize="11" Margin="0,0,6,0"/>
-                <TextBox Grid.Column="1"
-                         Text="{Binding NewFieldValue, Mode=TwoWay}"
-                         Watermark="{localization:Localize Tools.IniEditor.Properties.NewValueWatermark}"
-                         ToolTip.Tip="{localization:Localize Tools.IniEditor.Properties.NewValueWatermark}"
-                         FontSize="11"/>
+                <Grid Grid.Column="0" ColumnDefinitions="*,Auto" Margin="0,0,6,0">
+                  <AutoCompleteBox Grid.Column="0"
+                                   Text="{Binding NewFieldKey, Mode=TwoWay}"
+                                   ItemsSource="{Binding AvailableFieldKeys}"
+                                   IsDropDownOpen="{Binding IsNewFieldKeyDropdownOpen, Mode=TwoWay}"
+                                   FilterMode="Contains"
+                                   MinimumPrefixLength="0"
+                                   MaxDropDownHeight="240"
+                                   Watermark="{localization:Localize Tools.IniEditor.Properties.NewKeyWatermark}"
+                                   ToolTip.Tip="{localization:Localize Tools.IniEditor.Properties.NewKeyWatermark}"
+                                   FontSize="11"/>
+                  <Button Grid.Column="1" x:CompileBindings="False"
+                          Command="{Binding ToggleNewFieldKeyDropdownCommand}"
+                          Padding="3,1" Margin="2,0,0,0"
+                          Background="Transparent" BorderThickness="0"
+                          ToolTip.Tip="{localization:Localize Tools.IniEditor.Fields.OpenSuggestionsTooltip}"
+                          AutomationProperties.Name="{localization:Localize Tools.IniEditor.Fields.OpenSuggestionsTooltip}"
+                          VerticalAlignment="Center">
+                    <material:MaterialIcon Kind="FormatListBulleted" Width="13" Height="13"
+                                           Foreground="{DynamicResource AccentBrush}"/>
+                  </Button>
+                </Grid>
+                <Grid Grid.Column="1">
+                  <TextBox Text="{Binding NewFieldValue, Mode=TwoWay}"
+                           IsVisible="{Binding !HasNewFieldValueSuggestions}"
+                           Watermark="{localization:Localize Tools.IniEditor.Properties.NewValueWatermark}"
+                           ToolTip.Tip="{localization:Localize Tools.IniEditor.Properties.NewValueWatermark}"
+                           FontSize="11"/>
+                  <AutoCompleteBox Text="{Binding NewFieldValue, Mode=TwoWay}"
+                                   ItemsSource="{Binding NewFieldValueSuggestions}"
+                                   IsVisible="{Binding HasNewFieldValueSuggestions}"
+                                   FilterMode="Contains"
+                                   MinimumPrefixLength="0"
+                                   MaxDropDownHeight="240"
+                                   Watermark="{localization:Localize Tools.IniEditor.Properties.NewValueWatermark}"
+                                   ToolTip.Tip="{localization:Localize Tools.IniEditor.Properties.NewValueWatermark}"
+                                   FontSize="11"/>
+                </Grid>
               </Grid>
               <Button Grid.Row="1"
                       Command="{Binding AddFieldCommand}"

@@ -15466,18 +15466,6 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="Tools.IniEditor.Toolbar.MenuTooltip" xml:space="preserve">
     <value>File and edit actions</value>
   </data>
-  <data name="Tools.IniEditor.Toolbar.AddUpgrade" xml:space="preserve">
-    <value>Add Upgrade</value>
-  </data>
-  <data name="Tools.IniEditor.Toolbar.AddUpgradeTooltip" xml:space="preserve">
-    <value>Add an upgrade hookup to the selected Object block</value>
-  </data>
-  <data name="Tools.IniEditor.Toolbar.AddDamage" xml:space="preserve">
-    <value>Add Damage</value>
-  </data>
-  <data name="Tools.IniEditor.Toolbar.AddDamageTooltip" xml:space="preserve">
-    <value>Add a damage profile to the selected Weapon block</value>
-  </data>
   <data name="Tools.IniEditor.Tabs.Blocks" xml:space="preserve">
     <value>Blocks</value>
   </data>
@@ -15552,6 +15540,9 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   </data>
   <data name="Tools.IniEditor.FileSettings.Title" xml:space="preserve">
     <value>File settings</value>
+  </data>
+  <data name="Tools.IniEditor.Properties.ClearFieldTooltip" xml:space="preserve">
+    <value>Clear the value; once empty, removes the field</value>
   </data>
   <data name="Tools.IniEditor.Properties.DeleteFieldTooltip" xml:space="preserve">
     <value>Delete this field</value>
@@ -17754,12 +17745,6 @@ Mapped image texture reference</value>
   <data name="Tools.IniEditor.Canvas.PanTooltip" xml:space="preserve">
     <value>Pan the canvas</value>
   </data>
-  <data name="Tools.IniEditor.Toolbar.QuickAdd" xml:space="preserve">
-    <value>Quick Add</value>
-  </data>
-  <data name="Tools.IniEditor.Toolbar.QuickAddTooltip" xml:space="preserve">
-    <value>Quickly add upgrades, damage profiles, blocks, or fields to the selection</value>
-  </data>
   <data name="Tools.IniEditor.Open.RecoveredTitle" xml:space="preserve">
     <value>Opened with issues</value>
   </data>
@@ -18008,6 +17993,9 @@ Mapped image texture reference</value>
   </data>
   <data name="Tools.IniEditor.Preview3D.Track" xml:space="preserve">
     <value>Track</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ViewOptions" xml:space="preserve">
+    <value>3D view options</value>
   </data>
   <data name="Tools.IniEditor.Preview3D.TrackTooltip" xml:space="preserve">
     <value>Follow the model while the animation plays</value>

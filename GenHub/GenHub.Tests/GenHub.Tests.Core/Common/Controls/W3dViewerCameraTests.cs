@@ -169,6 +169,45 @@ public sealed class W3dViewerCameraTests
         }
     }
 
+    /// <summary>
+    /// Verifies that focusing a mesh moves the camera target to the mesh center.
+    /// </summary>
+    [AvaloniaFact]
+    public void FocusMesh_SingleMesh_MovesTargetToMeshCenter()
+    {
+        var vertices = new float[]
+        {
+            10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        };
+        var mesh = new W3dRenderMesh("M", vertices, [], -1, 1, false, false, 0);
+        var origin = new W3dVector3(0, 0, 0);
+        var bounds = new W3dBoundingBox(origin, new W3dVector3(1, 1, 1), origin, 1);
+        var viewer = new W3dViewerControl
+        {
+            Width = 400,
+            Height = 300,
+            Scene = new W3dRenderScene([mesh], [], [], bounds),
+        };
+        var window = new Window { Width = 800, Height = 600, Content = viewer };
+
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs(null);
+
+            viewer.FocusMesh(0);
+
+            Assert.Equal(12, viewer.CameraTarget.X, 3);
+            Assert.Equal(0, viewer.CameraTarget.Y, 3);
+            Assert.Equal(0, viewer.CameraTarget.Z, 3);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
     private static W3dRenderScene EmptyScene()
     {
         var origin = new W3dVector3(0, 0, 0);

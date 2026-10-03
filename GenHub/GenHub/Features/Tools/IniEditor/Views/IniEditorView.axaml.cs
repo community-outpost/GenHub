@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
+using GenHub.Common.Controls;
 using GenHub.Features.Tools.IniEditor.ViewModels;
 using System.Windows.Input;
 
@@ -49,6 +50,26 @@ public partial class IniEditorView : UserControl
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
+    }
+
+    private void OnSubObjectSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        var listBox = this.FindControl<ListBox>("SubObjectListBox");
+        var viewer = this.FindControl<W3dViewerControl>("PreviewViewer");
+        if (listBox == null || viewer == null)
+        {
+            return;
+        }
+
+        if (!listBox.IsFocused && !listBox.IsKeyboardFocusWithin)
+        {
+            return;
+        }
+
+        if (listBox.SelectedItem is W3dPreviewMeshItem selected && selected.MeshIndex >= 0)
+        {
+            viewer.FocusMesh(selected.MeshIndex);
+        }
     }
 
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)

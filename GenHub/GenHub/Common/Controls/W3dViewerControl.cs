@@ -391,6 +391,20 @@ public sealed class W3dViewerControl : OpenGlControlBase, ICustomHitTest
     }
 
     /// <summary>
+    /// Gets the current camera orbit target.
+    /// </summary>
+    public Vector3 CameraTarget
+    {
+        get
+        {
+            lock (_cameraLock)
+            {
+                return _target;
+            }
+        }
+    }
+
+    /// <summary>
     /// Hit-tests the viewer bounds so camera gestures reach the control.
     /// OpenGL surfaces never paint render geometry, so without this every
     /// press falls through to the document canvas behind the viewer.
@@ -416,6 +430,53 @@ public sealed class W3dViewerControl : OpenGlControlBase, ICustomHitTest
         lock (_cameraLock)
         {
             FrameScene(scene);
+        }
+
+        RequestNextFrameRendering();
+    }
+
+    /// <summary>
+    /// Moves the camera target to frame the given mesh, keeping the current orbit angles.
+    /// </summary>
+    /// <param name="meshIndex">The scene mesh index to frame.</param>
+    public void FocusMesh(int meshIndex)
+    {
+        var scene = Scene;
+        if (scene == null || meshIndex < 0 || meshIndex >= scene.Meshes.Count)
+        {
+            return;
+        }
+
+        var models = CurrentMeshModels(scene);
+        if (meshIndex >= models.Length)
+        {
+            return;
+        }
+
+        var mesh = scene.Meshes[meshIndex];
+        var model = models[meshIndex];
+        var min = new Vector3(float.MaxValue);
+        var max = new Vector3(float.MinValue);
+        int count = 0;
+        for (int i = 0; i + 2 < mesh.Vertices.Count; i += W3dRenderMesh.Stride)
+        {
+            var world = Vector3.Transform(new Vector3(mesh.Vertices[i], mesh.Vertices[i + 1], mesh.Vertices[i + 2]), model);
+            min = Vector3.Min(min, world);
+            max = Vector3.Max(max, world);
+            count++;
+        }
+
+        if (count == 0)
+        {
+            return;
+        }
+
+        var center = (min + max) / 2;
+        float radius = Math.Max((max - min).Length() / 2, 0.5f);
+        lock (_cameraLock)
+        {
+            _target = center;
+            _distance = Math.Clamp(radius * 3.2, _minDistance, _maxDistance);
         }
 
         RequestNextFrameRendering();
