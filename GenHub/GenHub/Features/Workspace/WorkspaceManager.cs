@@ -101,6 +101,7 @@ public class WorkspaceManager(
         configuration.SkipCleanup = skipCleanup;
 
         logger.LogInformation("[Workspace] Executing strategy preparation (skipCleanup: {SkipCleanup})", skipCleanup);
+        configuration.ClearSkippedSourceFiles();
         var workspaceInfo = await strategy.PrepareAsync(configuration, progress, cancellationToken);
 
         if (workspaceInfo == null || !workspaceInfo.IsPrepared)

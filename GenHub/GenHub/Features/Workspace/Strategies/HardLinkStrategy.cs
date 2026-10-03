@@ -308,7 +308,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
 
         if (sameVolume)
         {
-            var result = await ProcessSameVolumeFileAsync(file, sourcePath, destinationPath, cancellationToken);
+            var result = await ProcessSameVolumeFileAsync(file, sourcePath, destinationPath, configuration, cancellationToken);
             if (result.Skipped)
             {
                 return (true, false, 0);
@@ -319,7 +319,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
         }
         else
         {
-            var result = await ProcessDifferentVolumeFileAsync(file, sourcePath, destinationPath, cancellationToken);
+            var result = await ProcessDifferentVolumeFileAsync(file, sourcePath, destinationPath, configuration, cancellationToken);
             if (result.Skipped)
             {
                 return (true, false, 0);
@@ -336,6 +336,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
         ManifestFile file,
         string sourcePath,
         string destinationPath,
+        WorkspaceConfiguration configuration,
         CancellationToken cancellationToken)
     {
         try
@@ -349,6 +350,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                 ioEx.Message.Contains("does not exist", StringComparison.OrdinalIgnoreCase))
             {
                 Logger.LogWarning("Skipping missing file: {RelativePath} (source: {SourcePath})", file.RelativePath, sourcePath);
+                configuration.RecordSkippedSourceFile(file.RelativePath);
                 return (true, false, 0);
             }
 
@@ -375,11 +377,13 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
         ManifestFile file,
         string sourcePath,
         string destinationPath,
+        WorkspaceConfiguration configuration,
         CancellationToken cancellationToken)
     {
         if (!File.Exists(sourcePath))
         {
             Logger.LogWarning("Skipping missing file: {RelativePath} (source: {SourcePath})", file.RelativePath, sourcePath);
+            configuration.RecordSkippedSourceFile(file.RelativePath);
             return (true, false, 0);
         }
 

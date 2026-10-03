@@ -93,4 +93,9 @@ public class WorkspaceConfiguration
     /// </summary>
     /// <param name="relativePath">The workspace-relative path of the skipped file.</param>
     public void RecordSkippedSourceFile(string relativePath) => _skippedSourceFiles.Enqueue(relativePath);
+
+    /// <summary>
+    /// Clears the recorded skips so a new preparation reports only its own.
+    /// </summary>
+    public void ClearSkippedSourceFiles() => _skippedSourceFiles.Clear();
 }

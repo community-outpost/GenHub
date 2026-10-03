@@ -114,6 +114,58 @@ public sealed class WorkspaceSkippedSourceFilesTests : IDisposable
             Times.Never);
     }
 
+    /// <summary>
+    /// A configuration prepared again does not report skips left over from an earlier preparation.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task PrepareWorkspaceAsync_WithStaleSkipFromEarlierPreparation_DoesNotReportItAsync()
+    {
+        var notifications = new Mock<INotificationService>();
+        var (manager, strategy) = CreateManager(notifications.Object);
+        strategy.Setup(s => s.PrepareAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new WorkspaceInfo { Id = "skipped-workspace", IsPrepared = true, WorkspacePath = Path.Combine(_root, "skipped-workspace") });
+        var configuration = CreateManagerConfiguration();
+        configuration.RecordSkippedSourceFile(SharedPath);
+
+        var result = await manager.PrepareWorkspaceAsync(configuration);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.DoesNotContain(result.Data!.ValidationIssues, i => i.IssueType == ValidationIssueType.MissingFile);
+        notifications.Verify(
+            n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// The hard-link strategy records a source that disappears after the first existence check.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task HardLinkPrepareAsync_WhenSourceDisappearsBeforeLinking_RecordsTheSkipAsync()
+    {
+        var installDir = Directory.CreateDirectory(Path.Combine(_root, "Install")).FullName;
+        var source = Path.Combine(installDir, "mod.ini");
+        File.WriteAllText(source, "mod");
+        _fileOperations
+            .Setup(f => f.CreateHardLinkAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("The source file does not exist."));
+        var configuration = new WorkspaceConfiguration
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Strategy = WorkspaceStrategy.HardLink,
+            WorkspaceRootPath = Path.Combine(_root, "Workspaces"),
+            BaseInstallationPath = installDir,
+            GameClient = new GameClient { Id = "test" },
+            Manifests = [CreateManifest("1.0.test.mod.winner", ContentType.Mod, source)],
+        };
+
+        var result = await CreateStrategy(WorkspaceStrategy.HardLink).PrepareAsync(configuration, null, CancellationToken.None);
+
+        Assert.True(result.IsPrepared);
+        Assert.Equal(SharedPath, Assert.Single(configuration.SkippedSourceFiles));
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {
