@@ -64,8 +64,10 @@ public class GeneralsOnlineManifestFactory(
         var websiteUrl = provider?.Endpoints.WebsiteUrl ?? GeneralsOnlineConstants.WebsiteUrl;
         var supportUrl = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.SupportUrl) ?? GeneralsOnlineConstants.SupportUrl;
         var downloadPageUrl = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.DownloadPageUrl) ?? GeneralsOnlineConstants.DownloadPageUrl;
-        var iconUrl = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.IconUrl) ?? GeneralsOnlineConstants.LogoSource;
-        var coverSource = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.CoverUrl) ?? GeneralsOnlineConstants.CoverSource;
+        var configuredIcon = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.IconUrl);
+        var iconUrl = !string.IsNullOrWhiteSpace(configuredIcon) ? configuredIcon : GeneralsOnlineConstants.LogoSource;
+        var configuredCover = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.CoverUrl);
+        var coverSource = !string.IsNullOrWhiteSpace(configuredCover) ? configuredCover : GeneralsOnlineConstants.CoverSource;
         var tags = provider?.DefaultTags ?? [.. GeneralsOnlineConstants.Tags];
 
         // Parse version to extract numeric version (remove dots and QFE markers)
@@ -113,18 +115,14 @@ public class GeneralsOnlineManifestFactory(
                 ContentIndexUrl = downloadPageUrl,
                 UpdateCheckIntervalHours = GeneralsOnlineConstants.UpdateCheckIntervalHours,
             },
-            Metadata = new ContentMetadata
-            {
-                Description = description,
-                ReleaseDate = release.ReleaseDate,
-                IconUrl = iconUrl,
-                CoverUrl = coverSource,
-                ThemeColor = GeneralsOnlineConstants.ThemeColor,
-                Tags = [.. tags, .. GetVariantTags(variantSuffix)],
-                ChangelogUrl = release.Changelog,
-                VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(release.Version),
-                VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(release.Version),
-            },
+            Metadata = CreateContentMetadata(
+                description,
+                release.ReleaseDate,
+                iconUrl,
+                [.. tags, .. GetVariantTags(variantSuffix)],
+                release.Changelog,
+                release.Version,
+                coverSource),
             Files =
             [
                 new ManifestFile
@@ -484,6 +482,32 @@ public class GeneralsOnlineManifestFactory(
     }
 
     /// <summary>
+    /// Creates a content metadata instance with unified variant grouping and artwork applied.
+    /// </summary>
+    private static ContentMetadata CreateContentMetadata(
+        string? description,
+        DateTime releaseDate,
+        string? iconUrl,
+        IReadOnlyList<string> tags,
+        string? changelogUrl,
+        string? version,
+        string? coverSource = null)
+    {
+        return new ContentMetadata
+        {
+            Description = description ?? string.Empty,
+            ReleaseDate = releaseDate,
+            IconUrl = iconUrl,
+            ThemeColor = GeneralsOnlineConstants.ThemeColor,
+            Tags = [.. tags],
+            ChangelogUrl = changelogUrl,
+            VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(version),
+            VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(version),
+            CoverUrl = !string.IsNullOrWhiteSpace(coverSource) ? coverSource : GeneralsOnlineConstants.CoverSource,
+        };
+    }
+
+    /// <summary>
     /// Creates a content manifest for the GeneralsOnlineGameData data patch.
     /// This manifest contains game data files (community balance patch and core INI configuration).
     /// </summary>
@@ -495,8 +519,10 @@ public class GeneralsOnlineManifestFactory(
         var websiteUrl = provider?.Endpoints.WebsiteUrl ?? GeneralsOnlineConstants.WebsiteUrl;
         var supportUrl = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.SupportUrl) ?? GeneralsOnlineConstants.SupportUrl;
         var downloadPageUrl = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.DownloadPageUrl) ?? GeneralsOnlineConstants.DownloadPageUrl;
-        var iconUrl = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.IconUrl) ?? GeneralsOnlineConstants.LogoSource;
-        var coverSource = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.CoverUrl) ?? GeneralsOnlineConstants.CoverSource;
+        var configuredIcon = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.IconUrl);
+        var iconUrl = !string.IsNullOrWhiteSpace(configuredIcon) ? configuredIcon : GeneralsOnlineConstants.LogoSource;
+        var configuredCover = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.CoverUrl);
+        var coverSource = !string.IsNullOrWhiteSpace(configuredCover) ? configuredCover : GeneralsOnlineConstants.CoverSource;
         var userVersion = ParseVersionForManifestId(release.Version);
         var manifestId = ManifestId.Create(ManifestIdGenerator.GeneratePublisherContentId(
             PublisherTypeConstants.GeneralsOnline,
@@ -581,18 +607,14 @@ public class GeneralsOnlineManifestFactory(
                 ContentIndexUrl = downloadPageUrl,
                 UpdateCheckIntervalHours = GeneralsOnlineConstants.UpdateCheckIntervalHours,
             },
-            Metadata = new ContentMetadata
-            {
-                Description = GeneralsOnlineConstants.QuickMatchMapPackDescription,
-                ReleaseDate = release.ReleaseDate,
-                IconUrl = iconUrl,
-                CoverUrl = coverSource,
-                ThemeColor = GeneralsOnlineConstants.ThemeColor,
-                Tags = [.. GeneralsOnlineConstants.MapPackTags],
-                ChangelogUrl = release.Changelog,
-                VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(release.Version),
-                VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(release.Version),
-            },
+            Metadata = CreateContentMetadata(
+                GeneralsOnlineConstants.QuickMatchMapPackDescription,
+                release.ReleaseDate,
+                iconUrl,
+                GeneralsOnlineConstants.MapPackTags,
+                release.Changelog,
+                release.Version,
+                coverSource),
             Files = [], // Files will be populated during extraction
             Dependencies =
             [
@@ -628,7 +650,10 @@ public class GeneralsOnlineManifestFactory(
         var websiteUrl = provider?.Endpoints.WebsiteUrl ?? GeneralsOnlineConstants.WebsiteUrl;
         var supportUrl = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.SupportUrl) ?? GeneralsOnlineConstants.SupportUrl;
         var downloadPageUrl = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.DownloadPageUrl) ?? GeneralsOnlineConstants.DownloadPageUrl;
-        var iconUrl = GeneralsOnlineConstants.LogoSource;
+        var configuredIcon = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.IconUrl);
+        var iconUrl = !string.IsNullOrWhiteSpace(configuredIcon) ? configuredIcon : GeneralsOnlineConstants.LogoSource;
+        var configuredCover = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.CoverUrl);
+        var coverSource = !string.IsNullOrWhiteSpace(configuredCover) ? configuredCover : GeneralsOnlineConstants.CoverSource;
 
         // Create publisher info once (shared by all variants)
         var publisherInfo = new PublisherInfo
@@ -660,18 +685,14 @@ public class GeneralsOnlineManifestFactory(
             OriginalProviderName = originalProviderName,
             OriginalContentId = originalContentId,
             Publisher = publisherInfo,
-            Metadata = new ContentMetadata
-            {
-                Description = GeneralsOnlineConstants.ShortDescription,
-                ReleaseDate = releaseDate,
-                IconUrl = iconUrl,
-                ThemeColor = GeneralsOnlineConstants.ThemeColor,
-                Tags = [.. GeneralsOnlineConstants.Tags, .. GetVariantTags(GeneralsOnlineConstants.Variant60HzSuffix)],
-                ChangelogUrl = changelogUrl,
-                CoverUrl = GeneralsOnlineConstants.CoverSource,
-                VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(version),
-                VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(version),
-            },
+            Metadata = CreateContentMetadata(
+                GeneralsOnlineConstants.ShortDescription,
+                releaseDate,
+                iconUrl,
+                [.. GeneralsOnlineConstants.Tags, .. GetVariantTags(GeneralsOnlineConstants.Variant60HzSuffix)],
+                changelogUrl,
+                version,
+                coverSource),
             Files = [],
             Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesFor60Hz(userVersion),
             InstallationInstructions = originalManifest.InstallationInstructions ?? new InstallationInstructions
@@ -695,18 +716,14 @@ public class GeneralsOnlineManifestFactory(
             OriginalProviderName = originalProviderName,
             OriginalContentId = originalContentId,
             Publisher = publisherInfo,
-            Metadata = new ContentMetadata
-            {
-                Description = GeneralsOnlineConstants.TestEnvironmentDescription,
-                ReleaseDate = releaseDate,
-                IconUrl = iconUrl,
-                ThemeColor = GeneralsOnlineConstants.ThemeColor,
-                Tags = [.. GeneralsOnlineConstants.Tags, .. GetVariantTags(GeneralsOnlineConstants.VariantTestEnvironmentSuffix)],
-                ChangelogUrl = changelogUrl,
-                CoverUrl = GeneralsOnlineConstants.CoverSource,
-                VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(version),
-                VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(version),
-            },
+            Metadata = CreateContentMetadata(
+                GeneralsOnlineConstants.TestEnvironmentDescription,
+                releaseDate,
+                iconUrl,
+                [.. GeneralsOnlineConstants.Tags, .. GetVariantTags(GeneralsOnlineConstants.VariantTestEnvironmentSuffix)],
+                changelogUrl,
+                version,
+                coverSource),
             Files = [],
             Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesForTestEnvironment(userVersion),
             InstallationInstructions = new InstallationInstructions
@@ -730,18 +747,14 @@ public class GeneralsOnlineManifestFactory(
             OriginalProviderName = originalProviderName,
             OriginalContentId = $"{originalContentId}_MapPack",
             Publisher = publisherInfo,
-            Metadata = new ContentMetadata
-            {
-                Description = GeneralsOnlineConstants.QuickMatchMapPackDescription,
-                ReleaseDate = releaseDate,
-                IconUrl = iconUrl,
-                ThemeColor = GeneralsOnlineConstants.ThemeColor,
-                Tags = [.. GeneralsOnlineConstants.MapPackTags, .. GetVariantTags(GeneralsOnlineConstants.QuickMatchMapPackSuffix)],
-                ChangelogUrl = changelogUrl,
-                CoverUrl = GeneralsOnlineConstants.CoverSource,
-                VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(version),
-                VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(version),
-            },
+            Metadata = CreateContentMetadata(
+                GeneralsOnlineConstants.QuickMatchMapPackDescription,
+                releaseDate,
+                iconUrl,
+                [.. GeneralsOnlineConstants.MapPackTags, .. GetVariantTags(GeneralsOnlineConstants.QuickMatchMapPackSuffix)],
+                changelogUrl,
+                version,
+                coverSource),
             Files = [],
             Dependencies =
             [
@@ -765,18 +778,14 @@ public class GeneralsOnlineManifestFactory(
             OriginalProviderName = originalProviderName,
             OriginalContentId = $"{originalContentId}_Patch",
             Publisher = publisherInfo,
-            Metadata = new ContentMetadata
-            {
-                Description = GeneralsOnlineConstants.GameDataDescription,
-                ReleaseDate = releaseDate,
-                IconUrl = iconUrl,
-                ThemeColor = GeneralsOnlineConstants.ThemeColor,
-                Tags = [.. GeneralsOnlineConstants.GameDataTags, .. GetVariantTags(GeneralsOnlineConstants.GameDataPatchSuffix)],
-                ChangelogUrl = changelogUrl,
-                CoverUrl = GeneralsOnlineConstants.CoverSource,
-                VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(version),
-                VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(version),
-            },
+            Metadata = CreateContentMetadata(
+                GeneralsOnlineConstants.GameDataDescription,
+                releaseDate,
+                iconUrl,
+                [.. GeneralsOnlineConstants.GameDataTags, .. GetVariantTags(GeneralsOnlineConstants.GameDataPatchSuffix)],
+                changelogUrl,
+                version,
+                coverSource),
             Files = [],
             Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesForGameData(userVersion),
             InstallationInstructions = new InstallationInstructions(),

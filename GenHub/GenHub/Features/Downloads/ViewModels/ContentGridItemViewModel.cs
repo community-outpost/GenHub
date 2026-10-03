@@ -1577,6 +1577,10 @@ public sealed partial class ContentGridItemViewModel(
             OnPropertyChanged(nameof(ShowAddToProfileButton));
             OnPropertyChanged(nameof(EffectiveCurrentState));
             OnPropertyChanged(nameof(EffectiveIsDownloaded));
+            OnPropertyChanged(nameof(ContentType));
+            OnPropertyChanged(nameof(ContentTypeDisplay));
+            OnPropertyChanged(nameof(CategoryBadge));
+            OnPropertyChanged(nameof(HasCategoryBadge));
             return;
         }
 
@@ -1618,6 +1622,10 @@ public sealed partial class ContentGridItemViewModel(
         OnPropertyChanged(nameof(FeaturedBadge));
         OnPropertyChanged(nameof(FeaturedColor));
         OnPropertyChanged(nameof(HasFeaturedColor));
+        OnPropertyChanged(nameof(ContentType));
+        OnPropertyChanged(nameof(ContentTypeDisplay));
+        OnPropertyChanged(nameof(CategoryBadge));
+        OnPropertyChanged(nameof(HasCategoryBadge));
 
         _ = LoadIconAsync();
     }

@@ -311,7 +311,7 @@ public class GeneralsOnlineJsonCatalogParser(
     {
         var downloadPageUrl = provider.Endpoints.GetEndpoint("downloadPageUrl");
         var iconUrl = provider.Endpoints.GetEndpoint("iconUrl");
-        var coverUrl = provider.Endpoints.GetEndpoint(ProviderEndpointConstants.CoverUrl) ?? GeneralsOnlineConstants.CoverSource;
+        var coverUrl = provider.Endpoints.GetEndpoint(ProviderEndpointConstants.CoverUrl);
 
         var searchResult = new ContentSearchResult
         {
@@ -323,8 +323,8 @@ public class GeneralsOnlineJsonCatalogParser(
             TargetGame = provider.TargetGame ?? GameType.ZeroHour,
             ProviderName = provider.PublisherType,
             AuthorName = GeneralsOnlineConstants.PublisherName,
-            IconUrl = !string.IsNullOrEmpty(iconUrl) ? iconUrl : PublisherInfoConstants.GeneralsOnline.LogoSource,
-            BannerUrl = coverUrl,
+            IconUrl = !string.IsNullOrWhiteSpace(iconUrl) ? iconUrl : PublisherInfoConstants.GeneralsOnline.LogoSource,
+            BannerUrl = !string.IsNullOrWhiteSpace(coverUrl) ? coverUrl : GeneralsOnlineConstants.CoverSource,
             LastUpdated = release.ReleaseDate,
             DownloadSize = release.PortableSize ?? 0,
             RequiresResolution = true,
