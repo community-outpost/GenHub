@@ -210,7 +210,7 @@ public class ContentOrchestratorTests
             _installationCasPoolServiceMock.Object);
 
         var reportedProgress = new List<int>();
-        var progress = new SynchronousProgress<ContentAcquisitionProgress>(p => reportedProgress.Add(p.ProgressPercentage));
+        var progress = new SynchronousProgress<ContentAcquisitionProgress>(p => reportedProgress.Add((int)p.ProgressPercentage));
 
         // Act
         var result = await orchestrator.AcquireContentAsync(searchResult, progress);
