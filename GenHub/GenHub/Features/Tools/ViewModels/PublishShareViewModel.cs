@@ -8430,7 +8430,7 @@ public partial class PublishShareViewModel(
             GetLocalizedString("Tools.PublisherStudio.Hosting.LoadingDefinitionTitle", "Loading Definition"),
             FormatLocalizedString("Tools.PublisherStudio.Hosting.LoadingDefinitionFormat", "Loading publisher definition from {0}...", asset.Name));
 
-        var json = await DownloadStringFromUrlAsync(asset.Url);
+        var json = await DownloadStringFromUrlAsync(asset.Url, CancellationToken.None);
         if (string.IsNullOrWhiteSpace(json))
         {
             notificationService?.ShowError(
@@ -8584,7 +8584,7 @@ public partial class PublishShareViewModel(
     {
         try
         {
-            var catJson = await DownloadStringFromUrlAsync(catRef.Url);
+            var catJson = await DownloadStringFromUrlAsync(catRef.Url, CancellationToken.None);
             if (string.IsNullOrWhiteSpace(catJson))
             {
                 return false;
@@ -8635,7 +8635,7 @@ public partial class PublishShareViewModel(
             GetLocalizedString("Tools.PublisherStudio.Hosting.LoadingCatalogTitle", "Loading Catalog"),
             FormatLocalizedString("Tools.PublisherStudio.Hosting.LoadingCatalogFormat", "Loading catalog from {0}...", asset.Name));
 
-        var json = await DownloadStringFromUrlAsync(asset.Url);
+        var json = await DownloadStringFromUrlAsync(asset.Url, CancellationToken.None);
         if (string.IsNullOrWhiteSpace(json))
         {
             notificationService?.ShowError(
