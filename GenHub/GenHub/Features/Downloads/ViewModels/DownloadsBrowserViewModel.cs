@@ -4549,7 +4549,7 @@ public sealed partial class DownloadsBrowserViewModel(
         await InstallBuildContentByIdAsync(resolvedManifestId, item.Name, _vmCts.Token);
     }
 
-    private static void CleanStaleBuildInstallDirectories(ILogger logger)
+    private void CleanStaleBuildInstallDirectories()
     {
         try
         {
@@ -4598,7 +4598,7 @@ public sealed partial class DownloadsBrowserViewModel(
 
         try
         {
-            CleanStaleBuildInstallDirectories(logger);
+            CleanStaleBuildInstallDirectories();
 
             var prepTitle = locService?.GetLocalizedString("Downloads.Notification.InstallBuild.Preparing.Title", "Preparing Installation") ?? "Preparing Installation";
             var prepMessage = locService != null
