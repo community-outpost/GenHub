@@ -636,7 +636,8 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         return null;
     }
 
-    private static IReadOnlyList<ArtifactUpdateInfo> MapCatalogReleasesToArtifactUpdateInfos(CatalogContentItem? item)
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
+    private IReadOnlyList<ArtifactUpdateInfo> MapCatalogReleasesToArtifactUpdateInfos(CatalogContentItem? item)
     {
         if (item == null)
         {
