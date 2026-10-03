@@ -119,6 +119,7 @@ public partial class VideoPlayerView : UserControl
     private bool isPlaying;
     private bool isMuted;
     private bool isVideoSurfaceVisible;
+    private bool videoHostAttached;
     private string positionText = FormatTime(0) + " / " + FormatTime(0);
     private string loadingText = DefaultLoadingVideoText;
 
@@ -143,8 +144,8 @@ public partial class VideoPlayerView : UserControl
         StageBorder.DoubleTapped += OnStageDoubleTapped;
 
         PositionSlider.AddHandler(InputElement.PointerPressedEvent, OnScrubStarted, RoutingStrategies.Tunnel);
-        PositionSlider.AddHandler(InputElement.PointerReleasedEvent, OnScrubFinished, RoutingStrategies.Bubble);
-        PositionSlider.AddHandler(InputElement.PointerCaptureLostEvent, OnScrubCaptureLost, RoutingStrategies.Bubble);
+        PositionSlider.AddHandler(InputElement.PointerReleasedEvent, OnScrubFinished, RoutingStrategies.Bubble, handledEventsToo: true);
+        PositionSlider.AddHandler(Thumb.DragCompletedEvent, (_, _) => FinishScrubbing(), RoutingStrategies.Bubble);
         PositionSlider.ValueChanged += OnPositionSliderValueChanged;
 
         PointerPressed += OnViewPointerPressed;
@@ -394,7 +395,7 @@ public partial class VideoPlayerView : UserControl
             {
                 StopPlayback();
             }
-            else if (VisualRoot != null)
+            else if (VisualRoot != null && videoHostAttached)
             {
                 StartPlayback(url);
             }
@@ -405,6 +406,17 @@ public partial class VideoPlayerView : UserControl
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
+        VideoHost.AttachedToVisualTree += OnVideoHostAttached;
+        if (VideoHost.VisualRoot != null)
+        {
+            OnVideoHostAttached(VideoHost, e);
+        }
+    }
+
+    private void OnVideoHostAttached(object? sender, VisualTreeAttachmentEventArgs e)
+    {
+        VideoHost.AttachedToVisualTree -= OnVideoHostAttached;
+        videoHostAttached = true;
         if (!string.IsNullOrWhiteSpace(SourceUrl) && !Design.IsDesignMode)
         {
             StartPlayback(SourceUrl);
@@ -414,6 +426,8 @@ public partial class VideoPlayerView : UserControl
     /// <inheritdoc />
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
+        VideoHost.AttachedToVisualTree -= OnVideoHostAttached;
+        videoHostAttached = false;
         StopPlayback();
         base.OnDetachedFromVisualTree(e);
     }
@@ -576,6 +590,7 @@ public partial class VideoPlayerView : UserControl
         HasError = false;
         IsUnavailable = false;
         IsPlaying = false;
+        IsMuted = false;
         isScrubbing = false;
         IsLoading = true;
         LoadingText = GetLocalizedString(LoadingVideoResourceKey, DefaultLoadingVideoText);
@@ -770,12 +785,16 @@ public partial class VideoPlayerView : UserControl
 
     private void OnScrubFinished(object? sender, PointerReleasedEventArgs e)
     {
-        isScrubbing = false;
-        CommitSeek();
+        FinishScrubbing();
     }
 
-    private void OnScrubCaptureLost(object? sender, PointerCaptureLostEventArgs e)
+    private void FinishScrubbing()
     {
+        if (!isScrubbing)
+        {
+            return;
+        }
+
         isScrubbing = false;
         CommitSeek();
     }
