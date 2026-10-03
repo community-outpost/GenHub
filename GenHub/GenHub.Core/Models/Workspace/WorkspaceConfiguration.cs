@@ -1,6 +1,8 @@
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.Manifest;
+using System.Collections.Concurrent;
+using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Models.Workspace;
 
@@ -9,6 +11,8 @@ namespace GenHub.Core.Models.Workspace;
 /// </summary>
 public class WorkspaceConfiguration
 {
+    private readonly ConcurrentQueue<string> _skippedSourceFiles = new();
+
     /// <summary>Gets or sets the unique identifier for this workspace.</summary>
     public string Id { get; set; } = Guid.NewGuid().ToString();
 
@@ -75,4 +79,18 @@ public class WorkspaceConfiguration
     /// This is useful when switching profiles to avoid deleting large map packs.
     /// </summary>
     public bool SkipCleanup { get; set; }
+
+    /// <summary>
+    /// Gets the relative paths of workspace files that preparation skipped because their source
+    /// file was missing. Strategies record them while preparing; the workspace manager reports them.
+    /// </summary>
+    [JsonIgnore]
+    public IReadOnlyCollection<string> SkippedSourceFiles => _skippedSourceFiles;
+
+    /// <summary>
+    /// Records a workspace file that preparation skipped because its source file was missing.
+    /// Safe to call from parallel preparation.
+    /// </summary>
+    /// <param name="relativePath">The workspace-relative path of the skipped file.</param>
+    public void RecordSkippedSourceFile(string relativePath) => _skippedSourceFiles.Enqueue(relativePath);
 }

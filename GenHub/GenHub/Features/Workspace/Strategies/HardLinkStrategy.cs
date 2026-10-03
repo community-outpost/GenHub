@@ -202,7 +202,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
     {
         var sourcePath = ResolveSourcePath(file, manifest, configuration);
 
-        if (!ValidateSourceFile(sourcePath, file.RelativePath))
+        if (!ValidateSourceFile(sourcePath, file.RelativePath, configuration))
         {
             return;
         }
@@ -298,7 +298,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             manifest.ContentType,
             sourcePath);
 
-        if (!ValidateSourceFile(sourcePath, file.RelativePath))
+        if (!ValidateSourceFile(sourcePath, file.RelativePath, configuration))
         {
             return (true, false, 0);
         }

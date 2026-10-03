@@ -58,4 +58,25 @@ public static class WorkspaceConstants
     /// Delta reason for optional files skipped by configuration.
     /// </summary>
     public const string OptionalFileSkippedReason = "Optional file skipped or removed by configuration";
+
+    /// <summary>
+    /// Validation message for a workspace file skipped because its source file is missing. {0} is the relative path.
+    /// </summary>
+    public const string SkippedMissingSourceFileMessage = "Skipped {0}: its source file is missing.";
+
+    /// <summary>
+    /// Resource key for the title of the notification that lists skipped workspace files.
+    /// </summary>
+    public const string SkippedSourceFilesTitleKey = "Workspace.Notification.SkippedSourceFiles.Title";
+
+    /// <summary>
+    /// Resource key for the message of the notification that lists skipped workspace files.
+    /// {0} is the number of files and {1} the file list.
+    /// </summary>
+    public const string SkippedSourceFilesMessageKey = "Workspace.Notification.SkippedSourceFiles.Message";
+
+    /// <summary>
+    /// Maximum number of skipped file names listed in the notification.
+    /// </summary>
+    public const int MaxSkippedSourceFilesListed = 5;
 }

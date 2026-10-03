@@ -17843,4 +17843,10 @@ Mapped image texture reference</value>
   <data name="Launch.ExitCode.LauncherExitExplained" xml:space="preserve">
     <value>The launcher exited with code {0} before starting {1}. {2}</value>
   </data>
+  <data name="Workspace.Notification.SkippedSourceFiles.Title" xml:space="preserve">
+    <value>Some files were skipped</value>
+  </data>
+  <data name="Workspace.Notification.SkippedSourceFiles.Message" xml:space="preserve">
+    <value>{0} file(s) were skipped because their source files are missing: {1}</value>
+  </data>
 </root>

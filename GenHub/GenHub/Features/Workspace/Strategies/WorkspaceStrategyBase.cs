@@ -241,12 +241,14 @@ public abstract class WorkspaceStrategyBase<T>(
     }
 
     /// <summary>
-    /// Validates that the source file exists and logs appropriate warnings.
+    /// Validates that a source file exists. A missing source is skipped with a warning and recorded
+    /// on the configuration so the workspace manager can report it after preparation.
     /// </summary>
     /// <param name="sourcePath">The source file path.</param>
-    /// <param name="relativePath">The relative path for logging.</param>
-    /// <returns>True if the file exists; otherwise, false.</returns>
-    protected bool ValidateSourceFile(string sourcePath, string relativePath)
+    /// <param name="relativePath">The workspace-relative path of the file.</param>
+    /// <param name="configuration">The workspace configuration that collects skipped files.</param>
+    /// <returns><c>true</c> when the source file exists; otherwise <c>false</c>.</returns>
+    protected bool ValidateSourceFile(string sourcePath, string relativePath, WorkspaceConfiguration configuration)
     {
         if (File.Exists(sourcePath))
         {
@@ -254,6 +256,7 @@ public abstract class WorkspaceStrategyBase<T>(
         }
 
         logger.LogWarning("Source file not found: {SourcePath} (relative: {RelativePath})", sourcePath, relativePath);
+        configuration.RecordSkippedSourceFile(relativePath);
         return false;
     }
 
