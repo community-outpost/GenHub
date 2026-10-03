@@ -1966,7 +1966,7 @@
                 Classes.fullscreen="{Binding IsVideoPlayerFullscreen}"
                 ClipToBounds="True">
             <Border.Styles>
-                <Style Selector="Border">
+                <Style Selector="Border#VideoModalBorder">
                     <Setter Property="Background" Value="{DynamicResource CardBackground}" />
                     <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
                     <Setter Property="BorderThickness" Value="1" />
@@ -1976,7 +1976,7 @@
                     <Setter Property="VerticalAlignment" Value="Center" />
                     <Setter Property="BoxShadow" Value="0 16 48 0 #80000000" />
                 </Style>
-                <Style Selector="Border.fullscreen">
+                <Style Selector="Border#VideoModalBorder.fullscreen">
                     <Setter Property="Margin" Value="0" />
                     <Setter Property="CornerRadius" Value="0" />
                     <Setter Property="BorderThickness" Value="0" />
