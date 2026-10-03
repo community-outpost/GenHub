@@ -26,4 +26,34 @@ public static class ManifestErrorMessages
     /// Error message for a required file whose object is missing from CAS. {0} is the relative path.
     /// </summary>
     public const string RequiredFileUnavailableInCas = "Required file {0} is unavailable in CAS";
+
+    /// <summary>
+    /// Validation message for a manifest with no variant for the current host. {0} is the host runtime identifier.
+    /// </summary>
+    public const string NoHostVariantForValidation = "Manifest has no variant supporting this host ({0}).";
+
+    /// <summary>
+    /// Validation message for a file entry without a relative path during integrity checks.
+    /// </summary>
+    public const string ManifestFileMissingRelativePath = "Manifest file is missing its RelativePath.";
+
+    /// <summary>
+    /// Validation message for a null variant. {0} is the variant index.
+    /// </summary>
+    public const string VariantIsNull = "Variant at index {0} is null.";
+
+    /// <summary>
+    /// Validation message for a null file collection. {0} is the location suffix, such as " in variant 1", or empty for the flat list.
+    /// </summary>
+    public const string FileCollectionIsNull = "Manifest Files collection{0} is null.";
+
+    /// <summary>
+    /// Validation message for a null file entry. {0} is the file index and {1} the location suffix.
+    /// </summary>
+    public const string FileEntryIsNull = "File at index {0}{1} is null.";
+
+    /// <summary>
+    /// Validation message for a file entry without a relative path. {0} is the file index and {1} the location suffix.
+    /// </summary>
+    public const string FileEntryMissingRelativePath = "File at index {0}{1} is missing its RelativePath.";
 }
