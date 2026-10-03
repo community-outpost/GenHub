@@ -1,4 +1,4 @@
-﻿<?xml version='1.0' encoding='utf-8'?>
+<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -2291,7 +2291,7 @@
   <data name="Tools.EmptyState.SelectTool" xml:space="preserve">
     <value>Select a tool from the list</value>
   </data>
-<data name="Tools.EmptyState.SelectToolTitle" xml:space="preserve">
+  <data name="Tools.EmptyState.SelectToolTitle" xml:space="preserve">
     <value>Select a Tool</value>
     <comment>Empty state title when no tool is currently selected</comment>
   </data>
@@ -15136,13 +15136,13 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="Info.Card.tools.demo-wnd.Title" xml:space="preserve">
     <value>WND Editor Demo</value>
   </data>
-<data name="Tools.Plugin.texture-editor.Name" xml:space="preserve">
+  <data name="Tools.Plugin.texture-editor.Name" xml:space="preserve">
     <value>Texture Editor</value>
   </data>
   <data name="Tools.Plugin.texture-editor.Description" xml:space="preserve">
     <value>Slice texture atlases, edit MappedImages visually, and pack loose icons into SAGE sheets.</value>
   </data>
-    <data name="TextureEditor.Header.NoAtlas" xml:space="preserve">
+  <data name="TextureEditor.Header.NoAtlas" xml:space="preserve">
     <value>No atlas open</value>
   </data>
   <data name="TextureEditor.Tooltip.ZoomOut" xml:space="preserve">
@@ -17796,30 +17796,535 @@ Mapped image texture reference</value>
   <data name="TextureEditor.Tooltip.PanMode" xml:space="preserve">
     <value>Toggle pan tool</value>
   </data>
-  <data name="TextureEditor.Dialog.AllSupportedFiles" xml:space="preserve"><value>Supported files (*.tga, *.dds, *.png, *.ini)</value></data>
-  <data name="TextureEditor.Notify.PlaceholderOpened.Title" xml:space="preserve"><value>Placeholder texture</value></data>
-  <data name="TextureEditor.Notify.PlaceholderOpened.Message" xml:space="preserve"><value>Opened placeholder canvas ({0}x{1}) with {2} slices from {3}{4}.</value></data>
-  <data name="TextureEditor.Notify.ImportExtraTextures" xml:space="preserve"><value> ({0} other textures in Library)</value></data>
-  <data name="TextureEditor.Notify.ImportComplete.LoadedCurrentAtlas" xml:space="preserve"><value>Loaded {0} slices for {1} from {2}{3}.</value></data>
-  <data name="TextureEditor.Notify.ImportComplete.LoadedTargetAtlas" xml:space="preserve"><value>Loaded {0} slices for {1} from {2}{3}.</value></data>
-  <data name="TextureEditor.Notify.ImportComplete.LibraryOnly" xml:space="preserve"><value>Imported {0} mapped images into Library.</value></data>
-  <data name="TextureEditor.Notify.PlaceholderSingleOpened.Message" xml:space="preserve"><value>Opened {0}x{1} placeholder for '{2}' (texture file not found on disk or game archives).</value></data>
-  <data name="TextureEditor.Badge.Placeholder" xml:space="preserve"><value>Missing Texture (Placeholder)</value></data>
-  <data name="TextureEditor.Badge.PlaceholderTooltip" xml:space="preserve"><value>Texture file was not found on disk or game archives. A temporary placeholder canvas is displayed.</value></data>
-  <data name="TextureEditor.History.AddSlice" xml:space="preserve"><value>Add slice</value></data>
-  <data name="TextureEditor.History.MoveSlice" xml:space="preserve"><value>Move slice</value></data>
-  <data name="TextureEditor.History.ResizeSlice" xml:space="preserve"><value>Resize slice</value></data>
-  <data name="TextureEditor.History.CutSlice" xml:space="preserve"><value>Cut slice</value></data>
-  <data name="TextureEditor.History.PasteSlice" xml:space="preserve"><value>Paste slice</value></data>
-  <data name="TextureEditor.History.DuplicateSlice" xml:space="preserve"><value>Duplicate slice</value></data>
-  <data name="TextureEditor.History.DeleteSlice" xml:space="preserve"><value>Delete slice</value></data>
-  <data name="TextureEditor.Notify.CopyFailed.Title" xml:space="preserve"><value>Copy failed</value></data>
-  <data name="TextureEditor.History.NudgeSlice" xml:space="preserve"><value>Nudge slice</value></data>
-  <data name="TextureEditor.History.ApplyPreset" xml:space="preserve"><value>Apply preset</value></data>
-  <data name="TextureEditor.Notify.PasteFailed.Title" xml:space="preserve"><value>Paste failed</value></data>
-  <data name="TextureEditor.Notify.PasteFailed.Message" xml:space="preserve"><value>Clipboard does not contain valid MappedImage definitions.</value></data>
-  <data name="TextureEditor.Notify.OpenFailed.Message" xml:space="preserve"><value>Failed to open target texture.</value></data>
+  <data name="TextureEditor.Dialog.AllSupportedFiles" xml:space="preserve">
+    <value>Supported files (*.tga, *.dds, *.png, *.ini)</value>
+  </data>
+  <data name="TextureEditor.Notify.PlaceholderOpened.Title" xml:space="preserve">
+    <value>Placeholder texture</value>
+  </data>
+  <data name="TextureEditor.Notify.PlaceholderOpened.Message" xml:space="preserve">
+    <value>Opened placeholder canvas ({0}x{1}) with {2} slices from {3}{4}.</value>
+  </data>
+  <data name="TextureEditor.Notify.ImportExtraTextures" xml:space="preserve">
+    <value> ({0} other textures in Library)</value>
+  </data>
+  <data name="TextureEditor.Notify.ImportComplete.LoadedCurrentAtlas" xml:space="preserve">
+    <value>Loaded {0} slices for {1} from {2}{3}.</value>
+  </data>
+  <data name="TextureEditor.Notify.ImportComplete.LoadedTargetAtlas" xml:space="preserve">
+    <value>Loaded {0} slices for {1} from {2}{3}.</value>
+  </data>
+  <data name="TextureEditor.Notify.ImportComplete.LibraryOnly" xml:space="preserve">
+    <value>Imported {0} mapped images into Library.</value>
+  </data>
+  <data name="TextureEditor.Notify.PlaceholderSingleOpened.Message" xml:space="preserve">
+    <value>Opened {0}x{1} placeholder for '{2}' (texture file not found on disk or game archives).</value>
+  </data>
+  <data name="TextureEditor.Badge.Placeholder" xml:space="preserve">
+    <value>Missing Texture (Placeholder)</value>
+  </data>
+  <data name="TextureEditor.Badge.PlaceholderTooltip" xml:space="preserve">
+    <value>Texture file was not found on disk or game archives. A temporary placeholder canvas is displayed.</value>
+  </data>
+  <data name="TextureEditor.History.AddSlice" xml:space="preserve">
+    <value>Add slice</value>
+  </data>
+  <data name="TextureEditor.History.MoveSlice" xml:space="preserve">
+    <value>Move slice</value>
+  </data>
+  <data name="TextureEditor.History.ResizeSlice" xml:space="preserve">
+    <value>Resize slice</value>
+  </data>
+  <data name="TextureEditor.History.CutSlice" xml:space="preserve">
+    <value>Cut slice</value>
+  </data>
+  <data name="TextureEditor.History.PasteSlice" xml:space="preserve">
+    <value>Paste slice</value>
+  </data>
+  <data name="TextureEditor.History.DuplicateSlice" xml:space="preserve">
+    <value>Duplicate slice</value>
+  </data>
+  <data name="TextureEditor.History.DeleteSlice" xml:space="preserve">
+    <value>Delete slice</value>
+  </data>
+  <data name="TextureEditor.Notify.CopyFailed.Title" xml:space="preserve">
+    <value>Copy failed</value>
+  </data>
+  <data name="TextureEditor.History.NudgeSlice" xml:space="preserve">
+    <value>Nudge slice</value>
+  </data>
+  <data name="TextureEditor.History.ApplyPreset" xml:space="preserve">
+    <value>Apply preset</value>
+  </data>
+  <data name="TextureEditor.Notify.PasteFailed.Title" xml:space="preserve">
+    <value>Paste failed</value>
+  </data>
+  <data name="TextureEditor.Notify.PasteFailed.Message" xml:space="preserve">
+    <value>Clipboard does not contain valid MappedImage definitions.</value>
+  </data>
+  <data name="TextureEditor.Notify.OpenFailed.Message" xml:space="preserve">
+    <value>Failed to open target texture.</value>
+  </data>
   <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
     <value>Manual Fallback Releases (Overrides)</value>
+  </data>
+  <data name="Navigation.Online" xml:space="preserve">
+    <value>Online</value>
+  </data>
+  <data name="Online.Sidebar.Title" xml:space="preserve">
+    <value>Online</value>
+  </data>
+  <data name="Online.Sections.GeneralsOnline.Title" xml:space="preserve">
+    <value>GeneralsOnline</value>
+  </data>
+  <data name="Online.Sections.GeneralsOnline.Description" xml:space="preserve">
+    <value>Community lobbies and ranked play</value>
+  </data>
+  <data name="Online.Error.GenericDetail" xml:space="preserve">
+    <value>Please check your connection and try again.</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Badge" xml:space="preserve">
+    <value>Coming soon</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Title" xml:space="preserve">
+    <value>GeneralsOnline is coming soon</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Description" xml:space="preserve">
+    <value>Ranked ladders, matchmaking, and community lobbies with automatic compatibility checks will live here.</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Feature.Lobbies" xml:space="preserve">
+    <value>Browse community lobbies</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Feature.Compatibility" xml:space="preserve">
+    <value>Automatic setup compatibility checks</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Feature.Launch" xml:space="preserve">
+    <value>One-click profile launch and login</value>
+  </data>
+  <data name="Online.GeneralsOnline.Title" xml:space="preserve">
+    <value>Generals Online</value>
+  </data>
+  <data name="Online.GeneralsOnline.Subtitle" xml:space="preserve">
+    <value>Sign in to browse community lobbies, check setup compatibility, and launch straight into the match.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Action.SignIn" xml:space="preserve">
+    <value>Sign in</value>
+  </data>
+  <data name="Online.GeneralsOnline.Action.SignOut" xml:space="preserve">
+    <value>Sign out</value>
+  </data>
+  <data name="Online.GeneralsOnline.Action.Refresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="Online.GeneralsOnline.Action.Launch" xml:space="preserve">
+    <value>Launch</value>
+  </data>
+  <data name="Online.GeneralsOnline.Action.Recheck" xml:space="preserve">
+    <value>Recheck</value>
+  </data>
+  <data name="Online.GeneralsOnline.Action.Send" xml:space="preserve">
+    <value>Send</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.StatusSignedIn" xml:space="preserve">
+    <value>Signed in</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.StatusSignedOut" xml:space="preserve">
+    <value>Not signed in</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.SignInTitle" xml:space="preserve">
+    <value>Sign in to Generals Online</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.BrowserMessage" xml:space="preserve">
+    <value>Your browser is opening for sign-in. Approve the request, then return here.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.WelcomeTitle" xml:space="preserve">
+    <value>Signed in</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.WelcomeMessage" xml:space="preserve">
+    <value>Welcome back, {0}.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.FailedTitle" xml:space="preserve">
+    <value>Sign-in failed</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.BannedTitle" xml:space="preserve">
+    <value>Account banned</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.BannedMessage" xml:space="preserve">
+    <value>This account is banned from Generals Online.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.SignOutTitle" xml:space="preserve">
+    <value>Signed out</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.SignOutMessage" xml:space="preserve">
+    <value>Signed out of Generals Online.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.RequiredTitle" xml:space="preserve">
+    <value>Sign-in required</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.RequiredMessage" xml:space="preserve">
+    <value>Sign in to Generals Online before launching a lobby.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Search.Placeholder" xml:space="preserve">
+    <value>Search lobbies, maps, or hosts</value>
+  </data>
+  <data name="Online.GeneralsOnline.Filter.CompatibleOnly" xml:space="preserve">
+    <value>Compatible only</value>
+  </data>
+  <data name="Online.GeneralsOnline.Filter.ShowInProgress" xml:space="preserve">
+    <value>Show started</value>
+  </data>
+  <data name="Online.GeneralsOnline.Filter.HideFull" xml:space="preserve">
+    <value>Hide full</value>
+  </data>
+  <data name="Online.GeneralsOnline.Filter.HidePassworded" xml:space="preserve">
+    <value>Hide locked</value>
+  </data>
+  <data name="Online.GeneralsOnline.Filter.Region" xml:space="preserve">
+    <value>Region</value>
+  </data>
+  <data name="Online.GeneralsOnline.Filter.Sort" xml:space="preserve">
+    <value>Sort</value>
+  </data>
+  <data name="Online.GeneralsOnline.Sort.Players" xml:space="preserve">
+    <value>Most players</value>
+  </data>
+  <data name="Online.GeneralsOnline.Sort.Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Online.GeneralsOnline.Sort.Map" xml:space="preserve">
+    <value>Map</value>
+  </data>
+  <data name="Online.GeneralsOnline.Sort.Latency" xml:space="preserve">
+    <value>Lowest ping</value>
+  </data>
+  <data name="Online.GeneralsOnline.Sort.Newest" xml:space="preserve">
+    <value>Newest</value>
+  </data>
+  <data name="Online.GeneralsOnline.Sort.Setup" xml:space="preserve">
+    <value>Setup</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobbies.StaleWarning" xml:space="preserve">
+    <value>Couldn't refresh — showing last known lobbies.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.OfTotal" xml:space="preserve">
+    <value>of {0} total</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.Lobbies" xml:space="preserve">
+    <value>GO lobbies</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.Players" xml:space="preserve">
+    <value>GO online</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.Playing" xml:space="preserve">
+    <value>In matches</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.MatchesToday" xml:space="preserve">
+    <value>Matches today</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.YourElo" xml:space="preserve">
+    <value>Your Elo • W–L</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.PlayerCard" xml:space="preserve">
+    <value>{0} • {1}–{2}</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.Uptime" xml:space="preserve">
+    <value>Service uptime:</value>
+  </data>
+  <data name="Online.GeneralsOnline.Motd.Title" xml:space="preserve">
+    <value>Message of the day</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.WinsRecorded" xml:space="preserve">
+    <value>wins recorded</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.UptimeSince" xml:space="preserve">
+    <value>since {0}</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.YourRecordDetail" xml:space="preserve">
+    <value>{0} games • {1}% wins</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.YourRecordDetailMonthly" xml:space="preserve">
+    <value>{0} games • {1}% wins • Monthly {2}</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.Title" xml:space="preserve">
+    <value>Community links</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.Website" xml:space="preserve">
+    <value>Website</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.Discord" xml:space="preserve">
+    <value>Discord</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.PatchNotes" xml:space="preserve">
+    <value>Patch notes</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.CodeOfConduct" xml:space="preserve">
+    <value>Code of conduct</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.Ladders" xml:space="preserve">
+    <value>Ladders</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.Matches" xml:space="preserve">
+    <value>Matches</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.ServiceStatus" xml:space="preserve">
+    <value>Service status</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.FailedTitle" xml:space="preserve">
+    <value>Could not open link</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.FailedMessage" xml:space="preserve">
+    <value>Could not open {0}.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Empty.Title" xml:space="preserve">
+    <value>No lobbies found</value>
+  </data>
+  <data name="Online.GeneralsOnline.Empty.Message" xml:space="preserve">
+    <value>No lobbies match the current filters, or none are open right now.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Empty.SignedOutMessage" xml:space="preserve">
+    <value>Sign in to browse live community lobbies.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Empty.ForbiddenMessage" xml:space="preserve">
+    <value>Lobby browsing is not enabled for launcher sessions yet. You are signed in — the list will appear here once the Generals Online team enables it.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobbies.FailedTitle" xml:space="preserve">
+    <value>Could not load lobbies</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.MapLabel" xml:space="preserve">
+    <value>Map</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.Official" xml:space="preserve">
+    <value>Official</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.Custom" xml:space="preserve">
+    <value>Custom</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.BestProfileLabel" xml:space="preserve">
+    <value>Best setup</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.HostLabel" xml:space="preserve">
+    <value>Host</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.CrcLabel" xml:space="preserve">
+    <value>Lobby CRC</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.ProfileCrcLabel" xml:space="preserve">
+    <value>Profile CRC</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.SettingsLabel" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.MembersLabel" xml:space="preserve">
+    <value>Players</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.ProfileLabel" xml:space="preserve">
+    <value>Setup</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.LatencyLabel" xml:space="preserve">
+    <value>Ping</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.Ready" xml:space="preserve">
+    <value>Ready</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.MissingMap" xml:space="preserve">
+    <value>No map</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.NoSuperweapons" xml:space="preserve">
+    <value>No superweapons</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.Observers" xml:space="preserve">
+    <value>Observers</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.HasMap" xml:space="preserve">
+    <value>Has map</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.Ai" xml:space="preserve">
+    <value>AI</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.AddFriend" xml:space="preserve">
+    <value>Add friend</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.Title" xml:space="preserve">
+    <value>Friends</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.Empty" xml:space="preserve">
+    <value>No friends yet. Add players from the Generals Online website to see them here.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.PendingTitle" xml:space="preserve">
+    <value>Pending requests</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.FailedTitle" xml:space="preserve">
+    <value>Friend action failed</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.RequestReceivedTitle" xml:space="preserve">
+    <value>New friend request</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.RequestReceivedMessage" xml:space="preserve">
+    <value>{0} sent you a friend request.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.OnlineTitle" xml:space="preserve">
+    <value>Friend online</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.OnlineMessage" xml:space="preserve">
+    <value>{0} is online.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.RequestSentTitle" xml:space="preserve">
+    <value>Request sent</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.RequestSentMessage" xml:space="preserve">
+    <value>Friend request sent.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.AcceptedTitle" xml:space="preserve">
+    <value>Friend added</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.AcceptedMessage" xml:space="preserve">
+    <value>{0} is now your friend.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.RejectedTitle" xml:space="preserve">
+    <value>Request declined</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.RejectedMessage" xml:space="preserve">
+    <value>Declined the request from {0}.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.RemovedTitle" xml:space="preserve">
+    <value>Friend removed</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.RemovedMessage" xml:space="preserve">
+    <value>{0} was removed.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.BlockedTitle" xml:space="preserve">
+    <value>User blocked</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.BlockedMessage" xml:space="preserve">
+    <value>User blocked.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.UnblockedTitle" xml:space="preserve">
+    <value>User unblocked</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.UnblockedMessage" xml:space="preserve">
+    <value>{0} was unblocked.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.BlockedSectionTitle" xml:space="preserve">
+    <value>Blocked</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.Accept" xml:space="preserve">
+    <value>Accept</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.Reject" xml:space="preserve">
+    <value>Decline</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.Remove" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.Block" xml:space="preserve">
+    <value>Block</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.Unblock" xml:space="preserve">
+    <value>Unblock</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.AlreadyTitle" xml:space="preserve">
+    <value>Already friends</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.AlreadyMessage" xml:space="preserve">
+    <value>You are already friends with this player.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Chat.Title" xml:space="preserve">
+    <value>Room chat</value>
+  </data>
+  <data name="Online.GeneralsOnline.Chat.Placeholder" xml:space="preserve">
+    <value>Message the room...</value>
+  </data>
+  <data name="Online.GeneralsOnline.Chat.Empty" xml:space="preserve">
+    <value>No messages yet. Say hello to the room.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Chat.FailedTitle" xml:space="preserve">
+    <value>Chat send failed</value>
+  </data>
+  <data name="Online.GeneralsOnline.Chat.RoomLabel" xml:space="preserve">
+    <value>Room</value>
+  </data>
+  <data name="Online.GeneralsOnline.Chat.OccupantsLabel" xml:space="preserve">
+    <value>Online</value>
+  </data>
+  <data name="Online.GeneralsOnline.Chat.ModerationTitle" xml:space="preserve">
+    <value>Moderation notice</value>
+  </data>
+  <data name="Online.GeneralsOnline.Dm.Close" xml:space="preserve">
+    <value>Close direct messages</value>
+  </data>
+  <data name="Online.GeneralsOnline.Dm.Title" xml:space="preserve">
+    <value>Message</value>
+  </data>
+  <data name="Online.GeneralsOnline.Dm.Placeholder" xml:space="preserve">
+    <value>Write a message...</value>
+  </data>
+  <data name="Online.GeneralsOnline.Dm.FailedTitle" xml:space="preserve">
+    <value>Message not sent</value>
+  </data>
+  <data name="Online.GeneralsOnline.Dm.ReceivedTitle" xml:space="preserve">
+    <value>Message from {0}</value>
+  </data>
+  <data name="Online.GeneralsOnline.Action.Message" xml:space="preserve">
+    <value>Message</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.UnavailableTitle" xml:space="preserve">
+    <value>Launch unavailable</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.UnavailableMessage" xml:space="preserve">
+    <value>The game launcher is not available right now.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.NoProfilesTitle" xml:space="preserve">
+    <value>No local profiles</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.NoProfilesMessage" xml:space="preserve">
+    <value>Install or import a Zero Hour profile before joining a lobby.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.MismatchTitle" xml:space="preserve">
+    <value>Setup mismatch</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.MismatchMessage" xml:space="preserve">
+    <value>Closest setup {0} differs from the host (EXE {1}, INI {2}). Sync the mod or game version first.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.LaunchingTitle" xml:space="preserve">
+    <value>Launching match</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.LaunchingMessage" xml:space="preserve">
+    <value>Launching {1} into {0}.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.FailedTitle" xml:space="preserve">
+    <value>Launch failed</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.SuccessTitle" xml:space="preserve">
+    <value>Match launched</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.SuccessMessage" xml:space="preserve">
+    <value>Launched into {0}. Good luck, General.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Compatibility.Compatible" xml:space="preserve">
+    <value>Compatible</value>
+  </data>
+  <data name="Online.GeneralsOnline.Compatibility.IniMismatch" xml:space="preserve">
+    <value>Patch mismatch</value>
+  </data>
+  <data name="Online.GeneralsOnline.Compatibility.ExeMismatch" xml:space="preserve">
+    <value>Incompatible</value>
+  </data>
+  <data name="Online.GeneralsOnline.Compatibility.Unknown" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
+  <data name="Online.GeneralsOnline.State.Waiting" xml:space="preserve">
+    <value>Waiting</value>
+  </data>
+  <data name="Online.GeneralsOnline.State.InProgress" xml:space="preserve">
+    <value>In progress</value>
+  </data>
+  <data name="Online.GeneralsOnline.State.Complete" xml:space="preserve">
+    <value>Complete</value>
+  </data>
+  <data name="Online.GeneralsOnline.State.Unknown" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
+  <data name="Online.Search.Clear" xml:space="preserve">
+    <value>Clear search</value>
   </data>
 </root>

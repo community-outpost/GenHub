@@ -34,4 +34,9 @@ public enum NavigationTab
     /// Information and FAQ section.
     /// </summary>
     Info,
+
+    /// <summary>
+    /// Online multiplayer and community lobbies (feature-flagged).
+    /// </summary>
+    Online,
 }

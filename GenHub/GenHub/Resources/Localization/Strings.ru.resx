@@ -1,4 +1,4 @@
-﻿<?xml version='1.0' encoding='utf-8'?>
+<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -2291,7 +2291,7 @@
   <data name="Tools.EmptyState.SelectTool" xml:space="preserve">
     <value>Выберите инструмент из списка</value>
   </data>
-<data name="Tools.EmptyState.SelectToolTitle" xml:space="preserve">
+  <data name="Tools.EmptyState.SelectToolTitle" xml:space="preserve">
     <value>Выберите инструмент</value>
     <comment>Empty state title when no tool is currently selected</comment>
   </data>
@@ -14984,13 +14984,13 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="Info.Card.tools.demo-wnd.Title" xml:space="preserve">
     <value>Демо редактора WND</value>
   </data>
-<data name="Tools.Plugin.texture-editor.Name" xml:space="preserve">
+  <data name="Tools.Plugin.texture-editor.Name" xml:space="preserve">
     <value>Редактор текстур</value>
   </data>
   <data name="Tools.Plugin.texture-editor.Description" xml:space="preserve">
     <value>Нарезайте атласы текстур, визуально правьте MappedImages и упаковывайте иконки в листы SAGE.</value>
   </data>
-    <data name="TextureEditor.Header.NoAtlas" xml:space="preserve">
+  <data name="TextureEditor.Header.NoAtlas" xml:space="preserve">
     <value>Атлас не открыт</value>
   </data>
   <data name="TextureEditor.Tooltip.ZoomOut" xml:space="preserve">
@@ -17737,30 +17737,535 @@ Error: не удалось: {3}
   <data name="TextureEditor.Tooltip.PanMode" xml:space="preserve">
     <value>Переключить инструмент панорамирования</value>
   </data>
-  <data name="TextureEditor.Dialog.AllSupportedFiles" xml:space="preserve"><value>Поддерживаемые файлы (*.tga, *.dds, *.png, *.ini)</value></data>
-  <data name="TextureEditor.Notify.PlaceholderOpened.Title" xml:space="preserve"><value>Текстура-заполнитель</value></data>
-  <data name="TextureEditor.Notify.PlaceholderOpened.Message" xml:space="preserve"><value>Открыт временный холст ({0}x{1}) с {2} срезами из {3}{4}.</value></data>
-  <data name="TextureEditor.Notify.ImportExtraTextures" xml:space="preserve"><value> ({0} других текстур в библиотеке)</value></data>
-  <data name="TextureEditor.Notify.ImportComplete.LoadedCurrentAtlas" xml:space="preserve"><value>Загружено {0} срезов для {1} из {2}{3}.</value></data>
-  <data name="TextureEditor.Notify.ImportComplete.LoadedTargetAtlas" xml:space="preserve"><value>Загружено {0} срезов для {1} из {2}{3}.</value></data>
-  <data name="TextureEditor.Notify.ImportComplete.LibraryOnly" xml:space="preserve"><value>Импортировано {0} связанных изображений в библиотеку.</value></data>
-  <data name="TextureEditor.Notify.PlaceholderSingleOpened.Message" xml:space="preserve"><value>Открыт временный холст {0}x{1} для '{2}' (файл текстуры не найден на диске или в архивах игры).</value></data>
-  <data name="TextureEditor.Badge.Placeholder" xml:space="preserve"><value>Текстура отсутствует (заполнитель)</value></data>
-  <data name="TextureEditor.Badge.PlaceholderTooltip" xml:space="preserve"><value>Файл текстуры не найден на диске или в архивах игры. Отображается временный холст.</value></data>
-  <data name="TextureEditor.History.AddSlice" xml:space="preserve"><value>Добавить срез</value></data>
-  <data name="TextureEditor.History.MoveSlice" xml:space="preserve"><value>Переместить срез</value></data>
-  <data name="TextureEditor.History.ResizeSlice" xml:space="preserve"><value>Изменить размер среза</value></data>
-  <data name="TextureEditor.History.CutSlice" xml:space="preserve"><value>Вырезать срез</value></data>
-  <data name="TextureEditor.History.PasteSlice" xml:space="preserve"><value>Вставить срез</value></data>
-  <data name="TextureEditor.History.DuplicateSlice" xml:space="preserve"><value>Дублировать срез</value></data>
-  <data name="TextureEditor.History.DeleteSlice" xml:space="preserve"><value>Удалить срез</value></data>
-  <data name="TextureEditor.Notify.CopyFailed.Title" xml:space="preserve"><value>Не удалось скопировать</value></data>
-  <data name="TextureEditor.History.NudgeSlice" xml:space="preserve"><value>Сдвинуть срез</value></data>
-  <data name="TextureEditor.History.ApplyPreset" xml:space="preserve"><value>Применить предустановку</value></data>
-  <data name="TextureEditor.Notify.PasteFailed.Title" xml:space="preserve"><value>Ошибка вставки</value></data>
-  <data name="TextureEditor.Notify.PasteFailed.Message" xml:space="preserve"><value>Буфер обмена не содержит допустимых определений MappedImage.</value></data>
-  <data name="TextureEditor.Notify.OpenFailed.Message" xml:space="preserve"><value>Не удалось открыть целевую текстуру.</value></data>
+  <data name="TextureEditor.Dialog.AllSupportedFiles" xml:space="preserve">
+    <value>Поддерживаемые файлы (*.tga, *.dds, *.png, *.ini)</value>
+  </data>
+  <data name="TextureEditor.Notify.PlaceholderOpened.Title" xml:space="preserve">
+    <value>Текстура-заполнитель</value>
+  </data>
+  <data name="TextureEditor.Notify.PlaceholderOpened.Message" xml:space="preserve">
+    <value>Открыт временный холст ({0}x{1}) с {2} срезами из {3}{4}.</value>
+  </data>
+  <data name="TextureEditor.Notify.ImportExtraTextures" xml:space="preserve">
+    <value> ({0} других текстур в библиотеке)</value>
+  </data>
+  <data name="TextureEditor.Notify.ImportComplete.LoadedCurrentAtlas" xml:space="preserve">
+    <value>Загружено {0} срезов для {1} из {2}{3}.</value>
+  </data>
+  <data name="TextureEditor.Notify.ImportComplete.LoadedTargetAtlas" xml:space="preserve">
+    <value>Загружено {0} срезов для {1} из {2}{3}.</value>
+  </data>
+  <data name="TextureEditor.Notify.ImportComplete.LibraryOnly" xml:space="preserve">
+    <value>Импортировано {0} связанных изображений в библиотеку.</value>
+  </data>
+  <data name="TextureEditor.Notify.PlaceholderSingleOpened.Message" xml:space="preserve">
+    <value>Открыт временный холст {0}x{1} для '{2}' (файл текстуры не найден на диске или в архивах игры).</value>
+  </data>
+  <data name="TextureEditor.Badge.Placeholder" xml:space="preserve">
+    <value>Текстура отсутствует (заполнитель)</value>
+  </data>
+  <data name="TextureEditor.Badge.PlaceholderTooltip" xml:space="preserve">
+    <value>Файл текстуры не найден на диске или в архивах игры. Отображается временный холст.</value>
+  </data>
+  <data name="TextureEditor.History.AddSlice" xml:space="preserve">
+    <value>Добавить срез</value>
+  </data>
+  <data name="TextureEditor.History.MoveSlice" xml:space="preserve">
+    <value>Переместить срез</value>
+  </data>
+  <data name="TextureEditor.History.ResizeSlice" xml:space="preserve">
+    <value>Изменить размер среза</value>
+  </data>
+  <data name="TextureEditor.History.CutSlice" xml:space="preserve">
+    <value>Вырезать срез</value>
+  </data>
+  <data name="TextureEditor.History.PasteSlice" xml:space="preserve">
+    <value>Вставить срез</value>
+  </data>
+  <data name="TextureEditor.History.DuplicateSlice" xml:space="preserve">
+    <value>Дублировать срез</value>
+  </data>
+  <data name="TextureEditor.History.DeleteSlice" xml:space="preserve">
+    <value>Удалить срез</value>
+  </data>
+  <data name="TextureEditor.Notify.CopyFailed.Title" xml:space="preserve">
+    <value>Не удалось скопировать</value>
+  </data>
+  <data name="TextureEditor.History.NudgeSlice" xml:space="preserve">
+    <value>Сдвинуть срез</value>
+  </data>
+  <data name="TextureEditor.History.ApplyPreset" xml:space="preserve">
+    <value>Применить предустановку</value>
+  </data>
+  <data name="TextureEditor.Notify.PasteFailed.Title" xml:space="preserve">
+    <value>Ошибка вставки</value>
+  </data>
+  <data name="TextureEditor.Notify.PasteFailed.Message" xml:space="preserve">
+    <value>Буфер обмена не содержит допустимых определений MappedImage.</value>
+  </data>
+  <data name="TextureEditor.Notify.OpenFailed.Message" xml:space="preserve">
+    <value>Не удалось открыть целевую текстуру.</value>
+  </data>
   <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
     <value>Резервные выпуски вручную (переопределения)</value>
+  </data>
+  <data name="Navigation.Online" xml:space="preserve">
+    <value>Сеть</value>
+  </data>
+  <data name="Online.Sidebar.Title" xml:space="preserve">
+    <value>Сеть</value>
+  </data>
+  <data name="Online.Sections.GeneralsOnline.Title" xml:space="preserve">
+    <value>GeneralsOnline</value>
+  </data>
+  <data name="Online.Sections.GeneralsOnline.Description" xml:space="preserve">
+    <value>Лобби сообщества и рейтинговая игра</value>
+  </data>
+  <data name="Online.Error.GenericDetail" xml:space="preserve">
+    <value>Проверьте соединение и попробуйте снова.</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Badge" xml:space="preserve">
+    <value>Скоро</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Title" xml:space="preserve">
+    <value>GeneralsOnline скоро появится</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Description" xml:space="preserve">
+    <value>Здесь появятся рейтинговые ладдеры, подбор матчей и лобби сообщества с автоматической проверкой совместимости.</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Feature.Lobbies" xml:space="preserve">
+    <value>Просмотр лобби сообщества</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Feature.Compatibility" xml:space="preserve">
+    <value>Автоматическая проверка совместимости сборки</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Feature.Launch" xml:space="preserve">
+    <value>Запуск профиля и вход в один клик</value>
+  </data>
+  <data name="Online.GeneralsOnline.Title" xml:space="preserve">
+    <value>Generals Online</value>
+  </data>
+  <data name="Online.GeneralsOnline.Subtitle" xml:space="preserve">
+    <value>Войдите, чтобы просматривать лобби сообщества, проверять совместимость сборки и запускать матч.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Action.SignIn" xml:space="preserve">
+    <value>Войти</value>
+  </data>
+  <data name="Online.GeneralsOnline.Action.SignOut" xml:space="preserve">
+    <value>Выйти</value>
+  </data>
+  <data name="Online.GeneralsOnline.Action.Refresh" xml:space="preserve">
+    <value>Обновить</value>
+  </data>
+  <data name="Online.GeneralsOnline.Action.Launch" xml:space="preserve">
+    <value>Играть</value>
+  </data>
+  <data name="Online.GeneralsOnline.Action.Recheck" xml:space="preserve">
+    <value>Проверить</value>
+  </data>
+  <data name="Online.GeneralsOnline.Action.Send" xml:space="preserve">
+    <value>Отправить</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.StatusSignedIn" xml:space="preserve">
+    <value>Вы вошли</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.StatusSignedOut" xml:space="preserve">
+    <value>Вы не вошли</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.SignInTitle" xml:space="preserve">
+    <value>Вход в Generals Online</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.BrowserMessage" xml:space="preserve">
+    <value>Откроется браузер для входа. Подтвердите запрос и вернитесь сюда.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.WelcomeTitle" xml:space="preserve">
+    <value>Вход выполнен</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.WelcomeMessage" xml:space="preserve">
+    <value>С возвращением, {0}.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.FailedTitle" xml:space="preserve">
+    <value>Не удалось войти</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.BannedTitle" xml:space="preserve">
+    <value>Аккаунт заблокирован</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.BannedMessage" xml:space="preserve">
+    <value>Этот аккаунт заблокирован в Generals Online.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.SignOutTitle" xml:space="preserve">
+    <value>Выход выполнен</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.SignOutMessage" xml:space="preserve">
+    <value>Вы вышли из Generals Online.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.RequiredTitle" xml:space="preserve">
+    <value>Требуется вход</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.RequiredMessage" xml:space="preserve">
+    <value>Войдите в Generals Online, прежде чем запускать лобби.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Search.Placeholder" xml:space="preserve">
+    <value>Поиск лобби, карт и хостов</value>
+  </data>
+  <data name="Online.GeneralsOnline.Filter.CompatibleOnly" xml:space="preserve">
+    <value>Только совместимые</value>
+  </data>
+  <data name="Online.GeneralsOnline.Filter.ShowInProgress" xml:space="preserve">
+    <value>Показать идущие</value>
+  </data>
+  <data name="Online.GeneralsOnline.Filter.HideFull" xml:space="preserve">
+    <value>Скрыть полные</value>
+  </data>
+  <data name="Online.GeneralsOnline.Filter.HidePassworded" xml:space="preserve">
+    <value>Скрыть закрытые</value>
+  </data>
+  <data name="Online.GeneralsOnline.Filter.Region" xml:space="preserve">
+    <value>Регион</value>
+  </data>
+  <data name="Online.GeneralsOnline.Filter.Sort" xml:space="preserve">
+    <value>Сортировка</value>
+  </data>
+  <data name="Online.GeneralsOnline.Sort.Players" xml:space="preserve">
+    <value>По игрокам</value>
+  </data>
+  <data name="Online.GeneralsOnline.Sort.Name" xml:space="preserve">
+    <value>По названию</value>
+  </data>
+  <data name="Online.GeneralsOnline.Sort.Map" xml:space="preserve">
+    <value>По карте</value>
+  </data>
+  <data name="Online.GeneralsOnline.Sort.Latency" xml:space="preserve">
+    <value>По пингу</value>
+  </data>
+  <data name="Online.GeneralsOnline.Sort.Newest" xml:space="preserve">
+    <value>Новые</value>
+  </data>
+  <data name="Online.GeneralsOnline.Sort.Setup" xml:space="preserve">
+    <value>По сборке</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobbies.StaleWarning" xml:space="preserve">
+    <value>Не обновлено — показаны последние лобби.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.OfTotal" xml:space="preserve">
+    <value>из {0} всего</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.Lobbies" xml:space="preserve">
+    <value>Лобби GO</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.Players" xml:space="preserve">
+    <value>GO онлайн</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.Playing" xml:space="preserve">
+    <value>В матче</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.MatchesToday" xml:space="preserve">
+    <value>Матчей сегодня</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.YourElo" xml:space="preserve">
+    <value>Ваш Elo • В–П</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.PlayerCard" xml:space="preserve">
+    <value>{0} • {1}–{2}</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.Uptime" xml:space="preserve">
+    <value>Время работы службы:</value>
+  </data>
+  <data name="Online.GeneralsOnline.Motd.Title" xml:space="preserve">
+    <value>Сообщение дня</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.WinsRecorded" xml:space="preserve">
+    <value>побед записано</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.UptimeSince" xml:space="preserve">
+    <value>с {0}</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.YourRecordDetail" xml:space="preserve">
+    <value>{0} игр • {1}% побед</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.YourRecordDetailMonthly" xml:space="preserve">
+    <value>{0} игр • {1}% побед • за месяц {2}</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.Title" xml:space="preserve">
+    <value>Ссылки сообщества</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.Website" xml:space="preserve">
+    <value>Сайт</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.Discord" xml:space="preserve">
+    <value>Discord</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.PatchNotes" xml:space="preserve">
+    <value>Заметки о патче</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.CodeOfConduct" xml:space="preserve">
+    <value>Правила поведения</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.Ladders" xml:space="preserve">
+    <value>Таблицы лиг</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.Matches" xml:space="preserve">
+    <value>Матчи</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.ServiceStatus" xml:space="preserve">
+    <value>Статус сервиса</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.FailedTitle" xml:space="preserve">
+    <value>Не удалось открыть ссылку</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.FailedMessage" xml:space="preserve">
+    <value>Не удалось открыть {0}.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Empty.Title" xml:space="preserve">
+    <value>Лобби не найдены</value>
+  </data>
+  <data name="Online.GeneralsOnline.Empty.Message" xml:space="preserve">
+    <value>Нет лобби по текущим фильтрам или открытых лобби прямо сейчас.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Empty.SignedOutMessage" xml:space="preserve">
+    <value>Войдите, чтобы просматривать лобби сообщества.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Empty.ForbiddenMessage" xml:space="preserve">
+    <value>Просмотр лобби пока недоступен для сессий лаунчера. Вы вошли — список появится здесь, как только команда Generals Online включит его.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobbies.FailedTitle" xml:space="preserve">
+    <value>Не удалось загрузить лобби</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.MapLabel" xml:space="preserve">
+    <value>Карта</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.Official" xml:space="preserve">
+    <value>Официальная</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.Custom" xml:space="preserve">
+    <value>Своя</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.BestProfileLabel" xml:space="preserve">
+    <value>Лучшая сборка</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.HostLabel" xml:space="preserve">
+    <value>Хост</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.CrcLabel" xml:space="preserve">
+    <value>CRC лобби</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.ProfileCrcLabel" xml:space="preserve">
+    <value>CRC сборки</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.SettingsLabel" xml:space="preserve">
+    <value>Настройки</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.MembersLabel" xml:space="preserve">
+    <value>Игроки</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.ProfileLabel" xml:space="preserve">
+    <value>Сборка</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.LatencyLabel" xml:space="preserve">
+    <value>Пинг</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.Ready" xml:space="preserve">
+    <value>Готов</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.MissingMap" xml:space="preserve">
+    <value>Нет карты</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.NoSuperweapons" xml:space="preserve">
+    <value>Без сверхоружия</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.Observers" xml:space="preserve">
+    <value>Наблюдатели</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.HasMap" xml:space="preserve">
+    <value>Есть карта</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.Ai" xml:space="preserve">
+    <value>AI</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.AddFriend" xml:space="preserve">
+    <value>В друзья</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.Title" xml:space="preserve">
+    <value>Друзья</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.Empty" xml:space="preserve">
+    <value>Пока нет друзей. Добавьте игроков на сайте Generals Online, чтобы увидеть их здесь.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.PendingTitle" xml:space="preserve">
+    <value>Входящие заявки</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.FailedTitle" xml:space="preserve">
+    <value>Не получилось</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.RequestReceivedTitle" xml:space="preserve">
+    <value>Новая заявка</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.RequestReceivedMessage" xml:space="preserve">
+    <value>{0} хочет дружить.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.OnlineTitle" xml:space="preserve">
+    <value>Друг в сети</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.OnlineMessage" xml:space="preserve">
+    <value>{0} в сети.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.RequestSentTitle" xml:space="preserve">
+    <value>Заявка отправлена</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.RequestSentMessage" xml:space="preserve">
+    <value>Заявка в друзья отправлена.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.AcceptedTitle" xml:space="preserve">
+    <value>Друг добавлен</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.AcceptedMessage" xml:space="preserve">
+    <value>{0} теперь ваш друг.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.RejectedTitle" xml:space="preserve">
+    <value>Заявка отклонена</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.RejectedMessage" xml:space="preserve">
+    <value>Заявка от {0} отклонена.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.RemovedTitle" xml:space="preserve">
+    <value>Друг удалён</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.RemovedMessage" xml:space="preserve">
+    <value>{0} удалён.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.BlockedTitle" xml:space="preserve">
+    <value>Заблокировано</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.BlockedMessage" xml:space="preserve">
+    <value>Пользователь заблокирован.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.UnblockedTitle" xml:space="preserve">
+    <value>Разблокировано</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.UnblockedMessage" xml:space="preserve">
+    <value>{0} разблокирован.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.BlockedSectionTitle" xml:space="preserve">
+    <value>Заблокированные</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.Accept" xml:space="preserve">
+    <value>Принять</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.Reject" xml:space="preserve">
+    <value>Отклонить</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.Remove" xml:space="preserve">
+    <value>Удалить</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.Block" xml:space="preserve">
+    <value>Заблокировать</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.Unblock" xml:space="preserve">
+    <value>Разблокировать</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.AlreadyTitle" xml:space="preserve">
+    <value>Уже друзья</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.AlreadyMessage" xml:space="preserve">
+    <value>Вы уже дружите с этим игроком.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Chat.Title" xml:space="preserve">
+    <value>Чат комнаты</value>
+  </data>
+  <data name="Online.GeneralsOnline.Chat.Placeholder" xml:space="preserve">
+    <value>Написать в комнату...</value>
+  </data>
+  <data name="Online.GeneralsOnline.Chat.Empty" xml:space="preserve">
+    <value>Пока тихо. Поздоровайтесь с комнатой.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Chat.FailedTitle" xml:space="preserve">
+    <value>Не отправлено</value>
+  </data>
+  <data name="Online.GeneralsOnline.Chat.RoomLabel" xml:space="preserve">
+    <value>Комната</value>
+  </data>
+  <data name="Online.GeneralsOnline.Chat.OccupantsLabel" xml:space="preserve">
+    <value>В сети</value>
+  </data>
+  <data name="Online.GeneralsOnline.Chat.ModerationTitle" xml:space="preserve">
+    <value>Предупреждение</value>
+  </data>
+  <data name="Online.GeneralsOnline.Dm.Close" xml:space="preserve">
+    <value>Закрыть личные сообщения</value>
+  </data>
+  <data name="Online.GeneralsOnline.Dm.Title" xml:space="preserve">
+    <value>Сообщение</value>
+  </data>
+  <data name="Online.GeneralsOnline.Dm.Placeholder" xml:space="preserve">
+    <value>Написать сообщение...</value>
+  </data>
+  <data name="Online.GeneralsOnline.Dm.FailedTitle" xml:space="preserve">
+    <value>Не отправлено</value>
+  </data>
+  <data name="Online.GeneralsOnline.Dm.ReceivedTitle" xml:space="preserve">
+    <value>Сообщение от {0}</value>
+  </data>
+  <data name="Online.GeneralsOnline.Action.Message" xml:space="preserve">
+    <value>Написать</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.UnavailableTitle" xml:space="preserve">
+    <value>Запуск недоступен</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.UnavailableMessage" xml:space="preserve">
+    <value>Лаунчер игры сейчас недоступен.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.NoProfilesTitle" xml:space="preserve">
+    <value>Нет локальных профилей</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.NoProfilesMessage" xml:space="preserve">
+    <value>Установите или импортируйте профиль Zero Hour, прежде чем вступать в лобби.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.MismatchTitle" xml:space="preserve">
+    <value>Сборка не совпадает</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.MismatchMessage" xml:space="preserve">
+    <value>Ближайшая сборка {0} отличается от хоста (EXE {1}, INI {2}). Синхронизируйте версию.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.LaunchingTitle" xml:space="preserve">
+    <value>Запуск матча</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.LaunchingMessage" xml:space="preserve">
+    <value>Запуск {1} в {0}.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.FailedTitle" xml:space="preserve">
+    <value>Запуск не удался</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.SuccessTitle" xml:space="preserve">
+    <value>Матч запущен</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.SuccessMessage" xml:space="preserve">
+    <value>Матч {0} запущен. Удачи, генерал.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Compatibility.Compatible" xml:space="preserve">
+    <value>Совместимо</value>
+  </data>
+  <data name="Online.GeneralsOnline.Compatibility.IniMismatch" xml:space="preserve">
+    <value>Патч отличается</value>
+  </data>
+  <data name="Online.GeneralsOnline.Compatibility.ExeMismatch" xml:space="preserve">
+    <value>Несовместимо</value>
+  </data>
+  <data name="Online.GeneralsOnline.Compatibility.Unknown" xml:space="preserve">
+    <value>Неизвестно</value>
+  </data>
+  <data name="Online.GeneralsOnline.State.Waiting" xml:space="preserve">
+    <value>Ожидание</value>
+  </data>
+  <data name="Online.GeneralsOnline.State.InProgress" xml:space="preserve">
+    <value>Матч идёт</value>
+  </data>
+  <data name="Online.GeneralsOnline.State.Complete" xml:space="preserve">
+    <value>Завершён</value>
+  </data>
+  <data name="Online.GeneralsOnline.State.Unknown" xml:space="preserve">
+    <value>Неизвестно</value>
+  </data>
+  <data name="Online.Search.Clear" xml:space="preserve">
+    <value>Очистить поиск</value>
   </data>
 </root>

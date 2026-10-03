@@ -1,10 +1,6 @@
-using GenHub.Common.Services;
+using GenHub.Common.Services.SecureStorage;
 using GenHub.Core.Constants;
-using GenHub.Core.Helpers;
-using GenHub.Features.Workspace;
-using System;
 using System.Collections.Generic;
-using System.IO;
 
 namespace GenHub.Features.GitHub.Services;
 
@@ -27,7 +23,7 @@ public static class GitHubTokenPathResolver
     /// <returns>The primary token file path.</returns>
     public static string GetPrimaryTokenFilePath(string applicationDataPath)
     {
-        return Path.Combine(applicationDataPath, AppConstants.TokenFileName);
+        return FileTokenPathResolver.GetPrimaryTokenFilePath(applicationDataPath, AppConstants.TokenFileName);
     }
 
     /// <summary>
@@ -37,17 +33,7 @@ public static class GitHubTokenPathResolver
     /// <returns>The fallback token file path, or null when the primary directory already is the default root.</returns>
     public static string? GetFallbackTokenFilePath(string applicationDataPath)
     {
-        var fallbackDirectory = StorageMigrationService.GetDefaultDataRoot();
-
-        // Compare physical locations, not path text: when the data directory is a
-        // symlink or junction to the default root, both token paths identify the same
-        // file, and the post-save fallback cleanup would delete the token just written.
-        if (PathHelper.AreSamePhysicalPath(applicationDataPath, fallbackDirectory))
-        {
-            return null;
-        }
-
-        return Path.Combine(fallbackDirectory, AppConstants.TokenFileName);
+        return FileTokenPathResolver.GetFallbackTokenFilePath(applicationDataPath, AppConstants.TokenFileName);
     }
 
     /// <summary>
@@ -58,23 +44,7 @@ public static class GitHubTokenPathResolver
     /// <param name="fallbackTokenFilePath">The fallback token file path, or null when there is none.</param>
     public static void DeleteFallbackCopyBestEffort(string? fallbackTokenFilePath)
     {
-        if (fallbackTokenFilePath == null)
-        {
-            return;
-        }
-
-        try
-        {
-            FileOperationsService.DeleteFileIfExists(fallbackTokenFilePath);
-        }
-        catch (IOException)
-        {
-            // Best effort: the primary token is already persisted.
-        }
-        catch (UnauthorizedAccessException)
-        {
-            // Best effort: the primary token is already persisted.
-        }
+        FileTokenPathResolver.DeleteFallbackCopyBestEffort(fallbackTokenFilePath);
     }
 
     /// <summary>
@@ -86,18 +56,7 @@ public static class GitHubTokenPathResolver
     /// <returns>The existing token file paths in load order.</returns>
     public static IReadOnlyList<string> GetExistingTokenFilePaths(string primaryTokenFilePath, string? fallbackTokenFilePath)
     {
-        var paths = new List<string>(capacity: 2);
-        if (File.Exists(primaryTokenFilePath))
-        {
-            paths.Add(primaryTokenFilePath);
-        }
-
-        if (fallbackTokenFilePath != null && File.Exists(fallbackTokenFilePath))
-        {
-            paths.Add(fallbackTokenFilePath);
-        }
-
-        return paths;
+        return FileTokenPathResolver.GetExistingTokenFilePaths(primaryTokenFilePath, fallbackTokenFilePath);
     }
 
     /// <summary>
@@ -108,13 +67,6 @@ public static class GitHubTokenPathResolver
     /// <returns>The active token file path, or null when neither file exists.</returns>
     public static string? ResolveActiveTokenFilePath(string primaryTokenFilePath, string? fallbackTokenFilePath)
     {
-        if (File.Exists(primaryTokenFilePath))
-        {
-            return primaryTokenFilePath;
-        }
-
-        return fallbackTokenFilePath != null && File.Exists(fallbackTokenFilePath)
-            ? fallbackTokenFilePath
-            : null;
+        return FileTokenPathResolver.ResolveActiveTokenFilePath(primaryTokenFilePath, fallbackTokenFilePath);
     }
 }

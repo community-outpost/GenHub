@@ -1,4 +1,4 @@
-﻿<?xml version='1.0' encoding='utf-8'?>
+<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -2291,7 +2291,7 @@
   <data name="Tools.EmptyState.SelectTool" xml:space="preserve">
     <value>حدد أداة من القائمة</value>
   </data>
-<data name="Tools.EmptyState.SelectToolTitle" xml:space="preserve">
+  <data name="Tools.EmptyState.SelectToolTitle" xml:space="preserve">
     <value>اختر أداة</value>
     <comment>Empty state title when no tool is currently selected</comment>
   </data>
@@ -15077,13 +15077,13 @@ https://example.com/screenshot2.png</value>
   <data name="Info.Card.tools.demo-wnd.Title" xml:space="preserve">
     <value>عرض محرر WND</value>
   </data>
-<data name="Tools.Plugin.texture-editor.Name" xml:space="preserve">
+  <data name="Tools.Plugin.texture-editor.Name" xml:space="preserve">
     <value>محرر القوام</value>
   </data>
   <data name="Tools.Plugin.texture-editor.Description" xml:space="preserve">
     <value>قسّم أطالس القوام وحرّر MappedImages بصريًا واجمع الأيقونات في صفحات SAGE.</value>
   </data>
-    <data name="TextureEditor.Header.NoAtlas" xml:space="preserve">
+  <data name="TextureEditor.Header.NoAtlas" xml:space="preserve">
     <value>لا يوجد أطلس مفتوح</value>
   </data>
   <data name="TextureEditor.Tooltip.ZoomOut" xml:space="preserve">
@@ -17737,30 +17737,535 @@ Error: فشل: {3}
   <data name="TextureEditor.Tooltip.PanMode" xml:space="preserve">
     <value>تبديل أداة التحريك</value>
   </data>
-  <data name="TextureEditor.Dialog.AllSupportedFiles" xml:space="preserve"><value>الملفات المدعومة (*.tga, *.dds, *.png, *.ini)</value></data>
-  <data name="TextureEditor.Notify.PlaceholderOpened.Title" xml:space="preserve"><value>نسيج مؤقت</value></data>
-  <data name="TextureEditor.Notify.PlaceholderOpened.Message" xml:space="preserve"><value>تم فتح لوحة قماشية مؤقتة ({0}x{1}) تحتوي على {2} شريحة من {3}{4}.</value></data>
-  <data name="TextureEditor.Notify.ImportExtraTextures" xml:space="preserve"><value> ({0} أنسجة أخرى في المكتبة)</value></data>
-  <data name="TextureEditor.Notify.ImportComplete.LoadedCurrentAtlas" xml:space="preserve"><value>تم تحميل {0} شريحة لـ {1} من {2}{3}.</value></data>
-  <data name="TextureEditor.Notify.ImportComplete.LoadedTargetAtlas" xml:space="preserve"><value>تم تحميل {0} شريحة لـ {1} من {2}{3}.</value></data>
-  <data name="TextureEditor.Notify.ImportComplete.LibraryOnly" xml:space="preserve"><value>تم استيراد {0} صورة في المكتبة.</value></data>
-  <data name="TextureEditor.Notify.PlaceholderSingleOpened.Message" xml:space="preserve"><value>تم فتح لوحة قماشية مؤقتة {0}x{1} لـ '{2}' (لم يتم العثور على ملف النسيج على القرص أو في ملفات اللعبة).</value></data>
-  <data name="TextureEditor.Badge.Placeholder" xml:space="preserve"><value>نسيج مفقود (مؤقت)</value></data>
-  <data name="TextureEditor.Badge.PlaceholderTooltip" xml:space="preserve"><value>لم يتم العثور على ملف النسيج على القرص أو في أرشيفات اللعبة. يتم عرض لوحة قماشية مؤقتة.</value></data>
-  <data name="TextureEditor.History.AddSlice" xml:space="preserve"><value>إضافة شريحة</value></data>
-  <data name="TextureEditor.History.MoveSlice" xml:space="preserve"><value>نقل الشريحة</value></data>
-  <data name="TextureEditor.History.ResizeSlice" xml:space="preserve"><value>تغيير حجم الشريحة</value></data>
-  <data name="TextureEditor.History.CutSlice" xml:space="preserve"><value>قص الشريحة</value></data>
-  <data name="TextureEditor.History.PasteSlice" xml:space="preserve"><value>لصق الشريحة</value></data>
-  <data name="TextureEditor.History.DuplicateSlice" xml:space="preserve"><value>تكرار الشريحة</value></data>
-  <data name="TextureEditor.History.DeleteSlice" xml:space="preserve"><value>حذف الشريحة</value></data>
-  <data name="TextureEditor.Notify.CopyFailed.Title" xml:space="preserve"><value>فشل النسخ</value></data>
-  <data name="TextureEditor.History.NudgeSlice" xml:space="preserve"><value>تحريك الشريحة</value></data>
-  <data name="TextureEditor.History.ApplyPreset" xml:space="preserve"><value>تطبيق الإعداد المسبق</value></data>
-  <data name="TextureEditor.Notify.PasteFailed.Title" xml:space="preserve"><value>فشل اللصق</value></data>
-  <data name="TextureEditor.Notify.PasteFailed.Message" xml:space="preserve"><value>لا تحتوي الحافظة على تعريفات MappedImage صالحة.</value></data>
-  <data name="TextureEditor.Notify.OpenFailed.Message" xml:space="preserve"><value>فشل فتح النسيج الهدف.</value></data>
+  <data name="TextureEditor.Dialog.AllSupportedFiles" xml:space="preserve">
+    <value>الملفات المدعومة (*.tga, *.dds, *.png, *.ini)</value>
+  </data>
+  <data name="TextureEditor.Notify.PlaceholderOpened.Title" xml:space="preserve">
+    <value>نسيج مؤقت</value>
+  </data>
+  <data name="TextureEditor.Notify.PlaceholderOpened.Message" xml:space="preserve">
+    <value>تم فتح لوحة قماشية مؤقتة ({0}x{1}) تحتوي على {2} شريحة من {3}{4}.</value>
+  </data>
+  <data name="TextureEditor.Notify.ImportExtraTextures" xml:space="preserve">
+    <value> ({0} أنسجة أخرى في المكتبة)</value>
+  </data>
+  <data name="TextureEditor.Notify.ImportComplete.LoadedCurrentAtlas" xml:space="preserve">
+    <value>تم تحميل {0} شريحة لـ {1} من {2}{3}.</value>
+  </data>
+  <data name="TextureEditor.Notify.ImportComplete.LoadedTargetAtlas" xml:space="preserve">
+    <value>تم تحميل {0} شريحة لـ {1} من {2}{3}.</value>
+  </data>
+  <data name="TextureEditor.Notify.ImportComplete.LibraryOnly" xml:space="preserve">
+    <value>تم استيراد {0} صورة في المكتبة.</value>
+  </data>
+  <data name="TextureEditor.Notify.PlaceholderSingleOpened.Message" xml:space="preserve">
+    <value>تم فتح لوحة قماشية مؤقتة {0}x{1} لـ '{2}' (لم يتم العثور على ملف النسيج على القرص أو في ملفات اللعبة).</value>
+  </data>
+  <data name="TextureEditor.Badge.Placeholder" xml:space="preserve">
+    <value>نسيج مفقود (مؤقت)</value>
+  </data>
+  <data name="TextureEditor.Badge.PlaceholderTooltip" xml:space="preserve">
+    <value>لم يتم العثور على ملف النسيج على القرص أو في أرشيفات اللعبة. يتم عرض لوحة قماشية مؤقتة.</value>
+  </data>
+  <data name="TextureEditor.History.AddSlice" xml:space="preserve">
+    <value>إضافة شريحة</value>
+  </data>
+  <data name="TextureEditor.History.MoveSlice" xml:space="preserve">
+    <value>نقل الشريحة</value>
+  </data>
+  <data name="TextureEditor.History.ResizeSlice" xml:space="preserve">
+    <value>تغيير حجم الشريحة</value>
+  </data>
+  <data name="TextureEditor.History.CutSlice" xml:space="preserve">
+    <value>قص الشريحة</value>
+  </data>
+  <data name="TextureEditor.History.PasteSlice" xml:space="preserve">
+    <value>لصق الشريحة</value>
+  </data>
+  <data name="TextureEditor.History.DuplicateSlice" xml:space="preserve">
+    <value>تكرار الشريحة</value>
+  </data>
+  <data name="TextureEditor.History.DeleteSlice" xml:space="preserve">
+    <value>حذف الشريحة</value>
+  </data>
+  <data name="TextureEditor.Notify.CopyFailed.Title" xml:space="preserve">
+    <value>فشل النسخ</value>
+  </data>
+  <data name="TextureEditor.History.NudgeSlice" xml:space="preserve">
+    <value>تحريك الشريحة</value>
+  </data>
+  <data name="TextureEditor.History.ApplyPreset" xml:space="preserve">
+    <value>تطبيق الإعداد المسبق</value>
+  </data>
+  <data name="TextureEditor.Notify.PasteFailed.Title" xml:space="preserve">
+    <value>فشل اللصق</value>
+  </data>
+  <data name="TextureEditor.Notify.PasteFailed.Message" xml:space="preserve">
+    <value>لا تحتوي الحافظة على تعريفات MappedImage صالحة.</value>
+  </data>
+  <data name="TextureEditor.Notify.OpenFailed.Message" xml:space="preserve">
+    <value>فشل فتح النسيج الهدف.</value>
+  </data>
   <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
     <value>إصدارات احتياطية يدوية (تجاوزات)</value>
+  </data>
+  <data name="Navigation.Online" xml:space="preserve">
+    <value>عبر الإنترنت</value>
+  </data>
+  <data name="Online.Sidebar.Title" xml:space="preserve">
+    <value>عبر الإنترنت</value>
+  </data>
+  <data name="Online.Sections.GeneralsOnline.Title" xml:space="preserve">
+    <value>GeneralsOnline</value>
+  </data>
+  <data name="Online.Sections.GeneralsOnline.Description" xml:space="preserve">
+    <value>ردهات المجتمع واللعب المصنّف</value>
+  </data>
+  <data name="Online.Error.GenericDetail" xml:space="preserve">
+    <value>يرجى التحقق من الاتصال والمحاولة مرة أخرى.</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Badge" xml:space="preserve">
+    <value>قريبًا</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Title" xml:space="preserve">
+    <value>GeneralsOnline قادم قريبًا</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Description" xml:space="preserve">
+    <value>ستتوفر هنا السلالم المصنفة والمطابقة وردهات المجتمع مع فحوصات التوافق التلقائية.</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Feature.Lobbies" xml:space="preserve">
+    <value>تصفح ردهات المجتمع</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Feature.Compatibility" xml:space="preserve">
+    <value>فحوصات تلقائية لتوافق الإعداد</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Feature.Launch" xml:space="preserve">
+    <value>تشغيل الملف الشخصي وتسجيل الدخول بنقرة واحدة</value>
+  </data>
+  <data name="Online.GeneralsOnline.Title" xml:space="preserve">
+    <value>Generals Online</value>
+  </data>
+  <data name="Online.GeneralsOnline.Subtitle" xml:space="preserve">
+    <value>سجّل الدخول لتصفح الردهات المجتمعية والتحقق من توافق الإعداد والانطلاق مباشرة إلى المباراة.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Action.SignIn" xml:space="preserve">
+    <value>تسجيل الدخول</value>
+  </data>
+  <data name="Online.GeneralsOnline.Action.SignOut" xml:space="preserve">
+    <value>تسجيل الخروج</value>
+  </data>
+  <data name="Online.GeneralsOnline.Action.Refresh" xml:space="preserve">
+    <value>تحديث</value>
+  </data>
+  <data name="Online.GeneralsOnline.Action.Launch" xml:space="preserve">
+    <value>تشغيل</value>
+  </data>
+  <data name="Online.GeneralsOnline.Action.Recheck" xml:space="preserve">
+    <value>إعادة الفحص</value>
+  </data>
+  <data name="Online.GeneralsOnline.Action.Send" xml:space="preserve">
+    <value>إرسال</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.StatusSignedIn" xml:space="preserve">
+    <value>مسجّل الدخول</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.StatusSignedOut" xml:space="preserve">
+    <value>غير مسجّل الدخول</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.SignInTitle" xml:space="preserve">
+    <value>تسجيل الدخول إلى Generals Online</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.BrowserMessage" xml:space="preserve">
+    <value>سيُفتح المتصفح لتسجيل الدخول. وافق على الطلب ثم عد إلى هنا.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.WelcomeTitle" xml:space="preserve">
+    <value>تم تسجيل الدخول</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.WelcomeMessage" xml:space="preserve">
+    <value>مرحباً بعودتك، {0}.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.FailedTitle" xml:space="preserve">
+    <value>فشل تسجيل الدخول</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.BannedTitle" xml:space="preserve">
+    <value>الحساب محظور</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.BannedMessage" xml:space="preserve">
+    <value>هذا الحساب محظور من Generals Online.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.SignOutTitle" xml:space="preserve">
+    <value>تم تسجيل الخروج</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.SignOutMessage" xml:space="preserve">
+    <value>تم تسجيل الخروج من Generals Online.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.RequiredTitle" xml:space="preserve">
+    <value>تسجيل الدخول مطلوب</value>
+  </data>
+  <data name="Online.GeneralsOnline.Auth.RequiredMessage" xml:space="preserve">
+    <value>سجّل الدخول إلى Generals Online قبل تشغيل الردهة.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Search.Placeholder" xml:space="preserve">
+    <value>ابحث في الردهات أو الخرائط أو المضيفين</value>
+  </data>
+  <data name="Online.GeneralsOnline.Filter.CompatibleOnly" xml:space="preserve">
+    <value>المتوافقة فقط</value>
+  </data>
+  <data name="Online.GeneralsOnline.Filter.ShowInProgress" xml:space="preserve">
+    <value>إظهار الجارية</value>
+  </data>
+  <data name="Online.GeneralsOnline.Filter.HideFull" xml:space="preserve">
+    <value>إخفاء الممتلئة</value>
+  </data>
+  <data name="Online.GeneralsOnline.Filter.HidePassworded" xml:space="preserve">
+    <value>إخفاء المقفلة</value>
+  </data>
+  <data name="Online.GeneralsOnline.Filter.Region" xml:space="preserve">
+    <value>المنطقة</value>
+  </data>
+  <data name="Online.GeneralsOnline.Filter.Sort" xml:space="preserve">
+    <value>ترتيب</value>
+  </data>
+  <data name="Online.GeneralsOnline.Sort.Players" xml:space="preserve">
+    <value>الأكثر لاعبين</value>
+  </data>
+  <data name="Online.GeneralsOnline.Sort.Name" xml:space="preserve">
+    <value>الاسم</value>
+  </data>
+  <data name="Online.GeneralsOnline.Sort.Map" xml:space="preserve">
+    <value>الخريطة</value>
+  </data>
+  <data name="Online.GeneralsOnline.Sort.Latency" xml:space="preserve">
+    <value>الأقل ping</value>
+  </data>
+  <data name="Online.GeneralsOnline.Sort.Newest" xml:space="preserve">
+    <value>الأحدث</value>
+  </data>
+  <data name="Online.GeneralsOnline.Sort.Setup" xml:space="preserve">
+    <value>الإعداد</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobbies.StaleWarning" xml:space="preserve">
+    <value>تعذّر التحديث — يتم عرض آخر غرف معروفة.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.OfTotal" xml:space="preserve">
+    <value>من أصل {0}</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.Lobbies" xml:space="preserve">
+    <value>ردهات GO</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.Players" xml:space="preserve">
+    <value>لاعبو GO</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.Playing" xml:space="preserve">
+    <value>في المباريات</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.MatchesToday" xml:space="preserve">
+    <value>مباريات اليوم</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.YourElo" xml:space="preserve">
+    <value>تقييم Elo • ف–خ</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.PlayerCard" xml:space="preserve">
+    <value>{0} • {1}–{2}</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.Uptime" xml:space="preserve">
+    <value>مدة تشغيل الخدمة:</value>
+  </data>
+  <data name="Online.GeneralsOnline.Motd.Title" xml:space="preserve">
+    <value>رسالة اليوم</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.WinsRecorded" xml:space="preserve">
+    <value>انتصارات مسجلة</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.UptimeSince" xml:space="preserve">
+    <value>منذ {0}</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.YourRecordDetail" xml:space="preserve">
+    <value>{0} مباراة • {1}% انتصارات</value>
+  </data>
+  <data name="Online.GeneralsOnline.Stats.YourRecordDetailMonthly" xml:space="preserve">
+    <value>{0} مباراة • {1}% انتصارات • شهري {2}</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.Title" xml:space="preserve">
+    <value>روابط المجتمع</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.Website" xml:space="preserve">
+    <value>الموقع</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.Discord" xml:space="preserve">
+    <value>ديسكورد</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.PatchNotes" xml:space="preserve">
+    <value>ملاحظات التحديث</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.CodeOfConduct" xml:space="preserve">
+    <value>قواعد السلوك</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.Ladders" xml:space="preserve">
+    <value>سلم الترتيب</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.Matches" xml:space="preserve">
+    <value>المباريات</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.ServiceStatus" xml:space="preserve">
+    <value>حالة الخدمة</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.FailedTitle" xml:space="preserve">
+    <value>تعذر فتح الرابط</value>
+  </data>
+  <data name="Online.GeneralsOnline.Links.FailedMessage" xml:space="preserve">
+    <value>تعذر فتح {0}.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Empty.Title" xml:space="preserve">
+    <value>لا توجد ردهات</value>
+  </data>
+  <data name="Online.GeneralsOnline.Empty.Message" xml:space="preserve">
+    <value>لا توجد ردهات تطابق المرشحات الحالية، أو لا توجد ردهات مفتوحة حالياً.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Empty.SignedOutMessage" xml:space="preserve">
+    <value>سجّل الدخول لتصفح ردهات المجتمع المباشرة.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Empty.ForbiddenMessage" xml:space="preserve">
+    <value>تصفح الردهات غير مفعّل لجلسات المشغّل بعد. أنت مسجّل الدخول — ستظهر القائمة هنا فور تفعيلها من فريق Generals Online.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobbies.FailedTitle" xml:space="preserve">
+    <value>تعذر تحميل الردهات</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.MapLabel" xml:space="preserve">
+    <value>الخريطة</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.Official" xml:space="preserve">
+    <value>رسمية</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.Custom" xml:space="preserve">
+    <value>مخصصة</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.BestProfileLabel" xml:space="preserve">
+    <value>أفضل إعداد</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.HostLabel" xml:space="preserve">
+    <value>المضيف</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.CrcLabel" xml:space="preserve">
+    <value>CRC الغرفة</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.ProfileCrcLabel" xml:space="preserve">
+    <value>CRC الإعداد</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.SettingsLabel" xml:space="preserve">
+    <value>الإعدادات</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.MembersLabel" xml:space="preserve">
+    <value>اللاعبون</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.ProfileLabel" xml:space="preserve">
+    <value>الإعداد</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.LatencyLabel" xml:space="preserve">
+    <value>Ping</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.Ready" xml:space="preserve">
+    <value>جاهز</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.MissingMap" xml:space="preserve">
+    <value>لا خريطة</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.NoSuperweapons" xml:space="preserve">
+    <value>بدون أسلحة خارقة</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.Observers" xml:space="preserve">
+    <value>مشاهدون</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.HasMap" xml:space="preserve">
+    <value>لديه الخريطة</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.Ai" xml:space="preserve">
+    <value>AI</value>
+  </data>
+  <data name="Online.GeneralsOnline.Lobby.AddFriend" xml:space="preserve">
+    <value>إضافة صديق</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.Title" xml:space="preserve">
+    <value>الأصدقاء</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.Empty" xml:space="preserve">
+    <value>لا أصدقاء بعد. أضف لاعبين من موقع Generals Online لرؤيتهم هنا.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.PendingTitle" xml:space="preserve">
+    <value>طلبات معلقة</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.FailedTitle" xml:space="preserve">
+    <value>فشل إجراء الصداقة</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.RequestReceivedTitle" xml:space="preserve">
+    <value>طلب صداقة جديد</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.RequestReceivedMessage" xml:space="preserve">
+    <value>أرسل {0} طلب صداقة.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.OnlineTitle" xml:space="preserve">
+    <value>صديق متصل</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.OnlineMessage" xml:space="preserve">
+    <value>{0} متصل الآن.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.RequestSentTitle" xml:space="preserve">
+    <value>تم إرسال الطلب</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.RequestSentMessage" xml:space="preserve">
+    <value>تم إرسال طلب الصداقة.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.AcceptedTitle" xml:space="preserve">
+    <value>تمت الإضافة</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.AcceptedMessage" xml:space="preserve">
+    <value>أصبح {0} صديقك.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.RejectedTitle" xml:space="preserve">
+    <value>تم رفض الطلب</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.RejectedMessage" xml:space="preserve">
+    <value>تم رفض طلب {0}.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.RemovedTitle" xml:space="preserve">
+    <value>تمت الإزالة</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.RemovedMessage" xml:space="preserve">
+    <value>تمت إزالة {0}.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.BlockedTitle" xml:space="preserve">
+    <value>تم الحظر</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.BlockedMessage" xml:space="preserve">
+    <value>تم حظر المستخدم.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.UnblockedTitle" xml:space="preserve">
+    <value>تم إلغاء الحظر</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.UnblockedMessage" xml:space="preserve">
+    <value>تم إلغاء حظر {0}.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.BlockedSectionTitle" xml:space="preserve">
+    <value>محظورون</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.Accept" xml:space="preserve">
+    <value>قبول</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.Reject" xml:space="preserve">
+    <value>رفض</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.Remove" xml:space="preserve">
+    <value>إزالة</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.Block" xml:space="preserve">
+    <value>حظر</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.Unblock" xml:space="preserve">
+    <value>إلغاء الحظر</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.AlreadyTitle" xml:space="preserve">
+    <value>أصدقاء بالفعل</value>
+  </data>
+  <data name="Online.GeneralsOnline.Friends.AlreadyMessage" xml:space="preserve">
+    <value>أنت صديق لهذا اللاعب بالفعل.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Chat.Title" xml:space="preserve">
+    <value>دردشة الغرفة</value>
+  </data>
+  <data name="Online.GeneralsOnline.Chat.Placeholder" xml:space="preserve">
+    <value>راسل الغرفة...</value>
+  </data>
+  <data name="Online.GeneralsOnline.Chat.Empty" xml:space="preserve">
+    <value>لا رسائل بعد. رحّب بالغرفة.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Chat.FailedTitle" xml:space="preserve">
+    <value>فشل إرسال الدردشة</value>
+  </data>
+  <data name="Online.GeneralsOnline.Chat.RoomLabel" xml:space="preserve">
+    <value>الغرفة</value>
+  </data>
+  <data name="Online.GeneralsOnline.Chat.OccupantsLabel" xml:space="preserve">
+    <value>متصل</value>
+  </data>
+  <data name="Online.GeneralsOnline.Chat.ModerationTitle" xml:space="preserve">
+    <value>تنبيه إشراف</value>
+  </data>
+  <data name="Online.GeneralsOnline.Dm.Close" xml:space="preserve">
+    <value>إغلاق الرسائل المباشرة</value>
+  </data>
+  <data name="Online.GeneralsOnline.Dm.Title" xml:space="preserve">
+    <value>رسالة</value>
+  </data>
+  <data name="Online.GeneralsOnline.Dm.Placeholder" xml:space="preserve">
+    <value>اكتب رسالة...</value>
+  </data>
+  <data name="Online.GeneralsOnline.Dm.FailedTitle" xml:space="preserve">
+    <value>تعذّر الإرسال</value>
+  </data>
+  <data name="Online.GeneralsOnline.Dm.ReceivedTitle" xml:space="preserve">
+    <value>رسالة من {0}</value>
+  </data>
+  <data name="Online.GeneralsOnline.Action.Message" xml:space="preserve">
+    <value>مراسلة</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.UnavailableTitle" xml:space="preserve">
+    <value>التشغيل غير متاح</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.UnavailableMessage" xml:space="preserve">
+    <value>مشغّل اللعبة غير متاح حالياً.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.NoProfilesTitle" xml:space="preserve">
+    <value>لا توجد ملفات محلية</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.NoProfilesMessage" xml:space="preserve">
+    <value>ثبّت ملف Zero Hour أو استورده قبل الانضمام إلى الردهة.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.MismatchTitle" xml:space="preserve">
+    <value>عدم تطابق الإعداد</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.MismatchMessage" xml:space="preserve">
+    <value>أقرب إعداد {0} يختلف عن المضيف (EXE {1}, INI {2}). زامن النسخة أولاً.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.LaunchingTitle" xml:space="preserve">
+    <value>جارٍ تشغيل المباراة</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.LaunchingMessage" xml:space="preserve">
+    <value>جارٍ تشغيل {1} في {0}.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.FailedTitle" xml:space="preserve">
+    <value>فشل التشغيل</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.SuccessTitle" xml:space="preserve">
+    <value>بدأت المباراة</value>
+  </data>
+  <data name="Online.GeneralsOnline.Launch.SuccessMessage" xml:space="preserve">
+    <value>تم التشغيل في {0}. بالتوفيق أيها الجنرال.</value>
+  </data>
+  <data name="Online.GeneralsOnline.Compatibility.Compatible" xml:space="preserve">
+    <value>متوافق</value>
+  </data>
+  <data name="Online.GeneralsOnline.Compatibility.IniMismatch" xml:space="preserve">
+    <value>اختلاف التصحيح</value>
+  </data>
+  <data name="Online.GeneralsOnline.Compatibility.ExeMismatch" xml:space="preserve">
+    <value>غير متوافق</value>
+  </data>
+  <data name="Online.GeneralsOnline.Compatibility.Unknown" xml:space="preserve">
+    <value>غير معروف</value>
+  </data>
+  <data name="Online.GeneralsOnline.State.Waiting" xml:space="preserve">
+    <value>بانتظار اللاعبين</value>
+  </data>
+  <data name="Online.GeneralsOnline.State.InProgress" xml:space="preserve">
+    <value>جارية</value>
+  </data>
+  <data name="Online.GeneralsOnline.State.Complete" xml:space="preserve">
+    <value>انتهت</value>
+  </data>
+  <data name="Online.GeneralsOnline.State.Unknown" xml:space="preserve">
+    <value>غير معروفة</value>
+  </data>
+  <data name="Online.Search.Clear" xml:space="preserve">
+    <value>مسح البحث</value>
   </data>
 </root>

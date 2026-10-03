@@ -41,6 +41,9 @@ public static class AppServices
         services.AddGameProfileServices();
         services.AddLaunchingServices();
 
+        // Register Online services (community lobby browser with CRC matchmaking)
+        services.AddOnlineServices();
+
         // Register User Data services (depends on CAS and file operations)
         services.AddUserDataServices();
 
