@@ -721,7 +721,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         var isNewer = AppUpdateVersionHelper.IsArtifactVersionNewer(latestVersion, installedVersion, allowCrossChannel: true);
         if (isNotInstalledYet || isNewer)
         {
-            var isDismissed = string.Equals(latestRelease.Version, _userSettingsService.Get().DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase);
+            var isDismissed = string.Equals(latestVersion, _userSettingsService.Get().DismissedUpdateVersion?.TrimStart('v', 'V'), StringComparison.OrdinalIgnoreCase);
             if (isDismissed && !isNotInstalledYet)
             {
                 IsUpdateAvailable = false;
@@ -730,7 +730,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             }
 
             IsUpdateAvailable = true;
-            LatestVersion = latestRelease.Version;
+            LatestVersion = latestRelease.Version ?? string.Empty;
             StatusMessage = isNotInstalledYet
                 ? string.Format(
                     CultureInfo.InvariantCulture,
@@ -1776,6 +1776,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         ErrorMessage = string.Empty;
         DownloadProgress = 0;
 
+        var previousCustomBuildVersion = SubscribedCustomBuildVersion;
         try
         {
             _logger.LogInformation("Installing artifact: {Name} ({Version})", artifact.ArtifactName, artifact.Version);
@@ -1799,6 +1800,16 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to install artifact");
+            if (IsSubscribedToCustomBuild)
+            {
+                SubscribedCustomBuildVersion = previousCustomBuildVersion;
+                _userSettingsService.Update(settings =>
+                {
+                    settings.SubscribedCustomBuildVersion = previousCustomBuildVersion;
+                });
+                await _userSettingsService.SaveAsync(CancellationToken.None);
+            }
+
             HasError = true;
             ErrorMessage = $"Installation failed: {ex.Message}";
             StatusMessage = GetLocalizedString(InstallationFailedLocalizationKey, AppUpdateConstants.InstallationFailedMessage);
@@ -1822,7 +1833,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     {
         if (!string.IsNullOrEmpty(LatestVersion))
         {
-            _userSettingsService.Update(s => s.DismissedUpdateVersion = LatestVersion);
+            _userSettingsService.Update(s => s.DismissedUpdateVersion = LatestVersion.TrimStart('v', 'V'));
             _ = _userSettingsService.SaveAsync(CancellationToken.None);
             _logger.LogInformation("Dismissed update version {Version}", LatestVersion);
         }

@@ -738,7 +738,7 @@ public class DownloadService(
         {
             ReportDownloadProgress(
                 progress,
-                existingBytes,
+                connection.ExistingBytes,
                 0,
                 connection.TotalBytes,
                 Path.GetFileName(configuration.DestinationPath),

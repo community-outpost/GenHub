@@ -949,7 +949,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             if (extension == ".zip")
             {
                 progress?.Report(new UpdateProgress { Status = "Extracting build archive...", PercentComplete = 20 });
-                tempDir = Path.Combine(Path.GetTempPath(), $"genhub-build-{Guid.NewGuid():N}");
+                tempDir = Path.Combine(AppDataPathHelper.GetDataRoot(), "Temp", $"genhub-build-{Guid.NewGuid():N}");
                 Directory.CreateDirectory(tempDir);
                 ZipArchiveGuard.ExtractToDirectory(targetPath, tempDir, cancellationToken);
 
@@ -975,7 +975,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
             if (extension == ".nupkg")
             {
-                tempDir = Path.Combine(Path.GetTempPath(), $"genhub-build-{Guid.NewGuid():N}");
+                tempDir = Path.Combine(AppDataPathHelper.GetDataRoot(), "Temp", $"genhub-build-{Guid.NewGuid():N}");
                 Directory.CreateDirectory(tempDir);
                 await InstallLocalNupkgAsync(targetPath, tempDir, Path.GetFileName(targetPath), progress, cancellationToken);
                 return;
@@ -1440,7 +1440,9 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                     try
                     {
                         var info = new DirectoryInfo(dir);
-                        if (DateTime.UtcNow - info.CreationTimeUtc > TimeSpan.FromMinutes(10))
+                        var now = DateTime.UtcNow;
+                        if (now - info.CreationTimeUtc > TimeSpan.FromHours(1) &&
+                            now - info.LastWriteTimeUtc > TimeSpan.FromHours(1))
                         {
                             Directory.Delete(dir, recursive: true);
                             logger?.LogDebug("Swept stale build temp directory: {Dir}", dir);
@@ -2412,6 +2414,15 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             return null;
         }
 
+        var status = run.TryGetProperty("status", out var statusProp) ? statusProp.GetString() : string.Empty;
+        var conclusion = run.TryGetProperty("conclusion", out var conclusionProp) ? conclusionProp.GetString() : string.Empty;
+
+        if (!string.Equals(status, "completed", StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(conclusion, "success", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
         var runUrl = run.TryGetProperty("html_url", out var huProp) ? huProp.GetString() ?? string.Empty : string.Empty;
         var createdAt = run.TryGetProperty("created_at", out var catProp) && catProp.ValueKind == JsonValueKind.String && catProp.TryGetDateTime(out var dt)
             ? dt
@@ -2785,25 +2796,35 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         var tempDir = Path.Combine(AppDataPathHelper.GetDataRoot(), "Temp", $"genhub-local-build-{Guid.NewGuid():N}");
         Directory.CreateDirectory(tempDir);
-        var retrieveResult = await _contentStorageService!.RetrieveContentAsync(manifestId, tempDir, cancellationToken).ConfigureAwait(false);
-        if (retrieveResult.Success)
-        {
-            return tempDir;
-        }
-
+        var success = false;
         try
         {
-            if (Directory.Exists(tempDir))
+            var retrieveResult = await _contentStorageService!.RetrieveContentAsync(manifestId, tempDir, cancellationToken).ConfigureAwait(false);
+            if (retrieveResult.Success)
             {
-                Directory.Delete(tempDir, recursive: true);
+                success = true;
+                return tempDir;
+            }
+
+            return null;
+        }
+        finally
+        {
+            if (!success)
+            {
+                try
+                {
+                    if (Directory.Exists(tempDir))
+                    {
+                        Directory.Delete(tempDir, recursive: true);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogTrace(ex, "Failed to delete aborted local build temp dir {Path}", tempDir);
+                }
             }
         }
-        catch (Exception ex)
-        {
-            _logger.LogTrace(ex, "Failed to delete aborted local build temp dir {Path}", tempDir);
-        }
-
-        return null;
     }
 
     private string? ResolveDirectoryInstallTarget(string dirPath, IProgress<UpdateProgress>? progress)

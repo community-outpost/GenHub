@@ -262,6 +262,9 @@ public partial class ContentDetailViewModel(
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ContentType))]
+    [NotifyPropertyChangedFor(nameof(IsGenHubBuild))]
+    [NotifyPropertyChangedFor(nameof(ShowAddToProfileButton))]
+    [NotifyPropertyChangedFor(nameof(ShowInstallBuildButton))]
     private ContentType _selectedContentType = searchResult.ContentType == ContentType.UnknownContentType
         ? ContentType.Mod
         : searchResult.ContentType;
@@ -872,7 +875,7 @@ public partial class ContentDetailViewModel(
     /// Gets a value indicating whether the current content is a GenHub build.
     /// </summary>
     public bool IsGenHubBuild =>
-        GenHubBuildInspector.IsGenHubApplicationBuild(SelectedDownloadableItem?.ContentType ?? ContentType, Name, Tags);
+        GenHubBuildInspector.IsGenHubApplicationBuild(SelectedDownloadableItem?.ContentType ?? ContentType, SelectedDownloadableItem?.Name ?? Name, Tags);
 
     /// <summary>
     /// Gets a value indicating whether the Add to Profile button should be shown.
@@ -909,13 +912,18 @@ public partial class ContentDetailViewModel(
     [RelayCommand]
     private async Task InstallBuildAsync()
     {
+        var preferredManifestId = SelectedDownloadableItem?.DownloadedManifestId ?? SelectedVariant?.ManifestId;
+        var preferredName = SelectedDownloadableItem?.Name ?? SelectedVariant?.Name ?? Name;
+        await ExecuteInstallBuildAsync(preferredManifestId, preferredName);
+    }
+
+    private async Task ExecuteInstallBuildAsync(string? preferredManifestId, string? fallbackName)
+    {
         if (installBuildAction != null)
         {
-            var targetManifestId = SelectedDownloadableItem?.DownloadedManifestId ??
-                SelectedVariant?.ManifestId ??
-                await contentStateService.GetLocalManifestIdAsync(searchResult, _cts.Token) ??
-                searchResult.Id;
-            var targetName = SelectedDownloadableItem?.Name ?? SelectedVariant?.Name ?? Name;
+            var targetManifestId = preferredManifestId ??
+                await contentStateService.GetLocalManifestIdAsync(searchResult, _cts.Token);
+            var targetName = fallbackName ?? Name;
             await installBuildAction(targetManifestId, targetName, _cts.Token);
         }
     }
@@ -2788,18 +2796,8 @@ public partial class ContentDetailViewModel(
             await AddFileToProfileAsync(releaseItem.File ?? file, targetManifestId);
         });
 
-        releaseItem.InstallBuildCommand = new AsyncRelayCommand(async () =>
-        {
-            if (installBuildAction != null)
-            {
-                var targetManifestId = releaseItem.DownloadedManifestId ??
-                    manifestId ??
-                    await contentStateService.GetLocalManifestIdAsync(searchResult, _cts.Token) ??
-                    searchResult.Id;
-                var targetName = releaseItem.Name;
-                await installBuildAction(targetManifestId, targetName, _cts.Token);
-            }
-        });
+        releaseItem.InstallBuildCommand = new AsyncRelayCommand(
+            () => ExecuteInstallBuildAsync(releaseItem.DownloadedManifestId ?? manifestId, releaseItem.Name));
     }
 
     partial void OnSelectedVariantChanged(InstallableVariant? value)
@@ -4962,17 +4960,8 @@ public partial class ContentDetailViewModel(
                 () => AddFileToProfileAsync(releaseItem.File ?? file, releaseItem.DownloadedManifestId));
         }
 
-        releaseItem.InstallBuildCommand = new AsyncRelayCommand(async () =>
-        {
-            if (installBuildAction != null)
-            {
-                var targetManifestId = releaseItem.DownloadedManifestId ??
-                    await contentStateService.GetLocalManifestIdAsync(searchResult, _cts.Token) ??
-                    searchResult.Id;
-                var targetName = releaseItem.Name;
-                await installBuildAction(targetManifestId, targetName, _cts.Token);
-            }
-        });
+        releaseItem.InstallBuildCommand = new AsyncRelayCommand(
+            () => ExecuteInstallBuildAsync(releaseItem.DownloadedManifestId, releaseItem.Name));
 
         return releaseItem;
     }
@@ -8065,17 +8054,8 @@ public partial class ContentDetailViewModel(
         releaseItem.DownloadCommand = new AsyncRelayCommand(ct => DownloadReleaseAsync(releaseItem, releaseItem.File ?? file, ct));
         releaseItem.AddToProfileCommand = new AsyncRelayCommand(
             () => AddFileToProfileAsync(releaseItem.File ?? file, releaseItem.DownloadedManifestId));
-        releaseItem.InstallBuildCommand = new AsyncRelayCommand(async () =>
-        {
-            if (installBuildAction != null)
-            {
-                var targetManifestId = releaseItem.DownloadedManifestId ??
-                    await contentStateService.GetLocalManifestIdAsync(searchResult, _cts.Token) ??
-                    searchResult.Id;
-                var targetName = releaseItem.Name;
-                await installBuildAction(targetManifestId, targetName, _cts.Token);
-            }
-        });
+        releaseItem.InstallBuildCommand = new AsyncRelayCommand(
+            () => ExecuteInstallBuildAsync(releaseItem.DownloadedManifestId, releaseItem.Name));
 
         return releaseItem;
     }
@@ -8176,17 +8156,8 @@ public partial class ContentDetailViewModel(
         addonItem.DownloadCommand = new AsyncRelayCommand(ct => DownloadAddonAsync(addonItem, addonItem.File ?? file, ct));
         addonItem.AddToProfileCommand = new AsyncRelayCommand(
             () => AddFileToProfileAsync(addonItem.File ?? file, addonItem.DownloadedManifestId));
-        addonItem.InstallBuildCommand = new AsyncRelayCommand(async () =>
-        {
-            if (installBuildAction != null)
-            {
-                var targetManifestId = addonItem.DownloadedManifestId ??
-                    await contentStateService.GetLocalManifestIdAsync(searchResult, _cts.Token) ??
-                    searchResult.Id;
-                var targetName = addonItem.Name;
-                await installBuildAction(targetManifestId, targetName, _cts.Token);
-            }
-        });
+        addonItem.InstallBuildCommand = new AsyncRelayCommand(
+            () => ExecuteInstallBuildAsync(addonItem.DownloadedManifestId, addonItem.Name));
 
         return addonItem;
     }
