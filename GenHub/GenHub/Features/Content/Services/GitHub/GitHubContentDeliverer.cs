@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging;
 using SharpCompress.Archives;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -244,7 +245,7 @@ public class GitHubContentDeliverer(
     }
 
     private static string CreateUnsupportedRuntimeMessage(ContentManifest manifest) =>
-        $"Manifest {manifest.Id} has no variant for this host ({ManifestVariantResolver.CurrentRuntimeIdentifier})";
+        string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.NoHostVariantForManifest, manifest.Id, ManifestVariantResolver.CurrentRuntimeIdentifier);
 
     /// <summary>
     /// Validates that a URL is a legitimate GitHub URL.
