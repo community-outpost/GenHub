@@ -115,6 +115,11 @@ public static class ProfileSharingConstants
     public const string EmptyProfileIdErrorMessage = "Profile identifier cannot be empty.";
 
     /// <summary>
+    /// Error message for sharing local content that has no files to upload. {0} is the content name.
+    /// </summary>
+    public const string LocalContentHasNoFilesToShareErrorMessage = "Cannot share local content '{0}': it has no files to upload, so recipients could not install it.";
+
+    /// <summary>
     /// Parent directory segment in file paths.
     /// </summary>
     public const string ParentDirectorySegment = "..";

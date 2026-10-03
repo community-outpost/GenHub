@@ -2203,6 +2203,14 @@ public class ProfileSharingService(
 
         bool isLocal = IsCustomLocalManifest(manifest);
 
+        // A local dependency can only be installed from its uploaded package, so a share
+        // without one would fail for every recipient that does not already have it.
+        if (allowCloudUpload && isLocal && dependencyFiles.Count == 0)
+        {
+            return OperationResult<SharedManifestDependency>.CreateFailure(
+                string.Format(CultureInfo.InvariantCulture, ProfileSharingConstants.LocalContentHasNoFilesToShareErrorMessage, manifest.Name));
+        }
+
         if (allowCloudUpload && isLocal && dependencyFiles.Count > 0)
         {
             if (uploadThingService == null || casService == null)

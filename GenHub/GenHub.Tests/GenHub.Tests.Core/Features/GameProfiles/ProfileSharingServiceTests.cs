@@ -1059,6 +1059,58 @@ public class ProfileSharingServiceTests
     }
 
     /// <summary>
+    /// Verifies that sharing local content with no files fails instead of producing a link that
+    /// no recipient could install from.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task ExportProfileToUriAsync_WithLocalManifestWithoutFiles_FailsAsync()
+    {
+        var localProfile = CreateTestProfile("local-empty-profile", "Local Empty Setup");
+        localProfile.EnabledContentIds = ["1.0.local.mod.emptymod"];
+        var uploadThingMock = new Mock<IUploadThingService>();
+        var uploadHistoryMock = new Mock<IUploadHistoryService>();
+        uploadHistoryMock.Setup(h => h.CanUploadAsync(It.IsAny<long>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        var localManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.local.mod.emptymod"),
+            Name = "Empty Mod",
+            Version = "1.0",
+            ContentType = ContentType.Mod,
+            Publisher = new PublisherInfo
+            {
+                Name = "GenHub (Local)",
+                PublisherType = PublisherTypeConstants.Local,
+            },
+            Files = [],
+        };
+
+        _profileRepositoryMock.Setup(r => r.LoadProfileAsync("local-empty-profile", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(localProfile));
+        _manifestPoolMock.Setup(m => m.GetManifestAsync("1.0.local.mod.emptymod", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(localManifest));
+
+        var serviceWithUpload = new ProfileSharingService(
+            _profileRepositoryMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _contentOrchestratorMock.Object,
+            _factoryResolver,
+            NullLogger<ProfileSharingService>.Instance,
+            new Mock<ICasService>().Object,
+            uploadThingMock.Object,
+            uploadHistoryMock.Object);
+
+        var result = await serviceWithUpload.ExportProfileToUriAsync("local-empty-profile");
+
+        Assert.False(result.Success);
+        Assert.Contains("Empty Mod", result.FirstError);
+        Assert.Contains("no files to upload", result.FirstError);
+        uploadThingMock.Verify(u => u.UploadFileAsync(It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
     /// Verifies that inspecting a URI with modern UploadThing UFS URL correctly identifies cloud package dependencies.
     /// </summary>
     /// <returns>A task representing the test.</returns>
