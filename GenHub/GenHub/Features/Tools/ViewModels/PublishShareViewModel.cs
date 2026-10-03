@@ -1371,9 +1371,18 @@ public partial class PublishShareViewModel(
         return (null, null, null);
     }
 
+    /// <summary>
+    /// Enumerates every release of a content item, including addon releases, so uploads,
+    /// lookups, and inventory stay consistent across both release kinds.
+    /// </summary>
+    /// <param name="content">The content item to enumerate.</param>
+    /// <returns>All regular and addon releases.</returns>
+    private static IEnumerable<ContentRelease> AllContentReleases(CatalogContentItem content) =>
+        content.Releases.Concat(content.AddonReleases);
+
     private static (ReleaseArtifact? Artifact, string? ContentId, string? Version) FindArtifactInContent(CatalogContentItem content, HostedAssetItemViewModel asset)
     {
-        foreach (var release in content.Releases)
+        foreach (var release in AllContentReleases(content))
         {
             if (!ReleaseMatchesFilter(release, asset.ReleaseVersion))
             {
@@ -1956,7 +1965,7 @@ public partial class PublishShareViewModel(
         }
 
         HostedAssetItemViewModel[] targets;
-        lock (list)
+        lock (_probeLock)
         {
             targets = [.. list];
         }
@@ -2016,14 +2025,9 @@ public partial class PublishShareViewModel(
             foreach (var content in catalog.Catalog.Content)
             {
                 PopulateContentMetadataMedia(content, catalog, providerName, emittedUrls, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
-                foreach (var release in content.Releases)
+                foreach (var release in AllContentReleases(content))
                 {
                     PopulateReleaseMedia(release, content, catalog, providerName, emittedUrls, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
-                }
-
-                foreach (var addon in content.AddonReleases)
-                {
-                    PopulateReleaseMedia(addon, content, catalog, providerName, emittedUrls, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
                 }
             }
         }
@@ -2767,7 +2771,7 @@ public partial class PublishShareViewModel(
                 ? BuildDefinitionPreview(json, item)
                 : BuildCatalogPreview(json, item);
         }
-        catch (JsonException ex)
+        catch (Exception ex) when (ex is JsonException or NotSupportedException)
         {
             logger.LogWarning(ex, "Failed to parse remote preview JSON for {AssetName}", item.Name);
             return (null, ex.Message);
@@ -2782,7 +2786,10 @@ public partial class PublishShareViewModel(
             return (null, item.Name);
         }
 
-        var children = catalog.Content.Select(content => BuildContentChild(content, item.Url)).ToList();
+        var children = (catalog.Content ?? [])
+            .Where(content => content != null)
+            .Select(content => BuildContentChild(content, item.Url))
+            .ToList();
         return (children, null);
     }
 
@@ -2794,12 +2801,14 @@ public partial class PublishShareViewModel(
             return (null, item.Name);
         }
 
-        var children = definition.Catalogs.Select(entry => new HostedAssetChildViewModel
-        {
-            Name = entry.Name,
-            Detail = entry.Url,
-            CopyUrl = entry.Url,
-        }).ToList();
+        var children = definition.Catalogs
+            .Where(entry => entry != null)
+            .Select(entry => new HostedAssetChildViewModel
+            {
+                Name = entry.Name,
+                Detail = entry.Url,
+                CopyUrl = entry.Url,
+            }).ToList();
         return (children, null);
     }
 
@@ -4070,7 +4079,7 @@ public partial class PublishShareViewModel(
             return (true, 0);
         }
 
-        var allReleases = ActiveCatalog.Catalog.Content.SelectMany(c => c.Releases).ToList();
+        var allReleases = ActiveCatalog.Catalog.Content.SelectMany(AllContentReleases).ToList();
         var pendingArtifacts = allReleases
             .SelectMany(r => r.Artifacts)
             .Where(a => !string.IsNullOrEmpty(a.LocalFilePath) && string.IsNullOrEmpty(a.DownloadUrl))
@@ -4649,8 +4658,10 @@ public partial class PublishShareViewModel(
         foreach (var artifact in pendingArtifacts)
         {
             var content = ActiveCatalog.Catalog.Content.FirstOrDefault(c =>
-                c.Releases.Any(r => r.Artifacts.Contains(artifact)));
-            var release = content?.Releases.FirstOrDefault(r => r.Artifacts.Contains(artifact));
+                AllContentReleases(c).Any(r => r.Artifacts.Contains(artifact)));
+            var release = content == null
+                ? null
+                : AllContentReleases(content).FirstOrDefault(r => r.Artifacts.Contains(artifact));
 
             if (content != null && release != null)
             {
@@ -6781,8 +6792,10 @@ public partial class PublishShareViewModel(
         foreach (var catalog in project.Catalogs)
         {
             var content = catalog.Catalog.Content.FirstOrDefault(c =>
-                c.Releases.Any(r => r.Artifacts.Contains(artifact)));
-            var release = content?.Releases.FirstOrDefault(r => r.Artifacts.Contains(artifact));
+                AllContentReleases(c).Any(r => r.Artifacts.Contains(artifact)));
+            var release = content == null
+                ? null
+                : AllContentReleases(content).FirstOrDefault(r => r.Artifacts.Contains(artifact));
             if (content != null && release != null)
             {
                 return (content.Id, release.Version);
@@ -8354,6 +8367,7 @@ public partial class PublishShareViewModel(
         _currentHostingState ??= GetOrCreateHostingState(SelectedHostingProvider?.ProviderId ?? HostingConstants.UnknownProviderId);
         _currentHostingState.Definition = new HostedFileInfo
         {
+            FileId = asset.FileId,
             Url = asset.Url,
             FileName = asset.Name,
             FileSize = asset.FileSize,
