@@ -263,6 +263,11 @@ public static class ApiConstants
     public const string YouTubeShortHost = "youtu.be";
 
     /// <summary>
+    /// Standard Vimeo host suffix for video watch and embed URLs.
+    /// </summary>
+    public const string VimeoHostSuffix = "vimeo.com";
+
+    /// <summary>
     /// Thumbnail image URL template for a YouTube video ID.
     /// </summary>
     public const string YouTubeThumbnailUrlTemplate = "https://img.youtube.com/vi/{0}/hqdefault.jpg";

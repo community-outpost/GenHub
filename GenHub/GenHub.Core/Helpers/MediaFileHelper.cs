@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 
 namespace GenHub.Core.Helpers;
 
@@ -83,10 +84,9 @@ public static class MediaFileHelper
         }
 
         var host = uri.Host;
-        return host.EndsWith("youtube.com", StringComparison.OrdinalIgnoreCase)
-            || host.EndsWith("youtube-nocookie.com", StringComparison.OrdinalIgnoreCase)
-            || host.Equals("youtu.be", StringComparison.OrdinalIgnoreCase)
-            || host.EndsWith("vimeo.com", StringComparison.OrdinalIgnoreCase);
+        return IsYouTubeHost(host)
+            || host.Equals(Constants.ApiConstants.YouTubeShortHost, StringComparison.OrdinalIgnoreCase)
+            || IsHostOrSubdomain(host, Constants.ApiConstants.VimeoHostSuffix);
     }
 
     /// <summary>
@@ -96,7 +96,18 @@ public static class MediaFileHelper
     /// <returns>True when the value is a remote http/https URL with a video file extension.</returns>
     public static bool IsDirectVideoFileUrl(string? value)
     {
-        return IsRemoteHttpUrl(value) && IsVideoFile(value);
+        if (!IsRemoteHttpUrl(value))
+        {
+            return false;
+        }
+
+        if (!Uri.TryCreate(value!.Trim(), UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        var extension = Path.GetExtension(uri.AbsolutePath);
+        return !string.IsNullOrEmpty(extension) && VideoExtensions.Contains(extension);
     }
 
     /// <summary>
@@ -382,12 +393,9 @@ public static class MediaFileHelper
         }
 
         var id = candidate.Trim();
-        foreach (var c in id)
+        if (id.Any(c => !char.IsLetterOrDigit(c) && c != '-' && c != '_'))
         {
-            if (!char.IsLetterOrDigit(c) && c != '-' && c != '_')
-            {
-                return null;
-            }
+            return null;
         }
 
         return id.Length is >= 6 and <= 64 ? id : null;
