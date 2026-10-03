@@ -222,22 +222,6 @@ public partial class PublishShareViewModel(
     /// </summary>
     private const int PendingUploadProgressBand = 80;
 
-    private static readonly HttpClient SharedHttpClient = new(
-        ImageCacheService.CreateSsrfSafeSocketsHttpHandler(
-            TimeSpan.FromSeconds(10),
-            TimeSpan.FromMinutes(5)))
-    {
-        Timeout = TimeSpan.FromSeconds(30),
-    };
-
-    /// <summary>
-    /// Gets or sets an optional HttpClient override for unit testing.
-    /// </summary>
-    internal static HttpClient? HttpClientOverrideForTesting { get; set; }
-
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, System.Collections.Generic.List<HostedAssetItemViewModel>> _probingUrls = new(StringComparer.OrdinalIgnoreCase);
-    private readonly SemaphoreSlim _publishGate = new(1, 1);
-    private readonly Dictionary<string, HostingState> _hostingStates = new(StringComparer.OrdinalIgnoreCase);
     private const string DeleteSuccessTitleKey = "Tools.PublisherStudio.Hosting.DeleteSuccessTitle";
     private const string DeleteSuccessTitleDefault = "Deleted";
     private const string StatusLiveOnlineKey = "Tools.PublisherStudio.Hosting.StatusLiveOnline";
@@ -252,6 +236,17 @@ public partial class PublishShareViewModel(
     private const string DeleteStateSaveFailedNoteKey = "Tools.PublisherStudio.Hosting.DeleteStateSaveFailedNote";
     private const string DeleteStateSaveFailedNoteDefault = "The hosting state could not be saved, so removed files may reappear after a restart.";
 
+    private static readonly HttpClient SharedHttpClient = new(
+        ImageCacheService.CreateSsrfSafeSocketsHttpHandler(
+            TimeSpan.FromSeconds(10),
+            TimeSpan.FromMinutes(5)))
+    {
+        Timeout = TimeSpan.FromSeconds(30),
+    };
+
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, System.Collections.Generic.List<HostedAssetItemViewModel>> _probingUrls = new(StringComparer.OrdinalIgnoreCase);
+    private readonly SemaphoreSlim _publishGate = new(1, 1);
+    private readonly Dictionary<string, HostingState> _hostingStates = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _previewCacheLock = new();
     private readonly Dictionary<string, List<HostedAssetChildViewModel>> _remotePreviewCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly LinkedList<string> _remotePreviewCacheOrder = new();
@@ -261,6 +256,11 @@ public partial class PublishShareViewModel(
     private CancellationTokenSource? _previewCts = new();
     private HostingState? _currentHostingState;
     private Dictionary<string, List<AssetReference>>? _linkageIndex;
+
+    /// <summary>
+    /// Gets or sets an optional HttpClient override for unit testing.
+    /// </summary>
+    internal static HttpClient? HttpClientOverrideForTesting { get; set; }
 
     /// <summary>
     /// Gets the current hosting state for testing or inspection.
@@ -1239,20 +1239,6 @@ public partial class PublishShareViewModel(
         }
     }
 
-    private static IEnumerable<HostedAssetItemViewModel> FilterByCategory(IEnumerable<HostedAssetItemViewModel> items, string filter)
-    {
-        return filter.ToLowerInvariant() switch
-        {
-            "definition" => items.Where(a => a.IsDefinition),
-            "catalog" => items.Where(a => a.IsCatalog),
-            "artifact" => items.Where(a => a.IsArtifact && !a.IsExternalCdn),
-            "screenshot" => items.Where(a => a.IsScreenshot && !a.IsExternalCdn),
-            "video" => items.Where(a => a.IsVideo && !a.IsExternalCdn),
-            "externalcdn" => items.Where(a => a.IsExternalCdn),
-            _ => items,
-        };
-    }
-
     /// <summary>
     /// Searches known hosted assets across provider storage, hosting states, and project catalogs for a matching SHA-256 hash.
     /// </summary>
@@ -1275,6 +1261,32 @@ public partial class PublishShareViewModel(
     {
         Dispose(true);
         GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Reports whether any directory between the project root and a file is a symlink or
+    /// reparse point, which could redirect the file outside the project after the lexical
+    /// containment check. Linked directories are rejected rather than resolved.
+    /// </summary>
+    /// <param name="root">The project root with trailing separator.</param>
+    /// <param name="effectivePath">The resolved file path under the root.</param>
+    /// <returns>True when an ancestor directory is a link.</returns>
+    internal static bool ContainsLinkedDirectory(string root, string effectivePath)
+    {
+        var directory = Path.GetDirectoryName(effectivePath);
+        while (!string.IsNullOrEmpty(directory) &&
+            directory.StartsWith(root, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(directory.TrimEnd(Path.DirectorySeparatorChar), root.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
+        {
+            if (new DirectoryInfo(directory).LinkTarget != null)
+            {
+                return true;
+            }
+
+            directory = Path.GetDirectoryName(directory);
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -1312,6 +1324,20 @@ public partial class PublishShareViewModel(
                 status.Dispose();
             }
         }
+    }
+
+    private static IEnumerable<HostedAssetItemViewModel> FilterByCategory(IEnumerable<HostedAssetItemViewModel> items, string filter)
+    {
+        return filter.ToLowerInvariant() switch
+        {
+            "definition" => items.Where(a => a.IsDefinition),
+            "catalog" => items.Where(a => a.IsCatalog),
+            "artifact" => items.Where(a => a.IsArtifact && !a.IsExternalCdn),
+            "screenshot" => items.Where(a => a.IsScreenshot && !a.IsExternalCdn),
+            "video" => items.Where(a => a.IsVideo && !a.IsExternalCdn),
+            "externalcdn" => items.Where(a => a.IsExternalCdn),
+            _ => items,
+        };
     }
 
     private static string BuildPublishSummary(string catalogUrl, string providerDefinitionUrl, string subscriptionUrl)
@@ -5328,32 +5354,6 @@ public partial class PublishShareViewModel(
         }
     }
 
-    /// <summary>
-    /// Reports whether any directory between the project root and a file is a symlink or
-    /// reparse point, which could redirect the file outside the project after the lexical
-    /// containment check. Linked directories are rejected rather than resolved.
-    /// </summary>
-    /// <param name="root">The project root with trailing separator.</param>
-    /// <param name="effectivePath">The resolved file path under the root.</param>
-    /// <returns>True when an ancestor directory is a link.</returns>
-    internal static bool ContainsLinkedDirectory(string root, string effectivePath)
-    {
-        var directory = Path.GetDirectoryName(effectivePath);
-        while (!string.IsNullOrEmpty(directory) &&
-            directory.StartsWith(root, StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(directory.TrimEnd(Path.DirectorySeparatorChar), root.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
-        {
-            if (new DirectoryInfo(directory).LinkTarget != null)
-            {
-                return true;
-            }
-
-            directory = Path.GetDirectoryName(directory);
-        }
-
-        return false;
-    }
-
     private async Task SaveAuthTokenAsync()
     {
         if (string.IsNullOrEmpty(project?.ProjectPath) || SelectedHostingProvider == null)
@@ -6975,7 +6975,7 @@ public partial class PublishShareViewModel(
         }
 
         var existing = _currentHostingState.Catalogs.FirstOrDefault(c =>
-            c.CatalogId == cloudCat.CatalogId ||
+            (!string.IsNullOrEmpty(c.CatalogId) && !string.IsNullOrEmpty(cloudCat.CatalogId) && c.CatalogId == cloudCat.CatalogId) ||
             (!string.IsNullOrEmpty(cloudCat.FileName) && c.FileName == cloudCat.FileName) ||
             (!string.IsNullOrEmpty(c.FileId) && !string.IsNullOrEmpty(cloudCat.FileId) && c.FileId == cloudCat.FileId));
         if (existing != null)

@@ -10,6 +10,7 @@ using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Tools.Interfaces;
 using GenHub.Features.Tools.Services.Hosting;
 using GenHub.Features.Tools.ViewModels;
+using GenHub.Tests.Core.Collections;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
@@ -29,6 +30,7 @@ namespace GenHub.Tests.Core.Features.Tools.ViewModels;
 /// Unit tests for the hosted asset inventory: media classification, catalog linkage,
 /// sorting, expandable children, and delete-from-drive flows in <see cref="PublishShareViewModel"/>.
 /// </summary>
+[Collection(PublishShareStaticStateCollection.Name)]
 public class PublisherStudioInventoryManagementTests
 {
     private const string CloudArtifactUrl = "https://drive.google.com/uc?export=download&id=modfile";
