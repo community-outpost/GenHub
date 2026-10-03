@@ -73,6 +73,23 @@ public class CloudUrlHelperTests
     }
 
     /// <summary>
+    /// Verifies that form inputs with HTML-encoded entities in name or value are decoded before URL encoding.
+    /// </summary>
+    [Fact]
+    public void TryExtractGoogleDriveConfirmationUrl_WithHtmlEncodedFormInput_DecodesBeforeUrlEncoding()
+    {
+        const string html = "<html><body><form id=\"download-form\" method=\"post\" action=\"https://drive.usercontent.google.com/download?id=12345\"><input type=\"hidden\" value=\"tok&amp;val\" name=\"confirm\" /></form></body></html>";
+        var requestUri = new Uri("https://drive.google.com/uc?export=download&id=12345");
+
+        var success = CloudUrlHelper.TryExtractGoogleDriveConfirmationUrl(html, requestUri, out var confirmedUrl);
+
+        Assert.True(success);
+        Assert.NotNull(confirmedUrl);
+        Assert.Contains("confirm=tok%26val", confirmedUrl);
+        Assert.DoesNotContain("amp", confirmedUrl);
+    }
+
+    /// <summary>
     /// Verifies that a relative confirmation link is correctly resolved using the request base URI.
     /// </summary>
     [Fact]
