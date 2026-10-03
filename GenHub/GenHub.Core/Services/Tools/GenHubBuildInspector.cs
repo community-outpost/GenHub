@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -25,6 +26,35 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
 {
     private const int RegexTimeoutMs = 250;
     private readonly ILogger<GenHubBuildInspector> _logger = logger ?? NullLogger<GenHubBuildInspector>.Instance;
+
+    /// <summary>
+    /// Determines whether the specified content metadata represents a GenHub application build.
+    /// </summary>
+    /// <param name="contentType">The content type.</param>
+    /// <param name="name">The content name.</param>
+    /// <param name="tags">The optional tags collection.</param>
+    /// <returns><c>true</c> if the metadata represents a GenHub application build; otherwise, <c>false</c>.</returns>
+    public static bool IsGenHubApplicationBuild(ContentType? contentType, string? name, IEnumerable<string>? tags = null)
+    {
+        if (contentType == ContentType.GenHubBuild)
+        {
+            return true;
+        }
+
+        if (tags?.Any(t => string.Equals(t, "genhub", StringComparison.OrdinalIgnoreCase) ||
+                           string.Equals(t, "genhub-build", StringComparison.OrdinalIgnoreCase)) == true)
+        {
+            return true;
+        }
+
+        return !string.IsNullOrWhiteSpace(name) &&
+               name.StartsWith("GenHub", StringComparison.OrdinalIgnoreCase) &&
+               contentType is ContentType.GameClient or ContentType.Executable or ContentType.ModdingTool or ContentType.UnknownContentType &&
+               (name.Contains("Setup", StringComparison.OrdinalIgnoreCase) ||
+                name.Contains("PR #", StringComparison.OrdinalIgnoreCase) ||
+                name.Contains("Build", StringComparison.OrdinalIgnoreCase) ||
+                name.Contains("Fork", StringComparison.OrdinalIgnoreCase));
+    }
 
     /// <inheritdoc />
     public bool IsGenHubBuildPath(string path)
@@ -178,7 +208,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             return (null, null, existingPrNumber);
         }
 
-        var source = !string.IsNullOrWhiteSpace(rawVersion) ? rawVersion! : informationalVersion!;
+        var source = !string.IsNullOrWhiteSpace(rawVersion) ? rawVersion : informationalVersion ?? string.Empty;
         source = source.Trim();
         if (source.StartsWith("v", StringComparison.OrdinalIgnoreCase) && source.Length > 1 && char.IsDigit(source[1]))
         {
@@ -206,7 +236,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
         return (source, hash, prNumber);
     }
 
-    private static string? ReadFixedStringCustomAttribute(MetadataReader reader, CustomAttribute attribute)
+    private static string? ReadFixedStringCustomAttribute(CustomAttribute attribute)
     {
         try
         {
@@ -224,7 +254,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
         return null;
     }
 
-    private static (string? Key, string? Value) ReadKeyValueCustomAttribute(MetadataReader reader, CustomAttribute attribute)
+    private static (string? Key, string? Value) ReadKeyValueCustomAttribute(CustomAttribute attribute)
     {
         try
         {
@@ -352,50 +382,27 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
         var isFork = false;
         string? forkName = null;
 
-        if (!string.IsNullOrWhiteSpace(companyName) &&
-            !companyName.Equals(GenHubBuildConstants.OfficialCompany, StringComparison.OrdinalIgnoreCase) &&
-            !companyName.Contains("Electronic Arts", StringComparison.OrdinalIgnoreCase) &&
-            !companyName.Equals("EA", StringComparison.OrdinalIgnoreCase))
+        if (IsCustomCompany(companyName, out var companyFork))
         {
             isCustom = true;
             isFork = true;
-            forkName = companyName.Trim();
+            forkName = companyFork;
         }
 
-        if (!string.IsNullOrWhiteSpace(buildChannel))
+        if (IsChannelIndicatingFork(buildChannel))
         {
-            var normalizedChannel = buildChannel.ToLowerInvariant();
-            if (normalizedChannel.Contains("fork") || normalizedChannel.Contains("custom") || normalizedChannel.Contains("community"))
-            {
-                isCustom = true;
-                isFork = true;
-            }
+            isCustom = true;
+            isFork = true;
         }
 
-        if (!string.IsNullOrWhiteSpace(productName))
+        if (TryExtractProductForkName(productName, out var productFork))
         {
-            var match = ProductForkNamePattern().Match(productName);
-            if (match.Success)
-            {
-                var candidate = match.Groups[1].Value.Trim();
-                if (!candidate.Equals("Test", StringComparison.OrdinalIgnoreCase) &&
-                    !candidate.Equals("Dev", StringComparison.OrdinalIgnoreCase) &&
-                    !candidate.Equals("PR", StringComparison.OrdinalIgnoreCase))
-                {
-                    isFork = true;
-                    isCustom = true;
-                    forkName ??= candidate;
-                }
-            }
-            else if (productName.Contains("fork", StringComparison.OrdinalIgnoreCase))
-            {
-                isFork = true;
-                isCustom = true;
-            }
+            isFork = true;
+            isCustom = true;
+            forkName ??= productFork;
         }
 
-        if (!string.IsNullOrWhiteSpace(version) &&
-            (version.Contains("-fork", StringComparison.OrdinalIgnoreCase) || version.Contains("-custom", StringComparison.OrdinalIgnoreCase)))
+        if (IsVersionIndicatingFork(version))
         {
             isCustom = true;
             isFork = true;
@@ -403,6 +410,61 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
 
         return (isCustom, isFork, forkName);
     }
+
+    private static bool IsCustomCompany(string? companyName, out string? forkName)
+    {
+        forkName = null;
+        if (string.IsNullOrWhiteSpace(companyName) ||
+            companyName.Equals(GenHubBuildConstants.OfficialCompany, StringComparison.OrdinalIgnoreCase) ||
+            companyName.Contains("Electronic Arts", StringComparison.OrdinalIgnoreCase) ||
+            companyName.Equals("EA", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        forkName = companyName.Trim();
+        return true;
+    }
+
+    private static bool IsChannelIndicatingFork(string? buildChannel)
+    {
+        if (string.IsNullOrWhiteSpace(buildChannel))
+        {
+            return false;
+        }
+
+        var normalized = buildChannel.ToLowerInvariant();
+        return normalized.Contains("fork") || normalized.Contains("custom") || normalized.Contains("community");
+    }
+
+    private static bool TryExtractProductForkName(string? productName, out string? forkName)
+    {
+        forkName = null;
+        if (string.IsNullOrWhiteSpace(productName))
+        {
+            return false;
+        }
+
+        var match = ProductForkNamePattern().Match(productName);
+        if (match.Success)
+        {
+            var candidate = match.Groups[1].Value.Trim();
+            if (!candidate.Equals("Test", StringComparison.OrdinalIgnoreCase) &&
+                !candidate.Equals("Dev", StringComparison.OrdinalIgnoreCase) &&
+                !candidate.Equals("PR", StringComparison.OrdinalIgnoreCase))
+            {
+                forkName = candidate;
+                return true;
+            }
+        }
+
+        return productName.Contains("fork", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsVersionIndicatingFork(string? version) =>
+        !string.IsNullOrWhiteSpace(version) &&
+        (version.Contains("-fork", StringComparison.OrdinalIgnoreCase) ||
+         version.Contains("-custom", StringComparison.OrdinalIgnoreCase));
 
     private static string? ResolveExplicitChannel(string? explicitChannel)
     {
@@ -593,12 +655,11 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
     }
 
     private static void ApplyCustomAttribute(
-        MetadataReader reader,
         CustomAttribute attribute,
         string attributeTypeName,
         ref PeMetadataAccumulator acc)
     {
-        var value = ReadFixedStringCustomAttribute(reader, attribute);
+        var value = ReadFixedStringCustomAttribute(attribute);
         if (string.IsNullOrWhiteSpace(value) && attributeTypeName != "AssemblyMetadataAttribute")
         {
             return;
@@ -622,7 +683,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
                 acc.FileDescription = value;
                 break;
             case "AssemblyMetadataAttribute":
-                var (key, metaValue) = ReadKeyValueCustomAttribute(reader, attribute);
+                var (key, metaValue) = ReadKeyValueCustomAttribute(attribute);
                 if (string.Equals(key, "BuildChannel", StringComparison.OrdinalIgnoreCase))
                 {
                     acc.BuildChannel = metaValue;
@@ -999,7 +1060,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
                 var attributeTypeName = GetCustomAttributeTypeName(reader, attribute);
                 if (attributeTypeName != null)
                 {
-                    ApplyCustomAttribute(reader, attribute, attributeTypeName, ref accumulator);
+                    ApplyCustomAttribute(attribute, attributeTypeName, ref accumulator);
                 }
             }
 

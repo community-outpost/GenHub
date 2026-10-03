@@ -3838,9 +3838,6 @@
   <data name="ContentType.ModdingTool" xml:space="preserve">
     <value>أداة تعديل</value>
   </data>
-  <data name="ContentType.GenHubBuild" xml:space="preserve">
-    <value>إصدار GenHub</value>
-  </data>
   <data name="ContentType.UnknownContentType" xml:space="preserve">
     <value>محتوى غير معروف</value>
   </data>

@@ -14,6 +14,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GeneralsOnline;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Core.Services.Tools;
 using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.Downloads.Services;
 using GenHub.Infrastructure.Converters;
@@ -491,15 +492,7 @@ public sealed partial class ContentGridItemViewModel(
     /// Gets a value indicating whether this content is a GenHub application build.
     /// </summary>
     public bool IsGenHubBuild =>
-        ContentType == ContentType.GenHubBuild ||
-        (Tags != null && Tags.Any(t => string.Equals(t, "genhub", StringComparison.OrdinalIgnoreCase) || string.Equals(t, "genhub-build", StringComparison.OrdinalIgnoreCase))) ||
-        (!string.IsNullOrWhiteSpace(Name) &&
-         Name.StartsWith("GenHub", StringComparison.OrdinalIgnoreCase) &&
-         (ContentType is ContentType.GameClient or ContentType.Executable or ContentType.ModdingTool or ContentType.UnknownContentType ||
-          Name.Contains("Setup", StringComparison.OrdinalIgnoreCase) ||
-          Name.Contains("PR #", StringComparison.OrdinalIgnoreCase) ||
-          Name.Contains("Build", StringComparison.OrdinalIgnoreCase) ||
-          Name.Contains("Fork", StringComparison.OrdinalIgnoreCase)));
+        GenHubBuildInspector.IsGenHubApplicationBuild(ContentType, Name, Tags);
 
     /// <summary>
     /// Gets a value indicating whether the Add to Profile button should be shown.

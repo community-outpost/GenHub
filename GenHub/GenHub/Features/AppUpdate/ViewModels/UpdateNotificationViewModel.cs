@@ -330,6 +330,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets a value indicating whether the user is subscribed to a custom build or community fork.
     /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Property is bound to UI in Avalonia XAML.")]
     public bool IsSubscribedToCustomBuild => !string.IsNullOrEmpty(SubscribedCustomBuildContentId);
 
     /// <summary>
@@ -347,6 +348,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets the column width for the custom builds column in the browse builds grid.
     /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Property is bound to UI in Avalonia XAML.")]
     public GridLength CustomBuildsColumnWidth => HasCustomBuilds ? new GridLength(1.2, GridUnitType.Star) : new GridLength(0);
 
     /// <summary>
@@ -402,6 +404,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// <param name="publisherSubscriptionStore">The optional publisher subscription store.</param>
     /// <param name="publisherCatalogParser">The optional publisher catalog parser.</param>
     /// <param name="httpClientFactory">The optional HTTP client factory.</param>
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "ViewModel requires multiple dependencies for updates and custom builds.")]
     public UpdateNotificationViewModel(
         IVelopackUpdateManager velopackUpdateManager,
         ILogger<UpdateNotificationViewModel> logger,
@@ -590,60 +593,80 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         return [];
     }
 
-    private async Task<IReadOnlyList<ArtifactUpdateInfo>> FetchCustomBuildArtifactsAsync(string contentId, CancellationToken token)
+    private async Task<CatalogContentItem?> FindSubscribedCatalogItemAsync(
+        string? contentId,
+        string? publisherId,
+        bool updateSubscribedPublisherId,
+        CancellationToken token)
     {
-        if (_publisherSubscriptionStore == null)
+        if (string.IsNullOrWhiteSpace(contentId) || _publisherSubscriptionStore == null)
         {
-            return [];
+            return null;
         }
 
-        var subs = await _publisherSubscriptionStore.GetSubscriptionsAsync(token);
-        if (!subs.Success || subs.Data == null)
+        var subsResult = await _publisherSubscriptionStore.GetSubscriptionsAsync(token).ConfigureAwait(false);
+        if (!subsResult.Success || subsResult.Data == null)
         {
-            return [];
+            return null;
         }
 
-        var candidateSubs = string.IsNullOrWhiteSpace(SubscribedCustomBuildPublisherId)
-            ? subs.Data
-            : subs.Data.Where(s => string.Equals(s.PublisherId, SubscribedCustomBuildPublisherId, StringComparison.OrdinalIgnoreCase)).ToList();
-
-        var list = new List<ArtifactUpdateInfo>();
-        var releaseIdCounter = 1L;
+        var candidateSubs = string.IsNullOrWhiteSpace(publisherId)
+            ? subsResult.Data
+            : subsResult.Data.Where(s => string.Equals(s.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase));
 
         foreach (var sub in candidateSubs)
         {
-            var catalog = await FetchCatalogForSubscriptionAsync(sub, token);
+            var catalog = await FetchCatalogForSubscriptionAsync(sub, token).ConfigureAwait(false);
             var item = catalog?.Content.FirstOrDefault(c =>
                 string.Equals(c.Id, contentId, StringComparison.OrdinalIgnoreCase) &&
                 c.ContentType == ContentType.GenHubBuild);
 
             if (item != null)
             {
-                foreach (var rel in item.Releases
-                    .OrderByDescending(r => r.Version, Comparer<string>.Create((a, b) =>
-                    {
-                        if (AppUpdateVersionHelper.IsArtifactVersionNewer(a, b, allowCrossChannel: true)) return 1;
-                        if (AppUpdateVersionHelper.IsArtifactVersionNewer(b, a, allowCrossChannel: true)) return -1;
-                        return 0;
-                    }))
-                    .ThenByDescending(r => r.ReleaseDate))
+                if (updateSubscribedPublisherId && string.IsNullOrWhiteSpace(SubscribedCustomBuildPublisherId) && !string.IsNullOrWhiteSpace(sub.PublisherId))
                 {
-                    var art = rel.Artifacts.FirstOrDefault();
-                    list.Add(new ArtifactUpdateInfo(
-                        Version: rel.Version,
-                        GitHash: string.Empty,
-                        PullRequestNumber: null,
-                        WorkflowRunId: 0,
-                        WorkflowRunUrl: string.Empty,
-                        ArtifactId: releaseIdCounter++,
-                        ArtifactName: art?.Filename ?? rel.Version,
-                        CreatedAt: rel.ReleaseDate ?? DateTime.UtcNow,
-                        DownloadUrl: art?.DownloadUrl,
-                        Size: art?.Size ?? 0));
+                    SubscribedCustomBuildPublisherId = sub.PublisherId;
                 }
 
-                break;
+                return item;
             }
+        }
+
+        return null;
+    }
+
+    private async Task<IReadOnlyList<ArtifactUpdateInfo>> FetchCustomBuildArtifactsAsync(string contentId, CancellationToken token)
+    {
+        var item = await FindSubscribedCatalogItemAsync(contentId, SubscribedCustomBuildPublisherId, updateSubscribedPublisherId: false, token);
+        if (item == null)
+        {
+            return [];
+        }
+
+        var list = new List<ArtifactUpdateInfo>();
+        var releaseIdCounter = 1L;
+
+        foreach (var rel in item.Releases
+            .OrderByDescending(r => r.Version, Comparer<string>.Create((a, b) =>
+            {
+                if (AppUpdateVersionHelper.IsArtifactVersionNewer(a, b, allowCrossChannel: true)) return 1;
+                if (AppUpdateVersionHelper.IsArtifactVersionNewer(b, a, allowCrossChannel: true)) return -1;
+                return 0;
+            }))
+            .ThenByDescending(r => r.ReleaseDate))
+        {
+            var art = rel.Artifacts.FirstOrDefault();
+            list.Add(new ArtifactUpdateInfo(
+                Version: rel.Version,
+                GitHash: string.Empty,
+                PullRequestNumber: null,
+                WorkflowRunId: 0,
+                WorkflowRunUrl: string.Empty,
+                ArtifactId: releaseIdCounter++,
+                ArtifactName: art?.Filename ?? rel.Version,
+                CreatedAt: rel.ReleaseDate ?? DateTime.UtcNow,
+                DownloadUrl: art?.DownloadUrl,
+                Size: art?.Size ?? 0));
         }
 
         return list;
@@ -658,44 +681,11 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             GetLocalizedString("Updates.Status.CheckingCustomBuildUpdates", "Checking updates for {0}..."),
             buildDisplayName);
 
-        if (_publisherSubscriptionStore == null)
-        {
-            StatusMessage = "No publisher subscription store available.";
-            IsUpdateAvailable = false;
-            return;
-        }
-
-        var subsResult = await _publisherSubscriptionStore.GetSubscriptionsAsync(_cancellationTokenSource.Token);
-        if (!subsResult.Success || subsResult.Data == null)
-        {
-            StatusMessage = "Failed to load publisher subscriptions.";
-            IsUpdateAvailable = false;
-            return;
-        }
-
-        var candidateSubs = string.IsNullOrWhiteSpace(SubscribedCustomBuildPublisherId)
-            ? subsResult.Data
-            : subsResult.Data.Where(s => string.Equals(s.PublisherId, SubscribedCustomBuildPublisherId, StringComparison.OrdinalIgnoreCase)).ToList();
-
-        CatalogContentItem? matchedItem = null;
-        foreach (var sub in candidateSubs)
-        {
-            var catalog = await FetchCatalogForSubscriptionAsync(sub, _cancellationTokenSource.Token);
-            var item = catalog?.Content.FirstOrDefault(c =>
-                string.Equals(c.Id, SubscribedCustomBuildContentId, StringComparison.OrdinalIgnoreCase) &&
-                c.ContentType == ContentType.GenHubBuild);
-
-            if (item != null)
-            {
-                matchedItem = item;
-                if (string.IsNullOrWhiteSpace(SubscribedCustomBuildPublisherId) && !string.IsNullOrWhiteSpace(sub.PublisherId))
-                {
-                    SubscribedCustomBuildPublisherId = sub.PublisherId;
-                }
-
-                break;
-            }
-        }
+        var matchedItem = await FindSubscribedCatalogItemAsync(
+            SubscribedCustomBuildContentId,
+            SubscribedCustomBuildPublisherId,
+            updateSubscribedPublisherId: true,
+            _cancellationTokenSource.Token);
 
         if (matchedItem == null)
         {
@@ -1797,7 +1787,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                 {
                     settings.SubscribedCustomBuildVersion = artifact.Version;
                 });
-                await _userSettingsService.SaveAsync(CancellationToken.None).ConfigureAwait(false);
+                await _userSettingsService.SaveAsync(CancellationToken.None);
             }
 
             var progress = CreateInstallationProgress(this);

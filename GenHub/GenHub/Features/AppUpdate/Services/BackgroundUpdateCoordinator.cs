@@ -1,4 +1,4 @@
-﻿using Avalonia.Threading;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
@@ -20,6 +20,7 @@ using GenHub.Features.Content.Services.Catalog;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Net.Http;
@@ -41,6 +42,7 @@ namespace GenHub.Features.AppUpdate.Services;
 /// <param name="publisherSubscriptionStore">Optional subscription store for tracking custom build subscriptions.</param>
 /// <param name="publisherCatalogParser">Optional catalog parser for reading subscribed catalogs.</param>
 /// <param name="httpClientFactory">Optional HTTP client factory for downloading catalogs.</param>
+[method: SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Background coordinator requires multiple services for update orchestration.")]
 public class BackgroundUpdateCoordinator(
     IVelopackUpdateManager velopackUpdateManager,
     IUserSettingsService userSettingsService,
@@ -859,57 +861,51 @@ public class BackgroundUpdateCoordinator(
         }
     }
 
-    private async Task CheckSubscribedCustomBuildUpdateAsync(UserSettings settings, CancellationToken cancellationToken)
+    private async Task<CatalogContentItem?> FindSubscribedCustomBuildItemAsync(
+        string contentId,
+        string? publisherId,
+        UserSettings settings,
+        CancellationToken cancellationToken)
     {
-        var contentId = settings.SubscribedCustomBuildContentId!;
-        var buildName = settings.SubscribedCustomBuildName ?? contentId;
-        var publisherId = settings.SubscribedCustomBuildPublisherId;
-
-        logger?.LogInformation("Checking custom build / fork update for '{Name}' ({ContentId})", buildName, contentId);
-
         if (publisherSubscriptionStore == null)
         {
-            return;
+            return null;
         }
 
-        var subsResult = await publisherSubscriptionStore.GetSubscriptionsAsync(cancellationToken);
+        var subsResult = await publisherSubscriptionStore.GetSubscriptionsAsync(cancellationToken).ConfigureAwait(false);
         if (!subsResult.Success || subsResult.Data == null)
         {
-            return;
+            return null;
         }
 
         var candidateSubs = string.IsNullOrWhiteSpace(publisherId)
             ? subsResult.Data
-            : subsResult.Data.Where(s => string.Equals(s.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase)).ToList();
-
-        CatalogContentItem? matchedItem = null;
+            : subsResult.Data.Where(s => string.Equals(s.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase));
 
         foreach (var sub in candidateSubs)
         {
-            var catalog = await FetchCatalogForSubscriptionAsync(sub, cancellationToken);
+            var catalog = await FetchCatalogForSubscriptionAsync(sub, cancellationToken).ConfigureAwait(false);
             var item = catalog?.Content.FirstOrDefault(c =>
                 string.Equals(c.Id, contentId, StringComparison.OrdinalIgnoreCase) &&
                 c.ContentType == ContentType.GenHubBuild);
 
             if (item != null)
             {
-                matchedItem = item;
                 if (string.IsNullOrWhiteSpace(publisherId) && !string.IsNullOrWhiteSpace(sub.PublisherId))
                 {
                     settings.SubscribedCustomBuildPublisherId = sub.PublisherId;
                 }
 
-                break;
+                return item;
             }
         }
 
-        if (matchedItem == null)
-        {
-            logger?.LogDebug("Custom build content '{ContentId}' not found in active publisher subscriptions", contentId);
-            return;
-        }
+        return null;
+    }
 
-        var latestRelease = matchedItem.Releases
+    [SuppressMessage("Major Code Smell", "S2325", Justification = "Preserve method ordering and instance scope")]
+    private ContentRelease? GetLatestRelease(CatalogContentItem item) =>
+        item.Releases
             .OrderByDescending(r => r.Version, Comparer<string>.Create((a, b) =>
             {
                 if (AppUpdateVersionHelper.IsArtifactVersionNewer(a, b, allowCrossChannel: true)) return 1;
@@ -919,6 +915,51 @@ public class BackgroundUpdateCoordinator(
             .ThenByDescending(r => r.ReleaseDate)
             .FirstOrDefault();
 
+    private void NotifyCustomBuildUpdateAvailable(string contentId, string buildName, string latestVersion)
+    {
+        var updateIdentity = $"{AppUpdateConstants.CustomBuildDedupePrefix}{contentId}:{latestVersion}";
+        if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
+        {
+            logger?.LogDebug(AppUpdateConstants.NotificationAlreadyShownLogFormat, updateIdentity);
+            return;
+        }
+
+        _lastNotifiedUpdateIdentity = updateIdentity;
+        logger?.LogInformation("Custom build update available for '{Name}': v{Version}", buildName, latestVersion);
+
+        notificationService.Show(new NotificationMessage(
+            NotificationType.Info,
+            AppUpdateConstants.CustomBuildUpdateAvailableNotificationTitle,
+            string.Format(CultureInfo.InvariantCulture, AppUpdateConstants.CustomBuildUpdateNotificationFormat, latestVersion, buildName),
+            autoDismissMilliseconds: null,
+            actions:
+            [
+                new NotificationAction(
+                    AppUpdateConstants.ViewUpdatesAction,
+                    OpenUpdateSettings,
+                    NotificationActionStyle.Primary,
+                    dismissOnExecute: true),
+            ],
+            isPersistent: true,
+            showInBadge: true));
+    }
+
+    private async Task CheckSubscribedCustomBuildUpdateAsync(UserSettings settings, CancellationToken cancellationToken)
+    {
+        var contentId = settings.SubscribedCustomBuildContentId!;
+        var buildName = settings.SubscribedCustomBuildName ?? contentId;
+        var publisherId = settings.SubscribedCustomBuildPublisherId;
+
+        logger?.LogInformation("Checking custom build / fork update for '{Name}' ({ContentId})", buildName, contentId);
+
+        var matchedItem = await FindSubscribedCustomBuildItemAsync(contentId, publisherId, settings, cancellationToken).ConfigureAwait(false);
+        if (matchedItem == null)
+        {
+            logger?.LogDebug("Custom build content '{ContentId}' not found in active publisher subscriptions", contentId);
+            return;
+        }
+
+        var latestRelease = GetLatestRelease(matchedItem);
         if (latestRelease == null || string.IsNullOrWhiteSpace(latestRelease.Version))
         {
             return;
@@ -930,32 +971,7 @@ public class BackgroundUpdateCoordinator(
         if (AppUpdateVersionHelper.IsArtifactVersionNewer(latestVersion, installedVersion, allowCrossChannel: true) &&
             !string.Equals(latestVersion, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
         {
-            var updateIdentity = $"{AppUpdateConstants.CustomBuildDedupePrefix}{contentId}:{latestVersion}";
-
-            if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
-            {
-                logger?.LogDebug(AppUpdateConstants.NotificationAlreadyShownLogFormat, updateIdentity);
-                return;
-            }
-
-            _lastNotifiedUpdateIdentity = updateIdentity;
-            logger?.LogInformation("Custom build update available for '{Name}': v{Version}", buildName, latestVersion);
-
-            notificationService.Show(new NotificationMessage(
-                NotificationType.Info,
-                AppUpdateConstants.CustomBuildUpdateAvailableNotificationTitle,
-                string.Format(CultureInfo.InvariantCulture, AppUpdateConstants.CustomBuildUpdateNotificationFormat, latestVersion, buildName),
-                autoDismissMilliseconds: null,
-                actions:
-                [
-                    new NotificationAction(
-                        AppUpdateConstants.ViewUpdatesAction,
-                        OpenUpdateSettings,
-                        NotificationActionStyle.Primary,
-                        dismissOnExecute: true),
-                ],
-                isPersistent: true,
-                showInBadge: true));
+            NotifyCustomBuildUpdateAvailable(contentId, buildName, latestVersion);
         }
     }
 

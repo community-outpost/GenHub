@@ -3838,9 +3838,6 @@ Applied: {2} / {3} applicable fixes.</value>
   <data name="ContentType.ModdingTool" xml:space="preserve">
     <value>Modding Tool</value>
   </data>
-  <data name="ContentType.GenHubBuild" xml:space="preserve">
-    <value>GenHub Build</value>
-  </data>
   <data name="ContentType.UnknownContentType" xml:space="preserve">
     <value>Unknown Content</value>
   </data>

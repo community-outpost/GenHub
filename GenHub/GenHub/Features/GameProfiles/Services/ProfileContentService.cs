@@ -95,10 +95,7 @@ public sealed class ProfileContentService(
             var contextResult = await LoadProfileAndPrimaryManifestAsync(profileId, primaryManifestId, requestedIds, cancellationToken);
             if (contextResult.Failed)
             {
-                var errorCode = contextResult.FirstError?.Contains("GenHub application builds", StringComparison.OrdinalIgnoreCase) == true
-                    ? ProfileConstants.GenHubBuildNotAllowedErrorCode
-                    : null;
-                return AddToProfileResult.CreateFailure(contextResult.FirstError ?? "Failed to load profile or manifest", errorCode, sw.Elapsed);
+                return AddToProfileResult.CreateFailure(contextResult.FirstError ?? "Failed to load profile or manifest", contextResult.ErrorCode, sw.Elapsed);
             }
 
             var (profile, _, contentName) = contextResult.Data;
@@ -722,7 +719,7 @@ public sealed class ProfileContentService(
         return $"{UriConstants.AvarUriScheme}GenHub{UriConstants.IconsBasePath}/{gameIcon}";
     }
 
-    private async Task<OperationResult<(GameProfile Profile, ContentManifest Manifest, string ContentName)>> LoadProfileAndPrimaryManifestAsync(
+    private async Task<ProfileOperationResult<(GameProfile Profile, ContentManifest Manifest, string ContentName)>> LoadProfileAndPrimaryManifestAsync(
         string profileId,
         string primaryManifestId,
         IReadOnlyList<string> requestedIds,
@@ -733,7 +730,7 @@ public sealed class ProfileContentService(
         {
             var error = profileResult.FirstError ?? "Profile not found";
             logger.LogWarning("Failed to get profile {ProfileId}: {Error}", profileId, error);
-            return OperationResult<(GameProfile, ContentManifest, string)>.CreateFailure(error);
+            return ProfileOperationResult<(GameProfile, ContentManifest, string)>.CreateFailure(error);
         }
 
         var manifestResult = await manifestPool.GetManifestAsync(
@@ -744,7 +741,7 @@ public sealed class ProfileContentService(
         {
             var error = manifestResult.FirstError ?? "Failed to retrieve manifest";
             logger.LogWarning("Failed to get manifest {ManifestId}: {Error}", primaryManifestId, error);
-            return OperationResult<(GameProfile, ContentManifest, string)>.CreateFailure(error);
+            return ProfileOperationResult<(GameProfile, ContentManifest, string)>.CreateFailure(error);
         }
 
         foreach (var reqId in requestedIds)
@@ -757,7 +754,7 @@ public sealed class ProfileContentService(
             {
                 var error = "GenHub application builds cannot be added to game profiles.";
                 logger.LogWarning("Attempted to add GenHub build manifest {ManifestId} to profile {ProfileId}", reqId, profileId);
-                return OperationResult<(GameProfile, ContentManifest, string)>.CreateFailure(error);
+                return ProfileOperationResult<(GameProfile, ContentManifest, string)>.CreateFailure(error, ProfileConstants.GenHubBuildNotAllowedErrorCode);
             }
         }
 
@@ -766,7 +763,7 @@ public sealed class ProfileContentService(
             ? $"{manifest.Name ?? primaryManifestId} + {requestedIds.Count - 1} more"
             : manifest.Name ?? primaryManifestId;
 
-        return OperationResult<(GameProfile, ContentManifest, string)>.CreateSuccess((profileResult.Data, manifest, contentName));
+        return ProfileOperationResult<(GameProfile, ContentManifest, string)>.CreateSuccess((profileResult.Data, manifest, contentName));
     }
 
     private async Task<AddToProfileResult> PerformContentAddAndReconciliationAsync(

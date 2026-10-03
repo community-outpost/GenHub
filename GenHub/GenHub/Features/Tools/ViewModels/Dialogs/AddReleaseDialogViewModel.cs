@@ -25,6 +25,7 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 /// <summary>
 /// ViewModel for the Add/Edit Release or Addon dialog.
 /// </summary>
+[method: System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Dialog ViewModel primary constructor requires dependencies and dialog configuration state.")]
 public partial class AddReleaseDialogViewModel(
     CatalogContentItem contentItem,
     PublisherCatalog catalog,

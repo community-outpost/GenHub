@@ -25,6 +25,21 @@ public class CloudUrlHelperTests
     }
 
     /// <summary>
+    /// Verifies that Google Drive URLs with uc?id= or open?id= or file/d/ are normalized to direct download links.
+    /// </summary>
+    /// <param name="input">The raw Google Drive URL.</param>
+    /// <param name="expected">The expected direct download URL.</param>
+    [Theory]
+    [InlineData("https://drive.google.com/uc?id=1234567890abcdef", "https://drive.google.com/uc?export=download&id=1234567890abcdef")]
+    [InlineData("https://drive.google.com/open?id=1234567890abcdef", "https://drive.google.com/uc?export=download&id=1234567890abcdef")]
+    [InlineData("https://drive.google.com/file/d/1234567890abcdef/view", "https://drive.google.com/uc?export=download&id=1234567890abcdef")]
+    public void NormalizeCloudUrl_GoogleDriveUrl_NormalizesToDirectDownload(string input, string expected)
+    {
+        var result = CloudUrlHelper.NormalizeCloudUrl(input);
+        Assert.Equal(expected, result);
+    }
+
+    /// <summary>
     /// Verifies that an explicit confirmation anchor href is extracted and decoded.
     /// </summary>
     [Fact]
@@ -47,7 +62,7 @@ public class CloudUrlHelperTests
     [Fact]
     public void TryExtractGoogleDriveConfirmationUrl_WithFormActionAndInput_ExtractsUrl()
     {
-        const string html = "<html><body><form id=\"download-form\" action=\"https://drive.usercontent.google.com/download?id=12345\" method=\"post\"><input type=\"hidden\" name=\"confirm\" value=\"abc_token\" /></form></body></html>";
+        const string html = "<html><body><form id=\"download-form\" method=\"post\" action=\"https://drive.usercontent.google.com/download?id=12345\"><input type=\"hidden\" value=\"abc_token\" name=\"confirm\" /></form></body></html>";
         var requestUri = new Uri("https://drive.google.com/uc?export=download&id=12345");
 
         var success = CloudUrlHelper.TryExtractGoogleDriveConfirmationUrl(html, requestUri, out var confirmedUrl);
@@ -72,6 +87,23 @@ public class CloudUrlHelperTests
         Assert.NotNull(confirmedUrl);
         Assert.StartsWith("https://drive.google.com/uc?", confirmedUrl, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("confirm=xyz", confirmedUrl);
+    }
+
+    /// <summary>
+    /// Verifies that a relative form action is resolved using the request base URI and validated.
+    /// </summary>
+    [Fact]
+    public void TryExtractGoogleDriveConfirmationUrl_WithRelativeFormAction_ResolvesAbsoluteUri()
+    {
+        const string html = "<html><body><form action=\"/uc?export=download&amp;id=12345\" method=\"post\"><input name=\"confirm\" value=\"tok123\" /></form></body></html>";
+        var requestUri = new Uri("https://drive.google.com/uc?export=download&id=12345");
+
+        var success = CloudUrlHelper.TryExtractGoogleDriveConfirmationUrl(html, requestUri, out var confirmedUrl);
+
+        Assert.True(success);
+        Assert.NotNull(confirmedUrl);
+        Assert.StartsWith("https://drive.google.com/uc?", confirmedUrl, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("confirm=tok123", confirmedUrl);
     }
 
     /// <summary>
