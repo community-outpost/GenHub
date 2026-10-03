@@ -1,7 +1,7 @@
+using GenHub.Features.AppUpdate.Services;
 using System;
 using System.IO;
 using System.Text;
-using GenHub.Features.AppUpdate.Services;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.AppUpdate.Services;

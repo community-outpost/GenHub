@@ -157,6 +157,7 @@ public class ContentOrchestratorTests
     /// <summary>
     /// Verifies that provider preparation progress (0-100) is scaled into the 40-70% range.
     /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
     public async Task AcquireContentAsync_ScalesProviderPreparationProgressMonotonicallyAsync()
     {
