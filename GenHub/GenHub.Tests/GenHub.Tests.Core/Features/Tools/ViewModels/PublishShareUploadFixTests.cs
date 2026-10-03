@@ -422,7 +422,7 @@ public class PublishShareUploadFixTests
 
                 savedSnapshots.Add(snapshot);
             })
-            .ReturnsAsync(() => ++saveCallCount == 1
+            .ReturnsAsync(() => ++saveCallCount <= 2
                 ? OperationResult<bool>.CreateSuccess(true)
                 : OperationResult<bool>.CreateFailure("restore save failed"));
 
