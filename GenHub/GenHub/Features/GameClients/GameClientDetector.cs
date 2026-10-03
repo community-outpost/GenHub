@@ -1367,11 +1367,17 @@ public class GameClientDetector(
             // Use the entry point the launcher resolves, so the detected client matches what is launched.
             // Manifests without a resolvable entry point keep the first executable file.
             var entryPoint = ManifestVariantResolver.ResolveEntryPoint(manifest);
-            var executableRelativePath = entryPoint.Success
-                ? entryPoint.RelativePath
-                : ManifestVariantResolver.ResolveFiles(manifest).FirstOrDefault(f =>
+            var executableRelativePath = entryPoint.RelativePath;
+            if (!entryPoint.Success)
+            {
+                logger.LogDebug(
+                    "Manifest {ManifestId} entry point did not resolve ({Resolution}); using its first executable file",
+                    manifest.Id,
+                    entryPoint);
+                executableRelativePath = ManifestVariantResolver.ResolveFiles(manifest).FirstOrDefault(f =>
                     f.IsExecutable ||
-                    (f.RelativePath?.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) == true))?.RelativePath;
+                    (f.RelativePath?.EndsWith(GameClientConstants.ExeExtension, StringComparison.OrdinalIgnoreCase) == true))?.RelativePath;
+            }
 
             if (executableRelativePath == null)
             {

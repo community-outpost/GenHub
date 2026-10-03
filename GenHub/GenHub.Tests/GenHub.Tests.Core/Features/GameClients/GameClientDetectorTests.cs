@@ -144,6 +144,7 @@ public class GameClientDetectorTests : IDisposable
     [Theory]
     [InlineData("generalszh.exe", "generalszh.exe", "generalszh.exe")]
     [InlineData("updater.exe", null, "launcher.exe")]
+    [InlineData("updater.exe", "missing.exe", "launcher.exe")]
     public void CreateGameClientsFromManifests_UsesResolvedEntryPoint(string secondExecutable, string? declaredEntryPoint, string expectedExecutable)
     {
         var installPath = Directory.CreateDirectory(Path.Combine(_tempDirectory, "EntryPoint")).FullName;
