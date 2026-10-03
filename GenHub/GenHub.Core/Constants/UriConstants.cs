@@ -84,6 +84,11 @@ public static class UriConstants
     public const string WndEditorIconUri = "avares://GenHub/Assets/Icons/wndeditor-icon.png";
 
     /// <summary>
+    /// Icon URI for WorldBuilder tool.
+    /// </summary>
+    public const string WorldBuilderIconUri = "avares://GenHub/Assets/Icons/worldbuilder-icon.png";
+
+    /// <summary>
     /// Icon URI for INI Editor tool. Reuses the bundled ModBuilder icon asset.
     /// </summary>
     public const string IniEditorIconUri = "avares://GenHub/Assets/Icons/modbuilder-icon.png";
@@ -174,6 +179,11 @@ public static class UriConstants
     /// Filename for WND Editor icon.
     /// </summary>
     public const string WndEditorIconFilename = "wndeditor-icon.png";
+
+    /// <summary>
+    /// Filename for WorldBuilder icon.
+    /// </summary>
+    public const string WorldBuilderIconFilename = "worldbuilder-icon.png";
 
     // Cover Path Constants
 

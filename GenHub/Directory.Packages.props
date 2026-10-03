@@ -48,6 +48,8 @@
     <PackageVersion Include="StyleCop.Analyzers" Version="1.2.0-beta.556" />
     <PackageVersion Include="CsvHelper" Version="33.1.0" />
     <PackageVersion Include="YamlDotNet" Version="16.3.0" />
+    <!-- WorldBuilder GPU viewport: GL bindings over Avalonia's shared context (Avalonia owns the context). Pinned to stable 2.x; 3.x is preview. -->
+    <PackageVersion Include="Silk.NET.OpenGL" Version="2.22.0" />
     <!-- Test packages -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="9.0.11" />

@@ -17685,4 +17685,1123 @@ Error: فشل: {3}
   <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
     <value>إصدارات احتياطية يدوية (تجاوزات)</value>
   </data>
+  <data name="Tools.Plugin.genhub.tools.worldbuilder.Name" xml:space="preserve">
+    <value>WorldBuilder</value>
+  </data>
+  <data name="Tools.Plugin.genhub.tools.worldbuilder.Description" xml:space="preserve">
+    <value>إنشاء خرائط Command &amp; Conquer: Generals وZero Hour وفتحها والتحقق منها وتوليدها مع دعم ملفات .wak وموجات المعاينة .tga.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Objects.Coordinates" xml:space="preserve">
+    <value>الإحداثيات</value>
+  </data>
+  <data name="Tools.WorldBuilder.Content.NoInstallation.Title" xml:space="preserve">
+    <value>محتوى اللعبة غير متوفر</value>
+  </data>
+  <data name="Tools.WorldBuilder.Content.NoInstallation.Message" xml:space="preserve">
+    <value>لم يتم العثور على أي تثبيت للعبة، لذلك يتم عرض التضاريس بدون مواد. أضف تثبيتًا لتفعيل المحتوى الكامل.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Waypoints.Links" xml:space="preserve">
+    <value>روابط نقاط الطريق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Triggers.Add" xml:space="preserve">
+    <value>إضافة مشغل منطقة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Triggers.Delete" xml:space="preserve">
+    <value>حذف المشغل</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Comment" xml:space="preserve">
+    <value>تعليق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Active" xml:space="preserve">
+    <value>نشط</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.OneShot" xml:space="preserve">
+    <value>لمرة واحدة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Subroutine" xml:space="preserve">
+    <value>إجراء فرعي</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Easy" xml:space="preserve">
+    <value>سهل</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Normal" xml:space="preserve">
+    <value>عادي</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Hard" xml:space="preserve">
+    <value>صعب</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ReferenceDiagnostics" xml:space="preserve">
+    <value>تشخيص المراجع</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.MissingObject" xml:space="preserve">
+    <value>{0}: كائن مفقود '{1}'</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.MissingTeam" xml:space="preserve">
+    <value>{0}: فريق مفقود '{1}'</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.MissingWaypoint" xml:space="preserve">
+    <value>{0}: معرف نقطة مسار مفقود {1}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.MissingWaypointLink" xml:space="preserve">
+    <value>رابط نقطة المسار يشير إلى معرف نقطة مسار مفقود: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.DefaultSideName" xml:space="preserve">
+    <value>لاعب</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tabs.Roads" xml:space="preserve">
+    <value>الطرق والجسور</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tabs.Environment" xml:space="preserve">
+    <value>البيئة والإضاءة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tabs.Teams" xml:space="preserve">
+    <value>الأطراف والفرق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerRoads" xml:space="preserve">
+    <value>الطرق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerBridges" xml:space="preserve">
+    <value>الجسور</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Road" xml:space="preserve">
+    <value>أداة الطريق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Bridge" xml:space="preserve">
+    <value>أداة الجسر</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Ramp" xml:space="preserve">
+    <value>أداة المنحدر</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Border" xml:space="preserve">
+    <value>أداة الحدود</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.WaterArea" xml:space="preserve">
+    <value>أداة المنطقة المائية</value>
+  </data>
+  <data name="Tools.WorldBuilder.Roads.Title" xml:space="preserve">
+    <value>الطرق والجسور</value>
+  </data>
+  <data name="Tools.WorldBuilder.Roads.RoadType" xml:space="preserve">
+    <value>نوع الطريق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Roads.AngledCorner" xml:space="preserve">
+    <value>زاوية حادة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Roads.TightCorner" xml:space="preserve">
+    <value>منعطف ضيق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Roads.SegmentsTitle" xml:space="preserve">
+    <value>مقاطع الطرق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Roads.BridgesTitle" xml:space="preserve">
+    <value>الجسور</value>
+  </data>
+  <data name="Tools.WorldBuilder.Roads.BridgeTemplate" xml:space="preserve">
+    <value>قالب الجسر</value>
+  </data>
+  <data name="Tools.WorldBuilder.Roads.DeleteSegment" xml:space="preserve">
+    <value>حذف المقطع</value>
+  </data>
+  <data name="Tools.WorldBuilder.Roads.DeleteBridge" xml:space="preserve">
+    <value>حذف الجسر</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.Title" xml:space="preserve">
+    <value>البيئة والإضاءة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.TimeOfDay" xml:space="preserve">
+    <value>الوقت من اليوم</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.Weather" xml:space="preserve">
+    <value>الطقس</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.WaterElevation" xml:space="preserve">
+    <value>ارتفاع منسوب المياه</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.Apply" xml:space="preserve">
+    <value>تطبيق البيئة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.Title" xml:space="preserve">
+    <value>الأطراف والفرق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.SidesTitle" xml:space="preserve">
+    <value>أطراف اللاعبين</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.AddSide" xml:space="preserve">
+    <value>إضافة طرف</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.DeleteSide" xml:space="preserve">
+    <value>حذف الطرف</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.SkirmishTeamsTitle" xml:space="preserve">
+    <value>فرق المناوشة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.AddTeam" xml:space="preserve">
+    <value>إضافة فريق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.DeleteTeam" xml:space="preserve">
+    <value>حذف الفريق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.Apply" xml:space="preserve">
+    <value>تطبيق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.TeamName" xml:space="preserve">
+    <value>اسم الفريق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.TeamOwner" xml:space="preserve">
+    <value>المالك</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.SideDisplayName" xml:space="preserve">
+    <value>اسم العرض</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.SideIsHuman" xml:space="preserve">
+    <value>لاعب بشري</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.SideFaction" xml:space="preserve">
+    <value>الفصيل</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.TimeMorning" xml:space="preserve">
+    <value>الصباح (1)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.TimeAfternoon" xml:space="preserve">
+    <value>بعد الظهر (2)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.TimeDusk" xml:space="preserve">
+    <value>الغسق (3)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.TimeNight" xml:space="preserve">
+    <value>الليل (4)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.SideNameWatermark" xml:space="preserve">
+    <value>اسم الجانب...</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.TeamNameWatermark" xml:space="preserve">
+    <value>اسم الفريق...</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.File" xml:space="preserve">
+    <value>ملف</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.Edit" xml:space="preserve">
+    <value>تحرير</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.View" xml:space="preserve">
+    <value>عرض</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.Tools" xml:space="preserve">
+    <value>أدوات</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.Window" xml:space="preserve">
+    <value>نافذة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.Help" xml:space="preserve">
+    <value>مساعدة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Toggle3D" xml:space="preserve">
+    <value>تبديل العرض ثلاثي الأبعاد</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Wireframe" xml:space="preserve">
+    <value>الإطار الشبكي</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.ObjectProperties" xml:space="preserve">
+    <value>خصائص الكائن</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.ScriptEditor" xml:space="preserve">
+    <value>محرر البرامج النصية</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Teams" xml:space="preserve">
+    <value>الفرق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Environment" xml:space="preserve">
+    <value>البيئة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Minimap" xml:space="preserve">
+    <value>الخريطة المصغرة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Layers" xml:space="preserve">
+    <value>الطبقات</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Title" xml:space="preserve">
+    <value>خصائص الكائن</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.General" xml:space="preserve">
+    <value>عام</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Logical" xml:space="preserve">
+    <value>منطقي</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Visual" xml:space="preserve">
+    <value>بصري</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Sound" xml:space="preserve">
+    <value>صوت</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Health" xml:space="preserve">
+    <value>نسبة الصحة %</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Aggressiveness" xml:space="preserve">
+    <value>العدوانية</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Veterancy" xml:space="preserve">
+    <value>الخبرة</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Enabled" xml:space="preserve">
+    <value>ممكّن</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Indestructible" xml:space="preserve">
+    <value>غير قابل للتدمير</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Selectable" xml:space="preserve">
+    <value>قابل للتحديد</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Apply" xml:space="preserve">
+    <value>تطبيق</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Duplicate" xml:space="preserve">
+    <value>تكرار</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Position" xml:space="preserve">
+    <value>الموضع</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Angle" xml:space="preserve">
+    <value>الزاوية</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.HitPoints" xml:space="preserve">
+    <value>أقصى نقاط الصحة</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Unsellable" xml:space="preserve">
+    <value>غير قابل للبيع</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Targetable" xml:space="preserve">
+    <value>قابل للاستهداف</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.RecruitableAI" xml:space="preserve">
+    <value>قابل للتجنيد بالذكاء الاصطناعي</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Powered" xml:space="preserve">
+    <value>يعمل بالطاقة</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Distance" xml:space="preserve">
+    <value>المسافة</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.StoppingDistance" xml:space="preserve">
+    <value>مسافة التوقف</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.VisionDistance" xml:space="preserve">
+    <value>مسافة الرؤية</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.ShroudClearingDistance" xml:space="preserve">
+    <value>كشف الضباب</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Weather" xml:space="preserve">
+    <value>الطقس</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Time" xml:space="preserve">
+    <value>الوقت</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Scale" xml:space="preserve">
+    <value>الحجم</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.ScaleEnabled" xml:space="preserve">
+    <value>تجاوز الحجم</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.ReflectsInMirror" xml:space="preserve">
+    <value>ينعكس في المرآة</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.SoundCustomize" xml:space="preserve">
+    <value>تخصيص الصوت</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.SoundEnabled" xml:space="preserve">
+    <value>الصوت مفعّل</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.SoundLooping" xml:space="preserve">
+    <value>تكرار</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.SoundLoopCount" xml:space="preserve">
+    <value>عدد التكرار</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.SoundPriority" xml:space="preserve">
+    <value>الأولوية</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.SoundVolume" xml:space="preserve">
+    <value>مستوى الصوت</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.SoundMinVolume" xml:space="preserve">
+    <value>أدنى مستوى صوت</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.SoundMinRange" xml:space="preserve">
+    <value>أدنى مدى</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.SoundMaxRange" xml:space="preserve">
+    <value>أقصى مدى</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Upgrades" xml:space="preserve">
+    <value>ترقيات مسبقة البناء</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.SunPitch" xml:space="preserve">
+    <value>زاوية ميل الشمس</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.SunYaw" xml:space="preserve">
+    <value>انحراف الشمس</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FilterActive" xml:space="preserve">
+    <value>نشط</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FilterInactive" xml:space="preserve">
+    <value>غير نشط</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FilterWarnings" xml:space="preserve">
+    <value>تحذيرات</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Copy" xml:space="preserve">
+    <value>نسخ</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Paste" xml:space="preserve">
+    <value>لصق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Common.Close" xml:space="preserve">
+    <value>إغلاق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Roads" xml:space="preserve">
+    <value>الطرق والجسور</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.MapInfo" xml:space="preserve">
+    <value>معلومات الخريطة والتحقق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FilterAll" xml:space="preserve">
+    <value>الكل</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.AggressivenessPassive" xml:space="preserve">
+    <value>سلبي</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.AggressivenessNormal" xml:space="preserve">
+    <value>عادي</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.AggressivenessAggressive" xml:space="preserve">
+    <value>عدواني</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.VeterancyRegular" xml:space="preserve">
+    <value>عادي</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.VeterancyVeteran" xml:space="preserve">
+    <value>مخضرم</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.VeterancyElite" xml:space="preserve">
+    <value>نخبة</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.VeterancyHeroic" xml:space="preserve">
+    <value>بطولي</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.MenuTooltip" xml:space="preserve">
+    <value>قائمة إجراءات الخريطة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Generate" xml:space="preserve">
+    <value>إنشاء</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.GenerateTooltip" xml:space="preserve">
+    <value>إنشاء خريطة جديدة من البذرة والأبعاد</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Open" xml:space="preserve">
+    <value>فتح</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.OpenTooltip" xml:space="preserve">
+    <value>فتح ملف خريطة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Save" xml:space="preserve">
+    <value>حفظ</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.SaveTooltip" xml:space="preserve">
+    <value>حفظ الخريطة المفتوحة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.SaveAs" xml:space="preserve">
+    <value>حفظ باسم</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Close" xml:space="preserve">
+    <value>إغلاق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Validate" xml:space="preserve">
+    <value>التحقق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.ValidateTooltip" xml:space="preserve">
+    <value>التحقق من الخريطة المفتوحة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.TidyIni" xml:space="preserve">
+    <value>ترتيب map.ini</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.ImportTeams" xml:space="preserve">
+    <value>استيراد الفرق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.ExportTeams" xml:space="preserve">
+    <value>تصدير الفرق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.NewProject" xml:space="preserve">
+    <value>مشروع جديد</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.OpenProject" xml:space="preserve">
+    <value>فتح مشروع</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.ImportGameData" xml:space="preserve">
+    <value>استيراد بيانات اللعبة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.LaunchNative" xml:space="preserve">
+    <value>تشغيل المحرر الأصلي</value>
+  </data>
+  <data name="Tools.WorldBuilder.FileDialog.OpenTitle" xml:space="preserve">
+    <value>فتح خريطة</value>
+  </data>
+  <data name="Tools.WorldBuilder.FileDialog.SaveTitle" xml:space="preserve">
+    <value>حفظ الخريطة</value>
+  </data>
+  <data name="Tools.WorldBuilder.FileDialog.FilterName" xml:space="preserve">
+    <value>ملفات الخرائط</value>
+  </data>
+  <data name="Tools.WorldBuilder.Open.FailureTitle" xml:space="preserve">
+    <value>فشل الفتح</value>
+  </data>
+  <data name="Tools.WorldBuilder.Open.FailureMessage" xml:space="preserve">
+    <value>تعذر فتح الخريطة: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Save.FailureTitle" xml:space="preserve">
+    <value>فشل الحفظ</value>
+  </data>
+  <data name="Tools.WorldBuilder.Save.FailureMessage" xml:space="preserve">
+    <value>تعذر حفظ الخريطة: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Save.SuccessTitle" xml:space="preserve">
+    <value>تم حفظ الخريطة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Save.SuccessMessage" xml:space="preserve">
+    <value>تم حفظ {0}.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.Title" xml:space="preserve">
+    <value>إنشاء خريطة جديدة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.Seed" xml:space="preserve">
+    <value>البذرة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.Width" xml:space="preserve">
+    <value>العرض</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.Height" xml:space="preserve">
+    <value>الارتفاع</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.Players" xml:space="preserve">
+    <value>اللاعبون</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.Run" xml:space="preserve">
+    <value>إنشاء الخريطة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.FailureTitle" xml:space="preserve">
+    <value>فشل الإنشاء</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.FailureMessage" xml:space="preserve">
+    <value>تعذر إنشاء الخريطة: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.SuccessTitle" xml:space="preserve">
+    <value>تم إنشاء الخريطة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.SuccessMessage" xml:space="preserve">
+    <value>تم إنشاء خريطة {0}×{1} لعدد {2} من اللاعبين.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Validate.ValidTitle" xml:space="preserve">
+    <value>الخريطة سليمة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Validate.ValidMessage" xml:space="preserve">
+    <value>لم يتم العثور على مشاكل.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Validate.IssuesTitle" xml:space="preserve">
+    <value>مشاكل التحقق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Validate.IssuesMessage" xml:space="preserve">
+    <value>{0} أخطاء، {1} تحذيرات.</value>
+  </data>
+  <data name="Tools.WorldBuilder.UnsavedChanges.Title" xml:space="preserve">
+    <value>تغييرات غير محفوظة</value>
+  </data>
+  <data name="Tools.WorldBuilder.UnsavedChanges.Message" xml:space="preserve">
+    <value>الخريطة المفتوحة تحتوي على تغييرات غير محفوظة. هل تريد تجاهلها؟</value>
+  </data>
+  <data name="Tools.WorldBuilder.UnsavedChanges.Discard" xml:space="preserve">
+    <value>تجاهل</value>
+  </data>
+  <data name="Tools.WorldBuilder.UnsavedChanges.Cancel" xml:space="preserve">
+    <value>إلغاء</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.NoDocumentTitle" xml:space="preserve">
+    <value>لا توجد خريطة مفتوحة</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.NoDocumentMessage" xml:space="preserve">
+    <value>افتح خريطة قبل ترتيب ملف map.ini الخاص بها.</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.MissingTitle" xml:space="preserve">
+    <value>لم يتم العثور على map.ini</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.MissingMessage" xml:space="preserve">
+    <value>لا يوجد {0} بجانب الخريطة المفتوحة.</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.CleanTitle" xml:space="preserve">
+    <value>ملف map.ini سليم</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.CleanMessage" xml:space="preserve">
+    <value>لا حاجة لتغييرات ({0} تحذيرات).</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.FailureTitle" xml:space="preserve">
+    <value>فشل الترتيب</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.FailureMessage" xml:space="preserve">
+    <value>تعذر كتابة ملف map.ini: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.SuccessTitle" xml:space="preserve">
+    <value>تم ترتيب map.ini</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.SuccessMessage" xml:space="preserve">
+    <value>تمت إعادة كتابة map.ini ({0} تحذيرات).</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ImportTitle" xml:space="preserve">
+    <value>استيراد الفرق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ExportTitle" xml:space="preserve">
+    <value>تصدير الفرق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.FilterName" xml:space="preserve">
+    <value>ملفات تبادل الفرق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ImportFailureTitle" xml:space="preserve">
+    <value>فشل الاستيراد</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ImportFailureMessage" xml:space="preserve">
+    <value>تعذر استيراد الفرق: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ImportSuccessTitle" xml:space="preserve">
+    <value>تم استيراد الفرق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ImportSuccessMessage" xml:space="preserve">
+    <value>تم استيراد {0} فرق.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ExportFailureTitle" xml:space="preserve">
+    <value>فشل التصدير</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ExportFailureMessage" xml:space="preserve">
+    <value>تعذر تصدير الفرق: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ExportCancelledTitle" xml:space="preserve">
+    <value>تم إلغاء التصدير</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ExportCancelledMessage" xml:space="preserve">
+    <value>تم إغلاق الخريطة أو تبديلها؛ لم يتم تصدير الفرق.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ExportSuccessTitle" xml:space="preserve">
+    <value>تم تصدير الفرق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ExportSuccessMessage" xml:space="preserve">
+    <value>تم تصدير {0} فرق.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.Title" xml:space="preserve">
+    <value>المشروع</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.New" xml:space="preserve">
+    <value>جديد</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.Open" xml:space="preserve">
+    <value>فتح</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.ImportGameData" xml:space="preserve">
+    <value>استيراد</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.NewTitle" xml:space="preserve">
+    <value>اختر مجلداً للمشروع الجديد</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.OpenTitle" xml:space="preserve">
+    <value>اختر مجلد المشروع</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.ImportTitle" xml:space="preserve">
+    <value>اختر مجلد بيانات اللعبة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.FailureTitle" xml:space="preserve">
+    <value>فشل المشروع</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.FailureMessage" xml:space="preserve">
+    <value>فشلت عملية المشروع: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.CreatedTitle" xml:space="preserve">
+    <value>تم إنشاء المشروع</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.CreatedMessage" xml:space="preserve">
+    <value>تم إنشاء المشروع {0}.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.OpenedTitle" xml:space="preserve">
+    <value>تم فتح المشروع</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.OpenedMessage" xml:space="preserve">
+    <value>تم فتح المشروع {0} مع {1} خرائط.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.NoProjectTitle" xml:space="preserve">
+    <value>لا يوجد مشروع مفتوح</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.NoProjectMessage" xml:space="preserve">
+    <value>أنشئ مشروعاً أو افتحه قبل استيراد بيانات اللعبة.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.ImportedTitle" xml:space="preserve">
+    <value>تم استيراد بيانات اللعبة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.ImportedMessage" xml:space="preserve">
+    <value>تم استيراد {0} ملفات خرائط.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.Title" xml:space="preserve">
+    <value>المحرر الأصلي</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.Hint" xml:space="preserve">
+    <value>تشغيل محرر WorldBuilder الأصلي عبر Wine باستخدام مجلد لعبة مثبت.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.Launch" xml:space="preserve">
+    <value>تشغيل</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.GameFolderTitle" xml:space="preserve">
+    <value>اختر مجلد اللعبة المثبتة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.NotFoundTitle" xml:space="preserve">
+    <value>لم يتم العثور على المحرر</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.NotFoundMessage" xml:space="preserve">
+    <value>لم يتم العثور على محرر أصلي: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.FailureTitle" xml:space="preserve">
+    <value>فشل التشغيل</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.FailureMessage" xml:space="preserve">
+    <value>تعذر تشغيل المحرر الأصلي: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.SuccessTitle" xml:space="preserve">
+    <value>تم تشغيل المحرر</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.SuccessMessage" xml:space="preserve">
+    <value>المحرر الأصلي قيد التشغيل.</value>
+  </data>
+  <data name="Tools.WorldBuilder.EmptyState.Title" xml:space="preserve">
+    <value>لا توجد خريطة مفتوحة</value>
+  </data>
+  <data name="Tools.WorldBuilder.EmptyState.Message" xml:space="preserve">
+    <value>افتح ملف .map أو أنشئ ساحة معركة جديدة لعرض ملخصها ومعاينتها والتحقق منها.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Document.NameLabel" xml:space="preserve">
+    <value>اسم الخريطة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Document.NameWatermark" xml:space="preserve">
+    <value>أدخل اسم عرض الخريطة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.Title" xml:space="preserve">
+    <value>ملخص الخريطة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.Dimensions" xml:space="preserve">
+    <value>الأبعاد</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.Sides" xml:space="preserve">
+    <value>الأطراف</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.Objects" xml:space="preserve">
+    <value>الكائنات</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.Teams" xml:space="preserve">
+    <value>الفرق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.Triggers" xml:space="preserve">
+    <value>المشغلات</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.Scripts" xml:space="preserve">
+    <value>قوائم البرامج النصية</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.Waypoints" xml:space="preserve">
+    <value>روابط نقاط الطريق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.Waves" xml:space="preserve">
+    <value>مسارات الموجات</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.WorldCash" xml:space="preserve">
+    <value>النقود العالمية</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.MapName" xml:space="preserve">
+    <value>الاسم الداخلي</value>
+  </data>
+  <data name="Tools.WorldBuilder.Validation.Title" xml:space="preserve">
+    <value>التحقق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tabs.Canvas" xml:space="preserve">
+    <value>لوحة الرسم ومنفذ العرض</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tabs.Objects" xml:space="preserve">
+    <value>الكائنات ونقاط المسار</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tabs.Scripts" xml:space="preserve">
+    <value>البرامج النصية والمشغلات</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tabs.Summary" xml:space="preserve">
+    <value>الملخص والتحقق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.BrushRadius" xml:space="preserve">
+    <value>نصف قطر الفرشاة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.BrushIntensity" xml:space="preserve">
+    <value>الكثافة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.BrushHeight" xml:space="preserve">
+    <value>ارتفاع الهضبة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.ZoomIn" xml:space="preserve">
+    <value>تكبير</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.ZoomOut" xml:space="preserve">
+    <value>تصغير</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.ZoomFit" xml:space="preserve">
+    <value>ملاءمة للنافذة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.Undo" xml:space="preserve">
+    <value>تراجع</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.Redo" xml:space="preserve">
+    <value>إعادة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.Layers" xml:space="preserve">
+    <value>الطبقات</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerTerrain" xml:space="preserve">
+    <value>التضاريس</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerWater" xml:space="preserve">
+    <value>الماء</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerCliffs" xml:space="preserve">
+    <value>المنحدرات</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerBlend" xml:space="preserve">
+    <value>المزج</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerGrid" xml:space="preserve">
+    <value>الشبكة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerObjects" xml:space="preserve">
+    <value>الكائنات</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerWaypoints" xml:space="preserve">
+    <value>نقاط المسار</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerTriggers" xml:space="preserve">
+    <value>المشغلات</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerBoundary" xml:space="preserve">
+    <value>الحدود</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Pointer" xml:space="preserve">
+    <value>تحديد</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.MoundUp" xml:space="preserve">
+    <value>رفع</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.MoundDown" xml:space="preserve">
+    <value>خفض</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Smooth" xml:space="preserve">
+    <value>تنعيم</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Plateau" xml:space="preserve">
+    <value>هضبة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.TilePaint" xml:space="preserve">
+    <value>طلاء البلاط</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Eyedropper" xml:space="preserve">
+    <value>قطارة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Waypoint" xml:space="preserve">
+    <value>إضافة نقطة مسار</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.WaypointLink" xml:space="preserve">
+    <value>ربط نقاط المسار</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.ObjectPlace" xml:space="preserve">
+    <value>وضع كائن</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.ObjectErase" xml:space="preserve">
+    <value>مسح كائن</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Trigger" xml:space="preserve">
+    <value>رسم مشغل</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Ruler" xml:space="preserve">
+    <value>مسطرة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Objects.Title" xml:space="preserve">
+    <value>كائنات الخريطة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Objects.Add" xml:space="preserve">
+    <value>إضافة كائن</value>
+  </data>
+  <data name="Tools.WorldBuilder.Objects.Delete" xml:space="preserve">
+    <value>حذف كائن</value>
+  </data>
+  <data name="Tools.WorldBuilder.Objects.Template" xml:space="preserve">
+    <value>القالب</value>
+  </data>
+  <data name="Tools.WorldBuilder.Objects.Name" xml:space="preserve">
+    <value>الاسم</value>
+  </data>
+  <data name="Tools.WorldBuilder.Objects.FilterWatermark" xml:space="preserve">
+    <value>تصفية الكائنات...</value>
+  </data>
+  <data name="Tools.WorldBuilder.Waypoints.Title" xml:space="preserve">
+    <value>نقاط المسار وبداية اللاعبين</value>
+  </data>
+  <data name="Tools.WorldBuilder.Waypoints.AddWaypoint" xml:space="preserve">
+    <value>نقطة مسار جديدة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Waypoints.AddPlayerStart" xml:space="preserve">
+    <value>إضافة بداية لاعب</value>
+  </data>
+  <data name="Tools.WorldBuilder.Waypoints.Delete" xml:space="preserve">
+    <value>حذف نقطة المسار</value>
+  </data>
+  <data name="Tools.WorldBuilder.Waypoints.Link" xml:space="preserve">
+    <value>ربط المحدد</value>
+  </data>
+  <data name="Tools.WorldBuilder.Waypoints.Unlink" xml:space="preserve">
+    <value>إلغاء ربط المحدد</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Title" xml:space="preserve">
+    <value>مجموعات البرامج النصية والمشغلات</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.SearchWatermark" xml:space="preserve">
+    <value>تصفية البرامج النصية...</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.AddGroup" xml:space="preserve">
+    <value>مجموعة جديدة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.AddScript" xml:space="preserve">
+    <value>برنامج نصي جديد</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Duplicate" xml:space="preserve">
+    <value>تكرار البرنامج النصي</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Delete" xml:space="preserve">
+    <value>حذف البرنامج النصي</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Conditions" xml:space="preserve">
+    <value>الشروط (إذا)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Actions" xml:space="preserve">
+    <value>الإجراءات (إذن / وإلا)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.AddCondition" xml:space="preserve">
+    <value>إضافة شرط</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.DeleteCondition" xml:space="preserve">
+    <value>حذف شرط</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.AddAction" xml:space="preserve">
+    <value>إضافة إجراء</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.DeleteAction" xml:space="preserve">
+    <value>حذف إجراء</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.BrokenReferences" xml:space="preserve">
+    <value>فحص المراجع</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.NoBrokenReferences" xml:space="preserve">
+    <value>جميع مراجع البرامج النصية صالحة.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.BrokenReferencesFound" xml:space="preserve">
+    <value>تم العثور على {0} مرجع مكسور.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Rename" xml:space="preserve">
+    <value>إعادة تسمية</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.RenameWatermark" xml:space="preserve">
+    <value>اسم برنامج نصي جديد</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ClearAll" xml:space="preserve">
+    <value>مسح الكل</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ClearAllTitle" xml:space="preserve">
+    <value>مسح كل البرامج النصية</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ClearAllMessage" xml:space="preserve">
+    <value>حذف {0} برنامج نصي و{1} مجلد عبر كل الأطراف؟ يمكن التراجع عن هذا.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ClearAllEmpty" xml:space="preserve">
+    <value>لا توجد برامج نصية لمسحها.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ClearAllDone" xml:space="preserve">
+    <value>تم مسح {0} برنامج نصي و{1} مجلد.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ReplaceAll" xml:space="preserve">
+    <value>استبدال الكل</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ReplacedCount" xml:space="preserve">
+    <value>تم استبدال {0} قيمة معامل.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.NoMatches" xml:space="preserve">
+    <value>لم يتم العثور على قيم معاملات مطابقة.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FindWatermark" xml:space="preserve">
+    <value>قيمة البحث</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ReplaceWatermark" xml:space="preserve">
+    <value>استبدال بـ</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.MatchCase" xml:space="preserve">
+    <value>مطابقة حالة الأحرف</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.CurrentScriptOnly" xml:space="preserve">
+    <value>البرنامج النصي الحالي فقط</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.NoDocument" xml:space="preserve">
+    <value>لا توجد خريطة مفتوحة.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ExportScripts" xml:space="preserve">
+    <value>تصدير البرامج النصية</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ExportDone" xml:space="preserve">
+    <value>تم تصدير {0} برنامج نصي.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ExportFailed" xml:space="preserve">
+    <value>تعذر تصدير البرامج النصية: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ImportScripts" xml:space="preserve">
+    <value>استيراد البرامج النصية</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ImportDone" xml:space="preserve">
+    <value>تم استيراد {0} برنامج نصي.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ImportFailed" xml:space="preserve">
+    <value>تعذر استيراد البرامج النصية: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ImportEmpty" xml:space="preserve">
+    <value>ملف البرامج النصية لا يحتوي على بيانات.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FileFilterName" xml:space="preserve">
+    <value>برامج WorldBuilder النصية</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FixTeamOwner" xml:space="preserve">
+    <value>إصلاح مالك الفريق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FixTeamOwnerDone" xml:space="preserve">
+    <value>تمت إعادة تعيين {0} فريق إلى '{1}'.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FixTeamOwnerNone" xml:space="preserve">
+    <value>لا توجد فرق بمالكين مفقودين.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FixTeamOwnerInvalid" xml:space="preserve">
+    <value>اختر لاعباً صالحاً أولاً.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ReplaceMissing" xml:space="preserve">
+    <value>استبدال المفقود</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ReplacedMissing" xml:space="preserve">
+    <value>تم استبدال '{0}' بـ '{1}' في {2}.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ReplaceMissingDone" xml:space="preserve">
+    <value>تم استبدال {0} مرجع مفقود.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ReplaceMissingNone" xml:space="preserve">
+    <value>لا توجد مراجع مفقودة لاستبدالها.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Minimap.GenerateHighRes" xml:space="preserve">
+    <value>توليد خريطة مصغرة عالية الدقة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Minimap.GeneratedTitle" xml:space="preserve">
+    <value>تم توليد الخريطة المصغرة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Minimap.GeneratedMessage" xml:space="preserve">
+    <value>تم تحديث الخريطة المصغرة عالية الدقة.</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonEditMap" xml:space="preserve">
+    <value>تحرير في WorldBuilder</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipEditMap" xml:space="preserve">
+    <value>فتح ملف .map المحدد في WorldBuilder</value>
+  </data>
+  <data name="Tools.ModBuilder.Map.NoSelectionTitle" xml:space="preserve">
+    <value>لم يتم تحديد ملفات خرائط</value>
+  </data>
+  <data name="Tools.ModBuilder.Map.NoSelectionMessage" xml:space="preserve">
+    <value>حدد ملف .map في شجرة المشروع أولاً.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.EditIni" xml:space="preserve">
+    <value>تحرير map.ini</value>
+  </data>
+  <data name="Tools.WorldBuilder.Plugin.LoadError" xml:space="preserve">
+    <value>خطأ في تحميل WorldBuilder</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.FileNew" xml:space="preserve">
+    <value>خريطة جديدة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.FileOpen" xml:space="preserve">
+    <value>فتح خريطة...</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.FileSave" xml:space="preserve">
+    <value>حفظ الخريطة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.FileSaveAs" xml:space="preserve">
+    <value>حفظ الخريطة باسم...</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.FileClose" xml:space="preserve">
+    <value>إغلاق الخريطة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.RotateLeft" xml:space="preserve">
+    <value>تدوير الكاميرا لليسار</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.RotateRight" xml:space="preserve">
+    <value>تدوير الكاميرا لليمين</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.TiltUp" xml:space="preserve">
+    <value>إمالة الكاميرا لأعلى</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.TiltDown" xml:space="preserve">
+    <value>إمالة الكاميرا لأسفل</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.Reset" xml:space="preserve">
+    <value>إعادة ضبط الكاميرا</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.RotateLeftTooltip" xml:space="preserve">
+    <value>تدوير الكاميرا لليسار (Q)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.RotateRightTooltip" xml:space="preserve">
+    <value>تدوير الكاميرا لليمين (E)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.TiltUpTooltip" xml:space="preserve">
+    <value>إمالة الكاميرا لأعلى (R / PgUp)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.TiltDownTooltip" xml:space="preserve">
+    <value>إمالة الكاميرا لأسفل (F / PgDn)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.ResetTooltip" xml:space="preserve">
+    <value>إعادة ضبط الكاميرا (Home)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.PitchTooltip" xml:space="preserve">
+    <value>زاوية ميل الكاميرا</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.YawTooltip" xml:space="preserve">
+    <value>زاوية دوران الكاميرا</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.ToggleLabelsTooltip" xml:space="preserve">
+    <value>تبديل تسميات الكائنات</value>
+  </data>
+  <data name="Tools.WorldBuilder.Ruler.Title" xml:space="preserve">
+    <value>منشئ العوالم</value>
+  </data>
+  <data name="Tools.WorldBuilder.Ruler.DistanceMessage" xml:space="preserve">
+    <value>المسافة: {0:F1} وحدة</value>
+  </data>
+  <data name="Tools.WorldBuilder.Renderer.Fallback.Title" xml:space="preserve">
+    <value>العرض ثلاثي الأبعاد غير متاح</value>
+  </data>
+  <data name="Tools.WorldBuilder.Renderer.Fallback.Message" xml:space="preserve">
+    <value>تعذر العثور على سياق OpenGL صالح، لذا يتم عرض الخريطة كمعاينة ثنائية الأبعاد مبسطة. يبقى التحرير ثلاثي الأبعاد متاحا عبر الأدوات نفسها.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.PlayerSideItem" xml:space="preserve">
+    <value>جانب اللاعب</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.TeamItem" xml:space="preserve">
+    <value>الفريق</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ScriptPrefix" xml:space="preserve">
+    <value>البرنامج النصي:</value>
+  </data>
 </root>

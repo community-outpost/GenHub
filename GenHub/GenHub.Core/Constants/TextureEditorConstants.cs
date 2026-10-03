@@ -183,6 +183,11 @@ public static class TextureEditorConstants
     public const string TgaExtension = ".tga";
 
     /// <summary>
+    /// DDS file extension. The SAGE engine prefers the DDS sibling of a texture name.
+    /// </summary>
+    public const string DdsExtension = ".dds";
+
+    /// <summary>
     /// Extension for BIG archive files.
     /// </summary>
     public const string BigArchiveExtension = ".big";

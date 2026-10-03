@@ -19,6 +19,11 @@ public static class ToolConstants
     public const string DefaultAuthor = "GenHub Team";
 
     /// <summary>
+    /// Common tag for modding tools.
+    /// </summary>
+    public const string ModdingTag = "modding";
+
+    /// <summary>
     /// Mock sharing URLs for demo tool services.
     /// </summary>
     public static class MockUrls
@@ -164,7 +169,7 @@ public static class ToolConstants
         /// <summary>
         /// The tags associated with the ModBuilder tool.
         /// </summary>
-        public static readonly string[] Tags = ["modding", "build-automation", "development"];
+        public static readonly string[] Tags = [ModdingTag, "build-automation", "development"];
     }
 
     /// <summary>
@@ -210,7 +215,7 @@ public static class ToolConstants
         /// <summary>
         /// The tags associated with the INI Editor tool.
         /// </summary>
-        public static readonly string[] Tags = ["modding", "ini", "data"];
+        public static readonly string[] Tags = [ModdingTag, "ini", "data"];
     }
 
     /// <summary>
@@ -256,6 +261,52 @@ public static class ToolConstants
         /// <summary>
         /// The tags associated with the WND Editor tool.
         /// </summary>
-        public static readonly string[] Tags = ["modding", "ui-layout", "wnd"];
+        public static readonly string[] Tags = [ModdingTag, "ui-layout", "wnd"];
+    }
+
+    /// <summary>
+    /// Constants for the WorldBuilder tool plugin.
+    /// </summary>
+    public static class WorldBuilder
+    {
+        /// <summary>
+        /// The unique identifier for the WorldBuilder tool.
+        /// </summary>
+        public const string Id = "genhub.tools.worldbuilder";
+
+        /// <summary>
+        /// The display name for the WorldBuilder tool.
+        /// </summary>
+        public const string Name = "WorldBuilder";
+
+        /// <summary>
+        /// The version of the WorldBuilder tool.
+        /// </summary>
+        public const string Version = DefaultVersion;
+
+        /// <summary>
+        /// The author of the WorldBuilder tool.
+        /// </summary>
+        public const string Author = DefaultAuthor;
+
+        /// <summary>
+        /// The description of the WorldBuilder tool.
+        /// </summary>
+        public const string Description = "Create, open, validate, and generate Command & Conquer: Generals and Zero Hour maps. Round-trips .map files with .wak waves and .tga previews.";
+
+        /// <summary>
+        /// The icon path for the WorldBuilder tool.
+        /// </summary>
+        public const string IconPath = UriConstants.WorldBuilderIconUri;
+
+        /// <summary>
+        /// Whether the WorldBuilder tool is bundled with the application.
+        /// </summary>
+        public const bool IsBundled = true;
+
+        /// <summary>
+        /// The tags associated with the WorldBuilder tool.
+        /// </summary>
+        public static readonly string[] Tags = [ModdingTag, "maps", "worldbuilder"];
     }
 }
