@@ -13858,6 +13858,21 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Downloads.ContentDetail.VideoPlayer.PlayPause" xml:space="preserve">
     <value>Play / Pause</value>
   </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.Rewind" xml:space="preserve">
+    <value>Rewind 10 seconds</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.FastForward" xml:space="preserve">
+    <value>Fast forward 10 seconds</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.Fullscreen" xml:space="preserve">
+    <value>Full screen</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.ExitFullscreen" xml:space="preserve">
+    <value>Exit full screen</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.BufferingVideo" xml:space="preserve">
+    <value>Buffering...</value>
+  </data>
   <data name="Downloads.ContentDetail.VideoPlayer.MuteUnmute" xml:space="preserve">
     <value>Mute / Unmute</value>
   </data>

@@ -1962,7 +1962,9 @@
         </Button>
 
         <!-- Video Player Dialog -->
-        <Border Background="{DynamicResource CardBackground}"
+        <Border x:Name="VideoModalBorder"
+                Classes.fullscreen="{Binding IsVideoPlayerFullscreen}"
+                Background="{DynamicResource CardBackground}"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="1"
                 CornerRadius="12"
@@ -1971,9 +1973,37 @@
                 VerticalAlignment="Center"
                 BoxShadow="0 16 48 0 #80000000"
                 ClipToBounds="True">
-            <!-- Fixed stage width: the video surface has no intrinsic size, so without
-                 an explicit width the dialog collapses to the player minimum. -->
-            <Grid RowDefinitions="Auto,*" Width="960" MaxWidth="1100" MaxHeight="750">
+            <Border.Styles>
+                <Style Selector="Border.fullscreen">
+                    <Setter Property="Margin" Value="0" />
+                    <Setter Property="CornerRadius" Value="0" />
+                    <Setter Property="BorderThickness" Value="0" />
+                    <Setter Property="HorizontalAlignment" Value="Stretch" />
+                    <Setter Property="VerticalAlignment" Value="Stretch" />
+                    <Setter Property="BoxShadow" Value="none" />
+                </Style>
+            </Border.Styles>
+
+            <Grid x:Name="VideoModalGrid"
+                  Classes.fullscreen="{Binding IsVideoPlayerFullscreen}"
+                  RowDefinitions="Auto,*"
+                  Width="{Binding VideoModalWidth}"
+                  Height="{Binding VideoModalHeight}"
+                  MinWidth="560"
+                  MinHeight="380"
+                  MaxWidth="1920"
+                  MaxHeight="1200">
+                <Grid.Styles>
+                    <Style Selector="Grid.fullscreen">
+                        <Setter Property="Width" Value="{x:Static x:Double.NaN}" />
+                        <Setter Property="Height" Value="{x:Static x:Double.NaN}" />
+                        <Setter Property="MinWidth" Value="0" />
+                        <Setter Property="MinHeight" Value="0" />
+                        <Setter Property="MaxWidth" Value="Infinity" />
+                        <Setter Property="MaxHeight" Value="Infinity" />
+                    </Style>
+                </Grid.Styles>
+
                 <!-- Modal Header -->
                 <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="16,12" Background="Transparent">
                     <TextBlock Grid.Column="0"
@@ -1983,35 +2013,79 @@
                                Foreground="{DynamicResource TextPrimary}"
                                VerticalAlignment="Center"
                                TextTrimming="CharacterEllipsis" />
-                    <Button Grid.Column="1"
-                            Command="{Binding CloseVideoPlayerCommand}"
-                            Foreground="{DynamicResource TextSecondary}"
-                            Background="{DynamicResource SurfaceElevatedBrush}"
-                            BorderThickness="1"
-                            BorderBrush="{DynamicResource BorderBrush}"
-                            CornerRadius="6"
-                            Width="30"
-                            Height="30"
-                            HorizontalContentAlignment="Center"
-                            VerticalContentAlignment="Center"
-                            Cursor="Hand">
-                        <PathIcon Data="{StaticResource ToolIcon.Close}" Width="12" Height="12" />
-                        <Button.Styles>
-                            <Style Selector="Button:pointerover">
-                                <Setter Property="Background" Value="{DynamicResource ErrorBrush}" />
-                                <Setter Property="Foreground" Value="White" />
-                            </Style>
-                        </Button.Styles>
-                    </Button>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                        <Button Command="{Binding ToggleVideoPlayerFullscreenCommand}"
+                                Foreground="{DynamicResource TextSecondary}"
+                                Background="{DynamicResource SurfaceElevatedBrush}"
+                                BorderThickness="1"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                CornerRadius="6"
+                                Width="30"
+                                Height="30"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                Cursor="Hand"
+                                ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.Fullscreen}">
+                            <Panel>
+                                <PathIcon Data="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"
+                                          Width="12"
+                                          Height="12"
+                                          IsVisible="{Binding !IsVideoPlayerFullscreen}" />
+                                <PathIcon Data="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-14v3h3v2h-5V5h2z"
+                                          Width="12"
+                                          Height="12"
+                                          IsVisible="{Binding IsVideoPlayerFullscreen}" />
+                            </Panel>
+                        </Button>
+                        <Button Command="{Binding CloseVideoPlayerCommand}"
+                                Foreground="{DynamicResource TextSecondary}"
+                                Background="{DynamicResource SurfaceElevatedBrush}"
+                                BorderThickness="1"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                CornerRadius="6"
+                                Width="30"
+                                Height="30"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                Cursor="Hand"
+                                ToolTip.Tip="{localization:Localize Common.Close}">
+                            <PathIcon Data="{StaticResource ToolIcon.Close}" Width="12" Height="12" />
+                            <Button.Styles>
+                                <Style Selector="Button:pointerover">
+                                    <Setter Property="Background" Value="{DynamicResource ErrorBrush}" />
+                                    <Setter Property="Foreground" Value="White" />
+                                </Style>
+                            </Button.Styles>
+                        </Button>
+                    </StackPanel>
                 </Grid>
 
                 <!-- Video Player -->
                 <Border Grid.Row="1" Background="Black" Padding="12">
-                    <common:VideoPlayerView SourceUrl="{Binding VideoPlayerUrl}"
-                                             FallbackCommand="{Binding OpenVideoExternallyCommand}"
-                                             HorizontalAlignment="Stretch"
-                                             MaxHeight="680"
-                                             MaxWidth="1060" />
+                    <Panel>
+                        <common:VideoPlayerView SourceUrl="{Binding VideoPlayerUrl}"
+                                                 FallbackCommand="{Binding OpenVideoExternallyCommand}"
+                                                 IsFullscreen="{Binding IsVideoPlayerFullscreen}"
+                                                 ToggleFullscreenCommand="{Binding ToggleVideoPlayerFullscreenCommand}"
+                                                 HorizontalAlignment="Stretch"
+                                                 VerticalAlignment="Stretch" />
+
+                        <!-- Resize Grip (visible only in windowed mode) -->
+                        <Border x:Name="VideoModalResizeGrip"
+                                Width="20"
+                                Height="20"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Bottom"
+                                Cursor="BottomRightCorner"
+                                Background="Transparent"
+                                Margin="0,0,-4,-4"
+                                IsVisible="{Binding !IsVideoPlayerFullscreen}">
+                            <PathIcon Data="M22 22h-2v-2h2v2zm0-4h-2v-2h2v2zm-4 4h-2v-2h2v2zm0-4h-2v-2h2v2zm-4 4h-2v-2h2v2zm8-8h-2v-2h2v2z"
+                                      Width="10"
+                                      Height="10"
+                                      Foreground="{DynamicResource TextTertiary}" />
+                        </Border>
+                    </Panel>
                 </Border>
             </Grid>
         </Border>

@@ -299,6 +299,15 @@ public partial class ContentDetailViewModel(
     private bool _isVideoPlayerOpen;
 
     [ObservableProperty]
+    private bool _isVideoPlayerFullscreen;
+
+    [ObservableProperty]
+    private double _videoModalWidth = 960;
+
+    [ObservableProperty]
+    private double _videoModalHeight = 620;
+
+    [ObservableProperty]
     private bool _isLoadingDetails;
 
     [ObservableProperty]
@@ -4094,7 +4103,15 @@ public partial class ContentDetailViewModel(
         var videoList = new List<Video>();
         var seenVideos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        void AddVideo(string? url, string title)
+        var screenshots = (catalogItem.Metadata?.ScreenshotUrls ?? [])
+            .Where(u => !string.IsNullOrWhiteSpace(u) && MediaFileHelper.IsRemoteHttpUrl(u))
+            .ToList();
+        var fallbackArtwork = catalogItem.Metadata?.BackdropUrl
+            ?? catalogItem.Metadata?.BannerUrl
+            ?? searchResult.IconUrl
+            ?? catalogItem.Metadata?.IconUrl;
+
+        void AddVideo(string? url, string title, int fallbackIndex = 0, IReadOnlyList<string>? specificScreenshots = null)
         {
             if (string.IsNullOrWhiteSpace(url) || !seenVideos.Add(url))
             {
@@ -4107,27 +4124,48 @@ public partial class ContentDetailViewModel(
                 return;
             }
 
-            // Only official video thumbnails (e.g. YouTube posters) are shown. Direct
-            // uploads have no poster frame, so the card renders a play-tile
-            // placeholder instead of unrelated banner artwork.
+            // Official video thumbnail (e.g. YouTube poster) takes priority. For hosted/direct
+            // videos, fall back to screenshots or publisher artwork so cards render rich thumbnails.
+            var thumb = MediaFileHelper.TryGetYouTubeThumbnailUrl(url);
+            if (string.IsNullOrEmpty(thumb))
+            {
+                var pool = specificScreenshots is { Count: > 0 }
+                    ? specificScreenshots
+                    : screenshots;
+
+                if (fallbackIndex >= 0 && fallbackIndex < pool.Count)
+                {
+                    thumb = pool[fallbackIndex];
+                }
+                else if (pool.Count > 0)
+                {
+                    thumb = pool[0];
+                }
+                else
+                {
+                    thumb = fallbackArtwork;
+                }
+            }
+
             videoList.Add(new Video(
                 Title: title,
-                ThumbnailUrl: MediaFileHelper.TryGetYouTubeThumbnailUrl(url),
+                ThumbnailUrl: thumb,
                 EmbedUrl: url,
                 Platform: "Web"));
         }
 
         if (!string.IsNullOrWhiteSpace(catalogItem.Metadata?.VideoUrl))
         {
-            AddVideo(catalogItem.Metadata.VideoUrl, $"{catalogItem.Name} Preview");
+            AddVideo(catalogItem.Metadata.VideoUrl, $"{catalogItem.Name} Preview", fallbackIndex: 0);
         }
 
         if (catalogItem.Metadata?.VideoUrls != null)
         {
             var idx = 1;
+            var videoIdx = 0;
             foreach (var vid in catalogItem.Metadata.VideoUrls)
             {
-                AddVideo(vid, $"{catalogItem.Name} Showcase {idx++}");
+                AddVideo(vid, $"{catalogItem.Name} Showcase {idx++}", fallbackIndex: videoIdx++);
             }
         }
 
@@ -4140,10 +4178,15 @@ public partial class ContentDetailViewModel(
                     continue;
                 }
 
+                var releaseScreenshots = (rel.ImageUrls ?? [])
+                    .Where(u => !string.IsNullOrWhiteSpace(u) && MediaFileHelper.IsRemoteHttpUrl(u))
+                    .ToList();
+
                 var rIdx = 1;
+                var videoIdx = 0;
                 foreach (var vid in rel.VideoUrls)
                 {
-                    AddVideo(vid, $"{catalogItem.Name} v{rel.Version} Video {rIdx++}");
+                    AddVideo(vid, $"{catalogItem.Name} v{rel.Version} Video {rIdx++}", fallbackIndex: videoIdx++, specificScreenshots: releaseScreenshots);
                 }
             }
         }
@@ -4157,10 +4200,15 @@ public partial class ContentDetailViewModel(
                     continue;
                 }
 
+                var addonScreenshots = (addon.ImageUrls ?? [])
+                    .Where(u => !string.IsNullOrWhiteSpace(u) && MediaFileHelper.IsRemoteHttpUrl(u))
+                    .ToList();
+
                 var aIdx = 1;
+                var videoIdx = 0;
                 foreach (var vid in addon.VideoUrls)
                 {
-                    AddVideo(vid, $"{addon.Title ?? DefaultAddonName} Video {aIdx++}");
+                    AddVideo(vid, $"{addon.Title ?? DefaultAddonName} Video {aIdx++}", fallbackIndex: videoIdx++, specificScreenshots: addonScreenshots);
                 }
             }
         }
@@ -6719,6 +6767,7 @@ public partial class ContentDetailViewModel(
         {
             case MediaDisplayAction.PlayVideo:
                 CloseFullScreenMedia();
+                IsVideoPlayerFullscreen = false;
                 VideoPlayerUrl = decision.Url;
                 VideoPlayerTitle = item is Video video
                     ? video.Title
@@ -6756,12 +6805,22 @@ public partial class ContentDetailViewModel(
     }
 
     /// <summary>
+    /// Toggles full-screen presentation mode for the in-app video player.
+    /// </summary>
+    [RelayCommand]
+    private void ToggleVideoPlayerFullscreen()
+    {
+        IsVideoPlayerFullscreen = !IsVideoPlayerFullscreen;
+    }
+
+    /// <summary>
     /// Closes the in-app video player.
     /// </summary>
     [RelayCommand]
     private void CloseVideoPlayer()
     {
         IsVideoPlayerOpen = false;
+        IsVideoPlayerFullscreen = false;
         VideoPlayerUrl = null;
         VideoPlayerTitle = null;
     }

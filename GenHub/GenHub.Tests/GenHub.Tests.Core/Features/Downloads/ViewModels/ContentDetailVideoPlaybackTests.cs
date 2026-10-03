@@ -10,11 +10,13 @@ using GenHub.Core.Interfaces.Parsers;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Parsers;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Downloads.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Threading;
 using Xunit;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
@@ -221,13 +223,134 @@ public sealed class ContentDetailVideoPlaybackTests
         viewModel.CloseVideoPlayerCommand.Execute(null);
 
         Assert.False(viewModel.IsVideoPlayerOpen);
+        Assert.False(viewModel.IsVideoPlayerFullscreen);
         Assert.Null(viewModel.VideoPlayerUrl);
         Assert.Null(viewModel.VideoPlayerTitle);
     }
 
-    private static ContentDetailViewModel CreateViewModel()
+    /// <summary>
+    /// Verifies that toggling full screen flips the presentation flag.
+    /// </summary>
+    [Fact]
+    public void ToggleVideoPlayerFullscreen_TogglesState()
     {
+        var viewModel = CreateViewModel();
+
+        Assert.False(viewModel.IsVideoPlayerFullscreen);
+
+        viewModel.ToggleVideoPlayerFullscreenCommand.Execute(null);
+        Assert.True(viewModel.IsVideoPlayerFullscreen);
+
+        viewModel.ToggleVideoPlayerFullscreenCommand.Execute(null);
+        Assert.False(viewModel.IsVideoPlayerFullscreen);
+    }
+
+    /// <summary>
+    /// Verifies that hosted video files without YouTube posters fall back to screenshots.
+    /// </summary>
+    [Fact]
+    public void BuildCatalogVideos_HostedVideo_FallsBackToScreenshot()
+    {
+        var catalogItem = new CatalogContentItem
+        {
+            Id = "test-item",
+            Name = "Replay Checkpoint & Takeover",
+            Metadata = new ContentRichMetadata
+            {
+                ScreenshotUrls = ["https://drive.google.com/uc?id=screenshot123"],
+                VideoUrls = ["https://drive.google.com/uc?id=video123.mp4"],
+            },
+        };
+        var json = JsonSerializer.Serialize(catalogItem);
         var searchResult = new ContentSearchResult
+        {
+            Id = "video-playback-test",
+            Name = "Playback Test",
+            ProviderName = "Test",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ResolverMetadata = { [CatalogConstants.CatalogItemJsonMetadataKey] = json },
+        };
+
+        var viewModel = CreateViewModel(searchResult);
+        viewModel.Initialize();
+
+        Assert.Single(viewModel.Videos);
+        Assert.Equal("https://drive.google.com/uc?id=screenshot123", viewModel.Videos[0].ThumbnailUrl);
+        Assert.Equal("https://drive.google.com/uc?id=video123.mp4", viewModel.Videos[0].EmbedUrl);
+    }
+
+    /// <summary>
+    /// Verifies that hosted video files without screenshots fall back to backdrop artwork.
+    /// </summary>
+    [Fact]
+    public void BuildCatalogVideos_HostedVideo_WithoutScreenshots_FallsBackToBackdrop()
+    {
+        var catalogItem = new CatalogContentItem
+        {
+            Id = "test-item",
+            Name = "Replay Checkpoint & Takeover",
+            Metadata = new ContentRichMetadata
+            {
+                BackdropUrl = "https://cdn.example.com/backdrop.png",
+                VideoUrls = ["https://drive.google.com/uc?id=video123.mp4"],
+            },
+        };
+        var json = JsonSerializer.Serialize(catalogItem);
+        var searchResult = new ContentSearchResult
+        {
+            Id = "video-playback-test",
+            Name = "Playback Test",
+            ProviderName = "Test",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ResolverMetadata = { [CatalogConstants.CatalogItemJsonMetadataKey] = json },
+        };
+
+        var viewModel = CreateViewModel(searchResult);
+        viewModel.Initialize();
+
+        Assert.Single(viewModel.Videos);
+        Assert.Equal("https://cdn.example.com/backdrop.png", viewModel.Videos[0].ThumbnailUrl);
+    }
+
+    /// <summary>
+    /// Verifies that YouTube videos still resolve to official YouTube thumbnail posters.
+    /// </summary>
+    [Fact]
+    public void BuildCatalogVideos_YouTubeVideo_UsesYouTubeThumbnail()
+    {
+        var catalogItem = new CatalogContentItem
+        {
+            Id = "test-item",
+            Name = "YouTube Mod",
+            Metadata = new ContentRichMetadata
+            {
+                ScreenshotUrls = ["https://drive.google.com/uc?id=screenshot123"],
+                VideoUrls = ["https://www.youtube.com/watch?v=dQw4w9WgXcQ"],
+            },
+        };
+        var json = JsonSerializer.Serialize(catalogItem);
+        var searchResult = new ContentSearchResult
+        {
+            Id = "video-playback-test",
+            Name = "Playback Test",
+            ProviderName = "Test",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ResolverMetadata = { [CatalogConstants.CatalogItemJsonMetadataKey] = json },
+        };
+
+        var viewModel = CreateViewModel(searchResult);
+        viewModel.Initialize();
+
+        Assert.Single(viewModel.Videos);
+        Assert.Equal("https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg", viewModel.Videos[0].ThumbnailUrl);
+    }
+
+    private static ContentDetailViewModel CreateViewModel(ContentSearchResult? customResult = null)
+    {
+        var searchResult = customResult ?? new ContentSearchResult
         {
             Id = "video-playback-test",
             Name = "Playback Test",

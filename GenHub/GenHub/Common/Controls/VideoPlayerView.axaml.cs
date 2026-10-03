@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
@@ -27,6 +28,18 @@ public partial class VideoPlayerView : UserControl
     /// </summary>
     public static readonly StyledProperty<ICommand?> FallbackCommandProperty =
         AvaloniaProperty.Register<VideoPlayerView, ICommand?>(nameof(FallbackCommand));
+
+    /// <summary>
+    /// Defines the <see cref="ToggleFullscreenCommand"/> property.
+    /// </summary>
+    public static readonly StyledProperty<ICommand?> ToggleFullscreenCommandProperty =
+        AvaloniaProperty.Register<VideoPlayerView, ICommand?>(nameof(ToggleFullscreenCommand));
+
+    /// <summary>
+    /// Defines the <see cref="IsFullscreen"/> property.
+    /// </summary>
+    public static readonly StyledProperty<bool> IsFullscreenProperty =
+        AvaloniaProperty.Register<VideoPlayerView, bool>(nameof(IsFullscreen));
 
     /// <summary>
     /// Defines the <see cref="IsLoading"/> property.
@@ -64,9 +77,24 @@ public partial class VideoPlayerView : UserControl
     public static readonly DirectProperty<VideoPlayerView, string> PositionTextProperty =
         AvaloniaProperty.RegisterDirect<VideoPlayerView, string>(nameof(PositionText), o => o.PositionText);
 
+    /// <summary>
+    /// Defines the <see cref="IsVideoSurfaceVisible"/> property.
+    /// Hiding the native VideoView while loading/error prevents native airspace from obscuring UI overlays.
+    /// </summary>
+    public static readonly DirectProperty<VideoPlayerView, bool> IsVideoSurfaceVisibleProperty =
+        AvaloniaProperty.RegisterDirect<VideoPlayerView, bool>(nameof(IsVideoSurfaceVisible), o => o.IsVideoSurfaceVisible);
+
+    /// <summary>
+    /// Defines the <see cref="LoadingText"/> property.
+    /// </summary>
+    public static readonly DirectProperty<VideoPlayerView, string> LoadingTextProperty =
+        AvaloniaProperty.RegisterDirect<VideoPlayerView, string>(nameof(LoadingText), o => o.LoadingText);
+
     private const int PositionScale = 1000;
     private const int PositionPollIntervalMs = 500;
     private const int ConnectionTimeoutSeconds = 20;
+    private const long SkipStepMilliseconds = 10000;
+
     private static readonly object SyncRoot = new();
     private static LibVLC? sharedLibVlc;
     private static bool initializationAttempted;
@@ -77,12 +105,15 @@ public partial class VideoPlayerView : UserControl
     private Media? currentMedia;
     private DateTime playbackStartedUtc = DateTime.MinValue;
     private bool isScrubbing;
+    private bool isUpdatingSliderFromTimer;
     private bool isLoading = true;
     private bool hasError;
     private bool isUnavailable;
     private bool isPlaying;
     private bool isMuted;
+    private bool isVideoSurfaceVisible;
     private string positionText = FormatTime(0) + " / " + FormatTime(0);
+    private string loadingText = "Loading video...";
 
     /// <summary>
     /// Initializes a new instance of the <see cref="VideoPlayerView"/> class.
@@ -95,11 +126,22 @@ public partial class VideoPlayerView : UserControl
             Interval = TimeSpan.FromMilliseconds(PositionPollIntervalMs),
         };
         positionTimer.Tick += OnPositionTimerTick;
+
         PlayPauseButton.Click += OnPlayPauseClicked;
+        RewindButton.Click += OnRewindClicked;
+        FastForwardButton.Click += OnFastForwardClicked;
         MuteButton.Click += OnMuteClicked;
+        FullscreenButton.Click += OnFullscreenClicked;
         RetryButton.Click += OnRetryClicked;
+        StageBorder.DoubleTapped += OnStageDoubleTapped;
+
         PositionSlider.AddHandler(InputElement.PointerPressedEvent, OnScrubStarted, RoutingStrategies.Tunnel);
         PositionSlider.AddHandler(InputElement.PointerReleasedEvent, OnScrubFinished, RoutingStrategies.Bubble);
+        PositionSlider.AddHandler(InputElement.PointerCaptureLostEvent, OnScrubCaptureLost, RoutingStrategies.Bubble);
+        PositionSlider.ValueChanged += OnPositionSliderValueChanged;
+
+        PointerPressed += OnViewPointerPressed;
+        UpdateSurfaceVisibility();
     }
 
     /// <summary>
@@ -121,12 +163,34 @@ public partial class VideoPlayerView : UserControl
     }
 
     /// <summary>
+    /// Gets or sets the toggle full-screen command.
+    /// </summary>
+    public ICommand? ToggleFullscreenCommand
+    {
+        get => GetValue(ToggleFullscreenCommandProperty);
+        set => SetValue(ToggleFullscreenCommandProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the player is presented full screen.
+    /// </summary>
+    public bool IsFullscreen
+    {
+        get => GetValue(IsFullscreenProperty);
+        set => SetValue(IsFullscreenProperty, value);
+    }
+
+    /// <summary>
     /// Gets a value indicating whether the player is connecting or buffering.
     /// </summary>
     public bool IsLoading
     {
         get => isLoading;
-        private set => SetAndRaise(IsLoadingProperty, ref isLoading, value);
+        private set
+        {
+            SetAndRaise(IsLoadingProperty, ref isLoading, value);
+            UpdateSurfaceVisibility();
+        }
     }
 
     /// <summary>
@@ -135,7 +199,11 @@ public partial class VideoPlayerView : UserControl
     public bool HasError
     {
         get => hasError;
-        private set => SetAndRaise(HasErrorProperty, ref hasError, value);
+        private set
+        {
+            SetAndRaise(HasErrorProperty, ref hasError, value);
+            UpdateSurfaceVisibility();
+        }
     }
 
     /// <summary>
@@ -144,7 +212,11 @@ public partial class VideoPlayerView : UserControl
     public bool IsUnavailable
     {
         get => isUnavailable;
-        private set => SetAndRaise(IsUnavailableProperty, ref isUnavailable, value);
+        private set
+        {
+            SetAndRaise(IsUnavailableProperty, ref isUnavailable, value);
+            UpdateSurfaceVisibility();
+        }
     }
 
     /// <summary>
@@ -172,6 +244,133 @@ public partial class VideoPlayerView : UserControl
     {
         get => positionText;
         private set => SetAndRaise(PositionTextProperty, ref positionText, value);
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether the native video surface is visible.
+    /// </summary>
+    public bool IsVideoSurfaceVisible
+    {
+        get => isVideoSurfaceVisible;
+        private set => SetAndRaise(IsVideoSurfaceVisibleProperty, ref isVideoSurfaceVisible, value);
+    }
+
+    /// <summary>
+    /// Gets the current loading / buffering display text.
+    /// </summary>
+    public string LoadingText
+    {
+        get => loadingText;
+        private set => SetAndRaise(LoadingTextProperty, ref loadingText, value);
+    }
+
+    /// <summary>
+    /// Seeks forward or backward by the specified number of milliseconds.
+    /// </summary>
+    /// <param name="deltaMilliseconds">Positive to skip forward, negative to go back.</param>
+    public void SeekBy(long deltaMilliseconds)
+    {
+        var player = mediaPlayer;
+        if (player == null || HasError)
+        {
+            return;
+        }
+
+        try
+        {
+            if (player.Length > 0)
+            {
+                var newTime = Math.Clamp(player.Time + deltaMilliseconds, 0, player.Length);
+                player.Time = newTime;
+                try
+                {
+                    isUpdatingSliderFromTimer = true;
+                    PositionSlider.Value = (double)newTime / player.Length * PositionScale;
+                }
+                finally
+                {
+                    isUpdatingSliderFromTimer = false;
+                }
+
+                PositionText = FormatTime(newTime) + " / " + FormatTime(player.Length);
+            }
+            else if (player.Position >= 0)
+            {
+                var deltaPos = (float)deltaMilliseconds / 60000f;
+                var newPos = Math.Clamp(player.Position + deltaPos, 0f, 1f);
+                player.Position = newPos;
+                try
+                {
+                    isUpdatingSliderFromTimer = true;
+                    PositionSlider.Value = newPos * PositionScale;
+                }
+                finally
+                {
+                    isUpdatingSliderFromTimer = false;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is VLCException or InvalidOperationException)
+        {
+            System.Diagnostics.Debug.WriteLine($"Video seek failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Toggles full screen presentation mode.
+    /// </summary>
+    public void ToggleFullscreen()
+    {
+        if (ToggleFullscreenCommand != null && ToggleFullscreenCommand.CanExecute(null))
+        {
+            ToggleFullscreenCommand.Execute(null);
+        }
+        else
+        {
+            IsFullscreen = !IsFullscreen;
+        }
+    }
+
+    /// <inheritdoc />
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.Handled)
+        {
+            return;
+        }
+
+        switch (e.Key)
+        {
+            case Key.Left:
+                SeekBy(-SkipStepMilliseconds);
+                e.Handled = true;
+                break;
+            case Key.Right:
+                SeekBy(SkipStepMilliseconds);
+                e.Handled = true;
+                break;
+            case Key.Space:
+                OnPlayPauseClicked(this, new RoutedEventArgs());
+                e.Handled = true;
+                break;
+            case Key.M:
+                OnMuteClicked(this, new RoutedEventArgs());
+                e.Handled = true;
+                break;
+            case Key.F:
+                ToggleFullscreen();
+                e.Handled = true;
+                break;
+            case Key.Escape:
+                if (IsFullscreen)
+                {
+                    ToggleFullscreen();
+                    e.Handled = true;
+                }
+
+                break;
+        }
     }
 
     /// <inheritdoc />
@@ -209,7 +408,7 @@ public partial class VideoPlayerView : UserControl
         base.OnDetachedFromVisualTree(e);
     }
 
-    private static LibVLC? EnsureLibVlc()
+    private static LibVLC? EnsureLibVLC()
     {
         lock (SyncRoot)
         {
@@ -259,10 +458,15 @@ public partial class VideoPlayerView : UserControl
             : $"{minutes}:{seconds:D2}";
     }
 
+    private void UpdateSurfaceVisibility()
+    {
+        IsVideoSurfaceVisible = !isLoading && !hasError && !isUnavailable;
+    }
+
     private void StartPlayback(string url)
     {
         ResetStage();
-        var libVlc = EnsureLibVlc();
+        var libVlc = EnsureLibVLC();
         if (libVlc == null)
         {
             IsLoading = false;
@@ -293,6 +497,31 @@ public partial class VideoPlayerView : UserControl
     private void AttachPlayerEvents(MediaPlayer player)
     {
         player.EncounteredError += OnPlaybackError;
+        player.Opening += (_, _) => Dispatcher.UIThread.Post(() =>
+        {
+            if (ReferenceEquals(mediaPlayer, player) && !HasError)
+            {
+                IsLoading = true;
+            }
+        });
+        player.Buffering += (_, e) => Dispatcher.UIThread.Post(() =>
+        {
+            if (!ReferenceEquals(mediaPlayer, player) || HasError)
+            {
+                return;
+            }
+
+            if (e.Cache < 100f)
+            {
+                IsLoading = true;
+                LoadingText = $"Loading video... {Math.Round(e.Cache)}%";
+            }
+            else
+            {
+                IsLoading = false;
+                LoadingText = "Loading video...";
+            }
+        });
         player.Playing += (_, _) => Dispatcher.UIThread.Post(() => UpdatePlayingState(player, isPlaying: true));
         player.Paused += (_, _) => Dispatcher.UIThread.Post(() => UpdatePlayingState(player, isPlaying: false));
         player.Stopped += (_, _) => Dispatcher.UIThread.Post(() => UpdatePlayingState(player, isPlaying: false));
@@ -326,8 +555,10 @@ public partial class VideoPlayerView : UserControl
         IsUnavailable = false;
         IsPlaying = false;
         IsLoading = true;
+        LoadingText = "Loading video...";
         PositionSlider.Value = 0;
         PositionText = FormatTime(0) + " / " + FormatTime(0);
+        UpdateSurfaceVisibility();
     }
 
     private void UpdatePlayingState(MediaPlayer player, bool isPlaying)
@@ -337,8 +568,11 @@ public partial class VideoPlayerView : UserControl
             return;
         }
 
-        IsLoading = false;
         IsPlaying = isPlaying;
+        if (isPlaying && (player.Time > 0 || player.Length > 0))
+        {
+            IsLoading = false;
+        }
     }
 
     private void OnPlaybackError(object? sender, EventArgs e)
@@ -392,9 +626,22 @@ public partial class VideoPlayerView : UserControl
             return;
         }
 
+        if (player.Time > 0 && IsLoading)
+        {
+            IsLoading = false;
+        }
+
         if (!isScrubbing && player.Length > 0)
         {
-            PositionSlider.Value = player.Position * PositionScale;
+            try
+            {
+                isUpdatingSliderFromTimer = true;
+                PositionSlider.Value = player.Position * PositionScale;
+            }
+            finally
+            {
+                isUpdatingSliderFromTimer = false;
+            }
         }
 
         PositionText = FormatTime(player.Time) + " / " + FormatTime(player.Length);
@@ -425,6 +672,16 @@ public partial class VideoPlayerView : UserControl
         }
     }
 
+    private void OnRewindClicked(object? sender, RoutedEventArgs e)
+    {
+        SeekBy(-SkipStepMilliseconds);
+    }
+
+    private void OnFastForwardClicked(object? sender, RoutedEventArgs e)
+    {
+        SeekBy(SkipStepMilliseconds);
+    }
+
     private void OnMuteClicked(object? sender, RoutedEventArgs e)
     {
         var player = mediaPlayer;
@@ -435,6 +692,22 @@ public partial class VideoPlayerView : UserControl
 
         player.Mute = !player.Mute;
         IsMuted = player.Mute;
+    }
+
+    private void OnFullscreenClicked(object? sender, RoutedEventArgs e)
+    {
+        ToggleFullscreen();
+    }
+
+    private void OnStageDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        ToggleFullscreen();
+        e.Handled = true;
+    }
+
+    private void OnViewPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        Focus();
     }
 
     private void OnRetryClicked(object? sender, RoutedEventArgs e)
@@ -448,16 +721,64 @@ public partial class VideoPlayerView : UserControl
     private void OnScrubStarted(object? sender, PointerPressedEventArgs e)
     {
         isScrubbing = true;
+        if (sender is Slider slider && slider.Bounds.Width > 0)
+        {
+            var pos = e.GetPosition(slider);
+            var ratio = Math.Clamp(pos.X / slider.Bounds.Width, 0.0, 1.0);
+            try
+            {
+                isUpdatingSliderFromTimer = true;
+                slider.Value = ratio * PositionScale;
+            }
+            finally
+            {
+                isUpdatingSliderFromTimer = false;
+            }
+
+            CommitSeek();
+        }
     }
 
     private void OnScrubFinished(object? sender, PointerReleasedEventArgs e)
+    {
+        CommitSeek();
+    }
+
+    private void OnScrubCaptureLost(object? sender, PointerCaptureLostEventArgs e)
+    {
+        CommitSeek();
+    }
+
+    private void OnPositionSliderValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
+    {
+        if (isUpdatingSliderFromTimer || isScrubbing)
+        {
+            return;
+        }
+
+        CommitSeek();
+    }
+
+    private void CommitSeek()
     {
         try
         {
             if (mediaPlayer != null && !HasError)
             {
-                mediaPlayer.Position = (float)(PositionSlider.Value / PositionScale);
+                var targetPos = (float)Math.Clamp(PositionSlider.Value / PositionScale, 0.0, 1.0);
+                if (mediaPlayer.Length > 0)
+                {
+                    mediaPlayer.Time = (long)(targetPos * mediaPlayer.Length);
+                }
+                else
+                {
+                    mediaPlayer.Position = targetPos;
+                }
             }
+        }
+        catch (Exception ex) when (ex is VLCException or InvalidOperationException)
+        {
+            System.Diagnostics.Debug.WriteLine($"Video seek failed: {ex.Message}");
         }
         finally
         {

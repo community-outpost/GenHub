@@ -13797,6 +13797,21 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Downloads.ContentDetail.VideoPlayer.PlayPause" xml:space="preserve">
     <value>Воспроизвести / Пауза</value>
   </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.Rewind" xml:space="preserve">
+    <value>Назад на 10 секунд</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.FastForward" xml:space="preserve">
+    <value>Вперед на 10 секунд</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.Fullscreen" xml:space="preserve">
+    <value>Во весь экран</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.ExitFullscreen" xml:space="preserve">
+    <value>Выйти из полноэкранного режима</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.BufferingVideo" xml:space="preserve">
+    <value>Буферизация...</value>
+  </data>
   <data name="Downloads.ContentDetail.VideoPlayer.MuteUnmute" xml:space="preserve">
     <value>Отключить / Включить звук</value>
   </data>

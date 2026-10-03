@@ -13797,6 +13797,21 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Downloads.ContentDetail.VideoPlayer.PlayPause" xml:space="preserve">
     <value>تشغيل / إيقاف مؤقت</value>
   </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.Rewind" xml:space="preserve">
+    <value>ترجيع 10 ثوانٍ</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.FastForward" xml:space="preserve">
+    <value>تقديم سريع 10 ثوانٍ</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.Fullscreen" xml:space="preserve">
+    <value>ملء الشاشة</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.ExitFullscreen" xml:space="preserve">
+    <value>الخروج من ملء الشاشة</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.BufferingVideo" xml:space="preserve">
+    <value>جارٍ التحميل المؤقت...</value>
+  </data>
   <data name="Downloads.ContentDetail.VideoPlayer.MuteUnmute" xml:space="preserve">
     <value>كتم / إلغاء الكتم</value>
   </data>
