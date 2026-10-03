@@ -50,14 +50,12 @@ public class FastHttpClientFileDownloader(
                 throw new HttpRequestException($"No IP addresses found for host '{context.DnsEndPoint.Host}'.");
             }
 
-            if (isLoopbackHost)
+            if (isLoopbackHost && !addresses.All(IPAddress.IsLoopback))
             {
-                if (!addresses.All(IPAddress.IsLoopback))
-                {
-                    throw new HttpRequestException($"Loopback host '{context.DnsEndPoint.Host}' resolved to a non-loopback IP address.");
-                }
+                throw new HttpRequestException($"Loopback host '{context.DnsEndPoint.Host}' resolved to a non-loopback IP address.");
             }
-            else if (!addresses.All(NetworkSecurityHelper.IsSafeIpAddress))
+
+            if (!isLoopbackHost && !addresses.All(NetworkSecurityHelper.IsSafeIpAddress))
             {
                 throw new HttpRequestException($"Host '{context.DnsEndPoint.Host}' resolved to an unsafe or reserved IP address.");
             }
@@ -535,7 +533,8 @@ public class FastHttpClientFileDownloader(
         }
     }
 
-    private static bool IsAllowedDownloadUrl(string? url, out string? error)
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
+    private bool IsAllowedDownloadUrl(string? url, out string? error)
     {
         if (string.IsNullOrWhiteSpace(url))
         {
@@ -543,19 +542,15 @@ public class FastHttpClientFileDownloader(
             return false;
         }
 
-        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) &&
+            (uri.IsLoopback ||
+             string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(uri.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(uri.Host, "::1", StringComparison.OrdinalIgnoreCase)))
         {
-            if (uri.IsLoopback ||
-                string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(uri.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(uri.Host, "::1", StringComparison.OrdinalIgnoreCase))
-            {
-                if (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
-                {
-                    error = null;
-                    return true;
-                }
-            }
+            error = null;
+            return true;
         }
 
         return NetworkSecurityHelper.IsSafeUrl(url, out error);
