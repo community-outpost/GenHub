@@ -1457,6 +1457,7 @@ public class PublisherStudioInventoryManagementTests
     /// <summary>
     /// Tests that the remote preview cache bounds its memory usage and evicts the oldest entry in FIFO order.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
     public async Task RemotePreviewCache_ExceedsCapacity_EvictsOldestFifoAsync()
     {
@@ -1467,10 +1468,11 @@ public class PublisherStudioInventoryManagementTests
             Catalog = new PublisherCatalog(),
         };
 
-        var catalogJson = JsonSerializer.Serialize(new PublisherCatalog
+        var sampleCatalog = new PublisherCatalog
         {
             Content = [new CatalogContentItem { Id = "c", Name = "Mod", ContentType = GenHub.Core.Models.Enums.ContentType.Mod }],
-        }, PublisherJsonOptions.Definition);
+        };
+        var catalogJson = JsonSerializer.Serialize(sampleCatalog, PublisherJsonOptions.Definition);
 
         var handler = new CountingJsonHandler(catalogJson);
         var client = new HttpClient(handler);
@@ -1583,7 +1585,19 @@ public class PublisherStudioInventoryManagementTests
             Directory.CreateDirectory(realTarget);
 
             var symlinkDir = Path.Combine(projectRoot, "symlink_dir");
-            Directory.CreateSymbolicLink(symlinkDir, realTarget);
+            try
+            {
+                Directory.CreateSymbolicLink(symlinkDir, realTarget);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Windows runners without developer mode or SeCreateSymbolicLinkPrivilege cannot create symlinks
+                return;
+            }
+            catch (IOException)
+            {
+                return;
+            }
 
             var fileUnderSymlink = Path.Combine(symlinkDir, "art.png");
             File.WriteAllText(Path.Combine(realTarget, "art.png"), "dummy");

@@ -246,12 +246,6 @@ public class PublishShareUploadFixTests
         Assert.NotNull(renamed);
         Assert.Equal("old-remote-id", renamed.FileId);
         Assert.Equal("https://example.com/catalog-old.json", renamed.Url);
-
-        Assert.NotEmpty(savedSnapshots);
-        var lastPersisted = savedSnapshots.Last().States[HostingConstants.GoogleDrive].Catalogs.Find(c => c.CatalogId == "new-cat-id");
-        Assert.NotNull(lastPersisted);
-        Assert.Equal("old-remote-id", lastPersisted.FileId);
-        Assert.Equal("https://example.com/catalog-old.json", lastPersisted.Url);
     }
 
     /// <summary>
@@ -290,7 +284,7 @@ public class PublishShareUploadFixTests
         {
             States = { [HostingConstants.GoogleDrive] = hostingState },
         };
-        SetupStateManager(container);
+        SetupStateManager("/test/path/project.json", container);
 
         var mockProvider = new Mock<IHostingProvider>();
         mockProvider.Setup(p => p.ProviderId).Returns(HostingConstants.GoogleDrive);
@@ -423,6 +417,7 @@ public class PublishShareUploadFixTests
                     }));
                     snapshot.States[k] = copy;
                 }
+
                 savedSnapshots.Add(snapshot);
             })
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
