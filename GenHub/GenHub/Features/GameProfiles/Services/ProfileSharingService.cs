@@ -2107,29 +2107,47 @@ public class ProfileSharingService(
         var profile = profileResult.Data;
         var manifests = new List<SharedManifestDependency>();
 
-        if (allowCloudUpload)
-        {
-            var emptyLocalContent = await FindLocalContentWithoutFilesAsync(profile.EnabledContentIds ?? [], cancellationToken);
-            if (emptyLocalContent != null)
-            {
-                return OperationResult<SharedGameProfilePackage>.CreateFailure(
-                    LaunchExitMessages.GetString(ProfileSharingConstants.LocalContentHasNoFilesToShareErrorKey, localizationService, emptyLocalContent));
-            }
-        }
-
+        // Load every dependency once before uploading. Packaging must use the same snapshots
+        // that passed preflight, even if a manifest is replaced in the pool during export.
+        var sourceManifests = new List<ContentManifest>();
         foreach (var contentId in profile.EnabledContentIds ?? [])
         {
-            var dependencyResult = await ResolveProfileContentDependencyAsync(contentId, allowCloudUpload, cancellationToken);
-            if (!dependencyResult.Success)
+            var manifestResult = await ResolveProfileContentManifestAsync(contentId, cancellationToken);
+            if (!manifestResult.Success)
             {
-                return OperationResult<SharedGameProfilePackage>.CreateFailure(
-                    dependencyResult.FirstError ?? $"Failed to process dependency for {contentId}.");
+                return OperationResult<SharedGameProfilePackage>.CreateFailure(manifestResult.Errors);
             }
 
-            if (dependencyResult.Data != null)
+            if (manifestResult.Data is not { } manifest)
             {
-                manifests.Add(dependencyResult.Data);
+                continue;
             }
+
+            if (!ManifestVariantResolver.SupportsRuntime(manifest))
+            {
+                return OperationResult<SharedGameProfilePackage>.CreateFailure(
+                    string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.CannotExportNoHostVariant, manifest.Name, ManifestVariantResolver.CurrentRuntimeIdentifier));
+            }
+
+            if (IsCustomLocalManifest(manifest) && ManifestVariantResolver.ResolveFiles(manifest).Count == 0)
+            {
+                return OperationResult<SharedGameProfilePackage>.CreateFailure(
+                    LaunchExitMessages.GetString(ProfileSharingConstants.LocalContentHasNoFilesToShareErrorKey, localizationService, manifest.Name));
+            }
+
+            sourceManifests.Add(manifest);
+        }
+
+        foreach (var manifest in sourceManifests)
+        {
+            var dependencyResult = await BuildManifestDependencyAsync(manifest, allowCloudUpload, cancellationToken);
+            if (!dependencyResult.Success || dependencyResult.Data == null)
+            {
+                return OperationResult<SharedGameProfilePackage>.CreateFailure(
+                    dependencyResult.FirstError ?? $"Failed to process dependency for {manifest.Id}.");
+            }
+
+            manifests.Add(dependencyResult.Data);
         }
 
         var settingsOverrides = ExtractSettingsOverridesFromProfile(profile);
@@ -2160,65 +2178,24 @@ public class ProfileSharingService(
         return OperationResult<SharedGameProfilePackage>.CreateSuccess(package);
     }
 
-    /// <summary>
-    /// Finds the first local dependency with no files. A local dependency can only be installed
-    /// from its uploaded package, so sharing one without files would fail for every recipient.
-    /// Checked before any upload so a rejected share leaves nothing uploaded.
-    /// </summary>
-    /// <param name="contentIds">The profile's enabled content IDs.</param>
-    /// <param name="cancellationToken">A cancellation token.</param>
-    /// <returns>The name of the first local dependency with no files, or <c>null</c> when there is none.</returns>
-    private async Task<string?> FindLocalContentWithoutFilesAsync(IEnumerable<string> contentIds, CancellationToken cancellationToken)
-    {
-        foreach (var contentId in contentIds)
-        {
-            var manifestResult = await manifestPool.GetManifestAsync(contentId, cancellationToken);
-            if (manifestResult is { Success: true, Data: { } manifest } &&
-                manifest.ContentType != ContentType.GameInstallation &&
-                IsCustomLocalManifest(manifest) &&
-                ManifestVariantResolver.SupportsRuntime(manifest) &&
-                ManifestVariantResolver.ResolveFiles(manifest).Count == 0)
-            {
-                return manifest.Name;
-            }
-        }
-
-        return null;
-    }
-
-    private async Task<OperationResult<SharedManifestDependency?>> ResolveProfileContentDependencyAsync(
+    private async Task<OperationResult<ContentManifest?>> ResolveProfileContentManifestAsync(
         string contentId,
-        bool allowCloudUpload,
         CancellationToken cancellationToken)
     {
         var manifestResult = await manifestPool.GetManifestAsync(contentId, cancellationToken);
         if (manifestResult is { Success: true, Data: not null })
         {
-            var manifest = manifestResult.Data;
-
-            // Exclude local GameInstallation manifests as base game installations are locally scanned
-            if (manifest.ContentType == ContentType.GameInstallation)
-            {
-                return OperationResult<SharedManifestDependency?>.CreateSuccess(null);
-            }
-
-            var dependencyResult = await BuildManifestDependencyAsync(manifest, allowCloudUpload, cancellationToken);
-            if (!dependencyResult.Success || dependencyResult.Data == null)
-            {
-                return OperationResult<SharedManifestDependency?>.CreateFailure(
-                    dependencyResult.FirstError ?? $"Failed to process dependency for manifest {manifest.Id}.");
-            }
-
-            return OperationResult<SharedManifestDependency?>.CreateSuccess(dependencyResult.Data);
+            // Base installations are scanned locally by the recipient.
+            return OperationResult<ContentManifest?>.CreateSuccess(
+                manifestResult.Data.ContentType == ContentType.GameInstallation ? null : manifestResult.Data);
         }
 
-        // Exclude any gameinstallation IDs
         if (contentId.Contains(ManifestConstants.GameInstallationSegment, StringComparison.OrdinalIgnoreCase))
         {
-            return OperationResult<SharedManifestDependency?>.CreateSuccess(null);
+            return OperationResult<ContentManifest?>.CreateSuccess(null);
         }
 
-        return OperationResult<SharedManifestDependency?>.CreateFailure(
+        return OperationResult<ContentManifest?>.CreateFailure(
             $"Content manifest '{contentId}' referenced by profile could not be found in local manifest pool.");
     }
 

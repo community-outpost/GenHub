@@ -947,8 +947,10 @@ public class ProfileSharingServiceTests
         _profileRepositoryMock.Setup(r => r.LoadProfileAsync("local-profile-1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(localProfile));
 
-        _manifestPoolMock.Setup(m => m.GetManifestAsync("1.0.local.mod.custommod", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(localManifest));
+        // A concurrent pool replacement must not change the already validated export.
+        _manifestPoolMock.SetupSequence(m => m.GetManifestAsync("1.0.local.mod.custommod", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(localManifest))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(new ContentManifest(localManifest) { Files = [] }));
 
         var serviceWithUpload = new ProfileSharingService(
             _profileRepositoryMock.Object,
@@ -969,6 +971,7 @@ public class ProfileSharingServiceTests
             // Assert
             Assert.True(result.Success);
             Assert.NotNull(result.Data);
+            _manifestPoolMock.Verify(m => m.GetManifestAsync("1.0.local.mod.custommod", It.IsAny<CancellationToken>()), Times.Once);
             uploadThingMock.Verify(u => u.UploadFileAsync(It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()), Times.Once);
             uploadHistoryMock.Verify(h => h.RecordUpload(It.IsAny<long>(), "https://utfs.io/f/testupload.zip", It.IsAny<string>(), "key123", "token123", It.IsAny<string>(), ProfileSharingConstants.UploadCategoryProfiles, It.IsAny<GameType?>()), Times.Once);
         }
@@ -1062,9 +1065,12 @@ public class ProfileSharingServiceTests
     /// Verifies that sharing local content with no files fails instead of producing a link that
     /// no recipient could install from, before uploading any other local content in the profile.
     /// </summary>
+    /// <param name="shareLink">Whether to share a link rather than export JSON.</param>
     /// <returns>A task representing the test.</returns>
-    [Fact]
-    public async Task ExportProfileToUriAsync_WithLocalManifestWithoutFiles_FailsAsync()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ExportProfile_WithLocalManifestWithoutFiles_FailsAsync(bool shareLink)
     {
         var localProfile = CreateTestProfile("local-empty-profile", "Local Empty Setup");
         localProfile.EnabledContentIds = ["1.0.local.mod.withfiles", "1.0.local.mod.emptymod"];
@@ -1111,7 +1117,9 @@ public class ProfileSharingServiceTests
             uploadThingMock.Object,
             uploadHistoryMock.Object);
 
-        var result = await serviceWithUpload.ExportProfileToUriAsync("local-empty-profile");
+        var result = shareLink
+            ? await serviceWithUpload.ExportProfileToUriAsync("local-empty-profile")
+            : await serviceWithUpload.ExportProfileToJsonAsync("local-empty-profile");
 
         Assert.False(result.Success);
         Assert.Contains("Empty Mod", result.FirstError);
@@ -1572,6 +1580,7 @@ public class ProfileSharingServiceTests
         {
             Id = ManifestId.Create("1.0.local.map.defcon"),
             Name = "Defcon Map",
+            Files = [new ManifestFile { RelativePath = "Defcon.map", Hash = "map-hash", Size = 10 }],
             Version = "1.0",
             ContentType = ContentType.Map,
             TargetGame = GameType.ZeroHour,
