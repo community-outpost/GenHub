@@ -1556,6 +1556,7 @@ public class PublisherStudioInventoryManagementTests
         {
             using var vm = CreateViewModel(project, CreateDriveProvider());
 
+            Assert.NotEmpty(vm.HostedAssets);
             Assert.Equal(1, handler.CallCount);
         }
         finally
