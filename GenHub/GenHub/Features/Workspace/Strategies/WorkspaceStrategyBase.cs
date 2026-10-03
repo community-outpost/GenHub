@@ -250,9 +250,22 @@ public abstract class WorkspaceStrategyBase<T>(
     /// <returns><c>true</c> when the source file exists; otherwise <c>false</c>.</returns>
     protected bool ValidateSourceFile(string sourcePath, string relativePath, WorkspaceConfiguration configuration)
     {
-        if (File.Exists(sourcePath))
+        try
         {
+            if ((File.GetAttributes(sourcePath) & FileAttributes.Directory) != 0)
+            {
+                throw new IOException($"Source path is a directory: {sourcePath}");
+            }
+
             return true;
+        }
+        catch (FileNotFoundException)
+        {
+            // Only a confirmed missing source can be skipped.
+        }
+        catch (DirectoryNotFoundException)
+        {
+            // A missing parent also means the source is absent.
         }
 
         logger.LogWarning("Source file not found: {SourcePath} (relative: {RelativePath})", sourcePath, relativePath);

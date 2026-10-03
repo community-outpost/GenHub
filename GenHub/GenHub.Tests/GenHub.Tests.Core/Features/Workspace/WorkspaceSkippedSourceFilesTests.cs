@@ -11,9 +11,11 @@ using GenHub.Core.Models.Workspace;
 using GenHub.Features.Storage.Services;
 using GenHub.Features.Workspace;
 using GenHub.Features.Workspace.Strategies;
+using GenHub.Tests.Core.Services.Security;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
+using System.Runtime.Versioning;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.Workspace;
@@ -186,6 +188,44 @@ public sealed class WorkspaceSkippedSourceFilesTests : IDisposable
         {
             Assert.Empty(configuration.SkippedSourceFiles);
             Assert.NotEmpty(result.ValidationIssues);
+        }
+    }
+
+    /// <summary>Access errors after the initial source probe must fail preparation, not report a missing file.</summary>
+    /// <returns>A task representing the test.</returns>
+    [NonRootUnixFact]
+    [UnsupportedOSPlatform("windows")]
+    public async Task HardLinkPrepareAsync_WhenSourceBecomesInaccessible_FailsAsync()
+    {
+        var installDir = Directory.CreateDirectory(Path.Combine(_root, "Install")).FullName;
+        var source = Path.Combine(installDir, "mod.ini");
+        File.WriteAllText(source, "mod");
+        var originalMode = File.GetUnixFileMode(installDir);
+        _fileOperations
+            .Setup(f => f.CreateHardLinkAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback(() => File.SetUnixFileMode(installDir, UnixFileMode.None))
+            .ThrowsAsync(new IOException("Access denied."));
+        var configuration = new WorkspaceConfiguration
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Strategy = WorkspaceStrategy.HardLink,
+            WorkspaceRootPath = Path.Combine(_root, "Workspaces"),
+            BaseInstallationPath = installDir,
+            GameClient = new GameClient { Id = "test" },
+            Manifests = [CreateManifest("1.0.test.mod.winner", ContentType.Mod, source)],
+        };
+
+        try
+        {
+            var result = await CreateStrategy(WorkspaceStrategy.HardLink).PrepareAsync(configuration, null, CancellationToken.None);
+
+            Assert.False(result.IsPrepared);
+            Assert.Empty(configuration.SkippedSourceFiles);
+            Assert.NotEmpty(result.ValidationIssues);
+        }
+        finally
+        {
+            File.SetUnixFileMode(installDir, originalMode);
         }
     }
 

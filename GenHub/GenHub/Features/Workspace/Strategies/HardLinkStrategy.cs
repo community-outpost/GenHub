@@ -346,10 +346,8 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
         }
         catch (IOException ioEx)
         {
-            if (!File.Exists(sourcePath))
+            if (!ValidateSourceFile(sourcePath, file.RelativePath, configuration))
             {
-                Logger.LogWarning("Skipping missing file: {RelativePath} (source: {SourcePath})", file.RelativePath, sourcePath);
-                configuration.RecordSkippedSourceFile(file.RelativePath);
                 return (true, false, 0);
             }
 
@@ -379,10 +377,8 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
         WorkspaceConfiguration configuration,
         CancellationToken cancellationToken)
     {
-        if (!File.Exists(sourcePath))
+        if (!ValidateSourceFile(sourcePath, file.RelativePath, configuration))
         {
-            Logger.LogWarning("Skipping missing file: {RelativePath} (source: {SourcePath})", file.RelativePath, sourcePath);
-            configuration.RecordSkippedSourceFile(file.RelativePath);
             return (true, false, 0);
         }
 
