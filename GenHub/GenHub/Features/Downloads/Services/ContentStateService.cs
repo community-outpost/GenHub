@@ -1278,6 +1278,22 @@ public sealed partial class ContentStateService(
             }
         }
 
+        if (item.ResolverMetadata?.TryGetValue(CommunityOutpostCatalogConstants.ContentCodeKey, out var contentCode) == true &&
+            !string.IsNullOrWhiteSpace(contentCode))
+        {
+            var coPublisher = NormalizeSegment(CommunityOutpostConstants.PublisherType);
+            if (!candidatePublishers.Contains(coPublisher, StringComparer.OrdinalIgnoreCase))
+            {
+                candidatePublishers.Add(coPublisher);
+            }
+
+            var coPublisherId = NormalizeSegment(CommunityOutpostConstants.PublisherId);
+            if (!candidatePublishers.Contains(coPublisherId, StringComparer.OrdinalIgnoreCase))
+            {
+                candidatePublishers.Add(coPublisherId);
+            }
+        }
+
         if (candidatePublishers.Any(IsCncLabsPublisher) &&
             !candidatePublishers.Contains(CNCLabsConstants.PublisherPrefix, StringComparer.OrdinalIgnoreCase))
         {
@@ -2122,17 +2138,25 @@ public sealed partial class ContentStateService(
 
     private static ContentManifest? FindFileRowRepositoryMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item, ILogger? logger = null)
     {
-        if (item.ResolverMetadata == null ||
-            !item.ResolverMetadata.TryGetValue(GitHubConstants.OwnerMetadataKey, out var owner) ||
-            string.IsNullOrWhiteSpace(owner) ||
-            !item.ResolverMetadata.TryGetValue(GitHubConstants.RepoMetadataKey, out var repo) ||
-            string.IsNullOrWhiteSpace(repo))
+        if (item.ResolverMetadata is { } metadata)
         {
-            return null;
+            if (metadata.TryGetValue(GitHubConstants.OwnerMetadataKey, out var owner) &&
+                !string.IsNullOrWhiteSpace(owner) &&
+                metadata.TryGetValue(GitHubConstants.RepoMetadataKey, out var repo) &&
+                !string.IsNullOrWhiteSpace(repo))
+            {
+                return FindGitHubRepoMatch(manifests, item, logger)
+                    ?? FindSuperHackersMatch(manifests, item, logger);
+            }
+
+            if ((metadata.TryGetValue(CommunityOutpostCatalogConstants.ContentCodeKey, out var contentCode) && !string.IsNullOrWhiteSpace(contentCode)) ||
+                (metadata.TryGetValue(CatalogConstants.CatalogContentIdMetadataKey, out var catContentId) && !string.IsNullOrWhiteSpace(catContentId)))
+            {
+                return FindByPublisherTypeAndGame(manifests, item, logger);
+            }
         }
 
-        return FindGitHubRepoMatch(manifests, item, logger)
-            ?? FindSuperHackersMatch(manifests, item, logger);
+        return null;
     }
 
     private static ContentManifest? FindOriginMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item, ILogger? logger = null)
