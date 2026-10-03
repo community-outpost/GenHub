@@ -19,8 +19,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\GenHub.Core\GenHub.Core.csproj" />
-    <ProjectReference Include="..\..\GenHub.Windows\GenHub.Windows.csproj" />
+    <ProjectReference Include="..\..\GenHub.Core\GenHub.Core.csproj" BuildInParallel="false" />
+    <ProjectReference Include="..\..\GenHub.Windows\GenHub.Windows.csproj" BuildInParallel="false" />
   </ItemGroup>
 
   <ItemGroup>
