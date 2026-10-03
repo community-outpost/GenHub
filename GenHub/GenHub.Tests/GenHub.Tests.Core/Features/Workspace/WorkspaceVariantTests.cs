@@ -38,6 +38,22 @@ public sealed class WorkspaceVariantTests : IDisposable
         Directory.CreateDirectory(_workspaceRoot);
     }
 
+    /// <summary>Gets every strategy paired with each shared-path collision case.</summary>
+    /// <returns>The strategy, the two content types in load order, and the expected winner.</returns>
+    public static TheoryData<WorkspaceStrategy, ContentType, ContentType, int> SharedPathCollisionCases()
+    {
+        var data = new TheoryData<WorkspaceStrategy, ContentType, ContentType, int>();
+        foreach (var strategy in new[] { WorkspaceStrategy.HybridCopySymlink, WorkspaceStrategy.SymlinkOnly, WorkspaceStrategy.HardLink, WorkspaceStrategy.FullCopy })
+        {
+            data.Add(strategy, ContentType.Mod, ContentType.Mod, 1);
+            data.Add(strategy, ContentType.Addon, ContentType.Addon, 1);
+            data.Add(strategy, ContentType.Mod, ContentType.GameInstallation, 0);
+            data.Add(strategy, ContentType.GameInstallation, ContentType.Mod, 1);
+        }
+
+        return data;
+    }
+
     /// <summary>
     /// Every strategy materializes the host variant's files and never the foreign variant's.
     /// </summary>
@@ -164,20 +180,19 @@ public sealed class WorkspaceVariantTests : IDisposable
     }
 
     /// <summary>
-    /// When two manifests ship the same path, hybrid preparation materializes the copy from the
-    /// higher-priority content type, and on equal priority the copy from the later manifest,
-    /// matching the hard-link and full-copy strategies.
+    /// When two manifests ship the same path, every strategy materializes the copy from the
+    /// higher-priority content type, and on equal priority the copy from the later manifest.
+    /// Full copy writes every copy in priority order, so the winner is the copy written last.
     /// </summary>
+    /// <param name="strategyType">The strategy under test.</param>
     /// <param name="firstType">The content type of the first manifest in load order.</param>
     /// <param name="secondType">The content type of the second manifest in load order.</param>
     /// <param name="expectedWinner">The index of the manifest whose copy must be materialized.</param>
     /// <returns>The asynchronous test.</returns>
     [Theory]
-    [InlineData(ContentType.Mod, ContentType.Mod, 1)]
-    [InlineData(ContentType.Addon, ContentType.Addon, 1)]
-    [InlineData(ContentType.Mod, ContentType.GameInstallation, 0)]
-    [InlineData(ContentType.GameInstallation, ContentType.Mod, 1)]
-    public async Task PrepareAsync_Hybrid_SharedPathCollision_MaterializesWinningManifestAsync(
+    [MemberData(nameof(SharedPathCollisionCases))]
+    public async Task PrepareAsync_SharedPathCollision_MaterializesWinningManifestAsync(
+        WorkspaceStrategy strategyType,
         ContentType firstType,
         ContentType secondType,
         int expectedWinner)
@@ -186,23 +201,40 @@ public sealed class WorkspaceVariantTests : IDisposable
         var sources = new[] { Path.Combine(_installDir, "first.ini"), Path.Combine(_installDir, "second.ini") };
         File.WriteAllText(sources[0], "first");
         File.WriteAllText(sources[1], "second");
-        ContentManifest CreateCollidingManifest(string id, ContentType type, string source) => new()
-        {
-            Id = ManifestId.Create(id),
-            ContentType = type,
-            Files = [new() { RelativePath = sharedPath, SourcePath = source, Size = 5, SourceType = ContentSourceType.GameInstallation }],
-        };
+        var configuration = CreateConfiguration(strategyType, CreateCollidingManifest("1.0.test.mod.first", firstType, sharedPath, sources[0]));
+        configuration.Manifests.Add(CreateCollidingManifest("1.0.test.mod.second", secondType, sharedPath, sources[1]));
 
-        var configuration = CreateConfiguration(
-            WorkspaceStrategy.HybridCopySymlink,
-            CreateCollidingManifest("1.0.test.mod.first", firstType, sources[0]));
-        configuration.Manifests.Add(CreateCollidingManifest("1.0.test.mod.second", secondType, sources[1]));
-
-        var result = await CreateStrategy(WorkspaceStrategy.HybridCopySymlink).PrepareAsync(configuration, null, CancellationToken.None);
+        var result = await CreateStrategy(strategyType).PrepareAsync(configuration, null, CancellationToken.None);
 
         Assert.True(result.IsPrepared);
-        Assert.True(FileOperationsTouched(sources[expectedWinner]), "The winning manifest's copy was not materialized.");
-        Assert.False(FileOperationsTouched(sources[1 - expectedWinner]), "The losing manifest's copy was materialized.");
+        Assert.Equal(sources[expectedWinner], LastMaterializedSource(sharedPath, sources));
+    }
+
+    /// <summary>
+    /// The reconciler resolves a shared path the same way the strategies do.
+    /// </summary>
+    /// <param name="firstType">The content type of the first manifest in load order.</param>
+    /// <param name="secondType">The content type of the second manifest in load order.</param>
+    /// <param name="expectedWinner">The index of the manifest whose copy must be planned.</param>
+    /// <returns>The asynchronous test.</returns>
+    [Theory]
+    [InlineData(ContentType.Mod, ContentType.Mod, 1)]
+    [InlineData(ContentType.Mod, ContentType.GameInstallation, 0)]
+    [InlineData(ContentType.GameInstallation, ContentType.Mod, 1)]
+    public async Task AnalyzeWorkspaceDeltaAsync_SharedPathCollision_PlansWinningManifestAsync(
+        ContentType firstType,
+        ContentType secondType,
+        int expectedWinner)
+    {
+        const string sharedPath = "Data/INI/GameData.ini";
+        var sources = new[] { Path.Combine(_installDir, "first.ini"), Path.Combine(_installDir, "second.ini") };
+        var reconciler = new WorkspaceReconciler(new Mock<ILogger<WorkspaceReconciler>>().Object, _fileOperations.Object);
+        var configuration = CreateConfiguration(WorkspaceStrategy.HybridCopySymlink, CreateCollidingManifest("1.0.test.mod.first", firstType, sharedPath, sources[0]));
+        configuration.Manifests.Add(CreateCollidingManifest("1.0.test.mod.second", secondType, sharedPath, sources[1]));
+
+        var deltas = await reconciler.AnalyzeWorkspaceDeltaAsync(null, configuration);
+
+        Assert.Equal(sources[expectedWinner], Assert.Single(deltas).File.SourcePath);
     }
 
     /// <inheritdoc/>
@@ -224,6 +256,13 @@ public sealed class WorkspaceVariantTests : IDisposable
             // Ignore cleanup errors
         }
     }
+
+    private static ContentManifest CreateCollidingManifest(string id, ContentType type, string relativePath, string source) => new()
+    {
+        Id = ManifestId.Create(id),
+        ContentType = type,
+        Files = [new() { RelativePath = relativePath, SourcePath = source, Size = 5, SourceType = ContentSourceType.GameInstallation }],
+    };
 
     private ContentManifest CreateManifest()
     {
@@ -251,6 +290,13 @@ public sealed class WorkspaceVariantTests : IDisposable
         _fileOperations.Invocations.Any(invocation => invocation.Arguments
             .OfType<string>()
             .Any(argument => argument.EndsWith(fileName, StringComparison.OrdinalIgnoreCase)));
+
+    private string? LastMaterializedSource(string relativePath, string[] sources) =>
+        _fileOperations.Invocations
+            .Select(invocation => invocation.Arguments.OfType<string>().ToList())
+            .Where(arguments => arguments.Any(argument => argument.Replace('\\', '/').EndsWith(relativePath, StringComparison.OrdinalIgnoreCase)))
+            .Select(arguments => arguments.FirstOrDefault(sources.Contains))
+            .LastOrDefault(source => source is not null);
 
     private IWorkspaceStrategy CreateStrategy(WorkspaceStrategy strategyType) => strategyType switch
     {

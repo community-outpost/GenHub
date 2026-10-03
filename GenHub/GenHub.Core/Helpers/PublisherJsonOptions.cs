@@ -1,3 +1,4 @@
+using GenHub.Core.Serialization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -16,6 +17,11 @@ public static class PublisherJsonOptions
         PropertyNameCaseInsensitive = true,
         ReadCommentHandling = JsonCommentHandling.Skip,
         AllowTrailingCommas = true,
+        Converters =
+        {
+            new JsonContentTypeConverter(),
+            new JsonGameTypeConverter(),
+        },
     };
 
     /// <summary>
@@ -26,6 +32,11 @@ public static class PublisherJsonOptions
         PropertyNameCaseInsensitive = true,
         ReadCommentHandling = JsonCommentHandling.Skip,
         AllowTrailingCommas = true,
-        Converters = { new JsonStringEnumConverter() },
+        Converters =
+        {
+            new JsonContentTypeConverter(),
+            new JsonGameTypeConverter(),
+            new JsonStringEnumConverter(),
+        },
     };
 }
