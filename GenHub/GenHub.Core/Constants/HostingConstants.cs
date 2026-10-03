@@ -353,6 +353,18 @@ public static class HostingConstants
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "S5332:Using http protocol is insecure", Justification = "OAuth 2.0 desktop loopback redirects require plain http; traffic never leaves the machine.")]
     public static readonly string DropboxOAuthRedirectUri = $"http://{OAuthLoopbackHost}:{DropboxOAuthLoopbackPort}/";
 
+    /// <summary>
+    /// Image file extensions classified as screenshot or artwork media in the hosted asset inventory.
+    /// </summary>
+    public static readonly System.Collections.Generic.IReadOnlyList<string> ScreenshotFileExtensions =
+        System.Array.AsReadOnly(new[] { ".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tiff", ".tif", ".avif" });
+
+    /// <summary>
+    /// Video file extensions classified as video media in the hosted asset inventory.
+    /// </summary>
+    public static readonly System.Collections.Generic.IReadOnlyList<string> VideoFileExtensions =
+        System.Array.AsReadOnly(new[] { ".mp4", ".webm", ".mov", ".mkv", ".avi", ".m4v", ".ogv" });
+
     private static readonly (string Pattern, string ProviderId)[] CloudProviderHostOwners =
     [
         ("drive.google.com", GoogleDrive),
@@ -444,16 +456,6 @@ public static class HostingConstants
         return stem.Equals("catalog", System.StringComparison.OrdinalIgnoreCase) ||
                stem.StartsWith("catalog-", System.StringComparison.OrdinalIgnoreCase);
     }
-
-    /// <summary>
-    /// Image file extensions classified as screenshot or artwork media in the hosted asset inventory.
-    /// </summary>
-    public static readonly string[] ScreenshotFileExtensions = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tiff", ".tif", ".avif"];
-
-    /// <summary>
-    /// Video file extensions classified as video media in the hosted asset inventory.
-    /// </summary>
-    public static readonly string[] VideoFileExtensions = [".mp4", ".webm", ".mov", ".mkv", ".avi", ".m4v", ".ogv"];
 
     /// <summary>
     /// Checks whether a given file name looks like a screenshot or image media file.

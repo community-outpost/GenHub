@@ -13,4 +13,7 @@ public partial class HostedAssetChildViewModel : ObservableObject
 
     [ObservableProperty]
     private string _detail = string.Empty;
+
+    [ObservableProperty]
+    private string _copyUrl = string.Empty;
 }

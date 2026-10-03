@@ -17940,7 +17940,7 @@ Mapped image texture reference</value>
     <value>This file is not referenced by any catalog in the current project.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.LinkedToNotInProjectTip" xml:space="preserve">
-    <value>This file is not part of the current project. Load it to inspect and link its contents.</value>
+    <value>This file is not part of the current project. Expand the row to preview its contents.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.LinkedToCatalogFormat" xml:space="preserve">
     <value>Definition: {0}</value>
@@ -17974,12 +17974,6 @@ Mapped image texture reference</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.EmptyDefinitionText" xml:space="preserve">
     <value>No catalogs linked to this definition</value>
-  </data>
-  <data name="Tools.PublisherStudio.Hosting.LoadToInspectHint" xml:space="preserve">
-    <value>Load to Project to inspect its catalogs</value>
-  </data>
-  <data name="Tools.PublisherStudio.Hosting.LoadToInspectCatalogHint" xml:space="preserve">
-    <value>Load to Project to inspect its contents</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DeleteNotHostedTitle" xml:space="preserve">
     <value>Nothing To Delete</value>
@@ -18118,6 +18112,24 @@ Mapped image texture reference</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DeletedExternalMediaMessageFormat" xml:space="preserve">
     <value>'{0}' was unlinked from {1} place(s).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.PreviewLoadingText" xml:space="preserve">
+    <value>Loading preview...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.PreviewLoadFailedFormat" xml:space="preserve">
+    <value>Preview unavailable: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.PreviewDownloadFailedText" xml:space="preserve">
+    <value>The file could not be downloaded.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ChildCopyLinkAction" xml:space="preserve">
+    <value>Click to copy link</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteSharedUrlWarningLine" xml:space="preserve">
+    <value>This file is also referenced in another way; the remote file will be kept and only the selected links will be removed.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteRemoteKeptSharedNote" xml:space="preserve">
+    <value>The remote file was kept because other references still use it.</value>
   </data>
   <data name="Launch.ExitCode.LauncherExitExplained" xml:space="preserve">
     <value>The launcher exited with code {0} before starting {1}. {2}</value>

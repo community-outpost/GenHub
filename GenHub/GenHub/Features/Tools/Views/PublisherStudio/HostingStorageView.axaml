@@ -80,6 +80,29 @@
             <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
         </Style>
+        <Style Selector="ToggleButton.chevron-toggle:checked">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="ToggleButton.chevron-toggle:checked:pointerover">
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="Border.asset-row:pointerover">
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+        </Style>
+        <Style Selector="Button.child-link-btn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="6,3"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        </Style>
+        <Style Selector="Button.child-link-btn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource GlassStrongBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
         <Style Selector="TextBox">
             <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
@@ -756,7 +779,9 @@
                                 <Border Background="{DynamicResource GlassFillSubtleBrush}"
                                         BorderBrush="{DynamicResource GlassFillBrush}"
                                         BorderThickness="0,0,0,1"
-                                        Padding="12,12">
+                                        Padding="12,12"
+                                        Classes="asset-row"
+                                        PointerPressed="OnAssetRowPointerPressed">
                                     <StackPanel Spacing="0">
                                     <Grid ColumnDefinitions="28,2*,1.2*,1.5*,0.8*,0.9*,1.2*,Auto">
                                         <!-- Column 0: Expand linked items -->
@@ -893,23 +918,38 @@
                                             <ItemsControl ItemsSource="{Binding Children}">
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate DataType="vm:HostedAssetChildViewModel">
-                                                        <Grid ColumnDefinitions="Auto,*">
-                                                            <PathIcon Grid.Column="0" Data="{StaticResource ToolIcon.ChevronRight}" Width="10" Height="10" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                                                                <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
-                                                                <TextBlock Text="{Binding Detail}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextTrimming="CharacterEllipsis"/>
-                                                            </StackPanel>
-                                                        </Grid>
+                                                        <Button Classes="child-link-btn"
+                                                                Command="{Binding ((vm:PublishShareViewModel)DataContext).CopyAssetUrlCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                CommandParameter="{Binding CopyUrl}"
+                                                                IsEnabled="{Binding CopyUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                                AutomationProperties.Name="{Binding Name}">
+                                                            <ToolTip.Tip>
+                                                                <StackPanel Spacing="2">
+                                                                    <TextBlock Text="{Binding CopyUrl}" FontSize="10" Foreground="{DynamicResource TextSecondary}" TextTrimming="CharacterEllipsis"/>
+                                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ChildCopyLinkAction}" FontSize="10" FontStyle="Italic" Foreground="{DynamicResource StatusInfoBrush}"/>
+                                                                </StackPanel>
+                                                            </ToolTip.Tip>
+                                                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                                                <PathIcon Grid.Column="0" Data="{StaticResource ToolIcon.ChevronRight}" Width="10" Height="10" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                                                    <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
+                                                                    <TextBlock Text="{Binding Detail}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextTrimming="CharacterEllipsis"/>
+                                                                </StackPanel>
+                                                                <PathIcon Grid.Column="2" Data="{StaticResource CopyIcon}" Width="10" Height="10" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                                            </Grid>
+                                                        </Button>
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
                                             </ItemsControl>
                                             <TextBlock Text="{Binding EmptyStateText}"
                                                        IsVisible="{Binding IsEmpty}"
                                                        FontSize="11" FontStyle="Italic" Foreground="{DynamicResource TextMuted}"/>
-                                            <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding ShowLoadToInspectHint}">
-                                                <PathIcon Data="{StaticResource ToolIcon.Download}" Width="10" Height="10" Foreground="{DynamicResource StatusInfoBrush}" VerticalAlignment="Center"/>
-                                                <TextBlock Text="{Binding LoadToInspectHint}" FontSize="11" FontStyle="Italic" Foreground="{DynamicResource StatusInfoBrush}"/>
-                                            </StackPanel>
+                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.PreviewLoadingText}"
+                                                       IsVisible="{Binding IsLoadingChildren}"
+                                                       FontSize="11" FontStyle="Italic" Foreground="{DynamicResource StatusInfoBrush}"/>
+                                            <TextBlock Text="{Binding ChildrenLoadError}"
+                                                       IsVisible="{Binding ChildrenLoadError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                       FontSize="11" Foreground="{DynamicResource StatusErrorBrush}" TextWrapping="Wrap"/>
                                         </StackPanel>
                                     </Border>
                                     </StackPanel>

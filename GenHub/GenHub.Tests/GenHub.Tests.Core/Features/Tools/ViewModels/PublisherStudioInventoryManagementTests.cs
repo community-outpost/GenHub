@@ -1,10 +1,12 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Core.Models.Results;
+using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Tools.Interfaces;
 using GenHub.Features.Tools.Services.Hosting;
 using GenHub.Features.Tools.ViewModels;
@@ -12,6 +14,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -647,6 +653,397 @@ public class PublisherStudioInventoryManagementTests
         provider.Verify(p => p.DeleteFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         Assert.DoesNotContain(state.Catalogs, c => c.CatalogId == "main");
         Assert.Contains(state.Catalogs, c => c.CatalogId == "maps");
+    }
+
+    /// <summary>
+    /// Tests that expanding a cloud-only catalog row previews its remote contents.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ExpandCloudOnlyCatalog_PreviewsRemoteContentsAsync()
+    {
+        var project = CreateInventoryProject();
+        using var vm = CreateViewModel(project, CreateDriveProvider());
+        var state = vm.CurrentHostingState;
+        Assert.NotNull(state);
+        const string remoteUrl = "https://example.com/catalog-remote.json";
+        state.Catalogs.Add(new CatalogHostingInfo
+        {
+            CatalogId = "remote",
+            CatalogName = "Remote",
+            FileId = "remote-id",
+            FileName = "catalog-remote.json",
+            Url = remoteUrl,
+            FileSize = 128,
+        });
+        vm.RefreshHostedAssets();
+        var row = vm.HostedAssets.Single(a => a.Name == "catalog-remote.json");
+        Assert.True(row.NeedsRemotePreview);
+
+        var catalog = new PublisherCatalog
+        {
+            Content =
+            [
+                new CatalogContentItem
+                {
+                    Id = "remote-mod",
+                    Name = "Remote Mod",
+                    ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
+                },
+            ],
+        };
+        var handler = new CountingJsonHandler(JsonSerializer.Serialize(catalog, PublisherJsonOptions.Definition));
+        var client = new HttpClient(handler);
+        PublishShareViewModel.HttpClientOverrideForTesting = client;
+        CatalogDocumentReader.AllowUnresolvableDnsForTesting = true;
+        try
+        {
+            row.IsExpanded = true;
+            await WaitForPreviewAsync(row);
+
+            Assert.True(row.RemotePreviewLoaded);
+            Assert.True(row.HasChildren);
+            Assert.Single(row.Children);
+            Assert.Equal("Remote Mod", row.Children[0].Name);
+            Assert.Equal(remoteUrl, row.Children[0].CopyUrl);
+        }
+        finally
+        {
+            PublishShareViewModel.HttpClientOverrideForTesting = null;
+            CatalogDocumentReader.AllowUnresolvableDnsForTesting = false;
+            client.Dispose();
+            handler.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Tests that expanding a cloud-only definition row previews its catalog entries.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ExpandCloudOnlyDefinition_PreviewsCatalogEntriesAsync()
+    {
+        var project = CreateInventoryProject();
+        using var vm = CreateViewModel(project, CreateDriveProvider());
+        var state = vm.CurrentHostingState;
+        Assert.NotNull(state);
+        const string remoteUrl = "https://example.com/publisher-remote.json";
+        state.Definitions.Add(new HostedFileInfo
+        {
+            FileId = "remote-def-id",
+            FileName = "publisher-remote.json",
+            Url = remoteUrl,
+            FileSize = 64,
+        });
+        vm.RefreshHostedAssets();
+        var row = vm.HostedAssets.Single(a => a.Name == "publisher-remote.json");
+        Assert.True(row.NeedsRemotePreview);
+
+        var definition = new PublisherDefinition
+        {
+            Publisher = new PublisherProfile { Id = "remote-pub", Name = "Remote Pub" },
+            Catalogs =
+            [
+                new CatalogEntry { Id = "c1", Name = "Remote Catalog", Url = "https://example.com/c1.json" },
+            ],
+        };
+        var handler = new CountingJsonHandler(JsonSerializer.Serialize(definition, PublisherJsonOptions.Definition));
+        var client = new HttpClient(handler);
+        PublishShareViewModel.HttpClientOverrideForTesting = client;
+        CatalogDocumentReader.AllowUnresolvableDnsForTesting = true;
+        try
+        {
+            row.IsExpanded = true;
+            await WaitForPreviewAsync(row);
+
+            Assert.True(row.RemotePreviewLoaded);
+            Assert.Single(row.Children);
+            Assert.Equal("Remote Catalog", row.Children[0].Name);
+            Assert.Equal("https://example.com/c1.json", row.Children[0].CopyUrl);
+        }
+        finally
+        {
+            PublishShareViewModel.HttpClientOverrideForTesting = null;
+            CatalogDocumentReader.AllowUnresolvableDnsForTesting = false;
+            client.Dispose();
+            handler.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Tests that a failed remote preview surfaces an inline error instead of children.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ExpandCloudOnlyCatalog_DownloadFails_ShowsInlineErrorAsync()
+    {
+        var project = CreateInventoryProject();
+        using var vm = CreateViewModel(project, CreateDriveProvider());
+        var state = vm.CurrentHostingState;
+        Assert.NotNull(state);
+        state.Catalogs.Add(new CatalogHostingInfo
+        {
+            CatalogId = "broken",
+            CatalogName = "Broken",
+            FileId = "broken-id",
+            FileName = "catalog-broken.json",
+            Url = "https://example.com/catalog-broken.json",
+            FileSize = 128,
+        });
+        vm.RefreshHostedAssets();
+        var row = vm.HostedAssets.Single(a => a.Name == "catalog-broken.json");
+
+        var handler = new CountingJsonHandler("not valid json {{{");
+        var client = new HttpClient(handler);
+        PublishShareViewModel.HttpClientOverrideForTesting = client;
+        CatalogDocumentReader.AllowUnresolvableDnsForTesting = true;
+        try
+        {
+            row.IsExpanded = true;
+            await WaitForPreviewAsync(row);
+
+            Assert.False(row.RemotePreviewLoaded);
+            Assert.False(string.IsNullOrWhiteSpace(row.ChildrenLoadError));
+            Assert.False(row.HasChildren);
+        }
+        finally
+        {
+            PublishShareViewModel.HttpClientOverrideForTesting = null;
+            CatalogDocumentReader.AllowUnresolvableDnsForTesting = false;
+            client.Dispose();
+            handler.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Tests that remote previews are cached per URL across collapse and expand cycles.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ExpandCloudOnlyCatalog_Twice_DownloadsOnceAsync()
+    {
+        var project = CreateInventoryProject();
+        using var vm = CreateViewModel(project, CreateDriveProvider());
+        var state = vm.CurrentHostingState;
+        Assert.NotNull(state);
+        state.Catalogs.Add(new CatalogHostingInfo
+        {
+            CatalogId = "cached",
+            CatalogName = "Cached",
+            FileId = "cached-id",
+            FileName = "catalog-cached.json",
+            Url = "https://example.com/catalog-cached.json",
+            FileSize = 128,
+        });
+        vm.RefreshHostedAssets();
+        var row = vm.HostedAssets.Single(a => a.Name == "catalog-cached.json");
+
+        var catalog = new PublisherCatalog
+        {
+            Content = [new CatalogContentItem { Id = "c", Name = "Cached Mod", ContentType = GenHub.Core.Models.Enums.ContentType.Mod }],
+        };
+        var handler = new CountingJsonHandler(JsonSerializer.Serialize(catalog, PublisherJsonOptions.Definition), "catalog-cached.json");
+        var client = new HttpClient(handler);
+        PublishShareViewModel.HttpClientOverrideForTesting = client;
+        CatalogDocumentReader.AllowUnresolvableDnsForTesting = true;
+        try
+        {
+            row.IsExpanded = true;
+            await WaitForPreviewAsync(row);
+            Assert.Single(row.Children);
+
+            vm.RefreshHostedAssets();
+            var freshRow = vm.HostedAssets.Single(a => a.Name == "catalog-cached.json");
+            freshRow.IsExpanded = true;
+            await WaitForPreviewAsync(freshRow);
+
+            Assert.Equal(1, handler.CallCount);
+            Assert.Single(freshRow.Children);
+        }
+        finally
+        {
+            PublishShareViewModel.HttpClientOverrideForTesting = null;
+            CatalogDocumentReader.AllowUnresolvableDnsForTesting = false;
+            client.Dispose();
+            handler.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Tests that catalog content children carry the catalog URL for click-to-copy.
+    /// </summary>
+    [Fact]
+    public void CatalogChildren_CarryCatalogUrlForCopy()
+    {
+        var project = CreateInventoryProject();
+        using var vm = CreateViewModel(project, CreateDriveProvider());
+        var state = vm.CurrentHostingState;
+        Assert.NotNull(state);
+        const string catalogUrl = "https://drive.google.com/uc?export=download&id=mainfile";
+        state.Catalogs.Add(new CatalogHostingInfo
+        {
+            CatalogId = "main",
+            CatalogName = "Main Catalog",
+            FileId = "main-file-id",
+            FileName = "catalog-main.json",
+            Url = catalogUrl,
+            FileSize = 128,
+        });
+        vm.RefreshHostedAssets();
+
+        var main = vm.HostedAssets.Single(a => a.IsCatalog && a.CatalogId == "main");
+        Assert.Equal(catalogUrl, main.Url);
+        Assert.All(main.Children, c => Assert.Equal(catalogUrl, c.CopyUrl));
+
+        var definition = vm.HostedAssets.Single(a => a.IsDefinition);
+        var mainChild = definition.Children.Single(c => c.Name == "Main Catalog");
+        Assert.Equal(catalogUrl, mainChild.CopyUrl);
+
+        var artifact = vm.HostedAssets.Single(a => a.Name == "cool-mod.zip");
+        Assert.All(artifact.Children, c => Assert.Equal(artifact.Url, c.CopyUrl));
+    }
+
+    /// <summary>
+    /// Tests that deleting the active definition clears published state and marks it stale.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeleteHostedAsset_ActiveDefinition_ClearsPublishedStateAsync()
+    {
+        var project = CreateInventoryProject();
+        var provider = CreateDriveProvider();
+        using var vm = CreateViewModel(project, provider);
+        var state = vm.CurrentHostingState;
+        Assert.NotNull(state);
+        const string definitionUrl = "https://drive.google.com/uc?export=download&id=def";
+        state.Definition = new HostedFileInfo
+        {
+            FileId = "def-id",
+            FileName = "publisher.json",
+            Url = definitionUrl,
+            FileSize = 256,
+        };
+        vm.ProviderDefinitionUrl = definitionUrl;
+        var staleCount = 0;
+        vm.DefinitionStaleCallback = () => staleCount++;
+        vm.RefreshHostedAssets();
+        vm.ConfirmationCallback = (_, _) => Task.FromResult(true);
+        var definition = vm.HostedAssets.Single(a => a.IsDefinition && a.Name == "publisher.json");
+
+        await vm.DeleteHostedAssetCommand.ExecuteAsync(definition);
+
+        provider.Verify(p => p.DeleteFileAsync("def-id", It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Null(state.Definition);
+        Assert.Equal(string.Empty, vm.ProviderDefinitionUrl);
+        Assert.True(vm.HasDefinitionChanges);
+        Assert.Equal(1, staleCount);
+    }
+
+    /// <summary>
+    /// Tests that deleting a non-active discovered definition leaves the active one intact.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeleteHostedAsset_NonActiveDefinition_DeletesRemoteOnlyAsync()
+    {
+        var project = CreateInventoryProject();
+        var provider = CreateDriveProvider();
+        using var vm = CreateViewModel(project, provider);
+        var state = vm.CurrentHostingState;
+        Assert.NotNull(state);
+        const string activeUrl = "https://drive.google.com/uc?export=download&id=active-def";
+        state.Definition = new HostedFileInfo
+        {
+            FileId = "active-def-id",
+            FileName = "publisher.json",
+            Url = activeUrl,
+            FileSize = 256,
+        };
+        state.Definitions.Add(new HostedFileInfo
+        {
+            FileId = "other-def-id",
+            FileName = "publisher-old.json",
+            Url = "https://drive.google.com/uc?export=download&id=other-def",
+            FileSize = 128,
+        });
+        vm.ProviderDefinitionUrl = activeUrl;
+        vm.RefreshHostedAssets();
+        vm.ConfirmationCallback = (_, _) => Task.FromResult(true);
+        var other = vm.HostedAssets.Single(a => a.Name == "publisher-old.json");
+        vm.HasDefinitionChanges = false;
+
+        await vm.DeleteHostedAssetCommand.ExecuteAsync(other);
+
+        provider.Verify(p => p.DeleteFileAsync("other-def-id", It.IsAny<CancellationToken>()), Times.Once);
+        Assert.NotNull(state.Definition);
+        Assert.Equal(activeUrl, vm.ProviderDefinitionUrl);
+        Assert.False(vm.HasDefinitionChanges);
+    }
+
+    /// <summary>
+    /// Tests that deleting an artifact row keeps the remote file when media still references the URL.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeleteHostedAsset_SharedArtifactMediaUrl_KeepsRemoteFileAsync()
+    {
+        var project = CreateInventoryProject();
+        var metadata = project.Catalogs[0].Catalog.Content[0].Metadata;
+        Assert.NotNull(metadata);
+        metadata.ScreenshotUrls.Add(CloudArtifactUrl);
+        var provider = CreateDriveProvider();
+        var notifications = new Mock<INotificationService>();
+        string? successMessage = null;
+        notifications.Setup(n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()))
+            .Callback<string, string, int?, bool>((_, message, _, _) => successMessage = message);
+        using var vm = CreateViewModel(project, provider, notifications);
+        var state = vm.CurrentHostingState;
+        Assert.NotNull(state);
+        state.Artifacts.Add(new ArtifactHostingInfo
+        {
+            FileId = "modfile-id",
+            FileName = "cool-mod.zip",
+            Url = CloudArtifactUrl,
+            FileSize = 1024,
+        });
+        vm.RefreshHostedAssets();
+        vm.ConfirmationCallback = (_, _) => Task.FromResult(true);
+        var artifact = vm.HostedAssets.Single(a => a.Name == "cool-mod.zip");
+
+        await vm.DeleteHostedAssetCommand.ExecuteAsync(artifact);
+
+        provider.Verify(p => p.DeleteFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        Assert.Empty(project.Catalogs[0].Catalog.Content[0].Releases[0].Artifacts);
+        Assert.Contains(CloudArtifactUrl, metadata.ScreenshotUrls);
+        Assert.NotNull(successMessage);
+        Assert.Contains("kept", successMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static async Task WaitForPreviewAsync(HostedAssetItemViewModel row)
+    {
+        for (var i = 0; i < 200 && !row.RemotePreviewLoaded && row.ChildrenLoadError == null; i++)
+        {
+            await Task.Delay(25);
+        }
+    }
+
+    private sealed class CountingJsonHandler(string json, string? countedUrlSubstring = null) : HttpMessageHandler
+    {
+        public int CallCount { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            if (countedUrlSubstring == null ||
+                request.RequestUri?.ToString().Contains(countedUrlSubstring, StringComparison.OrdinalIgnoreCase) == true)
+            {
+                CallCount++;
+            }
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json"),
+            });
+        }
     }
 
     private static PublisherStudioProject CreateInventoryProject()
