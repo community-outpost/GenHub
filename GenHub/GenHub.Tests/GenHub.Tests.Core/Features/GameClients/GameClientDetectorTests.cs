@@ -134,6 +134,40 @@ public class GameClientDetectorTests : IDisposable
         Assert.NotEqual(foreignOnlyPackage.Id.Value, client.Id);
     }
 
+    /// <summary>
+    /// A client created from a pooled manifest uses the entry point the launcher resolves. Without
+    /// a resolvable entry point it keeps the first executable file.
+    /// </summary>
+    /// <param name="secondExecutable">The second executable file in the manifest.</param>
+    /// <param name="declaredEntryPoint">The manifest's declared entry point, or null for none.</param>
+    /// <param name="expectedExecutable">The executable the client must point at.</param>
+    [Theory]
+    [InlineData("generalszh.exe", "generalszh.exe", "generalszh.exe")]
+    [InlineData("updater.exe", null, "launcher.exe")]
+    public void CreateGameClientsFromManifests_UsesResolvedEntryPoint(string secondExecutable, string? declaredEntryPoint, string expectedExecutable)
+    {
+        var installPath = Directory.CreateDirectory(Path.Combine(_tempDirectory, "EntryPoint")).FullName;
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.20260925.thesuperhackers.gameclient.generalszh"),
+            Name = "TheSuperHackers - Zero Hour",
+            ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            EntryPoint = declaredEntryPoint,
+            Files =
+            [
+                new ManifestFile { RelativePath = "launcher.exe", IsExecutable = true },
+                new ManifestFile { RelativePath = secondExecutable, IsExecutable = true },
+            ],
+        };
+        var installation = new GameInstallation(installPath, GameInstallationType.Retail) { HasZeroHour = true, ZeroHourPath = installPath };
+        var method = typeof(GameClientDetector).GetMethod("CreateGameClientsFromManifests", BindingFlags.Instance | BindingFlags.NonPublic)!;
+
+        var clients = (List<GameClient>)method.Invoke(_detector, [new List<ContentManifest> { manifest }, installation, installPath])!;
+
+        Assert.Equal(Path.Combine(installPath, expectedExecutable), Assert.Single(clients).ExecutablePath);
+    }
+
     /// <summary>Pooled publisher manifests are scoped to the requested game.</summary>
     /// <param name="gameType">The requested game or all-game sentinel.</param>
     /// <param name="expectedCount">The expected number of manifests.</param>

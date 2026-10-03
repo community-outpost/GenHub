@@ -1364,12 +1364,16 @@ public class GameClientDetector(
 
         foreach (var manifest in manifests)
         {
-            // Find the executable file in the manifest
-            var executableFile = ManifestVariantResolver.ResolveFiles(manifest).FirstOrDefault(f =>
-                f.IsExecutable ||
-                (f.RelativePath?.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) == true));
+            // Use the entry point the launcher resolves, so the detected client matches what is launched.
+            // Manifests without a resolvable entry point keep the first executable file.
+            var entryPoint = ManifestVariantResolver.ResolveEntryPoint(manifest);
+            var executableRelativePath = entryPoint.Success
+                ? entryPoint.RelativePath
+                : ManifestVariantResolver.ResolveFiles(manifest).FirstOrDefault(f =>
+                    f.IsExecutable ||
+                    (f.RelativePath?.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) == true))?.RelativePath;
 
-            if (executableFile == null)
+            if (executableRelativePath == null)
             {
                 logger.LogWarning(
                     "Manifest {ManifestId} has no executable file, skipping GameClient creation",
@@ -1377,7 +1381,7 @@ public class GameClientDetector(
                 continue;
             }
 
-            var executablePath = Path.Combine(installationPath, executableFile.RelativePath ?? string.Empty);
+            var executablePath = Path.Combine(installationPath, executableRelativePath);
 
             var gameClient = new GameClient
             {
