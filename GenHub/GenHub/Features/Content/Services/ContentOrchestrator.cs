@@ -440,7 +440,7 @@ public class ContentOrchestrator : IContentOrchestrator
             }
 
             var targetPct = (int)Math.Round(cap.ProgressPercentage);
-            int current;
+            int current = 0;
             do
             {
                 current = maxReportedPercentage;
