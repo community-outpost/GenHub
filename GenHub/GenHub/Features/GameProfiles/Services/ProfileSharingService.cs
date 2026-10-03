@@ -19,6 +19,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Publishers;
+using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
@@ -55,7 +56,8 @@ public class ProfileSharingService(
     ICasService? casService = null,
     IUploadThingService? uploadThingService = null,
     IUploadHistoryService? uploadHistoryService = null,
-    ITelemetryService? telemetryService = null) : IProfileSharingService, IDisposable
+    ITelemetryService? telemetryService = null,
+    ILocalizationService? localizationService = null) : IProfileSharingService, IDisposable
 {
     private sealed record ManifestInspectionSummary(
         List<SharedManifestDependency> Manifests,
@@ -2105,6 +2107,16 @@ public class ProfileSharingService(
         var profile = profileResult.Data;
         var manifests = new List<SharedManifestDependency>();
 
+        if (allowCloudUpload)
+        {
+            var emptyLocalContent = await FindLocalContentWithoutFilesAsync(profile.EnabledContentIds ?? [], cancellationToken);
+            if (emptyLocalContent != null)
+            {
+                return OperationResult<SharedGameProfilePackage>.CreateFailure(
+                    LaunchExitMessages.GetString(ProfileSharingConstants.LocalContentHasNoFilesToShareErrorKey, localizationService, emptyLocalContent));
+            }
+        }
+
         foreach (var contentId in profile.EnabledContentIds ?? [])
         {
             var dependencyResult = await ResolveProfileContentDependencyAsync(contentId, allowCloudUpload, cancellationToken);
@@ -2146,6 +2158,32 @@ public class ProfileSharingService(
         };
 
         return OperationResult<SharedGameProfilePackage>.CreateSuccess(package);
+    }
+
+    /// <summary>
+    /// Finds the first local dependency with no files. A local dependency can only be installed
+    /// from its uploaded package, so sharing one without files would fail for every recipient.
+    /// Checked before any upload so a rejected share leaves nothing uploaded.
+    /// </summary>
+    /// <param name="contentIds">The profile's enabled content IDs.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>The name of the first local dependency with no files, or <c>null</c> when there is none.</returns>
+    private async Task<string?> FindLocalContentWithoutFilesAsync(IEnumerable<string> contentIds, CancellationToken cancellationToken)
+    {
+        foreach (var contentId in contentIds)
+        {
+            var manifestResult = await manifestPool.GetManifestAsync(contentId, cancellationToken);
+            if (manifestResult is { Success: true, Data: { } manifest } &&
+                manifest.ContentType != ContentType.GameInstallation &&
+                IsCustomLocalManifest(manifest) &&
+                ManifestVariantResolver.SupportsRuntime(manifest) &&
+                ManifestVariantResolver.ResolveFiles(manifest).Count == 0)
+            {
+                return manifest.Name;
+            }
+        }
+
+        return null;
     }
 
     private async Task<OperationResult<SharedManifestDependency?>> ResolveProfileContentDependencyAsync(
@@ -2202,14 +2240,6 @@ public class ProfileSharingService(
         string? packageHash = null;
 
         bool isLocal = IsCustomLocalManifest(manifest);
-
-        // A local dependency can only be installed from its uploaded package, so a share
-        // without one would fail for every recipient that does not already have it.
-        if (allowCloudUpload && isLocal && dependencyFiles.Count == 0)
-        {
-            return OperationResult<SharedManifestDependency>.CreateFailure(
-                string.Format(CultureInfo.InvariantCulture, ProfileSharingConstants.LocalContentHasNoFilesToShareErrorMessage, manifest.Name));
-        }
 
         if (allowCloudUpload && isLocal && dependencyFiles.Count > 0)
         {

@@ -1060,18 +1060,27 @@ public class ProfileSharingServiceTests
 
     /// <summary>
     /// Verifies that sharing local content with no files fails instead of producing a link that
-    /// no recipient could install from.
+    /// no recipient could install from, before uploading any other local content in the profile.
     /// </summary>
     /// <returns>A task representing the test.</returns>
     [Fact]
     public async Task ExportProfileToUriAsync_WithLocalManifestWithoutFiles_FailsAsync()
     {
         var localProfile = CreateTestProfile("local-empty-profile", "Local Empty Setup");
-        localProfile.EnabledContentIds = ["1.0.local.mod.emptymod"];
+        localProfile.EnabledContentIds = ["1.0.local.mod.withfiles", "1.0.local.mod.emptymod"];
         var uploadThingMock = new Mock<IUploadThingService>();
         var uploadHistoryMock = new Mock<IUploadHistoryService>();
-        uploadHistoryMock.Setup(h => h.CanUploadAsync(It.IsAny<long>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        var localWithFiles = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.local.mod.withfiles"),
+            Name = "Mod With Files",
+            Version = "1.0",
+            ContentType = ContentType.Mod,
+            Publisher = new PublisherInfo { Name = "GenHub (Local)", PublisherType = PublisherTypeConstants.Local },
+            Files = [new ManifestFile { RelativePath = "Data/INI/Mod.ini", Hash = "a3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", Size = 10 }],
+        };
+        _manifestPoolMock.Setup(m => m.GetManifestAsync("1.0.local.mod.withfiles", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(localWithFiles));
         var localManifest = new ContentManifest
         {
             Id = ManifestId.Create("1.0.local.mod.emptymod"),

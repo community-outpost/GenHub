@@ -115,9 +115,10 @@ public static class ProfileSharingConstants
     public const string EmptyProfileIdErrorMessage = "Profile identifier cannot be empty.";
 
     /// <summary>
-    /// Error message for sharing local content that has no files to upload. {0} is the content name.
+    /// Resource key for the error shown when sharing local content that has no files to upload.
+    /// {0} is the content name.
     /// </summary>
-    public const string LocalContentHasNoFilesToShareErrorMessage = "Cannot share local content '{0}': it has no files to upload, so recipients could not install it.";
+    public const string LocalContentHasNoFilesToShareErrorKey = "GameProfiles.Share.Error.LocalContentHasNoFiles";
 
     /// <summary>
     /// Parent directory segment in file paths.

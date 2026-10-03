@@ -17843,4 +17843,7 @@ Mapped image texture reference</value>
   <data name="Launch.ExitCode.LauncherExitExplained" xml:space="preserve">
     <value>The launcher exited with code {0} before starting {1}. {2}</value>
   </data>
+  <data name="GameProfiles.Share.Error.LocalContentHasNoFiles" xml:space="preserve">
+    <value>Cannot share local content '{0}': it has no files to upload, so recipients could not install it.</value>
+  </data>
 </root>

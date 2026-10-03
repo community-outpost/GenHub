@@ -17784,4 +17784,7 @@ Error: не удалось: {3}
   <data name="Launch.ExitCode.LauncherExitExplained" xml:space="preserve">
     <value>Программа запуска завершилась с кодом {0} до запуска {1}. {2}</value>
   </data>
+  <data name="GameProfiles.Share.Error.LocalContentHasNoFiles" xml:space="preserve">
+    <value>Невозможно поделиться локальным содержимым «{0}»: в нём нет файлов для загрузки, поэтому получатели не смогут его установить.</value>
+  </data>
 </root>

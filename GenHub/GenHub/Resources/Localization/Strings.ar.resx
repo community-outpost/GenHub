@@ -17784,4 +17784,7 @@ Error: فشل: {3}
   <data name="Launch.ExitCode.LauncherExitExplained" xml:space="preserve">
     <value>خرج برنامج التشغيل برمز الخروج {0} قبل بدء {1}. {2}</value>
   </data>
+  <data name="GameProfiles.Share.Error.LocalContentHasNoFiles" xml:space="preserve">
+    <value>لا يمكن مشاركة المحتوى المحلي '{0}': لا يحتوي على ملفات لرفعها، لذا لن يتمكن المستلمون من تثبيته.</value>
+  </data>
 </root>
