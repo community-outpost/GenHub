@@ -8,9 +8,11 @@ using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
+using GenHub.Core.Interfaces.GeneralsOnline;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Online;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Steam;
@@ -30,8 +32,10 @@ using GenHub.Features.Downloads.Services;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.Services;
 using GenHub.Features.GameProfiles.ViewModels;
+using GenHub.Features.GeneralsOnline.ViewModels;
 using GenHub.Features.Info.ViewModels;
 using GenHub.Features.Notifications.ViewModels;
+using GenHub.Features.Online.ViewModels;
 using GenHub.Features.Settings.ViewModels;
 using GenHub.Features.Tools.ViewModels;
 using GenHub.Tests.Core.Features.Tools.Mocks;
@@ -450,6 +454,7 @@ public class MainViewModelTests
             dialogService: (dialogService ?? new Mock<IDialogService>()).Object,
             notificationFeedViewModel: notificationFeedVm,
             infoViewModel: CreateInfoViewModel(),
+            onlineViewModel: CreateOnlineViewModel(),
             logger: logger ?? Mock.Of<ILogger<MainViewModel>>(),
             linkActivationTracker: linkActivationTracker);
     }
@@ -620,6 +625,17 @@ public class MainViewModelTests
     private static InfoViewModel CreateInfoViewModel()
     {
         return new InfoViewModel([]);
+    }
+
+    private static OnlineViewModel CreateOnlineViewModel()
+    {
+        var lobbiesVm = new GeneralsOnlineLobbiesViewModel(
+            Mock.Of<IGeneralsOnlineApiClient>(),
+            Mock.Of<IGeneralsOnlineAuthService>(),
+            Mock.Of<IGeneralsOnlineCompatibilityService>(),
+            Mock.Of<INotificationService>(),
+            Mock.Of<ILogger<GeneralsOnlineLobbiesViewModel>>());
+        return new OnlineViewModel(lobbiesVm);
     }
 
     /// <summary>

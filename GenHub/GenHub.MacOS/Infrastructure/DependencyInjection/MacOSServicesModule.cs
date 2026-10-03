@@ -2,6 +2,7 @@ using GenHub.Common.Services;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameSettings;
+using GenHub.Core.Interfaces.GeneralsOnline;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Shortcuts;
@@ -14,6 +15,7 @@ using GenHub.Features.GameSettings;
 using GenHub.Features.Launching;
 using GenHub.Features.Workspace;
 using GenHub.Infrastructure.DependencyInjection;
+using GenHub.MacOS.Features.GeneralsOnline.Services;
 using GenHub.MacOS.Features.GitHub.Services;
 using GenHub.MacOS.Features.Shortcuts;
 using GenHub.MacOS.GameInstallations;
@@ -40,6 +42,7 @@ public static class MacOSServicesModule
     {
         services.AddSingleton<IGameInstallationDetector, MacOSInstallationDetector>();
         services.AddSingleton<IGitHubTokenStorage, MacOSGitHubTokenStorage>();
+        services.AddSingleton<IGeneralsOnlineTokenStorage, MacOSGeneralsOnlineTokenStorage>();
         services.AddSingleton<IGamePathProvider, MacOSGamePathProvider>();
         services.AddSingleton<ISymlinkCapabilityProvider, UnixSymlinkCapabilityProvider>();
         services.AddSingleton<IShortcutService, MacOSShortcutService>();

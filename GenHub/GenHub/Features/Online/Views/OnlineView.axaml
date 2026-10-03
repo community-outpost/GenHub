@@ -1,0 +1,43 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:GenHub.Common.Controls"
+             xmlns:go="using:GenHub.Features.GeneralsOnline.Views"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             xmlns:vm="using:GenHub.Features.Online.ViewModels"
+             x:Class="GenHub.Features.Online.Views.OnlineView"
+             x:DataType="vm:OnlineViewModel">
+
+    <controls:SidebarLayout PaneTitle="{localization:Localize Online.Sidebar.Title}"
+                            ItemsSource="{Binding Sections}"
+                            SelectedItem="{Binding SelectedSection, Mode=TwoWay}"
+                            IsPaneOpen="{Binding IsPaneOpen, Mode=TwoWay}"
+                            OpenPaneLength="{Binding OpenPaneLength, Mode=TwoWay}"
+                            ItemTemplate="{StaticResource OnlineSectionTemplate}">
+
+        <controls:SidebarLayout.Resources>
+            <DataTemplate x:Key="OnlineSectionTemplate" DataType="vm:OnlineSectionItem">
+                <Grid ColumnDefinitions="Auto,*" Margin="4,2">
+                    <Image Grid.Column="0" Source="{Binding IconImageSource, Converter={StaticResource StringToImageConverter}}"
+                           Height="22" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,10,0"
+                           IsVisible="{Binding HasIconImage}" />
+                    <PathIcon Grid.Column="0" Data="{Binding IconData}" Width="15" Height="15"
+                              Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,10,0"
+                              IsVisible="{Binding !HasIconImage}" />
+                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Title}" Foreground="{DynamicResource TextPrimary}"
+                                   FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Description}" Foreground="{DynamicResource TextSecondary}"
+                                   FontSize="11" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                </Grid>
+            </DataTemplate>
+        </controls:SidebarLayout.Resources>
+
+        <Grid>
+            <!-- GeneralsOnline section: community lobby browser with CRC matchmaking. -->
+            <Panel IsVisible="{Binding IsGeneralsOnlineSelected}">
+                <go:GeneralsOnlineLobbiesView DataContext="{Binding GeneralsOnlineLobbies}" />
+            </Panel>
+        </Grid>
+    </controls:SidebarLayout>
+</UserControl>
