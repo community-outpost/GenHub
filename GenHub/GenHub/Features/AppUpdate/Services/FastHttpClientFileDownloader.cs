@@ -329,7 +329,7 @@ public class FastHttpClientFileDownloader(
         var buffer = new byte[Math.Min(maxBytes, 81920)];
         using var ms = new MemoryStream();
         var totalRead = 0;
-        int read;
+        var read = 0;
 
         while (totalRead < maxBytes &&
                (read = await stream.ReadAsync(buffer.AsMemory(0, Math.Min(buffer.Length, maxBytes - totalRead)), cancelToken).ConfigureAwait(false)) > 0)
