@@ -809,7 +809,7 @@ public partial class PublishShareViewModel(
 
             if (failedCatalogs.Count > 0)
             {
-                var partialDefinitionResult = await UploadProviderDefinitionCoreAsync(cancellationToken, manageUploadingState: false, suppressNotifications: true);
+                var partialDefinitionResult = await UploadProviderDefinitionCoreAsync(manageUploadingState: false, suppressNotifications: true, cancellationToken: cancellationToken);
                 if (partialDefinitionResult.Success)
                 {
                     await SyncLocalSubscriptionMetadataAsync();
@@ -836,7 +836,7 @@ public partial class PublishShareViewModel(
                     NotificationDurations.Short);
             }
 
-            var result = await UploadProviderDefinitionCoreAsync(cancellationToken, manageUploadingState: false);
+            var result = await UploadProviderDefinitionCoreAsync(manageUploadingState: false, cancellationToken: cancellationToken);
             if (result.Success)
             {
                 HasDefinitionChanges = false;
@@ -2305,7 +2305,7 @@ public partial class PublishShareViewModel(
         PopulateDiscoveredArtifacts(providerName, ref totalBytes, ref artCount, ref screenshotCount, ref videoCount);
     }
 
-    private bool IsDefinitionRepresentedInHostedAssets(CatalogDefinitionHostingInfo cloudDef)
+    private bool IsDefinitionRepresentedInHostedAssets(HostedFileInfo cloudDef)
     {
         return HostedAssets.Any(a =>
             (!string.IsNullOrEmpty(a.Url) && !string.IsNullOrEmpty(cloudDef.Url) && string.Equals(a.Url, cloudDef.Url, StringComparison.OrdinalIgnoreCase)) ||
@@ -3830,7 +3830,7 @@ public partial class PublishShareViewModel(
         try
         {
             var catalogName = ActiveCatalog?.Name;
-            var uploadResult = await UploadCatalogCoreAsync(cts.Token, manageUploadingState: false);
+            var uploadResult = await UploadCatalogCoreAsync(manageUploadingState: false, cancellationToken: cts.Token);
             if (catalogName != null)
             {
                 TrackCatalogPublished(catalogName, uploadResult);
@@ -3927,10 +3927,10 @@ public partial class PublishShareViewModel(
     }
 
     private async Task<OperationResult<HostingUploadResult>> UploadCatalogCoreAsync(
-        CancellationToken cancellationToken,
         bool manageUploadingState,
         bool suppressNotifications = false,
-        bool uploadDefinition = true)
+        bool uploadDefinition = true,
+        CancellationToken cancellationToken = default)
     {
         var preconditionResult = await ValidateUploadPreconditionsAsync(suppressNotifications);
         if (preconditionResult != null || SelectedHostingProvider == null)
@@ -3967,7 +3967,7 @@ public partial class PublishShareViewModel(
 
             // 1. Upload Pending Artifacts and Artwork
             CurrentPublishStep = 1;
-            var pendingUploadResult = await UploadPendingContentAsync(SelectedHostingProvider, cancellationToken, suppressNotifications);
+            var pendingUploadResult = await UploadPendingContentAsync(SelectedHostingProvider, suppressNotifications, cancellationToken);
             if (pendingUploadResult != null)
             {
                 MarkActiveCatalogStale();
@@ -4005,7 +4005,7 @@ public partial class PublishShareViewModel(
             var uploadResult = await PerformCatalogUploadAsync(progress, cancellationToken);
             if (uploadResult.Success && uploadResult.Data != null)
             {
-                await CompletePublishSuccessAsync(uploadResult.Data, cancellationToken, suppressNotifications, uploadDefinition);
+                await CompletePublishSuccessAsync(uploadResult.Data, suppressNotifications, uploadDefinition, cancellationToken);
                 return uploadResult;
             }
 
@@ -4100,9 +4100,9 @@ public partial class PublishShareViewModel(
 
     private async Task CompletePublishSuccessAsync(
         HostingUploadResult data,
-        CancellationToken cancellationToken = default,
         bool suppressNotifications = false,
-        bool uploadDefinition = true)
+        bool uploadDefinition = true,
+        CancellationToken cancellationToken = default)
     {
         if (SelectedHostingProvider == null) return;
 
@@ -4274,8 +4274,8 @@ public partial class PublishShareViewModel(
 
     private async Task<OperationResult<HostingUploadResult>?> UploadPendingContentAsync(
         IHostingProvider provider,
-        CancellationToken cancellationToken,
-        bool suppressNotifications = false)
+        bool suppressNotifications = false,
+        CancellationToken cancellationToken = default)
     {
         var pendingArtworkCount = ActiveCatalog == null ? 0 : CollectPendingArtwork(ActiveCatalog).Count;
         var pendingMediaCount = ActiveCatalog == null ? 0 : CollectPendingMedia(ActiveCatalog).Pending.Count;
@@ -4286,13 +4286,13 @@ public partial class PublishShareViewModel(
         }
 
         // 1b. Upload Pending Artwork (local image files referenced by content metadata)
-        if (!await UploadPendingArtworkAsync(provider, cancellationToken, suppressNotifications, completedArtifacts, completedArtifacts + pendingArtworkCount + pendingMediaCount))
+        if (!await UploadPendingArtworkAsync(provider, suppressNotifications, completedArtifacts, completedArtifacts + pendingArtworkCount + pendingMediaCount, cancellationToken))
         {
             return OperationResult<HostingUploadResult>.CreateFailure(UploadStatusMessage);
         }
 
         // 1c. Upload Pending Gallery Media (local screenshots and videos referenced by content metadata and releases)
-        if (!await UploadPendingMediaAsync(provider, cancellationToken, suppressNotifications, completedArtifacts + pendingArtworkCount, completedArtifacts + pendingArtworkCount + pendingMediaCount))
+        if (!await UploadPendingMediaAsync(provider, suppressNotifications, completedArtifacts + pendingArtworkCount, completedArtifacts + pendingArtworkCount + pendingMediaCount, cancellationToken))
         {
             return OperationResult<HostingUploadResult>.CreateFailure(UploadStatusMessage);
         }
@@ -4340,7 +4340,7 @@ public partial class PublishShareViewModel(
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 current++;
-                if (!await ExecuteSingleArtifactUploadAsync(provider, task, current, total, cancellationToken, progressOffset: 0, progressTotal: total + additionalProgressTotal, deferPersistenceAndRefresh: true))
+                if (!await ExecuteSingleArtifactUploadAsync(provider, task, current, total, progressOffset: 0, progressTotal: total + additionalProgressTotal, deferPersistenceAndRefresh: true, cancellationToken: cancellationToken))
                 {
                     return (false, current - 1);
                 }
@@ -4356,10 +4356,10 @@ public partial class PublishShareViewModel(
 
     private async Task<bool> UploadPendingArtworkAsync(
         IHostingProvider provider,
-        CancellationToken cancellationToken,
         bool suppressNotifications = false,
         int progressOffset = 0,
-        int progressTotal = 0)
+        int progressTotal = 0,
+        CancellationToken cancellationToken = default)
     {
         if (ActiveCatalog == null)
         {
@@ -4393,7 +4393,7 @@ public partial class PublishShareViewModel(
         {
             cancellationToken.ThrowIfCancellationRequested();
             current++;
-            if (!await UploadSingleArtworkAsync(provider, content, slot, localPath, current, total, cancellationToken, suppressNotifications, progressOffset, progressTotal))
+            if (!await UploadSingleArtworkAsync(provider, content, slot, localPath, current, total, suppressNotifications, progressOffset, progressTotal, cancellationToken))
             {
                 return false;
             }
@@ -4527,6 +4527,9 @@ public partial class PublishShareViewModel(
             case ArtworkSlot.Backdrop:
                 content.Metadata.BackdropUrl = url;
                 break;
+            default:
+                logger.LogWarning("Unknown artwork slot: {Slot}", slot);
+                break;
         }
     }
 
@@ -4547,10 +4550,10 @@ public partial class PublishShareViewModel(
         string localPath,
         int current,
         int total,
-        CancellationToken cancellationToken,
         bool suppressNotifications = false,
         int progressOffset = 0,
-        int progressTotal = 0)
+        int progressTotal = 0,
+        CancellationToken cancellationToken = default)
     {
         var displayName = Path.GetFileName(localPath);
         UploadStatusMessage = FormatLocalizedString(
@@ -4648,10 +4651,10 @@ public partial class PublishShareViewModel(
 
     private async Task<bool> UploadPendingMediaAsync(
         IHostingProvider provider,
-        CancellationToken cancellationToken,
         bool suppressNotifications = false,
         int progressOffset = 0,
-        int progressTotal = 0)
+        int progressTotal = 0,
+        CancellationToken cancellationToken = default)
     {
         if (ActiveCatalog == null)
         {
@@ -4686,7 +4689,7 @@ public partial class PublishShareViewModel(
         {
             cancellationToken.ThrowIfCancellationRequested();
             current++;
-            if (!await UploadSingleMediaAsync(provider, item, current, total, cancellationToken, suppressNotifications, progressOffset, progressTotal))
+            if (!await UploadSingleMediaAsync(provider, item, current, total, suppressNotifications, progressOffset, progressTotal, cancellationToken))
             {
                 return false;
             }
@@ -4832,10 +4835,10 @@ public partial class PublishShareViewModel(
         PendingMediaUpload item,
         int current,
         int total,
-        CancellationToken cancellationToken,
         bool suppressNotifications = false,
         int progressOffset = 0,
-        int progressTotal = 0)
+        int progressTotal = 0,
+        CancellationToken cancellationToken = default)
     {
         UploadStatusMessage = FormatLocalizedString(
             "Tools.PublisherStudio.Publish.UploadingMediaFormat",
@@ -4874,7 +4877,7 @@ public partial class PublishShareViewModel(
                 "Tools.PublisherStudio.Publish.MediaUploadFailedFormat",
                 "Failed to upload media {0}: {1}",
                 item.DisplayName,
-                result.FirstError);
+                result?.FirstError ?? "Unknown error");
             return FailMediaUpload(msg, suppressNotifications);
         }
 
@@ -5002,8 +5005,8 @@ public partial class PublishShareViewModel(
     private async Task RecordUploadedArtifactHostingStateAsync(
         ArtifactUploadTask task,
         HostingUploadResult uploadData,
-        CancellationToken cancellationToken = default,
-        bool deferPersistenceAndRefresh = false)
+        bool deferPersistenceAndRefresh = false,
+        CancellationToken cancellationToken = default)
     {
         task.Artifact.DownloadUrl = uploadData.DirectDownloadUrl;
         task.Status = UploadStatus.Uploaded;
@@ -5051,10 +5054,10 @@ public partial class PublishShareViewModel(
         ArtifactUploadTask task,
         int current,
         int total,
-        CancellationToken cancellationToken = default,
         int progressOffset = 0,
         int progressTotal = 0,
-        bool deferPersistenceAndRefresh = false)
+        bool deferPersistenceAndRefresh = false,
+        CancellationToken cancellationToken = default)
     {
         task.Status = UploadStatus.Uploading;
         UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.UploadingArtifactFormat", "Uploading artifact {0}/{1}: {2}", current, total, task.Artifact.Filename);
@@ -5089,7 +5092,7 @@ public partial class PublishShareViewModel(
                 var result = await provider.UploadFileAsync(stream, uploadFileName, null, progress, cancellationToken);
                 if (result.Success && result.Data != null)
                 {
-                    await RecordUploadedArtifactHostingStateAsync(task, result.Data, cancellationToken, deferPersistenceAndRefresh);
+                    await RecordUploadedArtifactHostingStateAsync(task, result.Data, deferPersistenceAndRefresh, cancellationToken);
                     return true;
                 }
 
@@ -5788,9 +5791,9 @@ public partial class PublishShareViewModel(
     }
 
     private async Task<OperationResult<HostingUploadResult>> UploadProviderDefinitionCoreAsync(
-        CancellationToken cancellationToken,
         bool manageUploadingState,
-        bool suppressNotifications = false)
+        bool suppressNotifications = false,
+        CancellationToken cancellationToken = default)
     {
         var preconditionResult = await ValidateProviderDefinitionPreconditionsAsync(suppressNotifications);
         if (preconditionResult != null || SelectedHostingProvider == null)
@@ -6152,32 +6155,32 @@ public partial class PublishShareViewModel(
         {
             var cancellationToken = cts.Token;
 
-        try
-        {
-            var uploadResult = await UploadCatalogCoreAsync(cancellationToken, manageUploadingState: false, suppressNotifications: true);
-            TrackCatalogPublished(catalog.Name, uploadResult);
-            if (!uploadResult.Success && cancellationToken.IsCancellationRequested)
+            try
             {
-                UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.UploadCanceled", "Upload canceled.");
+                var uploadResult = await UploadCatalogCoreAsync(manageUploadingState: false, suppressNotifications: true, cancellationToken: cancellationToken);
+                TrackCatalogPublished(catalog.Name, uploadResult);
+                if (!uploadResult.Success && cancellationToken.IsCancellationRequested)
+                {
+                    UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.UploadCanceled", "Upload canceled.");
+                }
+                else if (uploadResult.Success)
+                {
+                    // Publish status is updated centrally in CompletePublishSuccessAsync.
+                    notificationService?.ShowSuccess(
+                        GetLocalizedString(PublishSuccessTitleKey, "Published"),
+                        FormatLocalizedString(
+                            "Tools.PublisherStudio.Publish.CatalogPublishedFormat",
+                            "Catalog '{0}' published successfully.",
+                            catalog.Name),
+                        autoDismissMs: 4000);
+                }
+                else
+                {
+                    notificationService?.ShowError(
+                        GetLocalizedString(PublishFailedTitleKey, "Publish Failed"),
+                        uploadResult.FirstError ?? GetLocalizedString("Tools.PublisherStudio.Publish.CatalogPublishFailed", "Failed to publish catalog."));
+                }
             }
-            else if (uploadResult.Success)
-            {
-                // Publish status is updated centrally in CompletePublishSuccessAsync.
-                notificationService?.ShowSuccess(
-                    GetLocalizedString(PublishSuccessTitleKey, "Published"),
-                    FormatLocalizedString(
-                        "Tools.PublisherStudio.Publish.CatalogPublishedFormat",
-                        "Catalog '{0}' published successfully.",
-                        catalog.Name),
-                    autoDismissMs: 4000);
-            }
-            else
-            {
-                notificationService?.ShowError(
-                    GetLocalizedString(PublishFailedTitleKey, "Publish Failed"),
-                    uploadResult.FirstError ?? GetLocalizedString("Tools.PublisherStudio.Publish.CatalogPublishFailed", "Failed to publish catalog."));
-            }
-        }
             finally
             {
                 // Restore previous active catalog
@@ -6210,20 +6213,9 @@ public partial class PublishShareViewModel(
             }
         }
 
-        if (HasIncompatibleArtifactsForActiveCatalog)
+        if (project.Catalogs.Count == 0)
         {
-            var warningMsg = FormatLocalizedString("Tools.PublisherStudio.Publish.IncompatibleArtifactsActiveCatalogFormat", "{0} only hosts catalog metadata (JSON). The active catalog '{1}' has {2} local file(s) pending upload. Either provide direct CDN URLs for those files, or switch to Google Drive or Dropbox to host binary archives.", SelectedHostingProvider.DisplayName, ActiveCatalog?.Name, ActiveCatalogPendingArtifactsCount);
-            UploadStatusMessage = warningMsg;
-            notificationService?.ShowError(GetLocalizedString(IncompatibleProviderTitleKey, IncompatibleProviderDefaultMessage), warningMsg);
-            return false;
-        }
-
-        await ValidateCatalogAsync();
-        if (!IsValid)
-        {
-            UploadStatusMessage = string.IsNullOrWhiteSpace(ValidationMessage)
-                ? GetLocalizedString("Tools.PublisherStudio.Publish.FixValidationBeforePublish", "Please fix catalog validation errors before publishing.")
-                : ValidationMessage;
+            UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.NoCatalogSelected", "No catalog selected");
             notificationService?.ShowWarning(
                 GetLocalizedString("Tools.PublisherStudio.Publish.ValidationFailedTitle", "Validation Failed"),
                 UploadStatusMessage);
@@ -6245,53 +6237,55 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        if (!await ValidatePublishAllPreconditionsAsync())
+        try
+        {
+            if (!await ValidatePublishAllPreconditionsAsync())
+            {
+                return;
+            }
+
+            var cancellationToken = cts.Token;
+            PublishCompleted = false;
+            using (BeginUploadProgressToast(
+                GetLocalizedString("Tools.PublisherStudio.Publish.PublishStartedTitle", "Publishing"),
+                FormatLocalizedString(
+                    "Tools.PublisherStudio.Publish.PublishAllStartedFormat",
+                    "Publishing {0} catalog(s) to {1}...",
+                    project.Catalogs.Count,
+                    SelectedHostingProvider?.DisplayName ?? string.Empty)))
+            {
+                try
+                {
+                    var catalogs = project.Catalogs.ToList();
+                    var totalCatalogs = catalogs.Count;
+                    var (succeededCount, failedCatalogs) = await PublishCatalogsAsync(catalogs, cancellationToken);
+
+                    if (succeededCount > 0)
+                    {
+                        await FinalizePublishAllSuccessAsync(succeededCount, totalCatalogs, failedCatalogs, cancellationToken);
+                    }
+                    else
+                    {
+                        UploadStatusMessage = BuildAllCatalogsFailedMessage(failedCatalogs);
+                        notificationService?.ShowError(
+                            GetLocalizedString(PublishFailedTitleKey, UploadFailedDefaultMessage),
+                            UploadStatusMessage);
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.PublishAllCanceled", "Publishing all catalogs was canceled.");
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to publish all catalogs");
+                    UploadStatusMessage = FormatLocalizedString(PublishErrorFormatKey, PublishErrorFormatDefault, ex.Message);
+                }
+            }
+        }
+        finally
         {
             EndPublish(cts);
-            return;
-        }
-
-        var cancellationToken = cts.Token;
-        PublishCompleted = false;
-        using (BeginUploadProgressToast(
-            GetLocalizedString("Tools.PublisherStudio.Publish.PublishStartedTitle", "Publishing"),
-            FormatLocalizedString(
-                "Tools.PublisherStudio.Publish.PublishAllStartedFormat",
-                "Publishing {0} catalog(s) to {1}...",
-                project.Catalogs.Count,
-                SelectedHostingProvider?.DisplayName ?? string.Empty)))
-        {
-            try
-        {
-            var catalogs = project.Catalogs.ToList();
-            var totalCatalogs = catalogs.Count;
-            var (succeededCount, failedCatalogs) = await PublishCatalogsAsync(catalogs, cancellationToken);
-
-            if (succeededCount > 0)
-            {
-                await FinalizePublishAllSuccessAsync(succeededCount, totalCatalogs, failedCatalogs, cancellationToken);
-            }
-            else
-            {
-                UploadStatusMessage = BuildAllCatalogsFailedMessage(failedCatalogs);
-                notificationService?.ShowError(
-                    GetLocalizedString(PublishFailedTitleKey, UploadFailedDefaultMessage),
-                    UploadStatusMessage);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.PublishAllCanceled", "Publishing all catalogs was canceled.");
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to publish all catalogs");
-            UploadStatusMessage = FormatLocalizedString(PublishErrorFormatKey, PublishErrorFormatDefault, ex.Message);
-        }
-            finally
-            {
-                EndPublish(cts);
-            }
         }
     }
 
@@ -6397,10 +6391,10 @@ public partial class PublishShareViewModel(
         try
         {
             var res = await UploadCatalogCoreAsync(
-                cancellationToken,
                 manageUploadingState: false,
                 suppressNotifications: true,
-                uploadDefinition: uploadDefinition);
+                uploadDefinition: uploadDefinition,
+                cancellationToken: cancellationToken);
             TrackCatalogPublished(catalog.Name, res);
             if (res.Success)
             {
@@ -6423,7 +6417,7 @@ public partial class PublishShareViewModel(
         List<(string Name, string Error)> failedCatalogs,
         CancellationToken cancellationToken)
     {
-        var defResult = await UploadProviderDefinitionCoreAsync(cancellationToken, manageUploadingState: false, suppressNotifications: true);
+        var defResult = await UploadProviderDefinitionCoreAsync(manageUploadingState: false, suppressNotifications: true, cancellationToken: cancellationToken);
         var defError = defResult.Success ? null : GetDefinitionError(defResult);
         if (defResult.Success)
         {
@@ -6666,7 +6660,7 @@ public partial class PublishShareViewModel(
 
         // When the local profile is empty, a sync doubles as a restore: pull the discovered
         // definition and its catalogs so the project reflects what is actually hosted.
-        if (await TryAutoRestoreCloudDefinitionAsync(ct, resolveShareableUrl: true))
+        if (await TryAutoRestoreCloudDefinitionAsync(resolveShareableUrl: true, cancellationToken: ct))
         {
             await SaveAllHostingStatesAsync(ct);
             return;
@@ -6687,11 +6681,11 @@ public partial class PublishShareViewModel(
     /// the local publisher profile is empty (for example after local data was wiped) and cloud
     /// storage holds a published definition.
     /// </summary>
-    /// <param name="cancellationToken">Cancellation token.</param>
     /// <param name="resolveShareableUrl">True to resolve a shareable URL on demand when the
     /// discovered definition has none yet; false keeps background scans side-effect free.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True when the cloud publisher definition was successfully restored and populated the local profile; false otherwise.</returns>
-    private async Task<bool> TryAutoRestoreCloudDefinitionAsync(CancellationToken cancellationToken, bool resolveShareableUrl)
+    private async Task<bool> TryAutoRestoreCloudDefinitionAsync(bool resolveShareableUrl, CancellationToken cancellationToken = default)
     {
         if (!string.IsNullOrWhiteSpace(project.Catalog?.Publisher?.Id))
         {
@@ -6888,7 +6882,7 @@ public partial class PublishShareViewModel(
                 RefreshUploadHierarchy();
                 RefreshHostedAssets();
                 GenerateSubscriptionUrl();
-                await TryAutoRestoreCloudDefinitionAsync(silentCt, resolveShareableUrl: false);
+                await TryAutoRestoreCloudDefinitionAsync(resolveShareableUrl: false, cancellationToken: silentCt);
             }
         }
         catch (OperationCanceledException ex)
@@ -7074,6 +7068,7 @@ public partial class PublishShareViewModel(
                     await UploadSingleArtifactAssetAsync(asset);
                     break;
                 default:
+                    logger.LogWarning("Unsupported asset kind for upload: {Kind}", asset.AssetKind);
                     break;
             }
         }
@@ -7191,7 +7186,7 @@ public partial class PublishShareViewModel(
                 LocalizationService = localizationService,
             };
 
-            if (await ExecuteSingleArtifactUploadAsync(provider, task, 1, 1, cancellationToken))
+            if (await ExecuteSingleArtifactUploadAsync(provider, task, 1, 1, cancellationToken: cancellationToken))
             {
                 MarkCatalogWithContentStale(contentId);
                 NotifyDefinitionStale();
@@ -7825,6 +7820,15 @@ public partial class PublishShareViewModel(
         }
 
         var remotesCleaned = await DeleteCatalogRemotesAsync(catalogId, cancellationToken);
+        if (!remotesCleaned)
+        {
+            notificationService?.ShowWarning(
+                GetLocalizedString(DeleteSuccessTitleKey, DeleteSuccessTitleDefault),
+                FormatLocalizedString("Tools.PublisherStudio.Hosting.DeleteCatalogRemoteFailedFormat", "Catalog '{0}' was kept because some remote files could not be deleted. Check the connection and retry.", projectCatalog?.Name ?? asset.Name),
+                NotificationDurations.Long);
+            return;
+        }
+
         if (projectCatalog != null)
         {
             project.Catalogs.Remove(projectCatalog);
@@ -7838,14 +7842,6 @@ public partial class PublishShareViewModel(
             {
                 await ProjectReloadCallback();
             }
-        }
-
-        if (!remotesCleaned)
-        {
-            notificationService?.ShowWarning(
-                GetLocalizedString(DeleteSuccessTitleKey, DeleteSuccessTitleDefault),
-                FormatLocalizedString("Tools.PublisherStudio.Hosting.DeleteCatalogRemoteFailedFormat", "Catalog '{0}' was removed, but some remote files could not be deleted. Check the connection and storage permissions.", projectCatalog?.Name ?? asset.Name),
-                NotificationDurations.Long);
         }
 
         _linkageIndex = null;
@@ -7901,7 +7897,7 @@ public partial class PublishShareViewModel(
         try
         {
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cts.Token);
-            var result = await UploadProviderDefinitionCoreAsync(linked.Token, manageUploadingState: false, suppressNotifications: true);
+            var result = await UploadProviderDefinitionCoreAsync(manageUploadingState: false, suppressNotifications: true, cancellationToken: linked.Token);
             if (result.Success)
             {
                 await SyncLocalSubscriptionMetadataAsync();
@@ -8071,7 +8067,14 @@ public partial class PublishShareViewModel(
         project.IsDirty = true;
         if (SaveProjectCallback != null)
         {
-            await SaveProjectCallback();
+            try
+            {
+                await SaveProjectCallback();
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to persist project after deleting hosted file");
+            }
         }
 
         LibraryRefreshCallback?.Invoke();

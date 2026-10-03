@@ -1,6 +1,6 @@
-namespace GenHub.Tests.Core.Collections;
-
 using Xunit;
+
+namespace GenHub.Tests.Core.Collections;
 
 /// <summary>
 /// Prevents tests that mutate static testing hooks on <see cref="GenHub.Features.Tools.ViewModels.PublishShareViewModel"/>

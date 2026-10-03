@@ -17989,7 +17989,7 @@ Error: فشل: {3}
     <value>تعذّر حفظ حالة الاستضافة، وقد تظهر الملفات المحذوفة مجددًا بعد إعادة التشغيل.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DeleteCatalogRemoteFailedFormat" xml:space="preserve">
-    <value>تمت إزالة الفهرس '{0}'، ولكن تعذّر حذف بعض الملفات البعيدة. تحقق من الاتصال وأذونات التخزين.</value>
+    <value>تم الاحتفاظ بالكتالوج '{0}' لتعذر حذف بعض الملفات البعيدة. تحقق من الاتصال وأعد المحاولة.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DeleteDefinitionStaleNote" xml:space="preserve">
     <value>تعذر إعادة تحميل تعريف المزود وتم وضع علامة عليه للنشر.</value>
