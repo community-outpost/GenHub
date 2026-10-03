@@ -431,6 +431,30 @@ public class ContentOrchestrator : IContentOrchestrator
 
         _logger.LogInformation("Acquiring content {ContentName} from {ProviderName}", searchResult.Name, searchResult.ProviderName);
 
+        var maxReportedPercentage = 0;
+        void ReportMonotonicProgress(ContentAcquisitionProgress cap)
+        {
+            if (progress == null)
+            {
+                return;
+            }
+
+            var targetPct = (int)Math.Round(cap.ProgressPercentage);
+            int current = 0;
+            do
+            {
+                current = maxReportedPercentage;
+                if (targetPct < current)
+                {
+                    return;
+                }
+            }
+            while (Interlocked.CompareExchange(ref maxReportedPercentage, targetPct, current) != current);
+
+            cap.ProgressPercentage = targetPct;
+            progress.Report(cap);
+        }
+
         try
         {
             // Step 1: Get provider
@@ -457,7 +481,7 @@ public class ContentOrchestrator : IContentOrchestrator
             PopulateOriginalMetadata(manifest, searchResult);
 
             // Step 3: Validate manifest structure only
-            progress?.Report(new ContentAcquisitionProgress
+            ReportMonotonicProgress(new ContentAcquisitionProgress
             {
                 Phase = ContentAcquisitionPhase.ValidatingManifest,
                 ProgressPercentage = ContentConstants.ProgressStepValidatingManifest,
@@ -481,14 +505,40 @@ public class ContentOrchestrator : IContentOrchestrator
 
             try
             {
-                progress?.Report(new ContentAcquisitionProgress
+                ReportMonotonicProgress(new ContentAcquisitionProgress
                 {
                     Phase = ContentAcquisitionPhase.Downloading,
                     ProgressPercentage = ContentConstants.ProgressStepDownloading,
-                    CurrentOperation = "Preparing content via provider pipeline",
+                    CurrentOperation = ContentConstants.PreparingContentViaProviderOperation,
                 });
 
-                var prepareResult = await provider.PrepareContentAsync(manifest, stagingDir, progress, cancellationToken);
+                // Scale provider preparation progress (0-100) into downloading phase range (40-70%)
+                IProgress<ContentAcquisitionProgress>? prepareProgress = null;
+                if (progress != null)
+                {
+                    prepareProgress = new SynchronousProgress<ContentAcquisitionProgress>(p =>
+                    {
+                        var span = (double)(ContentConstants.ProgressStepValidatingFiles - ContentConstants.ProgressStepDownloading);
+                        var normalized = Math.Clamp(p.ProgressPercentage, ContentConstants.ProgressMinPercentage, ContentConstants.ProgressMaxPercentage) / ContentConstants.ProgressMaxPercentage;
+                        var scaledPct = Math.Clamp(
+                            ContentConstants.ProgressStepDownloading + (int)Math.Round(normalized * span),
+                            ContentConstants.ProgressStepDownloading,
+                            ContentConstants.ProgressStepValidatingFiles);
+
+                        ReportMonotonicProgress(new ContentAcquisitionProgress
+                        {
+                            Phase = ContentAcquisitionPhase.Downloading,
+                            ProgressPercentage = scaledPct,
+                            CurrentOperation = p.CurrentOperation ?? ContentConstants.PreparingContentViaProviderOperation,
+                            BytesProcessed = p.BytesProcessed,
+                            TotalBytes = p.TotalBytes,
+                            FilesProcessed = p.FilesProcessed,
+                            TotalFiles = p.TotalFiles,
+                        });
+                    });
+                }
+
+                var prepareResult = await provider.PrepareContentAsync(manifest, stagingDir, prepareProgress, cancellationToken);
                 if (!prepareResult.Success || prepareResult.Data == null)
                 {
                     return OperationResult<ContentManifest>.CreateFailure(
@@ -504,7 +554,7 @@ public class ContentOrchestrator : IContentOrchestrator
 
                 // Step 5: Full validation (manifest + files)
                 // Always validate to ensure content integrity, even if nominally in CAS
-                progress?.Report(new ContentAcquisitionProgress
+                ReportMonotonicProgress(new ContentAcquisitionProgress
                 {
                     Phase = ContentAcquisitionPhase.ValidatingFiles,
                     ProgressPercentage = ContentConstants.ProgressStepValidatingFiles,
@@ -515,11 +565,11 @@ public class ContentOrchestrator : IContentOrchestrator
                 IProgress<ValidationProgress>? validationProgress = null;
                 if (progress != null)
                 {
-                    validationProgress = new Progress<ValidationProgress>(vp =>
+                    validationProgress = new SynchronousProgress<ValidationProgress>(vp =>
                     {
                         // Map validation progress (0-100) into 70-80% range for acquisition
                         var pct = Math.Clamp(ContentConstants.ProgressStepValidatingFiles + (int)(vp.PercentComplete / 10.0), 0, 100);
-                        progress.Report(new ContentAcquisitionProgress
+                        ReportMonotonicProgress(new ContentAcquisitionProgress
                         {
                             Phase = ContentAcquisitionPhase.ValidatingFiles,
                             ProgressPercentage = pct,
@@ -547,7 +597,7 @@ public class ContentOrchestrator : IContentOrchestrator
                 }
 
                 // Step 6: Store in permanent storage (only if not already stored by deliverer)
-                progress?.Report(new ContentAcquisitionProgress
+                ReportMonotonicProgress(new ContentAcquisitionProgress
                 {
                     Phase = ContentAcquisitionPhase.Extracting,
                     ProgressPercentage = ContentConstants.ProgressStepExtracting,
@@ -588,7 +638,7 @@ public class ContentOrchestrator : IContentOrchestrator
                     _logger.LogDebug("Manifest {ManifestId} already stored by deliverer, skipping redundant storage", prepareResult.Data.Id);
                 }
 
-                progress?.Report(new ContentAcquisitionProgress
+                ReportMonotonicProgress(new ContentAcquisitionProgress
                 {
                     Phase = ContentAcquisitionPhase.Completed,
                     ProgressPercentage = ContentConstants.ProgressStepCompleted,
@@ -807,5 +857,10 @@ public class ContentOrchestrator : IContentOrchestrator
             _installationCasPoolService,
             _logger,
             cancellationToken);
+    }
+
+    private sealed class SynchronousProgress<T>(Action<T> handler) : IProgress<T>
+    {
+        public void Report(T value) => handler(value);
     }
 }

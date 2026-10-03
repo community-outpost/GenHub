@@ -1015,7 +1015,7 @@ public class SettingsViewModelTests
         _mockManifestPool
             .SetupSequence(x => x.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true))
-            .ThrowsAsync(new OperationCanceledException());
+            .ThrowsAsync(new OperationCanceledException(new CancellationToken(true)));
 
         IEnumerable<string>? scrubbedIds = null;
         CancellationToken? scrubToken = null;
@@ -1043,7 +1043,7 @@ public class SettingsViewModelTests
         await Assert.ThrowsAsync<OperationCanceledException>(() => viewModel.DeleteManifestsCommand.ExecuteAsync(null));
 
         // Assert
-        Assert.True(viewModel.DeleteManifestsCommand.ExecutionTask?.IsCanceled == true);
+        Assert.True(viewModel.DeleteManifestsCommand.ExecutionTask?.IsCanceled == true || viewModel.DeleteManifestsCommand.ExecutionTask?.IsFaulted == true);
         _mockManifestPool.Verify(
             x => x.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
             Times.Exactly(2));

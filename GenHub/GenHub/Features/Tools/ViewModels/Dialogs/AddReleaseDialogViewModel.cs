@@ -4,9 +4,11 @@ using GenHub.Common.Validation;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
+using GenHub.Core.Services.Tools;
 using GenHub.Features.Tools.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -23,6 +25,7 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 /// <summary>
 /// ViewModel for the Add/Edit Release or Addon dialog.
 /// </summary>
+[method: System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Dialog ViewModel primary constructor requires dependencies and dialog configuration state.")]
 public partial class AddReleaseDialogViewModel(
     CatalogContentItem contentItem,
     PublisherCatalog catalog,
@@ -30,8 +33,11 @@ public partial class AddReleaseDialogViewModel(
     IPublisherStudioDialogService dialogService,
     GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null,
     bool isAddon = false,
-    INotificationService? notificationService = null) : ObservableValidator
+    INotificationService? notificationService = null,
+    IGenHubBuildInspector? buildInspector = null) : ObservableValidator
 {
+    private readonly IGenHubBuildInspector _buildInspector = buildInspector ?? new GenHubBuildInspector();
+
     /// <summary>
     /// Represents an option in the ContentBundle component matrix for release editing.
     /// </summary>
@@ -328,6 +334,7 @@ public partial class AddReleaseDialogViewModel(
     /// <param name="isAddon">True if editing an addon; false if editing a release.</param>
     /// <param name="notificationService">Optional notification service for user feedback.</param>
     /// <param name="onReleaseDeleted">Optional callback invoked when deleting the release.</param>
+    /// <param name="buildInspector">Optional GenHub build inspector.</param>
     public AddReleaseDialogViewModel(
         ContentRelease existing,
         CatalogContentItem contentItem,
@@ -337,8 +344,9 @@ public partial class AddReleaseDialogViewModel(
         GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null,
         bool isAddon = false,
         INotificationService? notificationService = null,
-        Func<ContentRelease, Task>? onReleaseDeleted = null)
-        : this(contentItem, catalog, onReleaseCreated, dialogService, localizationService, isAddon, notificationService)
+        Func<ContentRelease, Task>? onReleaseDeleted = null,
+        IGenHubBuildInspector? buildInspector = null)
+        : this(contentItem, catalog, onReleaseCreated, dialogService, localizationService, isAddon, notificationService, buildInspector)
     {
         ArgumentNullException.ThrowIfNull(existing);
 
@@ -497,6 +505,8 @@ public partial class AddReleaseDialogViewModel(
 
             Artifacts.Add(artifact);
             addedCount++;
+
+            await ApplyGenHubBuildMetadataAsync(path, cancellationToken).ConfigureAwait(true);
         }
 
         // Files dropped together are parts of one payload; bundle them so the
@@ -770,6 +780,40 @@ public partial class AddReleaseDialogViewModel(
         if (!existingUrls.Contains(targetUrl, StringComparer.OrdinalIgnoreCase))
         {
             existingUrls.Add(targetUrl);
+        }
+    }
+
+    private async Task ApplyGenHubBuildMetadataAsync(string path, CancellationToken cancellationToken)
+    {
+        if (contentItem?.ContentType != ContentType.GenHubBuild && !_buildInspector.IsGenHubBuildPath(path))
+        {
+            return;
+        }
+
+        var buildInfo = await _buildInspector.InspectAsync(path, cancellationToken).ConfigureAwait(true);
+        if (!buildInfo.IsGenHubBuild)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(buildInfo.Version))
+        {
+            Version = buildInfo.Version;
+        }
+
+        if (!string.IsNullOrWhiteSpace(buildInfo.SuggestedCategory))
+        {
+            Category = buildInfo.SuggestedCategory;
+        }
+
+        if (buildInfo.BuildChannel is GenHubBuildConstants.ChannelPr or GenHubBuildConstants.ChannelDev or GenHubBuildConstants.ChannelTest)
+        {
+            IsPrerelease = true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(buildInfo.SuggestedDescription) && string.IsNullOrWhiteSpace(Changelog))
+        {
+            Changelog = buildInfo.SuggestedDescription;
         }
     }
 
@@ -1124,7 +1168,7 @@ public partial class AddReleaseDialogViewModel(
         var release = new ContentRelease
         {
             Title = ResolveEffectiveTitle(),
-            Category = IsAddonMode && !string.IsNullOrWhiteSpace(Category) ? Category.Trim() : null,
+            Category = (IsAddonMode || contentItem?.ContentType == ContentType.GenHubBuild) && !string.IsNullOrWhiteSpace(Category) ? Category.Trim() : null,
             Version = Version.Trim(),
             ReleaseDate = ReleaseDate.UtcDateTime,
             IsLatest = IsLatest,

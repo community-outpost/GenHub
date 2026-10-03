@@ -5,10 +5,12 @@ using GenHub.Common.Validation;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
+using GenHub.Core.Services.Tools;
 using GenHub.Core.Utilities;
 using GenHub.Features.Tools.Interfaces;
 using GenHub.Infrastructure.Services;
@@ -35,13 +37,16 @@ public partial class AddContentDialogViewModel(
     IPublisherStudioDialogService? dialogService = null,
     GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null,
     PublisherCatalog? catalog = null,
-    INotificationService? notificationService = null) : ObservableValidator, IDisposable
+    INotificationService? notificationService = null,
+    IGenHubBuildInspector? buildInspector = null) : ObservableValidator, IDisposable
 {
     private static readonly HttpClient SharedFileSizeClient = new(
         ImageCacheService.CreateSsrfSafeSocketsHttpHandler())
     {
         Timeout = TimeSpan.FromSeconds(5),
     };
+
+    private readonly IGenHubBuildInspector _buildInspector = buildInspector ?? new GenHubBuildInspector();
 
     /// <summary>
     /// Represents an option in the ContentBundle component matrix.
@@ -165,6 +170,7 @@ public partial class AddContentDialogViewModel(
     /// Artwork browse target for the content backdrop cover.
     /// </summary>
     public const string ArtworkTargetBackdrop = "Backdrop";
+    private const string DefaultInitialVersion = "1.0.0";
 
     private readonly CatalogContentItem? _existingItem;
     private readonly Func<CatalogContentItem, Task>? _onContentDeleted;
@@ -373,7 +379,7 @@ public partial class AddContentDialogViewModel(
     private bool _includeInitialRelease = true;
 
     [ObservableProperty]
-    private string _initialVersion = "1.0.0";
+    private string _initialVersion = DefaultInitialVersion;
 
     [ObservableProperty]
     private bool _useDirectUrl = true;
@@ -409,6 +415,7 @@ public partial class AddContentDialogViewModel(
     /// <param name="catalog">Optional parent catalog.</param>
     /// <param name="notificationService">Optional notification service for user feedback.</param>
     /// <param name="onContentDeleted">Optional callback invoked when the content item is deleted.</param>
+    /// <param name="buildInspector">Optional GenHub build inspector.</param>
     public AddContentDialogViewModel(
         CatalogContentItem existing,
         Action<CatalogContentItem?> onContentSaved,
@@ -416,8 +423,9 @@ public partial class AddContentDialogViewModel(
         GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null,
         PublisherCatalog? catalog = null,
         INotificationService? notificationService = null,
-        Func<CatalogContentItem, Task>? onContentDeleted = null)
-        : this(onContentSaved, dialogService, localizationService, catalog, notificationService)
+        Func<CatalogContentItem, Task>? onContentDeleted = null,
+        IGenHubBuildInspector? buildInspector = null)
+        : this(onContentSaved, dialogService, localizationService, catalog, notificationService, buildInspector)
     {
         ArgumentNullException.ThrowIfNull(existing);
 
@@ -954,8 +962,14 @@ public partial class AddContentDialogViewModel(
         return string.Join(" ", words.Select(w => char.ToUpperInvariant(w[0]) + (w.Length > 1 ? w[1..] : string.Empty)));
     }
 
-    private static ContentType? InferContentType(string path, string baseName)
+    private static ContentType? InferContentType(string path, string baseName, IGenHubBuildInspector inspector)
     {
+        var buildInfo = inspector.Inspect(path);
+        if (buildInfo.IsGenHubBuild)
+        {
+            return ContentType.GenHubBuild;
+        }
+
         if (IsGameClientPath(path, baseName))
         {
             return ContentType.GameClient;
@@ -1280,9 +1294,51 @@ public partial class AddContentDialogViewModel(
         }
     }
 
+    private void ApplyGenHubBuildToContent(GenHubBuildInfo buildInfo, string baseName)
+    {
+        SelectedContentType = ContentType.GenHubBuild;
+
+        if (string.IsNullOrWhiteSpace(ContentName) || ContentName == FormatContentNameFromBaseName(baseName))
+        {
+            ContentName = buildInfo.SuggestedContentName ?? FormatContentNameFromBaseName(baseName);
+        }
+
+        if (string.IsNullOrWhiteSpace(ContentId) || ContentId == GenerateContentId(ContentName))
+        {
+            ContentId = buildInfo.SuggestedContentId ?? GenerateContentId(ContentName);
+        }
+
+        if (string.IsNullOrWhiteSpace(Description) || Description.Contains("package for", StringComparison.OrdinalIgnoreCase))
+        {
+            Description = buildInfo.SuggestedDescription ?? string.Format(
+                GetLocalizedString("Tools.PublisherStudio.Content.AutoDescriptionFormat", "{0} package for {1}."),
+                ContentName,
+                GetLocalizedGameName(SelectedTargetGame));
+        }
+
+        if (!string.IsNullOrWhiteSpace(buildInfo.Version) && (string.IsNullOrWhiteSpace(InitialVersion) || InitialVersion == DefaultInitialVersion))
+        {
+            InitialVersion = buildInfo.Version;
+        }
+
+        if (buildInfo.SuggestedTags.Count > 0)
+        {
+            var currentTags = ParseTags(TagsInput);
+            var merged = currentTags.Union(buildInfo.SuggestedTags, StringComparer.OrdinalIgnoreCase).ToList();
+            TagsInput = string.Join(", ", merged);
+        }
+    }
+
     private void AutoFillFromEntry(string path, StagedContentFile entry)
     {
         var baseName = entry.IsFolder ? entry.DisplayName : Path.GetFileNameWithoutExtension(entry.DisplayName);
+
+        var buildInfo = _buildInspector.Inspect(path);
+        if (buildInfo.IsGenHubBuild)
+        {
+            ApplyGenHubBuildToContent(buildInfo, baseName);
+            return;
+        }
 
         // Auto-fill ContentName if empty
         if (string.IsNullOrWhiteSpace(ContentName))
@@ -1306,7 +1362,7 @@ public partial class AddContentDialogViewModel(
         }
 
         // Intelligently infer ContentType from extension or name
-        var inferredType = InferContentType(path, baseName);
+        var inferredType = InferContentType(path, baseName, _buildInspector);
         if (inferredType.HasValue)
         {
             SelectedContentType = inferredType.Value;
@@ -2307,6 +2363,33 @@ public partial class AddContentDialogViewModel(
             source.Category != null ||
             source.PlayerCount != null);
 
+    private void ApplyGenHubBuildToInitialRelease(ContentRelease release, string stagedPath)
+    {
+        var buildInfo = _buildInspector.Inspect(stagedPath);
+        if (!buildInfo.IsGenHubBuild)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(buildInfo.Version) &&
+            !buildInfo.Version.Equals("Unknown", StringComparison.OrdinalIgnoreCase) &&
+            (string.IsNullOrWhiteSpace(InitialVersion) || InitialVersion == DefaultInitialVersion))
+        {
+            release.Version = buildInfo.Version;
+        }
+
+        release.Category = buildInfo.SuggestedCategory ?? GenHubBuildConstants.CategoryRelease;
+        if (buildInfo.BuildChannel is GenHubBuildConstants.ChannelPr or GenHubBuildConstants.ChannelDev or GenHubBuildConstants.ChannelTest)
+        {
+            release.IsPrerelease = true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(buildInfo.EntryPoint))
+        {
+            release.EntryPoint = buildInfo.EntryPoint;
+        }
+    }
+
     private void AttachInitialRelease(CatalogContentItem contentItem)
     {
         if (SelectedContentType == ContentType.ContentBundle)
@@ -2320,7 +2403,7 @@ public partial class AddContentDialogViewModel(
             return;
         }
 
-        var version = string.IsNullOrWhiteSpace(InitialVersion) ? "1.0.0" : InitialVersion.Trim();
+        var version = string.IsNullOrWhiteSpace(InitialVersion) ? DefaultInitialVersion : InitialVersion.Trim();
         if (BundleArtifacts)
         {
             ClearReleaseArtifactVariants();
@@ -2338,6 +2421,11 @@ public partial class AddContentDialogViewModel(
             ImageUrls = [],
             VideoUrls = [],
         };
+
+        if (SelectedContentType == ContentType.GenHubBuild && StagedFiles.Count > 0)
+        {
+            ApplyGenHubBuildToInitialRelease(release, StagedFiles[0].LocalPath);
+        }
 
         if (ReleaseArtifacts.Count == 0)
         {
@@ -2377,7 +2465,7 @@ public partial class AddContentDialogViewModel(
 
     private void AttachInitialBundleRelease(CatalogContentItem contentItem)
     {
-        var bundleVersion = string.IsNullOrWhiteSpace(InitialVersion) ? "1.0.0" : InitialVersion.Trim();
+        var bundleVersion = string.IsNullOrWhiteSpace(InitialVersion) ? DefaultInitialVersion : InitialVersion.Trim();
         var bundleRelease = new ContentRelease
         {
             Version = bundleVersion,

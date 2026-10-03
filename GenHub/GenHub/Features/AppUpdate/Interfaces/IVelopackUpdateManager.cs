@@ -146,6 +146,20 @@ public interface IVelopackUpdateManager
     Task InstallPrArtifactAsync(PullRequestInfo prInfo, IProgress<UpdateProgress>? progress = null, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Installs a downloaded GenHub build (setup exe, zip archive, or nupkg) from local disk.
+    /// </summary>
+    /// <param name="filePath">The path to the downloaded file or directory containing the build artifacts.</param>
+    /// <param name="originalFileName">Optional original file name to assist in file type detection.</param>
+    /// <param name="progress">Progress reporter.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the installation operation.</returns>
+    Task InstallDownloadedBuildAsync(
+        string filePath,
+        string? originalFileName = null,
+        IProgress<UpdateProgress>? progress = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Uninstalls the application.
     /// </summary>
     void Uninstall();

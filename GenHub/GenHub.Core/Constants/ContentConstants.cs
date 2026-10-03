@@ -109,6 +109,21 @@ public static class ContentConstants
     public const int ProgressStepCompleted = 100;
 
     /// <summary>
+    /// Default minimum percentage for progress normalization (0.0).
+    /// </summary>
+    public const double ProgressMinPercentage = 0.0;
+
+    /// <summary>
+    /// Default maximum percentage for progress normalization (100.0).
+    /// </summary>
+    public const double ProgressMaxPercentage = 100.0;
+
+    /// <summary>
+    /// Default operation text when preparing content via provider pipeline.
+    /// </summary>
+    public const string PreparingContentViaProviderOperation = "Preparing content via provider pipeline";
+
+    /// <summary>
     /// Maximum allowed size for the content catalog in bytes (10 MB).
     /// </summary>
     public const long MaxCatalogSizeBytes = 10 * ConversionConstants.BytesPerMegabyte;

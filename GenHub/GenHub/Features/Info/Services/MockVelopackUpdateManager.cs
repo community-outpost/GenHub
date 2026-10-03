@@ -7,6 +7,7 @@ using GenHub.Core.Models.Notifications;
 using GenHub.Features.AppUpdate.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Velopack;
@@ -149,6 +150,22 @@ public class MockVelopackUpdateManager(INotificationService? notificationService
     /// <inheritdoc/>
     public Task InstallPrArtifactAsync(PullRequestInfo prInfo, IProgress<UpdateProgress>? progress = null, CancellationToken cancellationToken = default)
         => Task.CompletedTask;
+
+    /// <inheritdoc/>
+    public async Task InstallDownloadedBuildAsync(string filePath, string? originalFileName = null, IProgress<UpdateProgress>? progress = null, CancellationToken cancellationToken = default)
+    {
+        for (int i = 0; i <= 100; i += 20)
+        {
+            progress?.Report(new UpdateProgress { PercentComplete = i, Status = $"Installing build {Path.GetFileName(filePath)}..." });
+            await Task.Delay(150, cancellationToken);
+        }
+
+        _notificationService?.Show(new NotificationMessage(
+            NotificationType.Success,
+            "Demo Deployment",
+            $"Build {Path.GetFileName(filePath)} would be installed and the app restarted.",
+            NotificationDurations.Medium));
+    }
 
     /// <inheritdoc/>
     public void Uninstall()

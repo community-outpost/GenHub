@@ -1,4 +1,4 @@
-﻿<?xml version='1.0' encoding='utf-8'?>
+<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -3829,14 +3829,14 @@ Applied: {2} / {3} applicable fixes.</value>
   <data name="ContentType.Screensaver" xml:space="preserve">
     <value>Screensaver</value>
   </data>
+  <data name="ContentType.GenHubBuild" xml:space="preserve">
+    <value>GenHub Build</value>
+  </data>
   <data name="ContentType.Executable" xml:space="preserve">
     <value>Executable</value>
   </data>
   <data name="ContentType.ModdingTool" xml:space="preserve">
     <value>Modding Tool</value>
-  </data>
-  <data name="ContentType.GenHubBuild" xml:space="preserve">
-    <value>GenHub Build</value>
   </data>
   <data name="ContentType.UnknownContentType" xml:space="preserve">
     <value>Unknown Content</value>
@@ -17821,5 +17821,35 @@ Mapped image texture reference</value>
   <data name="TextureEditor.Notify.OpenFailed.Message" xml:space="preserve"><value>Failed to open target texture.</value></data>
   <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
     <value>Manual Fallback Releases (Overrides)</value>
+  </data>
+  <data name="Updates.CustomBuilds.Label" xml:space="preserve">
+    <value>Custom &amp; Fork Builds</value>
+  </data>
+<data name="Updates.Status.CheckingCustomBuildUpdates" xml:space="preserve"><value>Checking updates for {0}...</value></data><data name="Updates.Status.CustomBuildNotFound" xml:space="preserve"><value>Subscribed build '{0}' not found in publisher subscriptions.</value></data><data name="Updates.Status.CustomBuildNoReleases" xml:space="preserve"><value>No releases available for this build.</value></data><data name="Updates.Status.CustomBuildUpdateAvailable" xml:space="preserve"><value>Update available: {0} for {1}</value></data><data name="Updates.Status.CustomBuildReadyToInstall" xml:space="preserve"><value>Ready to install: {0} ({1})</value></data><data name="Updates.Status.CustomBuildUpToDate" xml:space="preserve"><value>{0} is up to date (v{1})</value></data>  <data name="Downloads.Card.InstallBuild" xml:space="preserve">
+    <value>Install Build</value>
+  </data>
+  <data name="Downloads.Card.InstallBuildTooltip" xml:space="preserve">
+    <value>Install this GenHub build and restart the application</value>
+  </data>
+  <data name="Downloads.Notification.GenHubBuildNotAllowedInProfiles" xml:space="preserve">
+    <value>GenHub application builds cannot be added to game profiles.</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.Preparing.Title" xml:space="preserve">
+    <value>Preparing Installation</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.Preparing.Message" xml:space="preserve">
+    <value>Preparing {0} for installation...</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.Failed.Title" xml:space="preserve">
+    <value>Installation Failed</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.InvalidAction.Title" xml:space="preserve">
+    <value>Invalid Action</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.InvalidAction.Message" xml:space="preserve">
+    <value>GenHub application builds cannot be added to game profiles. Use the Install Build option instead.</value>
+  </data>
+  <data name="Updates.Error.NoVersionsAvailable" xml:space="preserve">
+    <value>No versions available for the subscribed custom build</value>
   </data>
 </root>

@@ -3,6 +3,7 @@
              xmlns:vm="clr-namespace:GenHub.Features.AppUpdate.ViewModels;assembly=GenHub"
              xmlns:views="clr-namespace:GenHub.Features.AppUpdate.Views;assembly=GenHub"
              xmlns:models="clr-namespace:GenHub.Core.Models.AppUpdate;assembly=GenHub.Core"
+             xmlns:providers="clr-namespace:GenHub.Core.Models.Providers;assembly=GenHub.Core"
              xmlns:cv="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
              xmlns:localization="clr-namespace:GenHub.Common.Markup"
              x:Class="GenHub.Features.AppUpdate.Views.UpdateNotificationView"
@@ -227,7 +228,12 @@
             </ScrollViewer>
 
             <!-- Tab 1: Browse Builds -->
-            <Grid IsVisible="{Binding IsBrowseTabSelected}" ColumnDefinitions="3*,2*">
+            <Grid IsVisible="{Binding IsBrowseTabSelected}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1.2*" />
+                    <ColumnDefinition Width="1*" />
+                    <ColumnDefinition Width="{Binding #Root.((vm:UpdateNotificationViewModel)DataContext).CustomBuildsColumnWidth}" />
+                </Grid.ColumnDefinitions>
                 <!-- Left Column: Open Pull Requests -->
                 <Border Grid.Column="0" Background="{DynamicResource SurfaceElevatedDarkBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,8,0">
                     <Grid RowDefinitions="Auto,*">
@@ -293,6 +299,8 @@
                                                             <Binding Path="." />
                                                             <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedPr" />
                                                             <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedBranch" />
+                                                            <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedCustomBuildContentId" />
+                                                            <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedCustomBuildPublisherId" />
                                                         </MultiBinding>
                                                     </Button.Tag>
                                                 </Button>
@@ -341,6 +349,65 @@
                                                             <Binding Path="." />
                                                             <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedPr" />
                                                             <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedBranch" />
+                                                            <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedCustomBuildContentId" />
+                                                            <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedCustomBuildPublisherId" />
+                                                        </MultiBinding>
+                                                    </Button.Tag>
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+
+                <!-- Column 2: Custom & Fork Builds -->
+                <Border Grid.Column="2" IsVisible="{Binding #Root.((vm:UpdateNotificationViewModel)DataContext).HasCustomBuilds}" Background="{DynamicResource SurfaceElevatedDarkBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="8,0,0,0">
+                    <Grid RowDefinitions="Auto,*">
+                        <!-- Column Header -->
+                        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="4,0,4,12">
+                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <TextBlock Text="{localization:Localize Updates.CustomBuilds.Label}" FontSize="14" FontWeight="SemiBold" Foreground="White"/>
+                                <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding AvailableCustomBuilds.Count}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentBadgeForegroundBrush}"/>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Scrollable Custom Builds List -->
+                        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding AvailableCustomBuilds}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="providers:CustomBuildSubscriptionItem">
+                                        <Border Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,6,8">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <!-- Left side: Build Info -->
+                                                <Grid Grid.Column="0" RowDefinitions="Auto,Auto" Margin="0,0,12,0">
+                                                    <TextBlock Grid.Row="0" Text="{Binding Name}" FontWeight="Medium" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Opacity="0.6" Margin="0,4,0,0">
+                                                        <TextBlock Text="{Binding PublisherName}" FontSize="12" TextTrimming="CharacterEllipsis" MaxWidth="100"/>
+                                                        <TextBlock Text="•" FontSize="12"/>
+                                                        <TextBlock Text="{Binding LatestVersion, StringFormat='v{0}'}" FontSize="12"/>
+                                                        <TextBlock Text="•" FontSize="12"/>
+                                                        <TextBlock Text="{Binding Category}" FontSize="12"/>
+                                                    </StackPanel>
+                                                </Grid>
+
+                                                <!-- Right side: Subscribe Button -->
+                                                <Button Grid.Column="1"
+                                                        VerticalAlignment="Center"
+                                                        Command="{Binding #Root.((vm:UpdateNotificationViewModel)DataContext).SubscribeToCustomBuildCommand}"
+                                                        CommandParameter="{Binding}"
+                                                        Classes="SmallAction SubscribeState">
+                                                    <Button.Tag>
+                                                        <MultiBinding Converter="{StaticResource IsSubscribedConverter}">
+                                                            <Binding Path="." />
+                                                            <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedPr" />
+                                                            <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedBranch" />
+                                                            <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedCustomBuildContentId" />
+                                                            <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedCustomBuildPublisherId" />
                                                         </MultiBinding>
                                                     </Button.Tag>
                                                 </Button>

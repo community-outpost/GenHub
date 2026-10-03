@@ -618,9 +618,9 @@
                                                                 </Button>
                                                             </StackPanel>
 
-                                                            <!-- Add to Profile Button (visible when downloaded) -->
+                                                            <!-- Add to Profile Button (visible when downloaded and not GenHubBuild) -->
                                                             <Button Command="{Binding AddToProfileCommand}"
-                                                                    IsVisible="{Binding IsDownloaded}"
+                                                                    IsVisible="{Binding ShowAddToProfileButton}"
                                                                     Background="{DynamicResource SuccessBrush}" BorderThickness="1" BorderBrush="{DynamicResource SuccessBrush}"
                                                                     Foreground="White" CornerRadius="6" Padding="14,7"
                                                                     Cursor="Hand"
@@ -637,6 +637,28 @@
                                                                     <PathIcon Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"
                                                                               Width="12" Height="12" Foreground="White"/>
                                                                     <TextBlock Text="{localization:Localize Downloads.ContentDetail.AddToProfile}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                </StackPanel>
+                                                            </Button>
+
+                                                            <!-- Install Build Button (visible when GenHubBuild is downloaded) -->
+                                                            <Button Command="{Binding InstallBuildCommand}"
+                                                                    IsVisible="{Binding ShowInstallBuildButton}"
+                                                                    Background="{DynamicResource AccentBrush}" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}"
+                                                                    Foreground="White" CornerRadius="6" Padding="14,7"
+                                                                    Cursor="Hand"
+                                                                    ToolTip.Tip="{localization:Localize Downloads.Card.InstallBuildTooltip}">
+                                                                <Button.Styles>
+                                                                    <Style Selector="Button:pointerover">
+                                                                        <Setter Property="Opacity" Value="0.9" />
+                                                                    </Style>
+                                                                    <Style Selector="Button:pressed">
+                                                                        <Setter Property="RenderTransform" Value="scale(0.96)" />
+                                                                    </Style>
+                                                                </Button.Styles>
+                                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                    <PathIcon Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"
+                                                                              Width="12" Height="12" Foreground="White"/>
+                                                                    <TextBlock Text="{localization:Localize Downloads.Card.InstallBuild}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                                                 </StackPanel>
                                                             </Button>
                                                         </StackPanel>
@@ -1024,9 +1046,9 @@
                                                                 </Button>
                                                             </StackPanel>
 
-                                                            <!-- Add to Profile Button (visible when downloaded) -->
+                                                            <!-- Add to Profile Button (visible when downloaded and not GenHubBuild) -->
                                                             <Button Command="{Binding AddToProfileCommand}"
-                                                                    IsVisible="{Binding IsDownloaded}"
+                                                                    IsVisible="{Binding ShowAddToProfileButton}"
                                                                     Background="{DynamicResource SuccessBrush}" BorderThickness="1" BorderBrush="{DynamicResource SuccessBrush}"
                                                                     Foreground="White" CornerRadius="6" Padding="14,7"
                                                                     Cursor="Hand"
@@ -1043,6 +1065,28 @@
                                                                     <PathIcon Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"
                                                                               Width="12" Height="12" Foreground="White"/>
                                                                     <TextBlock Text="{localization:Localize Downloads.ContentDetail.AddToProfile}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                </StackPanel>
+                                                            </Button>
+
+                                                            <!-- Install Build Button (visible when GenHubBuild is downloaded) -->
+                                                            <Button Command="{Binding InstallBuildCommand}"
+                                                                    IsVisible="{Binding ShowInstallBuildButton}"
+                                                                    Background="{DynamicResource AccentBrush}" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}"
+                                                                    Foreground="White" CornerRadius="6" Padding="14,7"
+                                                                    Cursor="Hand"
+                                                                    ToolTip.Tip="{localization:Localize Downloads.Card.InstallBuildTooltip}">
+                                                                <Button.Styles>
+                                                                    <Style Selector="Button:pointerover">
+                                                                        <Setter Property="Opacity" Value="0.9" />
+                                                                    </Style>
+                                                                    <Style Selector="Button:pressed">
+                                                                        <Setter Property="RenderTransform" Value="scale(0.96)" />
+                                                                    </Style>
+                                                                </Button.Styles>
+                                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                    <PathIcon Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"
+                                                                              Width="12" Height="12" Foreground="White"/>
+                                                                    <TextBlock Text="{localization:Localize Downloads.Card.InstallBuild}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                                                 </StackPanel>
                                                             </Button>
                                                         </StackPanel>
@@ -1553,6 +1597,36 @@
                                               Width="18" Height="18"
                                               Foreground="White"/>
                                     <TextBlock Text="{localization:Localize Downloads.ContentDetail.AddToProfile}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+
+                            <!-- Install Build Button (visible when GenHubBuild is downloaded) -->
+                            <Button x:Name="InstallBuildButton" HorizontalAlignment="Stretch"
+                                    Height="48"
+                                    Background="{DynamicResource SuccessBrush}"
+                                    Foreground="White"
+                                    CornerRadius="8"
+                                    FontSize="15"
+                                    FontWeight="SemiBold"
+                                    IsVisible="{Binding ShowInstallBuildButton}"
+                                    Command="{Binding InstallBuildCommand}"
+                                    Cursor="Hand"
+                                    Padding="20,0"
+                                    ToolTip.Tip="{localization:Localize Downloads.Card.InstallBuildTooltip}">
+                                <Button.Styles>
+                                    <Style Selector="Button:pointerover">
+                                        <Setter Property="Opacity" Value="0.9" />
+                                        <Setter Property="RenderTransform" Value="scale(1.02)" />
+                                    </Style>
+                                    <Style Selector="Button:pressed">
+                                        <Setter Property="RenderTransform" Value="scale(0.98)" />
+                                    </Style>
+                                </Button.Styles>
+                                <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                                    <PathIcon Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"
+                                              Width="18" Height="18"
+                                              Foreground="White"/>
+                                    <TextBlock Text="{localization:Localize Downloads.Card.InstallBuild}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
 

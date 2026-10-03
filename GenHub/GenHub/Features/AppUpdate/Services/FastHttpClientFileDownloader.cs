@@ -1,12 +1,18 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Net.Sockets;
+using System.Security;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Velopack.Sources;
@@ -29,7 +35,60 @@ public class FastHttpClientFileDownloader(
         PooledConnectionLifetime = TimeSpan.FromMinutes(5),
         PooledConnectionIdleTimeout = TimeSpan.FromSeconds(60),
         ConnectTimeout = TimeSpan.FromSeconds(30),
+        ConnectCallback = ConnectCallbackAsync,
     };
+
+    private static async ValueTask<Stream> ConnectCallbackAsync(SocketsHttpConnectionContext context, CancellationToken cancellationToken)
+    {
+        var host = context.DnsEndPoint.Host;
+        if (Uri.CheckHostName(host) == UriHostNameType.Unknown)
+        {
+            throw new HttpRequestException($"Invalid host name: '{host}'.");
+        }
+
+        var addresses = await Dns.GetHostAddressesAsync(host, cancellationToken).ConfigureAwait(false);
+        ValidateResolvedAddresses(host, addresses);
+
+        var sortedAddresses = addresses
+            .OrderBy(a => a.AddressFamily == AddressFamily.InterNetwork ? 0 : 1)
+            .ToArray();
+
+        var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
+        try
+        {
+            await socket.ConnectAsync(sortedAddresses, context.DnsEndPoint.Port, cancellationToken).ConfigureAwait(false);
+            return new NetworkStream(socket, ownsSocket: true);
+        }
+        catch
+        {
+            socket.Dispose();
+            throw;
+        }
+    }
+
+    private static void ValidateResolvedAddresses(string host, IPAddress[] addresses)
+    {
+        if (addresses.Length == 0)
+        {
+            throw new HttpRequestException(string.Format(CultureInfo.InvariantCulture, NetworkSecurityConstants.NoIpAddressesFoundFormat, host));
+        }
+
+        var isLoopbackHost = IsLoopbackHost(host);
+        if (isLoopbackHost && !addresses.All(IPAddress.IsLoopback))
+        {
+            throw new HttpRequestException(string.Format(CultureInfo.InvariantCulture, NetworkSecurityConstants.LoopbackResolvedToNonLoopbackFormat, host));
+        }
+
+        if (!isLoopbackHost && !addresses.All(NetworkSecurityHelper.IsSafeIpAddress))
+        {
+            throw new HttpRequestException(string.Format(CultureInfo.InvariantCulture, NetworkSecurityConstants.UnsafeIpAddressFormat, host));
+        }
+    }
+
+    private static bool IsLoopbackHost(string host) =>
+        string.Equals(host, NetworkSecurityConstants.BlockedLocalhostName, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(host, NetworkSecurityConstants.LoopbackIpv4, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(host, NetworkSecurityConstants.LoopbackIpv6, StringComparison.OrdinalIgnoreCase);
 
     private sealed class MonotonicProgressReporter(Action<int>? progressCallback, long totalBytes)
     {
@@ -81,7 +140,7 @@ public class FastHttpClientFileDownloader(
     }
 
     /// <inheritdoc/>
-    public override async Task DownloadFile(
+    public override Task DownloadFile(
         string url,
         string targetFile,
         Action<int> progress,
@@ -89,110 +148,7 @@ public class FastHttpClientFileDownloader(
         double timeout,
         CancellationToken cancelToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(url);
-        ArgumentException.ThrowIfNullOrWhiteSpace(targetFile);
-
-        var destinationDirectory = Path.GetDirectoryName(targetFile);
-        if (!string.IsNullOrEmpty(destinationDirectory))
-        {
-            Directory.CreateDirectory(destinationDirectory);
-        }
-
-        using var client = CreateHttpClient(headers, timeout);
-
-        try
-        {
-            // Probe range support and resolve redirects without holding open full stream
-            using var probeRequest = new HttpRequestMessage(HttpMethod.Get, url);
-            probeRequest.Headers.Range = new RangeHeaderValue(0, 0);
-
-            using var probeResponse = await client.SendAsync(
-                probeRequest,
-                HttpCompletionOption.ResponseHeadersRead,
-                cancelToken).ConfigureAwait(false);
-
-            probeResponse.EnsureSuccessStatusCode();
-
-            var resolvedUri = probeResponse.RequestMessage?.RequestUri ?? new Uri(url);
-            var contentRange = probeResponse.Content.Headers.ContentRange;
-
-            // Validate that probe returned 206 Partial Content with valid byte range (bytes 0-0/totalLength)
-            var hasValidProbeRange = probeResponse.StatusCode == HttpStatusCode.PartialContent &&
-                contentRange is not null &&
-                string.Equals(contentRange.Unit, "bytes", StringComparison.OrdinalIgnoreCase) &&
-                contentRange.From == 0 &&
-                contentRange.To == 0 &&
-                contentRange.Length is { } probeTotalLength &&
-                probeTotalLength >= AppUpdateConstants.ParallelDownloadThresholdBytes;
-
-            if (hasValidProbeRange)
-            {
-                var totalLength = contentRange!.Length!.Value;
-                probeResponse.Dispose();
-
-                logger?.LogInformation(
-                    "Downloading {Url} via parallel chunk mode ({Concurrency} connections, Size: {Size:N0} bytes)",
-                    url,
-                    AppUpdateConstants.ParallelDownloadConcurrency,
-                    totalLength);
-
-                // If redirected to a third-party CDN/storage host (e.g. Azure Blob/S3), strip Authorization header to avoid 400 Bad Request on presigned URLs
-                HttpClient chunkClient = client;
-                HttpClient? cdnClient = null;
-                var originUri = new Uri(url);
-                if (!string.Equals(resolvedUri.Host, originUri.Host, StringComparison.OrdinalIgnoreCase) && headers?.ContainsKey("Authorization") == true)
-                {
-                    var cdnHeaders = headers.Where(h => !string.Equals(h.Key, "Authorization", StringComparison.OrdinalIgnoreCase))
-                                           .ToDictionary(h => h.Key, h => h.Value);
-                    cdnClient = CreateHttpClient(cdnHeaders, timeout);
-                    chunkClient = cdnClient;
-                }
-
-                try
-                {
-                    await DownloadParallelAsync(
-                        chunkClient,
-                        resolvedUri,
-                        targetFile,
-                        totalLength,
-                        progress,
-                        cancelToken).ConfigureAwait(false);
-                }
-                finally
-                {
-                    cdnClient?.Dispose();
-                }
-
-                return;
-            }
-
-            // If probe returned 200 OK (server ignored Range header), stream the probe response directly
-            if (probeResponse.StatusCode == HttpStatusCode.OK)
-            {
-                var totalBytes = probeResponse.Content.Headers.ContentLength ?? -1L;
-                await DownloadSingleStreamAsync(probeResponse, targetFile, totalBytes, progress, cancelToken).ConfigureAwait(false);
-                return;
-            }
-
-            // Fallback to single-stream GET (e.g. for files below parallel threshold)
-            using var fullResponse = await client.GetAsync(
-                url,
-                HttpCompletionOption.ResponseHeadersRead,
-                cancelToken).ConfigureAwait(false);
-
-            fullResponse.EnsureSuccessStatusCode();
-            var fullBytes = fullResponse.Content.Headers.ContentLength ?? -1L;
-            await DownloadSingleStreamAsync(fullResponse, targetFile, fullBytes, progress, cancelToken).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            logger?.LogWarning(
-                ex,
-                "Parallel download encountered an issue for {Url}. Falling back to default downloader",
-                url);
-
-            await base.DownloadFile(url, targetFile, progress, headers, timeout, cancelToken).ConfigureAwait(false);
-        }
+        return DownloadFileCoreAsync(url, targetFile, progress, headers, timeout, remainingRedirects: 3, cancelToken);
     }
 
     /// <inheritdoc/>
@@ -200,16 +156,19 @@ public class FastHttpClientFileDownloader(
     {
         var handler = httpMessageHandler ?? SharedSocketsHandler;
         var client = new HttpClient(handler, disposeHandler: false);
+
         if (timeout > 0)
         {
             client.Timeout = TimeSpan.FromSeconds(timeout);
         }
 
-        if (headers != null)
+        client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", ApiConstants.DefaultUserAgent);
+
+        if (headers is not null)
         {
-            foreach (var header in headers)
+            foreach (var kvp in headers)
             {
-                client.DefaultRequestHeaders.TryAddWithoutValidation(header.Key, header.Value);
+                client.DefaultRequestHeaders.TryAddWithoutValidation(kvp.Key, kvp.Value);
             }
         }
 
@@ -224,7 +183,6 @@ public class FastHttpClientFileDownloader(
         CancellationToken cancelToken)
     {
         var progressReporter = new MonotonicProgressReporter(progress, totalBytes);
-
         await using var contentStream = await response.Content.ReadAsStreamAsync(cancelToken).ConfigureAwait(false);
         await using var fileStream = new FileStream(
             targetFile,
@@ -235,7 +193,7 @@ public class FastHttpClientFileDownloader(
             useAsync: true);
 
         var buffer = new byte[AppUpdateConstants.DefaultStreamBufferSize];
-        int bytesRead = 0;
+        var bytesRead = 0;
 
         while ((bytesRead = await contentStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancelToken).ConfigureAwait(false)) > 0)
         {
@@ -337,4 +295,289 @@ public class FastHttpClientFileDownloader(
         await Task.WhenAll(tasks).ConfigureAwait(false);
         progressReporter.Complete();
     }
+
+    private static void ValidateDownloadedFileHeader(string filePath)
+    {
+        if (!File.Exists(filePath))
+        {
+            return;
+        }
+
+        var fileInfo = new FileInfo(filePath);
+        if (fileInfo.Length < 16)
+        {
+            return;
+        }
+
+        using var fs = File.OpenRead(filePath);
+        var buffer = new byte[(int)Math.Min(512L, fileInfo.Length)];
+        var bytesRead = fs.Read(buffer, 0, buffer.Length);
+        if (bytesRead > 0)
+        {
+            var headerText = Encoding.UTF8.GetString(buffer, 0, bytesRead).TrimStart();
+            if (headerText.StartsWith("<!DOCTYPE html", StringComparison.OrdinalIgnoreCase) ||
+                headerText.StartsWith("<html", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException("The downloaded file is an HTML web page rather than binary content. Download may require authentication or virus-scan confirmation.");
+            }
+        }
+    }
+
+    private static async Task<string> ReadBoundedStringAsync(HttpContent content, int maxBytes, CancellationToken cancelToken)
+    {
+        await using var stream = await content.ReadAsStreamAsync(cancelToken).ConfigureAwait(false);
+        var buffer = new byte[Math.Min(maxBytes, 81920)];
+        using var ms = new MemoryStream();
+        var totalRead = 0;
+        var read = 0;
+
+        while (totalRead < maxBytes &&
+               (read = await stream.ReadAsync(buffer.AsMemory(0, Math.Min(buffer.Length, maxBytes - totalRead)), cancelToken).ConfigureAwait(false)) > 0)
+        {
+            await ms.WriteAsync(buffer.AsMemory(0, read), cancelToken).ConfigureAwait(false);
+            totalRead += read;
+        }
+
+        var encoding = Encoding.UTF8;
+        var charset = content.Headers.ContentType?.CharSet;
+        if (!string.IsNullOrEmpty(charset))
+        {
+            try
+            {
+                encoding = Encoding.GetEncoding(charset);
+            }
+            catch (ArgumentException)
+            {
+                // Fallback to UTF8 if charset is invalid or unsupported
+            }
+        }
+
+        return encoding.GetString(ms.ToArray());
+    }
+
+    private async Task DownloadFileCoreAsync(
+        string url,
+        string targetFile,
+        Action<int> progress,
+        IDictionary<string, string>? headers,
+        double timeout,
+        int remainingRedirects,
+        CancellationToken cancelToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(url);
+        ArgumentException.ThrowIfNullOrWhiteSpace(targetFile);
+
+        if (!IsAllowedDownloadUrl(url, out var urlError))
+        {
+            throw new SecurityException($"Download URL is not allowed: {urlError}");
+        }
+
+        var destinationDirectory = Path.GetDirectoryName(targetFile);
+        if (!string.IsNullOrEmpty(destinationDirectory))
+        {
+            Directory.CreateDirectory(destinationDirectory);
+        }
+
+        try
+        {
+            using var client = CreateHttpClient(headers, timeout);
+
+            // Send byte-range probe request (bytes 0-0) to discover if the origin supports parallel chunking and obtain accurate total file size
+            using var probeRequest = new HttpRequestMessage(HttpMethod.Get, url);
+            probeRequest.Headers.Range = new RangeHeaderValue(0, 0);
+
+            using var probeResponse = await client.SendAsync(
+                probeRequest,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancelToken).ConfigureAwait(false);
+
+            probeResponse.EnsureSuccessStatusCode();
+
+            var resolvedUri = probeResponse.RequestMessage?.RequestUri ?? new Uri(url);
+            if (!IsAllowedDownloadUrl(resolvedUri.ToString(), out var redirectError))
+            {
+                throw new SecurityException($"Redirect target is not allowed: {redirectError}");
+            }
+
+            var contentRange = probeResponse.Content.Headers.ContentRange;
+
+            // Validate that probe returned 206 Partial Content with valid byte range (bytes 0-0/totalLength)
+            var hasValidProbeRange = probeResponse.StatusCode == HttpStatusCode.PartialContent &&
+                contentRange is not null &&
+                string.Equals(contentRange.Unit, "bytes", StringComparison.OrdinalIgnoreCase) &&
+                contentRange.From == 0 &&
+                contentRange.To == 0 &&
+                contentRange.Length is { } probeTotalLength &&
+                probeTotalLength >= AppUpdateConstants.ParallelDownloadThresholdBytes;
+
+            if (hasValidProbeRange)
+            {
+                var totalLength = contentRange!.Length!.Value;
+                probeResponse.Dispose();
+
+                try
+                {
+                    await DownloadViaParallelModeAsync(
+                        client,
+                        resolvedUri,
+                        url,
+                        targetFile,
+                        totalLength,
+                        progress,
+                        headers,
+                        timeout,
+                        cancelToken).ConfigureAwait(false);
+                    return;
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    logger?.LogWarning(ex, "Parallel download failed for {Url}; falling back to single-stream download", url);
+                }
+            }
+
+            // If probe returned 200 OK (server ignored Range header), check for HTML response or stream directly
+            if (probeResponse.StatusCode == HttpStatusCode.OK)
+            {
+                if (await TryHandleHtmlResponseAsync(probeResponse, url, targetFile, progress, headers, timeout, remainingRedirects, cancelToken).ConfigureAwait(false))
+                {
+                    return;
+                }
+
+                var totalBytes = probeResponse.Content.Headers.ContentLength ?? -1L;
+                await DownloadSingleStreamAsync(probeResponse, targetFile, totalBytes, progress, cancelToken).ConfigureAwait(false);
+                ValidateDownloadedFileHeader(targetFile);
+                return;
+            }
+
+            // Fallback to single-stream GET (e.g. for files below parallel threshold)
+            using var fullResponse = await client.GetAsync(
+                url,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancelToken).ConfigureAwait(false);
+
+            fullResponse.EnsureSuccessStatusCode();
+
+            var fullResolvedUri = fullResponse.RequestMessage?.RequestUri ?? new Uri(url);
+            if (!IsAllowedDownloadUrl(fullResolvedUri.ToString(), out var fullRedirectError))
+            {
+                throw new SecurityException($"Redirect target is not allowed: {fullRedirectError}");
+            }
+
+            if (await TryHandleHtmlResponseAsync(fullResponse, url, targetFile, progress, headers, timeout, remainingRedirects, cancelToken).ConfigureAwait(false))
+            {
+                return;
+            }
+
+            var fullBytes = fullResponse.Content.Headers.ContentLength ?? -1L;
+            await DownloadSingleStreamAsync(fullResponse, targetFile, fullBytes, progress, cancelToken).ConfigureAwait(false);
+            ValidateDownloadedFileHeader(targetFile);
+        }
+        catch (Exception ex) when (ex is not (OperationCanceledException or InvalidDataException or SecurityException))
+        {
+            logger?.LogWarning(
+                ex,
+                "Parallel download encountered an issue for {Url}. Falling back to default downloader",
+                url);
+
+            await base.DownloadFile(url, targetFile, progress, headers, timeout, cancelToken).ConfigureAwait(false);
+            ValidateDownloadedFileHeader(targetFile);
+        }
+    }
+
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Internal helper requires download options and progress state.")]
+    private async Task<bool> TryHandleHtmlResponseAsync(
+        HttpResponseMessage response,
+        string url,
+        string targetFile,
+        Action<int> progress,
+        IDictionary<string, string>? headers,
+        double timeout,
+        int remainingRedirects,
+        CancellationToken cancelToken)
+    {
+        var mediaType = response.Content.Headers.ContentType?.MediaType;
+        if (!string.Equals(mediaType, "text/html", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var html = await ReadBoundedStringAsync(response.Content, AppUpdateConstants.MaxHtmlInspectionSizeBytes, cancelToken).ConfigureAwait(false);
+        var resolvedUri = response.RequestMessage?.RequestUri ?? new Uri(url);
+        var confirmedUrl = CloudUrlHelper.TryExtractGoogleDriveConfirmationUrl(html, resolvedUri);
+        if (!string.IsNullOrEmpty(confirmedUrl))
+        {
+            if (remainingRedirects <= 0)
+            {
+                throw new InvalidOperationException("Exceeded maximum redirects following download confirmation link.");
+            }
+
+            if (!IsAllowedDownloadUrl(confirmedUrl, out var confirmedError))
+            {
+                throw new SecurityException($"Confirmation URL target is not allowed: {confirmedError}");
+            }
+
+            logger?.LogInformation("Following Google Drive download confirmation from {Url} to {ConfirmedUrl}", url, confirmedUrl);
+            await DownloadFileCoreAsync(confirmedUrl, targetFile, progress, headers, timeout, remainingRedirects - 1, cancelToken).ConfigureAwait(false);
+            return true;
+        }
+
+        if (html.Contains("quota", StringComparison.OrdinalIgnoreCase) || html.Contains("too many users", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException("Google Drive download quota exceeded for this file.");
+        }
+
+        throw new InvalidDataException("Server returned an HTML page instead of the expected binary file download.");
+    }
+
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Internal helper requires download options and progress state.")]
+    private async Task DownloadViaParallelModeAsync(
+        HttpClient client,
+        Uri resolvedUri,
+        string url,
+        string targetFile,
+        long totalLength,
+        Action<int> progress,
+        IDictionary<string, string>? headers,
+        double timeout,
+        CancellationToken cancelToken)
+    {
+        logger?.LogInformation(
+            "Downloading {Url} via parallel chunk mode ({Concurrency} connections, Size: {Size:N0} bytes)",
+            url,
+            AppUpdateConstants.ParallelDownloadConcurrency,
+            totalLength);
+
+        // If redirected to a third-party CDN/storage host (e.g. Azure Blob/S3), strip Authorization header to avoid 400 Bad Request on presigned URLs
+        HttpClient chunkClient = client;
+        HttpClient? cdnClient = null;
+        var originUri = new Uri(url);
+        var hasAuthHeader = headers is not null && headers.Any(h => string.Equals(h.Key, "Authorization", StringComparison.OrdinalIgnoreCase));
+        if (!string.Equals(resolvedUri.Host, originUri.Host, StringComparison.OrdinalIgnoreCase) && hasAuthHeader)
+        {
+            var cdnHeaders = headers!.Where(h => !string.Equals(h.Key, "Authorization", StringComparison.OrdinalIgnoreCase))
+                                    .ToDictionary(h => h.Key, h => h.Value);
+            cdnClient = CreateHttpClient(cdnHeaders, timeout);
+            chunkClient = cdnClient;
+        }
+
+        try
+        {
+            await DownloadParallelAsync(
+                chunkClient,
+                resolvedUri,
+                targetFile,
+                totalLength,
+                progress,
+                cancelToken).ConfigureAwait(false);
+            ValidateDownloadedFileHeader(targetFile);
+        }
+        finally
+        {
+            cdnClient?.Dispose();
+        }
+    }
+
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
+    private bool IsAllowedDownloadUrl(string? url, out string? error) =>
+        NetworkSecurityHelper.IsSafeUrl(url, out error);
 }
