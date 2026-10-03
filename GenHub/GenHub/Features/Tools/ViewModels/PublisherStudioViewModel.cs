@@ -490,7 +490,7 @@ public partial class PublisherStudioViewModel(
         PublisherProfileViewModel = new GenHub.Features.Tools.ViewModels.PublisherProfileViewModel(CurrentProject, this, logger, notificationService, localizationService, subscriptionStore);
         ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, selectedCatalog, this, logger, dialogService, notificationService, localizationService, upstreamIngestionService);
         PublishShareViewModel?.Dispose();
-        PublishShareViewModel = new GenHub.Features.Tools.ViewModels.PublishShareViewModel(CurrentProject, publisherStudioService, logger, hostingProviderFactory, hostingStateManager, notificationService, localizationService, credentialStore, subscriptionStore: subscriptionStore, telemetryService: telemetryService);
+        PublishShareViewModel = new GenHub.Features.Tools.ViewModels.PublishShareViewModel(CurrentProject, publisherStudioService, logger, hostingProviderFactory, hostingStateManager, notificationService, localizationService, credentialStore, subscriptionStore: subscriptionStore, telemetryService: telemetryService, dialogService: dialogService);
         PublishShareViewModel.SaveProjectCallback = SaveProjectAfterPublishAsync;
         PublishShareViewModel.LibraryRefreshCallback = () => ContentLibraryViewModel?.RefreshContentDisplay();
         PublishShareViewModel.DefinitionUploadedCallback = () =>

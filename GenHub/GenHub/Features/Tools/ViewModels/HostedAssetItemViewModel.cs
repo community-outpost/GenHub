@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Helpers;
 using System;
+using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 
 namespace GenHub.Features.Tools.ViewModels;
@@ -26,6 +27,16 @@ public enum HostedAssetKind
     Artifact,
 
     /// <summary>
+    /// A screenshot or artwork image referenced by catalog content.
+    /// </summary>
+    Screenshot,
+
+    /// <summary>
+    /// A trailer or preview video referenced by catalog content.
+    /// </summary>
+    Video,
+
+    /// <summary>
     /// A file discovered in cloud storage that is not linked to the project.
     /// </summary>
     CloudFile,
@@ -40,10 +51,19 @@ public partial class HostedAssetItemViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsDefinition))]
     [NotifyPropertyChangedFor(nameof(IsCatalog))]
     [NotifyPropertyChangedFor(nameof(IsArtifact))]
+    [NotifyPropertyChangedFor(nameof(IsScreenshot))]
+    [NotifyPropertyChangedFor(nameof(IsVideo))]
+    [NotifyPropertyChangedFor(nameof(IsMedia))]
     private HostedAssetKind _assetKind = HostedAssetKind.Artifact;
 
     [ObservableProperty]
     private string? _catalogId;
+
+    [ObservableProperty]
+    private string? _catalogName;
+
+    [ObservableProperty]
+    private string? _definitionName;
 
     [ObservableProperty]
     private string? _contentId;
@@ -71,6 +91,12 @@ public partial class HostedAssetItemViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _canAddToCatalog;
+
+    [ObservableProperty]
+    private bool _canDelete;
+
+    [ObservableProperty]
+    private bool _isDeleting;
 
     [ObservableProperty]
     private string _loadButtonTooltip = string.Empty;
@@ -115,6 +141,44 @@ public partial class HostedAssetItemViewModel : ObservableObject
     [ObservableProperty]
     private string? _sha256;
 
+    [ObservableProperty]
+    private string _linkedToText = string.Empty;
+
+    [ObservableProperty]
+    private string _linkedToTooltip = string.Empty;
+
+    [ObservableProperty]
+    private int _linkCount;
+
+    [ObservableProperty]
+    private bool _isExpanded;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsExpandable))]
+    private bool _hasChildren;
+
+    [ObservableProperty]
+    private string _childrenSummary = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsExpandable))]
+    private bool _isEmpty;
+
+    [ObservableProperty]
+    private string _emptyStateText = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsExpandable))]
+    private bool _showLoadToInspectHint;
+
+    [ObservableProperty]
+    private string _loadToInspectHint = string.Empty;
+
+    /// <summary>
+    /// Gets the child entries shown when this row is expanded.
+    /// </summary>
+    public ObservableCollection<HostedAssetChildViewModel> Children { get; } = new();
+
     /// <summary>
     /// Gets a value indicating whether this asset is a publisher definition.
     /// </summary>
@@ -132,6 +196,30 @@ public partial class HostedAssetItemViewModel : ObservableObject
     /// </summary>
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI")]
     public bool IsArtifact => AssetKind == HostedAssetKind.Artifact || (AssetKind == HostedAssetKind.CloudFile && !Name.Contains("catalog", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Gets a value indicating whether this asset is screenshot or artwork image media.
+    /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI")]
+    public bool IsScreenshot => AssetKind == HostedAssetKind.Screenshot;
+
+    /// <summary>
+    /// Gets a value indicating whether this asset is video media.
+    /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI")]
+    public bool IsVideo => AssetKind == HostedAssetKind.Video;
+
+    /// <summary>
+    /// Gets a value indicating whether this asset is hosted media (screenshot image or video).
+    /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI")]
+    public bool IsMedia => AssetKind is HostedAssetKind.Screenshot or HostedAssetKind.Video;
+
+    /// <summary>
+    /// Gets a value indicating whether this row can be expanded to reveal linked children.
+    /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI")]
+    public bool IsExpandable => HasChildren || IsEmpty || ShowLoadToInspectHint;
 
     /// <summary>
     /// Gets a value indicating whether this asset is pending hosting (neither live online nor hosted on an external CDN).

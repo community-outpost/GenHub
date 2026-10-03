@@ -1,0 +1,763 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Publishers;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Providers;
+using GenHub.Core.Models.Publishers;
+using GenHub.Core.Models.Results;
+using GenHub.Features.Tools.Interfaces;
+using GenHub.Features.Tools.Services.Hosting;
+using GenHub.Features.Tools.ViewModels;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
+using System;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Xunit;
+
+namespace GenHub.Tests.Core.Features.Tools.ViewModels;
+
+/// <summary>
+/// Unit tests for the hosted asset inventory: media classification, catalog linkage,
+/// sorting, expandable children, and delete-from-drive flows in <see cref="PublishShareViewModel"/>.
+/// </summary>
+public class PublisherStudioInventoryManagementTests
+{
+    private const string CloudArtifactUrl = "https://drive.google.com/uc?export=download&id=modfile";
+    private const string CloudScreenshotUrl = "https://drive.google.com/uc?export=download&id=shot1";
+    private const string CloudVideoUrl = "https://drive.google.com/uc?export=download&id=vid1";
+    private const string ExternalScreenshotUrl = "https://cdn.example.com/shot2.png";
+    private const string ExternalTrailerUrl = "https://cdn.example.com/trailer.mp4";
+
+    /// <summary>
+    /// Tests that <see cref="HostingConstants.IsScreenshotFileName"/> classifies image extensions.
+    /// </summary>
+    /// <param name="fileName">The file name to test.</param>
+    /// <param name="expected">The expected classification result.</param>
+    [Theory]
+    [InlineData("shot.png", true)]
+    [InlineData("cover.JPG", true)]
+    [InlineData("banner.webp", true)]
+    [InlineData("trailer.mp4", false)]
+    [InlineData("mod.zip", false)]
+    [InlineData("catalog-main.json", false)]
+    [InlineData(null, false)]
+    public void IsScreenshotFileName_ClassifiesCorrectly(string? fileName, bool expected)
+    {
+        Assert.Equal(expected, HostingConstants.IsScreenshotFileName(fileName));
+    }
+
+    /// <summary>
+    /// Tests that <see cref="HostingConstants.IsVideoFileName"/> classifies video extensions.
+    /// </summary>
+    /// <param name="fileName">The file name to test.</param>
+    /// <param name="expected">The expected classification result.</param>
+    [Theory]
+    [InlineData("trailer.mp4", true)]
+    [InlineData("preview.WEBM", true)]
+    [InlineData("shot.png", false)]
+    [InlineData("mod.zip", false)]
+    [InlineData(null, false)]
+    public void IsVideoFileName_ClassifiesCorrectly(string? fileName, bool expected)
+    {
+        Assert.Equal(expected, HostingConstants.IsVideoFileName(fileName));
+    }
+
+    /// <summary>
+    /// Tests that media asset kinds expose the expected UI flags and are distinct from artifacts.
+    /// </summary>
+    [Fact]
+    public void HostedAssetItemViewModel_MediaKinds_SetCorrectFlags()
+    {
+        var screenshot = new HostedAssetItemViewModel { Name = "shot.png", AssetKind = HostedAssetKind.Screenshot };
+        var video = new HostedAssetItemViewModel { Name = "trailer.mp4", AssetKind = HostedAssetKind.Video };
+
+        Assert.True(screenshot.IsScreenshot);
+        Assert.True(screenshot.IsMedia);
+        Assert.False(screenshot.IsArtifact);
+        Assert.False(screenshot.IsCatalog);
+        Assert.False(screenshot.CanAddToCatalog);
+
+        Assert.True(video.IsVideo);
+        Assert.True(video.IsMedia);
+        Assert.False(video.IsArtifact);
+        Assert.False(video.IsCatalog);
+    }
+
+    /// <summary>
+    /// Tests that catalog media URLs populate screenshot and video inventory rows with linkage.
+    /// </summary>
+    [Fact]
+    public void RefreshHostedAssets_MediaUrls_PopulateScreenshotAndVideoRows()
+    {
+        var project = CreateInventoryProject();
+        using var vm = CreateViewModel(project);
+
+        vm.RefreshHostedAssets();
+
+        Assert.Equal(2, vm.HostedScreenshotsCount);
+        Assert.Equal(1, vm.HostedVideosCount);
+
+        var screenshots = vm.HostedAssets.Where(a => a.IsScreenshot && !a.IsExternalCdn).ToList();
+        Assert.Equal(2, screenshots.Count);
+        Assert.All(screenshots, s =>
+        {
+            Assert.True(s.CanDelete);
+            Assert.Contains("Main Catalog", s.LinkedToText, StringComparison.Ordinal);
+            Assert.Contains("Cool Mod", s.LinkedToText, StringComparison.Ordinal);
+        });
+
+        var video = vm.HostedAssets.Single(a => a.IsVideo && !a.IsExternalCdn);
+        Assert.Equal(CloudVideoUrl, video.Url);
+        Assert.True(video.HasChildren);
+    }
+
+    /// <summary>
+    /// Tests that artifact rows carry their catalog linkage for the Linked To column.
+    /// </summary>
+    [Fact]
+    public void RefreshHostedAssets_Artifact_CarriesCatalogLinkage()
+    {
+        var project = CreateInventoryProject();
+        using var vm = CreateViewModel(project);
+
+        vm.RefreshHostedAssets();
+
+        var artifact = vm.HostedAssets.Single(a => a.Name == "cool-mod.zip");
+        Assert.Equal("main", artifact.CatalogId);
+        Assert.Equal("Main Catalog", artifact.CatalogName);
+        Assert.Equal("Test Publisher", artifact.DefinitionName);
+        Assert.Contains("Main Catalog", artifact.LinkedToText, StringComparison.Ordinal);
+        Assert.Contains("Cool Mod", artifact.LinkedToText, StringComparison.Ordinal);
+        Assert.True(artifact.LinkCount >= 1);
+        Assert.True(artifact.CanDelete);
+        Assert.True(artifact.IsExpandable);
+    }
+
+    /// <summary>
+    /// Tests that catalog rows expand to their content items, and empty catalogs report emptiness.
+    /// </summary>
+    [Fact]
+    public void RefreshHostedAssets_CatalogRows_BuildContentChildren()
+    {
+        var project = CreateInventoryProject();
+        using var vm = CreateViewModel(project);
+
+        vm.RefreshHostedAssets();
+
+        var main = vm.HostedAssets.Single(a => a.IsCatalog && a.CatalogId == "main");
+        Assert.True(main.HasChildren);
+        Assert.False(main.IsEmpty);
+        Assert.True(main.IsExpandable);
+        Assert.Single(main.Children);
+        Assert.Equal("Cool Mod", main.Children[0].Name);
+        Assert.Contains("Main Catalog", main.CatalogName, StringComparison.Ordinal);
+
+        var maps = vm.HostedAssets.Single(a => a.IsCatalog && a.CatalogId == "maps");
+        Assert.True(maps.IsEmpty);
+        Assert.False(string.IsNullOrWhiteSpace(maps.EmptyStateText));
+        Assert.True(maps.IsExpandable);
+    }
+
+    /// <summary>
+    /// Tests that the definition row expands to the project's catalogs.
+    /// </summary>
+    [Fact]
+    public void RefreshHostedAssets_DefinitionRow_BuildsCatalogChildren()
+    {
+        var project = CreateInventoryProject();
+        using var vm = CreateViewModel(project);
+
+        vm.RefreshHostedAssets();
+
+        var definition = vm.HostedAssets.Single(a => a.IsDefinition);
+        Assert.Equal(2, definition.Children.Count);
+        Assert.True(definition.HasChildren);
+        Assert.Contains("2 catalog", definition.LinkedToText, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Tests that discovered cloud files are classified by extension and marked unlinked.
+    /// </summary>
+    [Fact]
+    public void RefreshHostedAssets_DiscoveredFiles_ClassifiedByExtension()
+    {
+        var project = CreateInventoryProject();
+        using var vm = CreateViewModel(project, CreateDriveProvider());
+        var state = vm.CurrentHostingState;
+        Assert.NotNull(state);
+        state.Artifacts.Add(new ArtifactHostingInfo
+        {
+            FileId = "shot-id",
+            FileName = "orphan-shot.png",
+            Url = "https://drive.google.com/uc?export=download&id=orphan-shot",
+            FileSize = 512,
+        });
+        state.Artifacts.Add(new ArtifactHostingInfo
+        {
+            FileId = "trailer-id",
+            FileName = "orphan-trailer.mp4",
+            Url = "https://drive.google.com/uc?export=download&id=orphan-trailer",
+            FileSize = 1024,
+        });
+
+        vm.RefreshHostedAssets();
+
+        var shot = vm.HostedAssets.Single(a => a.Name == "orphan-shot.png");
+        Assert.True(shot.IsScreenshot);
+        Assert.Equal(0, shot.LinkCount);
+        Assert.Equal("Not linked", shot.LinkedToText);
+
+        var trailer = vm.HostedAssets.Single(a => a.Name == "orphan-trailer.mp4");
+        Assert.True(trailer.IsVideo);
+        Assert.Equal(0, trailer.LinkCount);
+    }
+
+    /// <summary>
+    /// Tests that the screenshot and video filters isolate media rows.
+    /// </summary>
+    /// <param name="filter">The filter to apply.</param>
+    /// <param name="expectedCount">The expected row count.</param>
+    [Theory]
+    [InlineData("Screenshot", 2)]
+    [InlineData("Video", 1)]
+    public void ApplyHostedAssetFilter_MediaFilters_IsolateMediaRows(string filter, int expectedCount)
+    {
+        var project = CreateInventoryProject();
+        using var vm = CreateViewModel(project);
+        vm.RefreshHostedAssets();
+
+        vm.SetInventoryFilterCommand.Execute(filter);
+
+        Assert.Equal(expectedCount, vm.FilteredHostedAssets.Count);
+        Assert.All(vm.FilteredHostedAssets, a => Assert.False(a.IsExternalCdn));
+    }
+
+    /// <summary>
+    /// Tests that inventory sorting orders rows by name and size, toggling direction on repeat.
+    /// </summary>
+    [Fact]
+    public void SetInventorySortCommand_SortsByNameThenSize()
+    {
+        var project = CreateInventoryProject();
+        using var vm = CreateViewModel(project);
+        vm.RefreshHostedAssets();
+
+        vm.SetInventorySortCommand.Execute("Name");
+        var names = vm.FilteredHostedAssets.Select(a => a.Name).ToList();
+        Assert.Equal(names.OrderBy(n => n, StringComparer.OrdinalIgnoreCase), names);
+        Assert.Equal("▲", vm.NameSortGlyph);
+
+        vm.SetInventorySortCommand.Execute("Name");
+        var reversed = vm.FilteredHostedAssets.Select(a => a.Name).ToList();
+        Assert.Equal(names.OrderByDescending(n => n, StringComparer.OrdinalIgnoreCase), reversed);
+        Assert.Equal("▼", vm.NameSortGlyph);
+
+        vm.SetInventorySortCommand.Execute("Size");
+        var sizes = vm.FilteredHostedAssets.Select(a => a.FileSize).ToList();
+        Assert.Equal(sizes.OrderBy(s => s), sizes);
+        Assert.Equal("▲", vm.SizeSortGlyph);
+        Assert.Equal(string.Empty, vm.NameSortGlyph);
+    }
+
+    /// <summary>
+    /// Tests that deletes are refused when no confirmation mechanism is available.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeleteHostedAsset_WithoutConfirmation_RefusesDeleteAsync()
+    {
+        var project = CreateInventoryProject();
+        var provider = CreateDriveProvider();
+        using var vm = CreateViewModel(project, provider);
+        vm.RefreshHostedAssets();
+        var artifact = vm.HostedAssets.Single(a => a.Name == "cool-mod.zip");
+
+        await vm.DeleteHostedAssetCommand.ExecuteAsync(artifact);
+
+        provider.Verify(p => p.DeleteFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        Assert.Single(project.Catalogs[0].Catalog.Content[0].Releases[0].Artifacts);
+    }
+
+    /// <summary>
+    /// Tests that deleting a linked artifact removes the remote file and every catalog reference.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeleteHostedAsset_Artifact_RemovesRemoteAndReferencesAsync()
+    {
+        var project = CreateInventoryProject();
+        var provider = CreateDriveProvider();
+        var notifications = new Mock<INotificationService>();
+        using var vm = CreateViewModel(project, provider, notifications);
+        var state = vm.CurrentHostingState;
+        Assert.NotNull(state);
+        state.Artifacts.Add(new ArtifactHostingInfo
+        {
+            FileId = "modfile-id",
+            FileName = "cool-mod.zip",
+            Url = CloudArtifactUrl,
+            FileSize = 1024,
+        });
+        vm.RefreshHostedAssets();
+        vm.ConfirmationCallback = (_, _) => Task.FromResult(true);
+        var artifact = vm.HostedAssets.Single(a => a.Name == "cool-mod.zip");
+
+        await vm.DeleteHostedAssetCommand.ExecuteAsync(artifact);
+
+        provider.Verify(p => p.DeleteFileAsync("modfile-id", It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Empty(project.Catalogs[0].Catalog.Content[0].Releases[0].Artifacts);
+        Assert.DoesNotContain(state.Artifacts, a => a.Url == CloudArtifactUrl);
+        notifications.Verify(n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that a failed remote delete aborts the operation without touching local catalogs.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeleteHostedAsset_RemoteDeleteFails_AbortsWithoutLocalChangesAsync()
+    {
+        var project = CreateInventoryProject();
+        var provider = CreateDriveProvider();
+        provider.Setup(p => p.DeleteFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("Access denied"));
+        var notifications = new Mock<INotificationService>();
+        using var vm = CreateViewModel(project, provider, notifications);
+        var state = vm.CurrentHostingState;
+        Assert.NotNull(state);
+        state.Artifacts.Add(new ArtifactHostingInfo
+        {
+            FileId = "modfile-id",
+            FileName = "cool-mod.zip",
+            Url = CloudArtifactUrl,
+            FileSize = 1024,
+        });
+        vm.RefreshHostedAssets();
+        vm.ConfirmationCallback = (_, _) => Task.FromResult(true);
+        var artifact = vm.HostedAssets.Single(a => a.Name == "cool-mod.zip");
+
+        await vm.DeleteHostedAssetCommand.ExecuteAsync(artifact);
+
+        Assert.Single(project.Catalogs[0].Catalog.Content[0].Releases[0].Artifacts);
+        notifications.Verify(n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that deleting an external CDN artifact unlinks it without any remote delete call.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeleteHostedAsset_ExternalArtifact_UnlinksWithoutRemoteDeleteAsync()
+    {
+        var project = CreateInventoryProject();
+        const string externalUrl = "https://cdn.example.com/external-mod.zip";
+        project.Catalogs[0].Catalog.Content[0].Releases[0].Artifacts.Add(new ReleaseArtifact
+        {
+            Filename = "external-mod.zip",
+            DownloadUrl = externalUrl,
+            Size = 2048,
+        });
+        var provider = CreateDriveProvider();
+        using var vm = CreateViewModel(project, provider);
+        vm.RefreshHostedAssets();
+        vm.ConfirmationCallback = (_, _) => Task.FromResult(true);
+        var external = vm.HostedAssets.Single(a => a.Name == "external-mod.zip");
+        Assert.True(external.IsExternalCdn);
+
+        await vm.DeleteHostedAssetCommand.ExecuteAsync(external);
+
+        provider.Verify(p => p.DeleteFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        Assert.DoesNotContain(
+            project.Catalogs[0].Catalog.Content[0].Releases[0].Artifacts,
+            a => a.DownloadUrl == externalUrl);
+    }
+
+    /// <summary>
+    /// Tests that deleting media removes its links from metadata and release media lists.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeleteHostedAsset_Media_RemovesLinksFromMetadataAsync()
+    {
+        var project = CreateInventoryProject();
+        var provider = CreateDriveProvider();
+        using var vm = CreateViewModel(project, provider);
+        var state = vm.CurrentHostingState;
+        Assert.NotNull(state);
+        state.Artifacts.Add(new ArtifactHostingInfo
+        {
+            FileId = "shot1-id",
+            FileName = "shot1",
+            Url = CloudScreenshotUrl,
+            FileSize = 256,
+        });
+        vm.RefreshHostedAssets();
+        vm.ConfirmationCallback = (_, _) => Task.FromResult(true);
+        var media = vm.HostedAssets.Single(a => a.Url == CloudScreenshotUrl);
+
+        await vm.DeleteHostedAssetCommand.ExecuteAsync(media);
+
+        provider.Verify(p => p.DeleteFileAsync("shot1-id", It.IsAny<CancellationToken>()), Times.Once);
+        var metadata = project.Catalogs[0].Catalog.Content[0].Metadata;
+        Assert.NotNull(metadata);
+        Assert.DoesNotContain(CloudScreenshotUrl, metadata.ScreenshotUrls);
+    }
+
+    /// <summary>
+    /// Tests that deleting external media unlinks it without any remote delete call.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeleteHostedAsset_ExternalMedia_UnlinksWithoutRemoteDeleteAsync()
+    {
+        var project = CreateInventoryProject();
+        var provider = CreateDriveProvider();
+        using var vm = CreateViewModel(project, provider);
+        vm.RefreshHostedAssets();
+        vm.ConfirmationCallback = (_, _) => Task.FromResult(true);
+        var media = vm.HostedAssets.Single(a => a.Url == ExternalScreenshotUrl);
+        Assert.True(media.IsExternalCdn);
+
+        await vm.DeleteHostedAssetCommand.ExecuteAsync(media);
+
+        provider.Verify(p => p.DeleteFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        var metadata = project.Catalogs[0].Catalog.Content[0].Metadata;
+        Assert.NotNull(metadata);
+        Assert.DoesNotContain(ExternalScreenshotUrl, metadata.ScreenshotUrls);
+    }
+
+    /// <summary>
+    /// Tests that deleting a project catalog removes it locally and prunes hosting state.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeleteHostedAsset_Catalog_RemovesProjectCatalogAndStateAsync()
+    {
+        var project = CreateInventoryProject();
+        var provider = CreateDriveProvider();
+        using var vm = CreateViewModel(project, provider);
+        var state = vm.CurrentHostingState;
+        Assert.NotNull(state);
+        state.Catalogs.Add(new CatalogHostingInfo
+        {
+            CatalogId = "maps",
+            CatalogName = "Maps",
+            FileId = "maps-file-id",
+            FileName = "catalog-maps.json",
+            Url = "https://drive.google.com/uc?export=download&id=mapsfile",
+            FileSize = 128,
+        });
+        vm.RefreshHostedAssets();
+        var savedCount = 0;
+        var reloadedCount = 0;
+        vm.SaveProjectCallback = () =>
+        {
+            savedCount++;
+            return Task.CompletedTask;
+        };
+        vm.ProjectReloadCallback = () =>
+        {
+            reloadedCount++;
+            return Task.CompletedTask;
+        };
+        vm.ConfirmationCallback = (_, _) => Task.FromResult(true);
+        var catalogRow = vm.HostedAssets.Single(a => a.IsCatalog && a.CatalogId == "maps");
+
+        await vm.DeleteHostedAssetCommand.ExecuteAsync(catalogRow);
+
+        provider.Verify(p => p.DeleteFileAsync("maps-file-id", It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Single(project.Catalogs);
+        Assert.DoesNotContain(state.Catalogs, c => c.CatalogId == "maps");
+        Assert.Equal(1, savedCount);
+        Assert.Equal(1, reloadedCount);
+    }
+
+    /// <summary>
+    /// Tests that deleting the last project catalog is blocked with a warning.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeleteHostedAsset_LastProjectCatalog_IsBlockedAsync()
+    {
+        var project = CreateInventoryProject();
+        project.Catalogs.RemoveAt(1);
+        var provider = CreateDriveProvider();
+        var notifications = new Mock<INotificationService>();
+        using var vm = CreateViewModel(project, provider, notifications);
+        var state = vm.CurrentHostingState;
+        Assert.NotNull(state);
+        state.Catalogs.Add(new CatalogHostingInfo
+        {
+            CatalogId = "main",
+            CatalogName = "Main Catalog",
+            FileId = "main-file-id",
+            FileName = "catalog-main.json",
+            Url = "https://drive.google.com/uc?export=download&id=mainfile",
+            FileSize = 128,
+        });
+        vm.RefreshHostedAssets();
+        vm.ConfirmationCallback = (_, _) => Task.FromResult(true);
+        var catalogRow = vm.HostedAssets.Single(a => a.IsCatalog && a.CatalogId == "main");
+
+        await vm.DeleteHostedAssetCommand.ExecuteAsync(catalogRow);
+
+        provider.Verify(p => p.DeleteFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        Assert.Single(project.Catalogs);
+        notifications.Verify(n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that the catalog delete confirmation names orphaned files but not shared ones.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeleteHostedAsset_CatalogDelete_ConfirmationNamesOrphansAsync()
+    {
+        var project = CreateInventoryProject();
+        const string sharedUrl = "https://drive.google.com/uc?export=download&id=shared";
+        project.Catalogs[0].Catalog.Content[0].Releases[0].Artifacts.Add(new ReleaseArtifact
+        {
+            Filename = "shared.zip",
+            DownloadUrl = sharedUrl,
+            Size = 64,
+        });
+        project.Catalogs[1].Catalog.Content.Add(new CatalogContentItem
+        {
+            Id = "map-1",
+            Name = "Shared Map",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Map,
+            Releases =
+            [
+                new ContentRelease
+                {
+                    Version = "1.0.0",
+                    Artifacts = [new ReleaseArtifact { Filename = "shared.zip", DownloadUrl = sharedUrl, Size = 64 }],
+                },
+            ],
+        });
+        var provider = CreateDriveProvider();
+        using var vm = CreateViewModel(project, provider);
+        var state = vm.CurrentHostingState;
+        Assert.NotNull(state);
+        state.Catalogs.Add(new CatalogHostingInfo
+        {
+            CatalogId = "main",
+            CatalogName = "Main Catalog",
+            FileId = "main-file-id",
+            FileName = "catalog-main.json",
+            Url = "https://drive.google.com/uc?export=download&id=mainfile",
+            FileSize = 128,
+        });
+        state.Artifacts.Add(new ArtifactHostingInfo
+        {
+            FileId = "modfile-id",
+            FileName = "cool-mod.zip",
+            Url = CloudArtifactUrl,
+            FileSize = 1024,
+        });
+        state.Artifacts.Add(new ArtifactHostingInfo
+        {
+            FileId = "shared-id",
+            FileName = "shared.zip",
+            Url = sharedUrl,
+            FileSize = 64,
+        });
+        vm.RefreshHostedAssets();
+        string? capturedMessage = null;
+        vm.ConfirmationCallback = (_, message) =>
+        {
+            capturedMessage = message;
+            return Task.FromResult(true);
+        };
+        var catalogRow = vm.HostedAssets.Single(a => a.IsCatalog && a.CatalogId == "main");
+
+        await vm.DeleteHostedAssetCommand.ExecuteAsync(catalogRow);
+
+        Assert.NotNull(capturedMessage);
+        Assert.Contains("cool-mod.zip", capturedMessage, StringComparison.Ordinal);
+        Assert.DoesNotContain("shared.zip", capturedMessage, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Tests that deleting an unlinked cloud file removes only the remote file and state entry.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeleteHostedAsset_UnlinkedCloudFile_DeletesRemoteOnlyAsync()
+    {
+        var project = CreateInventoryProject();
+        var provider = CreateDriveProvider();
+        using var vm = CreateViewModel(project, provider);
+        var state = vm.CurrentHostingState;
+        Assert.NotNull(state);
+        state.Artifacts.Add(new ArtifactHostingInfo
+        {
+            FileId = "orphan-id",
+            FileName = "orphan.zip",
+            Url = "https://drive.google.com/uc?export=download&id=orphan",
+            FileSize = 4096,
+        });
+        vm.RefreshHostedAssets();
+        vm.ConfirmationCallback = (_, _) => Task.FromResult(true);
+        var orphan = vm.HostedAssets.Single(a => a.Name == "orphan.zip");
+        Assert.Equal(0, orphan.LinkCount);
+
+        await vm.DeleteHostedAssetCommand.ExecuteAsync(orphan);
+
+        provider.Verify(p => p.DeleteFileAsync("orphan-id", It.IsAny<CancellationToken>()), Times.Once);
+        Assert.DoesNotContain(state.Artifacts, a => a.FileName == "orphan.zip");
+        Assert.Single(project.Catalogs[0].Catalog.Content[0].Releases[0].Artifacts);
+    }
+
+    /// <summary>
+    /// Tests that catalog remote cleanup keeps a remote file shared with another catalog.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeleteCatalogRemotes_SharedFileId_KeepsRemoteFileAsync()
+    {
+        var project = CreateInventoryProject();
+        var provider = CreateDriveProvider();
+        using var vm = CreateViewModel(project, provider);
+        var state = vm.CurrentHostingState;
+        Assert.NotNull(state);
+        state.Catalogs.Add(new CatalogHostingInfo
+        {
+            CatalogId = "main",
+            CatalogName = "Main Catalog",
+            FileId = "shared-file-id",
+            FileName = "catalog-main.json",
+            Url = "https://drive.google.com/uc?export=download&id=sharedfile",
+        });
+        state.Catalogs.Add(new CatalogHostingInfo
+        {
+            CatalogId = "maps",
+            CatalogName = "Maps",
+            FileId = "shared-file-id",
+            FileName = "catalog-maps.json",
+            Url = "https://drive.google.com/uc?export=download&id=sharedfile",
+        });
+        vm.RefreshHostedAssets();
+
+        var cleaned = await vm.DeleteCatalogRemotesAsync("main");
+
+        Assert.True(cleaned);
+        provider.Verify(p => p.DeleteFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        Assert.DoesNotContain(state.Catalogs, c => c.CatalogId == "main");
+        Assert.Contains(state.Catalogs, c => c.CatalogId == "maps");
+    }
+
+    private static PublisherStudioProject CreateInventoryProject()
+    {
+        var project = new PublisherStudioProject
+        {
+            ProjectPath = "/test/path/project.json",
+            ProjectName = "Test Publisher",
+            ProviderDefinitionFileName = "publisher.json",
+            Catalog = new PublisherCatalog
+            {
+                Publisher = new PublisherProfile { Id = "test-pub", Name = "Test Publisher" },
+            },
+        };
+
+        var main = new NamedCatalog
+        {
+            Id = "main",
+            Name = "Main Catalog",
+            FileName = "catalog-main.json",
+            Catalog = new PublisherCatalog
+            {
+                Content =
+                [
+                    new CatalogContentItem
+                    {
+                        Id = "mod-1",
+                        Name = "Cool Mod",
+                        Description = "A cool mod",
+                        ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
+                        Releases =
+                        [
+                            new ContentRelease
+                            {
+                                Version = "1.0.0",
+                                Artifacts =
+                                [
+                                    new ReleaseArtifact
+                                    {
+                                        Filename = "cool-mod.zip",
+                                        DownloadUrl = CloudArtifactUrl,
+                                        Size = 1024,
+                                        Sha256 = "abc",
+                                    },
+                                ],
+                                ImageUrls = ["https://drive.google.com/uc?export=download&id=relimg"],
+                                VideoUrls = [ExternalTrailerUrl],
+                            },
+                        ],
+                        Metadata = new ContentRichMetadata
+                        {
+                            ScreenshotUrls = [CloudScreenshotUrl, ExternalScreenshotUrl],
+                            VideoUrl = CloudVideoUrl,
+                        },
+                    },
+                ],
+            },
+        };
+
+        var maps = new NamedCatalog
+        {
+            Id = "maps",
+            Name = "Maps",
+            FileName = "catalog-maps.json",
+            Catalog = new PublisherCatalog(),
+        };
+
+        project.Catalogs.Add(main);
+        project.Catalogs.Add(maps);
+        return project;
+    }
+
+    private static Mock<IHostingProvider> CreateDriveProvider()
+    {
+        var provider = new Mock<IHostingProvider>();
+        provider.Setup(p => p.ProviderId).Returns(HostingConstants.GoogleDrive);
+        provider.Setup(p => p.DisplayName).Returns("Google Drive");
+        provider.Setup(p => p.RequiresAuthentication).Returns(true);
+        provider.Setup(p => p.IsAuthenticated).Returns(true);
+        provider.Setup(p => p.SupportsArtifactHosting).Returns(true);
+        provider.Setup(p => p.SupportsCatalogHosting).Returns(true);
+        provider.Setup(p => p.SupportsUpdate).Returns(true);
+        provider.Setup(p => p.DeleteFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        return provider;
+    }
+
+    private static PublishShareViewModel CreateViewModel(
+        PublisherStudioProject project,
+        Mock<IHostingProvider>? provider = null,
+        Mock<INotificationService>? notifications = null)
+    {
+        var studioService = new Mock<IPublisherStudioService>();
+        studioService.Setup(m => m.ValidateCatalogAsync(It.IsAny<PublisherCatalog>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        var stateManager = new Mock<IHostingStateManager>();
+        stateManager.Setup(m => m.SaveStatesAsync(It.IsAny<string>(), It.IsAny<PublisherHostingStates>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var vm = new PublishShareViewModel(
+            project,
+            studioService.Object,
+            NullLogger.Instance,
+            hostingStateManager: stateManager.Object,
+            notificationService: (notifications ?? new Mock<INotificationService>()).Object);
+        if (provider != null)
+        {
+            vm.HostingProviders.Add(provider.Object);
+            vm.SelectedHostingProvider = provider.Object;
+        }
+
+        return vm;
+    }
+}
