@@ -54,7 +54,7 @@ public class GeneralsOnlineDeliverer(
                                string.Equals(manifest.Publisher?.Name, GeneralsOnlineConstants.PublisherName, StringComparison.OrdinalIgnoreCase);
 
         return isGeneralsOnline &&
-               manifest.Files.Any(f => f.DownloadUrl is { } url && url.EndsWith(GeneralsOnlineConstants.PortableExtension, StringComparison.OrdinalIgnoreCase));
+               ManifestVariantResolver.ResolveFiles(manifest).Any(f => f.DownloadUrl is { } url && url.EndsWith(GeneralsOnlineConstants.PortableExtension, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <inheritdoc />
@@ -160,7 +160,7 @@ public class GeneralsOnlineDeliverer(
     {
         try
         {
-            var hasZipFile = manifest.Files.Any(f =>
+            var hasZipFile = ManifestVariantResolver.ResolveFiles(manifest).Any(f =>
                 !string.IsNullOrEmpty(f.DownloadUrl) &&
                 f.DownloadUrl.EndsWith(GeneralsOnlineConstants.PortableExtension, StringComparison.OrdinalIgnoreCase));
 
@@ -247,7 +247,7 @@ public class GeneralsOnlineDeliverer(
         IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken)
     {
-        var zipFile = packageManifest.Files.FirstOrDefault(f => f.DownloadUrl is { } url && url.EndsWith(GeneralsOnlineConstants.PortableExtension, StringComparison.OrdinalIgnoreCase));
+        var zipFile = ManifestVariantResolver.ResolveFiles(packageManifest).FirstOrDefault(f => f.DownloadUrl is { } url && url.EndsWith(GeneralsOnlineConstants.PortableExtension, StringComparison.OrdinalIgnoreCase));
         if (zipFile == null)
         {
             return OperationResult<(string, string)>.CreateFailure("No ZIP file found in manifest");

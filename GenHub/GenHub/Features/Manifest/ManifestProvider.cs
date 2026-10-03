@@ -247,14 +247,11 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
     private static void ValidateManifestSecurity(ContentManifest manifest)
     {
         // Ensure no file entries contain path traversal patterns
-        if (manifest.Files != null)
+        foreach (var f in ManifestVariantResolver.EnumerateAllFiles(manifest))
         {
-            foreach (var f in manifest.Files)
+            if (!string.IsNullOrEmpty(f.RelativePath) && (f.RelativePath.Contains("..") || f.RelativePath.Contains("/../") || f.RelativePath.Contains("\\..\\")))
             {
-                if (!string.IsNullOrEmpty(f.RelativePath) && (f.RelativePath.Contains("..") || f.RelativePath.Contains("/../") || f.RelativePath.Contains("\\..\\")))
-                {
-                    throw new ManifestSecurityException(manifest.Id.Value, $"Path traversal detected in file '{f.RelativePath}'");
-                }
+                throw new ManifestSecurityException(manifest.Id.Value, $"Path traversal detected in file '{f.RelativePath}'");
             }
         }
     }

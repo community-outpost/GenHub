@@ -148,7 +148,7 @@ public partial class GenericCatalogResolver(
             logger.LogInformation(
                 "Successfully resolved manifest for '{ContentName}' with {FileCount} files",
                 manifest.Name,
-                manifest.Files.Count);
+                ManifestVariantResolver.EnumerateAllFiles(manifest).Count);
 
             return OperationResult<ContentManifest>.CreateSuccess(manifest);
         }
@@ -744,7 +744,7 @@ public partial class GenericCatalogResolver(
     {
         if (artifactHashes is { Count: > 0 })
         {
-            foreach (var file in manifest.Files)
+            foreach (var file in ManifestVariantResolver.EnumerateAllFiles(manifest))
             {
                 if (artifactHashes.TryGetValue(file.RelativePath, out var hash) && !string.IsNullOrWhiteSpace(hash))
                 {
@@ -755,7 +755,7 @@ public partial class GenericCatalogResolver(
         else if (primaryArtifact != null && !string.IsNullOrWhiteSpace(primaryArtifact.Sha256))
         {
             var primaryFilename = SanitizeArtifactFilename(primaryArtifact, contentItem);
-            var primaryFile = manifest.Files.FirstOrDefault(f => string.Equals(f.RelativePath, primaryFilename, StringComparison.OrdinalIgnoreCase));
+            var primaryFile = ManifestVariantResolver.EnumerateAllFiles(manifest).FirstOrDefault(f => string.Equals(f.RelativePath, primaryFilename, StringComparison.OrdinalIgnoreCase));
             if (primaryFile != null)
             {
                 primaryFile.Hash = primaryArtifact.Sha256;

@@ -394,4 +394,23 @@ public class ManifestVariantConsumerTests
         var method = type.GetMethod("IsAddonMatch", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
         Assert.False((bool)method.Invoke(null, [manifest, null, GameType.ZeroHour, "expected-addon", "hotkeys.big", "legacy.big"])!);
     }
+
+    /// <summary>Steam launch-mode changes update only the host variant's declared entry point.</summary>
+    /// <param name="steam">Whether Steam launch is selected.</param>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void SteamLaunchMode_UpdatesHostEntryPoint(bool steam)
+    {
+        var manifest = VariantManifestFixture.Create(
+            [new() { RelativePath = "generals.exe", IsExecutable = !steam }, new() { RelativePath = "game.dat", IsExecutable = steam }],
+            [new() { RelativePath = "foreign" }]);
+        var host = ManifestVariantResolver.ResolveVariant(manifest)!;
+        host.EntryPoint = steam ? "game.dat" : "generals.exe";
+        manifest.EntryPoint = "untouched";
+        var method = typeof(GenHub.Features.Manifest.SteamManifestPatcher).GetMethod("ApplyLaunchMode", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        Assert.True((bool)method.Invoke(null, [manifest, steam, manifest.Id.Value, NullLogger.Instance])!);
+        Assert.Equal(steam ? "generals.exe" : "game.dat", ManifestVariantResolver.ResolveEntryPoint(manifest).RelativePath);
+        Assert.Equal("untouched", manifest.EntryPoint);
+    }
 }

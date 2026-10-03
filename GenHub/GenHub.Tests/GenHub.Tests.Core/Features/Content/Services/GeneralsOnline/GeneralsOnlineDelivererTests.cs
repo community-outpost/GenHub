@@ -12,6 +12,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.GeneralsOnline;
+using GenHub.Tests.Core.Models.Manifest;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
@@ -126,6 +127,51 @@ public class GeneralsOnlineDelivererTests : IDisposable
         };
 
         Assert.True(_deliverer.CanDeliver(manifest));
+    }
+
+    /// <summary>
+    /// Verifies CanDeliver reads only the host variant's download URLs of a variant manifest.
+    /// </summary>
+    /// <param name="hostUrl">The download URL in the host variant.</param>
+    /// <param name="foreignUrl">The download URL in the foreign variant.</param>
+    /// <param name="expected">Whether the deliverer should accept the manifest.</param>
+    [Theory]
+    [InlineData("https://example.com/GeneralsOnline_host.zip", "https://example.com/GeneralsOnline_foreign.bin", true)]
+    [InlineData("https://example.com/GeneralsOnline_host.bin", "https://example.com/GeneralsOnline_foreign.zip", false)]
+    public void CanDeliver_VariantManifest_UsesHostVariant(string hostUrl, string foreignUrl, bool expected)
+    {
+        var manifest = VariantManifestFixture.Create(
+            [new ManifestFile { RelativePath = "host", DownloadUrl = hostUrl, SourceType = ContentSourceType.RemoteDownload }],
+            [new ManifestFile { RelativePath = "foreign", DownloadUrl = foreignUrl, SourceType = ContentSourceType.RemoteDownload }]);
+        manifest.Publisher = new PublisherInfo
+        {
+            Name = GeneralsOnlineConstants.PublisherName,
+            PublisherType = PublisherTypeConstants.GeneralsOnline,
+        };
+
+        Assert.Equal(expected, _deliverer.CanDeliver(manifest));
+    }
+
+    /// <summary>
+    /// Verifies DeliverContentAsync downloads only the host variant's package.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_VariantManifest_DownloadsOnlyHostVariantAsync()
+    {
+        var requested = VariantDownloadRecorder.Record(_downloadServiceMock);
+        var manifest = VariantManifestFixture.Create(
+            [new ManifestFile { RelativePath = "variant-host.zip", DownloadUrl = VariantDownloadRecorder.HostUrl, SourceType = ContentSourceType.RemoteDownload }],
+            [new ManifestFile { RelativePath = "variant-foreign.zip", DownloadUrl = VariantDownloadRecorder.ForeignUrl, SourceType = ContentSourceType.RemoteDownload }]);
+        manifest.Publisher = new PublisherInfo
+        {
+            Name = GeneralsOnlineConstants.PublisherName,
+            PublisherType = PublisherTypeConstants.GeneralsOnline,
+        };
+
+        await _deliverer.DeliverContentAsync(manifest, Path.Combine(_tempDir, "variant-delivery"), null, CancellationToken.None);
+
+        Assert.Equal([VariantDownloadRecorder.HostUrl], requested);
     }
 
     /// <summary>
