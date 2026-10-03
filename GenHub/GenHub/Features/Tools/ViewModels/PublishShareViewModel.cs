@@ -237,6 +237,9 @@ public partial class PublishShareViewModel(
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, System.Collections.Generic.List<HostedAssetItemViewModel>> _probingUrls = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _publishGate = new(1, 1);
     private readonly Dictionary<string, HostingState> _hostingStates = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, List<HostedAssetChildViewModel>> _remotePreviewCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, long> _probedMediaSizes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly object _probeLock = new();
     private CancellationTokenSource? _probeCts = new();
     private HostingState? _currentHostingState;
     private Dictionary<string, List<AssetReference>>? _linkageIndex;
@@ -922,7 +925,7 @@ public partial class PublishShareViewModel(
         var stateChanged = false;
         foreach (var (providerId, state) in _hostingStates)
         {
-            var entry = state.Catalogs.FirstOrDefault(c => c.CatalogId == catalogId);
+            var entry = state.Catalogs.FirstOrDefault(c => string.Equals(c.CatalogId, catalogId, StringComparison.OrdinalIgnoreCase));
             if (entry == null)
             {
                 continue;
@@ -935,7 +938,7 @@ public partial class PublishShareViewModel(
                 continue;
             }
 
-            if (IsCatalogFileIdShared(entry.FileId, catalogId))
+            if (IsCatalogFileIdShared(state, entry.FileId, catalogId))
             {
                 logger.LogWarning("Keeping remote catalog file {FileId}: it is shared with another catalog after a filename collision", entry.FileId);
                 state.Catalogs.Remove(entry);
@@ -1133,6 +1136,11 @@ public partial class PublishShareViewModel(
         PopulateArtifactAssets(providerName, ref totalBytes, ref artCount, ref cdnCount);
         PopulateMediaAssets(providerName, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
         PopulateCloudScanAssets(providerName, ref totalBytes, ref catCount, ref artCount, ref screenshotCount, ref videoCount);
+
+        foreach (var item in HostedAssets)
+        {
+            item.PropertyChanged += OnHostedAssetPropertyChanged;
+        }
 
         TotalStorageUsedFormatted = GenHub.Core.Helpers.FileSizeFormatter.Format(totalBytes);
         TotalHostedFilesCount = HostedAssets.Count;
@@ -1820,8 +1828,9 @@ public partial class PublishShareViewModel(
     {
         var isExternal = !string.IsNullOrEmpty(artifact.DownloadUrl) && !IsCloudProviderUrl(artifact.DownloadUrl);
         var isCloud = !string.IsNullOrEmpty(artifact.DownloadUrl) && IsCloudProviderUrl(artifact.DownloadUrl);
-        var artHosting = _currentHostingState?.Artifacts.FirstOrDefault(a => a.FileName == artifact.Filename || a.Url == artifact.DownloadUrl)
-            ?? _hostingStates.Values.SelectMany(s => s.Artifacts).FirstOrDefault(a => a.FileName == artifact.Filename || a.Url == artifact.DownloadUrl);
+        var artHosting = !string.IsNullOrEmpty(artifact.DownloadUrl)
+            ? FindHostingArtifactByUrl(artifact.DownloadUrl)
+            : _currentHostingState?.Artifacts.FirstOrDefault(a => a.FileName == artifact.Filename);
         var artSize = artifact.Size > 0 ? artifact.Size : (artHosting?.FileSize ?? 0);
         var artUpdated = artHosting?.LastUpdated ?? DateTime.MinValue;
 
@@ -1881,23 +1890,28 @@ public partial class PublishShareViewModel(
         if (artSize <= 0 && isExternal && IsValidHttpUrl(artifact.DownloadUrl))
         {
             var url = artifact.DownloadUrl!;
-            var isNewProbe = false;
-            var list = _probingUrls.GetOrAdd(url, _ =>
-            {
-                isNewProbe = true;
-                return [];
-            });
+            var ct = _probeCts?.Token ?? CancellationToken.None;
+            TrackExternalProbe(url, item, probeUrl => ProbeExternalAssetSizeAsync(probeUrl, artifact, ct));
+        }
+    }
 
-            lock (list)
-            {
-                list.Add(item);
-            }
+    private void TrackExternalProbe(string url, HostedAssetItemViewModel item, Func<string, Task> startProbe)
+    {
+        var isNewProbe = false;
+        var list = _probingUrls.GetOrAdd(url, _ =>
+        {
+            isNewProbe = true;
+            return [];
+        });
 
-            if (isNewProbe)
-            {
-                var ct = _probeCts?.Token ?? CancellationToken.None;
-                _ = ProbeExternalAssetSizeAsync(url, artifact, ct);
-            }
+        lock (_probeLock)
+        {
+            list.Add(item);
+        }
+
+        if (isNewProbe)
+        {
+            _ = startProbe(url);
         }
     }
 
@@ -1996,19 +2010,20 @@ public partial class PublishShareViewModel(
 
     private void PopulateMediaAssets(string providerName, ref long totalBytes, ref int screenshotCount, ref int videoCount, ref int cdnCount)
     {
+        var emittedUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var catalog in project.Catalogs)
         {
             foreach (var content in catalog.Catalog.Content)
             {
-                PopulateContentMetadataMedia(content, catalog, providerName, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
+                PopulateContentMetadataMedia(content, catalog, providerName, emittedUrls, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
                 foreach (var release in content.Releases)
                 {
-                    PopulateReleaseMedia(release, content, catalog, providerName, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
+                    PopulateReleaseMedia(release, content, catalog, providerName, emittedUrls, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
                 }
 
                 foreach (var addon in content.AddonReleases)
                 {
-                    PopulateReleaseMedia(addon, content, catalog, providerName, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
+                    PopulateReleaseMedia(addon, content, catalog, providerName, emittedUrls, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
                 }
             }
         }
@@ -2018,6 +2033,7 @@ public partial class PublishShareViewModel(
         CatalogContentItem content,
         NamedCatalog catalog,
         string providerName,
+        HashSet<string> emittedUrls,
         ref long totalBytes,
         ref int screenshotCount,
         ref int videoCount,
@@ -2031,22 +2047,22 @@ public partial class PublishShareViewModel(
 
         foreach (var url in metadata.ScreenshotUrls)
         {
-            ProcessMediaAsset(url, MediaSlotScreenshot, null, content, catalog, providerName, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
+            ProcessMediaAsset(url, MediaSlotScreenshot, null, content, catalog, providerName, emittedUrls, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
         }
 
         if (!string.IsNullOrWhiteSpace(metadata.VideoUrl))
         {
-            ProcessMediaAsset(metadata.VideoUrl, MediaSlotVideo, null, content, catalog, providerName, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
+            ProcessMediaAsset(metadata.VideoUrl, MediaSlotVideo, null, content, catalog, providerName, emittedUrls, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
         }
 
         foreach (var url in metadata.VideoUrls)
         {
-            ProcessMediaAsset(url, MediaSlotVideo, null, content, catalog, providerName, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
+            ProcessMediaAsset(url, MediaSlotVideo, null, content, catalog, providerName, emittedUrls, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
         }
 
-        ProcessMediaAsset(metadata.IconUrl, MediaSlotIcon, null, content, catalog, providerName, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
-        ProcessMediaAsset(metadata.BannerUrl, MediaSlotBanner, null, content, catalog, providerName, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
-        ProcessMediaAsset(metadata.BackdropUrl, MediaSlotBackdrop, null, content, catalog, providerName, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
+        ProcessMediaAsset(metadata.IconUrl, MediaSlotIcon, null, content, catalog, providerName, emittedUrls, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
+        ProcessMediaAsset(metadata.BannerUrl, MediaSlotBanner, null, content, catalog, providerName, emittedUrls, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
+        ProcessMediaAsset(metadata.BackdropUrl, MediaSlotBackdrop, null, content, catalog, providerName, emittedUrls, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
     }
 
     private void PopulateReleaseMedia(
@@ -2054,6 +2070,7 @@ public partial class PublishShareViewModel(
         CatalogContentItem content,
         NamedCatalog catalog,
         string providerName,
+        HashSet<string> emittedUrls,
         ref long totalBytes,
         ref int screenshotCount,
         ref int videoCount,
@@ -2061,12 +2078,12 @@ public partial class PublishShareViewModel(
     {
         foreach (var url in release.ImageUrls)
         {
-            ProcessMediaAsset(url, MediaSlotReleaseImage, release.Version, content, catalog, providerName, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
+            ProcessMediaAsset(url, MediaSlotReleaseImage, release.Version, content, catalog, providerName, emittedUrls, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
         }
 
         foreach (var url in release.VideoUrls)
         {
-            ProcessMediaAsset(url, MediaSlotReleaseVideo, release.Version, content, catalog, providerName, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
+            ProcessMediaAsset(url, MediaSlotReleaseVideo, release.Version, content, catalog, providerName, emittedUrls, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
         }
     }
 
@@ -2077,12 +2094,13 @@ public partial class PublishShareViewModel(
         CatalogContentItem content,
         NamedCatalog catalog,
         string providerName,
+        HashSet<string> emittedUrls,
         ref long totalBytes,
         ref int screenshotCount,
         ref int videoCount,
         ref int cdnCount)
     {
-        if (!IsValidHttpUrl(url))
+        if (!IsValidHttpUrl(url) || !emittedUrls.Add(url!))
         {
             return;
         }
@@ -2093,10 +2111,11 @@ public partial class PublishShareViewModel(
         var isExternal = !IsCloudProviderUrl(url);
         var isCloud = !isExternal;
         var hosting = FindHostingArtifactByUrl(url!);
-        var mediaSize = hosting?.FileSize ?? 0;
+        var mediaSize = hosting?.FileSize
+            ?? (_probedMediaSizes.TryGetValue(url!, out var cachedSize) ? cachedSize : 0);
 
-        string location;
-        string status;
+        var location = string.Empty;
+        var status = string.Empty;
         if (isCloud)
         {
             if (isVideo)
@@ -2150,28 +2169,8 @@ public partial class PublishShareViewModel(
 
         if (mediaSize <= 0 && isExternal)
         {
-            TrackExternalMediaProbe(url!, item);
-        }
-    }
-
-    private void TrackExternalMediaProbe(string url, HostedAssetItemViewModel item)
-    {
-        var list = _probingUrls.GetOrAdd(url, _ => []);
-        var isNewProbe = false;
-        lock (list)
-        {
-            if (list.Count == 0)
-            {
-                isNewProbe = true;
-            }
-
-            list.Add(item);
-        }
-
-        if (isNewProbe)
-        {
             var ct = _probeCts?.Token ?? CancellationToken.None;
-            _ = ProbeExternalMediaSizeAsync(url, item, ct);
+            TrackExternalProbe(url!, item, probeUrl => ProbeExternalMediaSizeAsync(probeUrl, item, ct));
         }
     }
 
@@ -2183,6 +2182,7 @@ public partial class PublishShareViewModel(
             var detectedSize = await DetectExternalAssetSizeAsync(client, url, cancellationToken).ConfigureAwait(false);
             if (detectedSize is > 0 && !cancellationToken.IsCancellationRequested)
             {
+                _probedMediaSizes[url] = detectedSize.Value;
                 DispatchArtifactSizeUpdate(url, detectedSize.Value);
                 logger.LogInformation("Probed external media size for {FileName}: {Size} bytes", item.Name, detectedSize.Value);
             }
@@ -2247,9 +2247,8 @@ public partial class PublishShareViewModel(
                 IsExternalCdn = false,
                 LastUpdated = cloudDef.LastUpdated,
                 LinkedToText = GetLocalizedString("Tools.PublisherStudio.Hosting.LinkedToNotLinked", "Not linked"),
-                LinkedToTooltip = GetLocalizedString("Tools.PublisherStudio.Hosting.LinkedToNotInProjectTip", "This file is not part of the current project. Load it to inspect and link its contents."),
-                ShowLoadToInspectHint = true,
-                LoadToInspectHint = GetLocalizedString("Tools.PublisherStudio.Hosting.LoadToInspectHint", "Load to Project to inspect its catalogs"),
+                LinkedToTooltip = GetLocalizedString("Tools.PublisherStudio.Hosting.LinkedToNotInProjectTip", "This file is not part of the current project. Expand the row to preview its contents."),
+                NeedsRemotePreview = true,
             };
             HostedAssets.Add(discoveredDefinition);
         }
@@ -2298,9 +2297,8 @@ public partial class PublishShareViewModel(
             else
             {
                 discoveredCatalog.LinkedToText = GetLocalizedString("Tools.PublisherStudio.Hosting.LinkedToNotLinked", "Not linked");
-                discoveredCatalog.LinkedToTooltip = GetLocalizedString("Tools.PublisherStudio.Hosting.LinkedToNotInProjectTip", "This file is not part of the current project. Load it to inspect and link its contents.");
-                discoveredCatalog.ShowLoadToInspectHint = true;
-                discoveredCatalog.LoadToInspectHint = GetLocalizedString("Tools.PublisherStudio.Hosting.LoadToInspectCatalogHint", "Load to Project to inspect its contents");
+                discoveredCatalog.LinkedToTooltip = GetLocalizedString("Tools.PublisherStudio.Hosting.LinkedToNotInProjectTip", "This file is not part of the current project. Expand the row to preview its contents.");
+                discoveredCatalog.NeedsRemotePreview = true;
             }
 
             HostedAssets.Add(discoveredCatalog);
@@ -2592,16 +2590,17 @@ public partial class PublishShareViewModel(
         item.Children.Clear();
         foreach (var catalog in project.Catalogs)
         {
-            var published = _currentHostingState?.Catalogs.Any(c =>
+            var hostingUrl = _currentHostingState?.Catalogs.FirstOrDefault(c =>
                 string.Equals(c.CatalogId, catalog.Id, StringComparison.OrdinalIgnoreCase) &&
-                !string.IsNullOrWhiteSpace(c.Url)) == true;
-            var state = published
+                !string.IsNullOrWhiteSpace(c.Url))?.Url;
+            var state = !string.IsNullOrWhiteSpace(hostingUrl)
                 ? GetLocalizedString("Tools.PublisherStudio.Hosting.StatusLiveOnline", HostingConstants.StatusLiveOnline)
                 : GetLocalizedString("Tools.PublisherStudio.Hosting.StatusPendingUpload", HostingConstants.StatusPendingUpload);
             item.Children.Add(new HostedAssetChildViewModel
             {
                 Name = catalog.Name,
                 Detail = FormatLocalizedString("Tools.PublisherStudio.Hosting.ChildCatalogDetailFormat", "{0} · {1}", catalog.FileName, state),
+                CopyUrl = hostingUrl ?? item.Url,
             });
         }
 
@@ -2618,20 +2617,7 @@ public partial class PublishShareViewModel(
         item.Children.Clear();
         foreach (var content in catalog.Catalog.Content)
         {
-            var releaseCount = content.Releases.Count + content.AddonReleases.Count;
-            var fileCount = content.Releases.SelectMany(r => r.Artifacts).Count() +
-                content.AddonReleases.SelectMany(r => r.Artifacts).Count();
-            item.Children.Add(new HostedAssetChildViewModel
-            {
-                Name = content.Name,
-                Detail = FormatLocalizedString(
-                    "Tools.PublisherStudio.Hosting.ChildContentDetailFormat",
-                    "{0} · {1} releases · {2} files · {3} media",
-                    content.ContentType.ToString(),
-                    releaseCount,
-                    fileCount,
-                    CountMediaUrls(content)),
-            });
+            item.Children.Add(BuildContentChild(content, item.Url));
         }
 
         item.HasChildren = item.Children.Count > 0;
@@ -2661,12 +2647,160 @@ public partial class PublishShareViewModel(
             {
                 Name = FormatReferenceText(reference),
                 Detail = GetMediaSlotLabel(reference.Slot),
+                CopyUrl = item.Url,
             });
         }
 
         item.HasChildren = true;
         item.LinkCount = refs.Count;
         item.ChildrenSummary = FormatLocalizedString("Tools.PublisherStudio.Hosting.ChildrenReferencesFormat", "{0} references", refs.Count);
+    }
+
+    private HostedAssetChildViewModel BuildContentChild(CatalogContentItem content, string copyUrl)
+    {
+        var releaseCount = content.Releases.Count + content.AddonReleases.Count;
+        var fileCount = content.Releases.SelectMany(r => r.Artifacts).Count() +
+            content.AddonReleases.SelectMany(r => r.Artifacts).Count();
+        return new HostedAssetChildViewModel
+        {
+            Name = content.Name,
+            Detail = FormatLocalizedString(
+                "Tools.PublisherStudio.Hosting.ChildContentDetailFormat",
+                "{0} · {1} releases · {2} files · {3} media",
+                content.ContentType.ToString(),
+                releaseCount,
+                fileCount,
+                CountMediaUrls(content)),
+            CopyUrl = copyUrl,
+        };
+    }
+
+    private void OnHostedAssetPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (sender is HostedAssetItemViewModel item &&
+            string.Equals(e.PropertyName, nameof(HostedAssetItemViewModel.IsExpanded), StringComparison.Ordinal) &&
+            item.IsExpanded)
+        {
+            _ = EnsureChildrenLoadedAsync(item);
+        }
+    }
+
+    private async Task EnsureChildrenLoadedAsync(HostedAssetItemViewModel item)
+    {
+        if (!item.NeedsRemotePreview || item.RemotePreviewLoaded || item.IsLoadingChildren)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.Url) && _remotePreviewCache.TryGetValue(item.Url, out var cached))
+        {
+            ApplyPreviewChildren(item, cached);
+            return;
+        }
+
+        item.IsLoadingChildren = true;
+        item.ChildrenLoadError = null;
+        try
+        {
+            var (children, error) = await LoadRemotePreviewAsync(item, CancellationToken.None).ConfigureAwait(false);
+            if (children == null)
+            {
+                item.ChildrenLoadError = FormatLocalizedString(
+                    "Tools.PublisherStudio.Hosting.PreviewLoadFailedFormat",
+                    "Preview unavailable: {0}",
+                    string.IsNullOrWhiteSpace(error) ? item.Name : error);
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(item.Url))
+            {
+                _remotePreviewCache[item.Url] = children;
+            }
+
+            ApplyPreviewChildren(item, children);
+        }
+        finally
+        {
+            item.IsLoadingChildren = false;
+        }
+    }
+
+    private void ApplyPreviewChildren(HostedAssetItemViewModel item, List<HostedAssetChildViewModel> children)
+    {
+        item.Children.Clear();
+        foreach (var child in children)
+        {
+            item.Children.Add(child);
+        }
+
+        item.HasChildren = item.Children.Count > 0;
+        item.IsEmpty = item.Children.Count == 0;
+        if (item.IsEmpty)
+        {
+            item.EmptyStateText = item.IsDefinition
+                ? GetLocalizedString("Tools.PublisherStudio.Hosting.EmptyDefinitionText", "No catalogs linked to this definition")
+                : GetLocalizedString("Tools.PublisherStudio.Hosting.EmptyCatalogText", "Empty catalog — no content linked");
+        }
+
+        item.ChildrenSummary = item.IsDefinition
+            ? FormatLocalizedString("Tools.PublisherStudio.Hosting.ChildrenCatalogsFormat", "{0} catalogs", item.Children.Count)
+            : FormatLocalizedString("Tools.PublisherStudio.Hosting.ChildrenContentsFormat", "{0} contents", item.Children.Count);
+        item.RemotePreviewLoaded = true;
+    }
+
+    private async Task<(List<HostedAssetChildViewModel>? Children, string? Error)> LoadRemotePreviewAsync(HostedAssetItemViewModel item, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(item.Url))
+        {
+            return (null, GetLocalizedString("Tools.PublisherStudio.Hosting.NoShareableUrlError", "No shareable download URL is available."));
+        }
+
+        var json = await DownloadStringFromUrlAsync(item.Url).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return (null, GetLocalizedString("Tools.PublisherStudio.Hosting.PreviewDownloadFailedText", "The file could not be downloaded."));
+        }
+
+        try
+        {
+            return item.IsDefinition
+                ? BuildDefinitionPreview(json, item)
+                : BuildCatalogPreview(json, item);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "Failed to parse remote preview JSON for {AssetName}", item.Name);
+            return (null, ex.Message);
+        }
+    }
+
+    private (List<HostedAssetChildViewModel>? Children, string? Error) BuildCatalogPreview(string json, HostedAssetItemViewModel item)
+    {
+        var catalog = JsonSerializer.Deserialize<PublisherCatalog>(json, PublisherJsonOptions.Definition);
+        if (catalog == null)
+        {
+            return (null, item.Name);
+        }
+
+        var children = catalog.Content.Select(content => BuildContentChild(content, item.Url)).ToList();
+        return (children, null);
+    }
+
+    private (List<HostedAssetChildViewModel>? Children, string? Error) BuildDefinitionPreview(string json, HostedAssetItemViewModel item)
+    {
+        var definition = JsonSerializer.Deserialize<PublisherDefinition>(json, PublisherJsonOptions.Definition);
+        if (definition == null)
+        {
+            return (null, item.Name);
+        }
+
+        var children = definition.Catalogs.Select(entry => new HostedAssetChildViewModel
+        {
+            Name = entry.Name,
+            Detail = entry.Url,
+            CopyUrl = entry.Url,
+        }).ToList();
+        return (children, null);
     }
 
     private int CountMediaUrls(CatalogContentItem content)
@@ -2768,10 +2902,15 @@ public partial class PublishShareViewModel(
         return fallback;
     }
 
-    private string GetSortGlyph(string column) =>
-        string.Equals(InventorySortColumn, column, StringComparison.OrdinalIgnoreCase)
-            ? (InventorySortDescending ? SortGlyphDescending : SortGlyphAscending)
-            : string.Empty;
+    private string GetSortGlyph(string column)
+    {
+        if (!string.Equals(InventorySortColumn, column, StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Empty;
+        }
+
+        return InventorySortDescending ? SortGlyphDescending : SortGlyphAscending;
+    }
 
     partial void OnActiveCatalogChanged(NamedCatalog? value)
     {
@@ -3681,10 +3820,9 @@ public partial class PublishShareViewModel(
             string.Equals(c.FileId, fileId, StringComparison.OrdinalIgnoreCase)) == true;
     }
 
-    private bool IsCatalogFileIdShared(string fileId, string catalogId)
+    private bool IsCatalogFileIdShared(HostingState state, string fileId, string catalogId)
     {
-        return _hostingStates.Values
-            .SelectMany(s => s.Catalogs)
+        return state.Catalogs
             .Any(c => !string.Equals(c.CatalogId, catalogId, StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(c.FileId, fileId, StringComparison.OrdinalIgnoreCase));
     }
@@ -6955,8 +7093,9 @@ public partial class PublishShareViewModel(
     /// and re-uploads the affected manifests so subscribers stay consistent.
     /// </summary>
     /// <param name="asset">The hosted asset to delete.</param>
+    /// <param name="cancellationToken">Token to cancel the delete operation.</param>
     [RelayCommand]
-    private async Task DeleteHostedAssetAsync(HostedAssetItemViewModel? asset)
+    private async Task DeleteHostedAssetAsync(HostedAssetItemViewModel? asset, CancellationToken cancellationToken)
     {
         if (asset == null || asset.IsDeleting)
         {
@@ -6979,23 +7118,23 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        await EnsureHostingStatesLoadedAsync(CancellationToken.None);
+        await EnsureHostingStatesLoadedAsync(cancellationToken);
 
         if (asset.IsDefinition)
         {
-            await DeleteDefinitionAssetAsync(asset);
+            await DeleteDefinitionAssetAsync(asset, cancellationToken);
         }
         else if (asset.IsCatalog)
         {
-            await DeleteCatalogAssetAsync(asset);
+            await DeleteCatalogAssetAsync(asset, cancellationToken);
         }
         else if (asset.IsMedia)
         {
-            await DeleteMediaAssetAsync(asset);
+            await DeleteMediaAssetAsync(asset, cancellationToken);
         }
         else
         {
-            await DeleteArtifactAssetAsync(asset);
+            await DeleteArtifactAssetAsync(asset, cancellationToken);
         }
     }
 
@@ -7019,9 +7158,9 @@ public partial class PublishShareViewModel(
         return false;
     }
 
-    private bool RequireProviderForDelete()
+    private bool RequireAnyProviderForDelete()
     {
-        if (SelectedHostingProvider != null && SelectedHostingProvider.IsAuthenticated)
+        if (HostingProviders.Any(p => p.IsAuthenticated))
         {
             return true;
         }
@@ -7032,7 +7171,7 @@ public partial class PublishShareViewModel(
         return false;
     }
 
-    private async Task DeleteDefinitionAssetAsync(HostedAssetItemViewModel asset)
+    private async Task DeleteDefinitionAssetAsync(HostedAssetItemViewModel asset, CancellationToken cancellationToken)
     {
         var isActive = IsActiveDefinitionAsset(asset);
         var title = GetLocalizedString("Tools.PublisherStudio.Hosting.DeleteDefinitionTitle", "Delete Hosted Definition?");
@@ -7045,7 +7184,7 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        if (!RequireProviderForDelete())
+        if (!RequireAnyProviderForDelete())
         {
             return;
         }
@@ -7053,7 +7192,7 @@ public partial class PublishShareViewModel(
         asset.IsDeleting = true;
         try
         {
-            var remoteDeleted = await DeleteRemoteFileAsync(asset.FileId, asset.Url, CancellationToken.None);
+            var remoteDeleted = await DeleteRemoteFileAsync(asset.FileId, asset.Url, cancellationToken);
             if (!remoteDeleted)
             {
                 NotifyRemoteDeleteFailed(asset);
@@ -7061,7 +7200,7 @@ public partial class PublishShareViewModel(
             }
 
             PruneDefinitionStateEntries(asset);
-            await SaveAllHostingStatesAsync(CancellationToken.None);
+            await SaveAllHostingStatesAsync(cancellationToken);
 
             if (isActive)
             {
@@ -7113,12 +7252,7 @@ public partial class PublishShareViewModel(
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(asset.Url) && string.Equals(asset.Url, ProviderDefinitionUrl, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        return string.Equals(asset.Name, project.ProviderDefinitionFileName ?? HostingConstants.DefaultDefinitionFileName, StringComparison.OrdinalIgnoreCase);
+        return !string.IsNullOrWhiteSpace(asset.Url) && string.Equals(asset.Url, ProviderDefinitionUrl, StringComparison.OrdinalIgnoreCase);
     }
 
     private void PruneDefinitionStateEntries(HostedAssetItemViewModel asset)
@@ -7157,7 +7291,7 @@ public partial class PublishShareViewModel(
             FormatLocalizedString("Tools.PublisherStudio.Hosting.DeleteRemoteFailedMessageFormat", "Could not delete '{0}' from cloud storage. The remote file could not be located or the provider rejected the request. No local changes were made.", asset.Name));
     }
 
-    private async Task DeleteCatalogAssetAsync(HostedAssetItemViewModel asset)
+    private async Task DeleteCatalogAssetAsync(HostedAssetItemViewModel asset, CancellationToken cancellationToken)
     {
         var projectCatalog = FindProjectCatalog(asset);
         if (projectCatalog != null && project.Catalogs.Count <= 1)
@@ -7174,7 +7308,7 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        if (!RequireProviderForDelete())
+        if (!RequireAnyProviderForDelete())
         {
             return;
         }
@@ -7182,7 +7316,7 @@ public partial class PublishShareViewModel(
         asset.IsDeleting = true;
         try
         {
-            await ExecuteCatalogDeleteAsync(asset, projectCatalog, orphans, definitionWillUpdate, CancellationToken.None);
+            await ExecuteCatalogDeleteAsync(asset, projectCatalog, orphans, definitionWillUpdate, cancellationToken);
         }
         finally
         {
@@ -7242,7 +7376,7 @@ public partial class PublishShareViewModel(
                 "Tools.PublisherStudio.Hosting.DeleteCatalogOrphansLineFormat",
                 "{0} file(s) on Drive are only used by this catalog and will become unlinked (kept on Drive): {1}.",
                 orphans.Count,
-                string.Join(", ", orphans.Take(5)) + (orphans.Count > 5 ? FormatLocalizedString("Tools.PublisherStudio.Hosting.LinkedToMoreRefsFormat", "+{0} more", orphans.Count - 5) : string.Empty)));
+                string.Join(", ", orphans.Take(5)) + (orphans.Count > 5 ? " " + FormatLocalizedString("Tools.PublisherStudio.Hosting.LinkedToMoreRefsFormat", "+{0} more", orphans.Count - 5) : string.Empty)));
         }
 
         return (title, lines.ToString(), orphans, definitionWillUpdate);
@@ -7444,12 +7578,12 @@ public partial class PublishShareViewModel(
         }
     }
 
-    private async Task DeleteArtifactAssetAsync(HostedAssetItemViewModel asset)
+    private async Task DeleteArtifactAssetAsync(HostedAssetItemViewModel asset, CancellationToken cancellationToken)
     {
         var refs = FindReferencesByUrl(asset.Url);
         if (refs is not { Count: > 0 })
         {
-            await DeleteUnlinkedCloudFileAsync(asset);
+            await DeleteUnlinkedCloudFileAsync(asset, cancellationToken);
             return;
         }
 
@@ -7464,7 +7598,7 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        if (asset.IsOnline && !RequireProviderForDelete())
+        if (asset.IsOnline && !RequireAnyProviderForDelete())
         {
             return;
         }
@@ -7472,7 +7606,7 @@ public partial class PublishShareViewModel(
         asset.IsDeleting = true;
         try
         {
-            await ExecuteArtifactDeleteAsync(asset, refs, emptied, CancellationToken.None);
+            await ExecuteArtifactDeleteAsync(asset, refs, emptied, cancellationToken);
         }
         finally
         {
@@ -7502,6 +7636,12 @@ public partial class PublishShareViewModel(
         {
             lines.Append(' ');
             lines.Append(FormatLocalizedString("Tools.PublisherStudio.Hosting.LinkedToMoreRefsFormat", "+{0} more", refs.Count - 4));
+        }
+
+        if (asset.IsOnline && HasNonArtifactReferences(refs))
+        {
+            lines.Append(' ');
+            lines.Append(GetLocalizedString("Tools.PublisherStudio.Hosting.DeleteSharedUrlWarningLine", "This file is also referenced in another way; the remote file will be kept and only the selected links will be removed."));
         }
 
         foreach (var (contentName, version) in emptied.Take(3))
@@ -7539,7 +7679,8 @@ public partial class PublishShareViewModel(
         IReadOnlyList<(string ContentName, string Version)> emptied,
         CancellationToken cancellationToken)
     {
-        if (asset.IsOnline)
+        var remoteKeptShared = asset.IsOnline && HasNonArtifactReferences(refs);
+        if (asset.IsOnline && !remoteKeptShared)
         {
             var remoteDeleted = await DeleteRemoteFileAsync(asset.FileId, asset.Url, cancellationToken);
             if (!remoteDeleted)
@@ -7550,6 +7691,21 @@ public partial class PublishShareViewModel(
         }
 
         var affected = RemoveArtifactReferences(asset.Url!);
+        var (republished, republishFailed) = await FinalizeReferenceDeleteAsync(affected, asset, cancellationToken);
+        await RefreshAfterDeleteAsync();
+
+        var message = asset.IsExternalCdn
+            ? new System.Text.StringBuilder(FormatLocalizedString("Tools.PublisherStudio.Hosting.DeletedExternalMessageFormat", "'{0}' was unlinked from {1} release(s).", asset.Name, refs.Count))
+            : new System.Text.StringBuilder(FormatLocalizedString("Tools.PublisherStudio.Hosting.DeletedArtifactMessageFormat", "'{0}' was deleted and removed from {1} release(s).", asset.Name, refs.Count));
+        AppendDeleteFollowUpNotes(message, emptied, republishFailed, republished, remoteKeptShared);
+        NotifyReferenceDeleteResult(message, republishFailed);
+    }
+
+    private async Task<(int Republished, int Failed)> FinalizeReferenceDeleteAsync(
+        IReadOnlyList<NamedCatalog> affected,
+        HostedAssetItemViewModel asset,
+        CancellationToken cancellationToken)
+    {
         PruneArtifactStateEntries(asset.Url, asset.FileId, asset.Name);
         await SaveAllHostingStatesAsync(cancellationToken);
 
@@ -7566,22 +7722,19 @@ public partial class PublishShareViewModel(
 
         LibraryRefreshCallback?.Invoke();
         _linkageIndex = null;
+        return await RepublishCatalogsAfterDeleteAsync(affected, cancellationToken);
+    }
 
-        var (republished, republishFailed) = await RepublishCatalogsAfterDeleteAsync(affected, cancellationToken);
+    private async Task RefreshAfterDeleteAsync()
+    {
         RefreshHostedAssets();
         RefreshUploadHierarchy();
         RefreshArtifactStatuses();
         await ValidateCatalogAsync();
+    }
 
-        var message = new System.Text.StringBuilder(FormatLocalizedString("Tools.PublisherStudio.Hosting.DeletedArtifactMessageFormat", "'{0}' was deleted and removed from {1} release(s).", asset.Name, refs.Count));
-        AppendDeleteFollowUpNotes(message, emptied, republishFailed, republished);
-        if (asset.IsExternalCdn)
-        {
-            // External rows have no remote file; restate as an unlink for clarity.
-            message = new System.Text.StringBuilder(FormatLocalizedString("Tools.PublisherStudio.Hosting.DeletedExternalMessageFormat", "'{0}' was unlinked from {1} release(s).", asset.Name, refs.Count));
-            AppendDeleteFollowUpNotes(message, emptied, republishFailed, republished);
-        }
-
+    private void NotifyReferenceDeleteResult(System.Text.StringBuilder message, int republishFailed)
+    {
         if (republishFailed > 0)
         {
             notificationService?.ShowWarning(
@@ -7598,12 +7751,25 @@ public partial class PublishShareViewModel(
         }
     }
 
+    private bool HasNonArtifactReferences(IReadOnlyList<AssetReference> refs) =>
+        refs.Any(r => !string.Equals(r.Slot, MediaSlotArtifact, StringComparison.Ordinal));
+
+    private bool HasArtifactReferences(IReadOnlyList<AssetReference> refs) =>
+        refs.Any(r => string.Equals(r.Slot, MediaSlotArtifact, StringComparison.Ordinal));
+
     private void AppendDeleteFollowUpNotes(
         System.Text.StringBuilder message,
         IReadOnlyList<(string ContentName, string Version)> emptied,
         int republishFailed,
-        int republished)
+        int republished,
+        bool remoteKeptShared = false)
     {
+        if (remoteKeptShared)
+        {
+            message.Append(' ');
+            message.Append(GetLocalizedString("Tools.PublisherStudio.Hosting.DeleteRemoteKeptSharedNote", "The remote file was kept because other references still use it."));
+        }
+
         foreach (var (contentName, version) in emptied.Take(3))
         {
             message.Append(' ');
@@ -7663,12 +7829,12 @@ public partial class PublishShareViewModel(
         }
     }
 
-    private async Task DeleteMediaAssetAsync(HostedAssetItemViewModel asset)
+    private async Task DeleteMediaAssetAsync(HostedAssetItemViewModel asset, CancellationToken cancellationToken)
     {
         var refs = FindReferencesByUrl(asset.Url);
         if (refs is not { Count: > 0 })
         {
-            await DeleteUnlinkedCloudFileAsync(asset);
+            await DeleteUnlinkedCloudFileAsync(asset, cancellationToken);
             return;
         }
 
@@ -7697,12 +7863,18 @@ public partial class PublishShareViewModel(
             lines.Append(FormatLocalizedString("Tools.PublisherStudio.Hosting.LinkedToMoreRefsFormat", "+{0} more", refs.Count - 4));
         }
 
+        if (asset.IsOnline && HasArtifactReferences(refs))
+        {
+            lines.Append(' ');
+            lines.Append(GetLocalizedString("Tools.PublisherStudio.Hosting.DeleteSharedUrlWarningLine", "This file is also referenced in another way; the remote file will be kept and only the selected links will be removed."));
+        }
+
         if (!await ConfirmDeleteAsync(title, lines.ToString()))
         {
             return;
         }
 
-        if (asset.IsOnline && !RequireProviderForDelete())
+        if (asset.IsOnline && !RequireAnyProviderForDelete())
         {
             return;
         }
@@ -7710,7 +7882,7 @@ public partial class PublishShareViewModel(
         asset.IsDeleting = true;
         try
         {
-            await ExecuteMediaDeleteAsync(asset, refs, CancellationToken.None);
+            await ExecuteMediaDeleteAsync(asset, refs, cancellationToken);
         }
         finally
         {
@@ -7720,7 +7892,8 @@ public partial class PublishShareViewModel(
 
     private async Task ExecuteMediaDeleteAsync(HostedAssetItemViewModel asset, IReadOnlyList<AssetReference> refs, CancellationToken cancellationToken)
     {
-        if (asset.IsOnline)
+        var remoteKeptShared = asset.IsOnline && HasArtifactReferences(refs);
+        if (asset.IsOnline && !remoteKeptShared)
         {
             var remoteDeleted = await DeleteRemoteFileAsync(asset.FileId, asset.Url, cancellationToken);
             if (!remoteDeleted)
@@ -7731,47 +7904,14 @@ public partial class PublishShareViewModel(
         }
 
         var affected = RemoveMediaReferences(asset.Url!);
-        PruneArtifactStateEntries(asset.Url, asset.FileId, asset.Name);
-        await SaveAllHostingStatesAsync(cancellationToken);
-
-        foreach (var catalog in affected)
-        {
-            MarkCatalogChanged(catalog.Id);
-        }
-
-        project.IsDirty = true;
-        if (SaveProjectCallback != null)
-        {
-            await SaveProjectCallback();
-        }
-
-        LibraryRefreshCallback?.Invoke();
-        _linkageIndex = null;
-
-        var (republished, republishFailed) = await RepublishCatalogsAfterDeleteAsync(affected, cancellationToken);
-        RefreshHostedAssets();
-        RefreshUploadHierarchy();
-        RefreshArtifactStatuses();
-        await ValidateCatalogAsync();
+        var (republished, republishFailed) = await FinalizeReferenceDeleteAsync(affected, asset, cancellationToken);
+        await RefreshAfterDeleteAsync();
 
         var message = asset.IsExternalCdn
             ? new System.Text.StringBuilder(FormatLocalizedString("Tools.PublisherStudio.Hosting.DeletedExternalMediaMessageFormat", "'{0}' was unlinked from {1} place(s).", asset.Name, refs.Count))
             : new System.Text.StringBuilder(FormatLocalizedString("Tools.PublisherStudio.Hosting.DeletedMediaMessageFormat", "'{0}' was deleted and unlinked from {1} place(s).", asset.Name, refs.Count));
-        AppendDeleteFollowUpNotes(message, [], republishFailed, republished);
-        if (republishFailed > 0)
-        {
-            notificationService?.ShowWarning(
-                GetLocalizedString("Tools.PublisherStudio.Hosting.DeleteSuccessTitle", "Deleted"),
-                message.ToString(),
-                NotificationDurations.Long);
-        }
-        else
-        {
-            notificationService?.ShowSuccess(
-                GetLocalizedString("Tools.PublisherStudio.Hosting.DeleteSuccessTitle", "Deleted"),
-                message.ToString(),
-                NotificationDurations.Long);
-        }
+        AppendDeleteFollowUpNotes(message, [], republishFailed, republished, remoteKeptShared);
+        NotifyReferenceDeleteResult(message, republishFailed);
     }
 
     private IReadOnlyList<NamedCatalog> RemoveMediaReferences(string url)
@@ -7849,7 +7989,7 @@ public partial class PublishShareViewModel(
         return removedAny;
     }
 
-    private async Task DeleteUnlinkedCloudFileAsync(HostedAssetItemViewModel asset)
+    private async Task DeleteUnlinkedCloudFileAsync(HostedAssetItemViewModel asset, CancellationToken cancellationToken)
     {
         if (!asset.IsOnline)
         {
@@ -7866,7 +8006,7 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        if (!RequireProviderForDelete())
+        if (!RequireAnyProviderForDelete())
         {
             return;
         }
@@ -7874,7 +8014,7 @@ public partial class PublishShareViewModel(
         asset.IsDeleting = true;
         try
         {
-            var remoteDeleted = await DeleteRemoteFileAsync(asset.FileId, asset.Url, CancellationToken.None);
+            var remoteDeleted = await DeleteRemoteFileAsync(asset.FileId, asset.Url, cancellationToken);
             if (!remoteDeleted)
             {
                 NotifyRemoteDeleteFailed(asset);
@@ -7882,7 +8022,7 @@ public partial class PublishShareViewModel(
             }
 
             PruneArtifactStateEntries(asset.Url, asset.FileId, asset.Name);
-            await SaveAllHostingStatesAsync(CancellationToken.None);
+            await SaveAllHostingStatesAsync(cancellationToken);
 
             _linkageIndex = null;
             RefreshHostedAssets();
@@ -7931,9 +8071,10 @@ public partial class PublishShareViewModel(
 
     private (IHostingProvider? Provider, string? FileId) ResolveDeleteTarget(string? fileId, string? url)
     {
-        if (!string.IsNullOrWhiteSpace(fileId) && SelectedHostingProvider?.IsAuthenticated == true)
+        var byFileId = FindOwningProviderByFileId(fileId);
+        if (byFileId.Provider != null)
         {
-            return (SelectedHostingProvider, fileId);
+            return byFileId;
         }
 
         if (string.IsNullOrWhiteSpace(url))
@@ -7949,14 +8090,52 @@ public partial class PublishShareViewModel(
                 continue;
             }
 
-            var provider = HostingProviders.FirstOrDefault(p => string.Equals(p.ProviderId, providerId, StringComparison.OrdinalIgnoreCase));
-            if (provider?.IsAuthenticated == true)
+            var provider = FindAuthenticatedProvider(providerId);
+            if (provider != null)
             {
                 return (provider, entryId);
             }
         }
 
         return (null, null);
+    }
+
+    private (IHostingProvider? Provider, string? FileId) FindOwningProviderByFileId(string? fileId)
+    {
+        if (string.IsNullOrWhiteSpace(fileId))
+        {
+            return (null, null);
+        }
+
+        foreach (var (providerId, state) in _hostingStates)
+        {
+            if (!StateContainsFileId(state, fileId))
+            {
+                continue;
+            }
+
+            var provider = FindAuthenticatedProvider(providerId);
+            if (provider != null)
+            {
+                return (provider, fileId);
+            }
+        }
+
+        return (null, null);
+    }
+
+    private bool StateContainsFileId(HostingState state, string fileId)
+    {
+        return state.Artifacts.Any(a => string.Equals(a.FileId, fileId, StringComparison.OrdinalIgnoreCase))
+            || state.Catalogs.Any(c => string.Equals(c.FileId, fileId, StringComparison.OrdinalIgnoreCase))
+            || (state.Definition != null && string.Equals(state.Definition.FileId, fileId, StringComparison.OrdinalIgnoreCase))
+            || state.Definitions.Any(d => string.Equals(d.FileId, fileId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private IHostingProvider? FindAuthenticatedProvider(string providerId)
+    {
+        var provider = HostingProviders.FirstOrDefault(p => string.Equals(p.ProviderId, providerId, StringComparison.OrdinalIgnoreCase));
+        return provider?.IsAuthenticated == true ? provider : null;
     }
 
     private string? FindStateEntryIdByUrl(HostingState state, string url)
@@ -8538,7 +8717,7 @@ public partial class PublishShareViewModel(
                 CatalogConstants.MaxCatalogSizeBytes,
                 CancellationToken.None).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is HttpRequestException or IOException)
         {
             logger.LogError(ex, "Failed to download string from {Url}", directUrl);
             return null;

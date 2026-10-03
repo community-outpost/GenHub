@@ -169,10 +169,16 @@ public partial class HostedAssetItemViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsExpandable))]
-    private bool _showLoadToInspectHint;
+    private bool _needsRemotePreview;
 
     [ObservableProperty]
-    private string _loadToInspectHint = string.Empty;
+    private bool _remotePreviewLoaded;
+
+    [ObservableProperty]
+    private bool _isLoadingChildren;
+
+    [ObservableProperty]
+    private string? _childrenLoadError;
 
     /// <summary>
     /// Gets the child entries shown when this row is expanded.
@@ -219,7 +225,7 @@ public partial class HostedAssetItemViewModel : ObservableObject
     /// Gets a value indicating whether this row can be expanded to reveal linked children.
     /// </summary>
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI")]
-    public bool IsExpandable => HasChildren || IsEmpty || ShowLoadToInspectHint;
+    public bool IsExpandable => HasChildren || IsEmpty || NeedsRemotePreview;
 
     /// <summary>
     /// Gets a value indicating whether this asset is pending hosting (neither live online nor hosted on an external CDN).

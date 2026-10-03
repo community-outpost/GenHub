@@ -17881,7 +17881,7 @@ Error: فشل: {3}
     <value>هذا الملف غير مستخدم في أي فهرس بالمشروع الحالي.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.LinkedToNotInProjectTip" xml:space="preserve">
-    <value>هذا الملف ليس جزءاً من المشروع الحالي. قم بتحميله لفحص محتوياته وربطها.</value>
+    <value>هذا الملف ليس جزءاً من المشروع الحالي. قم بتوسيع الصف لمعاينة محتوياته.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.LinkedToCatalogFormat" xml:space="preserve">
     <value>التعريف: {0}</value>
@@ -17915,12 +17915,6 @@ Error: فشل: {3}
   </data>
   <data name="Tools.PublisherStudio.Hosting.EmptyDefinitionText" xml:space="preserve">
     <value>لا توجد فهارس مرتبطة بهذا التعريف</value>
-  </data>
-  <data name="Tools.PublisherStudio.Hosting.LoadToInspectHint" xml:space="preserve">
-    <value>حمّل إلى المشروع لفحص فهارسه</value>
-  </data>
-  <data name="Tools.PublisherStudio.Hosting.LoadToInspectCatalogHint" xml:space="preserve">
-    <value>حمّل إلى المشروع لفحص محتوياته</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DeleteNotHostedTitle" xml:space="preserve">
     <value>لا يوجد ما يُحذف</value>
@@ -18059,6 +18053,24 @@ Error: فشل: {3}
   </data>
   <data name="Tools.PublisherStudio.Hosting.DeletedExternalMediaMessageFormat" xml:space="preserve">
     <value>تم فك ارتباط «{0}» من {1} من المواضع.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.PreviewLoadingText" xml:space="preserve">
+    <value>جارٍ تحميل المعاينة...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.PreviewLoadFailedFormat" xml:space="preserve">
+    <value>المعاينة غير متاحة: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.PreviewDownloadFailedText" xml:space="preserve">
+    <value>تعذر تنزيل الملف.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ChildCopyLinkAction" xml:space="preserve">
+    <value>انقر لنسخ الرابط</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteSharedUrlWarningLine" xml:space="preserve">
+    <value>هذا الملف مستخدم أيضاً بطريقة أخرى؛ سيتم الاحتفاظ بالملف البعيد وإزالة الروابط المحددة فقط.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteRemoteKeptSharedNote" xml:space="preserve">
+    <value>تم الاحتفاظ بالملف البعيد لأن مراجع أخرى لا تزال تستخدمه.</value>
   </data>
   <data name="Launch.ExitCode.LauncherExitExplained" xml:space="preserve">
     <value>خرج برنامج التشغيل برمز الخروج {0} قبل بدء {1}. {2}</value>
