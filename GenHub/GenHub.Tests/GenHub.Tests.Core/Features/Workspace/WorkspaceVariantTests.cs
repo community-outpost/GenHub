@@ -211,6 +211,39 @@ public sealed class WorkspaceVariantTests : IDisposable
     }
 
     /// <summary>
+    /// Full copy copies only the winning manifest's file for a shared path, so a losing manifest
+    /// whose CAS object is missing cannot fail preparation.
+    /// </summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task PrepareAsync_FullCopy_LosingManifestWithMissingCasObject_DoesNotFailAsync()
+    {
+        const string sharedPath = "Data/INI/GameData.ini";
+        const string losingHash = "missing_losing_hash";
+        var winningSource = Path.Combine(_installDir, "winner.ini");
+        File.WriteAllText(winningSource, "winner");
+        var losing = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.test.gameinstallation.base"),
+            ContentType = ContentType.GameInstallation,
+            Files = [new() { RelativePath = sharedPath, Hash = losingHash, Size = 6, SourceType = ContentSourceType.ContentAddressable }],
+        };
+        var configuration = CreateConfiguration(WorkspaceStrategy.FullCopy, losing);
+        configuration.Manifests.Add(CreateCollidingManifest("1.0.test.mod.winner", ContentType.Mod, sharedPath, winningSource));
+        _fileOperations
+            .Setup(f => f.CopyFromCasAsync(losingHash, It.IsAny<string>(), It.IsAny<ContentType?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var result = await CreateStrategy(WorkspaceStrategy.FullCopy).PrepareAsync(configuration, null, CancellationToken.None);
+
+        Assert.True(result.IsPrepared);
+        _fileOperations.Verify(
+            f => f.CopyFromCasAsync(losingHash, It.IsAny<string>(), It.IsAny<ContentType?>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        Assert.Equal(winningSource, LastMaterializedSource(sharedPath, [winningSource]));
+    }
+
+    /// <summary>
     /// The reconciler resolves a shared path the same way the strategies do.
     /// </summary>
     /// <param name="firstType">The content type of the first manifest in load order.</param>

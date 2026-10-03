@@ -79,6 +79,42 @@ public class ManifestVariantConsumerTests
         Assert.Equal(new GameProcessIdentity(HostHash, workspace), Assert.Single(result.Data!));
     }
 
+    /// <summary>
+    /// When two launchable manifests declare the launched executable, monitoring uses the one the
+    /// workspace materialized: the higher content-type priority, or the later manifest on a tie.
+    /// </summary>
+    /// <param name="firstType">The content type of the first manifest in load order.</param>
+    /// <param name="secondType">The content type of the second manifest in load order.</param>
+    /// <param name="expectedHash">The hash the monitor must track.</param>
+    [Theory]
+    [InlineData(ContentType.GameClient, ContentType.GameClient, "second_hash")]
+    [InlineData(ContentType.GameClient, ContentType.ModdingTool, "first_hash")]
+    [InlineData(ContentType.ModdingTool, ContentType.GameClient, "second_hash")]
+    public void DetermineMonitoringTarget_SharedExecutable_MonitorsMaterializedManifest(
+        ContentType firstType,
+        ContentType secondType,
+        string expectedHash)
+    {
+        var workspace = Path.Combine(Path.GetTempPath(), "GenHubTests", Guid.NewGuid().ToString("N"));
+        ContentManifest CreateLaunchable(ContentType type, string hash) => new()
+        {
+            ContentType = type,
+            Files = [new() { RelativePath = "generals.exe", Hash = hash, IsExecutable = true, SourceType = ContentSourceType.ContentAddressable }],
+        };
+
+        var result = GameLauncher.DetermineMonitoringTarget(
+            [CreateLaunchable(firstType, "first_hash"), CreateLaunchable(secondType, "second_hash")],
+            Path.Combine(workspace, "generals.exe"),
+            workspace,
+            WorkspaceStrategy.SymlinkOnly,
+            expectedChildProcessName: null,
+            NullLogger.Instance,
+            localizationService: null);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.Equal(new GameProcessIdentity(expectedHash, workspace), Assert.Single(result.Data!));
+    }
+
     /// <summary>A copied alias retains the custom entry's CAS validation, but unrelated files do not.</summary>
     /// <param name="entryName">The custom entry point.</param>
     /// <param name="matching">Whether the alias really contains the same binary.</param>
