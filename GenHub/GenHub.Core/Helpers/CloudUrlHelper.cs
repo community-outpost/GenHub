@@ -253,8 +253,8 @@ public static partial class CloudUrlHelper
     private static bool IsAllowedGoogleDriveHost(Uri? uri)
     {
         return uri is { Scheme: "https" } &&
-            (uri.Host.Equals("drive.google.com", StringComparison.OrdinalIgnoreCase) ||
-             uri.Host.EndsWith(".google.com", StringComparison.OrdinalIgnoreCase) ||
-             uri.Host.EndsWith(".googleusercontent.com", StringComparison.OrdinalIgnoreCase));
+            (uri.Host.Equals(HostingConstants.GoogleDriveHost, StringComparison.OrdinalIgnoreCase) ||
+             uri.Host.EndsWith(HostingConstants.GoogleDomainSuffix, StringComparison.OrdinalIgnoreCase) ||
+             uri.Host.EndsWith(HostingConstants.GoogleUserContentDomainSuffix, StringComparison.OrdinalIgnoreCase));
     }
 }
