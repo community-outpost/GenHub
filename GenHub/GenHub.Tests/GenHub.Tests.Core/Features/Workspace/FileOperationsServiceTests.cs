@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results;
+using GenHub.Features.Storage.Services;
 using GenHub.Features.Workspace;
 using GenHub.Tests.Core.Helpers;
 using Microsoft.Extensions.Logging;
@@ -50,6 +51,37 @@ public class FileOperationsServiceTests : IDisposable
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => copy
             ? _service.CopyFromCasAsync("hash", Path.Combine(_tempDir, "out"))
             : _service.LinkFromCasAsync("hash", Path.Combine(_tempDir, "out")));
+    }
+
+    /// <summary>Cancellation from storage crosses the real CAS service and file-operation layers.</summary>
+    /// <param name="copy">Whether to copy rather than link.</param>
+    /// <param name="pooled">Whether to use content-type pool routing.</param>
+    /// <returns>The asynchronous test.</returns>
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    [InlineData(false, true)]
+    public async Task CasMaterialization_WhenStorageLookupIsCancelled_PropagatesAsync(bool copy, bool pooled)
+    {
+        var storage = new Mock<ICasStorage>();
+        storage.Setup(s => s.ObjectExistsAsync("hash", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+        var pools = new Mock<ICasPoolManager>();
+        pools.Setup(p => p.GetStorage(GenHub.Core.Models.Enums.ContentType.Mod)).Returns(storage.Object);
+        var cas = new CasService(
+            storage.Object,
+            new Mock<ILogger<CasService>>().Object,
+            Mock.Of<IFileHashProvider>(),
+            Mock.Of<IStreamHashProvider>(),
+            pooled ? pools.Object : null);
+        var operations = new FileOperationsService(_logger.Object, _downloadService.Object, cas);
+        GenHub.Core.Models.Enums.ContentType? contentType = pooled ? GenHub.Core.Models.Enums.ContentType.Mod : null;
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => copy
+            ? operations.CopyFromCasAsync("hash", Path.Combine(_tempDir, "out"), contentType)
+            : operations.LinkFromCasAsync("hash", Path.Combine(_tempDir, "out"), contentType: contentType));
+        storage.Verify(s => s.ObjectExistsAsync("hash", It.IsAny<CancellationToken>()), Times.Once);
     }
 
     /// <summary>

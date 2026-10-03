@@ -135,7 +135,7 @@ public sealed class WorkspaceFallbackCancellationTests : IDisposable
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => CreateStrategy(strategyType).PrepareAsync(configuration, null, CancellationToken.None));
-        Assert.Single(_fileOperations.Invocations, i => i.Method.Name is "LinkFromCasAsync" or "CopyFromCasAsync");
+        Assert.Single(_fileOperations.Invocations, i => i.Method.Name is nameof(IFileOperationsService.LinkFromCasAsync) or nameof(IFileOperationsService.CopyFromCasAsync));
     }
 
     /// <inheritdoc/>
