@@ -7,6 +7,10 @@ namespace GenHub.Core.Helpers;
 /// </summary>
 public static class IniBlockIconHelper
 {
+    private const string LayersIconKind = "LayersOutline";
+
+    private const string VolumeIconKind = "VolumeHigh";
+
     private static readonly FrozenDictionary<string, string> IconMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         ["OBJECT"] = "CubeOutline",
@@ -32,12 +36,12 @@ public static class IniBlockIconHelper
         ["BEHAVIOR"] = "Cogs",
         ["BODY"] = "HeartPulse",
         ["CLIENTUPDATE"] = "Update",
-        ["CONDITIONSTATE"] = "LayersOutline",
-        ["MODELCONDITIONSTATE"] = "LayersOutline",
-        ["DEFAULTCONDITIONSTATE"] = "LayersOutline",
-        ["TRANSITIONSTATE"] = "LayersOutline",
-        ["ANIMATIONSTATE"] = "LayersOutline",
-        ["IDLEANIMATIONSTATE"] = "LayersOutline",
+        ["CONDITIONSTATE"] = LayersIconKind,
+        ["MODELCONDITIONSTATE"] = LayersIconKind,
+        ["DEFAULTCONDITIONSTATE"] = LayersIconKind,
+        ["TRANSITIONSTATE"] = LayersIconKind,
+        ["ANIMATIONSTATE"] = LayersIconKind,
+        ["IDLEANIMATIONSTATE"] = LayersIconKind,
         ["TURRET"] = "ShieldSword",
         ["ALTTURRET"] = "ShieldSword",
         ["REPLACEMODULE"] = "PuzzleOutline",
@@ -50,11 +54,11 @@ public static class IniBlockIconHelper
         ["WEATHER"] = "WeatherPartlyCloudy",
         ["WATERTRANSPARENCY"] = "WaterOutline",
         ["AIDATA"] = "RobotOutline",
-        ["AUDIOEVENT"] = "VolumeHigh",
-        ["DIALOGEVENT"] = "VolumeHigh",
-        ["MUSICTRACK"] = "VolumeHigh",
-        ["UNITSPECIFICSOUNDS"] = "VolumeHigh",
-        ["UNITSPECIFICSOUND"] = "VolumeHigh",
+        ["AUDIOEVENT"] = VolumeIconKind,
+        ["DIALOGEVENT"] = VolumeIconKind,
+        ["MUSICTRACK"] = VolumeIconKind,
+        ["UNITSPECIFICSOUNDS"] = VolumeIconKind,
+        ["UNITSPECIFICSOUND"] = VolumeIconKind,
         ["FXLIST"] = "Flare",
         ["FXLISTATBONEPOS"] = "Flare",
         ["PARTICLESYSTEM"] = "Flare",

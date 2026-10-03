@@ -32,11 +32,7 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
             return OperationResult<W3dModel>.CreateFailure($"File too small to hold a chunk: {name}", Stopwatch.GetElapsedTime(started));
         }
 
-        var meshes = new List<W3dMesh>();
-        var hierarchies = new List<W3dHierarchy>();
-        var animations = new List<W3dAnimationClip>();
-        var lods = new List<W3dModelLod>();
-        var warnings = new List<string>();
+        var collectors = new ModelCollectors();
         var reader = new W3dReader(data, 0, data.Length);
         int chunkCount = 0;
 
@@ -48,14 +44,14 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
                 return OperationResult<W3dModel>.CreateFailure($"Too many top-level chunks: {name}", Stopwatch.GetElapsedTime(started));
             }
 
-            if (!ProcessTopLevelChunk(ref reader, data, name, meshes, hierarchies, animations, lods, warnings, out string? error))
+            if (!ProcessTopLevelChunk(ref reader, data, name, collectors, out string? error))
             {
                 logger.LogWarning("Failed to process top-level chunk in {Source}: {Error}", name, error);
                 return OperationResult<W3dModel>.CreateFailure(error!, Stopwatch.GetElapsedTime(started));
             }
         }
 
-        var model = new W3dModel(meshes, hierarchies, animations, lods, warnings);
+        var model = new W3dModel(collectors.Meshes, collectors.Hierarchies, collectors.Animations, collectors.Lods, collectors.Warnings);
         return OperationResult<W3dModel>.CreateSuccess(model, Stopwatch.GetElapsedTime(started));
     }
 
@@ -93,11 +89,7 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
         ref W3dReader reader,
         byte[] data,
         string name,
-        List<W3dMesh> meshes,
-        List<W3dHierarchy> hierarchies,
-        List<W3dAnimationClip> animations,
-        List<W3dModelLod> lods,
-        List<string> warnings,
+        ModelCollectors collectors,
         out string? error)
     {
         if (!TryReadChunkHeader(ref reader, name, out uint chunkType, out int payloadOffset, out int payloadLength, out error))
@@ -106,7 +98,7 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
         }
 
         var payload = new W3dReader(data, payloadOffset, payloadLength);
-        string? failure = DispatchTopLevelChunk(chunkType, payload, name, meshes, hierarchies, animations, lods, warnings);
+        string? failure = DispatchTopLevelChunk(chunkType, payload, name, collectors);
         if (failure != null)
         {
             error = $"Invalid {failure} chunk: {name}";
@@ -121,61 +113,57 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
         uint chunkType,
         W3dReader payload,
         string name,
-        List<W3dMesh> meshes,
-        List<W3dHierarchy> hierarchies,
-        List<W3dAnimationClip> animations,
-        List<W3dModelLod> lods,
-        List<string> warnings)
+        ModelCollectors collectors)
     {
         switch (chunkType)
         {
             case W3dConstants.Chunks.Mesh:
-                if (!ParseMesh(payload, name, meshes.Count, warnings, out W3dMesh? mesh))
+                if (!ParseMesh(payload, name, collectors.Meshes.Count, collectors.Warnings, out W3dMesh? mesh))
                 {
                     return "mesh";
                 }
 
-                meshes.Add(mesh!);
+                collectors.Meshes.Add(mesh!);
                 return null;
 
             case W3dConstants.Chunks.Hierarchy:
-                if (!ParseHierarchy(payload, name, warnings, out W3dHierarchy? hierarchy))
+                if (!ParseHierarchy(payload, name, collectors.Warnings, out W3dHierarchy? hierarchy))
                 {
                     return "hierarchy";
                 }
 
-                hierarchies.Add(hierarchy!);
+                collectors.Hierarchies.Add(hierarchy!);
                 return null;
 
             case W3dConstants.Chunks.Animation:
-                if (!ParseAnimation(payload, name, false, 0, warnings, out W3dAnimationClip? clip))
+                if (!ParseAnimation(payload, name, false, 0, collectors.Warnings, out W3dAnimationClip? clip))
                 {
                     return "animation";
                 }
 
-                animations.Add(clip!);
+                collectors.Animations.Add(clip!);
                 return null;
 
             case W3dConstants.Chunks.CompressedAnimation:
-                if (!ParseCompressedAnimation(payload, name, warnings, out W3dAnimationClip? compressed))
+                if (!ParseCompressedAnimation(payload, name, collectors.Warnings, out W3dAnimationClip? compressed))
                 {
                     return "compressed animation";
                 }
 
-                animations.Add(compressed!);
+                collectors.Animations.Add(compressed!);
                 return null;
 
             case W3dConstants.Chunks.HLod:
-                if (!ParseHLod(payload, name, warnings, out W3dModelLod? lod))
+                if (!ParseHLod(payload, name, collectors.Warnings, out W3dModelLod? lod))
                 {
                     return "hlod";
                 }
 
-                lods.Add(lod!);
+                collectors.Lods.Add(lod!);
                 return null;
 
             default:
-                AddWarning(warnings, $"Skipped unknown chunk 0x{chunkType:X8}.");
+                AddWarning(collectors.Warnings, $"Skipped unknown chunk 0x{chunkType:X8}.");
                 return null;
         }
     }
@@ -727,6 +715,19 @@ public sealed class W3dParser(ILogger<W3dParser> logger) : IW3dParser
 
         subObjects.Add(new W3dSubObject(boneIndex, meshName));
         return true;
+    }
+
+    private sealed class ModelCollectors
+    {
+        public List<W3dMesh> Meshes { get; } = [];
+
+        public List<W3dHierarchy> Hierarchies { get; } = [];
+
+        public List<W3dAnimationClip> Animations { get; } = [];
+
+        public List<W3dModelLod> Lods { get; } = [];
+
+        public List<string> Warnings { get; } = [];
     }
 
     private struct W3dReader

@@ -88,21 +88,7 @@ public static class W3dSceneBuilder
                 meshes.Add(built with { BoneIndex = bone, LayoutOffset = offset });
             }
 
-            var hierarchy = part.Model.Hierarchies.FirstOrDefault();
-            int pivotCount = hierarchy?.Pivots.Count ?? 0;
-            if (hierarchy != null)
-            {
-                foreach (var segment in W3dAnimationSampler.BindPoseSegments(hierarchy))
-                {
-                    skeleton.Add(segment with
-                    {
-                        Start = new W3dVector3(segment.Start.X + offsetX, segment.Start.Y, segment.Start.Z),
-                        End = new W3dVector3(segment.End.X + offsetX, segment.End.Y, segment.End.Z),
-                        PivotIndex = segment.PivotIndex + pivotBase,
-                        ParentIndex = segment.ParentIndex >= 0 ? segment.ParentIndex + pivotBase : -1,
-                    });
-                }
-            }
+            int pivotCount = AddPartSkeleton(skeleton, part.Model.Hierarchies.FirstOrDefault(), offsetX, pivotBase);
 
             ranges.Add(new W3dCompositeRange(part.Label, meshStart, part.Model.Meshes.Count, pivotBase, pivotCount));
             float width = Math.Max(partBounds.Max.X - partBounds.Min.X, 0);
@@ -129,6 +115,31 @@ public static class W3dSceneBuilder
         return new W3dCompositeScene(
             new W3dRenderScene(meshes, textures.Textures, skeleton, new W3dBoundingBox(min, max, center, radius)),
             ranges);
+    }
+
+    private static int AddPartSkeleton(
+        List<W3dSkeletonSegment> skeleton,
+        W3dHierarchy? hierarchy,
+        float offsetX,
+        int pivotBase)
+    {
+        if (hierarchy == null)
+        {
+            return 0;
+        }
+
+        foreach (var segment in W3dAnimationSampler.BindPoseSegments(hierarchy))
+        {
+            skeleton.Add(segment with
+            {
+                Start = new W3dVector3(segment.Start.X + offsetX, segment.Start.Y, segment.Start.Z),
+                End = new W3dVector3(segment.End.X + offsetX, segment.End.Y, segment.End.Z),
+                PivotIndex = segment.PivotIndex + pivotBase,
+                ParentIndex = segment.ParentIndex >= 0 ? segment.ParentIndex + pivotBase : -1,
+            });
+        }
+
+        return hierarchy.Pivots.Count;
     }
 
     private static W3dRenderMesh BuildMesh(

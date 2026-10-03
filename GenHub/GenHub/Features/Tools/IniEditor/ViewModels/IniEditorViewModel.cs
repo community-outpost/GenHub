@@ -2017,33 +2017,10 @@ public sealed partial class IniEditorViewModel(
                 break;
             }
 
-            var block = target.Block ?? await CloneTargetAsync(target, cancellationToken).ConfigureAwait(false);
-            if (block == null)
+            var outcome = await VisitWalkTargetAsync(target, path, entryIndex, visited, queue, rootReferencers, cancellationToken).ConfigureAwait(false);
+            if (outcome != null)
             {
-                continue;
-            }
-
-            var direct = FindFieldValue(block, IniConstants.FieldKeys.Model);
-            if (!string.IsNullOrWhiteSpace(direct))
-            {
-                return new CrossFileOutcome(direct.Trim(), block, path, rootReferencers);
-            }
-
-            var nested = FindNestedModel(block);
-            if (!string.IsNullOrEmpty(nested))
-            {
-                return new CrossFileOutcome(nested, block, path, rootReferencers);
-            }
-
-            if (path.Count > IniConstants.Editor.MaxResolutionDepth)
-            {
-                continue;
-            }
-
-            var added = EnqueueForwardHops(block, path, entryIndex, visited, queue);
-            if (added == 0 && path.Count <= 2)
-            {
-                await EnqueueReverseHopsAsync(target, path, visited, queue, cancellationToken).ConfigureAwait(false);
+                return outcome;
             }
         }
 
@@ -2059,6 +2036,47 @@ public sealed partial class IniEditorViewModel(
         }
 
         return baseOutcome ?? new CrossFileOutcome(string.Empty, null, [], rootReferencers);
+    }
+
+    private async Task<CrossFileOutcome?> VisitWalkTargetAsync(
+        WalkTarget target,
+        List<IniResolutionHopViewModel> path,
+        Dictionary<string, IniReferenceEntry> entryIndex,
+        HashSet<string> visited,
+        Queue<(WalkTarget Target, List<IniResolutionHopViewModel> Path)> queue,
+        IReadOnlyList<IniReferenceEntry> rootReferencers,
+        CancellationToken cancellationToken)
+    {
+        var block = target.Block ?? await CloneTargetAsync(target, cancellationToken).ConfigureAwait(false);
+        if (block == null)
+        {
+            return null;
+        }
+
+        var direct = FindFieldValue(block, IniConstants.FieldKeys.Model);
+        if (!string.IsNullOrWhiteSpace(direct))
+        {
+            return new CrossFileOutcome(direct.Trim(), block, path, rootReferencers);
+        }
+
+        var nested = FindNestedModel(block);
+        if (!string.IsNullOrEmpty(nested))
+        {
+            return new CrossFileOutcome(nested, block, path, rootReferencers);
+        }
+
+        if (path.Count > IniConstants.Editor.MaxResolutionDepth)
+        {
+            return null;
+        }
+
+        var added = EnqueueForwardHops(block, path, entryIndex, visited, queue);
+        if (added == 0 && path.Count <= 2)
+        {
+            await EnqueueReverseHopsAsync(target, path, visited, queue, cancellationToken).ConfigureAwait(false);
+        }
+
+        return null;
     }
 
     private int EnqueueForwardHops(
@@ -2291,33 +2309,42 @@ public sealed partial class IniEditorViewModel(
 
     private IReadOnlyList<IniBlock> ResolveCommandSetObjects(IniBlock block)
     {
+        var buttons = block.Fields
+            .Where(field => !string.IsNullOrWhiteSpace(field.Value))
+            .SelectMany(field => FindBlocks(IniConstants.BlockTypes.CommandButton, field.Value.Trim()));
         var related = new List<IniBlock>();
-        foreach (var field in block.Fields)
+        foreach (var button in buttons)
         {
-            if (string.IsNullOrWhiteSpace(field.Value) || related.Count >= IniConstants.Editor.MaxRelatedObjects)
+            CollectButtonObjects(button, related);
+            if (related.Count >= IniConstants.Editor.MaxRelatedObjects)
             {
-                continue;
-            }
-
-            foreach (var button in FindBlocks(IniConstants.BlockTypes.CommandButton, field.Value.Trim()))
-            {
-                var target = FindFieldValue(button, IniConstants.FieldKeys.Object);
-                if (string.IsNullOrWhiteSpace(target))
-                {
-                    continue;
-                }
-
-                foreach (var referenced in FindBlocks(IniConstants.BlockTypes.Object, target.Trim()))
-                {
-                    if (!related.Contains(referenced) && related.Count < IniConstants.Editor.MaxRelatedObjects)
-                    {
-                        related.Add(referenced);
-                    }
-                }
+                break;
             }
         }
 
         return related;
+    }
+
+    private void CollectButtonObjects(IniBlock button, List<IniBlock> related)
+    {
+        var target = FindFieldValue(button, IniConstants.FieldKeys.Object);
+        if (string.IsNullOrWhiteSpace(target))
+        {
+            return;
+        }
+
+        foreach (var referenced in FindBlocks(IniConstants.BlockTypes.Object, target.Trim()))
+        {
+            if (related.Count >= IniConstants.Editor.MaxRelatedObjects)
+            {
+                return;
+            }
+
+            if (!related.Contains(referenced))
+            {
+                related.Add(referenced);
+            }
+        }
     }
 
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Kept as an instance helper to satisfy member ordering.")]
@@ -5457,22 +5484,8 @@ public sealed partial class IniEditorViewModel(
 
         try
         {
-            var buildParts = new List<W3dCompositePart>(parts.Count);
-            var binds = new List<Matrix4x4>();
-            var pivotNames = new List<IReadOnlyList<string>>();
-            var missing = new List<string>();
+            var (buildParts, binds, pivotNames, missing) = CollectCompositeBuildInputs(parts, cancellationToken);
             var discarded = new List<string>();
-            foreach (var part in parts)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var textures = part.Resolved.Textures.ToDictionary(texture => texture.Name, texture => texture.Texture, StringComparer.OrdinalIgnoreCase);
-                var bones = BoneMap(part.Resolved.Model);
-                buildParts.Add(new W3dCompositePart(part.Label, part.Resolved.Model, textures, bones));
-                var hierarchy = part.Resolved.Model.Hierarchies.FirstOrDefault();
-                binds.AddRange(hierarchy == null ? [] : W3dAnimationSampler.BindPoseWorlds(hierarchy));
-                pivotNames.Add(hierarchy == null ? [] : hierarchy.Pivots.Select(pivot => pivot.Name).ToList());
-                missing.AddRange(part.Resolved.MissingTextures);
-            }
 
             var composite = W3dSceneBuilder.BuildComposite(buildParts, discarded);
             if (discarded.Count > 0)
@@ -5485,7 +5498,7 @@ public sealed partial class IniEditorViewModel(
                 return;
             }
 
-            PostToUIThread(() => ApplyCompositeResolved(root, generation, parts, composite, binds, missing, pivotNames));
+            PostToUIThread(() => ApplyCompositeResolved(generation, parts, composite, binds, missing, pivotNames));
         }
         catch (OperationCanceledException)
         {
@@ -5496,6 +5509,29 @@ public sealed partial class IniEditorViewModel(
             logger.LogWarning(ex, "Failed to build composite preview scene for {Block}", root.Name);
             PostToUIThread(() => ApplyPreviewFailure(root.Name, generation, "Tools.IniEditor.Preview3D.ParseError", false));
         }
+    }
+
+    private (List<W3dCompositePart> BuildParts, List<Matrix4x4> Binds, List<IReadOnlyList<string>> PivotNames, List<string> Missing) CollectCompositeBuildInputs(
+        IReadOnlyList<CompositePreviewPart> parts,
+        CancellationToken cancellationToken)
+    {
+        var buildParts = new List<W3dCompositePart>(parts.Count);
+        var binds = new List<Matrix4x4>();
+        var pivotNames = new List<IReadOnlyList<string>>();
+        var missing = new List<string>();
+        foreach (var part in parts)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var textures = part.Resolved.Textures.ToDictionary(texture => texture.Name, texture => texture.Texture, StringComparer.OrdinalIgnoreCase);
+            var bones = BoneMap(part.Resolved.Model);
+            buildParts.Add(new W3dCompositePart(part.Label, part.Resolved.Model, textures, bones));
+            var hierarchy = part.Resolved.Model.Hierarchies.FirstOrDefault();
+            binds.AddRange(hierarchy == null ? [] : W3dAnimationSampler.BindPoseWorlds(hierarchy));
+            pivotNames.Add(hierarchy == null ? [] : hierarchy.Pivots.Select(pivot => pivot.Name).ToList());
+            missing.AddRange(part.Resolved.MissingTextures);
+        }
+
+        return (buildParts, binds, pivotNames, missing);
     }
 
     private async Task<IReadOnlyList<CompositePreviewPart>> GatherCompositePartsAsync(
@@ -5670,7 +5706,6 @@ public sealed partial class IniEditorViewModel(
     }
 
     private void ApplyCompositeResolved(
-        IniBlock root,
         int generation,
         IReadOnlyList<CompositePreviewPart> parts,
         W3dCompositeScene composite,

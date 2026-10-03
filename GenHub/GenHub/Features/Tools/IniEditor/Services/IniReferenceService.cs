@@ -141,54 +141,10 @@ public sealed class IniReferenceService(
 
         var target = name.Trim();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (_document != null)
+        CollectDocumentReferencers(target, seen, matches, cancellationToken);
+        if (matches.Count < IniConstants.Editor.MaxReferencers)
         {
-            foreach (var block in _document.Blocks)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (BlockReferences(block, target) && seen.Add(ReferencerKey(block.BlockType, block.Name, _document.SourcePath)))
-                {
-                    matches.Add(new IniReferenceEntry(block.BlockType, block.Name, IniReferenceSource.Document, "Document", _document.SourcePath));
-                    if (matches.Count >= IniConstants.Editor.MaxReferencers)
-                    {
-                        return OperationResult<IReadOnlyList<IniReferenceEntry>>.CreateSuccess(matches, stopwatch.Elapsed);
-                    }
-                }
-            }
-        }
-
-        var parsed = 0;
-        foreach (var (file, source, tokens) in EnumerateTokenCandidates())
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (parsed >= IniConstants.Editor.MaxReverseParseFiles || matches.Count >= IniConstants.Editor.MaxReferencers)
-            {
-                break;
-            }
-
-            if (!tokens.Contains(target))
-            {
-                continue;
-            }
-
-            parsed++;
-            var doc = await iniDocumentService.ParseFileAsync(file, cancellationToken).ConfigureAwait(false);
-            if (!doc.Success || doc.Data == null)
-            {
-                continue;
-            }
-
-            foreach (var block in doc.Data.Blocks)
-            {
-                if (BlockReferences(block, target) && seen.Add(ReferencerKey(block.BlockType, block.Name, file)))
-                {
-                    matches.Add(new IniReferenceEntry(block.BlockType, block.Name, source, LabelFor(file), file));
-                    if (matches.Count >= IniConstants.Editor.MaxReferencers)
-                    {
-                        break;
-                    }
-                }
-            }
+            await CollectFileReferencersAsync(target, seen, matches, cancellationToken).ConfigureAwait(false);
         }
 
         return OperationResult<IReadOnlyList<IniReferenceEntry>>.CreateSuccess(matches, stopwatch.Elapsed);
@@ -291,6 +247,28 @@ public sealed class IniReferenceService(
         return tokens;
     }
 
+    private static void CollectBlockReferencers(
+        IReadOnlyList<IniBlock> blocks,
+        string target,
+        HashSet<string> seen,
+        List<IniReferenceEntry> matches,
+        IniReferenceSource source,
+        string label,
+        string? file)
+    {
+        int remaining = IniConstants.Editor.MaxReferencers - matches.Count;
+        if (remaining <= 0)
+        {
+            return;
+        }
+
+        var entries = blocks
+            .Where(block => BlockReferences(block, target) && seen.Add(ReferencerKey(block.BlockType, block.Name, file)))
+            .Take(remaining)
+            .Select(block => new IniReferenceEntry(block.BlockType, block.Name, source, label, file));
+        matches.AddRange(entries);
+    }
+
     private static void ProcessScanLine(
         string[] lines,
         int index,
@@ -359,12 +337,9 @@ public sealed class IniReferenceService(
         while (queue.Count > 0)
         {
             var current = queue.Dequeue();
-            foreach (var field in current.Fields)
+            if (current.Fields.Any(field => SplitValueTokens(field.Value).Any(token => string.Equals(token, name, StringComparison.OrdinalIgnoreCase))))
             {
-                if (SplitValueTokens(field.Value).Any(token => string.Equals(token, name, StringComparison.OrdinalIgnoreCase)))
-                {
-                    return true;
-                }
+                return true;
             }
 
             foreach (var child in current.Children)
@@ -409,6 +384,52 @@ public sealed class IniReferenceService(
         foreach (var block in document.Blocks)
         {
             entries.Add(new IniReferenceEntry(block.BlockType, block.Name, IniReferenceSource.Document, "Document", document.SourcePath));
+        }
+    }
+
+    private void CollectDocumentReferencers(
+        string target,
+        HashSet<string> seen,
+        List<IniReferenceEntry> matches,
+        CancellationToken cancellationToken)
+    {
+        if (_document == null)
+        {
+            return;
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        CollectBlockReferencers(_document.Blocks, target, seen, matches, IniReferenceSource.Document, "Document", _document.SourcePath);
+    }
+
+    private async Task CollectFileReferencersAsync(
+        string target,
+        HashSet<string> seen,
+        List<IniReferenceEntry> matches,
+        CancellationToken cancellationToken)
+    {
+        var parsed = 0;
+        foreach (var (file, source, tokens) in EnumerateTokenCandidates())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (parsed >= IniConstants.Editor.MaxReverseParseFiles || matches.Count >= IniConstants.Editor.MaxReferencers)
+            {
+                break;
+            }
+
+            if (!tokens.Contains(target))
+            {
+                continue;
+            }
+
+            parsed++;
+            var doc = await iniDocumentService.ParseFileAsync(file, cancellationToken).ConfigureAwait(false);
+            if (!doc.Success || doc.Data == null)
+            {
+                continue;
+            }
+
+            CollectBlockReferencers(doc.Data.Blocks, target, seen, matches, source, LabelFor(file), file);
         }
     }
 
