@@ -304,6 +304,11 @@ public static class HostingConstants
     public const int StreamCopyBufferSize = 8192;
 
     /// <summary>
+    /// Maximum number of downloaded catalog/definition previews kept in memory.
+    /// </summary>
+    public const int MaxRemotePreviewCacheEntries = 64;
+
+    /// <summary>
     /// Error message returned when Google Drive provider is not authenticated.
     /// </summary>
     public const string GoogleDriveNotAuthenticated = "Not authenticated with Google Drive";
@@ -352,6 +357,18 @@ public static class HostingConstants
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Fixed loopback redirect required by Dropbox exact-match registration")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "S5332:Using http protocol is insecure", Justification = "OAuth 2.0 desktop loopback redirects require plain http; traffic never leaves the machine.")]
     public static readonly string DropboxOAuthRedirectUri = $"http://{OAuthLoopbackHost}:{DropboxOAuthLoopbackPort}/";
+
+    /// <summary>
+    /// Image file extensions classified as screenshot or artwork media in the hosted asset inventory.
+    /// </summary>
+    public static readonly System.Collections.Generic.IReadOnlyList<string> ScreenshotFileExtensions =
+        System.Array.AsReadOnly(new[] { ".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tiff", ".tif", ".avif" });
+
+    /// <summary>
+    /// Video file extensions classified as video media in the hosted asset inventory.
+    /// </summary>
+    public static readonly System.Collections.Generic.IReadOnlyList<string> VideoFileExtensions =
+        System.Array.AsReadOnly(new[] { ".mp4", ".webm", ".mov", ".mkv", ".avi", ".m4v", ".ogv" });
 
     private static readonly (string Pattern, string ProviderId)[] CloudProviderHostOwners =
     [
@@ -444,4 +461,42 @@ public static class HostingConstants
         return stem.Equals("catalog", System.StringComparison.OrdinalIgnoreCase) ||
                stem.StartsWith("catalog-", System.StringComparison.OrdinalIgnoreCase);
     }
+
+    /// <summary>
+    /// Checks whether a given file name looks like a screenshot or image media file.
+    /// </summary>
+    /// <param name="fileName">The file name to inspect.</param>
+    /// <returns><c>true</c> if the file name ends with a known image extension; otherwise, <c>false</c>.</returns>
+    public static bool IsScreenshotFileName(string? fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return false;
+        }
+
+        return ScreenshotFileExtensions.Any(extension => fileName.EndsWith(extension, System.StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Checks whether a given file name looks like a video media file.
+    /// </summary>
+    /// <param name="fileName">The file name to inspect.</param>
+    /// <returns><c>true</c> if the file name ends with a known video extension; otherwise, <c>false</c>.</returns>
+    public static bool IsVideoFileName(string? fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return false;
+        }
+
+        return VideoFileExtensions.Any(extension => fileName.EndsWith(extension, System.StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Checks whether a given file name looks like hosted media (screenshot image or video).
+    /// </summary>
+    /// <param name="fileName">The file name to inspect.</param>
+    /// <returns><c>true</c> if the file name matches a media extension; otherwise, <c>false</c>.</returns>
+    public static bool IsMediaFileName(string? fileName) =>
+        IsScreenshotFileName(fileName) || IsVideoFileName(fileName);
 }

@@ -37,6 +37,9 @@
     <!-- Enforce zero warnings policy across all projects -->
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
 
+    <!-- Prevent concurrent compilation memory exhaustion in resource-constrained CI runners -->
+    <BuildInParallel Condition="'$(CI)' == 'true'">false</BuildInParallel>
+
     <!--
       Never copy the Playwright driver by default. The driver's buildTransitive targets
       would otherwise copy the build-host driver into every referencing project's output
