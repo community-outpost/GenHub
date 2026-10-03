@@ -237,10 +237,11 @@ public partial class PublishShareViewModel(
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, System.Collections.Generic.List<HostedAssetItemViewModel>> _probingUrls = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _publishGate = new(1, 1);
     private readonly Dictionary<string, HostingState> _hostingStates = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, List<HostedAssetChildViewModel>> _remotePreviewCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, List<HostedAssetChildViewModel>> _remotePreviewCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, long> _probedMediaSizes = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _probeLock = new();
     private CancellationTokenSource? _probeCts = new();
+    private CancellationTokenSource? _previewCts = new();
     private HostingState? _currentHostingState;
     private Dictionary<string, List<AssetReference>>? _linkageIndex;
 
@@ -1286,6 +1287,9 @@ public partial class PublishShareViewModel(
             _probeCts?.Cancel();
             _probeCts?.Dispose();
             _probeCts = null;
+            _previewCts?.Cancel();
+            _previewCts?.Dispose();
+            _previewCts = null;
             _publishGate.Dispose();
             _uploadCts?.Cancel();
             _uploadCts?.Dispose();
@@ -2705,29 +2709,79 @@ public partial class PublishShareViewModel(
 
         item.IsLoadingChildren = true;
         item.ChildrenLoadError = null;
+        var previewToken = _previewCts?.Token ?? CancellationToken.None;
+        List<HostedAssetChildViewModel>? children = null;
+        string? error = null;
         try
         {
-            var (children, error) = await LoadRemotePreviewAsync(item, CancellationToken.None).ConfigureAwait(false);
-            if (children == null)
+            try
             {
-                item.ChildrenLoadError = FormatLocalizedString(
-                    "Tools.PublisherStudio.Hosting.PreviewLoadFailedFormat",
-                    "Preview unavailable: {0}",
-                    string.IsNullOrWhiteSpace(error) ? item.Name : error);
-                return;
+                (children, error) = await LoadRemotePreviewAsync(item, previewToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or IOException or TimeoutException ||
+                (ex is TaskCanceledException && !previewToken.IsCancellationRequested))
+            {
+                logger.LogWarning(ex, "Remote preview download failed for {AssetName}", item.Name);
+                error = GetLocalizedString("Tools.PublisherStudio.Hosting.PreviewDownloadFailedText", "The file could not be downloaded.");
             }
 
-            if (!string.IsNullOrWhiteSpace(item.Url))
-            {
-                _remotePreviewCache[item.Url] = children;
-            }
-
-            ApplyPreviewChildren(item, children);
+            DispatchPreviewResult(item, children, error);
         }
         finally
         {
-            item.IsLoadingChildren = false;
+            DispatchLoadingFinished(item);
         }
+    }
+
+    private void DispatchPreviewResult(HostedAssetItemViewModel item, List<HostedAssetChildViewModel>? children, string? error)
+    {
+        if (Avalonia.Application.Current == null || Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            ApplyPreviewResult(item, children, error);
+            return;
+        }
+
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => ApplyPreviewResult(item, children, error));
+    }
+
+    private void DispatchLoadingFinished(HostedAssetItemViewModel item)
+    {
+        if (Avalonia.Application.Current == null || Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            item.IsLoadingChildren = false;
+            return;
+        }
+
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => item.IsLoadingChildren = false);
+    }
+
+    private void ApplyPreviewResult(HostedAssetItemViewModel item, List<HostedAssetChildViewModel>? children, string? error)
+    {
+        if (children == null)
+        {
+            item.ChildrenLoadError = FormatLocalizedString(
+                "Tools.PublisherStudio.Hosting.PreviewLoadFailedFormat",
+                "Preview unavailable: {0}",
+                string.IsNullOrWhiteSpace(error) ? item.Name : error);
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.Url))
+        {
+            CacheRemotePreview(item.Url, children);
+        }
+
+        ApplyPreviewChildren(item, children);
+    }
+
+    private void CacheRemotePreview(string url, List<HostedAssetChildViewModel> children)
+    {
+        if (_remotePreviewCache.Count >= HostingConstants.MaxRemotePreviewCacheEntries)
+        {
+            _remotePreviewCache.Clear();
+        }
+
+        _remotePreviewCache[url] = children;
     }
 
     private void ApplyPreviewChildren(HostedAssetItemViewModel item, List<HostedAssetChildViewModel> children)
@@ -2760,7 +2814,7 @@ public partial class PublishShareViewModel(
             return (null, GetLocalizedString("Tools.PublisherStudio.Hosting.NoShareableUrlError", "No shareable download URL is available."));
         }
 
-        var json = await DownloadStringFromUrlAsync(item.Url).ConfigureAwait(false);
+        var json = await DownloadStringFromUrlAsync(item.Url, cancellationToken).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(json))
         {
             return (null, GetLocalizedString("Tools.PublisherStudio.Hosting.PreviewDownloadFailedText", "The file could not be downloaded."));
@@ -4944,6 +4998,9 @@ public partial class PublishShareViewModel(
         {
             HasPreviouslyPublished = true;
             logger.LogInformation("Saved hosting state");
+
+            // Drop any cached preview: the remote content just changed.
+            _remotePreviewCache.TryRemove(catalogUrl, out _);
         }
 
         if (!result.Success && !string.IsNullOrWhiteSpace(previousFileId))
@@ -5081,11 +5138,39 @@ public partial class PublishShareViewModel(
             catch (OperationCanceledException ex)
             {
                 logger.LogInformation(ex, "Pre-rename remote catalog cleanup was canceled for {FileId}", oldFileId);
+                await RestoreRenamedEntryAsync(entry, previousFileId, previousUrl, previousSize, CancellationToken.None);
             }
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Failed to delete pre-rename remote catalog {FileId} from {Provider}", oldFileId, providerId);
+                await RestoreRenamedEntryAsync(entry, previousFileId, previousUrl, previousSize, cancellationToken);
             }
+        }
+    }
+
+    /// <summary>
+    /// Restores a cleared rename entry and re-saves hosting state on a best-effort basis,
+    /// so a failed or canceled remote delete never leaves saved state pointing at a file
+    /// whose ID was forgotten.
+    /// </summary>
+    /// <param name="entry">The catalog hosting entry to restore.</param>
+    /// <param name="fileId">The previous remote file ID.</param>
+    /// <param name="url">The previous remote URL.</param>
+    /// <param name="fileSize">The previous remote file size.</param>
+    /// <param name="cancellationToken">Token to cancel the re-save.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    private async Task RestoreRenamedEntryAsync(CatalogHostingInfo entry, string fileId, string url, long fileSize, CancellationToken cancellationToken)
+    {
+        entry.FileId = fileId;
+        entry.Url = url;
+        entry.FileSize = fileSize;
+        try
+        {
+            await SaveAllHostingStatesAsync(cancellationToken);
+        }
+        catch (Exception ex) when (ex is IOException or OperationCanceledException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Failed to re-save hosting state after restoring rename entry");
         }
     }
 
@@ -5509,6 +5594,9 @@ public partial class PublishShareViewModel(
         GenerateSubscriptionUrl(); // Regenerate based on new definition URL
         RefreshUploadHierarchy();
         RefreshHostedAssets();
+
+        // Drop any cached preview: the remote definition just changed.
+        _remotePreviewCache.TryRemove(ProviderDefinitionUrl, out _);
         NotifyDefinitionUploaded();
         UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.ProviderDefinitionUploaded", "Provider definition uploaded successfully.");
         logger.LogInformation("Uploaded provider definition to {Url}", ProviderDefinitionUrl);
@@ -8769,7 +8857,7 @@ public partial class PublishShareViewModel(
             autoDismissMs: 4000);
     }
 
-    private async Task<string?> DownloadStringFromUrlAsync(string url)
+    private async Task<string?> DownloadStringFromUrlAsync(string url, CancellationToken cancellationToken = default)
     {
         var directUrl = EnsureDirectDownloadUrl(url);
         if (!NetworkSecurityHelper.IsSafeUrl(directUrl, out var failureReason))
@@ -8785,7 +8873,7 @@ public partial class PublishShareViewModel(
                 client,
                 directUrl,
                 CatalogConstants.MaxCatalogSizeBytes,
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is HttpRequestException or IOException)
         {

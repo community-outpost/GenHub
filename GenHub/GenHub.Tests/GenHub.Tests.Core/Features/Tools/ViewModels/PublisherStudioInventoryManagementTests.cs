@@ -1186,11 +1186,65 @@ public class PublisherStudioInventoryManagementTests
         Assert.Equal(string.Empty, row.FileId);
     }
 
+    /// <summary>
+    /// Tests that a throwing preview download surfaces an inline error instead of
+    /// faulting the background load without feedback.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ExpandCloudOnlyCatalog_DownloadThrows_ShowsInlineErrorAsync()
+    {
+        var project = CreateInventoryProject();
+        using var vm = CreateViewModel(project, CreateDriveProvider());
+        var state = vm.CurrentHostingState;
+        Assert.NotNull(state);
+        state.Catalogs.Add(new CatalogHostingInfo
+        {
+            CatalogId = "throwing",
+            CatalogName = "Throwing",
+            FileId = "throwing-id",
+            FileName = "catalog-throwing.json",
+            Url = "https://example.com/catalog-throwing.json",
+            FileSize = 64,
+        });
+        vm.RefreshHostedAssets();
+        var row = vm.HostedAssets.Single(a => a.Name == "catalog-throwing.json");
+
+        var handler = new ThrowingHandler(new HttpRequestException("boom"));
+        var client = new HttpClient(handler);
+        PublishShareViewModel.HttpClientOverrideForTesting = client;
+        CatalogDocumentReader.AllowUnresolvableDnsForTesting = true;
+        try
+        {
+            row.IsExpanded = true;
+            await WaitForPreviewAsync(row);
+
+            Assert.Empty(row.Children);
+            Assert.False(row.RemotePreviewLoaded);
+            Assert.NotNull(row.ChildrenLoadError);
+        }
+        finally
+        {
+            PublishShareViewModel.HttpClientOverrideForTesting = null;
+            CatalogDocumentReader.AllowUnresolvableDnsForTesting = false;
+            client.Dispose();
+            handler.Dispose();
+        }
+    }
+
     private static async Task WaitForPreviewAsync(HostedAssetItemViewModel row)
     {
         for (var i = 0; i < 200 && !row.RemotePreviewLoaded && row.ChildrenLoadError == null; i++)
         {
             await Task.Delay(25);
+        }
+    }
+
+    private sealed class ThrowingHandler(Exception error) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            throw error;
         }
     }
 
