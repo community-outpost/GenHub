@@ -373,6 +373,7 @@ public partial class VideoPlayerView : UserControl
 
                 break;
             default:
+                // Non-transport keys are not handled by the video player.
                 break;
         }
     }
