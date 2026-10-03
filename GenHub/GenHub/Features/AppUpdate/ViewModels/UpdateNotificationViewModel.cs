@@ -575,7 +575,8 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         if (!string.IsNullOrEmpty(targetCustomBuild))
         {
             _logger.LogInformation("Loading artifacts for custom build '{ContentId}'", targetCustomBuild);
-            return await FetchCustomBuildArtifactsAsync(targetCustomBuild, token);
+            var item = await FindSubscribedCatalogItemAsync(targetCustomBuild, SubscribedCustomBuildPublisherId, updateSubscribedPublisherId: false, token);
+            return MapCatalogReleasesToArtifactUpdateInfos(item);
         }
 
         if (targetPrNumber.HasValue)
@@ -635,9 +636,8 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         return null;
     }
 
-    private async Task<IReadOnlyList<ArtifactUpdateInfo>> FetchCustomBuildArtifactsAsync(string contentId, CancellationToken token)
+    private static IReadOnlyList<ArtifactUpdateInfo> MapCatalogReleasesToArtifactUpdateInfos(CatalogContentItem? item)
     {
-        var item = await FindSubscribedCatalogItemAsync(contentId, SubscribedCustomBuildPublisherId, updateSubscribedPublisherId: false, token);
         if (item == null)
         {
             return [];
@@ -655,7 +655,12 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             }))
             .ThenByDescending(r => r.ReleaseDate))
         {
-            var art = rel.Artifacts.FirstOrDefault();
+            var art = rel.Artifacts.FirstOrDefault(a => a.IsPrimary) ?? rel.Artifacts.FirstOrDefault();
+            if (art == null || string.IsNullOrWhiteSpace(art.DownloadUrl))
+            {
+                continue;
+            }
+
             list.Add(new ArtifactUpdateInfo(
                 Version: rel.Version,
                 GitHash: string.Empty,
@@ -663,10 +668,10 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                 WorkflowRunId: 0,
                 WorkflowRunUrl: string.Empty,
                 ArtifactId: releaseIdCounter++,
-                ArtifactName: art?.Filename ?? rel.Version,
+                ArtifactName: art.Filename ?? rel.Version,
                 CreatedAt: rel.ReleaseDate ?? DateTime.UtcNow,
-                DownloadUrl: art?.DownloadUrl,
-                Size: art?.Size ?? 0));
+                DownloadUrl: art.DownloadUrl,
+                Size: art.Size));
         }
 
         return list;
@@ -839,8 +844,8 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     {
         ArgumentNullException.ThrowIfNull(item);
 
-        if (string.Equals(SubscribedCustomBuildContentId, item.ContentId, StringComparison.Ordinal) &&
-            string.Equals(SubscribedCustomBuildPublisherId, item.PublisherId, StringComparison.Ordinal))
+        if (string.Equals(SubscribedCustomBuildContentId, item.ContentId, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(SubscribedCustomBuildPublisherId, item.PublisherId, StringComparison.OrdinalIgnoreCase))
         {
             Unsubscribe();
             return;

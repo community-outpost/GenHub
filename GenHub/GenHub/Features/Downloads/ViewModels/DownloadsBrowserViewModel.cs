@@ -4559,11 +4559,17 @@ public sealed partial class DownloadsBrowserViewModel(
                 return;
             }
 
+            var staleThreshold = DateTime.UtcNow - TimeSpan.FromHours(1);
+
             foreach (var dir in Directory.GetDirectories(tempRoot, "genhub-build*"))
             {
                 try
                 {
-                    Directory.Delete(dir, recursive: true);
+                    var dirInfo = new DirectoryInfo(dir);
+                    if (dirInfo.LastWriteTimeUtc < staleThreshold && dirInfo.CreationTimeUtc < staleThreshold)
+                    {
+                        Directory.Delete(dir, recursive: true);
+                    }
                 }
                 catch
                 {
