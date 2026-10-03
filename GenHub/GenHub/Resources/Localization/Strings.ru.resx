@@ -17989,7 +17989,7 @@ Error: не удалось: {3}
     <value>Не удалось сохранить состояние хостинга: удалённые файлы могут снова появиться после перезапуска.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DeleteCatalogRemoteFailedFormat" xml:space="preserve">
-    <value>Каталог «{0}» оставлен, так как часть удалённых файлов удалить не удалось. Проверьте подключение и повторите попытку.</value>
+    <value>Каталог «{0}» удален, но некоторые удаленные файлы не удалось удалить. Проверьте подключение и разрешения хранилища.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DeleteDefinitionStaleNote" xml:space="preserve">
     <value>Определение провайдера не удалось повторно загрузить, оно помечено для публикации.</value>
