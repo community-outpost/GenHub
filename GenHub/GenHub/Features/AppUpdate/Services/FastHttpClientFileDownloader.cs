@@ -9,6 +9,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 using Velopack.Sources;
@@ -278,6 +279,11 @@ public class FastHttpClientFileDownloader(
         ArgumentException.ThrowIfNullOrWhiteSpace(url);
         ArgumentException.ThrowIfNullOrWhiteSpace(targetFile);
 
+        if (!NetworkSecurityHelper.IsSafeUrl(url, out var urlError))
+        {
+            throw new SecurityException($"Download URL is not allowed: {urlError}");
+        }
+
         var destinationDirectory = Path.GetDirectoryName(targetFile);
         if (!string.IsNullOrEmpty(destinationDirectory))
         {
@@ -302,7 +308,7 @@ public class FastHttpClientFileDownloader(
             var resolvedUri = probeResponse.RequestMessage?.RequestUri ?? new Uri(url);
             if (!NetworkSecurityHelper.IsSafeUrl(resolvedUri.ToString(), out var redirectError))
             {
-                throw new InvalidOperationException($"Redirect target is not allowed: {redirectError}");
+                throw new SecurityException($"Redirect target is not allowed: {redirectError}");
             }
 
             var contentRange = probeResponse.Content.Headers.ContentRange;
@@ -363,6 +369,12 @@ public class FastHttpClientFileDownloader(
 
             fullResponse.EnsureSuccessStatusCode();
 
+            var fullResolvedUri = fullResponse.RequestMessage?.RequestUri ?? new Uri(url);
+            if (!NetworkSecurityHelper.IsSafeUrl(fullResolvedUri.ToString(), out var fullRedirectError))
+            {
+                throw new SecurityException($"Redirect target is not allowed: {fullRedirectError}");
+            }
+
             if (await TryHandleHtmlResponseAsync(fullResponse, url, targetFile, progress, headers, timeout, remainingRedirects, cancelToken).ConfigureAwait(false))
             {
                 return;
@@ -372,7 +384,7 @@ public class FastHttpClientFileDownloader(
             await DownloadSingleStreamAsync(fullResponse, targetFile, fullBytes, progress, cancelToken).ConfigureAwait(false);
             ValidateDownloadedFileHeader(targetFile);
         }
-        catch (Exception ex) when (ex is not (OperationCanceledException or InvalidDataException))
+        catch (Exception ex) when (ex is not (OperationCanceledException or InvalidDataException or SecurityException))
         {
             logger?.LogWarning(
                 ex,
@@ -409,6 +421,11 @@ public class FastHttpClientFileDownloader(
             if (remainingRedirects <= 0)
             {
                 throw new InvalidOperationException("Exceeded maximum redirects following download confirmation link.");
+            }
+
+            if (!NetworkSecurityHelper.IsSafeUrl(confirmedUrl, out var confirmedError))
+            {
+                throw new SecurityException($"Confirmation URL target is not allowed: {confirmedError}");
             }
 
             logger?.LogInformation("Following Google Drive download confirmation from {Url} to {ConfirmedUrl}", url, confirmedUrl);
