@@ -326,7 +326,7 @@ public class FastHttpClientFileDownloader(
     private static async Task<string> ReadBoundedStringAsync(HttpContent content, int maxBytes, CancellationToken cancelToken)
     {
         await using var stream = await content.ReadAsStreamAsync(cancelToken).ConfigureAwait(false);
-        var buffer = new byte[Math.Min(maxBytes, 81920)];
+        var buffer = new byte[Math.Min(maxBytes, DownloadDefaults.BufferSizeBytes)];
         using var ms = new MemoryStream();
         var totalRead = 0;
         var read = 0;
