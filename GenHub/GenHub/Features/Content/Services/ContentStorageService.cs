@@ -14,6 +14,7 @@ using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -385,12 +386,12 @@ public class ContentStorageService : IContentStorageService
     {
         if (HasNullFileEntries(manifest))
         {
-            return OperationResult<ContentManifest>.CreateFailure("Manifest contains a null variant or file entry or file collection");
+            return OperationResult<ContentManifest>.CreateFailure(ManifestErrorMessages.NullFileEntries);
         }
 
         if (!ManifestVariantResolver.SupportsRuntime(manifest))
         {
-            return OperationResult<ContentManifest>.CreateFailure("Manifest has no variant for this host");
+            return OperationResult<ContentManifest>.CreateFailure(ManifestErrorMessages.NoHostVariant);
         }
 
         if (string.IsNullOrEmpty(sourceDirectory) || !Directory.Exists(sourceDirectory))
@@ -505,7 +506,7 @@ public class ContentStorageService : IContentStorageService
             if (manifest != null && !ManifestVariantResolver.SupportsRuntime(manifest))
             {
                 return OperationResult<string>.CreateFailure(
-                    $"Manifest {manifestId} has no variant for this host ({ManifestVariantResolver.CurrentRuntimeIdentifier})");
+                    string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.NoHostVariantForManifest, manifestId, ManifestVariantResolver.CurrentRuntimeIdentifier));
             }
 
             var files = manifest == null ? [] : ManifestVariantResolver.ResolveFiles(manifest);
@@ -1236,7 +1237,7 @@ public class ContentStorageService : IContentStorageService
         {
             _logger.LogWarning("File {RelativePath} has no hash, skipping", file.RelativePath);
             return file.IsRequired
-                ? OperationResult<string>.CreateFailure($"Required file {file.RelativePath} is unavailable in CAS")
+                ? OperationResult<string>.CreateFailure(string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.RequiredFileUnavailableInCas, file.RelativePath))
                 : OperationResult<string>.CreateSuccess(string.Empty);
         }
 
@@ -1250,7 +1251,7 @@ public class ContentStorageService : IContentStorageService
         {
             _logger.LogWarning("File {RelativePath} not found in CAS (hash: {Hash})", file.RelativePath, file.Hash);
             return file.IsRequired
-                ? OperationResult<string>.CreateFailure($"Required file {file.RelativePath} is unavailable in CAS")
+                ? OperationResult<string>.CreateFailure(string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.RequiredFileUnavailableInCas, file.RelativePath))
                 : OperationResult<string>.CreateSuccess(string.Empty);
         }
 
