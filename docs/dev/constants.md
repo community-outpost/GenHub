@@ -2049,3 +2049,23 @@ Constants for launching Windows games through Wine on Linux and macOS (`IGameLau
 | `HostRootDrivePrefix` | `"Z:"` | Wine drive prefix mapped to the host filesystem root (Proton uses the same mapping) |
 | `WindowsExecutableExtension` | `".exe"` | Executable extension the Wine runner wraps |
 | `CrossOverWineBinaryPath` | `"/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/bin/wine"` | CrossOver bundled Wine binary absolute path on macOS |
+
+## StartupExitCodeConstants Class
+
+Windows NTSTATUS exit codes that a game client reports when it fails to start, and the resource keys that explain them to the user (`LaunchExitMessages`).
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `StatusAccessViolation` | `0xC0000005` | The process read or wrote memory it does not own |
+| `StatusInvalidImageFormat` | `0xC000007B` | An image is not valid for this system, often a 32-bit and 64-bit mismatch |
+| `StatusDllNotFound` | `0xC0000135` | The loader could not find a DLL the executable imports |
+| `StatusDllInitFailed` | `0xC0000142` | A DLL initialization routine failed |
+| `StatusStackBufferOverrun` | `0xC0000409` | A stack buffer overrun or fail-fast request ended the process |
+| `HexFormat` | `"X8"` | Format that renders an exit code as its eight-digit hexadecimal value |
+| `ImmediateExitExplainedKey` | `"Launch.ExitCode.ImmediateExitExplained"` | Message for an immediate exit with a known code |
+| `LauncherExitExplainedKey` | `"Launch.ExitCode.LauncherExitExplained"` | Message for a launcher exit with a known code before its child starts |
+| `AccessViolationKey` | `"Launch.ExitCode.AccessViolation"` | Explains `StatusAccessViolation` |
+| `InvalidImageFormatKey` | `"Launch.ExitCode.InvalidImageFormat"` | Explains `StatusInvalidImageFormat` |
+| `DllNotFoundKey` | `"Launch.ExitCode.DllNotFound"` | Explains `StatusDllNotFound` |
+| `DllInitFailedKey` | `"Launch.ExitCode.DllInitFailed"` | Explains `StatusDllInitFailed` |
+| `StackBufferOverrunKey` | `"Launch.ExitCode.StackBufferOverrun"` | Explains `StatusStackBufferOverrun` |

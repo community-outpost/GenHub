@@ -14205,6 +14205,24 @@ https://example.com/screenshot2.png</value>
   <data name="GameProfiles.Notification.EarlyExit.UnknownCode" xml:space="preserve">
     <value>انتهت العملية قبل اكتمال التشغيل. راجع السجلات للاطلاع على التفاصيل.</value>
   </data>
+  <data name="Launch.ExitCode.ImmediateExitExplained" xml:space="preserve">
+    <value>خرجت العملية فورًا برمز الخروج {0} (0x{1}). {2}</value>
+  </data>
+  <data name="Launch.ExitCode.DllNotFound" xml:space="preserve">
+    <value>تعذر العثور على مكتبة DLL مطلوبة. تأكد من وجود جميع ملفات DLL المرفقة بالملف التنفيذي في مجلده.</value>
+  </data>
+  <data name="Launch.ExitCode.InvalidImageFormat" xml:space="preserve">
+    <value>البرنامج أو إحدى مكتبات DLL الخاصة به غير صالح لهذا النظام، وغالبًا ما يكون السبب خلط ملفات 32 بت و64 بت.</value>
+  </data>
+  <data name="Launch.ExitCode.DllInitFailed" xml:space="preserve">
+    <value>فشلت تهيئة مكتبة DLL مطلوبة.</value>
+  </data>
+  <data name="Launch.ExitCode.AccessViolation" xml:space="preserve">
+    <value>تعطلت العملية بسبب انتهاك في الوصول إلى الذاكرة.</value>
+  </data>
+  <data name="Launch.ExitCode.StackBufferOverrun" xml:space="preserve">
+    <value>أوقفت العملية نفسها بعد خطأ فادح (تجاوز سعة المخزن المؤقت للمكدس أو إنهاء فوري).</value>
+  </data>
   <data name="GameProfiles.Notification.ToolLaunchSuccess.Title" xml:space="preserve">
     <value>تم تشغيل الأداة</value>
   </data>
@@ -17762,5 +17780,8 @@ Error: فشل: {3}
   <data name="TextureEditor.Notify.OpenFailed.Message" xml:space="preserve"><value>فشل فتح النسيج الهدف.</value></data>
   <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
     <value>إصدارات احتياطية يدوية (تجاوزات)</value>
+  </data>
+  <data name="Launch.ExitCode.LauncherExitExplained" xml:space="preserve">
+    <value>خرج برنامج التشغيل برمز الخروج {0} قبل بدء {1}. {2}</value>
   </data>
 </root>
