@@ -5,7 +5,6 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -49,7 +48,7 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
             return 0;
 
         long totalUsage = 0;
-        foreach (var (file, _) in SelectWorkspaceEntries(configuration))
+        foreach (var file in configuration.GetWorkspaceUniqueFiles())
         {
             var size = IsEssentialFile(file.RelativePath, file.Size) ? Math.Max(0, file.Size) : LinkOverheadBytes;
             if (long.MaxValue - totalUsage < size)
@@ -88,7 +87,7 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
             // Create workspace directory
             Directory.CreateDirectory(workspacePath);
 
-            var entries = SelectWorkspaceEntries(configuration);
+            var entries = configuration.GetWorkspaceUniqueFileEntries();
             var allFiles = entries.Select(entry => entry.File).ToList();
             var totalFiles = allFiles.Count;
             var processedFiles = 0;
@@ -315,23 +314,4 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
             }
         }
     }
-
-    /// <summary>
-    /// Selects one workspace file per relative path. The higher content-type priority wins,
-    /// and on equal priority the later manifest wins, matching the hard-link and full-copy strategies.
-    /// </summary>
-    /// <param name="configuration">The workspace configuration.</param>
-    /// <returns>The selected files with their owning manifests.</returns>
-    private static List<(ManifestFile File, ContentManifest Manifest)> SelectWorkspaceEntries(WorkspaceConfiguration configuration) =>
-        configuration.Manifests
-            .SelectMany((manifest, index) => ManifestVariantResolver.ResolveFiles(manifest)
-                .Where(file => file.InstallTarget == ContentInstallTarget.Workspace)
-                .Select(file => (File: file, Manifest: manifest, ManifestIndex: index)))
-            .GroupBy(entry => entry.File.RelativePath, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group
-                .OrderByDescending(entry => ContentTypePriority.GetPriority(entry.Manifest.ContentType))
-                .ThenByDescending(entry => entry.ManifestIndex)
-                .First())
-            .Select(entry => (entry.File, entry.Manifest))
-            .ToList();
 }
