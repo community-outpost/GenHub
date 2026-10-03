@@ -1911,15 +1911,20 @@ public partial class PublishShareViewModel(
 
     private void TrackExternalProbe(string url, HostedAssetItemViewModel item, Func<string, Task> startProbe)
     {
-        var isNewProbe = false;
-        var list = _probingUrls.GetOrAdd(url, _ =>
-        {
-            isNewProbe = true;
-            return [];
-        });
-
+        bool isNewProbe;
         lock (_probeLock)
         {
+            if (!_probingUrls.TryGetValue(url, out var list))
+            {
+                list = [];
+                _probingUrls[url] = list;
+                isNewProbe = true;
+            }
+            else
+            {
+                isNewProbe = false;
+            }
+
             list.Add(item);
         }
 
@@ -4341,12 +4346,23 @@ public partial class PublishShareViewModel(
             {
                 var root = Path.GetFullPath(projectDirectory) + Path.DirectorySeparatorChar;
                 var combined = Path.GetFullPath(Path.Combine(projectDirectory, trimmed));
-                if (combined.StartsWith(root, StringComparison.OrdinalIgnoreCase) && File.Exists(combined))
+                if (!combined.StartsWith(root, StringComparison.OrdinalIgnoreCase) || !File.Exists(combined))
                 {
-                    return combined;
+                    return null;
                 }
+
+                // Resolve symlinks and reparse points: a link inside the project can
+                // otherwise pass the lexical check while pointing outside of it.
+                var resolved = new FileInfo(combined).ResolveLinkTarget(returnFinalTarget: true)?.FullName;
+                var effective = resolved != null ? Path.GetFullPath(resolved) : combined;
+                if (!effective.StartsWith(root, StringComparison.OrdinalIgnoreCase) || !File.Exists(effective))
+                {
+                    return null;
+                }
+
+                return effective;
             }
-            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException or IOException)
             {
                 logger.LogDebug(ex, "Ignoring artwork path that cannot be resolved under the project directory");
                 return null;

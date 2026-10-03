@@ -904,7 +904,8 @@
                                     </Grid>
 
                                     <!-- Expanded linked items -->
-                                    <Border IsVisible="{Binding IsExpanded}"
+                                    <Border Classes="expanded-panel"
+                                            IsVisible="{Binding IsExpanded}"
                                             Background="{DynamicResource GlassFillBrush}"
                                             BorderBrush="{DynamicResource GlassBorderBrush}"
                                             BorderThickness="1"

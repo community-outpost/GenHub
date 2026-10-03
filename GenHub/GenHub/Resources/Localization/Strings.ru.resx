@@ -18067,10 +18067,10 @@ Error: не удалось: {3}
     <value>Нажмите, чтобы скопировать ссылку</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DeleteSharedUrlWarningLine" xml:space="preserve">
-    <value>Этот файл также используется иначе; удалённый файл будет оставлен, уберутся только выбранные ссылки.</value>
+    <value>Этот файл также используется в других местах; файл в облаке останется, будут удалены только выбранные ссылки.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DeleteRemoteKeptSharedNote" xml:space="preserve">
-    <value>Удалённый файл оставлен, так как на него всё ещё ссылаются.</value>
+    <value>Файл в облаке оставлен, так как на него всё ещё ссылаются.</value>
   </data>
   <data name="Launch.ExitCode.LauncherExitExplained" xml:space="preserve">
     <value>Программа запуска завершилась с кодом {0} до запуска {1}. {2}</value>
