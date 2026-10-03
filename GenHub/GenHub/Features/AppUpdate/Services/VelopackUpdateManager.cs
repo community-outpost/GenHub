@@ -818,14 +818,12 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         ArgumentNullException.ThrowIfNull(artifactInfo);
 
         var isDirectUrl = !string.IsNullOrWhiteSpace(artifactInfo.DownloadUrl);
-        if (isDirectUrl)
+        if (isDirectUrl && !NetworkSecurityHelper.IsSafeUrl(artifactInfo.DownloadUrl, out var failureReason))
         {
-            if (!NetworkSecurityHelper.IsSafeUrl(artifactInfo.DownloadUrl, out var failureReason))
-            {
-                throw new InvalidOperationException($"Invalid or unsafe download URL for artifact: {failureReason}");
-            }
+            throw new InvalidOperationException($"Invalid or unsafe download URL for artifact: {failureReason}");
         }
-        else if (_gitHubAuthService == null || !_gitHubAuthService.IsAuthenticated)
+
+        if (!isDirectUrl && (_gitHubAuthService == null || !_gitHubAuthService.IsAuthenticated))
         {
             throw new InvalidOperationException("GitHub authentication required to download artifacts");
         }
