@@ -433,4 +433,9 @@ public static class AppUpdateConstants
     /// Cache duration for update checks (1 hour).
     /// </summary>
     public static readonly TimeSpan CacheDuration = TimeSpan.FromHours(1);
+
+    /// <summary>
+    /// Maximum bytes read when inspecting an HTML response for confirmation links or quota messages (512 KB).
+    /// </summary>
+    public const int MaxHtmlInspectionSizeBytes = 512 * 1024;
 }
