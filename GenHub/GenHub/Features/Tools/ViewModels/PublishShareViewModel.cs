@@ -247,9 +247,14 @@ public partial class PublishShareViewModel(
     private const string LinkedToMoreRefsFormatDefault = "+{0} more";
     private const string DefinitionFormatDefault = "Definition: {0}";
     private const string ProviderNotConnectedDefault = "Provider Not Connected";
+    private const string NoCatalogSelectedKey = "Tools.PublisherStudio.Publish.NoCatalogSelected";
+    private const string NoCatalogSelectedDefault = "No catalog selected";
+    private const string DeleteStateSaveFailedNoteKey = "Tools.PublisherStudio.Hosting.DeleteStateSaveFailedNote";
+    private const string DeleteStateSaveFailedNoteDefault = "The hosting state could not be saved, so removed files may reappear after a restart.";
 
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, List<HostedAssetChildViewModel>> _remotePreviewCache = new(StringComparer.OrdinalIgnoreCase);
-    private readonly System.Collections.Concurrent.ConcurrentQueue<string> _remotePreviewCacheKeys = new();
+    private readonly object _previewCacheLock = new();
+    private readonly Dictionary<string, List<HostedAssetChildViewModel>> _remotePreviewCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly LinkedList<string> _remotePreviewCacheOrder = new();
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, long> _probedMediaSizes = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _probeLock = new();
     private CancellationTokenSource? _probeCts = new();
@@ -779,11 +784,11 @@ public partial class PublishShareViewModel(
         }
 
         var cancellationToken = cts.Token;
-        using var progressToast = BeginUploadProgressToast(
+        using (BeginUploadProgressToast(
             GetLocalizedString("Tools.PublisherStudio.Publish.UploadStartedTitle", "Uploading"),
-            GetLocalizedString("Tools.PublisherStudio.Publish.DefinitionUploadStarted", "Uploading provider definition..."));
-
-        try
+            GetLocalizedString("Tools.PublisherStudio.Publish.DefinitionUploadStarted", "Uploading provider definition...")))
+        {
+            try
         {
             // Cascade down: Publish only catalogs that have pending changes (or are not published yet)
             var catalogsToPublish = project.Catalogs.Where(c =>
@@ -855,9 +860,10 @@ public partial class PublishShareViewModel(
             UploadStatusMessage = FormatLocalizedString(PublishErrorFormatKey, PublishErrorFormatDefault, ex.Message);
             return OperationResult<HostingUploadResult>.CreateFailure(UploadStatusMessage);
         }
-        finally
-        {
-            EndPublish(cts);
+            finally
+            {
+                EndPublish(cts);
+            }
         }
     }
 
@@ -1351,7 +1357,11 @@ public partial class PublishShareViewModel(
         {
             File.Delete(tempZipPath);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Best effort cleanup
+        }
+        catch (UnauthorizedAccessException)
         {
             // Best effort cleanup
         }
@@ -1810,21 +1820,32 @@ public partial class PublishShareViewModel(
         {
             foreach (var content in catalog.Catalog.Content)
             {
-                foreach (var release in content.Releases)
-                {
-                    foreach (var artifact in release.Artifacts)
-                    {
-                        ProcessArtifactAsset(artifact, catalog, content.Id, content.Name, release.Version, providerName, ref totalBytes, ref artCount, ref cdnCount);
-                    }
-                }
+                PopulateContentArtifactAssets(content, catalog, providerName, ref totalBytes, ref artCount, ref cdnCount);
+            }
+        }
+    }
 
-                foreach (var addon in content.AddonReleases)
-                {
-                    foreach (var artifact in addon.Artifacts)
-                    {
-                        ProcessArtifactAsset(artifact, catalog, content.Id, content.Name, addon.Version, providerName, ref totalBytes, ref artCount, ref cdnCount);
-                    }
-                }
+    private void PopulateContentArtifactAssets(
+        CatalogContentItem content,
+        NamedCatalog catalog,
+        string providerName,
+        ref long totalBytes,
+        ref int artCount,
+        ref int cdnCount)
+    {
+        foreach (var release in content.Releases)
+        {
+            foreach (var artifact in release.Artifacts)
+            {
+                ProcessArtifactAsset(artifact, catalog, content.Id, content.Name, release.Version, providerName, ref totalBytes, ref artCount, ref cdnCount);
+            }
+        }
+
+        foreach (var addon in content.AddonReleases)
+        {
+            foreach (var artifact in addon.Artifacts)
+            {
+                ProcessArtifactAsset(artifact, catalog, content.Id, content.Name, addon.Version, providerName, ref totalBytes, ref artCount, ref cdnCount);
             }
         }
     }
@@ -1933,19 +1954,15 @@ public partial class PublishShareViewModel(
 
     private void TrackExternalProbe(string url, HostedAssetItemViewModel item, Func<string, List<HostedAssetItemViewModel>, Task> startProbe)
     {
-        List<HostedAssetItemViewModel> list;
-        bool isNewProbe;
+        List<HostedAssetItemViewModel>? list = null;
+        var isNewProbe = false;
         lock (_probeLock)
         {
-            if (!_probingUrls.TryGetValue(url, out list!))
+            if (!_probingUrls.TryGetValue(url, out list))
             {
                 list = [];
                 _probingUrls[url] = list;
                 isNewProbe = true;
-            }
-            else
-            {
-                isNewProbe = false;
             }
 
             list.Add(item);
@@ -1997,7 +2014,7 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        HostedAssetItemViewModel[] targets;
+        HostedAssetItemViewModel[] targets = [];
         lock (_probeLock)
         {
             targets = [.. list];
@@ -2262,6 +2279,27 @@ public partial class PublishShareViewModel(
         PopulateDiscoveredArtifacts(providerName, ref totalBytes, ref artCount, ref screenshotCount, ref videoCount);
     }
 
+    private bool IsDefinitionRepresentedInHostedAssets(CatalogDefinitionHostingInfo cloudDef)
+    {
+        return HostedAssets.Any(a =>
+            (!string.IsNullOrEmpty(a.Url) && !string.IsNullOrEmpty(cloudDef.Url) && string.Equals(a.Url, cloudDef.Url, StringComparison.OrdinalIgnoreCase)) ||
+            (a.IsOnline && !string.IsNullOrEmpty(a.Name) && !string.IsNullOrEmpty(cloudDef.FileName) && string.Equals(a.Name, cloudDef.FileName, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private bool IsCatalogRepresentedInHostedAssets(CatalogHostingInfo cloudCat)
+    {
+        return HostedAssets.Any(a =>
+            (!string.IsNullOrEmpty(a.Url) && !string.IsNullOrEmpty(cloudCat.Url) && string.Equals(a.Url, cloudCat.Url, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(a.Name) && !string.IsNullOrEmpty(cloudCat.FileName) && string.Equals(a.Name, cloudCat.FileName, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private bool IsArtifactRepresentedInHostedAssets(ArtifactHostingInfo cloudArt)
+    {
+        return HostedAssets.Any(a =>
+            (!string.IsNullOrEmpty(a.Url) && !string.IsNullOrEmpty(cloudArt.Url) && string.Equals(a.Url, cloudArt.Url, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(a.Name) && !string.IsNullOrEmpty(cloudArt.FileName) && string.Equals(a.Name, cloudArt.FileName, StringComparison.OrdinalIgnoreCase)));
+    }
+
     private void PopulateDiscoveredDefinitions(string providerName, ref long totalBytes)
     {
         if (_currentHostingState == null)
@@ -2269,9 +2307,7 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        foreach (var cloudDef in _currentHostingState.Definitions.Where(cloudDef => !HostedAssets.Any(a =>
-            (!string.IsNullOrEmpty(a.Url) && !string.IsNullOrEmpty(cloudDef.Url) && string.Equals(a.Url, cloudDef.Url, StringComparison.OrdinalIgnoreCase)) ||
-            (a.IsOnline && !string.IsNullOrEmpty(a.Name) && !string.IsNullOrEmpty(cloudDef.FileName) && string.Equals(a.Name, cloudDef.FileName, StringComparison.OrdinalIgnoreCase)))))
+        foreach (var cloudDef in _currentHostingState.Definitions.Where(cloudDef => !IsDefinitionRepresentedInHostedAssets(cloudDef)))
         {
             totalBytes += cloudDef.FileSize;
             HostedDefinitionCount++;
@@ -2310,9 +2346,7 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        foreach (var cloudCat in _currentHostingState.Catalogs.Where(cloudCat => !HostedAssets.Any(a =>
-            (!string.IsNullOrEmpty(a.Url) && !string.IsNullOrEmpty(cloudCat.Url) && string.Equals(a.Url, cloudCat.Url, StringComparison.OrdinalIgnoreCase)) ||
-            (!string.IsNullOrEmpty(a.Name) && !string.IsNullOrEmpty(cloudCat.FileName) && string.Equals(a.Name, cloudCat.FileName, StringComparison.OrdinalIgnoreCase)))))
+        foreach (var cloudCat in _currentHostingState.Catalogs.Where(cloudCat => !IsCatalogRepresentedInHostedAssets(cloudCat)))
         {
             catCount++;
             totalBytes += cloudCat.FileSize;
@@ -2361,9 +2395,7 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        foreach (var cloudArt in _currentHostingState.Artifacts.Where(cloudArt => !HostedAssets.Any(a =>
-            (!string.IsNullOrEmpty(a.Url) && !string.IsNullOrEmpty(cloudArt.Url) && string.Equals(a.Url, cloudArt.Url, StringComparison.OrdinalIgnoreCase)) ||
-            (!string.IsNullOrEmpty(a.Name) && !string.IsNullOrEmpty(cloudArt.FileName) && string.Equals(a.Name, cloudArt.FileName, StringComparison.OrdinalIgnoreCase)))))
+        foreach (var cloudArt in _currentHostingState.Artifacts.Where(cloudArt => !IsArtifactRepresentedInHostedAssets(cloudArt)))
         {
             totalBytes += cloudArt.FileSize;
             var refs = FindReferencesByUrl(cloudArt.Url);
@@ -2748,7 +2780,7 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        if (!string.IsNullOrWhiteSpace(item.Url) && _remotePreviewCache.TryGetValue(item.Url, out var cached))
+        if (!string.IsNullOrWhiteSpace(item.Url) && TryGetRemotePreview(item.Url, out var cached) && cached != null)
         {
             ApplyPreviewChildren(item, cached);
             return;
@@ -2821,20 +2853,51 @@ public partial class PublishShareViewModel(
         ApplyPreviewChildren(item, children);
     }
 
+    private bool TryGetRemotePreview(string url, out List<HostedAssetChildViewModel>? children)
+    {
+        lock (_previewCacheLock)
+        {
+            return _remotePreviewCache.TryGetValue(url, out children);
+        }
+    }
+
     private void CacheRemotePreview(string url, List<HostedAssetChildViewModel> children)
     {
-        if (!_remotePreviewCache.ContainsKey(url))
+        lock (_previewCacheLock)
         {
-            while (_remotePreviewCache.Count >= HostingConstants.MaxRemotePreviewCacheEntries &&
-                   _remotePreviewCacheKeys.TryDequeue(out var oldestUrl))
+            if (_remotePreviewCache.ContainsKey(url))
             {
-                _remotePreviewCache.TryRemove(oldestUrl, out _);
+                _remotePreviewCacheOrder.Remove(url);
+            }
+            else
+            {
+                while (_remotePreviewCache.Count >= HostingConstants.MaxRemotePreviewCacheEntries && _remotePreviewCacheOrder.First != null)
+                {
+                    var oldest = _remotePreviewCacheOrder.First.Value;
+                    _remotePreviewCacheOrder.RemoveFirst();
+                    _remotePreviewCache.Remove(oldest);
+                }
             }
 
-            _remotePreviewCacheKeys.Enqueue(url);
+            _remotePreviewCacheOrder.AddLast(url);
+            _remotePreviewCache[url] = children;
+        }
+    }
+
+    private void InvalidateRemotePreview(string? url)
+    {
+        if (string.IsNullOrEmpty(url))
+        {
+            return;
         }
 
-        _remotePreviewCache[url] = children;
+        lock (_previewCacheLock)
+        {
+            if (_remotePreviewCache.Remove(url))
+            {
+                _remotePreviewCacheOrder.Remove(url);
+            }
+        }
     }
 
     private void ApplyPreviewChildren(HostedAssetItemViewModel item, List<HostedAssetChildViewModel> children)
@@ -3642,7 +3705,7 @@ public partial class PublishShareViewModel(
             if (ActiveCatalog == null)
             {
                 IsValid = false;
-                ValidationMessage = GetLocalizedString("Tools.PublisherStudio.Publish.NoCatalogSelected", "No catalog selected");
+                ValidationMessage = GetLocalizedString(NoCatalogSelectedKey, NoCatalogSelectedDefault);
                 return;
             }
 
@@ -3890,8 +3953,8 @@ public partial class PublishShareViewModel(
             CurrentPublishStep = 2;
             if (ActiveCatalog == null)
             {
-                UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.NoCatalogSelected", "No catalog selected");
-                return OperationResult<HostingUploadResult>.CreateFailure("No catalog selected");
+                UploadStatusMessage = GetLocalizedString(NoCatalogSelectedKey, NoCatalogSelectedDefault);
+                return OperationResult<HostingUploadResult>.CreateFailure(NoCatalogSelectedDefault);
             }
 
             UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.GeneratingCatalogFormat", "Generating catalog '{0}'...", ActiveCatalog.Name);
@@ -3919,11 +3982,9 @@ public partial class PublishShareViewModel(
                 await CompletePublishSuccessAsync(uploadResult.Data, cancellationToken, suppressNotifications, uploadDefinition);
                 return uploadResult;
             }
-            else
-            {
-                UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.CatalogUploadFailedFormat", "Catalog upload failed: {0}", uploadResult.FirstError);
-                return uploadResult;
-            }
+
+            UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.CatalogUploadFailedFormat", "Catalog upload failed: {0}", uploadResult.FirstError);
+            return uploadResult;
         }
         catch (OperationCanceledException ex)
         {
@@ -4039,7 +4100,7 @@ public partial class PublishShareViewModel(
 
         if (uploadDefinition)
         {
-            await HandlePostPublishDefinitionAsync(cancellationToken, suppressNotifications);
+            await HandlePostPublishDefinitionAsync(suppressNotifications, cancellationToken);
         }
         else
         {
@@ -4057,8 +4118,8 @@ public partial class PublishShareViewModel(
     }
 
     private async Task HandlePostPublishDefinitionAsync(
-        CancellationToken cancellationToken,
-        bool suppressNotifications)
+        bool suppressNotifications,
+        CancellationToken cancellationToken)
     {
         // 4. Generate and upload provider definition
         CurrentPublishStep = 4;
@@ -4440,8 +4501,6 @@ public partial class PublishShareViewModel(
             case ArtworkSlot.Backdrop:
                 content.Metadata.BackdropUrl = url;
                 break;
-            default:
-                break;
         }
     }
 
@@ -4500,13 +4559,13 @@ public partial class PublishShareViewModel(
             return FailArtworkUpload(msg, suppressNotifications);
         }
 
-        if (!result.Success || result.Data == null || string.IsNullOrWhiteSpace(result.Data.DirectDownloadUrl))
+        if (result == null || !result.Success || result.Data == null || string.IsNullOrWhiteSpace(result.Data.DirectDownloadUrl))
         {
             var msg = FormatLocalizedString(
                 "Tools.PublisherStudio.Publish.ArtworkUploadFailedFormat",
                 "Failed to upload artwork {0}: {1}",
                 displayName,
-                result.FirstError);
+                result?.FirstError ?? "Unknown error");
             return FailArtworkUpload(msg, suppressNotifications);
         }
 
@@ -5070,7 +5129,7 @@ public partial class PublishShareViewModel(
             logger.LogInformation("Saved hosting state");
 
             // Drop any cached preview: the remote content just changed.
-            _remotePreviewCache.TryRemove(catalogUrl, out _);
+            InvalidateRemotePreview(catalogUrl);
         }
 
         if (!result.Success && !string.IsNullOrWhiteSpace(previousFileId))
@@ -5210,6 +5269,9 @@ public partial class PublishShareViewModel(
                     if (!restoreResult.Success)
                     {
                         logger.LogWarning("Failed to restore pre-rename catalog entry for {FileId} after delete failure", oldFileId);
+                        notificationService?.ShowWarning(
+                            GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage),
+                            FormatLocalizedString("Tools.PublisherStudio.Hosting.DeleteStateSaveFailedNote", "The hosting state could not be saved, so removed files may reappear after a restart."));
                     }
                 }
             }
@@ -5248,6 +5310,9 @@ public partial class PublishShareViewModel(
             if (!saveResult.Success)
             {
                 logger.LogWarning("Failed to re-save hosting state after restoring rename entry {FileId}: {Error}", fileId, saveResult.FirstError);
+                notificationService?.ShowWarning(
+                    GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage),
+                    FormatLocalizedString("Tools.PublisherStudio.Hosting.DeleteStateSaveFailedNote", "The hosting state could not be saved, so removed files may reappear after a restart."));
             }
         }
         catch (OperationCanceledException)
@@ -5257,6 +5322,9 @@ public partial class PublishShareViewModel(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to re-save hosting state after restoring rename entry {FileId}", fileId);
+            notificationService?.ShowWarning(
+                GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage),
+                FormatLocalizedString("Tools.PublisherStudio.Hosting.DeleteStateSaveFailedNote", "The hosting state could not be saved, so removed files may reappear after a restart."));
         }
     }
 
@@ -5627,12 +5695,10 @@ public partial class PublishShareViewModel(
                 logger.LogInformation("Generated provider definition JSON with {CatalogCount} catalogs", catalogHostingInfo.Count);
                 return true;
             }
-            else
-            {
-                logger.LogError("Failed to generate provider definition: {Error}", result.FirstError);
-                UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.GenerateDefinitionFailedFormat", "Failed to generate definition: {0}", result.FirstError);
-                return false;
-            }
+
+            logger.LogError("Failed to generate provider definition: {Error}", result.FirstError);
+            UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.GenerateDefinitionFailedFormat", "Failed to generate definition: {0}", result.FirstError);
+            return false;
         }
         catch (Exception ex)
         {
@@ -5708,7 +5774,7 @@ public partial class PublishShareViewModel(
         RefreshHostedAssets();
 
         // Drop any cached preview: the remote definition just changed.
-        _remotePreviewCache.TryRemove(ProviderDefinitionUrl, out _);
+        InvalidateRemotePreview(ProviderDefinitionUrl);
         NotifyDefinitionUploaded();
         UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.ProviderDefinitionUploaded", "Provider definition uploaded successfully.");
         logger.LogInformation("Uploaded provider definition to {Url}", ProviderDefinitionUrl);
@@ -6077,14 +6143,14 @@ public partial class PublishShareViewModel(
         // Set as active catalog temporarily
         var previousActive = ActiveCatalog;
         ActiveCatalog = catalog;
-        using var progressToast = BeginUploadProgressToast(
+        using (BeginUploadProgressToast(
             GetLocalizedString("Tools.PublisherStudio.Publish.PublishStartedTitle", "Publishing"),
             FormatLocalizedString(
                 "Tools.PublisherStudio.Publish.PublishCatalogStartedFormat",
                 "Publishing catalog '{0}'...",
-                catalog.Name));
-
-        var cancellationToken = cts.Token;
+                catalog.Name)))
+        {
+            var cancellationToken = cts.Token;
 
         try
         {
@@ -6112,11 +6178,12 @@ public partial class PublishShareViewModel(
                     uploadResult.FirstError ?? GetLocalizedString("Tools.PublisherStudio.Publish.CatalogPublishFailed", "Failed to publish catalog."));
             }
         }
-        finally
-        {
-            // Restore previous active catalog
-            ActiveCatalog = previousActive;
-            EndPublish(cts);
+            finally
+            {
+                // Restore previous active catalog
+                ActiveCatalog = previousActive;
+                EndPublish(cts);
+            }
         }
     }
 
@@ -6186,15 +6253,15 @@ public partial class PublishShareViewModel(
 
         var cancellationToken = cts.Token;
         PublishCompleted = false;
-        using var progressToast = BeginUploadProgressToast(
+        using (BeginUploadProgressToast(
             GetLocalizedString("Tools.PublisherStudio.Publish.PublishStartedTitle", "Publishing"),
             FormatLocalizedString(
                 "Tools.PublisherStudio.Publish.PublishAllStartedFormat",
                 "Publishing {0} catalog(s) to {1}...",
                 project.Catalogs.Count,
-                SelectedHostingProvider?.DisplayName ?? string.Empty));
-
-        try
+                SelectedHostingProvider?.DisplayName ?? string.Empty)))
+        {
+            try
         {
             var catalogs = project.Catalogs.ToList();
             var totalCatalogs = catalogs.Count;
@@ -6221,9 +6288,10 @@ public partial class PublishShareViewModel(
             logger.LogError(ex, "Failed to publish all catalogs");
             UploadStatusMessage = FormatLocalizedString(PublishErrorFormatKey, PublishErrorFormatDefault, ex.Message);
         }
-        finally
-        {
-            EndPublish(cts);
+            finally
+            {
+                EndPublish(cts);
+            }
         }
     }
 
@@ -7105,13 +7173,14 @@ public partial class PublishShareViewModel(
         }
 
         var cancellationToken = cts.Token;
-        using var progressToast = BeginUploadProgressToast(
+        using (BeginUploadProgressToast(
             GetLocalizedString("Tools.PublisherStudio.Publish.UploadStartedTitle", "Uploading"),
             FormatLocalizedString(
                 "Tools.PublisherStudio.Hosting.SingleUploadStartedFormat",
                 "Uploading {0}...",
-                artifact.Filename));
-        try
+                artifact.Filename)))
+        {
+            try
         {
             var task = new ArtifactUploadTask
             {
@@ -7154,9 +7223,10 @@ public partial class PublishShareViewModel(
         {
             logger.LogInformation(ex, "Single artifact upload was canceled.");
         }
-        finally
-        {
-            EndPublish(cts);
+            finally
+            {
+                EndPublish(cts);
+            }
         }
     }
 
@@ -7496,7 +7566,7 @@ public partial class PublishShareViewModel(
 
             if (stateSaveFailed)
             {
-                deletedMessage += " " + GetLocalizedString("Tools.PublisherStudio.Hosting.DeleteStateSaveFailedNote", "The hosting state could not be saved, so removed files may reappear after a restart.");
+                deletedMessage += " " + GetLocalizedString(DeleteStateSaveFailedNoteKey, DeleteStateSaveFailedNoteDefault);
                 notificationService?.ShowWarning(
                     GetLocalizedString(DeleteSuccessTitleKey, DeleteSuccessTitleDefault),
                     deletedMessage,
@@ -7755,15 +7825,6 @@ public partial class PublishShareViewModel(
         }
 
         var remotesCleaned = await DeleteCatalogRemotesAsync(catalogId, cancellationToken);
-        if (!remotesCleaned)
-        {
-            notificationService?.ShowWarning(
-                GetLocalizedString(DeleteSuccessTitleKey, DeleteSuccessTitleDefault),
-                FormatLocalizedString("Tools.PublisherStudio.Hosting.DeleteCatalogRemoteFailedFormat", "Catalog '{0}' was kept because some remote files could not be deleted. Check the connection and retry.", projectCatalog?.Name ?? asset.Name),
-                NotificationDurations.Long);
-            return;
-        }
-
         if (projectCatalog != null)
         {
             project.Catalogs.Remove(projectCatalog);
@@ -7779,6 +7840,14 @@ public partial class PublishShareViewModel(
             }
         }
 
+        if (!remotesCleaned)
+        {
+            notificationService?.ShowWarning(
+                GetLocalizedString(DeleteSuccessTitleKey, DeleteSuccessTitleDefault),
+                FormatLocalizedString("Tools.PublisherStudio.Hosting.DeleteCatalogRemoteFailedFormat", "Catalog '{0}' was removed, but some remote files could not be deleted. Check the connection and storage permissions.", projectCatalog?.Name ?? asset.Name),
+                NotificationDurations.Long);
+        }
+
         _linkageIndex = null;
         var definitionFixed = await RepublishDefinitionAfterDeleteAsync(definitionWillUpdate, cancellationToken);
         RefreshHostedAssets();
@@ -7786,14 +7855,13 @@ public partial class PublishShareViewModel(
         RefreshArtifactStatuses();
         await ValidateCatalogAsync();
 
-        NotifyCatalogDeleteResult(asset, projectCatalog, orphans, remotesCleaned, definitionFixed);
+        NotifyCatalogDeleteResult(asset, projectCatalog, orphans, definitionFixed);
     }
 
     private void NotifyCatalogDeleteResult(
         HostedAssetItemViewModel asset,
         NamedCatalog? projectCatalog,
         IReadOnlyList<string> orphans,
-        bool remotesCleaned,
         bool definitionFixed)
     {
         var displayName = projectCatalog?.Name ?? asset.Name;
@@ -8025,7 +8093,7 @@ public partial class PublishShareViewModel(
         if (stateSaveFailed)
         {
             message.Append(' ');
-            message.Append(GetLocalizedString("Tools.PublisherStudio.Hosting.DeleteStateSaveFailedNote", "The hosting state could not be saved, so removed files may reappear after a restart."));
+            message.Append(GetLocalizedString(DeleteStateSaveFailedNoteKey, DeleteStateSaveFailedNoteDefault));
         }
 
         if (republishFailed > 0 || stateSaveFailed)
@@ -8334,7 +8402,7 @@ public partial class PublishShareViewModel(
             var unlinkedMessage = FormatLocalizedString("Tools.PublisherStudio.Hosting.DeletedUnlinkedMessageFormat", "'{0}' was deleted from cloud storage.", asset.Name);
             if (stateSaveFailed)
             {
-                unlinkedMessage += " " + GetLocalizedString("Tools.PublisherStudio.Hosting.DeleteStateSaveFailedNote", "The hosting state could not be saved, so removed files may reappear after a restart.");
+                unlinkedMessage += " " + GetLocalizedString(DeleteStateSaveFailedNoteKey, DeleteStateSaveFailedNoteDefault);
                 notificationService?.ShowWarning(
                     GetLocalizedString(DeleteSuccessTitleKey, DeleteSuccessTitleDefault),
                     unlinkedMessage,

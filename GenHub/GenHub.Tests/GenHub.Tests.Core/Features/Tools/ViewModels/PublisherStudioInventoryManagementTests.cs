@@ -1478,7 +1478,8 @@ public class PublisherStudioInventoryManagementTests
         try
         {
             using var vm = CreateViewModel(project, CreateDriveProvider());
-            var state = new HostingState();
+            var state = vm.CurrentHostingState;
+            Assert.NotNull(state);
             for (var i = 0; i <= HostingConstants.MaxRemotePreviewCacheEntries; i++)
             {
                 state.Catalogs.Add(new CatalogHostingInfo
@@ -1490,14 +1491,6 @@ public class PublisherStudioInventoryManagementTests
                     FileSize = 100,
                 });
             }
-
-            var container = new PublisherHostingStates
-            {
-                States = { [HostingConstants.GoogleDrive] = state },
-            };
-            var stateManager = new Mock<IHostingStateManager>();
-            stateManager.Setup(m => m.LoadStatesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<PublisherHostingStates>.CreateSuccess(container));
 
             vm.RefreshHostedAssets();
 

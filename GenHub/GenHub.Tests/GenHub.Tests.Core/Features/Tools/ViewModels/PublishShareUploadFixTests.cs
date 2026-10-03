@@ -246,6 +246,12 @@ public class PublishShareUploadFixTests
         Assert.NotNull(renamed);
         Assert.Equal("old-remote-id", renamed.FileId);
         Assert.Equal("https://example.com/catalog-old.json", renamed.Url);
+
+        Assert.NotEmpty(savedSnapshots);
+        var lastPersisted = savedSnapshots.Last().States[HostingConstants.GoogleDrive].Catalogs.Find(c => c.CatalogId == "new-cat-id");
+        Assert.NotNull(lastPersisted);
+        Assert.Equal("old-remote-id", lastPersisted.FileId);
+        Assert.Equal("https://example.com/catalog-old.json", lastPersisted.Url);
     }
 
     /// <summary>
@@ -398,10 +404,28 @@ public class PublishShareUploadFixTests
         };
         _mockHostingStateManager.Setup(m => m.LoadStatesAsync("/test/path/project.json", It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<PublisherHostingStates>.CreateSuccess(container));
-        _mockHostingStateManager.SetupSequence(m => m.SaveStatesAsync("/test/path/project.json", It.IsAny<PublisherHostingStates>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true))
-            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true))
-            .ReturnsAsync(OperationResult<bool>.CreateFailure("disk full"));
+        var savedSnapshots = new List<PublisherHostingStates>();
+        _mockHostingStateManager.Setup(m => m.SaveStatesAsync("/test/path/project.json", It.IsAny<PublisherHostingStates>(), It.IsAny<CancellationToken>()))
+            .Callback<string, PublisherHostingStates, CancellationToken>((_, states, _) =>
+            {
+                var snapshot = new PublisherHostingStates();
+                foreach (var (k, v) in states.States)
+                {
+                    var copy = new HostingState { LastPublished = v.LastPublished };
+                    copy.Catalogs.AddRange(v.Catalogs.Select(c => new CatalogHostingInfo
+                    {
+                        CatalogId = c.CatalogId,
+                        CatalogName = c.CatalogName,
+                        FileName = c.FileName,
+                        FileId = c.FileId,
+                        Url = c.Url,
+                        FileSize = c.FileSize,
+                    }));
+                    snapshot.States[k] = copy;
+                }
+                savedSnapshots.Add(snapshot);
+            })
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         var mockProvider = new Mock<IHostingProvider>();
         mockProvider.Setup(p => p.ProviderId).Returns(HostingConstants.GoogleDrive);
