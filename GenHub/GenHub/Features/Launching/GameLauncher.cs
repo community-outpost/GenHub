@@ -348,11 +348,17 @@ public class GameLauncher(
     /// <returns>The manifest and executable file, either of which may be null.</returns>
     private static (ContentManifest? Manifest, ManifestFile? File) FindMonitoredExecutable(IReadOnlyList<ContentManifest> manifests, string finalExecutablePath, string workspacePath)
     {
+        // Search in the order the workspace resolves a shared path: higher content-type priority
+        // first, then the later manifest, so the monitored file is the one that was materialized.
         var launchable = manifests
-            .Where(m =>
-                m.ContentType == ContentType.GameClient ||
-                m.ContentType == ContentType.Executable ||
-                m.ContentType == ContentType.ModdingTool)
+            .Select((manifest, index) => (Manifest: manifest, Index: index))
+            .Where(entry =>
+                entry.Manifest.ContentType == ContentType.GameClient ||
+                entry.Manifest.ContentType == ContentType.Executable ||
+                entry.Manifest.ContentType == ContentType.ModdingTool)
+            .OrderByDescending(entry => ContentTypePriority.GetPriority(entry.Manifest.ContentType))
+            .ThenByDescending(entry => entry.Index)
+            .Select(entry => entry.Manifest)
             .ToList();
 
         foreach (var manifest in launchable)
