@@ -83,16 +83,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             // Deduplicate files by RelativePath with priority ordering (GameClient > GameInstallation)
             // so lower-priority sources cannot overwrite higher-priority files like modded clients.
             // ONLY include files where InstallTarget is Workspace.
-            var prioritizedFiles = configuration.Manifests
-                .SelectMany((manifest, index) => ManifestVariantResolver.ResolveFiles(manifest)
-                    .Where(f => f.InstallTarget == ContentInstallTarget.Workspace)
-                    .Select(file => new { File = file, Manifest = manifest, ManifestIndex = index }))
-                .GroupBy(x => x.File.RelativePath, StringComparer.OrdinalIgnoreCase)
-                .Select(g => g
-                    .OrderByDescending(x => ContentTypePriority.GetPriority(x.Manifest.ContentType))
-                    .ThenByDescending(x => x.ManifestIndex) // deterministic tie-breaker
-                    .First())
-                .ToList();
+            var prioritizedFiles = configuration.GetWorkspaceUniqueFileEntries();
 
             var totalFiles = prioritizedFiles.Count;
             var processedFiles = 0;

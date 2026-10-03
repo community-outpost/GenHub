@@ -70,6 +70,27 @@ using System.Diagnostics.CodeAnalysis;
     Justification = "System.Text.Json requires ref Utf8JsonReader as the first parameter in JsonConverter<T>.Read overrides.")]
 
 [assembly: SuppressMessage(
+    "Design",
+    "CS-R1138:Inappropriate ordering of parameters",
+    Scope = "type",
+    Target = "~T:GenHub.Core.Serialization.JsonContentTypeConverter",
+    Justification = "System.Text.Json requires ref Utf8JsonReader as the first parameter in JsonConverter<T>.Read overrides.")]
+
+[assembly: SuppressMessage(
+    "Design",
+    "CS-R1138:Inappropriate ordering of parameters",
+    Scope = "type",
+    Target = "~T:GenHub.Core.Serialization.JsonGameTypeConverter",
+    Justification = "System.Text.Json requires ref Utf8JsonReader as the first parameter in JsonConverter<T>.Read overrides.")]
+
+[assembly: SuppressMessage(
+    "Design",
+    "CS-R1138:Inappropriate ordering of parameters",
+    Scope = "type",
+    Target = "~T:GenHub.Core.Serialization.JsonWorkspaceStrategyConverter",
+    Justification = "System.Text.Json requires ref Utf8JsonReader as the first parameter in JsonConverter<T>.Read overrides.")]
+
+[assembly: SuppressMessage(
     "StyleCop.CSharp.DocumentationRules",
     "SA1649:FileNameMustMatchTypeName",
     Scope = "type",

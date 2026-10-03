@@ -800,37 +800,12 @@ public class ContentOrchestrator : IContentOrchestrator
     /// This prevents content from being stored in the wrong CAS pool.
     /// </summary>
     /// <returns>True if the path was successfully ensured or auto-set.</returns>
-    private async Task<bool> EnsureInstallationPoolPathAsync(CancellationToken cancellationToken)
+    private Task<bool> EnsureInstallationPoolPathAsync(CancellationToken cancellationToken)
     {
-        try
-        {
-            // Force installation detection and reset the path
-            // Even if a path is set, it might be stale (from before user deleted data)
-            // or point to the wrong installation
-            _logger.LogInformation("Forcing installation detection to ensure correct InstallationPoolRootPath");
-            _installationService.InvalidateCache();
-
-            // Get all installations (this will trigger detection if cache is empty)
-            var installationsResult = await _installationService.GetAllInstallationsAsync(cancellationToken);
-            if (!installationsResult.Success || installationsResult.Data == null)
-            {
-                _logger.LogWarning(
-                    "Failed to get installations for CAS pool path resolution: {Error}; the primary CAS pool will be used",
-                    installationsResult.FirstError);
-                return true;
-            }
-
-            var installations = installationsResult.Data.ToList();
-            return await _installationCasPoolService.EnsurePoolPathAsync(installations, cancellationToken);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to ensure InstallationPoolRootPath is set");
-            return false;
-        }
+        return InstallationPoolPathHelper.EnsureInstallationPoolPathAsync(
+            _installationService,
+            _installationCasPoolService,
+            _logger,
+            cancellationToken);
     }
 }

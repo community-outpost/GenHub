@@ -7,17 +7,28 @@ namespace GenHub.Core.Models.Content;
 /// </summary>
 public class Checksum
 {
+    private string _md5 = string.Empty;
+    private string _sha256 = string.Empty;
+
     /// <summary>
     /// Gets or sets the MD5 hash of the file.
     /// </summary>
     [JsonPropertyName("md5")]
-    public string Md5 { get; set; } = string.Empty;
+    public string Md5
+    {
+        get => _md5;
+        set => _md5 = value?.Trim() ?? string.Empty;
+    }
 
     /// <summary>
     /// Gets or sets the SHA-256 hash of the file.
     /// </summary>
     [JsonPropertyName("sha256")]
-    public string Sha256 { get; set; } = string.Empty;
+    public string Sha256
+    {
+        get => _sha256;
+        set => _sha256 = value?.Trim() ?? string.Empty;
+    }
 
     /// <summary>
     /// Creates a deep copy of the current <see cref="Checksum"/> instance.

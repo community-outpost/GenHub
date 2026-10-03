@@ -82,6 +82,30 @@ public class GenericCatalogDiscoverer(
     }
 
     /// <summary>
+    /// Stamps Community Outpost upstream identity onto catalog search results so install-state
+    /// detection can match the same content code acquired through the official provider.
+    /// </summary>
+    /// <param name="searchResult">The search result being enriched.</param>
+    /// <param name="contentItem">The catalog content item providing upstream metadata.</param>
+    public static void ApplyUpstreamCommunityOutpostIdentity(
+        ContentSearchResult searchResult,
+        CatalogContentItem contentItem)
+    {
+        var declaredProvider = CatalogConstants.UpstreamProviders.DeclaredProvider(contentItem.UpstreamSync?.Provider, contentItem.PublisherType);
+        var normalizedProvider = CatalogConstants.UpstreamProviders.Normalize(declaredProvider);
+        if (!string.Equals(normalizedProvider, CatalogConstants.UpstreamProviders.CommunityOutpost, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var contentCode = contentItem.UpstreamSync?.ContentCode;
+        if (!string.IsNullOrWhiteSpace(contentCode))
+        {
+            searchResult.ResolverMetadata[CommunityOutpostCatalogConstants.ContentCodeKey] = contentCode.Trim().ToLowerInvariant();
+        }
+    }
+
+    /// <summary>
     /// Gets the unique identifier of the resolver used by this discoverer.
     /// </summary>
     public static string ResolverId => CatalogConstants.GenericCatalogResolverId;
@@ -295,6 +319,7 @@ public class GenericCatalogDiscoverer(
         searchResult.ResolverMetadata[CatalogConstants.CatalogContentIdMetadataKey] = contentItem.Id;
 
         ApplyUpstreamGitHubIdentity(searchResult, contentItem, release);
+        ApplyUpstreamCommunityOutpostIdentity(searchResult, contentItem);
 
         if (catalog.Referrals is { Count: > 0 })
         {

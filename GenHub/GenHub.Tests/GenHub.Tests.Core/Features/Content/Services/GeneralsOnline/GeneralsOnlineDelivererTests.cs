@@ -1,10 +1,13 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
@@ -30,6 +33,8 @@ public class GeneralsOnlineDelivererTests : IDisposable
     private readonly Mock<IDownloadService> _downloadServiceMock;
     private readonly Mock<IContentManifestPool> _manifestPoolMock;
     private readonly Mock<IProviderDefinitionLoader> _providerLoaderMock;
+    private readonly Mock<IGameInstallationService> _installationServiceMock;
+    private readonly Mock<IInstallationCasPoolService> _installationCasPoolServiceMock;
     private readonly GeneralsOnlineManifestFactory _manifestFactory;
     private readonly GeneralsOnlineDeliverer _deliverer;
     private readonly string _tempDir;
@@ -42,6 +47,16 @@ public class GeneralsOnlineDelivererTests : IDisposable
         _downloadServiceMock = new Mock<IDownloadService>();
         _manifestPoolMock = new Mock<IContentManifestPool>();
         _providerLoaderMock = new Mock<IProviderDefinitionLoader>();
+        _installationServiceMock = new Mock<IGameInstallationService>();
+        _installationCasPoolServiceMock = new Mock<IInstallationCasPoolService>();
+
+        _installationServiceMock
+            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([]));
+
+        _installationCasPoolServiceMock
+            .Setup(p => p.EnsurePoolPathAsync(It.IsAny<IReadOnlyList<GameInstallation>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
 
         _providerLoaderMock
             .Setup(l => l.GetProvider(PublisherTypeConstants.GeneralsOnline))
@@ -67,6 +82,8 @@ public class GeneralsOnlineDelivererTests : IDisposable
             _downloadServiceMock.Object,
             _manifestPoolMock.Object,
             _manifestFactory,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object,
             NullLogger<GeneralsOnlineDeliverer>.Instance);
 
         _tempDir = Path.Combine(Path.GetTempPath(), "GenHub_GODelivererTest_" + Guid.NewGuid().ToString("N"));
