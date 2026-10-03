@@ -77,7 +77,10 @@ public sealed class WorkspaceSkippedSourceFilesTests : IDisposable
     public async Task PrepareWorkspaceAsync_WithSkippedFile_ReportsWarningAndNotifiesAsync()
     {
         var notifications = new Mock<INotificationService>();
-        var (manager, strategy) = CreateManager(notifications.Object);
+        var localization = new Mock<ILocalizationService>();
+        localization.Setup(l => l.GetString(It.IsAny<string>(), It.IsAny<object[]>()))
+            .Returns((string key, object[] args) => $"{key}: {string.Join(", ", args)}");
+        var (manager, strategy) = CreateManager(notifications.Object, localization.Object);
         strategy.Setup(s => s.PrepareAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()))
             .Callback<WorkspaceConfiguration, IProgress<WorkspacePreparationProgress>?, CancellationToken>((config, _, _) => config.RecordSkippedSourceFile(SharedPath))
             .ReturnsAsync(new WorkspaceInfo { Id = "skipped-workspace", IsPrepared = true, WorkspacePath = Path.Combine(_root, "skipped-workspace") });
@@ -87,7 +90,7 @@ public sealed class WorkspaceSkippedSourceFilesTests : IDisposable
         Assert.True(result.Success, result.FirstError);
         var issue = Assert.Single(result.Data!.ValidationIssues, i => i.IssueType == ValidationIssueType.MissingFile);
         Assert.Equal(ValidationSeverity.Warning, issue.Severity);
-        Assert.Contains(SharedPath, issue.Message);
+        Assert.Equal($"Workspace.Validation.SkippedMissingSourceFile: {SharedPath}", issue.Message);
         notifications.Verify(
             n => n.ShowWarning(It.IsAny<string>(), It.Is<string>(m => m.Contains(SharedPath)), It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Once);
@@ -140,16 +143,28 @@ public sealed class WorkspaceSkippedSourceFilesTests : IDisposable
     /// <summary>
     /// The hard-link strategy records a source that disappears after the first existence check.
     /// </summary>
+    /// <param name="sourceDisappears">Whether the missing path is the source rather than the destination.</param>
     /// <returns>A task that represents the asynchronous test.</returns>
-    [Fact]
-    public async Task HardLinkPrepareAsync_WhenSourceDisappearsBeforeLinking_RecordsTheSkipAsync()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task HardLinkPrepareAsync_WhenLinkPathDisappears_OnlySkipsMissingSourceAsync(bool sourceDisappears)
     {
         var installDir = Directory.CreateDirectory(Path.Combine(_root, "Install")).FullName;
         var source = Path.Combine(installDir, "mod.ini");
         File.WriteAllText(source, "mod");
         _fileOperations
             .Setup(f => f.CreateHardLinkAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new IOException("The source file does not exist."));
+            .Callback(() =>
+            {
+                if (sourceDisappears)
+                {
+                    File.Delete(source);
+                }
+            })
+            .ThrowsAsync(new IOException("The path does not exist."));
+        _fileOperations.Setup(f => f.CreateSymlinkAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DirectoryNotFoundException("Destination directory does not exist."));
         var configuration = new WorkspaceConfiguration
         {
             Id = Guid.NewGuid().ToString("N"),
@@ -162,8 +177,16 @@ public sealed class WorkspaceSkippedSourceFilesTests : IDisposable
 
         var result = await CreateStrategy(WorkspaceStrategy.HardLink).PrepareAsync(configuration, null, CancellationToken.None);
 
-        Assert.True(result.IsPrepared);
-        Assert.Equal(SharedPath, Assert.Single(configuration.SkippedSourceFiles));
+        Assert.Equal(sourceDisappears, result.IsPrepared);
+        if (sourceDisappears)
+        {
+            Assert.Equal(SharedPath, Assert.Single(configuration.SkippedSourceFiles));
+        }
+        else
+        {
+            Assert.Empty(configuration.SkippedSourceFiles);
+            Assert.NotEmpty(result.ValidationIssues);
+        }
     }
 
     /// <inheritdoc/>
@@ -193,7 +216,7 @@ public sealed class WorkspaceSkippedSourceFilesTests : IDisposable
         Files = [new() { RelativePath = SharedPath, SourcePath = source, Size = 4, SourceType = ContentSourceType.GameInstallation }],
     };
 
-    private (WorkspaceManager Manager, Mock<IWorkspaceStrategy> Strategy) CreateManager(INotificationService notifications)
+    private (WorkspaceManager Manager, Mock<IWorkspaceStrategy> Strategy) CreateManager(INotificationService notifications, ILocalizationService? localization = null)
     {
         Directory.CreateDirectory(_root);
         var configProvider = new Mock<IConfigurationProviderService>();
@@ -214,7 +237,8 @@ public sealed class WorkspaceSkippedSourceFilesTests : IDisposable
             new CasReferenceTracker(casConfig.Object, new Mock<ILogger<CasReferenceTracker>>().Object),
             validator.Object,
             new WorkspaceReconciler(new Mock<ILogger<WorkspaceReconciler>>().Object, new Mock<IFileOperationsService>().Object),
-            notificationService: notifications);
+            notificationService: notifications,
+            localizationService: localization);
         return (manager, strategy);
     }
 

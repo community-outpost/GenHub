@@ -17790,4 +17790,7 @@ Error: не удалось: {3}
   <data name="Workspace.Notification.SkippedSourceFiles.Message" xml:space="preserve">
     <value>Пропущено файлов: {0}, так как их исходные файлы отсутствуют: {1}</value>
   </data>
+  <data name="Workspace.Validation.SkippedMissingSourceFile" xml:space="preserve">
+    <value>Пропущен {0}: исходный файл отсутствует.</value>
+  </data>
 </root>

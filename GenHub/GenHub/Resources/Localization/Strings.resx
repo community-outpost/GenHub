@@ -17849,4 +17849,7 @@ Mapped image texture reference</value>
   <data name="Workspace.Notification.SkippedSourceFiles.Message" xml:space="preserve">
     <value>{0} file(s) were skipped because their source files are missing: {1}</value>
   </data>
+  <data name="Workspace.Validation.SkippedMissingSourceFile" xml:space="preserve">
+    <value>Skipped {0}: its source file is missing.</value>
+  </data>
 </root>

@@ -346,8 +346,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
         }
         catch (IOException ioEx)
         {
-            if (ioEx.Message.Contains("NOT_FOUND", StringComparison.OrdinalIgnoreCase) ||
-                ioEx.Message.Contains("does not exist", StringComparison.OrdinalIgnoreCase))
+            if (!File.Exists(sourcePath))
             {
                 Logger.LogWarning("Skipping missing file: {RelativePath} (source: {SourcePath})", file.RelativePath, sourcePath);
                 configuration.RecordSkippedSourceFile(file.RelativePath);

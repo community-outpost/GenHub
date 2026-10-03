@@ -16,7 +16,6 @@ using GenHub.Features.Workspace.Strategies;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -743,14 +742,14 @@ public class WorkspaceManager(
         foreach (var relativePath in skipped)
         {
             workspaceInfo.ValidationIssues.Add(new ValidationIssue(
-                string.Format(CultureInfo.InvariantCulture, WorkspaceConstants.SkippedMissingSourceFileMessage, relativePath),
+                LaunchExitMessages.GetString(WorkspaceConstants.SkippedMissingSourceFileMessageKey, localizationService, relativePath),
                 ValidationSeverity.Warning)
             {
                 IssueType = ValidationIssueType.MissingFile,
             });
         }
 
-        logger.LogWarning("[Workspace] Skipped {Count} file(s) whose source is missing: {Files}", skipped.Count, string.Join(", ", skipped));
+        logger.LogWarning(WorkspaceConstants.SkippedSourceFilesLog, skipped.Count, string.Join(", ", skipped));
 
         notificationService?.ShowWarning(
             LaunchExitMessages.GetString(WorkspaceConstants.SkippedSourceFilesTitleKey, localizationService),

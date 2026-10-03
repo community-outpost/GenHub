@@ -17790,4 +17790,7 @@ Error: فشل: {3}
   <data name="Workspace.Notification.SkippedSourceFiles.Message" xml:space="preserve">
     <value>تم تخطي {0} من الملفات لأن ملفاتها المصدرية مفقودة: {1}</value>
   </data>
+  <data name="Workspace.Validation.SkippedMissingSourceFile" xml:space="preserve">
+    <value>تم تخطي {0}: ملفه المصدري مفقود.</value>
+  </data>
 </root>
