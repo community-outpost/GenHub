@@ -22,10 +22,10 @@
     <PackageReference Include="Velopack" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\GenHub.Core\GenHub.Core.csproj" />
-    <ProjectReference Include="..\..\GenHub\GenHub.csproj" />
-    <ProjectReference Include="..\..\GenHub.Tools\GenHub.Tools.csproj" />
-    <ProjectReference Include="..\..\GenHub.ProxyLauncher\GenHub.ProxyLauncher.csproj" />
+    <ProjectReference Include="..\..\GenHub.Core\GenHub.Core.csproj" BuildInParallel="false" />
+    <ProjectReference Include="..\..\GenHub\GenHub.csproj" BuildInParallel="false" />
+    <ProjectReference Include="..\..\GenHub.Tools\GenHub.Tools.csproj" BuildInParallel="false" />
+    <ProjectReference Include="..\..\GenHub.ProxyLauncher\GenHub.ProxyLauncher.csproj" BuildInParallel="false" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />
