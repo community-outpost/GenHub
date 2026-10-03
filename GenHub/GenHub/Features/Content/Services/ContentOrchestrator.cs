@@ -440,7 +440,7 @@ public class ContentOrchestrator : IContentOrchestrator
             }
 
             var targetPct = (int)Math.Round(cap.ProgressPercentage);
-            int currentMax;
+            int currentMax = 0;
             do
             {
                 currentMax = Volatile.Read(ref maxReportedPercentage);
