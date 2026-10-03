@@ -818,66 +818,25 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         ArgumentNullException.ThrowIfNull(artifactInfo);
 
         var isDirectUrl = !string.IsNullOrWhiteSpace(artifactInfo.DownloadUrl);
-
         if (!isDirectUrl && (_gitHubAuthService == null || !_gitHubAuthService.IsAuthenticated))
         {
             throw new InvalidOperationException("GitHub authentication required to download artifacts");
         }
 
-        SimpleHttpServer? server = null;
-        string? tempDir = null;
+        if (await TryInstallFromLocalCacheAsync(artifactInfo, progress, cancellationToken).ConfigureAwait(false))
+        {
+            return;
+        }
 
+        string? tempDir = null;
         try
         {
-            if (_contentManifestPool != null && _contentStorageService != null)
-            {
-                var localPath = await TryFindLocalArtifactPathAsync(artifactInfo, cancellationToken).ConfigureAwait(false);
-                if (!string.IsNullOrEmpty(localPath))
-                {
-                    _logger.LogInformation("Found locally cached build artifact for {Version}, installing from local storage without redownloading", artifactInfo.Version);
-                    try
-                    {
-                        await InstallDownloadedBuildAsync(localPath, artifactInfo.ArtifactName, progress, cancellationToken).ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        try
-                        {
-                            if (Directory.Exists(localPath))
-                            {
-                                Directory.Delete(localPath, recursive: true);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogTrace(ex, "Failed to clean up local build path {Path}", localPath);
-                        }
-                    }
-
-                    return;
-                }
-            }
-
-            string label;
-            if (artifactInfo.PullRequestNumber.HasValue)
-            {
-                label = $"PR #{artifactInfo.PullRequestNumber.Value}";
-            }
-            else if (!string.IsNullOrWhiteSpace(artifactInfo.ArtifactName))
-            {
-                label = artifactInfo.ArtifactName;
-            }
-            else
-            {
-                label = $"Artifact v{artifactInfo.Version}";
-            }
-
+            var label = GetArtifactLabel(artifactInfo);
             var commitInfo = !string.IsNullOrEmpty(artifactInfo.GitHash) ? $" ({artifactInfo.GitHash})" : string.Empty;
             progress?.Report(new UpdateProgress { Status = $"Downloading artifact for {label}{commitInfo}...", PercentComplete = 0 });
 
             var (downloadUrl, headers) = await ResolveArtifactDownloadDetailsAsync(artifactInfo, label, cancellationToken).ConfigureAwait(false);
 
-            // Create temp directory
             tempDir = Path.Combine(AppDataPathHelper.GetDataRoot(), "Temp", $"genhub-art-{Guid.NewGuid():N}");
             Directory.CreateDirectory(tempDir);
 
@@ -889,9 +848,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
             var downloadProgress = new Action<int>(percent =>
             {
-                // Scale 0-100% download to 0-30% total progress
                 var totalPercent = (int)(percent * 0.3);
-
                 progress?.Report(new UpdateProgress
                 {
                     Status = $"Downloading artifact for {label}{commitInfo}... {percent}%",
@@ -912,155 +869,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 return;
             }
 
-            progress?.Report(new UpdateProgress { Status = "Extracting artifact...", PercentComplete = 30 });
-
-            // Extract the ZIP with per-entry containment validation (zip-slip hardening)
-            ZipArchiveGuard.ExtractToDirectory(targetFilePath, tempDir, cancellationToken);
-
-            // Find .nupkg file
-            var nupkgFiles = Directory.GetFiles(tempDir, "*.nupkg", SearchOption.AllDirectories);
-
-            if (nupkgFiles.Length == 0)
-            {
-                var exeFiles = Directory.GetFiles(tempDir, "*.exe", SearchOption.AllDirectories)
-                    .Where(e => !Path.GetFileName(e).StartsWith("createdump", StringComparison.OrdinalIgnoreCase))
-                    .ToArray();
-
-                if (exeFiles.Length > 0)
-                {
-                    var targetExe = exeFiles.FirstOrDefault(e => Path.GetFileName(e).Contains("Setup", StringComparison.OrdinalIgnoreCase)) ?? exeFiles[0];
-                    LaunchInstallerProcess(targetExe, progress);
-                    return;
-                }
-
-                throw new FileNotFoundException("No .nupkg or installer file found in artifact");
-            }
-
-            var nupkgFile = nupkgFiles[0];
-            _logger.LogInformation("Found nupkg: {File}", Path.GetFileName(nupkgFile));
-
-            // Create releases.win.json
-            var releasesPath = Path.Combine(tempDir, "releases.win.json");
-            var nupkgFileName = Path.GetFileName(nupkgFile);
-            var fileInfo = new FileInfo(nupkgFile);
-            var sha1 = CalculateSHA1(nupkgFile);
-            var sha256 = CalculateSHA256(nupkgFile);
-
-            // Extract version from nupkg filename
-            var versionMatch = NupkgVersionRegex().Match(nupkgFileName);
-            var fileVersion = versionMatch.Success ? versionMatch.Groups[1].Value : artifactInfo.Version;
-
-            var releasesJson = new
-            {
-                Assets = new[]
-                {
-                    new
-                    {
-                        PackageId = AppConstants.AppName,
-                        Version = fileVersion,
-                        Type = "Full",
-                        FileName = nupkgFileName,
-                        SHA1 = sha1,
-                        SHA256 = sha256,
-                        Size = fileInfo.Length,
-                    },
-                },
-            };
-
-            var jsonContent = JsonSerializer.Serialize(releasesJson);
-            await File.WriteAllTextAsync(releasesPath, jsonContent, cancellationToken);
-            _logger.LogInformation("Created releases.win.json with version {Version}", fileVersion);
-
-            progress?.Report(new UpdateProgress { Status = "Starting local server...", PercentComplete = 50 });
-
-            // Start HTTP server
-            var port = FindAvailablePort();
-            server = new SimpleHttpServer(nupkgFile, releasesPath, port, _logger);
-            server.Start();
-
-            progress?.Report(new UpdateProgress { Status = "Preparing update...", PercentComplete = 60 });
-
-            progress?.Report(new UpdateProgress { Status = "Downloading update...", PercentComplete = 70 });
-
-            // Point Velopack to localhost
-            var source = new SimpleWebSource($"http://localhost:{port}/{server.SecretToken}/", _fileDownloader);
-            var localUpdateManager = new UpdateManager(source);
-
-            try
-            {
-                // Create asset description manually
-                var asset = new VelopackAsset
-                {
-                    PackageId = AppConstants.AppName,
-                    Version = SemanticVersion.Parse(fileVersion),
-                    Type = VelopackAssetType.Full,
-                    FileName = nupkgFileName,
-                    SHA1 = sha1,
-                    SHA256 = sha256,
-                    Size = fileInfo.Length,
-                };
-
-                // Manually construct UpdateInfo to force the update (IsDowngrade = true)
-                // This bypasses the version check that prevents installing older versions/artifacts
-                var updateInfo = new UpdateInfo(asset, true);
-
-                // Download from localhost
-                await localUpdateManager.DownloadUpdatesAsync(
-                    updateInfo,
-                    p =>
-                    {
-                        progress?.Report(new UpdateProgress
-                        {
-                            Status = "Downloading update...",
-                            PercentComplete = 70 + (int)(p * 0.2),
-                        });
-                    },
-                    cancellationToken);
-
-                string artifactChannel = string.Empty;
-                if (artifactInfo.PullRequestNumber.HasValue)
-                {
-                    artifactChannel = $"{TelemetryConstants.PullRequestChannelPrefix}{artifactInfo.PullRequestNumber.Value}";
-                }
-                else if (!string.IsNullOrEmpty(artifactInfo.ArtifactName))
-                {
-                    artifactChannel = artifactInfo.ArtifactName;
-                }
-                else
-                {
-                    artifactChannel = TelemetryChannel;
-                }
-
-                _telemetryService?.TrackEvent(TelemetryConstants.Events.AppUpdateDownloaded, new Dictionary<string, object?>
-                {
-                    [TelemetryConstants.Properties.FromVersion] = CurrentAppVersion,
-                    [TelemetryConstants.Properties.ToVersion] = fileVersion,
-                    [TelemetryConstants.Properties.FullDisplayVersion] = AppConstants.FullDisplayVersion,
-                    [TelemetryConstants.Properties.BuildChannel] = AppConstants.BuildChannel,
-                    [TelemetryConstants.Properties.Channel] = artifactChannel,
-                    [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
-                });
-
-                progress?.Report(new UpdateProgress { Status = "Installing update...", PercentComplete = 90 });
-
-                CleanStrayAppDirectoryArtifacts();
-                _logger.LogInformation("Applying {Label} update and restarting", label);
-
-                await TrackUpdateAppliedAndFlushAsync(fileVersion, artifactChannel, cancellationToken).ConfigureAwait(false);
-                cancellationToken.ThrowIfCancellationRequested();
-
-                localUpdateManager.ApplyUpdatesAndRestart(updateInfo.TargetFullRelease);
-
-                _logger.LogWarning("ApplyUpdatesAndRestart returned without exiting - waiting for exit...");
-                await Task.Delay(AppUpdateConstants.PostUpdateExitDelay, cancellationToken).ConfigureAwait(false);
-
-                _logger.LogError("Application did not exit after ApplyUpdatesAndRestart. Update may have failed.");
-                throw new InvalidOperationException("Application did not exit after applying update");
-            }
-            finally
-            {
-                // No cleanup needed for UpdateManager
-            }
+            await InstallFromExtractedArtifactAsync(tempDir, targetFilePath, artifactInfo, label, progress, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -1070,20 +879,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         }
         finally
         {
-            // Cleanup
-            server?.Dispose();
-
-            if (tempDir != null && Directory.Exists(tempDir))
-            {
-                try
-                {
-                    Directory.Delete(tempDir, recursive: true);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to cleanup temp directory: {Path}", tempDir);
-                }
-            }
+            CleanupTempDirectory(tempDir);
         }
     }
 
@@ -1589,14 +1385,9 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     private static bool IsMatchingBranchRun(JsonElement run, string? branch, out string actualBranch, out string eventType)
     {
         eventType = run.TryGetProperty("event", out var e) ? e.GetString() ?? "unknown" : "unknown";
-        if (run.TryGetProperty("head_branch", out var b) && b.GetString() is { } hb)
-        {
-            actualBranch = hb;
-        }
-        else
-        {
-            actualBranch = branch ?? "unknown";
-        }
+        actualBranch = run.TryGetProperty("head_branch", out var b) && b.GetString() is { } hb
+            ? hb
+            : branch ?? "unknown";
 
         if (!string.IsNullOrEmpty(branch) && !string.Equals(actualBranch, branch, StringComparison.Ordinal))
         {
@@ -1690,6 +1481,18 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         using var fs = File.OpenRead(filePath);
         var magic = new byte[2];
         return fs.Read(magic, 0, 2) == 2 && magic[0] == 0x4D && magic[1] == 0x5A;
+    }
+
+    private static string GetArtifactLabel(ArtifactUpdateInfo artifactInfo)
+    {
+        if (artifactInfo.PullRequestNumber.HasValue)
+        {
+            return $"PR #{artifactInfo.PullRequestNumber.Value}";
+        }
+
+        return !string.IsNullOrWhiteSpace(artifactInfo.ArtifactName)
+            ? artifactInfo.ArtifactName
+            : $"Artifact v{artifactInfo.Version}";
     }
 
     private void LaunchInstallerProcess(string exePath, IProgress<UpdateProgress>? progress)
@@ -1794,6 +1597,236 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         LaunchInstallerProcess(exePath, progress);
         return true;
+    }
+
+    private async Task<bool> TryInstallFromLocalCacheAsync(
+        ArtifactUpdateInfo artifactInfo,
+        IProgress<UpdateProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        if (_contentManifestPool == null || _contentStorageService == null)
+        {
+            return false;
+        }
+
+        var localPath = await TryFindLocalArtifactPathAsync(artifactInfo, cancellationToken).ConfigureAwait(false);
+        if (string.IsNullOrEmpty(localPath))
+        {
+            return false;
+        }
+
+        _logger.LogInformation("Found locally cached build artifact for {Version}, installing from local storage without redownloading", artifactInfo.Version);
+        try
+        {
+            await InstallDownloadedBuildAsync(localPath, artifactInfo.ArtifactName, progress, cancellationToken).ConfigureAwait(false);
+            return true;
+        }
+        finally
+        {
+            try
+            {
+                if (Directory.Exists(localPath))
+                {
+                    Directory.Delete(localPath, recursive: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogTrace(ex, "Failed to clean up local build path {Path}", localPath);
+            }
+        }
+    }
+
+    private string GetArtifactChannel(ArtifactUpdateInfo artifactInfo)
+    {
+        if (artifactInfo.PullRequestNumber.HasValue)
+        {
+            return $"{TelemetryConstants.PullRequestChannelPrefix}{artifactInfo.PullRequestNumber.Value}";
+        }
+
+        return !string.IsNullOrEmpty(artifactInfo.ArtifactName)
+            ? artifactInfo.ArtifactName
+            : TelemetryChannel;
+    }
+
+    private async Task InstallFromExtractedArtifactAsync(
+        string tempDir,
+        string targetFilePath,
+        ArtifactUpdateInfo artifactInfo,
+        string label,
+        IProgress<UpdateProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        progress?.Report(new UpdateProgress { Status = "Extracting artifact...", PercentComplete = 30 });
+        ZipArchiveGuard.ExtractToDirectory(targetFilePath, tempDir, cancellationToken);
+
+        var nupkgFiles = Directory.GetFiles(tempDir, "*.nupkg", SearchOption.AllDirectories);
+        if (nupkgFiles.Length == 0)
+        {
+            var exeFiles = Directory.GetFiles(tempDir, "*.exe", SearchOption.AllDirectories)
+                .Where(e => !Path.GetFileName(e).StartsWith("createdump", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+
+            if (exeFiles.Length > 0)
+            {
+                var targetExe = exeFiles.FirstOrDefault(e => Path.GetFileName(e).Contains("Setup", StringComparison.OrdinalIgnoreCase)) ?? exeFiles[0];
+                LaunchInstallerProcess(targetExe, progress);
+                return;
+            }
+
+            throw new FileNotFoundException("No .nupkg or installer file found in artifact");
+        }
+
+        var nupkgFile = nupkgFiles[0];
+        _logger.LogInformation("Found nupkg: {File}", Path.GetFileName(nupkgFile));
+
+        var (releasesPath, nupkgFileName, fileVersion, sha1, sha256, fileLength) =
+            await CreateLocalReleasesJsonAsync(tempDir, nupkgFile, artifactInfo.Version, cancellationToken).ConfigureAwait(false);
+
+        progress?.Report(new UpdateProgress { Status = "Starting local server...", PercentComplete = 50 });
+
+        var port = FindAvailablePort();
+        using var server = new SimpleHttpServer(nupkgFile, releasesPath, port, _logger);
+        server.Start();
+
+        var artifactChannel = GetArtifactChannel(artifactInfo);
+        await ExecuteLocalVelopackUpdateAsync(
+            server,
+            port,
+            fileVersion,
+            nupkgFileName,
+            sha1,
+            sha256,
+            fileLength,
+            label,
+            artifactChannel,
+            progress,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<(string ReleasesPath, string NupkgFileName, string FileVersion, string Sha1, string Sha256, long FileLength)> CreateLocalReleasesJsonAsync(
+        string tempDir,
+        string nupkgFile,
+        string fallbackVersion,
+        CancellationToken cancellationToken)
+    {
+        var releasesPath = Path.Combine(tempDir, "releases.win.json");
+        var nupkgFileName = Path.GetFileName(nupkgFile);
+        var fileInfo = new FileInfo(nupkgFile);
+        var sha1 = CalculateSHA1(nupkgFile);
+        var sha256 = CalculateSHA256(nupkgFile);
+
+        var versionMatch = NupkgVersionRegex().Match(nupkgFileName);
+        var fileVersion = versionMatch.Success ? versionMatch.Groups[1].Value : fallbackVersion;
+
+        var releasesJson = new
+        {
+            Assets = new[]
+            {
+                new
+                {
+                    PackageId = AppConstants.AppName,
+                    Version = fileVersion,
+                    Type = "Full",
+                    FileName = nupkgFileName,
+                    SHA1 = sha1,
+                    SHA256 = sha256,
+                    Size = fileInfo.Length,
+                },
+            },
+        };
+
+        var jsonContent = JsonSerializer.Serialize(releasesJson);
+        await File.WriteAllTextAsync(releasesPath, jsonContent, cancellationToken).ConfigureAwait(false);
+        _logger.LogInformation("Created releases.win.json with version {Version}", fileVersion);
+
+        return (releasesPath, nupkgFileName, fileVersion, sha1, sha256, fileInfo.Length);
+    }
+
+    private async Task ExecuteLocalVelopackUpdateAsync(
+        SimpleHttpServer server,
+        int port,
+        string fileVersion,
+        string nupkgFileName,
+        string sha1,
+        string sha256,
+        long fileSize,
+        string label,
+        string artifactChannel,
+        IProgress<UpdateProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        progress?.Report(new UpdateProgress { Status = "Preparing update...", PercentComplete = 60 });
+        progress?.Report(new UpdateProgress { Status = "Downloading update...", PercentComplete = 70 });
+
+        var source = new SimpleWebSource($"http://localhost:{port}/{server.SecretToken}/", _fileDownloader);
+        var localUpdateManager = new UpdateManager(source);
+
+        var asset = new VelopackAsset
+        {
+            PackageId = AppConstants.AppName,
+            Version = SemanticVersion.Parse(fileVersion),
+            Type = VelopackAssetType.Full,
+            FileName = nupkgFileName,
+            SHA1 = sha1,
+            SHA256 = sha256,
+            Size = fileSize,
+        };
+
+        var updateInfo = new UpdateInfo(asset, true);
+
+        await localUpdateManager.DownloadUpdatesAsync(
+            updateInfo,
+            p =>
+            {
+                progress?.Report(new UpdateProgress
+                {
+                    Status = "Downloading update...",
+                    PercentComplete = 70 + (int)(p * 0.2),
+                });
+            },
+            cancellationToken).ConfigureAwait(false);
+
+        _telemetryService?.TrackEvent(TelemetryConstants.Events.AppUpdateDownloaded, new Dictionary<string, object?>
+        {
+            [TelemetryConstants.Properties.FromVersion] = CurrentAppVersion,
+            [TelemetryConstants.Properties.ToVersion] = fileVersion,
+            [TelemetryConstants.Properties.FullDisplayVersion] = AppConstants.FullDisplayVersion,
+            [TelemetryConstants.Properties.BuildChannel] = AppConstants.BuildChannel,
+            [TelemetryConstants.Properties.Channel] = artifactChannel,
+            [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
+        });
+
+        progress?.Report(new UpdateProgress { Status = "Installing update...", PercentComplete = 90 });
+
+        CleanStrayAppDirectoryArtifacts();
+        _logger.LogInformation("Applying {Label} update and restarting", label);
+
+        await TrackUpdateAppliedAndFlushAsync(fileVersion, artifactChannel, cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        localUpdateManager.ApplyUpdatesAndRestart(updateInfo.TargetFullRelease);
+
+        _logger.LogWarning("ApplyUpdatesAndRestart returned without exiting - waiting for exit...");
+        await Task.Delay(AppUpdateConstants.PostUpdateExitDelay, cancellationToken).ConfigureAwait(false);
+
+        _logger.LogError("Application did not exit after ApplyUpdatesAndRestart. Update may have failed.");
+        throw new InvalidOperationException("Application did not exit after applying update");
+    }
+
+    private void CleanupTempDirectory(string? tempDir)
+    {
+        if (tempDir != null && Directory.Exists(tempDir))
+        {
+            try
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to cleanup temp directory: {Path}", tempDir);
+            }
+        }
     }
 
     private void CleanSampleProjectArtifacts(string sampleProjectsDir)
