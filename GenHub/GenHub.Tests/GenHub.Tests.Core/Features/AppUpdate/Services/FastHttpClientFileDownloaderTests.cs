@@ -9,6 +9,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -531,5 +532,47 @@ public class FastHttpClientFileDownloaderTests : IDisposable
         Assert.True(File.Exists(targetFile));
         Assert.Equal(sourceBytes, await File.ReadAllBytesAsync(targetFile));
         Assert.Equal(0, chunkAuthHeadersPresent);
+    }
+
+    /// <summary>
+    /// Tests that an unsafe initial download URL (e.g. localhost/loopback) throws SecurityException.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFile_WithUnsafeInitialUrl_ShouldThrowSecurityExceptionAsync()
+    {
+        var downloader = new FastHttpClientFileDownloader(_mockLogger.Object);
+        var targetFile = Path.Combine(_tempDirectory, "unsafe-url.bin");
+
+        await Assert.ThrowsAsync<SecurityException>(
+            () => downloader.DownloadFile("http://127.0.0.1/exploit.bin", targetFile, _ => { }, null, 30));
+
+        Assert.False(File.Exists(targetFile));
+    }
+
+    /// <summary>
+    /// Tests that an unsafe redirect target throws SecurityException and does not fall back to default downloader.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFile_WithUnsafeRedirectTarget_ShouldThrowSecurityExceptionAndNotFallbackAsync()
+    {
+        var handler = new TestHttpMessageHandler(request =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent([1, 2, 3, 4]),
+                RequestMessage = new HttpRequestMessage(HttpMethod.Get, "http://127.0.0.1/private-exploit.bin"),
+            };
+            return response;
+        });
+
+        var downloader = new FastHttpClientFileDownloader(_mockLogger.Object, handler);
+        var targetFile = Path.Combine(_tempDirectory, "unsafe-redirect.bin");
+
+        await Assert.ThrowsAsync<SecurityException>(
+            () => downloader.DownloadFile("https://example.com/file.bin", targetFile, _ => { }, null, 30));
+
+        Assert.False(File.Exists(targetFile));
     }
 }
