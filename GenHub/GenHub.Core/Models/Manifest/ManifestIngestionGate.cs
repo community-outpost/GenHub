@@ -4,21 +4,13 @@ using System.Globalization;
 namespace GenHub.Core.Models.Manifest;
 
 /// <summary>
-/// Fail-closed gate for manifests that declare artifact variants.
+/// Rejects manifests that declare a format version newer than this build understands.
 /// </summary>
 /// <remarks>
-/// Variants are expressed by <see cref="ContentManifest.Variants"/> and resolved by
-/// <see cref="ManifestVariantResolver"/>, but the consumers that act on a manifest —
-/// deliverers, validators, CAS reference counting and garbage collection — still read
-/// <see cref="ContentManifest.Files"/> directly. A manifest declaring variants would be
-/// accepted and then mishandled by every one of them: <c>Files</c> is empty for a
-/// variant manifest, so content would appear to install successfully while delivering
-/// nothing, and reference counting would record the wrong set of blobs.
-/// <para>
-/// Rejecting at ingestion is therefore deliberate and temporary. It is the only
-/// protection until the consumers are migrated to the resolved-variant model, and it
-/// should be removed as part of that migration rather than relaxed piecemeal.
-/// </para>
+/// Every consumer resolves files through <see cref="ManifestVariantResolver"/>, so manifests
+/// with artifact variants (format version <see cref="ManifestConstants.VariantsManifestFormatVersion"/>)
+/// are accepted. A newer format may carry features this pipeline cannot handle, so it is
+/// rejected rather than installed with those features silently ignored.
 /// </remarks>
 public static class ManifestIngestionGate
 {
@@ -40,34 +32,18 @@ public static class ManifestIngestionGate
             return true;
         }
 
-        // Checked independently rather than as one condition. Declared version alone is
-        // not trustworthy — a manifest can carry variants while still claiming version 1 —
-        // and variants alone are not the only signal, since a format-2 manifest may use
-        // other version-2 features this pipeline equally cannot handle.
-        var declaresVariants = manifest.Variants.Count > 0;
-        var declaresVariantFormat =
-            int.TryParse(
-                manifest.SchemaVersion,
-                NumberStyles.None,
-                CultureInfo.InvariantCulture,
-                out var declaredFormat)
-            && declaredFormat >= ManifestConstants.VariantsManifestFormatVersion;
-
-        if (!declaresVariants && !declaresVariantFormat)
+        if (!int.TryParse(manifest.SchemaVersion, NumberStyles.None, CultureInfo.InvariantCulture, out var declaredFormat)
+            || declaredFormat <= ManifestConstants.MaxSupportedManifestFormatVersion)
         {
             return true;
         }
 
-        var cause = declaresVariants
-            ? $"declares {manifest.Variants.Count} artifact variant(s)"
-            : $"declares manifest format version {manifest.SchemaVersion}";
-
-        rejectionReason =
-            $"Manifest '{manifest.Id.Value}' {cause}, which requires manifest format version " +
-            $"{ManifestConstants.VariantsManifestFormatVersion} and is not yet accepted. " +
-            "Variant manifests are rejected until the content pipeline is migrated to the " +
-            "resolved-variant model; publish a manifest without variants in the meantime.";
-
+        rejectionReason = string.Format(
+            CultureInfo.InvariantCulture,
+            ManifestErrorMessages.UnsupportedManifestFormatVersion,
+            manifest.Id.Value,
+            manifest.SchemaVersion,
+            ManifestConstants.MaxSupportedManifestFormatVersion);
         return false;
     }
 }

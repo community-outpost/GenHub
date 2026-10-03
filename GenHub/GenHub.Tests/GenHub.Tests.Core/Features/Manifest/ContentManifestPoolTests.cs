@@ -520,55 +520,60 @@ public class ContentManifestPoolTests : IDisposable
     }
 
     /// <summary>
-    /// A variant manifest must be rejected before any content is written.
+    /// A manifest with variants is accepted by the metadata-only overload once its content
+    /// is stored, and its references are tracked.
     /// </summary>
-    /// <remarks>
-    /// The pool is the chokepoint every deliverer, resolver and detector reaches, so this
-    /// is where the gate has to hold. Returning a failure is not sufficient on its own:
-    /// what matters is that nothing was stored and no CAS references were tracked, because
-    /// mis-tracked references are what corrupts reference counting and garbage collection.
-    /// </remarks>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task AddManifestAsync_WithVariants_RejectsBeforeStoringContentAsync()
+    public async Task AddManifestAsync_WithVariants_AcceptsAsync()
     {
-        var manifest = CreateTestManifest();
-        manifest.Variants.Add(new ArtifactVariant());
+        var manifest = CreateVariantManifest();
+        _storageServiceMock.Setup(x => x.IsContentStoredAsync(manifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _storageServiceMock.Setup(x => x.GetManifestStoragePath(manifest.Id))
+            .Returns(Path.Combine(_tempDirectory, $"{manifest.Id}.manifest.json"));
 
         var result = await _manifestPool.AddManifestAsync(manifest);
 
-        Assert.False(result.Success);
-        Assert.Contains("variant", result.FirstError, StringComparison.OrdinalIgnoreCase);
-
-        _storageServiceMock.Verify(
-            x => x.IsContentStoredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()),
-            Times.Never);
-        _referenceTrackerMock.Verify(
-            x => x.TrackManifestReferencesAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()),
-            Times.Never);
+        Assert.True(result.Success, result.FirstError);
     }
 
     /// <summary>
-    /// The source-directory overload must reject a variant manifest without storing content.
+    /// The source-directory overload stores a manifest with variants.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task AddManifestAsync_WithSourceDirectory_WithVariants_RejectsBeforeStoringContentAsync()
+    public async Task AddManifestAsync_WithSourceDirectory_WithVariants_StoresContentAsync()
+    {
+        var manifest = CreateVariantManifest();
+        _storageServiceMock.Setup(x => x.StoreContentAsync(manifest, _tempDirectory, It.IsAny<IProgress<ContentStorageProgress>?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
+
+        var result = await _manifestPool.AddManifestAsync(manifest, _tempDirectory);
+
+        Assert.True(result.Success, result.FirstError);
+        _storageServiceMock.Verify(
+            x => x.StoreContentAsync(manifest, _tempDirectory, It.IsAny<IProgress<ContentStorageProgress>?>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// A manifest declaring a newer format than this build supports is rejected before any
+    /// content is written or references tracked.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task AddManifestAsync_WithNewerFormat_RejectsBeforeStoringContentAsync()
     {
         var manifest = CreateTestManifest();
-        manifest.Variants.Add(new ArtifactVariant());
+        manifest.SchemaVersion = "3";
 
         var result = await _manifestPool.AddManifestAsync(manifest, _tempDirectory);
 
         Assert.False(result.Success);
-        Assert.Contains("variant", result.FirstError, StringComparison.OrdinalIgnoreCase);
-
+        Assert.Contains("format version 3", result.FirstError);
         _storageServiceMock.Verify(
-            x => x.StoreContentAsync(
-                It.IsAny<ContentManifest>(),
-                It.IsAny<string>(),
-                It.IsAny<IProgress<ContentStorageProgress>>(),
-                It.IsAny<CancellationToken>()),
+            x => x.StoreContentAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()),
             Times.Never);
         _referenceTrackerMock.Verify(
             x => x.TrackManifestReferencesAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()),
@@ -592,6 +597,19 @@ public class ContentManifestPoolTests : IDisposable
         var result = await _manifestPool.AddManifestAsync(manifest);
 
         Assert.True(result.Success, $"Expected success but got: {result.FirstError}");
+    }
+
+    private static ContentManifest CreateVariantManifest()
+    {
+        var manifest = CreateTestManifest(id: "1.0.genhub.mod.variants");
+        manifest.SchemaVersion = "2";
+        manifest.Files = [];
+        manifest.Variants =
+        [
+            new ArtifactVariant { RuntimeIdentifiers = ["win-x64"], Files = [new ManifestFile { RelativePath = "mod-win.big", Hash = "win-hash", SourceType = ContentSourceType.ContentAddressable }] },
+            new ArtifactVariant { RuntimeIdentifiers = ["osx-arm64"], Files = [new ManifestFile { RelativePath = "mod-mac.big", Hash = "mac-hash", SourceType = ContentSourceType.ContentAddressable }] },
+        ];
+        return manifest;
     }
 
     /// <summary>

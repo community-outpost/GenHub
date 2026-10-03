@@ -356,10 +356,9 @@ public class ContentManifestPool(
 
         // Applied here rather than at each caller: both AddManifestAsync overloads run
         // this, and every deliverer, resolver and detector reaches the pool through them.
-        // Gating the discovery and provider services alone left those paths open.
-        if (!ManifestIngestionGate.TryAccept(manifest, out var variantRejection))
+        if (!ManifestIngestionGate.TryAccept(manifest, out var formatRejection))
         {
-            errors.Add(variantRejection!);
+            errors.Add(formatRejection!);
         }
 
         if (string.IsNullOrEmpty(manifest.Id.Value))
