@@ -13575,6 +13575,27 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Publish.ArtworkHostingNotSupported" xml:space="preserve">
     <value>المزود لا يدعم استضافة الصور. استخدم روابط صور مباشرة أو بدّل المزود.</value>
   </data>
+  <data name="Tools.PublisherStudio.Publish.UploadingMediaFormat" xml:space="preserve">
+    <value>جارٍ رفع الوسائط {0}/{1}: {2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.MediaFileMissingFormat" xml:space="preserve">
+    <value>لم يتم العثور على ملف الوسائط: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.MediaUploadFailedFormat" xml:space="preserve">
+    <value>فشل رفع الوسائط {0}: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.MediaUploadFailedTitle" xml:space="preserve">
+    <value>فشل رفع الوسائط</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.MediaHostingNotSupported" xml:space="preserve">
+    <value>المزود لا يدعم استضافة الوسائط. استخدم روابط صور/فيديو مباشرة أو بدّل المزود.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.MediaSkippedTitle" xml:space="preserve">
+    <value>تم تخطي الوسائط غير المحلولة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.MediaSkippedFormat" xml:space="preserve">
+    <value>تعذر حل {0} من مراجع الوسائط إلى ملفات محلية وتم تركها دون تغيير.</value>
+  </data>
   <data name="Tools.PublisherStudio.Artifact.DropFileUnreadableFormat" xml:space="preserve">
     <value>تعذّر قراءة الملف المُسقط: {0}</value>
   </data>
@@ -13763,6 +13784,51 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Downloads.ContentDetail.PlayVideoTooltip" xml:space="preserve">
     <value>تشغيل أو فتح الفيديو</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPreview" xml:space="preserve">
+    <value>معاينة الفيديو</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoOpenFailedTitle" xml:space="preserve">
+    <value>تعذر فتح الفيديو</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoOpenFailedMessage" xml:space="preserve">
+    <value>تعذر فتح رابط الفيديو في المتصفح.</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.PlayPause" xml:space="preserve">
+    <value>تشغيل / إيقاف مؤقت</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.Rewind" xml:space="preserve">
+    <value>ترجيع 10 ثوانٍ</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.FastForward" xml:space="preserve">
+    <value>تقديم سريع 10 ثوانٍ</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.Fullscreen" xml:space="preserve">
+    <value>ملء الشاشة</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.ExitFullscreen" xml:space="preserve">
+    <value>الخروج من ملء الشاشة</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.BufferingVideo" xml:space="preserve">
+    <value>جارٍ التحميل المؤقت... {0}%</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.MuteUnmute" xml:space="preserve">
+    <value>كتم / إلغاء الكتم</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.LoadingVideo" xml:space="preserve">
+    <value>جارٍ تحميل الفيديو...</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.VideoUnavailable" xml:space="preserve">
+    <value>تشغيل الفيديو غير متوفر على هذا الجهاز.</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.VideoLoadFailed" xml:space="preserve">
+    <value>تعذر تشغيل هذا الفيديو.</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.Retry" xml:space="preserve">
+    <value>إعادة المحاولة</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.OpenInBrowser" xml:space="preserve">
+    <value>فتح في المتصفح</value>
   </data>
   <data name="Tools.PublisherStudio.Release.VariantsMode" xml:space="preserve">
     <value>إصدارات بديلة (مثل اللغات والدقات)</value>
@@ -14139,6 +14205,24 @@ https://example.com/screenshot2.png</value>
   <data name="GameProfiles.Notification.EarlyExit.UnknownCode" xml:space="preserve">
     <value>انتهت العملية قبل اكتمال التشغيل. راجع السجلات للاطلاع على التفاصيل.</value>
   </data>
+  <data name="Launch.ExitCode.ImmediateExitExplained" xml:space="preserve">
+    <value>خرجت العملية فورًا برمز الخروج {0} (0x{1}). {2}</value>
+  </data>
+  <data name="Launch.ExitCode.DllNotFound" xml:space="preserve">
+    <value>تعذر العثور على مكتبة DLL مطلوبة. تأكد من وجود جميع ملفات DLL المرفقة بالملف التنفيذي في مجلده.</value>
+  </data>
+  <data name="Launch.ExitCode.InvalidImageFormat" xml:space="preserve">
+    <value>البرنامج أو إحدى مكتبات DLL الخاصة به غير صالح لهذا النظام، وغالبًا ما يكون السبب خلط ملفات 32 بت و64 بت.</value>
+  </data>
+  <data name="Launch.ExitCode.DllInitFailed" xml:space="preserve">
+    <value>فشلت تهيئة مكتبة DLL مطلوبة.</value>
+  </data>
+  <data name="Launch.ExitCode.AccessViolation" xml:space="preserve">
+    <value>تعطلت العملية بسبب انتهاك في الوصول إلى الذاكرة.</value>
+  </data>
+  <data name="Launch.ExitCode.StackBufferOverrun" xml:space="preserve">
+    <value>أوقفت العملية نفسها بعد خطأ فادح (تجاوز سعة المخزن المؤقت للمكدس أو إنهاء فوري).</value>
+  </data>
   <data name="GameProfiles.Notification.ToolLaunchSuccess.Title" xml:space="preserve">
     <value>تم تشغيل الأداة</value>
   </data>
@@ -14181,6 +14265,18 @@ https://example.com/screenshot2.png</value>
   </data>
   <data name="Tools.PublisherStudio.Library.PasteScreenshotTooltip" xml:space="preserve">
     <value>لصق صورة أو ملف أو رابط من الحافظة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PasteVideo" xml:space="preserve">
+    <value>لصق</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PasteVideoTooltip" xml:space="preserve">
+    <value>الصق ملف فيديو أو رابط من الحافظة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoClipboardVideoTitle" xml:space="preserve">
+    <value>لم يتم العثور على فيديو</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoClipboardVideoMessage" xml:space="preserve">
+    <value>لم يتم العثور على ملف فيديو أو رابط فيديو في الحافظة.</value>
   </data>
   <data name="Tools.PublisherStudio.Library.AddVideo" xml:space="preserve">
     <value>إضافة ملف فيديو</value>
@@ -17684,5 +17780,8 @@ Error: فشل: {3}
   <data name="TextureEditor.Notify.OpenFailed.Message" xml:space="preserve"><value>فشل فتح النسيج الهدف.</value></data>
   <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
     <value>إصدارات احتياطية يدوية (تجاوزات)</value>
+  </data>
+  <data name="Launch.ExitCode.LauncherExitExplained" xml:space="preserve">
+    <value>خرج برنامج التشغيل برمز الخروج {0} قبل بدء {1}. {2}</value>
   </data>
 </root>

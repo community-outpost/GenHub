@@ -1031,6 +1031,7 @@ public class GameProfileManager(
             ? null
             : request.WorkspaceStrategy ?? profile.WorkspaceStrategy;
         profile.LaunchOptions = request.LaunchArguments ?? profile.LaunchOptions ?? [];
+        profile.EnvironmentVariables = request.EnvironmentVariables ?? profile.EnvironmentVariables ?? [];
         profile.CustomExecutablePath = request.CustomExecutablePath ?? profile.CustomExecutablePath;
         profile.WorkingDirectory = request.WorkingDirectory ?? profile.WorkingDirectory;
         profile.IconPath = request.IconPath ?? profile.IconPath;

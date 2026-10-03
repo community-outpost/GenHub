@@ -1720,7 +1720,19 @@ public class GameProcessManager(
                     exitCode,
                     archiveNames);
                 return OperationResult<GameProcessInfo>.CreateFailure(
-                    localizationService.GetString("GameProfiles.Notification.UnexpectedExit.Archives", archiveNames, exitCode));
+                    LaunchExitMessages.AppendExplanation(
+                        localizationService.GetString("GameProfiles.Notification.UnexpectedExit.Archives", archiveNames, exitCode),
+                        exitCode,
+                        localizationService));
+            }
+
+            var explained = LaunchExitMessages.DescribeImmediateExit(exitCode, stderrTail, localizationService);
+            if (explained != null)
+            {
+                logger.LogError(
+                    "[Process] {Message}",
+                    explained);
+                return OperationResult<GameProcessInfo>.CreateFailure(explained);
             }
 
             var detail = string.IsNullOrWhiteSpace(stderrTail)
@@ -1840,7 +1852,7 @@ public class GameProcessManager(
                         expectedName);
                     return OperationResult<GameProcessInfo>.CreateFailure(
                         AppendLauncherErrors(
-                            $"Launcher exited with code {exitCode} before starting {expectedName}.",
+                            LaunchExitMessages.DescribeLauncherExit(exitCode, expectedName, localizationService),
                             launcher,
                             capturedErrors));
                 }

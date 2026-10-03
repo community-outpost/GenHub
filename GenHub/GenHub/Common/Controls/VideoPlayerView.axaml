@@ -1,0 +1,190 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:GenHub.Common.Controls"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             xmlns:vlc="clr-namespace:LibVLCSharp.Avalonia;assembly=LibVLCSharp.Avalonia"
+             x:Class="GenHub.Common.Controls.VideoPlayerView"
+             x:DataType="local:VideoPlayerView"
+             Focusable="True">
+    <Grid RowDefinitions="*,Auto">
+        <!-- Flexible video stage: fills the parent dialog area -->
+        <Border x:Name="StageBorder"
+                Grid.Row="0"
+                Background="Black"
+                CornerRadius="8"
+                ClipToBounds="True"
+                MinHeight="280">
+            <Panel>
+                <vlc:VideoView x:Name="VideoHost"
+                               HorizontalAlignment="Stretch"
+                               VerticalAlignment="Stretch"
+                               IsVisible="{Binding IsVideoSurfaceVisible, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}" />
+
+                <!-- Loading overlay -->
+                <StackPanel Spacing="12"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            IsVisible="{Binding IsLoading, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}">
+                    <ProgressBar IsIndeterminate="True"
+                                 Width="200"
+                                 HorizontalAlignment="Center" />
+                    <TextBlock Text="{Binding LoadingText, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}"
+                               FontSize="13"
+                               Foreground="White"
+                               HorizontalAlignment="Center" />
+                </StackPanel>
+
+                <!-- Error overlay -->
+                <StackPanel Spacing="12"
+                            Margin="24"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            IsVisible="{Binding HasError, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}">
+                    <TextBlock Text="{localization:Localize Downloads.ContentDetail.VideoPlayer.VideoUnavailable}"
+                               FontSize="14"
+                               Foreground="White"
+                               TextWrapping="Wrap"
+                               TextAlignment="Center"
+                               HorizontalAlignment="Center"
+                               IsVisible="{Binding IsUnavailable, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}" />
+                    <TextBlock Text="{localization:Localize Downloads.ContentDetail.VideoPlayer.VideoLoadFailed}"
+                               FontSize="14"
+                               Foreground="White"
+                               TextWrapping="Wrap"
+                               TextAlignment="Center"
+                               HorizontalAlignment="Center"
+                               IsVisible="{Binding !IsUnavailable, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}" />
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="8"
+                                HorizontalAlignment="Center">
+                        <Button x:Name="RetryButton"
+                                Content="{localization:Localize Downloads.ContentDetail.VideoPlayer.Retry}"
+                                Padding="16,8"
+                                Cursor="Hand" />
+                        <Button Content="{localization:Localize Downloads.ContentDetail.VideoPlayer.OpenInBrowser}"
+                                Command="{Binding FallbackCommand, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}"
+                                CommandParameter="{Binding SourceUrl, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}"
+                                Padding="16,8"
+                                Cursor="Hand" />
+                    </StackPanel>
+                </StackPanel>
+            </Panel>
+        </Border>
+
+        <!-- Transport Control Bar -->
+        <Grid Grid.Row="1"
+              ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto,Auto"
+              Margin="0,12,0,0"
+              MinHeight="44"
+              VerticalAlignment="Center">
+            <!-- Rewind 10s -->
+            <Button x:Name="RewindButton"
+                    Grid.Column="0"
+                    Margin="0,0,4,0"
+                    Width="36"
+                    Height="36"
+                    CornerRadius="18"
+                    Cursor="Hand"
+                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.Rewind}">
+                <PathIcon Data="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"
+                          Width="16"
+                          Height="16" />
+            </Button>
+
+            <!-- Play / Pause -->
+            <Button x:Name="PlayPauseButton"
+                    Grid.Column="1"
+                    Margin="4,0"
+                    Width="44"
+                    Height="44"
+                    CornerRadius="22"
+                    Cursor="Hand"
+                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.PlayPause}">
+                <Panel>
+                    <PathIcon Data="M8 5v14l11-7z"
+                              Width="18"
+                              Height="18"
+                              IsVisible="{Binding !IsPlaying, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}" />
+                    <PathIcon Data="M6 5h4v14H6zM14 5h4v14h-4z"
+                              Width="18"
+                              Height="18"
+                              IsVisible="{Binding IsPlaying, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}" />
+                </Panel>
+            </Button>
+
+            <!-- Fast Forward 10s -->
+            <Button x:Name="FastForwardButton"
+                    Grid.Column="2"
+                    Margin="4,0,8,0"
+                    Width="36"
+                    Height="36"
+                    CornerRadius="18"
+                    Cursor="Hand"
+                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.FastForward}">
+                <PathIcon Data="M12 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 8-8 8-8z"
+                          Width="16"
+                          Height="16" />
+            </Button>
+
+            <!-- Position Slider -->
+            <Slider x:Name="PositionSlider"
+                    Grid.Column="3"
+                    Margin="8,0"
+                    Minimum="0"
+                    Maximum="1000"
+                    MinHeight="32"
+                    Foreground="{DynamicResource AccentBrush}"
+                    VerticalAlignment="Center" />
+
+            <!-- Position Text -->
+            <TextBlock Grid.Column="4"
+                       Text="{Binding PositionText, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}"
+                       Margin="8,0"
+                       FontSize="13"
+                       Foreground="{DynamicResource TextSecondary}"
+                       VerticalAlignment="Center" />
+
+            <!-- Mute / Unmute -->
+            <Button x:Name="MuteButton"
+                    Grid.Column="5"
+                    Margin="8,0,4,0"
+                    Width="36"
+                    Height="36"
+                    CornerRadius="18"
+                    Cursor="Hand"
+                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.MuteUnmute}">
+                <Panel>
+                    <PathIcon Data="M3 9v6h4l5 5V4L7 9H3z"
+                              Width="16"
+                              Height="16"
+                              IsVisible="{Binding !IsMuted, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}" />
+                    <PathIcon Data="M3 9v6h4l5 5V4L7 9H3zm13.5 3l2.5-2.5-1.4-1.4-2.5 2.5-2.5-2.5-1.4 1.4L13.7 12l-2.5 2.5 1.4 1.4 2.5-2.5 2.5 2.5 1.4-1.4-2.5-2.5z"
+                              Width="16"
+                              Height="16"
+                              IsVisible="{Binding IsMuted, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}" />
+                </Panel>
+            </Button>
+
+            <!-- Fullscreen Button -->
+            <Button x:Name="FullscreenButton"
+                    Grid.Column="6"
+                    Margin="4,0,0,0"
+                    Width="36"
+                    Height="36"
+                    CornerRadius="18"
+                    Cursor="Hand"
+                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.Fullscreen}">
+                <Panel>
+                    <PathIcon Data="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"
+                              Width="16"
+                              Height="16"
+                              IsVisible="{Binding !IsFullscreen, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}" />
+                    <PathIcon Data="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-14v3h3v2h-5V5h2z"
+                              Width="16"
+                              Height="16"
+                              IsVisible="{Binding IsFullscreen, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}" />
+                </Panel>
+            </Button>
+        </Grid>
+    </Grid>
+</UserControl>
