@@ -185,6 +185,64 @@ public class PublishShareUploadFixTests
     }
 
     /// <summary>
+    /// When the cleared rename entry cannot be persisted, the pre-rename remote file must
+    /// be kept and the entry restored so saved state never points at a deleted remote.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RenameCatalogInHostingStateAsync_SaveFails_SkipsRemoteDeleteAsync()
+    {
+        var hostingState = new HostingState
+        {
+            Catalogs =
+            [
+                new()
+                {
+                    CatalogId = "old-cat-id",
+                    CatalogName = "Old Name",
+                    FileName = "catalog-old.json",
+                    FileId = "old-remote-id",
+                    Url = "https://example.com/catalog-old.json",
+                    FileSize = 42,
+                },
+            ],
+        };
+        var container = new PublisherHostingStates
+        {
+            States = { [HostingConstants.GoogleDrive] = hostingState },
+        };
+        _mockHostingStateManager.Setup(m => m.LoadStatesAsync("/test/path/project.json", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherHostingStates>.CreateSuccess(container));
+        _mockHostingStateManager.SetupSequence(m => m.SaveStatesAsync("/test/path/project.json", It.IsAny<PublisherHostingStates>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("disk full"));
+
+        var mockProvider = new Mock<IHostingProvider>();
+        mockProvider.Setup(p => p.ProviderId).Returns(HostingConstants.GoogleDrive);
+        mockProvider.Setup(p => p.IsAuthenticated).Returns(true);
+        mockProvider.Setup(p => p.DeleteFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var project = new PublisherStudioProject { ProjectPath = "/test/path/project.json" };
+        var vm = new PublishShareViewModel(
+            project,
+            _mockStudioService.Object,
+            _mockPublishLogger.Object,
+            null,
+            _mockHostingStateManager.Object,
+            _mockNotificationService.Object);
+        vm.HostingProviders.Add(mockProvider.Object);
+
+        await vm.RenameCatalogInHostingStateAsync("old-cat-id", "new-cat-id", "New Name", "catalog-new.json");
+
+        mockProvider.Verify(p => p.DeleteFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        var renamed = hostingState.Catalogs.Find(c => c.CatalogId == "new-cat-id");
+        Assert.NotNull(renamed);
+        Assert.Equal("old-remote-id", renamed.FileId);
+        Assert.Equal("https://example.com/catalog-old.json", renamed.Url);
+    }
+
+    /// <summary>
     /// A cloud scan that still finds the pre-rename catalog file must merge it into the
     /// renamed entry instead of resurrecting it as a ghost catalog.
     /// </summary>
@@ -378,6 +436,93 @@ public class PublishShareUploadFixTests
             File.Delete(tempFile1);
             File.Delete(tempFile2);
         }
+    }
+
+    /// <summary>
+    /// Republishing a catalog must delete the previous remote file once the new hosting
+    /// state is saved, so stale remotes do not accumulate.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PublishCatalogCommand_SaveSucceeds_DeletesPreviousRemoteFileAsync()
+    {
+        var catalog = CreateSimpleCatalog();
+        var project = new PublisherStudioProject
+        {
+            ProjectPath = "/test/path/project.json",
+            Catalogs = [catalog],
+        };
+        var mockProvider = CreateCatalogOnlyProvider("id-catalog");
+        _mockHostingStateManager.Setup(m => m.SaveStatesAsync(It.IsAny<string>(), It.IsAny<PublisherHostingStates>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var vm = new PublishShareViewModel(
+            project,
+            _mockStudioService.Object,
+            _mockPublishLogger.Object,
+            null,
+            _mockHostingStateManager.Object,
+            _mockNotificationService.Object);
+        vm.HostingProviders.Add(mockProvider.Object);
+        vm.SelectedHostingProvider = mockProvider.Object;
+        var state = vm.CurrentHostingState;
+        Assert.NotNull(state);
+        state.Catalogs.Add(new CatalogHostingInfo
+        {
+            CatalogId = "cat-id",
+            FileId = "old-catalog-id",
+            Url = "https://dl.dropboxusercontent.com/s/x/old.json",
+            FileSize = 5,
+        });
+
+        await vm.PublishCatalogCommand.ExecuteAsync(catalog);
+
+        mockProvider.Verify(p => p.DeleteFileAsync("old-catalog-id", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// When hosting-state persistence fails during publish, the previous remote file must
+    /// be kept so saved state never points at a deleted remote.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PublishCatalogCommand_SaveFails_KeepsPreviousRemoteFileAsync()
+    {
+        var catalog = CreateSimpleCatalog();
+        var project = new PublisherStudioProject
+        {
+            ProjectPath = "/test/path/project.json",
+            Catalogs = [catalog],
+        };
+        var mockProvider = CreateCatalogOnlyProvider("id-catalog");
+        _mockHostingStateManager.Setup(m => m.SaveStatesAsync(It.IsAny<string>(), It.IsAny<PublisherHostingStates>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("disk full"));
+
+        var vm = new PublishShareViewModel(
+            project,
+            _mockStudioService.Object,
+            _mockPublishLogger.Object,
+            null,
+            _mockHostingStateManager.Object,
+            _mockNotificationService.Object);
+        vm.HostingProviders.Add(mockProvider.Object);
+        vm.SelectedHostingProvider = mockProvider.Object;
+        var state = vm.CurrentHostingState;
+        Assert.NotNull(state);
+        state.Catalogs.Add(new CatalogHostingInfo
+        {
+            CatalogId = "cat-id",
+            FileId = "old-catalog-id",
+            Url = "https://dl.dropboxusercontent.com/s/x/old.json",
+            FileSize = 5,
+        });
+
+        await vm.PublishCatalogCommand.ExecuteAsync(catalog);
+
+        mockProvider.Verify(
+            p => p.UploadCatalogAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+        mockProvider.Verify(p => p.DeleteFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     /// <summary>
@@ -666,5 +811,57 @@ public class PublishShareUploadFixTests
         vm.HostingProviders.Add(provider);
         vm.SelectedHostingProvider = provider;
         return vm;
+    }
+
+    private NamedCatalog CreateSimpleCatalog()
+    {
+        return new NamedCatalog
+        {
+            Id = "cat-id",
+            Name = "Catalog",
+            FileName = "catalog-cat-id.json",
+            Catalog = new PublisherCatalog
+            {
+                Content =
+                [
+                    new CatalogContentItem
+                    {
+                        Id = "content-1",
+                        Name = "Content",
+                        Releases = [new ContentRelease { Version = "1.0.0" }],
+                    },
+                ],
+            },
+        };
+    }
+
+    private Mock<IHostingProvider> CreateCatalogOnlyProvider(string catalogFileId)
+    {
+        _mockStudioService.Setup(m => m.ValidateCatalogAsync(It.IsAny<PublisherCatalog>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _mockStudioService.Setup(m => m.ExportCatalogAsync(It.IsAny<PublisherStudioProject>(), It.IsAny<NamedCatalog?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateSuccess("{\"catalog\":true}"));
+        _mockStudioService.Setup(m => m.ExportProviderDefinitionAsync(It.IsAny<PublisherStudioProject>(), It.IsAny<Dictionary<string, string>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateSuccess("{\"definition\":true}"));
+        _mockStudioService.Setup(m => m.GenerateSubscriptionUrl(It.IsAny<string>())).Returns("genhub://subscribe/test");
+        var mockProvider = new Mock<IHostingProvider>();
+        mockProvider.Setup(p => p.ProviderId).Returns(HostingConstants.Dropbox);
+        mockProvider.Setup(p => p.DisplayName).Returns("Dropbox");
+        mockProvider.Setup(p => p.RequiresAuthentication).Returns(false);
+        mockProvider.Setup(p => p.IsAuthenticated).Returns(true);
+        mockProvider.Setup(p => p.SupportsArtifactHosting).Returns(true);
+        mockProvider.Setup(p => p.SupportsCatalogHosting).Returns(true);
+        mockProvider.Setup(p => p.SupportsUpdate).Returns(false);
+        mockProvider.Setup(p => p.UploadCatalogAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<HostingUploadResult>.CreateSuccess(new HostingUploadResult
+            {
+                FileId = catalogFileId,
+                PublicUrl = "https://www.dropbox.com/s/x/catalog-cat-id.json?dl=0",
+                DirectDownloadUrl = "https://dl.dropboxusercontent.com/s/x/catalog-cat-id.json",
+                FileSize = 10,
+            }));
+        mockProvider.Setup(p => p.DeleteFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        return mockProvider;
     }
 }
