@@ -9,6 +9,7 @@ using GenHub.Features.Workspace.Strategies;
 using GenHub.Tests.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
 using Moq;
+using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.Workspace;
 
@@ -160,6 +161,48 @@ public sealed class WorkspaceVariantTests : IDisposable
         _fileOperations.Verify(
             f => f.CopyFileAsync(It.Is<string>(p => p.EndsWith(HostFileName)), It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    /// <summary>
+    /// When two manifests ship the same path, hybrid preparation materializes the copy from the
+    /// higher-priority content type, and on equal priority the copy from the later manifest,
+    /// matching the hard-link and full-copy strategies.
+    /// </summary>
+    /// <param name="firstType">The content type of the first manifest in load order.</param>
+    /// <param name="secondType">The content type of the second manifest in load order.</param>
+    /// <param name="expectedWinner">The index of the manifest whose copy must be materialized.</param>
+    /// <returns>The asynchronous test.</returns>
+    [Theory]
+    [InlineData(ContentType.Mod, ContentType.Mod, 1)]
+    [InlineData(ContentType.Addon, ContentType.Addon, 1)]
+    [InlineData(ContentType.Mod, ContentType.GameInstallation, 0)]
+    [InlineData(ContentType.GameInstallation, ContentType.Mod, 1)]
+    public async Task PrepareAsync_Hybrid_SharedPathCollision_MaterializesWinningManifestAsync(
+        ContentType firstType,
+        ContentType secondType,
+        int expectedWinner)
+    {
+        const string sharedPath = "Data/INI/GameData.ini";
+        var sources = new[] { Path.Combine(_installDir, "first.ini"), Path.Combine(_installDir, "second.ini") };
+        File.WriteAllText(sources[0], "first");
+        File.WriteAllText(sources[1], "second");
+        ContentManifest CreateCollidingManifest(string id, ContentType type, string source) => new()
+        {
+            Id = ManifestId.Create(id),
+            ContentType = type,
+            Files = [new() { RelativePath = sharedPath, SourcePath = source, Size = 5, SourceType = ContentSourceType.GameInstallation }],
+        };
+
+        var configuration = CreateConfiguration(
+            WorkspaceStrategy.HybridCopySymlink,
+            CreateCollidingManifest("1.0.test.mod.first", firstType, sources[0]));
+        configuration.Manifests.Add(CreateCollidingManifest("1.0.test.mod.second", secondType, sources[1]));
+
+        var result = await CreateStrategy(WorkspaceStrategy.HybridCopySymlink).PrepareAsync(configuration, null, CancellationToken.None);
+
+        Assert.True(result.IsPrepared);
+        Assert.True(FileOperationsTouched(sources[expectedWinner]), "The winning manifest's copy was not materialized.");
+        Assert.False(FileOperationsTouched(sources[1 - expectedWinner]), "The losing manifest's copy was materialized.");
     }
 
     /// <inheritdoc/>

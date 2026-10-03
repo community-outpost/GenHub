@@ -120,6 +120,47 @@ public class ManifestVariantConsumerTests
         }
     }
 
+    /// <summary>
+    /// A missing entry, or an entry path that leaves the workspace, never associates the alias
+    /// with the manifest: monitoring falls back to the alias name instead of failing or throwing.
+    /// </summary>
+    /// <param name="entryOutsideWorkspace">Whether the entry path escapes the workspace; otherwise the entry file is missing.</param>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DetermineMonitoringTarget_CustomAliasWithUnreadableEntry_FallsBackToAliasName(bool entryOutsideWorkspace)
+    {
+        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        var workspace = Path.Combine(root, "workspace");
+        Directory.CreateDirectory(workspace);
+        try
+        {
+            var entryName = entryOutsideWorkspace ? "../outside.dat" : "game.dat";
+            if (entryOutsideWorkspace)
+            {
+                File.WriteAllText(Path.Combine(root, "outside.dat"), "entry payload");
+            }
+
+            File.WriteAllText(Path.Combine(workspace, "generals.exe"), "entry payload");
+            var manifest = new ContentManifest
+            {
+                ContentType = ContentType.GameClient,
+                EntryPoint = entryName,
+                Files = [new() { RelativePath = entryName, IsExecutable = true, SourceType = ContentSourceType.ContentAddressable }],
+            };
+
+            var result = GameLauncher.DetermineMonitoringTarget(
+                [manifest], Path.Combine(workspace, "generals.exe"), workspace, WorkspaceStrategy.SymlinkOnly, null, NullLogger.Instance, null);
+
+            Assert.True(result.Success, result.FirstError);
+            Assert.Equal("generals", Assert.Single(result.Data!).ProcessName);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
     /// <summary>A copied alias retains CAS identity when the original entry is a link outside the workspace.</summary>
     [SymlinkFact]
     public void DetermineMonitoringTarget_CustomAliasWithCasSymlinkPreservesIdentity()
