@@ -1155,7 +1155,7 @@ public partial class PublishShareViewModel(
         PopulateCatalogAssets(providerName, ref totalBytes, ref catCount);
         PopulateArtifactAssets(providerName, ref totalBytes, ref artCount, ref cdnCount);
         PopulateMediaAssets(providerName, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
-        PopulateCloudScanAssets(providerName, ref totalBytes, ref catCount, ref artCount, ref screenshotCount, ref videoCount);
+        PopulateCloudScanAssets(providerName, ref totalBytes, ref defCount, ref catCount, ref artCount, ref screenshotCount, ref videoCount);
 
         foreach (var item in HostedAssets)
         {
@@ -1903,6 +1903,7 @@ public partial class PublishShareViewModel(
         {
             artifact.Size = artSize;
         }
+
         var artUpdated = artHosting?.LastUpdated ?? DateTime.MinValue;
 
         var (location, status) = ResolveArtifactLocationAndStatus(
@@ -2075,12 +2076,12 @@ public partial class PublishShareViewModel(
 
     private void UpdateProjectArtifactSizes(string url, long size)
     {
-        if (_project.Catalogs == null)
+        if (project.Catalogs == null)
         {
             return;
         }
 
-        foreach (var namedCatalog in _project.Catalogs)
+        foreach (var namedCatalog in project.Catalogs)
         {
             if (namedCatalog.Catalog?.Content == null)
             {
@@ -2356,14 +2357,14 @@ public partial class PublishShareViewModel(
         }
     }
 
-    private void PopulateCloudScanAssets(string providerName, ref long totalBytes, ref int catCount, ref int artCount, ref int screenshotCount, ref int videoCount)
+    private void PopulateCloudScanAssets(string providerName, ref long totalBytes, ref int defCount, ref int catCount, ref int artCount, ref int screenshotCount, ref int videoCount)
     {
         if (_currentHostingState == null)
         {
             return;
         }
 
-        PopulateDiscoveredDefinitions(providerName, ref totalBytes);
+        PopulateDiscoveredDefinitions(providerName, ref totalBytes, ref defCount);
         PopulateDiscoveredCatalogs(providerName, ref totalBytes, ref catCount);
         PopulateDiscoveredArtifacts(providerName, ref totalBytes, ref artCount, ref screenshotCount, ref videoCount);
     }
@@ -2389,7 +2390,7 @@ public partial class PublishShareViewModel(
             (!string.IsNullOrEmpty(a.Name) && !string.IsNullOrEmpty(cloudArt.FileName) && string.Equals(a.Name, cloudArt.FileName, StringComparison.OrdinalIgnoreCase)));
     }
 
-    private void PopulateDiscoveredDefinitions(string providerName, ref long totalBytes)
+    private void PopulateDiscoveredDefinitions(string providerName, ref long totalBytes, ref int defCount)
     {
         if (_currentHostingState == null)
         {
@@ -2399,7 +2400,7 @@ public partial class PublishShareViewModel(
         foreach (var cloudDef in _currentHostingState.Definitions.Where(cloudDef => !IsDefinitionRepresentedInHostedAssets(cloudDef)))
         {
             totalBytes += cloudDef.FileSize;
-            HostedDefinitionCount++;
+            defCount++;
             var stem = Path.GetFileNameWithoutExtension(cloudDef.FileName);
             var categoryName = FormatLocalizedString("Tools.PublisherStudio.Hosting.AssetCategoryCloudDefinitionFormat", "Cloud Publisher Definition ({0})", stem);
 
@@ -2416,7 +2417,7 @@ public partial class PublishShareViewModel(
                 Location = $"{providerName} ({HostingFolderPath})",
                 FileSize = cloudDef.FileSize,
                 Url = cloudDef.Url,
-                Status = HostingConstants.StatusLiveOnline,
+                Status = GetLocalizedString(StatusLiveOnlineKey, HostingConstants.StatusLiveOnline),
                 IsOnline = true,
                 IsExternalCdn = false,
                 LastUpdated = cloudDef.LastUpdated,
@@ -2457,7 +2458,7 @@ public partial class PublishShareViewModel(
                 Location = $"{providerName} ({HostingFolderPath})",
                 FileSize = cloudCat.FileSize,
                 Url = cloudCat.Url,
-                Status = HostingConstants.StatusLiveOnline,
+                Status = GetLocalizedString(StatusLiveOnlineKey, HostingConstants.StatusLiveOnline),
                 IsOnline = true,
                 IsExternalCdn = false,
                 LastUpdated = cloudCat.LastUpdated,
@@ -2514,7 +2515,7 @@ public partial class PublishShareViewModel(
                 Location = $"{providerName} ({HostingFolderPath})",
                 FileSize = cloudArt.FileSize,
                 Url = cloudArt.Url,
-                Status = HostingConstants.StatusLiveOnline,
+                Status = GetLocalizedString(StatusLiveOnlineKey, HostingConstants.StatusLiveOnline),
                 IsOnline = true,
                 IsExternalCdn = false,
                 LastUpdated = cloudArt.LastUpdated,
@@ -2828,9 +2829,15 @@ public partial class PublishShareViewModel(
     private void BuildCatalogChildren(HostedAssetItemViewModel item, NamedCatalog catalog)
     {
         item.Children.Clear();
-        foreach (var content in catalog.Catalog.Content)
+        if (catalog.Catalog?.Content != null)
         {
-            item.Children.Add(BuildContentChild(content, item.Url));
+            foreach (var content in catalog.Catalog.Content)
+            {
+                if (content != null)
+                {
+                    item.Children.Add(BuildContentChild(content, item.Url));
+                }
+            }
         }
 
         item.HasChildren = item.Children.Count > 0;
@@ -2842,7 +2849,7 @@ public partial class PublishShareViewModel(
             "Tools.PublisherStudio.Hosting.LinkedToCatalogTipFormat",
             "Listed in {0} · {1} content item(s)",
             project.ProviderDefinitionFileName ?? HostingConstants.DefaultDefinitionFileName,
-            catalog.Catalog.Content.Count);
+            catalog.Catalog?.Content?.Count ?? 0);
     }
 
     private void BuildReferenceChildren(HostedAssetItemViewModel item)
@@ -2871,9 +2878,9 @@ public partial class PublishShareViewModel(
 
     private HostedAssetChildViewModel BuildContentChild(CatalogContentItem content, string copyUrl)
     {
-        var releaseCount = content.Releases.Count + content.AddonReleases.Count;
-        var fileCount = content.Releases.SelectMany(r => r.Artifacts).Count() +
-            content.AddonReleases.SelectMany(r => r.Artifacts).Count();
+        var releaseCount = (content.Releases?.Count ?? 0) + (content.AddonReleases?.Count ?? 0);
+        var fileCount = (content.Releases?.SelectMany(r => r.Artifacts ?? [])?.Count() ?? 0) +
+            (content.AddonReleases?.SelectMany(r => r.Artifacts ?? [])?.Count() ?? 0);
         var contentTypeKey = $"ContentType.{content.ContentType}";
         var contentTypeLabel = GetLocalizedString(contentTypeKey, content.ContentType.GetDisplayName());
         if (string.Equals(contentTypeLabel, contentTypeKey, StringComparison.Ordinal))
@@ -7660,7 +7667,14 @@ public partial class PublishShareViewModel(
 
             if (SaveProjectCallback != null)
             {
-                await SaveProjectCallback();
+                try
+                {
+                    await SaveProjectCallback();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "SaveProjectCallback failed after deleting definition asset {Name}", asset.Name);
+                }
             }
 
             _linkageIndex = null;
@@ -7833,7 +7847,7 @@ public partial class PublishShareViewModel(
             lines.Append(' ');
             lines.Append(FormatLocalizedString(
                 "Tools.PublisherStudio.Hosting.DeleteCatalogOrphansLineFormat",
-                "{0} file(s) on Drive are only used by this catalog and will become unlinked (kept on Drive): {1}.",
+                "{0} file(s) in cloud storage are only used by this catalog and will become unlinked (kept in cloud storage): {1}.",
                 orphans.Count,
                 string.Join(", ", orphans.Take(5)) + (orphans.Count > 5 ? " " + FormatLocalizedString(LinkedToMoreRefsFormatKey, LinkedToMoreRefsFormatDefault, orphans.Count - 5) : string.Empty)));
         }
@@ -7971,12 +7985,26 @@ public partial class PublishShareViewModel(
             project.IsDirty = true;
             if (SaveProjectCallback != null)
             {
-                await SaveProjectCallback();
+                try
+                {
+                    await SaveProjectCallback();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "SaveProjectCallback failed after deleting catalog {CatalogId}", catalogId);
+                }
             }
 
             if (ProjectReloadCallback != null)
             {
-                await ProjectReloadCallback();
+                try
+                {
+                    await ProjectReloadCallback();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "ProjectReloadCallback failed after deleting catalog {CatalogId}", catalogId);
+                }
             }
         }
 
@@ -8001,7 +8029,7 @@ public partial class PublishShareViewModel(
         if (orphans.Count > 0)
         {
             message.Append(' ');
-            message.Append(FormatLocalizedString("Tools.PublisherStudio.Hosting.DeleteOrphansKeptNoteFormat", "{0} orphaned file(s) were kept on Drive and can be deleted individually.", orphans.Count));
+            message.Append(FormatLocalizedString("Tools.PublisherStudio.Hosting.DeleteOrphansKeptNoteFormat", "{0} orphaned file(s) were kept in cloud storage and can be deleted individually.", orphans.Count));
         }
 
         if (!definitionFixed)

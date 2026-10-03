@@ -385,7 +385,8 @@ public class PublishShareUploadFixTests
                 new()
                 {
                     CatalogId = "old-cat-id",
-                    CatalogName = "Old Name",                    FileName = "catalog-old.json",
+                    CatalogName = "Old Name",
+                    FileName = "catalog-old.json",
                     FileId = "old-remote-id",
                     Url = "https://example.com/catalog-old.json",
                     FileSize = 42,
@@ -399,6 +400,7 @@ public class PublishShareUploadFixTests
         _mockHostingStateManager.Setup(m => m.LoadStatesAsync("/test/path/project.json", It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<PublisherHostingStates>.CreateSuccess(container));
         var savedSnapshots = new List<PublisherHostingStates>();
+        var saveCallCount = 0;
         _mockHostingStateManager.Setup(m => m.SaveStatesAsync("/test/path/project.json", It.IsAny<PublisherHostingStates>(), It.IsAny<CancellationToken>()))
             .Callback<string, PublisherHostingStates, CancellationToken>((_, states, _) =>
             {
@@ -420,7 +422,9 @@ public class PublishShareUploadFixTests
 
                 savedSnapshots.Add(snapshot);
             })
-            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+            .ReturnsAsync(() => ++saveCallCount == 1
+                ? OperationResult<bool>.CreateSuccess(true)
+                : OperationResult<bool>.CreateFailure("restore save failed"));
 
         var mockProvider = new Mock<IHostingProvider>();
         mockProvider.Setup(p => p.ProviderId).Returns(HostingConstants.GoogleDrive);
@@ -450,6 +454,7 @@ public class PublishShareUploadFixTests
         Assert.NotNull(lastPersisted);
         Assert.Equal("old-remote-id", lastPersisted.FileId);
         Assert.Equal("https://example.com/catalog-old.json", lastPersisted.Url);
+        _mockNotificationService.Verify(n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>()), Times.AtLeastOnce);
     }
 
     /// <summary>
