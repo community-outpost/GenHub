@@ -530,7 +530,7 @@ public class ContentOrchestrator : IContentOrchestrator
                             Phase = ContentAcquisitionPhase.Downloading,
                             ProgressPercentage = scaledPct,
                             CurrentOperation = p.CurrentOperation ?? "Preparing content via provider pipeline",
-                            BytesDownloaded = p.BytesDownloaded,
+                            BytesProcessed = p.BytesProcessed,
                             TotalBytes = p.TotalBytes,
                             FilesProcessed = p.FilesProcessed,
                             TotalFiles = p.TotalFiles,
