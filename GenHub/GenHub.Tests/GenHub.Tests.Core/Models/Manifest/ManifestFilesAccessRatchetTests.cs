@@ -60,7 +60,6 @@ public class ManifestFilesAccessRatchetTests
     /// </summary>
     private static readonly string[] PendingMigration =
     [
-        "GenHub.Features.GameProfiles.Services.ProfileSharingService",
     ];
 
     /// <summary>

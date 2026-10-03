@@ -1040,6 +1040,7 @@ Error messages for manifests whose files or platform variants cannot be stored, 
 | `FileCollectionIsNull` | `"Manifest Files collection{0} is null."` | Structural check of a null file list; `{0}` is the location suffix, such as `" in variant 1"` |
 | `FileEntryIsNull` | `"File at index {0}{1} is null."` | Structural check of a null file entry; `{0}` is the file index, `{1}` the location suffix |
 | `FileEntryMissingRelativePath` | `"File at index {0}{1} is missing its RelativePath."` | Structural check of a file entry without a relative path; `{0}` is the file index, `{1}` the location suffix |
+| `CannotExportNoHostVariant` | `"Cannot export '{0}': no variant supports this host ({1})."` | Exporting a profile whose manifest has no variant for the current host; `{0}` is the manifest name, `{1}` the runtime identifier |
 
 ---
 
