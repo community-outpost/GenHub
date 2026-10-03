@@ -43,6 +43,21 @@ public class GeneralsOnlineManifestFactory(
         bool IsMap,
         bool IsGameData);
 
+    /// <summary>
+    /// Resolved endpoint URLs and branding assets for Generals Online.
+    /// </summary>
+    /// <param name="WebsiteUrl">The website URL.</param>
+    /// <param name="SupportUrl">The support URL.</param>
+    /// <param name="DownloadPageUrl">The download page URL.</param>
+    /// <param name="IconUrl">The content icon URL.</param>
+    /// <param name="CoverSource">The cover artwork source.</param>
+    private readonly record struct ProviderResolvedEndpoints(
+        string WebsiteUrl,
+        string SupportUrl,
+        string DownloadPageUrl,
+        string IconUrl,
+        string CoverSource);
+
     private static readonly MmddyyQfeVersionScheme GeneralsOnlineVersionScheme = new();
 
     /// <inheritdoc />
@@ -60,14 +75,8 @@ public class GeneralsOnlineManifestFactory(
         string variantSuffix,
         string displayName)
     {
+        var endpoints = ResolveProviderEndpoints();
         var provider = providerLoader.GetProvider(PublisherTypeConstants.GeneralsOnline);
-        var websiteUrl = provider?.Endpoints.WebsiteUrl ?? GeneralsOnlineConstants.WebsiteUrl;
-        var supportUrl = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.SupportUrl) ?? GeneralsOnlineConstants.SupportUrl;
-        var downloadPageUrl = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.DownloadPageUrl) ?? GeneralsOnlineConstants.DownloadPageUrl;
-        var configuredIcon = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.IconUrl);
-        var iconUrl = !string.IsNullOrWhiteSpace(configuredIcon) ? configuredIcon : GeneralsOnlineConstants.LogoSource;
-        var configuredCover = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.CoverUrl);
-        var coverSource = !string.IsNullOrWhiteSpace(configuredCover) ? configuredCover : GeneralsOnlineConstants.CoverSource;
         var tags = provider?.DefaultTags ?? [.. GeneralsOnlineConstants.Tags];
 
         // Parse version to extract numeric version (remove dots and QFE markers)
@@ -106,23 +115,15 @@ public class GeneralsOnlineManifestFactory(
             TargetGame = GameType.ZeroHour,
             OriginalProviderName = PublisherTypeConstants.GeneralsOnline,
             OriginalContentId = $"{GeneralsOnlineConstants.ContentIdPrefix}{release.Version}",
-            Publisher = new PublisherInfo
-            {
-                Name = GeneralsOnlineConstants.PublisherName,
-                PublisherType = PublisherTypeConstants.GeneralsOnline,
-                Website = websiteUrl,
-                SupportUrl = supportUrl,
-                ContentIndexUrl = downloadPageUrl,
-                UpdateCheckIntervalHours = GeneralsOnlineConstants.UpdateCheckIntervalHours,
-            },
+            Publisher = CreatePublisherInfo(endpoints),
             Metadata = CreateContentMetadata(
                 description,
                 release.ReleaseDate,
-                iconUrl,
+                endpoints.IconUrl,
                 [.. tags, .. GetVariantTags(variantSuffix)],
                 release.Changelog,
                 release.Version,
-                coverSource),
+                endpoints.CoverSource),
             Files =
             [
                 new ManifestFile
@@ -482,6 +483,22 @@ public class GeneralsOnlineManifestFactory(
     }
 
     /// <summary>
+    /// Creates a publisher info instance for Generals Online.
+    /// </summary>
+    private static PublisherInfo CreatePublisherInfo(ProviderResolvedEndpoints endpoints)
+    {
+        return new PublisherInfo
+        {
+            Name = GeneralsOnlineConstants.PublisherName,
+            PublisherType = PublisherTypeConstants.GeneralsOnline,
+            Website = endpoints.WebsiteUrl,
+            SupportUrl = endpoints.SupportUrl,
+            ContentIndexUrl = endpoints.DownloadPageUrl,
+            UpdateCheckIntervalHours = GeneralsOnlineConstants.UpdateCheckIntervalHours,
+        };
+    }
+
+    /// <summary>
     /// Creates a content metadata instance with unified variant grouping and artwork applied.
     /// </summary>
     private static ContentMetadata CreateContentMetadata(
@@ -507,13 +524,7 @@ public class GeneralsOnlineManifestFactory(
         };
     }
 
-    /// <summary>
-    /// Creates a content manifest for the GeneralsOnlineGameData data patch.
-    /// This manifest contains game data files (community balance patch and core INI configuration).
-    /// </summary>
-    /// <param name="release">The Generals Online release information.</param>
-    /// <returns>A content manifest for the GeneralsOnlineGameData data patch.</returns>
-    private ContentManifest CreateGameDataPatchManifest(GeneralsOnlineRelease release)
+    private ProviderResolvedEndpoints ResolveProviderEndpoints()
     {
         var provider = providerLoader.GetProvider(PublisherTypeConstants.GeneralsOnline);
         var websiteUrl = provider?.Endpoints.WebsiteUrl ?? GeneralsOnlineConstants.WebsiteUrl;
@@ -523,6 +534,19 @@ public class GeneralsOnlineManifestFactory(
         var iconUrl = !string.IsNullOrWhiteSpace(configuredIcon) ? configuredIcon : GeneralsOnlineConstants.LogoSource;
         var configuredCover = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.CoverUrl);
         var coverSource = !string.IsNullOrWhiteSpace(configuredCover) ? configuredCover : GeneralsOnlineConstants.CoverSource;
+
+        return new ProviderResolvedEndpoints(websiteUrl, supportUrl, downloadPageUrl, iconUrl, coverSource);
+    }
+
+    /// <summary>
+    /// Creates a content manifest for the GeneralsOnlineGameData data patch.
+    /// This manifest contains game data files (community balance patch and core INI configuration).
+    /// </summary>
+    /// <param name="release">The Generals Online release information.</param>
+    /// <returns>A content manifest for the GeneralsOnlineGameData data patch.</returns>
+    private ContentManifest CreateGameDataPatchManifest(GeneralsOnlineRelease release)
+    {
+        var endpoints = ResolveProviderEndpoints();
         var userVersion = ParseVersionForManifestId(release.Version);
         var manifestId = ManifestId.Create(ManifestIdGenerator.GeneratePublisherContentId(
             PublisherTypeConstants.GeneralsOnline,
@@ -539,23 +563,15 @@ public class GeneralsOnlineManifestFactory(
             TargetGame = GameType.ZeroHour,
             OriginalProviderName = PublisherTypeConstants.GeneralsOnline,
             OriginalContentId = $"{GeneralsOnlineConstants.ContentIdPrefix}{release.Version}_Patch",
-            Publisher = new PublisherInfo
-            {
-                Name = GeneralsOnlineConstants.PublisherName,
-                PublisherType = PublisherTypeConstants.GeneralsOnline,
-                Website = websiteUrl,
-                SupportUrl = supportUrl,
-                ContentIndexUrl = downloadPageUrl,
-                UpdateCheckIntervalHours = GeneralsOnlineConstants.UpdateCheckIntervalHours,
-            },
+            Publisher = CreatePublisherInfo(endpoints),
             Metadata = CreateContentMetadata(
                 GeneralsOnlineConstants.GameDataDescription,
                 release.ReleaseDate,
-                iconUrl,
+                endpoints.IconUrl,
                 [.. GeneralsOnlineConstants.GameDataTags, .. GetVariantTags(GeneralsOnlineConstants.GameDataPatchSuffix)],
                 release.Changelog,
                 release.Version,
-                coverSource),
+                endpoints.CoverSource),
 
             // Files will be populated during extraction
             Files = [],
@@ -572,14 +588,7 @@ public class GeneralsOnlineManifestFactory(
     /// <returns>A content manifest for the QuickMatch MapPack.</returns>
     private ContentManifest CreateQuickMatchMapPackManifest(GeneralsOnlineRelease release)
     {
-        var provider = providerLoader.GetProvider(PublisherTypeConstants.GeneralsOnline);
-        var websiteUrl = provider?.Endpoints.WebsiteUrl ?? GeneralsOnlineConstants.WebsiteUrl;
-        var supportUrl = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.SupportUrl) ?? GeneralsOnlineConstants.SupportUrl;
-        var downloadPageUrl = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.DownloadPageUrl) ?? GeneralsOnlineConstants.DownloadPageUrl;
-        var configuredIcon = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.IconUrl);
-        var iconUrl = !string.IsNullOrWhiteSpace(configuredIcon) ? configuredIcon : GeneralsOnlineConstants.LogoSource;
-        var configuredCover = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.CoverUrl);
-        var coverSource = !string.IsNullOrWhiteSpace(configuredCover) ? configuredCover : GeneralsOnlineConstants.CoverSource;
+        var endpoints = ResolveProviderEndpoints();
         var userVersion = ParseVersionForManifestId(release.Version);
         var manifestId = ManifestId.Create(ManifestIdGenerator.GeneratePublisherContentId(
             PublisherTypeConstants.GeneralsOnline,
@@ -596,23 +605,15 @@ public class GeneralsOnlineManifestFactory(
             TargetGame = GameType.ZeroHour,
             OriginalProviderName = PublisherTypeConstants.GeneralsOnline,
             OriginalContentId = $"{GeneralsOnlineConstants.ContentIdPrefix}{release.Version}_MapPack",
-            Publisher = new PublisherInfo
-            {
-                Name = GeneralsOnlineConstants.PublisherName,
-                PublisherType = PublisherTypeConstants.GeneralsOnline,
-                Website = websiteUrl,
-                SupportUrl = supportUrl,
-                ContentIndexUrl = downloadPageUrl,
-                UpdateCheckIntervalHours = GeneralsOnlineConstants.UpdateCheckIntervalHours,
-            },
+            Publisher = CreatePublisherInfo(endpoints),
             Metadata = CreateContentMetadata(
                 GeneralsOnlineConstants.QuickMatchMapPackDescription,
                 release.ReleaseDate,
-                iconUrl,
+                endpoints.IconUrl,
                 GeneralsOnlineConstants.MapPackTags,
                 release.Changelog,
                 release.Version,
-                coverSource),
+                endpoints.CoverSource),
             Files = [], // Files will be populated during extraction
             Dependencies =
             [
@@ -644,25 +645,12 @@ public class GeneralsOnlineManifestFactory(
             : $"{GeneralsOnlineConstants.ContentIdPrefix}{version}";
 
         // Get URLs from provider definition (prefer original manifest metadata if available)
-        var provider = providerLoader.GetProvider(PublisherTypeConstants.GeneralsOnline);
-        var websiteUrl = provider?.Endpoints.WebsiteUrl ?? GeneralsOnlineConstants.WebsiteUrl;
-        var supportUrl = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.SupportUrl) ?? GeneralsOnlineConstants.SupportUrl;
-        var downloadPageUrl = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.DownloadPageUrl) ?? GeneralsOnlineConstants.DownloadPageUrl;
-        var configuredIcon = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.IconUrl);
-        var iconUrl = !string.IsNullOrWhiteSpace(configuredIcon) ? configuredIcon : GeneralsOnlineConstants.LogoSource;
-        var configuredCover = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.CoverUrl);
-        var coverSource = !string.IsNullOrWhiteSpace(configuredCover) ? configuredCover : GeneralsOnlineConstants.CoverSource;
+        var endpoints = ResolveProviderEndpoints();
+        var iconUrl = endpoints.IconUrl;
+        var coverSource = endpoints.CoverSource;
 
         // Create publisher info once (shared by all variants)
-        var publisherInfo = new PublisherInfo
-        {
-            Name = GeneralsOnlineConstants.PublisherName,
-            PublisherType = PublisherTypeConstants.GeneralsOnline,
-            Website = websiteUrl,
-            SupportUrl = supportUrl,
-            ContentIndexUrl = downloadPageUrl,
-            UpdateCheckIntervalHours = GeneralsOnlineConstants.UpdateCheckIntervalHours,
-        };
+        var publisherInfo = CreatePublisherInfo(endpoints);
 
         // Create metadata template
         var releaseDate = originalManifest.Metadata?.ReleaseDate ?? DateTime.UtcNow;
