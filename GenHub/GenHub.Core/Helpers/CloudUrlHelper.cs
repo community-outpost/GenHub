@@ -153,7 +153,7 @@ public static partial class CloudUrlHelper
                 var action = resolvedUri.ToString();
                 var inputMatches = GoogleDriveFormInputRegex.Matches(formInnerHtml);
                 var queryParams = inputMatches
-                    .Select(m => $"{Uri.EscapeDataString(m.Groups[1].Value)}={Uri.EscapeDataString(m.Groups[2].Value)}")
+                    .Select(m => $"{Uri.EscapeDataString(System.Net.WebUtility.HtmlDecode(m.Groups[1].Value))}={Uri.EscapeDataString(System.Net.WebUtility.HtmlDecode(m.Groups[2].Value))}")
                     .ToList();
 
                 if (queryParams.Count > 0)
