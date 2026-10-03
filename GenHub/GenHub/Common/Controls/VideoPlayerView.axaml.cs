@@ -4,11 +4,12 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
+using GenHub.Core.Interfaces.Common;
 using LibVLCSharp.Shared;
 using System;
 using System.Windows.Input;
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Common;
 
 namespace GenHub.Common.Controls;
 
@@ -96,6 +97,10 @@ public partial class VideoPlayerView : UserControl
     private const int PositionPollIntervalMs = 500;
     private const int ConnectionTimeoutSeconds = 20;
     private const long SkipStepMilliseconds = 10000;
+    private const string DefaultLoadingVideoText = "Loading video...";
+    private const string DefaultBufferingVideoText = "Buffering... {0}%";
+    private const string LoadingVideoResourceKey = "Downloads.ContentDetail.VideoPlayer.LoadingVideo";
+    private const string BufferingVideoResourceKey = "Downloads.ContentDetail.VideoPlayer.BufferingVideo";
 
     private static readonly object SyncRoot = new();
     private static LibVLC? sharedLibVlc;
@@ -115,7 +120,7 @@ public partial class VideoPlayerView : UserControl
     private bool isMuted;
     private bool isVideoSurfaceVisible;
     private string positionText = FormatTime(0) + " / " + FormatTime(0);
-    private string loadingText = "Loading video...";
+    private string loadingText = DefaultLoadingVideoText;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="VideoPlayerView"/> class.
@@ -449,17 +454,13 @@ public partial class VideoPlayerView : UserControl
 
     private static string GetLocalizedString(string key, string fallback, params object[] args)
     {
-        if (Application.Current?.TryGetResource(LocalizationConstants.ResourceServiceKey, theme: null, out var resource) == true &&
-            resource is ILocalizationService localizationService)
-        {
-            return args.Length > 0
-                ? localizationService.GetLocalizedString(key, fallback, args)
-                : localizationService.GetLocalizedString(key, fallback);
-        }
+        var localizationService = Application.Current?.TryGetResource(LocalizationConstants.ResourceServiceKey, theme: null, out var resource) == true
+            ? resource as ILocalizationService
+            : null;
 
         return args.Length > 0
-            ? string.Format(System.Globalization.CultureInfo.CurrentCulture, fallback, args)
-            : fallback;
+            ? localizationService.GetLocalizedString(key, fallback, args)
+            : localizationService.GetLocalizedString(key, fallback);
     }
 
     private static string FormatTime(long milliseconds)
@@ -522,7 +523,7 @@ public partial class VideoPlayerView : UserControl
             if (ReferenceEquals(mediaPlayer, player) && !HasError)
             {
                 IsLoading = true;
-                LoadingText = GetLocalizedString("Downloads.ContentDetail.VideoPlayer.LoadingVideo", "Loading video...");
+                LoadingText = GetLocalizedString(LoadingVideoResourceKey, DefaultLoadingVideoText);
             }
         });
         player.Buffering += (_, e) => Dispatcher.UIThread.Post(() =>
@@ -535,12 +536,12 @@ public partial class VideoPlayerView : UserControl
             if (e.Cache < 100f)
             {
                 IsLoading = true;
-                LoadingText = GetLocalizedString("Downloads.ContentDetail.VideoPlayer.BufferingVideo", "Buffering... {0}%", Math.Round(e.Cache));
+                LoadingText = GetLocalizedString(BufferingVideoResourceKey, DefaultBufferingVideoText, Math.Round(e.Cache));
             }
             else
             {
                 IsLoading = false;
-                LoadingText = GetLocalizedString("Downloads.ContentDetail.VideoPlayer.LoadingVideo", "Loading video...");
+                LoadingText = GetLocalizedString(LoadingVideoResourceKey, DefaultLoadingVideoText);
             }
         });
         player.Playing += (_, _) => Dispatcher.UIThread.Post(() => UpdatePlayingState(player, isPlaying: true));
@@ -577,7 +578,7 @@ public partial class VideoPlayerView : UserControl
         IsPlaying = false;
         isScrubbing = false;
         IsLoading = true;
-        LoadingText = GetLocalizedString("Downloads.ContentDetail.VideoPlayer.LoadingVideo", "Loading video...");
+        LoadingText = GetLocalizedString(LoadingVideoResourceKey, DefaultLoadingVideoText);
         PositionSlider.Value = 0;
         PositionText = FormatTime(0) + " / " + FormatTime(0);
         UpdateSurfaceVisibility();
