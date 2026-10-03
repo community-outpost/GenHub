@@ -193,7 +193,7 @@ public sealed partial class ImportProfileInspectionViewModel(
             return string.Format(System.Globalization.CultureInfo.CurrentCulture, format, formattedBytes);
         }
 
-        if ((result?.MissingManifestCount ?? 0) > 0)
+        if (result?.Manifests.Any(m => !m.IsCachedLocally && !ProfileSharingService.CannotBeAcquired(m)) == true)
         {
             return locService?.GetString("GameProfiles.ImportInspection.Button.ImportAndDownload") ?? "Import & Download";
         }
@@ -294,6 +294,7 @@ public sealed partial class ImportProfileInspectionViewModel(
     {
         var addedMissingDownloadSources = false;
         var addedOtherPlatformWarnings = false;
+        var addedPlatformResolutionWarnings = false;
         foreach (var code in codes)
         {
             if (code == ProfileSecurityWarningCode.MissingDownloadSource)
@@ -302,6 +303,19 @@ public sealed partial class ImportProfileInspectionViewModel(
                 {
                     addedMissingDownloadSources = true;
                     AddMissingDownloadSourceWarnings(warnings, result, localizationService);
+                }
+
+                continue;
+            }
+
+            if (code == ProfileSecurityWarningCode.RequiresPlatformResolution)
+            {
+                if (!addedPlatformResolutionWarnings)
+                {
+                    addedPlatformResolutionWarnings = true;
+                    warnings.AddRange(result.Manifests
+                        .Where(ProfileSharingService.RequiresPlatformResolution)
+                        .Select(manifest => ProfileSharingService.FormatPlatformResolution(manifest, localizationService)));
                 }
 
                 continue;
@@ -423,7 +437,7 @@ public sealed partial class ImportProfileInspectionViewModel(
         SharedProfileInspectionResult result,
         ILocalizationService? localizationService)
     {
-        if (result.MissingManifestCount > 0 && result.TotalDownloadBytesRequired == 0)
+        if (result.TotalDownloadBytesRequired == 0 && result.Manifests.Any(m => !m.IsCachedLocally && !ProfileSharingService.CannotBeAcquired(m)))
         {
             var msg = localizationService?.GetString("GameProfiles.ImportInspection.Warning.MissingSizes")
                 ?? "Some required dependencies do not report an exact download size. Additional downloads will occur during import.";

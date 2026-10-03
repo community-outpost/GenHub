@@ -377,6 +377,19 @@ public class ProfileSharingService(
             string.Join(", ", dependency.RuntimeIdentifiers ?? []),
             ManifestVariantResolver.CurrentRuntimeIdentifier);
 
+    /// <summary>Determines whether a dependency needs a provider lookup for this platform.</summary>
+    /// <param name="dependency">The shared dependency.</param>
+    /// <returns>Whether the sender's files must be replaced by a provider build.</returns>
+    internal static bool RequiresPlatformResolution(SharedManifestDependency dependency) =>
+        IsBuiltForOtherPlatform(dependency) && !IsLocalOrSourcelessDependency(dependency);
+
+    /// <summary>Explains that the compatible shared version must be located before its size is known.</summary>
+    /// <param name="dependency">The shared dependency.</param>
+    /// <param name="localization">The localization service.</param>
+    /// <returns>The localized provider lookup warning.</returns>
+    internal static string FormatPlatformResolution(SharedManifestDependency dependency, ILocalizationService? localization) =>
+        LaunchExitMessages.GetString(ProfileSharingConstants.PlatformResolutionWarningKey, localization, dependency.DisplayName, dependency.Version);
+
     /// <summary>
     /// Determines whether an import has no way to acquire a dependency, either because it has no
     /// download source or because it is local content shared for another platform.
@@ -1407,6 +1420,12 @@ public class ProfileSharingService(
             securityWarnings.Add(FormatBuiltForOtherPlatform(manifest, null));
             securityWarningCodes?.Add(ProfileSecurityWarningCode.BuiltForOtherPlatform);
         }
+
+        foreach (var manifest in manifests.Where(RequiresPlatformResolution))
+        {
+            securityWarnings.Add(FormatPlatformResolution(manifest, null));
+            securityWarningCodes?.Add(ProfileSecurityWarningCode.RequiresPlatformResolution);
+        }
     }
 
     private static string? ResolvePackageUrl(SharedManifestDependency dependency) =>
@@ -1537,10 +1556,11 @@ public class ProfileSharingService(
         IEnumerable<ContentSearchResult> results,
         SharedManifestDependency dependency)
     {
-        // Prefer the shared version within every match tier, so re-resolving does not silently
-        // install a newer build. A tier still matches another version when none is shared.
+        // Cross-platform resolution must preserve the shared version. Normal legacy fallback
+        // retains its version preference when the original build is unavailable.
         var resultList = results
             .Where(r => IsCandidateCompatible(r, dependency))
+            .Where(r => !IsBuiltForOtherPlatform(dependency) || string.Equals(r.Version, dependency.Version, StringComparison.OrdinalIgnoreCase))
             .OrderByDescending(r => string.Equals(r.Version, dependency.Version, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
@@ -1996,10 +2016,13 @@ public class ProfileSharingService(
             return OperationResult<string>.CreateFailure($"Invalid dependency manifest ID '{dep.ManifestId}'.");
         }
 
-        var isCachedResult = await manifestPool.IsManifestAcquiredAsync(dep.ManifestId, cancellationToken);
-        if (isCachedResult.Success && isCachedResult.Data)
+        if (!IsBuiltForOtherPlatform(dep))
         {
-            return OperationResult<string>.CreateSuccess(dep.ManifestId);
+            var isCachedResult = await manifestPool.IsManifestAcquiredAsync(dep.ManifestId, cancellationToken);
+            if (isCachedResult.Success && isCachedResult.Data)
+            {
+                return OperationResult<string>.CreateSuccess(dep.ManifestId);
+            }
         }
 
         logger?.LogInformation("Acquiring missing dependency for profile import: {ManifestId}", dep.ManifestId);
@@ -3282,10 +3305,10 @@ public class ProfileSharingService(
         var searchResult = await ExecuteFallbackSearchAsync(dependency, targetProvider, cancellationToken);
         if (searchResult.Success && searchResult.Data != null)
         {
-            var match = FindMatchingResult(searchResult.Data, dependency);
-            if (match != null)
+            var acquired = await TryAcquireFallbackCandidatesAsync(searchResult.Data, dependency, progress, cancellationToken);
+            if (acquired != null)
             {
-                return await TryAcquireMatchedFallbackAsync(match, dependency, progress, cancellationToken);
+                return acquired;
             }
         }
 
@@ -3304,11 +3327,32 @@ public class ProfileSharingService(
             var urlSearchResult = await contentOrchestrator.SearchAsync(urlQuery, cancellationToken);
             if (urlSearchResult.Success && urlSearchResult.Data != null)
             {
-                var match = FindMatchingResult(urlSearchResult.Data, dependency);
-                if (match != null)
+                var acquired = await TryAcquireFallbackCandidatesAsync(urlSearchResult.Data, dependency, progress, cancellationToken);
+                if (acquired != null)
                 {
-                    return await TryAcquireMatchedFallbackAsync(match, dependency, progress, cancellationToken);
+                    return acquired;
                 }
+            }
+        }
+
+        return null;
+    }
+
+    private async Task<OperationResult<string>?> TryAcquireFallbackCandidatesAsync(
+        IEnumerable<ContentSearchResult> results,
+        SharedManifestDependency dependency,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var remaining = results.ToList();
+        while (FindMatchingResult(remaining, dependency) is { } match)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            remaining.Remove(match);
+            var acquired = await TryAcquireMatchedFallbackAsync(match, dependency, progress, cancellationToken);
+            if (acquired != null)
+            {
+                return acquired;
             }
         }
 
@@ -3322,7 +3366,7 @@ public class ProfileSharingService(
         CancellationToken cancellationToken)
     {
         var acquireRes = await contentOrchestrator.AcquireContentAsync(match, progress, cancellationToken);
-        if (acquireRes.Success && acquireRes.Data != null)
+        if (acquireRes.Success && acquireRes.Data != null && ManifestVariantResolver.SupportsRuntime(acquireRes.Data))
         {
             logger?.LogInformation(
                 "Successfully acquired dependency '{DisplayName}' as manifest '{AcquiredId}' via content orchestrator.",
@@ -3448,7 +3492,10 @@ public class ProfileSharingService(
             bool isCached = false;
             long rawSize = Math.Max(reqManifest.DownloadSize, reqManifest.Files?.Sum(f => Math.Clamp(f.Size, 0, ProfileSharingConstants.MaxDownloadedFileBytes)) ?? 0);
             long missingBytes = Math.Max(0, rawSize);
-            var acquiredResult = await manifestPool.IsManifestAcquiredAsync(reqManifest.ManifestId, cancellationToken);
+            var foreignPlatform = IsBuiltForOtherPlatform(reqManifest);
+            var acquiredResult = foreignPlatform
+                ? OperationResult<bool>.CreateSuccess(false)
+                : await manifestPool.IsManifestAcquiredAsync(reqManifest.ManifestId, cancellationToken);
             if (acquiredResult.Success && acquiredResult.Data)
             {
                 isCached = true;
@@ -3475,12 +3522,12 @@ public class ProfileSharingService(
                 TargetGame = reqManifest.TargetGame != GameType.Unknown ? reqManifest.TargetGame : package.Profile.GameType,
                 Publisher = reqManifest.Publisher,
                 PublisherType = reqManifest.PublisherType,
-                DownloadSize = missingBytes > 0 ? missingBytes : reqManifest.DownloadSize,
+                DownloadSize = foreignPlatform ? 0 : (missingBytes > 0 ? missingBytes : reqManifest.DownloadSize),
                 IsCachedLocally = isCached,
-                Hash = reqManifest.Hash,
-                PackageUrl = reqManifest.PackageUrl,
-                PackageHash = reqManifest.PackageHash,
-                Files = reqManifest.Files ?? [],
+                Hash = foreignPlatform ? null : reqManifest.Hash,
+                PackageUrl = foreignPlatform ? null : reqManifest.PackageUrl,
+                PackageHash = foreignPlatform ? null : reqManifest.PackageHash,
+                Files = foreignPlatform ? [] : reqManifest.Files ?? [],
                 RuntimeIdentifiers = reqManifest.RuntimeIdentifiers,
             });
         }

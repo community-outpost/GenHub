@@ -8,6 +8,9 @@ namespace GenHub.Core.Constants;
 /// </summary>
 public static class ProfileSharingConstants
 {
+    /// <summary>Resource key for a dependency requiring provider resolution on the recipient's platform.</summary>
+    public const string PlatformResolutionWarningKey = "GameProfiles.Share.Warning.PlatformResolution";
+
     /// <summary>
     /// The default schema version for shared game profile packages.
     /// </summary>

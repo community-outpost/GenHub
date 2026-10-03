@@ -17852,4 +17852,7 @@ Mapped image texture reference</value>
   <data name="GameProfiles.Share.Error.NoHostVariant" xml:space="preserve">
     <value>Cannot export '{0}': no variant supports this host ({1}).</value>
   </data>
+  <data name="GameProfiles.Share.Warning.PlatformResolution" xml:space="preserve">
+    <value>'{0}' version {1} must be found through a connected provider for this platform. Download size is unknown; import will fail if no compatible build of that version is available.</value>
+  </data>
 </root>

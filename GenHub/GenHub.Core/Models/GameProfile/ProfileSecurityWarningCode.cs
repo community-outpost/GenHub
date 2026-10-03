@@ -29,4 +29,9 @@ public enum ProfileSecurityWarningCode
     /// A missing local dependency was shared for another platform and cannot be installed here.
     /// </summary>
     BuiltForOtherPlatform,
+
+    /// <summary>
+    /// The recipient must locate the shared version through a provider for this platform.
+    /// </summary>
+    RequiresPlatformResolution,
 }
