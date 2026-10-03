@@ -339,6 +339,8 @@ public partial class ContentLibraryViewModel(
     /// </summary>
     public IAsyncRelayCommand<NamedCatalog>? RemoveCatalogCommand => parentViewModel?.RemoveCatalogCommand;
 
+    private int? _cachedPendingUploadCount;
+
     /// <summary>
     /// Gets the number of local artifacts and gallery media files in the selected content that are still waiting for cloud upload.
     /// </summary>
@@ -346,8 +348,15 @@ public partial class ContentLibraryViewModel(
     {
         get
         {
+            if (_cachedPendingUploadCount.HasValue)
+            {
+                return _cachedPendingUploadCount.Value;
+            }
+
             var projectDirectory = Path.GetDirectoryName(Project.ProjectPath);
-            return CountPendingLocalArtifacts(SelectedContent) + CountPendingLocalMedia(SelectedContent, projectDirectory);
+            var count = CountPendingLocalArtifacts(SelectedContent) + CountPendingLocalMedia(SelectedContent, projectDirectory);
+            _cachedPendingUploadCount = count;
+            return count;
         }
     }
 
@@ -407,6 +416,7 @@ public partial class ContentLibraryViewModel(
     /// </summary>
     public void RefreshHostingHint()
     {
+        _cachedPendingUploadCount = null;
         OnPropertyChanged(nameof(PendingUploadCount));
         OnPropertyChanged(nameof(IsHostingConnected));
         OnPropertyChanged(nameof(ShowHostingHint));

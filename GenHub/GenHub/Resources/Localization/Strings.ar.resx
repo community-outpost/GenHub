@@ -13810,7 +13810,7 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>الخروج من ملء الشاشة</value>
   </data>
   <data name="Downloads.ContentDetail.VideoPlayer.BufferingVideo" xml:space="preserve">
-    <value>جارٍ التحميل المؤقت...</value>
+    <value>جارٍ التحميل المؤقت... {0}%</value>
   </data>
   <data name="Downloads.ContentDetail.VideoPlayer.MuteUnmute" xml:space="preserve">
     <value>كتم / إلغاء الكتم</value>

@@ -13810,7 +13810,7 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>Выйти из полноэкранного режима</value>
   </data>
   <data name="Downloads.ContentDetail.VideoPlayer.BufferingVideo" xml:space="preserve">
-    <value>Буферизация...</value>
+    <value>Буферизация... {0}%</value>
   </data>
   <data name="Downloads.ContentDetail.VideoPlayer.MuteUnmute" xml:space="preserve">
     <value>Отключить / Включить звук</value>

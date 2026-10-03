@@ -1964,16 +1964,18 @@
         <!-- Video Player Dialog -->
         <Border x:Name="VideoModalBorder"
                 Classes.fullscreen="{Binding IsVideoPlayerFullscreen}"
-                Background="{DynamicResource CardBackground}"
-                BorderBrush="{DynamicResource BorderBrush}"
-                BorderThickness="1"
-                CornerRadius="12"
-                Margin="32"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center"
-                BoxShadow="0 16 48 0 #80000000"
                 ClipToBounds="True">
             <Border.Styles>
+                <Style Selector="Border">
+                    <Setter Property="Background" Value="{DynamicResource CardBackground}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+                    <Setter Property="BorderThickness" Value="1" />
+                    <Setter Property="CornerRadius" Value="12" />
+                    <Setter Property="Margin" Value="32" />
+                    <Setter Property="HorizontalAlignment" Value="Center" />
+                    <Setter Property="VerticalAlignment" Value="Center" />
+                    <Setter Property="BoxShadow" Value="0 16 48 0 #80000000" />
+                </Style>
                 <Style Selector="Border.fullscreen">
                     <Setter Property="Margin" Value="0" />
                     <Setter Property="CornerRadius" Value="0" />
@@ -1985,24 +1987,13 @@
             </Border.Styles>
 
             <Grid x:Name="VideoModalGrid"
-                  Classes.fullscreen="{Binding IsVideoPlayerFullscreen}"
                   RowDefinitions="Auto,*"
-                  Width="{Binding VideoModalWidth}"
-                  Height="{Binding VideoModalHeight}"
-                  MinWidth="560"
-                  MinHeight="380"
-                  MaxWidth="1920"
-                  MaxHeight="1200">
-                <Grid.Styles>
-                    <Style Selector="Grid.fullscreen">
-                        <Setter Property="Width" Value="{x:Static x:Double.NaN}" />
-                        <Setter Property="Height" Value="{x:Static x:Double.NaN}" />
-                        <Setter Property="MinWidth" Value="0" />
-                        <Setter Property="MinHeight" Value="0" />
-                        <Setter Property="MaxWidth" Value="Infinity" />
-                        <Setter Property="MaxHeight" Value="Infinity" />
-                    </Style>
-                </Grid.Styles>
+                  Width="{Binding EffectiveVideoModalWidth}"
+                  Height="{Binding EffectiveVideoModalHeight}"
+                  MinWidth="{Binding EffectiveVideoModalMinWidth}"
+                  MinHeight="{Binding EffectiveVideoModalMinHeight}"
+                  MaxWidth="{Binding EffectiveVideoModalMaxWidth}"
+                  MaxHeight="{Binding EffectiveVideoModalMaxHeight}">
 
                 <!-- Modal Header -->
                 <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="16,12" Background="Transparent">

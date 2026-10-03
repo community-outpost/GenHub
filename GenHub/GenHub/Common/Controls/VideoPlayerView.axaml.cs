@@ -7,6 +7,8 @@ using Avalonia.Threading;
 using LibVLCSharp.Shared;
 using System;
 using System.Windows.Input;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 
 namespace GenHub.Common.Controls;
 
@@ -321,7 +323,7 @@ public partial class VideoPlayerView : UserControl
     /// </summary>
     public void ToggleFullscreen()
     {
-        if (ToggleFullscreenCommand != null && ToggleFullscreenCommand.CanExecute(null))
+        if (ToggleFullscreenCommand?.CanExecute(null) == true)
         {
             ToggleFullscreenCommand.Execute(null);
         }
@@ -369,6 +371,8 @@ public partial class VideoPlayerView : UserControl
                     e.Handled = true;
                 }
 
+                break;
+            default:
                 break;
         }
     }
@@ -442,6 +446,21 @@ public partial class VideoPlayerView : UserControl
         }
     }
 
+    private static string GetLocalizedString(string key, string fallback, params object[] args)
+    {
+        if (Application.Current?.TryGetResource(LocalizationConstants.ResourceServiceKey, theme: null, out var resource) == true &&
+            resource is ILocalizationService localizationService)
+        {
+            return args.Length > 0
+                ? localizationService.GetLocalizedString(key, fallback, args)
+                : localizationService.GetLocalizedString(key, fallback);
+        }
+
+        return args.Length > 0
+            ? string.Format(System.Globalization.CultureInfo.CurrentCulture, fallback, args)
+            : fallback;
+    }
+
     private static string FormatTime(long milliseconds)
     {
         if (milliseconds < 0)
@@ -502,6 +521,7 @@ public partial class VideoPlayerView : UserControl
             if (ReferenceEquals(mediaPlayer, player) && !HasError)
             {
                 IsLoading = true;
+                LoadingText = GetLocalizedString("Downloads.ContentDetail.VideoPlayer.LoadingVideo", "Loading video...");
             }
         });
         player.Buffering += (_, e) => Dispatcher.UIThread.Post(() =>
@@ -514,12 +534,12 @@ public partial class VideoPlayerView : UserControl
             if (e.Cache < 100f)
             {
                 IsLoading = true;
-                LoadingText = $"Loading video... {Math.Round(e.Cache)}%";
+                LoadingText = GetLocalizedString("Downloads.ContentDetail.VideoPlayer.BufferingVideo", "Buffering... {0}%", Math.Round(e.Cache));
             }
             else
             {
                 IsLoading = false;
-                LoadingText = "Loading video...";
+                LoadingText = GetLocalizedString("Downloads.ContentDetail.VideoPlayer.LoadingVideo", "Loading video...");
             }
         });
         player.Playing += (_, _) => Dispatcher.UIThread.Post(() => UpdatePlayingState(player, isPlaying: true));
@@ -554,8 +574,9 @@ public partial class VideoPlayerView : UserControl
         HasError = false;
         IsUnavailable = false;
         IsPlaying = false;
+        isScrubbing = false;
         IsLoading = true;
-        LoadingText = "Loading video...";
+        LoadingText = GetLocalizedString("Downloads.ContentDetail.VideoPlayer.LoadingVideo", "Loading video...");
         PositionSlider.Value = 0;
         PositionText = FormatTime(0) + " / " + FormatTime(0);
         UpdateSurfaceVisibility();
@@ -741,11 +762,13 @@ public partial class VideoPlayerView : UserControl
 
     private void OnScrubFinished(object? sender, PointerReleasedEventArgs e)
     {
+        isScrubbing = false;
         CommitSeek();
     }
 
     private void OnScrubCaptureLost(object? sender, PointerCaptureLostEventArgs e)
     {
+        isScrubbing = false;
         CommitSeek();
     }
 
@@ -779,10 +802,6 @@ public partial class VideoPlayerView : UserControl
         catch (Exception ex) when (ex is VLCException or InvalidOperationException)
         {
             System.Diagnostics.Debug.WriteLine($"Video seek failed: {ex.Message}");
-        }
-        finally
-        {
-            isScrubbing = false;
         }
     }
 }

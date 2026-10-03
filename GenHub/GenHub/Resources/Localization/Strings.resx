@@ -13871,7 +13871,7 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
     <value>Exit full screen</value>
   </data>
   <data name="Downloads.ContentDetail.VideoPlayer.BufferingVideo" xml:space="preserve">
-    <value>Buffering...</value>
+    <value>Buffering... {0}%</value>
   </data>
   <data name="Downloads.ContentDetail.VideoPlayer.MuteUnmute" xml:space="preserve">
     <value>Mute / Unmute</value>

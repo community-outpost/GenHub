@@ -41,21 +41,18 @@ public partial class ContentDetailView : UserControl
             return;
         }
 
-        if (DataContext is ContentDetailViewModel vm && vm.IsVideoPlayerOpen)
+        if (e.Key == Key.Escape && DataContext is ContentDetailViewModel vm && vm.IsVideoPlayerOpen)
         {
-            if (e.Key == Key.Escape)
+            if (vm.IsVideoPlayerFullscreen)
             {
-                if (vm.IsVideoPlayerFullscreen)
-                {
-                    vm.IsVideoPlayerFullscreen = false;
-                }
-                else
-                {
-                    vm.CloseVideoPlayerCommand.Execute(null);
-                }
-
-                e.Handled = true;
+                vm.IsVideoPlayerFullscreen = false;
             }
+            else
+            {
+                vm.CloseVideoPlayerCommand.Execute(null);
+            }
+
+            e.Handled = true;
         }
     }
 

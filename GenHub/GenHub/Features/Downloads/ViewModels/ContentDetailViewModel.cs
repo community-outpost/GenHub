@@ -299,13 +299,51 @@ public partial class ContentDetailViewModel(
     private bool _isVideoPlayerOpen;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EffectiveVideoModalWidth))]
+    [NotifyPropertyChangedFor(nameof(EffectiveVideoModalHeight))]
+    [NotifyPropertyChangedFor(nameof(EffectiveVideoModalMinWidth))]
+    [NotifyPropertyChangedFor(nameof(EffectiveVideoModalMinHeight))]
+    [NotifyPropertyChangedFor(nameof(EffectiveVideoModalMaxWidth))]
+    [NotifyPropertyChangedFor(nameof(EffectiveVideoModalMaxHeight))]
     private bool _isVideoPlayerFullscreen;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EffectiveVideoModalWidth))]
     private double _videoModalWidth = 960;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EffectiveVideoModalHeight))]
     private double _videoModalHeight = 620;
+
+    /// <summary>
+    /// Gets the effective width of the video modal dialog, unconstrained when full screen.
+    /// </summary>
+    public double EffectiveVideoModalWidth => IsVideoPlayerFullscreen ? double.NaN : VideoModalWidth;
+
+    /// <summary>
+    /// Gets the effective height of the video modal dialog, unconstrained when full screen.
+    /// </summary>
+    public double EffectiveVideoModalHeight => IsVideoPlayerFullscreen ? double.NaN : VideoModalHeight;
+
+    /// <summary>
+    /// Gets the minimum width constraint for the video modal dialog.
+    /// </summary>
+    public double EffectiveVideoModalMinWidth => IsVideoPlayerFullscreen ? 0 : 560;
+
+    /// <summary>
+    /// Gets the minimum height constraint for the video modal dialog.
+    /// </summary>
+    public double EffectiveVideoModalMinHeight => IsVideoPlayerFullscreen ? 0 : 380;
+
+    /// <summary>
+    /// Gets the maximum width constraint for the video modal dialog.
+    /// </summary>
+    public double EffectiveVideoModalMaxWidth => IsVideoPlayerFullscreen ? double.PositiveInfinity : 1920;
+
+    /// <summary>
+    /// Gets the maximum height constraint for the video modal dialog.
+    /// </summary>
+    public double EffectiveVideoModalMaxHeight => IsVideoPlayerFullscreen ? double.PositiveInfinity : 1200;
 
     [ObservableProperty]
     private bool _isLoadingDetails;
