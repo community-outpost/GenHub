@@ -7,7 +7,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
+using System.Linq;
+using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Threading;
 
 namespace GenHub.Infrastructure.DependencyInjection;
@@ -87,6 +90,25 @@ public static class DownloadModule
         PooledConnectionIdleTimeout = TimeSpan.FromSeconds(DownloadDefaults.HttpPooledConnectionIdleTimeoutSeconds),
         EnableMultipleHttp2Connections = true,
         MaxConnectionsPerServer = DownloadDefaults.HttpMaxConnectionsPerServer,
+        ConnectCallback = async (context, cancellationToken) =>
+        {
+            var addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, cancellationToken).ConfigureAwait(false);
+            var sortedAddresses = addresses
+                .OrderBy(a => a.AddressFamily == AddressFamily.InterNetwork ? 0 : 1)
+                .ToArray();
+
+            var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
+            try
+            {
+                await socket.ConnectAsync(sortedAddresses, context.DnsEndPoint.Port, cancellationToken).ConfigureAwait(false);
+                return new NetworkStream(socket, ownsSocket: true);
+            }
+            catch
+            {
+                socket.Dispose();
+                throw;
+            }
+        },
     };
 
     private static void ConfigureDownloadClient(HttpClient client, IConfigurationProviderService configProvider)

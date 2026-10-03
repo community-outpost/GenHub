@@ -5,6 +5,7 @@ using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Telemetry;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -54,6 +55,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     private readonly GithubSource _githubSource;
     private readonly IContentManifestPool? _contentManifestPool;
     private readonly IContentStorageService? _contentStorageService;
+    private readonly IInstallationLocationTracker? _installationLocationTracker;
 
     private bool _hasUpdateFromGitHub;
     private string? _latestVersionFromGitHub;
@@ -145,7 +147,8 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         IFileDownloader? fileDownloader = null,
         ITelemetryService? telemetryService = null,
         IContentManifestPool? contentManifestPool = null,
-        IContentStorageService? contentStorageService = null)
+        IContentStorageService? contentStorageService = null,
+        IInstallationLocationTracker? installationLocationTracker = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
@@ -155,6 +158,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         _telemetryService = telemetryService;
         _contentManifestPool = contentManifestPool;
         _contentStorageService = contentStorageService;
+        _installationLocationTracker = installationLocationTracker;
 
         // Always initialize GithubSource for update checking with high-performance downloader
         _githubSource = new GithubSource(AppConstants.GitHubRepositoryUrl, string.Empty, true, _fileDownloader);
@@ -945,6 +949,18 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             var extension = Path.GetExtension(targetPath).ToLowerInvariant();
             if (extension == ".exe")
             {
+                tempDir = Path.Combine(AppDataPathHelper.GetDataRoot(), "Temp", $"genhub-build-{Guid.NewGuid():N}");
+                Directory.CreateDirectory(tempDir);
+                var extractedNupkg = Path.Combine(tempDir, $"{Path.GetFileNameWithoutExtension(targetPath)}.nupkg");
+
+                if (VelopackBundleExtractor.TryExtractBundle(targetPath, extractedNupkg, out var bundleBytes))
+                {
+                    _logger.LogInformation("Successfully extracted {Bytes:N0}-byte embedded Velopack nupkg from '{Exe}'", bundleBytes, targetPath);
+                    await InstallLocalNupkgAsync(extractedNupkg, tempDir, Path.GetFileName(targetPath), progress, cancellationToken);
+                    return;
+                }
+
+                _logger.LogInformation("'{Exe}' is not a Velopack bundle; launching standalone installer process", targetPath);
                 LaunchInstallerProcess(targetPath, progress);
                 return;
             }
@@ -969,6 +985,15 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 if (exeFiles.Length > 0)
                 {
                     var targetExe = exeFiles.FirstOrDefault(e => Path.GetFileName(e).Contains("Setup", StringComparison.OrdinalIgnoreCase)) ?? exeFiles[0];
+                    var extractedNupkg = Path.Combine(tempDir, $"{Path.GetFileNameWithoutExtension(targetExe)}.nupkg");
+
+                    if (VelopackBundleExtractor.TryExtractBundle(targetExe, extractedNupkg, out var bundleBytes))
+                    {
+                        _logger.LogInformation("Successfully extracted {Bytes:N0}-byte embedded Velopack nupkg from '{Exe}' inside zip", bundleBytes, targetExe);
+                        await InstallLocalNupkgAsync(extractedNupkg, tempDir, Path.GetFileName(targetExe), progress, cancellationToken);
+                        return;
+                    }
+
                     LaunchInstallerProcess(targetExe, progress);
                     return;
                 }
@@ -1518,8 +1543,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         var stagedExe = exePath;
         try
         {
-            var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            var stageDir = Path.Combine(appData, AppConstants.AppName, "PendingUpdate");
+            var stageDir = Path.Combine(Path.GetTempPath(), "GenHub-Installer", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(stageDir);
             var targetStagedExe = Path.Combine(stageDir, Path.GetFileName(exePath));
             File.Copy(exePath, targetStagedExe, overwrite: true);
@@ -1527,22 +1551,43 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         }
         catch (IOException ex)
         {
-            _logger.LogWarning(ex, "Failed to stage installer executable to PendingUpdate, executing from original path: {Path}", exePath);
+            _logger.LogWarning(ex, "Failed to stage installer executable to temp dir, executing from original path: {Path}", exePath);
         }
         catch (UnauthorizedAccessException ex)
         {
-            _logger.LogWarning(ex, "Failed to stage installer executable to PendingUpdate, executing from original path: {Path}", exePath);
+            _logger.LogWarning(ex, "Failed to stage installer executable to temp dir, executing from original path: {Path}", exePath);
         }
 
-        var startInfo = new ProcessStartInfo(stagedExe)
+        var customPath = _installationLocationTracker?.GetCustomInstallPath();
+        var arguments = string.Empty;
+        if (!string.IsNullOrWhiteSpace(customPath))
         {
-            UseShellExecute = true,
-            WorkingDirectory = Path.GetDirectoryName(stagedExe) ?? string.Empty,
-        };
+            arguments = $"--installto \"{customPath}\"";
+        }
+
+        ProcessStartInfo startInfo;
+        if (OperatingSystem.IsWindows())
+        {
+            var cmdArgs = $"/c timeout /t 1 /nobreak >nul && start \"\" \"{stagedExe}\" {arguments}".Trim();
+            startInfo = new ProcessStartInfo("cmd.exe", cmdArgs)
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WorkingDirectory = Path.GetTempPath(),
+            };
+        }
+        else
+        {
+            startInfo = new ProcessStartInfo(stagedExe, arguments)
+            {
+                UseShellExecute = true,
+                WorkingDirectory = Path.GetDirectoryName(stagedExe) ?? string.Empty,
+            };
+        }
 
         using var proc = Process.Start(startInfo)
             ?? throw new InvalidOperationException($"Failed to start installer '{stagedExe}'");
-        _logger.LogInformation("Installer process started with PID {ProcessId}", proc.Id);
+        _logger.LogInformation("Installer launcher process started with PID {ProcessId}", proc.Id);
         Thread.Sleep(300);
         Environment.Exit(0); // skipcq: CS-W1005
     }
@@ -2854,11 +2899,13 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             return zips[0];
         }
 
-        var exes = Directory.GetFiles(dirPath, "*.exe", SearchOption.AllDirectories);
+        var exes = Directory.GetFiles(dirPath, "*.exe", SearchOption.AllDirectories)
+            .Where(e => !Path.GetFileName(e).StartsWith("createdump", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
         if (exes.Length > 0)
         {
-            LaunchInstallerProcess(exes[0], progress);
-            return null;
+            var targetExe = exes.FirstOrDefault(e => Path.GetFileName(e).Contains("Setup", StringComparison.OrdinalIgnoreCase)) ?? exes[0];
+            return targetExe;
         }
 
         throw new FileNotFoundException($"No valid installer, nupkg, or zip archive found in '{dirPath}'");

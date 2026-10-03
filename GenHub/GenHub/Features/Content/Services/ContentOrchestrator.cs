@@ -488,7 +488,29 @@ public class ContentOrchestrator : IContentOrchestrator
                     CurrentOperation = "Preparing content via provider pipeline",
                 });
 
-                var prepareResult = await provider.PrepareContentAsync(manifest, stagingDir, progress, cancellationToken);
+                // Forward provider preparation progress (0-100) into 40-70% range for acquisition
+                IProgress<ContentAcquisitionProgress>? prepareProgress = null;
+                if (progress != null)
+                {
+                    prepareProgress = new Progress<ContentAcquisitionProgress>(cap =>
+                    {
+                        var scaledPct = ContentConstants.ProgressStepDownloading +
+                            (cap.ProgressPercentage / 100.0 * (ContentConstants.ProgressStepValidatingFiles - ContentConstants.ProgressStepDownloading));
+                        progress.Report(new ContentAcquisitionProgress
+                        {
+                            Phase = cap.Phase,
+                            ProgressPercentage = Math.Clamp((int)Math.Round(scaledPct), ContentConstants.ProgressStepDownloading, ContentConstants.ProgressStepValidatingFiles),
+                            CurrentOperation = cap.CurrentOperation,
+                            FilesProcessed = cap.FilesProcessed,
+                            TotalFiles = cap.TotalFiles,
+                            TotalBytes = cap.TotalBytes,
+                            BytesProcessed = cap.BytesProcessed,
+                            CurrentFile = cap.CurrentFile,
+                        });
+                    });
+                }
+
+                var prepareResult = await provider.PrepareContentAsync(manifest, stagingDir, prepareProgress ?? progress, cancellationToken);
                 if (!prepareResult.Success || prepareResult.Data == null)
                 {
                     return OperationResult<ContentManifest>.CreateFailure(

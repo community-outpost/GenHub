@@ -149,6 +149,83 @@ public class ContentOrchestratorTests
         _contentValidatorMock.Verify(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    private sealed class SynchronousProgress<T>(Action<T> onReport) : IProgress<T>
+    {
+        public void Report(T value) => onReport(value);
+    }
+
+    /// <summary>
+    /// Verifies that provider preparation progress (0-100) is scaled into the 40-70% range.
+    /// </summary>
+    [Fact]
+    public async Task AcquireContentAsync_ScalesProviderPreparationProgressMonotonicallyAsync()
+    {
+        // Arrange
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.0.genhub.mod.test",
+            Name = "Test Mod",
+            ProviderName = "TestProvider",
+        };
+        var manifest = new ContentManifest { Id = "1.0.genhub.mod.test", Name = "Test Mod" };
+
+        var providerMock = new Mock<IContentProvider>();
+        providerMock.Setup(p => p.SourceName).Returns("TestProvider");
+        providerMock.Setup(p => p.GetValidatedContentAsync(searchResult.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
+
+        providerMock.Setup(p => p.PrepareContentAsync(manifest, It.IsAny<string>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .Returns<ContentManifest, string, IProgress<ContentAcquisitionProgress>, CancellationToken>((_, _, prog, _) =>
+            {
+                prog?.Report(new ContentAcquisitionProgress { ProgressPercentage = 0, CurrentOperation = "0%" });
+                prog?.Report(new ContentAcquisitionProgress { ProgressPercentage = 50, CurrentOperation = "50%" });
+                prog?.Report(new ContentAcquisitionProgress { ProgressPercentage = 100, CurrentOperation = "100%" });
+                return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
+            });
+
+        _cacheMock.Setup(c => c.GetAsync<ContentManifest>(manifest.Id.Value, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ContentManifest?)null);
+
+        _contentValidatorMock.Setup(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifest.Id, []));
+
+        _contentValidatorMock.Setup(v => v.ValidateAllAsync(It.IsAny<string>(), manifest, It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifest.Id, []));
+
+        _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync(manifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        _manifestPoolMock.Setup(m => m.AddManifestAsync(manifest, It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var orchestrator = new ContentOrchestrator(
+            _loggerMock.Object,
+            [providerMock.Object],
+            [],
+            [],
+            _cacheMock.Object,
+            _contentValidatorMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object);
+
+        var reportedProgress = new List<int>();
+        var progress = new SynchronousProgress<ContentAcquisitionProgress>(p => reportedProgress.Add(p.ProgressPercentage));
+
+        // Act
+        var result = await orchestrator.AcquireContentAsync(searchResult, progress);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Contains(40, reportedProgress);
+        Assert.Contains(55, reportedProgress);
+        Assert.Contains(70, reportedProgress);
+        for (var i = 1; i < reportedProgress.Count; i++)
+        {
+            Assert.True(reportedProgress[i] >= reportedProgress[i - 1], $"Progress regressed at index {i}: {reportedProgress[i - 1]} -> {reportedProgress[i]}");
+        }
+    }
+
     /// <summary>
     /// Verifies that generic catalog results, which carry the publisher name as
     /// <see cref="ContentSearchResult.ProviderName"/>, are routed to the shared generic
