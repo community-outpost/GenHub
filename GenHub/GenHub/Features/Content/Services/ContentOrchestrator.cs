@@ -509,7 +509,7 @@ public class ContentOrchestrator : IContentOrchestrator
                 {
                     Phase = ContentAcquisitionPhase.Downloading,
                     ProgressPercentage = ContentConstants.ProgressStepDownloading,
-                    CurrentOperation = "Preparing content via provider pipeline",
+                    CurrentOperation = ContentConstants.PreparingContentViaProviderOperation,
                 });
 
                 // Scale provider preparation progress (0-100) into downloading phase range (40-70%)
@@ -519,7 +519,7 @@ public class ContentOrchestrator : IContentOrchestrator
                     prepareProgress = new SynchronousProgress<ContentAcquisitionProgress>(p =>
                     {
                         var span = (double)(ContentConstants.ProgressStepValidatingFiles - ContentConstants.ProgressStepDownloading);
-                        var normalized = Math.Clamp(p.ProgressPercentage, 0.0, 100.0) / 100.0;
+                        var normalized = Math.Clamp(p.ProgressPercentage, ContentConstants.ProgressMinPercentage, ContentConstants.ProgressMaxPercentage) / ContentConstants.ProgressMaxPercentage;
                         var scaledPct = Math.Clamp(
                             ContentConstants.ProgressStepDownloading + (int)Math.Round(normalized * span),
                             ContentConstants.ProgressStepDownloading,
@@ -529,7 +529,7 @@ public class ContentOrchestrator : IContentOrchestrator
                         {
                             Phase = ContentAcquisitionPhase.Downloading,
                             ProgressPercentage = scaledPct,
-                            CurrentOperation = p.CurrentOperation ?? "Preparing content via provider pipeline",
+                            CurrentOperation = p.CurrentOperation ?? ContentConstants.PreparingContentViaProviderOperation,
                             BytesProcessed = p.BytesProcessed,
                             TotalBytes = p.TotalBytes,
                             FilesProcessed = p.FilesProcessed,
