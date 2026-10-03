@@ -232,9 +232,9 @@ public sealed class DownloadedContentDiscoverer(
         }
 
         var prefix = $"{GeneralsOnlineConstants.PublisherType}-";
-        return groupId.StartsWith(prefix + "gameclient-", StringComparison.OrdinalIgnoreCase) ||
-               groupId.StartsWith(prefix + "patch-", StringComparison.OrdinalIgnoreCase) ||
-               groupId.StartsWith(prefix + "mappack-", StringComparison.OrdinalIgnoreCase);
+        return groupId.StartsWith(prefix + GeneralsOnlineConstants.LegacyGameClientGroupSegment, StringComparison.OrdinalIgnoreCase) ||
+               groupId.StartsWith(prefix + GeneralsOnlineConstants.LegacyPatchGroupSegment, StringComparison.OrdinalIgnoreCase) ||
+               groupId.StartsWith(prefix + GeneralsOnlineConstants.LegacyMapPackGroupSegment, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? ResolveCoverFallback(ContentManifest manifest)
