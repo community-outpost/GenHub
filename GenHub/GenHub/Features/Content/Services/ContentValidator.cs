@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Validation;
@@ -9,6 +10,7 @@ using GenHub.Core.Models.Validation;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -128,7 +130,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
                 var fileIssues = new List<ValidationIssue>();
                 if (string.IsNullOrWhiteSpace(file.RelativePath))
                 {
-                    fileIssues.Add(new ValidationIssue("Manifest file is missing its RelativePath.", ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
+                    fileIssues.Add(new ValidationIssue(ManifestErrorMessages.ManifestFileMissingRelativePath, ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
                     return fileIssues;
                 }
 
@@ -312,7 +314,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
         new(
             manifest.Id,
             [
-                new ValidationIssue($"Manifest has no variant supporting this host ({ManifestVariantResolver.CurrentRuntimeIdentifier}).", ValidationSeverity.Error)
+                new ValidationIssue(string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.NoHostVariantForValidation, ManifestVariantResolver.CurrentRuntimeIdentifier), ValidationSeverity.Error)
                 {
                     IssueType = ValidationIssueType.ValidationUnavailable,
                 },
@@ -353,7 +355,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
                 var variant = manifest.Variants[variantIndex];
                 if (variant == null)
                 {
-                    issues.Add(new ValidationIssue($"Variant at index {variantIndex} is null.", ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
+                    issues.Add(new ValidationIssue(string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.VariantIsNull, variantIndex), ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
                     continue;
                 }
 
@@ -373,7 +375,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
     {
         if (files is null)
         {
-            issues.Add(new ValidationIssue($"Manifest Files collection{location} is null.", ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
+            issues.Add(new ValidationIssue(string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.FileCollectionIsNull, location), ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
             return;
         }
 
@@ -382,11 +384,11 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
             var file = files[fileIndex];
             if (file == null)
             {
-                issues.Add(new ValidationIssue($"File at index {fileIndex}{location} is null.", ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
+                issues.Add(new ValidationIssue(string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.FileEntryIsNull, fileIndex, location), ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
             }
             else if (string.IsNullOrWhiteSpace(file.RelativePath))
             {
-                issues.Add(new ValidationIssue($"File at index {fileIndex}{location} is missing its RelativePath.", ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
+                issues.Add(new ValidationIssue(string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.FileEntryMissingRelativePath, fileIndex, location), ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
             }
         }
     }
