@@ -1185,8 +1185,8 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             return false;
         }
 
-        var prPattern = $@"(?:^|\W)(?:PR\s*#?|#){prNumber.Value}(?!\d)";
-        return Regex.IsMatch(manifestName ?? string.Empty, prPattern, RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(500));
+        var prPattern = $@"(?:^|\W)(?:PR\s*#?|#){prNumber.Value}\b";
+        return Regex.IsMatch(manifestName ?? string.Empty, prPattern, RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(RegexConstants.DefaultTimeoutMs));
     }
 
     private static bool MatchesArtifactFileName(

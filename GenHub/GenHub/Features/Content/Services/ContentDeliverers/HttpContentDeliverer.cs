@@ -267,7 +267,8 @@ public class HttpContentDeliverer(
     {
         var totalFiles = filesToDownload.Count;
         var processedFiles = 0;
-        var totalBytesAllFiles = filesToDownload.Sum(f => f.Size > 0 ? f.Size : 0L);
+        var allSizesKnown = filesToDownload.All(f => f.Size > 0);
+        var totalBytesAllFiles = allSizesKnown ? filesToDownload.Sum(f => f.Size) : 0L;
         var previousFilesBytes = 0L;
 
         foreach (var file in filesToDownload)

@@ -431,6 +431,7 @@ public class ContentOrchestrator : IContentOrchestrator
 
         _logger.LogInformation("Acquiring content {ContentName} from {ProviderName}", searchResult.Name, searchResult.ProviderName);
 
+        var progressLock = new object();
         var maxReportedPercentage = 0;
         void ReportMonotonicProgress(ContentAcquisitionProgress cap)
         {
@@ -439,21 +440,18 @@ public class ContentOrchestrator : IContentOrchestrator
                 return;
             }
 
-            var targetPct = (int)Math.Round(cap.ProgressPercentage);
-            int currentMax = 0;
-            do
+            lock (progressLock)
             {
-                currentMax = Volatile.Read(ref maxReportedPercentage);
-                if (targetPct <= currentMax)
+                var targetPct = (int)Math.Round(cap.ProgressPercentage);
+                if (targetPct < maxReportedPercentage)
                 {
-                    targetPct = currentMax;
-                    break;
+                    return;
                 }
-            }
-            while (Interlocked.CompareExchange(ref maxReportedPercentage, targetPct, currentMax) != currentMax);
 
-            cap.ProgressPercentage = targetPct;
-            progress.Report(cap);
+                maxReportedPercentage = targetPct;
+                cap.ProgressPercentage = targetPct;
+                progress.Report(cap);
+            }
         }
 
         try
@@ -513,27 +511,10 @@ public class ContentOrchestrator : IContentOrchestrator
                     CurrentOperation = "Preparing content via provider pipeline",
                 });
 
-                // Forward provider preparation progress (0-100) into 40-70% range for acquisition
-                IProgress<ContentAcquisitionProgress>? prepareProgress = null;
-                if (progress != null)
-                {
-                    prepareProgress = new SynchronousProgress<ContentAcquisitionProgress>(cap =>
-                    {
-                        var scaledPct = ContentConstants.ProgressStepDownloading +
-                            (cap.ProgressPercentage / 100.0 * (ContentConstants.ProgressStepValidatingFiles - ContentConstants.ProgressStepDownloading));
-                        ReportMonotonicProgress(new ContentAcquisitionProgress
-                        {
-                            Phase = cap.Phase,
-                            ProgressPercentage = Math.Clamp((int)Math.Round(scaledPct), ContentConstants.ProgressStepDownloading, ContentConstants.ProgressStepValidatingFiles),
-                            CurrentOperation = cap.CurrentOperation,
-                            FilesProcessed = cap.FilesProcessed,
-                            TotalFiles = cap.TotalFiles,
-                            TotalBytes = cap.TotalBytes,
-                            BytesProcessed = cap.BytesProcessed,
-                            CurrentFile = cap.CurrentFile,
-                        });
-                    });
-                }
+                // Forward provider preparation progress directly into monotonic acquisition reporter
+                IProgress<ContentAcquisitionProgress>? prepareProgress = progress != null
+                    ? new SynchronousProgress<ContentAcquisitionProgress>(ReportMonotonicProgress)
+                    : null;
 
                 var prepareResult = await provider.PrepareContentAsync(manifest, stagingDir, prepareProgress ?? progress, cancellationToken);
                 if (!prepareResult.Success || prepareResult.Data == null)
