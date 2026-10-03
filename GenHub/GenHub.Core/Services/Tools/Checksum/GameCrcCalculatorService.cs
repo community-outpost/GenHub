@@ -196,7 +196,7 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
             cacheKey,
             _ => ResolveEngineVersion(gameType),
             AddEngineVersionBytes,
-            includeSkirmishScripts: false,
+            includeSkirmishScripts: true,
             ct: ct);
     }
 

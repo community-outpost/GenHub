@@ -30,8 +30,8 @@ public static partial class OnlineLogScrubber
             return text;
         }
 
-        var scrubbed = Ipv4Regex().Replace(text, RedactedIp);
-        scrubbed = Ipv6Regex().Replace(scrubbed, RedactedIp);
+        var scrubbed = Ipv6Regex().Replace(text, RedactedIp);
+        scrubbed = Ipv4Regex().Replace(scrubbed, RedactedIp);
         scrubbed = BearerRegex().Replace(scrubbed, $"$1{RedactedCredential}");
         return scrubbed;
     }
@@ -39,7 +39,7 @@ public static partial class OnlineLogScrubber
     [GeneratedRegex(@"\b(?:\d{1,3}\.){3}\d{1,3}(?::\d{1,5})?\b", RegexOptions.Compiled)]
     private static partial Regex Ipv4Regex();
 
-    [GeneratedRegex(@"\b(?:[0-9A-Fa-f:.]*::[0-9A-Fa-f:.]+|(?:[0-9A-Fa-f]{1,4}:){3,}[0-9A-Fa-f:.]+)\b", RegexOptions.Compiled)]
+    [GeneratedRegex(@"(?:[0-9A-Fa-f:.]*::[0-9A-Fa-f:.]+|(?:[0-9A-Fa-f]{1,4}:){3,}[0-9A-Fa-f:.]+)\b", RegexOptions.Compiled)]
     private static partial Regex Ipv6Regex();
 
     [GeneratedRegex(@"(?i)(bearer\s+|(?:grant|password|ticket)\s*[""']?\s*[:=]\s*[""']?)[^\s;,""']+", RegexOptions.Compiled)]

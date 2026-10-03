@@ -2557,6 +2557,8 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
         });
     }
 
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method accessing friends collection.")]
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Instance method accessing friends collection.")]
     private int FindFriendIndex(GeneralsOnlineFriendPresence presence)
     {
         if (presence.UserId > 0)

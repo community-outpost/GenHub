@@ -1633,6 +1633,43 @@ public class GeneralsOnlineLobbiesViewModelTests
         Assert.Equal(new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc), vm.Lobbies[0].TimeCreated);
     }
 
+    /// <summary>
+    /// Tests that when only StartingCash changes on an incoming lobby update,
+    /// the lobby instance in the collection is updated rather than retaining the stale value.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task RefreshAsync_WhenOnlyStartingCashChanges_ShouldUpdateLobbyInCollectionAsync()
+    {
+        // Arrange
+        var fakes = CreateFakes(authenticated: true);
+        var initialLobby = SampleLobby(9842, "[EU] Pro 1v1");
+        initialLobby.StartingCash = 10000;
+
+        fakes.Api.Setup(a => a.GetLobbiesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GeneralsOnlineLobbiesResult>.CreateSuccess(
+                new GeneralsOnlineLobbiesResult { Lobbies = [initialLobby], Latencies = [25] }));
+
+        using var vm = CreateViewModel(fakes);
+        await vm.RefreshAsync();
+        Assert.Single(vm.Lobbies);
+        Assert.Equal(10000, vm.Lobbies[0].StartingCash);
+
+        // Act - Only StartingCash differs
+        var updatedLobby = SampleLobby(9842, "[EU] Pro 1v1");
+        updatedLobby.StartingCash = 20000;
+
+        fakes.Api.Setup(a => a.GetLobbiesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GeneralsOnlineLobbiesResult>.CreateSuccess(
+                new GeneralsOnlineLobbiesResult { Lobbies = [updatedLobby], Latencies = [25] }));
+
+        await vm.RefreshAsync();
+
+        // Assert
+        Assert.Single(vm.Lobbies);
+        Assert.Equal(20000, vm.Lobbies[0].StartingCash);
+    }
+
     private static GeneralsOnlineLobby SampleLobby(long id = 9842, string name = "[EU] Pro 1v1")
     {
         return new GeneralsOnlineLobby

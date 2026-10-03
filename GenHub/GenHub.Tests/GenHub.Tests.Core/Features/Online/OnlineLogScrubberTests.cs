@@ -59,6 +59,25 @@ public class OnlineLogScrubberTests
     }
 
     /// <summary>
+    /// Tests that loopback and IPv4-mapped IPv6 addresses are redacted.
+    /// </summary>
+    /// <param name="input">The input text containing an IP address.</param>
+    /// <param name="sensitivePart">The sensitive IP string that should not appear in the scrubbed output.</param>
+    [Theory]
+    [InlineData("Endpoint ::1 unreachable.", "::1")]
+    [InlineData("Dialing [::1]:8080 now.", "::1")]
+    [InlineData("Client at ::ffff:192.0.2.1 connected.", "192.0.2.1")]
+    public void Scrub_WithSpecialIpv6_ShouldRedact(string input, string sensitivePart)
+    {
+        // Act
+        var result = OnlineLogScrubber.Scrub(input);
+
+        // Assert
+        Assert.DoesNotContain(sensitivePart, result);
+        Assert.Contains(OnlineLogScrubber.RedactedIp, result);
+    }
+
+    /// <summary>
     /// Tests that bearer tokens and grants are redacted.
     /// </summary>
     /// <param name="input">The input text.</param>

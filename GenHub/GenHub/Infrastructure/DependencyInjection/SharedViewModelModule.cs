@@ -48,13 +48,6 @@ public static class SharedViewModelModule
         services.AddSingleton<DownloadsBrowserViewModel>();
         services.AddSingleton<ToolsViewModel>();
         services.AddSingleton<InfoViewModel>();
-        services.AddSingleton(sp => new OnlineViewModelDependencies(
-            sp.GetService<ILocalizationService>(),
-            sp.GetService<IUserSettingsService>(),
-            sp.GetService<IGameInstallationService>(),
-            sp.GetService<IGameCrcCalculatorService>(),
-            sp,
-            sp.GetService<IContentManifestPool>()));
         services.AddSingleton(sp => new GeneralsOnlineLobbiesDependencies(
             sp.GetService<IGeneralsOnlineWebSocketListener>(),
             sp.GetService<IOnlineLaunchService>(),
@@ -64,7 +57,6 @@ public static class SharedViewModelModule
         services.AddSingleton<GeneralsOnlineLobbiesViewModel>();
         services.AddSingleton<OnlineViewModel>(sp => new OnlineViewModel(
             sp.GetRequiredService<GeneralsOnlineLobbiesViewModel>(),
-            sp.GetService<OnlineViewModelDependencies>(),
             sp.GetService<ILocalizationService>()));
         services.AddSingleton<NotificationManagerViewModel>();
         services.AddSingleton<SettingsViewModel>(sp => new SettingsViewModel(

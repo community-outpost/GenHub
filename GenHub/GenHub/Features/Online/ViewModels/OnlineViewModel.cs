@@ -38,15 +38,13 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable
     /// Initializes a new instance of the <see cref="OnlineViewModel"/> class.
     /// </summary>
     /// <param name="generalsOnlineLobbies">The Generals Online view model.</param>
-    /// <param name="dependencies">Optional dependencies container.</param>
     /// <param name="localizationService">Optional localization service.</param>
     public OnlineViewModel(
         GeneralsOnlineLobbiesViewModel generalsOnlineLobbies,
-        OnlineViewModelDependencies? dependencies = null,
         ILocalizationService? localizationService = null)
     {
         GeneralsOnlineLobbies = generalsOnlineLobbies ?? throw new ArgumentNullException(nameof(generalsOnlineLobbies));
-        _localizationService = dependencies?.LocalizationService ?? localizationService;
+        _localizationService = localizationService;
 
         BuildSections();
 
@@ -64,6 +62,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable
     /// <summary>
     /// Gets a value indicating whether Generals Online is currently selected in the sidebar.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Depends on generated instance property SelectedSection.")]
     public bool IsGeneralsOnlineSelected =>
         SelectedSection?.Id == OnlineConstants.SectionGeneralsOnline;
 
@@ -89,15 +88,6 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable
             await GeneralsOnlineLobbies.RefreshAsync(cancellationToken);
         }
     }
-
-    /// <summary>
-    /// Compatibility alias for refreshing online networks/lobbies.
-    /// </summary>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A task representing the refresh operation.</returns>
-    [RelayCommand]
-    public Task RefreshNetworksAsync(CancellationToken cancellationToken = default) =>
-        RefreshAsync(cancellationToken);
 
     /// <inheritdoc/>
     public void Dispose()

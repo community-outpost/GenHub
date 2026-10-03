@@ -114,15 +114,15 @@ public sealed class GameCrcCalculatorEngineExeTests : IDisposable
     }
 
     /// <summary>
-    /// Tests that skirmish script files do not affect the engine executable checksum.
+    /// Tests that skirmish script files under the scripts root feed the checksum.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CalculateEngineExeCrcAsync_WithSkirmishScripts_IgnoresSkirmishScriptsAsync()
+    public async Task CalculateEngineExeCrcAsync_WithSkirmishScripts_PullsScriptBytesIntoChecksumAsync()
     {
         // Arrange
         var service = new GameCrcCalculatorService();
-        var exePath = WriteExe("skirmish_ignored.dat", [0x01, 0x02]);
+        var exePath = WriteExe("skirmish.dat", [0x01, 0x02]);
         var plain = await service.CalculateEngineExeCrcAsync(exePath, GameType.ZeroHour, _tempDir);
         var skirmishScriptPath = Path.Combine(_tempDir, SageChecksumConstants.SkirmishScriptsRelativePath);
         Directory.CreateDirectory(Path.GetDirectoryName(skirmishScriptPath)!);
@@ -134,7 +134,7 @@ public sealed class GameCrcCalculatorEngineExeTests : IDisposable
         // Assert
         Assert.True(plain.Success);
         Assert.True(withSkirmish.Success);
-        Assert.Equal(plain.Data, withSkirmish.Data);
+        Assert.NotEqual(plain.Data, withSkirmish.Data);
     }
 
     /// <summary>
