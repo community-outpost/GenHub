@@ -28,7 +28,7 @@ public static partial class CloudUrlHelper
     [GeneratedRegex(@"href=[""']([^""']*confirm=[^""']*)[""']", RegexOptions.IgnoreCase, 500)]
     private static partial Regex GoogleDriveConfirmHrefRegexCompiled();
 
-    [GeneratedRegex(@"<form\b(?=[^>]*\baction=[""']([^""']*)[""'])(?=[^>]*\bmethod=[""'](?:post|get)[""'])[^>]*>", RegexOptions.IgnoreCase, 500)]
+    [GeneratedRegex(@"<form\b(?=[^>]*\baction=[""']([^""']*)[""'])(?=[^>]*\bmethod=[""'](?:post|get)[""'])[^>]*>(.*?)(?:<\/form>|$)", RegexOptions.IgnoreCase | RegexOptions.Singleline, 500)]
     private static partial Regex GoogleDriveFormActionRegexCompiled();
 
     [GeneratedRegex(@"<input\s+(?=[^>]*\bname=[""']([^""']+)[""'])(?=[^>]*\bvalue=[""']([^""']*)[""'])[^>]*>", RegexOptions.IgnoreCase, 500)]
@@ -131,6 +131,7 @@ public static partial class CloudUrlHelper
         if (actionMatch.Success)
         {
             var rawAction = actionMatch.Groups[1].Value.Replace("&amp;", "&");
+            var formInnerHtml = actionMatch.Groups[2].Value;
             Uri? resolvedUri = null;
             if (Uri.TryCreate(rawAction, UriKind.Absolute, out var absAction) &&
                 (absAction.Scheme == Uri.UriSchemeHttp || absAction.Scheme == Uri.UriSchemeHttps))
@@ -150,7 +151,7 @@ public static partial class CloudUrlHelper
             if (resolvedUri is not null && IsAllowedGoogleDriveHost(resolvedUri))
             {
                 var action = resolvedUri.ToString();
-                var inputMatches = GoogleDriveFormInputRegex.Matches(html);
+                var inputMatches = GoogleDriveFormInputRegex.Matches(formInnerHtml);
                 var queryParams = inputMatches
                     .Select(m => $"{Uri.EscapeDataString(m.Groups[1].Value)}={Uri.EscapeDataString(m.Groups[2].Value)}")
                     .ToList();

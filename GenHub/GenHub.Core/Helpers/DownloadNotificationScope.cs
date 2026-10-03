@@ -360,9 +360,18 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
             return false;
         }
 
-        var trimmed = status.Trim();
-        return (trimmed.EndsWith('%') && int.TryParse(trimmed.AsSpan(0, trimmed.Length - 1), out _)) ||
-               (trimmed.Length >= 4 && trimmed.Contains("% -"));
+        var trimmed = status.TrimEnd();
+        if (trimmed.EndsWith('%'))
+        {
+            var lastSpace = trimmed.LastIndexOf(' ');
+            var percentToken = lastSpace >= 0 ? trimmed[(lastSpace + 1)..^1] : trimmed[..^1];
+            if (int.TryParse(percentToken, out _))
+            {
+                return true;
+            }
+        }
+
+        return trimmed.Length >= 4 && trimmed.Contains("% -");
     }
 
     private void UpdatePinnedToast(

@@ -300,6 +300,14 @@ public class FastHttpClientFileDownloader(
             probeResponse.EnsureSuccessStatusCode();
 
             var resolvedUri = probeResponse.RequestMessage?.RequestUri ?? new Uri(url);
+            if (!string.Equals(resolvedUri.Host, new Uri(url).Host, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!NetworkSecurityHelper.IsSafeUrl(resolvedUri.ToString(), out var redirectError))
+                {
+                    throw new InvalidOperationException($"Redirect target is not allowed: {redirectError}");
+                }
+            }
+
             var contentRange = probeResponse.Content.Headers.ContentRange;
 
             // Validate that probe returned 206 Partial Content with valid byte range (bytes 0-0/totalLength)
@@ -441,10 +449,11 @@ public class FastHttpClientFileDownloader(
         HttpClient chunkClient = client;
         HttpClient? cdnClient = null;
         var originUri = new Uri(url);
-        if (!string.Equals(resolvedUri.Host, originUri.Host, StringComparison.OrdinalIgnoreCase) && headers?.ContainsKey("Authorization") == true)
+        var hasAuthHeader = headers?.Any(h => string.Equals(h.Key, "Authorization", StringComparison.OrdinalIgnoreCase)) == true;
+        if (!string.Equals(resolvedUri.Host, originUri.Host, StringComparison.OrdinalIgnoreCase) && hasAuthHeader)
         {
-            var cdnHeaders = headers.Where(h => !string.Equals(h.Key, "Authorization", StringComparison.OrdinalIgnoreCase))
-                                   .ToDictionary(h => h.Key, h => h.Value);
+            var cdnHeaders = headers!.Where(h => !string.Equals(h.Key, "Authorization", StringComparison.OrdinalIgnoreCase))
+                                    .ToDictionary(h => h.Key, h => h.Value);
             cdnClient = CreateHttpClient(cdnHeaders, timeout);
             chunkClient = cdnClient;
         }
