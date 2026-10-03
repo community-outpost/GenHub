@@ -118,7 +118,49 @@ public class IsSubscribedConverterTests
     }
 
     /// <summary>
-    /// Verifies that ConvertBack returns an empty array.
+    /// Verifies that Convert returns true when custom build matches content ID and publisher ID.
+    /// </summary>
+    [Fact]
+    public void Convert_ReturnsTrue_WhenCustomBuildMatchesContentIdAndPublisherId()
+    {
+        // Arrange
+        var item = new CustomBuildSubscriptionItem
+        {
+            ContentId = "my-fork",
+            PublisherId = "pub-1",
+        };
+        var values = (List<object?>)[item, null, null, "my-fork", "pub-1"];
+
+        // Act
+        var result = _converter.Convert(values, typeof(bool), null, CultureInfo.InvariantCulture);
+
+        // Assert
+        Assert.True((bool?)result);
+    }
+
+    /// <summary>
+    /// Verifies that Convert returns false when custom build content ID matches but publisher ID differs.
+    /// </summary>
+    [Fact]
+    public void Convert_ReturnsFalse_WhenCustomBuildContentIdMatchesButPublisherIdDiffers()
+    {
+        // Arrange
+        var item = new CustomBuildSubscriptionItem
+        {
+            ContentId = "my-fork",
+            PublisherId = "pub-2",
+        };
+        var values = (List<object?>)[item, null, null, "my-fork", "pub-1"];
+
+        // Act
+        var result = _converter.Convert(values, typeof(bool), null, CultureInfo.InvariantCulture);
+
+        // Assert
+        Assert.False((bool?)result);
+    }
+
+    /// <summary>
+    /// Verifies that Convert returns empty array from ConvertBack.
     /// </summary>
     [Fact]
     public void ConvertBack_ReturnsEmptyArray()

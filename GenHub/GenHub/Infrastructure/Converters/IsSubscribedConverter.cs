@@ -30,6 +30,7 @@ public class IsSubscribedConverter : IMultiValueConverter
         var subscribedPr = values.Count > 1 ? values[1] as PullRequestInfo : null;
         var subscribedBranch = values.Count > 2 ? values[2] as string : null;
         var subscribedCustomBuild = values.Count > 3 ? values[3] as string : null;
+        var subscribedPublisherId = values.Count > 4 ? values[4] as string : null;
 
         if (item is PullRequestInfo pr)
         {
@@ -43,7 +44,18 @@ public class IsSubscribedConverter : IMultiValueConverter
 
         if (item is CustomBuildSubscriptionItem customBuild)
         {
-            return string.Equals(subscribedCustomBuild, customBuild.ContentId, StringComparison.OrdinalIgnoreCase);
+            var contentMatches = string.Equals(subscribedCustomBuild, customBuild.ContentId, StringComparison.OrdinalIgnoreCase);
+            if (!contentMatches)
+            {
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(subscribedPublisherId) && !string.IsNullOrWhiteSpace(customBuild.PublisherId))
+            {
+                return string.Equals(subscribedPublisherId, customBuild.PublisherId, StringComparison.OrdinalIgnoreCase);
+            }
+
+            return true;
         }
 
         return false;
