@@ -84,7 +84,7 @@ public sealed class SageIniDatabase(SageIniParser parser, ILogger<SageIniDatabas
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(mapIniPath);
         var started = Stopwatch.GetTimestamp();
-        byte[] bytes;
+        byte[] bytes = [];
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -94,7 +94,17 @@ public sealed class SageIniDatabase(SageIniParser parser, ILogger<SageIniDatabas
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Could not read map.ini at {Path}", mapIniPath);
+            return OperationResult<MapIniLoadReport>.CreateFailure($"Could not read map.ini at {mapIniPath}.", Stopwatch.GetElapsedTime(started));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Could not read map.ini at {Path}", mapIniPath);
+            return OperationResult<MapIniLoadReport>.CreateFailure($"Could not read map.ini at {mapIniPath}.", Stopwatch.GetElapsedTime(started));
+        }
+        catch (NotSupportedException ex)
         {
             logger.LogWarning(ex, "Could not read map.ini at {Path}", mapIniPath);
             return OperationResult<MapIniLoadReport>.CreateFailure($"Could not read map.ini at {mapIniPath}.", Stopwatch.GetElapsedTime(started));
@@ -257,7 +267,7 @@ public sealed class SageIniDatabase(SageIniParser parser, ILogger<SageIniDatabas
     {
         return async (includingFile, includePath, cancellationToken) =>
         {
-            var candidates = new List<string> { ResolveVirtualPath(includingFile, includePath), NormalizeVirtualPath(includePath) };
+            List<string> candidates = [ResolveVirtualPath(includingFile, includePath), NormalizeVirtualPath(includePath)];
             foreach (var candidate in candidates.Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -297,7 +307,15 @@ public sealed class SageIniDatabase(SageIniParser parser, ILogger<SageIniDatabas
             {
                 throw;
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+            catch (IOException ex)
+            {
+                return OperationResult<(string ResolvedPath, string Text)>.CreateFailure($"Include '{includePath}' could not be read: {ex.Message}.");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return OperationResult<(string ResolvedPath, string Text)>.CreateFailure($"Include '{includePath}' could not be read: {ex.Message}.");
+            }
+            catch (NotSupportedException ex)
             {
                 return OperationResult<(string ResolvedPath, string Text)>.CreateFailure($"Include '{includePath}' could not be read: {ex.Message}.");
             }

@@ -130,7 +130,22 @@ public sealed class StringTableService(ILogger<StringTableService> logger) : ISt
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or InvalidDataException)
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Could not load map strings at {Path}", mapStrPath);
+            return OperationResult<StringTableLoadReport>.CreateFailure($"Could not load map strings at {mapStrPath}.", Stopwatch.GetElapsedTime(started));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Could not load map strings at {Path}", mapStrPath);
+            return OperationResult<StringTableLoadReport>.CreateFailure($"Could not load map strings at {mapStrPath}.", Stopwatch.GetElapsedTime(started));
+        }
+        catch (NotSupportedException ex)
+        {
+            logger.LogWarning(ex, "Could not load map strings at {Path}", mapStrPath);
+            return OperationResult<StringTableLoadReport>.CreateFailure($"Could not load map strings at {mapStrPath}.", Stopwatch.GetElapsedTime(started));
+        }
+        catch (InvalidDataException ex)
         {
             logger.LogWarning(ex, "Could not load map strings at {Path}", mapStrPath);
             return OperationResult<StringTableLoadReport>.CreateFailure($"Could not load map strings at {mapStrPath}.", Stopwatch.GetElapsedTime(started));
@@ -206,7 +221,11 @@ public sealed class StringTableService(ILogger<StringTableService> logger) : ISt
             var csf = CsfFile.Load(stream);
             return OperationResult<Dictionary<string, string>>.CreateSuccess(new Dictionary<string, string>(csf.Strings, StringComparer.OrdinalIgnoreCase));
         }
-        catch (Exception ex) when (ex is InvalidDataException or ArgumentException)
+        catch (InvalidDataException ex)
+        {
+            return OperationResult<Dictionary<string, string>>.CreateFailure($"The CSF table at {csfPath} is malformed: {ex.Message}.");
+        }
+        catch (ArgumentException ex)
         {
             return OperationResult<Dictionary<string, string>>.CreateFailure($"The CSF table at {csfPath} is malformed: {ex.Message}.");
         }
@@ -225,7 +244,11 @@ public sealed class StringTableService(ILogger<StringTableService> logger) : ISt
             var str = StrFile.LoadText(Encoding.Latin1.GetString(read.Data));
             return OperationResult<Dictionary<string, string>>.CreateSuccess(new Dictionary<string, string>(str.Strings, StringComparer.OrdinalIgnoreCase));
         }
-        catch (Exception ex) when (ex is InvalidDataException or ArgumentException)
+        catch (InvalidDataException ex)
+        {
+            return OperationResult<Dictionary<string, string>>.CreateFailure($"The STR table is malformed: {ex.Message}.");
+        }
+        catch (ArgumentException ex)
         {
             return OperationResult<Dictionary<string, string>>.CreateFailure($"The STR table is malformed: {ex.Message}.");
         }

@@ -326,7 +326,19 @@ public sealed class WbGlViewport : OpenGlControlBase, IDisposable
                 ReportGlAvailability(false);
             }
         }
-        catch (Exception ex) when (ex is InvalidOperationException || ex is NotSupportedException || ex is ArgumentException)
+        catch (InvalidOperationException ex)
+        {
+            GlInitError = ex.Message;
+            System.Diagnostics.Debug.WriteLine($"WorldBuilder GL init threw: {ex}");
+            ReportGlAvailability(false);
+        }
+        catch (NotSupportedException ex)
+        {
+            GlInitError = ex.Message;
+            System.Diagnostics.Debug.WriteLine($"WorldBuilder GL init threw: {ex}");
+            ReportGlAvailability(false);
+        }
+        catch (ArgumentException ex)
         {
             GlInitError = ex.Message;
             System.Diagnostics.Debug.WriteLine($"WorldBuilder GL init threw: {ex}");

@@ -24,10 +24,21 @@ public sealed class AppDataPathHelperTests : IDisposable
     private readonly string? _originalOverride = Environment.GetEnvironmentVariable(StorageMigrationConstants.AppDataPathEnvVar);
     private readonly string _overrideRoot = Path.Combine(Path.GetTempPath(), $"GenHub.AppDataPathHelperTests.{Guid.NewGuid():N}");
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AppDataPathHelperTests"/> class.
+    /// </summary>
+    public AppDataPathHelperTests()
+    {
+        StorageMigrationService.SetDefaultDataRootOverrideForTesting(null);
+        StorageMigrationService.SetConfiguredDataPathResolver(null);
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {
         Environment.SetEnvironmentVariable(StorageMigrationConstants.AppDataPathEnvVar, _originalOverride);
+        StorageMigrationService.SetDefaultDataRootOverrideForTesting(null);
+        StorageMigrationService.SetConfiguredDataPathResolver(null);
         StorageMigrationService.SetCustomInstallRootOverrideForTesting(null);
         AppDataPathHelper.SetLegacyRoamingRootOverrideForTesting(null);
         if (Directory.Exists(_overrideRoot))

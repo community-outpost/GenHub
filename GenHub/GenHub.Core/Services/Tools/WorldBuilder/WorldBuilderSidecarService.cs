@@ -91,7 +91,22 @@ public sealed class WorldBuilderSidecarService(IEnumerable<IGameLaunchRunner> ru
             logger.LogInformation("Launched native WorldBuilder from {ExecutablePath}.", executablePath);
             return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
         }
-        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or UnauthorizedAccessException or IOException)
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(ex, "Failed to launch native WorldBuilder from {ExecutablePath}.", executablePath);
+            return Task.FromResult(OperationResult<bool>.CreateFailure($"Failed to launch: {ex.Message}"));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Failed to launch native WorldBuilder from {ExecutablePath}.", executablePath);
+            return Task.FromResult(OperationResult<bool>.CreateFailure($"Failed to launch: {ex.Message}"));
+        }
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to launch native WorldBuilder from {ExecutablePath}.", executablePath);
+            return Task.FromResult(OperationResult<bool>.CreateFailure($"Failed to launch: {ex.Message}"));
+        }
+        catch (System.ComponentModel.Win32Exception ex)
         {
             logger.LogWarning(ex, "Failed to launch native WorldBuilder from {ExecutablePath}.", executablePath);
             return Task.FromResult(OperationResult<bool>.CreateFailure($"Failed to launch: {ex.Message}"));

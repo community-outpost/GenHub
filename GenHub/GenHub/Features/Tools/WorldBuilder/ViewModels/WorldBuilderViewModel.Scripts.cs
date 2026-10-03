@@ -540,7 +540,15 @@ public sealed partial class WorldBuilderViewModel
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
+        {
+            notificationService.ShowError(
+                localizationService.GetString("Tools.WorldBuilder.Scripts.ExportScripts"),
+                localizationService.GetString("Tools.WorldBuilder.Scripts.ExportFailed", ex.Message),
+                NotificationDurations.Long);
+            return OperationResult<int>.CreateFailure(ex.Message);
+        }
+        catch (UnauthorizedAccessException ex)
         {
             notificationService.ShowError(
                 localizationService.GetString("Tools.WorldBuilder.Scripts.ExportScripts"),
@@ -590,7 +598,15 @@ public sealed partial class WorldBuilderViewModel
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        catch (IOException ex)
+        {
+            return FailScriptImport(ex.Message);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return FailScriptImport(ex.Message);
+        }
+        catch (InvalidDataException ex)
         {
             return FailScriptImport(ex.Message);
         }

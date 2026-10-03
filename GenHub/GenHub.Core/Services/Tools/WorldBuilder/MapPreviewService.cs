@@ -58,7 +58,12 @@ public sealed class MapPreviewService(ILogger<MapPreviewService> logger) : IMapP
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to write preview for {MapPath}.", mapPath);
+            return OperationResult<bool>.CreateFailure($"Failed to write preview: {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
         {
             logger.LogWarning(ex, "Failed to write preview for {MapPath}.", mapPath);
             return OperationResult<bool>.CreateFailure($"Failed to write preview: {ex.Message}");
@@ -84,7 +89,12 @@ public sealed class MapPreviewService(ILogger<MapPreviewService> logger) : IMapP
         {
             throw;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to read preview for {MapPath}.", mapPath);
+            return OperationResult<MapPreviewData>.CreateFailure($"Failed to read preview: {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
         {
             logger.LogWarning(ex, "Failed to read preview for {MapPath}.", mapPath);
             return OperationResult<MapPreviewData>.CreateFailure($"Failed to read preview: {ex.Message}");

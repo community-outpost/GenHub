@@ -29,7 +29,12 @@ public sealed class WaveTrackService(ILogger<WaveTrackService> logger) : IWaveTr
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to load waves from {WakPath}.", wakPath);
+            return OperationResult<IReadOnlyList<WaveTrackRecord>>.CreateFailure($"Failed to load waves: {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
         {
             logger.LogWarning(ex, "Failed to load waves from {WakPath}.", wakPath);
             return OperationResult<IReadOnlyList<WaveTrackRecord>>.CreateFailure($"Failed to load waves: {ex.Message}");
@@ -64,7 +69,11 @@ public sealed class WaveTrackService(ILogger<WaveTrackService> logger) : IWaveTr
                     {
                         File.Delete(tempPath);
                     }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    catch (IOException)
+                    {
+                        // Clean up temp file if move failed
+                    }
+                    catch (UnauthorizedAccessException)
                     {
                         // Clean up temp file if move failed
                     }
@@ -77,7 +86,12 @@ public sealed class WaveTrackService(ILogger<WaveTrackService> logger) : IWaveTr
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to save waves to {WakPath}.", wakPath);
+            return OperationResult<bool>.CreateFailure($"Failed to save waves: {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
         {
             logger.LogWarning(ex, "Failed to save waves to {WakPath}.", wakPath);
             return OperationResult<bool>.CreateFailure($"Failed to save waves: {ex.Message}");

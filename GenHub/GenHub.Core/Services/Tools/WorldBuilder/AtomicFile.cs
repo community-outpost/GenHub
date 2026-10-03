@@ -59,7 +59,12 @@ internal static class AtomicFile
         {
             File.Delete(tempPath);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
+        {
+            // Best-effort temp cleanup after a failed move; the temp file is harmless.
+            _ = ex;
+        }
+        catch (UnauthorizedAccessException ex)
         {
             // Best-effort temp cleanup after a failed move; the temp file is harmless.
             _ = ex;

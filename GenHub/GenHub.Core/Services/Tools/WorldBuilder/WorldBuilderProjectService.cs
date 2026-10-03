@@ -51,7 +51,12 @@ public sealed class WorldBuilderProjectService(ILogger<WorldBuilderProjectServic
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to create project at {FolderPath}.", folderPath);
+            return OperationResult<WorldBuilderProject>.CreateFailure($"Failed to create project: {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
         {
             logger.LogWarning(ex, "Failed to create project at {FolderPath}.", folderPath);
             return OperationResult<WorldBuilderProject>.CreateFailure($"Failed to create project: {ex.Message}");
@@ -84,7 +89,12 @@ public sealed class WorldBuilderProjectService(ILogger<WorldBuilderProjectServic
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to open project at {FolderPath}.", folderPath);
+            return OperationResult<WorldBuilderProject>.CreateFailure($"Failed to open project: {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
         {
             logger.LogWarning(ex, "Failed to open project at {FolderPath}.", folderPath);
             return OperationResult<WorldBuilderProject>.CreateFailure($"Failed to open project: {ex.Message}");
@@ -130,7 +140,12 @@ public sealed class WorldBuilderProjectService(ILogger<WorldBuilderProjectServic
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to import maps from {SourceFolder}.", sourceFolder);
+            return OperationResult<IReadOnlyList<string>>.CreateFailure($"Failed to import maps: {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
         {
             logger.LogWarning(ex, "Failed to import maps from {SourceFolder}.", sourceFolder);
             return OperationResult<IReadOnlyList<string>>.CreateFailure($"Failed to import maps: {ex.Message}");

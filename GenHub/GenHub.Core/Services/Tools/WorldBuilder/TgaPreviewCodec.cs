@@ -94,7 +94,15 @@ public static class TgaPreviewCodec
 
             return OperationResult<MapPreviewData>.CreateSuccess(preview);
         }
-        catch (Exception ex) when (ex is ArgumentException or IndexOutOfRangeException or OverflowException)
+        catch (ArgumentException ex)
+        {
+            return OperationResult<MapPreviewData>.CreateFailure($"Malformed TGA preview: {ex.Message}");
+        }
+        catch (IndexOutOfRangeException ex)
+        {
+            return OperationResult<MapPreviewData>.CreateFailure($"Malformed TGA preview: {ex.Message}");
+        }
+        catch (OverflowException ex)
         {
             return OperationResult<MapPreviewData>.CreateFailure($"Malformed TGA preview: {ex.Message}");
         }

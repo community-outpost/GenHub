@@ -267,7 +267,7 @@ public sealed class WbModelRenderService(
     {
         var template = _templates.FindByName(entry.Name);
         var modelName = template?.ModelName ?? entry.Name;
-        var scale = template != null && template.AssetScale > 0 ? template.AssetScale : 1.0f;
+        var scale = template is { AssetScale: > 0 } ? template.AssetScale : 1.0f;
         var placement = Matrix4x4.CreateScale(scale)
             * Matrix4x4.CreateRotationZ(entry.Angle)
             * Matrix4x4.CreateTranslation(entry.X, entry.Y, entry.Z);

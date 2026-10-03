@@ -139,7 +139,15 @@ public sealed class MapCompressionService : IMapCompressionService
             output.Write(adler);
             return OperationResult<byte[]>.CreateSuccess(output.ToArray());
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ObjectDisposedException)
+        catch (ObjectDisposedException ex)
+        {
+            return OperationResult<byte[]>.CreateFailure($"ZLib compression failed: {ex.Message}");
+        }
+        catch (IOException ex)
+        {
+            return OperationResult<byte[]>.CreateFailure($"ZLib compression failed: {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
         {
             return OperationResult<byte[]>.CreateFailure($"ZLib compression failed: {ex.Message}");
         }
@@ -241,7 +249,15 @@ public sealed class MapCompressionService : IMapCompressionService
 
                 return OperationResult<byte[]>.CreateSuccess(bytes);
             }
-            catch (Exception ex) when (ex is IOException or InvalidDataException or ObjectDisposedException)
+            catch (ObjectDisposedException ex)
+            {
+                return OperationResult<byte[]>.CreateFailure($"ZLib decompression failed: {ex.Message}");
+            }
+            catch (IOException ex)
+            {
+                return OperationResult<byte[]>.CreateFailure($"ZLib decompression failed: {ex.Message}");
+            }
+            catch (InvalidDataException ex)
             {
                 return OperationResult<byte[]>.CreateFailure($"ZLib decompression failed: {ex.Message}");
             }

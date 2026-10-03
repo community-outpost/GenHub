@@ -518,7 +518,15 @@ public sealed partial class WorldBuilderViewModel
         {
             throw;
         }
-        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or IndexOutOfRangeException)
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(ex, "Failed to complete background map render pass");
+        }
+        catch (ArgumentException ex)
+        {
+            logger.LogWarning(ex, "Failed to complete background map render pass");
+        }
+        catch (IndexOutOfRangeException ex)
         {
             logger.LogWarning(ex, "Failed to complete background map render pass");
         }

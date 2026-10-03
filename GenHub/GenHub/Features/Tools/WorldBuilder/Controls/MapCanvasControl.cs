@@ -453,7 +453,7 @@ public sealed class MapCanvasControl : Control
             var dy = (float)cell.Y - proj.Cy;
             var dz = 0f;
 
-            if (TerrainHeights != null && TerrainHeights.Count > 0)
+            if (TerrainHeights is { Count: > 0 })
             {
                 var idx = ((int)cell.Y * MapWidth) + (int)cell.X;
                 if (idx >= 0 && idx < TerrainHeights.Count)
@@ -544,7 +544,7 @@ public sealed class MapCanvasControl : Control
             cellX = Math.Clamp(rdx + proj.Cx, 0f, MathF.Max(0f, MapWidth - 1));
             cellY = Math.Clamp(rdy + proj.Cy, 0f, MathF.Max(0f, MapHeight - 1));
 
-            if (TerrainHeights != null && TerrainHeights.Count > 0)
+            if (TerrainHeights is { Count: > 0 })
             {
                 var idx = ((int)cellY * MapWidth) + (int)cellX;
                 if (idx >= 0 && idx < TerrainHeights.Count)

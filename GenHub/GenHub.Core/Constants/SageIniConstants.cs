@@ -176,11 +176,13 @@ public static class SageIniConstants
     }
 
     /// <summary>
-    /// End-terminated scopes nested inside Draw modules. W3DModelDraw keeps one Model per
-    /// condition state; DefaultConditionState must come first, otherwise the first
-    /// ConditionState must be NONE, so the first Model field is the preview model.
-    /// ModelConditionState and AnimationState nest inside ConditionState in real game
-    /// Draw modules, so their End lines must not close the enclosing module.
+    /// End-terminated scopes nested inside Draw modules. The Generals/Zero Hour W3DModelDraw
+    /// parse table carries DefaultConditionState, ConditionState, AliasConditionState, and
+    /// TransitionState; ModelConditionState, AnimationState, and IdleAnimationState nest
+    /// inside ConditionState in real game Draw modules (for example infantry
+    /// AnimationState blocks), so their End lines must not close the enclosing module.
+    /// AutoConditionState is a later-SAGE token kept as deliberate tolerance so its End
+    /// lines do not close the enclosing module either.
     /// </summary>
     public static class ModuleNestedScopes
     {
@@ -193,7 +195,7 @@ public static class SageIniConstants
         /// <summary>Alias condition state scope opener.</summary>
         public const string AliasConditionState = "AliasConditionState";
 
-        /// <summary>Auto condition state scope opener.</summary>
+        /// <summary>Later-SAGE condition state scope opener, tolerated so its End lines do not close the enclosing module.</summary>
         public const string AutoConditionState = "AutoConditionState";
 
         /// <summary>Transition state scope opener.</summary>
@@ -224,43 +226,83 @@ public static class SageIniConstants
     }
 
     /// <summary>
-    /// Bare End-terminated nuggets nested directly inside FXList blocks (FXList::parseFXList
-    /// entries: Sound and ParticleSystem carry no type or tag).
+    /// Bare End-terminated nuggets nested directly inside FXList blocks, matching the eight
+    /// Generals/Zero Hour FXList parse-table entries.
     /// </summary>
     public static class FxListScopes
     {
         /// <summary>Sound nugget scope opener.</summary>
         public const string Sound = "Sound";
 
+        /// <summary>Ray-effect nugget scope opener.</summary>
+        public const string RayEffect = "RayEffect";
+
+        /// <summary>Tracer nugget scope opener.</summary>
+        public const string Tracer = "Tracer";
+
+        /// <summary>Light-pulse nugget scope opener.</summary>
+        public const string LightPulse = "LightPulse";
+
+        /// <summary>View-shake nugget scope opener.</summary>
+        public const string ViewShake = "ViewShake";
+
+        /// <summary>Terrain-scorch nugget scope opener.</summary>
+        public const string TerrainScorch = "TerrainScorch";
+
         /// <summary>Particle system nugget scope opener.</summary>
         public const string ParticleSystem = "ParticleSystem";
+
+        /// <summary>FX-list-at-bone nugget scope opener.</summary>
+        public const string FXListAtBonePos = "FXListAtBonePos";
 
         /// <summary>All FXList nugget scope opener field names.</summary>
         public static readonly FrozenSet<string> All = FrozenSet.ToFrozenSet<string>(
             [
                 Sound,
+                RayEffect,
+                Tracer,
+                LightPulse,
+                ViewShake,
+                TerrainScorch,
                 ParticleSystem,
+                FXListAtBonePos,
             ],
             StringComparer.Ordinal);
     }
 
     /// <summary>
-    /// Bare End-terminated nuggets nested directly inside ObjectCreationList blocks
-    /// (CreateObject and ApplyRandomForce carry no type or tag).
+    /// Bare End-terminated nuggets nested directly inside ObjectCreationList blocks, matching
+    /// the six Generals/Zero Hour ObjectCreationList parse-table entries.
     /// </summary>
     public static class ObjectCreationListScopes
     {
         /// <summary>Create-object nugget scope opener.</summary>
         public const string CreateObject = "CreateObject";
 
+        /// <summary>Create-debris nugget scope opener.</summary>
+        public const string CreateDebris = "CreateDebris";
+
         /// <summary>Random-force nugget scope opener.</summary>
         public const string ApplyRandomForce = "ApplyRandomForce";
+
+        /// <summary>Deliver-payload nugget scope opener.</summary>
+        public const string DeliverPayload = "DeliverPayload";
+
+        /// <summary>Fire-weapon nugget scope opener.</summary>
+        public const string FireWeapon = "FireWeapon";
+
+        /// <summary>Attack nugget scope opener.</summary>
+        public const string Attack = "Attack";
 
         /// <summary>All ObjectCreationList nugget scope opener field names.</summary>
         public static readonly FrozenSet<string> All = FrozenSet.ToFrozenSet<string>(
             [
                 CreateObject,
+                CreateDebris,
                 ApplyRandomForce,
+                DeliverPayload,
+                FireWeapon,
+                Attack,
             ],
             StringComparer.Ordinal);
     }
@@ -270,10 +312,10 @@ public static class SageIniConstants
     /// </summary>
     public static class BlockTokens
     {
-        /// <summary>Effect list block with Sound and ParticleSystem nuggets.</summary>
+        /// <summary>Effect list block with the eight engine nugget scopes.</summary>
         public const string FXList = "FXList";
 
-        /// <summary>Spawn list block with CreateObject and ApplyRandomForce nuggets.</summary>
+        /// <summary>Spawn list block with the six engine nugget scopes.</summary>
         public const string ObjectCreationList = "ObjectCreationList";
     }
 

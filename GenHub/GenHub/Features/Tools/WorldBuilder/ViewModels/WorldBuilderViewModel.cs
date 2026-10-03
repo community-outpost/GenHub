@@ -140,7 +140,43 @@ public sealed partial class WorldBuilderViewModel(
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or FormatException or OverflowException)
+        catch (IOException ex)
+        {
+            notificationService.ShowError(
+                localizationService.GetString("Tools.WorldBuilder.Open.FailureTitle"),
+                localizationService.GetString("Tools.WorldBuilder.Open.FailureMessage", ex.Message),
+                NotificationDurations.Long);
+            logger.LogWarning(ex, "Failed to open map file {Path}", mapPath);
+            return false;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            notificationService.ShowError(
+                localizationService.GetString("Tools.WorldBuilder.Open.FailureTitle"),
+                localizationService.GetString("Tools.WorldBuilder.Open.FailureMessage", ex.Message),
+                NotificationDurations.Long);
+            logger.LogWarning(ex, "Failed to open map file {Path}", mapPath);
+            return false;
+        }
+        catch (InvalidDataException ex)
+        {
+            notificationService.ShowError(
+                localizationService.GetString("Tools.WorldBuilder.Open.FailureTitle"),
+                localizationService.GetString("Tools.WorldBuilder.Open.FailureMessage", ex.Message),
+                NotificationDurations.Long);
+            logger.LogWarning(ex, "Failed to open map file {Path}", mapPath);
+            return false;
+        }
+        catch (FormatException ex)
+        {
+            notificationService.ShowError(
+                localizationService.GetString("Tools.WorldBuilder.Open.FailureTitle"),
+                localizationService.GetString("Tools.WorldBuilder.Open.FailureMessage", ex.Message),
+                NotificationDurations.Long);
+            logger.LogWarning(ex, "Failed to open map file {Path}", mapPath);
+            return false;
+        }
+        catch (OverflowException ex)
         {
             notificationService.ShowError(
                 localizationService.GetString("Tools.WorldBuilder.Open.FailureTitle"),
@@ -194,7 +230,15 @@ public sealed partial class WorldBuilderViewModel(
             Marshal.Copy(pixels, 0, frame.Address, pixels.Length);
             return bitmap;
         }
-        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or OutOfMemoryException)
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+        catch (OutOfMemoryException)
         {
             return null;
         }
@@ -463,7 +507,15 @@ public sealed partial class WorldBuilderViewModel(
         {
             text = await File.ReadAllTextAsync(iniPath, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            notificationService.ShowInfo(
+                localizationService.GetString("Tools.WorldBuilder.MapIni.MissingTitle"),
+                localizationService.GetString("Tools.WorldBuilder.MapIni.MissingMessage", Path.GetFileName(iniPath)),
+                NotificationDurations.Medium);
+            return;
+        }
+        catch (UnauthorizedAccessException)
         {
             notificationService.ShowInfo(
                 localizationService.GetString("Tools.WorldBuilder.MapIni.MissingTitle"),
@@ -498,14 +550,27 @@ public sealed partial class WorldBuilderViewModel(
                     {
                         File.Delete(tempPath);
                     }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    catch (IOException ex)
+                    {
+                        logger.LogDebug(ex, "Best-effort temp file cleanup failed for {Path}", tempPath);
+                    }
+                    catch (UnauthorizedAccessException ex)
                     {
                         logger.LogDebug(ex, "Best-effort temp file cleanup failed for {Path}", tempPath);
                     }
                 }
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
+        {
+            notificationService.ShowError(
+                localizationService.GetString("Tools.WorldBuilder.MapIni.FailureTitle"),
+                localizationService.GetString("Tools.WorldBuilder.MapIni.FailureMessage", ex.Message),
+                NotificationDurations.Long);
+            logger.LogWarning(ex, "Failed to tidy map INI file {Path}", iniPath);
+            return;
+        }
+        catch (UnauthorizedAccessException ex)
         {
             notificationService.ShowError(
                 localizationService.GetString("Tools.WorldBuilder.MapIni.FailureTitle"),
@@ -905,7 +970,15 @@ public sealed partial class WorldBuilderViewModel(
         {
             // Content loading was superseded; a newer pass wins.
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(ex, "Background game content load for WorldBuilder failed.");
+        }
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Background game content load for WorldBuilder failed.");
+        }
+        catch (UnauthorizedAccessException ex)
         {
             logger.LogWarning(ex, "Background game content load for WorldBuilder failed.");
         }

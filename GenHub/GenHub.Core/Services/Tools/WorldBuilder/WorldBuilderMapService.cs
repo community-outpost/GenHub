@@ -48,7 +48,15 @@ public sealed class WorldBuilderMapService(IMapCompressionService compression, I
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        catch (IOException ex)
+        {
+            return OperationResult<WorldBuilderMap>.CreateFailure($"Failed to load map: {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return OperationResult<WorldBuilderMap>.CreateFailure($"Failed to load map: {ex.Message}");
+        }
+        catch (InvalidDataException ex)
         {
             return OperationResult<WorldBuilderMap>.CreateFailure($"Failed to load map: {ex.Message}");
         }
@@ -86,7 +94,15 @@ public sealed class WorldBuilderMapService(IMapCompressionService compression, I
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        catch (IOException ex)
+        {
+            return OperationResult<bool>.CreateFailure($"Failed to save map: {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return OperationResult<bool>.CreateFailure($"Failed to save map: {ex.Message}");
+        }
+        catch (InvalidDataException ex)
         {
             return OperationResult<bool>.CreateFailure($"Failed to save map: {ex.Message}");
         }
@@ -445,7 +461,11 @@ public sealed class WorldBuilderMapService(IMapCompressionService compression, I
                     map.Waves.AddRange(tracks.Data);
                 }
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (IOException ex)
+            {
+                companionLogger.LogDebug(ex, "Optional companion {WakPath} skipped.", wakPath);
+            }
+            catch (UnauthorizedAccessException ex)
             {
                 companionLogger.LogDebug(ex, "Optional companion {WakPath} skipped.", wakPath);
             }

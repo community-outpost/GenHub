@@ -61,7 +61,11 @@ public sealed class MapGenerationService(ILogger<MapGenerationService> logger) :
         {
             throw;
         }
-        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        catch (InvalidOperationException ex)
+        {
+            return OperationResult<WorldBuilderMap>.CreateFailure($"Map generation failed: {ex.Message}");
+        }
+        catch (ArgumentException ex)
         {
             return OperationResult<WorldBuilderMap>.CreateFailure($"Map generation failed: {ex.Message}");
         }

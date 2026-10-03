@@ -294,7 +294,7 @@ public static class NameMatch
         // Levenshtein edit distance, two-row rolling buffer.
         var previous = new int[lowerB.Length + 1];
         var current = new int[lowerB.Length + 1];
-        for (var j = 0; j <= lowerB.Length; j++)
+        for (var j = 0; j < previous.Length; j++)
         {
             previous[j] = j;
         }
@@ -302,7 +302,7 @@ public static class NameMatch
         for (var i = 1; i <= lowerA.Length; i++)
         {
             current[0] = i;
-            for (var j = 1; j <= lowerB.Length; j++)
+            for (var j = 1; j < current.Length; j++)
             {
                 current[j] = EditCost(lowerA[i - 1], lowerB[j - 1], previous[j], current[j - 1], previous[j - 1]);
             }

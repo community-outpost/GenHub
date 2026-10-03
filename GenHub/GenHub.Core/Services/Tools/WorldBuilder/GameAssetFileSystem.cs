@@ -95,7 +95,22 @@ public sealed class GameAssetFileSystem(IGameInstallationService installations, 
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to read mounted file {VirtualPath}", virtualPath);
+            return OperationResult<byte[]>.CreateFailure($"Failed to read mounted file: {virtualPath}");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Failed to read mounted file {VirtualPath}", virtualPath);
+            return OperationResult<byte[]>.CreateFailure($"Failed to read mounted file: {virtualPath}");
+        }
+        catch (InvalidDataException ex)
+        {
+            logger.LogWarning(ex, "Failed to read mounted file {VirtualPath}", virtualPath);
+            return OperationResult<byte[]>.CreateFailure($"Failed to read mounted file: {virtualPath}");
+        }
+        catch (NotSupportedException ex)
         {
             logger.LogWarning(ex, "Failed to read mounted file {VirtualPath}", virtualPath);
             return OperationResult<byte[]>.CreateFailure($"Failed to read mounted file: {virtualPath}");
@@ -322,7 +337,12 @@ public sealed class GameAssetFileSystem(IGameInstallationService installations, 
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to mount game asset layers");
+            return OperationResult<bool>.CreateFailure("Failed to mount game asset layers.", Stopwatch.GetElapsedTime(started));
+        }
+        catch (UnauthorizedAccessException ex)
         {
             logger.LogWarning(ex, "Failed to mount game asset layers");
             return OperationResult<bool>.CreateFailure("Failed to mount game asset layers.", Stopwatch.GetElapsedTime(started));
@@ -476,7 +496,12 @@ public sealed class GameAssetFileSystem(IGameInstallationService installations, 
             archives.Sort(CompareArchiveOrder);
             return archives;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
+        {
+            logger.LogDebug(ex, "Could not enumerate archives under {Root}", root);
+            return [];
+        }
+        catch (UnauthorizedAccessException ex)
         {
             logger.LogDebug(ex, "Could not enumerate archives under {Root}", root);
             return [];
@@ -489,7 +514,12 @@ public sealed class GameAssetFileSystem(IGameInstallationService installations, 
         {
             return Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories).ToList();
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
+        {
+            logger.LogDebug(ex, "Could not enumerate loose files under {Root}", root);
+            return [];
+        }
+        catch (UnauthorizedAccessException ex)
         {
             logger.LogDebug(ex, "Could not enumerate loose files under {Root}", root);
             return [];

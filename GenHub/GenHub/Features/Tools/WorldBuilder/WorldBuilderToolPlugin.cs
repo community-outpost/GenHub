@@ -107,7 +107,15 @@ public sealed class WorldBuilderToolPlugin : IToolPlugin, IFileOpenTarget
             var manager = new ResourceManager("GenHub.Resources.Localization.Strings", typeof(WorldBuilderToolPlugin).Assembly);
             return manager.GetString(LoadErrorKey, CultureInfo.CurrentUICulture) ?? LoadErrorKey;
         }
-        catch (Exception ex) when (ex is MissingManifestResourceException or MissingSatelliteAssemblyException or InvalidOperationException)
+        catch (InvalidOperationException)
+        {
+            return LoadErrorKey;
+        }
+        catch (MissingManifestResourceException)
+        {
+            return LoadErrorKey;
+        }
+        catch (MissingSatelliteAssemblyException)
         {
             return LoadErrorKey;
         }

@@ -331,7 +331,7 @@ public static class W3dModelExtractor
     private static W3dHierarchy ExtractHierarchy(W3dChunk chunk)
     {
         var header = chunk.Children.FirstOrDefault(c => c.Type == WorldBuilderConstants.W3D.HierarchyHeader);
-        var name = header != null && header.Payload.Count >= HierarchyHeaderSize
+        var name = header is { Payload.Count: >= HierarchyHeaderSize }
             ? ReadFixedName(AsArray(header.Payload), 4, NameSize)
             : string.Empty;
         var pivots = Find(chunk, WorldBuilderConstants.W3D.HierarchyPivots);
@@ -363,7 +363,7 @@ public static class W3dModelExtractor
         var header = chunk.Children.FirstOrDefault(c => c.Type == WorldBuilderConstants.W3D.HlodHeader);
         var model = string.Empty;
         var hierarchy = string.Empty;
-        if (header != null && header.Payload.Count >= HlodHeaderSize)
+        if (header is { Payload.Count: >= HlodHeaderSize })
         {
             var headerBytes = AsArray(header.Payload);
             model = ReadFixedName(headerBytes, 8, NameSize);

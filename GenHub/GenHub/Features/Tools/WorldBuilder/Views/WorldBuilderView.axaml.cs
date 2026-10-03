@@ -12,6 +12,7 @@ using GenHub.Features.Tools.WorldBuilder.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Numerics;
 using System.Threading;
@@ -204,7 +205,9 @@ public partial class WorldBuilderView : UserControl
         }
     }
 
-    private async void OnDrop(object? sender, DragEventArgs e)
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Suppress unhandled drag/drop exceptions to protect the UI event loop.")]
+    [SuppressMessage("DeepSource", "CS-R1008", Justification = "Suppress unhandled drag/drop exceptions to protect the UI event loop.")]
+    private async void OnDrop(object? sender, DragEventArgs e) // skipcq: CS-R1008
     {
         if (DataContext is not WorldBuilderViewModel viewModel || !e.Data.Contains(DataFormats.Files))
         {

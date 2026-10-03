@@ -41,7 +41,12 @@ public sealed class TeamExchangeService(ILogger<TeamExchangeService> logger) : I
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to export teams to {TeamsPath}.", teamsPath);
+            return OperationResult<int>.CreateFailure($"Failed to export teams: {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
         {
             logger.LogWarning(ex, "Failed to export teams to {TeamsPath}.", teamsPath);
             return OperationResult<int>.CreateFailure($"Failed to export teams: {ex.Message}");
@@ -103,7 +108,17 @@ public sealed class TeamExchangeService(ILogger<TeamExchangeService> logger) : I
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to import teams from {TeamsPath}.", teamsPath);
+            return OperationResult<IReadOnlyList<MapTeamEntry>>.CreateFailure($"Failed to import teams: {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Failed to import teams from {TeamsPath}.", teamsPath);
+            return OperationResult<IReadOnlyList<MapTeamEntry>>.CreateFailure($"Failed to import teams: {ex.Message}");
+        }
+        catch (InvalidDataException ex)
         {
             logger.LogWarning(ex, "Failed to import teams from {TeamsPath}.", teamsPath);
             return OperationResult<IReadOnlyList<MapTeamEntry>>.CreateFailure($"Failed to import teams: {ex.Message}");
