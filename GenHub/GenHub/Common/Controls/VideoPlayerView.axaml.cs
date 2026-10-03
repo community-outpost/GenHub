@@ -407,10 +407,15 @@ public partial class VideoPlayerView : UserControl
     {
         base.OnAttachedToVisualTree(e);
         VideoHost.AttachedToVisualTree += OnVideoHostAttached;
-        if (VideoHost.VisualRoot != null)
-        {
-            OnVideoHostAttached(VideoHost, e);
-        }
+    }
+
+    /// <inheritdoc />
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        VideoHost.AttachedToVisualTree -= OnVideoHostAttached;
+        videoHostAttached = false;
+        StopPlayback();
+        base.OnDetachedFromVisualTree(e);
     }
 
     private void OnVideoHostAttached(object? sender, VisualTreeAttachmentEventArgs e)
@@ -421,15 +426,6 @@ public partial class VideoPlayerView : UserControl
         {
             StartPlayback(SourceUrl);
         }
-    }
-
-    /// <inheritdoc />
-    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
-    {
-        VideoHost.AttachedToVisualTree -= OnVideoHostAttached;
-        videoHostAttached = false;
-        StopPlayback();
-        base.OnDetachedFromVisualTree(e);
     }
 
     private static LibVLC? EnsureLibVLC()
