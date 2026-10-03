@@ -329,12 +329,6 @@ public static class ManifestConstants
     /// <summary>English fallback when variant entry point is not found in payload.</summary>
     public const string VariantEntryPointNotFoundInPayload = "Game client '{0}' declares variant entry point '{1}', which was not found in its payload.";
 
-    /// <summary>Resource key when multiple variants lack declared entry points.</summary>
-    public const string MultipleVariantsMissingEntryPointKey = "Manifest.VariantEntryPoint.MultipleMissing";
-
-    /// <summary>English fallback when multiple variants lack declared entry points.</summary>
-    public const string MultipleVariantsMissingEntryPoint = "Game client '{0}' has {1} variants without a declared entry point; detection cannot resolve one entry per variant.";
-
     /// <summary>Tag for unknown authors.</summary>
     public const string UnknownAuthor = "unknown";
 
