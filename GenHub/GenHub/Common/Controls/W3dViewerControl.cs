@@ -21,8 +21,12 @@ namespace GenHub.Common.Controls;
 /// OpenGL viewer rendering textured W3D models with skeleton overlay,
 /// orbit camera, and click-to-select sub-object picking.
 /// </summary>
+#pragma warning disable S1939 // OpenGlControlBase implements ICustomHitTest via explicit/non-virtual method; re-listing interface is required for proper Avalonia hit-test routing.
+[SuppressMessage("Minor Code Smell", "S1939:Redundant interface implementations should be removed", Justification = "OpenGlControlBase implements ICustomHitTest via explicit/non-virtual method; re-listing interface is required for proper Avalonia hit-test routing.")]
+[SuppressMessage("Major Code Smell", "S1939:Redundant interface implementations should be removed", Justification = "OpenGlControlBase implements ICustomHitTest via explicit/non-virtual method; re-listing interface is required for proper Avalonia hit-test routing.")]
 public sealed class W3dViewerControl : OpenGlControlBase, ICustomHitTest
 {
+#pragma warning restore S1939
     /// <summary>
     /// The rendered scene.
     /// </summary>
