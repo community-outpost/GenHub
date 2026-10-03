@@ -1537,7 +1537,27 @@ public class PublisherStudioInventoryManagementTests
     /// Tests that multiple external assets with size 0 referencing the same URL trigger only a single probe.
     /// </summary>
     [Fact]
-    public void TrackExternalProbe_DeduplicatesConcurrentProbesForSameUrl()
+    public void     [Fact]
+    public async Task DebugProbeResponseAsync()
+    {
+        var handler = new CountingJsonHandler("{}", "shared-probe-target.zip", "application/zip");
+        var client = new HttpClient(handler);
+        var url = "https://example.com/shared-probe-target.zip";
+        var isSafe = GenHub.Infrastructure.Services.ImageCacheService.IsSafeRemoteUrl(url, out var uri);
+        using var req = new HttpRequestMessage(HttpMethod.Head, url);
+        using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead);
+        var clBefore = resp.Content?.Headers?.ContentLength;
+        var resp2 = new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent([]) };
+        resp2.Content.Headers.ContentLength = 100;
+        resp2.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/zip");
+        var handler2 = new DelegateHandler((r, c) => Task.FromResult(resp2));
+        var client2 = new HttpClient(handler2);
+        using var req2 = new HttpRequestMessage(HttpMethod.Head, url);
+        using var resp2Received = await client2.SendAsync(req2, HttpCompletionOption.ResponseHeadersRead);
+        Assert.True(false, $"clBefore={clBefore}, clWithByteArray={resp2Received.Content?.Headers?.ContentLength}");
+    }
+
+    TrackExternalProbe_DeduplicatesConcurrentProbesForSameUrl()
     {
         var project = CreateInventoryProject();
         var sharedUrl = "https://example.com/shared-probe-target.zip";
@@ -1641,17 +1661,30 @@ public class PublisherStudioInventoryManagementTests
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            var uri = request.RequestUri?.ToString() ?? string.Empty;
             if (countedUrlSubstring == null ||
-                request.RequestUri?.ToString().Contains(countedUrlSubstring, StringComparison.OrdinalIgnoreCase) == true)
+                uri.Contains(countedUrlSubstring, StringComparison.OrdinalIgnoreCase))
             {
                 CallCount++;
             }
 
             var response = new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent(json, Encoding.UTF8, mediaType),
+                RequestMessage = request,
             };
-            response.Content.Headers.ContentLength = 100;
+
+            if (request.Method == HttpMethod.Head)
+            {
+                response.Content = new ByteArrayContent([]);
+                response.Content.Headers.ContentLength = 100;
+                response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(mediaType);
+            }
+            else
+            {
+                response.Content = new StringContent(json, Encoding.UTF8, mediaType);
+                response.Content.Headers.ContentLength = 100;
+            }
+
             return Task.FromResult(response);
         }
     }

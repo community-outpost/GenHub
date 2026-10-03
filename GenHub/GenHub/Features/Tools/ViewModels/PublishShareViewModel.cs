@@ -2131,9 +2131,12 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        foreach (var url in metadata.ScreenshotUrls)
+        if (metadata.ScreenshotUrls != null)
         {
-            ProcessMediaAsset(url, MediaSlotScreenshot, null, content, catalog, providerName, emittedUrls, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
+            foreach (var url in metadata.ScreenshotUrls)
+            {
+                ProcessMediaAsset(url, MediaSlotScreenshot, null, content, catalog, providerName, emittedUrls, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(metadata.VideoUrl))
@@ -2141,9 +2144,12 @@ public partial class PublishShareViewModel(
             ProcessMediaAsset(metadata.VideoUrl, MediaSlotVideo, null, content, catalog, providerName, emittedUrls, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
         }
 
-        foreach (var url in metadata.VideoUrls)
+        if (metadata.VideoUrls != null)
         {
-            ProcessMediaAsset(url, MediaSlotVideo, null, content, catalog, providerName, emittedUrls, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
+            foreach (var url in metadata.VideoUrls)
+            {
+                ProcessMediaAsset(url, MediaSlotVideo, null, content, catalog, providerName, emittedUrls, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
+            }
         }
 
         ProcessMediaAsset(metadata.IconUrl, MediaSlotIcon, null, content, catalog, providerName, emittedUrls, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
@@ -2162,14 +2168,20 @@ public partial class PublishShareViewModel(
         ref int videoCount,
         ref int cdnCount)
     {
-        foreach (var url in release.ImageUrls)
+        if (release.ImageUrls != null)
         {
-            ProcessMediaAsset(url, MediaSlotReleaseImage, release.Version, content, catalog, providerName, emittedUrls, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
+            foreach (var url in release.ImageUrls)
+            {
+                ProcessMediaAsset(url, MediaSlotReleaseImage, release.Version, content, catalog, providerName, emittedUrls, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
+            }
         }
 
-        foreach (var url in release.VideoUrls)
+        if (release.VideoUrls != null)
         {
-            ProcessMediaAsset(url, MediaSlotReleaseVideo, release.Version, content, catalog, providerName, emittedUrls, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
+            foreach (var url in release.VideoUrls)
+            {
+                ProcessMediaAsset(url, MediaSlotReleaseVideo, release.Version, content, catalog, providerName, emittedUrls, ref totalBytes, ref screenshotCount, ref videoCount, ref cdnCount);
+            }
         }
     }
 
@@ -3058,16 +3070,24 @@ public partial class PublishShareViewModel(
         var metadata = content.Metadata;
         if (metadata != null)
         {
-            count += metadata.ScreenshotUrls.Count(url => !string.IsNullOrWhiteSpace(url));
-            count += metadata.VideoUrls.Count(url => !string.IsNullOrWhiteSpace(url));
+            count += metadata.ScreenshotUrls?.Count(url => !string.IsNullOrWhiteSpace(url)) ?? 0;
+            count += metadata.VideoUrls?.Count(url => !string.IsNullOrWhiteSpace(url)) ?? 0;
             count += string.IsNullOrWhiteSpace(metadata.VideoUrl) ? 0 : 1;
             count += string.IsNullOrWhiteSpace(metadata.IconUrl) ? 0 : 1;
             count += string.IsNullOrWhiteSpace(metadata.BannerUrl) ? 0 : 1;
             count += string.IsNullOrWhiteSpace(metadata.BackdropUrl) ? 0 : 1;
         }
 
-        count += content.Releases.Sum(r => r.ImageUrls.Count(url => !string.IsNullOrWhiteSpace(url)) + r.VideoUrls.Count(url => !string.IsNullOrWhiteSpace(url)));
-        count += content.AddonReleases.Sum(r => r.ImageUrls.Count(url => !string.IsNullOrWhiteSpace(url)) + r.VideoUrls.Count(url => !string.IsNullOrWhiteSpace(url)));
+        if (content.Releases != null)
+        {
+            count += content.Releases.Sum(r => (r.ImageUrls?.Count(url => !string.IsNullOrWhiteSpace(url)) ?? 0) + (r.VideoUrls?.Count(url => !string.IsNullOrWhiteSpace(url)) ?? 0));
+        }
+
+        if (content.AddonReleases != null)
+        {
+            count += content.AddonReleases.Sum(r => (r.ImageUrls?.Count(url => !string.IsNullOrWhiteSpace(url)) ?? 0) + (r.VideoUrls?.Count(url => !string.IsNullOrWhiteSpace(url)) ?? 0));
+        }
+
         return count;
     }
 
@@ -7817,18 +7837,40 @@ public partial class PublishShareViewModel(
                     AddCloudUrl(urls, artifact.DownloadUrl);
                 }
 
-                foreach (var url in release.ImageUrls.Concat(release.VideoUrls))
+                if (release.ImageUrls != null)
                 {
-                    AddCloudUrl(urls, url);
+                    foreach (var url in release.ImageUrls)
+                    {
+                        AddCloudUrl(urls, url);
+                    }
+                }
+
+                if (release.VideoUrls != null)
+                {
+                    foreach (var url in release.VideoUrls)
+                    {
+                        AddCloudUrl(urls, url);
+                    }
                 }
             }
 
             var metadata = content.Metadata;
             if (metadata != null)
             {
-                foreach (var url in metadata.ScreenshotUrls.Concat(metadata.VideoUrls))
+                if (metadata.ScreenshotUrls != null)
                 {
-                    AddCloudUrl(urls, url);
+                    foreach (var url in metadata.ScreenshotUrls)
+                    {
+                        AddCloudUrl(urls, url);
+                    }
+                }
+
+                if (metadata.VideoUrls != null)
+                {
+                    foreach (var url in metadata.VideoUrls)
+                    {
+                        AddCloudUrl(urls, url);
+                    }
                 }
 
                 AddCloudUrl(urls, metadata.VideoUrl);
@@ -8363,8 +8405,8 @@ public partial class PublishShareViewModel(
             return false;
         }
 
-        var removedAny = metadata.ScreenshotUrls.RemoveAll(u => string.Equals(u, url, StringComparison.OrdinalIgnoreCase)) > 0;
-        removedAny |= metadata.VideoUrls.RemoveAll(u => string.Equals(u, url, StringComparison.OrdinalIgnoreCase)) > 0;
+        var removedAny = (metadata.ScreenshotUrls?.RemoveAll(u => string.Equals(u, url, StringComparison.OrdinalIgnoreCase)) ?? 0) > 0;
+        removedAny |= (metadata.VideoUrls?.RemoveAll(u => string.Equals(u, url, StringComparison.OrdinalIgnoreCase)) ?? 0) > 0;
         removedAny |= ClearMediaField(metadata, url);
         return removedAny;
     }
