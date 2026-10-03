@@ -2192,7 +2192,7 @@ public class ProfileSharingService(
         if (!ManifestVariantResolver.SupportsRuntime(manifest))
         {
             return OperationResult<SharedManifestDependency>.CreateFailure(
-                $"Cannot export '{manifest.Name}': no variant supports this host ({ManifestVariantResolver.CurrentRuntimeIdentifier}).");
+                string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.CannotExportNoHostVariant, manifest.Name, ManifestVariantResolver.CurrentRuntimeIdentifier));
         }
 
         var resolvedFiles = ManifestVariantResolver.ResolveFiles(manifest);
