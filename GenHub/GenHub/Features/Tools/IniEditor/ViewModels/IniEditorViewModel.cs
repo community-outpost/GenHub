@@ -1828,25 +1828,6 @@ public sealed partial class IniEditorViewModel(
         return null;
     }
 
-    private static IniTreeNodeViewModel? FindNodeForBlock(IEnumerable<IniTreeNodeViewModel> nodes, IniBlock targetBlock)
-    {
-        foreach (var node in nodes)
-        {
-            if (node.Block == targetBlock)
-            {
-                return node;
-            }
-
-            var found = FindNodeForBlock(node.Children, targetBlock);
-            if (found != null)
-            {
-                return found;
-            }
-        }
-
-        return null;
-    }
-
     private static void AddVitalIfPresent(List<CanvasVitalItem> vitals, string label, string? value, string brushKey)
     {
         if (!string.IsNullOrWhiteSpace(value))
@@ -5441,6 +5422,7 @@ public sealed partial class IniEditorViewModel(
         var generation = ++_modelPreviewGeneration;
         if (string.IsNullOrEmpty(installationPath))
         {
+            PostToUIThread(() => ApplyPreviewFailure(root.Name, generation, "Tools.IniEditor.Preview3D.NoInstallation", false));
             return;
         }
 
@@ -5451,16 +5433,25 @@ public sealed partial class IniEditorViewModel(
         }
         catch (OperationCanceledException)
         {
+            // Cancelled previews are discarded silently.
             return;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
+            // Fire-and-forget worker boundary: never let the loading state spin forever.
             logger.LogWarning(ex, "Composite preview gather threw for {Block}", root.Name);
+            PostToUIThread(() => ApplyPreviewFailure(root.Name, generation, "Tools.IniEditor.Preview3D.ParseError", false));
             return;
         }
 
-        if (generation != _modelPreviewGeneration || cancellationToken.IsCancellationRequested || parts.Count < 2)
+        if (generation != _modelPreviewGeneration || cancellationToken.IsCancellationRequested)
         {
+            return;
+        }
+
+        if (parts.Count < 2)
+        {
+            PostToUIThread(() => ApplyPreviewFailure(root.Name, generation, "Tools.IniEditor.Preview3D.NotFound", false));
             return;
         }
 
@@ -5503,6 +5494,7 @@ public sealed partial class IniEditorViewModel(
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or IndexOutOfRangeException)
         {
             logger.LogWarning(ex, "Failed to build composite preview scene for {Block}", root.Name);
+            PostToUIThread(() => ApplyPreviewFailure(root.Name, generation, "Tools.IniEditor.Preview3D.ParseError", false));
         }
     }
 

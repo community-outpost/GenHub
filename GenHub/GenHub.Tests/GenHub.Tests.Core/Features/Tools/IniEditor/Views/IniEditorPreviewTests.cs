@@ -129,6 +129,50 @@ public sealed class IniEditorPreviewTests
     }
 
     /// <summary>
+    /// Verifies that a command set with no resolvable models clears the loading state without a toast.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task SelectingCommandSet_WithNoResolvableModels_ClearsLoadingWithoutToastAsync()
+    {
+        var mockResolver = new Mock<IW3dModelResolver>();
+        mockResolver
+            .Setup(resolver => resolver.ResolveAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<bool>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<W3dResolvedModel>.CreateFailure("Model not found: Ghost", TimeSpan.Zero));
+        var mockNotifications = new Mock<INotificationService>();
+        using var viewModel = CreateViewModel(mockResolver.Object, mockNotifications.Object);
+        viewModel.FileExplorer.Directory = Path.GetTempPath();
+        var filePath = Path.Combine(Path.GetTempPath(), $"GenHubCommandSetAbort{Guid.NewGuid():N}.ini");
+        await File.WriteAllTextAsync(filePath, CommandSetIni());
+        try
+        {
+            Assert.True(await viewModel.OpenFileAsync(filePath));
+            var setNode = FindNodeByName(viewModel, "SetBuildTank");
+            Assert.NotNull(setNode);
+            viewModel.SelectedNode = setNode;
+
+            bool settled = await WaitForAsync(
+                () => !viewModel.IsPreviewLoading && !viewModel.HasPreviewScene && viewModel.PreviewStatusText.Length > 0,
+                TimeSpan.FromSeconds(5));
+
+            Assert.True(settled);
+            Assert.Equal("Tools.IniEditor.Preview3D.NotFound", viewModel.PreviewStatusText);
+            mockNotifications.Verify(
+                notifications => notifications.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+                Times.Never);
+        }
+        finally
+        {
+            File.Delete(filePath);
+        }
+    }
+
+    /// <summary>
     /// Verifies that a corrupt model shows the error status and toasts once.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
