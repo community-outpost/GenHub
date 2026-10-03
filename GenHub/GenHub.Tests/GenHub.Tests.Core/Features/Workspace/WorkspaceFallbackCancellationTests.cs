@@ -64,6 +64,37 @@ public sealed class WorkspaceFallbackCancellationTests : IDisposable
             Times.Never);
     }
 
+    /// <summary>
+    /// Hybrid's local-file path has its own hard-link fallback. When that fallback is cancelled,
+    /// cancellation propagates and the copy fallback is not attempted.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task HybridProcessLocalFileAsync_WhenHardLinkFallbackIsCancelled_PropagatesCancellationAsync()
+    {
+        var installDir = Path.Combine(_root, "Install");
+        Directory.CreateDirectory(Path.Combine(installDir, "Movies"));
+        var sourcePath = Path.Combine(installDir, "Movies", "intro.bik");
+        File.WriteAllText(sourcePath, "video");
+        _fileOperations
+            .Setup(f => f.CreateSymlinkAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new UnauthorizedAccessException("symlink denied"));
+        _fileOperations
+            .Setup(f => f.CreateHardLinkAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+        var file = new ManifestFile { RelativePath = RelativePath, SourcePath = sourcePath, Size = 5 * 1024 * 1024, SourceType = ContentSourceType.LocalFile };
+        var configuration = new WorkspaceConfiguration { BaseInstallationPath = installDir };
+        var strategy = new HybridCopySymlinkStrategy(_fileOperations.Object, new Mock<ILogger<HybridCopySymlinkStrategy>>().Object);
+        var method = typeof(HybridCopySymlinkStrategy).GetMethod("ProcessLocalFileAsync", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => (Task)method.Invoke(
+            strategy,
+            [file, new ContentManifest { Files = [file] }, Path.Combine(_root, "Workspace", RelativePath), configuration, CancellationToken.None])!);
+        _fileOperations.Verify(
+            f => f.CopyFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {
