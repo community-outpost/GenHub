@@ -6525,6 +6525,8 @@ public sealed partial class IniEditorViewModel(
     /// <summary>
     /// Gets a value indicating whether the current new field key has value suggestions.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Bound to XAML view; depends on instance property NewFieldValueSuggestions.")]
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Bound to XAML view; depends on instance property NewFieldValueSuggestions.")]
     public bool HasNewFieldValueSuggestions => NewFieldValueSuggestions.Count > 0;
 
     partial void OnNewFieldKeyChanged(string value)
