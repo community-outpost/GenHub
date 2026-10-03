@@ -249,6 +249,69 @@ public class PublishShareUploadFixTests
     }
 
     /// <summary>
+    /// Renaming a catalog that shares its remote file ID with another catalog must keep
+    /// the shared remote file instead of breaking the other catalog's URL.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RenameCatalogInHostingStateAsync_SharedFileId_KeepsRemoteFileAsync()
+    {
+        var hostingState = new HostingState
+        {
+            Catalogs =
+            [
+                new()
+                {
+                    CatalogId = "old-cat-id",
+                    CatalogName = "Old Name",
+                    FileName = "catalog-old.json",
+                    FileId = "shared-remote-id",
+                    Url = "https://example.com/catalog-old.json",
+                    FileSize = 42,
+                },
+                new()
+                {
+                    CatalogId = "other-cat-id",
+                    CatalogName = "Other",
+                    FileName = "catalog-other.json",
+                    FileId = "shared-remote-id",
+                    Url = "https://example.com/catalog-other.json",
+                    FileSize = 42,
+                },
+            ],
+        };
+        var container = new PublisherHostingStates
+        {
+            States = { [HostingConstants.GoogleDrive] = hostingState },
+        };
+        SetupStateManager(container);
+
+        var mockProvider = new Mock<IHostingProvider>();
+        mockProvider.Setup(p => p.ProviderId).Returns(HostingConstants.GoogleDrive);
+        mockProvider.Setup(p => p.IsAuthenticated).Returns(true);
+        mockProvider.Setup(p => p.DeleteFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var project = new PublisherStudioProject { ProjectPath = "/test/path/project.json" };
+        var vm = new PublishShareViewModel(
+            project,
+            _mockStudioService.Object,
+            _mockPublishLogger.Object,
+            null,
+            _mockHostingStateManager.Object,
+            _mockNotificationService.Object);
+        vm.HostingProviders.Add(mockProvider.Object);
+
+        await vm.RenameCatalogInHostingStateAsync("old-cat-id", "new-cat-id", "New Name", "catalog-new.json");
+
+        mockProvider.Verify(p => p.DeleteFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        var other = hostingState.Catalogs.Find(c => c.CatalogId == "other-cat-id");
+        Assert.NotNull(other);
+        Assert.Equal("shared-remote-id", other.FileId);
+        Assert.Equal("https://example.com/catalog-other.json", other.Url);
+    }
+
+    /// <summary>
     /// When the pre-rename remote delete throws, the cleared entry must be restored and
     /// re-saved so saved state never forgets a remote file that still exists.
     /// </summary>
@@ -305,6 +368,63 @@ public class PublishShareUploadFixTests
         _mockHostingStateManager.Verify(
             m => m.SaveStatesAsync("/test/path/project.json", It.IsAny<PublisherHostingStates>(), It.IsAny<CancellationToken>()),
             Times.Exactly(3));
+    }
+
+    /// <summary>
+    /// When the pre-rename remote delete throws and restoring the saved state fails,
+    /// the entry in memory must still be restored to prevent in-memory state loss.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RenameCatalogInHostingStateAsync_DeleteThrows_RestoreSaveFails_KeepsStateInMemoryAsync()
+    {
+        var hostingState = new HostingState
+        {
+            Catalogs =
+            [
+                new()
+                {
+                    CatalogId = "old-cat-id",
+                    CatalogName = "Old Name",                    FileName = "catalog-old.json",
+                    FileId = "old-remote-id",
+                    Url = "https://example.com/catalog-old.json",
+                    FileSize = 42,
+                },
+            ],
+        };
+        var container = new PublisherHostingStates
+        {
+            States = { [HostingConstants.GoogleDrive] = hostingState },
+        };
+        _mockHostingStateManager.Setup(m => m.LoadStatesAsync("/test/path/project.json", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherHostingStates>.CreateSuccess(container));
+        _mockHostingStateManager.SetupSequence(m => m.SaveStatesAsync("/test/path/project.json", It.IsAny<PublisherHostingStates>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("disk full"));
+
+        var mockProvider = new Mock<IHostingProvider>();
+        mockProvider.Setup(p => p.ProviderId).Returns(HostingConstants.GoogleDrive);
+        mockProvider.Setup(p => p.IsAuthenticated).Returns(true);
+        mockProvider.Setup(p => p.DeleteFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("delete error"));
+
+        var project = new PublisherStudioProject { ProjectPath = "/test/path/project.json" };
+        var vm = new PublishShareViewModel(
+            project,
+            _mockStudioService.Object,
+            _mockPublishLogger.Object,
+            null,
+            _mockHostingStateManager.Object,
+            _mockNotificationService.Object);
+        vm.HostingProviders.Add(mockProvider.Object);
+
+        await vm.RenameCatalogInHostingStateAsync("old-cat-id", "new-cat-id", "New Name", "catalog-new.json");
+
+        var renamed = hostingState.Catalogs.Find(c => c.CatalogId == "new-cat-id");
+        Assert.NotNull(renamed);
+        Assert.Equal("old-remote-id", renamed.FileId);
+        Assert.Equal("https://example.com/catalog-old.json", renamed.Url);
     }
 
     /// <summary>

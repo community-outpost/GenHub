@@ -17985,6 +17985,12 @@ Error: не удалось: {3}
   <data name="Tools.PublisherStudio.Hosting.DeleteOrphansKeptNoteFormat" xml:space="preserve">
     <value>Осиротевшие файлы оставлены на Диске (количество: {0}); их можно удалить по отдельности.</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteStateSaveFailedNote" xml:space="preserve">
+    <value>Не удалось сохранить состояние хостинга: удалённые файлы могут снова появиться после перезапуска.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteCatalogRemoteFailedFormat" xml:space="preserve">
+    <value>Каталог «{0}» оставлен, так как часть удалённых файлов удалить не удалось. Проверьте подключение и повторите попытку.</value>
+  </data>
   <data name="Tools.PublisherStudio.Hosting.DeleteDefinitionStaleNote" xml:space="preserve">
     <value>Определение провайдера не удалось повторно загрузить, оно помечено для публикации.</value>
   </data>
