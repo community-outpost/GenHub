@@ -300,6 +300,7 @@
                                                             <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedPr" />
                                                             <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedBranch" />
                                                             <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedCustomBuildContentId" />
+                                                            <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedCustomBuildPublisherId" />
                                                         </MultiBinding>
                                                     </Button.Tag>
                                                 </Button>
@@ -349,6 +350,7 @@
                                                             <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedPr" />
                                                             <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedBranch" />
                                                             <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedCustomBuildContentId" />
+                                                            <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedCustomBuildPublisherId" />
                                                         </MultiBinding>
                                                     </Button.Tag>
                                                 </Button>
@@ -405,6 +407,7 @@
                                                             <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedPr" />
                                                             <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedBranch" />
                                                             <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedCustomBuildContentId" />
+                                                            <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedCustomBuildPublisherId" />
                                                         </MultiBinding>
                                                     </Button.Tag>
                                                 </Button>
