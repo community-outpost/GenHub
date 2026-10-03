@@ -32,7 +32,7 @@ public sealed class ScriptTemplateCatalogTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task Templates_KeyOnInternalNameWithUiOverrides()
+    public async Task Templates_KeyOnInternalNameWithUiOverridesAsync()
     {
         // Arrange
         var workspace = _host.NewDir("workspace");
@@ -75,7 +75,7 @@ public sealed class ScriptTemplateCatalogTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task GetPickList_Stores_ListsBlockNames()
+    public async Task GetPickList_Stores_ListsBlockNamesAsync()
     {
         // Arrange
         var workspace = WritePickerWorkspace();
@@ -95,7 +95,7 @@ public sealed class ScriptTemplateCatalogTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task GetPickList_Audio_SeparatesByBlockToken()
+    public async Task GetPickList_Audio_SeparatesByBlockTokenAsync()
     {
         // Arrange
         var workspace = WritePickerWorkspace();
@@ -112,7 +112,7 @@ public sealed class ScriptTemplateCatalogTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task GetPickList_Scoped_MixesSymbolicAndIniNames()
+    public async Task GetPickList_Scoped_MixesSymbolicAndIniNamesAsync()
     {
         // Arrange
         var workspace = WritePickerWorkspace();
@@ -133,7 +133,7 @@ public sealed class ScriptTemplateCatalogTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task GetPickList_Compiled_ReturnsEngineTables()
+    public async Task GetPickList_Compiled_ReturnsEngineTablesAsync()
     {
         // Arrange
         var workspace = WritePickerWorkspace();
@@ -164,7 +164,7 @@ public sealed class ScriptTemplateCatalogTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task GetPickList_MapAndFreeEntry_ReturnsEmpty()
+    public async Task GetPickList_MapAndFreeEntry_ReturnsEmptyAsync()
     {
         // Arrange
         var workspace = WritePickerWorkspace();

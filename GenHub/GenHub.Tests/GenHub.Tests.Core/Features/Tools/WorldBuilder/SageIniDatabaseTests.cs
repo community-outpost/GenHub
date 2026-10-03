@@ -222,7 +222,7 @@ public sealed class SageIniDatabaseTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task FindBlock_TokenCaseAndNameCase_MatchesEngine()
+    public async Task FindBlock_TokenCaseAndNameCase_MatchesEngineAsync()
     {
         // Arrange
         var workspace = NewDir("workspace");

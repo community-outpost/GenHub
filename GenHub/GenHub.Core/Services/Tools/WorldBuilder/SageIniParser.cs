@@ -198,7 +198,7 @@ public sealed class SageIniParser(ILogger<SageIniParser> logger)
 
     private static SageIniFieldTable ResolveFieldTable(ParseSession session, string token)
     {
-        if (session.Options.FieldTables is not null && session.Options.FieldTables.TryGetValue(token, out var custom))
+        if (session.Options.FieldTables?.TryGetValue(token, out var custom) == true)
         {
             return custom;
         }

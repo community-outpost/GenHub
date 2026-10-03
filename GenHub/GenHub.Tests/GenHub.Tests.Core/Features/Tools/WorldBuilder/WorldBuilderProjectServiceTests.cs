@@ -17,7 +17,7 @@ public sealed class WorldBuilderProjectServiceTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task Project_CreateOpenImport_Works()
+    public async Task Project_CreateOpenImport_WorksAsync()
     {
         // Arrange
         var folder = TempFolder();
@@ -46,7 +46,7 @@ public sealed class WorldBuilderProjectServiceTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task Open_MissingManifest_ReturnsFailure()
+    public async Task Open_MissingManifest_ReturnsFailureAsync()
     {
         // Arrange
         var folder = TempFolder();

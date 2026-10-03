@@ -33,7 +33,7 @@ public sealed class ThingTemplateCatalogTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task FindByName_FullBlock_TypesAllFields()
+    public async Task FindByName_FullBlock_TypesAllFieldsAsync()
     {
         // Arrange
         var workspace = _host.NewDir("workspace");
@@ -83,7 +83,7 @@ public sealed class ThingTemplateCatalogTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task FindByName_Reskin_InheritsParentKeepsOwnDraw()
+    public async Task FindByName_Reskin_InheritsParentKeepsOwnDrawAsync()
     {
         // Arrange
         var workspace = _host.NewDir("workspace");
@@ -128,7 +128,7 @@ public sealed class ThingTemplateCatalogTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task FindByName_DrawModules_ResolvesModelNames()
+    public async Task FindByName_DrawModules_ResolvesModelNamesAsync()
     {
         // Arrange
         var workspace = _host.NewDir("workspace");
@@ -169,7 +169,7 @@ public sealed class ThingTemplateCatalogTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task FindByName_NestedScopes_BlockSurvivesWithTrailingFields()
+    public async Task FindByName_NestedScopes_BlockSurvivesWithTrailingFieldsAsync()
     {
         // Arrange
         var workspace = _host.NewDir("workspace");
@@ -205,7 +205,7 @@ public sealed class ThingTemplateCatalogTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task BuildObjectTree_Tiers_SideSortingLeaf()
+    public async Task BuildObjectTree_Tiers_SideSortingLeafAsync()
     {
         // Arrange
         var workspace = _host.NewDir("workspace");
@@ -251,7 +251,7 @@ public sealed class ThingTemplateCatalogTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task BuildObjectTree_LegacyNames_LegacyBranch()
+    public async Task BuildObjectTree_LegacyNames_LegacyBranchAsync()
     {
         // Arrange
         var workspace = _host.NewDir("workspace");
@@ -273,7 +273,7 @@ public sealed class ThingTemplateCatalogTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task BuildObjectTree_NoTestOrLegacy_OmitsBranches()
+    public async Task BuildObjectTree_NoTestOrLegacy_OmitsBranchesAsync()
     {
         // Arrange
         var workspace = _host.NewDir("workspace");
@@ -292,7 +292,7 @@ public sealed class ThingTemplateCatalogTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task FindButtonImage_KnownAndUnknown_ResolvesOrNull()
+    public async Task FindButtonImage_KnownAndUnknown_ResolvesOrNullAsync()
     {
         // Arrange
         var workspace = _host.NewDir("workspace");

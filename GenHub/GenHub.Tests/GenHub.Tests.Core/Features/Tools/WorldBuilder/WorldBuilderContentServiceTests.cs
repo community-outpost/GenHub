@@ -25,7 +25,7 @@ public sealed class WorldBuilderContentServiceTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task EnsureContentLoaded_PrefersInstallationWithBothGames()
+    public async Task EnsureContentLoaded_PrefersInstallationWithBothGamesAsync()
     {
         // Arrange
         var both = CreateInstallation("both", hasGenerals: true, hasZeroHour: true);
@@ -46,7 +46,7 @@ public sealed class WorldBuilderContentServiceTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task EnsureContentLoaded_PrefersZeroHourOverGenerals()
+    public async Task EnsureContentLoaded_PrefersZeroHourOverGeneralsAsync()
     {
         // Arrange
         var generals = CreateInstallation("g", hasGenerals: true, hasZeroHour: false);
@@ -66,7 +66,7 @@ public sealed class WorldBuilderContentServiceTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task EnsureContentLoaded_Twice_MountsOnce()
+    public async Task EnsureContentLoaded_Twice_MountsOnceAsync()
     {
         // Arrange
         var harness = CreateHarness([CreateInstallation("only", hasGenerals: true, hasZeroHour: true)]);
@@ -90,7 +90,7 @@ public sealed class WorldBuilderContentServiceTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task EnsureContentLoaded_NoInstallations_Fails()
+    public async Task EnsureContentLoaded_NoInstallations_FailsAsync()
     {
         // Arrange
         var harness = CreateHarness([]);
@@ -111,7 +111,7 @@ public sealed class WorldBuilderContentServiceTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task EnsureContentLoaded_MountFails_Fails()
+    public async Task EnsureContentLoaded_MountFails_FailsAsync()
     {
         // Arrange
         var harness = CreateHarness([CreateInstallation("broken", hasGenerals: true, hasZeroHour: true)]);
@@ -132,7 +132,7 @@ public sealed class WorldBuilderContentServiceTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task EnsureContentLoaded_IniFails_Fails()
+    public async Task EnsureContentLoaded_IniFails_FailsAsync()
     {
         // Arrange
         var harness = CreateHarness([CreateInstallation("ini-broken", hasGenerals: true, hasZeroHour: true)]);

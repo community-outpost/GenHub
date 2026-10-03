@@ -16,7 +16,7 @@ public sealed class WorldBuilderSidecarServiceTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task FindNative_ExistingExe_ReturnsPath()
+    public async Task FindNative_ExistingExe_ReturnsPathAsync()
     {
         // Arrange
         var folder = Path.Combine(Path.GetTempPath(), $"wbside_{Guid.NewGuid():N}");
@@ -37,7 +37,7 @@ public sealed class WorldBuilderSidecarServiceTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task FindNative_MissingExe_ReturnsFailure()
+    public async Task FindNative_MissingExe_ReturnsFailureAsync()
     {
         // Arrange
         var folder = Path.Combine(Path.GetTempPath(), $"wbside_{Guid.NewGuid():N}");
@@ -55,7 +55,7 @@ public sealed class WorldBuilderSidecarServiceTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task Launch_NoRunner_ReturnsFailure()
+    public async Task Launch_NoRunner_ReturnsFailureAsync()
     {
         // Arrange
         var exe = Path.Combine(Path.GetTempPath(), "WorldBuilder.exe");

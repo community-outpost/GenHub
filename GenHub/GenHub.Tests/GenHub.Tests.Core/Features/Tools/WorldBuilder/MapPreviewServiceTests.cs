@@ -88,7 +88,7 @@ public sealed class MapPreviewServiceTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task Tga_RoundTrip_PreservesPixels()
+    public async Task Tga_RoundTrip_PreservesPixelsAsync()
     {
         // Arrange
         var mapPath = Path.Combine(Path.GetTempPath(), $"wbprev_{Guid.NewGuid():N}.map");
@@ -111,7 +111,7 @@ public sealed class MapPreviewServiceTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ReadTga_MissingFile_ReturnsFailure()
+    public async Task ReadTga_MissingFile_ReturnsFailureAsync()
     {
         // Arrange
         var mapPath = Path.Combine(Path.GetTempPath(), $"wbprev_{Guid.NewGuid():N}.map");

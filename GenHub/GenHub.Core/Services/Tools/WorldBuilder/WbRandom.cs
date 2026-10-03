@@ -1,5 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
-
 namespace GenHub.Core.Services.Tools.WorldBuilder;
 
 /// <summary>
@@ -21,12 +19,13 @@ public sealed class WbRandom
 
     /// <summary>Draws the next raw value.</summary>
     /// <returns>The value.</returns>
-    [SuppressMessage("DeepSource", "CS-R1100", Justification = "xorshift32 requires the self-referential XOR-shift form for engine parity; rewriting as shift-assignment would corrupt the stream.")]
-    public uint Next() // skipcq: CS-R1100
+    public uint Next()
     {
-        state ^= state << 13;
-        state ^= state >> 17;
-        state ^= state << 5;
+        // Keep the plain assignment form: xorshift32 xors the state with its own
+        // shifted value, which is not equivalent to a shift-assignment.
+        state = state ^ (state << 13);
+        state = state ^ (state >> 17);
+        state = state ^ (state << 5);
         return state;
     }
 

@@ -18,7 +18,7 @@ public sealed class ExchangeServiceTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task Teams_ExportImport_RetargetsOwner()
+    public async Task Teams_ExportImport_RetargetsOwnerAsync()
     {
         // Arrange
         var path = Path.Combine(Path.GetTempPath(), $"wbteams_{Guid.NewGuid():N}.teams");
@@ -50,7 +50,7 @@ public sealed class ExchangeServiceTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task Teams_ImportMissing_ReturnsFailure()
+    public async Task Teams_ImportMissing_ReturnsFailureAsync()
     {
         // Arrange
         var path = Path.Combine(Path.GetTempPath(), $"wbteams_{Guid.NewGuid():N}.teams");
@@ -67,7 +67,7 @@ public sealed class ExchangeServiceTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task Waves_SaveLoad_RoundTrips()
+    public async Task Waves_SaveLoad_RoundTripsAsync()
     {
         // Arrange
         var path = Path.Combine(Path.GetTempPath(), $"wbwaves_{Guid.NewGuid():N}.wak");
@@ -89,7 +89,7 @@ public sealed class ExchangeServiceTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task Waves_LoadMissing_ReturnsEmpty()
+    public async Task Waves_LoadMissing_ReturnsEmptyAsync()
     {
         // Arrange
         var path = Path.Combine(Path.GetTempPath(), $"wbwaves_{Guid.NewGuid():N}.wak");

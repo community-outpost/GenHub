@@ -306,7 +306,7 @@ public sealed class GameAssetFileSystemTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task FileExists_VariousCasingsAndSeparators_Matches()
+    public async Task FileExists_VariousCasingsAndSeparators_MatchesAsync()
     {
         // Arrange
         var workspace = NewDir("workspace");
@@ -347,7 +347,7 @@ public sealed class GameAssetFileSystemTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ListFiles_PatternAndRecurse_Filters()
+    public async Task ListFiles_PatternAndRecurse_FiltersAsync()
     {
         // Arrange
         var workspace = NewDir("workspace");
@@ -377,7 +377,7 @@ public sealed class GameAssetFileSystemTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ListFiles_MultipleFiles_SortedCaseInsensitively()
+    public async Task ListFiles_MultipleFiles_SortedCaseInsensitivelyAsync()
     {
         // Arrange
         var workspace = NewDir("workspace");

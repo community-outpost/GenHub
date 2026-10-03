@@ -197,7 +197,7 @@ public sealed class StringTableTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ResolveLabel_PrefixedAndBare_ResolvesOrFallsBack()
+    public async Task ResolveLabel_PrefixedAndBare_ResolvesOrFallsBackAsync()
     {
         // Arrange
         var workspace = _host.NewDir("workspace");

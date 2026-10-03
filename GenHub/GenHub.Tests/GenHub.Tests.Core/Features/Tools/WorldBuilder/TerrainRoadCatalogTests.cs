@@ -27,7 +27,7 @@ public sealed class TerrainRoadCatalogTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task Terrain_All_TypesFieldsAndDefaults()
+    public async Task Terrain_All_TypesFieldsAndDefaultsAsync()
     {
         // Arrange
         var workspace = _host.NewDir("workspace");
@@ -74,7 +74,7 @@ public sealed class TerrainRoadCatalogTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task Terrain_PaletteEntries_SkipsBlendEdgesSortsByClass()
+    public async Task Terrain_PaletteEntries_SkipsBlendEdgesSortsByClassAsync()
     {
         // Arrange
         var workspace = _host.NewDir("workspace");
@@ -109,7 +109,7 @@ public sealed class TerrainRoadCatalogTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task Road_Roads_TypesFields()
+    public async Task Road_Roads_TypesFieldsAsync()
     {
         // Arrange
         var workspace = _host.NewDir("workspace");

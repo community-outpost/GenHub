@@ -115,7 +115,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task OpenMap_LoadFailure_ReturnsFalse()
+    public async Task OpenMap_LoadFailure_ReturnsFalseAsync()
     {
         // Arrange
         _mockMapService
@@ -138,7 +138,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task OpenMap_Success_AdoptsDocument()
+    public async Task OpenMap_Success_AdoptsDocumentAsync()
     {
         // Arrange
         var mapPath = Path.Combine(_tempDirectory, "adopt.map");
@@ -167,7 +167,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task OpenMap_WhenDirtyAndCancelled_KeepsDocument()
+    public async Task OpenMap_WhenDirtyAndCancelled_KeepsDocumentAsync()
     {
         // Arrange
         var mapPath = Path.Combine(_tempDirectory, "first.map");
@@ -194,7 +194,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task GenerateNewMap_Success_AdoptsUnsavedDocument()
+    public async Task GenerateNewMap_Success_AdoptsUnsavedDocumentAsync()
     {
         // Arrange
         MapGenSettings? captured = null;
@@ -230,7 +230,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task GenerateNewMap_Failure_ShowsError()
+    public async Task GenerateNewMap_Failure_ShowsErrorAsync()
     {
         // Arrange
         _mockGenerationService
@@ -252,7 +252,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task GenerateNewMap_SecondGenerate_LeavesOneUndo()
+    public async Task GenerateNewMap_SecondGenerate_LeavesOneUndoAsync()
     {
         // Arrange
         _mockGenerationService
@@ -284,7 +284,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ScriptSearch_FindsConditionParameterText()
+    public async Task ScriptSearch_FindsConditionParameterTextAsync()
     {
         // Arrange
         await OpenScriptMapAsync("search.map", CreateScriptMap());
@@ -301,7 +301,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ScriptDifficultyChips_FilterByFlags()
+    public async Task ScriptDifficultyChips_FilterByFlagsAsync()
     {
         // Arrange
         await OpenScriptMapAsync("chips.map", CreateScriptMap());
@@ -318,7 +318,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ScriptWarningsChip_ShowsOnlyBroken()
+    public async Task ScriptWarningsChip_ShowsOnlyBrokenAsync()
     {
         // Arrange
         await OpenScriptMapAsync("warnings.map", CreateScriptMap());
@@ -335,7 +335,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task RenameScript_RenamesSelection()
+    public async Task RenameScript_RenamesSelectionAsync()
     {
         // Arrange
         await OpenScriptMapAsync("rename.map", CreateScriptMap());
@@ -355,7 +355,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ClearAllScripts_Confirm_ClearsWithSingleUndo()
+    public async Task ClearAllScripts_Confirm_ClearsWithSingleUndoAsync()
     {
         // Arrange
         await OpenScriptMapAsync("clear.map", CreateScriptMap());
@@ -377,7 +377,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ReplaceAllScriptValues_ReplacesAcrossScripts()
+    public async Task ReplaceAllScriptValues_ReplacesAcrossScriptsAsync()
     {
         // Arrange
         await OpenScriptMapAsync("replace.map", CreateScriptMap());
@@ -402,7 +402,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ExportImportScripts_RoundTrip()
+    public async Task ExportImportScripts_RoundTripAsync()
     {
         // Arrange
         await OpenScriptMapAsync("scripts.map", CreateScriptMap());
@@ -444,7 +444,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ImportScriptsFromFile_InvalidBytes_Fails()
+    public async Task ImportScriptsFromFile_InvalidBytes_FailsAsync()
     {
         // Arrange
         await OpenScriptMapAsync("badscripts.map", CreateScriptMap());
@@ -479,7 +479,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task FixTeamOwners_ReassignsBrokenTeams()
+    public async Task FixTeamOwners_ReassignsBrokenTeamsAsync()
     {
         // Arrange
         await OpenScriptMapAsync("teams.map", CreateTeamMap());
@@ -502,7 +502,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task FixTeamOwners_InvalidPlayer_ShowsError()
+    public async Task FixTeamOwners_InvalidPlayer_ShowsErrorAsync()
     {
         // Arrange
         await OpenScriptMapAsync("badteam.map", CreateTeamMap());
@@ -524,7 +524,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ReplaceAllMissingReferences_ReplacesWithClosestMatch()
+    public async Task ReplaceAllMissingReferences_ReplacesWithClosestMatchAsync()
     {
         // Arrange
         var map = CreateScriptMap();
@@ -551,7 +551,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ReplaceAllMissingReferences_NoMissing_ShowsInfo()
+    public async Task ReplaceAllMissingReferences_NoMissing_ShowsInfoAsync()
     {
         // Arrange
         var map = CreateScriptMap();
@@ -572,7 +572,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task AddSide_WritesFullPropsAndUndoes()
+    public async Task AddSide_WritesFullPropsAndUndoesAsync()
     {
         // Arrange
         await OpenScriptMapAsync("side.map", CreateScriptMap());
@@ -596,7 +596,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ApplyTeamProperties_RenamesAndReowners()
+    public async Task ApplyTeamProperties_RenamesAndReownersAsync()
     {
         // Arrange
         await OpenScriptMapAsync("teamprops.map", CreateTeamMap());
@@ -625,7 +625,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ApplySideProperties_EditsAndUndoes()
+    public async Task ApplySideProperties_EditsAndUndoesAsync()
     {
         // Arrange
         await OpenScriptMapAsync("sideprops.map", CreateScriptMap());
@@ -652,7 +652,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ApplyObjectProperties_WritesAllFields()
+    public async Task ApplyObjectProperties_WritesAllFieldsAsync()
     {
         // Arrange
         await OpenScriptMapAsync("props.map", CreateScriptMap());
@@ -724,7 +724,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task SelectObject_PopulatesExtendedFields()
+    public async Task SelectObject_PopulatesExtendedFieldsAsync()
     {
         // Arrange
         var map = CreateScriptMap();
@@ -754,7 +754,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ValidateMap_Valid_ShowsSuccess()
+    public async Task ValidateMap_Valid_ShowsSuccessAsync()
     {
         // Arrange
         await OpenMapAsync("valid.map");
@@ -777,7 +777,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ValidateMap_WithIssues_ShowsWarning()
+    public async Task ValidateMap_WithIssues_ShowsWarningAsync()
     {
         // Arrange
         await OpenMapAsync("broken.map");
@@ -800,7 +800,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task SaveMap_Success_ClearsDirty()
+    public async Task SaveMap_Success_ClearsDirtyAsync()
     {
         // Arrange
         var mapPath = await OpenMapAsync("save.map");
@@ -825,7 +825,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task SaveMap_Failure_ShowsError()
+    public async Task SaveMap_Failure_ShowsErrorAsync()
     {
         // Arrange
         await OpenMapAsync("nosave.map");
@@ -849,7 +849,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task MapName_Change_UpdatesWorldDict()
+    public async Task MapName_Change_UpdatesWorldDictAsync()
     {
         // Arrange
         var map = CreateMap("Before");
@@ -872,7 +872,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task DeleteRoadSegment_CheckpointsAndUndoes()
+    public async Task DeleteRoadSegment_CheckpointsAndUndoesAsync()
     {
         // Arrange
         await OpenScriptMapAsync("roads.map", CreateRoadMap());
@@ -902,7 +902,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task DeleteBridge_CheckpointsAndUndoes()
+    public async Task DeleteBridge_CheckpointsAndUndoesAsync()
     {
         // Arrange
         await OpenScriptMapAsync("bridges.map", CreateRoadMap());
@@ -932,7 +932,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ApplyLighting_CheckpointsAndUndoes()
+    public async Task ApplyLighting_CheckpointsAndUndoesAsync()
     {
         // Arrange
         await OpenScriptMapAsync("lighting.map", CreateRoadMap());
@@ -962,7 +962,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task TidyMapIni_MissingFile_ShowsInfo()
+    public async Task TidyMapIni_MissingFile_ShowsInfoAsync()
     {
         // Arrange
         await OpenMapAsync("noini.map");
@@ -981,7 +981,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task EditMapIniInEditor_WithIniPresent_SendsOpenMessage()
+    public async Task EditMapIniInEditor_WithIniPresent_SendsOpenMessageAsync()
     {
         // Arrange
         var mapPath = await OpenMapAsync("editini.map");
@@ -1025,7 +1025,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task TidyMapIni_RewritesFile_ShowsSuccess()
+    public async Task TidyMapIni_RewritesFile_ShowsSuccessAsync()
     {
         // Arrange
         var mapPath = await OpenMapAsync("tidy.map");
@@ -1048,7 +1048,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ImportGameData_WithoutProject_ShowsInfo()
+    public async Task ImportGameData_WithoutProject_ShowsInfoAsync()
     {
         // Act
         await _viewModel.ImportGameDataWithDialogCommand.ExecuteAsync(null);
@@ -1064,7 +1064,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task Fence_PressTwice_PlacesFencePosts()
+    public async Task Fence_PressTwice_PlacesFencePostsAsync()
     {
         // Arrange
         var map = CreateCanvasMap();
@@ -1091,7 +1091,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task TileFloodFill_Press_FillsRegion()
+    public async Task TileFloodFill_Press_FillsRegionAsync()
     {
         // Arrange
         var map = CreateCanvasMap();
@@ -1113,7 +1113,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [AvaloniaFact]
-    public async Task SetCameraFromViewport_DoesNotRaiseRefreshView()
+    public async Task SetCameraFromViewport_DoesNotRaiseRefreshViewAsync()
     {
         // Arrange
         var mapPath = Path.Combine(_tempDirectory, "camera.map");

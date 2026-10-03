@@ -124,7 +124,7 @@ public sealed class WorldBuilderToolPlugin : IToolPlugin, IFileOpenTarget
     private string ResolveLoadErrorText()
     {
         var localization = _serviceProvider?.GetService<ILocalizationService>();
-        if (localization != null && localization.TryGetString(LoadErrorKey, out var text) && !string.IsNullOrEmpty(text))
+        if (localization?.TryGetString(LoadErrorKey, out var text) == true && !string.IsNullOrEmpty(text))
         {
             return text;
         }
