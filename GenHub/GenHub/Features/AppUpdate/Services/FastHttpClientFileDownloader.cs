@@ -261,7 +261,7 @@ public class FastHttpClientFileDownloader(
             if (headerText.StartsWith("<!DOCTYPE html", StringComparison.OrdinalIgnoreCase) ||
                 headerText.StartsWith("<html", StringComparison.OrdinalIgnoreCase))
             {
-                throw new InvalidOperationException("The downloaded file is an HTML web page rather than binary content. Download may require authentication or virus-scan confirmation.");
+                throw new InvalidDataException("The downloaded file is an HTML web page rather than binary content. Download may require authentication or virus-scan confirmation.");
             }
         }
     }
@@ -277,6 +277,12 @@ public class FastHttpClientFileDownloader(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(url);
         ArgumentException.ThrowIfNullOrWhiteSpace(targetFile);
+
+        var destinationDirectory = Path.GetDirectoryName(targetFile);
+        if (!string.IsNullOrEmpty(destinationDirectory))
+        {
+            Directory.CreateDirectory(destinationDirectory);
+        }
 
         try
         {
@@ -361,7 +367,7 @@ public class FastHttpClientFileDownloader(
             await DownloadSingleStreamAsync(fullResponse, targetFile, fullBytes, progress, cancelToken).ConfigureAwait(false);
             ValidateDownloadedFileHeader(targetFile);
         }
-        catch (Exception ex) when (ex is not (OperationCanceledException or InvalidOperationException))
+        catch (Exception ex) when (ex is not (OperationCanceledException or InvalidDataException))
         {
             logger?.LogWarning(
                 ex,
@@ -369,6 +375,7 @@ public class FastHttpClientFileDownloader(
                 url);
 
             await base.DownloadFile(url, targetFile, progress, headers, timeout, cancelToken).ConfigureAwait(false);
+            ValidateDownloadedFileHeader(targetFile);
         }
     }
 
@@ -406,10 +413,10 @@ public class FastHttpClientFileDownloader(
 
         if (html.Contains("quota", StringComparison.OrdinalIgnoreCase) || html.Contains("too many users", StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("Google Drive download quota exceeded for this file.");
+            throw new InvalidDataException("Google Drive download quota exceeded for this file.");
         }
 
-        throw new InvalidOperationException("Server returned an HTML page instead of the expected binary file download.");
+        throw new InvalidDataException("Server returned an HTML page instead of the expected binary file download.");
     }
 
     [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Internal helper requires download options and progress state.")]

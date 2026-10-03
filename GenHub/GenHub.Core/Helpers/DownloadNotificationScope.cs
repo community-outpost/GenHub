@@ -360,8 +360,9 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
             return false;
         }
 
-        var trimmed = status.TrimEnd();
-        return trimmed.EndsWith('%') || trimmed.Contains('%');
+        var trimmed = status.Trim();
+        return (trimmed.EndsWith('%') && int.TryParse(trimmed.AsSpan(0, trimmed.Length - 1), out _)) ||
+               (trimmed.Length >= 4 && trimmed.Contains("% -"));
     }
 
     private void UpdatePinnedToast(
