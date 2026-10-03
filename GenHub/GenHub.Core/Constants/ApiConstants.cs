@@ -247,6 +247,31 @@ public static class ApiConstants
     /// </summary>
     public const string YouTubeWatchUrlPrefix = "https://www.youtube.com/watch?v=";
 
+    /// <summary>
+    /// Standard YouTube host suffix for watch, embed, shorts, and live URLs.
+    /// </summary>
+    public const string YouTubeHostSuffix = "youtube.com";
+
+    /// <summary>
+    /// Privacy-enhanced YouTube embed host suffix.
+    /// </summary>
+    public const string YouTubeNoCookieHostSuffix = "youtube-nocookie.com";
+
+    /// <summary>
+    /// Shortened YouTube share host.
+    /// </summary>
+    public const string YouTubeShortHost = "youtu.be";
+
+    /// <summary>
+    /// Standard Vimeo host suffix for video watch and embed URLs.
+    /// </summary>
+    public const string VimeoHostSuffix = "vimeo.com";
+
+    /// <summary>
+    /// Thumbnail image URL template for a YouTube video ID.
+    /// </summary>
+    public const string YouTubeThumbnailUrlTemplate = "https://img.youtube.com/vi/{0}/hqdefault.jpg";
+
     // User agents
 
     /// <summary>

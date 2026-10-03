@@ -257,14 +257,8 @@ public static class GameClientConstants
     /// <summary>BrowserEngine.dll filename.</summary>
     public const string BrowserEngineDll = "BrowserEngine.dll";
 
-    /// <summary>BrowserEngine.dll backup filename.</summary>
-    public const string BrowserEngineDllBak = "BrowserEngine.dll.bak";
-
     /// <summary>dbghelp.dll filename.</summary>
     public const string DbgHelpDll = "dbghelp.dll";
-
-    /// <summary>dbghelp.dll backup filename.</summary>
-    public const string DbgHelpDllBak = "dbghelp.dll.bak";
 
     /// <summary>Direct3D 8 wrapper DLL filename.</summary>
     public const string Direct3D8WrapperDll = "d3d8.dll";

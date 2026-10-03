@@ -13636,6 +13636,27 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.PublisherStudio.Publish.ArtworkHostingNotSupported" xml:space="preserve">
     <value>Provider does not support artwork hosting. Use direct image URLs or switch providers.</value>
   </data>
+  <data name="Tools.PublisherStudio.Publish.UploadingMediaFormat" xml:space="preserve">
+    <value>Uploading media {0}/{1}: {2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.MediaFileMissingFormat" xml:space="preserve">
+    <value>Media file not found: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.MediaUploadFailedFormat" xml:space="preserve">
+    <value>Failed to upload media {0}: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.MediaUploadFailedTitle" xml:space="preserve">
+    <value>Media Upload Failed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.MediaHostingNotSupported" xml:space="preserve">
+    <value>Provider does not support media hosting. Use direct image/video URLs or switch providers.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.MediaSkippedTitle" xml:space="preserve">
+    <value>Unresolved Media Skipped</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.MediaSkippedFormat" xml:space="preserve">
+    <value>{0} media reference(s) could not be resolved to local files and were left unchanged.</value>
+  </data>
   <data name="Tools.PublisherStudio.Artifact.DropFileUnreadableFormat" xml:space="preserve">
     <value>Could not read the dropped file: {0}</value>
   </data>
@@ -13824,6 +13845,51 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   </data>
   <data name="Downloads.ContentDetail.PlayVideoTooltip" xml:space="preserve">
     <value>Play or open video</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPreview" xml:space="preserve">
+    <value>Video Preview</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoOpenFailedTitle" xml:space="preserve">
+    <value>Cannot Open Video</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoOpenFailedMessage" xml:space="preserve">
+    <value>The video link could not be opened in a browser.</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.PlayPause" xml:space="preserve">
+    <value>Play / Pause</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.Rewind" xml:space="preserve">
+    <value>Rewind 10 seconds</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.FastForward" xml:space="preserve">
+    <value>Fast forward 10 seconds</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.Fullscreen" xml:space="preserve">
+    <value>Full screen</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.ExitFullscreen" xml:space="preserve">
+    <value>Exit full screen</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.BufferingVideo" xml:space="preserve">
+    <value>Buffering... {0}%</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.MuteUnmute" xml:space="preserve">
+    <value>Mute / Unmute</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.LoadingVideo" xml:space="preserve">
+    <value>Loading video...</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.VideoUnavailable" xml:space="preserve">
+    <value>Video playback is unavailable on this device.</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.VideoLoadFailed" xml:space="preserve">
+    <value>Could not play this video.</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.Retry" xml:space="preserve">
+    <value>Retry</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.OpenInBrowser" xml:space="preserve">
+    <value>Open in browser</value>
   </data>
   <data name="Tools.PublisherStudio.Release.VariantsMode" xml:space="preserve">
     <value>Alternative Variants (e.g. Languages, Resolutions)</value>
@@ -14200,6 +14266,24 @@ Would you like to add this catalog to your provider project?</value>
   <data name="GameProfiles.Notification.EarlyExit.UnknownCode" xml:space="preserve">
     <value>The process exited before launch completed. See the logs for details.</value>
   </data>
+  <data name="Launch.ExitCode.ImmediateExitExplained" xml:space="preserve">
+    <value>The process exited immediately with code {0} (0x{1}). {2}</value>
+  </data>
+  <data name="Launch.ExitCode.DllNotFound" xml:space="preserve">
+    <value>A required DLL could not be found. Make sure every DLL that ships with the executable is in its folder.</value>
+  </data>
+  <data name="Launch.ExitCode.InvalidImageFormat" xml:space="preserve">
+    <value>The program or one of its DLLs is not valid for this system, often because 32-bit and 64-bit files are mixed.</value>
+  </data>
+  <data name="Launch.ExitCode.DllInitFailed" xml:space="preserve">
+    <value>A required DLL failed to initialize.</value>
+  </data>
+  <data name="Launch.ExitCode.AccessViolation" xml:space="preserve">
+    <value>The process crashed with a memory access violation.</value>
+  </data>
+  <data name="Launch.ExitCode.StackBufferOverrun" xml:space="preserve">
+    <value>The process stopped itself after a critical error (stack buffer overrun or fail-fast).</value>
+  </data>
   <data name="GameProfiles.Notification.ToolLaunchSuccess.Title" xml:space="preserve">
     <value>Tool Launched</value>
   </data>
@@ -14239,6 +14323,18 @@ Would you like to use this existing hosted file instead of uploading a new copy?
   </data>
   <data name="Tools.PublisherStudio.Library.PasteScreenshotTooltip" xml:space="preserve">
     <value>Paste image, file, or URL from clipboard</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PasteVideo" xml:space="preserve">
+    <value>Paste</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PasteVideoTooltip" xml:space="preserve">
+    <value>Paste video file or URL from clipboard</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoClipboardVideoTitle" xml:space="preserve">
+    <value>No Video Found</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoClipboardVideoMessage" xml:space="preserve">
+    <value>No video file or video URL was found on the clipboard.</value>
   </data>
   <data name="Tools.PublisherStudio.Library.AddVideo" xml:space="preserve">
     <value>Add Video File</value>
@@ -17743,5 +17839,8 @@ Mapped image texture reference</value>
   <data name="TextureEditor.Notify.OpenFailed.Message" xml:space="preserve"><value>Failed to open target texture.</value></data>
   <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
     <value>Manual Fallback Releases (Overrides)</value>
+  </data>
+  <data name="Launch.ExitCode.LauncherExitExplained" xml:space="preserve">
+    <value>The launcher exited with code {0} before starting {1}. {2}</value>
   </data>
 </root>
