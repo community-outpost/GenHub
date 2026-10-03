@@ -237,10 +237,6 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
         {
             return await inFlightTask.WaitAsync(ct).ConfigureAwait(false);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
         catch (IOException ex)
         {
             return OperationResult<string>.CreateFailure($"Failed to calculate INI CRC: {ex.Message}");
@@ -328,10 +324,6 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
                     return OperationResult<string>.CreateSuccess(calculatedCrc);
                 },
                 ct);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
         }
         catch (IOException ex)
         {

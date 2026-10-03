@@ -48,7 +48,7 @@ public class NullToVisibilityConverterTests
     public void Convert_WithNullValueAndBoolTarget_ReturnsFalse()
     {
         var result = _converter.Convert(null, typeof(bool), null, _culture);
-        Assert.Equal(false, result);
+        Assert.False(Assert.IsType<bool>(result));
     }
 
     /// <summary>
@@ -58,7 +58,7 @@ public class NullToVisibilityConverterTests
     public void Convert_WithNonNullValueAndBoolTarget_ReturnsTrue()
     {
         var result = _converter.Convert("test", typeof(bool), null, _culture);
-        Assert.Equal(true, result);
+        Assert.True(Assert.IsType<bool>(result));
     }
 
     /// <summary>

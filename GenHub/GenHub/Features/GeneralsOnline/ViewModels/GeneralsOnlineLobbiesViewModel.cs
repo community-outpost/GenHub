@@ -1546,7 +1546,6 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
         catch (Exception ex)
         {
             _logger.LogDebug(ex, "Generals Online room list unavailable.");
-            return;
         }
     }
 
@@ -2538,31 +2537,7 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
     {
         RunOnUi(() =>
         {
-            var index = -1;
-            if (presence.UserId > 0)
-            {
-                for (var i = 0; i < Friends.Count; i++)
-                {
-                    if (Friends[i].UserId == presence.UserId)
-                    {
-                        index = i;
-                        break;
-                    }
-                }
-            }
-
-            if (index < 0)
-            {
-                for (var i = 0; i < Friends.Count; i++)
-                {
-                    if (string.Equals(Friends[i].DisplayName, presence.DisplayName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        index = i;
-                        break;
-                    }
-                }
-            }
-
+            var index = FindFriendIndex(presence);
             if (index < 0)
             {
                 return;
@@ -2580,6 +2555,30 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
             friend.IsOnline = presence.IsOnline;
             Friends[index] = friend;
         });
+    }
+
+    private int FindFriendIndex(GeneralsOnlineFriendPresence presence)
+    {
+        if (presence.UserId > 0)
+        {
+            for (var i = 0; i < Friends.Count; i++)
+            {
+                if (Friends[i].UserId == presence.UserId)
+                {
+                    return i;
+                }
+            }
+        }
+
+        for (var i = 0; i < Friends.Count; i++)
+        {
+            if (string.Equals(Friends[i].DisplayName, presence.DisplayName, StringComparison.OrdinalIgnoreCase))
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates instance ObservableCollection.")]

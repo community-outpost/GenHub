@@ -350,10 +350,6 @@ public sealed class GeneralsOnlineCompatibilityService(
                 FormatCrc(iniCrc));
             return new ProfileCrcs(exeCrc, iniCrc);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
         catch (IOException ex)
         {
             logger.LogDebug(ex, "Profile {ProfileId} CRCs unavailable; compatibility stays unknown.", profile.Id);

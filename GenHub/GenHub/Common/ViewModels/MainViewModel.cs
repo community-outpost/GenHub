@@ -504,7 +504,7 @@ public partial class MainViewModel(
         }
         else if (value == NavigationTab.Online && OnlineConstants.IsOnlineEnabled)
         {
-            _ = OnlineViewModel?.RefreshAsync();
+            _ = OnlineViewModel?.RefreshAsync(_initializationCts.Token);
         }
 
         SaveSelectedTab(value);

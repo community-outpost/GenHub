@@ -58,7 +58,7 @@ public class InvertedBoolToVisibilityConverterTests
     public void Convert_WithTrueValueAndBoolTarget_ReturnsFalse()
     {
         var result = _converter.Convert(true, typeof(bool), null, _culture);
-        Assert.Equal(false, result);
+        Assert.False(Assert.IsType<bool>(result));
     }
 
     /// <summary>
@@ -68,7 +68,7 @@ public class InvertedBoolToVisibilityConverterTests
     public void Convert_WithFalseValueAndBoolTarget_ReturnsTrue()
     {
         var result = _converter.Convert(false, typeof(bool), null, _culture);
-        Assert.Equal(true, result);
+        Assert.True(Assert.IsType<bool>(result));
     }
 
     /// <summary>

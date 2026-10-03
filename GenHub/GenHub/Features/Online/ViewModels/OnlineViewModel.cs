@@ -7,6 +7,7 @@ using GenHub.Features.GeneralsOnline.ViewModels;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -69,9 +70,10 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable
     /// <summary>
     /// Performs one-time view model initialization when navigated to.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Initializes instance state and triggers instance refresh command.")]
     public void Initialize()
     {
-        _ = RefreshAsync();
+        _ = RefreshAsync(CancellationToken.None);
     }
 
     /// <summary>
