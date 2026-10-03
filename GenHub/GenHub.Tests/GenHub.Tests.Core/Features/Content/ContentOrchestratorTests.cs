@@ -217,6 +217,13 @@ public class ContentOrchestratorTests
 
         // Assert
         Assert.True(result.Success);
+
+        var spinTimeout = DateTime.UtcNow.AddSeconds(3);
+        while (reportedProgress.Count < 3 && DateTime.UtcNow < spinTimeout)
+        {
+            await Task.Delay(10);
+        }
+
         Assert.Contains(40, reportedProgress);
         Assert.Contains(55, reportedProgress);
         Assert.Contains(70, reportedProgress);

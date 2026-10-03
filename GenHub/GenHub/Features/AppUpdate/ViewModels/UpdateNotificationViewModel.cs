@@ -440,7 +440,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         DismissCommand = new RelayCommand(DismissUpdate);
 
         // check if GitHub authentication is available
-        IsAuthenticated = gitHubAuthService?.IsAuthenticated == true;
+        IsAuthenticated = gitHubAuthService is { IsAuthenticated: true };
 
         _logger.LogInformation("UpdateNotificationViewModel initialized with Velopack (IsAuthenticated={IsAuthenticated})", IsAuthenticated);
 
