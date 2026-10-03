@@ -1,7 +1,7 @@
-using GenHub.Features.AppUpdate.Services;
 using System;
 using System.IO;
 using System.Text;
+using GenHub.Features.AppUpdate.Services;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.AppUpdate.Services;
@@ -23,12 +23,18 @@ public class VelopackBundleExtractorTests : IDisposable
 
     private readonly string _tempDirectory;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="VelopackBundleExtractorTests"/> class.
+    /// </summary>
     public VelopackBundleExtractorTests()
     {
         _tempDirectory = Path.Combine(Path.GetTempPath(), $"genhub-bundle-tests-{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDirectory);
     }
 
+    /// <summary>
+    /// Cleans up temporary files generated during tests.
+    /// </summary>
     public void Dispose()
     {
         try
@@ -44,6 +50,9 @@ public class VelopackBundleExtractorTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Verifies that extracting a valid synthetic Velopack bundle extracts the exact embedded payload.
+    /// </summary>
     [Fact]
     public void TryExtractBundle_ValidBundle_ExtractsExactNupkg()
     {
@@ -68,6 +77,9 @@ public class VelopackBundleExtractorTests : IDisposable
         Assert.Equal(payload, extractedData);
     }
 
+    /// <summary>
+    /// Verifies that a file missing the Velopack bundle signature returns false.
+    /// </summary>
     [Fact]
     public void TryExtractBundle_MissingSignature_ReturnsFalse()
     {
@@ -83,6 +95,9 @@ public class VelopackBundleExtractorTests : IDisposable
         Assert.False(File.Exists(nupkgPath));
     }
 
+    /// <summary>
+    /// Verifies that a header containing an invalid negative payload offset returns false.
+    /// </summary>
     [Fact]
     public void TryExtractBundle_InvalidOffset_ReturnsFalse()
     {
@@ -104,6 +119,9 @@ public class VelopackBundleExtractorTests : IDisposable
         Assert.Equal(0, extractedBytes);
     }
 
+    /// <summary>
+    /// Verifies that a header specifying a payload length exceeding file bounds returns false.
+    /// </summary>
     [Fact]
     public void TryExtractBundle_InvalidLength_ReturnsFalse()
     {
@@ -125,6 +143,9 @@ public class VelopackBundleExtractorTests : IDisposable
         Assert.Equal(0, extractedBytes);
     }
 
+    /// <summary>
+    /// Verifies that a payload without a valid zip header returns false.
+    /// </summary>
     [Fact]
     public void TryExtractBundle_NonZipHeader_ReturnsFalse()
     {
@@ -141,6 +162,9 @@ public class VelopackBundleExtractorTests : IDisposable
         Assert.Equal(0, extractedBytes);
     }
 
+    /// <summary>
+    /// Verifies that attempting extraction on a non-existent file returns false.
+    /// </summary>
     [Fact]
     public void TryExtractBundle_NonExistentFile_ReturnsFalse()
     {
@@ -153,6 +177,9 @@ public class VelopackBundleExtractorTests : IDisposable
         Assert.Equal(0, extractedBytes);
     }
 
+    /// <summary>
+    /// Verifies that extraction succeeds even when the 32-byte signature straddles the 64KB read buffer boundary.
+    /// </summary>
     [Fact]
     public void TryExtractBundle_SignatureSpansBufferBoundary_ExtractsSuccessfully()
     {
