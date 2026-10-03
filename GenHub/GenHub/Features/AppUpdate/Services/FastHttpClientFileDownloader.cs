@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -68,25 +69,25 @@ public class FastHttpClientFileDownloader(
     {
         if (addresses.Length == 0)
         {
-            throw new HttpRequestException($"No IP addresses found for host '{host}'.");
+            throw new HttpRequestException(string.Format(CultureInfo.InvariantCulture, NetworkSecurityConstants.NoIpAddressesFoundFormat, host));
         }
 
         var isLoopbackHost = IsLoopbackHost(host);
         if (isLoopbackHost && !addresses.All(IPAddress.IsLoopback))
         {
-            throw new HttpRequestException($"Loopback host '{host}' resolved to a non-loopback IP address.");
+            throw new HttpRequestException(string.Format(CultureInfo.InvariantCulture, NetworkSecurityConstants.LoopbackResolvedToNonLoopbackFormat, host));
         }
 
         if (!isLoopbackHost && !addresses.All(NetworkSecurityHelper.IsSafeIpAddress))
         {
-            throw new HttpRequestException($"Host '{host}' resolved to an unsafe or reserved IP address.");
+            throw new HttpRequestException(string.Format(CultureInfo.InvariantCulture, NetworkSecurityConstants.UnsafeIpAddressFormat, host));
         }
     }
 
     private static bool IsLoopbackHost(string host) =>
-        string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(host, "127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(host, "::1", StringComparison.OrdinalIgnoreCase);
+        string.Equals(host, NetworkSecurityConstants.BlockedLocalhostName, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(host, NetworkSecurityConstants.LoopbackIpv4, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(host, NetworkSecurityConstants.LoopbackIpv6, StringComparison.OrdinalIgnoreCase);
 
     private sealed class MonotonicProgressReporter(Action<int>? progressCallback, long totalBytes)
     {
