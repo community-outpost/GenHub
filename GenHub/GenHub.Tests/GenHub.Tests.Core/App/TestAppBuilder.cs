@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Controls.Platform;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
@@ -34,7 +35,12 @@ internal static class TestAppBuilder
     /// Creates the Avalonia application builder used by headless tests.
     /// </summary>
     /// <returns>The configured application builder.</returns>
-    public static AppBuilder BuildAvaloniaApp()
+    public static AppBuilder BuildAvaloniaApp() => BuildWithDispatcherProbe(null);
+
+    /// <summary>Builds the headless app with an optional deterministic startup race probe.</summary>
+    /// <param name="afterReset">Runs after resetting the dispatcher, before platform initialization.</param>
+    /// <returns>The configured application builder.</returns>
+    internal static AppBuilder BuildWithDispatcherProbe(Action? afterReset)
     {
         var builder = AppBuilder.Configure(() => new global::GenHub.App(ServiceProvider))
             .UseHeadless(new AvaloniaHeadlessPlatformOptions());
@@ -45,7 +51,12 @@ internal static class TestAppBuilder
             .UseWindowingSubsystem(
                 () =>
                 {
+                    // Install a loop-capable implementation before exposing an empty singleton.
+                    // Even a background reader in the reset/setup gap now uses the UI thread's loop.
+                    RegisterControlledDispatcher();
                     DiscardStaleDispatcher();
+                    afterReset?.Invoke();
+                    _ = Dispatcher.UIThread;
                     initializeHeadless();
                 },
                 builder.WindowingSubsystemName!)
@@ -60,10 +71,20 @@ internal static class TestAppBuilder
     /// headless platform creates it again. Background work left over from an earlier test that reads
     /// <see cref="Dispatcher.UIThread"/> inside that gap creates a dispatcher without a run loop. The platform
     /// would then build its compositor and render context on that dispatcher, and the next awaited UI test fails in
-    /// <see cref="Dispatcher.PushFrame"/> with <see cref="PlatformNotSupportedException"/>. Resetting again right
-    /// before the platform initializes means everything is built on the headless dispatcher.
+    /// <see cref="Dispatcher.PushFrame"/> with <see cref="PlatformNotSupportedException"/>. Registering a controlled implementation before resetting ensures even a racing reader
+    /// constructs a dispatcher bound to the headless thread before the compositor is built.
     /// </remarks>
     private static void DiscardStaleDispatcher() => ResetDispatcher.Invoke(null, null);
+
+    private static void RegisterControlledDispatcher()
+    {
+        // Avalonia hides the locator in its reference assembly, like ResetForUnitTests above.
+        var locator = typeof(AvaloniaLocator).GetProperty("CurrentMutable")?.GetValue(null)
+            ?? throw new InvalidOperationException("Avalonia no longer exposes its mutable locator.");
+        var bind = typeof(AvaloniaLocator).GetMethod("BindToSelf")
+            ?? throw new InvalidOperationException("Avalonia no longer exposes BindToSelf.");
+        bind.MakeGenericMethod(typeof(IDispatcherImpl)).Invoke(locator, [new ManagedDispatcherImpl(null)]);
+    }
 
     private static void VerifyHeadlessDispatcher()
     {

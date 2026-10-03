@@ -59,7 +59,6 @@ public class ManifestFilesAccessRatchetTests
     /// </summary>
     private static readonly string[] PendingMigration =
     [
-        "GenHub.Core.Extensions.Storage.CasServiceExtensions",
         "GenHub.Core.Extensions.WorkspaceConfigurationExtensions",
         "GenHub.Core.Helpers.ManifestHelper",
         "GenHub.Core.Services.Content.LocalContentService",
@@ -71,7 +70,6 @@ public class ManifestFilesAccessRatchetTests
         "GenHub.Features.Content.Services.ContentProviders.BaseContentProvider",
         "GenHub.Features.Content.Services.ContentResolvers.CsvResolver",
         "GenHub.Features.Content.Services.ContentResolvers.LocalManifestResolver",
-        "GenHub.Features.Content.Services.ContentStorageService",
         "GenHub.Features.Content.Services.ContentValidator",
         "GenHub.Features.Content.Services.GeneralsOnline.GeneralsOnlineDeliverer",
         "GenHub.Features.Content.Services.GeneralsOnline.GeneralsOnlineProfileReconciler",

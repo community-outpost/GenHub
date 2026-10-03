@@ -1024,6 +1024,19 @@ Storage and CAS (Content-Addressable Storage) related constants.
 
 ---
 
+## ManifestErrorMessages Class
+
+Error messages for manifests whose files or platform variants cannot be stored, retrieved or validated. Messages with placeholders are composite format strings.
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `NullFileEntries` | `"Manifest contains a null variant or file entry or file collection"` | Storing a manifest with a null variant, file entry or file collection |
+| `NoHostVariant` | `"Manifest has no variant for this host"` | Storing a manifest with no variant for the current host |
+| `NoHostVariantForManifest` | `"Manifest {0} has no variant for this host ({1})"` | Retrieving a manifest with no variant for the current host; `{0}` is the manifest ID, `{1}` the runtime identifier |
+| `RequiredFileUnavailableInCas` | `"Required file {0} is unavailable in CAS"` | A required file whose CAS object is missing; `{0}` is the relative path |
+
+---
+
 ## TimeIntervals Class
 
 - `UpdaterTimeout`: 10 minutes

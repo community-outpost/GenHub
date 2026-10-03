@@ -1,5 +1,7 @@
 using GenHub.Core.Models.Manifest;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json;
 using Xunit;
 
 namespace GenHub.Tests.Core.Models.Manifest;
@@ -418,6 +420,152 @@ public class ManifestVariantResolverTests
         };
 
         Assert.Null(ManifestVariantResolver.ResolveLaunchRelationship(manifest));
+    }
+
+    /// <summary>
+    /// Enumerating all files covers the flat list and every variant, whichever runtime
+    /// each variant targets.
+    /// </summary>
+    [Fact]
+    public void EnumerateAllFiles_IncludesFlatListAndEveryVariant()
+    {
+        var manifest = new ContentManifest
+        {
+            Files = [File("readme.txt")],
+            Variants =
+            [
+                new() { RuntimeIdentifiers = ["win-x64"], Files = [File("generalszh.exe", true)] },
+                new() { RuntimeIdentifiers = ["osx-arm64"], Files = [File("generalszh", true)] },
+            ],
+        };
+
+        var paths = ManifestVariantResolver.EnumerateAllFiles(manifest).Select(f => f.RelativePath);
+
+        Assert.Equal(["readme.txt", "generalszh.exe", "generalszh"], paths);
+    }
+
+    /// <summary>
+    /// Replacing the resolved files updates only the variant that matches the runtime.
+    /// </summary>
+    [Fact]
+    public void ReplaceResolvedFiles_UpdatesOnlyMatchingVariant()
+    {
+        var windows = new ArtifactVariant { RuntimeIdentifiers = ["win-x64"], Files = [File("generalszh.exe", true)] };
+        var mac = new ArtifactVariant { RuntimeIdentifiers = ["osx-arm64"], Files = [File("generalszh", true)] };
+        var manifest = new ContentManifest { Variants = [windows, mac] };
+
+        ManifestVariantResolver.ReplaceResolvedFiles(manifest, [File("stored", true)], "osx-arm64");
+
+        Assert.Equal("stored", Assert.Single(mac.Files).RelativePath);
+        Assert.Equal("generalszh.exe", Assert.Single(windows.Files).RelativePath);
+        Assert.Empty(manifest.Files);
+    }
+
+    /// <summary>
+    /// A manifest without variants has its flat list replaced, and a manifest whose
+    /// variants match no runtime is left unchanged.
+    /// </summary>
+    [Fact]
+    public void ReplaceResolvedFiles_UsesFlatListOrLeavesUnmatchedManifestUnchanged()
+    {
+        var flat = new ContentManifest { Files = [File("old")] };
+        ManifestVariantResolver.ReplaceResolvedFiles(flat, [File("new")], "osx-arm64");
+        Assert.Equal("new", Assert.Single(flat.Files).RelativePath);
+
+        var windows = new ArtifactVariant { RuntimeIdentifiers = ["win-x64"], Files = [File("generalszh.exe", true)] };
+        var unmatched = new ContentManifest { Variants = [windows] };
+        ManifestVariantResolver.ReplaceResolvedFiles(unmatched, [File("new")], "osx-arm64");
+        Assert.Empty(unmatched.Files);
+        Assert.Equal("generalszh.exe", Assert.Single(windows.Files).RelativePath);
+    }
+
+    /// <summary>
+    /// Rewriting all files applies to the flat list and to every variant.
+    /// </summary>
+    [Fact]
+    public void RewriteAllFiles_RewritesFlatListAndEveryVariant()
+    {
+        var manifest = new ContentManifest
+        {
+            Files = [File("readme.txt")],
+            Variants =
+            [
+                new() { RuntimeIdentifiers = ["win-x64"], Files = [File("generalszh.exe", true)] },
+                new() { RuntimeIdentifiers = ["osx-arm64"], Files = [File("generalszh", true)] },
+            ],
+        };
+
+        ManifestVariantResolver.RewriteAllFiles(manifest, f => File(f.RelativePath + ".x"));
+
+        Assert.Equal(
+            ["readme.txt.x", "generalszh.exe.x", "generalszh.x"],
+            ManifestVariantResolver.EnumerateAllFiles(manifest).Select(f => f.RelativePath));
+    }
+
+    /// <summary>Malformed entries do not prevent valid variants from being resolved.</summary>
+    [Fact]
+    public void ResolveVariant_SkipsNullEntries()
+    {
+        var variant = new ArtifactVariant { RuntimeIdentifiers = ["osx-arm64"], Files = [File("generalszh")] };
+        var manifest = new ContentManifest { Variants = [null!, variant], Files = [null!] };
+
+        Assert.Same(variant, ManifestVariantResolver.ResolveVariant(manifest, "osx-arm64"));
+        Assert.Equal("generalszh", Assert.Single(ManifestVariantResolver.EnumerateAllFiles(manifest)).RelativePath);
+        Assert.Null(ManifestVariantResolver.ResolveVariant(manifest, "linux-x64"));
+    }
+
+    /// <summary>A variant whose runtime list is explicitly null in JSON is platform-neutral and never null.</summary>
+    [Fact]
+    public void ResolveVariant_NullRuntimeIdentifiersInJson_FallsBackAsNeutral()
+    {
+        const string json = """
+            {
+              "variants": [
+                { "runtimeIdentifiers": ["win-x64"], "files": [{ "relativePath": "generals.exe" }] },
+                { "runtimeIdentifiers": null, "files": [{ "relativePath": "assets.big" }] }
+              ]
+            }
+            """;
+        var manifest = JsonSerializer.Deserialize<ContentManifest>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+
+        var neutral = ManifestVariantResolver.ResolveVariant(manifest, "osx-arm64");
+
+        Assert.NotNull(neutral);
+        Assert.Empty(neutral.RuntimeIdentifiers);
+        Assert.True(neutral.SupportsRuntime("osx-arm64"));
+        Assert.Equal("assets.big", Assert.Single(ManifestVariantResolver.ResolveFiles(manifest, "osx-arm64")).RelativePath);
+    }
+
+    /// <summary>Resolved files skip null entries in a variant and in the flat list.</summary>
+    [Fact]
+    public void ResolveFiles_SkipsNullEntries()
+    {
+        var variantManifest = new ContentManifest
+        {
+            Variants = [new ArtifactVariant { RuntimeIdentifiers = ["osx-arm64"], Files = [null!, File("generalszh")] }],
+        };
+        var flatManifest = new ContentManifest { Files = [File("generals.exe"), null!] };
+
+        Assert.Equal("generalszh", Assert.Single(ManifestVariantResolver.ResolveFiles(variantManifest, "osx-arm64")).RelativePath);
+        Assert.Equal("generals.exe", Assert.Single(ManifestVariantResolver.ResolveFiles(flatManifest)).RelativePath);
+    }
+
+    /// <summary>Declared lists keep the flat list first and preserve null lists and null variants.</summary>
+    [Fact]
+    public void GetDeclaredFileLists_PreservesOrderAndNullEntries()
+    {
+        var flat = new List<ManifestFile> { File("readme.txt") };
+        var first = new ArtifactVariant { RuntimeIdentifiers = ["win-x64"], Files = [File("generals.exe")] };
+        var nullFiles = new ArtifactVariant { RuntimeIdentifiers = ["osx-arm64"], Files = null! };
+        var manifest = new ContentManifest { Files = flat, Variants = [first, null!, nullFiles] };
+
+        var lists = ManifestVariantResolver.GetDeclaredFileLists(manifest);
+
+        Assert.Equal(4, lists.Count);
+        Assert.Same(flat, lists[0]);
+        Assert.Same(first.Files, lists[1]);
+        Assert.Null(lists[2]);
+        Assert.Null(lists[3]);
     }
 
     private static ManifestFile File(string path, bool isExecutable = false) =>
