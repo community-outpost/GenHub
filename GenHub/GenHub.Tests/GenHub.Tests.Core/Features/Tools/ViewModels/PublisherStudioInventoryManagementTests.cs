@@ -1548,14 +1548,13 @@ public class PublisherStudioInventoryManagementTests
             new ReleaseArtifact { Filename = "part2.zip", DownloadUrl = sharedUrl, Size = 0 },
         ];
 
-        var handler = new CountingJsonHandler("{}", "shared-probe-target.zip");
+        var handler = new CountingJsonHandler("{}", "shared-probe-target.zip", "application/zip");
         var client = new HttpClient(handler);
         PublishShareViewModel.HttpClientOverrideForTesting = client;
         CatalogDocumentReader.AllowUnresolvableDnsForTesting = true;
         try
         {
             using var vm = CreateViewModel(project, CreateDriveProvider());
-            vm.RefreshHostedAssets();
 
             Assert.Equal(1, handler.CallCount);
         }
@@ -1635,7 +1634,7 @@ public class PublisherStudioInventoryManagementTests
         }
     }
 
-    private sealed class CountingJsonHandler(string json, string? countedUrlSubstring = null) : HttpMessageHandler
+    private sealed class CountingJsonHandler(string json, string? countedUrlSubstring = null, string mediaType = "application/json") : HttpMessageHandler
     {
         public int CallCount { get; private set; }
 
@@ -1647,10 +1646,12 @@ public class PublisherStudioInventoryManagementTests
                 CallCount++;
             }
 
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent(json, Encoding.UTF8, "application/json"),
-            });
+                Content = new StringContent(json, Encoding.UTF8, mediaType),
+            };
+            response.Content.Headers.ContentLength = 100;
+            return Task.FromResult(response);
         }
     }
 

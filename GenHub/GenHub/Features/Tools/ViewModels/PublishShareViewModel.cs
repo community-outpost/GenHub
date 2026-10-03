@@ -2471,9 +2471,17 @@ public partial class PublishShareViewModel(
         var index = new Dictionary<string, List<AssetReference>>(StringComparer.OrdinalIgnoreCase);
         foreach (var catalog in project.Catalogs)
         {
+            if (catalog?.Catalog?.Content == null)
+            {
+                continue;
+            }
+
             foreach (var content in catalog.Catalog.Content)
             {
-                IndexContentReferences(index, catalog, content);
+                if (content != null)
+                {
+                    IndexContentReferences(index, catalog, content);
+                }
             }
         }
 
@@ -2483,14 +2491,26 @@ public partial class PublishShareViewModel(
     private void IndexContentReferences(Dictionary<string, List<AssetReference>> index, NamedCatalog catalog, CatalogContentItem content)
     {
         IndexMetadataReferences(index, catalog, content);
-        foreach (var release in content.Releases)
+        if (content.Releases != null)
         {
-            IndexReleaseReferences(index, catalog, content, release);
+            foreach (var release in content.Releases)
+            {
+                if (release != null)
+                {
+                    IndexReleaseReferences(index, catalog, content, release);
+                }
+            }
         }
 
-        foreach (var addon in content.AddonReleases)
+        if (content.AddonReleases != null)
         {
-            IndexReleaseReferences(index, catalog, content, addon);
+            foreach (var addon in content.AddonReleases)
+            {
+                if (addon != null)
+                {
+                    IndexReleaseReferences(index, catalog, content, addon);
+                }
+            }
         }
     }
 
@@ -2502,15 +2522,21 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        foreach (var url in metadata.ScreenshotUrls)
+        if (metadata.ScreenshotUrls != null)
         {
-            AddUrlReference(index, url, new AssetReference(catalog.Id, catalog.Name, content.Id, content.Name, null, MediaSlotScreenshot));
+            foreach (var url in metadata.ScreenshotUrls)
+            {
+                AddUrlReference(index, url, new AssetReference(catalog.Id, catalog.Name, content.Id, content.Name, null, MediaSlotScreenshot));
+            }
         }
 
         AddUrlReference(index, metadata.VideoUrl, new AssetReference(catalog.Id, catalog.Name, content.Id, content.Name, null, MediaSlotVideo));
-        foreach (var url in metadata.VideoUrls)
+        if (metadata.VideoUrls != null)
         {
-            AddUrlReference(index, url, new AssetReference(catalog.Id, catalog.Name, content.Id, content.Name, null, MediaSlotVideo));
+            foreach (var url in metadata.VideoUrls)
+            {
+                AddUrlReference(index, url, new AssetReference(catalog.Id, catalog.Name, content.Id, content.Name, null, MediaSlotVideo));
+            }
         }
 
         AddUrlReference(index, metadata.IconUrl, new AssetReference(catalog.Id, catalog.Name, content.Id, content.Name, null, MediaSlotIcon));
@@ -2520,19 +2546,36 @@ public partial class PublishShareViewModel(
 
     private void IndexReleaseReferences(Dictionary<string, List<AssetReference>> index, NamedCatalog catalog, CatalogContentItem content, ContentRelease release)
     {
-        foreach (var artifact in release.Artifacts)
+        if (release == null)
         {
-            AddUrlReference(index, artifact.DownloadUrl, new AssetReference(catalog.Id, catalog.Name, content.Id, content.Name, release.Version, MediaSlotArtifact));
+            return;
         }
 
-        foreach (var url in release.ImageUrls)
+        if (release.Artifacts != null)
         {
-            AddUrlReference(index, url, new AssetReference(catalog.Id, catalog.Name, content.Id, content.Name, release.Version, MediaSlotReleaseImage));
+            foreach (var artifact in release.Artifacts)
+            {
+                if (artifact != null)
+                {
+                    AddUrlReference(index, artifact.DownloadUrl, new AssetReference(catalog.Id, catalog.Name, content.Id, content.Name, release.Version, MediaSlotArtifact));
+                }
+            }
         }
 
-        foreach (var url in release.VideoUrls)
+        if (release.ImageUrls != null)
         {
-            AddUrlReference(index, url, new AssetReference(catalog.Id, catalog.Name, content.Id, content.Name, release.Version, MediaSlotReleaseVideo));
+            foreach (var url in release.ImageUrls)
+            {
+                AddUrlReference(index, url, new AssetReference(catalog.Id, catalog.Name, content.Id, content.Name, release.Version, MediaSlotReleaseImage));
+            }
+        }
+
+        if (release.VideoUrls != null)
+        {
+            foreach (var url in release.VideoUrls)
+            {
+                AddUrlReference(index, url, new AssetReference(catalog.Id, catalog.Name, content.Id, content.Name, release.Version, MediaSlotReleaseVideo));
+            }
         }
     }
 
