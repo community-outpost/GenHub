@@ -497,7 +497,7 @@ public class GeneralsOnlineManifestFactory(
         {
             Description = description ?? string.Empty,
             ReleaseDate = releaseDate,
-            IconUrl = iconUrl,
+            IconUrl = !string.IsNullOrWhiteSpace(iconUrl) ? iconUrl : GeneralsOnlineConstants.LogoSource,
             ThemeColor = GeneralsOnlineConstants.ThemeColor,
             Tags = [.. tags],
             ChangelogUrl = changelogUrl,
@@ -548,18 +548,14 @@ public class GeneralsOnlineManifestFactory(
                 ContentIndexUrl = downloadPageUrl,
                 UpdateCheckIntervalHours = GeneralsOnlineConstants.UpdateCheckIntervalHours,
             },
-            Metadata = new ContentMetadata
-            {
-                Description = GeneralsOnlineConstants.GameDataDescription,
-                ReleaseDate = release.ReleaseDate,
-                IconUrl = iconUrl,
-                CoverUrl = coverSource,
-                ThemeColor = GeneralsOnlineConstants.ThemeColor,
-                Tags = [.. GeneralsOnlineConstants.GameDataTags, .. GetVariantTags(GeneralsOnlineConstants.GameDataPatchSuffix)],
-                ChangelogUrl = release.Changelog,
-                VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(release.Version),
-                VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(release.Version),
-            },
+            Metadata = CreateContentMetadata(
+                GeneralsOnlineConstants.GameDataDescription,
+                release.ReleaseDate,
+                iconUrl,
+                [.. GeneralsOnlineConstants.GameDataTags, .. GetVariantTags(GeneralsOnlineConstants.GameDataPatchSuffix)],
+                release.Changelog,
+                release.Version,
+                coverSource),
 
             // Files will be populated during extraction
             Files = [],
@@ -580,8 +576,10 @@ public class GeneralsOnlineManifestFactory(
         var websiteUrl = provider?.Endpoints.WebsiteUrl ?? GeneralsOnlineConstants.WebsiteUrl;
         var supportUrl = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.SupportUrl) ?? GeneralsOnlineConstants.SupportUrl;
         var downloadPageUrl = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.DownloadPageUrl) ?? GeneralsOnlineConstants.DownloadPageUrl;
-        var iconUrl = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.IconUrl) ?? GeneralsOnlineConstants.LogoSource;
-        var coverSource = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.CoverUrl) ?? GeneralsOnlineConstants.CoverSource;
+        var configuredIcon = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.IconUrl);
+        var iconUrl = !string.IsNullOrWhiteSpace(configuredIcon) ? configuredIcon : GeneralsOnlineConstants.LogoSource;
+        var configuredCover = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.CoverUrl);
+        var coverSource = !string.IsNullOrWhiteSpace(configuredCover) ? configuredCover : GeneralsOnlineConstants.CoverSource;
         var userVersion = ParseVersionForManifestId(release.Version);
         var manifestId = ManifestId.Create(ManifestIdGenerator.GeneratePublisherContentId(
             PublisherTypeConstants.GeneralsOnline,
