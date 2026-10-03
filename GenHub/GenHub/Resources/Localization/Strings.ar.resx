@@ -17781,6 +17781,285 @@ Error: فشل: {3}
   <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
     <value>إصدارات احتياطية يدوية (تجاوزات)</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaScreenshotsPrefix" xml:space="preserve">
+    <value>لقطات الشاشة: </value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaVideosPrefix" xml:space="preserve">
+    <value>الفيديو: </value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilterScreenshots" xml:space="preserve">
+    <value>لقطات الشاشة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilterVideos" xml:space="preserve">
+    <value>الفيديو</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ColLinkedTo" xml:space="preserve">
+    <value>مرتبط بـ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SortByNameTip" xml:space="preserve">
+    <value>فرز حسب اسم الملف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SortBySizeTip" xml:space="preserve">
+    <value>فرز حسب حجم الملف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ExpandChildrenTip" xml:space="preserve">
+    <value>إظهار العناصر المرتبطة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteAction" xml:space="preserve">
+    <value>حذف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteTip" xml:space="preserve">
+    <value>حذف من التخزين السحابي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryScreenshotFormat" xml:space="preserve">
+    <value>لقطة شاشة ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryVideoFormat" xml:space="preserve">
+    <value>فيديو ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudScreenshot" xml:space="preserve">
+    <value>لقطة شاشة سحابية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudVideo" xml:space="preserve">
+    <value>فيديو سحابي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudScreenshotFormat" xml:space="preserve">
+    <value>لقطة شاشة سحابية ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudVideoFormat" xml:space="preserve">
+    <value>فيديو سحابي ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudArtifactFormat" xml:space="preserve">
+    <value>ملف سحابي ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudArtifactFileFormat" xml:space="preserve">
+    <value>ملف سحابي ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotArtifact" xml:space="preserve">
+    <value>ملف الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotScreenshot" xml:space="preserve">
+    <value>لقطة شاشة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotVideo" xml:space="preserve">
+    <value>فيديو</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotIcon" xml:space="preserve">
+    <value>أيقونة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotBanner" xml:space="preserve">
+    <value>بانر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotBackdrop" xml:space="preserve">
+    <value>خلفية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotReleaseImage" xml:space="preserve">
+    <value>صورة الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotReleaseVideo" xml:space="preserve">
+    <value>فيديو الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToRefWithVersionFormat" xml:space="preserve">
+    <value>{0} › {1} v{2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToRefFormat" xml:space="preserve">
+    <value>{0} › {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToMoreFormat" xml:space="preserve">
+    <value>{0} (+{1} أخرى)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToDefinitionLineFormat" xml:space="preserve">
+    <value>التعريف: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToMoreRefsFormat" xml:space="preserve">
+    <value>+{0} أخرى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToNotLinked" xml:space="preserve">
+    <value>غير مرتبط</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToNotLinkedTip" xml:space="preserve">
+    <value>هذا الملف غير مستخدم في أي فهرس بالمشروع الحالي.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToNotInProjectTip" xml:space="preserve">
+    <value>هذا الملف ليس جزءاً من المشروع الحالي. قم بتحميله لفحص محتوياته وربطها.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToCatalogFormat" xml:space="preserve">
+    <value>التعريف: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToCatalogTipFormat" xml:space="preserve">
+    <value>مذكور في {0} · عدد العناصر: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToDefinitionFormat" xml:space="preserve">
+    <value>عدد الفهارس: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToDefinitionTipFormat" xml:space="preserve">
+    <value>تعريف الناشر الذي يسرد {0} من الفهارس</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ChildrenCatalogsFormat" xml:space="preserve">
+    <value>عدد الفهارس: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ChildrenContentsFormat" xml:space="preserve">
+    <value>عدد العناصر: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ChildrenReferencesFormat" xml:space="preserve">
+    <value>عدد المراجع: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ChildCatalogDetailFormat" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ChildContentDetailFormat" xml:space="preserve">
+    <value>{0} · الإصدارات: {1} · الملفات: {2} · الوسائط: {3}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.EmptyCatalogText" xml:space="preserve">
+    <value>فهرس فارغ — لا يوجد محتوى مرتبط</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.EmptyDefinitionText" xml:space="preserve">
+    <value>لا توجد فهارس مرتبطة بهذا التعريف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadToInspectHint" xml:space="preserve">
+    <value>حمّل إلى المشروع لفحص فهارسه</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadToInspectCatalogHint" xml:space="preserve">
+    <value>حمّل إلى المشروع لفحص محتوياته</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteNotHostedTitle" xml:space="preserve">
+    <value>لا يوجد ما يُحذف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteNotHostedMessageFormat" xml:space="preserve">
+    <value>«{0}» غير مستضاف بعد، لذا لا يوجد ما يُحذف من التخزين السحابي.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteBusyTitle" xml:space="preserve">
+    <value>عملية جارية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteBusyMessage" xml:space="preserve">
+    <value>يرجى الانتظار حتى انتهاء التحميل أو الفحص الحالي قبل الحذف.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteProviderRequiredTitle" xml:space="preserve">
+    <value>المزود غير متصل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteProviderRequiredMessage" xml:space="preserve">
+    <value>اتصل بمزود الاستضافة قبل حذف الملفات السحابية.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteDefinitionTitle" xml:space="preserve">
+    <value>حذف التعريف المستضاف؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteActiveDefinitionMessageFormat" xml:space="preserve">
+    <value>«{0}» هو تعريف المزود المنشور الخاص بك. يستخدمه المشتركون لاكتشاف تحديثات الفهارس، لذا سيؤدي حذفه إلى تعطيل التحقق من التحديثات حتى تعيد النشر. هل تريد حذف «{0}» من التخزين السحابي؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteDefinitionMessageFormat" xml:space="preserve">
+    <value>حذف «{0}» من التخزين السحابي؟ إنه غير مستخدم في المشروع الحالي.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedDefinitionRepublishNote" xml:space="preserve">
+    <value>أعد نشر تعريف المزود لاستعادة تحديثات المشتركين.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedDefinitionMessageFormat" xml:space="preserve">
+    <value>تم حذف «{0}» من التخزين السحابي.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteRemoteFailedTitle" xml:space="preserve">
+    <value>فشل الحذف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteRemoteFailedMessageFormat" xml:space="preserve">
+    <value>تعذر حذف «{0}» من التخزين السحابي. تعذر العثور على الملف البعيد أو رفض المزود الطلب. لم يتم إجراء أي تغييرات محلية.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteLastCatalogTitle" xml:space="preserve">
+    <value>تعذر حذف الفهرس الأخير</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteLastCatalogMessage" xml:space="preserve">
+    <value>يحتاج المشروع إلى فهرس واحد على الأقل. احذف محتوياته بدلاً من ذلك، أو أنشئ فهرساً بديلاً أولاً.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteCatalogTitleFormat" xml:space="preserve">
+    <value>حذف الفهرس «{0}»؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteCatalogCloudOnlyMessageFormat" xml:space="preserve">
+    <value>حذف «{0}» من التخزين السحابي؟ إنه ليس جزءاً من المشروع الحالي.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteCatalogContentsLineFormat" xml:space="preserve">
+    <value>ستتم إزالة {0} من العناصر و{1} من الإصدارات و{2} من الملفات و{3} من روابط الوسائط من المشروع.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteCatalogDefinitionLine" xml:space="preserve">
+    <value>سيتم تحديث تعريف المزود وإعادة تحميله بدون هذا الفهرس.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteCatalogOrphansLineFormat" xml:space="preserve">
+    <value>{0} من الملفات على Drive تُستخدم فقط في هذا الفهرس وستصبح غير مرتبطة (ستبقى على Drive): {1}.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedCatalogPartialFormat" xml:space="preserve">
+    <value>تمت إزالة الفهرس «{0}» محلياً، لكن تعذر حذف بعض الملفات البعيدة. أعد الفحص وحاول مجدداً من المخزون.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedCatalogMessageFormat" xml:space="preserve">
+    <value>تم حذف الفهرس «{0}».</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteOrphansKeptNoteFormat" xml:space="preserve">
+    <value>تم الاحتفاظ بـ {0} من الملفات اليتيمة على Drive ويمكن حذفها كلاً على حدة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteDefinitionStaleNote" xml:space="preserve">
+    <value>تعذر إعادة تحميل تعريف المزود وتم وضع علامة عليه للنشر.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteSuccessTitle" xml:space="preserve">
+    <value>تم الحذف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteExternalTitleFormat" xml:space="preserve">
+    <value>إزالة الرابط «{0}»؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteArtifactTitleFormat" xml:space="preserve">
+    <value>حذف «{0}»؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteExternalMessageFormat" xml:space="preserve">
+    <value>«{0}» مستضاف على CDN خارجي، لذا لا يوجد ملف بعيد لحذفه. هل تريد إزالة رابطه من {1} من الإصدارات؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteArtifactMessageFormat" xml:space="preserve">
+    <value>حذف «{0}» ({1}) من التخزين السحابي؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteArtifactConsequenceLineFormat" xml:space="preserve">
+    <value>ستتم إزالة الملف من {0} من الإصدارات؛ وسيتم تحديث الفهارس المتأثرة وإعادة تحميلها.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteArtifactUsedByLine" xml:space="preserve">
+    <value>مُستخدم في:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteArtifactEmptiedLineFormat" xml:space="preserve">
+    <value>تحذير: الإصدار v{0} من «{1}» سيبقى بدون ملفات.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedArtifactMessageFormat" xml:space="preserve">
+    <value>تم حذف «{0}» وإزالته من {1} من الإصدارات.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedExternalMessageFormat" xml:space="preserve">
+    <value>تم فك ارتباط «{0}» من {1} من الإصدارات.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteEmptiedReleaseNoteFormat" xml:space="preserve">
+    <value>الإصدار v{0} من «{1}» أصبح الآن بدون ملفات. أضف بديلاً أو احذف الإصدار.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteRepublishFailedNoteFormat" xml:space="preserve">
+    <value>تعذر إعادة تحميل {0} من الفهارس وتم وضع علامة عليها للنشر.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteRepublishedNoteFormat" xml:space="preserve">
+    <value>تمت إعادة تحميل {0} من الفهارس مع الإصلاح.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteMediaTitleFormat" xml:space="preserve">
+    <value>حذف الوسائط «{0}»؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteMediaMessageFormat" xml:space="preserve">
+    <value>حذف «{0}» من التخزين السحابي؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteMediaConsequenceLineFormat" xml:space="preserve">
+    <value>ستتم إزالة الرابط من {0} من المواضع؛ وسيتم تحديث الفهارس المتأثرة وإعادة تحميلها.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedMediaMessageFormat" xml:space="preserve">
+    <value>تم حذف «{0}» وفك ارتباطه من {1} من المواضع.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteUnlinkedTitleFormat" xml:space="preserve">
+    <value>حذف الملف غير المرتبط «{0}»؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteUnlinkedMessageFormat" xml:space="preserve">
+    <value>«{0}» ({1}) غير مستخدم في أي فهرس. هل تريد حذفه من التخزين السحابي؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedUnlinkedMessageFormat" xml:space="preserve">
+    <value>تم حذف «{0}» من التخزين السحابي.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteExternalMediaMessageFormat" xml:space="preserve">
+    <value>«{0}» مستضاف على CDN خارجي، لذا لا يوجد ملف بعيد لحذفه. هل تريد إزالة رابطه من {1} من المواضع؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedExternalMediaMessageFormat" xml:space="preserve">
+    <value>تم فك ارتباط «{0}» من {1} من المواضع.</value>
+  </data>
   <data name="Launch.ExitCode.LauncherExitExplained" xml:space="preserve">
     <value>خرج برنامج التشغيل برمز الخروج {0} قبل بدء {1}. {2}</value>
   </data>

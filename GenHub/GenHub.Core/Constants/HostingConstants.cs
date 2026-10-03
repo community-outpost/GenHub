@@ -444,4 +444,68 @@ public static class HostingConstants
         return stem.Equals("catalog", System.StringComparison.OrdinalIgnoreCase) ||
                stem.StartsWith("catalog-", System.StringComparison.OrdinalIgnoreCase);
     }
+
+    /// <summary>
+    /// Image file extensions classified as screenshot or artwork media in the hosted asset inventory.
+    /// </summary>
+    public static readonly string[] ScreenshotFileExtensions = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tiff", ".tif", ".avif"];
+
+    /// <summary>
+    /// Video file extensions classified as video media in the hosted asset inventory.
+    /// </summary>
+    public static readonly string[] VideoFileExtensions = [".mp4", ".webm", ".mov", ".mkv", ".avi", ".m4v", ".ogv"];
+
+    /// <summary>
+    /// Checks whether a given file name looks like a screenshot or image media file.
+    /// </summary>
+    /// <param name="fileName">The file name to inspect.</param>
+    /// <returns><c>true</c> if the file name ends with a known image extension; otherwise, <c>false</c>.</returns>
+    public static bool IsScreenshotFileName(string? fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return false;
+        }
+
+        foreach (var extension in ScreenshotFileExtensions)
+        {
+            if (fileName.EndsWith(extension, System.StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks whether a given file name looks like a video media file.
+    /// </summary>
+    /// <param name="fileName">The file name to inspect.</param>
+    /// <returns><c>true</c> if the file name ends with a known video extension; otherwise, <c>false</c>.</returns>
+    public static bool IsVideoFileName(string? fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return false;
+        }
+
+        foreach (var extension in VideoFileExtensions)
+        {
+            if (fileName.EndsWith(extension, System.StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks whether a given file name looks like hosted media (screenshot image or video).
+    /// </summary>
+    /// <param name="fileName">The file name to inspect.</param>
+    /// <returns><c>true</c> if the file name matches a media extension; otherwise, <c>false</c>.</returns>
+    public static bool IsMediaFileName(string? fileName) =>
+        IsScreenshotFileName(fileName) || IsVideoFileName(fileName);
 }
