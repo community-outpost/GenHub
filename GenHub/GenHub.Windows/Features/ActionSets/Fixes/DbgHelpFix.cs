@@ -7,7 +7,7 @@ namespace GenHub.Windows.Features.ActionSets.Fixes;
 /// Fix for the dbghelp.dll which causes crashes on modern systems.
 /// </summary>
 public class DbgHelpFix(ILogger<DbgHelpFix> logger)
-    : BaseFileRenameFix(logger, GameClientConstants.DbgHelpDll, GameClientConstants.DbgHelpDllBak)
+    : BaseFileRenameFix(logger, GameClientConstants.DbgHelpDll)
 {
     /// <inheritdoc/>
     public override string Id => "DbgHelpFix";
