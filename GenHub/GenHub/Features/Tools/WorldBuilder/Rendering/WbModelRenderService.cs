@@ -52,7 +52,13 @@ public sealed class WbModelRenderService(
     {
         ArgumentNullException.ThrowIfNull(map);
         var objects = map.Objects.ToList();
-        var draws = await Task.Run(() => BuildCoreAsync(objects, cancellationToken), cancellationToken).ConfigureAwait(false);
+        var terrain = map.Terrain;
+        var (draws, skipped) = await Task.Run(() => BuildCoreAsync(terrain, objects, cancellationToken), cancellationToken).ConfigureAwait(false);
+        if (objects.Count > 0 && skipped > 0)
+        {
+            _logger.LogInformation("Built {Draws} model draws for {Objects} placed objects ({Skipped} without resolvable art).", draws.Count, objects.Count, skipped);
+        }
+
         return OperationResult<WbModelRenderData>.CreateSuccess(new WbModelRenderData(draws));
     }
 
@@ -250,27 +256,34 @@ public sealed class WbModelRenderService(
         return mesh.Materials[(int)id];
     }
 
-    private async Task<List<WbModelDraw>> BuildCoreAsync(List<MapObjectEntry> objects, CancellationToken cancellationToken)
+    private async Task<(List<WbModelDraw> Draws, int Skipped)> BuildCoreAsync(MapTerrainData terrain, List<MapObjectEntry> objects, CancellationToken cancellationToken)
     {
         var draws = new List<WbModelDraw>();
+        var skipped = 0;
         foreach (var entry in objects)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var built = await BuildObjectAsync(entry, cancellationToken).ConfigureAwait(false);
+            var built = await BuildObjectAsync(terrain, entry, cancellationToken).ConfigureAwait(false);
+            if (built.Count == 0)
+            {
+                skipped++;
+            }
+
             draws.AddRange(built);
         }
 
-        return draws;
+        return (draws, skipped);
     }
 
-    private async Task<IReadOnlyList<WbModelDraw>> BuildObjectAsync(MapObjectEntry entry, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<WbModelDraw>> BuildObjectAsync(MapTerrainData terrain, MapObjectEntry entry, CancellationToken cancellationToken)
     {
         var template = _templates.FindByName(entry.Name);
         var modelName = template?.ModelName ?? entry.Name;
         var scale = template is { AssetScale: > 0 } ? template.AssetScale : 1.0f;
+        var groundZ = WbPicking.GroundHeightFeet(terrain, entry.X, entry.Y);
         var placement = Matrix4x4.CreateScale(scale)
             * Matrix4x4.CreateRotationZ(entry.Angle)
-            * Matrix4x4.CreateTranslation(entry.X, entry.Y, entry.Z);
+            * Matrix4x4.CreateTranslation(entry.X, entry.Y, groundZ + entry.Z);
         return await BuildPlacementAsync(modelName, placement, cancellationToken).ConfigureAwait(false);
     }
 

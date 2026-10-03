@@ -243,7 +243,7 @@ public sealed partial class WorldBuilderViewModel
         SelectedObject.X = SelectedObjectX;
         SelectedObject.Y = SelectedObjectY;
         SelectedObject.Z = SelectedObjectZ;
-        SelectedObject.Angle = SelectedObjectAngle;
+        SelectedObject.Angle = (SelectedObjectAngle * MathF.PI) / 180.0f;
 
         ResolveObjectStance();
         WriteObjectCoreProperties(SelectedObject);
@@ -647,7 +647,7 @@ public sealed partial class WorldBuilderViewModel
             SelectedObjectX = value.X;
             SelectedObjectY = value.Y;
             SelectedObjectZ = value.Z;
-            SelectedObjectAngle = value.Angle;
+            SelectedObjectAngle = (value.Angle * 180.0f) / MathF.PI;
             SelectedObjectHealthPercent = value.Properties.GetInt(WorldBuilderConstants.DictKeys.ObjectHealth, 100);
             SelectedObjectHitPoints = value.Properties.GetInt(WorldBuilderConstants.DictKeys.ObjectHitPoints, 0);
             SelectedObjectAggressiveness = value.Properties.GetString(WorldBuilderConstants.DictKeys.ObjectAggressiveness, WorldBuilderConstants.Objects.Normal);

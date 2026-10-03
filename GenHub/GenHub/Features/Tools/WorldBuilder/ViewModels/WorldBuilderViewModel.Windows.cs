@@ -44,6 +44,9 @@ public sealed partial class WorldBuilderViewModel
     /// <summary>Raised when the viewport should fit the canvas.</summary>
     public event Action? RequestZoomToFit;
 
+    /// <summary>Raised when the 3D viewport should dolly one notch: positive zooms in, negative zooms out.</summary>
+    public event Action<int>? RequestZoomStep;
+
     /// <summary>Raised when the viewport should center on a cell.</summary>
     public event Action<int, int>? RequestCenterOnCell;
 

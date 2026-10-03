@@ -1,7 +1,6 @@
 // Portions derived from the Command & Conquer Generals / Zero Hour WorldBuilder sources
 // (TheSuperHackers/GeneralsGameCode, AdrianeYves/WorldbuilderZHAdriane, triatomic/worldbuilderQT),
 // licensed GPL-3.0 with EA additional terms; see NOTICE-WorldBuilder.md. Modified for GenHub.
-using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools.WorldBuilder;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.TextureEditor;
@@ -68,11 +67,40 @@ public sealed class WbTerrainRenderServiceTests
         Assert.NotNull(result.Data);
         var data = result.Data!;
         Assert.Equal(24, data.Indices.Length);
-        Assert.False(data.Atlas.TileUv.ContainsKey(0));
-        Assert.Equal(WorldBuilderConstants.Terrain.FallbackAtlasRed, data.AtlasPixels.Span[0]);
-        Assert.Equal(WorldBuilderConstants.Terrain.FallbackAtlasGreen, data.AtlasPixels.Span[1]);
-        Assert.Equal(WorldBuilderConstants.Terrain.FallbackAtlasBlue, data.AtlasPixels.Span[2]);
+        Assert.True(data.Atlas.TileUv.ContainsKey(0));
+        Assert.Equal(0.0f, data.Atlas.TileUv[0].MinU);
+        Assert.Equal(0.0f, data.Atlas.TileUv[0].MinV);
+        Assert.Equal(60, data.AtlasPixels.Span[0]);
+        Assert.Equal(100, data.AtlasPixels.Span[1]);
+        Assert.Equal(130, data.AtlasPixels.Span[2]);
         Assert.Equal(255, data.AtlasPixels.Span[3]);
+    }
+
+    /// <summary>
+    /// Verifies the per-class atlas rect starts where the class tiles were packed.
+    /// </summary>
+    /// <returns>A task.</returns>
+    [Fact]
+    public async Task BuildAsync_SecondClass_ClassRectStartsAtPackedSlotAsync()
+    {
+        var service = new WbTerrainRenderService(new StubTextureCache(), new TwoClassCatalog(), NullLogger<WbTerrainRenderService>.Instance);
+        var map = CreateMap("Dirt");
+        map.Terrain.TextureClasses.Clear();
+        map.Terrain.TextureClasses.Add(new MapTextureClass(0, 16, 4, "Dirt"));
+        map.Terrain.TextureClasses.Add(new MapTextureClass(16, 16, 4, "Grass"));
+
+        var result = await service.BuildAsync(
+            map,
+            new Vector3(0.2f, 0.2f, 0.2f),
+            [new Vector3(0, 0, 1)],
+            [new Vector3(1, 1, 1)],
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var atlas = result.Data!.Atlas;
+        Assert.Equal(0.0f, atlas.ClassUv["Dirt"].MinU);
+        Assert.Equal(0.5f, atlas.ClassUv["Grass"].MinU, 5);
     }
 
     private static WorldBuilderMap CreateMap(string className)
@@ -123,6 +151,28 @@ public sealed class WbTerrainRenderServiceTests
         public TerrainTypeInfo? FindByName(string name)
         {
             return string.Equals(name, "Dirt", StringComparison.OrdinalIgnoreCase) ? GetAll()[0] : null;
+        }
+    }
+
+    private sealed class TwoClassCatalog : ITerrainTypeCatalog
+    {
+        public IReadOnlyList<TerrainTypeInfo> GetAll()
+        {
+            return
+            [
+                new TerrainTypeInfo("Dirt", "Dirt.tga", false, null, false, 0, 0),
+                new TerrainTypeInfo("Grass", "Grass.tga", false, null, false, 0, 0),
+            ];
+        }
+
+        public IReadOnlyList<TerrainTypeInfo> GetPaletteEntries()
+        {
+            return GetAll();
+        }
+
+        public TerrainTypeInfo? FindByName(string name)
+        {
+            return GetAll().FirstOrDefault(info => string.Equals(info.Name, name, StringComparison.OrdinalIgnoreCase));
         }
     }
 

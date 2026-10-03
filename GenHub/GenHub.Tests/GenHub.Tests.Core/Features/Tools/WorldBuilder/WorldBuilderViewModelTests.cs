@@ -720,6 +720,32 @@ public sealed class WorldBuilderViewModelTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that the object angle editor converts between UI degrees and
+    /// stored radians in both directions.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ApplyObjectProperties_Angle_ConvertsDegreesAndRadiansAsync()
+    {
+        // Arrange
+        await OpenScriptMapAsync("angle.map", CreateScriptMap());
+        _viewModel.Objects[0].Angle = MathF.PI;
+
+        // Act: selecting shows degrees.
+        _viewModel.SelectedObject = _viewModel.Objects[0];
+
+        // Assert
+        _viewModel.SelectedObjectAngle.Should().BeApproximately(180.0f, 0.01f);
+
+        // Act: applying converts back to radians.
+        _viewModel.SelectedObjectAngle = 90.0f;
+        _viewModel.ApplyObjectPropertiesCommand.Execute(null);
+
+        // Assert
+        _viewModel.SelectedObject!.Angle.Should().BeApproximately(MathF.PI / 2.0f, 0.0001f);
+    }
+
+    /// <summary>
     /// Tests that selecting an object loads the extended properties.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
@@ -1141,6 +1167,118 @@ public sealed class WorldBuilderViewModelTests : IDisposable
         refreshes.Should().Be(0);
 
         void OnRefresh() => refreshes++;
+    }
+
+    /// <summary>
+    /// Tests that render passes skip the 2D bitmap while the 3D viewport is
+    /// visible but still request the 3D scene refresh.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task RefreshCanvasBitmap_In3DMode_SkipsBitmapButRefreshesSceneAsync()
+    {
+        // Arrange
+        var mapPath = Path.Combine(_tempDirectory, "skip2d.map");
+        _mockMapService
+            .Setup(s => s.LoadAsync(mapPath, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<WorldBuilderMap>.CreateSuccess(CreateCanvasMap()));
+        _mockMapService
+            .Setup(s => s.Summarize(It.IsAny<WorldBuilderMap>()))
+            .Returns(new MapSummaryReport { MapName = "Canvas Map" });
+        var refreshes = 0;
+        _viewModel.RequestRefreshView += OnRefresh;
+        await _viewModel.OpenMapAsync(mapPath);
+        await _viewModel.RenderIdleAsync();
+        Dispatcher.UIThread.RunJobs();
+
+        // Assert
+        _viewModel.Is3DViewportVisible.Should().BeTrue();
+        _viewModel.CanvasBitmap.Should().BeNull();
+        refreshes.Should().BeGreaterThan(0);
+        _viewModel.RequestRefreshView -= OnRefresh;
+
+        void OnRefresh() => refreshes++;
+    }
+
+    /// <summary>
+    /// Tests that switching back to the 2D canvas re-renders the bitmap.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task RefreshCanvasBitmap_AfterSwitchTo2D_RendersBitmapAsync()
+    {
+        // Arrange
+        var mapPath = Path.Combine(_tempDirectory, "back2d.map");
+        _mockMapService
+            .Setup(s => s.LoadAsync(mapPath, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<WorldBuilderMap>.CreateSuccess(CreateCanvasMap()));
+        _mockMapService
+            .Setup(s => s.Summarize(It.IsAny<WorldBuilderMap>()))
+            .Returns(new MapSummaryReport { MapName = "Canvas Map" });
+        await _viewModel.OpenMapAsync(mapPath);
+        await _viewModel.RenderIdleAsync();
+        Dispatcher.UIThread.RunJobs();
+
+        // Act
+        _viewModel.ViewMode = MapCanvasViewMode.TopDown2D;
+        await _viewModel.RenderIdleAsync();
+        Dispatcher.UIThread.RunJobs();
+
+        // Assert
+        _viewModel.Is3DViewportVisible.Should().BeFalse();
+        _viewModel.CanvasBitmap.Should().NotBeNull();
+    }
+
+    /// <summary>
+    /// Tests that zoom commands dolly the 3D viewport instead of the hidden 2D canvas.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task ZoomCommands_In3DMode_RequestViewportZoomStepAsync()
+    {
+        // Arrange
+        var mapPath = Path.Combine(_tempDirectory, "zoom3d.map");
+        _mockMapService
+            .Setup(s => s.LoadAsync(mapPath, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<WorldBuilderMap>.CreateSuccess(CreateCanvasMap()));
+        _mockMapService
+            .Setup(s => s.Summarize(It.IsAny<WorldBuilderMap>()))
+            .Returns(new MapSummaryReport { MapName = "Canvas Map" });
+        await _viewModel.OpenMapAsync(mapPath);
+        await _viewModel.RenderIdleAsync();
+        Dispatcher.UIThread.RunJobs();
+        var steps = new List<int>();
+        _viewModel.RequestZoomStep += OnZoomStep;
+
+        // Act
+        _viewModel.ZoomIn();
+        _viewModel.ZoomOut();
+        _viewModel.RequestZoomStep -= OnZoomStep;
+
+        // Assert
+        _viewModel.Is3DViewportVisible.Should().BeTrue();
+        steps.Should().Equal(1, -1);
+        _viewModel.Zoom.Should().Be(1.0);
+
+        void OnZoomStep(int direction) => steps.Add(direction);
+    }
+
+    /// <summary>
+    /// Tests that zoom commands scale the 2D canvas when it is visible.
+    /// </summary>
+    [Fact]
+    public void ZoomCommands_In2DMode_ScaleCanvasZoom()
+    {
+        // Act
+        _viewModel.ZoomIn();
+        var zoomedIn = _viewModel.Zoom;
+        _viewModel.ZoomOut();
+        _viewModel.ZoomOut();
+
+        // Assert
+        _viewModel.Is3DViewportVisible.Should().BeFalse();
+        zoomedIn.Should().Be(1.25);
+        _viewModel.Zoom.Should().Be(0.8);
     }
 
     private static WorldBuilderMap CreateMap(string name)

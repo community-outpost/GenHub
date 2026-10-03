@@ -43,6 +43,35 @@ public sealed class WbBridgeServiceTests
     }
 
     /// <summary>
+    /// Verifies decks and towers ride on the terrain surface plus the stored offset.
+    /// </summary>
+    /// <returns>A task.</returns>
+    [Fact]
+    public async Task BuildBridgesAsync_GroundRelativeZ_SnapsToTerrainAsync()
+    {
+        var service = new WbBridgeService(
+            new StubRoads(),
+            new StubThings(),
+            new WbModelRenderService(new StubLoader(), new StubThings(), new StubTextures(), NullLogger<WbModelRenderService>.Instance),
+            NullLogger<WbBridgeService>.Instance);
+        var map = CreateMap();
+        map.Terrain.Width = 4;
+        map.Terrain.Height = 4;
+        map.Terrain.BorderSize = 0;
+        map.Terrain.Heights = [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100];
+
+        var result = await service.BuildBridgesAsync(map, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var draws = result.Data!;
+        Assert.Equal(3, draws.Count);
+        Assert.Equal(66.5f, draws[0].Vertices.Span[2], 3);
+        Assert.Equal(66.5f, draws[1].Vertices.Span[2], 3);
+        Assert.Equal(66.5f, draws[2].Vertices.Span[2], 3);
+    }
+
+    /// <summary>
     /// Verifies unknown bridge templates are skipped without failing.
     /// </summary>
     /// <returns>A task.</returns>

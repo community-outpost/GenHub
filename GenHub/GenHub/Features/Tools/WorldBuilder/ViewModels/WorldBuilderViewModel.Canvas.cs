@@ -274,6 +274,12 @@ public sealed partial class WorldBuilderViewModel
     [RelayCommand]
     public void ZoomIn()
     {
+        if (Is3DViewportVisible)
+        {
+            RequestZoomStep?.Invoke(1);
+            return;
+        }
+
         Zoom = Math.Min(5.0, Zoom * 1.25);
     }
 
@@ -283,6 +289,12 @@ public sealed partial class WorldBuilderViewModel
     [RelayCommand]
     public void ZoomOut()
     {
+        if (Is3DViewportVisible)
+        {
+            RequestZoomStep?.Invoke(-1);
+            return;
+        }
+
         Zoom = Math.Max(0.1, Zoom / 1.25);
     }
 
@@ -508,10 +520,17 @@ public sealed partial class WorldBuilderViewModel
         }
 
         Interlocked.Exchange(ref _renderPending, 0);
-        var options = await PublishRenderOptionsAsync().ConfigureAwait(false);
+        var (options, renderBitmap) = await PublishRenderOptionsAsync().ConfigureAwait(false);
         try
         {
-            await RenderBitmapAsync(map, options).ConfigureAwait(false);
+            // The 2D bitmap is hidden behind the GPU viewport in 3D mode, so skip
+            // the full CPU pass and only refresh the 3D scene. The bitmap is
+            // re-rendered on the next switch back to the 2D canvas.
+            if (renderBitmap)
+            {
+                await RenderBitmapAsync(map, options).ConfigureAwait(false);
+            }
+
             RaiseRefreshView();
         }
         catch (OperationCanceledException)
@@ -543,11 +562,11 @@ public sealed partial class WorldBuilderViewModel
         }
     }
 
-    private async Task<MapCanvasRenderOptions> PublishRenderOptionsAsync()
+    private async Task<(MapCanvasRenderOptions Options, bool RenderBitmap)> PublishRenderOptionsAsync()
     {
         if (_disposed)
         {
-            return BuildRenderOptions();
+            return (BuildRenderOptions(), !Is3DViewportVisible);
         }
 
         // BuildRenderOptions reads bound properties and RenderOptions raises
@@ -557,14 +576,14 @@ public sealed partial class WorldBuilderViewModel
         {
             var direct = BuildRenderOptions();
             RenderOptions = direct;
-            return direct;
+            return (direct, !Is3DViewportVisible);
         }
 
         return await Dispatcher.UIThread.InvokeAsync(() =>
         {
             var built = BuildRenderOptions();
             RenderOptions = built;
-            return built;
+            return (built, !Is3DViewportVisible);
         });
     }
 
@@ -1222,7 +1241,11 @@ public sealed partial class WorldBuilderViewModel
         RefreshCanvasBitmap();
     }
 
-    partial void OnRenderer3DAvailableChanged(bool value) => UpdateViewportVisibility();
+    partial void OnRenderer3DAvailableChanged(bool value)
+    {
+        UpdateViewportVisibility();
+        RefreshCanvasBitmap();
+    }
 
     partial void OnHasDocumentChanged(bool value) => UpdateViewportVisibility();
 

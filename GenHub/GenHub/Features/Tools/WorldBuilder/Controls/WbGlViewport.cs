@@ -37,6 +37,11 @@ public sealed class WbGlViewport : OpenGlControlBase, IDisposable
     public const float DefaultCameraHeightFeet = 300.0f;
 
     /// <summary>
+    /// Raw wheel delta of one detent notch, matching the pointer wheel handler.
+    /// </summary>
+    public const float WheelNotchDelta = 120.0f;
+
+    /// <summary>
     /// Defines the <see cref="Map"/> property.
     /// </summary>
     public static readonly StyledProperty<WorldBuilderMap?> MapProperty =
@@ -161,6 +166,17 @@ public sealed class WbGlViewport : OpenGlControlBase, IDisposable
     {
         _camera.CenterCells = new Vector2(cellX, cellY);
         RequestNextFrameRendering();
+    }
+
+    /// <summary>
+    /// Dollies the camera one wheel notch: positive zooms in, negative zooms out.
+    /// </summary>
+    /// <param name="direction">The zoom direction.</param>
+    public void ZoomStep(int direction)
+    {
+        _camera.Dolly(direction >= 0 ? WheelNotchDelta : -WheelNotchDelta);
+        RequestNextFrameRendering();
+        CameraChanged?.Invoke();
     }
 
     /// <summary>
@@ -452,7 +468,7 @@ public sealed class WbGlViewport : OpenGlControlBase, IDisposable
             return;
         }
 
-        _camera.Dolly((float)e.Delta.Y * 120.0f);
+        _camera.Dolly((float)e.Delta.Y * WheelNotchDelta);
         RequestNextFrameRendering();
         CameraChanged?.Invoke();
         e.Handled = true;

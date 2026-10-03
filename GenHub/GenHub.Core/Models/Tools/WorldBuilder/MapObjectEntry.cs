@@ -11,10 +11,10 @@ public sealed class MapObjectEntry
     /// <summary>Gets or sets the world Y coordinate.</summary>
     public float Y { get; set; }
 
-    /// <summary>Gets or sets the world Z coordinate.</summary>
+    /// <summary>Gets or sets the height above the terrain surface.</summary>
     public float Z { get; set; }
 
-    /// <summary>Gets or sets the facing angle in degrees.</summary>
+    /// <summary>Gets or sets the facing angle in radians.</summary>
     public float Angle { get; set; }
 
     /// <summary>Gets or sets the flag bits.</summary>

@@ -104,16 +104,17 @@ public sealed class MapEditToolsTests
     }
 
     /// <summary>
-    /// Tests that placing an object snaps Z to the terrain.
+    /// Tests that placing an object stores a zero ground offset: the stored Z
+    /// is height above the terrain surface, resolved at render time.
     /// </summary>
     [Fact]
-    public void PlaceObject_SnapsZToTerrain()
+    public void PlaceObject_StoresZeroGroundOffset()
     {
         var map = CreateMap();
 
         var obj = MapOverlayTools.PlaceObject(map, "Bunker", 55, 55);
 
-        Assert.True(obj.Z > 0);
+        Assert.Equal(0, obj.Z);
         Assert.Equal("Bunker", obj.Name);
     }
 

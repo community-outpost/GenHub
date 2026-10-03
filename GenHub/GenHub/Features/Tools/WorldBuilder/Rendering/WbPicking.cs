@@ -134,6 +134,22 @@ public static class WbPicking
     }
 
     /// <summary>
+    /// Samples terrain height in feet at a world position, for ground-relative
+    /// placement: map objects store height above the terrain surface.
+    /// </summary>
+    /// <param name="terrain">The terrain data.</param>
+    /// <param name="worldX">The world X in feet.</param>
+    /// <param name="worldY">The world Y in feet.</param>
+    /// <returns>The ground height in feet.</returns>
+    public static float GroundHeightFeet(MapTerrainData terrain, float worldX, float worldY)
+    {
+        ArgumentNullException.ThrowIfNull(terrain);
+        var cellX = (worldX / WorldBuilderConstants.Terrain.CellSize) + terrain.BorderSize;
+        var cellY = (worldY / WorldBuilderConstants.Terrain.CellSize) + terrain.BorderSize;
+        return SampleHeight(terrain, cellX, cellY);
+    }
+
+    /// <summary>
     /// Samples terrain height in feet with bilinear interpolation.
     /// </summary>
     /// <param name="terrain">The terrain data.</param>

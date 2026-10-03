@@ -175,6 +175,31 @@ public sealed class GameAssetFileSystem(IGameInstallationService installations, 
             .ToLowerInvariant();
     }
 
+    private static (int Textures, int Models) CountArtEntries(Dictionary<string, AssetSource> files)
+    {
+        var texturePrefix = string.Concat(
+            WorldBuilderDataConstants.Art.Textures,
+            WorldBuilderDataConstants.Separators.Virtual).ToLowerInvariant();
+        var modelPrefix = string.Concat(
+            WorldBuilderDataConstants.Art.W3D,
+            WorldBuilderDataConstants.Separators.Virtual).ToLowerInvariant();
+        var textures = 0;
+        var models = 0;
+        foreach (var key in files.Keys)
+        {
+            if (key.StartsWith(texturePrefix, StringComparison.Ordinal))
+            {
+                textures++;
+            }
+            else if (key.StartsWith(modelPrefix, StringComparison.Ordinal))
+            {
+                models++;
+            }
+        }
+
+        return (textures, models);
+    }
+
     private static string NormalizeDirectoryPrefix(string? virtualDir)
     {
         if (string.IsNullOrWhiteSpace(virtualDir))
@@ -323,14 +348,17 @@ public sealed class GameAssetFileSystem(IGameInstallationService installations, 
                 _files = index.Files;
             }
 
+            var (textureCount, modelCount) = CountArtEntries(index.Files);
             var elapsed = Stopwatch.GetElapsedTime(started);
             logger.LogInformation(
-                "Mounted {Files} game assets ({Loose} loose, {Entries} archive entries across {Archives} archives, {Layers} layers)",
+                "Mounted {Files} game assets ({Loose} loose, {Entries} archive entries across {Archives} archives, {Layers} layers, {Textures} art textures, {Models} W3D models)",
                 index.Files.Count,
                 index.LooseCount,
                 index.ArchiveEntryCount,
                 index.ArchiveCount,
-                index.LayersIndexed);
+                index.LayersIndexed,
+                textureCount,
+                modelCount);
             return OperationResult<bool>.CreateSuccess(true, elapsed);
         }
         catch (OperationCanceledException)

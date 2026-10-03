@@ -82,6 +82,7 @@ public partial class WorldBuilderView : UserControl
         {
             _subscribedVm = vm;
             vm.RequestZoomToFit += OnRequestZoomToFit;
+            vm.RequestZoomStep += OnRequestZoomStep;
             vm.RequestCenterOnCell += OnRequestCenterOnCell;
             vm.RequestResetView += OnRequestResetView;
             vm.RequestRefreshView += OnRequestRefreshView;
@@ -97,6 +98,7 @@ public partial class WorldBuilderView : UserControl
         if (_subscribedVm != null)
         {
             _subscribedVm.RequestZoomToFit -= OnRequestZoomToFit;
+            _subscribedVm.RequestZoomStep -= OnRequestZoomStep;
             _subscribedVm.RequestCenterOnCell -= OnRequestCenterOnCell;
             _subscribedVm.RequestResetView -= OnRequestResetView;
             _subscribedVm.RequestRefreshView -= OnRequestRefreshView;
@@ -186,6 +188,7 @@ public partial class WorldBuilderView : UserControl
         if (_subscribedVm != null)
         {
             _subscribedVm.RequestZoomToFit -= OnRequestZoomToFit;
+            _subscribedVm.RequestZoomStep -= OnRequestZoomStep;
             _subscribedVm.RequestCenterOnCell -= OnRequestCenterOnCell;
             _subscribedVm.RequestResetView -= OnRequestResetView;
             _subscribedVm.RequestRefreshView -= OnRequestRefreshView;
@@ -197,6 +200,7 @@ public partial class WorldBuilderView : UserControl
         {
             _subscribedVm = vm;
             vm.RequestZoomToFit += OnRequestZoomToFit;
+            vm.RequestZoomStep += OnRequestZoomStep;
             vm.RequestCenterOnCell += OnRequestCenterOnCell;
             vm.RequestResetView += OnRequestResetView;
             vm.RequestRefreshView += OnRequestRefreshView;
@@ -240,6 +244,14 @@ public partial class WorldBuilderView : UserControl
         else
         {
             _mapCanvas?.ZoomToFit();
+        }
+    }
+
+    private void OnRequestZoomStep(int direction)
+    {
+        if (_glViewport?.IsVisible == true)
+        {
+            _glViewport.ZoomStep(direction);
         }
     }
 

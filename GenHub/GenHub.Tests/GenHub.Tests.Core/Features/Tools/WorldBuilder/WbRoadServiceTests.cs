@@ -44,6 +44,28 @@ public sealed class WbRoadServiceTests
     }
 
     /// <summary>
+    /// Verifies road quads ride on the terrain surface plus the stored offset.
+    /// </summary>
+    /// <returns>A task.</returns>
+    [Fact]
+    public async Task BuildRoadsAsync_GroundRelativeZ_SnapsToTerrainAsync()
+    {
+        var service = new WbRoadService(new StubRoads(), new StubTextures(), NullLogger<WbRoadService>.Instance);
+        var map = CreateMap();
+        map.Terrain.Width = 4;
+        map.Terrain.Height = 4;
+        map.Terrain.BorderSize = 0;
+        map.Terrain.Heights = [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100];
+
+        var result = await service.BuildRoadsAsync(map, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var draw = Assert.Single(result.Data!);
+        Assert.Equal(64.8f, draw.Vertices.Span[2], 3);
+    }
+
+    /// <summary>
     /// Verifies unknown road types are skipped without failing.
     /// </summary>
     /// <returns>A task.</returns>

@@ -25,7 +25,7 @@ public static class MapOverlayTools
         {
             X = x,
             Y = y,
-            Z = TerrainZ(map, x, y),
+            Z = 0,
             Name = UniqueName(map, name),
         };
         map.Objects.Add(obj);
@@ -66,7 +66,7 @@ public static class MapOverlayTools
     }
 
     /// <summary>
-    /// Moves an object, snapping Z to the terrain height.
+    /// Moves an object, snapping Z to the terrain surface.
     /// </summary>
     /// <param name="map">The map document.</param>
     /// <param name="name">The object name.</param>
@@ -84,7 +84,7 @@ public static class MapOverlayTools
 
         obj.X = x;
         obj.Y = y;
-        obj.Z = TerrainZ(map, x, y);
+        obj.Z = 0;
         return true;
     }
 
@@ -196,7 +196,7 @@ public static class MapOverlayTools
             Name = segment.RoadType,
             X = segment.X1,
             Y = segment.Y1,
-            Z = segment.Z1 != 0 ? segment.Z1 : TerrainZ(map, segment.X1, segment.Y1),
+            Z = segment.Z1,
             Flags = flags1,
         };
 
@@ -205,7 +205,7 @@ public static class MapOverlayTools
             Name = segment.RoadType,
             X = segment.X2,
             Y = segment.Y2,
-            Z = segment.Z2 != 0 ? segment.Z2 : TerrainZ(map, segment.X2, segment.Y2),
+            Z = segment.Z2,
             Flags = WorldBuilderConstants.ObjectFlags.RoadPoint2,
         };
 
@@ -310,7 +310,7 @@ public static class MapOverlayTools
             Name = template,
             X = x1,
             Y = y1,
-            Z = TerrainZ(map, x1, y1),
+            Z = 0,
             Flags = WorldBuilderConstants.ObjectFlags.BridgePoint1,
         };
 
@@ -319,7 +319,7 @@ public static class MapOverlayTools
             Name = template,
             X = x2,
             Y = y2,
-            Z = TerrainZ(map, x2, y2),
+            Z = 0,
             Flags = WorldBuilderConstants.ObjectFlags.BridgePoint2,
         };
 
@@ -614,18 +614,6 @@ public static class MapOverlayTools
         }
 
         return best;
-    }
-
-    private static float TerrainZ(WorldBuilderMap map, float x, float y)
-    {
-        var cell = MapCoordinates.WorldToCell(map.Terrain.BorderSize, x, y, map.Terrain.Width, map.Terrain.Height);
-        var index = (cell.Y * map.Terrain.Width) + cell.X;
-        if (index < 0 || index >= map.Terrain.Heights.Count)
-        {
-            return 0;
-        }
-
-        return map.Terrain.Heights[index] * WorldBuilderConstants.Terrain.HeightScale;
     }
 
     private static string UniqueName(WorldBuilderMap map, string name)

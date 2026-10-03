@@ -52,7 +52,8 @@ public sealed class WbRoadService(
     {
         ArgumentNullException.ThrowIfNull(map);
         var segments = MapOverlayTools.GetRoadSegments(map);
-        var draws = await Task.Run(() => BuildCoreAsync(segments, cancellationToken), cancellationToken).ConfigureAwait(false);
+        var terrain = map.Terrain;
+        var draws = await Task.Run(() => BuildCoreAsync(terrain, segments, cancellationToken), cancellationToken).ConfigureAwait(false);
         return OperationResult<IReadOnlyList<WbModelDraw>>.CreateSuccess(draws);
     }
 
@@ -73,7 +74,7 @@ public sealed class WbRoadService(
         vertices[offset + 11] = 1.0f;
     }
 
-    private async Task<WbModelDraw?> BuildSegmentAsync(RoadSegment segment, CancellationToken cancellationToken)
+    private async Task<WbModelDraw?> BuildSegmentAsync(MapTerrainData terrain, RoadSegment segment, CancellationToken cancellationToken)
     {
         var info = _roads.FindRoad(segment.RoadType);
         if (info == null)
@@ -93,8 +94,8 @@ public sealed class WbRoadService(
 
         var nx = (-dy / length) * width / 2.0f;
         var ny = (dx / length) * width / 2.0f;
-        var z1 = segment.Z1 + LiftFeet;
-        var z2 = segment.Z2 + LiftFeet;
+        var z1 = WbPicking.GroundHeightFeet(terrain, segment.X1, segment.Y1) + segment.Z1 + LiftFeet;
+        var z2 = WbPicking.GroundHeightFeet(terrain, segment.X2, segment.Y2) + segment.Z2 + LiftFeet;
         var vRepeat = length / width;
         var corners = new Vector3[4]
         {
@@ -140,13 +141,13 @@ public sealed class WbRoadService(
             true);
     }
 
-    private async Task<List<WbModelDraw>> BuildCoreAsync(List<RoadSegment> segments, CancellationToken cancellationToken)
+    private async Task<List<WbModelDraw>> BuildCoreAsync(MapTerrainData terrain, List<RoadSegment> segments, CancellationToken cancellationToken)
     {
         var draws = new List<WbModelDraw>();
         foreach (var segment in segments)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var draw = await BuildSegmentAsync(segment, cancellationToken).ConfigureAwait(false);
+            var draw = await BuildSegmentAsync(terrain, segment, cancellationToken).ConfigureAwait(false);
             if (draw != null)
             {
                 draws.Add(draw);

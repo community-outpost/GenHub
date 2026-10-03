@@ -84,6 +84,37 @@ public sealed class WbModelRenderServiceTests
     }
 
     /// <summary>
+    /// Verifies placed objects sit on the terrain surface: the stored Z is a
+    /// height offset above ground, not an absolute elevation.
+    /// </summary>
+    /// <returns>A task.</returns>
+    [Fact]
+    public async Task BuildAsync_GroundRelativeZ_SnapsToTerrainAsync()
+    {
+        var service = new WbModelRenderService(
+            new StubLoader(CreateModel()),
+            new StubThingCatalog(),
+            new StubTextureCache(),
+            NullLogger<WbModelRenderService>.Instance);
+        var map = new WorldBuilderMap();
+        map.Terrain.Width = 2;
+        map.Terrain.Height = 2;
+        map.Terrain.BorderSize = 0;
+        map.Terrain.Heights = [100, 100, 100, 100];
+        map.Objects.Add(new MapObjectEntry { X = 5, Y = 5, Z = 0, Angle = 0, Name = "Tank" });
+        map.Objects.Add(new MapObjectEntry { X = 15, Y = 5, Z = 10, Angle = 0, Name = "Tank" });
+
+        var result = await service.BuildAsync(map, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var draws = result.Data!.Draws;
+        Assert.Equal(2, draws.Count);
+        Assert.Equal(62.5f, draws[0].Vertices.Span[2], 3);
+        Assert.Equal(72.5f, draws[1].Vertices.Span[2], 3);
+    }
+
+    /// <summary>
     /// Verifies hidden meshes and missing art are skipped without failing.
     /// </summary>
     /// <returns>A task.</returns>

@@ -43,24 +43,25 @@ public sealed class WbBridgeService(
     {
         ArgumentNullException.ThrowIfNull(map);
         var bridges = MapOverlayTools.GetBridges(map);
-        var draws = await Task.Run(() => BuildCoreAsync(bridges, cancellationToken), cancellationToken).ConfigureAwait(false);
+        var terrain = map.Terrain;
+        var draws = await Task.Run(() => BuildCoreAsync(terrain, bridges, cancellationToken), cancellationToken).ConfigureAwait(false);
         return OperationResult<IReadOnlyList<WbModelDraw>>.CreateSuccess(draws);
     }
 
-    private async Task<List<WbModelDraw>> BuildCoreAsync(List<BridgeSegment> bridges, CancellationToken cancellationToken)
+    private async Task<List<WbModelDraw>> BuildCoreAsync(MapTerrainData terrain, List<BridgeSegment> bridges, CancellationToken cancellationToken)
     {
         var draws = new List<WbModelDraw>();
         foreach (var bridge in bridges)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var built = await BuildBridgeAsync(bridge, cancellationToken).ConfigureAwait(false);
+            var built = await BuildBridgeAsync(terrain, bridge, cancellationToken).ConfigureAwait(false);
             draws.AddRange(built);
         }
 
         return draws;
     }
 
-    private async Task<IReadOnlyList<WbModelDraw>> BuildBridgeAsync(BridgeSegment bridge, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<WbModelDraw>> BuildBridgeAsync(MapTerrainData terrain, BridgeSegment bridge, CancellationToken cancellationToken)
     {
         var info = _roads.FindBridge(bridge.Template);
         if (info == null)
@@ -72,7 +73,9 @@ public sealed class WbBridgeService(
         var scale = info.BridgeScale is > 0 ? info.BridgeScale.Value : 1.0f;
         var midX = (bridge.X1 + bridge.X2) / 2.0f;
         var midY = (bridge.Y1 + bridge.Y2) / 2.0f;
-        var midZ = (bridge.Z1 + bridge.Z2) / 2.0f;
+        var startZ = WbPicking.GroundHeightFeet(terrain, bridge.X1, bridge.Y1) + bridge.Z1;
+        var endZ = WbPicking.GroundHeightFeet(terrain, bridge.X2, bridge.Y2) + bridge.Z2;
+        var midZ = (startZ + endZ) / 2.0f;
         var yaw = MathF.Atan2(bridge.Y2 - bridge.Y1, bridge.X2 - bridge.X1);
         var draws = new List<WbModelDraw>();
         if (!string.IsNullOrWhiteSpace(info.BridgeModelName))
@@ -87,13 +90,13 @@ public sealed class WbBridgeService(
         var towerModel = ResolveTowerModel(info);
         if (towerModel != null)
         {
-            var start = await _models.BuildSingleAsync(towerModel, bridge.X1, bridge.Y1, bridge.Z1, yaw, scale, cancellationToken).ConfigureAwait(false);
+            var start = await _models.BuildSingleAsync(towerModel, bridge.X1, bridge.Y1, startZ, yaw, scale, cancellationToken).ConfigureAwait(false);
             if (start.Success && start.Data != null)
             {
                 draws.AddRange(start.Data);
             }
 
-            var end = await _models.BuildSingleAsync(towerModel, bridge.X2, bridge.Y2, bridge.Z2, yaw, scale, cancellationToken).ConfigureAwait(false);
+            var end = await _models.BuildSingleAsync(towerModel, bridge.X2, bridge.Y2, endZ, yaw, scale, cancellationToken).ConfigureAwait(false);
             if (end.Success && end.Data != null)
             {
                 draws.AddRange(end.Data);
