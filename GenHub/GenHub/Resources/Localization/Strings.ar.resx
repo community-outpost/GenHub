@@ -15497,18 +15497,6 @@ https://example.com/screenshot2.png</value>
   <data name="Tools.IniEditor.Toolbar.MenuTooltip" xml:space="preserve">
     <value>إجراءات الملف والتحرير</value>
   </data>
-  <data name="Tools.IniEditor.Toolbar.AddUpgrade" xml:space="preserve">
-    <value>إضافة ترقية</value>
-  </data>
-  <data name="Tools.IniEditor.Toolbar.AddUpgradeTooltip" xml:space="preserve">
-    <value>إضافة ربط ترقية إلى كتلة الكائن المحددة</value>
-  </data>
-  <data name="Tools.IniEditor.Toolbar.AddDamage" xml:space="preserve">
-    <value>إضافة ضرر</value>
-  </data>
-  <data name="Tools.IniEditor.Toolbar.AddDamageTooltip" xml:space="preserve">
-    <value>إضافة ملف ضرر إلى كتلة السلاح المحددة</value>
-  </data>
   <data name="Tools.IniEditor.Tabs.Blocks" xml:space="preserve">
     <value>الكتل</value>
   </data>
@@ -15584,6 +15572,9 @@ https://example.com/screenshot2.png</value>
   <data name="Tools.IniEditor.FileSettings.Title" xml:space="preserve">
     <value>إعدادات الملف</value>
   </data>
+  <data name="Tools.IniEditor.Properties.ClearFieldTooltip" xml:space="preserve">
+    <value>مسح القيمة؛ إذا كانت فارغة يحذف الحقل</value>
+  </data>
   <data name="Tools.IniEditor.Properties.DeleteFieldTooltip" xml:space="preserve">
     <value>حذف هذا الحقل</value>
   </data>
@@ -15596,8 +15587,14 @@ https://example.com/screenshot2.png</value>
   <data name="Tools.IniEditor.Properties.NewValueWatermark" xml:space="preserve">
     <value>قيمة الحقل الجديدة...</value>
   </data>
+  <data name="Tools.IniEditor.Properties.AddFlagTooltip" xml:space="preserve">
+    <value>إضافة العَلَم المكتوب حتى لو لم يكن في قائمة الاقتراحات.</value>
+  </data>
   <data name="Tools.IniEditor.Properties.AddField" xml:space="preserve">
     <value>إضافة حقل</value>
+  </data>
+  <data name="Tools.IniEditor.Properties.NoFieldsHint" xml:space="preserve">
+    <value>لا توجد حقول للعرض. حدد كتلة أو وحدة لتحرير حقولها، أو أضف حقلاً أدناه.</value>
   </data>
   <data name="Tools.IniEditor.Empty.Title" xml:space="preserve">
     <value>لا يوجد مستند مفتوح</value>
@@ -15683,6 +15680,9 @@ https://example.com/screenshot2.png</value>
   </data>
   <data name="Tools.IniEditor.Format.NoFileMessage" xml:space="preserve">
     <value>احفظ المستند في ملف قبل التنسيق.</value>
+  </data>
+  <data name="Tools.IniEditor.Format.RefusedDiscardedContent" xml:space="preserve">
+    <value>تعذّر التنسيق: فقد التحليل بعض أسطر المصدر. أصلح أخطاء التحليل أولاً.</value>
   </data>
   <data name="Tools.IniEditor.History.AddBlock" xml:space="preserve">
     <value>إضافة كتلة</value>
@@ -17724,6 +17724,360 @@ Error: فشل: {3}
   </data>
   <data name="Tools.IniEditor.Reference.NotFoundTitle" xml:space="preserve">
     <value>التعريف غير موجود</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.HealthLabel" xml:space="preserve">
+    <value>الصحة</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.CostLabel" xml:space="preserve">
+    <value>التكلفة</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.BuildTimeLabel" xml:space="preserve">
+    <value>وقت البناء</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.KindOfLabel" xml:space="preserve">
+    <value>نوع الكائن</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.ModulesLabel" xml:space="preserve">
+    <value>الوحدات</value>
+  </data>
+  <data name="Tools.IniEditor.History.AttachTexture" xml:space="preserve">
+    <value>إرفاق النسيج</value>
+  </data>
+  <data name="Tools.IniEditor.History.ApplyRawPreview" xml:space="preserve">
+    <value>تعديل INI المباشر</value>
+  </data>
+  <data name="Tools.IniEditor.Toast.AttachTextureSuccessTitle" xml:space="preserve">
+    <value>تم إرفاق النسيج</value>
+  </data>
+  <data name="Tools.IniEditor.Toast.AttachTextureSuccessMessage" xml:space="preserve">
+    <value>تم إرفاق {0} بـ {1}.</value>
+  </data>
+  <data name="Tools.IniEditor.Toast.ClipboardUnavailableTitle" xml:space="preserve">
+    <value>الحافظة غير متاحة</value>
+  </data>
+  <data name="Tools.IniEditor.Toast.ClipboardUnavailableMessage" xml:space="preserve">
+    <value>حافظة النظام غير متاحة.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.ExperienceRequired" xml:space="preserve">
+    <value>نقاط الخبرة لكل مستوى أقدمية.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.IsTrainable" xml:space="preserve">
+    <value>ما إذا كانت الوحدة تكتسب الأقدمية.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.VoiceFear" xml:space="preserve">
+    <value>صوت الخوف.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.VoiceGuard" xml:space="preserve">
+    <value>صوت الحراسة.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.SoundStealthOn" xml:space="preserve">
+    <value>صوت تفعيل التخفي.</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.PanTooltip" xml:space="preserve">
+    <value>تحريك اللوحة</value>
+  </data>
+  <data name="Tools.IniEditor.Open.RecoveredTitle" xml:space="preserve">
+    <value>تم الفتح مع وجود مشكلات</value>
+  </data>
+  <data name="Tools.IniEditor.Open.RecoveredMessage" xml:space="preserve">
+    <value>تم استرداد {0} من المشكلات. أول مشكلة: {1}</value>
+  </data>
+  <data name="Tools.IniEditor.Validation.Title" xml:space="preserve">
+    <value>المشكلات</value>
+  </data>
+  <data name="Tools.IniEditor.Validation.UnknownReference" xml:space="preserve">
+    <value>مرجع {1} غير معروف '{0}'.</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Command" xml:space="preserve">
+    <value>أمر</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Border" xml:space="preserve">
+    <value>حد</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Target" xml:space="preserve">
+    <value>هدف</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Image" xml:space="preserve">
+    <value>صورة</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Damage" xml:space="preserve">
+    <value>ضرر</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Range" xml:space="preserve">
+    <value>مدى</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Type" xml:space="preserve">
+    <value>نوع</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Delay" xml:space="preserve">
+    <value>تأخير</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Cost" xml:space="preserve">
+    <value>تكلفة</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Time" xml:space="preserve">
+    <value>وقت</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Health" xml:space="preserve">
+    <value>صحة</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.BuildTime" xml:space="preserve">
+    <value>وقت البناء</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Vision" xml:space="preserve">
+    <value>رؤية</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Shroud" xml:space="preserve">
+    <value>ضباب</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.CardHpLabel" xml:space="preserve">
+    <value>HP</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.OverviewCount" xml:space="preserve">
+    <value>عرض {0} من {1} كتلة</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.CardCmdLabel" xml:space="preserve">
+    <value>أمر</value>
+  </data>
+  <data name="Tools.IniEditor.Textures.StatusFormat" xml:space="preserve">
+    <value>{0} / {1} من القوام</value>
+  </data>
+  <data name="Tools.IniEditor.Save.DiscardedContentMessage" xml:space="preserve">
+    <value>تعذر الحفظ: أدى التحليل إلى تجاهل أسطر من المصدر. قم بحل أخطاء التحليل أولاً.</value>
+  </data>
+  <data name="Tools.IniEditor.Preview.RawEditRejectedTitle" xml:space="preserve">
+    <value>تعذر تطبيق التحرير</value>
+  </data>
+  <data name="Tools.IniEditor.Preview.RawEditRejectedMessage" xml:space="preserve">
+    <value>يحتوي النص المحرر على أخطاء في الصياغة. قم بإصلاحها قبل التطبيق.</value>
+  </data>
+  <data name="Tools.IniEditor.Tree.GroupByType" xml:space="preserve">
+    <value>Group by type</value>
+  </data>
+  <data name="Tools.IniEditor.Tree.CountFlat" xml:space="preserve">
+    <value>{0} of {1} blocks</value>
+  </data>
+  <data name="Tools.IniEditor.Tree.CountGrouped" xml:space="preserve">
+    <value>{0} of {1} blocks in {2} groups</value>
+  </data>
+  <data name="Tools.IniEditor.Fields.PairTargetWatermark" xml:space="preserve">
+    <value>Target object...</value>
+  </data>
+  <data name="Tools.IniEditor.Fields.PairPercentWatermark" xml:space="preserve">
+    <value>-80</value>
+  </data>
+  <data name="Tools.IniEditor.Fields.OpenSuggestionsTooltip" xml:space="preserve">
+    <value>فتح قائمة الاقتراحات القابلة للبحث</value>
+  </data>
+  <data name="Tools.IniEditor.Assets.Title" xml:space="preserve">
+    <value>Model and assets</value>
+  </data>
+  <data name="Tools.IniEditor.Assets.ModelDetail" xml:space="preserve">
+    <value>Draw model</value>
+  </data>
+  <data name="Tools.IniEditor.Assets.TextureDetail" xml:space="preserve">
+    <value>Texture ({0})</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Blocks.AudioEvent" xml:space="preserve">
+    <value>AudioEvent: named sound definition.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Blocks.DialogEvent" xml:space="preserve">
+    <value>DialogEvent: named dialog line definition.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Blocks.ParticleSystem" xml:space="preserve">
+    <value>ParticleSystem: particle effect definition.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.AudioEvent.Sounds" xml:space="preserve">
+    <value>Sample names played by this event.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.AudioEvent.Control" xml:space="preserve">
+    <value>Playback control flags.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.AudioEvent.Attack" xml:space="preserve">
+    <value>Attack sample.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.AudioEvent.Decay" xml:space="preserve">
+    <value>Decay sample.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.AudioEvent.Limit" xml:space="preserve">
+    <value>Max simultaneous instances.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.AudioEvent.Priority" xml:space="preserve">
+    <value>Playback priority.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.AudioEvent.Volume" xml:space="preserve">
+    <value>Base volume.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.AudioEvent.VolumeShift" xml:space="preserve">
+    <value>Random volume shift.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.AudioEvent.PitchShift" xml:space="preserve">
+    <value>Random pitch shift range.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.AudioEvent.Type" xml:space="preserve">
+    <value>Sound scope flags.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.DialogEvent.Sounds" xml:space="preserve">
+    <value>Sample names played by this event.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.DialogEvent.Control" xml:space="preserve">
+    <value>Playback control flags.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.DialogEvent.Priority" xml:space="preserve">
+    <value>Playback priority.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.DialogEvent.Volume" xml:space="preserve">
+    <value>Base volume.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ParticleSystem.Priority" xml:space="preserve">
+    <value>Render priority.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ParticleSystem.IsOneShot" xml:space="preserve">
+    <value>Whether the system plays once.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ParticleSystem.Shader" xml:space="preserve">
+    <value>Render shader.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ParticleSystem.Type" xml:space="preserve">
+    <value>Particle system type.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ParticleSystem.ParticleName" xml:space="preserve">
+    <value>Particle texture asset.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ParticleSystem.Gravity" xml:space="preserve">
+    <value>Gravity applied to particles.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Upgrade.UnitSpecificSound" xml:space="preserve">
+    <value>Unit specific sound event.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Upgrade.AcademyClassify" xml:space="preserve">
+    <value>Academy classification tag.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Upgrade.ProductionTimeChange" xml:space="preserve">
+    <value>Target object plus production time percent change.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.GeometryMinorRadius" xml:space="preserve">
+    <value>Minor collision radius.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.GeometryHeight" xml:space="preserve">
+    <value>Collision height.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.GeometryIsSmall" xml:space="preserve">
+    <value>Whether the object uses small geometry.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.RadarPriority" xml:space="preserve">
+    <value>Radar map priority.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.SelectPortrait" xml:space="preserve">
+    <value>Selection portrait texture.</value>
+  </data>
+  <data name="Tools.IniEditor.Preview.RawEditMultiBlockMessage" xml:space="preserve">
+    <value>يحتوي النص المحرر على عدة كتل. حرر كتلة واحدة في كل مرة.</value>
+  </data>
+  <data name="Tools.IniEditor.Preview.RawEditFileScopeMessage" xml:space="preserve">
+    <value>يحتوي النص المحرر على إدخالات على مستوى الملف خارج الكتلة. حرر كتلة واحدة في كل مرة.</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.Title" xml:space="preserve">
+    <value>معاينة ثلاثية الأبعاد</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.Empty" xml:space="preserve">
+    <value>لا يوجد نموذج ثلاثي الأبعاد لهذه الكتلة. تظهر الوحدات والكائنات المرتبطة أدناه.</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.Loading" xml:space="preserve">
+    <value>جارٍ تحميل {0}…</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.NoInstallation" xml:space="preserve">
+    <value>لم يتم العثور على تثبيت للعبة من أجل {0}.</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.NotFound" xml:space="preserve">
+    <value>لم يتم العثور على النموذج {0} في ملفات اللعبة.</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ParseError" xml:space="preserve">
+    <value>تعذر تحليل {0}.</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ParseErrorTitle" xml:space="preserve">
+    <value>فشلت المعاينة ثلاثية الأبعاد</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ParseErrorMessage" xml:space="preserve">
+    <value>تعذر تحليل النموذج {0}.</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.Ready" xml:space="preserve">
+    <value>{0} شبكات • {1} خامات • {2} عظام</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ReadyMissing" xml:space="preserve">
+    <value>{0} شبكات • {1} خامات ({2} مفقودة) • {3} عظام</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ClipUnsupported" xml:space="preserve">
+    <value>الحركة '{0}' تستخدم قنوات مضغوطة ولا يمكن معاينتها.</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ReadyComposite" xml:space="preserve">
+    <value>{0} نماذج • {1} شبكات • {2} خامات</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ReadyCompositeMissing" xml:space="preserve">
+    <value>{0} نماذج • {1} شبكات • {2} خامات ({3} مفقودة)</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.Skeleton" xml:space="preserve">
+    <value>الهيكل العظمي</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.Wireframe" xml:space="preserve">
+    <value>إطار سلكي</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.Track" xml:space="preserve">
+    <value>تتبع</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ViewOptions" xml:space="preserve">
+    <value>خيارات العرض ثلاثي الأبعاد</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.TrackTooltip" xml:space="preserve">
+    <value>تتبع النموذج أثناء تشغيل الحركة</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.Play" xml:space="preserve">
+    <value>تشغيل</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.Pause" xml:space="preserve">
+    <value>إيقاف مؤقت</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.FrameLabel" xml:space="preserve">
+    <value>إطار</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ClipLabel" xml:space="preserve">
+    <value>الحركة</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.Subobjects" xml:space="preserve">
+    <value>الأجزاء الفرعية</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.MeshBoneLabel" xml:space="preserve">
+    <value>عظمة</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.MeshTextureLabel" xml:space="preserve">
+    <value>خامة</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.SubobjectDetails" xml:space="preserve">
+    <value>مثلثات</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ReferencedBy" xml:space="preserve">
+    <value>حالات الرسم التي تستخدم هذه الشبكة</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.RelatedObjects" xml:space="preserve">
+    <value>الكائنات المرتبطة</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.DoubleClickHint" xml:space="preserve">
+    <value>اسحب للتدوير • العجلة للتقريب • السحب بالزر الأيمن أو Shift للتحريك • WASD للحركة • نقرة مزدوجة لإعادة الضبط</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.NoClips" xml:space="preserve">
+    <value>لا توجد حركات</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ViaSource" xml:space="preserve">
+    <value>عبر {0}</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ResolutionPath" xml:space="preserve">
+    <value>مسار المعاينة</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.UsedBy" xml:space="preserve">
+    <value>يُستخدم في</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.MissingTextures" xml:space="preserve">
+    <value>قوام مفقود:</value>
   </data>
   <data name="TextureEditor.Button.OpenFolder" xml:space="preserve">
     <value>فتح مجلد</value>

@@ -365,7 +365,7 @@ public static class DemoViewModelFactory
             new MockGameInstallationService(),
             notify,
             new WndDocumentService(new MockLogger<WndDocumentService>()),
-            new IniDocumentService(new MockLogger<IniDocumentService>()),
+            new IniDocumentService(new MockLogger<IniDocumentService>(), loc),
             loc,
             new MockLogger<FileManagerViewModel>());
 

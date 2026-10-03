@@ -3,8 +3,8 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using GenHub.Common.Controls;
-using GenHub.Core.Models.Tools.TextureEditor;
 using GenHub.Features.Tools.IniEditor.ViewModels;
+using System.Windows.Input;
 
 namespace GenHub.Features.Tools.IniEditor.Views;
 
@@ -20,12 +20,31 @@ public partial class IniEditorView : UserControl
     {
         InitializeComponent();
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
+    }
 
-        var picker = this.Find<MappedImagePickerControl>("TexturePicker");
-        if (picker is not null)
+    private static bool IsPrimaryShortcut(KeyEventArgs e)
+    {
+        var isPrimary = (e.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Meta)) != 0;
+        var hasAlt = (e.KeyModifiers & KeyModifiers.Alt) != 0;
+        return isPrimary && !hasAlt;
+    }
+
+    private static bool HasShiftModifier(KeyEventArgs e)
+    {
+        return (e.KeyModifiers & KeyModifiers.Shift) != 0;
+    }
+
+    private static ICommand? ResolveShortcutCommand(IniEditorViewModel viewModel, Key key, bool hasShift)
+    {
+        return (key, hasShift) switch
         {
-            picker.EditRequested += OnPickerEditRequested;
-        }
+            (Key.Z, false) => viewModel.UndoCommand,
+            (Key.Y, false) => viewModel.RedoCommand,
+            (Key.Z, true) => viewModel.RedoCommand,
+            (Key.S, false) => viewModel.SaveCommand,
+            (Key.S, true) => viewModel.SaveAsCommand,
+            _ => null,
+        };
     }
 
     private void InitializeComponent()
@@ -33,37 +52,37 @@ public partial class IniEditorView : UserControl
         AvaloniaXamlLoader.Load(this);
     }
 
-    private void OnPickerEditRequested(object? sender, MappedImageDefinition definition)
+    private void OnSubObjectSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (DataContext is IniEditorViewModel)
+        var listBox = this.FindControl<ListBox>("SubObjectListBox");
+        var viewer = this.FindControl<W3dViewerControl>("PreviewViewer");
+        if (listBox == null || viewer == null)
         {
-            IniEditorViewModel.OpenTextureInEditor(definition);
+            return;
+        }
+
+        if (!listBox.IsFocused && !listBox.IsKeyboardFocusWithin)
+        {
+            return;
+        }
+
+        if (listBox.SelectedItem is W3dPreviewMeshItem selected && selected.MeshIndex >= 0)
+        {
+            viewer.FocusMesh(selected.MeshIndex);
         }
     }
 
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
     {
-        if (DataContext is not IniEditorViewModel viewModel)
+        if (DataContext is not IniEditorViewModel viewModel || !IsPrimaryShortcut(e))
         {
             return;
         }
 
-        var modifiers = e.KeyModifiers;
-        var hasCommandModifier = (modifiers & (KeyModifiers.Control | KeyModifiers.Meta)) != 0;
-        if (!hasCommandModifier || (modifiers & ~(KeyModifiers.Control | KeyModifiers.Meta | KeyModifiers.Shift)) != 0)
+        var command = ResolveShortcutCommand(viewModel, e.Key, HasShiftModifier(e));
+        if (command?.CanExecute(null) == true)
         {
-            return;
-        }
-
-        var isShift = (modifiers & KeyModifiers.Shift) != 0;
-        if (e.Key == Key.Z && !isShift && viewModel.UndoCommand.CanExecute(null))
-        {
-            viewModel.UndoCommand.Execute(null);
-            e.Handled = true;
-        }
-        else if (((e.Key == Key.Y && !isShift) || (e.Key == Key.Z && isShift)) && viewModel.RedoCommand.CanExecute(null))
-        {
-            viewModel.RedoCommand.Execute(null);
+            command.Execute(null);
             e.Handled = true;
         }
     }

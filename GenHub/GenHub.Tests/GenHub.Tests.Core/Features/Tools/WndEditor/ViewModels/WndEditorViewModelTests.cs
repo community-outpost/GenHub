@@ -94,7 +94,7 @@ public sealed class WndEditorViewModelTests : IDisposable
                     return " + ";
                 }
 
-                return args != null && args.Length > 0 ? $"{key}:{string.Join(',', args)}" : key;
+                return args?.Length > 0 ? $"{key}:{string.Join(',', args)}" : key;
             });
         _mockDialogService
             .Setup(s => s.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
@@ -797,7 +797,7 @@ public sealed class WndEditorViewModelTests : IDisposable
     /// Tests that opening a file lists sibling files in the explorer.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
-    [Fact]
+    [AvaloniaFact]
     public async Task OpenFile_ListsSiblingsInExplorer()
     {
         // Arrange
@@ -808,6 +808,8 @@ public sealed class WndEditorViewModelTests : IDisposable
 
         // Act
         var opened = await _viewModel.OpenFileAsync(firstPath);
+        await _viewModel.FileExplorer.FindFirstFileAsync();
+        Dispatcher.UIThread.RunJobs(null);
 
         // Assert
         opened.Should().BeTrue();
@@ -818,6 +820,7 @@ public sealed class WndEditorViewModelTests : IDisposable
 
         // Act
         await _viewModel.OpenExplorerFileCommand.ExecuteAsync(root.Children.First(f => !f.IsCurrent));
+        Dispatcher.UIThread.RunJobs(null);
 
         // Assert
         _viewModel.FilePath.Should().Be(secondPath);
@@ -1902,8 +1905,9 @@ public sealed class WndEditorViewModelTests : IDisposable
     /// <summary>
     /// Tests that refreshing files loads the directory tree recursively, skips empty directories, and strips extensions.
     /// </summary>
-    [Fact]
-    public void FileExplorer_LoadsTreeRecursively_SkipsEmptyDirectories_StripsExtension()
+    /// <returns>A task representing the asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task FileExplorer_LoadsTreeRecursively_SkipsEmptyDirectories_StripsExtension()
     {
         // Arrange
         var rootDir = Path.Combine(_tempDirectory, "GameFilesEdited");
@@ -1922,6 +1926,8 @@ public sealed class WndEditorViewModelTests : IDisposable
 
         // Act
         _viewModel.FilesDirectory = rootDir;
+        await _viewModel.FileExplorer.FindFirstFileAsync();
+        Dispatcher.UIThread.RunJobs(null);
 
         // Assert
         _viewModel.FileExplorer.DirectoryName.Should().Be("GameFilesEdited");
@@ -1955,7 +1961,7 @@ public sealed class WndEditorViewModelTests : IDisposable
     /// Tests that opening a file inside the current directory retains the tree hierarchy and updates the active file.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
-    [Fact]
+    [AvaloniaFact]
     public async Task SyncFilesDirectory_WhenFileInsideCurrentDirectory_RetainsTreeAndUpdatesIsCurrent()
     {
         // Arrange
@@ -1967,10 +1973,14 @@ public sealed class WndEditorViewModelTests : IDisposable
         File.WriteAllText(defeatPath, "FILE_VERSION = 2;\nWINDOW\n  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 10 10, CREATIONRESOLUTION: 800 600;\nEND\n");
 
         _viewModel.FilesDirectory = rootDir;
+        await _viewModel.FileExplorer.FindFirstFileAsync();
+        Dispatcher.UIThread.RunJobs(null);
         _viewModel.Files.Should().HaveCount(1);
 
         // Act
         await _viewModel.OpenFileAsync(defeatPath);
+        await _viewModel.FileExplorer.FindFirstFileAsync();
+        Dispatcher.UIThread.RunJobs(null);
 
         // Assert - FilesDirectory stays as rootDir
         _viewModel.FilesDirectory.Should().Be(rootDir);
@@ -1985,7 +1995,7 @@ public sealed class WndEditorViewModelTests : IDisposable
     /// Tests that OpenFolderAsync populates the tree, opens the first WND file, and switches to the Windows tab.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
-    [Fact]
+    [AvaloniaFact]
     public async Task OpenFolderAsync_WithValidDirectoryAndWndFiles_PopulatesFilesSwitchesTabAndOpensFirstFile()
     {
         // Arrange
@@ -2000,6 +2010,7 @@ public sealed class WndEditorViewModelTests : IDisposable
 
         // Act
         var result = await _viewModel.OpenFolderAsync(rootDir);
+        Dispatcher.UIThread.RunJobs(null);
 
         // Assert
         result.Should().BeTrue();
@@ -2030,7 +2041,7 @@ public sealed class WndEditorViewModelTests : IDisposable
     /// Tests that OpenFolderAsync shows info when no WND files are found in the directory.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
-    [Fact]
+    [AvaloniaFact]
     public async Task OpenFolderAsync_DirectoryWithNoWndFiles_ShowsInfoNotification()
     {
         // Arrange
@@ -2039,6 +2050,7 @@ public sealed class WndEditorViewModelTests : IDisposable
 
         // Act
         var result = await _viewModel.OpenFolderAsync(emptyDir);
+        Dispatcher.UIThread.RunJobs(null);
 
         // Assert
         result.Should().BeTrue();
@@ -2319,7 +2331,7 @@ public sealed class WndEditorViewModelTests : IDisposable
     /// Tests that OpenFolderAsync on a ModBuilder project directory automatically scopes FilesDirectory to GameFilesEdited.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
-    [Fact]
+    [AvaloniaFact]
     public async Task OpenFolderAsync_WithModBuilderProjectDir_ScopesToGameFilesEdited()
     {
         // Arrange
@@ -2331,6 +2343,7 @@ public sealed class WndEditorViewModelTests : IDisposable
 
         // Act
         var result = await _viewModel.OpenFolderAsync(projectDir);
+        Dispatcher.UIThread.RunJobs(null);
 
         // Assert
         result.Should().BeTrue();
@@ -2341,8 +2354,9 @@ public sealed class WndEditorViewModelTests : IDisposable
     /// <summary>
     /// Tests that the explorer skips .Build, .Release, and hidden/dot directories.
     /// </summary>
-    [Fact]
-    public void FileExplorer_SkipsDotAndBuildDirectories()
+    /// <returns>A task representing the asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task FileExplorer_SkipsDotAndBuildDirectories()
     {
         // Arrange
         var rootDir = Path.Combine(_tempDirectory, "ModProject");
@@ -2363,6 +2377,8 @@ public sealed class WndEditorViewModelTests : IDisposable
 
         // Act
         _viewModel.FilesDirectory = rootDir;
+        await _viewModel.FileExplorer.FindFirstFileAsync();
+        Dispatcher.UIThread.RunJobs(null);
 
         // Assert
         _viewModel.Files.Should().HaveCount(1);

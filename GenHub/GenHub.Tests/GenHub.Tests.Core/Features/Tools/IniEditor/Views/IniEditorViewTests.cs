@@ -2,10 +2,12 @@ using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using GenHub.Common.Controls;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.IniEditor;
+using GenHub.Core.Interfaces.Tools.ModelViewer;
 using GenHub.Core.Interfaces.Tools.TextureEditor;
 using GenHub.Core.Interfaces.Tools.WndEditor;
 using GenHub.Core.Models.Results;
@@ -21,6 +23,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using static GenHub.Tests.Core.Features.Tools.IniEditor.IniEditorTestFactory;
 
 namespace GenHub.Tests.Core.Features.Tools.IniEditor.Views;
 
@@ -218,6 +221,7 @@ public class IniEditorViewTests
         viewModel.AddBlockCommand.Execute(null);
 
         viewModel.FieldRows.First(row => row.Key == "Health").Value = "150.0";
+        Assert.Equal("150.0", viewModel.FieldRows.First(row => row.Key == "Health").Value);
         viewModel.FieldRows.First(row => row.Key == "Health").Value = "200.0";
 
         Assert.Equal("200.0", viewModel.FieldRows.First(row => row.Key == "Health").Value);
@@ -227,6 +231,34 @@ public class IniEditorViewTests
 
         viewModel.RedoCommand.Execute(null);
         Assert.Equal("200.0", viewModel.FieldRows.First(row => row.Key == "Health").Value);
+    }
+
+    /// <summary>
+    /// Verifies that clearing a valued field empties it first and deletes it once empty.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task ClearOrDeleteField_ValueSet_ClearsThenDeletesAsync()
+    {
+        using var viewModel = CreateViewModel();
+        await viewModel.NewDocumentCommand.ExecuteAsync(null);
+        viewModel.NewBlockType = "Object";
+        viewModel.NewBlockName = "Edited";
+        viewModel.AddBlockCommand.Execute(null);
+
+        viewModel.NewFieldKey = "Side";
+        viewModel.NewFieldValue = "GDI";
+        viewModel.AddFieldCommand.Execute(null);
+
+        int before = viewModel.FieldRows.Count(row => row.Key == "Side");
+        var row = viewModel.FieldRows.Last(row => row.Key == "Side");
+        viewModel.ClearOrDeleteFieldCommand.Execute(row);
+
+        Assert.Equal(string.Empty, row.Value);
+        Assert.Equal(before, viewModel.FieldRows.Count(row => row.Key == "Side"));
+
+        viewModel.ClearOrDeleteFieldCommand.Execute(row);
+        Assert.Equal(before - 1, viewModel.FieldRows.Count(row => row.Key == "Side"));
     }
 
     /// <summary>
@@ -467,13 +499,199 @@ public class IniEditorViewTests
         }
     }
 
-    private static IniEditorViewModel CreateViewModel(INotificationService? notificationService = null)
+    /// <summary>
+    /// Verifies that opening a file with blocks auto-selects the first block so the
+    /// properties panel is populated instead of showing an empty sidebar.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task OpenFile_WithBlocks_AutoSelectsFirstBlockAndPopulatesFieldsAsync()
     {
-        var mockLocalization = new Mock<ILocalizationService>();
-        mockLocalization
-            .Setup(service => service.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
-            .Returns((string key, object?[] args) => key);
+        var filePath = Path.Combine(Path.GetTempPath(), $"GenHubAutoSelect{Guid.NewGuid():N}.ini");
+        await File.WriteAllTextAsync(filePath, "Object FirstObject\n  Health = 100.0\nEnd\nObject SecondObject\n  Health = 50.0\nEnd\n");
+        try
+        {
+            using var viewModel = CreateViewModel();
+            var opened = await viewModel.OpenFileAsync(filePath);
 
+            Assert.True(opened);
+            Assert.NotNull(viewModel.SelectedNode);
+            Assert.False(viewModel.SelectedNode.IsGroupHeader);
+            Assert.Equal("FirstObject", viewModel.SelectedNode.Block.Name);
+            Assert.NotEmpty(viewModel.FieldRows);
+        }
+        finally
+        {
+            File.Delete(filePath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that toggling block grouping with a live view attached preserves the
+    /// editable selection and its fields instead of clearing the properties panel.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task GroupedDocument_GroupToggle_PreservesSelectionAndFieldsAsync()
+    {
+        using var viewModel = CreateViewModel();
+        await viewModel.NewDocumentCommand.ExecuteAsync(null);
+        for (var i = 0; i < 14; i++)
+        {
+            viewModel.NewBlockType = "Object";
+            viewModel.NewBlockName = $"Obj{i}";
+            viewModel.AddBlockCommand.Execute(null);
+        }
+
+        viewModel.NewFieldKey = "Health";
+        viewModel.NewFieldValue = "100.0";
+        viewModel.AddFieldCommand.Execute(null);
+
+        var header = viewModel.VisibleRootNodes.First(node => node.IsGroupHeader);
+        header.IsExpanded = true;
+        var nested = header.Children[0];
+        viewModel.SelectedNode = nested;
+
+        Assert.NotEmpty(viewModel.FieldRows);
+
+        var view = new IniEditorView { DataContext = viewModel };
+        var window = new Window { Width = 1600, Height = 900, Content = view };
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs(null);
+
+            viewModel.IsGroupByTypeEnabled = false;
+            Dispatcher.UIThread.RunJobs(null);
+
+            viewModel.IsGroupByTypeEnabled = true;
+            Dispatcher.UIThread.RunJobs(null);
+
+            Assert.NotNull(viewModel.SelectedNode);
+            Assert.False(viewModel.SelectedNode.IsGroupHeader);
+            Assert.NotEmpty(viewModel.FieldRows);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// Verifies that the properties panel renders field cards in a two-column grid
+    /// with realized side-by-side items.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task PropertiesPanel_RendersFieldsInTwoColumnsAsync()
+    {
+        using var viewModel = CreateViewModel();
+        await viewModel.NewDocumentCommand.ExecuteAsync(null);
+        viewModel.NewBlockType = "Object";
+        viewModel.NewBlockName = "TwoColumn";
+        viewModel.AddBlockCommand.Execute(null);
+        viewModel.NewFieldKey = "Health";
+        viewModel.NewFieldValue = "100.0";
+        viewModel.AddFieldCommand.Execute(null);
+        viewModel.NewFieldKey = "BuildCost";
+        viewModel.NewFieldValue = "500";
+        viewModel.AddFieldCommand.Execute(null);
+
+        Assert.True(viewModel.FieldRows.Count >= 2);
+
+        var view = new IniEditorView { DataContext = viewModel };
+        var window = new Window { Width = 1600, Height = 900, Content = view };
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs(null);
+
+            var fieldPanel = view.GetVisualDescendants()
+                .OfType<ItemsControl>()
+                .FirstOrDefault(control => ReferenceEquals(control.ItemsSource, viewModel.FieldRows));
+
+            Assert.NotNull(fieldPanel);
+            Assert.IsType<TwoColumnPanel>(fieldPanel.ItemsPanelRoot);
+
+            var first = Assert.IsAssignableFrom<Control>(fieldPanel.ContainerFromIndex(0));
+            var second = Assert.IsAssignableFrom<Control>(fieldPanel.ContainerFromIndex(1));
+            Assert.NotEqual(first.Bounds.X, second.Bounds.X);
+            Assert.True(first.Bounds.Height < 56, $"Field card too tall for single-row density: {first.Bounds.Height}");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// Verifies that selecting a child block keeps the parent object on the
+    /// canvas while the fields panel follows the selection.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task SelectingChildBlock_KeepsObjectOnCanvasAsync()
+    {
+        using var viewModel = CreateViewModel();
+        var filePath = Path.Combine(Path.GetTempPath(), $"GenHubCanvas{Guid.NewGuid():N}.ini");
+        await File.WriteAllTextAsync(filePath, CanvasFixtureIni());
+        try
+        {
+            Assert.True(await viewModel.OpenFileAsync(filePath));
+            var state = viewModel.RootNodes[0].Children[0].Children[0];
+            Assert.Equal("ModelConditionState", state.Block.BlockType);
+
+            viewModel.SelectedNode = state;
+
+            Assert.Equal("TestTank", viewModel.SelectedBlockTitle);
+            Assert.Equal("Object", viewModel.SelectedBlockType);
+            Assert.Equal(["Model", "ShowSubObjects"], viewModel.FieldRows.Select(row => row.Key).ToList());
+            Assert.Equal(3, viewModel.SelectedNodeTrail.Count);
+        }
+        finally
+        {
+            File.Delete(filePath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that clearing the selection falls back to the first object on
+    /// the canvas instead of leaving it empty.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task ClearedSelection_ShowsFirstObjectOnCanvasAsync()
+    {
+        using var viewModel = CreateViewModel();
+        var filePath = Path.Combine(Path.GetTempPath(), $"GenHubCanvas{Guid.NewGuid():N}.ini");
+        await File.WriteAllTextAsync(filePath, CanvasFixtureIni());
+        try
+        {
+            Assert.True(await viewModel.OpenFileAsync(filePath));
+            viewModel.SelectedNode = viewModel.RootNodes[0];
+            Assert.Equal("TestTank", viewModel.SelectedBlockTitle);
+
+            viewModel.SelectedNode = null;
+
+            Assert.True(viewModel.HasSelectedBlock);
+            Assert.Equal("TestTank", viewModel.SelectedBlockTitle);
+            Assert.Equal("Object", viewModel.SelectedBlockType);
+            Assert.Empty(viewModel.FieldRows);
+        }
+        finally
+        {
+            File.Delete(filePath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that the engine null audio marker does not raise an unknown
+    /// reference warning while genuinely unknown audio still does.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task NoSoundReference_DoesNotWarnAsync()
+    {
         var mockReferenceService = new Mock<IIniReferenceService>();
         mockReferenceService
             .Setup(service => service.RebuildIndexAsync(
@@ -487,18 +705,40 @@ public class IniEditorViewTests
             .Returns(new List<IniReferenceEntry>());
         mockReferenceService
             .Setup(service => service.GetNames(It.IsAny<string>()))
-            .Returns(new List<string>());
+            .Returns(new List<string> { "ExistingSound" });
+        mockReferenceService
+            .Setup(service => service.FindReferencersAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<IniReferenceEntry>>.CreateSuccess(new List<IniReferenceEntry>(), TimeSpan.Zero));
+        mockReferenceService
+            .Setup(service => service.CloneBlockAsync(It.IsAny<IniReferenceEntry>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IniBlock?>.CreateSuccess(null, TimeSpan.Zero));
+        using var viewModel = CreateViewModel(null, null, mockReferenceService.Object);
+        var filePath = Path.Combine(Path.GetTempPath(), $"GenHubNoSound{Guid.NewGuid():N}.ini");
+        await File.WriteAllTextAsync(filePath, "Object TestInfantry\n  VoiceSelect = NoSound\n  VoiceMove = BogusSound\nEnd\n");
+        try
+        {
+            Assert.True(await viewModel.OpenFileAsync(filePath));
 
-        return new IniEditorViewModel(
-            new IniDocumentService(Mock.Of<ILogger<IniDocumentService>>()),
-            new IniSchemaService(mockLocalization.Object),
-            mockReferenceService.Object,
-            Mock.Of<ISageMappedImageParser>(),
-            Mock.Of<IWndImageAssetService>(),
-            Mock.Of<IGameInstallationService>(),
-            notificationService ?? Mock.Of<INotificationService>(),
-            mockLocalization.Object,
-            Mock.Of<IDialogService>(),
-            Mock.Of<ILogger<IniEditorViewModel>>());
+            Assert.Equal(1, viewModel.ValidationIssueCount);
+            var row = Assert.Single(viewModel.ValidationIssues);
+            Assert.False(row.IsError);
+        }
+        finally
+        {
+            File.Delete(filePath);
+        }
+    }
+
+    private static string CanvasFixtureIni()
+    {
+        return "Object TestTank\n" +
+            "  Side = USA\n" +
+            "  Draw = W3DTankDraw ModuleTag_01\n" +
+            "    ModelConditionState = NONE\n" +
+            "      Model = TestUnit\n" +
+            "      ShowSubObjects = TURRET\n" +
+            "    End\n" +
+            "  End\n" +
+            "End\n";
     }
 }
